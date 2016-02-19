@@ -1,0 +1,54 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+BOX = "ubuntu/trusty64-2"
+BOX_URL =  "https://cloud-images.ubuntu.com/vagrant/trusty/current/trusty-server-cloudimg-amd64-vagrant-disk1.box"
+BOX_MEMORY = ENV['BOX_MEMORY'] || '4096'
+BOX_CPUS = ENV['BOX_CPUS'] || '8'
+MACHINE_IP = ENV['MACHINE_IP'] || '192.168.33.13'
+
+Vagrant.configure('2') do |config|
+
+  hostname = "#{`(hostname -s || hostname) | cut -c 1-10`}-wsk".gsub("\n", '')
+
+  config.vm.hostname = hostname
+
+  config.vm.box = BOX
+  config.vm.box_url = BOX_URL
+
+  config.vm.network :private_network, ip: MACHINE_IP
+
+  config.vm.synced_folder '.', '/vagrant', disabled: true
+
+  config.vm.synced_folder '../../', '/home/vagrant/openwhisk', id: "whisk-root",
+    owner: "vagrant",
+    group: "www-data",
+    mount_options: ["dmode=700,fmode=700"]
+
+  # If true, then any SSH connections made will enable agent forwarding.
+  # Default value: false
+  config.ssh.forward_agent = true
+
+  config.vm.provider :virtualbox do |vb|
+
+    vb.name = "whisk-" + Time.now.strftime("%y%m%d%H%M")
+    vb.gui = true
+    vb.cpus = BOX_CPUS
+    vb.customize ['modifyvm', :id, '--natdnshostresolver1', 'on']
+    vb.customize ['modifyvm', :id, '--natdnsproxy1', 'on']
+    vb.customize ['modifyvm', :id, '--ostype', 'Ubuntu_64']
+    vb.customize ['modifyvm', :id, '--memory', BOX_MEMORY]
+    vb.customize ["setextradata", :id, "VBoxInternal2/SharedFoldersEnableSymlinksCreate/home/vagrant/whisk", "1"]
+  end
+
+  # Prevents "stdin: is not a tty" on Ubuntu (https://github.com/mitchellh/vagrant/issues/1673)
+  config.vm.provision "fix-no-tty", type: "shell" do |s|
+    s.privileged = false
+    s.inline = "sudo sed -i '/tty/!s/mesg n/tty -s \\&\\& mesg n/' /root/.profile"
+  end
+
+  config.vm.provision :shell, inline: "echo executing '(cd openwhisk/tools/ubuntu-setup && source all.sh)' to complete setup."
+  config.vm.provision :shell, inline: "(cd /home/vagrant/openwhisk/tools/ubuntu-setup && source all.sh)"
+  config.vm.provision :shell, :inline => "echo 'export PATH=$HOME/openwhisk/bin:$PATH' > /home/vagrant/.bash_profile"
+  config.vm.provision :shell, :inline => "echo 'eval \"$(register-python-argcomplete wsk)\"' >> /home/vagrant/.bash_profile"
+end

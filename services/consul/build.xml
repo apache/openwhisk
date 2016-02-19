@@ -1,0 +1,95 @@
+<!-- vim: set expandtab ts=4 sw=4 : -->
+
+<!-- targets in this file should be called from the parent directory -->
+<project basedir="../..">
+    <import file="../../docker.xml" />
+
+    <!-- build basic docker image with consul -->
+    <target name="buildConsul" >
+        <var file="whisk.properties" />
+        <!-- build image -->
+        <exec executable="/bin/bash" failonerror="true" dir="${openwhisk.dir}/services/consul">
+            <arg line="${openwhisk.dir}/tools/docker/dockerWithRetry.sh ${docker.timeout.long} --host tcp://${main.docker.endpoint}" />
+            <arg line="${docker.tls.cmd}" />
+            <arg line="build -t whisk/consul ." />
+        </exec>
+    </target>
+
+    <target name="pushConsul" >
+        <var file="whisk.properties" />
+        <antcall target="pushImageToRegistry">
+            <param name="docker.endpoint" value="${main.docker.endpoint}" />
+            <param name="docker.image.to.push" value="whisk/consul" />
+        </antcall>
+    </target>
+
+    <!-- start the consul server -->
+    <target name="startConsulServer">
+        <var file="whisk.properties" />
+        <antcall target="pullImageFromRegistry">
+            <param name="docker.image.to.pull" value="whisk/consul" />
+            <param name="docker.endpoint" value="${consulserver.docker.endpoint}" />
+        </antcall>
+        <exec executable="docker" failonerror="true">
+            <arg line="--host tcp://${consulserver.docker.endpoint}" />
+            <arg line="${docker.tls.cmd}" />
+            <arg line="run" />
+            <arg line="${docker.restart.opts}" />
+            <arg line="${docker.timezone.mount}" />
+            <arg line="${consul.ignore.service}" />
+            <arg line="${docker.syslog.driver}" />
+            <arg line="-v ${whisk.logs.dir}/consul-server:/logs" />
+            <arg line="-h consulserver_${consulserver.docker.endpoint}" />
+            <arg line="-d --name consulserver -p ${consul.host.port4}:${consul.docker.port4} -p ${consul.host.port5}:${consul.docker.port5} ${docker.registry}whisk/consul:${docker.image.tag} /startconsulserver.sh" />
+        </exec>
+    </target>
+
+
+    <!-- start the consul client -->
+    <target name="startConsulClient">
+        <var file="whisk.properties" />
+        <antcall target="pullImageFromRegistry">
+            <param name="docker.image.to.pull" value="whisk/consul" />
+            <param name="docker.endpoint" value="${consulserver.docker.endpoint}" />
+        </antcall>
+        <exec executable="docker" failonerror="true">
+            <arg line="--host tcp://${consulserver.docker.endpoint}" />
+            <arg line="${docker.tls.cmd}" />
+            <arg line="run" />
+            <arg line="${docker.restart.opts}" />
+            <arg line="${docker.timezone.mount}" />
+            <arg line="-v ${whisk.logs.dir}/consul-client:/logs" />
+            <arg line="-h consulclient_${consulserver.docker.endpoint}" />
+            <arg line="-d --name consulclient -p ${consul.host.port4}:${consul.docker.port4} ${docker.registry}whisk/consul:${docker.image.tag} /startconsulclient.sh -name client" />
+        </exec>
+    </target>
+
+    <target name="startRegistrators" >
+        <var file="whisk.properties" />
+         <exec executable="/bin/bash" failonerror="true">
+             <env key="WHISK_HOME" value="${openwhisk.dir}" />
+             <env key="WHISKPROPS" value="${basedir}/whisk.properties" />
+             <env key="WHISK_LOGS_DIR" value="${whisk.logs.dir}" />
+             <env key="CONSUL_SERVER" value="${consulserver.host}" />
+             <env key="CONSUL_PORT" value="${consul.host.port4}" />
+             <env key="DOCKER_REGISTRY" value="${docker.registry}" />
+             <env key="DOCKER_RESTART_OPTS" value="${docker.restart.opts}" />
+             <arg value="${openwhisk.dir}/services/registrator/docker-run.sh" />
+         </exec>
+    </target>
+
+    <target name="waitConsulServer">
+        <var file="whisk.properties" />
+        <ant antfile="${openwhisk.dir}/build.xml" target="waitComponent" >
+            <property name="component" value="consulserver" />
+        </ant>
+    </target>
+
+    <target name="importWhiskProperties" >
+        <exec executable="/bin/bash" failonerror="true">
+            <arg value="-c" />
+            <arg value="${openwhisk.dir}/tools/health/kvstore --import -d ." />
+        </exec>
+    </target>
+
+</project>

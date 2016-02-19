@@ -1,0 +1,69 @@
+<!-- vim: set expandtab ts=4 sw=4 : -->
+
+<!-- the basedir for this script should be eithe${openwhisk.dir}, /blue, or /experimental
+     -->
+<project basedir="../..">
+    <import file="../../docker.xml" />
+    <import file="../../build.xml" />
+
+    <!-- build the docker image for zookeeper -->
+    <target name="buildZookeeper" >
+        <var file="whisk.properties" />
+
+        <!-- copy files needed to build image to a scratch space -->
+        <tempfile property="zookeeper.scratch" prefix="zookeeper" destDir="${docker.scratch}" />
+        <mkdir dir="${zookeeper.scratch}" />
+        <copy file="${openwhisk.dir}/services/zookeeper/Dockerfile" todir="${zookeeper.scratch}" />
+
+        <!-- build image -->
+        <exec executable="/bin/bash" failonerror="true">
+            <arg line="${openwhisk.dir}/tools/docker/dockerWithRetry.sh ${docker.timeout.long} --host tcp://${main.docker.endpoint}" />
+            <arg line="${docker.tls.cmd}" />
+            <arg line="build -t whisk/zookeeper '${zookeeper.scratch}'" />
+        </exec>
+
+        <!-- cleanup -->
+        <delete dir="${zookeeper.scratch}" />
+    </target>
+
+    <target name="pushZookeeper" >
+        <var file="whisk.properties" />
+
+        <antcall target="pushImageToRegistry">
+            <param name="docker.endpoint" value="${main.docker.endpoint}" />
+            <param name="docker.image.to.push" value="whisk/zookeeper" />
+        </antcall>
+    </target>
+
+    <!-- start zookeeper in a container -->
+    <target name="startZookeeper"  >
+        <var file="whisk.properties" />
+
+        <antcall target="pullImageFromRegistry">
+            <param name="docker.image.to.pull" value="whisk/zookeeper" />
+            <param name="docker.endpoint" value="${kafka.docker.endpoint}" />
+        </antcall>
+        <exec executable="docker" failonerror="true">
+            <arg line="--host tcp://${kafka.docker.endpoint}" />
+            <arg line="${docker.tls.cmd}" />
+            <arg line="run -d --name zookeeper" />
+            <arg line="${docker.restart.opts}" />
+            <arg line="${docker.timezone.mount}" />
+            <arg line="${docker.syslog.driver}" />
+            <arg line="-p ${zookeeper.host.port}:${zookeeper.docker.port}" />
+            <arg line="-h zookeeper_${kafka.docker.endpoint}" />
+            <arg line="${docker.registry}whisk/zookeeper:${docker.image.tag}" />
+        </exec>
+        <sleep seconds="2" />
+    </target>
+
+    <!-- wait up to a minute for ZooKeeper to start.  Usually takes 5-10 sec -->
+    <target name="waitZookeeper" >
+        <var file="whisk.properties" />
+        <antcall target="waitComponent">
+            <param name="component" value="zookeeper" />
+            <param name="component.host" value="${zookeeper.host}:${zookeeper.host.port}" />
+        </antcall>
+    </target>
+
+</project>

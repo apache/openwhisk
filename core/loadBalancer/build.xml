@@ -1,0 +1,125 @@
+<!-- vim: set expandtab ts=4 sw=4 : -->
+
+<project basedir="../..">
+    <import file="../../docker.xml" />
+    <import file="../../common/build.xml" />
+
+    <!-- compile loadbalancer service -->
+    <target name="compileLoadBalancer" depends="initScala">
+        <var file="whisk.properties" />
+        <!-- build sources -->
+        <mkdir dir="${build.dir}/loadBalancer" />
+        <scalac destdir="${build.dir}/loadBalancer" failonerror="true" scalacdebugging="true" fork="true">
+            <src path="${openwhisk.dir}/core/loadBalancer/src" />
+            <classpath path="${build.dir}/commonScala" />
+            <classpath refid="libJars" />
+            <classpath refid="scala.build.classpath" />
+        </scalac>
+    </target>
+
+    <!-- build the docker image for the loadbalancer service -->
+    <target name="buildLoadBalancer" depends="compileLoadBalancer">
+        <var file="whisk.properties" />
+
+        <!-- copy files needed to build image to a scratch space -->
+        <tempfile property="loadbalancer.scratch" prefix="loadBalancer" destDir="${docker.scratch}" />
+        <mkdir dir="${loadbalancer.scratch}" />
+        <copy file="${openwhisk.dir}/core/loadBalancer/Dockerfile" todir="${loadbalancer.scratch}" />
+        <copy file="${openwhisk.dir}/core/loadBalancer/startLoadBalancer.sh" todir="${loadbalancer.scratch}" />
+        <jar destfile="${loadbalancer.scratch}/loadBalancer.jar">
+            <fileset dir="${build.dir}/commonScala" />
+            <fileset dir="${build.dir}/loadBalancer" />
+            <fileset file="${openwhisk.dir}/common/scala/src/logging.conf" />
+            <fileset file="${openwhisk.dir}/common/scala/src/log4j.properties" />
+            <fileset file="${openwhisk.dir}/core/loadBalancer/src/resources/application.conf" />
+        </jar>
+        <tar destfile="${loadbalancer.scratch}/loadBalancer-libs.tar">
+            <tarfileset dir="${openwhisk.dir}/common/libs/common" prefix="loadBalancer-libs">
+                <include name="cloudant-client-1.0.1.jar" />
+                <include name="commons-codec-1.9.jar" />
+                <include name="commons-logging-1.2.jar" />
+                <include name="gson-2.3.1.jar" />
+                <include name="httpclient-4.4.1.jar" />
+                <include name="httpcore-4.4.1.jar" />
+                <include name="kafka-clients-0.9.0.0.jar" />
+                <include name="log4j-1.2.16.jar" />
+                <include name="metrics-core-2.2.0.jar" />
+                <include name="scala-parser-combinators_2.11-1.0.2.jar" />
+                <include name="slf4j-api-1.7.6.jar" />
+                <include name="slf4j-log4j12-1.6.1.jar" />
+                <include name="zkclient-0.3.jar" />
+                <include name="zookeeper-3.4.6.jar" />
+            </tarfileset>
+            <tarfileset dir="${openwhisk.dir}/common/libs/spray" prefix="loadBalancer-libs">
+                <include name="akka-actor_2.11-2.3.9.jar" />
+                <include name="akka-slf4j_2.11-2.3.9.jar" />
+                <include name="apache-log4j-extras-1.2.17.jar" />
+                <include name="config-1.2.1.jar" />
+                <include name="mimepull-1.9.5.jar" />
+                <include name="parboiled-core-1.1.7.jar" />
+                <include name="parboiled-scala_2.11-1.1.7.jar" />
+                <include name="shapeless_2.11-1.2.4.jar" />
+                <include name="spray-can_2.11-1.3.3.jar" />
+                <include name="spray-http_2.11-1.3.3.jar" />
+                <include name="spray-httpx_2.11-1.3.3.jar" />
+                <include name="spray-io_2.11-1.3.3.jar" />
+                <include name="spray-json_2.11-1.3.2.jar" />
+                <include name="spray-routing_2.11-1.3.3.jar" />
+                <include name="spray-util_2.11-1.3.3.jar" />
+            </tarfileset>
+        </tar>
+
+        <!-- build image -->
+        <exec executable="/bin/bash" failonerror="true">
+            <arg line="${openwhisk.dir}/tools/docker/dockerWithRetry.sh ${docker.timeout.long} --host tcp://${main.docker.endpoint}" />
+            <arg line="${docker.tls.cmd}" />
+            <arg line="build -t whisk/loadbalancer '${loadbalancer.scratch}'" />
+        </exec>
+
+        <!-- clean up -->
+        <delete dir="${loadbalancer.scratch}" />
+    </target>
+
+    <target name="pushLoadBalancer">
+        <var file="whisk.properties" />
+        <antcall target="pushImageToRegistry">
+            <param name="docker.endpoint" value="${main.docker.endpoint}" />
+            <param name="docker.image.to.push" value="whisk/loadbalancer" />
+        </antcall>
+    </target>
+
+    <!-- start the loadbalancer service -->
+    <target name="startLoadBalancer">
+        <var file="whisk.properties" />
+        <antcall target="pullImageFromRegistry">
+            <param name="docker.image.to.pull" value="whisk/loadbalancer" />
+            <param name="docker.endpoint" value="${main.docker.endpoint}" />
+        </antcall>
+        <exec executable="docker" failonerror="true">
+            <arg line="--host tcp://${main.docker.endpoint}" />
+            <arg line="${docker.tls.cmd}" />
+            <arg line="run" />
+            <arg line="${docker.restart.opts}" />
+            <arg line="${docker.timezone.mount}" />
+            <arg line="-e &quot;PORT=${loadbalancer.docker.port}&quot;" />
+            <arg line="-e &quot;KAFKA_NUMPARTITIONS=2&quot;" />
+            <arg line="-e &quot;COMPONENT_NAME=loadbalancer&quot;" />
+            <arg line="-e &quot;CONSULSERVER_HOST=${consulserver.host}&quot;" />
+            <arg line="-e &quot;CONSUL_HOST_PORT4=${consul.host.port4}&quot;" />
+            <arg line="-p ${loadbalancer.host.port}:${loadbalancer.docker.port}" />
+            <arg line="-v ${whisk.logs.dir}/loadbalancer:/logs" />
+            <arg line="-h loadbalancer_${main.docker.endpoint}" />
+            <arg line="${consul.service.check}" />
+            <arg line="-d --name loadbalancer ${docker.registry}whisk/loadbalancer:${docker.image.tag} /startLoadBalancer.sh ${numInvoker}" />
+        </exec>
+    </target>
+
+    <!-- wait up to a minute for loadbalancer to start.  Usually takes <5 sec -->
+    <target name="waitLoadBalancer">
+        <var file="whisk.properties" />
+        <ant antfile="${openwhisk.dir}/build.xml" target="waitComponent">
+            <property name="component" value="loadbalancer" />
+            <property name="component.host" value="${loadbalancer.host}:${loadbalancer.host.port}" />
+        </ant>
+    </target>
+</project>

@@ -1,0 +1,141 @@
+<!-- vim: set expandtab ts=4 sw=4 : -->
+<project>
+    <import file="config/config.xml" />
+    <import file="common/build.xml" />
+
+    <!-- clean temporary build files created by build script -->
+    <target name="dust">
+        <exec executable="/bin/date" />
+        <delete dir="${docker.scratch}" />
+        <delete dir="${build.dir}" />
+        <delete dir="results" />
+        <delete dir="logs" />
+        <delete failonerror="false">
+            <fileset dir="." includes="**/*.pyc" />
+            <fileset dir="/tmp" includes="**/wsk*.log" />
+            <fileset dir="/tmp" includes="**/wsk*.tmp" />
+        </delete>
+    </target>
+
+    <!-- clean all bin directories also out of paranoia; no bin directory outside of the ${build.dir} is created by the build script -->
+    <!-- if you develop with eclipse you should not call this target; if you do, refresh your eclipse workspace to rebuild. -->
+    <target name="scrub" depends="dust">
+        <delete dir="tests/bin" />
+        <delete dir="core/controller/bin" />
+        <delete dir="core/dispatcher/bin" />
+        <delete dir="core/loadBalancer/bin" />
+        <delete dir="common/scala/bin" />
+    </target>
+
+    <!-- kill all containers, garbage collect docker images, and delete scratch directories -->
+    <target name="clean" depends="dust,teardown">
+    </target>
+
+    <!-- compile and build images and tests -->
+    <target name="build" depends="writePropertyFile">
+        <ant antfile="common/build.xml" target="build" />
+        <parallel threadCount="${buildthreads}" failonany="true">
+            <ant antfile="services/build.xml" target="build" />
+            <ant antfile="core/build.xml" target="build" />
+        </parallel>
+        <ant antfile="${openwhisk.dir}/services/nginx/build.xml" target="buildProxy" />
+        <ant antfile="tests/build.xml" target="build" />
+        <ant antfile="tools/cli/build.xml" target="buildCLI" />
+        <antcall target="createTrustStore" />
+    </target>
+
+    <!-- run unit tests-->
+    <target name="run" depends="writePropertyFile">
+        <ant antfile="tests/build.xml" target="runTests" />
+    </target>
+
+    <!-- deploy containers -->
+    <target name="deploy" depends="writePropertyFile">
+        <antcall target="deployDatabase" />
+        <ant antfile="${openwhisk.dir}/services/nginx/build.xml" target="startProxy" />
+        <ant antfile="services/build.xml" target="deploy" />
+        <ant antfile="core/build.xml" target="deploy" />
+        <antcall target="installCatalog" />
+    </target>
+
+    <!-- teardown and deploy all services -->
+    <target name="redeploy" depends="teardown,deploy" />
+
+    <!-- push containers -->
+    <target name="push" depends="writePropertyFile">
+        <ant antfile="services/build.xml" target="push" />
+        <ant antfile="core/build.xml" target="push" />
+    </target>
+
+    <target name="teardownLocal">
+        <exec executable="/bin/bash">
+            <arg value="tools/docker/cleanDocker.sh" />
+        </exec>
+    </target>
+
+    <!-- kill all containers, garbage collect docker images -->
+    <target name="teardown" depends="teardownLocal,writePropertyFile">
+        <var file="whisk.properties" />
+        <exec executable="/bin/bash">
+            <env key="DOCKER_PORT" value="${docker.port}" />
+            <arg value="tools/docker/cleanAllDockers.sh" />
+            <arg value="${basedir}/whisk.properties" />
+        </exec>
+    </target>
+
+    <!-- Caller must have loaded whisk.prop -->
+    <target name="waitComponent">
+        <exec executable="${python.27}" failonerror="true">
+            <arg value="${openwhisk.dir}/tools/health/isAlive" />
+            <arg value="-d" />
+            <arg value="${basedir}" />
+            <arg line="--wait 60 ${component}" />
+        </exec>
+    </target>
+
+    <!-- do any database maintenance that must happen immediately before deploying -->
+    <target name="deployDatabase">
+        <var file="whisk.properties" />
+        <echo message="wiping databases with prefix ${cloudant.db.prefix}" />
+        <exec dir="${openwhisk.dir}/tools/cloudant" executable="/bin/bash">
+            <env key="CLOUDANT_USERNAME" value="${cloudant.username}" />
+            <env key="CLOUDANT_PASSWORD" value="${cloudant.password}" />
+            <env key="CLOUDANT_DB_PREFIX" value="${cloudant.db.prefix}" />
+            <arg value="wipeTransientDBs.sh" />
+        </exec>
+    </target>
+
+    <!-- install standard built-in actions using the CLI -->
+    <target name="installCatalog">
+        <var file="whisk.properties" />
+        <exec dir="catalog" executable="/bin/bash" failonerror="true">
+            <env key="PYTHON" value="${python.27}" />
+            <arg value="installCatalog.sh" />
+            <arg value="../config/keys/auth.whisk.system" />
+        </exec>
+    </target>
+
+    <!-- Create a trust store for use during testing -->
+    <target name="createTrustStore">
+        <var file="whisk.properties" />
+        <delete file="${build.dir}/tests/keystore" quiet="true" />
+        <exec executable="keytool" failonerror="true">
+            <arg line="-import -alias Whisk -noprompt -trustcacerts" />
+            <arg line="-file ${whisk.ssl.cert}" />
+            <arg line="-keystore ${build.dir}/tests/keystore -storepass '${whisk.ssl.challenge}'" />
+        </exec>
+    </target>
+
+    <!-- fetch the docker logs from all local containers to ./logs on this host -->
+    <target name="copyOutLogs">
+        <var file="whisk.properties" />
+        <delete dir="logs" />
+        <mkdir dir="logs" />
+        <exec executable="/bin/bash">
+            <env key="WHISK_LOGS_DIR" value="${whisk.logs.dir}" />
+            <arg value="tools/logs/copyLogs.sh" />
+            <arg value="${basedir}" />
+        </exec>
+    </target>
+
+</project>

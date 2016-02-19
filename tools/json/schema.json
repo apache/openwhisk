@@ -1,0 +1,152 @@
+{
+    "required": [
+        "name"
+        ],
+    "properties": {
+        "name": {
+            "type": "string",
+            "description": "Name of the action",
+            "minLength": 1
+        },
+        "owner": {
+            "type": "string",
+            "description": "Owner of the action",
+            "minLength": 1
+        },
+        "publish": {
+            "type": "boolean",
+            "description": "Whether to publish the action or not"
+        },
+        "kind": {
+            "type": "string",
+            "description": "action.js or action.docker (TODO define enum)",
+            "minLength": 1
+        },
+        "exec": {
+            "type": "string",
+            "description": "definition of the action, such as javascript code (for action.js) or the name of a container (for action.docker)",
+            "minLength": 1
+        },
+        "parameters": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/KeyValue"
+            },
+            "description": "parameter bindings included in the context passed to the action"
+        }
+    },
+    "definitions": {
+        "KeyValue": {
+            "required": [
+                "key",
+            "value"
+                ],
+            "properties": {
+                "key": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "Action": {
+            "required": [
+                "name"
+                ],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Name of the action",
+                    "minLength": 1
+                },
+                "owner": {
+                    "type": "string",
+                    "description": "Owner of the action",
+                    "minLength": 1
+                },
+                "publish": {
+                    "type": "boolean",
+                    "description": "Whether to publish the action or not"
+                },
+                "kind": {
+                    "type": "string",
+                    "description": "action.js or action.docker (TODO define enum)",
+                    "minLength": 1
+                },
+                "exec": {
+                    "type": "string",
+                    "description": "definition of the action, such as javascript code (for action.js) or the name of a container (for action.docker)",
+                    "minLength": 1
+                },
+                "parameters": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/KeyValue"
+                    },
+                    "description": "parameter bindings included in the context passed to the action"
+                }
+            }
+        },
+        "ActionPayload": {
+            "required": [
+                "payload"
+                ],
+            "properties": {
+                "payload": {
+                    "type": "string",
+                    "description": "The payload to pass to the action."
+                }
+            }
+        },
+        "Rule": {
+            "required": [
+                "name"
+                ],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Name of the rule"
+                },
+                "owner": {
+                    "type": "string",
+                    "description": "Owner of the rule"
+                },
+                "publish": {
+                    "type": "boolean",
+                    "description": "Whether to publish the rule or not"
+                }
+            }
+        },
+        "Trigger": {
+            "required": [
+                "name"
+                ],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Name of the trigger"
+                },
+                "owner": {
+                    "type": "string",
+                    "description": "Owner of the trigger"
+                },
+                "publish": {
+                    "type": "boolean",
+                    "description": "Whether to publish the action or not"
+                }
+            }
+        },
+        "TriggerPayload": {
+            "required": [
+                "payload"
+                ],
+            "properties": {
+                "payload": {
+                    "type": "string",
+                    "description": "The payload of the trigger event."
+                }
+            }
+        }
+    }
+}

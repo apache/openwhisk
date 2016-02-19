@@ -1,0 +1,14 @@
+*~
+*.pyc
+.ant-targets-build.xml
+.DS_Store
+node_modules
+whisk.properties
+/tools/vagrant/.vagrant
+nginx.conf
+.ipynb_checkpoints/
+/result/s
+/build/
+/logs/
+/config/custom-config.xml
+cloudant-local.env

@@ -1,0 +1,232 @@
+#!/usr/bin/env python
+
+#
+# Copyright 2015-2016 IBM Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+##
+# Whisk command line interface
+##
+
+import os
+import sys
+from functools import partial
+import traceback
+import argparse
+import json
+import httplib
+try:
+    import argcomplete
+except ImportError:
+    argcomplete = False
+
+import wskprop
+from wskaction import Action
+from wskactivation import Activation
+from wsktrigger import Trigger
+from wskrule import Rule
+from wskpackage import Package
+from wsknamespace import Namespace
+from wsksdk import Sdk
+from wskutil import apiBase, chooseFromArray, resolveNamespace, request, responseError
+
+def main():
+    userpropsLocation = os.getenv("WSK_CONFIG_FILE", '%s/.wskprops' % os.path.expanduser('~'))
+    userprops = wskprop.importPropsIfAvailable(userpropsLocation)
+    whiskprops = wskprop.importDefaultProps()
+
+    exitCode = 0
+    try:
+        args = parseArgs(userprops)
+        apihost = resolveOverrides(whiskprops['CLI_API_HOST'], userprops.get('APIHOST'), args.apihostOverride)
+        apiversion = resolveOverrides('v1', userprops.get('APIVERSION'), args.apiversionOverride)
+
+        props = {
+            'apihost' : '%s:443' % apihost,
+            'apiversion': apiversion,
+            'namespace': resolveNamespace(userprops, 'NAMESPACE'),
+            'clibuild' : whiskprops['WHISK_VERSION_DATE']
+        }
+
+        if (args.verbose):
+            print props
+        exitCode = {
+         'list'         : Namespace().listEntitiesInNamespace,
+         'action'       : Action().cmd,
+         'trigger'      : Trigger().cmd,
+         'rule'         : Rule().cmd,
+         'activation'   : Activation().cmd,
+         'package'      : Package().cmd,
+         'sdk'          : Sdk().cmd,
+         'namespace'    : Namespace().cmd,
+         'property'     : partial(propCmd, userprops = userprops, propsLocation = userpropsLocation)
+        }[args.cmd](args, props)
+    except Exception as e:
+        print 'Exception: ', e
+        if 'verbose' in args and args.verbose:
+            traceback.print_exc()
+        exitCode = 1
+    sys.exit(exitCode)
+
+def parseArgs(props):
+    description = 'OpenWhisk is a distributed compute service to add event-driven logic to your apps.'
+    epilog = """Learn more at https://developer.ibm.com/openwhisk fork on GitHub https://github.com/openwhisk.
+                All trademarks are the property of their respective owners."""
+
+    parser = argparse.ArgumentParser(description=description, epilog=epilog)
+    parser.add_argument('-v', '--verbose', help='verbose output', action='store_true')
+
+    subparsers = parser.add_subparsers(title='available commands', dest='cmd')
+
+    parser.add_argument('--apihost', help='whisk API host', dest='apihostOverride', metavar='hostname')
+    parser.add_argument('--apiversion', help='whisk API version', dest='apiversionOverride', metavar='version')
+
+    Action().getCommands(subparsers, props)
+    Activation().getCommands(subparsers, props)
+    Namespace().getCommands(subparsers, props)
+    Package().getCommands(subparsers, props)
+    Rule().getCommands(subparsers, props)
+    Trigger().getCommands(subparsers, props)
+
+    Sdk().getCommands(subparsers, props)
+
+    # work with whisk properties: set or get property
+    propmenu = subparsers.add_parser('property', help='work with whisk properties')
+    subparser = propmenu.add_subparsers(title='available commands', dest='subcmd')
+    subcmd = subparser.add_parser('set', help='set property')
+    subcmd.add_argument('-u', '--auth', help='authorization key')
+    subcmd.add_argument('--apihost', help='whisk API host')
+    subcmd.add_argument('--apiversion', help='whisk API version')
+    subcmd.add_argument('--namespace', help='whisk namespace', nargs='?', const='*')
+    subcmd = subparser.add_parser('unset', help='unset property')
+    subcmd.add_argument('-u', '--auth', help='authorization key', action='store_true')
+    subcmd.add_argument('--apihost', help='whisk API host', action='store_true')
+    subcmd.add_argument('--apiversion', help='whisk API version', action='store_true')
+    subcmd.add_argument('--namespace', help='namespace', action='store_true')
+    subcmd = subparser.add_parser('get', help='get property')
+    subcmd.add_argument('-a', '--all', help='all properties (default)', action='store_true')
+    subcmd.add_argument('-u', '--auth', help='authorization key', action='store_true')
+    subcmd.add_argument('--apihost', help='whisk API host', action='store_true')
+    subcmd.add_argument('--apiversion', help='whisk API version', action='store_true')
+    subcmd.add_argument('--namespace', help='namespace', action='store_true')
+    subcmd.add_argument('--cliversion', help='whisk CLI version', action='store_true')
+    subcmd.add_argument('--apibuild', help='whisk API build version', action='store_true')
+
+    listmenu = subparsers.add_parser('list', help='list all triggers, actions, and rules in the registry')
+    listmenu.add_argument('name', nargs='?', help='the namespace to list')
+    listmenu.add_argument('-u', '--auth', help='authorization key', default=props.get('AUTH'))
+
+    if argcomplete:
+        argcomplete.autocomplete(parser)
+    return parser.parse_args()
+
+def propCmd(args, props, userprops, propsLocation):
+    if args.subcmd == 'set':
+        if args.verbose:
+            print "ok: whisk property file %s" % propsLocation
+        if args.auth:
+            wskprop.updateProps('AUTH', args.auth, propsLocation)
+            print 'ok: whisk auth set'
+        if args.apihost:
+            wskprop.updateProps('APIHOST', args.apihost, propsLocation)
+            print 'ok: whisk API host set'
+        if args.apiversion:
+            wskprop.updateProps('APIVERSION', args.apiversion, propsLocation)
+            print 'ok: whisk API version set'
+        if args.namespace:
+            url = 'https://%(apibase)s/namespaces/' % { 'apibase': apiBase(props) }
+            if args.auth:
+                auth = args.auth
+            else:
+                auth = userprops.get('AUTH')
+            if auth is None:
+                print "error: cannot set namespace without an authentication key"
+                return 1
+            res = request('GET', url, auth=auth, verbose=args.verbose)
+            namespaces = None
+            if res.status == httplib.OK:
+                result = json.loads(res.read())
+                namespaces = result
+                if namespaces != None:
+                    choice = None
+                    if args.namespace == '*':
+                        choice = chooseFromArray(namespaces)
+                    elif args.namespace in namespaces:
+                        choice = args.namespace
+                    if choice == -1:
+                        return 0
+                    elif choice != None:
+                        wskprop.updateProps('NAMESPACE', '%s' % choice, propsLocation)
+                        print "ok: namespace set to %s" % choice
+                        return 0
+                print 'error: you are either not entitled to a namespace or you made an invalid choice'
+                return 1
+            else:
+                return responseError(res)
+        return 0
+    if args.subcmd == 'unset':
+        if args.verbose:
+            print "ok: whisk property file %s" % propsLocation
+        if args.auth:
+            wskprop.updateProps('AUTH', '', propsLocation)
+            print 'ok: whisk auth unset'
+        if args.apihost:
+            wskprop.updateProps('APIHOST', '', propsLocation)
+            print 'ok: whisk API host unset'
+        if args.apiversion:
+            wskprop.updateProps('APIVERSION', '', propsLocation)
+            print 'ok: whisk API version unset'
+        if args.namespace:
+            wskprop.updateProps('NAMESPACE', '', propsLocation)
+            print 'ok: whisk namespace unset'
+        return 0
+    elif args.subcmd == 'get':
+        args.all = args.auth == args.apihost == args.apiversion == args.namespace == args.cliversion == args.apibuild == False
+        if args.all or args.auth:
+            print 'whisk auth\t\t%s' % userprops.get('AUTH')
+        if args.all or args.apihost:
+            print 'whisk API host\t\t%s' % props['apihost']
+        if args.all or args.apiversion:
+            print 'whisk API version\t%s' % props['apiversion']
+        if args.all or args.namespace:
+            print 'whisk namespace\t\t%s' % props['namespace']
+        if args.all or args.cliversion:
+            print 'whisk CLI version\t%s' % props['clibuild']
+        if args.all or args.apibuild:
+            url = 'https://%(apibase)s' % { 'apibase' : apiBase(props) }
+            res = request('GET', url, verbose=args.verbose)
+            if res.status == httplib.OK:
+                try:
+                    result = json.loads(res.read())
+                    print 'whisk API build\t\t%s' % result['build']
+                except:
+                    print 'whisk API build\t\t%s' % 'unrecognized failure'
+                    return 1
+            else:
+                print 'whisk API build\t\t',
+                return responseError(res, prefix=None)
+        return 0
+    return 2
+
+def resolveOverrides(defaultVal, userOverride, cmdOverride):
+    val = defaultVal
+    if userOverride and userOverride.strip() != '':
+        val = userOverride.strip()
+    if cmdOverride and cmdOverride.strip() != '':
+        val = cmdOverride
+    return val
+
+if __name__ == '__main__':
+    main()

@@ -1,0 +1,10 @@
+framework module OpenWhisk {
+  umbrella header "OpenWhisk.h"
+
+  export *
+  module * { export * }
+}
+
+module OpenWhisk.Swift {
+    header "OpenWhisk-Swift.h"
+}
