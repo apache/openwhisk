@@ -1,0 +1,226 @@
+#!/usr/bin/env python
+
+#
+# Copyright 2015-2016 IBM Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+##
+# Whisk command line interface
+##
+
+# TODO: protect this as an admin operation
+
+import os
+import sys
+import argparse
+import json
+import wskprop
+from wskutil import request
+import string
+import random
+import uuid
+
+CLOUDANT_WHISK_AUTHS = 'CLOUDANT_WHISK_AUTHS'
+CLOUDANT_USERNAME = 'CLOUDANT_USERNAME'
+CLOUDANT_PASSWORD = 'CLOUDANT_PASSWORD'
+
+# SCRIPT_DIR is going to be traversing all links and point to tools/cli/wsk
+CLI_DIR = os.path.dirname(os.path.realpath(sys.argv[0]))
+# ROOT_DIR is the repository root
+ROOT_DIR = os.path.join(os.path.join(CLI_DIR, os.pardir), os.pardir)
+
+def main():
+    whiskprops = wskprop.importPropsIfAvailable(wskprop.propfile(os.getcwd()))
+    requiredprops = [ CLOUDANT_WHISK_AUTHS, CLOUDANT_USERNAME, CLOUDANT_PASSWORD ]
+    (valid, props, deferredInfo) = wskprop.checkRequiredProperties(requiredprops, whiskprops)
+
+    exitCode = 0 if valid else 2
+    if valid:
+        try:
+            args = parseArgs()
+            if (args.verbose):
+                print deferredInfo
+            exitCode = {
+              'user' : userCmd
+            }[args.cmd](args, props)
+        except Exception as e:
+            print 'Exception: ', e
+            print 'Informative: ', deferredInfo
+            exitCode = 1
+    sys.exit(exitCode)
+
+def parseArgs():
+    parser = argparse.ArgumentParser(description='OpenWhisk admin command line tool')
+    parser.add_argument('-v', '--verbose', help='verbose output', action='store_true')
+    subparsers = parser.add_subparsers(title='available commands', dest='cmd')
+
+    propmenu = subparsers.add_parser('user', help='manage users')
+    subparser = propmenu.add_subparsers(title='available commands', dest='subcmd')
+
+    subcmd = subparser.add_parser('create', help='create a user and show authorization key')
+    subcmd.add_argument('subject', help='the subject to create')
+
+    subcmd = subparser.add_parser('delete', help='delete a user')
+    subcmd.add_argument('subject', help='the subject to delete')
+
+    subcmd = subparser.add_parser('get', help='get authorization key for user')
+    subcmd.add_argument('subject', help='the subject to get key for')
+
+    subcmd = subparser.add_parser('whois', help='identify user from UUID (for convenience you can provide the entire authorization key')
+    subcmd.add_argument('uuid', help='the user UUID to lookup')
+
+    return parser.parse_args()
+
+def userCmd(args, props):
+    if args.subcmd == 'create':
+        return createUserCmd(args, props)
+    elif args.subcmd == 'delete':
+        return deleteUserCmd(args, props)
+    elif args.subcmd == 'get':
+        return getUserCmd(args, props)
+    elif args.subcmd == 'whois':
+        return whoisUserCmd(args, props)
+    else:
+        print 'unknown command'
+        return 2
+
+def createUserCmd(args, props):
+    username = props[CLOUDANT_USERNAME]
+    password = props[CLOUDANT_PASSWORD]
+    database = props[CLOUDANT_WHISK_AUTHS]
+
+    subject = args.subject.strip()
+    if len(subject) < 5:
+        print 'Subject name must be at least 5 characters'
+        return 2
+
+    doc = {
+        '_id': args.subject,
+        'key': ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(64)),
+        'uuid': str(uuid.uuid4()),
+        'subject': subject
+    }
+
+    url = 'http://%(username)s.cloudant.com/%(database)s' % {
+        'username': username,
+        'database': database
+    }
+    body = json.dumps(doc)
+    headers = {
+        'Content-Type': 'application/json',
+    }
+
+    res = request('POST', url, body, headers, auth='%s:%s' % (username, password), verbose=args.verbose)
+    if res.status == 201:
+        print '%s:%s' % (doc['uuid'], doc['key'])
+    else:
+        print 'Failed to create subject (%s)' % res.read().strip()
+        return 1
+
+def getUserCmd(args, props):
+    (doc, res) = getSubjecFromDb(args, props)
+
+    if doc is not None:
+        print '%s:%s' % (doc['uuid'], doc['key'])
+        return 0
+    else:
+        print 'Failed to get subject (%s)' % res.read().strip()
+        return 1
+
+def getSubjecFromDb(args, props):
+    username = props[CLOUDANT_USERNAME]
+    password = props[CLOUDANT_PASSWORD]
+    database = props[CLOUDANT_WHISK_AUTHS]
+
+    url = 'http://%(username)s.cloudant.com/%(database)s/%(subject)s' % {
+        'username': username,
+        'database': database,
+        'subject': args.subject
+    }
+
+    headers = {
+        'Content-Type': 'application/json',
+    }
+
+    res = request('GET', url, headers=headers, auth='%s:%s' % (username, password), verbose=args.verbose)
+    if res.status == 200:
+        doc = json.loads(res.read())
+        return (doc, res)
+    else:
+        return (None, res)
+
+def deleteUserCmd(args, props):
+    username = props[CLOUDANT_USERNAME]
+    password = props[CLOUDANT_PASSWORD]
+    database = props[CLOUDANT_WHISK_AUTHS]
+
+    if args.subject.strip() == '':
+        print 'Subject must not be empty'
+        return 2
+
+    (rev, res) = getSubjecFromDb(args, props)
+    if rev is None:
+        print 'Failed to delete subject (%s)' % res.read().strip()
+        return 1
+
+    url = 'http://%(username)s.cloudant.com/%(database)s/%(subject)s?rev=%(rev)s' % {
+        'username': username,
+        'database': database,
+        'subject': args.subject,
+        'rev': rev['_rev']
+    }
+
+    headers = {
+        'Content-Type': 'application/json',
+    }
+
+    res = request('DELETE', url, headers=headers, auth='%s:%s' % (username, password), verbose=args.verbose)
+    if res.status == 200:
+        print 'Subject deleted'
+    else:
+        print 'Failed to delete subject (%s)' % res.read().strip()
+        return 1
+
+def whoisUserCmd(args, props):
+    username = props[CLOUDANT_USERNAME]
+    password = props[CLOUDANT_PASSWORD]
+    database = props[CLOUDANT_WHISK_AUTHS]
+    uuid = args.uuid.split(':')[0]
+
+    url = 'http://%(username)s.cloudant.com/%(database)s/_design/%(database)s/_view/uuids?key=["%(uuid)s"]' % {
+        'username': username,
+        'database': database,
+        'uuid': uuid
+    }
+
+    headers = {
+        'Content-Type': 'application/json',
+    }
+
+    res = request('GET', url, headers=headers, auth='%s:%s' % (username, password), verbose=args.verbose)
+    if res.status == 200:
+        doc = json.loads(res.read())
+        if 'rows' in doc and len(doc['rows']) > 0:
+            for row in doc['rows']:
+                if 'id' in row:
+                    print row['id']
+        else:
+            print 'Subject id is not recognized'
+        return 0
+    print 'Failed to delete subject (%s)' % res.read().strip()
+    return 1
+
+if __name__ == '__main__':
+    main()

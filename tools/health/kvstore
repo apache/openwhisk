@@ -1,0 +1,145 @@
+#!/usr/bin/env python
+
+#
+# Copyright 2015-2016 IBM Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+#
+# >>>>> If this script is moved, the path manipulation needs to be adjusted.  See below. <<<<<
+#
+# Usage:
+#  kvstore                    dump the kv store once
+#  kvstore --repeat           dump the kv store repeatedly with 3 seconds in between
+#  kvstore --import -d dir    import whisk.properties into consul
+
+# Start with standard imports.
+import os
+import sys
+import subprocess
+import argparse
+import time
+import json
+import base64
+
+# ************************************************************************************
+# * Path stuff. If this script is moved, it should be enough to adjust blueDir only. *
+# ************************************************************************************
+scriptDir = sys.path[0]
+blueDir = os.path.dirname(os.path.dirname(scriptDir))
+cliDir = os.path.join(os.path.join(blueDir, "tools"), "cli")
+sys.path.insert(1, cliDir)
+
+# After path adjusted, do the remaining imports.
+import wskprop
+from monitorUtil import run
+
+# Get the substring before the first slash if present else the whole string
+def getFirst(str):
+  pos = str.find("/")
+  return str if pos<0 else str[0:pos]
+
+# Make it look nice by grouping
+def layerRecords(records):
+  cur = 0
+  curKey = ''
+  while (cur < len(records)):
+    nextKey = getFirst(records[cur]['Key'])
+    if (curKey != nextKey):
+      curKey = nextKey
+      records.insert(cur, { 'Key' : curKey, 'Value' : '' })
+    else:
+      records[cur]['Key'] = '  ' + records[cur]['Key'][len(curKey)+1:]
+    cur = cur+1
+
+# Base 64 decoding is used for bulk get so we decode the 'Value' field
+def processRecords(records, interactive):
+  for rec in records:
+    rawVal = rec['Value']
+    if (rawVal != None):
+      rec['Value'] = base64.b64decode(rawVal)
+  def getKey(rec):
+    rec['Value']
+  sorted(records, key=getKey)
+  if (interactive):
+    layerRecords(records)
+
+# Print all key-value pairs in the store
+def dump(interactive,whiskprops):
+  consulserverHost = getProp(whiskprops,'CONSULSERVER_HOST')
+  consulHostPort4 = getProp(whiskprops,'CONSUL_HOST_PORT4')
+  # Fetch the data and process it
+  url = 'http://' + consulserverHost + ':' + consulHostPort4 + '/v1/kv/?recurse'
+  getCmd = ['curl', '-s', url]
+  (rc, output) = run(getCmd)
+  records = json.loads(output)  # 'Key', 'Value' are 2 of the fields
+  processRecords(records, interactive)
+  # Perform actual display
+  if (interactive):
+    sys.stderr.write("\x1b[2J\x1b[H")
+  print time.strftime("%Y/%m/%d %H:%M:%S")
+  print '-------------------'
+  for rec in records:
+    print '{0:50} {1}'.format(rec['Key'], rec['Value'])
+
+# write whiskprops to kvstore
+def importProps(whiskprops):
+  # We grab all the properties out of whiskprops here to make dependence clear.
+  consulserverHost = getProp(whiskprops,'CONSULSERVER_HOST')
+  consulHostPort4 = getProp(whiskprops,'CONSUL_HOST_PORT4')
+
+  for key in whiskprops:
+    url = 'http://' + consulserverHost + ':' + consulHostPort4 + '/v1/kv/whiskprops/%s' % key
+    cmd = ['curl', '-X', 'PUT', '-H', 'Content-Type: text/plain',
+           '-d', '%s' % whiskprops[key], url]
+    (rc, output) = run(cmd)
+
+def getProp(whiskprops, key, defaultValue = None) :
+    try:
+        return whiskprops[key]
+    except KeyError:
+        if (defaultValue == None):
+          print 'Could not find %s' % key
+        return defaultValue
+
+
+parser = argparse.ArgumentParser(description='Read or write to whisk key-value store')
+parser.add_argument('--repeat', help='query the store, repeat forever')
+parser.add_argument('--import', dest='imp', help='host', action='store_true')
+parser.add_argument('-d','--dir', help='directory for whisk.properties')
+args = parser.parse_args()
+
+if (args.dir is None):
+   print 'Must specify directory with -d'
+   exit(-1)
+
+# Use wskprop to read in whisk.properties and provide our own lookup
+whiskprops = wskprop.importPropsIfAvailable(wskprop.propfile(args.dir))
+
+if (args.repeat):
+  try:
+    while True:
+      dump(True,whiskprops)
+      time.sleep(1)
+  except KeyboardInterrupt:
+      True  # catch but do nothing so ctrl-c does cause a stack trace
+else:
+  if (args.imp):
+
+     print "importing whisk.properties into consul kv..."
+     importProps(whiskprops)
+     print "done."
+  else:
+     dump(False,whiskprops)
+

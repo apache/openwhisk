@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="con" path="org.scala-ide.sdt.launching.SCALA_CONTAINER"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.junit.JUNIT_CONTAINER/4"/>
+	<classpathentry kind="lib" path="/common-libs/common/commons-codec-1.9.jar"/>
+	<classpathentry kind="lib" path="/common-libs/common/commons-logging-1.2.jar"/>
+	<classpathentry exported="true" kind="lib" path="/common-libs/common/gson-2.3.1.jar"/>
+	<classpathentry exported="true" kind="lib" path="/common-libs/common/kafka_2.11-0.8.2.0.jar"/>
+	<classpathentry exported="true" kind="lib" path="/common-libs/common/kafka-clients-0.8.2.0.jar"/>
+	<classpathentry kind="lib" path="/common-libs/common/log4j-1.2.16.jar"/>
+	<classpathentry kind="lib" path="/common-libs/common/metrics-core-2.2.0.jar"/>
+	<classpathentry kind="lib" path="/common-libs/common/scala-parser-combinators_2.11-1.0.2.jar"/>
+	<classpathentry exported="true" kind="lib" path="/common-libs/testing/scalatest_2.11-2.2.4.jar"/>
+	<classpathentry kind="lib" path="/common-libs/common/slf4j-api-1.7.6.jar"/>
+	<classpathentry kind="lib" path="/common-libs/common/slf4j-log4j12-1.6.1.jar"/>
+	<classpathentry kind="lib" path="/common-libs/common/zkclient-0.3.jar"/>
+	<classpathentry kind="lib" path="/common-libs/common/zookeeper-3.4.6.jar"/>
+	<classpathentry exported="true" kind="lib" path="/common-libs/common/scala-xml_2.11-1.0.3.jar"/>
+	<classpathentry exported="true" kind="lib" path="/common-libs/spray/akka-actor_2.11-2.3.9.jar"/>
+	<classpathentry exported="true" kind="lib" path="/common-libs/spray/config-1.2.1.jar"/>
+	<classpathentry exported="true" kind="lib" path="/common-libs/spray/mimepull-1.9.5.jar"/>
+	<classpathentry exported="true" kind="lib" path="/common-libs/spray/parboiled-core-1.1.7.jar"/>
+	<classpathentry exported="true" kind="lib" path="/common-libs/spray/parboiled-scala_2.11-1.1.7.jar"/>
+	<classpathentry exported="true" kind="lib" path="/common-libs/spray/shapeless_2.11-1.2.4.jar"/>
+	<classpathentry exported="true" kind="lib" path="/common-libs/spray/spray-can_2.11-1.3.3.jar"/>
+	<classpathentry exported="true" kind="lib" path="/common-libs/spray/spray-http_2.11-1.3.3.jar"/>
+	<classpathentry exported="true" kind="lib" path="/common-libs/spray/spray-httpx_2.11-1.3.3.jar"/>
+	<classpathentry exported="true" kind="lib" path="/common-libs/spray/spray-io_2.11-1.3.3.jar"/>
+	<classpathentry exported="true" kind="lib" path="/common-libs/spray/spray-routing_2.11-1.3.3.jar"/>
+	<classpathentry exported="true" kind="lib" path="/common-libs/spray/spray-util_2.11-1.3.3.jar"/>
+	<classpathentry exported="true" kind="lib" path="/common-libs/common/httpclient-4.4.1.jar"/>
+	<classpathentry kind="lib" path="/common-libs/common/httpcore-4.4.1.jar"/>
+	<classpathentry exported="true" kind="lib" path="/common-libs/spray/spray-json_2.11-1.3.2.jar"/>
+	<classpathentry exported="true" kind="lib" path="/common-libs/spray/spray-client-1.3.1.jar"/>
+	<classpathentry exported="true" kind="lib" path="/common-libs/common/cloudant-client-1.0.1.jar"/>
+	<classpathentry exported="true" kind="lib" path="/common-libs/common/commons-io-2.4.jar"/>
+	<classpathentry exported="true" kind="lib" path="/common-libs/spray/spray-caching_2.11-1.3.3.jar"/>
+	<classpathentry exported="true" kind="lib" path="/common-libs/common/concurrentlinkedhashmap-lru-1.3.1.jar"/>
+	<classpathentry exported="true" kind="lib" path="/common-libs/spray/akka-slf4j_2.11-2.3.9.jar"/>
+	<classpathentry exported="true" kind="lib" path="/common-libs/spray/apache-log4j-extras-1.2.17.jar"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>

@@ -1,0 +1,16 @@
+{
+  "checks": [
+	{
+      "id": "chk1",
+      "name": "cpuutil",
+      "script": "/consul/scripts/cpuload.sh",
+      "interval": "10s"
+    },
+	{
+      "id": "chk2",
+      "name": "memutil",
+      "script": "/consul/scripts/meminfo.sh",
+      "interval": "10s"
+    }
+  ]
+}

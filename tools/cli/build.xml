@@ -1,0 +1,65 @@
+<!-- vim: set expandtab ts=4 sw=4 : -->
+
+<!-- targets in this file should be called from the parent directory -->
+<project basedir="../..">
+    <import file="../../config/config.xml" />
+
+    <!-- build the CLI python package for distribution -->
+    <target name="buildCLI" >
+
+        <var file="whisk.properties" />
+
+        <!-- generate default.props in source directory.
+             someday this should be nuked - legacy of old process -->
+        <exec executable="/bin/bash" failonerror="true" output="${openwhisk.dir}/tools/cli/default.props">
+            <arg line="${openwhisk.dir}/tools/cli/generateDefaultProps.sh" />
+            <arg line="${basedir}" />
+        </exec>
+        
+        <!-- copy files needed to build image to a scratch space -->
+        <mkdir dir="${cli.build.dir}" />
+        <copy todir="${cli.build.dir}">
+            <fileset dir="${openwhisk.dir}/tools/cli/packagescripts" />
+        </copy>
+        <copy todir="${cli.build.dir}/openwhisk">
+            <fileset dir="${openwhisk.dir}/tools/cli">
+                <!--<include name="default.props" />-->
+                <exclude name="*.pyc" />
+                <exclude name="setup.py" />
+            </fileset>
+        </copy>
+
+        <!-- generate default.props -->
+        <exec executable="/bin/bash" failonerror="true" output="${cli.build.dir}/openwhisk/default.props">
+            <arg line="${openwhisk.dir}/tools/cli/generateDefaultProps.sh" />
+            <arg line="${basedir}" />
+        </exec>
+
+        <!-- Python packaging expects .py extensions. -->
+        <move file="${cli.build.dir}/openwhisk/wsk" tofile="${cli.build.dir}/openwhisk/wsk.py" />
+        <!-- Need this file in the right place so it looks like a Pyton package. -->
+        <move file="${cli.build.dir}/__init__.py" todir="${cli.build.dir}/openwhisk" />
+        <!-- build package for distribution -->
+        <exec executable="/bin/bash" failonerror="true">
+            <arg line="${openwhisk.dir}/tools/docker/dockerWithRetry.sh ${docker.timeout.long}" />
+            <arg line="build -t whisk/cli '${cli.build.dir}'" />
+        </exec>
+        <exec executable="docker" failonerror="false" output="/dev/null" error="/dev/null">
+            <arg line="${docker.tls.cmd}" />
+            <arg line="rm -f cli" />
+        </exec>
+        <exec executable="docker" failonerror="true">
+            <arg line="${docker.tls.cmd}" />
+            <arg line="run -d --name cli whisk/cli" />
+        </exec>
+        <exec executable="docker" failonerror="true">
+            <arg line="${docker.tls.cmd}" />
+            <arg line="cp cli:/cli/dist '${cli.build.dir}'" />
+        </exec>
+        <exec executable="docker" failonerror="false">
+            <arg line="${docker.tls.cmd}" />
+            <arg line="rm -f cli" />
+        </exec>
+    </target>
+
+</project>
