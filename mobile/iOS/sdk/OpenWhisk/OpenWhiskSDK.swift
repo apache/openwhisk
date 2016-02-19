@@ -393,9 +393,9 @@ public class Whisk {
     }
     
     /* Convert qualified name string into component parts of action or trigger call */
-    class func processQualifiedName(qName: String) throws -> (namespace:String, package: String, name: String) {
+    class func processQualifiedName(qName: String) throws -> (namespace:String, package: String?, name: String) {
         var namespace = "_"
-        var package = ""
+        var package: String? = nil
         var name = ""
         var doesSpecifyNamespace = false
         
