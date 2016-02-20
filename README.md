@@ -10,6 +10,7 @@ OpenWhisk is a cloud-first distributed event-based programming service. It provi
 * [Add users](#add-users)
 * [Setup CLI](#setup-cli)
 * [Run sample action](#run-sample-action)
+* [Learn concepts and commands](#learn-concepts-and-commands)
 * [License](#license)
 * [Issues](#issues)
 
@@ -234,6 +235,18 @@ These are configured in `config/localEnv.sh`
 
 Do not use these certificates in production: add your own and modify
 the configuration to use trusted certificates instead
+
+
+### Learn concepts and commands
+
+Browse the [documentation](docs/) to learn more. Here are some topics you may be
+interested in:
+
+- [System overview](docs/about.md)
+- [Create and invoke actions](./docs/actions.md)
+- [Create triggers and rules](./docs/triggers_rules.md)
+- [Use and create packages](./docs/packages.md)
+- [Browse and use the catalog](./docs/catalog.md)
 
 
 ### License
