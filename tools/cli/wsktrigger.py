@@ -148,6 +148,7 @@ class Trigger(Item):
             parameters = []
             parameters.append([ 'lifecycleEvent', 'DELETE' ])
             parameters.append([ 'triggerName', triggerName ])
+            parameters.append([ 'authKey', args.auth ])
 
             feedArgs = {
                 'verbose': args.verbose,
