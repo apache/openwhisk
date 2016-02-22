@@ -3,7 +3,6 @@
 <!-- targets in this file should be called from the parent directory -->
 <project basedir="../..">
     <import file="../../docker.xml" />
-    <import file="../../common/build.xml" />
 
     <!-- build the docker image for the dispatcher service -->
     <target name="compileDispatcher" depends="initScala">
@@ -119,7 +118,7 @@
             <arg line="${consul.service.check}" />
             <arg line="-v ${whisk.logs.dir}/activator:/logs" />
             <arg line="-h activator_${main.docker.endpoint}" />
-            <arg line="-d --name activator ${docker.registry}whisk/dispatcher:${docker.image.tag} /startDispatcher.sh activator" />
+            <arg line="-d --name activator ${docker.registry}whisk/dispatcher:${docker.image.tag} /dispatcher/bin/dispatcher activator" />
         </exec>
     </target>
 
