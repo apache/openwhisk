@@ -1,7 +1,0 @@
-<!-- vim: set expandtab ts=4 sw=4 : -->
-
-<!-- targets in this file should be called from the parent directory -->
-<project basedir="../..">
-    <import file="../../docker.xml" />
-
-</project>

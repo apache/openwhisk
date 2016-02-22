@@ -30,7 +30,7 @@
 
 
     <!-- start the reverse proxy service on the edge -->
-    <target name="startProxy">
+    <target name="startProxy" depends="buildProxy">
         <var file="whisk.properties" />
         <exec executable="docker" failonerror="true">
             <arg line="--host tcp://${edge.docker.endpoint}" />
