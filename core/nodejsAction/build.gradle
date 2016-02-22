@@ -1,0 +1,3 @@
+task distDocker(type:Exec) {
+    commandLine 'docker', 'build', '-t', 'whisk/nodejsaction', '.'
+}
