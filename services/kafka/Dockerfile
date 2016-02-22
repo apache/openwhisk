@@ -37,9 +37,8 @@ RUN wget http://www.us.apache.org/dist/kafka/0.9.0.0/${KAFKA_RELEASE_ARCHIVE} &&
 
 #
 # Install js app dependencies
-ADD common   /common
 ADD monitor  /monitor
-RUN cd /monitor &&  ln -s /usr/lib/node_modules node_modules && npm install
+RUN cd /monitor && npm install
 
 ADD http://repo1.maven.org/maven2/org/slf4j/slf4j-log4j12/1.7.6/slf4j-log4j12-1.7.6.jar /kafka/libs/
 ADD config /kafka/config
@@ -49,7 +48,7 @@ ADD start.sh /start.sh
 RUN chmod uog+rx /start.sh && \
   groupadd kafka && \
   useradd -d /kafka -g kafka -s /bin/false kafka && \
-  chown -R kafka:kafka /kafka /data /logs /monitor /common
+  chown -R kafka:kafka /kafka /data /logs /monitor
 USER kafka
 ENV PATH /kafka/bin:$PATH
 WORKDIR /kafka
