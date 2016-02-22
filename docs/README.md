@@ -23,7 +23,7 @@ After you have configured your environment, you can begin using the OpenWhisk CL
 You can use OpenWhisk from your iOS mobile app or Apple Watch by using the OpenWhisk iOS SDK. For more details refer to the [iOS documentation](./mobile_sdk.md).
 
 ## Using REST APIs with OpenWhisk
-After your OpenWhisk environment is enabled, you can use OpenWhisk with your web apps or mobile apps with REST API calls. For more details on the APIs for actions, activations, packages, rules, and triggers, see the [OpenWhisk API documentation](http://petstore.swagger.io/?url=https://raw.githubusercontent.com/openwhisk/openwhisk/docs/core/controller/src/resources/whiskswagger.json).
+After your OpenWhisk environment is enabled, you can use OpenWhisk with your web apps or mobile apps with REST API calls. For more details on the APIs for actions, activations, packages, rules, and triggers, see the [OpenWhisk API documentation](http://petstore.swagger.io/?url=https://raw.githubusercontent.com/openwhisk/openwhisk/master/core/controller/src/resources/whiskswagger.json).
 
 ## OpenWhisk Hello World example
 To get started with OpenWhisk, try the following JavaScript code example.
