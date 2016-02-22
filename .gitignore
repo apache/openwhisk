@@ -13,3 +13,4 @@ nginx.conf
 /config/custom-config.xml
 cloudant-local.env
 results
+.gradle

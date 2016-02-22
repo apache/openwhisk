@@ -1,0 +1,42 @@
+apply plugin: 'scala'
+
+sourceSets {
+    main {
+        scala {
+            srcDirs = ['src/']
+        }
+        resources {
+            srcDirs = ['src/']
+        }
+    }
+}
+
+dependencies {
+    compile 'org.scala-lang:scala-library:2.11.1'
+
+    compile 'io.spray:spray-caching_2.11:1.3.3'
+    compile 'io.spray:spray-json_2.11:1.3.2'
+    compile 'io.spray:spray-can_2.11:1.3.3'
+    compile 'io.spray:spray-client:1.3.1'
+    compile 'io.spray:spray-httpx_2.11:1.3.3'
+    compile 'io.spray:spray-io_2.11:1.3.3'
+    compile 'io.spray:spray-routing_2.11:1.3.3'
+
+    compile 'com.typesafe.akka:akka-actor_2.11:2.3.9'
+    compile 'com.typesafe.akka:akka-slf4j_2.11:2.3.9'
+
+    compile 'com.cloudant:cloudant-client:1.0.1'
+
+    compile 'log4j:log4j:1.2.16'
+    compile 'commons-codec:commons-codec:1.9'
+    compile 'commons-io:commons-io:2.4'
+    compile 'commons-logging:commons-logging:1.2'
+    compile 'org.apache.zookeeper:zookeeper:3.4.6'
+    compile 'org.apache.kafka:kafka_2.11:0.8.2.0'
+    compile 'com.google.code.gson:gson:2.3.1'
+    compile 'org.apache.httpcomponents:httpclient:4.4.1'
+}
+
+task distDocker(type:Exec) {
+    commandLine 'docker', 'build', '-t', 'whisk/' + project.name, '.'
+}
