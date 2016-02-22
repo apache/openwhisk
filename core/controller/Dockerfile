@@ -11,9 +11,8 @@ Run wget https://github.com/swagger-api/swagger-ui/archive/v2.1.4.tar.gz && \
 
 #
 # Copy app jars
-COPY controller.jar controller-libs.tar startController.sh ./
-
-RUN tar xf controller-libs.tar && rm controller-libs.tar && \
-chmod +x startController.sh
+COPY build/distributions/controller.tar ./
+RUN tar xf controller.tar
+CMD controller/bin/controller
 
 EXPOSE 8080
