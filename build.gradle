@@ -1,0 +1,9 @@
+subprojects {
+    apply plugin: 'application'
+ 
+    repositories {
+        mavenCentral()
+    }
+
+    group = "openwhisk"
+}
