@@ -72,8 +72,13 @@ class SwiftActionContainerTests extends FlatSpec
     it should "return some error on action error" in {
         withSwiftContainer { c =>
             val code = """
+                | // You need an indirection, or swiftc detects the div/0
+                | // at compile-time. Smart.
+                | func div(x: Int, _ y: Int) -> Int {
+                |     return x/y
+                | }
                 | func main(args: [String: Any]) -> [String: Any] {
-                |     return [ "divBy0": 5/0 ]
+                |     return [ "divBy0": div(5,0) ]
                 | }
             """.stripMargin
 
@@ -96,17 +101,14 @@ class SwiftActionContainerTests extends FlatSpec
             """.stripMargin
 
             val (initCode, _) = c.init(initPayload(code))
+            initCode should not be(200)
 
-            // Unfortunately we don't know how to test valid Swift code for now.
-            // initCode should not be(200)
-
-            val (runCode, _) = c.run(runPayload(JsObject("basic" -> JsString("forever"))))
-
+            val (runCode, runRes) = c.run(runPayload(JsObject("basic" -> JsString("forever"))))
             runCode should be(502)
         }
-
         err.toLowerCase should include("error")
     }
+
 
     it should "support application errors" in {
         withSwiftContainer { c =>
@@ -129,16 +131,14 @@ class SwiftActionContainerTests extends FlatSpec
 
     it should "enforce that the user returns an object" in {
         withSwiftContainer { c =>
-            // Funny how type inference lets you omit the return type and shoot
-            // yourself in the foot here.
             val code = """
-                | func main(args: [String: Any]) {
+                | func main(args: [String: Any]) -> String {
                 |     return "rebel, rebel"
                 | }
             """.stripMargin
 
             val (initCode, _) = c.init(initPayload(code))
-            initCode should be(200)
+            initCode should be(200) // This could change if the action wrapper has strong type checks for `main`.
 
             val (runCode, runRes) = c.run(runPayload(JsObject()))
             runCode should be(502)

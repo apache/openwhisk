@@ -28,8 +28,11 @@ proxy = flask.Flask(__name__)
 proxy.debug = False
 
 SRC_EPILOGUE_FILE = "./epilogue.swift"
-DEST_SCRIPT_FILE = "/swiftActionSource/action.swift"
-PROCESS = [ "swift", DEST_SCRIPT_FILE ]
+DEST_SCRIPT_FILE = "/swiftAction/action.swift"
+DEST_BIN_FILE = "/swiftAction/action"
+BUILD_PROCESS = [ "swiftc", "-O", DEST_SCRIPT_FILE, "-o", DEST_BIN_FILE ]
+# RUN_PROCESS = [ "swift", DEST_SCRIPT_FILE ]
+RUN_PROCESS = [ DEST_BIN_FILE ]
 
 @proxy.route("/init", methods=['POST'])
 def init():
@@ -44,6 +47,22 @@ def init():
             fp.write(str(message["code"]))
             with codecs.open(SRC_EPILOGUE_FILE, "r", "utf-8") as ep:
                 fp.write(ep.read())
+
+        p = subprocess.Popen(BUILD_PROCESS)
+
+        (o,e) = p.communicate()
+
+        if o is not None:
+            sys.stdout.write(o)
+
+        if e is not None:
+            sys.stderr.write(e)
+
+        if not (os.path.isfile(DEST_BIN_FILE) and os.access(DEST_BIN_FILE, os.X_OK)):
+            response = flask.jsonify({"error": "the action failed to compile. See logs for details." })
+            response.status_code = 502
+            return response
+
         return ('OK', 200)
     else:
         flask.abort(403)
@@ -63,10 +82,15 @@ def run():
     if not isinstance(value, dict):
         flask.abort(403)
 
+    if not (os.path.isfile(DEST_BIN_FILE) and os.access(DEST_BIN_FILE, os.X_OK)):
+        response = flask.jsonify({ "error": "the action failed to compile. See logs for details." })
+        response.status_code = 502
+        return response
+
     swift_env_in = { "WHISK_INPUT" : json.dumps(value) }
 
     p = subprocess.Popen(
-        PROCESS,
+        RUN_PROCESS,
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         env=swift_env_in)
@@ -93,13 +117,13 @@ def run():
             response = flask.jsonify(json_output)
             return response
         else:
-            reponse = { "error": "the action did not return an object", "action_output": json_output }
-            reponse.status_code = 502
+            response = flask.jsonify({ "error": "the action did not return an object", "action_output": json_output })
+            response.status_code = 502
             return response
-    except:
-        sys.stderr.write("Couldn't parse Swift script output as JSON: %s.\n" % last_line)
-        json_output = { "error": "the action did not return a valid result" }
-        response = flask.jsonify(json_output)
+    except Exception as e:
+        # sys.stderr.write("Couldn't parse Swift script output as JSON: %s.\n" % last_line)
+        # sys.stderr.write("%s\n%s\n" % (str(e),repr(e)))
+        response = flask.jsonify({ "error": "the action did not return a valid result" })
         response.status_code = 502
         return response
 

@@ -35,11 +35,11 @@ RUN SWIFT_ARCHIVE_NAME=swift-$SWIFT_VERSION-$SWIFT_PLATFORM && \
 # Copy the Flask proxy. Following the pattern in nodejsAction.
 ADD . /swiftAction
 
-RUN cd /swiftAction; rm -rf .project .settings build.xml Dockerfile 
+RUN cd /swiftAction; rm -rf .project .settings build.xml Dockerfile
 
 # Where the script will live.
-RUN mkdir -p /swiftActionSource
-RUN touch /swiftActionSource/action.swift
+RUN mkdir -p /swiftAction
+RUN touch /swiftAction/action.swift
 
 ENV FLASK_PROXY_PORT 8080
 
