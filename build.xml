@@ -1,7 +1,6 @@
 <!-- vim: set expandtab ts=4 sw=4 : -->
 <project>
     <import file="config/config.xml" />
-    <import file="common/build.xml" />
 
     <!-- clean temporary build files created by build script -->
     <target name="dust">
@@ -65,6 +64,7 @@
         <ant antfile="${openwhisk.dir}/services/nginx/build.xml" target="startProxy" />
         <ant antfile="services/build.xml" target="deploy" />
         <ant antfile="core/build.xml" target="deploy" />
+        <ant antfile="tools/cli/build.xml" target="buildCLI" />
         <antcall target="installCatalog" />
     </target>
 
