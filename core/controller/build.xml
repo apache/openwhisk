@@ -2,7 +2,6 @@
 
 <project basedir="../..">
     <import file="../../docker.xml" />
-    <import file="../../common/build.xml" />
 
     <!-- compile controller service -->
     <target name="compileController" depends="initScala">
@@ -116,7 +115,7 @@
             <arg line="-v ${whisk.logs.dir}/controller:/logs" />
             <arg line="-h controller_${edge.docker.endpoint}" />
             <arg line="${consul.service.check}" />
-            <arg line="-d --name controller -p ${controller.host.port}:${controller.docker.port} ${docker.registry}whisk/controller:${docker.image.tag} /startController.sh" />
+            <arg line="-d --name controller -p ${controller.host.port}:${controller.docker.port} ${docker.registry}whisk/controller:${docker.image.tag}" />
         </exec>
     </target>
 
