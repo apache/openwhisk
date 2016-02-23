@@ -1,0 +1,40 @@
+- name: OpenWhisk Activator
+  hosts: main
+  tasks:
+  - name: (Re)start container
+    docker:
+      name: activator
+      image: whisk/dispatcher
+      command: /dispatcher/bin/dispatcher activator
+      state: reloaded
+      restart_policy: "{{docker.restart.policy}}"
+      env:
+        "CONSULSERVER_HOST": "{{consul.host}}"
+        "CONSUL_HOST_PORT4": "{{consul.port4}}"
+        "PORT": 8080
+      volumes:
+        - "{{whisk.logs.dir}}/activator:/logs"
+      ports:
+        - "{{activator.port}}:8080"
+
+- name: OpenWhisk Invoker
+  hosts: invoker
+  tasks:
+  - name: Pull whisk/nodejsaction image
+    docker_image: name="whisk/nodejsaction"
+  - name: (Re)start container
+    docker:
+      name: "{{inventory_hostname}}"
+      image: whisk/dispatcher
+      command: /dispatcher/bin/dispatcher invoker "{{inventory_hostname | regex_replace('^invoker', '') | int}}"
+      state: reloaded
+      restart_policy: "{{docker.restart.policy}}"
+      env:
+        "CONSULSERVER_HOST": "{{consul.host}}"
+        "CONSUL_HOST_PORT4": "{{consul.port4}}"
+        "PORT": 8080
+      volumes:
+        - "{{whisk.logs.dir}}/{{inventory_hostname}}:/logs"
+        - "/var/lib/docker/containers/:/containers"
+      ports:
+        - "{{invoker.port | int + inventory_hostname | regex_replace('^invoker', '') | int}}:8080"

@@ -1,0 +1,12 @@
+[edge]
+localhost ansible_connection=local
+
+[main]
+localhost ansible_connection=local
+
+[kafka]
+localhost ansible_connection=local
+
+[invoker]
+invoker0 ansible_connection=local
+invoker1 ansible_connection=local

@@ -1,0 +1,16 @@
+- include: services/nginx/deploy.yml
+- include: services/consul/deploy.yml
+- include: services/zookeeper/deploy.yml
+- include: services/kafka/deploy.yml
+- include: core/controller/deploy.yml
+- include: core/loadBalancer/deploy.yml
+- include: core/dispatcher/deploy.yml
+
+- name: Installing entities into Whisk
+  hosts: 127.0.0.1
+  tasks:
+  - local_action: command "{{playbook_dir}}/catalog/installCatalog.sh" "{{playbook_dir}}/config/keys/auth.whisk.system"
+    environment:
+      "PYTHON": 'python'
+    register: out
+  - debug: var=out.stdout_lines

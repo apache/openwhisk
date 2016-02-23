@@ -1,0 +1,16 @@
+- name: OpenWhisk Kafka
+  hosts: kafka
+  tasks:
+  - name: (Re)start container
+    docker:
+      name: kafka
+      image: whisk/kafka
+      state: reloaded
+      restart_policy: "{{docker.restart.policy}}"
+      links:
+        - "zookeeper:zookeeper"
+      env:
+        "EXPOSED_HOST": "{{kafka.host}}"
+      ports:
+        - "{{kafka.port}}:9092"
+        - "{{kafka.ras.port}}:8080"

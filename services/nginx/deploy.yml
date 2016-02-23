@@ -1,0 +1,26 @@
+- name: OpenWhisk Router
+  hosts: edge
+  tasks:
+  - name: Create nginx conf
+    script: "{{playbook_dir}}/generateProxyConf.sh > {{nginx.conf.dir}}/nginx.conf"
+    environment:
+      "DEPLOY_WITH_SSL": "Y"
+      "CONTROLLER_HOST": "{{controller.host}}"
+      "CONTROLLER_PORT": "{{controller.port}}"
+  - name: Copy certificate
+    copy: src="{{playbook_dir}}/../../{{whisk.ssl.cert}}" dest="{{nginx.conf.dir}}/whisk-cert.pem"
+  - name: Copy key
+    copy: src="{{playbook_dir}}/../../{{whisk.ssl.key}}" dest="{{nginx.conf.dir}}/whisk-key.pem"
+  - name: (Re)start container
+    docker:
+      name: nginx
+      image: nginx
+      state: reloaded
+      restart_policy: "{{docker.restart.policy}}"
+      volumes:
+        - "{{whisk.logs.dir}}/nginx:/logs"
+        - "{{nginx.conf.dir}}:/etc/nginx"
+      ports:
+        - "80:80"
+        - "443:443"
+        - "8443:8443"

@@ -1,0 +1,11 @@
+- name: OpenWhisk Zookeeper
+  hosts: kafka
+  tasks:
+  - name: (Re)start container
+    docker:
+      name: zookeeper
+      image: whisk/zookeeper
+      state: reloaded
+      restart_policy: "{{docker.restart.policy}}"
+      ports:
+        - "{{zookeeper.port}}:2181"

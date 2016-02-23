@@ -1,0 +1,18 @@
+- name: OpenWhisk Consul
+  hosts: edge
+  tasks:
+  - name: (Re)start container
+    docker:
+      name: consul
+      image: whisk/consul
+      state: reloaded
+      command: /startconsulserver.sh
+      restart_policy: "{{docker.restart.policy}}"
+      volumes:
+        - "{{whisk.logs.dir}}/consul-server:/logs"
+      ports:
+        - "{{consul.port5}}:53"
+        - "{{consul.port4}}:8500"
+  - pause: seconds=5
+  - name: Fill in whisk.properties
+    local_action: command python "{{playbook_dir}}/../../tools/health/kvstore" --import -d "{{playbook_dir}}/../../"
