@@ -5,9 +5,6 @@
     <!-- clean temporary build files created by build script -->
     <target name="dust">
         <exec executable="/bin/date" />
-        <delete dir="${docker.scratch}" />
-        <delete dir="${build.dir}" />
-        <delete dir="results" />
         <delete dir="logs" />
         <delete failonerror="false">
             <fileset dir="." includes="**/*.pyc" />

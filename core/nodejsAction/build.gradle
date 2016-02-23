@@ -1,3 +1,9 @@
+def imagename = 'nodejsaction'
 task distDocker(type:Exec) {
-    commandLine 'docker', 'build', '-t', 'whisk/nodejsaction', '.'
+    commandLine 'docker', 'build', '-t', 'whisk/' + imagename, '.'
 }
+task deleteImage(type:Exec) {
+    ignoreExitValue = true
+    commandLine 'docker', 'rmi', 'whisk/' + imagename
+}
+clean.dependsOn deleteImage

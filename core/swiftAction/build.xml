@@ -4,17 +4,6 @@
 <project basedir="../..">
     <import file="../../docker.xml" />
 
-    <!-- build the docker image for the Swift action runner -->
-    <target name="buildSwiftAction" >
-        <var file="whisk.properties" />
-        <!-- build image -->
-        <exec executable="/bin/bash" failonerror="true" dir="${openwhisk.dir}/core/swiftAction">
-            <arg line="${openwhisk.dir}/tools/docker/dockerWithRetry.sh ${docker.timeout.long} --host tcp://${main.docker.endpoint}" />
-            <arg line="${docker.tls.cmd}" />
-            <arg line="build -t whisk/swiftaction ." />
-        </exec>
-    </target>
-
     <target name="pushSwiftAction">
         <var file="whisk.properties" />
         <antcall target="pushImageToRegistry">

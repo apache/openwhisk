@@ -1,16 +1,6 @@
 <project basedir="..">
     <import file="../config/config.xml" />
 
-    <!-- compile and build images and tests -->
-    <target name="build" depends="writePropertyFile">
-        <parallel threadCount="${buildthreads}" failonany="true">
-            <ant antfile="${openwhisk.dir}/services/zookeeper/build.xml" target="buildZookeeper" />
-            <ant antfile="${openwhisk.dir}/services/kafka/build.xml" target="buildKafka" />
-            <ant antfile="${openwhisk.dir}/services/consul/build.xml" target="buildConsul" />
-        </parallel>
-    </target>
-
-
     <target name="push" depends="writePropertyFile">
         <parallel threadCount="${pushthreads}" failonany="true">
             <ant antfile="${openwhisk.dir}/services/zookeeper/build.xml" target="pushZookeeper" />
