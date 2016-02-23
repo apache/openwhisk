@@ -37,6 +37,12 @@ dependencies {
     compile 'org.apache.httpcomponents:httpclient:4.4.1'
 }
 
+def imagename = project.name
 task distDocker(type:Exec) {
-    commandLine 'docker', 'build', '-t', 'whisk/' + project.name, '.'
+    commandLine 'docker', 'build', '-t', 'whisk/' + imagename, '.'
 }
+task deleteImage(type:Exec) {
+    ignoreExitValue = true
+    commandLine 'docker', 'rmi', 'whisk/' + imagename
+}
+clean.dependsOn deleteImage

@@ -4,17 +4,6 @@
 <project basedir="../..">
     <import file="../../docker.xml" />
 
-    <!-- build the docker image for the nodejs action runner -->
-    <target name="buildNodeJsAction" >
-        <var file="whisk.properties" />
-        <!-- build image -->
-        <exec executable="/bin/bash" failonerror="true" dir="${openwhisk.dir}/core/nodejsAction">
-            <arg line="${openwhisk.dir}/tools/docker/dockerWithRetry.sh ${docker.timeout.long} --host tcp://${main.docker.endpoint}" />
-            <arg line="${docker.tls.cmd}" />
-            <arg line="build -t whisk/nodejsaction ." />
-        </exec>
-    </target>
-
     <target name="pushNodeJsAction">
         <var file="whisk.properties" />
         <antcall target="pushImageToRegistry">

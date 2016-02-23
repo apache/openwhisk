@@ -5,17 +5,6 @@
     <import file="../config/config.xml" />
     <import file="../docker.xml" />
 
-    <!-- build all components in the whisk core in parallel -->
-    <target name="build" >
-        <parallel threadCount="${buildthreads}" failonany="true">
-            <ant antfile="${openwhisk.dir}/core/nodejsAction/build.xml" target="buildNodeJsAction" />
-            <ant antfile="${openwhisk.dir}/core/swiftAction/build.xml" target="buildSwiftAction" />
-            <ant antfile="${openwhisk.dir}/core/loadBalancer/build.xml" target="buildLoadBalancer" />
-            <ant antfile="${openwhisk.dir}/core/dispatcher/build.xml" target="buildDispatcher" />
-            <ant antfile="${openwhisk.dir}/core/controller/build.xml" target="buildController" />
-        </parallel>
-    </target>
-
     <target name="push" >
         <parallel threadCount="${pushthreads}" failonany="true">
             <ant antfile="${openwhisk.dir}/core/nodejsAction/build.xml" target="pushNodeJsAction" />

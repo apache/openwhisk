@@ -5,9 +5,6 @@
     <!-- clean temporary build files created by build script -->
     <target name="dust">
         <exec executable="/bin/date" />
-        <delete dir="${docker.scratch}" />
-        <delete dir="${build.dir}" />
-        <delete dir="results" />
         <delete dir="logs" />
         <delete failonerror="false">
             <fileset dir="." includes="**/*.pyc" />
@@ -28,24 +25,6 @@
 
     <!-- kill all containers, garbage collect docker images, and delete scratch directories -->
     <target name="clean" depends="dust,teardown">
-    </target>
-
-    <!-- compile and build images and tests -->
-    <target name="build" depends="writePropertyFile">
-        <ant antfile="common/build.xml" target="build" />
-        <parallel threadCount="${buildthreads}" failonany="true">
-            <ant antfile="services/build.xml" target="build" />
-            <ant antfile="core/build.xml" target="build" />
-        </parallel>
-        <ant antfile="${openwhisk.dir}/services/nginx/build.xml" target="buildProxy" />
-        <ant antfile="tests/build.xml" target="build" />
-        <ant antfile="tools/cli/build.xml" target="buildCLI" />
-        <antcall target="createTrustStore" />
-    </target>
-
-    <!-- run unit tests-->
-    <target name="run" depends="writePropertyFile">
-        <ant antfile="tests/build.xml" target="runTests" />
     </target>
 
     <!-- deploy containers -->

@@ -4,35 +4,6 @@
     <import file="../../docker.xml" />
     <import file="../../build.xml" />
 
-    <!-- build the docker image for kafka -->
-    <target name="buildKafka">
-        <var file="whisk.properties" />
-        <!-- copy files needed to build image to a scratch space -->
-        <tempfile property="kafka.scratch" prefix="kafka" destDir="${docker.scratch}" />
-        <mkdir dir="${kafka.scratch}" />
-        <copy file="${openwhisk.dir}/services/kafka/Dockerfile" todir="${kafka.scratch}" />
-        <copy todir="${kafka.scratch}">
-            <fileset dir="${openwhisk.dir}/services/kafka">
-                <exclude name=".**/**" />
-                <exclude name="node_modules/**" />
-                <exclude name="Dockerfile" />
-            </fileset>
-        </copy>
-        <copy todir="${kafka.scratch}/common">
-            <fileset dir="${openwhisk.dir}/common/js" excludes="node_modules/**" />
-        </copy>
-
-        <!-- build image -->
-        <exec executable="/bin/bash" failonerror="true">
-            <arg line="${openwhisk.dir}/tools/docker/dockerWithRetry.sh ${docker.timeout.long} --host tcp://${main.docker.endpoint}" />
-            <arg line="${docker.tls.cmd}" />
-            <arg line="build -t whisk/kafka '${kafka.scratch}'" />
-        </exec>
-
-        <!-- cleanup -->
-        <delete dir="${kafka.scratch}" />
-    </target>
-
     <target name="pushKafka" >
         <var file="whisk.properties" />
         <antcall target="pushImageToRegistry">

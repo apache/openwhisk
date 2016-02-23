@@ -1,3 +1,9 @@
-task distDocker(type:Exec) {
-    commandLine 'docker', 'build', '-t', 'whisk/' + project.name, '.'
+def imagename = project.name
+task distDocker(dependsOn:':common:scala:distDocker', type:Exec) {
+    commandLine 'docker', 'build', '-t', 'whisk/' + imagename, '.'
 }
+task deleteImage(type:Exec) {
+    ignoreExitValue = true
+    commandLine 'docker', 'rmi', 'whisk/' + imagename
+}
+clean.dependsOn deleteImage

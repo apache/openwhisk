@@ -1,4 +1,16 @@
-FROM node:0.12
+FROM ubuntu:14.04
+
+ENV DEBIAN_FRONTEND noninteractive
+
+# Initial update and some basics.
+# This odd double update seems necessary to get curl to download without 404 errors.
+RUN apt-get update --fix-missing && \
+  apt-get install -y wget && \
+  apt-get update && \
+  apt-get install -y curl && \
+  apt-get update && \
+  curl -sL https://deb.nodesource.com/setup_0.12 | bash - && \
+  apt-get install -y nodejs
 
 # Install Image Magick
 RUN apt-get update && apt-get install -y imagemagick

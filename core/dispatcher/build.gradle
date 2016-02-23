@@ -15,10 +15,6 @@ dependencies {
     compile project(':common:scala')
 }
 
-task distDocker(dependsOn:distTar, type:Exec) {
-    commandLine 'docker', 'build', '-t', 'whisk/' + project.name, '.'
-}
-
 mainClassName = "whisk.core.dispatcher.Dispatcher"
 startScripts {
     doLast {
@@ -27,3 +23,13 @@ startScripts {
         unixScript.text = lines.join("\n")
     }
 }
+
+def imagename = project.name
+task distDocker(dependsOn:[distTar, ':common:scala:distDocker'], type:Exec) {
+    commandLine 'docker', 'build', '-t', 'whisk/' + imagename, '.'
+}
+task deleteImage(type:Exec) {
+    ignoreExitValue = true
+    commandLine 'docker', 'rmi', 'whisk/' + imagename
+}
+clean.dependsOn deleteImage
