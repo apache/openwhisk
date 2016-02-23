@@ -74,7 +74,7 @@ To use this example, follow these steps:
     }
     ```
 
-You can also use the event-driven capabilities in OpenWhisk to invoke this action in response to events. Follow the [alarm service example](./catalog.md#using-the-cloudant-package) to configure an event source to invoke the `hello` action every time a periodic event is generated.
+You can also use the event-driven capabilities in OpenWhisk to invoke this action in response to events. Follow the [alarm service example](./catalog.md#using-the-alarm-package) to configure an event source to invoke the `hello` action every time a periodic event is generated.
 
 
 ## System details
