@@ -1,6 +1,20 @@
-language: bash
+# A Travis CI configuration file.
 
-# Test for coding conventions.
+sudo: required
+
+language: scala
+
+services:
+  - docker
+
+notifications:
+  email: false
+
+before_install:
+  - ./tools/build/scanCode.sh
+  - ./tools/travis/setup.sh
+
 script:
-  - bash ./tools/build/scanCode.sh
+  - ant clean build
+
 
