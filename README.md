@@ -31,7 +31,7 @@ Once you have established a Bluemix account, the most convenient way to create a
 See [here](https://www.ng.bluemix.net/docs/starters/install_cli.html) for instructions on how to download and configure `cf` to
 work with your Bluemix account.
 
-Once you've set up `cf`, issue the following commands to create a Cloudant database to use for OpenWhik:
+Once you've set up `cf`, issue the following commands to create a Cloudant database to use for OpenWhisk:
 
   ```
   # Create a Cloudant service
