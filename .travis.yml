@@ -1,0 +1,6 @@
+language: bash
+
+# Test for coding conventions.
+script:
+  - bash ./tools/build/scanCode.sh
+
