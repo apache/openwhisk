@@ -30,6 +30,7 @@
       state: reloaded
       restart_policy: "{{docker.restart.policy}}"
       env:
+        "SELF_DOCKER_ENDPOINT": "{{ansible_eth0['ipv4']['address']}}:{{docker.port}}"
         "CONSULSERVER_HOST": "{{consul.host}}"
         "CONSUL_HOST_PORT4": "{{consul.port4}}"
         "PORT": 8080

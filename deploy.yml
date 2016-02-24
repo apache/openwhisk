@@ -1,3 +1,25 @@
+- name: Write whisk.properties file
+  hosts: 127.0.0.1
+  tasks:
+  - template: src="{{playbook_dir}}/whisk.properties.j2" dest="{{playbook_dir}}/whisk.properties"
+
+- name: Deploying database for Whisk
+  hosts: 127.0.0.1
+  tasks:
+  - name: "Delete and recreate transient databases"
+    local_action: command "{{playbook_dir}}/tools/cloudant/wipeTransientDBs.sh"
+    environment:
+      "CLOUDANT_USERNAME": "{{cloudant.username}}"
+      "CLOUDANT_PASSWORD": "{{cloudant.password}}"
+      "CLOUDANT_TRANSIENT_DBS": "{{cloudant.whisks_db}}"
+  - name: "Create database views"
+    local_action: command "{{playbook_dir}}/tools/cloudant/loadTransientDBViews.sh"
+    environment:
+      "CLOUDANT_USERNAME": "{{cloudant.username}}"
+      "CLOUDANT_PASSWORD": "{{cloudant.password}}"
+      "CLOUDANT_WHISK_ACTIONS": "{{cloudant.whisks_db}}"
+
+
 - include: services/nginx/deploy.yml
 - include: services/consul/deploy.yml
 - include: services/zookeeper/deploy.yml
@@ -6,11 +28,17 @@
 - include: core/loadBalancer/deploy.yml
 - include: core/dispatcher/deploy.yml
 
+- name: Building Whisk CLI
+  hosts: 127.0.0.1
+  tasks:
+  - template: src="{{playbook_dir}}/tools/cli/default.props.j2" dest="{{playbook_dir}}/tools/cli/default.props"
+
 - name: Installing entities into Whisk
   hosts: 127.0.0.1
   tasks:
   - local_action: command "{{playbook_dir}}/catalog/installCatalog.sh" "{{playbook_dir}}/config/keys/auth.whisk.system"
     environment:
       "PYTHON": 'python'
+      "EDGE_HOST": "{{groups.edge[0]}}"
     register: out
   - debug: var=out.stdout_lines

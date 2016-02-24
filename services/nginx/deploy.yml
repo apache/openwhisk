@@ -1,6 +1,8 @@
 - name: OpenWhisk Router
   hosts: edge
   tasks:
+  - name: Create nginx conf directory
+    file: path="{{nginx.conf.dir}}" state=directory
   - name: Create nginx conf
     script: "{{playbook_dir}}/generateProxyConf.sh > {{nginx.conf.dir}}/nginx.conf"
     environment:

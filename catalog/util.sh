@@ -5,12 +5,6 @@
 # Note use of --apihost, this is needed in case of a b/g swap since the router may not be
 # updated yet and there may be a breaking change in the API. All tests should go through edge.
 SCRIPTDIR="$(cd $(dirname "$0")/ && pwd)"
-WHISKPROPS_FILE="$SCRIPTDIR/../whisk.properties"
-if [ ! -f "$WHISKPROPS_FILE" ]; then
-    echo "whisk properties file not found $WHISKPROPS_FILE"
-    exit 1
-fi
-EDGE_HOST=`fgrep edge.host= "$WHISKPROPS_FILE" | cut -d'=' -f2`
 
 function createPackage() {
     PACKAGE_NAME=$1

@@ -24,23 +24,7 @@
 #
 
 SCRIPTDIR="$(cd $(dirname "$0")/ && pwd)"
-PROPERTIES_FILE="$SCRIPTDIR/../../whisk.properties"
 
-# Looks up a value in a property file.
-# arg $1: the path to the property file.
-# arg $2: the name of the property to look up
-# return (print to stdout): the value of the property.
-function getProperty() {
-    file=$1
-    name=$2
-    value=$(cat "$file" | grep "^$name=" |cut -d "=" -f 2)
-    echo $value
-}
-
-CLOUDANT_USERNAME=$(getProperty "$PROPERTIES_FILE" "cloudant.username")
-CLOUDANT_PASSWORD=$(getProperty "$PROPERTIES_FILE" "cloudant.password")
-CLOUDANT_DB_PREFIX=$(getProperty "$PROPERTIES_FILE" "cloudant.db.prefix")
-source "$SCRIPTDIR/../../config/cloudantSetup.sh"
 CURL_ADMIN="curl --user $CLOUDANT_USERNAME:$CLOUDANT_PASSWORD"
 URL_BASE="https://$CLOUDANT_USERNAME.cloudant.com"
 
@@ -60,7 +44,3 @@ do
     echo $CMD
     $CMD
 done
-
-# recreate views required by whisk.core.entity.WhiskStore
-echo "loading views"
-source loadTransientDBViews.sh

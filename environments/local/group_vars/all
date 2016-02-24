@@ -10,7 +10,13 @@ whisk:
     key: config/keys/openwhisk-self-key.pem
   logs:
     dir: /tmp/wsklogs
+cloudant:
+  username: 4cb9aae8-df5a-4269-8e92-a278d45c8654-bluemix
+  password: a8ddc0f54ff38f92955321d663e2d869fc52dc41ebda1edd690f3cb982afae55
+  auth_db: subjects
+  whisks_db: whisks 
 docker:
+  port: 4243
   restart:
     policy: always
 
