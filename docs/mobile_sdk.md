@@ -1,7 +1,7 @@
 
 # Using the OpenWhisk mobile SDK
 
-OpenWhisk provides a mobile SDK for iOS and watchOS 2 devices that enables mobile apps to easily fire remote triggers and invoke remote actions. A version for Android is currently not available and so Android developers can resort to using the OpenWhisk REST API directly.
+OpenWhisk provides a mobile SDK for iOS and watchOS 2 devices that enables mobile apps to easily fire remote triggers and invoke remote actions. A version for Android is currently not available; Android developers can use the OpenWhisk REST API directly.
 
 The mobile SDK is written in Swift 2.0 and supports iOS 9 and later releases.
 
@@ -49,7 +49,17 @@ let credentialsConfiguration = WhiskCredentials(accessKey: "myKey", accessToken:
 let whisk = Whisk(credentials: credentialsConfiguration!)
 ```
 
-In previous example, you pass in the `myKey` and `myToken` you get from OpenWhisk.
+In previous example, you pass in the `myKey` and `myToken` you get from OpenWhisk. You can retrieve the key and token with the following CLI command:
+
+```
+$ wsk property get --auth
+```
+
+```
+whisk auth              kkkkkkkk-kkkk-kkkk-kkkk-kkkkkkkkkkkk:tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt
+```
+
+The strings before and after the colon are your key and token, respectively.
 
 ## Invoking an OpenWhisk action
 

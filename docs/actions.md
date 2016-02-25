@@ -25,7 +25,7 @@ Review the following steps and examples to create your first JavaScript action.
   }
   ```
 
-  The JavaScript file may contain additional functions, but by convention a function called `main` must exist and it is the entry point for the action.
+  The JavaScript file might contain additional functions. However, by convention, a function called `main` must exist to provide the entry point for the action.
 
 2. Create an action from the following JavaScript function. For this example, the action is called 'hello'.
 
@@ -48,7 +48,7 @@ Review the following steps and examples to create your first JavaScript action.
 
   You can see the `hello` action you just created.
 
-4. After you create your action, you can run it in OpenWhisk (i.e., the cloud) with the 'invoke' command. You can invoke actions with a *blocking* invocation or a *non-blocking* invocation by specifying a flag in the command. A blocking invocation waits until the action runs to completion and returns a result. This example uses the blocking parameter, `-blocking`:
+4. After you create your action, you can run it in the cloud in OpenWhisk with the 'invoke' command. You can invoke actions with a *blocking* invocation or a *non-blocking* invocation by specifying a flag in the command. A blocking invocation waits until the action runs to completion and returns a result. This example uses the blocking parameter, `--blocking`:
 
   ```
   $ wsk action invoke --blocking hello
@@ -134,7 +134,7 @@ Parameters can be passed to the action when it is invoked.
 
 Actions can be invoked with multiple named parameters. Recall that the `hello` action from the previous example expects two parameters: the *name* of a person, and the *place* where they're from.
 
-Rather than pass all the parameters to an action every time, you can bind certain parameters. The following example binds the *place* parameter so that there is an action that defaults to the place "Vermont":
+Rather than pass all the parameters to an action every time, you can bind certain parameters. The following example binds the *place* parameter so that the action defaults to the place "Vermont":
  
 1. Update the action using the `--param` option to bind parameter values.
 
@@ -168,7 +168,7 @@ Rather than pass all the parameters to an action every time, you can bind certai
 
 ### Creating asynchronous actions
 
-JavaScript functions that continue execution in a callback function may need to return the activation result after the `main` function has returned. You can accomplish this using the `whisk.async()` and `whisk.done()` functions in your action.
+JavaScript functions that continue execution in a callback function might need to return the activation result after the `main` function has returned. You can accomplish this using the `whisk.async()` and `whisk.done()` functions in your action.
 
 1. Save the following content in a file called `asyncAction.js`.
 
@@ -199,7 +199,7 @@ JavaScript functions that continue execution in a callback function may need to 
   }
   ```
 
-  Notice that you can performed a blocking invocation of an asynchronous action.
+  Notice that you performed a blocking invocation of an asynchronous action.
 
 3. Fetch the activation log to see how long the activation took to complete:
 
@@ -252,7 +252,7 @@ This example invokes a Yahoo Weather service to get the current conditions at a 
     }
   ```
 
-  Note that the action in the example uses the JavaScript `request` library to make an HTTP request to the Yahoo Weather API, and extracts fields from the JSON result. The [References](./reference.md#runtime-environment) detail the Node.js packages you can use in your actions.
+  Note that the action in the example uses the JavaScript `request` library to make an HTTP request to the Yahoo Weather API, and extracts fields from the JSON result. The [References](./reference.md#runtime-environment) detail the Node.js packages that you can use in your actions.
   
   This example also shows the need for asynchronous actions. The action returns `whisk.async()` to indicate that the result of this action is not available yet when the function returns. Instead, the result is available in the `request` callback after the HTTP call completes, and is passed as an argument to the `whisk.done()` function.
 
@@ -273,7 +273,7 @@ This example invokes a Yahoo Weather service to get the current conditions at a 
 
 You can create an action that chains together a sequence of actions.
 
-There are a several utility actions provided in a package called `/whisk.system/util` that you can use to create your first sequence. You can learn more about packages in the [Packages](./packages.md) section.
+Several utility actions are provided in a package called `/whisk.system/util` that you can use to create your first sequence. You can learn more about packages in the [Packages](./packages.md) section.
 
 1. Display the actions in the `/whisk.system/util` package.
   
@@ -326,7 +326,7 @@ There are a several utility actions provided in a package called `/whisk.system/
 
 ## Creating Swift actions
 
-The process of creating Swift actions is similar to that of JavaScript actions. The following sections will guide you through creating and invoking a single swift action, and adding parameters to that action.
+The process of creating Swift actions is similar to that of JavaScript actions. The following sections guide you through creating and invoking a single swift action, and adding parameters to that action.
 
 You can also use the online [Swift Sandbox](https://swiftlang.ng.bluemix.net) to test your Swift code without having to install Xcode on your machine.
 
@@ -374,23 +374,23 @@ $ wsk action invoke --blocking --result helloSwift --param name World
 **Attention:** Swift actions run in a Linux environment. Swift on Linux is still in
 development, and OpenWhisk usually uses the latest available release, which is not necessarily stable. In addition, the version of Swift that is used with OpenWhisk might be inconsistent with versions of Swift from stable releases of XCode on MacOS.
 
-## Creating docker actions
+## Creating Docker actions
 
-With OpenWhisk docker actions, you can write your actions in any language.
+With OpenWhisk Docker actions, you can write your actions in any language.
 
 Your code is compiled into a executable binary and embedded into a Docker image. The binary program interacts with the system by taking input from `stdin` and replying through `stdout`.
 
 As a prerequisite, you must have a Docker Hub account.  To set up a free Docker ID and account, go to [Docker Hub](https://hub.docker.com).
 
-For the instructions that follow, assume that the user ID is "janesmith" and the password is "janes_password".  Assuming that the CLI has already been set up, there are three steps needed to set up a custom binary for use by OpenWhisk.  After that, the uploaded Docker image can be used as an action.
+For the instructions that follow, assume that the user ID is "janesmith" and the password is "janes_password".  Assuming that the CLI has already been set up, three steps are required to set up a custom binary for use by OpenWhisk.  After that, the uploaded Docker image can be used as an action.
 
-1. Download the docker skeleton. You can download it by using the CLI as follows:
+1. Download the Docker skeleton. You can download it by using the CLI as follows:
 
   ```
   $ wsk sdk install docker
   ```
   ```
-  The docker skeleton is now installed at the current directory.
+  The Docker skeleton is now installed at the current directory.
   ```
 
   ```
@@ -416,7 +416,7 @@ For the instructions that follow, assume that the user ID is "janesmith" and the
   }
   ```
 
-  You can modify this file to your liking.
+  You can modify this file as needed.
 
 3. Build the Docker image and upload it using a supplied script. You must first run `docker login` to authenticate, and then run the script with a chosen image name.
 
@@ -430,9 +430,9 @@ For the instructions that follow, assume that the user ID is "janesmith" and the
   $ ./buildAndPush.sh janesmith/blackboxdemo
   ```
 
-  Note that part of the example.c file is compiled as part of the Docker image build process, so you do not need a C compiled on your machine.
+  Note that part of the example.c file is compiled as part of the Docker image build process, so you do not need C compiled on your machine.
 
-4. To create an action from a Docker image rather than a supplied javascript file, add `--docker` and replace the JavaScript file name with the Docker image name.
+4. To create an action from a Docker image rather than a supplied JavaScript file, add `--docker` and replace the JavaScript file name with the Docker image name.
 
   ```
   $ wsk action create --docker example janesmith/blackboxdemo
@@ -452,7 +452,7 @@ You can find more information about creating Docker actions in the [References](
 
 ## Watching action output
 
-OpenWhisk actions may be invoked by other users, in response to various events, or as part of an action sequence. In such cases it can be useful to monitor the invocations.
+OpenWhisk actions might be invoked by other users, in response to various events, or as part of an action sequence. In such cases it can be useful to monitor the invocations.
 
 You can use the OpenWhisk CLI to watch the output of actions as they are invoked.
 

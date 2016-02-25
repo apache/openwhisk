@@ -41,8 +41,8 @@ You will be using this naming scheme when you use the OpenWhisk CLI, among other
 The names of all entities including actions, triggers, rules, packages, and namespaces are a sequence of characters that follow the following format:
 
 * The first character must be an alphanumeric character, a digit, or an underscore.
-* The subsequent characters may be alphanumeric, digits, spaces, or any of the following: `_`, `@`, `.`, `-`.
-* The last character may not be a space.
+* The subsequent characters can be alphanumeric, digits, spaces, or any of the following: `_`, `@`, `.`, `-`.
+* The last character can't be a space.
 
 More precisely, a name must match the following regular expression (expressed using Java metacharacter syntax): `\A([\w]|[\w][\w@ .-]*[\w@.-]+)\z`.
 
@@ -53,9 +53,9 @@ The following sections describe details about OpenWhisk actions.
 
 ### Statelessness
 
-Action implementations should be stateless (i.e., idempotent). While the system does not enforce this, there is no guarantee that any state maintained by an action will be available across invocations.
+Action implementations should be stateless, or *idempotent*. While the system does not enforce this property, there is no guarantee that any state maintained by an action will be available across invocations.
 
-Moreover, there may be multiple instantiations of an action with each instantiation having its own state. An action invocation may be dispatched to any of these instantiations.
+Moreover, multiple instantiations of an action might exist, with each instantiation having its own state. An action invocation might be dispatched to any of these instantiations.
 
 ### Invocation input and output
 
@@ -63,7 +63,7 @@ The input to and output from an action is a dictionary of key-value pairs. The k
 
 ### Invocation ordering of actions
 
-Invocations of an action are not ordered. If the user invokes an action twice from the command-line or the REST API, the second invocation may run before the first. If the actions have side effects, they may be observed in any order.
+Invocations of an action are not ordered. If the user invokes an action twice from the command-line or the REST API, the second invocation might run before the first. If the actions have side effects, they might be observed in any order.
 
 Additionally, there is no guarantee of actions executing atomically. Two actions can run concurrently and their side effects can be interleaved.  OpenWhisk does not ensure any particular concurrent consistency model for side effects. Any concurrency side effects will be implementation dependent.
 
@@ -82,12 +82,12 @@ that the invocation was received.
 The system attempts to invoke the action once, resulting in one of the following four outcomes:
 - *success*: the action invocation completed successfully.
 - *application error*: the action invocation was successful, but the action returned an error value on purpose, for instance because a precondition on the arguments was not met.
-- *action developer error*: the action was invoked, but it completed abnormally, for instance the action did not catch an exception, or there was a syntax error.
-- *whisk internal error*: the system was unable to invoke the action
+- *action developer error*: the action was invoked, but it completed abnormally, for instance the action did not catch an exception, or a syntax error existed.
+- *whisk internal error*: the system was unable to invoke the action.
 The outcome is recorded in the `status` field of the activation record, as document in a following section.
 
 Every invocation that is successfully received, and that the
-user may get billed for, will eventually have an activation record.
+user might be billed for, will eventually have an activation record.
 
 
 ## Activation record
@@ -96,12 +96,12 @@ Each action invocation and trigger firing results in an activation record.
 
 An activation record contains the following fields:
 
-- *activationId*: The activation id.
+- *activationId*: The activation ID.
 - *start* and *end*: Timestamps recording the start and end of the activation. The values are in [UNIX time format](http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap04.html#tag_04_15).
 - *namespace* and `name`: The namespace and name of the entity.
 - *logs*: An array of strings with the logs produced by the action during its activation. Each array element corresponds to a line output to stdout or stderr by the action, and includes the time and stream of the log output. The structure is as follows: ```TIMESTAMP STREAM: LOG_OUTPUT```.
 - *response*: A dictionary defining the keys `success`, `status`, and `result`:
-  - *status*: The activation result, which may be one of the following values: "success", "application error", "action developer error", "whisk internal error".
+  - *status*: The activation result, which might be one of the following values: "success", "application error", "action developer error", "whisk internal error".
   - *success*: Is `true` if and only if the status is `"success"`
 - *result*: A dictionary that contains the activation result. If the activation was successful, this contains the value returned by the action. If the activation was unsuccessful, `result` is guaranteed to contain the `error` key, generally with an explanation of the failure.
 
@@ -112,7 +112,7 @@ An activation record contains the following fields:
 
 OpenWhisk JavaScript actions run in a Node.js runtime, currently version 0.12.9.
 
-Actions written in JavaScript must be confined to a single file. The file may contain multiple functions but by convention a function called `main` must exist and is the one called when the action is invoked. For example, this is an example of an action with multiple functions.
+Actions written in JavaScript must be confined to a single file. The file can contain multiple functions but by convention a function called `main` must exist and is the one called when the action is invoked. For example, the following is an example of an action with multiple functions.
 
 ```
 function main() {
@@ -205,9 +205,9 @@ action is running. Defaults to `whisk.getAuthKey()`.
 The signature for `next` is `function(error, activation)`, where:
 
 - `error` is `false` if the invocation succeeded, and a truthy value if it failed, usually a string describing the error.
-- On errors, `activation` may be undefined, depending on the failure mode.
+- On errors, `activation` might be undefined, depending on the failure mode.
 - When defined, `activation` is a dictionary with the following fields:
-  - *activationId*: The activation id:
+  - *activationId*: The activation ID:
   - *result*: If the action was invoked in blocking mode: The action result as a JSON object, else `undefined`.
 
 The `whisk.trigger()` function fires a trigger. It takes as an argument a JSON object with the following parameters:
@@ -220,10 +220,10 @@ The `whisk.trigger()` function fires a trigger. It takes as an argument a JSON o
 The signature for `next` is `function(error, activation)`, where:
 
 - `error` is `false` if the firing succeeded, and a truthy value if it failed, usually a string describing the error.
-- On errors, `activation` may be undefined, depending on the failure mode.
-- When defined, `activation` is a dictionary with an `activationId` field containing the activation id.
+- On errors, `activation` might be undefined, depending on the failure mode.
+- When defined, `activation` is a dictionary with an `activationId` field containing the activation ID.
 
-The `whisk.getAuthKey()` function returns the authorization key under which the action is running. There is usually no reason to invoke this function directly, since it is used implicitly by the `whisk.invoke()` and `whisk.trigger()` functions.
+The `whisk.getAuthKey()` function returns the authorization key under which the action is running. Usually, you do not need to invoke this function directly, because it is used implicitly by the `whisk.invoke()` and `whisk.trigger()` functions.
 
 ### Runtime environment
 
@@ -275,12 +275,12 @@ The Docker skeleton is a convenient way to build OpenWhisk-compatible Docker ima
 
 The main binary program should be copied to the `dockerSkeleton/client/clientApp` file. Any companion files or library can reside in the `dockerSkeleton/client` directory.
 
-You can also include any compilation steps or dependencies by modifying the `dockerSkeleton/Dockefile`. For example you can install Python if your action is a Python script.
+You can also include any compilation steps or dependencies by modifying the `dockerSkeleton/Dockerfile`. For example you can install Python if your action is a Python script.
 
 
 ## System limits
 
-There are a few system limits in place including how much memory an action uses and how many action invocations are allowed per hour. The following table lists the default limits.
+OpenWhisk has a few system limits, including how much memory an action uses and how many action invocations are allowed per hour. The following table lists the default limits.
 
 | limit | description | configurable | unit | default |
 | ----- | ----------- | ------------ | -----| ------- |
@@ -291,17 +291,17 @@ There are a few system limits in place including how much memory an action uses 
 | hourRate | a user cannot invoke more than this many actions per hour | per user | number | 3600 |
 
 ### Per action timeout (ms) (Default: 60s)
-* The timeout limit N is in the range [100ms..300000ms] and is set per action in ms.
+* The timeout limit N is in the range [100ms..300000ms] and is set per action in millioseconds.
 * A user can change the limit when creating the action.
-* A container that runs longer than N ms is terminated.
+* A container that runs longer than N milliseconds is terminated.
 
 ### Per action memory (MB) (Default: 256MB)
 * The memory limit M is in the range from [128MB..512MB] and is set per action in MB.
 * A user can change the limit when creating the action.
-* A container can not allocate more memory than the limit.
+* A container cannot have more memory allocated than the limit.
 
 ### Per namespace #Concurrent Invocation (#) (Default: 100)
-* The number of activations that are currently processed for a namespace can not exceed 100.
+* The number of activations that are currently processed for a namespace cannot exceed 100.
 * The default limit can be statically configured by whisk in consul kvstore.
 * A user is currently not able to change the limits.
 
@@ -309,4 +309,4 @@ There are a few system limits in place including how much memory an action uses 
 ### Invocations per minute/hour (#) (Fixed: 120/3600)
 * The rate limit N is set to 120/3600 and limits the number of action invocations in one minute/hour windows.
 * A user cannot change this limit when creating the action.
-* A CLI call that exceeds this limit will receive an error code corresponding to TOO_MANY_REQUESTS.
+* A CLI call that exceeds this limit receives an error code corresponding to TOO_MANY_REQUESTS.
