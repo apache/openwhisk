@@ -84,4 +84,4 @@ You can find additional information about OpenWhisk in the following topics:
 * [Entity names](./reference.md#openwhisk-entities)
 * [Action semantics](./reference.md#action-semantics)
 * [Limits](./reference.md#system-limits)
-* [REST API](http://petstore.swagger.io/?url=https://raw.githubusercontent.com/openwhisk/openwhisk/docs/core/controller/src/resources/whiskswagger.json)
+* [REST API](http://petstore.swagger.io/?url=https://raw.githubusercontent.com/openwhisk/openwhisk/master/core/controller/src/resources/whiskswagger.json)
