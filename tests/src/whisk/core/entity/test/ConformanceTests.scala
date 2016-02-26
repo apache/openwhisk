@@ -24,10 +24,15 @@ import org.scalatest.junit.JUnitRunner
 import com.cloudant.client.api.Database
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.dbAuths
+import whisk.core.WhiskConfig.dbProvider
+import whisk.core.WhiskConfig.dbHost
+import whisk.core.WhiskConfig.dbPort
 import whisk.core.WhiskConfig.dbPassword
 import whisk.core.WhiskConfig.dbUsername
 import whisk.core.WhiskConfig.dbWhisk
-import whisk.core.database.Cloudant
+import whisk.core.database.CouchDbLikeProvider
+import whisk.core.database.CloudantProvider
+import whisk.core.database.CouchDbProvider
 import whisk.core.entity.schema.ActionRecord
 import whisk.core.entity.schema.ActivationRecord
 import whisk.core.entity.schema.AuthRecord
@@ -45,7 +50,24 @@ class ConformanceTests extends FlatSpec with Matchers {
     type Doc = JsonObject
 
     /**
-     * Helper functions: if d represents a document from cloudant,
+     * Helper function to access the proper database provider in a given scope.
+     */
+    def withDbProvider(block: CouchDbLikeProvider[_]=>Unit) : Unit = {
+        val config = new WhiskConfig(Map(dbProvider -> null))
+
+        assert(config.isValid)
+
+        require(config.dbProvider == "Cloudant" || config.dbProvider == "CouchDB")
+
+        if(config.dbProvider == "Cloudant") {
+           block(CloudantProvider)
+        } else {
+           block(CouchDbProvider)
+        }
+    }
+
+    /**
+     * Helper functions: if d represents a document from the database,
      * is it a design doc, whisk record or whisk activation?
      */
     def isDesignDoc(d: Doc): Boolean = d.get("_id").getAsString.startsWith("_design")
@@ -58,9 +80,8 @@ class ConformanceTests extends FlatSpec with Matchers {
     /**
      * Check that all records in the database each have the required fields
      */
-    def checkDatabaseFields(db: Database, requiredFields: Array[String], filter: Doc => Boolean = (d: Doc) => true) = {
-        //val docs = db.getAllDocsRequestBuilder.includeDocs(true).build.getResponse.getDocsAs(classOf[Doc]).toList
-        val docs = db.view("_all_docs").includeDocs(true).query(classOf[Doc]).toList
+    def checkDatabaseFields(provider: CouchDbLikeProvider[_])(db: provider.Database, requiredFields: Array[String], filter: Doc => Boolean) = {
+        val docs = provider.allDocsInDB[Doc](db)
         docs.map(doc => {
             doc match {
                 case m: Doc => if (!isDesignDoc(m) && filter(m)) {
@@ -73,42 +94,55 @@ class ConformanceTests extends FlatSpec with Matchers {
     }
 
     "Auth Database" should "conform to expected schema" in {
-        val config = new WhiskConfig(
-            Map(dbUsername -> null,
-                dbPassword -> null,
-                dbAuths -> null))
+        val config = new WhiskConfig(Map(
+            dbProvider -> null,
+            dbHost -> null,
+            dbPort -> null,
+            dbUsername -> null,
+            dbPassword -> null
+        ))
 
         assert(config.isValid)
-        val cloudant = new Cloudant(config.dbUsername, config.dbPassword)
-        val authDb = cloudant.getDb(config.dbAuths)
 
-        val requiredFields = classOf[AuthRecord].getDeclaredFields.map(f => f.getName)
-        checkDatabaseFields(authDb, requiredFields)
+        withDbProvider { provider =>
+            val client = provider.mkClient(config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword)
+            val authDb = provider.getDB(client, config.dbAuths)
+
+            val requiredFields = classOf[AuthRecord].getDeclaredFields.map(f => f.getName)
+            checkDatabaseFields(provider)(authDb, requiredFields, _ => true)
+        }
     }
 
     "Whisk Database" should "conform to expected schema" in {
-        val config = new WhiskConfig(
-            Map(dbUsername -> null,
-                dbPassword -> null,
-                dbWhisk -> null))
+        val config = new WhiskConfig(Map(
+            dbProvider -> null,
+            dbHost -> null,
+            dbPort -> null,
+            dbUsername -> null,
+            dbPassword -> null,
+            dbWhisk -> null
+        ))
 
         assert(config.isValid)
-        val cloudant = new Cloudant(config.dbUsername, config.dbPassword)
-        val whiskDb = cloudant.getDb(config.dbWhisk)
 
-        val requiredActionFields = classOf[ActionRecord].getDeclaredFields.map(f => f.getName)
-        checkDatabaseFields(whiskDb, requiredActionFields, isAction)
+        withDbProvider { provider =>
+            val client = provider.mkClient(config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword)
+            val whiskDb = provider.getDB(client, config.dbWhisk)
 
-        val requiredTriggerFields = classOf[TriggerRecord].getDeclaredFields.map(f => f.getName)
-        checkDatabaseFields(whiskDb, requiredTriggerFields, isTrigger)
+            val requiredActionFields = classOf[ActionRecord].getDeclaredFields.map(f => f.getName)
+            checkDatabaseFields(provider)(whiskDb, requiredActionFields, isAction)
 
-        val requiredRuleFields = classOf[RuleRecord].getDeclaredFields.map(f => f.getName)
-        checkDatabaseFields(whiskDb, requiredRuleFields, isRule)
+            val requiredTriggerFields = classOf[TriggerRecord].getDeclaredFields.map(f => f.getName)
+            checkDatabaseFields(provider)(whiskDb, requiredTriggerFields, isTrigger)
 
-        val requiredActivationFields = classOf[ActivationRecord].getDeclaredFields.map(f => f.getName)
-        checkDatabaseFields(whiskDb, requiredActivationFields, isActivation)
-        
-        val requiredPackageFields = classOf[PackageRecord].getDeclaredFields.map(f => f.getName)
-        checkDatabaseFields(whiskDb, requiredPackageFields, isPackage)
+            val requiredRuleFields = classOf[RuleRecord].getDeclaredFields.map(f => f.getName)
+            checkDatabaseFields(provider)(whiskDb, requiredRuleFields, isRule)
+
+            val requiredActivationFields = classOf[ActivationRecord].getDeclaredFields.map(f => f.getName)
+            checkDatabaseFields(provider)(whiskDb, requiredActivationFields, isActivation)
+
+            val requiredPackageFields = classOf[PackageRecord].getDeclaredFields.map(f => f.getName)
+            checkDatabaseFields(provider)(whiskDb, requiredPackageFields, isPackage)
+        }
     }
 }

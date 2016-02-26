@@ -25,7 +25,6 @@ import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 
-import whisk.core.database.Cloudant
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.dbPassword
 import whisk.core.WhiskConfig.dbUsername
@@ -41,4 +40,4 @@ class CryptTests extends FlatSpec with Matchers {
         val dt = cr.decrypt(ct)
         assert(dt === pt);
     }
-}    
+}

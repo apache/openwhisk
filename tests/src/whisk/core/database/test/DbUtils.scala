@@ -127,7 +127,7 @@ trait DbUtils extends TransactionCounter {
                 } else true
             }
         }, timeout)
-        assert(success.isSuccess, "wait aborted")
+        assert(success.isSuccess, "wait aborted after: " + timeout + ": " + success)
     }
 
     /**

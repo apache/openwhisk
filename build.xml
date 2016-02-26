@@ -106,11 +106,9 @@
     <!-- do any database maintenance that must happen immediately before deploying -->
     <target name="deployDatabase">
         <var file="whisk.properties" />
-        <echo message="wiping databases with prefix ${cloudant.db.prefix}" />
-        <exec dir="${openwhisk.dir}/tools/cloudant" executable="/bin/bash">
-            <env key="CLOUDANT_USERNAME" value="${cloudant.username}" />
-            <env key="CLOUDANT_PASSWORD" value="${cloudant.password}" />
-            <env key="CLOUDANT_DB_PREFIX" value="${cloudant.db.prefix}" />
+        <echo message="wiping databases with prefix ${db.prefix}" />
+        <exec dir="${openwhisk.dir}/tools/db" executable="/bin/bash">
+            <env key="DB_PREFIX" value="${db.prefix}" />
             <arg value="wipeTransientDBs.sh" />
         </exec>
     </target>

@@ -39,9 +39,9 @@ class WhiskConfig(
     val dockerRegistry = this(WhiskConfig.dockerRegistry)
     val dockerEndpoint = this(WhiskConfig.dockerEndpoint)
     val selfDockerEndpoint = this(WhiskConfig.selfDockerEndpoint)
-    
+
     val dockerImageTag = this(WhiskConfig.dockerImageTag)
-    
+
     val invokerContainerNetwork = this(WhiskConfig.invokerContainerNetwork)
 
     val whiskVersion = this(WhiskConfig.whiskVersionName) + ":" + this(WhiskConfig.whiskVersionDate)
@@ -60,8 +60,11 @@ class WhiskConfig(
     val consulServices = this(WhiskConfig.consulServiceList)
     val invokerHosts = this(WhiskConfig.invokerHostsList)
 
+    val dbProvider = this(WhiskConfig.dbProvider)
     val dbUsername = this(WhiskConfig.dbUsername)
     val dbPassword = this(WhiskConfig.dbPassword)
+    val dbHost = this(WhiskConfig.dbHost)
+    val dbPort = this(WhiskConfig.dbPort)
     val dbWhisk = this(WhiskConfig.dbWhisk)
     val dbAuths = this(WhiskConfig.dbAuths)
     val dbActivations = this(WhiskConfig.dbActivations)
@@ -109,11 +112,14 @@ object WhiskConfig {
     val selfDockerEndpoint = "self.docker.endpoint"
     val kafkaPartitions = "kafka.numpartitions"
 
-    val dbUsername = "cloudant.username"
-    val dbPassword = "cloudant.password"
-    val dbWhisk = "cloudant.whisk.actions"
-    val dbAuths = "cloudant.whisk.auths"
-    val dbPrefix = "cloudant.db.prefix"
+    val dbProvider = "db.provider"
+    val dbHost = "db.host"
+    val dbPort = "db.port"
+    val dbUsername = "db.username"
+    val dbPassword = "db.password"
+    val dbWhisk = "db.whisk.actions"
+    val dbAuths = "db.whisk.auths"
+    val dbPrefix = "db.prefix"
     val dbActivations = dbWhisk // map to the same db for now
 
     val dbCipher = "datastore.key"
@@ -127,11 +133,11 @@ object WhiskConfig {
     val whiskVersionDate = "whisk.version.date"
 
     val whiskVersion = Map(whiskVersionName -> null, whiskVersionDate -> null)
-    
+
     val dockerImageTag = "docker.image.tag"
-    
+
     val invokerContainerNetwork = "invoker.container.network"
-    
+
     val routerHost = "router.host"
     val cliApiHost = "cli.api.host"
 

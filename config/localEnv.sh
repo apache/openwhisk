@@ -16,8 +16,8 @@ if [ "$(uname)" == "Darwin" ]; then
     NGINX_CONF_DIR=/Users/Shared/nginx
 fi
 
-# 
-# Setting up LOCALHOST this way rather than "localhost:localdomain" ensures 
+#
+# Setting up LOCALHOST this way rather than "localhost:localdomain" ensures
 # that accessing the Docker endpoint from inside a container works
 # This is the core aspect of localEnv.
 #
@@ -32,8 +32,8 @@ if [ "$(uname)" == "Darwin" ]; then
 fi
 
 USE_DOCKER_REGISTRY=false # skip push/pull locally
-USE_CLI_DOWNLOAD=false # do not download CLI 
-DOCKER_REGISTRY=  
+USE_CLI_DOWNLOAD=false # do not download CLI
+DOCKER_REGISTRY=
 
 WHISK_TEST_AUTH=guest
 
@@ -45,18 +45,29 @@ WHISK_SSL_KEY=config/keys/openwhisk-self-key.pem
 WHISK_SSL_CHALLENGE=openwhisk
 
 #
-# Cloudant variables
+# Database variables
 #
 WHOAMI=`whoami | tr -dc '[:alnum:]' | tr '[:upper:]' '[:lower:]'`
 CLEAN_HOSTNAME=`hostname -s | tr -dc '[:alnum:]' | tr '[:upper:]' '[:lower:]'`
-CLOUDANT_DB_PREFIX=${WHOAMI}_${CLEAN_HOSTNAME}_
-if [ -z "$CLOUDANT_DB_PREFIX" ]; then
-	echo "CLOUDANT_DB_PREFIX is empty"
+DB_PREFIX=${WHOAMI}_${CLEAN_HOSTNAME}_
+if [ -z "$DB_PREFIX" ]; then
+	echo "DB_PREFIX is empty"
 	exit 1
 fi
-source "$DIR/cloudantSetup.sh"
-CLOUDANT_USERNAME=$OPEN_WHISK_DB_USERNAME
-CLOUDANT_PASSWORD=$OPEN_WHISK_DB_PASSWORD
+source "$DIR/dbSetup.sh"
+
+if [ "$OPEN_WHISK_DB_PROVIDER" == "Cloudant" ]; then
+	CLOUDANT_USERNAME=$OPEN_WHISK_DB_USERNAME
+	CLOUDANT_PASSWORD=$OPEN_WHISK_DB_PASSWORD
+elif [ "$OPEN_WHISK_DB_PROVIDER" == "CouchDB" ]; then
+	COUCHDB_HOST=$OPEN_WHISK_DB_HOST
+	COUCHDB_PORT=$OPEN_WHISK_DB_PORT
+	COUCHDB_USERNAME=$OPEN_WHISK_DB_USERNAME
+	COUCHDB_PASSWORD=$OPEN_WHISK_DB_PASSWORD
+else
+	echo "Unknown DB provider value '$OPEN_WHISK_DB_PROVIDER'"
+	exit 1
+fi
 
 # Hosts
 ACTIVATOR_HOST=$LOCALHOST

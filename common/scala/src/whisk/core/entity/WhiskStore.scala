@@ -25,13 +25,17 @@ import spray.json.JsValue
 import spray.json.RootJsonFormat
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
+import whisk.core.WhiskConfig.dbProvider
 import whisk.core.WhiskConfig.dbActivations
 import whisk.core.WhiskConfig.dbAuths
 import whisk.core.WhiskConfig.dbPassword
 import whisk.core.WhiskConfig.dbUsername
+import whisk.core.WhiskConfig.dbHost
+import whisk.core.WhiskConfig.dbPort
 import whisk.core.WhiskConfig.dbWhisk
 import whisk.core.database.ArtifactStore
 import whisk.core.database.CloudantStore
+import whisk.core.database.CouchDbStore
 import whisk.core.database.DocumentRevisionProvider
 import whisk.core.database.DocumentSerializer
 import whisk.core.entity.schema.ActivationRecord
@@ -67,40 +71,54 @@ protected[core] trait WhiskDocument
     protected[core] final def docinfo: DocInfo = DocInfo(docid, rev)
 }
 
+protected[core] object Util {
+    def makeStore[RawDocument, DocumentAbstraction](config: WhiskConfig, name: WhiskConfig=>String)
+      (implicit ev: DocumentAbstraction <:< DocumentSerializer) : ArtifactStore[RawDocument, DocumentAbstraction] = {
+        require(config != null && config.isValid, "config is undefined or not valid")
+        require(config.dbProvider == "Cloudant" || config.dbProvider == "CouchDB", "Unsupported db.provider: " + config.dbProvider)
+
+        if(config.dbProvider == "Cloudant") {
+            CloudantStore.make(config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name(config))
+        } else {
+            CouchDbStore.make(config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name(config))
+        }
+    }
+}
+
 object WhiskAuthStore {
     def requiredProperties =
-        Map(dbUsername -> null,
+        Map(dbProvider -> null,
+            dbUsername -> null,
             dbPassword -> null,
+            dbHost -> null,
+            dbPort -> null,
             dbAuths -> null)
 
-    def datastore(config: WhiskConfig) = {
-        require(config != null && config.isValid, "config is undefined or not valid")
-        new CloudantStore[AuthRecord, WhiskAuth](config.dbUsername, config.dbPassword, config.dbAuths)
-    }
+    def datastore(config: WhiskConfig) = Util.makeStore[AuthRecord, WhiskAuth](config, _.dbAuths)
 }
 
 object WhiskEntityStore {
     def requiredProperties =
-        Map(dbUsername -> null,
+        Map(dbProvider -> null,
+            dbUsername -> null,
             dbPassword -> null,
+            dbHost -> null,
+            dbPort -> null,
             dbWhisk -> null)
 
-    def datastore(config: WhiskConfig) = {
-        require(config != null && config.isValid, "config is undefined or not valid")
-        new CloudantStore[EntityRecord, WhiskEntity](config.dbUsername, config.dbPassword, config.dbWhisk)
-    }
+    def datastore(config: WhiskConfig) = Util.makeStore[EntityRecord, WhiskEntity](config, _.dbWhisk)
 }
 
 object WhiskActivationStore {
     def requiredProperties =
-        Map(dbUsername -> null,
+        Map(dbProvider -> null,
+            dbUsername -> null,
             dbPassword -> null,
+            dbHost -> null,
+            dbPort -> null,
             dbActivations -> null)
 
-    def datastore(config: WhiskConfig) = {
-        require(config != null && config.isValid, "config is undefined or not valid")
-        new CloudantStore[ActivationRecord, WhiskActivation](config.dbUsername, config.dbPassword, config.dbActivations)
-    }
+    def datastore(config: WhiskConfig) = Util.makeStore[ActivationRecord, WhiskActivation](config, _.dbActivations)
 }
 
 /**
