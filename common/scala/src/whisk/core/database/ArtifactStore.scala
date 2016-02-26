@@ -87,4 +87,7 @@ trait ArtifactStore[RawDocument, DocumentAbstraction] extends Logging {
 
     /** Type for deserializer function that converts between raw document and abstraction. */
     protected type Deserializer[R <: RawDocument, A <: DocumentAbstraction] = R => Try[A]
+
+    /** Shut it down. After this invocation, every other call is invalid. */
+    def shutdown() : Unit
 }

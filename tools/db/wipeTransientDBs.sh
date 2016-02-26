@@ -37,19 +37,24 @@ function getProperty() {
     echo $value
 }
 
-CLOUDANT_USERNAME=$(getProperty "$PROPERTIES_FILE" "cloudant.username")
-CLOUDANT_PASSWORD=$(getProperty "$PROPERTIES_FILE" "cloudant.password")
-CLOUDANT_DB_PREFIX=$(getProperty "$PROPERTIES_FILE" "cloudant.db.prefix")
-source "$SCRIPTDIR/../../config/cloudantSetup.sh"
-CURL_ADMIN="curl -s --user $CLOUDANT_USERNAME:$CLOUDANT_PASSWORD"
-URL_BASE="https://$CLOUDANT_USERNAME.cloudant.com"
+# Need this to get the list of transient DBs.
+source "$SCRIPTDIR/../../config/dbSetup.sh"
 
+DB_PREFIX=$(getProperty "$PROPERTIES_FILE" "db.prefix")
+DB_HOST=$(getProperty "$PROPERTIES_FILE" "db.host")
+DB_PORT=$(getProperty "$PROPERTIES_FILE" "db.port")
+DB_USERNAME=$(getProperty "$PROPERTIES_FILE" "db.username")
+DB_PASSWORD=$(getProperty "$PROPERTIES_FILE" "db.password")
+
+CURL_ADMIN="curl -k --user $DB_USERNAME:$DB_PASSWORD"
+URL_BASE="https://$DB_HOST:$DB_PORT"
 
 ## drop and recreate the transient databases
-echo
-for db in $CLOUDANT_TRANSIENT_DBS
-do  
+for db in $DB_TRANSIENT_DBS
+do
     echo "dropping database: '$db'"
+
+    # drop the database
     CMD="$CURL_ADMIN -X DELETE $URL_BASE/$db"
     #echo $CMD
     $CMD

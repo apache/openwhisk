@@ -86,12 +86,14 @@ function view() {
     }'
 }
 
-CLOUDANT_USERNAME=$(getProperty "$PROPERTIES_FILE" "cloudant.username")
-CLOUDANT_PASSWORD=$(getProperty "$PROPERTIES_FILE" "cloudant.password")
-CLOUDANT_DB_PREFIX=$(getProperty "$PROPERTIES_FILE" "cloudant.db.prefix")
-source "$SCRIPTDIR/../../config/cloudantSetup.sh"
-CURL_ADMIN="curl -s --user $CLOUDANT_USERNAME:$CLOUDANT_PASSWORD"
-URL_BASE="https://$CLOUDANT_USERNAME.cloudant.com"
+DB_PREFIX=$(getProperty "$PROPERTIES_FILE" "db.prefix")
+DB_HOST=$(getProperty "$PROPERTIES_FILE" "db.host")
+DB_PORT=$(getProperty "$PROPERTIES_FILE" "db.port")
+DB_USERNAME=$(getProperty "$PROPERTIES_FILE" "db.username")
+DB_PASSWORD=$(getProperty "$PROPERTIES_FILE" "db.password")
 
-PREV_REV=`$CURL_ADMIN -X GET $URL_BASE/$CLOUDANT_WHISK_ACTIONS/_design/whisks | awk -F"," '{print $2}'`
-$CURL_ADMIN -X POST -H 'Content-Type: application/json' -d "$(addRevision "$(view)" $PREV_REV)" $URL_BASE/$CLOUDANT_WHISK_ACTIONS
+CURL_ADMIN="curl -k --user $DB_USERNAME:$DB_PASSWORD"
+URL_BASE="https://$DB_HOST:$DB_PORT"
+
+PREV_REV=`$CURL_ADMIN -X GET $URL_BASE/$DB_WHISK_ACTIONS/_design/whisks | awk -F"," '{print $2}'`
+$CURL_ADMIN -X POST -H 'Content-Type: application/json' -d "$(addRevision "$(view)" $PREV_REV)" $URL_BASE/$DB_WHISK_ACTIONS; echo

@@ -37,7 +37,7 @@ Once you've set up `cf`, issue the following commands to create a Cloudant datab
   ```
   # Create a Cloudant service
   cf create-service cloudantNoSQLDB Shared cloudant-for-openwhisk
-  
+
   # Create Cloudant service keys
   cf create-service-key cloudant-for-openwhisk openwhisk
 
@@ -133,17 +133,17 @@ Mac users can clone, build and deploy OpenWhisk either with a Vagrant or Docker 
 3. Next, you must initialize the datastore. This creates a database to hold user authorization keys, including a guest user key (used for running unit tests) and a system key for installing standard OpenWhisk assets (e.g., samples).
 
   ```
-  tools/cloudant/createImmortalDBs.sh <cloudant username> <cloudant password>
+  tools/db/createImmortalDBs.sh
   ```
 
 The script will ask you to confirm this database initialization.
 
   ```
-  About to drop and recreate database 'subjects' in this cloudant account:
+  About to drop and recreate database 'subjects' in this Cloudant account:
   <cloudant username>
   This will wipe the previous database if it exists and this is not reversible.
   Respond with 'DROPIT' to continue and anything else to abort.
-  Are you sure? 
+  Are you sure?
   ```
 
 Confirm initialization by typing `DROPIT`. The output should resemble the following.
@@ -186,7 +186,7 @@ The following commands are relative to the OpenWhisk directory. If necessary, ch
   ```
   # build and deploy OpenWhisk in the virtual machine
   ant clean build deploy
-  
+
   # optionally run the unit tests against your local deployment
   ant run
   ```
