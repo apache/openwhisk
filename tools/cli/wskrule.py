@@ -17,46 +17,46 @@
 import json
 import httplib
 from wskitem import Item
-from wskutil import apiBase, parseQName, request, responseError
+from wskutil import addAuthenticatedCommand, apiBase, parseQName, request, responseError
 import urllib
 
 class Rule(Item):
 
     def __init__(self):
-        super(Rule, self).__init__("rule", "rules")
+        super(Rule, self).__init__('rule', 'rules')
 
     def getItemSpecificCommands(self, parser, props):
         subcmd = parser.add_parser('create', help='create new rule')
         subcmd.add_argument('name', help='the name of the rule')
         subcmd.add_argument('trigger', help='the trigger')
         subcmd.add_argument('action', help='the action')
+        addAuthenticatedCommand(subcmd, props)
         subcmd.add_argument('--shared', nargs='?', const='yes', choices=['yes', 'no'], help='shared action (default: private)')
-        subcmd.add_argument('-u', '--auth', help='authorization key', default=props.get('AUTH'))
         subcmd.add_argument('--enable', help='enable rule after creating it', action='store_true', default=False)
 
         subcmd = parser.add_parser('delete', help='delete %s' % self.name)
         subcmd.add_argument('name', help='the name of the %s' % self.name)
-        subcmd.add_argument('-u', '--auth', help='authorization key', default=props.get('AUTH'))
+        addAuthenticatedCommand(subcmd, props)
         subcmd.add_argument('--disable', help='automatically disable rule defore deleting it', action='store_true', default=False)
 
         subcmd = parser.add_parser('update', help='update an existing rule')
         subcmd.add_argument('name', help='the name of the rule')
         subcmd.add_argument('trigger', help='the trigger')
         subcmd.add_argument('action', help='the action')
+        addAuthenticatedCommand(subcmd, props)
         subcmd.add_argument('--shared', nargs='?', const='yes', choices=['yes', 'no'], help='shared action (default: private)')
-        subcmd.add_argument('-u', '--auth', help='authorization key', default=props.get('AUTH'))
 
         subcmd = parser.add_parser('enable', help='enable rule')
         subcmd.add_argument('name', help='the name of the rule')
-        subcmd.add_argument('-u', '--auth', help='authorization key', default=props.get('AUTH'))
+        addAuthenticatedCommand(subcmd, props)
 
         subcmd = parser.add_parser('disable', help='disable rule')
         subcmd.add_argument('name', help='the name of the rule')
-        subcmd.add_argument('-u', '--auth', help='authorization key', default=props.get('AUTH'))
+        addAuthenticatedCommand(subcmd, props)
 
         subcmd = parser.add_parser('status', help='get rule status')
         subcmd.add_argument('name', help='the name of the rule')
-        subcmd.add_argument('-u', '--auth', help='authorization key', default=props.get('AUTH'))
+        addAuthenticatedCommand(subcmd, props)
 
         self.addDefaultCommands(parser, props, ['get', 'list'])
 

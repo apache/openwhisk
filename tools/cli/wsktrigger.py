@@ -18,35 +18,35 @@ import json
 import httplib
 from wskitem import Item
 from wskaction import Action
-from wskutil import apiBase, dict2obj, getParam, getParams, getActivationArgument, getAnnotations, parseQName, responseError, request, getQName
+from wskutil import addAuthenticatedCommand, apiBase, dict2obj, getParam, getParams, getActivationArgument, getAnnotations, parseQName, responseError, request, getQName
 import urllib
 
 class Trigger(Item):
 
     def __init__(self):
-        super(Trigger, self).__init__("trigger", "triggers")
+        super(Trigger, self).__init__('trigger', 'triggers')
 
     def getItemSpecificCommands(self, parser, props):
         subcmd = parser.add_parser('create', help='create new trigger')
         subcmd.add_argument('name', help='the name of the trigger')
+        addAuthenticatedCommand(subcmd, props)
         subcmd.add_argument('--shared', nargs='?', const='yes', choices=['yes', 'no'], help='shared action (default: private)')
         subcmd.add_argument('-a', '--annotation', help='annotations', nargs=2, action='append')
         subcmd.add_argument('-p', '--param', help='default parameters', nargs=2, action='append')
         subcmd.add_argument('-f', '--feed', help='trigger feed')
-        subcmd.add_argument('-u', '--auth', help='authorization key', default=props.get('AUTH'))
 
         subcmd = parser.add_parser('update', help='update an existing trigger')
         subcmd.add_argument('name', help='the name of the trigger')
+        addAuthenticatedCommand(subcmd, props)
         subcmd.add_argument('--shared', nargs='?', const='yes', choices=['yes', 'no'], help='shared action (default: private)')
         subcmd.add_argument('-a', '--annotation', help='annotations', nargs=2, action='append')
         subcmd.add_argument('-p', '--param', help='default parameters', nargs=2, action='append')
-        subcmd.add_argument('-u', '--auth', help='authorization key', default=props.get('AUTH'))
 
         subcmd = parser.add_parser('fire', help='fire trigger event')
         subcmd.add_argument('name', help='the name of the trigger')
         subcmd.add_argument('payload', help='the payload to attach to the trigger', nargs ='?')
+        addAuthenticatedCommand(subcmd, props)
         subcmd.add_argument('-p', '--param', help='parameters', nargs=2, action='append')
-        subcmd.add_argument('-u', '--auth', help='authorization key', default=props.get('AUTH'))
 
         self.addDefaultCommands(parser, props)
 

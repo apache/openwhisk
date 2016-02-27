@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-from wskutil import apiBase, bold, request, responseError, parseQName, getQName, getPrettyJson, getParameterNamesFromAnnotations, getDescriptionFromAnnotations
+from wskutil import addAuthenticatedCommand, apiBase, bold, request, responseError, parseQName, getQName, getPrettyJson, getParameterNamesFromAnnotations, getDescriptionFromAnnotations
 import urllib
 import abc
 import json
@@ -48,18 +48,18 @@ class Item:
             subcmd = subcmds.add_parser('get', help='get %s' % self.name)
             subcmd.add_argument('name', help='the name of the %s' % self.name)
             subcmd.add_argument('project', nargs='?', help='project only this property')
+            addAuthenticatedCommand(subcmd, props)
             subcmd.add_argument('-s', '--summary', help='summarize entity details', action='store_true')
-            subcmd.add_argument('-u', '--auth', help='authorization key', default=props.get('AUTH'))
 
         if ('delete' in which):
             subcmd = subcmds.add_parser('delete', help='delete %s' % self.name)
             subcmd.add_argument('name', help='the name of the %s' % self.name)
-            subcmd.add_argument('-u', '--auth', help='authorization key', default=props.get('AUTH'))
+            addAuthenticatedCommand(subcmd, props)
 
         if ('list' in which):
             subcmd = subcmds.add_parser('list', help='list all %s' % self.collection)
             subcmd.add_argument('name', nargs='?', help='the namespace to list')
-            subcmd.add_argument('-u', '--auth', help='authorization key', default=props.get('AUTH'))
+            addAuthenticatedCommand(subcmd, props)
             subcmd.add_argument('-s', '--skip', help='skip this many entities from the head of the collection', type=int, default=0)
             subcmd.add_argument('-l', '--limit', help='only return this many entities from the collection', type=int, default=30)
 

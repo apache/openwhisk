@@ -21,7 +21,7 @@ import httplib
 import argparse
 import urllib
 from wskitem import Item
-from wskutil import bold, request, getParams, getActivationArgument, getAnnotations, responseError, parseQName, getQName, apiBase, getPrettyJson
+from wskutil import addAuthenticatedCommand, bold, request, getParams, getActivationArgument, getAnnotations, responseError, parseQName, getQName, apiBase, getPrettyJson
 
 #
 # 'wsk actions' CLI
@@ -35,6 +35,7 @@ class Action(Item):
         subcmd = parser.add_parser('create', help='create new action')
         subcmd.add_argument('name', help='the name of the action')
         subcmd.add_argument('artifact', help='artifact (e.g., file name) containing action definition')
+        addAuthenticatedCommand(subcmd, props)
         subcmd.add_argument('--docker', help='treat artifact as docker image path on dockerhub', action='store_true')
         subcmd.add_argument('--copy', help='treat artifact as the name of an existing action', action='store_true')
         subcmd.add_argument('--sequence', help='treat artifact as comma separated sequence of actions to invoke', action='store_true')
@@ -44,11 +45,11 @@ class Action(Item):
         subcmd.add_argument('-p', '--param', help='default parameters', nargs=2, action='append')
         subcmd.add_argument('-t', '--timeout', help='the timeout limit in milliseconds when the action will be terminated', type=int)
         subcmd.add_argument('-m', '--memory', help='the memory limit in MB of the container that runs the action', type=int)
-        subcmd.add_argument('-u', '--auth', help='authorization key', default=props.get('AUTH'))
 
         subcmd = parser.add_parser('update', help='update an existing action')
         subcmd.add_argument('name', help='the name of the action')
         subcmd.add_argument('artifact', nargs='?', default=None, help='artifact (e.g., file name) containing action definition')
+        addAuthenticatedCommand(subcmd, props)
         subcmd.add_argument('--docker', help='treat artifact as docker image path on dockerhub', action='store_true')
         subcmd.add_argument('--copy', help='treat artifact as the name of an existing action', action='store_true')
         subcmd.add_argument('--sequence', help='treat artifact as comma separated sequence of actions to invoke', action='store_true')
@@ -58,13 +59,12 @@ class Action(Item):
         subcmd.add_argument('-p', '--param', help='default parameters', nargs=2, action='append')
         subcmd.add_argument('-t', '--timeout', help='the timeout limit in milliseconds when the action will be terminated', type=int)
         subcmd.add_argument('-m', '--memory', help='the memory limit in MB of the container that runs the action', type=int)
-        subcmd.add_argument('-u', '--auth', help='authorization key', default=props.get('AUTH'))
 
         subcmd = parser.add_parser('invoke', help='invoke action')
         subcmd.add_argument('name', help='the name of the action to invoke')
+        addAuthenticatedCommand(subcmd, props)
         subcmd.add_argument('-p', '--param', help='parameters', nargs=2, action='append')
         subcmd.add_argument('-b', '--blocking', action='store_true', help='blocking invoke')
-        subcmd.add_argument('-u', '--auth', help='authorization key', default=props.get('AUTH'))
         subcmd.add_argument('-r', '--result', help='show only activation result if a blocking activation (unless there is a failure)', action='store_true')
 
         self.addDefaultCommands(parser, props)
@@ -85,7 +85,7 @@ class Action(Item):
             actions = [ getQName(a, ns) for a in actions ]
             args.param.append([ '_actions', json.dumps(actions)])
         
-        validExe = exe is not None and "kind" in exe
+        validExe = exe is not None and 'kind' in exe
         if update or validExe: # if create action, then exe must be valid
             payload = {}
             if args.annotation:
@@ -158,7 +158,7 @@ class Action(Item):
     def getExec(self, args, props):
         exe = {}
         if args.docker:
-            exe['kind'] = "blackbox"
+            exe['kind'] = 'blackbox'
             exe['image'] = args.artifact
         elif args.copy:
             existingAction = args.artifact
@@ -169,10 +169,10 @@ class Action(Item):
         elif args.artifact is not None and os.path.isfile(args.artifact):
             contents = open(args.artifact, 'rb').read()
             if args.artifact.endswith('.swift'):
-                exe['kind'] = "swift"
+                exe['kind'] = 'swift'
                 exe['code'] = contents
             else:
-                exe['kind'] = "nodejs"
+                exe['kind'] = 'nodejs'
                 exe['code'] = contents
         if args.lib:
             exe['initializer'] = base64.b64encode(args.lib.read())

@@ -64,7 +64,7 @@ def importProps(stream):
         if key != '' and val != '':
             props[key.upper().replace('.','_')] = val
         elif key != '':
-            props[key.upper().replace('.','_')] = ""
+            props[key.upper().replace('.','_')] = ''
     return props
 
 def updateProps(key, value, filename):
@@ -87,7 +87,7 @@ def checkRequiredProperties(requiredPropertiesByName, properties):
     requiredPropertiesByValue = [ getPropertyValue(key, properties) for key in requiredPropertiesByName ]
     requiredProperties = dict(zip(requiredPropertiesByName, requiredPropertiesByValue))
     invalidProperties = [ key for key in requiredPropertiesByName if requiredProperties[key] == None ]
-    deferredInfo = ""
+    deferredInfo = ''
     for key, value in requiredProperties.items():
         if value == None or value == '':
             print 'property "%s" not found in environment or property file' % key

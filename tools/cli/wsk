@@ -40,12 +40,16 @@ from wskrule import Rule
 from wskpackage import Package
 from wsknamespace import Namespace
 from wsksdk import Sdk
-from wskutil import apiBase, chooseFromArray, resolveNamespace, request, responseError
+from wskutil import addAuthenticatedCommand, apiBase, chooseFromArray, resolveNamespace, request, responseError
 
 def main():
-    userpropsLocation = os.getenv("WSK_CONFIG_FILE", '%s/.wskprops' % os.path.expanduser('~'))
+    userpropsLocation = os.getenv('WSK_CONFIG_FILE', '%s/.wskprops' % os.path.expanduser('~'))
     userprops = wskprop.importPropsIfAvailable(userpropsLocation)
     whiskprops = wskprop.importDefaultProps()
+
+    # if the default properties failed to load (because file does not exist) then create a stub
+    if whiskprops is None:
+        whiskprops = { 'CLI_API_HOST': None, 'WHISK_VERSION_DATE': None }
 
     exitCode = 0
     try:
@@ -54,7 +58,7 @@ def main():
         apiversion = resolveOverrides('v1', userprops.get('APIVERSION'), args.apiversionOverride)
 
         props = {
-            'apihost' : '%s:443' % apihost,
+            'apihost' : apihost,
             'apiversion': apiversion,
             'namespace': resolveNamespace(userprops, 'NAMESPACE'),
             'clibuild' : whiskprops['WHISK_VERSION_DATE']
@@ -62,6 +66,10 @@ def main():
 
         if (args.verbose):
             print props
+        if apihost is None and (args.cmd != 'property' or args.cmd == 'property' and args.subcmd != 'get'):
+            print 'error: API host is not set. Set it with "wsk property set --apihost <host>".'
+            return 2
+
         exitCode = {
          'list'         : Namespace().listEntitiesInNamespace,
          'action'       : Action().cmd,
@@ -126,7 +134,7 @@ def parseArgs(props):
 
     listmenu = subparsers.add_parser('list', help='list all triggers, actions, and rules in the registry')
     listmenu.add_argument('name', nargs='?', help='the namespace to list')
-    listmenu.add_argument('-u', '--auth', help='authorization key', default=props.get('AUTH'))
+    addAuthenticatedCommand(listmenu, props)
 
     if argcomplete:
         argcomplete.autocomplete(parser)
@@ -135,7 +143,7 @@ def parseArgs(props):
 def propCmd(args, props, userprops, propsLocation):
     if args.subcmd == 'set':
         if args.verbose:
-            print "ok: whisk property file %s" % propsLocation
+            print 'ok: whisk property file %s' % propsLocation
         if args.auth:
             wskprop.updateProps('AUTH', args.auth, propsLocation)
             print 'ok: whisk auth set'
@@ -152,7 +160,7 @@ def propCmd(args, props, userprops, propsLocation):
             else:
                 auth = userprops.get('AUTH')
             if auth is None:
-                print "error: cannot set namespace without an authentication key"
+                print 'error: cannot set namespace without an authentication key'
                 return 1
             res = request('GET', url, auth=auth, verbose=args.verbose)
             namespaces = None
@@ -169,7 +177,7 @@ def propCmd(args, props, userprops, propsLocation):
                         return 0
                     elif choice != None:
                         wskprop.updateProps('NAMESPACE', '%s' % choice, propsLocation)
-                        print "ok: namespace set to %s" % choice
+                        print 'ok: namespace set to %s' % choice
                         return 0
                 print 'error: you are either not entitled to a namespace or you made an invalid choice'
                 return 1
@@ -178,7 +186,7 @@ def propCmd(args, props, userprops, propsLocation):
         return 0
     if args.subcmd == 'unset':
         if args.verbose:
-            print "ok: whisk property file %s" % propsLocation
+            print 'ok: whisk property file %s' % propsLocation
         if args.auth:
             wskprop.updateProps('AUTH', '', propsLocation)
             print 'ok: whisk auth unset'
@@ -205,18 +213,17 @@ def propCmd(args, props, userprops, propsLocation):
         if args.all or args.cliversion:
             print 'whisk CLI version\t%s' % props['clibuild']
         if args.all or args.apibuild:
-            url = 'https://%(apibase)s' % { 'apibase' : apiBase(props) }
-            res = request('GET', url, verbose=args.verbose)
-            if res.status == httplib.OK:
-                try:
+            if props['apihost'] is not None:
+                url = 'https://%(apibase)s' % { 'apibase' : apiBase(props) }
+                res = request('GET', url, verbose=args.verbose)
+                if res.status == httplib.OK:
                     result = json.loads(res.read())
                     print 'whisk API build\t\t%s' % result['build']
-                except:
-                    print 'whisk API build\t\t%s' % 'unrecognized failure'
-                    return 1
+                else:
+                    print 'whisk API build\t\tCannot determine API build:',
+                    return responseError(res, prefix=None)
             else:
-                print 'whisk API build\t\t',
-                return responseError(res, prefix=None)
+                print 'whisk API build\t\tNone',
         return 0
     return 2
 

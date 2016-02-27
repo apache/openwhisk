@@ -21,7 +21,7 @@ import time
 from datetime import datetime, timedelta
 import copy
 from wskitem import Item
-from wskutil import apiBase, bold, parseQName, getQName, request, responseError, getPrettyJson
+from wskutil import addAuthenticatedCommand, apiBase, bold, parseQName, getQName, request, responseError, getPrettyJson
 
 # how many seconds to sleep between polls
 SLEEP_SECONDS = 2
@@ -39,12 +39,12 @@ lastTime = 0
 class Activation(Item):
 
     def __init__(self):
-        super(Activation, self).__init__("activation", "activations")
+        super(Activation, self).__init__('activation', 'activations')
 
     def getItemSpecificCommands(self, parser, props):
         subcmd = parser.add_parser('list', help='retrieve activations')
         subcmd.add_argument('name', nargs='?', help='the namespace or action to list')
-        subcmd.add_argument('-u', '--auth', help='authorization key', default=props.get('AUTH'))
+        addAuthenticatedCommand(subcmd, props)
         subcmd.add_argument('-s', '--skip', help='skip this many entities from the head of the collection', type=int, default=0)
         subcmd.add_argument('-l', '--limit', help='only return this many entities from the collection', type=int, default=30)
         subcmd.add_argument('-f', '--full', help='return full documents for each activation', action='store_true')
@@ -54,22 +54,22 @@ class Activation(Item):
         subcmd = parser.add_parser('get', help='get %s' % self.name)
         subcmd.add_argument('name', help='the name of the %s' % self.name)
         subcmd.add_argument('project', nargs='?', help='project only this property')
+        addAuthenticatedCommand(subcmd, props)
         subcmd.add_argument('-s', '--summary', help='summarize entity details', action='store_true')
-        subcmd.add_argument('-u', '--auth', help='authorization key', default=props.get('AUTH'))
 
         subcmd = parser.add_parser('logs', help='get the logs of an activation')
         subcmd.add_argument('id', help='the activation id')
+        addAuthenticatedCommand(subcmd, props)
         subcmd.add_argument('-s', '--strip', help='strip timestamp and stream information', action='store_true')
-        subcmd.add_argument('-u', '--auth', help='authorization key', default=props.get('AUTH'))
 
         subcmd= parser.add_parser('result', help='get the result of an activation')
         subcmd.add_argument('id', help='the invocation id')
-        subcmd.add_argument('-u', '--auth', help='authorization key', default=props.get('AUTH'))
+        addAuthenticatedCommand(subcmd, props)
 
         # poll
         subcmd= parser.add_parser('poll', help='poll continuously for log messages from currently running actions')
         subcmd.add_argument('name', nargs='?', help='the namespace to poll')
-        subcmd.add_argument('-u', '--auth', help='authorization key', default=props.get('AUTH'))
+        addAuthenticatedCommand(subcmd, props)
         subcmd.add_argument('-e', '--exit', help='exit after this many seconds', type=int, default=-1)
         subcmd.add_argument('-ss', '--since-seconds', help='start polling for activations this many seconds ago', type=long, default=0, dest='since_secs')
         subcmd.add_argument('-sm', '--since-minutes', help='start polling for activations this many minutes ago', type=long, default=0, dest='since_mins')
@@ -109,12 +109,12 @@ class Activation(Item):
         res = self.listCmd(args, props)
         if res.status == httplib.OK:
             result = json.loads(res.read())
-            print bold("activations")
+            print bold('activations')
             for a in result:
                 if args.full:
                     print getPrettyJson(a)
                 else:
-                    print "{:<45}{:<40}".format(a['activationId'], a['name'])
+                    print '{:<45}{:<40}'.format(a['activationId'], a['name'])
             return 0
         else:
             return responseError(res)
@@ -122,7 +122,6 @@ class Activation(Item):
     def getEntitySummary(self, entity):
         kind = self.name
         fullName = getQName(entity['name'], entity['namespace'])
-        id = entity['activationId']
         end = datetime.fromtimestamp(entity['end'] / 1000)
         status = entity['response']['status']
         result = getPrettyJson(entity['response']['result'])
@@ -174,11 +173,11 @@ class Activation(Item):
     def poll(self, args, props):
         name = args.name if args.name else '/_'
         args.name = getQName(name, '_') # kludge: use default namespace unless explicitly specified
-        print "Hit Ctrl-C to exit."
+        print 'Hit Ctrl-C to exit.'
         try: 
             self.console(args, props)
         except KeyboardInterrupt:
-            print ""
+            print ''
 
     # return the result of a 'wsk activation list' call, an HTTPResponse
     def listCmd(self, args, props):
@@ -282,7 +281,7 @@ class Activation(Item):
 # Extract the timestamp from an activation, or return 0
 #
 def extractTimestamp(activation):
-    return activation["start"]
+    return activation['start']
 
 #
 # Print all the logs for an activation record
@@ -291,15 +290,15 @@ def extractTimestamp(activation):
 #
 def printLogsForActivation(activation):
     global lastTime
-    print 'Activation: %s (%s)' % (activation["name"], activation["activationId"])
+    print 'Activation: %s (%s)' % (activation['name'], activation['activationId'])
 
-    if "logs" in activation:
-        for element in activation["logs"]:
+    if 'logs' in activation:
+        for element in activation['logs']:
             print element
         # update the lastTime global timestamp if necessary to record the latest
         # start time yet fetched
-        if activation["start"] > lastTime:
-            lastTime = activation["start"]
+        if activation['start'] > lastTime:
+            lastTime = activation['start']
 #
 # Print all the logs for a list of activation records
 # 
@@ -308,8 +307,8 @@ def printLogsForActivation(activation):
 #
 def printLogs(L, reported):
     for a in L:
-        if not a["activationId"] in reported:
-            reported.add(a["activationId"])
+        if not a['activationId'] in reported:
+            reported.add(a['activationId'])
             printLogsForActivation(a)
 
 #

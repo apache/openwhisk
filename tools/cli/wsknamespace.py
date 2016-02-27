@@ -21,7 +21,7 @@ from wskaction import Action
 from wsktrigger import Trigger
 from wskrule import Rule
 from wskpackage import Package
-from wskutil import apiBase, bold, parseQName, request, responseError
+from wskutil import addAuthenticatedCommand, apiBase, bold, parseQName, request, responseError
 
 #
 # 'wsk namespaces' CLI
@@ -34,11 +34,11 @@ class Namespace:
         subcmds = commands.add_subparsers(title='available commands', dest='subcmd')
 
         subcmd = subcmds.add_parser('list', help='list available namespaces')
-        subcmd.add_argument('-u', '--auth', help='authorization key', default=props.get('AUTH'))
+        addAuthenticatedCommand(subcmd, props)
 
         subcmd = subcmds.add_parser('get', help='get entities in namespace')
         subcmd.add_argument('name', nargs='?', help='the namespace to list')
-        subcmd.add_argument('-u', '--auth', help='authorization key', default=props.get('AUTH'))
+        addAuthenticatedCommand(subcmd, props)
 
     def cmd(self, args, props):
         if args.subcmd == 'list':
@@ -52,9 +52,9 @@ class Namespace:
 
         if res.status == httplib.OK:
             result = json.loads(res.read())
-            print bold("namespaces")
+            print bold('namespaces')
             for n in result:
-                print "{:<25}".format(n)
+                print '{:<25}'.format(n)
             return 0
         else:
             return responseError(res)

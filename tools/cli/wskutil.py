@@ -45,7 +45,15 @@ def hilite(status, bold = False):
 def bold(string):
     return hilite(string, True)
 
-def request(method, urlString, body = "", headers = {}, auth = None, verbose = False):
+def addAuthenticatedCommand(subcmd, props):
+    auth = props.get('AUTH')
+    #if auth is not None:
+    subcmd.add_argument('-u', '--auth', help='authorization key', default=auth)
+    #else:
+        # If a default authorization key is missing, make this a required positional argument
+        #subcmd.add_argument('auth', help='authorization key', default=auth)
+
+def request(method, urlString, body = '', headers = {}, auth = None, verbose = False):
     url = urlparse(urlString)
     if url.scheme == 'http':
         conn = httplib.HTTPConnection(url.netloc)
@@ -60,19 +68,19 @@ def request(method, urlString, body = "", headers = {}, auth = None, verbose = F
         headers['Authorization'] = 'Basic %s' % auth
     
     if verbose:
-        print "========"
-        print "REQUEST:"
-        print "%s %s" % (method, urlString)
-        print "Headers sent:"
+        print '========'
+        print 'REQUEST:'
+        print '%s %s' % (method, urlString)
+        print 'Headers sent:'
         print getPrettyJson(headers)
-        if body != "":
-            print "Body sent:"
+        if body != '':
+            print 'Body sent:'
             print body
 
     try:
         conn.request(method, urlString, body, headers)
         res = conn.getresponse()
-        body = ""
+        body = ''
         try:
             body = res.read()
         except httplib.IncompleteRead as e:
@@ -83,12 +91,12 @@ def request(method, urlString, body = "", headers = {}, auth = None, verbose = F
         res.read = lambda: body
 
         if verbose:
-            print "--------"
-            print "RESPONSE:"
-            print "Got response with code %s" % res.status
-            print "Body received:"
+            print '--------'
+            print 'RESPONSE:'
+            print 'Got response with code %s' % res.status
+            print 'Body received:'
             print res.read()
-            print "========"
+            print '========'
 
         return res
     except Exception, e:
@@ -184,7 +192,7 @@ def chooseFromArray(array):
     choosen = None
     while True:
         try:
-            keypress = raw_input("Choice: ")
+            keypress = raw_input('Choice: ')
             if keypress == 'x':
                 return -1
             choosen = int(keypress)
@@ -193,7 +201,7 @@ def chooseFromArray(array):
         if choosen > 0 and choosen < count:
             break
         else:
-            print "Please choose one of the given options"
+            print 'Please choose one of the given options'
     return array[choosen-1]
 
 # class to convert dictionary to objects
@@ -202,7 +210,7 @@ class dict2obj(dict):
         if name in self:
             return self[name]
         else:
-            raise AttributeError("object has no attribute '%s'" % name)
+            raise AttributeError('object has no attribute "%s"' % name)
 
     def __setattr__(self, name, value):
         self[name] = value
@@ -211,7 +219,7 @@ class dict2obj(dict):
         if name in self:
             del self[name]
         else:
-            raise AttributeError("object has no attribute '%s'" % name)
+            raise AttributeError('object has no attribute "%s"' % name)
 
 def getPrettyJson(obj):
     return json.dumps(obj, sort_keys=True, indent=4, separators=(',', ': '))

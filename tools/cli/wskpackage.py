@@ -19,7 +19,7 @@ import httplib
 import sys
 import urllib
 from wskitem import Item
-from wskutil import request, getParams, getAnnotations, responseError, parseQName, getQName, hilite, apiBase
+from wskutil import addAuthenticatedCommand, request, getParams, getAnnotations, responseError, parseQName, getQName, hilite, apiBase
 
 #
 # 'wsk packages' CLI
@@ -27,33 +27,33 @@ from wskutil import request, getParams, getAnnotations, responseError, parseQNam
 class Package(Item):
 
     def __init__(self):
-        super(Package, self).__init__("package", "packages")
+        super(Package, self).__init__('package', 'packages')
 
     def getItemSpecificCommands(self, parser, props):
         subcmd = parser.add_parser('create', help='create a new package')
         subcmd.add_argument('name', help='the name of the package')
+        addAuthenticatedCommand(subcmd, props)
         subcmd.add_argument('-a', '--annotation', help='annotations', nargs=2, action='append')
         subcmd.add_argument('-p', '--param', help='default parameters', nargs=2, action='append')
         subcmd.add_argument('--shared', nargs='?', const='yes', choices=['yes', 'no'], help='shared action (default: private)')
-        subcmd.add_argument('-u', '--auth', help='authorization key', default=props.get('AUTH'))
 
         subcmd = parser.add_parser('update', help='create a new package')
         subcmd.add_argument('name', help='the name of the package')
+        addAuthenticatedCommand(subcmd, props)
         subcmd.add_argument('-a', '--annotation', help='annotations', nargs=2, action='append')
         subcmd.add_argument('-p', '--param', help='default parameters', nargs=2, action='append')
         subcmd.add_argument('--shared', nargs='?', const='yes', choices=['yes', 'no'], help='shared action (default: private)')
-        subcmd.add_argument('-u', '--auth', help='authorization key', default=props.get('AUTH'))
         
         subcmd = parser.add_parser('bind', help='bind parameters to the package')
         subcmd.add_argument('package', help='the name of the package')
         subcmd.add_argument('name', help='the name of the bound package')
+        addAuthenticatedCommand(subcmd, props)
         subcmd.add_argument('-a', '--annotation', help='annotations', nargs=2, action='append')
         subcmd.add_argument('-p', '--param', help='default parameters', nargs=2, action='append')
-        subcmd.add_argument('-u', '--auth', help='authorization key', default=props.get('AUTH'))
         
         subcmd = parser.add_parser('refresh', help='refresh package bindings')
         subcmd.add_argument('name', nargs='?', help='the namespace to refresh')
-        subcmd.add_argument('-u', '--auth', help='authorization key', default=props.get('AUTH'))
+        addAuthenticatedCommand(subcmd, props)
         
         self.addDefaultCommands(parser, props)
 
@@ -114,27 +114,27 @@ class Package(Item):
         res = request('POST', url, auth=args.auth, verbose=args.verbose)
         if res.status == httplib.OK:
             result = json.loads(res.read())
-            print "%(namespace)s refreshed successfully!" % {'namespace': args.name}
-            print hilite("created bindings:", True)
+            print '%(namespace)s refreshed successfully!' % {'namespace': args.name}
+            print hilite('created bindings:', True)
             print '\n'.join(result['added'])
-            print hilite("updated bindings:", True)
+            print hilite('updated bindings:', True)
             print '\n'.join(result['updated'])
-            print hilite("deleted bindings:", True)
+            print hilite('deleted bindings:', True)
             print '\n'.join(result['deleted'])
             return 0
         elif res.status == httplib.NOT_IMPLEMENTED:
-            print "error: This feature is not implemented in the targeted deployment"
+            print 'error: This feature is not implemented in the targeted deployment'
             return responseError(res)
         else:
             result = json.loads(res.read())
-            print "error: %(error)s" % {'error': result['error']}
+            print 'error: %(error)s' % {'error': result['error']}
             return responseError(res)
             
         
     def formatListEntity(self, e):
         ns = e['namespace']
         name = getQName(e['name'], ns)
-        return "{:<65} {:<8}{:<7}".format(
+        return '{:<65} {:<8}{:<7}'.format(
                 name,
                 'shared' if (e['publish'] or e['publish'] == 'true') else 'private',
                 'binding' if e['binding'] else '')
