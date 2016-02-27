@@ -5,9 +5,10 @@ OpenWhisk is a cloud-first distributed event-based programming service. It provi
 
 
 * [Getting Started](#getting-started)
-* [Configure OpenWhisk](#clone-and-configure-openwhisk)
-* [Build and deploy with Vagrant](#build-and-deploy-with-vagrant)
-* [Add users](#add-users)
+* [Configure your system](#configure-your-system-to-build-openwhisk)
+* [Build and deploy](#build-and-deploy-openwhisk)
+* [Configure your shell](#add-openwhisk-command-line-tools-to-your-path)
+* [Add users](#add-openwhisk-users)
 * [Setup CLI](#setup-cli)
 * [Run sample action](#run-sample-action)
 * [Learn concepts and commands](#learn-concepts-and-commands)
@@ -18,7 +19,7 @@ OpenWhisk is a cloud-first distributed event-based programming service. It provi
 
 ### Getting started
 
-The following instructions were tested on Mac OSX and may work on Ubuntu. You cannot build and run OpenWhisk on Windows yet.
+The following instructions were tested on Mac OS X El Capitan, Ubuntu 14.04.3 LTS and may work on Windows using Vagrant.
 
 Before you can use OpenWhisk, you must configure a backing datastore. Currently, the system uses [Cloudant](https://cloudant.com) as a cloud-based database service. We are working on offering alternative backing stores.
 
@@ -48,16 +49,72 @@ Once you've set up `cf`, issue the following commands to create a Cloudant datab
 
 As an alternative to IBM Bluemix, you may sign up for an account on [Cloudant](https://cloudant.com) directly. Cloudant is free to try and offers a metered pricing where the first $50 of usage is free each month. The signup process is straightforward so it is not described here in detail.
 
-### Clone and configure OpenWhisk
+### Configure your system to build OpenWhisk
 
-Clone the OpenWhisk repository into your workspace.
+The following instruction describe the installation in some detail. You can skip all of it if you want just the cheat sheet. You will need to know your Cloudant username and password which are referenced as `<cloudant username>` and `<cloudant password>` respectively below.
+
+#### Ubuntu cheat sheet
+
+The following are verified to work on Ubuntu 14.04.3 LTS. You may need `sudo` or root access to install required software depending on your system setup.
+
+  ```
+  # install git if it is not installed
+  apt-get install git
+
+  # clone openwhisk
+  git clone https://github.com/openwhisk/openwhisk.git
+
+  # work from within openwhisk directory
+  cd openwhisk
+
+  # create cloudant configuration file
+  echo "OPEN_WHISK_DB_USERNAME=<cloudant username>" > cloudant-local.env
+  echo "OPEN_WHISK_DB_PASSWORD=<cloudant password>" >> cloudant-local.env
+
+  # initialize datastore (confirm by responding DROPIT when prompted)
+  tools/cloudant/createImmortalDBs.sh <cloudant username> <cloudant password>
+
+  # install all required software
+  (cd tools/ubuntu-setup && source all.sh)
+  ```
+
+#### Vagrant cheat sheet (for Mac and Windows)
+
+A [Vagrant](http://vagrantup.com) machine is the easiest way to run OpenWhisk on Mac or Windows PS. You can download the Vagrantfile and then follow the instructions for intalling OpenWhisk on Ubuntu.
+
+  ```
+  # fetch Vagrantfile
+  wget https://raw.githubusercontent.com/openwhisk/openwhisk/master/tools/vagrant/Vagrantfile
+
+  # start virtual machine
+  vagrant up
+
+  # login
+  vagrant ssh
+
+  # follow instructions in Ubuntu cheat sheet
+
+  # when all steps are completed, logout
+  logout
+
+  # reload Vagrant machine to complete setup
+  vagrant reload
+  ```
+
+Login to the virtual machine either using the VirtualBox terminal or with `vagrant ssh`. The login username is `vagrant` and the password is `vagrant`.
+
+**Tip:** The Vagrant file is configured to allocate a virtual machine with a recommended 4GB of RAM.
+
+#### Alternate instructions for Mac users
+
+Mac users can clone, build and deploy OpenWhisk either with a Vagrant or Docker machine. The following detail how to install OpenWhisk with Vagrant using a shared filesystem so that you can develop OpenWhisk natively on the Mac but deploy it inside a virtual machine.
 
   ```
   git clone https://github.com/openwhisk/openwhisk.git
   cd openwhisk
   ```
 
-Before you build and deploy the system, you must configure it to use your Cloudant account.
+**Before you build and deploy the system, you must configure it to use your Cloudant account.**
 
 1. Copy the file named `template-cloudant-local.env` to `cloudant-local.env`.
 
@@ -98,19 +155,13 @@ Confirm initialization by typing `DROPIT`. The output should resemble the follow
   {"ok":true,"id":"whisk.system","rev":"1-..."}
   ```
 
-### Build and deploy with Vagrant
-
-Install Vagrant from [vagrantup.com](http://vagrantup.com). Then, from a terminal:
+**Install [Vagrant](http://vagrantup.com) then complete the following from a terminal.**
 
   ```
   cd tools/vagrant
-  vagrant up
+  ENV=shared vagrant up
   vagrant reload
   ```
-
-Login to the virtual machine either using the VirtualBox terminal or with `vagrant ssh`. The login username is `vagrant` and the password is `vagrant`.
-
-**Tip:** The Vagrant file is configured to allocate a virtual machine with a recommended 4GB of RAM. 
 
 **Tip:** If the Vagrant machine provisioning fails, you can rerun it with `vagrant provision`. Alternatively, rerun the following from _inside_ the Vagrant virtual machine.
 
@@ -120,14 +171,13 @@ Login to the virtual machine either using the VirtualBox terminal or with `vagra
 
 **Tip:** Optionally, if you want to use Ubuntu desktop `(cd openwhisk/tools/ubuntu-setup && source ubuntu-desktop.sh)`
 
-#### Build OpenWhisk in Vagrant virtual machine
+**Your virtual machine is now ready to build and run OpenWhisk. _Login to the virtual machine to complete the next steps._**
 
-Your virtual machine is now ready to build and run OpenWhisk. _Login to the virtual machine to complete the next steps._
+### Build and deploy OpenWhisk
+
+The following commands are relative to the OpenWhisk directory. If necessary, change your working directory with `cd /your/path/to/openwhisk`.
 
   ```
-  # all commands are relative to the OpenWhisk directory in your Vagrant machine
-  cd openwhisk
-  
   # build and deploy OpenWhisk in the virtual machine
   ant clean build deploy
   
@@ -141,9 +191,15 @@ Your virtual machine is now ready to build and run OpenWhisk. _Login to the virt
 
 **Tip:** Since the first build takes some time, it is not uncommon for some step to fail if there's a network hiccup or other interruption of some kind. If this happens you may see a `Build FAILED` message that suggests a Docker operation timed out. You can simply try `ant build` again and it will mostly pick up where it left off. This should only be an issue the very first time you build whisk -- subsequent builds do far less network activity thanks to Docker caching.
 
-### Add users
+### Add OpenWhisk command line tools to your path
 
-An OpenWhisk user, also known as a *subject*, requires a valid authorization key. 
+The OpenWhisk command line tools are located in the `openwhisk/bin` folder. The instructions that follow assume `/your/path/to/openwhisk/bin` is in your system `PATH`. If you are using a Vagrant machine in a shared configuration (Mac users), the OpenWhisk command line tools are already in your path inside the virtual machine.
+
+See the script in `openwhisk/tools/ubuntu-setup/bashprofile.sh` if you need help or to see how to add tab completion for the OpenWhisk CLI. _Do not source or run this script if you have your own `.bash_profile` as it will overwrite it._
+
+### Add OpenWhisk users
+
+An OpenWhisk user, also known as a *subject*, requires a valid authorization key.
 OpenWhisk is preconfigured with a guest key located in `config/keys/auth.guest`.
 
 You may use this key if you like, or use `wskadmin` to create a new key.
@@ -164,8 +220,7 @@ The same tool may be used to delete a subject.
 
 When using the CLI `wsk`, it is convenient to store the authorization key in a property file so that one does not have to supply the key on every command.
 
-OpenWhisk is preconfigured with a guest key. You can use this key if you like, or use
-`wskadmin` to create a new key.
+OpenWhisk is preconfigured with a guest key. You can use this key if you like, or use `wskadmin` to create a new key.
 
 1. Configuring the CLI to use the guest authorization key:
   ```
@@ -200,8 +255,9 @@ should produce the following output:
 
 ### Using CLI from outside Vagrant machine
 
-The OpenWhisk deployment within the Vagrant virtual machine is accessible from the host machine. By default, the virtual machine
-IP address is `192.168.33.13` (see Vagrant file). From your _host_, configure `wsk` to use your Vagrant based OpenWhisk API deployment and run the "echo" action again to test.
+If you cloned OpenWhisk natively onto a Mac and using a Vagrant machine to host an OpenWhisk deployment, then you can use the CLI from the host machine as well as from inside the virtual machine.
+
+By default, the virtual machine IP address is `192.168.33.13` (see Vagrant file). From your _host_, configure `wsk` to use your Vagrant-hosted OpenWhisk deployment and run the "echo" action again to test.
 
   ```
   wsk property set --apihost 192.168.33.13 --auth <auth key>

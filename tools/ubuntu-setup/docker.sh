@@ -26,4 +26,6 @@ sudo gpasswd -a vagrant docker
 
 sudo service docker restart
 
-sudo docker version
+# do not run this command without a vagrant reload during provisioning
+# it gives an error that docker is not up (which the reload fixes).
+# sudo docker version

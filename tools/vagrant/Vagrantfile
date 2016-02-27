@@ -1,3 +1,4 @@
+
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
@@ -20,17 +21,11 @@ Vagrant.configure('2') do |config|
 
   config.vm.synced_folder '.', '/vagrant', disabled: true
 
-  config.vm.synced_folder '../../', '/home/vagrant/openwhisk', id: "whisk-root",
-    owner: "vagrant",
-    group: "www-data",
-    mount_options: ["dmode=700,fmode=700"]
-
   # If true, then any SSH connections made will enable agent forwarding.
   # Default value: false
   config.ssh.forward_agent = true
 
   config.vm.provider :virtualbox do |vb|
-
     vb.name = "whisk-" + Time.now.strftime("%y%m%d%H%M")
     vb.gui = true
     vb.cpus = BOX_CPUS
@@ -47,8 +42,21 @@ Vagrant.configure('2') do |config|
     s.inline = "sudo sed -i '/tty/!s/mesg n/tty -s \\&\\& mesg n/' /root/.profile"
   end
 
-  config.vm.provision :shell, inline: "echo executing '(cd openwhisk/tools/ubuntu-setup && source all.sh)' to complete setup."
-  config.vm.provision :shell, inline: "(cd /home/vagrant/openwhisk/tools/ubuntu-setup && source all.sh)"
-  config.vm.provision :shell, :inline => "echo 'export PATH=$HOME/openwhisk/bin:$PATH' > /home/vagrant/.bash_profile"
-  config.vm.provision :shell, :inline => "echo 'eval \"$(register-python-argcomplete wsk)\"' >> /home/vagrant/.bash_profile"
+  # If provisioning in shared mode, mount the file system, assuming ../../ is the openwhisk
+  # root and make it available inside the vagrant machine. Then run provisioning scripts.
+  # This assumes that openwhisk already exists on the host system (say from git clone).
+  # Do not use shared mode for Windows based system because file permissions and symbolic
+  # links don't translate.
+  if ENV['ENV'] == 'shared'
+    config.vm.synced_folder '../../../openwhisk', '/home/vagrant/openwhisk', id: "whisk-root",
+      owner: "vagrant",
+      group: "www-data",
+      mount_options: ["dmode=700,fmode=700"]
+
+    # Adds required software and updates bash profile
+    config.vm.provision :shell, inline: "echo executing '(cd openwhisk/tools/ubuntu-setup && source all.sh)' to complete setup."
+    config.vm.provision :shell, inline: "(cd /home/vagrant/openwhisk/tools/ubuntu-setup && source all.sh)"
+    config.vm.provision :shell, inline: "echo executing '(cd openwhisk/tools/ubuntu-setup && source bashprofile.sh)' to configure shell."
+    config.vm.provision :shell, inline: "(cd /home/vagrant/openwhisk/tools/ubuntu-setup && source bashprofile.sh)"
+  end
 end
