@@ -51,9 +51,13 @@ As an alternative to IBM Bluemix, you may sign up for an account on [Cloudant](h
 
 ### Configure your system to build OpenWhisk
 
-The following instruction describe the installation in some detail. You can skip all of it if you want just the cheat sheet. You will need to know your Cloudant username and password which are referenced as `<cloudant username>` and `<cloudant password>` respectively below.
+The following instructions describe how to configure your system to build OpenWhisk. You will need to know your Cloudant username and password which are referenced as `<cloudant username>` and `<cloudant password>` respectively below.
 
-#### Ubuntu cheat sheet
+* [Ubuntu users](#ubuntu-users)
+* [Vagrant users on Mac and Windows PC](#vagrant-users-for-mac-and-windows)
+* [Detailed instructions for Mac developers](#alternate-instructions-for-mac-developers)
+
+#### Ubuntu users
 
 The following are verified to work on Ubuntu 14.04.3 LTS. You may need `sudo` or root access to install required software depending on your system setup.
 
@@ -78,9 +82,11 @@ The following are verified to work on Ubuntu 14.04.3 LTS. You may need `sudo` or
   (cd tools/ubuntu-setup && source all.sh)
   ```
 
-#### Vagrant cheat sheet (for Mac and Windows)
+Once all the required software is installed, you can proceed to [build](#build-and-deploy-openwhisk) OpenWhisk.
 
-A [Vagrant](http://vagrantup.com) machine is the easiest way to run OpenWhisk on Mac or Windows PS. You can download the Vagrantfile and then follow the instructions for intalling OpenWhisk on Ubuntu.
+#### Vagrant users (for Mac and Windows)
+
+A [Vagrant](http://vagrantup.com) machine is the easiest way to run OpenWhisk on Mac or Windows PC. You can download the Vagrantfile and then follow the instructions for intalling OpenWhisk on Ubuntu.
 
   ```
   # fetch Vagrantfile
@@ -92,7 +98,7 @@ A [Vagrant](http://vagrantup.com) machine is the easiest way to run OpenWhisk on
   # login
   vagrant ssh
 
-  # follow instructions in Ubuntu cheat sheet
+  # follow instructions for Ubuntu users
 
   # when all steps are completed, logout
   logout
@@ -101,11 +107,11 @@ A [Vagrant](http://vagrantup.com) machine is the easiest way to run OpenWhisk on
   vagrant reload
   ```
 
-Login to the virtual machine either using the VirtualBox terminal or with `vagrant ssh`. The login username is `vagrant` and the password is `vagrant`.
+Login to the virtual machine either using the VirtualBox terminal or with `vagrant ssh`. The login username is `vagrant` and the password is `vagrant`. You can now [build](#build-and-deploy-openwhisk) OpenWhisk in your Vagrant machine.
 
 **Tip:** The Vagrant file is configured to allocate a virtual machine with a recommended 4GB of RAM.
 
-#### Alternate instructions for Mac users
+#### Alternate instructions for Mac developers
 
 Mac users can clone, build and deploy OpenWhisk either with a Vagrant or Docker machine. The following detail how to install OpenWhisk with Vagrant using a shared filesystem so that you can develop OpenWhisk natively on the Mac but deploy it inside a virtual machine.
 
@@ -160,10 +166,10 @@ Confirm initialization by typing `DROPIT`. The output should resemble the follow
   ```
   cd tools/vagrant
   ENV=shared vagrant up
-  vagrant reload
+  ENV=shared vagrant reload
   ```
 
-**Tip:** If the Vagrant machine provisioning fails, you can rerun it with `vagrant provision`. Alternatively, rerun the following from _inside_ the Vagrant virtual machine.
+**Tip:** If the Vagrant machine provisioning fails, you can rerun it with `ENV=shared vagrant provision`. Alternatively, rerun the following from _inside_ the Vagrant virtual machine.
 
   ```
   (cd openwhisk/tools/ubuntu-setup && source all.sh)
