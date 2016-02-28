@@ -203,6 +203,8 @@ The OpenWhisk command line tools are located in the `openwhisk/bin` folder. The 
 
 See the script in `openwhisk/tools/ubuntu-setup/bashprofile.sh` if you need help or to see how to add tab completion for the OpenWhisk CLI. _Do not source or run this script if you have your own `.bash_profile` as it will overwrite it._
 
+**Tip:** The command line tools require Python 2.7. If you are using OpenWhisk from an unsupported system, make sure you have this version of Python available.
+
 ### Add OpenWhisk users
 
 An OpenWhisk user, also known as a *subject*, requires a valid authorization key.
