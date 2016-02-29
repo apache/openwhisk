@@ -15,3 +15,6 @@ source ./scala.sh
 
 echo "*** installing docker"
 source ./docker.sh
+
+echo "*** installing gradle"
+source ./gradle.sh

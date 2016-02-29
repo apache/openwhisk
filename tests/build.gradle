@@ -17,6 +17,7 @@ sourceSets {
 
 test {
     systemProperty 'javax.net.ssl.trustStore', 'build/keystore'
+    jvmArgs = [ "-Dtestthreads=1" ]
 }
 
 dependencies {
@@ -48,4 +49,4 @@ task deleteKeystore(type:Delete) {
 task createKeystore(dependsOn:deleteKeystore, type:Exec) {
     commandLine 'keytool', '-import', '-alias', 'Whisk', '-noprompt', '-trustcacerts', '-file', '../config/keys/openwhisk-self-cert.pem', '-keystore', 'build/keystore', '-storepass', 'openwhisk'
 }
-test.dependsOn createKeystore
+build.finalizedBy createKeystore

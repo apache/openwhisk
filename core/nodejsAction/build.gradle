@@ -2,6 +2,31 @@ def imagename = 'nodejsaction'
 task distDocker(type:Exec) {
     commandLine 'docker', 'build', '-t', 'whisk/' + imagename, '.'
 }
+task tagImage(type:Exec) {
+    if (project.hasProperty('dockerRegistry')) {
+        def dockerImageTag = 'latest'
+        if (project.hasProperty('dockerTag')) {        
+            dockerImageTag = dockerTag
+        }
+        commandLine 'docker', 'tag', '-f', 'whisk/' + imagename, dockerRegistry + '/whisk/' + imagename + ':' + dockerImageTag
+    } else {
+        executable "sh"
+        args "-c", "echo Tagging the image is skipped because of missing docker registry in the build command."
+    }
+}
+task pushImage(dependsOn: tagImage, type:Exec) {
+    if (project.hasProperty('dockerRegistry')) {
+        def dockerImageTag = 'latest'
+        if (project.hasProperty('dockerTag')) {        
+            dockerImageTag = dockerTag
+        }
+        commandLine 'docker', 'push', dockerRegistry + '/whisk/' + imagename + ':' + dockerImageTag        
+    } else {
+        executable "sh"
+        args "-c", "echo Pushing the image is skipped because of missing docker registry in the build command."
+    }
+}
+distDocker.finalizedBy pushImage
 task deleteImage(type:Exec) {
     ignoreExitValue = true
     commandLine 'docker', 'rmi', 'whisk/' + imagename
