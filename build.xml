@@ -27,13 +27,23 @@
         <delete dir="common/scala/bin" />
     </target>
 
+    <!-- scan the code base, checking some conventions that are enforced -->
+    <target name="scanCode">
+        <exec executable="/bin/bash" failonerror="true">
+            <arg value="tools/build/scanCode.sh" />
+        </exec>
+    </target>
+
     <!-- kill all containers, garbage collect docker images, and delete scratch directories -->
     <target name="clean" depends="dust,teardown">
     </target>
 
     <!-- compile and build images and tests -->
     <target name="build" depends="writePropertyFile">
-        <ant antfile="common/build.xml" target="build" />
+        <parallel threadCount="${buildthreads}" failonany="true">
+            <ant target="scanCode" />
+            <ant antfile="common/build.xml" target="build" />
+        </parallel>
         <parallel threadCount="${buildthreads}" failonany="true">
             <ant antfile="services/build.xml" target="build" />
             <ant antfile="core/build.xml" target="build" />
