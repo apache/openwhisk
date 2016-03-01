@@ -516,6 +516,13 @@ public class WskCli {
         return result;
     }
 
+    /*
+     * Same as trigger but return result without checking error code.
+     */
+    public RunResult triggerNoCheck(String name, String arg) throws IOException {
+        return cli(DONTCARE_EXIT, "trigger", "fire", "--auth", authKey, name, arg);
+    }
+
     public RunResult invokeNoCheck(String actionName, Map<String, String> params) throws IOException {
         return invoke(DONTCARE_EXIT, actionName, params, false);
     }

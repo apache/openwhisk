@@ -62,6 +62,8 @@ protected[core] case class Resource(
     def parent = collection.path + Namespace.PATHSEP + namespace
     def id = parent + (entity map { Namespace.PATHSEP + _ } getOrElse (""))
     override def toString = id
+    def isInvocation = collection.path == Collection.ACTIONS
+    def isTrigger = collection.path == Collection.TRIGGERS
 }
 
 protected[core] object EntitlementService {
@@ -78,7 +80,8 @@ protected[core] object EntitlementService {
 protected[core] abstract class EntitlementService(config: WhiskConfig)(implicit ec: ExecutionContext) extends Logging {
 
     private var loadbalancerOverload = false
-    private val rateThrottler = new RateThrottler(config)
+    private val invokeRateThrottler = new RateThrottler(config, 120, 3600)
+    private val triggerRateThrottler = new RateThrottler(config, 60, 720)
 
     new Thread() {
         /** query the KV store this often */
@@ -106,7 +109,8 @@ protected[core] abstract class EntitlementService(config: WhiskConfig)(implicit 
 
     override def setVerbosity(level: Verbosity.Level) = {
         super.setVerbosity(level)
-        rateThrottler.setVerbosity(level)
+        invokeRateThrottler.setVerbosity(level)
+        triggerRateThrottler.setVerbosity(level)
     }
 
     /**
@@ -165,10 +169,14 @@ protected[core] abstract class EntitlementService(config: WhiskConfig)(implicit 
         if (systemOverload) {
             return Future failed ThrottleRejectRequest(TooManyRequests, Some(ErrorResponse("System is overloaded", transid)))
         }
-        // Or if the user has exceeded his own rate
-        val userThrottled = right == Privilege.ACTIVATE && !rateThrottler.check(subject)
-        if (userThrottled) {
-            return Future failed ThrottleRejectRequest(TooManyRequests, Some(ErrorResponse("Too many requests from user", transid)))
+        // Or if the user has exceeded his own invocation or trigger rate
+        if (right == Privilege.ACTIVATE) {
+            val userThrottled =
+                (resource.isInvocation && !invokeRateThrottler.check(subject)) ||
+                (resource.isTrigger && !triggerRateThrottler.check(subject))
+            if (userThrottled) {
+                return Future failed ThrottleRejectRequest(TooManyRequests, Some(ErrorResponse("Too many requests from user", transid)))
+            }
         }
 
         val promise = Promise[Boolean]

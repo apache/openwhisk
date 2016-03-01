@@ -30,12 +30,12 @@ import whisk.common.Logging
  * 
  * For now, we throttle only at a 1-minute granularity.
  */
-class RateThrottler(config : WhiskConfig) extends Logging {
+class RateThrottler(config : WhiskConfig,
+                    maxPerMinute : Int,
+                    maxPerHour : Int) extends Logging {
 
     // Parameters
     private val exemptSubject = ""  // We exempt nothing.
-    private val maxPerMinute = 120
-    private val maxPerHour = 3600
 
     // Implementation
     private val rateMap = new TrieMap[Subject, RateInfo]

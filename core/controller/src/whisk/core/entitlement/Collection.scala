@@ -38,7 +38,7 @@ import whisk.core.entity.types.EntityStore
 
 /**
  * A collection encapsulates the name of a collection and implicit rights when subject
- * lacks explicit rights on a reousrce in the collection.
+ * lacks explicit rights on a resource in the collection.
  *
  * @param path the name of the collection (the resource path in URI and the view name in the datastore)
  * @param activate the privilege for an activate (may be ACTIVATE or REJECT for example)
