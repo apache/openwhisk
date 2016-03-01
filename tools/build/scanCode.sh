@@ -5,7 +5,7 @@
 
 SOURCE="${BASH_SOURCE[0]}"
 DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
-ROOT="$DIR/../.."
+ROOT=$DIR/../..
 
 #
 # Scan a file for tabs.  Fail if any tab is found.
@@ -29,9 +29,7 @@ function checkForTabs {
     #root directory to scan
     root=$1
 
-    for f in $(find "$root" -name "*.js" -o -name "*.java" -o -name "*.scala" -o -name "build.xml" -o -name "deploy.xml" -o -name "*.md" \
-               | grep -Fv resources/swagger-ui \
-               | grep -Fv consul/ui/static \
+    for f in $(find -L "$root" -type f -name "*.js" -o -name "*.java" -o -name "*.scala" -o -name "build.xml" -o -name "deploy.xml" -o -name "*.md" \
                | grep -Fv node_modules \
                | grep -Fv site-packages)
     do
@@ -43,7 +41,7 @@ function checkForTabs {
 # Fail if there are any symlinks found with the exception of wsk and wskadmin
 #
 function checkForLinks {
-   #root directory to scan
+    #root directory to scan
     root=$1
 
     for f in $(find "$root" -type l | grep -v node_modules | grep -v bin/wsk)
@@ -54,7 +52,8 @@ function checkForLinks {
     done
 }
 
+# These checks follow links with -L.
 checkForTabs "$ROOT"
+
+# checkForLinks is tricky because use of -L (needed to use open) will defeat "-type l"
 checkForLinks "$ROOT"
-
-
