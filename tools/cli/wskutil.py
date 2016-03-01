@@ -47,11 +47,8 @@ def bold(string):
 
 def addAuthenticatedCommand(subcmd, props):
     auth = props.get('AUTH')
-    #if auth is not None:
-    subcmd.add_argument('-u', '--auth', help='authorization key', default=auth)
-    #else:
-        # If a default authorization key is missing, make this a required positional argument
-        #subcmd.add_argument('auth', help='authorization key', default=auth)
+    required = True if auth is None else False
+    subcmd.add_argument('-u', '--auth', help='authorization key', default=auth, required=required)
 
 def request(method, urlString, body = '', headers = {}, auth = None, verbose = False):
     url = urlparse(urlString)

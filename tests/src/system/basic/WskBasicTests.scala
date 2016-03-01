@@ -213,6 +213,15 @@ class WskBasicTests
             stderr should include("usage:")
     }
 
+    it should "reject authenticated command when no auth key is given" in {
+        // override wsk props file in case it exists
+        val wskprops = File.createTempFile("wskprops", ".tmp")
+        val env = Map("WSK_CONFIG_FILE" -> wskprops.getAbsolutePath())
+        val stderr = wsk.cli(Seq("list"), env = env, expectedExitCode = MISUSE_EXIT).stderr
+        stderr should include("usage:")
+        stderr should include("--auth is required")
+    }
+
     behavior of "Wsk Package CLI"
 
     it should "list shared packages" in {

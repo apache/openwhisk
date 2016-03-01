@@ -3,7 +3,7 @@
     <import file="../../build.xml" />
 
     <!-- build the configuration for the reverse proxy and install it -->
-    <target name="buildProxy" >
+    <target name="buildProxy">
         <var file="whisk.properties" />
         <property name="whisk.home" value="../.." />
 
@@ -18,10 +18,11 @@
 
             <arg line="generateProxyConf.sh" />
         </exec>
-        <copy file="${nginx.scratch}/nginx/nginx.conf" tofile="${nginx.conf.dir}/nginx.conf" />
 
-        <copy file="${whisk.ssl.cert}" tofile="${nginx.conf.dir}/whisk-cert.pem" />
-        <copy file="${whisk.ssl.key}" tofile="${nginx.conf.dir}/whisk-key.pem" />
+        <!-- copy nginx configuration files to directory that is mounted inside nginx container -->
+        <copy file="${nginx.scratch}/nginx/nginx.conf" tofile="${nginx.conf.dir}/nginx.conf" failonerror="true" />
+        <copy file="${whisk.ssl.cert}" tofile="${nginx.conf.dir}/whisk-cert.pem" failonerror="true" />
+        <copy file="${whisk.ssl.key}" tofile="${nginx.conf.dir}/whisk-key.pem" failonerror="true" />
 
         <!-- clean up -->
         <delete dir="${nginx.scratch}" />
@@ -29,7 +30,7 @@
 
 
     <!-- start the reverse proxy service on the edge -->
-    <target name="startProxy" >
+    <target name="startProxy">
         <var file="whisk.properties" />
         <exec executable="docker" failonerror="true">
             <arg line="--host tcp://${edge.docker.endpoint}" />
