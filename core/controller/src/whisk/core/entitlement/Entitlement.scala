@@ -16,30 +16,26 @@
 
 package whisk.core.entitlement
 
-import scala.concurrent.Promise
+import scala.collection.concurrent.TrieMap
 import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+import scala.concurrent.Promise
 import scala.util.Failure
 import scala.util.Success
-import scala.concurrent.Future
-import scala.collection.concurrent.TrieMap
 
+import Privilege.REJECT
 import spray.http.StatusCodes.ClientError
 import spray.http.StatusCodes.TooManyRequests
 import spray.json.JsBoolean
-
+import whisk.common.ConsulKV
+import whisk.common.Logging
+import whisk.common.TransactionId
+import whisk.common.Verbosity
 import whisk.core.WhiskConfig
 import whisk.core.entity.Namespace
 import whisk.core.entity.Parameters
 import whisk.core.entity.Subject
 import whisk.http.ErrorResponse
-import whisk.common.TransactionId
-import whisk.common.Logging
-import whisk.common.Verbosity
-import whisk.common.ConsulKV
-import whisk.common.ConsulKV.LoadBalancerKeys
-import whisk.common.ConsulKVReporter
-
-import Privilege.REJECT
 
 package object types {
     type Entitlements = TrieMap[(Subject, String), Set[Privilege]]
@@ -62,8 +58,6 @@ protected[core] case class Resource(
     def parent = collection.path + Namespace.PATHSEP + namespace
     def id = parent + (entity map { Namespace.PATHSEP + _ } getOrElse (""))
     override def toString = id
-    def isInvocation = collection.path == Collection.ACTIONS
-    def isTrigger = collection.path == Collection.TRIGGERS
 }
 
 protected[core] object EntitlementService {
@@ -163,51 +157,60 @@ protected[core] abstract class EntitlementService(config: WhiskConfig)(implicit 
      * @return a promise that completes with true iff the subject is permitted to access the request resource
      */
     protected[core] def check(subject: Subject, right: Privilege, resource: Resource)(implicit transid: TransactionId): Future[Boolean] = {
+        checkSystemOverload(subject, right, resource) orElse {
+            checkUserThrottle(subject, right, resource)
+        } getOrElse {
+            val promise = Promise[Boolean]
 
-        // We limit invocations if the load balancer is overloaded
+            // NOTE: explicit grants do not work with package bindings because the current model
+            // for authorization does not allow for a continuation to check that both the binding
+            // and the references package are both either implicitly or explicitly granted; this is
+            // accepted for the time being however because there exists no external mechanism to create
+            // explicit grants
+            val grant = if (right != REJECT) {
+                info(this, s"checking user '$subject' has privilege '$right' for '$resource'")
+                namespaces(subject) flatMap {
+                    resource.collection.implicitRights(_, right, resource) flatMap {
+                        case true  => Future successful true
+                        case false => entitled(subject, right, resource)
+                    }
+                }
+            } else Future successful false
+
+            grant onComplete {
+                case Success(r) =>
+                    info(this, if (r) "authorized" else "not authorized")
+                    promise success r
+                case Failure(t: IllegalArgumentException) =>
+                    check(subject, right, resource) // xxx resource from exception
+                case Failure(t) =>
+                    error(this, s"failed while checking entitlement: ${t.getMessage}")
+                    promise success false
+            }
+
+            promise future
+        }
+    }
+
+    /** Limits activations if the load balancer is overloaded. */
+    protected def checkSystemOverload(subject: Subject, right: Privilege, resource: Resource)(implicit transid: TransactionId) = {
         val systemOverload = right == Privilege.ACTIVATE && loadbalancerOverload
         if (systemOverload) {
-            return Future failed ThrottleRejectRequest(TooManyRequests, Some(ErrorResponse("System is overloaded", transid)))
-        }
-        // Or if the user has exceeded his own invocation or trigger rate
-        if (right == Privilege.ACTIVATE) {
-            val userThrottled =
-                (resource.isInvocation && !invokeRateThrottler.check(subject)) ||
-                (resource.isTrigger && !triggerRateThrottler.check(subject))
-            if (userThrottled) {
-                return Future failed ThrottleRejectRequest(TooManyRequests, Some(ErrorResponse("Too many requests from user", transid)))
-            }
-        }
+            Some { Future failed ThrottleRejectRequest(TooManyRequests, Some(ErrorResponse("System is overloaded", transid))) }
+        } else None
+    }
 
-        val promise = Promise[Boolean]
-
-        // NOTE: explicit grants do not work with package bindings because the current model
-        // for authorization does not allow for a continuation to check that both the binding
-        // and the references package are both either implicitly or explicitly granted; this is
-        // accepted for the time being however because there exists no external mechanism to create
-        // explicit grants
-        val grant = if (right != REJECT) {
-            info(this, s"checking user '$subject' has privilege '$right' for '$resource'")
-            namespaces(subject) flatMap {
-                resource.collection.implicitRights(_, right, resource) flatMap {
-                    case true  => Future successful true
-                    case false => entitled(subject, right, resource)
-                }
-            }
-        } else Future successful false
-
-        grant onComplete {
-            case Success(r) =>
-                info(this, if (r) "authorized" else "not authorized")
-                promise success r
-            case Failure(t: IllegalArgumentException) =>
-                check(subject, right, resource) // xxx resource from exception
-            case Failure(t) =>
-                error(this, s"failed while checking entitlement: ${t.getMessage}")
-                promise success false
+    /** Limits activations if subject exceeds their own limits. */
+    protected def checkUserThrottle(subject: Subject, right: Privilege, resource: Resource)(implicit transid: TransactionId) = {
+        def userThrottled = {
+            val isInvocation = resource.collection.path == Collection.ACTIONS
+            val isTrigger = resource.collection.path == Collection.TRIGGERS
+            (isInvocation && !invokeRateThrottler.check(subject)) || (isTrigger && !triggerRateThrottler.check(subject))
         }
 
-        promise future
+        if (right == Privilege.ACTIVATE && userThrottled) {
+            Some { Future failed ThrottleRejectRequest(TooManyRequests, Some(ErrorResponse("Too many requests from user", transid))) }
+        } else None
     }
 }
 

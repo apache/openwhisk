@@ -24,23 +24,22 @@ import whisk.core.entity.Subject
 import whisk.common.TransactionId
 import whisk.common.Logging
 
-
 /**
  * A class tracking the rate of invocation (or any operation) by subject (any key really).
- * 
+ *
  * For now, we throttle only at a 1-minute granularity.
  */
-class RateThrottler(config : WhiskConfig,
-                    maxPerMinute : Int,
-                    maxPerHour : Int) extends Logging {
+class RateThrottler(config: WhiskConfig,
+                    maxPerMinute: Int,
+                    maxPerHour: Int) extends Logging {
 
     // Parameters
-    private val exemptSubject = ""  // We exempt nothing.
+    private val exemptSubject = "" // We exempt nothing.
 
     // Implementation
     private val rateMap = new TrieMap[Subject, RateInfo]
 
-    // Track the activation rate of one subject at multiple time granularities.
+    // Track the activation rate of one subject at multiple time-granularity.
     class RateInfo extends Logging {
         setVerbosity(Verbosity.Noisy)
         var lastMin = getCurrentMinute
