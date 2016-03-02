@@ -107,8 +107,6 @@ function Whisk(apihost, apikey, version, logger) {
         post(packet, logger, function(error, response, body) {
             logger && logger.info('[whisk]', '[invoke]', 'response body', body);
 
-            console.log(error);
-
             var activation = undefined;
             var error = undefined;
             var errorCode = undefined;
