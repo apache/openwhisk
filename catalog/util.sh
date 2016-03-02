@@ -23,7 +23,6 @@ function createPackage() {
 }
 
 function install() {
-echo AUTH_KEY is $AUTH_KEY
     RELATIVE_PATH=$1
     ACTION_NAME=$2
     REST=("${@:3}")

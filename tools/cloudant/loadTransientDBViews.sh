@@ -90,8 +90,8 @@ CLOUDANT_USERNAME=$(getProperty "$PROPERTIES_FILE" "cloudant.username")
 CLOUDANT_PASSWORD=$(getProperty "$PROPERTIES_FILE" "cloudant.password")
 CLOUDANT_DB_PREFIX=$(getProperty "$PROPERTIES_FILE" "cloudant.db.prefix")
 source "$SCRIPTDIR/../../config/cloudantSetup.sh"
-CURL_ADMIN="curl --user $CLOUDANT_USERNAME:$CLOUDANT_PASSWORD"
+CURL_ADMIN="curl -s --user $CLOUDANT_USERNAME:$CLOUDANT_PASSWORD"
 URL_BASE="https://$CLOUDANT_USERNAME.cloudant.com"
 
 PREV_REV=`$CURL_ADMIN -X GET $URL_BASE/$CLOUDANT_WHISK_ACTIONS/_design/whisks | awk -F"," '{print $2}'`
-$CURL_ADMIN -X POST -H 'Content-Type: application/json' -d "$(addRevision "$(view)" $PREV_REV)" $URL_BASE/$CLOUDANT_WHISK_ACTIONS; echo
+$CURL_ADMIN -X POST -H 'Content-Type: application/json' -d "$(addRevision "$(view)" $PREV_REV)" $URL_BASE/$CLOUDANT_WHISK_ACTIONS

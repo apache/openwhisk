@@ -372,7 +372,9 @@ class WskBasicTests
     }
 
     it should "list entities in default namespace" in {
-        wsk.namespace.get(expectedExitCode = SUCCESS_EXIT).
+        // use a fresh wsk props instance that is guaranteed to use
+        // the default namespace
+        wsk.namespace.get(expectedExitCode = SUCCESS_EXIT)(WskProps()).
             stdout should include("default")
     }
 }

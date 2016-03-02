@@ -41,23 +41,22 @@ CLOUDANT_USERNAME=$(getProperty "$PROPERTIES_FILE" "cloudant.username")
 CLOUDANT_PASSWORD=$(getProperty "$PROPERTIES_FILE" "cloudant.password")
 CLOUDANT_DB_PREFIX=$(getProperty "$PROPERTIES_FILE" "cloudant.db.prefix")
 source "$SCRIPTDIR/../../config/cloudantSetup.sh"
-CURL_ADMIN="curl --user $CLOUDANT_USERNAME:$CLOUDANT_PASSWORD"
+CURL_ADMIN="curl -s --user $CLOUDANT_USERNAME:$CLOUDANT_PASSWORD"
 URL_BASE="https://$CLOUDANT_USERNAME.cloudant.com"
 
 
 ## drop and recreate the transient databases
+echo
 for db in $CLOUDANT_TRANSIENT_DBS
 do  
-    echo $db
-    
-    # drop the database
+    echo "dropping database: '$db'"
     CMD="$CURL_ADMIN -X DELETE $URL_BASE/$db"
-    echo $CMD
+    #echo $CMD
     $CMD
 
-    # recreate the database
+    echo "recreating database '$db'"
     CMD="$CURL_ADMIN -X PUT $URL_BASE/$db"
-    echo $CMD
+    #echo $CMD
     $CMD
 done
 

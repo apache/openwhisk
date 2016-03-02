@@ -8,8 +8,6 @@ WHISK_SYSTEM_AUTH_FILE=$1
 
 export WHISK_SYSTEM_AUTH=`cat $WHISK_SYSTEM_AUTH_FILE`
 
-echo AUTH is $WHISK_SYSTEM_AUTH
-
 SCRIPTDIR="$(cd $(dirname "$0")/ && pwd)"
 source "$SCRIPTDIR/util.sh"
 
