@@ -19,8 +19,18 @@
     <!-- derived properties -->
     <property name="docker.scratch" value="${build.dir}/docker-scratch" />
 
+    <!-- import optional config for any properties which -->
+    <!-- can be override by custom settings; a sample    -->
+    <!-- custom-config.xml would look like this:         -->
+    <!-- <project>
+            <property name="buildthreads" value="4" />
+            <property name="testthreads" value="3" />
+         </project>
+    -->
+    <import file="custom-config.xml" optional="true" />
+
     <!-- parallel test threads for running junit: optional. -->
-    <condition property="testthreads" value="3">
+    <condition property="testthreads" value="1">
         <not>
             <isset property="testthreads" />
         </not>
@@ -28,14 +38,14 @@
 
 
     <!-- parallel build threads. -->
-    <condition property="buildthreads" value="8">
+    <condition property="buildthreads" value="1">
         <not>
             <isset property="buildthreads" />
         </not>
     </condition>
 
     <!-- parallel docker push threads. -->
-    <condition property="pushthreads" value="2">
+    <condition property="pushthreads" value="1">
         <not>
             <isset property="pushthreads" />
         </not>
@@ -80,7 +90,7 @@
     <property name="consul.service.check" value="-e SERVICE_CHECK_HTTP=/ping -e SERVICE_CHECK_TIMEOUT=2s -e SERVICE_CHECK_INTERVAL=15s" />
 
     <!-- gather values for environment variables and store them in a properties file -->
-    <target name="writePropertyFile" depends="setDeployTarget" unless="property.file.written" >
+    <target name="writePropertyFile" depends="setDeployTarget" unless="property.file.written">
         <exec dir="config" failonerror="true" executable="/bin/bash">
             <arg value="setupProps.sh" />
             <arg value="${deploy.target}Env.sh" />
