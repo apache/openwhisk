@@ -197,6 +197,19 @@ The following commands are relative to the OpenWhisk directory. If necessary, ch
 
 **Tip:** Since the first build takes some time, it is not uncommon for some step to fail if there's a network hiccup or other interruption of some kind. If this happens you may see a `Build FAILED` message that suggests a Docker operation timed out. You can simply try `ant build` again and it will mostly pick up where it left off. This should only be an issue the very first time you build whisk -- subsequent builds do far less network activity thanks to Docker caching.
 
+To teardown OpenWhisk and remove all Docker containers, run `ant teardown`. You can then redeploy the system with `ant deploy`. To do both at once, use `ant redeploy`.
+
+A typical build (excluding the very first build) should last 2-3 minutes. You can accelerate this if you have a host machine with more than 8GB RAM with a parallel build. You can do this two ways.
+
+1. Override the `buildthreads` parameter on the command line, as in `ant clean build deploy -Dbuildthreads=4`. This command runs up to 4 build steps in parallel.
+2. Save your custom overrides to `openwhisk/config/custom-config.xml`. See `openwhisk/config/config.xml` for options that you may override. An example custom configuration to run up to 4 build steps in parallel follows.
+
+  ```
+  <project>
+      <property name="buildthreads" value="4" />
+  </project>
+  ```
+
 ### Add OpenWhisk command line tools to your path
 
 The OpenWhisk command line tools are located in the `openwhisk/bin` folder. The instructions that follow assume `/your/path/to/openwhisk/bin` is in your system `PATH`. If you are using a Vagrant machine in a shared configuration (Mac users), the OpenWhisk command line tools are already in your path inside the virtual machine.
