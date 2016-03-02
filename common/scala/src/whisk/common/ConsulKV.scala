@@ -121,8 +121,10 @@ object ConsulKV {
     object InvokerKeys {
         // All invoker written information written here.
         // Underneath this, each invoker has its own path.
-        val allInvokers = "invokers"
+        val allInvokers = "invokers"               // we store a small amount of data here
+        val allInvokersData = "invokersData"       // we store large amounts of data here
         def instancePath(instance: Int) = s"${allInvokers}/invoker${instance}"
+        def instanceDataPath(instance: Int) = s"${allInvokersData}/invoker${instance}"
 
         // Invokers store the hostname they are running on here.
         def hostname(instance: Int) = s"${instancePath(instance)}/hostname"
@@ -135,9 +137,9 @@ object ConsulKV {
 
         // Invokers store how many activations they have processed per user here.
         private val userActivationCountKey = "userActivationCount"
-        def userActivationCount(instance: Int) = s"${instancePath(instance)}/${userActivationCountKey}"
+        def userActivationCount(instance: Int) = s"${instanceDataPath(instance)}/${userActivationCountKey}"
         def getUserActivationCountIndex(key: String): Option[Int] = {
-            val prefix = s"${allInvokers}/invoker"
+            val prefix = s"${allInvokersData}/invoker"
             val suffix = s"/${userActivationCountKey}"
             if (key.startsWith(prefix) && key.endsWith(suffix)) {
                 val middle = key.substring(prefix.length, key.length - suffix.length)

@@ -318,8 +318,15 @@ class Invoker(
         }
     }
 
-    def getUserActivationCounts(): JsObject = {
-        JsObject(userActivationCounter.map { case (u, c) => (u, c.cur.toJson) } toMap)
+    def getUserActivationCounts(): Map[String, JsObject] = {
+        val subjects = userActivationCounter.keySet toList
+        val groups = subjects.groupBy { user => user.substring(0, 1) }  // Any sort of partitioning will be ok wrt load balancer
+        groups.keySet map { prefix => 
+          val key = InvokerKeys.userActivationCount(instance) + "/" + prefix
+          val users = groups.getOrElse(prefix, Set())
+          val items = users map { u => (u, JsNumber(userActivationCounter.get(u) map { c => c.cur } getOrElse 0))}
+          key -> JsObject(items toMap)
+        } toMap
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -356,8 +363,8 @@ class Invoker(
         InvokerKeys.start(instance),
         InvokerKeys.status(instance),
         { () =>
-            Map(InvokerKeys.activationCount(instance) -> activationCounter.cur.toJson,
-                InvokerKeys.userActivationCount(instance) -> getUserActivationCounts())
+            getUserActivationCounts() ++ 
+            Map(InvokerKeys.activationCount(instance) -> activationCounter.cur.toJson)
         })
 
     // This will remove leftover action containers

@@ -35,6 +35,7 @@ import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
 import org.apache.kafka.clients.producer.RecordMetadata
 
+
 trait LoadBalancerToKafka extends Logging {
 
     /** Gets a producer which can publish messages to the kafka bus. */
@@ -104,14 +105,15 @@ trait LoadBalancerToKafka extends Logging {
         activationCounter.cur
     }
 
-    protected def getUserActivationCounts(): JsObject = {
-        JsObject(userActivationCounter map { case (u, c) => (u, c.cur.toJson) } toMap)
+    protected def getUserActivationCounts(): Map[String, JsObject] = {
+        ActivationThrottle.encodeLoadBalancerUserActivation(userActivationCounter)
     }
 
     private val activationCounter = new Counter()
     private val userActivationCounter = new TrieMap[String, Counter]
     private val idError = LoadBalancerResponse.error("no invokers available")
     private val throttleError = LoadBalancerResponse.error("too many concurrent activations")
-    private val activationThrottle = new ActivationThrottle(LoadBalancer.config.consulServer)
+
+    def activationThrottle : ActivationThrottle
 
 }

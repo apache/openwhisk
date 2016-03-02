@@ -43,13 +43,16 @@ class LoadBalancer(config: WhiskConfig, verbosity: Verbosity.Level)
 
     override def getInvoker(message : Message): Option[Int] = invokerHealth.getInvoker(message)
     override def getInvokerHealth: JsObject = invokerHealth.getInvokerHealth()
+    override def activationThrottle = _activationThrottle
 
     override def actorRefFactory = context
     override val executionContext = ExecutionContextFactory.makeExecutionContext()
     override val producer = new KafkaProducerConnector(config.kafkaHost, executionContext)
 
-    private val invokerHealth = new InvokerHealth(config, { () => producer.sentCount() })
     private val kvStore = new ConsulKV(config.consulServer)
+    private val invokerHealth = new InvokerHealth(config, { () => producer.sentCount() })
+    private val _activationThrottle = new ActivationThrottle(LoadBalancer.config.consulServer, invokerHealth)
+
     // --- WIP -----
     private var count = 0
     private val overloadThreshold = 5000  // this is the total across all invokers.  Disable by setting to -1.
@@ -67,8 +70,8 @@ class LoadBalancer(config: WhiskConfig, verbosity: Verbosity.Level)
               warn(this, s"In flight: ${producedCount} - [${consumedCounts.mkString(", ")}] = ${inFlight} ${overload}")
             }
             Map(LoadBalancerKeys.overloadKey -> overload,
-                LoadBalancerKeys.invokerHealth -> getInvokerHealth(),
-                LoadBalancerKeys.userActivationCountKey -> getUserActivationCounts())
+                LoadBalancerKeys.invokerHealth -> getInvokerHealth()) ++
+            getUserActivationCounts()
         })
 
 }

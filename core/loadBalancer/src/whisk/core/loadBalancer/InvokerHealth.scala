@@ -92,6 +92,10 @@ class InvokerHealth(config: WhiskConfig, getKafkaPostCount: () => Int) extends L
         JsObject(health toMap)
     }
 
+    def getInvokerIndices() : Array[Int] = {
+        invokers.get() map { status => status.index }
+    }
+
     def getInvokerActivationCounts() : Array[Int] = {
         invokers.get() map { status => status.activationCount }
     }

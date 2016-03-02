@@ -17,15 +17,22 @@
 package whisk.core.loadBalancer;
 
 import scala.collection.concurrent.TrieMap
+import scala.util.Try
+
 import whisk.common.ConsulKV
+import whisk.common.ConsulKV.LoadBalancerKeys
 import whisk.common.Logging
+import whisk.common.Counter
 import whisk.core.entity.Namespace
+
 import spray.json.JsValue
 import spray.json.JsObject
 import spray.json.JsNumber
-import scala.util.Try
+import spray.json.DefaultJsonProtocol._
 
-class ActivationThrottle(consulServer: String) extends Logging {
+
+class ActivationThrottle(consulServer: String,
+                         invokerHealth : InvokerHealth) extends Logging {
 
     private val DEFAULT_NAMESPACE_CONCURRENCY_LIMITS_KEY = "whiskprops/DEFAULT_NAMESPACE_CONCURRENCY_LIMITS"
     private val DEFAULT_LIMIT: BigInt = BigInt(100)
@@ -91,7 +98,7 @@ class ActivationThrottle(consulServer: String) extends Logging {
                 }
 
                 Try {
-                    val loadBalancerInfo = kvStore.get(ConsulKV.LoadBalancerKeys.userActivationCountKey).asJsObject.fields
+                    val loadBalancerInfo = ActivationThrottle.fetchLoadBalancerUserActivation(kvStore)
                     val limits = loadBalancerInfo.flatMap {
                         case (k: String, v: JsNumber) => Some(k, BigInt(v.value.toInt))
                         case _                        => None
@@ -100,14 +107,12 @@ class ActivationThrottle(consulServer: String) extends Logging {
                     tempCounter ++= limits
                     info(this, s"""Got user activation count from loadbalancer: ${limits.keys} ${limits.values}""")
 
-                    val invokerInfo = kvStore.getRecurse(ConsulKV.InvokerKeys.allInvokers)
-                    invokerInfo.foreach {
-                        case (k, userActivationCount) =>
-                            ConsulKV.InvokerKeys.getUserActivationCountIndex(k) match {
-                                case Some(index) => decrementCounter(userActivationCount.asJsObject)
-                                case None        => //ignore
-                            }
+                    val indices = invokerHealth.getInvokerIndices()
+                    val invokerCounts = indices flatMap {
+                        index => ActivationThrottle.getOneInvokerUserActivationCounts(kvStore, index)
                     }
+                    invokerCounts.foreach { invCount => decrementCounter(invCount) }
+
                     info(this, s"""Finally got user activation counts: ${limits.keys} ${limits.values}""")
                     userActivationCounter.clear()
                     userActivationCounter ++= tempCounter
@@ -120,4 +125,41 @@ class ActivationThrottle(consulServer: String) extends Logging {
             } // while
         }
     }.start()
+}
+
+/*
+ * Isolate here the concrete representation of load-balancer generated user action count information.
+ */
+object ActivationThrottle {
+
+    // Obtain from consul the the load-balancer generated user activation count information
+    def fetchLoadBalancerUserActivation(kvStore : ConsulKV) : Map[String, JsValue] = {
+        kvStore.getRecurse(ConsulKV.LoadBalancerKeys.userActivationCountKey) flatMap {
+            case (_, v) => v.asJsObject.fields
+        }
+    }
+
+    //  Convert the in-core representation of user activation counts into an opaque bundle of consule kv pairs
+    //  Note: TrieMap is not a Map but we should find a beter supertype)
+    def encodeLoadBalancerUserActivation(userActivationCounter : TrieMap[String, Counter]) : Map[String, JsObject] = {
+
+        val subjects = userActivationCounter.keySet toList
+        val groups = subjects.groupBy { user => user.substring(0, 1) }
+        groups.keySet map { prefix => 
+          val key = LoadBalancerKeys.userActivationCountKey + "/" + prefix
+          val users = groups.getOrElse(prefix, Set())
+          val items = users map { u => (u, JsNumber(userActivationCounter.get(u) map { c => c.cur } getOrElse 0))}
+          key -> JsObject(items toMap)
+        } toMap
+    }
+
+    // Fetches everything under the user activation count for one invoker.
+    // Because we are getting all subkeys, the way it's split up by the invoker doesn't matter.
+    def getOneInvokerUserActivationCounts(kvStore : ConsulKV, index : Int) = {
+        val invokerInfo = kvStore.getRecurse(ConsulKV.InvokerKeys.userActivationCount(index))
+        invokerInfo flatMap {
+            case (_, userActivationCount) => Some(userActivationCount.asJsObject)
+        }
+    }
+
 }
