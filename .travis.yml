@@ -11,9 +11,18 @@ notifications:
   email: false
 
 before_install:
+  - sudo apt-get -y update -qq
+  - sudo apt-get -o Dpkg::Options::="--force-confnew" --force-yes -y install docker-engine
+  - docker --version
+  - sudo apt-get -y install python-pip
+  - pip install --user jsonschema
+  - pip install --user argcomplete
+  - ./tools/build/scanCode.sh
   - ./tools/travis/setup.sh
 
 script:
-  - ant clean build
-
-
+  - ./tools/db/couchdb/start-couchdb-box.sh whisk_couchdb_admin some_gener1c_passw0rd
+  - ./tools/db/createImmortalDBs.sh --dropit
+  - ant build
+  - ant deploy
+  - ant run -Dtestsfailonfailure=true
