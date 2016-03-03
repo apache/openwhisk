@@ -5,14 +5,10 @@
 SCRIPTDIR=$(cd $(dirname "$0") && pwd)
 ROOTDIR="$SCRIPTDIR/../.."
 
-# Generate dummy cloudant env file.
-echo OPEN_WHISK_DB_USERNAME=dummy > "$ROOTDIR/cloudant-local.env"
-echo OPEN_WHISK_DB_PASSWORD=dummy >> "$ROOTDIR/cloudant-local.env"
-
 # Install necessary tools.
 (
     cd ./tools/ubuntu-setup
-    ./misc.sh && ./pip.sh && ./ant.sh && ./scala.sh
+    ./misc.sh && ./ant.sh && ./scala.sh
 )
 
 # Setup docker
