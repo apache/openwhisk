@@ -43,7 +43,7 @@ source "$SCRIPTDIR/../../config/dbSetup.sh"
 
 if [ "$OPEN_WHISK_DB_PROVIDER" == "Cloudant" ]; then
     CURL_ADMIN="curl --user $OPEN_WHISK_DB_USERNAME:$OPEN_WHISK_DB_PASSWORD"
-    URL_BASE="https://$USER.cloudant.com"
+    URL_BASE="https://$OPEN_WHISK_DB_USERNAME.cloudant.com"
 elif [ "$OPEN_WHISK_DB_PROVIDER" == "CouchDB" ]; then
     CURL_ADMIN="curl -k --user $OPEN_WHISK_DB_USERNAME:$OPEN_WHISK_DB_PASSWORD"
     URL_BASE="https://$OPEN_WHISK_DB_HOST:$OPEN_WHISK_DB_PORT"
