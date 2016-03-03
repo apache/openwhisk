@@ -17,20 +17,36 @@
 #
 
 #
-# create the immortal databases in cloudant.  
+# create the immortal databases (in Cloudant or CouchDB)
 # Immortal databases are NOT dropped and recreated for a new deployment,
 # even for testing (at least for now)
 #
-# Usuage: createImmortalDbs.sh cloudant_user cloudant_password
-#
-USER=$1;
-PASSWORD=$2;
-
-: ${USER:?"usage: createImmortalDbs.sh cloudant_user cloudant_password"}
-: ${PASSWORD:?"usage: createImmortalDbs.sh cloudant_user cloudant_password"}
+# Usage: createImmortalDbs.sh
 
 SCRIPTDIR="$(cd $(dirname "$0")/ && pwd)"
-source "$SCRIPTDIR/../../config/cloudantSetup.sh"
+
+source "$SCRIPTDIR/../../config/dbSetup.sh"
+
+if [ "$OPEN_WHISK_DB_PROVIDER" == "Cloudant" ]; then
+    CURL_ADMIN="curl --user $OPEN_WHISK_DB_USERNAME:$OPEN_WHISK_DB_PASSWORD"
+    URL_BASE="https://$USER.cloudant.com"
+
+    # First part of confirmation prompt.
+    echo "About to drop and recreate database '$DB_IMMORTAL_DBS' in this Cloudant account:"
+    echo "  $USER"
+
+elif [ "$OPEN_WHISK_DB_PROVIDER" == "CouchDB" ]; then
+    CURL_ADMIN="curl -k --user $OPEN_WHISK_DB_USERNAME:$OPEN_WHISK_DB_PASSWORD"
+    URL_BASE="https://$OPEN_WHISK_DB_HOST:$OPEN_WHISK_DB_PORT"
+
+    # First part of confirmation prompt.
+    echo "About to drop and recreate database '$DB_IMMORTAL_DBS' on:"
+    echo "  $URL_BASE"
+
+else
+    echo "Unrecognized OPEN_WHISK_DB_PROVIDER: '$OPEN_WHISK_DB_PROVIDER'"
+    exit 1
+fi
 
 GUEST_KEY=`cat "$SCRIPTDIR/../../config/keys/auth.guest"`
 WHISK_SYSTEM_KEY=`cat "$SCRIPTDIR/../../config/keys/auth.whisk.system"`
@@ -38,30 +54,26 @@ WHISK_SYSTEM_KEY=`cat "$SCRIPTDIR/../../config/keys/auth.whisk.system"`
 # array of immortal keys that need to be recreated in the auth table if it is ever dropped or in case of a fresh deployment
 IMMORTAL_KEYS=("guest:$GUEST_KEY" "whisk.system:$WHISK_SYSTEM_KEY")
 
-# prompt user for confirmation
-echo "About to drop and recreate database '$CLOUDANT_IMMORTAL_DBS' in this cloudant account:"
-echo "$USER"
-echo "This will wipe the previous database if it exists and this is not reversible."
-echo "Respond with 'DROPIT' to continue and anything else to abort."
-read -r -p "Are you sure? " response
-if [[ $response != DROPIT ]]
-then
-    echo "Aborted"
-    exit 1
+# ...second part of prompt to user for confirmation:
+if [[ "$1" != "--dropit" ]]; then
+    echo "This will wipe the previous database if it exists and this is not reversible."
+    echo "Respond with 'DROPIT' to continue and anything else to abort."
+    read -r -p "Are you sure? " response
+    if [[ "$response" != "DROPIT" ]]; then
+        echo "Aborted"
+        exit 1
+    fi
 fi
 
-CURL_ADMIN="curl --user $USER:$PASSWORD"
-URL_BASE="https://$USER.cloudant.com"
-
-for db in $CLOUDANT_IMMORTAL_DBS
-do  
+for db in $DB_IMMORTAL_DBS
+do
     echo $db
 
     # drop the database
     CMD="$CURL_ADMIN -X DELETE $URL_BASE/$db"
     echo $CMD
     $CMD
-    
+
     # create the database
     CMD="$CURL_ADMIN -X PUT $URL_BASE/$db"
     echo $CMD
@@ -70,13 +82,13 @@ done
 
 # recreate the "full" index on the "auth" database
 $CURL_ADMIN -X POST -H 'Content-Type: application/json' \
-        -d '{  
+        -d '{
             "_id":"_design/subjects",
             "views": { "uuids": { "map": "function (doc) {\n  emit([doc.uuid], {secret: doc.key});\n}" } },
             "language":"javascript",
             "indexes": {}
          }' \
-    $URL_BASE/$CLOUDANT_WHISK_AUTHS;
+    $URL_BASE/$DB_WHISK_AUTHS;
 
 # recreate necessary "auth" keys
 for key in "${IMMORTAL_KEYS[@]}" ; do
@@ -92,5 +104,5 @@ for key in "${IMMORTAL_KEYS[@]}" ; do
             \"uuid\": \"$UUID\",
             \"key\": \"$KEY\"
          }" \
-    $URL_BASE/$CLOUDANT_WHISK_AUTHS;
+    $URL_BASE/$DB_WHISK_AUTHS;
 done

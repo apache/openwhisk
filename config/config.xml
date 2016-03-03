@@ -36,6 +36,13 @@
         </not>
     </condition>
 
+    <!-- whether test tasks fail if any test fails: optional, default: false
+         must be set explicitly to "true" if desired -->
+    <condition property="testsfailonfailure" value="false">
+        <not>
+            <isset property="testsfailonfailure" />
+        </not>
+    </condition>
 
     <!-- parallel build threads. -->
     <condition property="buildthreads" value="1">

@@ -86,12 +86,20 @@ function view() {
     }'
 }
 
-CLOUDANT_USERNAME=$(getProperty "$PROPERTIES_FILE" "cloudant.username")
-CLOUDANT_PASSWORD=$(getProperty "$PROPERTIES_FILE" "cloudant.password")
-CLOUDANT_DB_PREFIX=$(getProperty "$PROPERTIES_FILE" "cloudant.db.prefix")
-source "$SCRIPTDIR/../../config/cloudantSetup.sh"
-CURL_ADMIN="curl --user $CLOUDANT_USERNAME:$CLOUDANT_PASSWORD"
-URL_BASE="https://$CLOUDANT_USERNAME.cloudant.com"
+DB_PREFIX=$(getProperty "$PROPERTIES_FILE" "db.prefix")
 
-PREV_REV=`$CURL_ADMIN -X GET $URL_BASE/$CLOUDANT_WHISK_ACTIONS/_design/whisks | awk -F"," '{print $2}'`
-$CURL_ADMIN -X POST -H 'Content-Type: application/json' -d "$(addRevision "$(view)" $PREV_REV)" $URL_BASE/$CLOUDANT_WHISK_ACTIONS; echo
+source "$SCRIPTDIR/../../config/dbSetup.sh"
+
+if [ "$OPEN_WHISK_DB_PROVIDER" == "Cloudant" ]; then
+    CURL_ADMIN="curl --user $OPEN_WHISK_DB_USERNAME:$OPEN_WHISK_DB_PASSWORD"
+    URL_BASE="https://$USER.cloudant.com"
+elif [ "$OPEN_WHISK_DB_PROVIDER" == "CouchDB" ]; then
+    CURL_ADMIN="curl -k --user $OPEN_WHISK_DB_USERNAME:$OPEN_WHISK_DB_PASSWORD"
+    URL_BASE="https://$OPEN_WHISK_DB_HOST:$OPEN_WHISK_DB_PORT"
+else
+    echo "Unrecognized OPEN_WHISK_DB_PROVIDER: '$OPEN_WHISK_DB_PROVIDER'"
+    exit 1
+fi
+
+PREV_REV=`$CURL_ADMIN -X GET $URL_BASE/$DB_WHISK_ACTIONS/_design/whisks | awk -F"," '{print $2}'`
+$CURL_ADMIN -X POST -H 'Content-Type: application/json' -d "$(addRevision "$(view)" $PREV_REV)" $URL_BASE/$DB_WHISK_ACTIONS; echo

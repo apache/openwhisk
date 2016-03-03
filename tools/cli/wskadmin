@@ -32,9 +32,11 @@ import string
 import random
 import uuid
 
-CLOUDANT_WHISK_AUTHS = 'CLOUDANT_WHISK_AUTHS'
-CLOUDANT_USERNAME = 'CLOUDANT_USERNAME'
-CLOUDANT_PASSWORD = 'CLOUDANT_PASSWORD'
+DB_WHISK_AUTHS = 'DB_WHISK_AUTHS'
+DB_HOST        = 'DB_HOST'
+DB_PORT        = 'DB_PORT'
+DB_USERNAME    = 'DB_USERNAME'
+DB_PASSWORD    = 'DB_PASSWORD'
 
 # SCRIPT_DIR is going to be traversing all links and point to tools/cli/wsk
 CLI_DIR = os.path.dirname(os.path.realpath(sys.argv[0]))
@@ -43,7 +45,7 @@ ROOT_DIR = os.path.join(os.path.join(CLI_DIR, os.pardir), os.pardir)
 
 def main():
     whiskprops = wskprop.importPropsIfAvailable(wskprop.propfile(os.getcwd()))
-    requiredprops = [ CLOUDANT_WHISK_AUTHS, CLOUDANT_USERNAME, CLOUDANT_PASSWORD ]
+    requiredprops = [ DB_WHISK_AUTHS, DB_HOST, DB_PORT, DB_USERNAME, DB_PASSWORD ]
     (valid, props, deferredInfo) = wskprop.checkRequiredProperties(requiredprops, whiskprops)
 
     exitCode = 0 if valid else 2
@@ -97,9 +99,11 @@ def userCmd(args, props):
         return 2
 
 def createUserCmd(args, props):
-    username = props[CLOUDANT_USERNAME]
-    password = props[CLOUDANT_PASSWORD]
-    database = props[CLOUDANT_WHISK_AUTHS]
+    host     = props[DB_HOST]
+    port     = props[DB_PORT]
+    username = props[DB_USERNAME]
+    password = props[DB_PASSWORD]
+    database = props[DB_WHISK_AUTHS]
 
     subject = args.subject.strip()
     if len(subject) < 5:
@@ -113,8 +117,9 @@ def createUserCmd(args, props):
         'subject': subject
     }
 
-    url = 'http://%(username)s.cloudant.com/%(database)s' % {
-        'username': username,
+    url = 'https://%(host)s:%(port)s/%(database)s' % {
+        'host'    : host,
+        'port'    : port,
         'database': database
     }
     body = json.dumps(doc)
@@ -140,14 +145,17 @@ def getUserCmd(args, props):
         return 1
 
 def getSubjecFromDb(args, props):
-    username = props[CLOUDANT_USERNAME]
-    password = props[CLOUDANT_PASSWORD]
-    database = props[CLOUDANT_WHISK_AUTHS]
+    host     = props[DB_HOST]
+    port     = props[DB_PORT]
+    username = props[DB_USERNAME]
+    password = props[DB_PASSWORD]
+    database = props[DB_WHISK_AUTHS]
 
-    url = 'http://%(username)s.cloudant.com/%(database)s/%(subject)s' % {
-        'username': username,
+    url = 'https://%(host)s:%(port)s/%(database)s/%(subject)s' % {
+        'host'    : host,
+        'port'    : port,
         'database': database,
-        'subject': args.subject
+        'subject' : args.subject
     }
 
     headers = {
@@ -162,9 +170,11 @@ def getSubjecFromDb(args, props):
         return (None, res)
 
 def deleteUserCmd(args, props):
-    username = props[CLOUDANT_USERNAME]
-    password = props[CLOUDANT_PASSWORD]
-    database = props[CLOUDANT_WHISK_AUTHS]
+    host     = props[DB_HOST]
+    port     = props[DB_PORT]
+    username = props[DB_USERNAME]
+    password = props[DB_PASSWORD]
+    database = props[DB_WHISK_AUTHS]
 
     if args.subject.strip() == '':
         print 'Subject must not be empty'
@@ -175,11 +185,12 @@ def deleteUserCmd(args, props):
         print 'Failed to delete subject (%s)' % res.read().strip()
         return 1
 
-    url = 'http://%(username)s.cloudant.com/%(database)s/%(subject)s?rev=%(rev)s' % {
-        'username': username,
+    url = 'https://%(host)s:%(port)s/%(database)s/%(subject)s?rev=%(rev)s' % {
+        'host'    : host,
+        'port'    : port,
         'database': database,
-        'subject': args.subject,
-        'rev': rev['_rev']
+        'subject' : args.subject,
+        'rev'     : rev['_rev']
     }
 
     headers = {
@@ -194,15 +205,19 @@ def deleteUserCmd(args, props):
         return 1
 
 def whoisUserCmd(args, props):
-    username = props[CLOUDANT_USERNAME]
-    password = props[CLOUDANT_PASSWORD]
-    database = props[CLOUDANT_WHISK_AUTHS]
-    uuid = args.uuid.split(':')[0]
+    host     = props[DB_HOST]
+    port     = props[DB_PORT]
+    username = props[DB_USERNAME]
+    password = props[DB_PASSWORD]
+    database = props[DB_WHISK_AUTHS]
+    uuid     = args.uuid.split(':')[0]
 
-    url = 'http://%(username)s.cloudant.com/%(database)s/_design/%(database)s/_view/uuids?key=["%(uuid)s"]' % {
+    url = 'https://%(host)s:%(port)s/%(database)s/_design/%(database)s/_view/uuids?key=["%(uuid)s"]' % {
+        'host'    : host,
+        'port'    : port,
         'username': username,
         'database': database,
-        'uuid': uuid
+        'uuid'    : uuid
     }
 
     headers = {

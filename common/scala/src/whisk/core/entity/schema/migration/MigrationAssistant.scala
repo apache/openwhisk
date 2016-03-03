@@ -24,7 +24,7 @@ import com.google.gson.GsonBuilder
 import com.google.gson.JsonObject
 
 import whisk.core.WhiskConfig
-import whisk.core.database.Cloudant
+import whisk.core.database.CloudantProvider
 import whisk.core.entity.DocRevision
 import whisk.core.entity.WhiskAuth
 import whisk.core.entity.schema.AuthRecord
@@ -80,9 +80,9 @@ protected[entity] object CloudantReader {
         val dbUsername = null
         val dbPassword = null
 
-        val cloudant = new Cloudant(dbUsername, dbPassword)
+        val cloudant = CloudantProvider.mkClient(s"$dbUsername.cloudant.com", 443, dbUsername, dbPassword)
 
-        val from = cloudant.getDb(args(1))
+        val from = CloudantProvider.getDB(cloudant, args(1))
 
         filterAllDocsAndApply(from, op = println, filter = new Filter {})
     }
