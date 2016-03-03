@@ -146,6 +146,16 @@ def startInvoker(whiskprops,index, invokerHost, tag):
           print '   ', elapsed, 'sec   FAILED', rc
           print output
           return rc
+
+      javaImage= dockerRegistry + "whisk/javaaction" + ":" + tag
+      print 'Pulling java image at', dockerEndpoint,
+      (elapsed, rc, output) = runDocker(dockerEndpoint, dockerTlsCmd, ['pull', javaImage])
+      if (rc == 0):
+          print '   ', elapsed, 'sec   SUCCEEDED'
+      else:
+          print '   ', elapsed, 'sec   FAILED', rc
+          print output
+          return rc
   else:
       print 'Skipping pull'
 
