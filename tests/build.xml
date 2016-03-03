@@ -69,6 +69,12 @@
             <isset property="test.failure" />
             <then>
                 <echo message="Some test failed." />
+                <!-- Only a failure if -Dtestsfailonfailure=true -->
+                <fail message="All tests must pass.">
+                    <condition>
+                        <equals arg1="${testsfailonfailure}" arg2="true" />
+                    </condition>
+                </fail>
             </then>
             <else>
                 <echo message="All tests passed." />
