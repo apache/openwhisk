@@ -20,6 +20,8 @@ import base64
 import httplib
 import argparse
 import urllib
+import re
+import subprocess
 from wskitem import Item
 from wskutil import addAuthenticatedCommand, bold, request, getParams, getActivationArgument, getAnnotations, responseError, parseQName, getQName, apiBase, getPrettyJson
 
@@ -84,7 +86,7 @@ class Action(Item):
             actions = self.csvToList(args.artifact)
             actions = [ getQName(a, ns) for a in actions ]
             args.param.append([ '_actions', json.dumps(actions)])
-        
+
         validExe = exe is not None and 'kind' in exe
         if update or validExe: # if create action, then exe must be valid
             payload = {}
@@ -154,7 +156,8 @@ class Action(Item):
     # { kind: "nodejs", code: "js code", initializer: "base64 encoded string" }
     #   where initializer is optional, or:
     # { kind: "blackbox", image: "docker image" }, or:
-    # { kind: "swift", code: "swift code" }
+    # { kind: "swift", code: "swift code" }, or:
+    # { kind: "java", jar: "base64-encoded JAR", main: "FQN of main class" }
     def getExec(self, args, props):
         exe = {}
         if args.docker:
@@ -171,12 +174,40 @@ class Action(Item):
             if args.artifact.endswith('.swift'):
                 exe['kind'] = 'swift'
                 exe['code'] = contents
+            elif args.artifact.endswith('.jar'):
+                exe['kind'] = 'java'
+                exe['jar'] = base64.b64encode(contents)
+                exe['main'] = self.findMainClass(args.artifact)
             else:
                 exe['kind'] = 'nodejs'
                 exe['code'] = contents
         if args.lib:
             exe['initializer'] = base64.b64encode(args.lib.read())
         return exe
+
+    def findMainClass(self, jarPath):
+        signature = """public static com.google.gson.JsonObject main(com.google.gson.JsonObject);"""
+        def run(cmd):
+            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            (o,e) = proc.communicate()
+            if proc.returncode != 0:
+                msg = "An error occurred while executing %s." % " ".join(cmd)
+                if e.strip() != "":
+                    msg = msg + "\n" + e
+                raise Exception(msg)
+            return o
+
+        jarLines = run(["jar", "-tf", jarPath]).split("\n")
+        classes = filter(lambda x: x.endswith(".class"), jarLines)
+        classes = map(lambda x: x[:-6].replace("/", "."), classes)
+
+        for c in classes:
+            javapLines = run(["javap", "-cp", jarPath, c])
+            if signature in javapLines:
+                return c
+
+        raise Exception("Couldn't find 'main' method in %s." % jarPath)
+
 
     def getActionExec(self, args, props, name):
         res = self.httpGet(args, props, name)

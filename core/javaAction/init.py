@@ -11,8 +11,11 @@ if HOST == "":
 
 DEST="http://%s:8080/init" % HOST
 
-with open(sys.argv[1], "rb") as fp:
-    encoded = base64.b64encode(fp.read())
+if os.path.isfile(sys.argv[1]):
+    with open(sys.argv[1], "rb") as fp:
+        encoded = base64.b64encode(fp.read())
+else:
+    encoded = sys.argv[1]
 
 payload = {
 	"value" : {

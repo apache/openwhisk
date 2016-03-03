@@ -103,7 +103,7 @@ case class WhiskAction(
      * @return container image name for action
      */
     def containerImageName(registry: String = null, tag: String = "latest"): String = exec match {
-        case _: NodeJSExec | _: SwiftExec =>
+        case _: NodeJSExec | _: SwiftExec | _: JavaExec =>
             Option(registry).filter { _.nonEmpty }.map { r =>
                 val prefix = if (r.endsWith("/")) r else s"$r/"
                 s"${prefix}${exec.image}:${tag}"
@@ -133,8 +133,16 @@ case class WhiskAction(
                 "name" -> name.toJson,
                 "code" -> code.toJson)
 
+        case JavaExec(jar, main) =>
+            JsObject(
+                "name" -> name.toJson,
+                "jar"  -> jar.toJson,
+                "main" -> main.toJson
+            )
+
         case _: BlackBoxExec =>
             JsObject()
+
     }
 
     override def serialize: Try[ActionRecord] = Try {
