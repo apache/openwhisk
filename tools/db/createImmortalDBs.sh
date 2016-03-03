@@ -55,13 +55,14 @@ WHISK_SYSTEM_KEY=`cat "$SCRIPTDIR/../../config/keys/auth.whisk.system"`
 IMMORTAL_KEYS=("guest:$GUEST_KEY" "whisk.system:$WHISK_SYSTEM_KEY")
 
 # ...second part of prompt to user for confirmation:
-echo "This will wipe the previous database if it exists and this is not reversible."
-echo "Respond with 'DROPIT' to continue and anything else to abort."
-read -r -p "Are you sure? " response
-if [[ $response != DROPIT ]]
-then
-    echo "Aborted"
-    exit 1
+if [[ "$1" != "--dropit" ]]; then
+    echo "This will wipe the previous database if it exists and this is not reversible."
+    echo "Respond with 'DROPIT' to continue and anything else to abort."
+    read -r -p "Are you sure? " response
+    if [[ "$response" != "DROPIT" ]]; then
+        echo "Aborted"
+        exit 1
+    fi
 fi
 
 for db in $DB_IMMORTAL_DBS
