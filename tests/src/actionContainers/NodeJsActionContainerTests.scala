@@ -17,7 +17,6 @@
 package actionContainers
 
 import org.junit.runner.RunWith
-import org.scalatest.BeforeAndAfter
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
@@ -25,12 +24,8 @@ import spray.json._
 
 import ActionContainer.withContainer
 
-import scala.util.Random
-
 @RunWith(classOf[JUnitRunner])
-class NodeJsActionContainerTests extends FlatSpec
-    with Matchers
-    with BeforeAndAfter {
+class NodeJsActionContainerTests extends FlatSpec with Matchers {
 
     // Helpers specific to nodejsaction
     def withNodeJsContainer(code: ActionContainer => Unit) = withContainer("whisk/nodejsaction")(code)
