@@ -28,7 +28,7 @@ import spray.json.pimpAny
 import spray.json.pimpString
 import spray.json.DefaultJsonProtocol._
 import spray.json.JsNull
-import scala.util.Try
+import scala.util.{ Try, Success, Failure }
 import spray.json.JsArray
 import spray.json.JsObject
 
@@ -50,17 +50,19 @@ class ActionSchemaTests extends FlatSpec with Matchers with RestUtil with JsonSc
         val body = Try { response.body().asString().parseJson }
         val schema = getJsonSchema("EntityBrief").compactPrint
 
-        body map {
-            case JsArray(actions) =>
+        body match {
+            case Success(JsArray(actions)) =>
                 // check that each collection result obeys the schema
                 actions.foreach { a =>
                     val aString = a.compactPrint
                     assert(check(aString, schema))
                 }
-            case _ =>
+
+            case Success(_) =>
                 assert(false, "response is not an array of actions")
-        } getOrElse {
-            assert(false, "response failed to parse")
+
+            case _ =>
+                assert(false, "response failed to parse: " + body)
         }
     }
 
@@ -76,15 +78,17 @@ class ActionSchemaTests extends FlatSpec with Matchers with RestUtil with JsonSc
         val body = Try { response.body().asString().parseJson }
         val schema = getJsonSchema("Action").compactPrint
 
-        body map {
-            case action: JsObject =>
+        body match {
+            case Success(action: JsObject) =>
                 // check that the action obeys the Action model schema
                 val aString = action.compactPrint
                 assert(check(aString, schema))
-            case _ =>
+
+            case Success(_) =>
                 assert(false, "response is not a json object")
-        } getOrElse {
-            assert(false, "response failed to parse")
+
+            case _ =>
+                assert(false, "response failed to parse as JSON: " + body)
         }
     }
 }
