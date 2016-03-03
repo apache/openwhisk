@@ -195,7 +195,7 @@ The following commands are relative to the OpenWhisk directory. If necessary, ch
 
 **Tip:** The first build will take some time as it fetches many dependencies from the Internet. The duration of this step can range from 25 minutes to an hour or more depending on your network speed. Once deployed, several Docker containers will be running in your virtual machine.
 
-**Tip:** Since the first build takes some time, it is not uncommon for some step to fail if there's a network hiccup or other interruption of some kind. If this happens you may see a `Build FAILED` message that suggests a Docker operation timed out. You can simply try `ant build` again and it will mostly pick up where it left off. This should only be an issue the very first time you build whisk -- subsequent builds do far less network activity thanks to Docker caching.
+**Tip:** Since the first build takes some time, it is not uncommon for some step to fail if there's a network hiccup or other interruption of some kind. If this happens you may see a `Build FAILED` message that suggests a Docker operation timed out. You can simply try `ant build` again and it will mostly pick up where it left off. This should only be an issue the very first time you build -- subsequent builds do far less network activity thanks to Docker caching.
 
 To teardown OpenWhisk and remove all Docker containers, run `ant teardown`. You can then redeploy the system with `ant deploy`. To do both at once, use `ant redeploy`.
 
