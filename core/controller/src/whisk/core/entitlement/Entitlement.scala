@@ -181,8 +181,6 @@ protected[core] abstract class EntitlementService(config: WhiskConfig)(implicit 
                 case Success(r) =>
                     info(this, if (r) "authorized" else "not authorized")
                     promise success r
-                case Failure(t: IllegalArgumentException) =>
-                    check(subject, right, resource) // xxx resource from exception
                 case Failure(t) =>
                     error(this, s"failed while checking entitlement: ${t.getMessage}")
                     promise success false
