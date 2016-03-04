@@ -39,76 +39,19 @@ import spray.json._
 import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json.PimpedAny
 import common.TestHelpers
+import common.WskTestHelpers
+import common.TestHelpers
+import common.WskProps
 
 @RunWith(classOf[JUnitRunner])
 class WskBasicTests
     extends TestHelpers
+    with WskTestHelpers
     with Matchers {
 
     implicit val wskprops = WskProps()
     implicit val wsk = new Wsk()
-
-    // list of entities created by the tests that should be deleted after each test completes
-    val docsToDelete = ListBuffer[(DeleteFromCollection, String, Boolean)]()
-
-    override def beforeEach(td: TestData) {
-        docsToDelete.clear()
-        super.beforeEach(td)
-    }
-
-    override def afterEach(td: TestData) {
-        docsToDelete foreach {
-            d =>
-                if (d._3) d._1.delete(d._2)
-                else d._1.sanitize(d._2)
-        }
-        docsToDelete.clear()
-        super.afterEach(td)
-    }
-
-    /**
-     * Helper to create actions that are self cleaning after the test completes.
-     * By default creates an action from an arbitrary action file.
-     */
-    def createAction(
-        name: String,
-        filename: String = TestUtils.getCatalogFilename("samples/hello.js"),
-        expectedExitCode: Int = SUCCESS_EXIT)(
-            implicit wsk: Wsk) = {
-        docsToDelete += ((wsk.action, name, expectedExitCode == SUCCESS_EXIT))
-        val result = wsk.action.create(name, Some(filename), expectedExitCode = expectedExitCode)
-        if (expectedExitCode == SUCCESS_EXIT)
-            result.stdout should include("ok: created")
-    }
-
-    /**
-     * Helper to create triggers that are self cleaning after the test completes.
-     */
-    def createTrigger(
-        name: String,
-        expectedExitCode: Int = SUCCESS_EXIT)(
-            implicit wsk: Wsk) = {
-        docsToDelete += ((wsk.trigger, name, expectedExitCode == SUCCESS_EXIT))
-        wsk.trigger.create(name).
-            stdout should include("ok: created")
-    }
-
-    /**
-     * Helper to create action, trigger and rule triplet that are self cleaning
-     * after the test completes.
-     */
-    def createRule(
-        name: String,
-        trigger: String,
-        action: String,
-        expectedExitCode: Int = SUCCESS_EXIT)(
-            implicit wsk: Wsk) = {
-        createAction(action)
-        createTrigger(trigger)
-        docsToDelete += ((wsk.rule, name, expectedExitCode == SUCCESS_EXIT))
-        wsk.rule.create(name, trigger = trigger, action = action).
-            stdout should include("ok: created")
-    }
+    val defaultAction = Some(TestUtils.getCatalogFilename("samples/hello.js"))
 
     behavior of "Wsk CLI"
 
@@ -148,39 +91,46 @@ class WskBasicTests
         wskprops.delete()
     }
 
-    it should "reject creating duplicate entity" in {
-        val name = "testDuplicateCreate"
-        wsk.trigger.sanitize(name)
-        wsk.action.sanitize(name)
-        createTrigger(name)
-        createAction(name, TestUtils.getCatalogFilename("samples/hello.js"), CONFLICT)
+    it should "reject creating duplicate entity" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "testDuplicateCreate"
+            assetHelper.withCleaner(wsk.trigger, name) {
+                (trigger, _) => trigger.create(name)
+            }
+            assetHelper.withCleaner(wsk.action, name, confirmDelete = false) {
+                (action, _) => action.create(name, defaultAction, expectedExitCode = CONFLICT)
+            }
     }
 
-    it should "reject deleting entity in wrong collection" in {
-        val name = "testCrossDelete"
-        wsk.trigger.sanitize(name)
-        createTrigger(name)
-        wsk.action.delete(name, expectedExitCode = CONFLICT)
+    it should "reject deleting entity in wrong collection" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "testCrossDelete"
+            assetHelper.withCleaner(wsk.trigger, name) {
+                (trigger, _) => trigger.create(name)
+            }
+            wsk.action.delete(name, expectedExitCode = CONFLICT)
     }
 
-    it should "reject creating entities with invalid names" in {
-        val names = Seq(
-            ("", NOTALLOWED),
-            (" ", BAD_REQUEST),
-            ("hi+there", BAD_REQUEST),
-            ("$hola", BAD_REQUEST),
-            ("dora?", BAD_REQUEST),
-            ("|dora|dora?", BAD_REQUEST))
+    it should "reject creating entities with invalid names" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val names = Seq(
+                ("", NOTALLOWED),
+                (" ", BAD_REQUEST),
+                ("hi+there", BAD_REQUEST),
+                ("$hola", BAD_REQUEST),
+                ("dora?", BAD_REQUEST),
+                ("|dora|dora?", BAD_REQUEST))
 
-        names foreach { case (name, _) => wsk.action.sanitize(name) }
-        names foreach {
-            case (name, ec) =>
-                createAction(name, expectedExitCode = ec)
-        }
+            names foreach {
+                case (name, ec) =>
+                    assetHelper.withCleaner(wsk.action, name, confirmDelete = false) {
+                        (action, _) => action.create(name, defaultAction, expectedExitCode = ec)
+                    }
+            }
     }
 
     it should "reject unauthenticated access" in {
-        implicit val wskprops = WskProps("xxx")
+        implicit val wskprops = WskProps("xxx") // shadow properties
         val errormsg = "The supplied authentication is invalid"
         wsk.namespace.list(expectedExitCode = UNAUTHORIZED).
             stdout should include(errormsg)
@@ -236,50 +186,47 @@ class WskBasicTests
         result should include regex ("""/whisk.system/util/date\s+shared""")
     }
 
-    it should "create, update, get and list a package" in {
-        val name = "samplePackage"
-        val params = Map("a" -> "A".toJson)
-        try {
-            wsk.pkg.sanitize(name)
-            wsk.pkg.create(name, parameters = params, shared = Some(true))
-            wsk.pkg.create(name, update = true)
+    it should "create, update, get and list a package" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "samplePackage"
+            val params = Map("a" -> "A".toJson)
+            assetHelper.withCleaner(wsk.pkg, name) {
+                (pkg, _) =>
+                    pkg.create(name, parameters = params, shared = Some(true))
+                    pkg.create(name, update = true)
+            }
             val stdout = wsk.pkg.get(name).stdout
             stdout should include regex (""""key": "a"""")
             stdout should include regex (""""value": "A"""")
             stdout should include regex (""""publish": true""")
             stdout should include regex (""""version": "0.0.2"""")
             wsk.pkg.list().stdout should include(name)
-        } finally {
-            wsk.pkg.delete(name)
-        }
     }
 
     behavior of "Wsk Action CLI"
 
-    it should "create the same action twice with different cases" in {
-        wsk.action.sanitize("TWICE")
-        wsk.action.sanitize("twice")
-        createAction("TWICE")
-        createAction("twice")
+    it should "create the same action twice with different cases" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            assetHelper.withCleaner(wsk.action, "TWICE") { (action, name) => action.create(name, defaultAction) }
+            assetHelper.withCleaner(wsk.action, "twice") { (action, name) => action.create(name, defaultAction) }
     }
 
-    it should "create, update, get and list an action" in {
-        val name = "createAndUpdate"
-        val file = Some(TestUtils.getCatalogFilename("samples/hello.js"))
-        val params = Map("a" -> "A".toJson)
-        try {
-            wsk.action.sanitize(name)
-            wsk.action.create(name, file, parameters = params, shared = Some(true))
-            wsk.action.create(name, None, update = true)
+    it should "create, update, get and list an action" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "createAndUpdate"
+            val file = Some(TestUtils.getCatalogFilename("samples/hello.js"))
+            val params = Map("a" -> "A".toJson)
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) =>
+                    action.create(name, file, parameters = params, shared = Some(true))
+                    action.create(name, None, update = true)
+            }
             val stdout = wsk.action.get(name).stdout
             stdout should include regex (""""key": "a"""")
             stdout should include regex (""""value": "A"""")
             stdout should include regex (""""publish": true""")
             stdout should include regex (""""version": "0.0.2"""")
             wsk.action.list().stdout should include(name)
-        } finally {
-            wsk.action.delete(name)
-        }
     }
 
     it should "get an action" in {
@@ -304,64 +251,76 @@ class WskBasicTests
      * surely when it runs there should be some indication in the logs. Don't
      * think this is true currently.
      */
-    it should "create and invoke action with malformed js resulting in activation error" in {
-        val name = "MALFORMED"
-        wsk.action.sanitize(name)
-        createAction(name, TestUtils.getTestActionFilename("malformed.js"))
+    it should "create and invoke action with malformed js resulting in activation error" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "MALFORMED"
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("malformed.js")))
+            }
 
-        val activation = wsk.action.invoke(name, Map("payload" -> "whatever".toJson))
-        val activationId = wsk.action.extractActivationId(activation)
-        activationId shouldBe a[Some[_]]
+            val activation = wsk.action.invoke(name, Map("payload" -> "whatever".toJson))
+            val activationId = wsk.action.extractActivationId(activation)
+            activationId shouldBe a[Some[_]]
 
-        val expected = "ReferenceError" // representing nodejs giving an error when given malformed.js
-        val (found, logs) = wsk.activation.contains(activationId.get, expected)
-        assert(found, s"Did not find '$expected' in activation($activationId) ${logs getOrElse "empty"}")
+            val expected = "ReferenceError" // representing nodejs giving an error when given malformed.js
+            val (found, logs) = wsk.activation.contains(activationId.get, expected)
+            assert(found, s"Did not find '$expected' in activation($activationId) ${logs getOrElse "empty"}")
     }
 
-    it should "invoke a blocking action and get only the result" in {
-        val name = "basicInvoke"
-        createAction(name, TestUtils.getCatalogFilename("samples/wc.js"))
-        wsk.action.invoke(name, Map("payload" -> "one two three".toJson), blocking = true, result = true)
-            .stdout should include regex (""""count": 3""")
+    it should "invoke a blocking action and get only the result" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "basicInvoke"
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some(TestUtils.getCatalogFilename("samples/wc.js")))
+            }
+            wsk.action.invoke(name, Map("payload" -> "one two three".toJson), blocking = true, result = true)
+                .stdout should include regex (""""count": 3""")
     }
 
     behavior of "Wsk Trigger CLI"
 
-    it should "create trigger, get trigger, update trigger and list trigger" in {
-        val name = "listTriggers"
-        val params = Map("a" -> "A".toJson)
-        wsk.trigger.sanitize(name)
-        try {
-            wsk.trigger.create(name, parameters = params, shared = Some(true))
-            wsk.trigger.create(name, update = true)
+    it should "create trigger, get trigger, update trigger and list trigger" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "listTriggers"
+            val params = Map("a" -> "A".toJson)
+            assetHelper.withCleaner(wsk.trigger, name) {
+                (trigger, _) =>
+                    trigger.create(name, parameters = params, shared = Some(true))
+                    trigger.create(name, update = true)
+            }
             val stdout = wsk.trigger.get(name).stdout
             stdout should include regex (""""key": "a"""")
             stdout should include regex (""""value": "A"""")
             stdout should include regex (""""publish": true""")
             stdout should include regex (""""version": "0.0.2"""")
             wsk.trigger.list().stdout should include(name)
-        } finally {
-            wsk.trigger.delete(name)
-        }
     }
 
     behavior of "Wsk Rule CLI"
 
-    it should "create rule, get rule, update rule and list rule" in {
-        val rule = "listRules"
-        val trigger = "listRulesTrigger"
-        val action = "listRulesAction";
-        wsk.rule.sanitize(rule)
-        wsk.trigger.sanitize(trigger)
-        wsk.action.sanitize(action)
-        createRule(rule, trigger, action)
-        wsk.rule.create(rule, trigger, action, update = true)
-        val stdout = wsk.rule.get(rule).stdout
-        stdout should include(rule)
-        stdout should include(trigger)
-        stdout should include(action)
-        stdout should include regex (""""version": "0.0.2"""")
-        wsk.rule.list().stdout should include(rule)
+    it should "create rule, get rule, update rule and list rule" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val ruleName = "listRules"
+            val triggerName = "listRulesTrigger"
+            val actionName = "listRulesAction";
+            assetHelper.withCleaner(wsk.trigger, triggerName) {
+                (trigger, name) => trigger.create(name)
+            }
+            assetHelper.withCleaner(wsk.action, actionName) {
+                (action, name) => action.create(name, defaultAction)
+            }
+            assetHelper.withCleaner(wsk.rule, ruleName) {
+                (rule, name) =>
+                    rule.create(name, trigger = triggerName, action = actionName)
+                    rule.create(name, trigger = triggerName, action = actionName, update = true)
+            }
+
+            val stdout = wsk.rule.get(ruleName).stdout
+            stdout should include(ruleName)
+            stdout should include(triggerName)
+            stdout should include(actionName)
+            stdout should include regex (""""version": "0.0.2"""")
+            wsk.rule.list().stdout should include(ruleName)
     }
 
     behavior of "Wsk Namespace CLI"
