@@ -38,6 +38,7 @@ import whisk.common.ConsulKV
 import whisk.common.ConsulKV.InvokerKeys
 import whisk.common.ConsulKVReporter
 import whisk.common.Counter
+import whisk.common.SimpleExec
 import whisk.common.TransactionId
 import whisk.common.Verbosity
 import whisk.core.WhiskConfig
@@ -412,6 +413,7 @@ object InvokerService {
             val dispatcher = new Dispatcher(config, s"invoke${instance}", "invokers")
             val invoker = new Invoker(config, instance, Dispatcher.executionContext)
 
+            SimpleExec.setVerbosity(Verbosity.Loud)
             invoker.setVerbosity(Verbosity.Loud)
             dispatcher.setVerbosity(Verbosity.Loud)
             dispatcher.addHandler(invoker, true)

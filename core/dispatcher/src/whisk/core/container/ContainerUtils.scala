@@ -43,7 +43,7 @@ trait ContainerUtils extends Logging {
      * Creates a container instance and runs it.
      *
      * @param image the docker image to run
-     * @return tuple (container id returned by docker, container name, ip address)
+     * @return container id and container host
      */
     def bringup(name: Option[String], image: String, network: String, env: Map[String, String], args: Array[String], limits: ActionLimits)(implicit transid: TransactionId): (ContainerId, ContainerIP) = {
         val id = makeContainer(name, image, network, env, args, limits)
@@ -158,7 +158,7 @@ trait ContainerUtils extends Logging {
     }
 
     def runDockerCmd(args: String*)(implicit transid: TransactionId): DockerOutput = {
-        info(this, s"running docker cmd: $args")
+        // Logging at the SimpleExec level so all commands are captured.
         runDockerCmd(false, args)
     }
 

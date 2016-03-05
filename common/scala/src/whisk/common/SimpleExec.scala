@@ -29,6 +29,7 @@ object SimpleExec extends Logging {
         var outs = List[String]()
         var errs = List[String]()
         val exitCode = pb ! ProcessLogger((str) => outs ::= str, (str) => errs ::= str)
+        info(this, s"Done running command: ${cmd.mkString(" ")}")
         (outs.reverse.mkString("\n"), errs.reverse.mkString("\n"), exitCode)
     }
 }

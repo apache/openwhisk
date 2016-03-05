@@ -53,13 +53,12 @@ class WhiskContainer(
     /**
      * This will change as we start doing registry stuff.
      */
-    def isBlackbox = !image.startsWith("whisk/")
+    def isBlackbox = !image.startsWith("localhost:5000/whisk/")
 
     /**
      * Merges previously bound parameters with arguments form payload.
      */
     def mergeParams(payload: JsObject, recurse: Boolean = true)(implicit transid: TransactionId): JsObject = {
-        info(this, s"merging parameters")
         //debug(this, s"merging ${boundParams.compactPrint} with ${payload.compactPrint}")
         JsObject(boundParams.fields ++ payload.fields)
     }
@@ -70,7 +69,8 @@ class WhiskContainer(
      */
     def init(args: JsObject)(implicit transid: TransactionId): RunResult = {
         val start = ContainerCounter.now()
-        if (isBlackbox) Thread.sleep(3000)  // this shouldn't be needed but leave it for now
+        // this shouldn't be needed but leave it for now
+        if (isBlackbox) Thread.sleep(3000)
         info(this, s"sending initialization to ${this.details}")
         val result = sendPayload("/init", JsObject("value" -> args), initTimeoutMilli)   // This will retry.
         val end = ContainerCounter.now()
