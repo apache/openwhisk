@@ -24,13 +24,13 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.logging.Logger;
 import java.util.logging.Level;
-
-import junit.runner.Version;
+import java.util.logging.Logger;
 
 import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
+
+import junit.runner.Version;
 
 /**
  * Miscellaneous utilities used in whisk test suite

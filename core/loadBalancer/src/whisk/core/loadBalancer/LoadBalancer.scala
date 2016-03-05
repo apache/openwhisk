@@ -39,9 +39,7 @@ class LoadBalancer(config: WhiskConfig, verbosity: Verbosity.Level)
     with LoadBalancerToKafka
     with Actor {
 
-    setVerbosity(verbosity)
-
-    override def getInvoker(message : Message): Option[Int] = invokerHealth.getInvoker(message)
+    override def getInvoker(message: Message): Option[Int] = invokerHealth.getInvoker(message)
     override def getInvokerHealth: JsObject = invokerHealth.getInvokerHealth()
     override def activationThrottle = _activationThrottle
 
@@ -53,9 +51,11 @@ class LoadBalancer(config: WhiskConfig, verbosity: Verbosity.Level)
     private val invokerHealth = new InvokerHealth(config, { () => producer.sentCount() })
     private val _activationThrottle = new ActivationThrottle(LoadBalancer.config.consulServer, invokerHealth)
 
+    setVerbosity(verbosity)
+
     // --- WIP -----
     private var count = 0
-    private val overloadThreshold = 5000  // this is the total across all invokers.  Disable by setting to -1.
+    private val overloadThreshold = 5000 // this is the total across all invokers.  Disable by setting to -1.
     private val reporter = new ConsulKVReporter(kvStore, 3000, 2000,
         LoadBalancerKeys.hostnameKey,
         LoadBalancerKeys.startKey,
@@ -67,11 +67,11 @@ class LoadBalancer(config: WhiskConfig, verbosity: Verbosity.Level)
             val overload = JsBoolean(overloadThreshold > 0 && inFlight >= overloadThreshold)
             count = count + 1
             if (count % 10 == 0) {
-              warn(this, s"In flight: ${producedCount} - [${consumedCounts.mkString(", ")}] = ${inFlight} ${overload}")
+                warn(this, s"In flight: ${producedCount} - [${consumedCounts.mkString(", ")}] = ${inFlight} ${overload}")
             }
             Map(LoadBalancerKeys.overloadKey -> overload,
                 LoadBalancerKeys.invokerHealth -> getInvokerHealth()) ++
-            getUserActivationCounts()
+                getUserActivationCounts()
         })
 
 }

@@ -19,13 +19,6 @@
         </fileset>
     </path>
 
-    <path id="libJarsMH">
-        <fileset dir="${openwhisk.dir}/common/libs">
-            <include name="**/*.jar" />
-            <exclude name="**/kafka-clients-0.8.2.0.jar"/>
-        </fileset>
-    </path>
-
     <!-- build the docker base image with scala -->
     <target name="buildScalaBaseImage">
         <var file="whisk.properties" />

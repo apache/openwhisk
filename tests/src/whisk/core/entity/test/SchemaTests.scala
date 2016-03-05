@@ -16,11 +16,23 @@
 
 package whisk.core.entity.test
 
-import scala.math.BigInt.int2bigInt
+import scala.Vector
+
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfter
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
+
+import spray.json.DefaultJsonProtocol._
+import spray.json.DeserializationException
+import spray.json.JsArray
+import spray.json.JsNull
+import spray.json.JsNumber
+import spray.json.JsObject
+import spray.json.JsString
+import spray.json.JsValue
+import spray.json.pimpAny
+import spray.json.pimpString
 import whisk.core.entity.ActionLimits
 import whisk.core.entity.AuthKey
 import whisk.core.entity.DocId
@@ -34,21 +46,6 @@ import whisk.core.entity.Secret
 import whisk.core.entity.SemVer
 import whisk.core.entity.TimeLimit
 import whisk.core.entity.UUID
-import whisk.core.entity.schema.EntityLimits
-import whisk.core.entity.schema.EntityParameters
-import spray.json.JsString
-import spray.json.DefaultJsonProtocol._
-import spray.json.pimpAny
-import spray.json.pimpString
-import spray.json.DeserializationException
-import spray.can.parsing.ParsingException
-import spray.json.JsObject
-import org.apache.jute.compiler.JInt
-import org.apache.jute.compiler.JString
-import spray.json.JsValue
-import spray.json.JsNull
-import spray.json.JsArray
-import spray.json.JsNumber
 
 @RunWith(classOf[JUnitRunner])
 class SchemaTests extends FlatSpec with BeforeAndAfter {

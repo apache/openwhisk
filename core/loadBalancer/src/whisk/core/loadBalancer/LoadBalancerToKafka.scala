@@ -17,32 +17,30 @@
 package whisk.core.loadBalancer
 
 import scala.collection.concurrent.TrieMap
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+
+import spray.json.JsObject
 import whisk.common.Counter
 import whisk.common.Logging
-import whisk.connector.kafka.KafkaProducerConnector
-import whisk.core.entity.ActivationId
 import whisk.common.TransactionId
-import spray.json.JsObject
-import spray.json.JsString
-import spray.json.pimpAny
-import spray.json.DefaultJsonProtocol._
-import whisk.core.entity.Subject
-import scala.util.Try
-import kafka.common.Topic
-import whisk.core.connector.Message
+import whisk.common.Verbosity
+import whisk.connector.kafka.KafkaProducerConnector
 import whisk.core.connector.LoadBalancerResponse
-import scala.concurrent.Future
-import scala.concurrent.ExecutionContext
-import org.apache.kafka.clients.producer.RecordMetadata
-
+import whisk.core.connector.Message
 
 trait LoadBalancerToKafka extends Logging {
 
     /** Gets a producer which can publish messages to the kafka bus. */
-    def producer: KafkaProducerConnector
+    val producer: KafkaProducerConnector
 
     /** The execution context for futures */
     implicit val executionContext: ExecutionContext
+
+    override def setVerbosity(level: Verbosity.Level) = {
+        super.setVerbosity(level)
+        producer.setVerbosity(level)
+    }
 
     /**
      * Publishes message to the kafka bus (in other words, to the backend).
@@ -82,9 +80,9 @@ trait LoadBalancerToKafka extends Logging {
      *
      * @return index of invoker to receive request
      */
-    def getInvoker(message : Message): Option[Int]
+    def getInvoker(message: Message): Option[Int]
 
-    private def getTopic(component: String, message : Message): Option[String] = {
+    private def getTopic(component: String, message: Message): Option[String] = {
         if (component == Message.INVOKER) {
             getInvoker(message) map { i => s"$component$i" }
         } else Some(component)
@@ -101,7 +99,7 @@ trait LoadBalancerToKafka extends Logging {
         }
     }
 
-    def getActivationCount() : Int = {
+    def getActivationCount(): Int = {
         activationCounter.cur
     }
 
@@ -114,6 +112,5 @@ trait LoadBalancerToKafka extends Logging {
     private val idError = LoadBalancerResponse.error("no invokers available")
     private val throttleError = LoadBalancerResponse.error("too many concurrent activations")
 
-    def activationThrottle : ActivationThrottle
-
+    def activationThrottle: ActivationThrottle
 }

@@ -31,7 +31,7 @@ import spray.json.RootJsonFormat
 
 object Verbosity extends Enumeration {
     type Level = Value
-    val Quiet, Loud, Noisy = Value
+    val Quiet, Loud, Debug = Value
 }
 
 /**
@@ -85,7 +85,7 @@ trait Logging {
         this.componentName = comp
 
     def debug(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.dontcare) = 
-        if (level == Verbosity.Noisy)
+        if (level == Verbosity.Debug)
             emit("DEBUG", id, from, message)
 
     def info(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.dontcare) =

@@ -17,38 +17,34 @@
 package whisk.core.dispatcher.test
 
 import java.util.Calendar
-import scala.concurrent.Await
-import scala.concurrent.duration.DurationInt
+
+import scala.concurrent.Future
+
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfter
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
+
+import spray.http.HttpRequest
 import spray.json.JsObject
 import spray.json.JsString
 import whisk.common.TransactionId
 import whisk.common.Verbosity
 import whisk.core.WhiskConfig
 import whisk.core.activator.PostInvoke
+import whisk.core.connector.LoadBalancerResponse
+import whisk.core.connector.Message
 import whisk.core.dispatcher.Dispatcher
-import whisk.core.entity.ActionLimits
+import whisk.core.entity.ActivationId
 import whisk.core.entity.EntityName
 import whisk.core.entity.Exec
 import whisk.core.entity.Namespace
-import whisk.core.entity.Parameters
-import whisk.core.entity.SemVer
 import whisk.core.entity.Status
 import whisk.core.entity.Subject
-import whisk.core.entity.TriggerLimits
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskRule
 import whisk.core.entity.WhiskTrigger
-import whisk.core.entity.ActivationId
-import whisk.core.connector.Message
-import kafka.common.Topic
-import whisk.core.connector.LoadBalancerResponse
-import scala.concurrent.Future
-import spray.http.HttpRequest
 
 @RunWith(classOf[JUnitRunner])
 class DispatcherTests extends FlatSpec with Matchers with TestUtils with BeforeAndAfter {

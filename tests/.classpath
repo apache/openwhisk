@@ -4,21 +4,11 @@
 	<classpathentry kind="con" path="org.scala-ide.sdt.launching.SCALA_CONTAINER"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
 	<classpathentry combineaccessrules="false" kind="src" path="/common-scala"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/controller"/>
 	<classpathentry combineaccessrules="false" kind="src" path="/dispatcher"/>
 	<classpathentry combineaccessrules="false" kind="src" path="/loadBalancer"/>
 	<classpathentry kind="lib" path="/common-libs/common/zkclient-0.3.jar"/>
-	<classpathentry kind="lib" path="/common-libs/common/commons-logging-1.2.jar"/>
-	<classpathentry kind="lib" path="/common-libs/common/zookeeper-3.4.6.jar"/>
-	<classpathentry kind="lib" path="/common-libs/common/log4j-1.2.16.jar"/>
-	<classpathentry kind="lib" path="/common-libs/common/commons-codec-1.9.jar"/>
-	<classpathentry kind="lib" path="/common-libs/common/gson-2.3.1.jar"/>
-	<classpathentry kind="lib" path="/common-libs/common/kafka-clients-0.8.2.0.jar"/>
-	<classpathentry kind="lib" path="/common-libs/common/metrics-core-2.2.0.jar"/>
-	<classpathentry kind="lib" path="/common-libs/common/scala-parser-combinators_2.11-1.0.2.jar"/>
-	<classpathentry kind="lib" path="/common-libs/common/slf4j-log4j12-1.6.1.jar"/>
-	<classpathentry kind="lib" path="/common-libs/common/scala-xml_2.11-1.0.3.jar"/>
-	<classpathentry kind="lib" path="/common-libs/common/httpclient-4.4.1.jar"/>
-	<classpathentry kind="lib" path="/common-libs/common/httpcore-4.4.1.jar"/>
+	<classpathentry exported="true" kind="lib" path="/common-libs/common/commons-codec-1.9.jar"/>
 	<classpathentry kind="lib" path="/common-libs/testing/httpmime-4.3.6.jar"/>
 	<classpathentry kind="lib" path="/common-libs/testing/scalatest_2.11-2.2.4.jar"/>
 	<classpathentry kind="lib" path="/common-libs/testing/selenium-java-2.45.0.jar"/>
@@ -28,12 +18,10 @@
 	<classpathentry kind="lib" path="/common-libs/testing/groovy-json-2.4.3.jar"/>
 	<classpathentry kind="lib" path="/common-libs/testing/groovy-xml-2.4.3.jar"/>
 	<classpathentry kind="lib" path="/common-libs/testing/rest-assured-2.4.1.jar"/>
-	<classpathentry combineaccessrules="false" kind="src" path="/controller"/>
 	<classpathentry kind="lib" path="/common-libs/testing/tempus-fugit-1.2-20140129.191141-5.jar"/>
 	<classpathentry kind="lib" path="/common-libs/testing/commons-lang3-3.3.2.jar"/>
 	<classpathentry exported="true" kind="lib" path="/common-libs/testing/spray-testkit_2.11-1.3.3.jar"/>
 	<classpathentry kind="lib" path="/common-libs/testing/hamcrest-core-1.3.jar"/>
-	<classpathentry kind="lib" path="/common-libs/common/concurrentlinkedhashmap-lru-1.3.1.jar"/>
 	<classpathentry kind="lib" path="/common-libs/testing/guava-18.0.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

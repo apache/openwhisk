@@ -50,7 +50,7 @@ class KafkaProducerConnector(
         val record = new ProducerRecord[String, String](topic, "messages", msg.toJson.compactPrint)
         val promise = Promise[RecordMetadata]
         Future {
-            info(this, s"sending $msg")
+            debug(this, s"sending $msg")
             producer.send(record).get
         } onComplete {
             case Success(status) =>

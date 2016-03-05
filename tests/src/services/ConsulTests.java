@@ -24,8 +24,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 
-import common.WhiskProperties;
 import common.TestUtils;
+import common.WhiskProperties;
 
 /**
  * Basic tests for consul related components

@@ -22,18 +22,19 @@ import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Success
 import scala.util.matching.Regex.Match
+
 import whisk.common.Counter
 import whisk.common.Logging
+import whisk.common.TransactionId
 import whisk.connector.kafka.KafkaConsumerConnector
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.servicePort
-import whisk.core.WhiskConfig.zookeeperHost
+import whisk.core.WhiskConfig.kafkaHost
 import whisk.core.activator.ActivatorService
 import whisk.core.connector.Message
 import whisk.core.connector.MessageConsumer
 import whisk.core.invoker.InvokerService
 import whisk.utils.ExecutionContextFactory
-import whisk.common.TransactionId
 
 trait Registrar {
 
@@ -174,13 +175,13 @@ class Dispatcher(
     config: WhiskConfig,
     topic: String,
     groupid: String)
-    extends KafkaConsumerConnector(config.zookeeperHost, groupid, topic)
+    extends KafkaConsumerConnector(config.kafkaHost, groupid, topic)
     with MessageDispatcher {
 }
 
 object Dispatcher extends Logging {
     def requiredProperties =
-        Map(servicePort -> 8080.toString()) ++ zookeeperHost
+        Map(servicePort -> 8080.toString()) ++ kafkaHost
 
     val executionContext = ExecutionContextFactory.makeCachedThreadPoolExecutionContex()
 

@@ -16,14 +16,15 @@
 
 package common;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.nio.file.Files;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
-import java.util.Arrays;
-import java.io.File;
-import java.nio.file.Files;
-import java.io.FileOutputStream;
+
 import org.apache.commons.codec.binary.Base64;
 
 /**

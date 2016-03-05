@@ -12,3 +12,4 @@ nginx.conf
 /logs/
 /config/custom-config.xml
 cloudant-local.env
+results
