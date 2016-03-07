@@ -108,7 +108,7 @@ An activation record contains the following fields:
 
 ## JavaScript actions
 
-### Function protoype
+### Function prototype
 
 OpenWhisk JavaScript actions run in a Node.js runtime, currently version 0.12.9.
 
@@ -277,6 +277,58 @@ The main binary program should be copied to the `dockerSkeleton/client/clientApp
 
 You can also include any compilation steps or dependencies by modifying the `dockerSkeleton/Dockerfile`. For example you can install Python if your action is a Python script.
 
+## REST API
+
+All the capabilites in the system are available through a REST API. There are collection and entity endpoints for actions, triggers, rules, packages, activations, and namespaces.
+
+These are the collection endpoints:
+
+- `https://$BASEURL/api/v1/namespaces`
+- `https://$BASEURL/api/v1/namespaces/{namespace}/actions`
+- `https://$BASEURL/api/v1/namespaces/{namespace}/triggers`
+- `https://$BASEURL/api/v1/namespaces/{namespace}/rules`
+- `https://$BASEURL/api/v1/namespaces/{namespace}/packages`
+- `https://$BASEURL/api/v1/namespaces/{namespace}/activations`
+
+You can perform a GET request on the collection endpoints to fetch a list of entites in the collection.
+
+There are entity endpoints for each type of entity:
+
+- `https://$BASEURL/api/v1/namespaces/{namespace}`
+- `https://$BASEURL/api/v1/namespaces/{namespace}/actions/{actionName}`
+- `https://$BASEURL/api/v1/namespaces/{namespace}/triggers/{triggerName}`
+- `https://$BASEURL/api/v1/namespaces/{namespace}/rules/{ruleName}`
+- `https://$BASEURL/api/v1/namespaces/{namespace}/packages/{packageName}`
+- `https://$BASEURL/api/v1/namespaces/{namespace}/activations/{activationName}`
+
+The namespace and activation endpoints only support GET requests, but the endpoints for actions, triggers, rules and packages also support PUT and DELETE requests. Refer to the [API reference](http://petstore.swagger.io/?url=https://raw.githubusercontent.com/openwhisk/openwhisk/master/core/controller/src/resources/whiskswagger.json) for details.
+
+All APIs are protected with HTTP Basic authentication. The Basic auth credentials are in the `AUTH` property in your `~/.wskprops` file, delimited by a colon. You can also retrieve these credentials in the [CLI configuration steps](../README.md#setup-cli).
+
+Here is an example that uses the cURL command to get the list of all packages in the `whisk.system` namespace:
+
+```
+$ curl -u USERNAME:PASSWORD https://openwhisk.ng.bluemix.net/api/v1/namespaces/whisk.system/packages
+```
+```
+[
+  {
+    "name": "slack",
+    "binding": false,
+    "publish": true,
+    "annotations": [
+      {
+        "key": "description",
+        "value": "Package which contains actions to interact with the Slack messaging service"
+      }
+    ],
+    "version": "0.0.9",
+    "namespace": "whisk.system"
+  },
+  ...
+]
+```
+
 
 ## System limits
 
@@ -291,7 +343,7 @@ OpenWhisk has a few system limits, including how much memory an action uses and 
 | hourRate | a user cannot invoke more than this many actions per hour | per user | number | 3600 |
 
 ### Per action timeout (ms) (Default: 60s)
-* The timeout limit N is in the range [100ms..300000ms] and is set per action in millioseconds.
+* The timeout limit N is in the range [100ms..300000ms] and is set per action in milliseconds.
 * A user can change the limit when creating the action.
 * A container that runs longer than N milliseconds is terminated.
 
