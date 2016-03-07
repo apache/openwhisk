@@ -37,11 +37,11 @@ class WhiskContainer(
     network: String,
     pull: Boolean,
     env: Map[String, String],
-    boundParams: JsObject,
     limits: ActionLimits,
     args: Array[String] = Array())(implicit transid: TransactionId)
     extends Container(pool, key, Some(containerName), image, network, pull, limits, env, args) {
 
+    var boundParams = JsObject()  // Mutable to support pre-alloc containers
     var lastLogSize = 0L
     val initTimeoutMilli = 60000
 
