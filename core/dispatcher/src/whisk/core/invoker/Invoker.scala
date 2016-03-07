@@ -182,13 +182,15 @@ class Invoker(
                     val activation = makeWhiskActivation(msg, action, auth, payload, start, end, response, contents)
                     val counter = incrementUserActivationCounter(auth.subject)
                     con.lastLogSize = size
-                    pool.putBack(con, delete)
-                    info(this, s"returned container")
                     info(this, s"'${auth.subject}' has '$counter' activations processed")
                     // update the container map before writing back the activation so that
                     // the container name is observable once the activation id is observable
                     putContainerName(activation.activationId, containerName + "@" + containerIP)
-                    WhiskActivation.put(activationStore, activation)
+                    // Since there is no active action taken for completion from the invoker, writing activation record is it.
+                    val res = WhiskActivation.put(activationStore, activation)
+                    // We return the container last as that is slow and we want the activation to finished quickly.
+                    pool.putBack(con, delete)
+                    res
             }
             case None => { // this corresponds to the container not even starting - not /init failing
                 info(this, s"failed to start or get a container")
