@@ -34,7 +34,7 @@ class RateThrottler(config: WhiskConfig,
                     maxPerHour: Int) extends Logging {
 
     // Parameters
-    private val exemptSubject = "" // We exempt nothing.
+    private val exemptSubject = Set[Subject]() // We exempt no one.
 
     // Implementation
     private val rateMap = new TrieMap[Subject, RateInfo]
@@ -46,13 +46,14 @@ class RateThrottler(config: WhiskConfig,
         var lastMinCount = 0
         var lastHour = getCurrentHour
         var lastHourCount = 0
+
         def check()(implicit transid: TransactionId): Boolean = {
             roll()
             lastMinCount = lastMinCount + 1
             lastHourCount = lastHourCount + 1
-            //info(this, s"RateInfo: ${counts(counts.length-1)}")
-            return lastMinCount <= maxPerMinute && lastHourCount <= maxPerHour
+            lastMinCount <= maxPerMinute && lastHourCount <= maxPerHour
         }
+
         def roll()(implicit transid: TransactionId) = {
             val curMin = getCurrentMinute
             val curHour = getCurrentHour
@@ -65,23 +66,22 @@ class RateThrottler(config: WhiskConfig,
                 lastHourCount = 0
             }
         }
+
         private def getCurrentMinute = System.currentTimeMillis / (60 * 1000)
         private def getCurrentHour = System.currentTimeMillis / (3600 * 1000)
     }
 
-    /*
-     * Check whether the operation should be allowed to proceed.
+    /**
+     * Checks whether the operation should be allowed to proceed.
      * Delegate to subject-based RateInfo to perform the check after checking for exemption(s).
      */
     def check(subject: Subject)(implicit transid: TransactionId): Boolean = {
-        if (!exemptSubject.isEmpty && subject.toString == exemptSubject) {
-            return true
+        if (exemptSubject.contains(subject)) {
+            true
+        } else {
+            info(this, s"RateThrottler.check: subject = ${subject.toString}")
+            rateMap.getOrElseUpdate(subject, new RateInfo()).check()
         }
-        if (!rateMap.isDefinedAt(subject)) {
-            rateMap += subject -> new RateInfo()
-        }
-        info(this, s"RateThrottler.check: subject = ${subject.toString}")
-        return rateMap.get(subject) map { _.check() } getOrElse true
     }
 }
 
