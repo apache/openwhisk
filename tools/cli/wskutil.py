@@ -94,7 +94,6 @@ def request(method, urlString, body = '', headers = {}, auth = None, verbose = F
             print 'Body received:'
             print res.read()
             print '========'
-
         return res
     except Exception, e:
         res = dict2obj({ 'status' : 500, 'error': str(e) })
@@ -103,8 +102,10 @@ def request(method, urlString, body = '', headers = {}, auth = None, verbose = F
 def responseError(res, prefix = 'error:'):
     if prefix:
         print prefix,
+    response = None
     try:
-        result = json.loads(res.read())
+        response = res.read()
+        result = json.loads(response)
         if 'error' in result and 'code' in result:
             print '%s (code %s)' % (result['error'], result['code'])
         elif 'error' in result:
@@ -121,6 +122,8 @@ def responseError(res, prefix = 'error:'):
                 print res['error']
             else:
                 print 'unrecognized failure'
+        elif response is not None:
+            print response
         else:
             print 'unrecognized failure'
     return res.status
