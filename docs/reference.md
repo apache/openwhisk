@@ -233,6 +233,7 @@ JavaScript actions are executed in a Node.js version 0.12.9 environment with the
 - async
 - body-parser
 - btoa
+- cheerio
 - cloudant
 - commander
 - consul

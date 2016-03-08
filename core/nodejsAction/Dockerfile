@@ -7,10 +7,13 @@ RUN apt-get update && apt-get install -y imagemagick
 # whisk/js image
 RUN npm install -g apn@1.7.4 \
 async@1.5.2 \
+cheerio@0.20.0 \
 cloudant@1.4.1 \
+mustache@2.1.3 \
 rimraf@2.5.1 \
 tmp@0.0.28 \
 watson-developer-cloud@0.9.29 \
+xml2js@0.4.15 \
 xmlhttprequest@1.7.0
 
 

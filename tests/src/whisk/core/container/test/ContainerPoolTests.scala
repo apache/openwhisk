@@ -57,7 +57,7 @@ class ContainerPoolTests extends FlatSpec
     {
 
     implicit val transid = TransactionId.dontcare
-    implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContex()
+    implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
 
     val config = new WhiskConfig(
         Map(selfDockerEndpoint -> "localhost",

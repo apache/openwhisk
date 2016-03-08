@@ -35,8 +35,6 @@ semver@4.3.6 \
 serve-favicon@2.2.0 \
 socket.io@1.3.5 \
 swagger-tools@0.8.7 \
-mustache@2.1.3 \
 when@3.7.3 \
 superagent@1.3.0 \
-yauzl@2.3.1 \
-xml2js@0.4.15
+yauzl@2.3.1
