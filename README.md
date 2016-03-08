@@ -1,5 +1,7 @@
 OpenWhisk
-==========
+=========
+
+[![Build Status](https://travis-ci.org/openwhisk/openwhisk.svg?branch=master)](https://travis-ci.org/openwhisk/openwhisk)
 
 OpenWhisk is a cloud-first distributed event-based programming service. It provides a programming model to upload event handlers to a cloud service, and register the handlers to respond to various events. Learn more at https://developer.ibm.com/openwhisk or try it on [IBM Bluemix OpenWhisk](https://ibm.biz/openwhisk).
 
