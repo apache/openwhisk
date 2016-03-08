@@ -61,7 +61,6 @@ class PostInvoke(
     config: WhiskConfig)
     extends DispatchRule(name, "/triggers/fire", WhiskEntity.qualifiedName(rule.namespace, rule.trigger)) {
 
-    
     /** Inject method to post HTTP request to loadbalancer and return LoadBalancerResponse. */
     loadbalancerRequest: (HttpRequest => Future[LoadBalancerResponse]) =>
 
@@ -78,7 +77,7 @@ class PostInvoke(
             response =>
                 val end = Instant.now(Clock.systemUTC())
                 val activation = WhiskActivation(
-                    namespace = rule.namespace,
+                    namespace = subject.namespace, // all activations should end up in the one space regardless rule.namespace,
                     name = rule.name,
                     subject,
                     ruleActivationId,

@@ -59,7 +59,7 @@ object ExecutionContextFactory {
      * for long enough will not consume any resources. Note that pools with similar properties but different details
      * (for example, timeout parameters) may be created using ThreadPoolExecutor constructors.
      */
-    def makeCachedThreadPoolExecutionContex(): ExecutionContext = {
+    def makeCachedThreadPoolExecutionContext(): ExecutionContext = {
         ExecutionContext.fromExecutor(Executors.newCachedThreadPool())
     }
 

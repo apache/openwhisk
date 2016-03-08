@@ -60,6 +60,7 @@ import whisk.core.entity.ActivationId
 import whisk.core.connector.Message
 import whisk.core.connector.Message.{ publish, ACTIVATOR }
 import whisk.http.ErrorResponse.{ terminate }
+import whisk.core.entity.ActivationResponse
 
 object WhiskTriggersApi {
     def requiredProperties = WhiskServices.requiredProperties ++
@@ -128,12 +129,13 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                                     case Some(activationId) =>
                                         val end = Instant.now(Clock.systemUTC())
                                         val activation = WhiskActivation(
-                                            namespace,
+                                            namespace = user.namespace, // all activations should end up in the one space regardless trigger.namespace,
                                             name,
                                             user,
                                             activationId,
                                             start,
                                             end,
+                                            response = ActivationResponse.success(payload),
                                             version = trigger.version)
                                         info(this, s"[POST] trigger activated, writing activation record to datastore")
                                         WhiskActivation.put(activationStore, activation) map { _ => activationId }

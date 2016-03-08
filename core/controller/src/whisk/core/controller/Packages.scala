@@ -306,7 +306,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
 
             onComplete(actions) {
                 case Success(p) =>
-                    info(this, s"[GET] entity success: $p")
+                    info(this, s"[GET] entity success")
                     complete(OK, p)
                 case Failure(t) =>
                     error(this, s"[GET] failed: ${t.getMessage}")
