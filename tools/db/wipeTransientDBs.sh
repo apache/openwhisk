@@ -40,13 +40,18 @@ function getProperty() {
 # Need this to get the list of transient DBs.
 source "$SCRIPTDIR/../../config/dbSetup.sh"
 
+DB_PROVIDER=$(getProperty "$PROPERTIES_FILE" "db.provider")
 DB_PREFIX=$(getProperty "$PROPERTIES_FILE" "db.prefix")
 DB_HOST=$(getProperty "$PROPERTIES_FILE" "db.host")
 DB_PORT=$(getProperty "$PROPERTIES_FILE" "db.port")
 DB_USERNAME=$(getProperty "$PROPERTIES_FILE" "db.username")
 DB_PASSWORD=$(getProperty "$PROPERTIES_FILE" "db.password")
 
-CURL_ADMIN="curl -k --user $DB_USERNAME:$DB_PASSWORD"
+if [ "$DB_PROVIDER" == "CouchDB" ]; then
+    CURL_ADMIN="curl -s -k --user $DB_USERNAME:$DB_PASSWORD"
+else
+    CURL_ADMIN="curl -s --user $DB_USERNAME:$DB_PASSWORD"
+fi
 URL_BASE="https://$DB_HOST:$DB_PORT"
 
 ## drop and recreate the transient databases

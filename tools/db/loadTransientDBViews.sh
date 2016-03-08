@@ -86,13 +86,18 @@ function view() {
     }'
 }
 
+DB_PROVIDER=$(getProperty "$PROPERTIES_FILE" "db.provider")
 DB_PREFIX=$(getProperty "$PROPERTIES_FILE" "db.prefix")
 DB_HOST=$(getProperty "$PROPERTIES_FILE" "db.host")
 DB_PORT=$(getProperty "$PROPERTIES_FILE" "db.port")
 DB_USERNAME=$(getProperty "$PROPERTIES_FILE" "db.username")
 DB_PASSWORD=$(getProperty "$PROPERTIES_FILE" "db.password")
 
-CURL_ADMIN="curl -k --user $DB_USERNAME:$DB_PASSWORD"
+if [ "$DB_PROVIDER" == "CouchDB" ]; then
+    CURL_ADMIN="curl -s -k --user $DB_USERNAME:$DB_PASSWORD"
+else
+    CURL_ADMIN="curl -s --user $DB_USERNAME:$DB_PASSWORD"
+fi
 URL_BASE="https://$DB_HOST:$DB_PORT"
 
 PREV_REV=`$CURL_ADMIN -X GET $URL_BASE/$DB_WHISK_ACTIONS/_design/whisks | awk -F"," '{print $2}'`

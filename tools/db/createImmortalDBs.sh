@@ -28,7 +28,7 @@ SCRIPTDIR="$(cd $(dirname "$0")/ && pwd)"
 source "$SCRIPTDIR/../../config/dbSetup.sh"
 
 if [ "$OPEN_WHISK_DB_PROVIDER" == "Cloudant" ]; then
-    CURL_ADMIN="curl --user $OPEN_WHISK_DB_USERNAME:$OPEN_WHISK_DB_PASSWORD"
+    CURL_ADMIN="curl -s --user $OPEN_WHISK_DB_USERNAME:$OPEN_WHISK_DB_PASSWORD"
     URL_BASE="https://$USER.cloudant.com"
 
     # First part of confirmation prompt.
@@ -36,7 +36,7 @@ if [ "$OPEN_WHISK_DB_PROVIDER" == "Cloudant" ]; then
     echo "  $USER"
 
 elif [ "$OPEN_WHISK_DB_PROVIDER" == "CouchDB" ]; then
-    CURL_ADMIN="curl -k --user $OPEN_WHISK_DB_USERNAME:$OPEN_WHISK_DB_PASSWORD"
+    CURL_ADMIN="curl -s -k --user $OPEN_WHISK_DB_USERNAME:$OPEN_WHISK_DB_PASSWORD"
     URL_BASE="https://$OPEN_WHISK_DB_HOST:$OPEN_WHISK_DB_PORT"
 
     # First part of confirmation prompt.
