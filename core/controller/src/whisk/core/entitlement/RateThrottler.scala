@@ -41,7 +41,7 @@ class RateThrottler(config: WhiskConfig,
 
     // Track the activation rate of one subject at multiple time-granularity.
     class RateInfo extends Logging {
-        setVerbosity(Verbosity.Noisy)
+        setVerbosity(Verbosity.Loud)
         var lastMin = getCurrentMinute
         var lastMinCount = 0
         var lastHour = getCurrentHour

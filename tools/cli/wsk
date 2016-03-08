@@ -154,6 +154,8 @@ def propCmd(args, props, userprops, propsLocation):
             wskprop.updateProps('APIVERSION', args.apiversion, propsLocation)
             print 'ok: whisk API version set'
         if args.namespace:
+            if args.apihost is not None:
+                props['apihost'] = args.apihost
             url = 'https://%(apibase)s/namespaces/' % { 'apibase': apiBase(props) }
             if args.auth:
                 auth = args.auth
