@@ -28,7 +28,9 @@ var request = require('request');
  * @param version the whisk version, optional
  * @param logger an optional log4js logger (with info() method)
  */
-function Whisk(apihost, apikey, version, logger) {
+function Whisk(apihost, version, logger) {
+
+    this.apikey = "uninit_apikey";
 
     var asyncSentinel = new function Async(){ async: true; };
 
@@ -65,7 +67,14 @@ function Whisk(apihost, apikey, version, logger) {
      * Gets the authorization key under which this action is running.
      */
     this.getAuthKey = function() {
-        return apikey;
+        return this.apikey;
+    }
+
+    /**
+     * Gets the authorization key under which this action is running.
+     */
+    this.setAuthKey = function(key) {
+        this.apikey = key;
     }
 
     /**
