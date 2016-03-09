@@ -16,18 +16,18 @@
 
 package whisk.core.dispatcher.test
 
-import java.util.concurrent.BlockingQueue
 import java.util.concurrent.LinkedBlockingQueue
+
 import scala.concurrent.Future
+
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.common.TopicPartition
-import spray.json.JsObject
+
 import whisk.common.Counter
-import whisk.common.TransactionId
-import whisk.core.dispatcher.MessageDispatcher
-import whisk.core.connector.MessageProducer
-import whisk.core.connector.MessageConsumer
 import whisk.core.connector.Message
+import whisk.core.connector.MessageConsumer
+import whisk.core.connector.MessageProducer
+import whisk.core.dispatcher.MessageDispatcher
 
 class TestDispatcher(topic: String)
     extends MessageDispatcher
@@ -37,11 +37,11 @@ class TestDispatcher(topic: String)
         producer.send(topic, msg)
     }
 
-    def onMessage(process: Message => Unit): Unit = {
+    def onMessage(process: Array[Byte] => Boolean): Unit = {
         new Thread {
             override def run() = while (!closed) {
                 val msg = queue.take()
-                println(s"received /$topic $msg")
+                println(s"received message for '$topic' ${new String(msg, "utf-8")}")
                 process(msg)
             }
         }.start
@@ -54,7 +54,7 @@ class TestDispatcher(topic: String)
 
     private val producer = new MessageProducer {
         def send(topic: String, msg: Message): Future[RecordMetadata] = {
-            if (queue.offer(msg)) {
+            if (queue.offer(msg.serialize.getBytes)) {
                 println(s"put: $msg")
                 Future.successful(new RecordMetadata(new TopicPartition(topic, 0), 0, queue.size))
             } else {
@@ -67,6 +67,6 @@ class TestDispatcher(topic: String)
         val counter = new Counter()
     }
 
-    private val queue = new LinkedBlockingQueue[Message]()
+    private val queue = new LinkedBlockingQueue[Array[Byte]]()
     @volatile private var closed = false
 }

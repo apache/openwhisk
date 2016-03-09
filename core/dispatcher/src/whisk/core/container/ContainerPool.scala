@@ -99,6 +99,7 @@ class ContainerPool(
      */
     def logDir: String = _logDir // seconds
     def logDir_=(value: String): Unit = _logDir = value
+
     /*
      * How many containers are in the pool at the moment?
      * There are also counts of containers we are trying to start but have not inserted into the data structure.
@@ -289,7 +290,7 @@ class ContainerPool(
     private def countByState(state: State.Value) = this.synchronized { containerMap.count({ case (_, ci) => ci.state == state }) }
 
     // Sample container name: wsk1_1_joeibmcomhelloWorldDemo_20150901T202701852Z
-    private def makeContainerName(action:WhiskAction): String =
+    private def makeContainerName(action: WhiskAction): String =
         ContainerCounter.containerName(invokerInstance.toString(), action.fullyQualifiedName)
 
     // WIP: To pre-alloc containers, we need to get rid of use of "action" and "auth" by moving it to initWhiskContainer.
@@ -311,7 +312,7 @@ class ContainerPool(
     }
 
     // We send the payload here but eventually must also handle morphing a pre-allocated container into the right state.
-    private def initWhiskContainer(action: WhiskAction, con : WhiskContainer)(implicit transid: TransactionId): ContainerResult = {
+    private def initWhiskContainer(action: WhiskAction, con: WhiskContainer)(implicit transid: TransactionId): ContainerResult = {
         con.boundParams = action.parameters.toJsObject
         if (con.containerId.isDefined) {
             // Then send it the init payload which is code for now

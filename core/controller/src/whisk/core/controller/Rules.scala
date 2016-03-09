@@ -65,8 +65,8 @@ import whisk.utils.ExecutionContextFactory.FutureExtensions
 import whisk.core.entity.Subject
 import whisk.core.connector.LoadbalancerRequest
 import whisk.core.entity.ActivationId
-import whisk.core.connector.Message
-import whisk.core.connector.Message.{ publish, ACTIVATOR }
+import whisk.core.connector.{ ActivationMessage => Message }
+import whisk.core.connector.ActivationMessage.{ publish, ACTIVATOR }
 import whisk.http.ErrorResponse.{ terminate }
 
 object WhiskRulesApi {

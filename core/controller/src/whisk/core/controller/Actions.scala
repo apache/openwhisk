@@ -80,8 +80,8 @@ import whisk.core.entitlement.Collection
 import whisk.core.entitlement.Privilege
 import whisk.core.entity.WhiskAuth
 import whisk.core.connector.LoadBalancerResponse
-import whisk.core.connector.Message
-import whisk.core.connector.Message.{ publish, INVOKER }
+import whisk.core.connector.{ ActivationMessage => Message }
+import whisk.core.connector.ActivationMessage.{ publish, INVOKER }
 import whisk.core.entitlement.Resource
 import whisk.core.entity.WhiskPackage
 import whisk.core.entity.Binding

@@ -30,13 +30,32 @@ import whisk.common.TransactionId
 import whisk.core.entity.ActivationId
 import whisk.core.entity.Subject
 
-case class Message(
-    transid: TransactionId,
+/** Basic trait for messages that are sent on a message bus connector. */
+trait Message {
+    /**
+     * A transaction id to attach to the message. If not defined, defaults to 'dontcare' value.
+     */
+    val transid = TransactionId.dontcare
+
+    /**
+     * Serializes message to string. Must be idempotent.
+     */
+    def serialize: String
+
+    /**
+     * String representation of the message. Delegates to serialize.
+     */
+    override def toString = serialize
+}
+
+case class ActivationMessage(
+    override val transid: TransactionId,
     path: String,
     subject: Subject,
     activationId: ActivationId,
     content: Option[JsObject],
-    cause: Option[ActivationId] = None) {
+    cause: Option[ActivationId] = None)
+    extends Message {
 
     def meta = JsObject("meta" -> {
         cause map {
@@ -46,19 +65,21 @@ case class Message(
         }
     })
 
+    override def serialize = ActivationMessage.serdes.write(this).compactPrint
+
     override def toString = {
         val value = (content getOrElse JsObject()).compactPrint
         s"$path?message=$value"
     }
 }
 
-object Message extends DefaultJsonProtocol {
+object ActivationMessage extends DefaultJsonProtocol {
     val ACTIVATOR = "whisk"
     val INVOKER = "invoke"
 
     def publish(component: String) = s"/publish/$component"
 
-    def apply(msg: String): Try[Message] = Try {
+    def apply(msg: String): Try[ActivationMessage] = Try {
         serdes.read(msg.parseJson)
     }
 
@@ -71,5 +92,5 @@ object Message extends DefaultJsonProtocol {
         } getOrElse deserializationError("transaction id malformed")
     }
 
-    implicit val serdes = jsonFormat6(Message.apply)
+    implicit val serdes = jsonFormat6(ActivationMessage.apply)
 }

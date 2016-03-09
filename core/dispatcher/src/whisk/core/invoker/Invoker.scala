@@ -18,6 +18,7 @@ package whisk.core.invoker
 
 import java.time.Clock
 import java.time.Instant
+
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
@@ -25,15 +26,16 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 import scala.util.matching.Regex.Match
+
 import akka.japi.Creator
 import spray.json.DefaultJsonProtocol.IntJsonFormat
 import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json.JsArray
+import spray.json.JsNumber
 import spray.json.JsObject
-import spray.json.JsValue
+import spray.json.JsString
 import spray.json.pimpAny
 import spray.json.pimpString
-import spray.json._
 import whisk.common.ConsulKV
 import whisk.common.ConsulKV.InvokerKeys
 import whisk.common.ConsulKVReporter
@@ -47,13 +49,19 @@ import whisk.core.WhiskConfig.dockerRegistry
 import whisk.core.WhiskConfig.edgeHost
 import whisk.core.WhiskConfig.logsDir
 import whisk.core.WhiskConfig.whiskVersion
-import whisk.core.connector.Message
+import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.core.container.ContainerPool
+import whisk.core.container.WhiskContainer
 import whisk.core.dispatcher.DispatchRule
 import whisk.core.dispatcher.Dispatcher
 import whisk.core.entity.ActivationId
+import whisk.core.entity.ActivationLogs
+import whisk.core.entity.ActivationResponse
 import whisk.core.entity.DocId
 import whisk.core.entity.DocInfo
+import whisk.core.entity.DocRevision
+import whisk.core.entity.EntityName
+import whisk.core.entity.Namespace
 import whisk.core.entity.SemVer
 import whisk.core.entity.Subject
 import whisk.core.entity.WhiskAction
@@ -64,13 +72,6 @@ import whisk.core.entity.WhiskAuthStore
 import whisk.core.entity.WhiskEntity
 import whisk.core.entity.WhiskEntityStore
 import whisk.http.BasicHttpService
-import whisk.core.entity.ActivationResponse
-import whisk.core.entity.ActivationLogs
-import whisk.core.container.WhiskContainer
-import whisk.utils.JsonUtils
-import whisk.core.entity.DocRevision
-import whisk.core.entity.EntityName
-import whisk.core.entity.Namespace
 
 /**
  * A kafka message handler that invokes actions as directed by message on topic "/actions/invoke".

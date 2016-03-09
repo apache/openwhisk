@@ -47,8 +47,8 @@ import whisk.core.entity.WhiskActivationStore
 import whisk.core.entity.WhiskEntity
 import whisk.core.entity.WhiskRule
 import scala.util.Try
-import whisk.core.connector.Message
-import whisk.core.connector.Message.{ publish, INVOKER }
+import whisk.core.connector.{ ActivationMessage => Message }
+import whisk.core.connector.ActivationMessage.{ publish, INVOKER }
 import whisk.core.connector.LoadBalancerResponse
 import whisk.core.connector.LoadbalancerRequest
 import whisk.core.entity.DocInfo

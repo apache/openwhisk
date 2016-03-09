@@ -16,19 +16,18 @@
 
 package whisk.core.loadBalancer;
 
+import scala.BigInt
 import scala.collection.concurrent.TrieMap
+import scala.math.BigInt.int2bigInt
 import scala.util.Try
 
+import spray.json.JsNumber
+import spray.json.JsObject
+import spray.json.JsValue
 import whisk.common.ConsulKV
 import whisk.common.ConsulKV.LoadBalancerKeys
-import whisk.common.Logging
 import whisk.common.Counter
-import whisk.core.entity.Namespace
-
-import spray.json.JsValue
-import spray.json.JsObject
-import spray.json.JsNumber
-import spray.json.DefaultJsonProtocol._
+import whisk.common.Logging
 
 
 class ActivationThrottle(consulServer: String,

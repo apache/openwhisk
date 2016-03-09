@@ -18,19 +18,19 @@ package whisk.core.loadBalancer
 
 import akka.actor.Actor
 import akka.japi.Creator
-import spray.json.JsObject
 import spray.json.JsBoolean
+import spray.json.JsObject
 import whisk.common.ConsulKV
 import whisk.common.ConsulKV.LoadBalancerKeys
 import whisk.common.ConsulKVReporter
 import whisk.common.Verbosity
 import whisk.connector.kafka.KafkaProducerConnector
-import whisk.core.connector.Message
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.consulServer
 import whisk.core.WhiskConfig.kafkaHost
 import whisk.core.WhiskConfig.kafkaPartitions
 import whisk.core.WhiskConfig.servicePort
+import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.http.BasicHttpService
 import whisk.utils.ExecutionContextFactory
 

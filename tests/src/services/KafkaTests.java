@@ -16,37 +16,30 @@
 
 package services;
 
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.io.UnsupportedEncodingException;
-import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Arrays;
 import java.util.Properties;
+import java.util.concurrent.ExecutionException;
 
-import kafka.admin.AdminUtils;
-import kafka.api.FetchRequest;
-import kafka.api.FetchRequestBuilder;
-import kafka.api.PartitionOffsetRequestInfo;
-import kafka.common.TopicAndPartition;
-import kafka.javaapi.FetchResponse;
-import kafka.javaapi.OffsetResponse;
-import kafka.javaapi.consumer.SimpleConsumer;
-import kafka.javaapi.message.ByteBufferMessageSet;
-import kafka.javaapi.producer.Producer;
-import kafka.message.MessageAndOffset;
-import kafka.producer.KeyedMessage;
-import kafka.producer.ProducerConfig;
-import kafka.utils.ZKStringSerializer$;
-
-import org.I0Itec.zkclient.ZkClient;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.common.errors.GroupCoordinatorNotAvailableException;
+import org.apache.kafka.common.serialization.ByteArrayDeserializer;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 
-import common.WhiskProperties;
 import common.TestUtils;
+import common.WhiskProperties;
 
 /**
  * Tests that interact directly with kafka
@@ -60,117 +53,71 @@ public class KafkaTests {
      * Basic test of publish-subscribe using Kafka.
      */
     @Test
-    public void stegosaurus() throws UnsupportedEncodingException, InterruptedException {
-        ensureTopicExists("Dinosaurs");
+    public void stegosaurus() throws UnsupportedEncodingException, InterruptedException, ExecutionException {
+        for (int i = 0; i < 10; i++) {
+            String msg = "Stegosaurus-" + System.currentTimeMillis();
+            System.out.println(msg);
+            publish("Dinosaurs", msg);
 
-        publish("Dinosaurs", "Stegosaurus");
-
-        String msg = consumeOneMessage("Dinosaurs");
-        System.out.println("consumed: " + msg);
-        assertTrue(msg.equals("Stegosaurus"));
-    }
-
-    /**
-     * Create a topic in kafka. This shouldn't really be necessary, but it
-     * avoids annoying error messages during tests.
-     */
-    static void ensureTopicExists(String topic) {
-        // Create a ZooKeeper client
-        ZkClient zkClient = new ZkClient(WhiskProperties.getZookeeperHost() + ":" + WhiskProperties.getZookeeperPort(), 10000, 10000, ZKStringSerializer$.MODULE$);
-
-        boolean exists = AdminUtils.topicExists(zkClient, topic);
-        if (!exists) {
-            AdminUtils.createTopic(zkClient, topic, 1, 1, new Properties());
+            String received = consumeOneMessage("Dinosaurs");
+            System.out.println("consumed: " + received);
+            assertTrue(received.equals(msg));
         }
-        do {
-            TestUtils.sleep(1);
-        } while (!AdminUtils.topicExists(zkClient, topic));
     }
 
     /**
-     * Publish a single message to the kafka server
-     * 
+     * Publishes a single message to the kafka server.
      */
-    private static void publish(String topic, String message) {
+    private static void publish(String topic, String message) throws InterruptedException, ExecutionException {
         Properties props = new Properties();
-        props.put("metadata.broker.list", WhiskProperties.getKafkaHost() + ":" + WhiskProperties.getKafkaPort());
-        props.put("serializer.class", "kafka.serializer.StringEncoder");
-        props.put("request.required.acks", "1");
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, WhiskProperties.getKafkaHost() + ":" + WhiskProperties.getKafkaPort());
+        props.put(ProducerConfig.ACKS_CONFIG, "1");
 
-        ProducerConfig config = new ProducerConfig(props);
-
-        Producer<String, String> producer = new Producer<String, String>(config);
-        KeyedMessage<String, String> data = new KeyedMessage<String, String>(topic, message);
-        producer.send(data);
+        StringSerializer keySerializer = new StringSerializer();
+        StringSerializer valueSerializer = new StringSerializer();
+        KafkaProducer<String, String> producer = new KafkaProducer<String, String>(props, keySerializer, valueSerializer);
+        ProducerRecord<String, String> data = new ProducerRecord<String, String>(topic, message);
+        RecordMetadata status = producer.send(data).get();
+        System.out.format("sent message: %s[%d][%d]\n", status.topic(), status.partition(), status.offset());
         producer.close();
     }
 
     /**
-     * Pull one message from a Kafka topic. returns null if no messages found
+     * Pulls messages message from a Kafka topic and returns the most recent one
+     * or null if no messages found.
      */
-    static String consumeOneMessage(String topic) throws UnsupportedEncodingException, InterruptedException {
-        // Note: this fetchSize of 100000 might need to be increased if large
-        // batches are written to Kafka
-        return consumeMessage(topic, 0, 100000);
-    }
+    static String consumeOneMessage(String topic) {
+        Properties props = new Properties();
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, "kafkatest");
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, WhiskProperties.getKafkaHost() + ":" + WhiskProperties.getKafkaPort());
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "true");
+        props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, "1000");
+        props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, "10000");
+        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
 
-    /**
-     * Pull one message from a Kafka topic. returns null if no messages found
-     */
-    private static String consumeMessage(String topic, int partition, int fetchSize) throws UnsupportedEncodingException,
-            InterruptedException {
-        final String someClient = "someClient";
-
-        // create a consumer to connect to the kafka server port, socket
-        // timeout of 10 secs, socket receive buffer of ~1MB
-        SimpleConsumer consumer = new SimpleConsumer(WhiskProperties.getKafkaHost(), WhiskProperties.getKafkaPort(), 10000, 1024000, someClient);
-
-        for (int i = 0; i < 10; i++) {
-            // try 10 times to fetch, with 1 second pause between attempts
-            Thread.sleep(1000);
-            long offset = getLastOffset(consumer, topic, partition, kafka.api.OffsetRequest.LatestTime(), someClient);
-            offset = offset > 0 ? offset - 1 : 0;
-            System.out.format("[%s] reading from offset: %d\n", topic, offset);
-
-            FetchRequest req = new FetchRequestBuilder().clientId(someClient).addFetch(topic, partition, offset, fetchSize).build();
-            FetchResponse fetchResponse = consumer.fetch(req);
-
-            assertFalse(fetchResponse.toString(), fetchResponse.hasError());
-
-            ByteBufferMessageSet messages = fetchResponse.messageSet(topic, 0);
-            for (MessageAndOffset msg : messages) {
-                ByteBuffer payload = msg.message().payload();
-                byte[] bytes = new byte[payload.limit()];
-                payload.get(bytes);
-
-                consumer.close();
-                return new String(bytes, "UTF-8");
+        ByteArrayDeserializer keyDeserializer = new ByteArrayDeserializer();
+        ByteArrayDeserializer valueDeserializer = new ByteArrayDeserializer();
+        KafkaConsumer<byte[], byte[]> consumer = new KafkaConsumer<byte[], byte[]>(props, keyDeserializer, valueDeserializer);
+        try {
+            consumer.subscribe(Arrays.asList(topic));
+            System.out.print("received: ");
+            ConsumerRecords<byte[], byte[]> records = consumer.poll(10000);
+            System.out.println(records.count());
+            assertTrue(records.count() >= 1);
+            String last = null;
+            for (ConsumerRecord<byte[], byte[]> record : records) {
+                String result = new String(record.value());
+                System.out.println(result);
+                last = result;
             }
+            return last;
+        } catch (GroupCoordinatorNotAvailableException e) {
+            // see http://permalink.gmane.org/gmane.comp.apache.kafka.user/10313
+            // may fail the very first time
+            System.out.println("retrying");
+            return consumeOneMessage(topic);
+        } finally {
+            consumer.close();
         }
-        // if we get here we failed to fetch a message after 10 tries in 10
-        // seconds
-        consumer.close();
-        System.err.println("Failed to fetch a message");
-        return null;
-    }
-
-    /**
-     * Get the last offset which was previous consumed by a consumer on a topic.
-     */
-    private static long getLastOffset(SimpleConsumer consumer, String topic, int partition, long whichTime, String clientName) {
-        TopicAndPartition topicAndPartition = new TopicAndPartition(topic, partition);
-        Map<TopicAndPartition, PartitionOffsetRequestInfo> requestInfo = new HashMap<TopicAndPartition, PartitionOffsetRequestInfo>();
-        requestInfo.put(topicAndPartition, new PartitionOffsetRequestInfo(whichTime, 1));
-        kafka.javaapi.OffsetRequest request = new kafka.javaapi.OffsetRequest(requestInfo,
-                kafka.api.OffsetRequest.CurrentVersion(), clientName);
-        OffsetResponse response = consumer.getOffsetsBefore(request);
-
-        if (response.hasError()) {
-            System.err.println("Error fetching data Offset Data the Broker. Reason: " + response.errorCode(topic, partition));
-            return 0;
-        }
-
-        long[] offsets = response.offsets(topic, partition);
-        return offsets[0];
     }
 }

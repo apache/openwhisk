@@ -23,9 +23,9 @@ import scala.collection.concurrent.TrieMap
 
 import spray.json.DefaultJsonProtocol.IntJsonFormat
 import spray.json.DefaultJsonProtocol.StringJsonFormat
+import spray.json.JsNumber
 import spray.json.JsObject
 import spray.json.JsString
-import spray.json.JsNumber
 import spray.json.pimpAny
 import whisk.common.ConsulKV
 import whisk.common.ConsulKV.LoadBalancerKeys
@@ -35,7 +35,7 @@ import whisk.common.Logging
 import whisk.common.Verbosity
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.consulServer
-import whisk.core.connector.Message
+import whisk.core.connector.{ ActivationMessage => Message }
 
 object InvokerHealth {
     val requiredProperties = consulServer

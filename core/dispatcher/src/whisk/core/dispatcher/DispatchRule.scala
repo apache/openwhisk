@@ -23,7 +23,7 @@ import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.dispatcher.Matcher.makeRegexForPaths
 import spray.json.JsObject
-import whisk.core.connector.Message
+import whisk.core.connector.{ ActivationMessage => Message }
 
 /**
  * Abstract base class for a handler for a kafka message.

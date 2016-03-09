@@ -26,8 +26,8 @@ import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.common.Verbosity
 import whisk.connector.kafka.KafkaProducerConnector
+import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.core.connector.LoadBalancerResponse
-import whisk.core.connector.Message
 
 trait LoadBalancerToKafka extends Logging {
 

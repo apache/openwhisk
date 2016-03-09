@@ -17,31 +17,31 @@
 package whisk.core.invoker.test
 
 import java.util.Calendar
+
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
+
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfter
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
+
 import spray.json.JsObject
 import spray.json.JsString
-import whisk.common.TransactionId
 import whisk.common.Verbosity
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.logsDir
 import whisk.core.WhiskConfig.selfDockerEndpoint
-import whisk.core.connector.Message
+import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.core.container.ContainerUtils
 import whisk.core.database.test.DbUtils
-import whisk.core.entity.ActionLimits
 import whisk.core.entity.ActivationId
 import whisk.core.entity.AuthKey
 import whisk.core.entity.EntityName
 import whisk.core.entity.Exec
 import whisk.core.entity.Namespace
-import whisk.core.entity.Parameters
-import whisk.core.entity.SemVer
 import whisk.core.entity.Subject
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskActivation
@@ -50,9 +50,6 @@ import whisk.core.entity.WhiskAuth
 import whisk.core.entity.WhiskAuthStore
 import whisk.core.entity.WhiskEntityStore
 import whisk.core.invoker.Invoker
-import whisk.utils.ExecutionContextFactory
-import whisk.common.TransactionCounter
-import org.scalatest.BeforeAndAfterAll
 
 @RunWith(classOf[JUnitRunner])
 class InvokerTests extends FlatSpec 

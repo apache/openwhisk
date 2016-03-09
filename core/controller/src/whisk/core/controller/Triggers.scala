@@ -57,8 +57,8 @@ import whisk.core.entity.WhiskTriggerPut
 import whisk.core.entity.types.ActivationStore
 import whisk.core.entity.types.EntityStore
 import whisk.core.entity.ActivationId
-import whisk.core.connector.Message
-import whisk.core.connector.Message.{ publish, ACTIVATOR }
+import whisk.core.connector.{ ActivationMessage => Message }
+import whisk.core.connector.ActivationMessage.{ publish, ACTIVATOR }
 import whisk.http.ErrorResponse.{ terminate }
 import whisk.core.entity.ActivationResponse
 

@@ -33,8 +33,8 @@ import whisk.common.TransactionId
 import whisk.common.Verbosity
 import whisk.core.WhiskConfig
 import whisk.core.activator.PostInvoke
+import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.core.connector.LoadBalancerResponse
-import whisk.core.connector.Message
 import whisk.core.dispatcher.Dispatcher
 import whisk.core.entity.ActivationId
 import whisk.core.entity.EntityName
@@ -54,7 +54,7 @@ class DispatcherTests extends FlatSpec with Matchers with TestUtils with BeforeA
 
     behavior of "Dispatcher"
 
-    it should "send and receive a kafka message" in {
+    it should "send and receive a message from connector bus" in {
         val config = new WhiskConfig(Dispatcher.requiredProperties)
         assert(config.isValid)
 
@@ -72,7 +72,7 @@ class DispatcherTests extends FlatSpec with Matchers with TestUtils with BeforeA
         dispatcher.close()
         val logs = stream.toString()
         println(logs)
-        logs should include regex (s"received /whisk.+$today.+")
+        logs should include regex (s"received message for 'whisk'.+$today.+")
     }
 
     it should "receive message from post" in {
@@ -102,6 +102,6 @@ class DispatcherTests extends FlatSpec with Matchers with TestUtils with BeforeA
         }
         dispatcher.stop()
         val logs = stream.toString()
-        logs should include regex (s"received /invoke0.+$today.+")
+        logs should include regex (s"received message for 'invoke0'.+$today.+")
     }
 }

@@ -30,7 +30,7 @@ import whisk.common.Verbosity
 import whisk.core.WhiskConfig
 import whisk.core.connector.LoadBalancerResponse
 import whisk.core.connector.LoadbalancerRequest
-import whisk.core.connector.Message
+import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.core.dispatcher.DispatchRule
 import whisk.core.dispatcher.Dispatcher
 import whisk.core.dispatcher.Registrar

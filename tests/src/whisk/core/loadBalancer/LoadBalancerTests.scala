@@ -16,13 +16,17 @@
 
 package whisk.core.loadBalancer
 
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.SECONDS
+
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfter
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
+
 import spray.http.StatusCodes.MethodNotAllowed
 import spray.http.StatusCodes.NotFound
 import spray.http.StatusCodes.OK
@@ -35,11 +39,8 @@ import spray.json.JsObject
 import spray.json.pimpAny
 import spray.testkit.ScalatestRouteTest
 import whisk.common.TransactionId
-import whisk.core.connector.Message
-import scala.concurrent.Future
+import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.core.connector.LoadBalancerResponse
-import whisk.utils.ExecutionContextFactory
-import scala.concurrent.ExecutionContext
 import whisk.core.entity.ActivationId
 import whisk.core.entity.Subject
 

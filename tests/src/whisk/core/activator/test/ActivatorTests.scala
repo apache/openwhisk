@@ -18,20 +18,22 @@ package whisk.core.activator.test
 
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
+
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfter
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
+
 import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json.JsObject
 import spray.json.pimpAny
-import whisk.common.TransactionCounter
 import whisk.common.Verbosity
 import whisk.core.WhiskConfig
 import whisk.core.activator.Activator
 import whisk.core.activator.ActivatorService
-import whisk.core.connector.Message
+import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.core.database.test.DbUtils
 import whisk.core.dispatcher.Dispatcher
 import whisk.core.dispatcher.Registrar
@@ -44,8 +46,6 @@ import whisk.core.entity.Status
 import whisk.core.entity.Subject
 import whisk.core.entity.WhiskEntityStore
 import whisk.core.entity.WhiskRule
-import whisk.utils.ExecutionContextFactory
-import org.scalatest.BeforeAndAfterAll
 
 @RunWith(classOf[JUnitRunner])
 class ActivatorTests extends FlatSpec 

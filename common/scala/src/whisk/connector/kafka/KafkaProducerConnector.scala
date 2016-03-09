@@ -26,11 +26,11 @@ import scala.util.Failure
 import scala.util.Success
 
 import org.apache.kafka.clients.producer.KafkaProducer
+import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.common.serialization.StringSerializer
 
-import spray.json.pimpAny
 import whisk.common.Counter
 import whisk.common.Logging
 import whisk.core.connector.Message
@@ -47,10 +47,10 @@ class KafkaProducerConnector(
     /** Sends msg to topic. This is an asynchronous operation. */
     override def send(topic: String, msg: Message): Future[RecordMetadata] = {
         implicit val transid = msg.transid
-        val record = new ProducerRecord[String, String](topic, "messages", msg.toJson.compactPrint)
+        val record = new ProducerRecord[String, String](topic, "messages", msg.serialize)
         val promise = Promise[RecordMetadata]
         Future {
-            debug(this, s"sending $msg")
+            debug(this, s"sending to topic '$topic' msg '$msg'")
             producer.send(record).get
         } onComplete {
             case Success(status) =>
@@ -74,8 +74,8 @@ class KafkaProducerConnector(
 
     private def getProps: Properties = {
         val props = new Properties
-        props.put("bootstrap.servers", kafkahost)
-        props.put("acks", 1.toString)
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkahost)
+        props.put(ProducerConfig.ACKS_CONFIG, 1.toString)
         props
     }
 

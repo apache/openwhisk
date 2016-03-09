@@ -22,7 +22,6 @@ import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Success
 import scala.util.matching.Regex.Match
-
 import whisk.common.Counter
 import whisk.common.Logging
 import whisk.common.TransactionId
@@ -31,10 +30,11 @@ import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.servicePort
 import whisk.core.WhiskConfig.kafkaHost
 import whisk.core.activator.ActivatorService
-import whisk.core.connector.Message
+import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.core.connector.MessageConsumer
 import whisk.core.invoker.InvokerService
 import whisk.utils.ExecutionContextFactory
+import scala.util.Try
 
 trait Registrar {
 
@@ -111,14 +111,23 @@ trait MessageDispatcher extends Registrar with Logging {
      * if it is not active.
      */
     def start() = if (!started) {
-        consumer.onMessage(msg => {
-            implicit val tid = msg.transid
-            if (msg.path.nonEmpty) {
-                inform(handlers.par) foreach {
-                    case (name, handler) =>
-                        val matches = handler.matches(msg.path)
-                        handleMessage(handler, msg, matches)
-                }
+        consumer.onMessage(bytes => {
+            val raw = new String(bytes, "utf-8")
+            val msg = Message(raw)
+            msg match {
+                case Success(m) =>
+                    implicit val tid = m.transid
+                    if (m.path.nonEmpty) {
+                        inform(handlers.par) foreach {
+                            case (name, handler) =>
+                                val matches = handler.matches(m.path)
+                                handleMessage(handler, m, matches)
+                        }
+                    }
+                    true
+                case Failure(t) =>
+                    info(this, errorMsg(raw, t))
+                    true
             }
         })
         started = true
@@ -152,6 +161,9 @@ trait MessageDispatcher extends Registrar with Logging {
     private def errorMsg(handler: DispatchRule, e: Throwable): String =
         s"failed applying handler: $handler\n" + errorMsg(e)
 
+    private def errorMsg(msg: String, e: Throwable) =
+        s"failed processing message: $msg\n$e${e.getStackTrace.mkString("", " ", "")}"
+
     private def errorMsg(e: Throwable): String = {
         if (e.isInstanceOf[java.util.concurrent.ExecutionException])
             s"$e${e.getCause.getStackTrace.mkString("", " ", "")}"
@@ -183,7 +195,7 @@ object Dispatcher extends Logging {
     def requiredProperties =
         Map(servicePort -> 8080.toString()) ++ kafkaHost
 
-    val executionContext = ExecutionContextFactory.makeCachedThreadPoolExecutionContex()
+    val executionContext = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
 
     def main(args: Array[String]): Unit = {
         val name = if (args.nonEmpty) args(0).trim.toLowerCase() else ""

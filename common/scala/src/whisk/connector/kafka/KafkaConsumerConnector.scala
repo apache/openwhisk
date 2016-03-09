@@ -18,23 +18,23 @@ package whisk.connector.kafka
 
 import java.util.Properties
 
+import scala.collection.JavaConversions.iterableAsScalaIterable
 import scala.collection.JavaConversions.seqAsJavaList
+import scala.concurrent.duration.Duration
+import scala.concurrent.duration.DurationInt
 import scala.util.Failure
-import scala.util.Success
+import scala.util.Try
 
-import kafka.consumer.Consumer
-import kafka.consumer.ConsumerConfig
-import kafka.consumer.ConsumerConnector
-import kafka.consumer.KafkaStream
-import kafka.consumer.Whitelist
-import kafka.serializer.DefaultDecoder
+import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.kafka.clients.consumer.KafkaConsumer
+import org.apache.kafka.common.serialization.ByteArrayDeserializer
+
 import whisk.common.Logging
 import whisk.common.TransactionCounter
-import whisk.core.connector.Message
 import whisk.core.connector.MessageConsumer
 
 class KafkaConsumerConnector(
-    zookeeper: String,
+    kafkahost: String,
     groupid: String,
     topic: String,
     readeos: Boolean = true)
@@ -42,55 +42,60 @@ class KafkaConsumerConnector(
     with Logging
     with TransactionCounter {
 
-    override def onMessage(process: Message => Unit) = {
+    def getMessages(duration: Duration = 100 milliseconds) = consumer.poll(duration.toMillis)
+
+    override def onMessage(process: Array[Byte] => Boolean) = {
         val self = this
         val thread = new Thread() {
             override def run() = {
-                for (metadata <- stream) {
-                    val raw = new String(metadata.message, "utf-8")
-                    val msg = Message(raw)
-                    msg match {
-                        case Success(m) =>
-                            info(self, s"received /${metadata.topic}[${metadata.partition}][${metadata.offset}]: ${m.path}")(m.transid)
-                            process(m)
-                        case Failure(t) =>
-                            info(this, errorMsg(raw, t))
+                while (!disconnect) {
+                    Try { getMessages() } map { records =>
+                        val count = records.size
+                        records foreach { r =>
+                            val topic = r.topic
+                            val partition = r.partition
+                            val offset = r.offset
+                            val msg = r.value
+                            info(self, s"processing $topic[$partition][$offset ($count)]")
+                            val consumed = process(msg)
+                        }
+                    } match {
+                        case Failure(t) => error(self, s"while polling: $t")
+                        case _          =>
                     }
                 }
                 warn(self, "consumer stream terminated")
+                consumer.close()
             }
         }
         thread.start()
     }
 
     override def close() = {
-        info(this, s"closing /$topic")
-        consumer.shutdown()
+        info(this, s"closing '$topic' consumer")
+        disconnect = true
     }
 
     private def getProps: Properties = {
         val props = new Properties
-        props.put("group.id", groupid)
-        props.put("zookeeper.connect", zookeeper)
-        props.put("auto.offset.reset", if (!readeos) "smallest" else "largest")
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, groupid)
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkahost)
+        props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, "10000");
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true.toString)
+        props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, "1000");
+        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, if (!readeos) "latest" else "earliest")
         props
     }
 
-    private def getConsumer(props: Properties): ConsumerConnector = {
-        val config = new ConsumerConfig(props)
-        val consumer = Consumer.create(config)
+    /** Creates a new kafka consumer and subscribes to topic list if given. */
+    private def getConsumer(props: Properties, topics: Option[List[String]] = None) = {
+        val keyDeserializer = new ByteArrayDeserializer
+        val valueDeserializer = new ByteArrayDeserializer
+        val consumer = new KafkaConsumer(props, keyDeserializer, valueDeserializer)
+        topics map { consumer.subscribe(_) }
         consumer
     }
 
-    private def getStream(consumer: ConsumerConnector, topic: String): KafkaStream[Array[Byte], Array[Byte]] = {
-        val filterSpec = new Whitelist(topic)
-        val stream = consumer.createMessageStreamsByFilter(filterSpec, 1, new DefaultDecoder, new DefaultDecoder).get(0)
-        stream
-    }
-
-    private def errorMsg(msg: String, e: Throwable) =
-        s"failed processing message: $msg\n$e${e.getStackTrace.mkString("", " ", "")}"
-
-    private val consumer = getConsumer(getProps)
-    private val stream = getStream(consumer, topic)
+    private val consumer = getConsumer(getProps, Some(List(topic)))
+    private var disconnect = false
 }

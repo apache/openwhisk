@@ -29,7 +29,7 @@ import spray.json.pimpAny
 import spray.routing.Directive.pimpApply
 import whisk.common.Logging
 import whisk.common.TransactionId
-import whisk.core.connector.Message
+import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.core.dispatcher.Dispatcher
 import whisk.core.entity.ActivationId
 import whisk.core.entity.DocId

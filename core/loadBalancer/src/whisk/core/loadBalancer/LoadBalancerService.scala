@@ -16,24 +16,20 @@
 
 package whisk.core.loadBalancer
 
-import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Success
 
-import spray.httpx.marshalling.ToResponseMarshallable.isMarshallable
-import spray.routing.Directive.pimpApply
+import spray.http.StatusCodes.InternalServerError
+import spray.http.StatusCodes.OK
 import spray.httpx.SprayJsonSupport._
 import spray.json.DefaultJsonProtocol._
 import spray.json.JsObject
-import spray.http.StatusCodes.InternalServerError
-import spray.http.StatusCodes.NotFound
-import spray.http.StatusCodes.OK
 import whisk.common.Logging
 import whisk.common.TransactionId
+import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.core.connector.LoadBalancerResponse
-import whisk.core.connector.Message
 import whisk.http.BasicRasService
 
 trait LoadBalancerService
