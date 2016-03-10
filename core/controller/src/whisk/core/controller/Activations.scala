@@ -121,11 +121,13 @@ trait WhiskActivationsApi
     private def list(namespace: Namespace)(implicit transid: TransactionId) = {
         parameter('skip ? 0, 'limit ? collection.listLimit, 'count ? false, 'docs ? false, 'name.as[EntityName]?, 'since.as[Instant]?, 'upto.as[Instant]?) {
             (skip, limit, count, docs, name, since, upto) =>
+                // regardless of limit, cap at 200 records, client must paginate
+                val cappedLimit = if (limit == 0 || limit > 200) 200 else limit
                 val activations = name match {
                     case Some(action) =>
-                        WhiskActivation.listCollectionByName(activationStore, namespace, action, skip, limit, docs, since, upto)
+                        WhiskActivation.listCollectionByName(activationStore, namespace, action, skip, cappedLimit, docs, since, upto)
                     case None =>
-                        WhiskActivation.listCollectionInNamespace(activationStore, namespace, skip, limit, docs, since, upto)
+                        WhiskActivation.listCollectionInNamespace(activationStore, namespace, skip, cappedLimit, docs, since, upto)
                 }
 
                 listEntities {
@@ -148,8 +150,7 @@ trait WhiskActivationsApi
         val docid = DocId(WhiskEntity.qualifiedName(namespace, activationId))
         pathEndOrSingleSlash {
             getEntity(WhiskActivation, activationStore, docid, postProcess = Some((activation: WhiskActivation) =>
-                complete(activation.toExtendedJson)
-            ))
+                complete(activation.toExtendedJson)))
 
         } ~ (pathPrefix(resultPath) & pathEnd) { fetchResponse(docid) } ~
             (pathPrefix(logsPath) & pathEnd) { fetchLogs(docid) }
