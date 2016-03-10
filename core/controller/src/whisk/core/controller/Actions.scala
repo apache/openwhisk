@@ -16,6 +16,7 @@
 
 package whisk.core.controller
 
+import scala.concurrent.blocking
 import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.TimeoutException
@@ -432,7 +433,9 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                 activation => promise.trySuccess(activationId, Some(activation))
             } onFailure {
                 case e: NoDocumentException =>
-                    Thread.sleep(500)
+                    blocking {
+                        Thread.sleep(500)
+                    }
                     info(this, s"[POST] action activation not yet timed out, will poll for result")
                     pollForResult(docid, activationId, promise)
                 case t: Throwable =>
