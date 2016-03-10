@@ -18,16 +18,17 @@ OpenWhisk is a cloud-first distributed event-based programming service. It provi
 * [Issues](#issues)
 
 
-
 ### Getting started
 
 The following instructions were tested on Mac OS X El Capitan, Ubuntu 14.04.3 LTS and may work on Windows using Vagrant.
 
-Before you can use OpenWhisk, you must configure a backing datastore. Currently, the system uses [Cloudant](https://cloudant.com) as a cloud-based database service. We are working on offering alternative backing stores.
+Before you can use OpenWhisk, you must configure a backing datastore. The system supports [Cloudant](https://cloudant.com) as a cloud-based database service, or any self-managed CouchDB instance.
 
-There are two ways to get a Cloudant account and configure OpenWhisk to use it. You only need to establish an account once, either through IBM Bluemix or with Cloudant directly. Once you have created a Cloudant account, make note of the account `username` and `password`.
+#### Using Cloudant
 
-#### Create a Cloudant account via IBM Bluemix
+There are two ways to get a Cloudant account and configure OpenWhisk to use it. You only need to establish an account once, either through IBM Bluemix or with Cloudant directly. Once you have created a Cloudant account, make note of the account `username` and `password`. After you have checked out the OpenWhisk repository, in the root directory copy the file `template-cloudant-local.env` to `cloudant-local.env` and edit as appropriate.
+
+##### Create a Cloudant account via IBM Bluemix
 Sign up for an account via [IBM Bluemix](https://bluemix.net). Bluemix offers trial accounts and its signup process is straightforward so it is not described here in detail.
 
 Once you have established a Bluemix account, the most convenient way to create a Cloudant instance is via the `cf` command-line tool.
@@ -47,13 +48,39 @@ Once you've set up `cf`, issue the following commands to create a Cloudant datab
   cf service-key cloudant-for-openwhisk openwhisk
   ```
 
-#### Create a Cloudant account directly with Cloudant
+##### Create a Cloudant account directly with Cloudant
 
 As an alternative to IBM Bluemix, you may sign up for an account on [Cloudant](https://cloudant.com) directly. Cloudant is free to try and offers a metered pricing where the first $50 of usage is free each month. The signup process is straightforward so it is not described here in detail.
 
+#### Using CouchDB
+
+If you are using your own installation of CouchDB, make a note of the host, port, username and password. After you have checked out the OpenWhisk repository, in the root directory copy the file `template-couchdb-local.env` to `couchdb-local.env` and edit as appropriate. Note that:
+
+  * the username must have administrative rights
+  * the CouchDB instance must be accessible over `https` (although the certificate does not need to be valid)
+  * make sure you do not have a `cloudant-local.env` file, as it takes precendence over the CouchDB configuration
+
+##### Using an ephemeral CouchDB container
+
+To try out OpenWhisk without Cloudant credentials or without managing your own CouchDB installation, you can start a CouchDB instance in a container as part of the OpenWhisk deployment. We advise that you use this method only as a temporary measure. Please note that:
+
+  * no data will persist between two creations of the container
+  * you will need to run the creation script every time you `clean` or `teardown` the system (see below)
+  * you will need to initialize the datastore each time (`./tools/db/createImmortalDBs.sh`, see below)
+
+After you have checked out the OpenWhisk directory:
+
+  ```
+  # Start a CouchDB container and create an admin account
+  ./tools/db/couchdb/start-couchdb-box.sh whisk_admin some_passw0rd
+
+  # The script above automatically creates couchdb-local.env
+  cat couchdb-local.env
+  ```
+
 ### Configure your system to build OpenWhisk
 
-The following instructions describe how to configure your system to build OpenWhisk. You will need to know your Cloudant username and password which are referenced as `<cloudant username>` and `<cloudant password>` respectively below.
+The following instructions describe how to configure your system to build OpenWhisk. It is assumed that you have set up your backing datastore using one of the options above, and that you know how to create and configure one of `cloudant-local.env` or `couchdb-local.env`.
 
 * [Ubuntu users](#ubuntu-users)
 * [Vagrant users on Mac and Windows PC](#vagrant-users-for-mac-and-windows)
@@ -73,12 +100,11 @@ The following are verified to work on Ubuntu 14.04.3 LTS. You may need `sudo` or
   # work from within openwhisk directory
   cd openwhisk
 
-  # create cloudant configuration file
-  echo "OPEN_WHISK_DB_USERNAME=<cloudant username>" > cloudant-local.env
-  echo "OPEN_WHISK_DB_PASSWORD=<cloudant password>" >> cloudant-local.env
+  # create cloudant-local.env or couchdb-local.env
+  <use preferred method above>
 
   # initialize datastore (confirm by responding DROPIT when prompted)
-  tools/db/createImmortalDBs.sh <cloudant username> <cloudant password>
+  tools/db/createImmortalDBs.sh
 
   # install all required software
   (cd tools/ubuntu-setup && source all.sh)
@@ -122,17 +148,11 @@ Mac users can clone, build and deploy OpenWhisk either with a Vagrant or Docker 
   cd openwhisk
   ```
 
-**Before you build and deploy the system, you must configure it to use your Cloudant account.**
+**Before you build and deploy the system, you must configure it to use your datastore.**
 
-1. Copy the file named `template-cloudant-local.env` to `cloudant-local.env`.
+1. Use preferred method as described above to create `cloudant-local.env` or `couchdb-local.env`.
 
-  ```
-  cp template-cloudant-local.env cloudant-local.env
-  ```
-
-2. Open the file `cloudant-local.env` and fill in your Cloudant account credentials.
-
-3. Next, you must initialize the datastore. This creates a database to hold user authorization keys, including a guest user key (used for running unit tests) and a system key for installing standard OpenWhisk assets (e.g., samples).
+2. Next, you must initialize the datastore. This creates a database to hold user authorization keys, including a guest user key (used for running unit tests) and a system key for installing standard OpenWhisk assets (e.g., samples).
 
   ```
   tools/db/createImmortalDBs.sh
