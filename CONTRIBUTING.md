@@ -25,8 +25,9 @@ change your rights to use your own Contributions for any other purpose.
 
 You can download the CLAs here:
 
- - [individual](https://github.com/openwhisk/openwhisk/openwhisk-cla-individual.pdf)
- - [corporate](https://github.com/openwhisk/openwhisk/openwhisk-cla-corporate.pdf) 
+ - [individual](https://github.com/openwhisk/openwhisk/blob/master/openwhisk-cla-individual.pdf)
+
+ - [corporate](https://github.com/openwhisk/openwhisk/blob/master/openwhisk-cla-corporate.pdf) 
 
 
 ### Coding standards
