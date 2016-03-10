@@ -64,9 +64,6 @@ The following instructions describe how to configure your system to build OpenWh
 The following are verified to work on Ubuntu 14.04.3 LTS. You may need `sudo` or root access to install required software depending on your system setup.
 
   ```
-  # install git if it is not installed
-  apt-get install git
-
   # clone openwhisk
   git clone https://github.com/openwhisk/openwhisk.git
 
@@ -78,7 +75,7 @@ The following are verified to work on Ubuntu 14.04.3 LTS. You may need `sudo` or
   echo "OPEN_WHISK_DB_PASSWORD=<cloudant password>" >> cloudant-local.env
 
   # initialize datastore (confirm by responding DROPIT when prompted)
-  tools/cloudant/createImmortalDBs.sh <cloudant username> <cloudant password>
+  tools/db/createImmortalDBs.sh <cloudant username> <cloudant password>
 
   # install all required software
   (cd tools/ubuntu-setup && source all.sh)
