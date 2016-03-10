@@ -29,7 +29,7 @@ source "$SCRIPTDIR/../../config/dbSetup.sh"
 
 if [ "$OPEN_WHISK_DB_PROVIDER" == "Cloudant" ]; then
     CURL_ADMIN="curl -s --user $OPEN_WHISK_DB_USERNAME:$OPEN_WHISK_DB_PASSWORD"
-    URL_BASE="https://$USER.cloudant.com"
+    URL_BASE="https://$OPEN_WHISK_DB_USERNAME.cloudant.com"
 
     # First part of confirmation prompt.
     echo "About to drop and recreate database '$DB_IMMORTAL_DBS' in this Cloudant account:"
