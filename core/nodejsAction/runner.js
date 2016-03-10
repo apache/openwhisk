@@ -56,7 +56,7 @@ function NodeActionRunner(message, whisk, console) {
         }
     }
 
-    whisk = modWhisk(whisk, callback, closeAndReturn);
+    this.whisk = modWhisk(whisk, callback, closeAndReturn);
 
     // This throws an exception if the userScript does. This lets the service
     // distinguish between willful application errors and inadvertent ones.
@@ -69,7 +69,7 @@ function NodeActionRunner(message, whisk, console) {
 
         var result = this.userScriptMain(args);
 
-        if (result !== whisk.async()) {
+        if (result !== this.whisk.async()) {
             // This happens, e.g. if you just have "return;"
             if (typeof result == 'undefined') {
                 result = {};
@@ -107,7 +107,6 @@ function modWhisk(whisk, callback, closeAndReturn) {
             console.log('Warning: whisk.done() or whisk.error() called more than once.');
         }
     }
-    Object.freeze(whisk);
     return whisk;
 }
 

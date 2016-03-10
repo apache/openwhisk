@@ -266,16 +266,19 @@ class ContainerPool(
     case class Busy() extends ContainerResult
     case class Error(string: String) extends ContainerResult
 
-    private val LOG_SLACK = 150 // Delay this many millis for docker output to show up - reduce/delete this?
+    private val LOG_SLACK = 150 // Delay for XX msec for docker output to show up.  Relevant only for teardown not regular running.
     private val containerMap = new TrieMap[Container, ContainerInfo]
     private val keyMap = new TrieMap[String, ListBuffer[ContainerInfo]]
 
+    // Note that the prefix seprates the name space of this from regular keys.
+    private val preallocNodejsKey = "prealloc.nodejs"
+
     private def makeKey(action: WhiskAction, auth: WhiskAuth) = {
-        s"${auth.uuid}.${action.fullyQualifiedName}.${action.rev}"
+        s"instantiated.${auth.uuid}.${action.fullyQualifiedName}.${action.rev}"
     }
 
     private def makeKey(imageName: String, args: Array[String]) = {
-        imageName + args.mkString("_")
+        "instantiated." + imageName + args.mkString("_")
     }
 
     private def keyMapToString(): String = {
@@ -285,16 +288,31 @@ class ContainerPool(
     // Easier to walk containerMap than keyMap
     private def countByState(state: State.Value) = this.synchronized { containerMap.count({ case (_, ci) => ci.state == state }) }
 
+    // Sample container name: wsk1_1_joeibmcomhelloWorldDemo_20150901T202701852Z
+    private def makeContainerName(action:WhiskAction): String =
+        ContainerCounter.containerName(invokerInstance.toString(), action.fullyQualifiedName)
+
+    // WIP: To pre-alloc containers, we need to get rid of use of "action" and "auth" by moving it to initWhiskContainer.
+    // imageName: hardcode nodejs and initWhiskContainer must check that it agrees
+    // env: auth.compact is used
+    // limit: used for -m but potentially other things in the future
+    // key: becomes nodejsaction
     private def makeWhiskContainer(action: WhiskAction, auth: WhiskAuth)(implicit transid: TransactionId): ContainerResult = {
-        // Sample container name: wsk1_1_joeibmcomhelloWorldDemo_20150901T202701852Z
-        val containerName = ContainerCounter.containerName(invokerInstance.toString(), action.fullyQualifiedName)
+        val network = config.invokerContainerNetwork
         val imageName = getDockerImageName(action)
-        val env = getContainerEnvironment(action, auth)
-        // This will start up the container
+        val env = getContainerEnvironment(auth)
+        val limits = action.limits
         val key = makeKey(action, auth)
+        // This will start up the container
         val pull = !imageName.contains("whisk/")
-        val con = new WhiskContainer(this, key, containerName, imageName, config.invokerContainerNetwork, pull, env, action.parameters.toJsObject, action.limits, Array())
-        info(this, s"ContainerPool.makeWhiskContainer got WhiskContainer - sending init")
+        val con = new WhiskContainer(this, key, makeContainerName(action), imageName, network, pull, env, limits)
+        info(this, s"ContainerPool: started container - about to send init")
+        initWhiskContainer(action, con)
+    }
+
+    // We send the payload here but eventually must also handle morphing a pre-allocated container into the right state.
+    private def initWhiskContainer(action: WhiskAction, con : WhiskContainer)(implicit transid: TransactionId): ContainerResult = {
+        con.boundParams = action.parameters.toJsObject
         if (con.containerId.isDefined) {
             // Then send it the init payload which is code for now
             val initArg = action.containerInitializer
@@ -334,7 +352,7 @@ class ContainerPool(
         imageName
     }
 
-    private def getContainerEnvironment(action: WhiskAction, auth: WhiskAuth): Map[String, String] = {
+    private def getContainerEnvironment(auth: WhiskAuth): Map[String, String] = {
         Map(WhiskConfig.asEnvVar(WhiskConfig.edgeHostName) -> config.edgeHost,
             WhiskConfig.asEnvVar(WhiskConfig.whiskVersionName) -> config.whiskVersion,
             WhiskConfig.asEnvVar(WhiskConfig.authKey) -> auth.compact)
