@@ -33,7 +33,7 @@ if [ "$OPEN_WHISK_DB_PROVIDER" == "Cloudant" ]; then
 
     # First part of confirmation prompt.
     echo "About to drop and recreate database '$DB_IMMORTAL_DBS' in this Cloudant account:"
-    echo "  $USER"
+    echo "  $OPEN_WHISK_DB_USERNAME"
 
 elif [ "$OPEN_WHISK_DB_PROVIDER" == "CouchDB" ]; then
     CURL_ADMIN="curl -s -k --user $OPEN_WHISK_DB_USERNAME:$OPEN_WHISK_DB_PASSWORD"
