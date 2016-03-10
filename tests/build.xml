@@ -1,84 +1,10 @@
 <!-- vim: set expandtab ts=4 sw=4 : -->
 <project basedir="..">
-    <import file="../config/config.xml" />
-    <import file="../common/build.xml" />
-
-    <target name="build" depends="compileTests">
-    </target>
-
-    <!-- compile all junit tests -->
-    <target name="compileTests" depends="initScala,buildCommonScala">
-        <var file="whisk.properties" />
-
-        <mkdir dir="${build.dir}/tests" />
-        <javac includeantruntime="false" destdir="${build.dir}/tests" failonerror="true" debug="true" encoding="UTF-8">
-            <src path="tests" />
-            <src path="${openwhisk.dir}/tests" />
-            <classpath refid="libJars" />
-        </javac>
-
-        <scalac destdir="${build.dir}/tests" failonerror="true" scalacdebugging="true" fork="true">
-            <src path="tests" />
-            <src path="${openwhisk.dir}/tests" />
-            <classpath path="${build.dir}/commonScala" />
-            <classpath path="${build.dir}/loadBalancer" />
-            <classpath path="${build.dir}/controller" />
-            <classpath path="${build.dir}/dispatcher" />
-            <classpath refid="libJars" />
-            <classpath refid="scala.build.classpath" />
-        </scalac>
-    </target>
-
     <!-- run the standard suite of JUnit tests -->
-    <target name="runTests" depends="initScala">
-        <var file="whisk.properties" />
-        <property environment="env" />
-
-        <exec executable="/bin/date" />
-        <mkdir dir="results" />
-
-        <junit fork="yes" dir="${build.dir}/tests" failureproperty="test.failure">
-            <jvmarg value="-Xmx1024m" />
-            <jvmarg value="-Dtest.router=${test.router}" />
-            <jvmarg value="-Ddeploy.target=${deploy.target}" />
-            <jvmarg value="-Dtestthreads=${testthreads}" />
-            <jvmarg value="-DDISPLAY=${env.DISPLAY}" />
-            <jvmarg value="-DperfMode=skip" />
-            <jvmarg value="-DcaliperConfig=caliper.config" />
-            <classpath path="${build.dir}/tests" />
-            <classpath path="${build.dir}/elk" />
-            <classpath path="${build.dir}/commonScala" />
-            <classpath path="${build.dir}/dispatcher" />
-            <classpath path="${build.dir}/loadBalancer" />
-            <classpath path="${build.dir}/controller" />
-            <classpath path="${build.dir}/logging" />
-            <classpath refid="libJars" />
-            <classpath refid="scala.build.classpath" />
-            <batchtest haltonfailure="no" todir="results">
-                <fileset dir="${build.dir}/tests" >
-                    <include name="**/${whisktests.prefix}*Tests.class" />
-                    <include name="**${whisktests.prefix}/**/*Tests.class" />
-                    <exclude name="**/${whisktests.prefix.exclude}*Tests.class" />
-                    <exclude name="zras/*Tests.class" />
-                </fileset>
-                <formatter type="plain" usefile="false" />
-                <formatter type="xml" />
-            </batchtest>
-        </junit>
-        <if>
-            <isset property="test.failure" />
-            <then>
-                <echo message="Some test failed." />
-                <!-- Only a failure if -Dtestsfailonfailure=true -->
-                <fail message="All tests must pass.">
-                    <condition>
-                        <equals arg1="${testsfailonfailure}" arg2="true" />
-                    </condition>
-                </fail>
-            </then>
-            <else>
-                <echo message="All tests passed." />
-            </else>
-        </if>
+    <target name="runTests">
+        <exec executable="/bin/bash" failonerror="true">
+            <arg value="gradlew" />
+            <arg value=":tests:test" />
+        </exec>
     </target>
 </project>

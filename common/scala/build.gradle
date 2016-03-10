@@ -1,4 +1,9 @@
 apply plugin: 'scala'
+apply plugin: 'application'
+ 
+repositories {
+    mavenCentral()
+}
 
 sourceSets {
     main {

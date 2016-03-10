@@ -2,6 +2,7 @@ apply plugin: 'scala'
 compileJava.options.encoding = 'UTF-8'
 
 repositories {
+    mavenCentral()
     maven {
         url 'https://oss.sonatype.org/content/repositories/snapshots/'
     }

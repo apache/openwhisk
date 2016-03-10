@@ -36,16 +36,12 @@
 
     <!-- compile and build images and tests -->
     <target name="build" depends="writePropertyFile">
-        <parallel threadCount="${buildthreads}" failonany="true">
-            <ant target="scanCode" />
-            <ant antfile="common/build.xml" target="build" />
-        </parallel>
-        <parallel threadCount="${buildthreads}" failonany="true">
-            <ant antfile="services/build.xml" target="build" />
-            <ant antfile="core/build.xml" target="build" />
-        </parallel>
+        <ant target="scanCode" />
+        <exec executable="/bin/bash" failonerror="true">
+            <arg value="gradlew" />
+            <arg value="distDocker" />
+        </exec>
         <ant antfile="${openwhisk.dir}/services/nginx/build.xml" target="buildProxy" />
-        <ant antfile="tests/build.xml" target="build" />
         <ant antfile="tools/cli/build.xml" target="buildCLI" />
         <antcall target="createTrustStore" />
     </target>
