@@ -140,6 +140,8 @@ function NodeActionService(config, rawLog, logger) {
             logger.info('[doRun]', 'invoking with args', req.body)
             var ids = (req.body || {}).meta;
             var args = (req.body || {}).value;
+            var authKey = (req.body || {}).authKey;
+            userScript.whisk.setAuthKey(authKey)
             userScript.run(args, function(response) {
                 rawLog.log('XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX')
                 logger.info('[doRun]', 'response is', response.result);
@@ -165,7 +167,7 @@ function newWhiskContext(config, logger) {
         apihost = protocol + '://' + config.edgeHost;
     }
 
-    return new whisk(apihost, config.authKey, config.whiskVersion, logger);
+    return new whisk(apihost, config.whiskVersion, logger);
 }
 
 NodeActionService.getService = function(config, rawLog, logger) {

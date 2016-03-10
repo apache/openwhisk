@@ -17,8 +17,7 @@
 var config = {
         'port': 8080,
         'edgeHost': process.env.EDGE_HOST,
-        'authKey' : process.env.AUTH_KEY,
-        'whiskVersion': process.env.WHISK_VERSION_NAME
+        'authKey' : process.env.AUTH_KEY
 };
 
 var bodyParser = require('body-parser');

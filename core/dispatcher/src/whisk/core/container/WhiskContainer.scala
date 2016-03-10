@@ -37,11 +37,11 @@ class WhiskContainer(
     network: String,
     pull: Boolean,
     env: Map[String, String],
-    boundParams: JsObject,
     limits: ActionLimits,
     args: Array[String] = Array())(implicit transid: TransactionId)
     extends Container(pool, key, Some(containerName), image, network, pull, limits, env, args) {
 
+    var boundParams = JsObject()  // Mutable to support pre-alloc containers
     var lastLogSize = 0L
     val initTimeoutMilli = 60000
 
@@ -87,9 +87,9 @@ class WhiskContainer(
      * @param state the value of the status to compare the actual state against
      * @return triple of start time, end time, response for user action.
      */
-    def run(args: JsObject, meta: JsObject, timeout: Int)(implicit transid: TransactionId): RunResult = {
+    def run(args: JsObject, meta: JsObject, authKey : String, timeout: Int)(implicit transid: TransactionId): RunResult = {
         val start = ContainerCounter.now()
-        val response = sendPayload("/run", JsObject(meta.fields + ("value" -> args)), timeout)
+        val response = sendPayload("/run", JsObject(meta.fields + ("value" -> args) + ("authKey" -> JsString(authKey))), timeout)
         (start, ContainerCounter.now(), response)
     }
 
@@ -99,7 +99,7 @@ class WhiskContainer(
     def run(payload: String, activationId: String): RunResult = {
         val params = JsObject("payload" -> JsString(payload))
         val meta = JsObject("activationId" -> JsString(activationId))
-        run(params, meta, 30000)(TransactionId.dontcare)
+        run(params, meta, "no_auth_key", 30000)(TransactionId.dontcare)
     }
 
     /**

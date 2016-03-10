@@ -162,7 +162,7 @@ class Invoker(
                         case None | Some((_, _, Some((200, _)))) => { // cached or good init
                             val params = con.mergeParams(payload)
                             info(this, s"sending arguments to ${action.fullyQualifiedName} ${con.details}")
-                            val res = con.run(params, msg.meta, action.limits.timeout.millis)
+                            val res = con.run(params, msg.meta, auth.compact, action.limits.timeout.millis)
                             info(this, s"finished running activation id: ${msg.activationId}")
                             (false, res)
                         }
