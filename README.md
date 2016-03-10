@@ -64,9 +64,6 @@ The following instructions describe how to configure your system to build OpenWh
 The following are verified to work on Ubuntu 14.04.3 LTS. You may need `sudo` or root access to install required software depending on your system setup.
 
   ```
-  # install git if it is not installed
-  apt-get install git
-
   # clone openwhisk
   git clone https://github.com/openwhisk/openwhisk.git
 
