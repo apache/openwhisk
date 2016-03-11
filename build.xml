@@ -42,7 +42,6 @@
         </exec>
         <ant antfile="${openwhisk.dir}/services/nginx/build.xml" target="buildProxy" />
         <ant antfile="tools/cli/build.xml" target="buildCLI" />
-        <antcall target="createTrustStore" />
     </target>
 
     <!-- run unit tests-->
