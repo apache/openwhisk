@@ -5,7 +5,10 @@ def dockerImageTag = project.hasProperty('dockerImageTag') ? dockerImageTag : 'l
 task distDocker(type:Exec) {
     commandLine 'docker', 'build', '-t', dockerRegistry + 'whisk/' + dockerImageName + ':' + dockerImageTag, '.'
 }
-task pushImage(type:Exec) {
+task tagImage(type: Exec) {
+    commandLine 'docker', 'tag', 'whisk/' + dockerImageName, dockerRegistry + 'whisk/' + dockerImageName + ':' + dockerImageTag
+}
+task pushImage(dependsOn: tagImage, type:Exec) {
     commandLine 'docker', 'push', dockerRegistry + 'whisk/' + dockerImageName + ':' + dockerImageTag
 }
 pushImage.onlyIf { dockerRegistry != '' }

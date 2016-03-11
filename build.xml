@@ -12,16 +12,6 @@
         </delete>
     </target>
 
-    <!-- clean all bin directories also out of paranoia; no bin directory outside of the ${build.dir} is created by the build script -->
-    <!-- if you develop with eclipse you should not call this target; if you do, refresh your eclipse workspace to rebuild. -->
-    <target name="scrub" depends="dust">
-        <delete dir="tests/bin" />
-        <delete dir="core/controller/bin" />
-        <delete dir="core/dispatcher/bin" />
-        <delete dir="core/loadBalancer/bin" />
-        <delete dir="common/scala/bin" />
-    </target>
-
     <!-- scan the code base, checking some conventions that are enforced -->
     <target name="scanCode">
         <exec executable="/bin/bash" failonerror="true">
@@ -36,12 +26,12 @@
     <!-- compile and build images and tests -->
     <target name="build" depends="writePropertyFile">
         <ant target="scanCode" />
-        <exec executable="/bin/bash" failonerror="true">
-            <arg value="gradlew" />
+        <exec executable="./gradlew" failonerror="true">
             <arg value="distDocker" />
+            <arg line="-PdockerRegistry=${docker.registry}" />
+            <arg line="-PdockerImageTag=${docker.image.tag}" />
         </exec>
         <ant antfile="${openwhisk.dir}/services/nginx/build.xml" target="buildProxy" />
-        <ant antfile="tools/cli/build.xml" target="buildCLI" />
     </target>
 
     <!-- run unit tests-->
@@ -61,12 +51,6 @@
 
     <!-- teardown and deploy all services -->
     <target name="redeploy" depends="teardown,deploy" />
-
-    <!-- push containers -->
-    <target name="push" depends="writePropertyFile">
-        <ant antfile="services/build.xml" target="push" />
-        <ant antfile="core/build.xml" target="push" />
-    </target>
 
     <target name="teardownLocal">
         <exec executable="/bin/bash">

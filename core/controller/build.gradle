@@ -34,9 +34,12 @@ def dockerRegistry =  project.hasProperty('dockerRegistry') ? dockerRegistry + '
 def dockerImageTag = project.hasProperty('dockerImageTag') ? dockerImageTag : 'latest'
 
 task distDocker(dependsOn:[distTar, ':common:scala:distDocker'], type:Exec) {
-    commandLine 'docker', 'build', '-t', 'whisk/' + dockerImageName + ':' + dockerImageTag, '.'
+    commandLine 'docker', 'build', '-t', 'whisk/' + dockerImageName, '.'
 }
-task pushImage(type:Exec) {
+task tagImage(type: Exec) {
+    commandLine 'docker', 'tag', 'whisk/' + dockerImageName, dockerRegistry + 'whisk/' + dockerImageName + ':' + dockerImageTag
+}
+task pushImage(dependsOn: tagImage, type:Exec) {
     commandLine 'docker', 'push', dockerRegistry + 'whisk/' + dockerImageName + ':' + dockerImageTag
 }
 pushImage.onlyIf { dockerRegistry != '' }

@@ -29,4 +29,4 @@ script:
   - ./tools/db/createImmortalDBs.sh --dropit
   - ant build
   - ant deploy
-  - ant run -Dtestsfailonfailure=true
+  - ant run

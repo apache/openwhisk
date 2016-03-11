@@ -2,8 +2,7 @@
 <project basedir="..">
     <!-- run the standard suite of JUnit tests -->
     <target name="runTests">
-        <exec executable="/bin/bash" failonerror="true">
-            <arg value="gradlew" />
+        <exec executable="./gradlew" failonerror="true">
             <arg value=":tests:test" />
         </exec>
     </target>
