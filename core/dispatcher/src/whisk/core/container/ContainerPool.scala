@@ -274,7 +274,9 @@ class ContainerPool(
     private val keyMap = new TrieMap[String, ListBuffer[ContainerInfo]]
 
     // Note that the prefix seprates the name space of this from regular keys.
-    private val preallocNodejsKey = "prealloc.nodejs"
+    // TODO: Generalize across language by storing image name when we generalize to other languages
+    private val warmNodejsKey = "warm.nodejs"
+    private val nodejsImage = "whisk/nodejsaction"
 
     private def makeKey(action: WhiskAction, auth: WhiskAuth) = {
         s"instantiated.${auth.uuid}.${action.fullyQualifiedName}.${action.rev}"
@@ -295,6 +297,25 @@ class ContainerPool(
     private def makeContainerName(action: WhiskAction): String =
         ContainerCounter.containerName(invokerInstance.toString(), action.fullyQualifiedName)
 
+    // A background thread that re-populates the container pool with fresh (un-instantiated) nodejs containers.
+    private val warmupThread = new Thread {
+        override def run {
+            // WIP: just make one for now for testing
+            makeWarmNodejsContainer()(TransactionId(0))
+        }
+    }
+
+    private def makeWarmNodejsContainer()(implicit transid: TransactionId): WhiskContainer = {
+        val network = config.invokerContainerNetwork
+        val imageName = getNodejsImageName()
+        val env = getContainerEnvironment()
+        val limits = ActionLimits()
+        val warmContainerName = "someWarmContainer"
+        val con = new WhiskContainer(this, warmNodejsKey, warmContainerName, imageName, network, false, env, limits)
+        info(this, s"ContainerPool: started warm nodejs container")
+        con
+    }
+
     // WIP: To pre-alloc containers, we need to get rid of use of "action" and "auth" by moving it to initWhiskContainer.
     // imageName: hardcode nodejs and initWhiskContainer must check that it agrees
     // env: auth.compact is used
@@ -303,7 +324,7 @@ class ContainerPool(
     private def makeWhiskContainer(action: WhiskAction, auth: WhiskAuth)(implicit transid: TransactionId): ContainerResult = {
         val network = config.invokerContainerNetwork
         val imageName = getDockerImageName(action)
-        val env = getContainerEnvironment(auth)
+        val env = getContainerEnvironment()
         val limits = action.limits
         val key = makeKey(action, auth)
         // This will start up the container
@@ -349,16 +370,26 @@ class ContainerPool(
         debug(this, s"$prefix: keyMap = ${keyMapToString()}")
     }
 
+    private def getNodejsImageName(): String = {
+        val reg = config.dockerRegistry
+        val tag = config.dockerImageTag
+        if (reg.nonEmpty) {
+          val prefix = if (reg.endsWith("/")) reg else s"$reg/"
+          s"${prefix}${nodejsImage}:${tag}"
+        } else {
+          nodejsImage
+        }
+    }
+
     private def getDockerImageName(action: WhiskAction): String = {
         val imageName = action.containerImageName(config.dockerRegistry, config.dockerImageTag)
         info(this, s"Using image ${imageName}")
         imageName
     }
 
-    private def getContainerEnvironment(auth: WhiskAuth): Map[String, String] = {
+    private def getContainerEnvironment(): Map[String, String] = {
         Map(WhiskConfig.asEnvVar(WhiskConfig.edgeHostName) -> config.edgeHost,
-            WhiskConfig.asEnvVar(WhiskConfig.whiskVersionName) -> config.whiskVersion,
-            WhiskConfig.asEnvVar(WhiskConfig.authKey) -> auth.compact)
+            WhiskConfig.asEnvVar(WhiskConfig.whiskVersionName) -> config.whiskVersion)
     }
 
     private val defaultMaxIdle = 10
@@ -474,6 +505,8 @@ class ContainerPool(
     def getLogSize(con: WhiskContainer, mounted: Boolean)(implicit transid: TransactionId): Long = {
         con.containerId map { id => getDockerLogSize(id, mounted) } getOrElse 0
     }
+
+    warmupThread.start
 }
 
 object ContainerPool {
