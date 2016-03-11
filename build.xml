@@ -23,13 +23,12 @@
     <target name="clean" depends="dust,teardown">
     </target>
 
-    <!-- compile and build images and tests -->
+    <!-- compile and build images -->
     <target name="build" depends="writePropertyFile">
+        <var file="whisk.properties" />
         <ant target="scanCode" />
         <exec executable="./gradlew" failonerror="true">
             <arg value="distDocker" />
-            <arg line="-PdockerRegistry=${docker.registry}" />
-            <arg line="-PdockerImageTag=${docker.image.tag}" />
         </exec>
         <ant antfile="${openwhisk.dir}/services/nginx/build.xml" target="buildProxy" />
     </target>
