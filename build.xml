@@ -115,17 +115,6 @@
         </exec>
     </target>
 
-    <!-- Create a trust store for use during testing -->
-    <target name="createTrustStore">
-        <var file="whisk.properties" />
-        <delete file="${build.dir}/tests/keystore" quiet="true" />
-        <exec executable="keytool" failonerror="true">
-            <arg line="-import -alias Whisk -noprompt -trustcacerts" />
-            <arg line="-file ${whisk.ssl.cert}" />
-            <arg line="-keystore ${build.dir}/tests/keystore -storepass '${whisk.ssl.challenge}'" />
-        </exec>
-    </target>
-
     <!-- fetch the docker logs from all local containers to ./logs on this host -->
     <target name="copyOutLogs">
         <var file="whisk.properties" />
