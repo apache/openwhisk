@@ -6,7 +6,7 @@ task distDocker(dependsOn: ':common:scala:distDocker', type:Exec) {
     commandLine 'docker', 'build', '-t', dockerRegistry + 'whisk/' + dockerImageName + ':' + dockerImageTag, '.'
 }
 task tagImage(type: Exec) {
-    commandLine 'docker', 'tag', 'whisk/' + dockerImageName, dockerRegistry + 'whisk/' + dockerImageName + ':' + dockerImageTag
+    commandLine 'docker', 'tag', '-f', 'whisk/' + dockerImageName, dockerRegistry + 'whisk/' + dockerImageName + ':' + dockerImageTag
 }
 task pushImage(dependsOn: tagImage, type:Exec) {
     commandLine 'docker', 'push', dockerRegistry + 'whisk/' + dockerImageName + ':' + dockerImageTag
