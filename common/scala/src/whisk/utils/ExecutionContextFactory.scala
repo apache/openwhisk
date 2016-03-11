@@ -76,5 +76,5 @@ object ExecutionContextFactory {
     }
 
     /** Default execution context factory. */
-    def makeExecutionContext() = makeCachedThreadPoolExecutionContex()
+    def makeExecutionContext() = makeCustomThreadPoolExecutionContext()
 }

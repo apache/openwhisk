@@ -182,7 +182,7 @@ object Dispatcher extends Logging {
     def requiredProperties =
         Map(servicePort -> 8080.toString()) ++ zookeeperHost
 
-    val executionContext = ExecutionContextFactory.makeExecutionContext()
+    val executionContext = ExecutionContextFactory.makeCachedThreadPoolExecutionContex()
 
     def main(args: Array[String]): Unit = {
         val name = if (args.nonEmpty) args(0).trim.toLowerCase() else ""
