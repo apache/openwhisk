@@ -427,8 +427,9 @@ public class CLIRuleTests {
      *
      * To test that loadbalancer/invoker activation count is consistent,
      * we emit slow enough not to be throttled by the controller.
+     *
+     * The concurrency limit of 100 is hardcoded for now because there is no query API.
      */
-    @Ignore("WIP")
     @Test
     public void ruleDeletedAction() throws Exception {
         RunResult rr = WskCli.createUser("deletedActionUser" + (System.currentTimeMillis() % 100));
@@ -455,18 +456,19 @@ public class CLIRuleTests {
             final int THREADS = 5;
             Thread[] threads = new Thread[THREADS];
             for (int i=0; i<threads.length; i++) {
+                final int index = i; // for "closure"
                 threads[i] = new Thread() {
                         public void run() {
                             try {
                                 int ITERATIONS = 1 + (LIMIT / THREADS);
-                                System.out.println("Running part 1 at " + System.currentTimeMillis());
+                                System.out.println("Thread " + index + ". Running part 1 at " + System.currentTimeMillis());
                                 for (int j=0; j<1+ITERATIONS/2; j++) 
                                     wsk.triggerNoCheck("T_del", "deletePayload_"+j);
-                                Thread.sleep(30 * 1000);
-                                System.out.println("Running part 2 at " + System.currentTimeMillis());
+                                Thread.sleep(30 * 1000);  // so as to not trigger per-minute throttle
+                                System.out.println("Thread " + index + ". Running part 2 at " + System.currentTimeMillis());
                                 for (int j=0; j<1+ITERATIONS/2; j++) 
                                     wsk.triggerNoCheck("T_del", "deletePayload_"+j);
-                                System.out.println("Done at " + System.currentTimeMillis());
+                                System.out.println("Thread " + index + ". Done at " + System.currentTimeMillis());
                             } catch (Exception e) {
                                 System.out.println("Exception: " + e);
                             }
@@ -483,7 +485,7 @@ public class CLIRuleTests {
             String expected = "A_normal_payload";
             System.out.println("Now running unrelated activation at " + System.currentTimeMillis());
             String activationId = wsk.invoke("A_normal", TestUtils.makeParameter("payload", expected));
-            boolean found = !wsk.logsForActivationContain(activationId, expected, 45);
+            boolean found = wsk.logsForActivationContain(activationId, expected, 45);
             System.out.println("Log: " + wsk.getLogsForActivation(activationId).stdout);
             assertTrue("Did not find " + expected + " in activation " + activationId, found);
 

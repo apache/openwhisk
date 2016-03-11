@@ -54,6 +54,7 @@ import whisk.core.dispatcher.Dispatcher
 import whisk.core.entity.ActivationId
 import whisk.core.entity.DocId
 import whisk.core.entity.DocInfo
+import whisk.core.entity.SemVer
 import whisk.core.entity.Subject
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskActivation
@@ -146,17 +147,39 @@ class Invoker(
             }
         }
 
-        actionPromise onFailure { case t => error(this, s"failed to fetch action record ${action.id}: ${t.getMessage}") }
-        authPromise onFailure { case t => error(this, s"failed to fetch auth record $subject: ${t.getMessage}") }
+        actionPromise onFailure {
+          case t => completeTransactionWithError(action, msg, s"failed to fetch action record ${action.id}: ${t.getMessage}") 
+        }
+        authPromise onFailure {
+          case t => completeTransactionWithError(action, msg, s"failed to fetch auth record $subject: ${t.getMessage}") 
+        }
+        // This is a composition of actionPromise, authPromise, and invokeAction so not onFailure
         activationPostCheck
+    }
+
+
+    /*
+     * Create a whisk activation out of the errorMsg and finish the transaction.
+     */
+    protected def completeTransactionWithError(actionDocInfo: DocInfo, msg : Message, errorMsg : String)
+                                              (implicit transid: TransactionId): Future[DocInfo] = {
+        error(this, errorMsg)
+        val subject = msg.subject
+        val payload = msg.content getOrElse JsObject()
+        val now = Instant.now(Clock.systemUTC())
+        val response = Some(420, errorMsg)
+        val contents = JsArray(JsString(errorMsg))
+        // We do not have a real WhiskAction (for example, non-existent action).
+        val activation = makeWhiskActivation(msg, EntityName("unknownAction"), SemVer(), payload, now, now, response, contents)
+        completeTransaction(msg.subject, activation)
     }
 
     /*
      * Action that must be taken when an activation completes (with or without error).
      */
-    protected def completeTransaction(auth: WhiskAuth, activation : WhiskActivation)
+    protected def completeTransaction(subject: Subject, activation : WhiskActivation)
                                      (implicit transid: TransactionId): Future[DocInfo] = {
-        incrementUserActivationCounter(auth.subject)
+        incrementUserActivationCounter(subject)
         // Since there is no active action taken for completion from the invoker, writing activation record is it.
         WhiskActivation.put(activationStore, activation)
     }
@@ -189,10 +212,10 @@ class Invoker(
                     val containerId = con.containerId.get
                     val rawContents = con.getDockerLogContent(con.lastLogSize, size, runningInContainer)
                     val contents = processJsonDriverLogContents(containerName, con.lastLogSize, size, rawContents)
-                    val activation = makeWhiskActivation(msg, action, auth, payload, start, end, response, contents)
+                    val activation = makeWhiskActivation(msg, action, payload, start, end, response, contents)
                     con.lastLogSize = size
                     putContainerName(activation.activationId, containerName + "@" + containerIP)  // only for whitebox testing
-                    val res = completeTransaction(auth, activation)
+                    val res = completeTransaction(msg.subject, activation)
                     // We return the container last as that is slow and we want the activation to logically finish fast
                     pool.putBack(con, delete)
                     res
@@ -202,8 +225,8 @@ class Invoker(
                 val now = Instant.now(Clock.systemUTC())
                 val response = Some(420, "Error starting container")
                 val contents = JsArray(JsString("Error starting container"))
-                val activation = makeWhiskActivation(msg, action, auth, payload, getStart, now, response, contents)
-                WhiskActivation.put(activationStore, activation)
+                val activation = makeWhiskActivation(msg, action, payload, getStart, now, response, contents)
+                completeTransaction(msg.subject, activation)
             }
         }
     }
@@ -340,14 +363,21 @@ class Invoker(
     }
 
     // -------------------------------------------------------------------------------------------------------------
-    private def makeWhiskActivation(msg: Message, action: WhiskAction, auth: WhiskAuth, payload: JsObject,
-                                    start: Instant, end: Instant, response: Option[(Int, String)], log: JsArray)(implicit transid: TransactionId): WhiskActivation = {
+    private def makeWhiskActivation(msg: Message, action: WhiskAction, payload: JsObject,
+                                    start: Instant, end: Instant, response: Option[(Int, String)], log: JsArray)
+                                   (implicit transid: TransactionId): WhiskActivation = {
+        makeWhiskActivation(msg, action.name, action.version, payload, start, end, response, log)
+    }
+
+    private def makeWhiskActivation(msg: Message, actionName : EntityName, actionVersion : SemVer, payload: JsObject,
+                                    start: Instant, end: Instant, response: Option[(Int, String)], log: JsArray)
+                                   (implicit transid: TransactionId): WhiskActivation = {
         WhiskActivation(
-            namespace = auth.subject.namespace,
-            name = action.name,
-            version = action.version,
+            namespace = msg.subject.namespace,
+            name = actionName,
+            version = actionVersion,
             publish = false,
-            subject = auth.subject,
+            subject = msg.subject,
             activationId = msg.activationId,
             cause = msg.cause,
             start = start,
