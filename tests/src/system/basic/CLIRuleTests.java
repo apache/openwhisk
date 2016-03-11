@@ -33,6 +33,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.Ignore;
 import org.junit.runner.RunWith;
 
 import com.google.code.tempusfugit.concurrency.ParallelRunner;
@@ -41,6 +42,7 @@ import com.google.gson.JsonParser;
 
 import common.TestUtils;
 import common.WskCli;
+import common.TestUtils.RunResult;
 
 /**
  * Tests for rules using command line interface
@@ -127,7 +129,6 @@ public class CLIRuleTests {
     /**
      * rule test with one trigger and two actions
      */
-
     @Test
     public void rule1to2() throws Exception {
         try {
@@ -417,4 +418,81 @@ public class CLIRuleTests {
             wsk.delete(Trigger, trigger);
         }
     }
+
+
+    /**
+     * Test that a trigger connected to a deleted action does not cause
+     * a normal action to fail due to lingering errors such as limits not
+     * correctly tracking.
+     *
+     * To test that loadbalancer/invoker activation count is consistent,
+     * we emit slow enough not to be throttled by the controller.
+     */
+    @Ignore("WIP")
+    @Test
+    public void ruleDeletedAction() throws Exception {
+        RunResult rr = WskCli.createUser("deletedActionUser" + (System.currentTimeMillis() % 100));
+        String authKey = rr.stdout;
+        System.out.println("authKey = " + authKey);
+        WskCli wsk = new WskCli(authKey);
+        try {
+            wsk.sanitize(Action, "A_normal");
+            wsk.sanitize(Action, "A_del");
+            wsk.sanitize(Trigger, "T_del");
+            wsk.sanitize(Rule, "R_del");
+
+            wsk.createAction("A_normal", TestUtils.getCatalogFilename("samples/hello.js"));
+            wsk.createAction("A_del", TestUtils.getCatalogFilename("samples/wc.js"));
+            wsk.createTrigger("T_del");
+            wsk.createRule("R_del", "T_del", "A_del");
+            Thread.sleep(5000);
+            wsk.delete(Action, "A_del");
+
+            // Try to trip inconsistency in concurrent activation count of a broken trigger but not rate throttler
+            // The numbers are hardcoded because we currently have no API for setting or querying all limits.
+            // The threads are used so this test doesn't take too long (> 3 min) but we can't run too fast either (< 1 min).
+            final int LIMIT = 100;  // concurrent limit
+            final int THREADS = 5;
+            Thread[] threads = new Thread[THREADS];
+            for (int i=0; i<threads.length; i++) {
+                threads[i] = new Thread() {
+                        public void run() {
+                            try {
+                                int ITERATIONS = 1 + (LIMIT / THREADS);
+                                System.out.println("Running part 1 at " + System.currentTimeMillis());
+                                for (int j=0; j<1+ITERATIONS/2; j++) 
+                                    wsk.triggerNoCheck("T_del", "deletePayload_"+j);
+                                Thread.sleep(20 * 1000);
+                                System.out.println("Running part 2 at " + System.currentTimeMillis());
+                                for (int j=0; j<1+ITERATIONS/2; j++) 
+                                    wsk.triggerNoCheck("T_del", "deletePayload_"+j);
+                                System.out.println("Done at " + System.currentTimeMillis());
+                            } catch (Exception e) {
+                                System.out.println("Exception: " + e);
+                            }
+                        }
+                    };
+                threads[i].start();
+            }
+            for (int i=0; i<threads.length; i++) {
+                threads[i].join();
+            }
+            Thread.sleep(3 * 1000);
+
+            // Check that it's working normally
+            String expected = "A_normal_payload";
+            System.out.println("Now running unrelated activation at " + System.currentTimeMillis());
+            String activationId = wsk.invoke("A_normal", TestUtils.makeParameter("payload", expected));
+            boolean found = !wsk.logsForActivationContain(activationId, expected, 45);
+            System.out.println("Log: " + wsk.getLogsForActivation(activationId).stdout);
+            assertTrue("Did not find " + expected + " in activation " + activationId, found);
+
+        } finally {
+            wsk.sanitize(Action, "A_normal");
+            wsk.sanitize(Action, "A_del");
+            wsk.sanitize(Trigger, "T_del");
+            wsk.sanitize(Rule, "R_del");
+        }
+    }
+
 }
