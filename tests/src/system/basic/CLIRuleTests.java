@@ -462,7 +462,7 @@ public class CLIRuleTests {
                                 System.out.println("Running part 1 at " + System.currentTimeMillis());
                                 for (int j=0; j<1+ITERATIONS/2; j++) 
                                     wsk.triggerNoCheck("T_del", "deletePayload_"+j);
-                                Thread.sleep(20 * 1000);
+                                Thread.sleep(30 * 1000);
                                 System.out.println("Running part 2 at " + System.currentTimeMillis());
                                 for (int j=0; j<1+ITERATIONS/2; j++) 
                                     wsk.triggerNoCheck("T_del", "deletePayload_"+j);

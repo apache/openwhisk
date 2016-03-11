@@ -151,8 +151,18 @@ class Invoker(
         activationPostCheck
     }
 
-    protected def invokeAction(action: WhiskAction, auth: WhiskAuth, payload: JsObject, msg: Message)(
-        implicit transid: TransactionId): Future[DocInfo] = {
+    /*
+     * Action that must be taken when an activation completes (with or without error).
+     */
+    protected def completeTransaction(auth: WhiskAuth, activation : WhiskActivation)
+                                     (implicit transid: TransactionId): Future[DocInfo] = {
+        incrementUserActivationCounter(auth.subject)
+        // Since there is no active action taken for completion from the invoker, writing activation record is it.
+        WhiskActivation.put(activationStore, activation)
+    }
+
+    protected def invokeAction(action: WhiskAction, auth: WhiskAuth, payload: JsObject, msg: Message)
+                              (implicit transid: TransactionId): Future[DocInfo] = {
         activationCounter.next()
         val getStart = Instant.now(Clock.systemUTC())
         pool.getAction(action, auth) match {
@@ -180,15 +190,10 @@ class Invoker(
                     val rawContents = con.getDockerLogContent(con.lastLogSize, size, runningInContainer)
                     val contents = processJsonDriverLogContents(containerName, con.lastLogSize, size, rawContents)
                     val activation = makeWhiskActivation(msg, action, auth, payload, start, end, response, contents)
-                    val counter = incrementUserActivationCounter(auth.subject)
                     con.lastLogSize = size
-                    info(this, s"'${auth.subject}' has '$counter' activations processed")
-                    // update the container map before writing back the activation so that
-                    // the container name is observable once the activation id is observable
-                    putContainerName(activation.activationId, containerName + "@" + containerIP)
-                    // Since there is no active action taken for completion from the invoker, writing activation record is it.
-                    val res = WhiskActivation.put(activationStore, activation)
-                    // We return the container last as that is slow and we want the activation to finished quickly.
+                    putContainerName(activation.activationId, containerName + "@" + containerIP)  // only for whitebox testing
+                    val res = completeTransaction(auth, activation)
+                    // We return the container last as that is slow and we want the activation to logically finish fast
                     pool.putBack(con, delete)
                     res
             }
@@ -311,7 +316,7 @@ class Invoker(
     }
 
     private def incrementUserActivationCounter(user: Subject): Int = {
-        userActivationCounter get user() match {
+        val count = userActivationCounter get user() match {
             case Some(counter) => counter.next()
             case None =>
                 val counter = new Counter()
@@ -319,6 +324,8 @@ class Invoker(
                 userActivationCounter(user()) = counter
                 counter.cur
         }
+        info(this, s"'${user}' has '$count' activations processed")
+        count
     }
 
     def getUserActivationCounts(): Map[String, JsObject] = {
