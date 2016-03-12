@@ -96,6 +96,16 @@ class Invoker(
         activationStore.setVerbosity(level)
     }
 
+    /*
+     * We track the state of the transaction by wrapping the Message object. 
+     * Note that var fields cannot be added to Message as it leads to serialization issues and
+     * doesn't make sense to mix local mutable state with the value being passed around.
+     * 
+     */
+    case class Transaction(msg : Message) {
+        var completed = false
+    }
+
     /**
      * This is the handler for the kafka message
      *
@@ -123,8 +133,9 @@ class Invoker(
     /**
      * Common point for injection from Kafka or InvokerServer.
      */
-    def fetchFromStoreAndInvoke(action: DocInfo, msg: Message)(
-        implicit transid: TransactionId): Future[DocInfo] = {
+    def fetchFromStoreAndInvoke(action: DocInfo, msg : Message)
+                               (implicit transid: TransactionId): Future[DocInfo] = {
+        val tran = Transaction(msg)
         val subject = msg.subject
         val payload = msg.content getOrElse JsObject()
         info(this, s"${action.id} $subject ${msg.activationId}")
@@ -139,7 +150,7 @@ class Invoker(
 
         val activationPostCheck = actionPromise flatMap { theAction =>
             authPromise flatMap { theAuth =>
-                invokeAction(theAction, theAuth, payload, msg) map {
+                invokeAction(theAction, theAuth, payload, tran) map {
                     activationDoc =>
                         info(this, s"recorded activation '$activationDoc'")
                         activationDoc
@@ -148,10 +159,10 @@ class Invoker(
         }
 
         actionPromise onFailure {
-          case t => completeTransactionWithError(action, msg, s"failed to fetch action record ${action.id}: ${t.getMessage}") 
+            case t => completeTransactionWithError(action, tran, s"failed to fetch action record ${action.id}: ${t.getMessage}") 
         }
         authPromise onFailure {
-          case t => completeTransactionWithError(action, msg, s"failed to fetch auth record $subject: ${t.getMessage}") 
+            case t => completeTransactionWithError(action, tran, s"failed to fetch auth record $subject: ${t.getMessage}") 
         }
         // This is a composition of actionPromise, authPromise, and invokeAction so not onFailure
         activationPostCheck
@@ -160,32 +171,37 @@ class Invoker(
 
     /*
      * Create a whisk activation out of the errorMsg and finish the transaction.
+     * Failing with an error can involve multiple futures so we must check that this has not already been completed.
      */
-    protected def completeTransactionWithError(actionDocInfo: DocInfo, msg : Message, errorMsg : String)
-                                              (implicit transid: TransactionId): Future[DocInfo] = {
+    protected def completeTransactionWithError(actionDocInfo: DocInfo, tran : Transaction, errorMsg : String)
+                                              (implicit transid: TransactionId): Unit = {
         error(this, errorMsg)
-        val subject = msg.subject
+        if (tran.completed) { return }
+        val msg = tran.msg
         val payload = msg.content getOrElse JsObject()
         val now = Instant.now(Clock.systemUTC())
         val response = Some(420, errorMsg)
         val contents = JsArray(JsString(errorMsg))
         // We do not have a real WhiskAction (for example, non-existent action).
         val activation = makeWhiskActivation(msg, EntityName("unknownAction"), SemVer(), payload, now, now, response, contents)
-        completeTransaction(msg.subject, activation)
+        completeTransaction(tran, activation)
+        ()
     }
 
     /*
      * Action that must be taken when an activation completes (with or without error).
      */
-    protected def completeTransaction(subject: Subject, activation : WhiskActivation)
+    protected def completeTransaction(tran : Transaction, activation : WhiskActivation)
                                      (implicit transid: TransactionId): Future[DocInfo] = {
-        incrementUserActivationCounter(subject)
+        tran.completed = true
+        incrementUserActivationCounter(tran.msg.subject)
         // Since there is no active action taken for completion from the invoker, writing activation record is it.
         WhiskActivation.put(activationStore, activation)
     }
 
-    protected def invokeAction(action: WhiskAction, auth: WhiskAuth, payload: JsObject, msg: Message)
+    protected def invokeAction(action: WhiskAction, auth: WhiskAuth, payload: JsObject, tran: Transaction)
                               (implicit transid: TransactionId): Future[DocInfo] = {
+        val msg = tran.msg
         activationCounter.next()
         val getStart = Instant.now(Clock.systemUTC())
         pool.getAction(action, auth) match {
@@ -215,7 +231,7 @@ class Invoker(
                     val activation = makeWhiskActivation(msg, action, payload, start, end, response, contents)
                     con.lastLogSize = size
                     putContainerName(activation.activationId, containerName + "@" + containerIP)  // only for whitebox testing
-                    val res = completeTransaction(msg.subject, activation)
+                    val res = completeTransaction(tran, activation)
                     // We return the container last as that is slow and we want the activation to logically finish fast
                     pool.putBack(con, delete)
                     res
@@ -226,7 +242,7 @@ class Invoker(
                 val response = Some(420, "Error starting container")
                 val contents = JsArray(JsString("Error starting container"))
                 val activation = makeWhiskActivation(msg, action, payload, getStart, now, response, contents)
-                completeTransaction(msg.subject, activation)
+                completeTransaction(tran, activation)
             }
         }
     }

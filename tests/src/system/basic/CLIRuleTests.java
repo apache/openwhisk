@@ -446,7 +446,6 @@ public class CLIRuleTests {
             wsk.createAction("A_del", TestUtils.getCatalogFilename("samples/wc.js"));
             wsk.createTrigger("T_del");
             wsk.createRule("R_del", "T_del", "A_del");
-            Thread.sleep(5000);
             wsk.delete(Action, "A_del");
 
             // Try to trip inconsistency in concurrent activation count of a broken trigger but not rate throttler
@@ -463,11 +462,11 @@ public class CLIRuleTests {
                                 int ITERATIONS = 1 + (LIMIT / THREADS);
                                 System.out.println("Thread " + index + ". Running part 1 at " + System.currentTimeMillis());
                                 for (int j=0; j<1+ITERATIONS/2; j++) 
-                                    wsk.triggerNoCheck("T_del", "deletePayload_"+j);
+                                    wsk.triggerNoCheck("T_del", "deletePayload_1_"+j);
                                 Thread.sleep(30 * 1000);  // so as to not trigger per-minute throttle
                                 System.out.println("Thread " + index + ". Running part 2 at " + System.currentTimeMillis());
                                 for (int j=0; j<1+ITERATIONS/2; j++) 
-                                    wsk.triggerNoCheck("T_del", "deletePayload_"+j);
+                                    wsk.triggerNoCheck("T_del", "deletePayload_2_"+j);
                                 System.out.println("Thread " + index + ". Done at " + System.currentTimeMillis());
                             } catch (Exception e) {
                                 System.out.println("Exception: " + e);
@@ -479,7 +478,7 @@ public class CLIRuleTests {
             for (int i=0; i<threads.length; i++) {
                 threads[i].join();
             }
-            Thread.sleep(3 * 1000);
+            Thread.sleep(5 * 1000); // allow triggers and counts to propagate so we can test throttle
 
             // Check that it's working normally
             String expected = "A_normal_payload";
