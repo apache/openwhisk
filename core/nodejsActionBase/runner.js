@@ -36,13 +36,13 @@ function NodeActionRunner(message, whisk) {
         return;
     }
 
-    var hrStart = undefined;
+    var hrStart;
     var callback = { };
 
     function closeAndReturn(result) {
         var hrEnd = process.hrtime();
 
-        if (typeof callback.closedConnection == 'undefined') {
+        if (typeof callback.closedConnection === 'undefined') {
             callback.closedConnection = true;
             callback.next({
                 result  : result,
@@ -71,13 +71,20 @@ function NodeActionRunner(message, whisk) {
         var result = this.userScriptMain(args);
 
         if (result !== this.whisk.async()) {
-            // This happens, e.g. if you just have "return;"
-            if (typeof result == 'undefined') {
-                result = {};
-            }
-            closeAndReturn(result);
+            var self = this;
+            Promise.resolve(result) //Non-promises/undefined instantly resolve.
+                .then(function(resolvedResult) {
+                    // This happens, e.g. if you just have "return;"
+                    if (typeof resolvedResult === 'undefined') {
+                        resolvedResult = {};
+                    }
+                    closeAndReturn(resolvedResult);
+                }, function (error) {
+                        self.whisk.error(error);
+                    }
+                );
         }
-    }
+    };
 }
 
 /**
@@ -107,7 +114,7 @@ function modWhisk(whisk, callback, closeAndReturn) {
             // call it directly.
             console.log('Warning: whisk.done() or whisk.error() called more than once.');
         }
-    }
+    };
     return whisk;
 }
 
@@ -118,7 +125,7 @@ function duration(start, end) {
 
 function getname(name) {
     name = typeof name === 'string' ? name.trim() : '';
-    name = name != '' ? name : 'Anonymous User Action';
+    name = name !== '' ? name : 'Anonymous User Action';
     return name;
 }
 
