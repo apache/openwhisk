@@ -19,6 +19,10 @@ sourceSets {
 test {
     systemProperty 'javax.net.ssl.trustStore', 'build/keystore'
     jvmArgs = [ "-Dtestthreads=1" ]
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
+    outputs.upToDateWhen { false } // force tests to run everytime
 }
 
 dependencies {
