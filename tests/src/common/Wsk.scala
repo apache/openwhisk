@@ -523,9 +523,9 @@ class WskActivation()
                 if (result.length >= N) result else throw PartialResult(result)
             }, retries, waitBeforeRetry = Some(1 second))
         } match {
-            case Success(ids)                => ids
+            case Success(ids) => ids
             case Failure(PartialResult(ids)) => ids
-            case _                           => Seq()
+            case _ => Seq()
         }
     }
 
@@ -719,11 +719,11 @@ sealed trait RunWskCmd {
      * @return RunResult which contains stdout, sterr, exit code
      */
     def cli(params: Seq[String],
-            expectedExitCode: Int = SUCCESS_EXIT,
-            verbose: Boolean = false,
-            env: Map[String, String] = Map[String, String](),
-            workingDir: File = new File("."),
-            showCmd: Boolean = false): RunResult = {
+        expectedExitCode: Int = SUCCESS_EXIT,
+        verbose: Boolean = false,
+        env: Map[String, String] = Map[String, String](),
+        workingDir: File = new File("."),
+        showCmd: Boolean = false): RunResult = {
         val args = baseCommand
         if (verbose) args += "--verbose"
         if (showCmd) println(params.mkString(" "))
