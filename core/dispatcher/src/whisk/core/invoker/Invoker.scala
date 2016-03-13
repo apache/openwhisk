@@ -103,7 +103,7 @@ class Invoker(
      * 
      * See completeTransaction for why complete is needed.
      */
-    case class Transaction(msg : Message) {
+    case class Transaction(msg: Message) {
         var result: Option[Future[DocInfo]] = None
     }
 
@@ -134,8 +134,8 @@ class Invoker(
     /**
      * Common point for injection from Kafka or InvokerServer.
      */
-    def fetchFromStoreAndInvoke(action: DocInfo, msg : Message)
-                               (implicit transid: TransactionId): Future[DocInfo] = {
+    def fetchFromStoreAndInvoke(action: DocInfo, msg: Message)(
+        implicit transid: TransactionId): Future[DocInfo] = {
         val tran = Transaction(msg)
         val subject = msg.subject
         val payload = msg.content getOrElse JsObject()
@@ -160,32 +160,31 @@ class Invoker(
         }
 
         actionPromise onFailure {
-            case t => completeTransactionWithError(action, tran, s"failed to fetch action record ${action.id}: ${t.getMessage}") 
+            case t => completeTransactionWithError(action, tran, s"failed to fetch action ${action.id}: ${t.getMessage}")
         }
         authPromise onFailure {
-            case t => completeTransactionWithError(action, tran, s"failed to fetch auth record $subject: ${t.getMessage}") 
+            case t => completeTransactionWithError(action, tran, s"failed to fetch auth key for $subject: ${t.getMessage}")
         }
         // This is a composition of actionPromise, authPromise, and invokeAction so not onFailure
         activationPostCheck
     }
 
-
     /*
      * Create a whisk activation out of the errorMsg and finish the transaction.
      * Failing with an error can involve multiple futures but the effecting call is completeTransaction which is guarded.
      */
-    protected def completeTransactionWithError(actionDocInfo: DocInfo, tran : Transaction, errorMsg : String)
-                                              (implicit transid: TransactionId): Unit = {
+    protected def completeTransactionWithError(actionDocInfo: DocInfo, tran: Transaction, errorMsg: String)(
+        implicit transid: TransactionId): Unit = {
         error(this, errorMsg)
         val msg = tran.msg
+        val name = EntityName(actionDocInfo.id().split(Namespace.PATHSEP)(1))
+        val version = SemVer() // TODO: this is wrong, when the semver is passed from controller, fix this
         val payload = msg.content getOrElse JsObject()
         val now = Instant.now(Clock.systemUTC())
         val response = Some(420, errorMsg)
-        val contents = JsArray(JsString(errorMsg))
-        // We do not have a real WhiskAction (for example, non-existent action).
-        val activation = makeWhiskActivation(msg, EntityName("unknownAction"), SemVer(), payload, now, now, response, contents)
+        val contents = JsArray()
+        val activation = makeWhiskActivation(msg, name, version, payload, now, now, response, contents)
         completeTransaction(tran, activation)
-        ()
     }
 
     /*
@@ -194,8 +193,8 @@ class Invoker(
      * Invariant: Only one call to here succeeds.  Even though the sync block wrap WhiskActivation.put,
      *            it is only blocking this transaction which is finishing anyway.
      */
-    protected def completeTransaction(tran : Transaction, activation : WhiskActivation)
-                                     (implicit transid: TransactionId): Future[DocInfo] = {
+    protected def completeTransaction(tran: Transaction, activation: WhiskActivation)(
+        implicit transid: TransactionId): Future[DocInfo] = {
         tran.synchronized {
             tran.result match {
                 case Some(res) => res
@@ -210,8 +209,8 @@ class Invoker(
         }
     }
 
-    protected def invokeAction(action: WhiskAction, auth: WhiskAuth, payload: JsObject, tran: Transaction)
-                              (implicit transid: TransactionId): Future[DocInfo] = {
+    protected def invokeAction(action: WhiskAction, auth: WhiskAuth, payload: JsObject, tran: Transaction)(
+        implicit transid: TransactionId): Future[DocInfo] = {
         val msg = tran.msg
         activationCounter.next()
         val getStart = Instant.now(Clock.systemUTC())
@@ -241,7 +240,7 @@ class Invoker(
                     val contents = processJsonDriverLogContents(containerName, con.lastLogSize, size, rawContents)
                     val activation = makeWhiskActivation(msg, action, payload, start, end, response, contents)
                     con.lastLogSize = size
-                    putContainerName(activation.activationId, containerName + "@" + containerIP)  // only for whitebox testing
+                    putContainerName(activation.activationId, containerName + "@" + containerIP) // only for whitebox testing
                     val res = completeTransaction(tran, activation)
                     // We return the container last as that is slow and we want the activation to logically finish fast
                     pool.putBack(con, delete)
@@ -298,7 +297,8 @@ class Invoker(
      * Checks the output of the docker json-file log driver is not truncated (not flushed).
      * It returns a possibly sanitized version of the output.
      */
-    private def processJsonDriverLogContents(name: String, start: Long, end: Long, contents: Array[Byte])(implicit transid: TransactionId): JsArray = {
+    private def processJsonDriverLogContents(name: String, start: Long, end: Long, contents: Array[Byte])(
+        implicit transid: TransactionId): JsArray = {
         val logMsgs = new String(contents, "UTF-8")
         info(this, s"!!! $name $start..$end")
 
@@ -327,7 +327,8 @@ class Invoker(
         }
     }
 
-    private def processResponseContent(response: Option[(Int, String)])(implicit transid: TransactionId): ActivationResponse = {
+    private def processResponseContent(response: Option[(Int, String)])(
+        implicit transid: TransactionId): ActivationResponse = {
         response map { pair =>
             val (code, contents) = pair
             debug(this, s"response: '$contents'")
@@ -338,7 +339,7 @@ class Invoker(
                     // The 'error' field of the object, if it exists.
                     val errorOpt = fields.get(ActivationResponse.ERROR_FIELD)
 
-                    if(code == 200) {
+                    if (code == 200) {
                         errorOpt.map { error =>
                             ActivationResponse.applicationError(error)
                         }.getOrElse {
@@ -380,25 +381,25 @@ class Invoker(
 
     def getUserActivationCounts(): Map[String, JsObject] = {
         val subjects = userActivationCounter.keySet toList
-        val groups = subjects.groupBy { user => user.substring(0, 1) }  // Any sort of partitioning will be ok wrt load balancer
-        groups.keySet map { prefix => 
-          val key = InvokerKeys.userActivationCount(instance) + "/" + prefix
-          val users = groups.getOrElse(prefix, Set())
-          val items = users map { u => (u, JsNumber(userActivationCounter.get(u) map { c => c.cur } getOrElse 0))}
-          key -> JsObject(items toMap)
+        val groups = subjects.groupBy { user => user.substring(0, 1) } // Any sort of partitioning will be ok wrt load balancer
+        groups.keySet map { prefix =>
+            val key = InvokerKeys.userActivationCount(instance) + "/" + prefix
+            val users = groups.getOrElse(prefix, Set())
+            val items = users map { u => (u, JsNumber(userActivationCounter.get(u) map { c => c.cur } getOrElse 0)) }
+            key -> JsObject(items toMap)
         } toMap
     }
 
     // -------------------------------------------------------------------------------------------------------------
     private def makeWhiskActivation(msg: Message, action: WhiskAction, payload: JsObject,
-                                    start: Instant, end: Instant, response: Option[(Int, String)], log: JsArray)
-                                   (implicit transid: TransactionId): WhiskActivation = {
+                                    start: Instant, end: Instant, response: Option[(Int, String)], log: JsArray)(
+                                        implicit transid: TransactionId): WhiskActivation = {
         makeWhiskActivation(msg, action.name, action.version, payload, start, end, response, log)
     }
 
-    private def makeWhiskActivation(msg: Message, actionName : EntityName, actionVersion : SemVer, payload: JsObject,
-                                    start: Instant, end: Instant, response: Option[(Int, String)], log: JsArray)
-                                   (implicit transid: TransactionId): WhiskActivation = {
+    private def makeWhiskActivation(msg: Message, actionName: EntityName, actionVersion: SemVer, payload: JsObject,
+                                    start: Instant, end: Instant, response: Option[(Int, String)], log: JsArray)(
+                                        implicit transid: TransactionId): WhiskActivation = {
         WhiskActivation(
             namespace = msg.subject.namespace,
             name = actionName,
@@ -430,8 +431,8 @@ class Invoker(
         InvokerKeys.start(instance),
         InvokerKeys.status(instance),
         { () =>
-            getUserActivationCounts() ++ 
-            Map(InvokerKeys.activationCount(instance) -> activationCounter.cur.toJson)
+            getUserActivationCounts() ++
+                Map(InvokerKeys.activationCount(instance) -> activationCounter.cur.toJson)
         })
 
     // This will remove leftover action containers
