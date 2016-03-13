@@ -33,7 +33,6 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.junit.Ignore;
 import org.junit.runner.RunWith;
 
 import com.google.code.tempusfugit.concurrency.ParallelRunner;
@@ -42,7 +41,6 @@ import com.google.gson.JsonParser;
 
 import common.TestUtils;
 import common.WskCli;
-import common.TestUtils.RunResult;
 
 /**
  * Tests for rules using command line interface
@@ -53,10 +51,9 @@ public class CLIRuleTests {
     private static final WskCli wsk = new WskCli();
     private static final int RULE_DELAY = 30;
     private static final int DELAY = 90;
-    private static final int NEGATIVE_DELAY = 30; // used for tests when
-                                                  // checking that something
-                                                  // doesn't show up in
-                                                  // activations
+    // NEGATIVE_DELAY is used for tests when checking that something doesn't
+    // show up in activations
+    private static final int NEGATIVE_DELAY = 30;
 
     @BeforeClass
     public static void setUp() throws Exception {
@@ -181,7 +178,7 @@ public class CLIRuleTests {
             startMilli = endMilli;
 
             wsk.createAction("A1_222", TestUtils.getCatalogFilename("samples/wc.js"));
-            wsk.createAction("A2_222",TestUtils.getCatalogFilename("samples/hello.js"));
+            wsk.createAction("A2_222", TestUtils.getCatalogFilename("samples/hello.js"));
             wsk.createTrigger("T1_222");
             wsk.createTrigger("T2_222");
             wsk.createRule("Alpha", "T1_222", "A1_222");
@@ -337,8 +334,7 @@ public class CLIRuleTests {
             assertTrue("Expected message not found: " + expected, wsk.logsForActivationContain(activationId, expected, DELAY));
 
             String unexpected = "The message 'batman' has";
-            assertFalse("Unexpected message found: " + unexpected,
-                    wsk.logsForActivationContain(activationId, unexpected, NEGATIVE_DELAY));
+            assertFalse("Unexpected message found: " + unexpected, wsk.logsForActivationContain(activationId, unexpected, NEGATIVE_DELAY));
         } finally {
             wsk.delete(Action, "A_621");
             wsk.delete(Trigger, "T_621");
@@ -359,10 +355,12 @@ public class CLIRuleTests {
         final class ActivationInfo {
             public String activationId;
             public String cause;
+
             public ActivationInfo(String activationId, String cause) {
                 this.activationId = activationId;
                 this.cause = cause;
             }
+
             @Override
             public String toString() {
                 return "ActivationInfo [activationId=" + activationId + ", cause=" + cause + "]";
@@ -380,7 +378,7 @@ public class CLIRuleTests {
             wsk.trigger(trigger, "bobby 121");
 
             // Get activations
-            Set<String> entities = new HashSet<String>(Arrays.asList(new String[]{trigger, action, rule}));
+            Set<String> entities = new HashSet<String>(Arrays.asList(new String[] { trigger, action, rule }));
             Map<String, ActivationInfo> activations = TestUtils.waitfor(() -> {
                 String list = wsk.list(Activation);
                 String[] lines = list.split("\\r?\\n");
@@ -392,7 +390,8 @@ public class CLIRuleTests {
                         String activationId = words[0];
                         if (entities.contains(entityName)) {
                             String activation = wsk.get(Activation, activationId);
-                            activation = activation.substring(activation.indexOf(System.getProperty("line.separator"))+1); // remove "ok" line in stdout; remaining lines should be json.
+                            // remove "ok" line in stdout; leaving json
+                            activation = activation.substring(activation.indexOf(System.getProperty("line.separator")) + 1);
                             JsonObject json = new JsonParser().parse(activation).getAsJsonObject();
                             String cause = json.get("cause") != null ? json.get("cause").getAsString() : "";
                             infos.put(entityName, new ActivationInfo(activationId, cause));
@@ -400,7 +399,7 @@ public class CLIRuleTests {
                     }
                 }
                 return infos.size() == 3 ? infos : null;
-            }, 8, 1, DELAY);
+            } , 8, 1, DELAY);
 
             // Check that activations exist.
             assertTrue("Activation not found for " + trigger, activations.containsKey(trigger));
@@ -416,83 +415,6 @@ public class CLIRuleTests {
             wsk.delete(Rule, rule);
             wsk.delete(Action, action);
             wsk.delete(Trigger, trigger);
-        }
-    }
-
-
-    /**
-     * Test that a trigger connected to a deleted action does not cause
-     * a normal action to fail due to lingering errors such as limits not
-     * correctly tracking.
-     *
-     * To test that loadbalancer/invoker activation count is consistent,
-     * we emit slow enough not to be throttled by the controller.
-     *
-     * The concurrency limit of 100 is hardcoded for now because there is no query API.
-     */
-    @Test
-    public void ruleDeletedAction() throws Exception {
-        RunResult rr = WskCli.createUser("deletedActionUser" + (System.currentTimeMillis() % 100));
-        String authKey = rr.stdout;
-        System.out.println("authKey = " + authKey);
-        WskCli wsk = new WskCli(authKey);
-        try {
-            wsk.sanitize(Action, "A_normal");
-            wsk.sanitize(Action, "A_del");
-            wsk.sanitize(Trigger, "T_del");
-            wsk.sanitize(Rule, "R_del");
-
-            wsk.createAction("A_normal", TestUtils.getCatalogFilename("samples/hello.js"));
-            wsk.createAction("A_del", TestUtils.getCatalogFilename("samples/wc.js"));
-            wsk.createTrigger("T_del");
-            wsk.createRule("R_del", "T_del", "A_del");
-            wsk.delete(Action, "A_del");
-
-            // Try to trip inconsistency in concurrent activation count of a broken trigger but not rate throttler
-            // The numbers are hardcoded because we currently have no API for setting or querying all limits.
-            // The threads are used so this test doesn't take too long (> 3 min) but we can't run too fast either (< 1 min).
-            final int LIMIT = 100;  // concurrent limit
-            final int THREADS = 5;
-            Thread[] threads = new Thread[THREADS];
-            for (int i=0; i<threads.length; i++) {
-                final int index = i; // for "closure"
-                threads[i] = new Thread() {
-                        public void run() {
-                            try {
-                                int ITERATIONS = 1 + (LIMIT / THREADS);
-                                System.out.println("Thread " + index + ". Running part 1 at " + System.currentTimeMillis());
-                                for (int j=0; j<1+ITERATIONS/2; j++) 
-                                    wsk.triggerNoCheck("T_del", "deletePayload_1_"+j);
-                                Thread.sleep(30 * 1000);  // so as to not trigger per-minute throttle
-                                System.out.println("Thread " + index + ". Running part 2 at " + System.currentTimeMillis());
-                                for (int j=0; j<1+ITERATIONS/2; j++) 
-                                    wsk.triggerNoCheck("T_del", "deletePayload_2_"+j);
-                                System.out.println("Thread " + index + ". Done at " + System.currentTimeMillis());
-                            } catch (Exception e) {
-                                System.out.println("Exception: " + e);
-                            }
-                        }
-                    };
-                threads[i].start();
-            }
-            for (int i=0; i<threads.length; i++) {
-                threads[i].join();
-            }
-            Thread.sleep(5 * 1000); // allow triggers and counts to propagate so we can test throttle
-
-            // Check that it's working normally
-            String expected = "A_normal_payload";
-            System.out.println("Now running unrelated activation at " + System.currentTimeMillis());
-            String activationId = wsk.invoke("A_normal", TestUtils.makeParameter("payload", expected));
-            boolean found = wsk.logsForActivationContain(activationId, expected, 45);
-            System.out.println("Log: " + wsk.getLogsForActivation(activationId).stdout);
-            assertTrue("Did not find " + expected + " in activation " + activationId, found);
-
-        } finally {
-            wsk.sanitize(Action, "A_normal");
-            wsk.sanitize(Action, "A_del");
-            wsk.sanitize(Trigger, "T_del");
-            wsk.sanitize(Rule, "R_del");
         }
     }
 

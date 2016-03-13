@@ -181,7 +181,7 @@ class Invoker(
         val version = SemVer() // TODO: this is wrong, when the semver is passed from controller, fix this
         val payload = msg.content getOrElse JsObject()
         val now = Instant.now(Clock.systemUTC())
-        val response = Some(420, errorMsg)
+        val response = Some(404, JsObject(ActivationResponse.ERROR_FIELD -> errorMsg.toJson).compactPrint)
         val contents = JsArray()
         val activation = makeWhiskActivation(msg, name, version, payload, now, now, response, contents)
         completeTransaction(tran, activation)
