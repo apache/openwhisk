@@ -37,11 +37,11 @@ import whisk.utils.retry
 /**
  * Provide Scala bindings for the whisk CLI.
  *
- * Each of the top level CLI commands is a "noun" case class that extends one
+ * Each of the top level CLI commands is a "noun" class that extends one
  * of several traits that are common to the whisk collections and corresponds
  * to one of the top level CLI nouns.
  *
- * Each of the "noun" case classes mixes in the RunWskCmd trait which runs arbitrary
+ * Each of the "noun" classes mixes in the RunWskCmd trait which runs arbitrary
  * wsk commands and returns the results. Optionally RunWskCmd can validate the exit
  * code matched a desired value.
  *
@@ -68,12 +68,12 @@ case class WskProps(
 }
 
 class Wsk extends RunWskCmd {
-    implicit val action = WskAction()
-    implicit val trigger = WskTrigger()
-    implicit val rule = WskRule()
-    implicit val activation = WskActivation()
-    implicit val pkg = WskPackage()
-    implicit val namespace = WskNamespace()
+    implicit val action = new WskAction()
+    implicit val trigger = new WskTrigger()
+    implicit val rule = new WskRule()
+    implicit val activation = new WskActivation()
+    implicit val pkg = new WskPackage()
+    implicit val namespace = new WskNamespace()
 }
 
 trait FullyQualifiedNames {
@@ -175,7 +175,7 @@ trait DeleteFromCollection extends FullyQualifiedNames {
     }
 }
 
-case class WskAction()
+class WskAction()
     extends RunWskCmd
     with ListOrGetFromCollection
     with DeleteFromCollection
@@ -250,7 +250,7 @@ case class WskAction()
     }
 }
 
-case class WskTrigger()
+class WskTrigger()
     extends RunWskCmd
     with ListOrGetFromCollection
     with DeleteFromCollection
@@ -300,7 +300,7 @@ case class WskTrigger()
     }
 }
 
-case class WskRule()
+class WskRule()
     extends RunWskCmd
     with ListOrGetFromCollection
     with DeleteFromCollection
@@ -415,7 +415,7 @@ case class WskRule()
     }
 }
 
-case class WskActivation()
+class WskActivation()
     extends RunWskCmd
     with DeleteFromCollection
     with WaitFor {
@@ -565,7 +565,7 @@ case class WskActivation()
     private case class PartialResult(ids: Seq[String]) extends Throwable
 }
 
-case class WskNamespace()
+class WskNamespace()
     extends RunWskCmd
     with FullyQualifiedNames
     with WaitFor {
@@ -599,7 +599,7 @@ case class WskNamespace()
     }
 }
 
-case class WskPackage()
+class WskPackage()
     extends RunWskCmd
     with ListOrGetFromCollection
     with DeleteFromCollection
