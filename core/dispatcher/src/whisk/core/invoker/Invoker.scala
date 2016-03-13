@@ -101,9 +101,10 @@ class Invoker(
      * Note that var fields cannot be added to Message as it leads to serialization issues and
      * doesn't make sense to mix local mutable state with the value being passed around.
      * 
+     * See completeTransaction for why complete is needed.
      */
     case class Transaction(msg : Message) {
-        var completed = false
+        var result: Option[Future[DocInfo]] = None
     }
 
     /**
@@ -171,12 +172,11 @@ class Invoker(
 
     /*
      * Create a whisk activation out of the errorMsg and finish the transaction.
-     * Failing with an error can involve multiple futures so we must check that this has not already been completed.
+     * Failing with an error can involve multiple futures but the effecting call is completeTransaction which is guarded.
      */
     protected def completeTransactionWithError(actionDocInfo: DocInfo, tran : Transaction, errorMsg : String)
                                               (implicit transid: TransactionId): Unit = {
         error(this, errorMsg)
-        if (tran.completed) { return }
         val msg = tran.msg
         val payload = msg.content getOrElse JsObject()
         val now = Instant.now(Clock.systemUTC())
@@ -190,13 +190,24 @@ class Invoker(
 
     /*
      * Action that must be taken when an activation completes (with or without error).
+     *
+     * Invariant: Only one call to here succeeds.  Even though the sync block wrap WhiskActivation.put,
+     *            it is only blocking this transaction which is finishing anyway.
      */
     protected def completeTransaction(tran : Transaction, activation : WhiskActivation)
                                      (implicit transid: TransactionId): Future[DocInfo] = {
-        tran.completed = true
-        incrementUserActivationCounter(tran.msg.subject)
-        // Since there is no active action taken for completion from the invoker, writing activation record is it.
-        WhiskActivation.put(activationStore, activation)
+        tran.synchronized {
+            tran.result match {
+                case Some(res) => res
+                case None => {
+                    incrementUserActivationCounter(tran.msg.subject)
+                    // Since there is no active action taken for completion from the invoker, writing activation record is it.
+                    val result = WhiskActivation.put(activationStore, activation)
+                    tran.result = Some(result)
+                    result
+                }
+            }
+        }
     }
 
     protected def invokeAction(action: WhiskAction, auth: WhiskAuth, payload: JsObject, tran: Transaction)
