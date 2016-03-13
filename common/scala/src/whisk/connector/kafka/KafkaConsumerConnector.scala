@@ -42,7 +42,7 @@ class KafkaConsumerConnector(
     with Logging
     with TransactionCounter {
 
-    def getMessages(duration: Duration = 100 milliseconds) = consumer.poll(duration.toMillis)
+    def getMessages(duration: Duration = 1000 milliseconds) = consumer.poll(duration.toMillis)
 
     override def onMessage(process: Array[Byte] => Boolean) = {
         val self = this
