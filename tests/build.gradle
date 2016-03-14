@@ -17,7 +17,6 @@ sourceSets {
 }
 
 test {
-    systemProperty 'javax.net.ssl.trustStore', 'build/keystore'
     jvmArgs = [ "-Dtestthreads=1" ]
     testLogging {
         events "passed", "skipped", "failed"
@@ -48,10 +47,11 @@ dependencies {
     testCompile project(':core:dispatcher')
 }
 
-task deleteKeystore(type:Delete) {
-    delete 'build/keystore'
+def keystorePath = 'build/classes/test/keystore'
+task deleteKeystore(type: Delete) {
+    delete keystorePath
 }
-task createKeystore(dependsOn:deleteKeystore, type:Exec) {
-    commandLine 'keytool', '-import', '-alias', 'Whisk', '-noprompt', '-trustcacerts', '-file', '../config/keys/openwhisk-self-cert.pem', '-keystore', 'build/keystore', '-storepass', 'openwhisk'
+task createKeystore(dependsOn: deleteKeystore, type:Exec) {
+    commandLine 'keytool', '-import', '-alias', 'Whisk', '-noprompt', '-trustcacerts', '-file', '../config/keys/openwhisk-self-cert.pem', '-keystore', keystorePath, '-storepass', 'openwhisk'
 }
 compileTestScala.finalizedBy createKeystore

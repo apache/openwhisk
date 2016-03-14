@@ -56,12 +56,12 @@ xml2js@0.4.15 \
 xmlhttprequest@1.7.0
 
 
-# only package.json
-ADD package.json /nodejsAction/
-RUN cd /nodejsAction; npm install
+# App
+ADD . /nodejsAction
 
-ADD runner.js app.js /nodejsAction/
-ADD src /nodejsAction/src/
+# Install app dependencies
+RUN cd /nodejsAction; rm -rf .project .settings build.xml Dockerfile README node_modules logs && ln -s /usr/lib/node_modules node_modules 
+RUN cd /nodejsAction; npm install .
 
 # See app.js
 CMD node /nodejsAction/app.js

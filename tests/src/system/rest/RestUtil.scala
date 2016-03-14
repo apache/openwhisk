@@ -35,7 +35,7 @@ protected[rest] trait RestUtil {
 
     // must force RestAssured to allow all hosts in SSL certificates ...
     RestAssured.config = new RestAssuredConfig()
-        .sslConfig(RestAssured.config.getSSLConfig.allowAllHostnames());
+        .sslConfig(new SSLConfig().keystore("keystore", trustStorePassword).allowAllHostnames());
 
     /**
      * @return the URL and port for the whisk service
