@@ -41,7 +41,9 @@ ADD common   /common
 ADD monitor  /monitor
 RUN cd /monitor &&  ln -s /usr/lib/node_modules node_modules && npm install
 
-ADD http://repo1.maven.org/maven2/org/slf4j/slf4j-log4j12/1.7.6/slf4j-log4j12-1.7.6.jar /kafka/libs/
+RUN sudo apt-get install -y maven
+RUN mvn org.apache.maven.plugins:maven-dependency-plugin:2.1:get -DrepoUrl=https://jcenter.bintray.com -Dartifact=org.slf4j:slf4j-log4j12:1.7.6
+RUN find ${HOME} -name 'slf4j-log4j12-1.7.6.jar' -exec cp {} /kafka/libs/ \;
 ADD config /kafka/config
 ADD start.sh /start.sh
 
