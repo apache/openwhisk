@@ -143,21 +143,29 @@ class ContainerPool(
      * Try to get/create a container via the thunk by delegating to getOnce.
      * This method will apply retry so that the caller is blocked until retry succeeds.
      * 
-     * TODO: tail recursion
      */
     def getImpl(key: String, conMaker: () => ContainerResult)(implicit transid: TransactionId): Option[(Container, Option[RunResult])] = {
-        while (true) {
-            getOnce(key, conMaker) match {
-                case Success(con, initResult) =>
-                    info(this, s"""Obtained container ${con.containerId.getOrElse("unknown")}""")
-                    return Some(con, initResult)
-                case Error(str) =>
-                    error(this, s"Error starting container: $str")
-                    return None
-                case Busy() => Thread.sleep(100)
+         getOnce(key, conMaker) match {
+             case Success(con, initResult) =>
+                  info(this, s"""Obtained container ${con.containerId.getOrElse("unknown")}""")
+                  return Some(con, initResult)
+             case Error(str) =>
+                 error(this, s"Error starting container: $str")
+                 return None
+             case Busy() => 
+                 Thread.sleep(100)
+                 getImpl(key, conMaker)
+         }
+    }
+
+
+    def getNumberOfIdleContainers(key: String)(implicit transid: TransactionId): Int = {
+        this.synchronized {
+            keyMap.get(key) match {
+                case None => 0
+                case Some(bucket) => bucket.count { _.isIdle() }
             }
         }
-        None // won't reach here
     }
 
     /*
@@ -275,8 +283,10 @@ class ContainerPool(
 
     // Note that the prefix seprates the name space of this from regular keys.
     // TODO: Generalize across language by storing image name when we generalize to other languages
+    //       Better heuristic for # of containers to keep warm - make sensitive to idle capacity
     private val warmNodejsKey = "warm.nodejs"
     private val nodejsImage = "whisk/nodejsaction"
+    private val WARM_NODEJS_CONTAINERS = 2
 
     private def makeKey(action: WhiskAction, auth: WhiskAuth) = {
         s"instantiated.${auth.uuid}.${action.fullyQualifiedName}.${action.rev}"
@@ -300,8 +310,13 @@ class ContainerPool(
     // A background thread that re-populates the container pool with fresh (un-instantiated) nodejs containers.
     private val warmupThread = new Thread {
         override def run {
-            // WIP: just make one for now for testing
-            makeWarmNodejsContainer()(TransactionId(0))
+            while (true) {
+                val tid = TransactionId(0)
+                if (getNumberOfIdleContainers(warmNodejsKey)(tid) < WARM_NODEJS_CONTAINERS) {
+                    makeWarmNodejsContainer()(tid)
+                }
+                Thread.sleep(100)
+            }
         }
     }
 
