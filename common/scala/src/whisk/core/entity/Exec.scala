@@ -27,6 +27,9 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonNull
 import com.google.gson.JsonPrimitive
 import scala.util.Try
+import spray.json.DeserializationException
+
+import java.util.Base64
 
 /**
  * Exec encodes the executable details of an action. For black
@@ -34,11 +37,15 @@ import scala.util.Try
  * the code to execute is required. Optionally, Javascript actions
  * also permit a library to support the code in the form of a zip file.
  * For Swift actions, the source code to execute the action is required.
+ * For Java actions, a base64-encoded string representing a jar file is
+ * required, as well as the name of the entrypoint class.
  *
  * exec: { kind  : one of "nodejs", "blackbox", "swift",
  *         code  : code to execute if kind is "nodejs" or "swift",
  *         init  : optional zipfile reference when kind is "nodejs",
- *         image : container name when kind is "blackbox" }
+ *         image : container name when kind is "blackbox",
+ *         jar   : a base64-encoded JAR file when kind is "java",
+ *         name  : a fully-qualified class name when kind is "java" }
  */
 sealed abstract class Exec(val kind: String) {
     def image: String
@@ -57,6 +64,10 @@ sealed abstract class Exec(val kind: String) {
 
             case SwiftExec(code) =>
                 gson.add("code", new JsonPrimitive(code))
+
+            case JavaExec(jar, main) =>
+                gson.add("jar",  new JsonPrimitive(jar))
+                gson.add("main", new JsonPrimitive(main))
         }
 
         gson
@@ -75,18 +86,26 @@ protected[core] case class SwiftExec(code: String) extends Exec(Exec.SWIFT) {
     val image = "whisk/swiftaction"
 }
 
+protected[core] case class JavaExec(jar: String, main: String) extends Exec(Exec.JAVA) {
+    val image = "whisk/javaaction"
+}
+
 protected[core] object Exec
     extends ArgNormalizer[Exec]
     with DefaultJsonProtocol {
 
+    private lazy val b64decoder = Base64.getDecoder()
+
     // The possible values of the JSON 'kind' field.
-    protected[core] val NODEJS = "nodejs"
+    protected[core] val NODEJS   = "nodejs"
     protected[core] val BLACKBOX = "blackbox"
-    protected[core] val SWIFT = "swift"
+    protected[core] val SWIFT    = "swift"
+    protected[core] val JAVA     = "java"
 
     protected[core] def js(code: String, init: String = null): Exec = NodeJSExec(trim(code), Option(init).map(_.trim))
     protected[core] def bb(image: String): Exec = BlackBoxExec(trim(image))
     protected[core] def swift(code: String): Exec = SwiftExec(trim(code))
+    protected[core] def java(jar: String, main: String): Exec = JavaExec(trim(jar), trim(main))
 
     override protected[core] implicit val serdes = new RootJsonFormat[Exec] {
         override def write(e: Exec) = e match {
@@ -94,6 +113,7 @@ protected[core] object Exec
             case NodeJSExec(code, Some(init)) => JsObject("kind" -> JsString(Exec.NODEJS), "code" -> JsString(code), "init" -> JsString(init))
             case BlackBoxExec(image)          => JsObject("kind" -> JsString(Exec.BLACKBOX), "image" -> JsString(image))
             case SwiftExec(code)              => JsObject("kind" -> JsString(Exec.SWIFT), "code" -> JsString(code))
+            case JavaExec(jar, main)          => JsObject("kind" -> JsString(Exec.JAVA), "jar" -> JsString(jar), "main" -> JsString(main))
         }
 
         override def read(v: JsValue) = {
@@ -114,26 +134,37 @@ protected[core] object Exec
                     }
                     val init: Option[String] = obj.getFields("init") match {
                         case Seq(JsString(i)) => Some(i)
-                        case Seq(_)           => throw new DeserializationException(s"if defined, 'init' must a string in 'exec' for '${Exec.NODEJS}' actions")
-                        case _                => None
+                        case Seq(_) => throw new DeserializationException(s"if defined, 'init' must a string in 'exec' for '${Exec.NODEJS}' actions")
+                        case _ => None
                     }
                     NodeJSExec(code, init)
 
-                case "blackbox" =>
+                case Exec.BLACKBOX =>
                     val image: String = obj.getFields("image") match {
                         case Seq(JsString(i)) => i
-                        case _                => throw new DeserializationException(s"'image' must be a string defined in 'exec' for '${Exec.BLACKBOX}' actions")
+                        case _ => throw new DeserializationException(s"'image' must be a string defined in 'exec' for '${Exec.BLACKBOX}' actions")
                     }
                     BlackBoxExec(image)
 
-                case "swift" =>
+                case Exec.SWIFT =>
                     val code: String = obj.getFields("code") match {
                         case Seq(JsString(c)) => c
-                        case _                => throw new DeserializationException(s"'code' must be a string defined in 'exec' for '${Exec.SWIFT}' actions")
+                        case _ => throw new DeserializationException(s"'code' must be a string defined in 'exec' for '${Exec.SWIFT}' actions")
                     }
                     SwiftExec(code)
 
-                case _ => throw new DeserializationException(s"'kind' must be one of {${Exec.NODEJS},${Exec.BLACKBOX},${Exec.SWIFT}")
+                case Exec.JAVA =>
+                    val jar: String = obj.getFields("jar") match {
+                        case Seq(JsString(j)) => j //if Try(b64decoder.decode(j)).isSuccess => j
+                        case _ => throw new DeserializationException(s"'jar' must be a valid base64 string in 'exec' for '${Exec.JAVA}' actions")
+                    }
+                    val main: String = obj.getFields("main") match {
+                        case Seq(JsString(m)) => m
+                        case _ => throw new DeserializationException(s"'main' must be a string defined in 'exec' for '${Exec.JAVA}' actions")
+                    }
+                    JavaExec(jar, main)
+
+                case _ => throw new DeserializationException(s"'kind' must be one of {${Exec.NODEJS},${Exec.BLACKBOX},${Exec.SWIFT},${Exec.JAVA}}")
             }
         }
     }
