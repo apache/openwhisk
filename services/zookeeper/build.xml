@@ -6,15 +6,6 @@
     <import file="../../docker.xml" />
     <import file="../../build.xml" />
 
-    <target name="pushZookeeper" >
-        <var file="whisk.properties" />
-
-        <antcall target="pushImageToRegistry">
-            <param name="docker.endpoint" value="${main.docker.endpoint}" />
-            <param name="docker.image.to.push" value="whisk/zookeeper" />
-        </antcall>
-    </target>
-
     <!-- start zookeeper in a container -->
     <target name="startZookeeper"  >
         <var file="whisk.properties" />

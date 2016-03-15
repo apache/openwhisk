@@ -4,14 +4,6 @@
 <project basedir="../..">
     <import file="../../docker.xml" />
 
-    <target name="pushConsul" >
-        <var file="whisk.properties" />
-        <antcall target="pushImageToRegistry">
-            <param name="docker.endpoint" value="${main.docker.endpoint}" />
-            <param name="docker.image.to.push" value="whisk/consul" />
-        </antcall>
-    </target>
-
     <!-- start the consul server -->
     <target name="startConsulServer">
         <var file="whisk.properties" />

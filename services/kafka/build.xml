@@ -4,14 +4,6 @@
     <import file="../../docker.xml" />
     <import file="../../build.xml" />
 
-    <target name="pushKafka" >
-        <var file="whisk.properties" />
-        <antcall target="pushImageToRegistry">
-            <param name="docker.endpoint" value="${main.docker.endpoint}" />
-            <param name="docker.image.to.push" value="whisk/kafka" />
-        </antcall>
-    </target>
-
     <!-- start kafka in a container -->
     <target name="startKafka">
         <var file="whisk.properties" />
