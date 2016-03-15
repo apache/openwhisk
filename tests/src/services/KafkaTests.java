@@ -35,6 +35,7 @@ import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.Ignore;
 import org.junit.rules.TestRule;
 
 import common.TestUtils;
@@ -43,6 +44,7 @@ import common.WhiskProperties;
 /**
  * Tests that interact directly with kafka
  */
+@Ignore //ignoring until intermittent fails have been resolved. test works if KafkaConnectorTests.java runs first.
 public class KafkaTests {
 
     @Rule
