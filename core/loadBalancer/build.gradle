@@ -24,7 +24,7 @@ mainClassName = "whisk.core.loadBalancer.LoadBalancer"
 startScripts {
     doLast {
         def lines = unixScript.readLines()
-        lines[lines.size()-1] = lines.last() + ' >> /logs/' + project.name + '_logs.log 2>&1'
+        lines[lines.size()-1] = lines.last() + ' >> /logs/${COMPONENT_NAME}_logs.log 2>&1'
         unixScript.text = lines.join("\n")
     }
 }
