@@ -15,8 +15,7 @@ RUN apt-get update --fix-missing && \
 # Install Image Magick
 RUN apt-get update && apt-get install -y imagemagick
 
-# Install "standard" npm packages (above and beyond the list in the base
-# whisk/js image
+# Install "standard" npm packages 
 RUN npm install -g apn@1.7.4 \
 async@1.5.2 \
 cheerio@0.20.0 \
