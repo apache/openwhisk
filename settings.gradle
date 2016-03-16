@@ -5,6 +5,7 @@ include 'core:dispatcher'
 include 'core:loadBalancer'
 include 'core:nodejsAction'
 include 'core:swiftAction'
+include 'core:javaAction'
 
 include 'services:consul'
 include 'services:kafka'

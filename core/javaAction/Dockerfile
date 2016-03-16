@@ -15,7 +15,7 @@ RUN apt-get -y install oracle-java8-installer
 
 RUN apt-get clean
 
-ADD . /javaAction
+ADD proxy /javaAction
 
 RUN rm -rf /javaAction/.classpath /javaAction/.gitignore /javaAction/.gradle /javaAction/.project /javaAction/.settings /javaAction/Dockerfile /javaAction/build
 
