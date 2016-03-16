@@ -39,6 +39,7 @@ import whisk.common.Verbosity
 import whisk.common.Verbosity.Level
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.whiskVersionDate
+import whisk.core.WhiskConfig.whiskVersionBuildno
 import whisk.core.connector.LoadBalancerResponse
 import whisk.core.entitlement.Collection
 import whisk.core.entitlement.EntitlementService
@@ -54,7 +55,8 @@ import whisk.core.entity.types.EntityStore
 
 abstract protected[controller] class RestAPIVersion(
     protected val apiversion: String,
-    protected val build: String)
+    protected val build: String,
+    protected val buildno: String)
     extends Directives {
 
     /** Base API prefix. */
@@ -70,7 +72,8 @@ abstract protected[controller] class RestAPIVersion(
         JsObject(
             "openwhisk" -> "hello".toJson,
             "version" -> apiversion.toJson,
-            "build" -> build.toJson)
+            "build" -> build.toJson,
+            "buildno" -> buildno.toJson)
     }
 }
 
@@ -92,7 +95,7 @@ protected[controller] class RestAPIVersion_v1(
     verbosity: Verbosity.Level,
     implicit val actorSystem: ActorSystem,
     implicit val executionContext: ExecutionContext)
-    extends RestAPIVersion("v1", config(whiskVersionDate))
+    extends RestAPIVersion("v1", config(whiskVersionDate), config(whiskVersionBuildno))
     with Authenticate
     with AuthenticatedRoute {
 

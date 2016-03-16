@@ -81,7 +81,12 @@ class WskBasicTests
         val stdout = wsk.cli(wskprops.overrides ++ Seq("property", "get", "--apibuild")).stdout
         stdout should include regex ("""whisk API build*.*201.*\n""")
     }
-
+    
+    it should "show api build number" in {
+        val stdout = wsk.cli(wskprops.overrides ++ Seq("property", "get", "--apibuildno")).stdout
+        stdout should include regex ("""whisk API build*.*.*\n""")
+    }
+    
     it should "set auth in property file" in {
         val wskprops = File.createTempFile("wskprops", ".tmp")
         val env = Map("WSK_CONFIG_FILE" -> wskprops.getAbsolutePath())

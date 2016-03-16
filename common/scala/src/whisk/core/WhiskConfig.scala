@@ -1,4 +1,5 @@
 /*
+
  * Copyright 2015-2016 IBM Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -131,8 +132,9 @@ object WhiskConfig {
     val edgeHostName = "edge.host"
     val whiskVersionName = "whisk.version.name"
     val whiskVersionDate = "whisk.version.date"
-
-    val whiskVersion = Map(whiskVersionName -> null, whiskVersionDate -> null)
+    val whiskVersionBuildno = "whisk.version.buildno"
+    
+    val whiskVersion = Map(whiskVersionName -> null, whiskVersionDate -> null, whiskVersionBuildno -> null)
 
     val dockerImageTag = "docker.image.tag"
 

@@ -131,6 +131,7 @@ def parseArgs(props):
     subcmd.add_argument('--namespace', help='namespace', action='store_true')
     subcmd.add_argument('--cliversion', help='whisk CLI version', action='store_true')
     subcmd.add_argument('--apibuild', help='whisk API build version', action='store_true')
+    subcmd.add_argument('--apibuildno', help='whisk API build number', action='store_true')
 
     listmenu = subparsers.add_parser('list', help='list all triggers, actions, and rules in the registry')
     listmenu.add_argument('name', nargs='?', help='the namespace to list')
@@ -203,7 +204,7 @@ def propCmd(args, props, userprops, propsLocation):
             print 'ok: whisk namespace unset'
         return 0
     elif args.subcmd == 'get':
-        args.all = args.auth == args.apihost == args.apiversion == args.namespace == args.cliversion == args.apibuild == False
+        args.all = args.auth == args.apihost == args.apiversion == args.namespace == args.cliversion == args.apibuild == args.apibuildno == False
         if args.all or args.auth:
             print 'whisk auth\t\t%s' % userprops.get('AUTH')
         if args.all or args.apihost:
@@ -226,6 +227,18 @@ def propCmd(args, props, userprops, propsLocation):
                     return responseError(res, prefix=None)
             else:
                 print 'whisk API build\t\tNone',
+        if args.all or args.apibuildno:
+            if props['apihost'] is not None:
+                url = 'https://%(apibase)s' % { 'apibase' : apiBase(props) }
+                res = request('GET', url, verbose=args.verbose)
+                if res.status == httplib.OK:
+                    result = json.loads(res.read())
+                    print 'whisk API buildno\t%s' % result['buildno']
+                else:
+                    print 'whisk API build\t\tCannot determine API buildno:',
+                    return responseError(res, prefix=None)
+            else:
+                print 'whisk API buildno\t\tNone',
         return 0
     return 2
 
