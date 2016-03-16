@@ -1,4 +1,6 @@
 /bin/
+/build/
 .cache-main
-/target/
-build
+.project
+.classpath
+/.settings/

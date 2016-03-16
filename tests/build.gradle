@@ -1,4 +1,5 @@
 apply plugin: 'scala'
+apply plugin: 'eclipse'
 compileJava.options.encoding = 'UTF-8'
 
 repositories {

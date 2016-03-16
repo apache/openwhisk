@@ -2,9 +2,6 @@
 <projectDescription>
 	<name>consul</name>
 	<comment></comment>
-	<projects>
-		<project>common-scala</project>
-	</projects>
 	<buildSpec>
 		<buildCommand>
 			<name>org.scala-ide.sdt.core.scalabuilder</name>
