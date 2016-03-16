@@ -200,6 +200,7 @@ class Invoker(
             tran.result match {
                 case Some(res) => res
                 case None => {
+                    activationCounter.next()   // this is the global invoker counter
                     incrementUserActivationCounter(tran.msg.subject)
                     // Since there is no active action taken for completion from the invoker, writing activation record is it.
                     val result = WhiskActivation.put(activationStore, activation)
@@ -213,7 +214,6 @@ class Invoker(
     protected def invokeAction(action: WhiskAction, auth: WhiskAuth, payload: JsObject, tran: Transaction)(
         implicit transid: TransactionId): Future[DocInfo] = {
         val msg = tran.msg
-        activationCounter.next()
         val getStart = Instant.now(Clock.systemUTC())
         pool.getAction(action, auth) match {
             case Some((con, initResultOpt)) => Future {
