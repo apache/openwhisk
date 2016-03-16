@@ -21,12 +21,9 @@ before_install:
   - pip install --user argcomplete
   - ./tools/travis/setup.sh
 
-# skip automatic gradle execution
-install: /bin/true
-
 script:
   - ./tools/db/couchdb/start-couchdb-box.sh whisk_couchdb_admin some_gener1c_passw0rd
   - ./tools/db/createImmortalDBs.sh --dropit
   - ant build
   - ant deploy
-  - ant run
+  - ant run -Dtestsfailonfailure=true
