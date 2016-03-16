@@ -35,6 +35,7 @@ echo "nginx.conf.dir="$NGINX_CONF_DIR >> "$WHISK_HOME/whisk.properties"
 # Write configuration information to whisk.properties
 echo "whisk.version.name" = $WHISK_CONFIG_NAME >> "$WHISK_HOME/whisk.properties"
 echo "whisk.version.date" = `date '+%Y-%m-%dT%H:%M:%S%:z' ` >> "$WHISK_HOME/whisk.properties"
+echo "whisk.version.buildno" = "$DOCKER_IMAGE_TAG" >> "$WHISK_HOME/whisk.properties"
 
 # Authorization to use for unit tests
 echo "testing.auth=$WHISK_TEST_AUTH" >> "$WHISK_HOME/whisk.properties"
