@@ -1,6 +1,6 @@
 apply plugin: 'scala'
 apply plugin: 'eclipse'
-compileJava.options.encoding = 'UTF-8'
+compileTestScala.options.encoding = 'UTF-8'
 
 repositories {
     mavenCentral()
@@ -18,7 +18,7 @@ sourceSets {
 }
 
 test {
-    jvmArgs = [ "-Dtestthreads=1" ]
+    systemProperty 'testthreads', System.getProperty('testthreads', '1')
     testLogging {
         events "passed", "skipped", "failed"
     }
