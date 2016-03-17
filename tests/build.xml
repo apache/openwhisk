@@ -2,8 +2,9 @@
 <project basedir="..">
     <!-- run the standard suite of JUnit tests -->
     <target name="runTests">
-        <exec executable="./gradlew" failonerror="true">
+        <exec executable="./gradlew" failonerror="${testsfailonfailure}">
             <arg value=":tests:test" />
+            <arg line="-Dtestthreads=${testthreads}" />
         </exec>
     </target>
 </project>
