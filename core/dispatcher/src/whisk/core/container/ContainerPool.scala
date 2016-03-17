@@ -327,6 +327,10 @@ class ContainerPool(
         val limits = ActionLimits()
         val warmContainerName = "someWarmContainer"
         val con = new WhiskContainer(this, warmNodejsKey, warmContainerName, imageName, network, false, env, limits)
+        con.pause()
+        this.synchronized {
+            introduceContainer(warmNodejsKey, con)
+        }
         info(this, s"ContainerPool: started warm nodejs container")
         con
     }
