@@ -1,0 +1,21 @@
+ext {
+    dockerRegistry = project.hasProperty('dockerRegistry') ? dockerRegistry + '/' : ''
+    dockerImageTag = project.hasProperty('dockerImageTag') ? dockerImageTag : 'latest'
+}
+
+def docker = ['docker']
+if(project.hasProperty('dockerRetry')) {
+    docker = [file(buildscript.sourceFile).getParentFile().getAbsolutePath() + '/tools/docker/dockerWithRetry.sh', '240']
+}
+
+task distDocker(type:Exec) {
+    commandLine docker + ['build', '-t', dockerImageName, project.buildscript.sourceFile.getParentFile().getAbsolutePath()]
+}
+task tagImage(type: Exec) {
+    commandLine 'docker', 'tag', '-f', dockerImageName, dockerRegistry + dockerImageName + ':' + dockerImageTag
+}
+task pushImage(dependsOn: tagImage, type:Exec) {
+    commandLine docker + ['push', dockerRegistry + dockerImageName + ':' + dockerImageTag]
+}
+pushImage.onlyIf { dockerRegistry != '' }
+distDocker.finalizedBy pushImage

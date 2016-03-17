@@ -29,6 +29,7 @@
         <ant target="scanCode" />
         <exec executable="./gradlew" failonerror="true">
             <arg value="distDocker" />
+            <arg value="-PdockerRetry" />
         </exec>
         <ant antfile="${openwhisk.dir}/services/nginx/build.xml" target="buildProxy" />
     </target>
