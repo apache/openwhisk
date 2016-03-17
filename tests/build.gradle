@@ -21,6 +21,8 @@ test {
     systemProperty 'testthreads', System.getProperty('testthreads', '1')
     testLogging {
         events "passed", "skipped", "failed"
+        showStandardStreams = true
+        exceptionFormat = 'full'
     }
     outputs.upToDateWhen { false } // force tests to run everytime
 }
@@ -53,6 +55,9 @@ task deleteKeystore(type: Delete) {
     delete keystorePath
 }
 task createKeystore(dependsOn: deleteKeystore, type:Exec) {
-    commandLine 'keytool', '-import', '-alias', 'Whisk', '-noprompt', '-trustcacerts', '-file', '../config/keys/openwhisk-self-cert.pem', '-keystore', keystorePath, '-storepass', 'openwhisk'
+    Properties props = new Properties()
+    props.load(new FileInputStream(file('../whisk.properties')))
+    def whiskCert = file('../' + props['whisk.ssl.cert'])
+    commandLine 'keytool', '-import', '-alias', 'Whisk', '-noprompt', '-trustcacerts', '-file', whiskCert.getAbsolutePath(), '-keystore', keystorePath, '-storepass', 'openwhisk'
 }
 compileTestScala.finalizedBy createKeystore

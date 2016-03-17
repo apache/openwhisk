@@ -1,6 +1,10 @@
 apply plugin: 'scala'
 apply plugin: 'application'
 apply plugin: 'eclipse'
+
+ext.dockerImageName = 'whisk/dispatcher'
+apply from: '../../docker.gradle'
+distDocker.dependsOn ':common:scala:distDocker', 'distTar'
  
 repositories {
     mavenCentral()
@@ -9,10 +13,11 @@ repositories {
 sourceSets {
     main {
         scala {
-            srcDirs = ['src/']
+            srcDir 'src'
+            exclude 'resources/**'
         }
         resources {
-            srcDirs = ['src/']
+            srcDir 'src/resources'
         }
     }
 }
@@ -29,19 +34,3 @@ startScripts {
         unixScript.text = lines.join("\n")
     }
 }
-
-def dockerImageName = project.name
-def dockerRegistry =  project.hasProperty('dockerRegistry') ? dockerRegistry + '/' : ''
-def dockerImageTag = project.hasProperty('dockerImageTag') ? dockerImageTag : 'latest'
-
-task distDocker(dependsOn:[distTar, ':common:scala:distDocker'], type:Exec) {
-    commandLine 'docker', 'build', '-t', 'whisk/' + dockerImageName, '.'
-}
-task tagImage(type: Exec) {
-    commandLine 'docker', 'tag', '-f', 'whisk/' + dockerImageName, dockerRegistry + 'whisk/' + dockerImageName + ':' + dockerImageTag
-}
-task pushImage(dependsOn: tagImage, type:Exec) {
-    commandLine 'docker', 'push', dockerRegistry + 'whisk/' + dockerImageName + ':' + dockerImageTag
-}
-pushImage.onlyIf { dockerRegistry != '' }
-distDocker.finalizedBy pushImage

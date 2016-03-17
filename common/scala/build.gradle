@@ -1,5 +1,8 @@
 apply plugin: 'scala'
 apply plugin: 'eclipse'
+
+ext.dockerImageName = 'whisk/scala'
+apply from: '../../docker.gradle'
  
 repositories {
     mavenCentral()
@@ -8,10 +11,11 @@ repositories {
 sourceSets {
     main {
         scala {
-            srcDirs = ['src/']
+            srcDir 'src'
+            exclude 'resources/**'
         }
         resources {
-            srcDirs = ['src/']
+            srcDir 'src/resources'
         }
     }
 }
@@ -40,9 +44,4 @@ dependencies {
     compile 'org.apache.kafka:kafka-clients:0.9.0.0'
     compile 'com.google.code.gson:gson:2.3.1'
     compile 'org.apache.httpcomponents:httpclient:4.4.1'
-}
-
-def dockerImageName = project.name
-task distDocker(type:Exec) {
-    commandLine 'docker', 'build', '-t', 'whisk/' + dockerImageName, '.'
 }

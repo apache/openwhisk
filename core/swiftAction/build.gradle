@@ -1,15 +1,2 @@
-def dockerImageName = 'swiftaction'
-def dockerRegistry =  project.hasProperty('dockerRegistry') ? dockerRegistry + '/' : ''
-def dockerImageTag = project.hasProperty('dockerImageTag') ? dockerImageTag : 'latest'
-
-task distDocker(type:Exec) {
-     commandLine 'docker', 'build', '-t', 'whisk/' + dockerImageName, '.'
-}
-task tagImage(type: Exec) {
-    commandLine 'docker', 'tag', '-f', 'whisk/' + dockerImageName, dockerRegistry + 'whisk/' + dockerImageName + ':' + dockerImageTag
-}
-task pushImage(dependsOn: tagImage, type:Exec) {
-    commandLine 'docker', 'push', dockerRegistry + 'whisk/' + dockerImageName + ':' + dockerImageTag
-}
-pushImage.onlyIf { dockerRegistry != '' }
-distDocker.finalizedBy pushImage
+ext.dockerImageName = 'whisk/swiftaction'
+apply from: '../../docker.gradle'

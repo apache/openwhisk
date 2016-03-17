@@ -1,15 +1,10 @@
-def dockerImageName = 'nodejsaction'
-def dockerRegistry =  project.hasProperty('dockerRegistry') ? dockerRegistry + '/' : ''
-def dockerImageTag = project.hasProperty('dockerImageTag') ? dockerImageTag : 'latest'
+apply plugin: 'eclipse'
+eclipse {
+    project {
+        natures 'org.eclipse.wst.jsdt.core.jsNature'
+        buildCommand 'org.eclipse.wst.jsdt.core.javascriptValidator'
+    }
+}
 
-task distDocker(type:Exec) {
-     commandLine 'docker', 'build', '-t', 'whisk/' + dockerImageName, '.'
-}
-task tagImage(type: Exec) {
-    commandLine 'docker', 'tag', '-f', 'whisk/' + dockerImageName, dockerRegistry + 'whisk/' + dockerImageName + ':' + dockerImageTag
-}
-task pushImage(dependsOn: tagImage, type:Exec) {
-    commandLine 'docker', 'push', dockerRegistry + 'whisk/' + dockerImageName + ':' + dockerImageTag
-}
-pushImage.onlyIf { dockerRegistry != '' }
-distDocker.finalizedBy pushImage
+ext.dockerImageName = 'whisk/nodejsaction'
+apply from: '../../docker.gradle'

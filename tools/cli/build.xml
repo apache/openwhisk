@@ -24,6 +24,7 @@
         <copy todir="${cli.build.dir}/openwhisk">
             <fileset dir="${openwhisk.dir}/tools/cli">
                 <!--<include name="default.props" />-->
+                <exclude name=".project" />
                 <exclude name="*.pyc" />
                 <exclude name="setup.py" />
             </fileset>

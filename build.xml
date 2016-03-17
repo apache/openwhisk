@@ -21,6 +21,9 @@
 
     <!-- kill all containers, garbage collect docker images, and delete scratch directories -->
     <target name="clean" depends="dust,teardown">
+        <exec executable="./gradlew" failonerror="true">
+            <arg value="clean" />
+        </exec>
     </target>
 
     <!-- compile and build images -->
@@ -28,7 +31,9 @@
         <var file="whisk.properties" />
         <ant target="scanCode" />
         <exec executable="./gradlew" failonerror="true">
+            <env key="DOCKER_HOST" value="${main.docker.endpoint}" />
             <arg value="distDocker" />
+            <arg value="-PdockerRetry" />
         </exec>
         <ant antfile="${openwhisk.dir}/services/nginx/build.xml" target="buildProxy" />
     </target>
