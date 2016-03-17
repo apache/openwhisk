@@ -7,6 +7,5 @@ chmod +x /usr/bin/docker
 
 COPY build/distributions/dispatcher.tar ./
 RUN tar xf dispatcher.tar
-CMD dispatcher/bin/dispatcher
 
 EXPOSE 8080
