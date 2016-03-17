@@ -53,7 +53,8 @@ import whisk.core.entity.WhiskEntityStore
  */
 class ContainerPool(
     config: WhiskConfig,
-    invokerInstance: Integer = 0)
+    invokerInstance: Integer = 0,
+    useWarmContainers : Boolean = true)
     extends ContainerUtils {
 
     val dockerhost = config.selfDockerEndpoint
@@ -207,7 +208,8 @@ class ContainerPool(
                         // Unfortuantely, variables are not allowed in pattern alternatives even when the types line up.
                         case res @ Success(con, initResult) =>
                             this.synchronized {
-                                introduceContainer(key, con)
+                                val ci = introduceContainer(key, con)
+                                ci.state = State.Active
                                 res
                             }
                         case res @ Error(_) => return res
@@ -372,6 +374,8 @@ class ContainerPool(
 
     /*
      * The caller must have synchronized to maintain data structure atomicity.
+     * 
+     * Add the container into the data structure in an Idle state.
      */
     private def introduceContainer(key: String, container: Container)(implicit transid: TransactionId): ContainerInfo = {
         val ci = new ContainerInfo(key, container)
@@ -381,7 +385,6 @@ class ContainerPool(
             keyMap += key -> ListBuffer(ci)
         containerMap += container -> ci
         dumpState("introduceContainer")
-        ci.state = State.Active
         ci
     }
 
@@ -525,7 +528,8 @@ class ContainerPool(
         con.containerId map { id => getDockerLogSize(id, mounted) } getOrElse 0
     }
 
-    warmupThread.start
+    if (useWarmContainers)
+        warmupThread.start
 }
 
 object ContainerPool {
