@@ -1,2 +1,10 @@
+apply plugin: 'eclipse'
+eclipse {
+    project {
+        natures 'org.eclipse.wst.jsdt.core.jsNature'
+        buildCommand 'org.eclipse.wst.jsdt.core.javascriptValidator'
+    }
+}
+
 ext.dockerImageName = 'whisk/nodejsaction'
 apply from: '../../docker.gradle'
