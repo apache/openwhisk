@@ -128,7 +128,7 @@ def createUserCmd(args, props):
     }
 
     res = request('POST', url, body, headers, auth='%s:%s' % (username, password), verbose=args.verbose)
-    if res.status == 201:
+    if res.status in [201, 202]:
         print '%s:%s' % (doc['uuid'], doc['key'])
     else:
         print 'Failed to create subject (%s)' % res.read().strip()
@@ -198,7 +198,7 @@ def deleteUserCmd(args, props):
     }
 
     res = request('DELETE', url, headers=headers, auth='%s:%s' % (username, password), verbose=args.verbose)
-    if res.status == 200:
+    if res.status in [200, 202]:
         print 'Subject deleted'
     else:
         print 'Failed to delete subject (%s)' % res.read().strip()
