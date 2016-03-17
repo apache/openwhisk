@@ -21,6 +21,9 @@
 
     <!-- kill all containers, garbage collect docker images, and delete scratch directories -->
     <target name="clean" depends="dust,teardown">
+        <exec executable="./gradlew" failonerror="true">
+            <arg value="clean" />
+        </exec>
     </target>
 
     <!-- compile and build images -->
