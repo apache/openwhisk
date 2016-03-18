@@ -19,7 +19,7 @@ package whisk.core.database
 import org.lightcouch.{ View => CouchView }
 
 object CouchDbStore {
-  def make[R,D](protocol: String, host: String, port: Int, dbUsername: String, dbPassword: String, dbName: String)(implicit ev: D <:< DocumentSerializer) = {
+  def make[R,D <: DocumentSerializer](protocol: String, host: String, port: Int, dbUsername: String, dbPassword: String, dbName: String) = {
       require(protocol == "http" || protocol == "https", "Protocol must be one of { http, https }")
       new CouchDbLikeStore[CouchView,R,D](CouchDbProvider, protocol, host, port, dbUsername, dbPassword, dbName)
   }
