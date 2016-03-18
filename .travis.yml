@@ -12,6 +12,8 @@ notifications:
   slack:
     secure: o3G52M7mQgK+2OKr7YOUxrO2sop0IVvFu5L5XbfR/t3HHvsuyz3DJRNPT36Wz0Stm6XZh29o+tNt8MsRvVrb7sqkHn8Vd+PMFl7hiyo82UJkTkb0fQ5Xd9VY86MIBZrXfBCmoi52eFmV/sxei6HndY5SboFYtS4sqaS01cDxM3aiKMZTjTWZCi1k4O0OCTg4VNcaOOjgsU4DODohHZjAmevEbhSmLzJflOXYK3hmcegq6ccf50q/KxH4wzhmkKaXcD6FTvpb6HlJ1wJ1GtzisQJbH3eTd5Jy2SgWXtYbPKi+kMtpI0cwj6W70lzlkKKGt13/B6f4SNn80V7RxSN9pUms62FQfmDzY/H8p7QK7ffL1Te4BxDRaN0KYQ1i7o2APod8htuviEGuGFRcfM6tc6G8jUQkG2HksleuaX5j64fYpbc1ElqNlDPX1yVx0yeaNZYk7gxr9qbtk8pDcHuCZOAfc7R1PYiS6InPVv6D/N/xqSSqTBR9okAOEJj2TPvljhToeP3h5ZGjr1u2lWt9oOZreSjppQZzFHuF7XjDm0TbmY9v0VujNH/r6h0pznUbnvRnU06nF1YL4qmFhZMtm454D356eCsNtOhHgi4BgxMyPzqZ+hzPItb5BfG7vw1OTnzN1yodIrGZYpOO1Np7vVEpuTC8lc5UIZU827UT7MA=
 
+install: true
+
 before_install:
   - sudo apt-get -y update -qq
   - sudo apt-get -o Dpkg::Options::="--force-confnew" --force-yes -y install docker-engine
