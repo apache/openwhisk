@@ -73,8 +73,7 @@ protected[core] trait WhiskDocument
 }
 
 protected[core] object Util {
-    def makeStore[RawDocument, DocumentAbstraction](config: WhiskConfig, name: WhiskConfig=>String)
-      (implicit ev: DocumentAbstraction <:< DocumentSerializer) : ArtifactStore[RawDocument, DocumentAbstraction] = {
+    def makeStore[R, D <: DocumentSerializer](config: WhiskConfig, name: WhiskConfig=>String) : ArtifactStore[R, D] = {
         require(config != null && config.isValid, "config is undefined or not valid")
         require(config.dbProvider == "Cloudant" || config.dbProvider == "CouchDB", "Unsupported db.provider: " + config.dbProvider)
 

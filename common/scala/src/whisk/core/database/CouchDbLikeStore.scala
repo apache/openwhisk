@@ -38,14 +38,14 @@ import spray.json.JsArray
  * @param dbName the name of the database to operate on
  * @param serializerEvidence confirms the document abstraction is serializable to a Document with an id
  */
-class CouchDbLikeStore[View: CouchDbLikeViewProvider, RawDocument, DocumentAbstraction](
+class CouchDbLikeStore[View: CouchDbLikeViewProvider, RawDocument, DocumentAbstraction <: DocumentSerializer](
     dbProvider: CouchDbLikeProvider[View],
     dbProtocol: String,
     dbHost: String,
     dbPort: Int,
     dbUsername: String,
     dbPassword: String,
-    dbName: String)(implicit providerserializerEvidence: DocumentAbstraction <:< DocumentSerializer)
+    dbName: String)
     extends ArtifactStore[RawDocument, DocumentAbstraction] {
 
     private val viewProvider = implicitly[CouchDbLikeViewProvider[View]]
