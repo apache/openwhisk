@@ -21,6 +21,8 @@ test {
     systemProperty 'testthreads', System.getProperty('testthreads', '1')
     testLogging {
         events "passed", "skipped", "failed"
+        showStandardStreams = true
+        exceptionFormat = 'full'
     }
     outputs.upToDateWhen { false } // force tests to run everytime
 }
