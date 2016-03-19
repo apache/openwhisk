@@ -13,10 +13,11 @@ repositories {
 sourceSets {
     main {
         scala {
-            srcDirs = ['src/']
+            srcDir 'src'
+            exclude 'resources/**'
         }
         resources {
-            srcDirs = ['src/']
+            srcDir 'src/resources'
         }
     }
 }
