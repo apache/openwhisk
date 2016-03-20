@@ -31,6 +31,7 @@
         <var file="whisk.properties" />
         <ant target="scanCode" />
         <exec executable="./gradlew" failonerror="true">
+            <env key="DOCKER_HOST" value="${main.docker.endpoint}" />
             <arg value="distDocker" />
             <arg value="-PdockerRetry" />
         </exec>
