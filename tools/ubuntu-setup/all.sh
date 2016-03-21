@@ -18,3 +18,6 @@ source ./docker.sh
 
 echo "*** installing gradle"
 source ./gradle.sh
+
+echo "*** installing ansible"
+source ./ansible.sh
