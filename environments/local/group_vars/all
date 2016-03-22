@@ -1,0 +1,44 @@
+nginx:
+  conf:
+    dir: /tmp/nginx
+whisk:
+  version:
+    date: "21-02-2016"
+    name: "ansible"
+  ssl:
+    cert: config/keys/openwhisk-self-cert.pem
+    key: config/keys/openwhisk-self-key.pem
+  logs:
+    dir: /tmp/wsklogs
+docker:
+  restart:
+    policy: always
+
+controller:
+  host: 172.17.0.1
+  port: 10001
+
+consul:
+  host: 172.17.0.1
+  port4: 8500
+  port5: 8600
+
+kafka:
+  host: 172.17.0.1
+  port: 9092
+  ras:
+    port: 9093
+
+zookeeper:
+  host: 172.17.0.1
+  port: 2181
+
+activator:
+  host: 172.17.0.1
+  port: 12000
+
+invoker:
+  port: 12001
+
+loadBalancer:
+  port: 10003
