@@ -1,0 +1,8 @@
+source 'https://github.com/openwhisk/openwhisk-podspecs.git'
+
+use_frameworks!
+
+target 'OpenWhiskStarterApp' do
+     platform :ios, '9.0'
+     pod 'OpenWhisk'
+end
