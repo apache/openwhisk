@@ -1,0 +1,33 @@
+- name: Deploy Consul Servers
+  hosts: edge
+  tasks:
+  - name: (Re)start consul server
+    docker:
+      name: consul
+      image: whisk/consul
+      state: reloaded
+      command: /startconsulserver.sh
+      restart_policy: "{{docker.restart.policy}}"
+      volumes:
+        - "{{whisk.logs.dir}}/consul-server:/logs"
+      ports:
+        - "{{consul.port5}}:53"
+        - "{{consul.port4}}:8500"
+  - pause: seconds=5
+  - name: Fill in whisk.properties
+    local_action: command python "{{playbook_dir}}/../../tools/health/kvstore" --import -d "{{playbook_dir}}/../../"
+
+- name: Deploy Consul Registrators
+  hosts: all
+  tasks:
+  - name: (Re)start registrator
+    docker:
+      name: registrator
+      image: gliderlabs/registrator
+      state: reloaded
+      restart_policy: "{{docker.restart.policy}}"
+      log_driver: syslog
+      volumes:
+        - "{{whisk.logs.dir}}/consul-server:/logs"
+        - "/var/run/docker.sock:/tmp/docker.sock"
+      command: "-ip {{ansible_host}} -resync 2 consul://{{consul.host}}:{{consul.port4}}"
