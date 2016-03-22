@@ -8,7 +8,7 @@ ROOTDIR="$SCRIPTDIR/../.."
 # Install necessary tools.
 (
     cd ./tools/ubuntu-setup
-    ./misc.sh && ./ant.sh && ./scala.sh
+    ./misc.sh && ./ant.sh && ./scala.sh && ./ansible.sh
 )
 
 # Setup docker
