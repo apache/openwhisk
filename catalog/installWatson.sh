@@ -26,6 +26,8 @@ install 'watson/translate.js'       watson/translate \
 install 'watson/languageId.js'      watson/languageId \
     -a description 'Identify language' \
     -a parameters '[ {"name":"username", "required":true, "bindTime":true}, {"name":"password", "required":true, "type":"password", "bindTime":true}, {"name":"payload", "required":true} ]' \
+    -a sampleInput '{"payload": "Bonjour", "username":"XXX", "password":"XXX"}' \
+    -a sampleOutput '{"language": "French", confidence: 1}'
 
 waitForAll
 
