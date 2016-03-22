@@ -41,7 +41,7 @@ install utils/date.js             util/date -a description 'Current date and tim
 
 install samples/hello.js          samples/helloWorld -a description 'Demonstrates logging facilities' -a parameters '[{"name": "payload", "required":false, "description":"The string to be included in the log record"}]' \
                                            -a sampleInput '{ "payload": "Cat" }' \
-                                           -a sampleOutput '{ }'
+                                           -a sampleOutput '{ }' \
                                            -a sampleLogOutput '2016-03-22T01:02:26.387624916Z stdout: hello Cat!'
 
 install samples/greeting.js       samples/greeting -a description 'Returns a friendly greeting' -a parameters '[{"name": "name", "required":false}, {"name": "place", "required":false, "description":"The string to be included in the return value"}]' \
@@ -51,7 +51,7 @@ install samples/greeting.js       samples/greeting -a description 'Returns a fri
 
 install samples/wc.js             samples/wordCount -a description 'Count words in a string' -a parameters '[{"name": "payload", "required":false, "description":"A string"}]'\
                                                     -a sampleInput '{ "payload": "Five fuzzy felines"}' \
-                                                    -a sampleOutput '{ "count": 2 }'
+                                                    -a sampleOutput '{ "count": 2 }' \
                                                     -a sampleLogOutput "2016-03-22T01:10:07.361649586Z stdout: The message 'Five fuzzy felines' has 3 words"
 
 install samples/echo.js           samples/echo -a description 'Returns the input' -a parameters '[{"name": "payload", "required":false, "description": "Any JSON entity"}]' \
