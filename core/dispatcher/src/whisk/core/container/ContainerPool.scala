@@ -182,7 +182,6 @@ class ContainerPool(
                 case None => CacheMiss()
                 case Some(ci) => {
                     ci.state = State.Active
-                    ci.container.unpause()
                     Success(ci.container, None)
                 }
             }
@@ -212,6 +211,9 @@ class ContainerPool(
                     startingCounter.prev()
                 }
             }
+            case s @ Success(con, initResult) => 
+                 con.unpause()
+                 s
             case other => other
         }
     }
