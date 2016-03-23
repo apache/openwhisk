@@ -35,9 +35,8 @@
         <ant target="scanCode" />
         <exec executable="./gradlew" failonerror="true">
             <env key="OPENWHISK_HOME" value="${openwhisk.home}" />
-            <env key="DOCKER_HOST" value="${main.docker.endpoint}" />
             <arg value="distDocker" />
-            <arg value="-PdockerRetry" />
+            <arg value="-PdockerHost=${main.docker.endpoint}" />
         </exec>
         <ant antfile="${openwhisk.home}/services/nginx/build.xml" target="buildProxy" />
     </target>

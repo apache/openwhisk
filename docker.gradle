@@ -1,21 +1,67 @@
+/**
+ * Utility to build docker images based in gradle projects
+ *
+ * This extends gradle's 'application' plugin logic with a 'distDocker' task which builds
+ * a docker image from the Dockerfile of the project that applies this file. The image
+ * is automatically tagged and pushed if a tag and/or a registry is given.
+ *
+ * Parameters that can be set on project level:
+ * - dockerImageName (required): The name of the image to build (e.g. whisk/controller)
+ * - dockerRegistry (optional): The registry to push to
+ * - dockerImageTag (optional, default 'latest'): The tag for the image
+ * - dockerTimeout (optional, default 240): Timeout for docker operations in seconds
+ * - dockerRetries (optional, default 3): How many times to retry docker operations
+ * - dockerBinary (optional, default 'docker'): The binary to execute docker commands
+ * - dockerHost (optional): The docker host to run commands on, default behaviour is
+ *       docker's own DOCKER_HOST environment variable
+ */
+
 ext {
     dockerRegistry = project.hasProperty('dockerRegistry') ? dockerRegistry + '/' : ''
     dockerImageTag = project.hasProperty('dockerImageTag') ? dockerImageTag : 'latest'
+    dockerTimeout = project.hasProperty('dockerTimeout') ? dockerTimeout.toInteger() : 240
+    dockerRetries = project.hasProperty('dockerRetries') ? dockerRetries.toInteger() : 3
+    dockerBinary = project.hasProperty('dockerBinary') ? [dockerBinary] : ['docker']
 }
 
-def docker = ['docker']
-if(project.hasProperty('dockerRetry')) {
-    docker = [file(buildscript.sourceFile).getParentFile().getAbsolutePath() + '/tools/docker/dockerWithRetry.sh', '240']
+if(project.hasProperty('dockerHost')) {
+    dockerBinary += ['--host', project.dockerHost]
 }
 
-task distDocker(type:Exec) {
-    commandLine docker + ['build', '-t', dockerImageName, project.buildscript.sourceFile.getParentFile().getAbsolutePath()]
+task distDocker << {
+    def cmd = dockerBinary + ['build', '-t', dockerImageName, project.buildscript.sourceFile.getParentFile().getAbsolutePath()]
+    retry(cmd, dockerRetries, dockerTimeout)
 }
-task tagImage(type: Exec) {
-    commandLine 'docker', 'tag', '-f', dockerImageName, dockerRegistry + dockerImageName + ':' + dockerImageTag
+task tagImage << {
+    def cmd = dockerBinary + ['tag', '-f', dockerImageName, dockerRegistry + dockerImageName + ':' + dockerImageTag]
+    retry(cmd, dockerRetries, dockerTimeout)
 }
-task pushImage(dependsOn: tagImage, type:Exec) {
-    commandLine docker + ['push', dockerRegistry + dockerImageName + ':' + dockerImageTag]
+task pushImage << {
+    def cmd = dockerBinary + ['push', dockerRegistry + dockerImageName + ':' + dockerImageTag]
+    retry(cmd, dockerRetries, dockerTimeout)
 }
+pushImage.dependsOn tagImage
 pushImage.onlyIf { dockerRegistry != '' }
 distDocker.finalizedBy pushImage
+
+def retry(cmd, retries, timeout) {
+    println("Executing '${cmd.join(" ")}'")
+    def proc = cmd.execute()
+    proc.consumeProcessOutput(System.out, System.err)
+    proc.waitForOrKill(timeout * 1000)
+    if(proc.exitValue() != 0) {
+        def message = "Command '${cmd.join(" ")}' failed with exitCode ${proc.exitValue()}"
+        if(proc.exitValue() == 143) { // 143 means the process was killed (SIGTERM signal)
+            message = "Command '${cmd.join(" ")}' was killed after ${timeout} seconds"
+        }
+
+        if(retries > 1) {
+            println("${message}, ${retries-1} retries left, retrying...")
+            retry(cmd, retries-1, timeout)
+        }
+        else {
+            println("${message}, no more retries left, aborting...")
+            throw new GradleException(message)
+        }
+    }
+}
