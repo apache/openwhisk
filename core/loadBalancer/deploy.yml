@@ -1,0 +1,22 @@
+- name: OpenWhisk LoadBalancer
+  hosts: main
+  tasks:
+  - name: Pull image
+    shell: "docker pull {{docker.registry}}whisk/loadbalancer:{{docker_image_tag}}"
+    when: docker.registry != ""
+  - name: (Re)start container
+    docker:
+      name: loadbalancer
+      image: "{{docker.registry}}whisk/loadbalancer:{{docker_image_tag}}"
+      state: reloaded
+      restart_policy: "{{docker.restart.policy}}"
+      env:
+        "COMPONENT_NAME": "loadbalancer"
+        "CONSULSERVER_HOST": "{{consul.host}}"
+        "CONSUL_HOST_PORT4": "{{consul.port4}}"
+        "PORT": 8080
+        "KAFKA_NUMPARTITIONS": 2
+      volumes:
+        - "{{whisk.logs.dir}}/loadbalancer:/logs"
+      ports:
+        - "{{loadbalancer.port}}:8080"

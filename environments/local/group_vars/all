@@ -10,12 +10,13 @@ whisk:
     key: config/keys/openwhisk-self-key.pem
   logs:
     dir: /tmp/wsklogs
+docker_image_tag: latest
 docker:
+  registry: ""
   restart:
     policy: always
 
 controller:
-  host: 172.17.0.1
   port: 10001
 
 consul:
@@ -24,21 +25,18 @@ consul:
   port5: 8600
 
 kafka:
-  host: 172.17.0.1
   port: 9092
   ras:
     port: 9093
 
 zookeeper:
-  host: 172.17.0.1
   port: 2181
 
 activator:
-  host: 172.17.0.1
   port: 12000
 
 invoker:
   port: 12001
 
-loadBalancer:
+loadbalancer:
   port: 10003
