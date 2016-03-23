@@ -25,7 +25,7 @@
             <arg line="-v ${whisk.logs.dir}/loadbalancer:/logs" />
             <arg line="-h loadbalancer_${main.docker.endpoint}" />
             <arg line="${consul.service.check}" />
-            <arg line="-d --name loadbalancer ${docker.registry}whisk/loadbalancer:${docker.image.tag} /loadBalancer/bin/loadBalancer ${numInvoker}" />
+            <arg line="-d --name loadbalancer ${docker.registry}whisk/loadbalancer:${docker.image.tag}" />
         </exec>
     </target>
 
