@@ -83,8 +83,8 @@ trait BasicHttpService extends HttpService with TransactionCounter with Logging 
 
     /** Assigns transaction id to every request. */
     protected val assignId = extract(_ => transid())
-    /** Rejection handler to terminate connection on a bad request. Delegates to Spray handler. */
 
+    /** Rejection handler to terminate connection on a bad request. Delegates to Spray handler. */
     protected def badRequestHandler(implicit transid: TransactionId) = RejectionHandler {
         case rejections =>
             info(this, s"[REJECT] $rejections")

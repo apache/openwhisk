@@ -23,6 +23,7 @@ import org.scalatest.junit.JUnitRunner
 import whisk.common.ConsulKV
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.consulServer
+import whisk.utils.retry
 import spray.json.JsNumber
 import spray.json.JsString
 import spray.json.JsNull
@@ -39,15 +40,15 @@ class ConsulKVTests extends FlatSpec with Matchers {
         val key = "emperor"
         val value = JsString("palpatine")
         consul.put(key, value)
-        val retrieved = consul.get(key)
-        assert(value == retrieved)
+        retry { assert(consul.get(key) == value) }
         consul.delete(key)
-        assert(consul.get(key) == JsNull)
+        retry { assert(consul.get(key) == JsNull) }
     }
 
     it should "be able to do a get on a non-existent key" in {
         val key = "no_such_key"
         val retrieved = consul.get(key)
+        // No prior action - no retry needed
         assert(retrieved == JsNull)
     }
 
@@ -56,14 +57,19 @@ class ConsulKVTests extends FlatSpec with Matchers {
         val kvInner = List(("k1", JsNumber(55)), ("k2", JsString("dog")), ("k3/inner", JsString("monkey")))
         val kv = kvInner.map { case (k, v) => (s"$keyPrefix/$k", v) }
         kv foreach { case (k, v) => consul.put(k, v) }
-        val retrieved: Map[String, JsValue] = consul.getRecurse(keyPrefix)
-        assert(retrieved.size == kv.size)
+        retry {
+            val retrieved: Map[String, JsValue] = consul.getRecurse(keyPrefix)
+            assert(retrieved.size == kv.size)
+            kv.foreach {
+                case (k, v) =>
+                    println(s"$k -> $v")
+                    assert(retrieved.get(k) == Some(v)) // not a KV operation - no inner retry
+            }
+        }
         kv.foreach({
             case (k, v) =>
-                println(s"$k -> $v")
-                assert(retrieved.get(k) == Some(v))
                 consul.delete(k)
-                assert(consul.get(k) == JsNull)
+                retry { assert(consul.get(k) == JsNull) }
         })
     }
 
@@ -72,11 +78,10 @@ class ConsulKVTests extends FlatSpec with Matchers {
         val value = JsString("testValue")
 
         consul.put(key, value)
-
-        assert(consul.get(key) == value)
+        retry { assert(consul.get(key) == value) }
 
         consul.delete(key)
-        assert(consul.get(key) == JsNull)
+        retry { assert(consul.get(key) == JsNull) }
     }
 
 }    
