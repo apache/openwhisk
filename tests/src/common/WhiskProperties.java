@@ -16,6 +16,8 @@
 
 package common;
 
+import static org.junit.Assert.assertTrue;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -34,11 +36,6 @@ public class WhiskProperties {
     protected static final String WHISK_PROPS_FILE = "whisk.properties";
 
     /**
-     * The root of the whisk installation.
-     */
-    private static final String whiskHome = getWhiskHome();
-
-    /**
      * Default concurrency level if otherwise unspecified
      */
     private static final int DEFAULT_CONCURRENCY = 20;
@@ -47,9 +44,10 @@ public class WhiskProperties {
      * The deployment target, e.g., local.
      */
     public static final String deployTarget = System.getProperty("deploy.target");
-    
+
     /**
-     * If true, then tests will direct to the router rather than the edge components.
+     * If true, then tests will direct to the router rather than the edge
+     * components.
      */
     public static final boolean testRouter = System.getProperty("test.router", "false").equals("true");
 
@@ -57,7 +55,7 @@ public class WhiskProperties {
      * The number of tests to run concurrently.
      */
     public static final int concurrentTestCount = getConcurrentTestCount(System.getProperty("testthreads", null));
-    
+
     /**
      * The properties read from the WHISK_PROPS_FILE.
      */
@@ -66,12 +64,18 @@ public class WhiskProperties {
     static {
         System.out.format("deploy target %s\n", deployTarget != null ? deployTarget : "not defined");
         System.out.format("test router? %s\n", testRouter);
-        //System.out.println(WhiskProperties.whiskProperties);
+        // System.out.println(WhiskProperties.whiskProperties);
     }
 
     public static String getProperty(String string) {
         return whiskProperties.getProperty(string);
     }
+
+    /**
+     * The root of the whisk installation, used to retrieve files
+     * relative to home.
+     */
+    private static final String whiskHome = getWhiskHome();
 
     public static File getFileRelativeToWhiskHome(String name) {
         return new File(whiskHome, name);
@@ -88,7 +92,6 @@ public class WhiskProperties {
     public static int getKafkaMonitorPort() {
         return Integer.parseInt(whiskProperties.getProperty("kafkaras.host.port"));
     }
-   
 
     public static String getConsulServerHost() {
         return whiskProperties.getProperty("consulserver.host");
@@ -114,7 +117,6 @@ public class WhiskProperties {
         return whiskProperties.getProperty("kafka.docker.endpoint");
     }
 
-    
     public static boolean useCliDownload() {
         return whiskProperties.getProperty("use.cli.download").equals("true");
     }
@@ -122,7 +124,7 @@ public class WhiskProperties {
     public static String[] getInvokerHosts() {
         // split of empty string is non-empty array
         String hosts = whiskProperties.getProperty("invoker.hosts");
-        return (hosts == null || hosts.equals("")) ? new String[0] : hosts.split(","); 
+        return (hosts == null || hosts.equals("")) ? new String[0] : hosts.split(",");
     }
 
     public static String[] getAdditionalHosts() {
@@ -140,20 +142,20 @@ public class WhiskProperties {
     }
 
     /**
-     * Note that when testRouter == true, we pretend the router host is the edge host!
+     * Note that when testRouter == true, we pretend the router host is edge host.
      */
     public static String getEdgeHost() {
-        return testRouter ? getRouterHost() :  whiskProperties.getProperty("edge.host");
+        return testRouter ? getRouterHost() : whiskProperties.getProperty("edge.host");
     }
-    
+
     public static String getRealEdgeHost() {
         return whiskProperties.getProperty("edge.host");
     }
-    
+
     public static String getAuthForTesting() {
         return whiskProperties.getProperty("testing.auth");
     }
-    
+
     public static String getRouterHost() {
         return whiskProperties.getProperty("router.host");
     }
@@ -169,7 +171,7 @@ public class WhiskProperties {
     public static int getLoadbalancerPort() {
         return Integer.parseInt(whiskProperties.getProperty("loadbalancer.host.port"));
     }
-    
+
     /**
      * are we running on Mac OS X?
      */
@@ -192,29 +194,37 @@ public class WhiskProperties {
     public static final String python = findPython();
 
     /**
-     * Finds the whisk home directory. This is a path in the directory tree up
-     * to the current directory that contains the file WHISK_PROPS_FILE.
+     * Finds the whisk home directory. This is resolved to either (in order):
+     *
+     * 1. a system property openwhisk.dir
+     *
+     * 2. OPENWHISK_HOME from the environment
+     *
+     * 3. a path in the directory tree up containing WHISK_PROPS_FILE.
      *
      * @return the path to whisk home as a string
+     * @throws assertion
+     *             failure if whisk home cannot be determined
      */
     private static String getWhiskHome() {
-        String dir = System.getProperty("user.dir");
+        String wskdir = System.getProperty("openwhisk.dir", System.getenv("OPENWHISK_HOME"));
 
-        if (dir != null) {
-            // Look in the directory tree recursively.
-            File propfile = findFileRecursively(dir, WHISK_PROPS_FILE);
-            if (propfile != null) {
-                // adjust path for blue vs open
-                String parent = propfile.getParent();
-                File open = new File(parent, "../open");
-                if (open.isDirectory() && open.exists())
-                    return open.getAbsolutePath();
-                else return parent;
-            } else return null;
-        } else return null;
+        if (wskdir == null) {
+            String dir = System.getProperty("user.dir");
+
+            if (dir != null) {
+                File propfile = findFileRecursively(dir, WHISK_PROPS_FILE);
+                if (propfile != null) {
+                    wskdir = propfile.getParent();
+                }
+            }
+        }
+
+        assertTrue("could not determine openwhisk home", wskdir != null);
+        return wskdir;
     }
 
-    private static File findFileRecursively(String dir, String needle) {
+    protected static File findFileRecursively(String dir, String needle) {
         if (dir != null) {
             File base = new File(dir);
             File file = new File(base, needle);
@@ -223,7 +233,9 @@ public class WhiskProperties {
             } else {
                 return findFileRecursively(base.getParent(), needle);
             }
-        } else return null;
+        } else {
+            return null;
+        }
     }
 
     /**
@@ -267,7 +279,8 @@ public class WhiskProperties {
                 if (threads > 0) {
                     return threads;
                 }
-            } catch (NumberFormatException e) {}
+            } catch (NumberFormatException e) {
+            }
         }
         return DEFAULT_CONCURRENCY;
     }

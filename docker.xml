@@ -33,7 +33,7 @@
             <then>
                 <exec executable="${python.27}" failonerror="true">
                     <env key="DOCKER_REGISTRY_HOST" value="${master.host}" />
-                    <arg line="${openwhisk.dir}/tools/health/isAlive -d ${basedir} --wait 60 docker.registry" />
+                    <arg line="${openwhisk.home}/tools/health/isAlive -d ${basedir} --wait 60 docker.registry" />
                 </exec>
             </then>
         </if>
@@ -63,7 +63,7 @@
     <target name="tagImage" if="${use.docker.registry}">
         <var file="whisk.properties" />
         <exec executable="/bin/bash" failonerror="true">
-            <arg line="${openwhisk.dir}/tools/docker/dockerWithRetry.sh ${docker.timeout.short} --host tcp://${docker.endpoint}" />
+            <arg line="${openwhisk.home}/tools/docker/dockerWithRetry.sh ${docker.timeout.short} --host tcp://${docker.endpoint}" />
             <arg line="${docker.tls.cmd}" />
             <arg line="tag -f ${docker.image.to.push} ${docker.registry}${docker.image.to.push}:${docker.image.tag}" />
         </exec>
@@ -73,7 +73,7 @@
     <target name="pushImageToRegistry" depends="tagImage" if="${use.docker.registry}">
         <var file="whisk.properties" />
         <exec executable="/bin/bash" failonerror="true">
-            <arg line="${openwhisk.dir}/tools/docker/dockerWithRetry.sh ${docker.timeout.long} --host tcp://${docker.endpoint}" />
+            <arg line="${openwhisk.home}/tools/docker/dockerWithRetry.sh ${docker.timeout.long} --host tcp://${docker.endpoint}" />
             <arg line="${docker.tls.cmd}" />
             <arg line="push ${docker.registry}${docker.image.to.push}:${docker.image.tag}" />
         </exec>

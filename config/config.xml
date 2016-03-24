@@ -3,9 +3,9 @@
 
     <taskdef resource="net/sf/antcontrib/antlib.xml" />
 
-    <condition property="openwhisk.dir" value="${basedir}">
+    <condition property="openwhisk.home" value="${basedir}">
         <not>
-            <isset property="openwhisk.dir" />
+            <isset property="openwhisk.home" />
         </not>
     </condition>
 
@@ -99,9 +99,10 @@
     <!-- gather values for environment variables and store them in a properties file -->
     <target name="writePropertyFile" depends="setDeployTarget" unless="property.file.written">
         <exec dir="config" failonerror="true" executable="/bin/bash">
+            <env key="OPENWHISK_HOME" value="${openwhisk.home}" />
+            <env key="DOCKER_IMAGE_TAG" value="${docker.image.tag}" />
             <arg value="setupProps.sh" />
             <arg value="${deploy.target}Env.sh" />
-            <env key="DOCKER_IMAGE_TAG" value="${docker.image.tag}" />
         </exec>
         <property name="property.file.written" value="true" />
     </target>

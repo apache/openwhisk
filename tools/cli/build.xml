@@ -11,18 +11,18 @@
 
         <!-- generate default.props in source directory.
              someday this should be nuked - legacy of old process -->
-        <exec executable="/bin/bash" failonerror="true" output="${openwhisk.dir}/tools/cli/default.props">
-            <arg line="${openwhisk.dir}/tools/cli/generateDefaultProps.sh" />
+        <exec executable="/bin/bash" failonerror="true" output="${openwhisk.home}/tools/cli/default.props">
+            <arg line="${openwhisk.home}/tools/cli/generateDefaultProps.sh" />
             <arg line="${basedir}" />
         </exec>
         
         <!-- copy files needed to build image to a scratch space -->
         <mkdir dir="${cli.build.dir}" />
         <copy todir="${cli.build.dir}">
-            <fileset dir="${openwhisk.dir}/tools/cli/packagescripts" />
+            <fileset dir="${openwhisk.home}/tools/cli/packagescripts" />
         </copy>
         <copy todir="${cli.build.dir}/openwhisk">
-            <fileset dir="${openwhisk.dir}/tools/cli">
+            <fileset dir="${openwhisk.home}/tools/cli">
                 <!--<include name="default.props" />-->
                 <exclude name=".project" />
                 <exclude name="*.pyc" />
@@ -32,7 +32,7 @@
 
         <!-- generate default.props -->
         <exec executable="/bin/bash" failonerror="true" output="${cli.build.dir}/openwhisk/default.props">
-            <arg line="${openwhisk.dir}/tools/cli/generateDefaultProps.sh" />
+            <arg line="${openwhisk.home}/tools/cli/generateDefaultProps.sh" />
             <arg line="${basedir}" />
         </exec>
 
@@ -42,7 +42,7 @@
         <move file="${cli.build.dir}/__init__.py" todir="${cli.build.dir}/openwhisk" />
         <!-- build package for distribution -->
         <exec executable="/bin/bash" failonerror="true">
-            <arg line="${openwhisk.dir}/tools/docker/dockerWithRetry.sh ${docker.timeout.long}" />
+            <arg line="${openwhisk.home}/tools/docker/dockerWithRetry.sh ${docker.timeout.long}" />
             <arg line="build -t whisk/cli '${cli.build.dir}'" />
         </exec>
         <exec executable="docker" failonerror="false" output="/dev/null" error="/dev/null">

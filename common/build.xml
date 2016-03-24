@@ -14,7 +14,7 @@
     </target>
 
     <path id="libJars">
-        <fileset dir="${openwhisk.dir}/common/libs">
+        <fileset dir="${openwhisk.home}/common/libs">
             <include name="**/*.jar" />
         </fileset>
     </path>
@@ -23,8 +23,8 @@
     <target name="buildScalaBaseImage">
         <var file="whisk.properties" />
         <!-- build image -->
-        <exec executable="/bin/bash" failonerror="true" dir="${openwhisk.dir}/common/scala">
-            <arg line="${openwhisk.dir}/tools/docker/dockerWithRetry.sh ${docker.timeout.long} --host tcp://${main.docker.endpoint}" />
+        <exec executable="/bin/bash" failonerror="true" dir="${openwhisk.home}/common/scala">
+            <arg line="${openwhisk.home}/tools/docker/dockerWithRetry.sh ${docker.timeout.long} --host tcp://${main.docker.endpoint}" />
             <arg line="${docker.tls.cmd}" />
             <arg line="build -t whisk/scala ." />
         </exec>
@@ -33,8 +33,8 @@
     <!-- build the docker base image with node.js-->
     <target name="buildNodeBaseImage">
         <var file="whisk.properties" />
-        <exec executable="/bin/bash" failonerror="true" dir="${openwhisk.dir}/common/js">
-            <arg line="${openwhisk.dir}/tools/docker/dockerWithRetry.sh ${docker.timeout.long} --host tcp://${main.docker.endpoint}" />
+        <exec executable="/bin/bash" failonerror="true" dir="${openwhisk.home}/common/js">
+            <arg line="${openwhisk.home}/tools/docker/dockerWithRetry.sh ${docker.timeout.long} --host tcp://${main.docker.endpoint}" />
             <arg line="${docker.tls.cmd}" />
             <arg line="build -t whisk/nodejs ." />
         </exec>
@@ -46,12 +46,12 @@
         <!-- build sources -->
         <mkdir dir="${build.dir}/commonScala" />
         <scalac destdir="${build.dir}/commonScala" failonerror="true" scalacdebugging="true" fork="true">
-            <src path="${openwhisk.dir}/common/scala/src" />
+            <src path="${openwhisk.home}/common/scala/src" />
             <classpath refid="libJars" />
             <classpath path="${build.dir}/commonScala" />
             <classpath refid="scala.build.classpath" />
         </scalac>
-        <copy file="${openwhisk.dir}/common/scala/src/log4j.properties" todir="${build.dir}/commonScala" />
+        <copy file="${openwhisk.home}/common/scala/src/log4j.properties" todir="${build.dir}/commonScala" />
     </target>
 
 </project>

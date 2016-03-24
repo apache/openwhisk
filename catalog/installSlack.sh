@@ -6,17 +6,18 @@
 AUTH_KEY=$WHISK_SYSTEM_AUTH
 
 SCRIPTDIR="$(cd $(dirname "$0")/ && pwd)"
-source "$SCRIPTDIR/util.sh"
-cd "$SCRIPTDIR/../bin"
+CATALOG_HOME=$SCRIPTDIR
+source "$CATALOG_HOME/util.sh"
 
-echo Installing Slack package.
+echo Installing Slack package.
 
 createPackage slack \
     -a description "Package which contains actions to interact with the Slack messaging service"
 
 waitForAll
 
-install slack/post.js slack/post \
+install "$CATALOG_HOME/slack/post.js" \
+    slack/post \
     -a description 'Posts a message to Slack' \
     -a parameters '[ {"name":"username", "required":true, "bindTime":true}, {"name":"text", "required":true}, {"name":"url", "required":true, "bindTime":true},{"name":"channel", "required":true, "bindTime":true} ]' \
     -a sampleInput '{"username":"whisk", "text":"Hello whisk!", "channel":"myChannel", "url": "https://hooks.slack.com/services/XYZ/ABCDEFG/12345678"}'

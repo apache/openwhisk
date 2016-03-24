@@ -22,6 +22,7 @@
     <!-- kill all containers, garbage collect docker images, and delete scratch directories -->
     <target name="clean" depends="dust,teardown">
         <exec executable="./gradlew" failonerror="true">
+            <env key="OPENWHISK_HOME" value="${openwhisk.home}" />
             <arg value="clean" />
         </exec>
     </target>
@@ -31,11 +32,12 @@
         <var file="whisk.properties" />
         <ant target="scanCode" />
         <exec executable="./gradlew" failonerror="true">
+            <env key="OPENWHISK_HOME" value="${openwhisk.home}" />
             <env key="DOCKER_HOST" value="${main.docker.endpoint}" />
             <arg value="distDocker" />
             <arg value="-PdockerRetry" />
         </exec>
-        <ant antfile="${openwhisk.dir}/services/nginx/build.xml" target="buildProxy" />
+        <ant antfile="${openwhisk.home}/services/nginx/build.xml" target="buildProxy" />
     </target>
 
     <!-- run unit tests-->
@@ -46,7 +48,7 @@
     <!-- deploy containers -->
     <target name="deploy" depends="writePropertyFile">
         <antcall target="deployDatabase" />
-        <ant antfile="${openwhisk.dir}/services/nginx/build.xml" target="startProxy" />
+        <ant antfile="${openwhisk.home}/services/nginx/build.xml" target="startProxy" />
         <ant antfile="services/build.xml" target="deploy" />
         <ant antfile="core/build.xml" target="deploy" />
         <ant antfile="tools/cli/build.xml" target="buildCLI" />
@@ -75,7 +77,7 @@
     <!-- Caller must have loaded whisk.prop -->
     <target name="waitComponent">
         <exec executable="${python.27}" failonerror="true">
-            <arg value="${openwhisk.dir}/tools/health/isAlive" />
+            <arg value="${openwhisk.home}/tools/health/isAlive" />
             <arg value="-d" />
             <arg value="${basedir}" />
             <arg line="--wait 60 ${component}" />
@@ -86,7 +88,7 @@
     <target name="deployDatabase">
         <var file="whisk.properties" />
         <echo message="wiping databases with prefix ${db.prefix}" />
-        <exec dir="${openwhisk.dir}/tools/db" executable="/bin/bash">
+        <exec dir="${openwhisk.home}/tools/db" executable="/bin/bash">
             <env key="DB_PREFIX" value="${db.prefix}" />
             <arg value="wipeTransientDBs.sh" />
         </exec>

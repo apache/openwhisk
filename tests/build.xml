@@ -3,6 +3,7 @@
     <!-- run the standard suite of JUnit tests -->
     <target name="runTests">
         <exec executable="./gradlew" failonerror="${testsfailonfailure}">
+            <env key="OPENWHISK_HOME" value="${openwhisk.home}" />
             <arg value=":tests:test" />
             <arg line="-Dtestthreads=${testthreads}" />
         </exec>

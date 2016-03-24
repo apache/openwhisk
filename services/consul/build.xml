@@ -48,20 +48,20 @@
     <target name="startRegistrators" >
         <var file="whisk.properties" />
          <exec executable="/bin/bash" failonerror="true">
-             <env key="WHISK_HOME" value="${openwhisk.dir}" />
+             <env key="WHISK_HOME" value="${openwhisk.home}" />
              <env key="WHISKPROPS" value="${basedir}/whisk.properties" />
              <env key="WHISK_LOGS_DIR" value="${whisk.logs.dir}" />
              <env key="CONSUL_SERVER" value="${consulserver.host}" />
              <env key="CONSUL_PORT" value="${consul.host.port4}" />
              <env key="DOCKER_REGISTRY" value="${docker.registry}" />
              <env key="DOCKER_RESTART_OPTS" value="${docker.restart.opts}" />
-             <arg value="${openwhisk.dir}/services/registrator/docker-run.sh" />
+             <arg value="${openwhisk.home}/services/registrator/docker-run.sh" />
          </exec>
     </target>
 
     <target name="waitConsulServer">
         <var file="whisk.properties" />
-        <ant antfile="${openwhisk.dir}/build.xml" target="waitComponent" >
+        <ant antfile="${openwhisk.home}/build.xml" target="waitComponent" >
             <property name="component" value="consulserver" />
         </ant>
     </target>
@@ -69,7 +69,7 @@
     <target name="importWhiskProperties" >
         <exec executable="/bin/bash" failonerror="true">
             <arg value="-c" />
-            <arg value="${openwhisk.dir}/tools/health/kvstore --import -d ." />
+            <arg value="${openwhisk.home}/tools/health/kvstore --import -d ." />
         </exec>
     </target>
 

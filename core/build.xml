@@ -8,15 +8,15 @@
     <!-- deploy all components in the whisk core in parallel -->
     <target name="deploy" >
         <parallel threadCount="${deploythreads}" failonany="true">
-            <ant antfile="${openwhisk.dir}/core/controller/build.xml" target="startController" />
-            <ant antfile="${openwhisk.dir}/core/dispatcher/build.xml" target="startActivator" />
-            <ant antfile="${openwhisk.dir}/core/loadBalancer/build.xml" target="startLoadBalancer" />
+            <ant antfile="${openwhisk.home}/core/controller/build.xml" target="startController" />
+            <ant antfile="${openwhisk.home}/core/dispatcher/build.xml" target="startActivator" />
+            <ant antfile="${openwhisk.home}/core/loadBalancer/build.xml" target="startLoadBalancer" />
             <antcall target="deploySlaves" />
         </parallel>
         <parallel threadCount="${deploythreads}" failonany="true">
-            <ant antfile="${openwhisk.dir}/core/controller/build.xml" target="waitController" />
-            <ant antfile="${openwhisk.dir}/core/dispatcher/build.xml" target="waitActivator" />
-            <ant antfile="${openwhisk.dir}/core/loadBalancer/build.xml" target="waitLoadBalancer" />
+            <ant antfile="${openwhisk.home}/core/controller/build.xml" target="waitController" />
+            <ant antfile="${openwhisk.home}/core/dispatcher/build.xml" target="waitActivator" />
+            <ant antfile="${openwhisk.home}/core/loadBalancer/build.xml" target="waitLoadBalancer" />
         </parallel>
     </target>
 
@@ -24,7 +24,7 @@
     <target name="deploySlaves">
         <var file="whisk.properties" />
         <exec executable="${python.27}" failonerror="true">
-            <arg line="${openwhisk.dir}/tools/deploy/deployInvoker -d ${basedir} -t ${docker.image.tag}"/>
+            <arg line="${openwhisk.home}/tools/deploy/deployInvoker -d ${basedir} -t ${docker.image.tag}"/>
         </exec>
     </target>
 </project>

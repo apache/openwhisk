@@ -4,8 +4,9 @@
 #
 # Note use of --apihost, this is needed in case of a b/g swap since the router may not be
 # updated yet and there may be a breaking change in the API. All tests should go through edge.
-SCRIPTDIR="$(cd $(dirname "$0")/ && pwd)"
-WHISKPROPS_FILE="$SCRIPTDIR/../whisk.properties"
+
+: ${OPENWHISK_HOME:?"OPENWHISK_HOME must be set and non-empty"}
+WHISKPROPS_FILE="$OPENWHISK_HOME/whisk.properties"
 if [ ! -f "$WHISKPROPS_FILE" ]; then
     echo "whisk properties file not found $WHISKPROPS_FILE"
     exit 1
@@ -15,7 +16,7 @@ EDGE_HOST=`fgrep edge.host= "$WHISKPROPS_FILE" | cut -d'=' -f2`
 function createPackage() {
     PACKAGE_NAME=$1
     REST=("${@:2}")
-    CMD_ARRAY=($PYTHON ./wsk --apihost "$EDGE_HOST" package update --auth "$AUTH_KEY" --shared yes "$PACKAGE_NAME" "${REST[@]}")
+    CMD_ARRAY=($PYTHON "$OPENWHISK_HOME/bin/wsk" --apihost "$EDGE_HOST" package update --auth "$AUTH_KEY" --shared yes "$PACKAGE_NAME" "${REST[@]}")
     "${CMD_ARRAY[@]}" &
     PID=$!
     PIDS+=($PID)
@@ -26,7 +27,7 @@ function install() {
     RELATIVE_PATH=$1
     ACTION_NAME=$2
     REST=("${@:3}")
-    CMD_ARRAY=($PYTHON ./wsk --apihost "$EDGE_HOST" action update --auth "$AUTH_KEY" --shared yes "$ACTION_NAME" "../catalog/$RELATIVE_PATH" "${REST[@]}")
+    CMD_ARRAY=($PYTHON "$OPENWHISK_HOME/bin/wsk" --apihost "$EDGE_HOST" action update --auth "$AUTH_KEY" --shared yes "$ACTION_NAME" "$RELATIVE_PATH" "${REST[@]}")
     "${CMD_ARRAY[@]}" &
     PID=$!
     PIDS+=($PID)

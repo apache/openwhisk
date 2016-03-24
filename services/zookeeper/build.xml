@@ -1,6 +1,6 @@
 <!-- vim: set expandtab ts=4 sw=4 : -->
 
-<!-- the basedir for this script should be eithe${openwhisk.dir}, /blue, or /experimental
+<!-- the basedir for this script should be eithe${openwhisk.home}, /blue, or /experimental
      -->
 <project basedir="../..">
     <import file="../../docker.xml" />

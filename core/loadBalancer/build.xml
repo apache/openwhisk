@@ -32,7 +32,7 @@
     <!-- wait up to a minute for loadbalancer to start.  Usually takes <5 sec -->
     <target name="waitLoadBalancer">
         <var file="whisk.properties" />
-        <ant antfile="${openwhisk.dir}/build.xml" target="waitComponent">
+        <ant antfile="${openwhisk.home}/build.xml" target="waitComponent">
             <property name="component" value="loadbalancer" />
             <property name="component.host" value="${loadbalancer.host}:${loadbalancer.host.port}" />
         </ant>

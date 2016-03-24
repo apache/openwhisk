@@ -7,19 +7,19 @@
     </target>
 
     <target name="deployServiceRegistry">
-        <ant antfile="${openwhisk.dir}/services/consul/build.xml" target="startConsulServer" />
-        <ant antfile="${openwhisk.dir}/services/consul/build.xml" target="waitConsulServer" />
-        <ant antfile="${openwhisk.dir}/services/consul/build.xml" target="importWhiskProperties" />
-        <ant antfile="${openwhisk.dir}/services/consul/build.xml" target="startRegistrators" />
+        <ant antfile="${openwhisk.home}/services/consul/build.xml" target="startConsulServer" />
+        <ant antfile="${openwhisk.home}/services/consul/build.xml" target="waitConsulServer" />
+        <ant antfile="${openwhisk.home}/services/consul/build.xml" target="importWhiskProperties" />
+        <ant antfile="${openwhisk.home}/services/consul/build.xml" target="startRegistrators" />
     </target>
 
     <!-- deploy kafka -->
     <target name="deployKafka" depends="writePropertyFile">
-        <ant antfile="${openwhisk.dir}/services/zookeeper/build.xml" target="startZookeeper" />
-        <ant antfile="${openwhisk.dir}/services/zookeeper/build.xml" target="waitZookeeper" />
+        <ant antfile="${openwhisk.home}/services/zookeeper/build.xml" target="startZookeeper" />
+        <ant antfile="${openwhisk.home}/services/zookeeper/build.xml" target="waitZookeeper" />
 
-        <ant antfile="${openwhisk.dir}/services/kafka/build.xml" target="startKafka" />
-        <ant antfile="${openwhisk.dir}/services/kafka/build.xml" target="waitKafka" />
+        <ant antfile="${openwhisk.home}/services/kafka/build.xml" target="startKafka" />
+        <ant antfile="${openwhisk.home}/services/kafka/build.xml" target="waitKafka" />
     </target>
 
 </project>

@@ -33,7 +33,7 @@
 
     <target name="waitActivator">
         <var file="whisk.properties" />
-        <ant antfile="${openwhisk.dir}/build.xml" target="waitComponent">
+        <ant antfile="${openwhisk.home}/build.xml" target="waitComponent">
             <property name="component" value="activator" />
             <property name="component.host" value="${activator.host}:${activator.host.port}" />
         </ant>
