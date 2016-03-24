@@ -102,3 +102,9 @@ URL_BASE="https://$DB_HOST:$DB_PORT"
 
 PREV_REV=`$CURL_ADMIN -X GET $URL_BASE/$DB_WHISK_ACTIONS/_design/whisks | awk -F"," '{print $2}'`
 $CURL_ADMIN -X POST -H 'Content-Type: application/json' -d "$(addRevision "$(view)" $PREV_REV)" $URL_BASE/$DB_WHISK_ACTIONS; echo
+#
+# Create a query index that can be used for ad hoc cloudant queries.
+# See https://cloudant.com/blog/cloudant-query-grows-up-to-handle-ad-hoc-queries/#.VvLx_T-0z2B
+#
+echo Create Cloudant Query search index
+$CURL_ADMIN -X POST $URL_BASE/$DB_WHISK_ACTIONS/_index -d '{ "index": {}, "type": "text"}'
