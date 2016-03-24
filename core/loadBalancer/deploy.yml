@@ -20,3 +20,5 @@
         - "{{whisk.logs.dir}}/loadbalancer:/logs"
       ports:
         - "{{loadbalancer.port}}:8080"
+  - name: Wait until Loadbalancer is up and running
+    wait_for: delay=2 host={{ansible_host}} port={{loadbalancer.port}} timeout=60

@@ -1,10 +1,13 @@
 - name: Deploy Consul Servers
   hosts: edge
   tasks:
+  - name: Pull image
+    shell: "docker pull {{docker.registry}}whisk/consul:{{docker_image_tag}}"
+    when: docker.registry != ""
   - name: (Re)start consul server
     docker:
       name: consul
-      image: whisk/consul
+      image: "{{docker.registry}}whisk/consul:{{docker_image_tag}}"
       state: reloaded
       command: /startconsulserver.sh
       restart_policy: "{{docker.restart.policy}}"
@@ -13,7 +16,8 @@
       ports:
         - "{{consul.port5}}:53"
         - "{{consul.port4}}:8500"
-  - pause: seconds=5
+  - name: Wait until Consul Server is up and running
+    wait_for: delay=5 host={{ansible_host}} port={{consul.port4}} timeout=60
   - name: Fill in whisk.properties
     local_action: command python "{{playbook_dir}}/../../tools/health/kvstore" --import -d "{{playbook_dir}}/../../"
 

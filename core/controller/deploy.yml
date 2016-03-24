@@ -1,10 +1,13 @@
 - name: OpenWhisk Controller
   hosts: edge
   tasks:
+  - name: Pull image
+    shell: "docker pull {{docker.registry}}whisk/controller:{{docker_image_tag}}"
+    when: docker.registry != ""
   - name: (Re)start container
     docker:
       name: controller
-      image: whisk/controller
+      image: "{{docker.registry}}whisk/controller:{{docker_image_tag}}"
       state: reloaded
       restart_policy: "{{docker.restart.policy}}"
       env:
@@ -18,3 +21,5 @@
         - "{{whisk.logs.dir}}/controller:/logs"
       ports:
         - "{{controller.port}}:8080"
+  - name: Wait until Controller is up and running
+    wait_for: delay=2 host={{ansible_host}} port={{controller.port}} timeout=60
