@@ -18,7 +18,7 @@ createPackage 'weather' \
 waitForAll
 
 install 'weather/forecast.js'       weather/forecast \
-    -a description 'Weather.com 10-day forecast' \
+    -a description '10-day forecast' \
     -a parameters '[ {"name":"latitude", "required":true}, {"name":"longitude", "required":true}, {"name":"apiKey", "required":true, "type":"password", "bindTime":true} ]' \
     -a sampleInput '{"latitude":"34.063", "longitude":"-84.217", "apiKey":"XXX"}' \
     -a sampleOutput '{"forecasts":[ {"dow":"Monday", "min_temp":30, "max_temp":38, "narrative":"Cloudy"} ]}'
