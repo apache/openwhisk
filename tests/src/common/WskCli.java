@@ -44,7 +44,6 @@ public class WskCli {
     private final File binaryPath;
     public String subject;
     public final String authKey;
-    public final String webportalKey;
 
     private Map<String, String> env = null;
 
@@ -63,28 +62,26 @@ public class WskCli {
     }
 
     public WskCli(String authKey) {
-        this("wsk", "default", authKey, null);
+        this("wsk", "default", authKey);
     }
 
     public WskCli(String subject, String authKey) {
-        this("wsk", subject, authKey, null);
+        this("wsk", subject, authKey);
     }
 
     protected WskCli(File authFile) {
-        this("wsk", "default", authFile, null);
+        this("wsk", "default", authFile);
     }
 
-    protected WskCli(String binaryName, String subject, File authFile, File webportalAuthFile) {
-        this(binaryName, subject, WhiskProperties.readAuthKey(authFile),
-                (webportalAuthFile == null) ? null : WhiskProperties.readAuthKey(webportalAuthFile));
+    protected WskCli(String binaryName, String subject, File authFile) {
+        this(binaryName, subject, WhiskProperties.readAuthKey(authFile));
     }
 
-    protected WskCli(String binaryName, String subject, String authKey, String webportalKey) {
+    protected WskCli(String binaryName, String subject, String authKey) {
         this.binaryName = binaryName;
         this.binaryPath = new File(cliDir, binaryName);
         this.subject = subject;
         this.authKey = authKey;
-        this.webportalKey = webportalKey;
     }
 
     public void setSubject(String subject) {
@@ -109,8 +106,7 @@ public class WskCli {
 
     /** What is the path to a downloaded CLI? **/
     private String getDownloadedCliPath() {
-        String binary = System.getProperty("user.home") + File.separator + ".local" + File.separator + "bin" + File.separator
-                + "wsk";
+        String binary = System.getProperty("user.home") + File.separator + ".local" + File.separator + "bin" + File.separator + "wsk";
         return binary;
     }
 
@@ -160,8 +156,11 @@ public class WskCli {
     /**
      * Lists only recent activations.
      *
-     * @param namespace the namespace in which to list (null indicates default namespace)
-     * @param full if true grab the full activation record
+     * @param namespace
+     *            the namespace in which to list (null indicates default
+     *            namespace)
+     * @param full
+     *            if true grab the full activation record
      * @return CLI stdout
      */
     public String listActivations(String namespace) throws IOException {
@@ -301,13 +300,11 @@ public class WskCli {
         return createAction(SUCCESS_EXIT, name, file, null, null, false, update, false, shared, 0);
     }
 
-    public String createAction(String name, String file, Map<String, String> params, boolean update, boolean shared)
-            throws IOException {
+    public String createAction(String name, String file, Map<String, String> params, boolean update, boolean shared) throws IOException {
         return createAction(SUCCESS_EXIT, name, file, null, params, false, update, false, shared, 0);
     }
 
-    public String createAction(String name, String file, Map<String, String> params, boolean update, boolean shared,
-            int timeoutMillis) throws IOException {
+    public String createAction(String name, String file, Map<String, String> params, boolean update, boolean shared, int timeoutMillis) throws IOException {
         return createAction(SUCCESS_EXIT, name, file, null, params, false, update, false, shared, timeoutMillis);
     }
 
@@ -315,14 +312,12 @@ public class WskCli {
         return createAction(SUCCESS_EXIT, name, null, null, null, false, true, false, shared, 0);
     }
 
-    public String createAction(int expectedCode, String name, String file, Map<String, String> params, boolean update,
-            boolean shared) throws IOException {
+    public String createAction(int expectedCode, String name, String file, Map<String, String> params, boolean update, boolean shared) throws IOException {
         return createAction(expectedCode, name, file, null, params, false, update, false, shared, 0);
 
     }
 
-    public String createAction(int expectedCode, String name, String artifact, String library, Map<String, String> params,
-            boolean sequence, boolean update, boolean copy, boolean shared, int timeoutMillis) throws IOException {
+    public String createAction(int expectedCode, String name, String artifact, String library, Map<String, String> params, boolean sequence, boolean update, boolean copy, boolean shared, int timeoutMillis) throws IOException {
         String[] cmd1 = { "action", "update", "--auth", authKey, name };
         String[] cmd2 = { "action", "create", "--auth", authKey, name, artifact };
         String[] cmd = update ? cmd1 : cmd2;
@@ -376,8 +371,7 @@ public class WskCli {
         return createPackage(SUCCESS_EXIT, name, params, "", false, false);
     }
 
-    public String createPackage(int expectedCode, String name, Map<String, String> params, String copyFrom, boolean update,
-            boolean shared) throws IOException {
+    public String createPackage(int expectedCode, String name, Map<String, String> params, String copyFrom, boolean update, boolean shared) throws IOException {
         String op = "create";
         if (update) {
             op = "update";
@@ -543,7 +537,8 @@ public class WskCli {
         if (expectedCode == SUCCESS_EXIT) {
             assertTrue(stdout, stdout.contains("ok:"));
             return extractActivationIdFromCliResult(stdout);
-        } else return null;
+        } else
+            return null;
     }
 
     // Returns the invocation ID and result.
@@ -574,18 +569,6 @@ public class WskCli {
     public String invokeBlockingIgnoringExitcodeReturnPlainResult(String name, Map<String, String> params) throws IOException {
         return invoke(TestUtils.DONTCARE_EXIT, name, params, true).stdout;
     }
-
-    /*
-    public String invoke(int expectedCode, String name, String arg) throws IOException {
-        return invoke(expectedCode, name, arg, false).stdout;
-    }
-
-    public RunResult invoke(int expectedCode, String name, String arg, boolean blocking) throws IOException {
-        String[] cmd = new String[] { "action", "invoke", "--auth", authKey, name, arg };
-        String[] args = blocking ? Util.concat(cmd, "--blocking") : cmd;
-        return cli(expectedCode, args);
-    }
-    */
 
     public RunResult invoke(int expectedCode, String name, Map<String, String> params, boolean blocking) throws IOException {
         String[] cmd = new String[] { "action", "invoke", "--auth", authKey, name };
@@ -737,8 +720,7 @@ public class WskCli {
      * @return the activation log if there is match; otherwise null
      * @throws IOException
      */
-    private String checkActivationFor(String activationId, String sRegex, int initialWait, int pollPeriod, int totalWait)
-            throws IOException {
+    private String checkActivationFor(String activationId, String sRegex, int initialWait, int pollPeriod, int totalWait) throws IOException {
         Pattern p = Pattern.compile(sRegex, Pattern.DOTALL);
         String log = TestUtils.waitfor(() -> {
             RunResult result = getLogsForActivation(activationId);
@@ -787,8 +769,7 @@ public class WskCli {
      * @return
      * @throws IOException
      */
-    private String matchLogsForActionContain(String action, String sRegex, int initialWait, int pollPeriod, int totalWait)
-            throws IOException {
+    private String matchLogsForActionContain(String action, String sRegex, int initialWait, int pollPeriod, int totalWait) throws IOException {
         Pattern p = Pattern.compile(sRegex, Pattern.DOTALL);
         String l = TestUtils.waitfor(() -> {
             List<String> activationIds = getActivations(action);
@@ -833,8 +814,7 @@ public class WskCli {
      * @return
      * @throws IOException
      */
-    private boolean logsForActionContain(String action, String sRegex, int initialWait, int pollPeriod, int totalWait)
-            throws IOException {
+    private boolean logsForActionContain(String action, String sRegex, int initialWait, int pollPeriod, int totalWait) throws IOException {
         return matchLogsForActionContain(action, sRegex, initialWait, pollPeriod, totalWait) != null;
     }
 
@@ -873,8 +853,7 @@ public class WskCli {
      * @return the activation result if there is match; otherwise null
      * @throws IOException
      */
-    public String checkResultFor(String activationId, String sRegex, int initialWait, int pollPeriod, int totalWait)
-            throws IOException {
+    public String checkResultFor(String activationId, String sRegex, int initialWait, int pollPeriod, int totalWait) throws IOException {
         Pattern p = Pattern.compile(sRegex, Pattern.DOTALL);
         String log = TestUtils.waitfor(() -> {
             RunResult result = getResult(activationId);
@@ -930,7 +909,8 @@ public class WskCli {
     }
 
     /**
-     * Run a wsk command. This will automatically add the auth key to the command.
+     * Run a wsk command. This will automatically add the auth key to the
+     * command.
      */
     public RunResult runCmd(String... params) throws IOException {
         List<String> newParams = new ArrayList<String>();
@@ -979,10 +959,8 @@ public class WskCli {
      *            exit code matches expected value
      * @return RunResult which contains stdout,sterr, exit code
      */
-    public RunResult cli(boolean verbose, int expectedExitCode, File workingDir, String... params)
-            throws IllegalArgumentException, IOException {
-        String[] cmd = WhiskProperties.useCliDownload() ? new String[] { getDownloadedCliPath() }
-                : new String[] { WhiskProperties.python, new File(cliDir, binaryName).toString() };
+    public RunResult cli(boolean verbose, int expectedExitCode, File workingDir, String... params) throws IllegalArgumentException, IOException {
+        String[] cmd = WhiskProperties.useCliDownload() ? new String[] { getDownloadedCliPath() } : new String[] { WhiskProperties.python, new File(cliDir, binaryName).toString() };
         String[] args = verbose ? Util.concat(cmd, "--verbose") : cmd;
         if (binaryName.equals("wsk")) {
             args = Util.concat(cmd, "--apihost", WhiskProperties.getEdgeHost());
@@ -997,22 +975,21 @@ public class WskCli {
     }
 
     /*
-     * Since there are many unit tests in Java and some of them need access to WskAdmin,
-     * we lightly reflect the admin methods here.
+     * Since there are many unit tests in Java and some of them need access to
+     * WskAdmin, we lightly reflect the admin methods here.
      */
-    public static RunResult admin(String... params)
-            throws IllegalArgumentException, IOException {
+    public static RunResult admin(String... params) throws IllegalArgumentException, IOException {
         File workingDir = new File(".");
         String[] cmd = new String[] { WhiskProperties.python, new File(cliDir, adminBinaryName).toString() };
         return TestUtils.runCmd(DONTCARE_EXIT, workingDir, TestUtils.logger, null, Util.concat(cmd, params));
     }
 
     /*
-     * Create a user.  The caller is responsible for checking success upon which stdout contains the authKey.
+     * Create a user. The caller is responsible for checking success upon which
+     * stdout contains the authKey.
      */
     public static RunResult createUser(String subject) throws Exception {
         return admin("user", "create", subject);
     }
-
 
 }

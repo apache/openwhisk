@@ -47,7 +47,6 @@ componentToDocker = { 'elk'             : 'ELK_DOCKER_ENDPOINT',
                       'zookeeper'       : 'KAFKA_DOCKER_ENDPOINT',
                       'loadbalancer'    : 'MAIN_DOCKER_ENDPOINT',
                       'controller'      : 'MAIN_DOCKER_ENDPOINT',
-                      'webportal'       : 'MAIN_DOCKER_ENDPOINT',
                       'activator'       : 'MAIN_DOCKER_ENDPOINT',
                       'invokers'        : 'INVOKER_HOSTS',
                       'cloudanttrigger' : 'CATALOG_DOCKER_ENDPOINT' 
