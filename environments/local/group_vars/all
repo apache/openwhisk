@@ -12,10 +12,12 @@ whisk:
     dir: /tmp/wsklogs
 docker_image_tag: latest
 docker:
+  port: 4243
   registry: ""
   restart:
     policy: always
 
+# port means outer port
 controller:
   port: 10001
 

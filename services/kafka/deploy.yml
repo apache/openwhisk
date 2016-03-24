@@ -1,0 +1,41 @@
+- name: OpenWhisk Zookeeper
+  hosts: kafka
+  tasks:
+  - name: Pull image
+    shell: "docker pull {{docker.registry}}whisk/zookeeper:{{docker_image_tag}}"
+    when: docker.registry != ""
+  - name: (Re)start container
+    docker:
+      name: zookeeper
+      image: "{{docker.registry}}whisk/zookeeper:{{docker_image_tag}}"
+      state: reloaded
+      restart_policy: "{{docker.restart.policy}}"
+      ports:
+        - "{{zookeeper.port}}:2181"
+      hostname: "zookeeper_{{inventory_hostname}}:{{docker.port}}"
+  - name: Wait until Zookeeper is up and running
+    wait_for: delay=2 host={{ansible_host}} port={{zookeeper.port}} timeout=60
+
+- name: OpenWhisk Kafka
+  hosts: kafka
+  tasks:
+  - name: Pull image
+    shell: "docker pull {{docker.registry}}whisk/kafka:{{docker_image_tag}}"
+    when: docker.registry != ""
+  - name: (Re)start container
+    docker:
+      name: kafka
+      registry: "{{docker.registry}}"
+      image: "{{docker.registry}}whisk/kafka:{{docker_image_tag}}"
+      state: reloaded
+      restart_policy: "{{docker.restart.policy}}"
+      links:
+        - "zookeeper:zookeeper"
+      env:
+        "EXPOSED_HOST": "{{ansible_host}}"
+      ports:
+        - "{{kafka.port}}:9092"
+        - "{{kafka.ras.port}}:8080"
+      hostname: "kafka_{{inventory_hostname}}:{{docker.port}}"
+  - name: Wait until Kafka is up and running
+    wait_for: delay=2 host={{ansible_host}} port={{kafka.port}} timeout=60
