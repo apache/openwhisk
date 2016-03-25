@@ -184,7 +184,7 @@ class Invoker(
         val now = Instant.now(Clock.systemUTC())
         val response = Some(404, JsObject(ActivationResponse.ERROR_FIELD -> errorMsg.toJson).compactPrint)
         val contents = JsArray()
-        val activation = makeWhiskActivation(msg, name, version, payload, now, now, response, contents)
+        val activation = makeWhiskActivation(false, msg, name, version, payload, now, now, response, contents)
         completeTransaction(tran, activation)
     }
 
@@ -239,7 +239,7 @@ class Invoker(
                     val containerId = con.containerId.get
                     val rawContents = con.getDockerLogContent(con.lastLogSize, size, runningInContainer)
                     val contents = processJsonDriverLogContents(containerName, con.lastLogSize, size, rawContents)
-                    val activation = makeWhiskActivation(msg, action, payload, start, end, response, contents)
+                    val activation = makeWhiskActivation(con.isBlackbox, msg, action, payload, start, end, response, contents)
                     con.lastLogSize = size
                     putContainerName(activation.activationId, containerName + "@" + containerIP) // only for whitebox testing
                     val res = completeTransaction(tran, activation)
@@ -252,7 +252,7 @@ class Invoker(
                 val now = Instant.now(Clock.systemUTC())
                 val response = Some(420, "Error starting container")
                 val contents = JsArray(JsString("Error starting container"))
-                val activation = makeWhiskActivation(msg, action, payload, getStart, now, response, contents)
+                val activation = makeWhiskActivation(false, msg, action, payload, getStart, now, response, contents)
                 completeTransaction(tran, activation)
             }
         }
@@ -315,6 +315,7 @@ class Invoker(
                     containsNormalLogMessage(t)
                 case Failure(t) =>
                     // drop lines that did not parse to JSON objects
+                    // but this is an error since we are using the json log driver (not dependent on user logic)
                     error(this, s"log line skipped/did not parse: $t")
                     false
             } map {
@@ -328,7 +329,7 @@ class Invoker(
         }
     }
 
-    private def processResponseContent(response: Option[(Int, String)])(
+    private def processResponseContent(isBlackbox: Boolean, response: Option[(Int, String)])(
         implicit transid: TransactionId): ActivationResponse = {
         response map { pair =>
             val (code, contents) = pair
@@ -361,7 +362,10 @@ class Invoker(
                     ActivationResponse.containerError(s"the action 'result' value is not an object: ${notAnObj.toString}")
 
                 case Failure(t) =>
-                    error(this, s"response did not json parse: $t")
+                    if (isBlackbox)
+                        warn(this, s"response did not json parse: '$contents' led to $t")
+                    else
+                        error(this, s"response did not json parse: '$contents' led to $t")
                     ActivationResponse.containerError("the action did not produce a valid JSON response")
             }
         } getOrElse ActivationResponse.whiskError("failed to obtain action invocation response")
@@ -392,13 +396,13 @@ class Invoker(
     }
 
     // -------------------------------------------------------------------------------------------------------------
-    private def makeWhiskActivation(msg: Message, action: WhiskAction, payload: JsObject,
+    private def makeWhiskActivation(isBlackbox : Boolean, msg: Message, action: WhiskAction, payload: JsObject,
                                     start: Instant, end: Instant, response: Option[(Int, String)], log: JsArray)(
                                         implicit transid: TransactionId): WhiskActivation = {
-        makeWhiskActivation(msg, action.name, action.version, payload, start, end, response, log)
+        makeWhiskActivation(isBlackbox, msg, action.name, action.version, payload, start, end, response, log)
     }
 
-    private def makeWhiskActivation(msg: Message, actionName: EntityName, actionVersion: SemVer, payload: JsObject,
+    private def makeWhiskActivation(isBlackbox : Boolean, msg: Message, actionName: EntityName, actionVersion: SemVer, payload: JsObject,
                                     start: Instant, end: Instant, response: Option[(Int, String)], log: JsArray)(
                                         implicit transid: TransactionId): WhiskActivation = {
         WhiskActivation(
@@ -411,7 +415,7 @@ class Invoker(
             cause = msg.cause,
             start = start,
             end = end,
-            response = processResponseContent(response),
+            response = processResponseContent(isBlackbox, response),
             logs = ActivationLogs.serdes.read(log))
     }
 
