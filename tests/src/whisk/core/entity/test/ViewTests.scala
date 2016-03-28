@@ -20,6 +20,7 @@ import java.time.Clock
 import java.time.Instant
 import scala.concurrent.Await
 import scala.util.Try
+import akka.actor.ActorSystem
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfter
 import org.scalatest.FlatSpec
@@ -64,6 +65,8 @@ class ViewTests extends FlatSpec
     with Matchers
     with DbUtils {
 
+    implicit val actorSystem = ActorSystem()
+
     def aname = MakeName.next("viewtests")
 
     object MakeName {
@@ -89,8 +92,10 @@ class ViewTests extends FlatSpec
     }
 
     override def afterAll() {
-        println("Shutting down cloudant connections")
+        println("Shutting down store connections")
         datastore.shutdown()
+        println("Shutting down actor system")
+        actorSystem.shutdown()
     }
 
     behavior of "Datastore View"

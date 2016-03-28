@@ -19,6 +19,7 @@ package whisk.core.entity
 import java.util.Date
 import scala.concurrent.Future
 import scala.util.Try
+import akka.actor.ActorSystem
 import spray.json.JsObject
 import spray.json.JsString
 import spray.json.JsValue
@@ -73,7 +74,7 @@ protected[core] trait WhiskDocument
 }
 
 protected[core] object Util {
-    def makeStore[R, D <: DocumentSerializer](config: WhiskConfig, name: WhiskConfig=>String) : ArtifactStore[R, D] = {
+    def makeStore[R, D <: DocumentSerializer](config: WhiskConfig, name: WhiskConfig=>String)(implicit actorSystem: ActorSystem) : ArtifactStore[R, D] = {
         require(config != null && config.isValid, "config is undefined or not valid")
         require(config.dbProvider == "Cloudant" || config.dbProvider == "CouchDB", "Unsupported db.provider: " + config.dbProvider)
 
@@ -95,7 +96,8 @@ object WhiskAuthStore {
             dbPort -> null,
             dbAuths -> null)
 
-    def datastore(config: WhiskConfig) = Util.makeStore[AuthRecord, WhiskAuth](config, _.dbAuths)
+    def datastore(config: WhiskConfig)(implicit system: ActorSystem) =
+        Util.makeStore[AuthRecord, WhiskAuth](config, _.dbAuths)
 }
 
 object WhiskEntityStore {
@@ -108,7 +110,8 @@ object WhiskEntityStore {
             dbPort -> null,
             dbWhisk -> null)
 
-    def datastore(config: WhiskConfig) = Util.makeStore[EntityRecord, WhiskEntity](config, _.dbWhisk)
+    def datastore(config: WhiskConfig)(implicit system: ActorSystem) =
+        Util.makeStore[EntityRecord, WhiskEntity](config, _.dbWhisk)
 }
 
 object WhiskActivationStore {
@@ -121,7 +124,8 @@ object WhiskActivationStore {
             dbPort -> null,
             dbActivations -> null)
 
-    def datastore(config: WhiskConfig) = Util.makeStore[ActivationRecord, WhiskActivation](config, _.dbActivations)
+    def datastore(config: WhiskConfig)(implicit system: ActorSystem) =
+        Util.makeStore[ActivationRecord, WhiskActivation](config, _.dbActivations)
 }
 
 /**

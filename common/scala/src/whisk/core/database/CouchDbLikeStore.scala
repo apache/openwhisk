@@ -26,6 +26,7 @@ import com.google.gson.JsonObject
 import spray.json.JsObject
 import whisk.common.TransactionId
 import whisk.core.entity.DocInfo
+import whisk.utils.ExecutionContextFactory
 import spray.json.JsArray
 
 /**
@@ -47,6 +48,8 @@ class CouchDbLikeStore[View: CouchDbLikeViewProvider, RawDocument, DocumentAbstr
     dbPassword: String,
     dbName: String)
     extends ArtifactStore[RawDocument, DocumentAbstraction] {
+
+    protected[core] implicit val executionContext = ExecutionContextFactory.makeExecutionContext()
 
     private val viewProvider = implicitly[CouchDbLikeViewProvider[View]]
 

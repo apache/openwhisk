@@ -27,6 +27,7 @@ import scala.util.Success
 import scala.util.Try
 import scala.util.matching.Regex.Match
 
+import akka.actor.ActorSystem
 import akka.japi.Creator
 import spray.json.DefaultJsonProtocol.IntJsonFormat
 import spray.json.DefaultJsonProtocol.StringJsonFormat
@@ -85,9 +86,10 @@ import whisk.http.BasicHttpService
 class Invoker(
     config: WhiskConfig,
     instance: Int,
-    implicit private val executionContext: ExecutionContext,
-    runningInContainer: Boolean = true)
+    runningInContainer: Boolean = true)(implicit actorSystem: ActorSystem)
     extends DispatchRule("invoker", "/actions/invoke", s"""(.+)/(.+)/(.+),(.+)/(.+)""") {
+
+    implicit private val executionContext: ExecutionContext = actorSystem.dispatcher
 
     override def setVerbosity(level: Verbosity.Level) = {
         super.setVerbosity(level)
@@ -98,10 +100,10 @@ class Invoker(
     }
 
     /*
-     * We track the state of the transaction by wrapping the Message object. 
+     * We track the state of the transaction by wrapping the Message object.
      * Note that var fields cannot be added to Message as it leads to serialization issues and
      * doesn't make sense to mix local mutable state with the value being passed around.
-     * 
+     *
      * See completeTransaction for why complete is needed.
      */
     case class Transaction(msg: Message) {
@@ -477,9 +479,12 @@ object InvokerService {
      */
     def requiredProperties = Invoker.requiredProperties ++ Dispatcher.requiredProperties
 
-    private class ServiceBuilder(invoker: Invoker) extends Creator[InvokerServer] {
+    private class ServiceBuilder(invoker: Invoker)(
+        implicit val ec: ExecutionContext)
+        extends Creator[InvokerServer] {
         def create = new InvokerServer {
             override val invokerInstance = invoker
+            override val executionContext = ec
         }
     }
 
@@ -490,7 +495,14 @@ object InvokerService {
         if (config.isValid) {
             val instance = if (args.length > 0) args(1).toInt else 0
             val dispatcher = new Dispatcher(config, s"invoke${instance}", "invokers")
-            val invoker = new Invoker(config, instance, Dispatcher.executionContext)
+            implicit val ec = Dispatcher.executionContext
+
+            implicit val actorSystem = ActorSystem(
+                name="invoker-actor-system",
+                defaultExecutionContext=Some(ec)
+            )
+
+            val invoker = new Invoker(config, instance)
 
             SimpleExec.setVerbosity(Verbosity.Loud)
             invoker.setVerbosity(Verbosity.Loud)
@@ -502,5 +514,4 @@ object InvokerService {
             BasicHttpService.startService("invoker", "0.0.0.0", port, new ServiceBuilder(invoker))
         }
     }
-
 }

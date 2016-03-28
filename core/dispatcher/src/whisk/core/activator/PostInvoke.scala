@@ -22,6 +22,7 @@ import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Success
 import scala.util.matching.Regex.Match
+import akka.actor.ActorSystem
 import spray.client.pipelining.Post
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
 import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
@@ -58,7 +59,8 @@ class PostInvoke(
     override val name: String,
     rule: WhiskRule,
     subject: Subject,
-    config: WhiskConfig)
+    config: WhiskConfig)(
+        implicit val actorSystem: ActorSystem)
     extends DispatchRule(name, "/triggers/fire", WhiskEntity.qualifiedName(rule.namespace, rule.trigger)) {
 
     /** Inject method to post HTTP request to loadbalancer and return LoadBalancerResponse. */
