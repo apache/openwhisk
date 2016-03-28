@@ -62,6 +62,7 @@ import scala.concurrent.Await
 import whisk.core.controller.WhiskPackagesApi
 import whisk.core.entity.WhiskPackagePut
 import whisk.core.entity.WhiskEntity
+import whisk.utils.retry
 
 /**
  * Tests Packages API.
@@ -95,11 +96,13 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         }
         put(entityStore, provider)
         actions foreach { put(entityStore, _) }
-        Get(s"$collectionPath/${provider.name}/") ~> sealRoute(routes(creds)) ~> check {
-            status should be(OK)
-            val response = responseAs[List[JsObject]]
-            actions.length should be(response.length)
-            actions forall { a => response contains a.summaryAsJson } should be(true)
+        whisk.utils.retry {
+            Get(s"$collectionPath/${provider.name}/") ~> sealRoute(routes(creds)) ~> check {
+                status should be(OK)
+                val response = responseAs[List[JsObject]]
+                actions.length should be(response.length)
+                actions forall { a => response contains a.summaryAsJson } should be(true)
+            }
         }
     }
 
@@ -113,11 +116,13 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         put(entityStore, provider)
         put(entityStore, reference)
         actions foreach { put(entityStore, _) }
-        Get(s"$collectionPath/${reference.name}/") ~> sealRoute(routes(creds)) ~> check {
-            status should be(OK)
-            val response = responseAs[List[JsObject]]
-            actions.length should be(response.length)
-            actions forall { a => response contains a.summaryAsJson } should be(true)
+        whisk.utils.retry {
+            Get(s"$collectionPath/${reference.name}/") ~> sealRoute(routes(creds)) ~> check {
+                status should be(OK)
+                val response = responseAs[List[JsObject]]
+                actions.length should be(response.length)
+                actions forall { a => response contains a.summaryAsJson } should be(true)
+            }
         }
     }
 
@@ -129,12 +134,14 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         put(entityStore, provider)
         put(entityStore, action1)
         put(entityStore, action2)
-        Get(s"$collectionPath") ~> sealRoute(routes(creds)) ~> check {
-            status should be(OK)
-            val response = responseAs[List[JsObject]]
-            response.length should be(2)
-            response contains action1.summaryAsJson should be(true)
-            response contains action2.summaryAsJson should be(true)
+        whisk.utils.retry {
+            Get(s"$collectionPath") ~> sealRoute(routes(creds)) ~> check {
+                status should be(OK)
+                val response = responseAs[List[JsObject]]
+                response.length should be(2)
+                response contains action1.summaryAsJson should be(true)
+                response contains action2.summaryAsJson should be(true)
+            }
         }
     }
 
@@ -142,8 +149,10 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         implicit val tid = transid()
         val provider = WhiskPackage(namespace, aname, None)
         put(entityStore, provider)
-        Get(s"$collectionPath/${provider.name}") ~> sealRoute(routes(creds)) ~> check {
-            status should be(Conflict)
+        whisk.utils.retry {
+            Get(s"$collectionPath/${provider.name}") ~> sealRoute(routes(creds)) ~> check {
+                status should be(Conflict)
+            }
         }
     }
 
@@ -151,6 +160,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         implicit val tid = transid()
         val provider = WhiskPackage(namespace, aname, None)
         put(entityStore, provider)
+        // Not adding retry here as it's not a read operation
         Delete(s"$collectionPath/${provider.name}/") ~> sealRoute(routes(creds)) ~> check {
             status should be(NotFound)
         }
@@ -261,10 +271,12 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         val action = WhiskAction(provider.path, aname, Exec.js("??"), Parameters("a", "A"))
         put(entityStore, provider)
         put(entityStore, action)
-        Get(s"$collectionPath/${provider.name}/${action.name}") ~> sealRoute(routes(creds)) ~> check {
-            status should be(OK)
-            val response = responseAs[WhiskAction]
-            response should be(action ++ provider.parameters)
+        whisk.utils.retry {
+            Get(s"$collectionPath/${provider.name}/${action.name}") ~> sealRoute(routes(creds)) ~> check {
+                status should be(OK)
+                val response = responseAs[WhiskAction]
+                response should be(action ++ provider.parameters)
+            }
         }
     }
 
@@ -277,10 +289,12 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         put(entityStore, provider)
         put(entityStore, binding)
         put(entityStore, action)
-        Get(s"$collectionPath/${binding.name}/${action.name}") ~> sealRoute(routes(auser)) ~> check {
-            status should be(OK)
-            val response = responseAs[WhiskAction]
-            response should be(action ++ (provider.parameters ++ binding.parameters))
+        whisk.utils.retry {
+            Get(s"$collectionPath/${binding.name}/${action.name}") ~> sealRoute(routes(auser)) ~> check {
+                status should be(OK)
+                val response = responseAs[WhiskAction]
+                response should be(action ++ (provider.parameters ++ binding.parameters))
+            }
         }
     }
 
@@ -293,10 +307,12 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         put(entityStore, provider)
         put(entityStore, binding)
         put(entityStore, action)
-        Get(s"$collectionPath/${binding.name}/${action.name}") ~> sealRoute(routes(auser)) ~> check {
-            status should be(OK)
-            val response = responseAs[WhiskAction]
-            response should be(action ++ (provider.parameters ++ binding.parameters))
+        whisk.utils.retry {
+            Get(s"$collectionPath/${binding.name}/${action.name}") ~> sealRoute(routes(auser)) ~> check {
+                status should be(OK)
+                val response = responseAs[WhiskAction]
+                response should be(action ++ (provider.parameters ++ binding.parameters))
+            }
         }
     }
 
