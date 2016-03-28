@@ -158,5 +158,5 @@ protected[core] object DocInfo {
      * @throws IllegalArgumentException if id is null or empty
      */
     @throws[IllegalArgumentException]
-    protected[entity] def !(id: String, rev: String): DocInfo = DocInfo(DocId(id), DocRevision(rev))
+    protected[core] def !(id: String, rev: String): DocInfo = DocInfo(DocId(id), DocRevision(rev))
 }
