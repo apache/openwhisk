@@ -30,6 +30,7 @@ import whisk.core.database.DocumentFactory
 import whisk.core.entity.schema.PackageRecord
 import spray.json.JsObject
 import spray.json.JsValue
+import spray.json.JsonFormat
 import spray.json.RootJsonFormat
 import spray.json.JsString
 import spray.json.deserializationError
@@ -151,7 +152,35 @@ object WhiskPackage
 
     val bindingFieldName = "binding"
     override val collectionName = "packages"
-    override implicit val serdes = jsonFormat7(WhiskPackage.apply)
+
+    // A conspiring combination of legacy support and Scala compiler bugs makes
+    // this harder that it should be. PS
+    override implicit val serdes = {
+        // This is to support records created in the old style where {} represents None.
+        val tolerantOptionBindingFormat: JsonFormat[Option[Binding]] = {
+            implicit val bs = Binding.serdes // helps the compiler
+            val base = implicitly[JsonFormat[Option[Binding]]]
+            new JsonFormat[Option[Binding]] {
+                override def write(ob: Option[Binding]) = base.write(ob)
+                override def read(js: JsValue) = {
+                    if(js == JsObject()) None else base.read(js)
+                }
+            }
+        }
+        val e1 = implicitly[RootJsonFormat[Namespace]]
+        val e2 = implicitly[RootJsonFormat[EntityName]]
+        val e3 = tolerantOptionBindingFormat
+        val e4 = implicitly[RootJsonFormat[Parameters]]
+        val e5 = implicitly[RootJsonFormat[SemVer]]
+        val e6 = implicitly[JsonFormat[Boolean]]
+        val e7 = e4
+        val cm = implicitly[ClassManifest[WhiskPackage]]
+        // Scala compiler wasn't able to figure this out by itself :(
+        jsonFormat7[Namespace,EntityName,Option[Binding],Parameters,SemVer,Boolean,Parameters,WhiskPackage](
+            WhiskPackage.apply)(
+            e1, e2, e3, e4, e5, e6, e7, cm
+        )
+    }
 
     override def apply(r: PackageRecord): Try[WhiskPackage] = Try {
         WhiskPackage(

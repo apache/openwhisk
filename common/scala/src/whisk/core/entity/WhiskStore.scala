@@ -74,7 +74,9 @@ protected[core] trait WhiskDocument
 }
 
 protected[core] object Util {
-    def makeStore[R, D <: DocumentSerializer](config: WhiskConfig, name: WhiskConfig=>String)(implicit actorSystem: ActorSystem) : ArtifactStore[R, D] = {
+    def makeStore[R, D <: DocumentSerializer](config: WhiskConfig, name: WhiskConfig=>String)(
+        implicit jsonFormat: RootJsonFormat[D],
+        actorSystem: ActorSystem) : ArtifactStore[R, D] = {
         require(config != null && config.isValid, "config is undefined or not valid")
         require(config.dbProvider == "Cloudant" || config.dbProvider == "CouchDB", "Unsupported db.provider: " + config.dbProvider)
 
@@ -111,7 +113,7 @@ object WhiskEntityStore {
             dbWhisk -> null)
 
     def datastore(config: WhiskConfig)(implicit system: ActorSystem) =
-        Util.makeStore[EntityRecord, WhiskEntity](config, _.dbWhisk)
+        Util.makeStore[EntityRecord, WhiskEntity](config, _.dbWhisk)(WhiskEntityJsonFormat, system)
 }
 
 object WhiskActivationStore {
