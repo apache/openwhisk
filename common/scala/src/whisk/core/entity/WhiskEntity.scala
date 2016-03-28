@@ -16,8 +16,12 @@
 
 package whisk.core.entity
 
-import spray.json.JsBoolean
+import scala.util.Try
+import spray.json.JsValue
 import spray.json.JsObject
+import spray.json.JsBoolean
+import spray.json.RootJsonFormat
+import spray.json.DeserializationException
 import whisk.core.entity.schema.EntityRecord
 import java.time.Instant
 import java.time.Clock
@@ -118,3 +122,38 @@ object WhiskEntity {
         s"$name${Namespace.PATHSEP}$version"
     }
 }
+
+/**
+ * Dispatches to appropriate serdes. This object is not itself implicit so as to
+ * avoid multiple implicit alternatives when working with one of the subtypes.
+ */
+object WhiskEntityJsonFormat extends RootJsonFormat[WhiskEntity] {
+    // THE ORDER MATTERS! E.g. all triggers can deserialize as packages, but not
+    // the other way around. Try most specific first!
+    private def readers: Stream[JsValue => WhiskEntity] = Stream(
+        WhiskAction.serdes.read,
+        WhiskActivation.serdes.read,
+        WhiskRule.serdes.read,
+        WhiskTrigger.serdes.read,
+        WhiskPackage.serdes.read
+    )
+
+    // Not necessarily the smartest way to go about this. In theory, whenever
+    // a more precise type is known, this method shouldn't be used.
+    override def read(js: JsValue): WhiskEntity = {
+        val successes: Stream[WhiskEntity] = readers.flatMap(r => Try(r(js)).toOption)
+
+        successes.headOption.getOrElse {
+            throw new DeserializationException("Cannot deserialize to any known WhiskEntity: " + js.toString)
+        }
+    }
+
+    override def write(we: WhiskEntity): JsValue = we match {
+        case a: WhiskAction => WhiskAction.serdes.write(a)
+        case a: WhiskActivation => WhiskActivation.serdes.write(a)
+        case p: WhiskPackage => WhiskPackage.serdes.write(p)
+        case r: WhiskRule => WhiskRule.serdes.write(r)
+        case t: WhiskTrigger => WhiskTrigger.serdes.write(t)
+    }
+}
+
