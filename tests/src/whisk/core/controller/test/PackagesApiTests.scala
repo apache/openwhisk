@@ -494,10 +494,12 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
         put(entityStore, provider)
         put(entityStore, reference)
         put(entityStore, action)
-        Delete(s"$collectionPath/${provider.name}") ~> sealRoute(routes(creds)) ~> check {
-            status should be(Conflict)
-            val response = responseAs[ErrorResponse]
-            response.error should include("Package not empty (contains 1 entity)")
+        whisk.utils.retry {
+            Delete(s"$collectionPath/${provider.name}") ~> sealRoute(routes(creds)) ~> check {
+                status should be(Conflict)
+                val response = responseAs[ErrorResponse]
+                response.error should include("Package not empty (contains 1 entity)")
+            }
         }
     }
 
