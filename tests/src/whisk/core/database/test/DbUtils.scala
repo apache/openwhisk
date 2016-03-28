@@ -146,7 +146,7 @@ trait DbUtils extends TransactionCounter {
      * Gets document by id from datastore, and add it to gc queue to delete after the test completes.
      */
     def get[R, A, Ru >: R, Au >: A](db: ArtifactStore[Ru, Au], docid: DocInfo, factory: DocumentFactory[R, A], garbageCollect: Boolean = true)(
-        implicit transid: TransactionId, timeout: Duration = 10 seconds, m: Manifest[R]): A = {
+        implicit transid: TransactionId, timeout: Duration = 10 seconds, mr: Manifest[R], ma: Manifest[A]): A = {
         val docFuture = factory.get(db, docid)
         val doc = Await.result(docFuture, timeout)
         assert(doc != null)
@@ -158,7 +158,7 @@ trait DbUtils extends TransactionCounter {
      * Deletes document by id from datastore.
      */
     def del[R, A <: WhiskDocument, Ru >: R, Au >: A](db: ArtifactStore[Ru, Au], docid: DocId, factory: DocumentFactory[R, A])(
-        implicit transid: TransactionId, timeout: Duration = 10 seconds, m: Manifest[R]) = {
+        implicit transid: TransactionId, timeout: Duration = 10 seconds, mr: Manifest[R], ma: Manifest[A]) = {
         val docFuture = factory.get(db, docid.asDocInfo)
         val doc = Await.result(docFuture, timeout)
         assert(doc != null)
@@ -169,7 +169,7 @@ trait DbUtils extends TransactionCounter {
      * Puts a document 'entity' into the datastore, then do a get to retrieve it and confirm the identity.
      */
     def putGetCheck[R, A, Ru >: R, Au >: A](db: ArtifactStore[Ru, Au], entity: A, factory: DocumentFactory[R, A], gc: Boolean = true)(
-        implicit transid: TransactionId, timeout: Duration = 10 seconds, m: Manifest[R]): (DocInfo, A) = {
+        implicit transid: TransactionId, timeout: Duration = 10 seconds, mr: Manifest[R], ma: Manifest[A]): (DocInfo, A) = {
         val doc = put(db, entity, gc)
         assert(doc != null && doc.id() != null && doc.rev() != null)
         val future = factory.get(db, doc)

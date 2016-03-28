@@ -187,11 +187,12 @@ trait DocumentFactory[R, W] extends (R => Try[W]) with InMemoryCache[R, W] {
      * @param doc the entity document information (must contain a valid id, and optional revision)
      * @param fromCache will only query cache if true (defaults to collection settings)
      * @param transid the transaction id for logging
-     * @param m a manifest for R (hint to compiler to preserve type R for runtime)
+     * @param mr a manifest for R (hint to compiler to preserve type R for runtime)
+     * @param mw a manifest for W (hint to compiler to preserve type R for runtime)
      * @return Future[W] with completion to Success(W), or Failure(Throwable) if the raw record cannot be converted into W
      */
     def get[Rsuper >: R, Wsuper >: W](db: ArtifactStore[Rsuper, Wsuper], doc: DocInfo, fromCache: Boolean = cacheEnabled)(
-        implicit transid: TransactionId, m: Manifest[R]): Future[W] = {
+        implicit transid: TransactionId, mr: Manifest[R], mw: Manifest[W]): Future[W] = {
         Try {
             require(db != null, "db undefined")
             require(doc != null, "doc undefined")

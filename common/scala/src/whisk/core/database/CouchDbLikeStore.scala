@@ -129,13 +129,15 @@ class CouchDbLikeStore[View: CouchDbLikeViewProvider, RawDocument, DocumentAbstr
      * @param doc the document info for the record to get (must contain valid id and rev)
      * @param deserialize a function from R => Try[A] where R is the RawDocument type and A is the DocumentAbstraction type
      * @param transid the transaction id for logging
-     * @param m manifest for R to determine its runtime type, required by db API
+     * @param mr manifest for R to determine its runtime type, required by db API
+     * @param ma manifest for A to determine its runtime type, required by other db APIs
      * @return a future that completes either with DocumentAbstraction if the document exists and is deserializable into desired type
      */
     override protected[database] def get[R <: RawDocument, A <: DocumentAbstraction](doc: DocInfo)(
         implicit transid: TransactionId,
         deserialize: Deserializer[R, A],
-        m: Manifest[R]): Future[A] = {
+        mr: Manifest[R],
+        ma: Manifest[A]): Future[A] = {
         reportFailure(
             Future {
                 require(doc != null, "doc undefined")
