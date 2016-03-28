@@ -83,7 +83,10 @@ protected[core] object Util {
         if(config.dbProvider == "Cloudant") {
             CloudantStore.make(config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name(config))
         } else {
-            CouchDbStore.make(config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name(config))
+            // CouchDbStore.make(config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name(config))
+            // New Spray-based API.
+            import whisk.core.database.CouchDbRestStore
+            new CouchDbRestStore[R,D](config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name(config))
         }
     }
 }
