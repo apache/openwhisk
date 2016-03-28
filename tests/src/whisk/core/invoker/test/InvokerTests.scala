@@ -21,6 +21,8 @@ import java.util.Calendar
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 
+import akka.actor.ActorSystem
+
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfter
 import org.scalatest.BeforeAndAfterAll
@@ -52,11 +54,13 @@ import whisk.core.entity.WhiskEntityStore
 import whisk.core.invoker.Invoker
 
 @RunWith(classOf[JUnitRunner])
-class InvokerTests extends FlatSpec 
-    with Matchers 
-    with BeforeAndAfter 
+class InvokerTests extends FlatSpec
+    with Matchers
+    with BeforeAndAfter
     with BeforeAndAfterAll
     with DbUtils {
+
+    implicit val actorSystem = ActorSystem()
 
     val config = new WhiskConfig(
         Invoker.requiredProperties ++ Map(
@@ -70,12 +74,14 @@ class InvokerTests extends FlatSpec
     after {
         cleanup()
     }
-    
+
     override def afterAll() {
-        println("Shutting down cloudant connections")
+        println("Shutting down store connections")
         datastore.shutdown()
         authstore.shutdown()
         activationstore.shutdown()
+        println("Shutting down actor system")
+        actorSystem.shutdown()
     }
 
     behavior of "Invoker"
@@ -86,7 +92,7 @@ class InvokerTests extends FlatSpec
         val message = Message(transid, "", auth.subject, ActivationId(), Some(payload), None)
         implicit val stream = new java.io.ByteArrayOutputStream
         val activationDoc = Console.withOut(stream) {
-            val rule = new Invoker(config, 1, executionContext, false)
+            val rule = new Invoker(config, 1, false)
             rule.setVerbosity(Verbosity.Loud)
             val future = rule.doit(message, rule.matches(s"/actions/invoke/${wsk.docid}"))
             val docinfo = Await.result(future, 10 seconds)

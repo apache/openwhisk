@@ -38,6 +38,7 @@ import whisk.http.BasicRasService
 import scala.util.Try
 import scala.util.Failure
 import scala.util.Success
+import scala.concurrent.ExecutionContext
 
 /**
  * Implements web server to handle certain REST API calls for testing.
@@ -85,5 +86,5 @@ trait InvokerServer
         msg.activationId
     }
 
-    private implicit val executionContext = Dispatcher.executionContext
+    protected[invoker] implicit val executionContext: ExecutionContext
 }

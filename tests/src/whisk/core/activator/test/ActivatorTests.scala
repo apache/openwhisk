@@ -19,6 +19,8 @@ package whisk.core.activator.test
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 
+import akka.actor.ActorSystem
+
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfter
 import org.scalatest.BeforeAndAfterAll
@@ -47,11 +49,13 @@ import whisk.core.entity.WhiskEntityStore
 import whisk.core.entity.WhiskRule
 
 @RunWith(classOf[JUnitRunner])
-class ActivatorTests extends FlatSpec 
-   with Matchers 
-   with BeforeAndAfter 
+class ActivatorTests extends FlatSpec
+   with Matchers
+   with BeforeAndAfter
    with BeforeAndAfterAll
    with DbUtils {
+
+    implicit val actorSystem = ActorSystem()
 
     val timeout = 20 seconds
     val namespace = Namespace("activator test namespace")
@@ -74,10 +78,12 @@ class ActivatorTests extends FlatSpec
         cleanup()
         dispatcher.cleanup()
     }
-    
+
     override def afterAll() {
         println("Shutting down cloudant connections")
         datastore.shutdown()
+        println("Shutting down actor system")
+        actorSystem.shutdown()
     }
 
     behavior of "Activator"

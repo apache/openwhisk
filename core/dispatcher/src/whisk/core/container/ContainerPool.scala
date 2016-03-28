@@ -26,6 +26,8 @@ import java.util.TimerTask
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.ListBuffer
 
+import akka.actor.ActorSystem
+
 import whisk.common.Counter
 import whisk.common.TransactionId
 import whisk.common.Verbosity
@@ -45,17 +47,17 @@ import whisk.core.entity.WhiskEntityStore
 /*
  * A thread-safe container pool that internalizes container creation/teardown and allows users
  * to check out a container.
- * 
+ *
  * Synchronization via "this" is used to maintain integrity of the data structures.
  * A separate object "gcSync" is used to prevent multiple GC's from occurring.
- * 
+ *
  * TODO: for now supports only one container per key
  * TODO: for now does not allow concurrent container creation
  */
 class ContainerPool(
     config: WhiskConfig,
     invokerInstance: Integer = 0,
-    useWarmContainers: Boolean = true)
+    useWarmContainers: Boolean = true)(implicit actorSystem: ActorSystem)
     extends ContainerUtils {
 
     val dockerhost = config.selfDockerEndpoint
@@ -147,7 +149,7 @@ class ContainerPool(
     /*
      * Try to get/create a container via the thunk by delegating to getOrMake.
      * This method will apply retry so that the caller is blocked until retry succeeds.
-     * 
+     *
      */
     def getImpl(key: String, conMaker: () => ContainerResult)(implicit transid: TransactionId): Option[(Container, Option[RunResult])] = {
         getOrMake(key, conMaker) match {
@@ -172,12 +174,12 @@ class ContainerPool(
     /*
      * Try to get or create a container, returning None if there are too many
      * active containers.
-     * 
+     *
      * The multiple synchronization block, and the use of startingCounter,
      * is needed to make sure container count is accurately tracked,
      * data structure maintains integrity, but to keep all length operations
      * outside of the lock.
-     * 
+     *
      * The returned container will be active (not pause).
      */
     def getOrMake(key: String, conMaker: () => ContainerResult)(implicit transid: TransactionId): ContainerResult = {

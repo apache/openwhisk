@@ -18,6 +18,8 @@ package whisk.core.container.test
 
 import scala.concurrent.Future
 
+import akka.actor.ActorSystem
+
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfter
 import org.scalatest.BeforeAndAfterAll
@@ -51,10 +53,12 @@ import whisk.utils.ExecutionContextFactory
  *
  */
 @RunWith(classOf[JUnitRunner])
-class ContainerPoolTests extends FlatSpec 
+class ContainerPoolTests extends FlatSpec
     with BeforeAndAfter
     with BeforeAndAfterAll
     {
+
+    implicit val actorSystem = ActorSystem()
 
     implicit val transid = TransactionId.dontcare
     implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
@@ -72,10 +76,12 @@ class ContainerPoolTests extends FlatSpec
     pool.logDir = "/tmp"
 
     val datastore = WhiskEntityStore.datastore(config)
-    
+
     override def afterAll() {
-        println("Shutting down cloudant connections");
+        println("Shutting down store connections")
         datastore.shutdown()
+        println("Shutting down actor system")
+        actorSystem.shutdown()
     }
 
     /**
@@ -180,7 +186,7 @@ class ContainerPoolTests extends FlatSpec
         val containerIdPrefix = container.containerIdPrefix();
         assert(poolHasContainerIdPrefix(containerIdPrefix)) // container must be around
         pool.putBack(container); // contractually, user must let go of con at this point
-        // TODO: replace this with GC count so we don't break abstraction by knowing the GC check freq.  (!= threshold) 
+        // TODO: replace this with GC count so we don't break abstraction by knowing the GC check freq.  (!= threshold)
         Thread.sleep(2 * pool.gcFreqMilli + 1500) // GC should collect this by now
         assert(!poolHasContainerIdPrefix(containerIdPrefix)) // container must be gone by now
         // Do it again now

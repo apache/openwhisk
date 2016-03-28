@@ -20,8 +20,11 @@ import java.util.Calendar
 
 import scala.concurrent.Future
 
+import akka.actor.ActorSystem
+
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfter
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
@@ -47,10 +50,17 @@ import whisk.core.entity.WhiskRule
 import whisk.core.entity.WhiskTrigger
 
 @RunWith(classOf[JUnitRunner])
-class DispatcherTests extends FlatSpec with Matchers with BeforeAndAfter {
+class DispatcherTests extends FlatSpec with Matchers with BeforeAndAfter with BeforeAndAfterAll {
     implicit val transid = TransactionId.dontcare
     implicit val ec = Dispatcher.executionContext
+
     val dispatcher = new TestDispatcher("whisk")
+
+    implicit val actorSystem = ActorSystem()
+
+    override def afterAll() {
+        actorSystem.shutdown()
+    }
 
     behavior of "Dispatcher"
 

@@ -16,21 +16,20 @@
 
 package whisk.core.database
 
-import scala.annotation.implicitNotFound
 import scala.concurrent.Future
+import scala.concurrent.ExecutionContext
 import scala.util.Try
 
 import spray.json.JsObject
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.entity.DocInfo
-import whisk.utils.ExecutionContextFactory
 
 /** Basic client to put and delete artifacts in a data store. */
 trait ArtifactStore[RawDocument, DocumentAbstraction] extends Logging {
 
     /** Execution context for futures */
-    protected[core] implicit val executionContext = ExecutionContextFactory.makeExecutionContext()
+    protected[core] implicit val executionContext: ExecutionContext
 
     /**
      * Puts (saves) document to database using a future.

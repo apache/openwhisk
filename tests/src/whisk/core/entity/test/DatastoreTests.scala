@@ -21,6 +21,8 @@ import java.time.Instant
 import scala.Vector
 import scala.concurrent.Await
 
+import akka.actor.ActorSystem
+
 import org.junit.runner.RunWith
 import org.lightcouch.DocumentConflictException
 import org.lightcouch.NoDocumentException
@@ -60,6 +62,8 @@ class DatastoreTests extends FlatSpec
     with BeforeAndAfterAll
     with DbUtils {
 
+    implicit val actorSystem = ActorSystem()
+
     val namespace = Namespace("test namespace")
     val config = new WhiskConfig(WhiskEntityStore.requiredProperties)
     val datastore = WhiskEntityStore.datastore(config)
@@ -68,9 +72,11 @@ class DatastoreTests extends FlatSpec
     authstore.setVerbosity(Verbosity.Loud)
 
     override def afterAll() {
-        println("Shutting down cloudant connections");
+        println("Shutting down store connections")
         datastore.shutdown()
         authstore.shutdown()
+        println("Shutting down actor system")
+        actorSystem.shutdown()
     }
 
     @volatile var counter = 0
