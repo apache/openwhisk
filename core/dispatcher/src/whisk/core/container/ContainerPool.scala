@@ -162,10 +162,7 @@ class ContainerPool(
 
     def getNumberOfIdleContainers(key: String)(implicit transid: TransactionId): Int = {
         this.synchronized {
-            keyMap.get(key) match {
-                case None => 0
-                case Some(bucket) => bucket.count { _.isIdle() }
-            }
+            keyMap.get(key) map { bucket => bucket.count { _.isIdle() } } getOrElse 0
         }
     }
 
@@ -313,7 +310,7 @@ class ContainerPool(
     private val warmupThread = new Thread {
         override def run {
             while (true) {
-                val tid = TransactionId(0)
+                val tid = TransactionId.dontcare
                 if (getNumberOfIdleContainers(warmNodejsKey)(tid) < WARM_NODEJS_CONTAINERS) {
                     makeWarmNodejsContainer()(tid)
                 }
