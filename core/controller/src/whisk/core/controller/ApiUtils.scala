@@ -163,7 +163,8 @@ trait ReadOps extends Directives with Messages with Logging {
         postProcess: Option[PostProcessEntity[A]] = None)(
             implicit transid: TransactionId,
             format: RootJsonFormat[A],
-            m: Manifest[R]) = {
+            mr: Manifest[R],
+            ma: Manifest[A]) = {
         onComplete(factory.get(datastore, docid.asDocInfo)) {
             case Success(entity) =>
                 info(this, s"[GET] entity success")
@@ -200,7 +201,8 @@ trait ReadOps extends Directives with Messages with Logging {
         project: A => JsObject)(
             implicit transid: TransactionId,
             format: RootJsonFormat[A],
-            m: Manifest[R]) = {
+            mr: Manifest[R],
+            ma: Manifest[A]) = {
         onComplete(factory.get(datastore, docid.asDocInfo)) {
             case Success(entity) =>
                 info(this, s"[PROJECT] entity success")
@@ -261,7 +263,8 @@ trait WriteOps extends Directives with Messages with Logging {
         treatExistsAsConflict: Boolean = true)(
             implicit transid: TransactionId,
             format: RootJsonFormat[A],
-            m: Manifest[R]) = {
+            mr: Manifest[R],
+            ma: Manifest[A]) = {
         // marker to return an existing doc with status OK rather than conflict if overwrite is false
         case class IdentityPut(self: A) extends Throwable
 
@@ -328,7 +331,8 @@ trait WriteOps extends Directives with Messages with Logging {
         confirm: A => Future[Boolean])(
             implicit transid: TransactionId,
             format: RootJsonFormat[A],
-            m: Manifest[R]) = {
+            mr: Manifest[R],
+            ma: Manifest[A]) = {
         onComplete(factory.get(datastore, docid.asDocInfo) flatMap {
             entity =>
                 confirm(entity) flatMap {
