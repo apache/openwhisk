@@ -34,6 +34,8 @@ import whisk.core.WhiskConfig.dockerImageTag
 import whisk.core.WhiskConfig.invokerContainerNetwork
 import whisk.core.WhiskConfig.selfDockerEndpoint
 import whisk.core.entity.ActionLimits
+import whisk.core.entity.MemoryLimit
+import whisk.core.entity.TimeLimit
 import whisk.core.entity.NodeJSExec
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskAuth
@@ -59,6 +61,9 @@ class ContainerPool(
     val dockerhost = config.selfDockerEndpoint
     private val datastore = WhiskEntityStore.datastore(config)
     private val authStore = WhiskAuthStore.datastore(config)
+
+    // Eventually, we will have a more sophisticated warmup strategy that does multiple sizes
+    private val defaultMemoryLimit = MemoryLimit("128")   // MB
 
     /*
      * Set verbosity of this and owned objects.
@@ -300,9 +305,13 @@ class ContainerPool(
     // Easier to walk containerMap than keyMap
     private def countByState(state: State.Value) = this.synchronized { containerMap.count({ case (_, ci) => ci.state == state }) }
 
+
     // Sample container name: wsk1_1_joeibmcomhelloWorldDemo_20150901T202701852Z
+    private def makeContainerName(localName : String): String =
+        ContainerCounter.containerName(invokerInstance.toString(), localName)
+
     private def makeContainerName(action: WhiskAction): String =
-        ContainerCounter.containerName(invokerInstance.toString(), action.fullyQualifiedName)
+        makeContainerName(action.fullyQualifiedName)
 
     // A background thread that re-populates the container pool with fresh (un-instantiated) nodejs containers.
     private val warmupThread = new Thread {
@@ -318,12 +327,10 @@ class ContainerPool(
     }
 
     private def makeWarmNodejsContainer()(implicit transid: TransactionId): WhiskContainer = {
-        val network = config.invokerContainerNetwork
         val imageName = WhiskAction.containerImageName(nodejsExec, config.dockerRegistry, config.dockerImageTag)
-        val env = getContainerEnvironment()
-        val limits = ActionLimits()
-        val warmContainerName = "someWarmContainer"
-        val con = new WhiskContainer(this, warmNodejsKey, warmContainerName, imageName, network, false, env, limits)
+        val limits = ActionLimits(TimeLimit(), defaultMemoryLimit)
+        val containerName = makeContainerName("warmJsContainer")
+        val con = makeGeneralContainer(warmNodejsKey, containerName, imageName, limits)
         con.pause()
         this.synchronized {
             introduceContainer(warmNodejsKey, con)
@@ -332,22 +339,32 @@ class ContainerPool(
         con
     }
 
-    // WIP: To pre-alloc containers, we need to get rid of use of "action" and "auth" by moving it to initWhiskContainer.
-    // imageName: hardcode nodejs and initWhiskContainer must check that it agrees
-    // env: auth.compact is used
-    // limit: used for -m but potentially other things in the future
-    // key: becomes nodejsaction
+    private def getWarmNodejsContainer() : Option[WhiskContainer] = None
+
+    // Obtain a container (by creation or promotion) and initialize by sending code.
     private def makeWhiskContainer(action: WhiskAction, auth: WhiskAuth)(implicit transid: TransactionId): ContainerResult = {
-        val network = config.invokerContainerNetwork
         val imageName = getDockerImageName(action)
-        val env = getContainerEnvironment()
         val limits = action.limits
+        val nodeImageName = WhiskAction.containerImageName(nodejsExec, config.dockerRegistry, config.dockerImageTag)
+        val warmedContainer = if (limits.memory == defaultMemoryLimit && imageName == nodeImageName) None else getWarmNodejsContainer()
         val key = makeKey(action, auth)
-        // This will start up the container
-        val pull = !imageName.contains("whisk/")
-        val con = new WhiskContainer(this, key, makeContainerName(action), imageName, network, pull, env, limits)
-        info(this, s"ContainerPool: started container - about to send init")
+        val containerName = makeContainerName(action)
+        val con = warmedContainer getOrElse makeGeneralContainer(key, containerName, imageName, limits)
         initWhiskContainer(action, con)
+    }
+
+    // Make a container somewhat generically without introducing into data structure.  
+    // There is access to global settings (docker registry)
+    // and generic settings (image name - static limits) but without access to WhiskAction.
+    private def makeGeneralContainer(key : String, containerName : String, 
+                                     imageName: String, limits : ActionLimits)(implicit transid: TransactionId): WhiskContainer = {
+        val network = config.invokerContainerNetwork
+        val env = getContainerEnvironment()
+        val pull = !imageName.contains("whisk/")
+        // This will start up the container
+        val con = new WhiskContainer(this, key, containerName, imageName, network, pull, env, limits)
+        info(this, s"ContainerPool: started container - about to send init")
+        con
     }
 
     // We send the payload here but eventually must also handle morphing a pre-allocated container into the right state.
