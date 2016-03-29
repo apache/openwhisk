@@ -42,7 +42,7 @@ protected[entity] class MemoryLimit private (val megabytes: Int) extends AnyVal 
 protected[core] object MemoryLimit extends ArgNormalizer[MemoryLimit] {
     protected[entity] val MIN_MEMORY = 128 // MB
     protected[entity] val MAX_MEMORY = 512 // MB
-    protected[entity] val STD_MEMORY = 256 // MB
+    protected[core] val STD_MEMORY = 256 // MB
 
     /** Gets TimeLimit with default duration */
     protected[core] def apply(): MemoryLimit = new MemoryLimit(STD_MEMORY)
@@ -55,7 +55,7 @@ protected[core] object MemoryLimit extends ArgNormalizer[MemoryLimit] {
      * @throws IllegalArgumentException if limit does not conform to requirements
      */
     @throws[IllegalArgumentException]
-    protected[entity] def apply(megabytes: Int): MemoryLimit = {
+    protected[core] def apply(megabytes: Int): MemoryLimit = {
         require(megabytes >= MIN_MEMORY, s"memory $megabytes below allowed threshold")
         require(megabytes <= MAX_MEMORY, s"memory $megabytes exceeds allowed threshold")
         new MemoryLimit(megabytes);
