@@ -63,7 +63,7 @@ class ContainerPool(
     private val authStore = WhiskAuthStore.datastore(config)
 
     // Eventually, we will have a more sophisticated warmup strategy that does multiple sizes
-    private val defaultMemoryLimit = MemoryLimit("128")   // MB
+    private val defaultMemoryLimit = MemoryLimit(MemoryLimit.STD_MEMORY)
 
     /*
      * Set verbosity of this and owned objects.
@@ -145,12 +145,12 @@ class ContainerPool(
     }
 
     /*
-     * Try to get/create a container via the thunk by delegating to getOnce.
+     * Try to get/create a container via the thunk by delegating to getOrMake.
      * This method will apply retry so that the caller is blocked until retry succeeds.
      * 
      */
     def getImpl(key: String, conMaker: () => ContainerResult)(implicit transid: TransactionId): Option[(Container, Option[RunResult])] = {
-        getOnce(key, conMaker) match {
+        getOrMake(key, conMaker) match {
             case Success(con, initResult) =>
                 info(this, s"""Obtained container ${con.containerId.getOrElse("unknown")}""")
                 return Some(con, initResult)
@@ -180,21 +180,8 @@ class ContainerPool(
      * 
      * The returned container will be active (not pause).
      */
-    def getOnce(key: String, conMaker: () => ContainerResult)(implicit transid: TransactionId): ContainerResult = {
-        this.synchronized {
-            if (activeCount() + startingCounter.cur >= _maxActive)
-                return Busy()
-            if (!keyMap.contains(key))
-                keyMap += key -> new ListBuffer()
-            val bucket = keyMap.get(key).getOrElse(null)
-            bucket.find({ ci => ci.isIdle() }) match {
-                case None => CacheMiss()
-                case Some(ci) => {
-                    ci.state = State.Active
-                    Success(ci.container, None)
-                }
-            }
-        } match {
+    def getOrMake(key: String, conMaker: () => ContainerResult)(implicit transid: TransactionId): ContainerResult = {
+        retrieve(key) match {
             case CacheMiss() => {
                 this.synchronized {
                     if (activeCount() + startingCounter.cur >= _maxActive) // Someone could have fully started a container
@@ -225,6 +212,46 @@ class ContainerPool(
                 con.unpause()
                 s
             case other => other
+        }
+    }
+
+    /*
+     * Obtain a pre-existing container from the pool - transitioning it to Active state but without docker unpausing.
+     * If we are over capacity, signal Busy.
+     * If it does not exist ready to do, indicate a miss.
+     */
+    def retrieve(key: String)(implicit transid: TransactionId): ContainerResult = {
+        this.synchronized {
+            if (activeCount() + startingCounter.cur >= _maxActive)
+                return Busy()
+            if (!keyMap.contains(key))
+                keyMap += key -> new ListBuffer()
+            val bucket = keyMap.get(key).getOrElse(null)
+            bucket.find({ ci => ci.isIdle() }) match {
+                case None => CacheMiss()
+                case Some(ci) => {
+                    ci.state = State.Active
+                    Success(ci.container, None)
+                }
+            }
+        }
+    }
+
+    /*
+     * Move a container from one bucket (i.e. key) to a different one.
+     * This operation is performed when we specialize a pre-warmed container to an action.
+     * ContainerMap does not need to be updated as the Container <-> ContainerInfo relationship does not change.
+     */
+    def changeKey(ci: ContainerInfo, oldKey: String, newKey: String)(implicit transid: TransactionId) = {
+        this.synchronized {
+            assert(ci.state == State.Active)
+            assert(keyMap.contains(oldKey))
+            if (!keyMap.contains(newKey))
+                keyMap += newKey -> new ListBuffer()
+            val oldBucket = keyMap.get(oldKey).getOrElse(null)
+            val newBucket = keyMap.get(newKey).getOrElse(null)
+            oldBucket -= ci
+            newBucket += ci
         }
     }
 
@@ -339,15 +366,24 @@ class ContainerPool(
         con
     }
 
-    private def getWarmNodejsContainer() : Option[WhiskContainer] = None
+    private def getWarmNodejsContainer(key: String)(implicit transid: TransactionId): Option[WhiskContainer] = 
+        retrieve(warmNodejsKey) match {
+            case Success(con, _) =>
+                info(this, s"Obtained a pre-warmed container")
+                val Some(ci) = containerMap.get(con)
+                changeKey(ci, warmNodejsKey, key)
+                con.unpause()
+                Some(con.asInstanceOf[WhiskContainer])
+            case _ => None
+        }
 
     // Obtain a container (by creation or promotion) and initialize by sending code.
     private def makeWhiskContainer(action: WhiskAction, auth: WhiskAuth)(implicit transid: TransactionId): ContainerResult = {
         val imageName = getDockerImageName(action)
         val limits = action.limits
         val nodeImageName = WhiskAction.containerImageName(nodejsExec, config.dockerRegistry, config.dockerImageTag)
-        val warmedContainer = if (limits.memory == defaultMemoryLimit && imageName == nodeImageName) None else getWarmNodejsContainer()
         val key = makeKey(action, auth)
+        val warmedContainer = if (limits.memory == defaultMemoryLimit && imageName == nodeImageName) getWarmNodejsContainer(key) else None
         val containerName = makeContainerName(action)
         val con = warmedContainer getOrElse makeGeneralContainer(key, containerName, imageName, limits)
         initWhiskContainer(action, con)
