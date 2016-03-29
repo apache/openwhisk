@@ -128,9 +128,10 @@ trait ContainerUtils extends Logging {
      * It is assumed that the contents does exist and that region is not changing concurrently.
      */
     def getDockerLogContent(containerId: String, start: Long, end: Long, mounted: Boolean)(implicit transid: TransactionId): Array[Byte] = {
+        var fis : java.io.FileInputStream = null
         try {
             val file = getDockerLogFile(containerId, mounted)
-            val fis = new java.io.FileInputStream(file)
+            fis = new java.io.FileInputStream(file)
             val channel = fis.getChannel().position(start)
             var remain = (end - start).toInt
             val buffer = java.nio.ByteBuffer.allocate(remain)
@@ -140,13 +141,15 @@ trait ContainerUtils extends Logging {
                     remain = read - read.toInt
                 Thread.sleep(50)   // TODO What is this for?
             }
-            fis.close()
             buffer.array
         } catch {
             case e: Exception =>
                 error(this, s"getDockerLogContent failed on $containerId")
                 Array()
+        } finally {
+            if (fis != null) fis.close()
         }
+
     }
 
     def getContainerHost(container: ContainerName)(implicit transid: TransactionId): ContainerIP = {

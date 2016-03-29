@@ -21,6 +21,8 @@
  * This file (runner.js) must currently live in root directory for nodeJsAction.
  * See issue #102 for a discussion.
  */
+var util  = require('util');
+
 function NodeActionRunner(message, whisk, console) {
     this.userScriptName = getname(message.name);
     this.userScriptMain = undefined;
@@ -39,7 +41,6 @@ function NodeActionRunner(message, whisk, console) {
 
     function closeAndReturn(result) {
         var hrEnd = process.hrtime();
-        var util  = require('util');
 
         if (typeof callback.closedConnection == 'undefined') {
             callback.closedConnection = true;
