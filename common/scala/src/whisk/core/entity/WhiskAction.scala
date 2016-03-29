@@ -102,15 +102,7 @@ case class WhiskAction(
      *
      * @return container image name for action
      */
-    def containerImageName(registry: String = null, tag: String = "latest"): String = exec match {
-        case _: NodeJSExec | _: SwiftExec | _: JavaExec =>
-            Option(registry).filter { _.nonEmpty }.map { r =>
-                val prefix = if (r.endsWith("/")) r else s"$r/"
-                s"${prefix}${exec.image}:${tag}"
-            } getOrElse exec.image
-
-        case BlackBoxExec(image) => image
-    }
+    def containerImageName(registry: String = null, tag: String = "latest") = WhiskAction.containerImageName(exec, registry, tag)
 
     /**
      * Gets initializer for action.
@@ -136,9 +128,8 @@ case class WhiskAction(
         case JavaExec(jar, main) =>
             JsObject(
                 "name" -> name.toJson,
-                "jar"  -> jar.toJson,
-                "main" -> main.toJson
-            )
+                "jar" -> jar.toJson,
+                "main" -> main.toJson)
 
         case _: BlackBoxExec =>
             JsObject()
@@ -161,6 +152,18 @@ object WhiskAction
 
     override val collectionName = "actions"
     override implicit val serdes = jsonFormat8(WhiskAction.apply)
+
+    def containerImageName(exec: Exec, registry: String = null, tag: String = "latest"): String = {
+        exec match {
+            case _: NodeJSExec | _: SwiftExec | _: JavaExec =>
+                Option(registry).filter { _.nonEmpty }.map { r =>
+                    val prefix = if (r.endsWith("/")) r else s"$r/"
+                    s"${prefix}${exec.image}:${tag}"
+                } getOrElse exec.image
+
+            case BlackBoxExec(image) => image
+        }
+    }
 
     override def apply(r: ActionRecord): Try[WhiskAction] = Try {
         WhiskAction(
