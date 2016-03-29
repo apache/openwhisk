@@ -21,6 +21,8 @@
  * This file (runner.js) must currently live in root directory for nodeJsAction.
  * See issue #102 for a discussion.
  */
+var Promise = require('bluebird');
+
 function NodeActionRunner(message, whisk, console) {
     this.userScriptName = getname(message.name);
     this.userScriptMain = undefined;
@@ -70,11 +72,18 @@ function NodeActionRunner(message, whisk, console) {
         var result = this.userScriptMain(args);
 
         if (result !== this.whisk.async()) {
-            // This happens, e.g. if you just have "return;"
-            if (typeof result == 'undefined') {
-                result = {};
-            }
-            closeAndReturn(result);
+          self = this;
+          Promise.resolve(result) //Non-promises/undefined instantly resolve.
+          .then(function(resolvedResult){
+              // This happens, e.g. if you just have "return;"
+              if (typeof resolvedResult == 'undefined') {
+                resolvedResult = {};
+              }
+              closeAndReturn(resolvedResult);
+          })
+          .catch(function(error){
+            self.whisk.error(error);
+          });
         }
     }
 }
