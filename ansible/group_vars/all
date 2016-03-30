@@ -1,6 +1,3 @@
-nginx:
-  conf:
-    dir: /tmp/nginx
 whisk:
   version:
     date: "21-02-2016"
@@ -8,12 +5,10 @@ whisk:
   ssl:
     cert: config/keys/openwhisk-self-cert.pem
     key: config/keys/openwhisk-self-key.pem
-  logs:
-    dir: /tmp/wsklogs
+
 docker_image_tag: latest
 docker:
   port: 4243
-  registry: ""
   restart:
     policy: always
 
@@ -22,9 +17,13 @@ controller:
   port: 10001
 
 consul:
-  host: 172.17.0.1
-  port4: 8500
-  port5: 8600
+  port:
+    server: 8300
+    serf_lan: 8301
+    serf_wan: 8302
+    rpc: 8400
+    http: 8500
+    dns: 53
 
 kafka:
   port: 9092
