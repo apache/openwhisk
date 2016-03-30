@@ -243,10 +243,10 @@ class SchemaTests extends FlatSpec with BeforeAndAfter {
     behavior of "Parameter"
     it should "properly deserialize and reserialize JSON" in {
         val json = Seq[JsValue](
-            JsArray(List(JsObject("key" -> "k".toJson, "value" -> "v".toJson))),
-            JsArray(List(JsObject("key" -> "k".toJson, "value" -> "v".toJson, "foo" -> "bar".toJson))),
-            JsArray(List(JsObject("key" -> "k".toJson, "value" -> 3.toJson))),
-            JsArray(List(JsObject("key" -> "k".toJson, "value" -> Vector(false, true).toJson))))
+            JsArray(Vector(JsObject("key" -> "k".toJson, "value" -> "v".toJson))),
+            JsArray(Vector(JsObject("key" -> "k".toJson, "value" -> "v".toJson, "foo" -> "bar".toJson))),
+            JsArray(Vector(JsObject("key" -> "k".toJson, "value" -> 3.toJson))),
+            JsArray(Vector(JsObject("key" -> "k".toJson, "value" -> Vector(false, true).toJson))))
         val params = json.map { p => Parameters.serdes.read(p) }
         assert(params(0) == Parameters("k", "v"))
         assert(params(1) == Parameters("k", "v"))
@@ -301,10 +301,10 @@ class SchemaTests extends FlatSpec with BeforeAndAfter {
     }
 
     it should "serialize to json" in {
-        assert(Parameters("k", null).toString == JsArray(List(JsObject("key" -> "k".toJson, "value" -> JsNull))).compactPrint)
-        assert(Parameters("k", "").toString == JsArray(List(JsObject("key" -> "k".toJson, "value" -> "".toJson))).compactPrint)
-        assert(Parameters("k", " ").toString == JsArray(List(JsObject("key" -> "k".toJson, "value" -> "".toJson))).compactPrint)
-        assert(Parameters("k", "v").toString == JsArray(List(JsObject("key" -> "k".toJson, "value" -> "v".toJson))).compactPrint)
+        assert(Parameters("k", null).toString == JsArray(Vector(JsObject("key" -> "k".toJson, "value" -> JsNull))).compactPrint)
+        assert(Parameters("k", "").toString == JsArray(Vector(JsObject("key" -> "k".toJson, "value" -> "".toJson))).compactPrint)
+        assert(Parameters("k", " ").toString == JsArray(Vector(JsObject("key" -> "k".toJson, "value" -> "".toJson))).compactPrint)
+        assert(Parameters("k", "v").toString == JsArray(Vector(JsObject("key" -> "k".toJson, "value" -> "v".toJson))).compactPrint)
     }
 
     behavior of "ActionLimits"

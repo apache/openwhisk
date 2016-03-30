@@ -47,12 +47,19 @@ import whisk.core.entity.WhiskRule
 import whisk.core.entity.WhiskTrigger
 
 @RunWith(classOf[JUnitRunner])
-class DispatcherTests extends FlatSpec with Matchers with TestUtils with BeforeAndAfter {
+class DispatcherTests extends FlatSpec with Matchers with BeforeAndAfter {
     implicit val transid = TransactionId.dontcare
     implicit val ec = Dispatcher.executionContext
     val dispatcher = new TestDispatcher("whisk")
 
     behavior of "Dispatcher"
+
+    def logContains(w: String)(implicit stream: java.io.ByteArrayOutputStream): Boolean = {
+        whisk.utils.retry {
+            val log = stream.toString()
+            log.contains(w)
+        }
+    }
 
     it should "send and receive a message from connector bus" in {
         val config = new WhiskConfig(Dispatcher.requiredProperties)
@@ -66,7 +73,7 @@ class DispatcherTests extends FlatSpec with Matchers with TestUtils with BeforeA
         Console.withOut(stream) {
             dispatcher.start()
             dispatcher.send(msg)
-            logContains(5, "received")
+            logContains("received")
         }
         dispatcher.stop()
         dispatcher.close()
@@ -98,7 +105,7 @@ class DispatcherTests extends FlatSpec with Matchers with TestUtils with BeforeA
             dispatcher.addHandler(post, replace = false)
             dispatcher.start()
             post.doit(msg, Seq()) onFailure { case t => t.printStackTrace() }
-            logContains(5, "received")
+            logContains("received")
         }
         dispatcher.stop()
         val logs = stream.toString()

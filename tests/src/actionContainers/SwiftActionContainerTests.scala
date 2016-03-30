@@ -56,7 +56,7 @@ class SwiftActionContainerTests extends FlatSpec
 
             val argss = List(
                 JsObject("greeting" -> JsString("hi!")),
-                JsObject("numbers" -> JsArray(List(JsNumber(42), JsNumber(1)))))
+                JsObject("numbers" -> JsArray(Vector(JsNumber(42), JsNumber(1)))))
 
             for (args <- argss) {
                 val (runCode, out) = c.run(runPayload(args))

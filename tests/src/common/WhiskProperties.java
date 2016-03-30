@@ -31,6 +31,12 @@ import java.util.Properties;
 public class WhiskProperties {
 
     /**
+     * The root of the whisk installation, used to retrieve files relative to
+     * home.
+     */
+    private static final String whiskHome = getWhiskHome();
+
+    /**
      * The name of the properties file.
      */
     protected static final String WHISK_PROPS_FILE = "whisk.properties";
@@ -67,18 +73,12 @@ public class WhiskProperties {
         // System.out.println(WhiskProperties.whiskProperties);
     }
 
-    public static String getProperty(String string) {
-        return whiskProperties.getProperty(string);
-    }
-
-    /**
-     * The root of the whisk installation, used to retrieve files
-     * relative to home.
-     */
-    private static final String whiskHome = getWhiskHome();
-
     public static File getFileRelativeToWhiskHome(String name) {
         return new File(whiskHome, name);
+    }
+
+    public static String getProperty(String string) {
+        return whiskProperties.getProperty(string);
     }
 
     public static String getKafkaHost() {
@@ -142,7 +142,8 @@ public class WhiskProperties {
     }
 
     /**
-     * Note that when testRouter == true, we pretend the router host is edge host.
+     * Note that when testRouter == true, we pretend the router host is edge
+     * host.
      */
     public static String getEdgeHost() {
         return testRouter ? getRouterHost() : whiskProperties.getProperty("edge.host");
@@ -208,7 +209,6 @@ public class WhiskProperties {
      */
     private static String getWhiskHome() {
         String wskdir = System.getProperty("openwhisk.dir", System.getenv("OPENWHISK_HOME"));
-
         if (wskdir == null) {
             String dir = System.getProperty("user.dir");
 

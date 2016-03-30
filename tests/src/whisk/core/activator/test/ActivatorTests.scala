@@ -37,7 +37,6 @@ import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.core.database.test.DbUtils
 import whisk.core.dispatcher.Dispatcher
 import whisk.core.dispatcher.Registrar
-import whisk.core.dispatcher.test.TestUtils
 import whisk.core.entity.ActivationId
 import whisk.core.entity.EntityName
 import whisk.core.entity.Namespace
@@ -50,7 +49,6 @@ import whisk.core.entity.WhiskRule
 @RunWith(classOf[JUnitRunner])
 class ActivatorTests extends FlatSpec 
    with Matchers 
-   with TestUtils 
    with BeforeAndAfter 
    with BeforeAndAfterAll
    with DbUtils {
