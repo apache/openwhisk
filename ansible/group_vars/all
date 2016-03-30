@@ -1,0 +1,43 @@
+whisk:
+  version:
+    date: "21-02-2016"
+    name: "ansible"
+  ssl:
+    cert: config/keys/openwhisk-self-cert.pem
+    key: config/keys/openwhisk-self-key.pem
+
+docker_image_tag: latest
+docker:
+  port: 4243
+  restart:
+    policy: always
+
+# port means outer port
+controller:
+  port: 10001
+
+consul:
+  port:
+    server: 8300
+    serf_lan: 8301
+    serf_wan: 8302
+    rpc: 8400
+    http: 8500
+    dns: 53
+
+kafka:
+  port: 9092
+  ras:
+    port: 9093
+
+zookeeper:
+  port: 2181
+
+activator:
+  port: 12000
+
+invoker:
+  port: 12001
+
+loadbalancer:
+  port: 10003
