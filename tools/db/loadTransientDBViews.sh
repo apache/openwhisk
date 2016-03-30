@@ -17,7 +17,7 @@
 #
 
 #
-# drop and recreate the transient whisk cloudant databases.
+# drop and recreate the transient whisk cloudant views.
 # NOTE: before editing this file, review the notes in
 # whisk.core.entity.WhiskStore as any changes here to the views
 # may require changes to the supporting query methods.
@@ -36,6 +36,8 @@ function getProperty() {
     value=$(cat "$file" | grep "^$name=" |cut -d "=" -f 2)
     echo $value
 }
+
+
 
 function addRevision() {
     VIEW=$1
@@ -92,6 +94,7 @@ DB_HOST=$(getProperty "$PROPERTIES_FILE" "db.host")
 DB_PORT=$(getProperty "$PROPERTIES_FILE" "db.port")
 DB_USERNAME=$(getProperty "$PROPERTIES_FILE" "db.username")
 DB_PASSWORD=$(getProperty "$PROPERTIES_FILE" "db.password")
+source "$SCRIPTDIR/../../config/dbSetup.sh"
 
 if [ "$DB_PROVIDER" == "CouchDB" ]; then
     CURL_ADMIN="curl -s -k --user $DB_USERNAME:$DB_PASSWORD"
@@ -106,7 +109,9 @@ $CURL_ADMIN -X POST -H 'Content-Type: application/json' -d "$(addRevision "$(vie
 # Create a query index that can be used for ad hoc cloudant queries.
 # See https://cloudant.com/blog/cloudant-query-grows-up-to-handle-ad-hoc-queries/#.VvLx_T-0z2B
 #
+
+
 if [ "$DB_PROVIDER" == "Cloudant" ]; then
-    echo Create Cloudant Query search index
+    echo Create Cloudant Query search index for $DB_WHISK_ACTIONS
     $CURL_ADMIN -X POST $URL_BASE/$DB_WHISK_ACTIONS/_index -d '{ "index": {}, "type": "text"}'
 fi
