@@ -24,7 +24,7 @@ install utils/pipe.js             system/pipe -a system true
 install utils/cat.js              util/cat -a description 'Concatenates input into a string' \
                                            -a parameters '[ { "name": "lines", "required": true, "type": "array", "description": "An array of strings or numbers" } ]' \
                                            -a sampleInput '{ "lines": [4, 2, 3] }' \
-                                           -a sampleOutput '{ "lines": [4, 2, 3], "payload": "4\n2\n3" }'
+                                           -a sampleOutput '{ "lines": [4, 2, 3] }'
 
 install utils/sort.js             util/sort -a description 'Sorts an array' \
                                            -a parameters '[ { "name": "lines", "required": true, "type": "array", "description": "An array of strings" } ]' \
@@ -33,7 +33,7 @@ install utils/sort.js             util/sort -a description 'Sorts an array' \
 
 install utils/head.js             util/head -a description 'Extract prefix of an array' \
                                            -a parameters '[ { "name": "lines", "required": true, "type": "array", "description": "An array of strings" }, { "name": "num", "required": false, "type": "integer", "description": "The length of the prefix" }]' \
-                                           -a sampleInput '{ "lines": [4, 2, 3], num: 2 }' \
+                                           -a sampleInput '{ "lines": [4, 2, 3], "num": 2 }' \
                                            -a sampleOutput '{ "lines": [4, 2], "num": 2 }'
 
 install utils/date.js             util/date -a description 'Current date and time' \
