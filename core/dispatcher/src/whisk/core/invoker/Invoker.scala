@@ -106,6 +106,8 @@ class Invoker(
      */
     case class Transaction(msg: Message) {
         var result: Option[Future[DocInfo]] = None
+        var initInterval : Option[(Instant, Instant)] = None
+        var runInterval : Option[(Instant, Instant)] = None
     }
 
     /**
@@ -184,7 +186,7 @@ class Invoker(
         val now = Instant.now(Clock.systemUTC())
         val response = Some(404, JsObject(ActivationResponse.ERROR_FIELD -> errorMsg.toJson).compactPrint)
         val contents = JsArray()
-        val activation = makeWhiskActivation(false, msg, name, version, payload, now, now, response, contents)
+        val activation = makeWhiskActivation(tran, false, msg, name, version, payload, response, contents)
         completeTransaction(tran, activation)
     }
 
@@ -214,45 +216,42 @@ class Invoker(
     protected def invokeAction(action: WhiskAction, auth: WhiskAuth, payload: JsObject, tran: Transaction)(
         implicit transid: TransactionId): Future[DocInfo] = {
         val msg = tran.msg
-        val getStart = Instant.now(Clock.systemUTC())
         pool.getAction(action, auth) match {
             case Some((con, initResultOpt)) => Future {
-                val effectiveResult = // The result of init - if it's bad - or the run
-                    initResultOpt match {
-                        case None | Some((_, _, Some((200, _)))) => { // cached or good init
-                            val params = con.mergeParams(payload)
-                            info(this, s"sending arguments to ${action.fullyQualifiedName} ${con.details}")
-                            val res = con.run(params, msg.meta, auth.compact, action.limits.timeout.millis)
-                            info(this, s"finished running activation id: ${msg.activationId}")
-                            (false, res)
+                val params = con.mergeParams(payload)
+                val timeoutMillis = action.limits.timeout.millis
+                initResultOpt match {
+                        case None => (false, con.run(params, msg.meta, auth.compact, timeoutMillis, 
+                                                     action.fullyQualifiedName, msg.activationId.toString))  // cached
+                        case Some((start, end, Some((200, _)))) => { // successful init
+                            // Try a little slack for json log driver to process
+                            Thread.sleep(if (con.isBlackbox) BlackBoxSlack else RegularSlack)
+                            tran.initInterval = Some(start, end)
+                            (false, con.run(params, msg.meta, auth.compact, timeoutMillis, 
+                                            action.fullyQualifiedName, msg.activationId.toString))
                         }
-                        case _ => (true, initResultOpt.get) // None ruled out
-                    }
-                // Try a little slack for json log driver to process
-                Thread.sleep(if (con.isBlackbox) BlackBoxSlack else RegularSlack)
-                effectiveResult
+                        case _ => (true, initResultOpt.get) //  unsucessful initialiation
+                }
             } flatMap {
-                case (delete, (start, end, response)) =>
+                case (failedInit, (start, end, response)) =>
+                    if (!failedInit) tran.runInterval = Some(start, end)
                     val size = waitForLogs(con)
-                    val containerName = con.name
-                    val containerIP = con.containerIP.get
-                    val containerId = con.containerId.get
                     val rawContents = con.getDockerLogContent(con.lastLogSize, size, runningInContainer)
-                    val contents = processJsonDriverLogContents(containerName, con.lastLogSize, size, rawContents)
-                    val activation = makeWhiskActivation(con.isBlackbox, msg, action, payload, start, end, response, contents)
+                    val contents = processJsonDriverLogContents(con.name, con.lastLogSize, size, rawContents)
+                    val activation = makeWhiskActivation(tran, con.isBlackbox, msg, action, payload, response, contents)
                     con.lastLogSize = size
-                    putContainerName(activation.activationId, containerName + "@" + containerIP) // only for whitebox testing
+                    // only for whitebox testing - deprecated and going away soon
+                    putContainerName(activation.activationId, con.name + "@" + con.containerIP.get)
                     val res = completeTransaction(tran, activation)
                     // We return the container last as that is slow and we want the activation to logically finish fast
-                    pool.putBack(con, delete)
+                    pool.putBack(con, failedInit)
                     res
             }
             case None => { // this corresponds to the container not even starting - not /init failing
                 info(this, s"failed to start or get a container")
-                val now = Instant.now(Clock.systemUTC())
                 val response = Some(420, "Error starting container")
                 val contents = JsArray(JsString("Error starting container"))
-                val activation = makeWhiskActivation(false, msg, action, payload, getStart, now, response, contents)
+                val activation = makeWhiskActivation(tran, false, msg, action, payload, response, contents)
                 completeTransaction(tran, activation)
             }
         }
@@ -396,15 +395,21 @@ class Invoker(
     }
 
     // -------------------------------------------------------------------------------------------------------------
-    private def makeWhiskActivation(isBlackbox : Boolean, msg: Message, action: WhiskAction, payload: JsObject,
-                                    start: Instant, end: Instant, response: Option[(Int, String)], log: JsArray)(
+    private def makeWhiskActivation(transaction: Transaction, isBlackbox : Boolean, msg: Message, action: WhiskAction, 
+                                    payload: JsObject, response: Option[(Int, String)], log: JsArray)(
                                         implicit transid: TransactionId): WhiskActivation = {
-        makeWhiskActivation(isBlackbox, msg, action.name, action.version, payload, start, end, response, log)
+        makeWhiskActivation(transaction, isBlackbox, msg, action.name, action.version, payload, response, log)
     }
 
-    private def makeWhiskActivation(isBlackbox : Boolean, msg: Message, actionName: EntityName, actionVersion: SemVer, payload: JsObject,
-                                    start: Instant, end: Instant, response: Option[(Int, String)], log: JsArray)(
+    private def makeWhiskActivation(transaction: Transaction, isBlackbox : Boolean, msg: Message, actionName: EntityName, 
+                                    actionVersion: SemVer, payload: JsObject, response: Option[(Int, String)], log: JsArray)(
                                         implicit transid: TransactionId): WhiskActivation = {
+        val interval = (transaction.initInterval, transaction.runInterval) match {
+            case (None, Some(interval)) => interval
+            case (Some(interval), None) => interval
+            case (None, None) => (Instant.now(Clock.systemUTC()), Instant.now(Clock.systemUTC()))
+            case (Some(interval1), Some(interval2)) => (interval1._1, interval2._2)
+        }
         WhiskActivation(
             namespace = msg.subject.namespace,
             name = actionName,
@@ -413,8 +418,8 @@ class Invoker(
             subject = msg.subject,
             activationId = msg.activationId,
             cause = msg.cause,
-            start = start,
-            end = end,
+            start = interval._1,
+            end = interval._2,
             response = processResponseContent(isBlackbox, response),
             logs = ActivationLogs.serdes.read(log))
     }

@@ -87,9 +87,12 @@ class WhiskContainer(
      * @param state the value of the status to compare the actual state against
      * @return triple of start time, end time, response for user action.
      */
-    def run(args: JsObject, meta: JsObject, authKey : String, timeout: Int)(implicit transid: TransactionId): RunResult = {
+    def run(args: JsObject, meta: JsObject, authKey : String, timeout: Int, actionName: String, activationId: String)
+           (implicit transid: TransactionId): RunResult = {
         val start = ContainerCounter.now()
+        info("Invoker", s"sending arguments to $actionName $details")
         val response = sendPayload("/run", JsObject(meta.fields + ("value" -> args) + ("authKey" -> JsString(authKey))), timeout)
+        info("Invoker", s"finished running activation id: $activationId")
         (start, ContainerCounter.now(), response)
     }
 
@@ -99,7 +102,7 @@ class WhiskContainer(
     def run(payload: String, activationId: String): RunResult = {
         val params = JsObject("payload" -> JsString(payload))
         val meta = JsObject("activationId" -> JsString(activationId))
-        run(params, meta, "no_auth_key", 30000)(TransactionId.dontcare)
+        run(params, meta, "no_auth_key", 30000, "no_action", "no_activation_id")(TransactionId.dontcare)
     }
 
     /**
