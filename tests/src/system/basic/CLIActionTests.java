@@ -329,33 +329,6 @@ public class CLIActionTests {
         }
     }
 
-    @Ignore("this test may no longer be valid; ignoring, pending a review")
-    @Test(timeout=140*1000)
-    public void updateAndInvokeAction() throws Exception {
-        String name = "WC_UPDATE_INVOKE";
-        try {
-            wsk.sanitize(Action, name);
-            wsk.createAction(name, TestUtils.getCatalogFilename("samples/wc.js"));
-            // invoke n times so that next invoke (n+1) goes to same invoker as activation 0
-            assert(WhiskProperties.numberOfInvokers() >= 1);
-            for (int i = 0; i < WhiskProperties.numberOfInvokers(); i++){
-                String msg = String.format("the time is now %s", new Date().toString());
-                String expected = String.format("The message '%s' has", msg);
-                String activationId = wsk.invoke(name, TestUtils.makeParameter("payload", msg));
-                assertTrue("Expected message not found: " + expected, wsk.logsForActivationContain(activationId, expected, DEFAULT_WAIT));
-            }
-
-            // now should route to the original invokerR
-            wsk.createAction(name, TestUtils.getCatalogFilename("samples/hello.js"), true, true);
-            String msg = String.format("the time is now %s", new Date().toString());
-            String expected = String.format("hello %s!", msg);
-            String activationId = wsk.invoke(name, TestUtils.makeParameter("payload", msg));
-            assertTrue("Expected message not found: " + expected + " in activation " + activationId, wsk.logsForActivationContain(activationId, expected, DEFAULT_WAIT));
-        } finally {
-            wsk.delete(Action, name);
-        }
-    }
-
     @Test(timeout=120*1000)
     public void parameterBinding() throws Exception {
         try {
