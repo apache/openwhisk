@@ -40,7 +40,7 @@ import whisk.core.entity.WhiskRule
 import whisk.core.entity.WhiskEntityStore
 import whisk.core.entity.types.EntityStore
 import whisk.http.ErrorResponse.terminate
-import whisk.core.entity.WhiskEntityQueries.listAllInNamespace
+import whisk.core.entity.WhiskEntityQueries.listEntitiesInNamespace
 
 object WhiskNamespacesApi {
     def requiredProperties = WhiskEntityStore.requiredProperties
@@ -107,7 +107,7 @@ trait WhiskNamespacesApi
      * - 500 Internal Server Error
      */
     private def getAllInNamespace(namespace: Namespace)(implicit transid: TransactionId) = {
-        onComplete(listAllInNamespace(entityStore, namespace, false)) {
+        onComplete(listEntitiesInNamespace(entityStore, namespace, false)) {
             case Success(entities) => {
                 complete(OK, Namespaces.emptyNamespace ++ entities - WhiskActivation.collectionName)
             }

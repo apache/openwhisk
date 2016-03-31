@@ -46,6 +46,7 @@ import whisk.core.entity.WhiskActivation
 import whisk.core.entity.WhiskAuth
 import whisk.core.entity.WhiskEntity
 import whisk.core.entity.WhiskEntityQueries.listAllInNamespace
+import whisk.core.entity.WhiskEntityQueries.listEntitiesInNamespace
 import whisk.core.entity.WhiskEntityQueries.listCollectionInAnyNamespace
 import whisk.core.entity.WhiskEntityQueries.listCollectionByName
 import whisk.core.entity.WhiskEntityQueries.listCollectionInNamespace
@@ -98,6 +99,14 @@ class ViewTests extends FlatSpec
         implicit val tid = transid()
         val result = Await.result(listAllInNamespace(datastore, ns, false), dbOpTimeout).values.toList flatMap { t => t }
         val expected = entities filter { _.namespace.root == ns }
+        result.length should be(expected.length)
+        expected forall { e => result contains e.summaryAsJson } should be(true)
+    }
+    
+    def getEntitiesInNamespace(ns: Namespace)(implicit entities: Seq[WhiskEntity]) = {
+        implicit val tid = transid()
+        val result = Await.result(listEntitiesInNamespace(datastore, ns, false), dbOpTimeout).values.toList flatMap { t => t }
+        val expected = entities filter { !_.isInstanceOf[WhiskActivation] } filter { _.namespace.root == ns }
         result.length should be(expected.length)
         expected forall { e => result contains e.summaryAsJson } should be(true)
     }
@@ -219,6 +228,7 @@ class ViewTests extends FlatSpec
         getKindInNamespace(namespace1, "activations", { case (e: WhiskActivation) => true case (_) => false })
         getKindInPackage(pkgname1, "actions", { case (e: WhiskAction) => true case (_) => false })
         getKindInNamespaceByName(pkgname1, "actions", actionName, { case (e: WhiskAction) => (e.name == actionName) case (_) => false })
+        getEntitiesInNamespace(namespace1)
 
         getAllInNamespace(namespace2)
         getKindInNamespace(namespace2, "actions", { case (e: WhiskAction) => true case (_) => false })
@@ -228,6 +238,7 @@ class ViewTests extends FlatSpec
         getKindInNamespace(namespace2, "activations", { case (e: WhiskActivation) => true case (_) => false })
         getKindInPackage(pkgname2, "actions", { case (e: WhiskAction) => true case (_) => false })
         getKindInNamespaceByName(namespace2, "activations", actionName, { case (e: WhiskActivation) => (e.name == actionName) case (_) => false })
+        getEntitiesInNamespace(namespace2)
     }
 
     it should "query whisk view for activations sorted by date" in {

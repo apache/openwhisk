@@ -157,6 +157,7 @@ object WhiskEntityQueries {
     val TOP = "\ufff0"
     val WHISKVIEW = "whisks"
     val ALL = "all"
+    val ENTITIES = "entities"
 
     /**
      * Determines the view name for the collection. There are two cases: a view
@@ -181,6 +182,28 @@ object WhiskEntityQueries {
         val startKey = List(namespace.toString)
         val endKey = List(namespace.toString, TOP)
         db.query(viewname(ALL), startKey, endKey, 0, 0, includeDocs, descending = true, reduce = false) map {
+            _ map {
+                row =>
+                    val value = row.fields("value").asJsObject
+                    val JsString(collection) = value.fields("collection")
+                    (collection, JsObject(value.fields.filterNot { _._1 == "collection" }))
+            } groupBy { _._1 } mapValues { _.map(_._2) }
+        }
+    }
+    
+    /**
+     * Queries the datastore for all entities without activations in a namespace, and converts the list of entities
+     * to a map that collects the entities by their type.
+     */
+    def listEntitiesInNamespace[R <: EntityRecord, A <: WhiskEntity](
+        db: ArtifactStore[R, A],
+        namespace: Namespace,
+        includeDocs: Boolean)(
+            implicit transid: TransactionId): Future[Map[String, List[JsObject]]] = {
+        implicit val ec = db.executionContext
+        val startKey = List(namespace.toString)
+        val endKey = List(namespace.toString, TOP)
+        db.query(viewname(ENTITIES), startKey, endKey, 0, 0, includeDocs, descending = true, reduce = false) map {
             _ map {
                 row =>
                     val value = row.fields("value").asJsObject
