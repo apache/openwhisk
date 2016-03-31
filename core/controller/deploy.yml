@@ -1,5 +1,5 @@
 - name: OpenWhisk Controller
-  hosts: edge
+  hosts: main
   tasks:
   - name: Pull image
     shell: "docker pull {{docker.registry}}whisk/controller:{{docker_image_tag}}"
