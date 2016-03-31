@@ -8,10 +8,10 @@
         <var file="whisk.properties" />
         <antcall target="pullImageFromRegistry">
             <param name="docker.image.to.pull" value="whisk/controller" />
-            <param name="docker.endpoint" value="${edge.docker.endpoint}" />
+            <param name="docker.endpoint" value="${main.docker.endpoint}" />
         </antcall>
         <exec executable="docker" failonerror="true">
-            <arg line="--host tcp://${edge.docker.endpoint}" />
+            <arg line="--host tcp://${main.docker.endpoint}" />
             <arg line="${docker.tls.cmd}" />
             <arg line="run" />
             <arg line="${docker.dns.cmd}" />
@@ -25,7 +25,7 @@
             <arg line="-e &quot;WHISK_VERSION_DATE=${whisk.version.date}&quot;" />
             <arg line="-e &quot;WHISK_VERSION_BUILDNO=${whisk.version.buildno}&quot;" />
             <arg line="-v ${whisk.logs.dir}/controller:/logs" />
-            <arg line="-h controller_${edge.docker.endpoint}" />
+            <arg line="-h controller_${main.docker.endpoint}" />
             <arg line="${consul.service.check}" />
             <arg line="-d --name controller -p ${controller.host.port}:${controller.docker.port} ${docker.registry}whisk/controller:${docker.image.tag}" />
         </exec>
