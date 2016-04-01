@@ -16,15 +16,16 @@
 
 package system.rest
 
+import scala.util.Try
+
 import com.jayway.restassured.RestAssured
 import com.jayway.restassured.config.RestAssuredConfig
 import com.jayway.restassured.config.SSLConfig
+
 import common.WhiskProperties
-import spray.json.JsValue
 import spray.json.JsObject
+import spray.json.JsValue
 import spray.json.pimpString
-import scala.util.Try
-import spray.json.JsNull
 
 /**
  * Utilities for REST tests
@@ -32,10 +33,6 @@ import spray.json.JsNull
 protected[rest] trait RestUtil {
 
     private val trustStorePassword = WhiskProperties.getSslCertificateChallenge
-
-    // must force RestAssured to allow all hosts in SSL certificates ...
-    RestAssured.config = new RestAssuredConfig()
-        .sslConfig(new SSLConfig().keystore("keystore", trustStorePassword).allowAllHostnames());
 
     /**
      * @return the URL and port for the whisk service
@@ -58,8 +55,9 @@ protected[rest] trait RestUtil {
      * and return it as a string.
      */
     def getJsonSchema(model: String): JsValue = {
-
-        val response = RestAssured.get(getServiceURL() + "/api/v1/api-docs")
+        // must force RestAssured to allow all hosts in SSL certificates ...
+        val config = new RestAssuredConfig().sslConfig(new SSLConfig().keystore("keystore", trustStorePassword).allowAllHostnames());
+        val response = RestAssured.given().config(config).get(getServiceURL() + "/api/v1/api-docs")
 
         assert(response.statusCode() == 200)
 
