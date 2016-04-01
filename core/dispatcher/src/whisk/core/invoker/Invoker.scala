@@ -405,10 +405,12 @@ class Invoker(
                                     actionVersion: SemVer, payload: JsObject, response: Option[(Int, String)], log: JsArray)(
                                         implicit transid: TransactionId): WhiskActivation = {
         val interval = (transaction.initInterval, transaction.runInterval) match {
-            case (None, Some(interval)) => interval
-            case (Some(interval), None) => interval
+            case (None, Some(run)) => run
+            case (Some(init), None) => init
             case (None, None) => (Instant.now(Clock.systemUTC()), Instant.now(Clock.systemUTC()))
-            case (Some(interval1), Some(interval2)) => (interval1._1, interval2._2)
+            case (Some(init), Some(run)) => 
+                val durMilli = init._2.toEpochMilli() - init._1.toEpochMilli()
+                (run._1.minusMillis(durMilli), run._2)
         }
         WhiskActivation(
             namespace = msg.subject.namespace,
