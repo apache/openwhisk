@@ -1,1 +1,1 @@
-FROM klaemo/couchdb-ssl:latest
+FROM klaemo/couchdb:latest

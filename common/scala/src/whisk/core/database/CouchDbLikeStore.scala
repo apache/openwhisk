@@ -40,6 +40,7 @@ import spray.json.JsArray
  */
 class CouchDbLikeStore[View: CouchDbLikeViewProvider, RawDocument, DocumentAbstraction](
     dbProvider: CouchDbLikeProvider[View],
+    dbProtocol: String,
     dbHost: String,
     dbPort: Int,
     dbUsername: String,
@@ -218,7 +219,7 @@ class CouchDbLikeStore[View: CouchDbLikeViewProvider, RawDocument, DocumentAbstr
     def shutdown() = dbProvider.shutdownClient(dbClient)
 
     /** The service connector */
-    private val dbClient = dbProvider.mkClient(dbHost, dbPort, dbUsername, dbPassword)
+    private val dbClient = dbProvider.mkClient(dbProtocol, dbHost, dbPort, dbUsername, dbPassword)
 
     /** The database connector */
     private val db = dbProvider.getDB(dbClient, dbName)

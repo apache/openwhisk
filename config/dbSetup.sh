@@ -47,6 +47,9 @@ if [ "$OPEN_WHISK_DB_PROVIDER" == "Cloudant" ]; then
         echo "Cloudant password is not set"
         exit 1
     fi
+
+    OPEN_WHISK_DB_HOST="${OPEN_WHISK_DB_USERNAME}.cloudant.com"
+    OPEN_WHISK_DB_PORT=443
 elif [ "$OPEN_WHISK_DB_PROVIDER" == "CouchDB" ]; then
     if [ -z "$OPEN_WHISK_DB_HOST" ]; then
         echo "CouchDB host is not set"
@@ -69,6 +72,10 @@ elif [ "$OPEN_WHISK_DB_PROVIDER" == "CouchDB" ]; then
 else
     echo "Unknown DB provider value '$OPEN_WHISK_DB_PROVIDER'."
     exit 1
+fi
+
+if [ -z "$OPEN_WHISK_DB_PROTOCOL" ]; then
+    OPEN_WHISK_DB_PROTOCOL=https
 fi
 
 # database for storing whisk entities

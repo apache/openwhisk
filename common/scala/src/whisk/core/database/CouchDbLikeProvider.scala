@@ -25,7 +25,7 @@ abstract class CouchDbLikeProvider[View: CouchDbLikeViewProvider] {
   type Database
   type Response
 
-  def mkClient(dbHost: String, dbPort: Int, dbUsername: String, dbPassword: String) : Client
+  def mkClient(dbProtocol: String, dbHost: String, dbPort: Int, dbUsername: String, dbPassword: String) : Client
 
   def getDB(client: Client, dbName: String) : Database
 

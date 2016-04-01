@@ -37,7 +37,7 @@ if [ "$OPEN_WHISK_DB_PROVIDER" == "Cloudant" ]; then
 
 elif [ "$OPEN_WHISK_DB_PROVIDER" == "CouchDB" ]; then
     CURL_ADMIN="curl -s -k --user $OPEN_WHISK_DB_USERNAME:$OPEN_WHISK_DB_PASSWORD"
-    URL_BASE="https://$OPEN_WHISK_DB_HOST:$OPEN_WHISK_DB_PORT"
+    URL_BASE="$OPEN_WHISK_DB_PROTOCOL://$OPEN_WHISK_DB_HOST:$OPEN_WHISK_DB_PORT"
 
     # First part of confirmation prompt.
     echo "About to drop and recreate database '$DB_IMMORTAL_DBS' on:"

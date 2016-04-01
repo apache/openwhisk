@@ -26,6 +26,7 @@ import spray.json.RootJsonFormat
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.dbProvider
+import whisk.core.WhiskConfig.dbProtocol
 import whisk.core.WhiskConfig.dbActivations
 import whisk.core.WhiskConfig.dbAuths
 import whisk.core.WhiskConfig.dbPassword
@@ -78,9 +79,9 @@ protected[core] object Util {
         require(config.dbProvider == "Cloudant" || config.dbProvider == "CouchDB", "Unsupported db.provider: " + config.dbProvider)
 
         if(config.dbProvider == "Cloudant") {
-            CloudantStore.make(config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name(config))
+            CloudantStore.make(config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name(config))
         } else {
-            CouchDbStore.make(config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name(config))
+            CouchDbStore.make(config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name(config))
         }
     }
 }
@@ -88,6 +89,7 @@ protected[core] object Util {
 object WhiskAuthStore {
     def requiredProperties =
         Map(dbProvider -> null,
+            dbProtocol -> null,
             dbUsername -> null,
             dbPassword -> null,
             dbHost -> null,
@@ -100,6 +102,7 @@ object WhiskAuthStore {
 object WhiskEntityStore {
     def requiredProperties =
         Map(dbProvider -> null,
+            dbProtocol -> null,
             dbUsername -> null,
             dbPassword -> null,
             dbHost -> null,
@@ -112,6 +115,7 @@ object WhiskEntityStore {
 object WhiskActivationStore {
     def requiredProperties =
         Map(dbProvider -> null,
+            dbProtocol -> null,
             dbUsername -> null,
             dbPassword -> null,
             dbHost -> null,

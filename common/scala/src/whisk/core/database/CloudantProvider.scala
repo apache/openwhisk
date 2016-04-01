@@ -31,7 +31,8 @@ object CloudantProvider extends CouchDbLikeProvider[CloudantView] {
     type Database = CloudantDatabase
     type Response = CloudantResponse
 
-    def mkClient(dbHost: String, dbPort: Int, dbUsername: String, dbPassword: String) = {
+    def mkClient(dbProtocol: String, dbHost: String, dbPort: Int, dbUsername: String, dbPassword: String) = {
+        require(dbProtocol == "https")
         /** Extract account from username if it exists else account == username. */
         val account = {
             val parts = dbUsername.split(":")

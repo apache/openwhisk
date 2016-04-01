@@ -80,7 +80,7 @@ protected[entity] object CloudantReader {
         val dbUsername = null
         val dbPassword = null
 
-        val cloudant = CloudantProvider.mkClient(s"$dbUsername.cloudant.com", 443, dbUsername, dbPassword)
+        val cloudant = CloudantProvider.mkClient("https", s"$dbUsername.cloudant.com", 443, dbUsername, dbPassword)
 
         val from = CloudantProvider.getDB(cloudant, args(1))
 

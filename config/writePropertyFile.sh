@@ -166,6 +166,7 @@ echo "invoker.hosts.baseport=12001" >> "$WHISK_HOME/whisk.properties"
 
 # DB
 echo "db.provider="$OPEN_WHISK_DB_PROVIDER >> "$WHISK_HOME/whisk.properties"
+echo "db.protocol="$OPEN_WHISK_DB_PROTOCOL >> "$WHISK_HOME/whisk.properties"
 echo "db.prefix="$DB_PREFIX >> "$WHISK_HOME/whisk.properties"
 echo "db.whisk.actions="$DB_WHISK_ACTIONS >> "$WHISK_HOME/whisk.properties"
 echo "db.whisk.auths="$DB_WHISK_AUTHS >> "$WHISK_HOME/whisk.properties"

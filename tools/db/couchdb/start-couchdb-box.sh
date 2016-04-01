@@ -2,10 +2,11 @@
 
 set -e
 
-# Convenience script to get started with a local CouchDB.  This builds and instantiates
-# an image with CouchDB+SSL running inside, then calls the Whisk script to
-# setup the admin user. It also writes the corresponding configuration to
-# couchdb-local.env, so make sure you're OK with it being overwritten.
+# Convenience script to get started with a local CouchDB.  This builds and
+# instantiates an image with CouchDB running inside, then calls the Whisk
+# script to setup the admin user. It also writes the corresponding
+# configuration to couchdb-local.env, so make sure you're OK with it being
+# overwritten.
 
 SCRIPTDIR=$(cd $(dirname "$0") && pwd)
 ROOTDIR="$SCRIPTDIR/../../../"
@@ -26,7 +27,7 @@ if [ -n "$RUNNING" ]; then
 fi
 
 echo "Starting new instance..."
-CID=$(docker run -i -d -p 6984:6984 "$IMAGE_NAME")
+CID=$(docker run -i -d -p 5984:5984 "$IMAGE_NAME")
 
 echo "CouchDB running with container id:"
 echo "  $CID"
@@ -40,15 +41,16 @@ echo "Waiting for CouchDB to start up..."
 sleep 2
 
 echo "Creating admin user..."
-$ROOTDIR/tools/db/couchdb/createAdmin.sh -h ${IP} -p 6984 -u ${USER} -P ${PASS}
+$ROOTDIR/tools/db/couchdb/createAdmin.sh -s http -h ${IP} -p 5984 -u ${USER} -P ${PASS}
 
 echo "Generating couchdb-local.env..."
 
 FP="$ROOTDIR/couchdb-local.env"
 
 echo "#!/bin/bash" > $FP
+echo "OPEN_WHISK_DB_PROTOCOL=http" >> $FP
 echo "OPEN_WHISK_DB_HOST=$IP" >> $FP
-echo "OPEN_WHISK_DB_PORT=6984" >> $FP
+echo "OPEN_WHISK_DB_PORT=5984" >> $FP
 echo "OPEN_WHISK_DB_USERNAME=${USER}" >> $FP
 echo "OPEN_WHISK_DB_PASSWORD=${PASS}" >> $FP
 
