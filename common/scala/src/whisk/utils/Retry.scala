@@ -40,7 +40,7 @@ object retry {
             case Success(r) => r
             case _ if N > 1 =>
                 waitBeforeRetry map { t => Thread.sleep(t.toMillis) }
-                retry(fn, N - 1)
+                retry(fn, N - 1, waitBeforeRetry)
             case Failure(t) => throw t
         }
     }
