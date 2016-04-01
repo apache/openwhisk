@@ -16,9 +16,8 @@
 
 package system.rest;
 
-import com.jayway.restassured.RestAssured
-import common.WhiskProperties
 import common.TestUtils
+import common.WhiskProperties
 
 /**
  * Utilities for dealing with JSON schema
