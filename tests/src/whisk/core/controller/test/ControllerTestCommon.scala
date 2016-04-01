@@ -34,6 +34,7 @@ import whisk.common.TransactionId
 import whisk.common.Verbosity
 import whisk.core.WhiskConfig
 import whisk.core.connector.LoadBalancerResponse
+import whisk.core.connector.ActivationMessage
 import whisk.core.controller.WhiskActionsApi
 import whisk.core.controller.WhiskServices
 import whisk.core.database.test.DbUtils
@@ -79,7 +80,7 @@ protected trait ControllerTestCommon
     val entitlementService: EntitlementService = new LocalEntitlementService(config)(executionContext)
     val actorSystem = ActorSystem("controllertests")
     val activationId = ActivationId() // need a static activation id to test activations api
-    val postLoadBalancerRequest = (req: HttpRequest) => Future {
+    val performLoadBalancerRequest = (comp: String, msg: ActivationMessage) => Future {
         LoadBalancerResponse.id(activationId)
     }
     val consulServer = "???"

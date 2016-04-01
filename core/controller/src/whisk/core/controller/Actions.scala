@@ -388,7 +388,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         val args = { env map { _ ++ action.parameters } getOrElse action.parameters } merge payload
         val message = Message(transid, s"/actions/invoke/${action.namespace}/${action.name}/${action.rev}", user, ActivationId(), args)
         info(this, s"[POST] action activation id: ${message.activationId}")
-        postLoadBalancerRequest(Post(publish(INVOKER), message.toJson.asJsObject)) map {
+        performLoadBalancerRequest(publish(INVOKER), message) map {
             (action.limits.timeout(), _)
         } flatMap {
             case (duration, response) =>
