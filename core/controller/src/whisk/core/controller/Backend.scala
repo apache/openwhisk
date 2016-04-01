@@ -25,8 +25,25 @@ import akka.actor.ActorSystem
 import akka.util.Timeout
 import akka.util.Timeout.durationToTimeout
 import spray.http.HttpRequest
+import spray.client.pipelining.Post
+import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
+import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
+import spray.json.DefaultJsonProtocol.StringJsonFormat
+import spray.json.DefaultJsonProtocol.RootJsObjectFormat
+import spray.json.DefaultJsonProtocol.mapFormat
+import spray.json.DefaultJsonProtocol.JsValueFormat
+import spray.json.RootJsonFormat
+import spray.json.JsString
+import spray.json.JsObject
+import spray.json.pimpAny
+import spray.json.pimpString
+import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
+import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
 import whisk.core.connector.LoadBalancerResponse
 import whisk.core.connector.LoadbalancerRequest
+import whisk.core.connector.Message
+import whisk.core.connector.ActivationMessage
+import whisk.core.connector.ActivationMessage.{ publish, INVOKER }
 import whisk.core.WhiskConfig
 import whisk.core.entitlement.EntitlementService
 import whisk.core.entitlement.LocalEntitlementService
@@ -60,17 +77,22 @@ object WhiskServices extends LoadbalancerRequest {
      * @return function that accepts an HttpRequest, posts request to load balancer
      * and returns the HTTP response from the load balancer as a future
      */
-    def postLoadBalancerRequest(config: WhiskConfig, timeout: Timeout = 10 seconds)(
-        implicit as: ActorSystem, ec: ExecutionContext): HttpRequest => Future[LoadBalancerResponse] =
-        request(config.loadbalancerHost, timeout)
+    def performLoadBalancerRequest(config: WhiskConfig, timeout: Timeout = 10 seconds)(
+        implicit as: ActorSystem, ec: ExecutionContext): (String, ActivationMessage) => Future[LoadBalancerResponse] = {
+        val requester = request(config.loadbalancerHost, timeout)
+        (component: String, messages : ActivationMessage) => {
+            val req = Post(component, messages.toJson.asJsObject)
+            requester(req)
+        }
+    }
 }
 
 trait WhiskServices {
     /** An entitlement service to check access rights. */
     protected val entitlementService: EntitlementService
 
-    /** An HTTP client to post backend requests via Whisk load balancer. */
-    protected val postLoadBalancerRequest: HttpRequest => Future[LoadBalancerResponse]
+    /** Synchronously perform a request to the load balancer.  */
+    protected val performLoadBalancerRequest: (String, ActivationMessage) => Future[LoadBalancerResponse]
 
     /** The hostname of the consul server */
     protected val consulServer: String
