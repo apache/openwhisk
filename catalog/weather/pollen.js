@@ -1,6 +1,6 @@
 var request = require('request');
 /**
- * Gets observation content for a valid TWC location in the supported region or latitude/longitude 
+ * Gets observation content for a valid TWC location in the supported region (latitude/longitude or zipCode)
  *
  * Must specify one of zipCode or latitude/longitude.
  *
