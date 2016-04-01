@@ -16,6 +16,9 @@
 
 package services;
 
+import static com.jayway.restassured.RestAssured.baseURI;
+import static com.jayway.restassured.RestAssured.get;
+import static com.jayway.restassured.RestAssured.port;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
@@ -24,8 +27,6 @@ import java.io.IOException;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
-
-import com.jayway.restassured.RestAssured;
 
 import common.Pair;
 import common.TestUtils;
@@ -48,8 +49,10 @@ public class PingTests {
     public void pingDocker(String var, String endpoint) {
         assertTrue(var + " not set", endpoint != null);
         assertTrue(var + " not set", endpoint.length() > 0);
+        baseURI = "http://" + endpoint;
+        port = 4243;
 
-        String response = RestAssured.given().port(4243).baseUri("http://" + endpoint).get("/info").body().asString();
+        String response = get("/info").body().asString();
         System.out.println("GET /info");
         System.out.println(response);
         assertTrue(response.contains("Containers"));
@@ -62,6 +65,7 @@ public class PingTests {
     public void pingMainDocker() {
         pingDocker("main.docker.endpoint", WhiskProperties.getMainDockerEndpoint());
     }
+
 
     /**
      * Check the kafka docker endpoint is functioning.
@@ -96,8 +100,8 @@ public class PingTests {
     }
 
     /**
-     * Check that the invoker endpoints are up and running TODO: the # of
-     * invokers should not be hardcoded
+     * Check that the invoker endpoints are up and running
+     * TODO: the # of invokers should not be hardcoded
      */
     @Test
     public void pingInvoker() throws IOException {
@@ -113,7 +117,6 @@ public class PingTests {
     public void pingLoadBalancer() throws IOException {
         PingTests.isAlive("loadbalancer", WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath());
     }
-
     /**
      * Check that the controller endpoint is up and running
      */
@@ -122,7 +125,8 @@ public class PingTests {
         PingTests.isAlive("controller", WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath());
     }
 
+  
     public static Pair<String, String> isAlive(String name, String whiskPropertyFile) throws IOException {
-        return TestUtils.runCmd(TestUtils.SUCCESS_EXIT, bin, WhiskProperties.python, "isAlive", "-d", whiskPropertyFile, name);
+        return TestUtils.runCmd(TestUtils.SUCCESS_EXIT,  bin, WhiskProperties.python, "isAlive", "-d", whiskPropertyFile ,name);
     }
 }
