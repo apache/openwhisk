@@ -30,8 +30,9 @@ object CouchDbProvider extends CouchDbLikeProvider[CouchView] {
     type Database = CouchDatabase
     type Response = CouchResponse
 
-    def mkClient(dbHost: String, dbPort: Int, dbUsername: String, dbPassword: String) = {
-        new CouchDbClient("https", dbHost, dbPort, dbUsername, dbPassword)
+    def mkClient(dbProtocol: String, dbHost: String, dbPort: Int, dbUsername: String, dbPassword: String) = {
+        require(dbProtocol == "http" || dbProtocol == "https")
+        new CouchDbClient(dbProtocol, dbHost, dbPort, dbUsername, dbPassword)
     }
 
     def getDB(client: Client, dbName: String) : Database = {

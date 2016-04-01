@@ -33,6 +33,7 @@ import random
 import uuid
 
 DB_WHISK_AUTHS = 'DB_WHISK_AUTHS'
+DB_PROTOCOL    = 'DB_PROTOCOL'
 DB_HOST        = 'DB_HOST'
 DB_PORT        = 'DB_PORT'
 DB_USERNAME    = 'DB_USERNAME'
@@ -45,7 +46,7 @@ ROOT_DIR = os.path.join(os.path.join(CLI_DIR, os.pardir), os.pardir)
 
 def main():
     whiskprops = wskprop.importPropsIfAvailable(wskprop.propfile(os.getcwd()))
-    requiredprops = [ DB_WHISK_AUTHS, DB_HOST, DB_PORT, DB_USERNAME, DB_PASSWORD ]
+    requiredprops = [ DB_WHISK_AUTHS, DB_PROTOCOL, DB_HOST, DB_PORT, DB_USERNAME, DB_PASSWORD ]
     (valid, props, deferredInfo) = wskprop.checkRequiredProperties(requiredprops, whiskprops)
 
     exitCode = 0 if valid else 2
@@ -99,6 +100,7 @@ def userCmd(args, props):
         return 2
 
 def createUserCmd(args, props):
+    protocol = props[DB_PROTOCOL]
     host     = props[DB_HOST]
     port     = props[DB_PORT]
     username = props[DB_USERNAME]
@@ -117,7 +119,8 @@ def createUserCmd(args, props):
         'subject': subject
     }
 
-    url = 'https://%(host)s:%(port)s/%(database)s' % {
+    url = '%(protocol)s://%(host)s:%(port)s/%(database)s' % {
+        'protocol': protocol,
         'host'    : host,
         'port'    : port,
         'database': database
@@ -145,13 +148,15 @@ def getUserCmd(args, props):
         return 1
 
 def getSubjecFromDb(args, props):
+    protocol = props[DB_PROTOCOL]
     host     = props[DB_HOST]
     port     = props[DB_PORT]
     username = props[DB_USERNAME]
     password = props[DB_PASSWORD]
     database = props[DB_WHISK_AUTHS]
 
-    url = 'https://%(host)s:%(port)s/%(database)s/%(subject)s' % {
+    url = '%(protocol)s://%(host)s:%(port)s/%(database)s/%(subject)s' % {
+        'protocol': protocol,
         'host'    : host,
         'port'    : port,
         'database': database,
@@ -170,6 +175,7 @@ def getSubjecFromDb(args, props):
         return (None, res)
 
 def deleteUserCmd(args, props):
+    protocol = props[DB_PROTOCOL]
     host     = props[DB_HOST]
     port     = props[DB_PORT]
     username = props[DB_USERNAME]
@@ -185,7 +191,8 @@ def deleteUserCmd(args, props):
         print 'Failed to delete subject (%s)' % res.read().strip()
         return 1
 
-    url = 'https://%(host)s:%(port)s/%(database)s/%(subject)s?rev=%(rev)s' % {
+    url = '%(protocol)s://%(host)s:%(port)s/%(database)s/%(subject)s?rev=%(rev)s' % {
+        'protocol': protocol,
         'host'    : host,
         'port'    : port,
         'database': database,
@@ -205,6 +212,7 @@ def deleteUserCmd(args, props):
         return 1
 
 def whoisUserCmd(args, props):
+    protocol = props[DB_PROTOCOL]
     host     = props[DB_HOST]
     port     = props[DB_PORT]
     username = props[DB_USERNAME]
@@ -212,7 +220,8 @@ def whoisUserCmd(args, props):
     database = props[DB_WHISK_AUTHS]
     uuid     = args.uuid.split(':')[0]
 
-    url = 'https://%(host)s:%(port)s/%(database)s/_design/%(database)s/_view/uuids?key=["%(uuid)s"]' % {
+    url = '%(protocol)s://%(host)s:%(port)s/%(database)s/_design/%(database)s/_view/uuids?key=["%(uuid)s"]' % {
+        'protocol': protocol,
         'host'    : host,
         'port'    : port,
         'username': username,

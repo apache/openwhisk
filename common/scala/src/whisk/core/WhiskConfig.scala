@@ -64,6 +64,7 @@ class WhiskConfig(
     val dbProvider = this(WhiskConfig.dbProvider)
     val dbUsername = this(WhiskConfig.dbUsername)
     val dbPassword = this(WhiskConfig.dbPassword)
+    val dbProtocol = this(WhiskConfig.dbProtocol)
     val dbHost = this(WhiskConfig.dbHost)
     val dbPort = this(WhiskConfig.dbPort)
     val dbWhisk = this(WhiskConfig.dbWhisk)
@@ -114,6 +115,7 @@ object WhiskConfig {
     val kafkaPartitions = "kafka.numpartitions"
 
     val dbProvider = "db.provider"
+    val dbProtocol = "db.protocol"
     val dbHost = "db.host"
     val dbPort = "db.port"
     val dbUsername = "db.username"

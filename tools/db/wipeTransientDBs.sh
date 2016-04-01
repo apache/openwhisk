@@ -41,6 +41,7 @@ function getProperty() {
 source "$SCRIPTDIR/../../config/dbSetup.sh"
 
 DB_PROVIDER=$(getProperty "$PROPERTIES_FILE" "db.provider")
+DB_PROTOCOL=$(getProperty "$PROPERTIES_FILE" "db.protocol")
 DB_PREFIX=$(getProperty "$PROPERTIES_FILE" "db.prefix")
 DB_HOST=$(getProperty "$PROPERTIES_FILE" "db.host")
 DB_PORT=$(getProperty "$PROPERTIES_FILE" "db.port")
@@ -52,7 +53,7 @@ if [ "$DB_PROVIDER" == "CouchDB" ]; then
 else
     CURL_ADMIN="curl -s --user $DB_USERNAME:$DB_PASSWORD"
 fi
-URL_BASE="https://$DB_HOST:$DB_PORT"
+URL_BASE="$DB_PROTOCOL://$DB_HOST:$DB_PORT"
 
 ## drop and recreate the transient databases
 for db in $DB_TRANSIENT_DBS

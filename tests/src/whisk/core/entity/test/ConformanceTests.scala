@@ -25,6 +25,7 @@ import com.cloudant.client.api.Database
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.dbAuths
 import whisk.core.WhiskConfig.dbProvider
+import whisk.core.WhiskConfig.dbProtocol
 import whisk.core.WhiskConfig.dbHost
 import whisk.core.WhiskConfig.dbPort
 import whisk.core.WhiskConfig.dbPassword
@@ -96,6 +97,7 @@ class ConformanceTests extends FlatSpec with Matchers {
     "Auth Database" should "conform to expected schema" in {
         val config = new WhiskConfig(Map(
             dbProvider -> null,
+            dbProtocol -> null,
             dbHost -> null,
             dbPort -> null,
             dbUsername -> null,
@@ -105,7 +107,7 @@ class ConformanceTests extends FlatSpec with Matchers {
         assert(config.isValid)
 
         withDbProvider { provider =>
-            val client = provider.mkClient(config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword)
+            val client = provider.mkClient(config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword)
             val authDb = provider.getDB(client, config.dbAuths)
 
             val requiredFields = classOf[AuthRecord].getDeclaredFields.map(f => f.getName)
@@ -116,6 +118,7 @@ class ConformanceTests extends FlatSpec with Matchers {
     "Whisk Database" should "conform to expected schema" in {
         val config = new WhiskConfig(Map(
             dbProvider -> null,
+            dbProtocol -> null,
             dbHost -> null,
             dbPort -> null,
             dbUsername -> null,
@@ -126,7 +129,7 @@ class ConformanceTests extends FlatSpec with Matchers {
         assert(config.isValid)
 
         withDbProvider { provider =>
-            val client = provider.mkClient(config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword)
+            val client = provider.mkClient(config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword)
             val whiskDb = provider.getDB(client, config.dbWhisk)
 
             val requiredActionFields = classOf[ActionRecord].getDeclaredFields.map(f => f.getName)
