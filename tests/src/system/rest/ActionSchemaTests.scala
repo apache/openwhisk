@@ -16,21 +16,20 @@
 
 package system.rest
 
+import scala.util.Success
+import scala.util.Try
+
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
+
 import com.jayway.restassured.RestAssured
-import com.jayway.restassured.config.RestAssuredConfig
-import com.jayway.restassured.config.SSLConfig
+
 import common.WhiskProperties
-import spray.json.pimpAny
-import spray.json.pimpString
-import spray.json.DefaultJsonProtocol._
-import spray.json.JsNull
-import scala.util.{ Try, Success, Failure }
 import spray.json.JsArray
 import spray.json.JsObject
+import spray.json.pimpString
 
 /**
  * Basic tests of API calls for actions
@@ -43,6 +42,7 @@ class ActionSchemaTests extends FlatSpec with Matchers with RestUtil with JsonSc
         val auth = WhiskProperties.getBasicAuth;
         val response = RestAssured.
             given().
+            config(sslconfig).
             auth().basic(auth.fst, auth.snd).
             get(getBaseURL() + "/namespaces/whisk.system/actions/samples/");
         assert(response.statusCode() == 200);
@@ -71,6 +71,7 @@ class ActionSchemaTests extends FlatSpec with Matchers with RestUtil with JsonSc
         val auth = WhiskProperties.getBasicAuth;
         val response = RestAssured.
             given().
+            config(sslconfig).
             auth().basic(auth.fst, auth.snd).
             get(getBaseURL() + "/namespaces/whisk.system/actions/samples/wordCount");
         assert(response.statusCode() == 200);

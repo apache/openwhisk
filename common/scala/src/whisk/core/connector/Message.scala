@@ -83,7 +83,7 @@ object ActivationMessage extends DefaultJsonProtocol {
         serdes.read(msg.parseJson)
     }
 
-    private implicit object TransidJsonForat extends RootJsonFormat[TransactionId] {
+    private implicit object TransidJsonFormat extends RootJsonFormat[TransactionId] {
         def write(tid: TransactionId) = tid.id.toJson
 
         def read(value: JsValue) = Try {
