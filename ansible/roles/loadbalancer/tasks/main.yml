@@ -1,23 +1,26 @@
 ---
 # This role will install Loadbalancer in group 'loadbalancers' in the environment inventory
 
-- name: pull the lastest image of controller
-  shell: "docker pull {{ docker_registry }}whisk/balancer:{{ docker_image_tag }}"
+- name: pull the required image of loadbalancer
+  shell: "docker pull {{ docker_registry }}whisk/loadbalancer:{{ docker_image_tag }}"
   when: docker_registry != ""
 
 - name: (re)start loadbalancer
   docker:
-    name: controller
-    image: "{{ docker_registry }}whisk/controller:{{ docker_image_tag }}"
+    name: loadbalancer
+    image: "{{ docker_registry }}whisk/loadbalancer:{{ docker_image_tag }}"
     state: reloaded
     restart_policy: "{{ docker.restart.policy }}"
-    log_driver: syslog
+    hostname: "loadbalancer_{{ansible_host}}:{{docker.port}}"
     env:
       "COMPONENT_NAME": "loadbalancer"
-      "CONSULSERVER_HOST": "{{ groups['consul_servers']|first }}"
+      "CONSULSERVER_HOST": "{{ ansible_host }}"
       "CONSUL_HOST_PORT4": "{{ consul.port.http }}"
       "PORT": 8080
       "KAFKA_NUMPARTITIONS": 2
+      "SERVICE_CHECK_HTTP": "/ping"
+      "SERVICE_CHECK_TIMEOUT": "2s"
+      "SERVICE_CHECK_INTERVAL": "15s"
     volumes:
       - "{{ whisk_logs_dir }}/loadbalancer:/logs"
     ports:
