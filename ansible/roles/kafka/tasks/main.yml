@@ -1,0 +1,49 @@
+---
+# This role will install Kafka with Zookeeper in group 'kafka' in the environment inventory
+
+- name: pull the lastest image of zookeeper
+  shell: "docker pull {{ docker_registry }}whisk/zookeeper:{{ docker_image_tag }}"
+  when: docker_registry != ""
+
+- name: (re)start zookeeper
+  docker:
+    name: zookeeper
+    image: "{{ docker_registry }}whisk/zookeeper:{{ docker_image_tag }}"
+    state: reloaded
+    restart_policy: "{{ docker.restart.policy }}"
+    log_driver: syslog
+    ports:
+      - "{{ zookeeper.port }}:2181"
+
+- name: wait until the Zookeeper in this host is up and running
+  wait_for:
+    delay: 2
+    host: "{{ inventory_hostname }}"
+    port: "{{ zookeeper.port }}"
+    timeout: 60
+
+- name: pull the lastest image of kafka
+  shell: "docker pull {{ docker_registry }}whisk/kafka:{{ docker_image_tag }}"
+  when: docker_registry != ""
+
+- name: (re)start kafka
+  docker:
+    name: kafka
+    image: "{{ docker_registry }}whisk/kafka:{{ docker_image_tag }}"
+    state: reloaded
+    restart_policy: "{{ docker.restart.policy }}"
+    log_driver: syslog
+    links:
+      - "zookeeper:zookeeper"
+    env:
+      "EXPOSED_HOST": "{{ inventory_hostname }}"
+    ports:
+      - "{{ kafka.port }}:9092"
+      - "{{ kafka.ras.port }}:8080"
+
+- name: wait until the Kafka in this host is up and running
+  wait_for:
+    delay: 2
+    host: "{{ inventory_hostname }}"
+    port: "{{ kafka.port }}"
+    timeout: 60

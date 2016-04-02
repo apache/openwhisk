@@ -1,0 +1,7 @@
+---
+# This handler contains common tasks (aka. utitlities) for deploying OpenWhisk
+# If a handler is notified by multiple tasks, it will still be run only once
+
+# TODO: avoid py script? persist a file in the role would be better
+- name: fill consul kv
+  local_action: command python "{{ playbook_dir }}/../tools/health/kvstore" --import -d "{{ playbook_dir }}/../"

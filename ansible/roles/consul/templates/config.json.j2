@@ -1,0 +1,30 @@
+{# this template is used to generate a config.json for booting a consul server or a consul agent, based on the given environment inventory #}
+{
+{% if 'consul_servers' in group_names %}
+    "server": true,
+    "bootstrap_expect": {{ groups['consul_servers']|length }},
+{% endif %}
+    {% for host in groups['consul_servers'] %}
+{% if loop.first -%}
+    "start_join": ["{{host}}"
+{%- endif %}
+{% if loop.last and loop.length == 1 -%}
+    ],
+{%- endif %}
+{% if loop.last and loop.length != 1 -%}
+    ,"{{host}}"],
+{%- endif %}
+{% if not loop.first and not loop.last -%}
+    ,"{{host}}"
+{%- endif %}
+{% endfor %}
+
+    "data_dir": "/consul/data",
+    "ui_dir": "/consul/ui",
+    "log_level": "WARN",
+    "client_addr": "0.0.0.0",
+    "ports": {
+        "dns": 53
+    },
+    "disable_update_check": true
+}

@@ -1,0 +1,30 @@
+---
+# This playbook deploys an Openwhisk stack.  
+
+- hosts: all
+  roles:
+  - consul
+
+- hosts: kafka
+  roles:
+  - kafka
+
+- hosts: controllers
+  roles:
+  - controller
+
+- hosts: loadbalancers
+  roles:
+  - loadbalancer
+
+# - hosts: activators
+#   roles:
+#   - activator
+
+# - hosts: invokers
+#   roles:
+#   - invoker
+
+# - hosts: edge
+#   roles:
+#   - nginx
