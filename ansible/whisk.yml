@@ -17,9 +17,9 @@
   roles:
   - loadbalancer
 
-# - hosts: activators
-#   roles:
-#   - activator
+- hosts: activators
+  roles:
+  - activator
 
 # - hosts: invokers
 #   roles:
