@@ -5,7 +5,9 @@
 # Note use of --apihost, this is needed in case of a b/g swap since the router may not be
 # updated yet and there may be a breaking change in the API. All tests should go through edge.
 
-: ${OPENWHISK_HOME:?"OPENWHISK_HOME must be set and non-empty"}
+SCRIPTDIR="$(cd $(dirname "$0")/ && pwd)"
+OPENWHISK_HOME=${OPENWHISK_HOME:-$SCRIPTDIR/..}
+
 WHISKPROPS_FILE="$OPENWHISK_HOME/whisk.properties"
 if [ ! -f "$WHISKPROPS_FILE" ]; then
     echo "whisk properties file not found $WHISKPROPS_FILE"
