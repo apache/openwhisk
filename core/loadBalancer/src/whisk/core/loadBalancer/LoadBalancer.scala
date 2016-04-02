@@ -16,14 +16,24 @@
 
 package whisk.core.loadBalancer
 
+import scala.util.Failure
+import scala.util.Success
+
 import akka.actor.Actor
 import akka.japi.Creator
+
+import spray.http.StatusCodes.InternalServerError
+import spray.http.StatusCodes.OK
+import spray.httpx.SprayJsonSupport._
+import spray.json.DefaultJsonProtocol._
 import spray.json.JsBoolean
 import spray.json.JsObject
+
 import whisk.common.ConsulKV
 import whisk.common.ConsulKV.LoadBalancerKeys
 import whisk.common.ConsulKVReporter
 import whisk.common.Verbosity
+import whisk.common.TransactionId
 import whisk.connector.kafka.KafkaProducerConnector
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.consulServer
@@ -32,47 +42,49 @@ import whisk.core.WhiskConfig.kafkaPartitions
 import whisk.core.WhiskConfig.servicePort
 import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.http.BasicHttpService
+import whisk.http.BasicRasService
 import whisk.utils.ExecutionContextFactory
 
 class LoadBalancer(config: WhiskConfig, verbosity: Verbosity.Level)
-    extends LoadBalancerService
-    with LoadBalancerToKafka
+    extends LoadBalancerService(config, verbosity)
+    with BasicRasService
     with Actor {
 
-    override def getInvoker(message: Message): Option[Int] = invokerHealth.getInvoker(message)
-    override def getInvokerHealth: JsObject = invokerHealth.getInvokerHealth()
-    override def activationThrottle = _activationThrottle
-
     override def actorRefFactory = context
-    override val executionContext = ExecutionContextFactory.makeExecutionContext()
-    override val producer = new KafkaProducerConnector(config.kafkaHost, executionContext)
-
-    private val kvStore = new ConsulKV(config.consulServer)
-    private val invokerHealth = new InvokerHealth(config, { () => producer.sentCount() })
-    private val _activationThrottle = new ActivationThrottle(LoadBalancer.config.consulServer, invokerHealth)
 
     setVerbosity(verbosity)
 
-    // --- WIP -----
-    private var count = 0
-    private val overloadThreshold = 5000 // this is the total across all invokers.  Disable by setting to -1.
-    private val reporter = new ConsulKVReporter(kvStore, 3000, 2000,
-        LoadBalancerKeys.hostnameKey,
-        LoadBalancerKeys.startKey,
-        LoadBalancerKeys.statusKey,
-        { () =>
-            val producedCount = getActivationCount()
-            val consumedCounts = invokerHealth.getInvokerActivationCounts()
-            val inFlight = producedCount - consumedCounts.fold(0) { (total, n) => total + n }
-            val overload = JsBoolean(overloadThreshold > 0 && inFlight >= overloadThreshold)
-            count = count + 1
-            if (count % 10 == 0) {
-                warn(this, s"In flight: ${producedCount} - [${consumedCounts.mkString(", ")}] = ${inFlight} ${overload}")
+    override def routes(implicit transid: TransactionId) = super.routes ~ publish ~ invokers
+
+    /**
+     * Handles POST /publish/topic URI.
+     *
+     * @param component the component name extracted from URI (invoker, or activator)
+     * @param msg the Message received via POST
+     * @return response to terminate HTTP connection with
+     */
+    def publish(implicit transid: TransactionId) = {
+        (path("publish" / s"""(${Message.ACTIVATOR}|${Message.INVOKER})""".r) & post & entity(as[Message])) {
+            (component, message) =>
+                onComplete(doPublish(component, message)(message.transid)) {
+                    case Success(response) => complete(OK, response)
+                    case Failure(t)        => complete(InternalServerError)
+                }
+        }
+    }
+
+     /**
+     * Handles GET /invokers URI.
+     *
+     * @return JSON of invoker health
+     */
+     val invokers = {
+        (path("invokers") & get) {
+            complete {
+                getInvokerHealth()
             }
-            Map(LoadBalancerKeys.overloadKey -> overload,
-                LoadBalancerKeys.invokerHealth -> getInvokerHealth()) ++
-                getUserActivationCounts()
-        })
+        }
+    }
 
 }
 

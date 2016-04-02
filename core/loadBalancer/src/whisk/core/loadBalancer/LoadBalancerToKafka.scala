@@ -43,7 +43,7 @@ trait LoadBalancerToKafka extends Logging {
     }
 
     /**
-     * Publishes message to the kafka bus (in other words, to the backend).
+     * Publishes message on kafka bus for the invoker to pick up.
      *
      * @param topic the topic name extracted from URI
      * @param msg the message received via POST
