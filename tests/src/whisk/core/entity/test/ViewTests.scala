@@ -102,11 +102,13 @@ class ViewTests extends FlatSpec
         result.length should be(expected.length)
         expected forall { e => result contains e.summaryAsJson } should be(true)
     }
-    
+
     def getEntitiesInNamespace(ns: Namespace)(implicit entities: Seq[WhiskEntity]) = {
         implicit val tid = transid()
-        val result = Await.result(listEntitiesInNamespace(datastore, ns, false), dbOpTimeout).values.toList flatMap { t => t }
+        val map = Await.result(listEntitiesInNamespace(datastore, ns, false), dbOpTimeout)
+        val result = map.values.toList flatMap { t => t }
         val expected = entities filter { !_.isInstanceOf[WhiskActivation] } filter { _.namespace.root == ns }
+        map.get(WhiskActivation.collectionName) should be(None)
         result.length should be(expected.length)
         expected forall { e => result contains e.summaryAsJson } should be(true)
     }
