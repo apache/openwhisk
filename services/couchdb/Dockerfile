@@ -1,1 +1,1 @@
-FROM klaemo/couchdb:latest
+FROM couchdb:latest
