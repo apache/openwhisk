@@ -302,7 +302,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
      */
     private def postToActivator(user: Subject, namespace: Namespace, name: EntityName, prevState: Status, newRule: WhiskRule, docid: DocInfo)(implicit transid: TransactionId) = {
         val message = Message(transid, s"/rules/${newRule.status}/${newRule.docid}", user, ActivationId(), None)
-        val post = performLoadBalancerRequest(publish(ACTIVATOR), message) flatMap { response =>
+        val post = performLoadBalancerRequest(publish(ACTIVATOR), message, transid) flatMap { response =>
             response.id match {
                 case Some(_) =>
                     info(this, s"[POST] rule status change to ${newRule.status} activated")

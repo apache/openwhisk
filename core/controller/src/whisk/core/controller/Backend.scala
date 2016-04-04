@@ -39,6 +39,8 @@ import spray.json.pimpAny
 import spray.json.pimpString
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
 import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
+import whisk.common.TransactionId
+import whisk.common.Verbosity
 import whisk.core.connector.LoadBalancerResponse
 import whisk.core.connector.LoadbalancerRequest
 import whisk.core.connector.Message
@@ -48,6 +50,7 @@ import whisk.core.WhiskConfig
 import whisk.core.entitlement.EntitlementService
 import whisk.core.entitlement.LocalEntitlementService
 import whisk.core.entitlement.RemoteEntitlementService
+import whisk.core.loadBalancer.LoadBalancerService
 
 object WhiskServices extends LoadbalancerRequest {
     def requiredProperties = WhiskConfig.loadbalancerHost ++
@@ -70,7 +73,7 @@ object WhiskServices extends LoadbalancerRequest {
     }
 
     /**
-     * Creates an HTTP client to post requests to the Load Balancer.
+     * Creates an instance of a Load Balancer.
      *
      * @param config the configuration with loadbalancerHost defined
      * @param timeout the duration before timing out the HTTP request
@@ -78,11 +81,15 @@ object WhiskServices extends LoadbalancerRequest {
      * and returns the HTTP response from the load balancer as a future
      */
     def performLoadBalancerRequest(config: WhiskConfig, timeout: Timeout = 10 seconds)(
-        implicit as: ActorSystem, ec: ExecutionContext): (String, ActivationMessage) => Future[LoadBalancerResponse] = {
-        val requester = request(config.loadbalancerHost, timeout)
-        (component: String, messages : ActivationMessage) => {
-            val req = Post(component, messages.toJson.asJsObject)
-            requester(req)
+        implicit as: ActorSystem, ec: ExecutionContext): (String, ActivationMessage, TransactionId) => Future[LoadBalancerResponse] = {
+        if (true) {
+            // This connects to a separate LoadBalancer micro-service.
+            val requester = request(config.loadbalancerHost, timeout)
+            (component: String, message : ActivationMessage, tran : TransactionId) => { requester(Post(component, message.toJson.asJsObject)) }
+        } else {
+            // This version runs a local LoadBalanceService
+            val loadBalancer = new LoadBalancerService(config, Verbosity.Loud)
+            (component: String, message : ActivationMessage, tran: TransactionId)  => { loadBalancer.doPublish(component, message)(tran) }
         }
     }
 }
@@ -92,7 +99,7 @@ trait WhiskServices {
     protected val entitlementService: EntitlementService
 
     /** Synchronously perform a request to the load balancer.  */
-    protected val performLoadBalancerRequest: (String, ActivationMessage) => Future[LoadBalancerResponse]
+    protected val performLoadBalancerRequest: (String, ActivationMessage, TransactionId) => Future[LoadBalancerResponse]
 
     /** The hostname of the consul server */
     protected val consulServer: String

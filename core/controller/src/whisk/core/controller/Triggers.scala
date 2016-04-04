@@ -123,7 +123,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                         val message = Message(transid, s"/triggers/fire/${trigger.docid}", user, ActivationId(), args)
                         info(this, s"[POST] trigger activation id: ${message.activationId}")
                         val start = Instant.now(Clock.systemUTC())
-                        val postToLoadbalancer = performLoadBalancerRequest(publish(ACTIVATOR), message) flatMap {
+                        val postToLoadbalancer = performLoadBalancerRequest(publish(ACTIVATOR), message, transid) flatMap {
                             response =>
                                 response.id match {
                                     case Some(activationId) =>

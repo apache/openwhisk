@@ -13,7 +13,9 @@ repositories {
 sourceSets {
     main {
         scala {
-            srcDir 'src'
+            // This does not work because this project cannot use that project reference
+            // srcDirs = ['src/'].plus(project(':core:loadbalancer').sourceSets.main.scala.srcDirs)
+            srcDirs = ['src/'].plus('../loadBalancer/src/')
             exclude 'resources/**'
         }
         resources {
