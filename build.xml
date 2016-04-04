@@ -14,8 +14,9 @@
 
     <!-- scan the code base, checking some conventions that are enforced -->
     <target name="scanCode">
-        <exec executable="/bin/bash" failonerror="true">
-            <arg value="tools/build/scanCode.sh" />
+        <exec executable="${python.27}" failonerror="true">
+            <arg value="${openwhisk.home}/tools/build/scanCode.py" />
+            <arg value="${basedir}" />
         </exec>
     </target>
 
