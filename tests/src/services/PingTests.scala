@@ -14,52 +14,59 @@
  * limitations under the License.
  */
 
-package services;
+package services
 
-import static org.junit.Assert.assertTrue;
+import org.junit.Assert.assertTrue
 
-import java.io.File;
-import java.io.IOException;
+import java.io.File
+import java.io.IOException
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TestRule;
+import org.junit.Rule
+import org.junit.Test
+import org.junit.rules.TestRule
 
-import com.jayway.restassured.RestAssured;
+import com.jayway.restassured.RestAssured
 
-import common.Pair;
-import common.TestUtils;
-import common.WhiskProperties;
+import common.Pair
+import common.TestUtils
+import common.WhiskProperties
 
 /**
  * Basic tests to check that a Whisk installation is healthy in that all
  * components respond to a heartbeat ping
  */
-public class PingTests {
-    static final File bin = WhiskProperties.getFileRelativeToWhiskHome("tools/health");
+object PingTests {
+    val bin: File = WhiskProperties.getFileRelativeToWhiskHome("tools/health")
+      
+    def isAlive(name: String, whiskPropertyFile: String) : (String,String) = {
+        val p = TestUtils.runCmd(TestUtils.SUCCESS_EXIT, bin, WhiskProperties.python, "isAlive", "-d", whiskPropertyFile, name)
+        (p.fst, p.snd)
+    }
+}
 
+class PingTests {
     @Rule
-    public TestRule watcher = TestUtils.makeTestWatcher();
+    def watcher(): TestRule = TestUtils.makeTestWatcher()
 
     /**
-     * Check that the docker REST interface at endpoint is up. var is the
+     * Check that the docker REST interface at endpoint is up. envVar is the
      * environment variable from which we obtain.
      */
-    public void pingDocker(String var, String endpoint) {
-        assertTrue(var + " not set", endpoint != null);
-        assertTrue(var + " not set", endpoint.length() > 0);
+    def pingDocker(envVar: String, endpoint: String) : Unit = {
+        assertTrue(envVar + " not set", endpoint != null)
+        assertTrue(envVar + " not set", endpoint.length() > 0)
 
-        String response = RestAssured.given().port(4243).baseUri("http://" + endpoint).get("/info").body().asString();
-        System.out.println("GET /info");
-        System.out.println(response);
-        assertTrue(response.contains("Containers"));
+        val response: String = RestAssured.given().port(4243).baseUri("http://" + endpoint).get("/info").body().asString()
+        println("GET /info")
+        println(response)
+        assertTrue(response.contains("Containers"))
     }
 
     /**
      * Check that the main docker endpoint is functioning.
      */
     @Test
-    public void pingMainDocker() {
+    def pingMainDocker() : Unit = {
         pingDocker("main.docker.endpoint", WhiskProperties.getMainDockerEndpoint());
     }
 
@@ -67,7 +74,7 @@ public class PingTests {
      * Check the kafka docker endpoint is functioning.
      */
     @Test
-    public void pingKafkaDocker() {
+    def pingKafkaDocker() : Unit = {
         pingDocker("kafka.docker.endpoint", WhiskProperties.getKafkaDockerEndpoint());
     }
 
@@ -75,23 +82,23 @@ public class PingTests {
      * Check that the zookeeper endpoint is up and running
      */
     @Test
-    public void pingZookeeper() throws IOException {
-        isAlive("zookeeper", WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath());
+    def pingZookeeper() : Unit = {
+        PingTests.isAlive("zookeeper", WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath());
     }
 
     /**
      * Check that the kafka endpoint is up and running
      */
     @Test
-    public void pingKafka() throws IOException {
-        isAlive("kafka", WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath());
+    def pingKafka() : Unit = {
+        PingTests.isAlive("kafka", WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath());
     }
 
     /**
      * Check that the activator endpoint is up and running
      */
     @Test
-    public void pingActivator() throws IOException {
+    def pingActivator() : Unit = {
         PingTests.isAlive("activator", WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath());
     }
 
@@ -99,9 +106,9 @@ public class PingTests {
      * Check that the invoker endpoints are up and running
      */
     @Test
-    public void pingInvoker() throws IOException {
-        for (int i = 0; i < WhiskProperties.numberOfInvokers(); i++) {
-            PingTests.isAlive("invoker" + i, WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath());
+    def pingInvoker() : Unit = {
+        for (i <- 0 until WhiskProperties.numberOfInvokers()) {
+            PingTests.isAlive("invoker" + i, WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath())
         }
     }
 
@@ -109,7 +116,7 @@ public class PingTests {
      * Check that the loadbalancer endpoint is up and running
      */
     @Test
-    public void pingLoadBalancer() throws IOException {
+    def pingLoadBalancer() : Unit = {
         PingTests.isAlive("loadbalancer", WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath());
     }
 
@@ -117,11 +124,7 @@ public class PingTests {
      * Check that the controller endpoint is up and running
      */
     @Test
-    public void pingController() throws IOException {
+    def pingController() : Unit = {
         PingTests.isAlive("controller", WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath());
-    }
-
-    public static Pair<String, String> isAlive(String name, String whiskPropertyFile) throws IOException {
-        return TestUtils.runCmd(TestUtils.SUCCESS_EXIT, bin, WhiskProperties.python, "isAlive", "-d", whiskPropertyFile, name);
     }
 }
