@@ -11,10 +11,10 @@
     image: "{{ docker_registry }}whisk/loadbalancer:{{ docker_image_tag }}"
     state: reloaded
     restart_policy: "{{ docker.restart.policy }}"
-    hostname: "loadbalancer_{{ansible_host}}:{{docker.port}}"
+    hostname: "loadbalancer_{{inventory_hostname}}:{{docker.port}}"
     env:
       "COMPONENT_NAME": "loadbalancer"
-      "CONSULSERVER_HOST": "{{ ansible_host }}"
+      "CONSULSERVER_HOST": "{{ inventory_hostname }}"
       "CONSUL_HOST_PORT4": "{{ consul.port.http }}"
       "PORT": 8080
       "KAFKA_NUMPARTITIONS": 2

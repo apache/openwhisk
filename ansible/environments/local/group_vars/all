@@ -2,4 +2,3 @@ nginx_conf_dir: /tmp/nginx
 consul_conf_dir: /tmp/consul
 whisk_logs_dir: /tmp/wsklogs
 docker_registry: ""
-

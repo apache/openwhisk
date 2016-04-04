@@ -11,10 +11,10 @@
     image: "{{ docker_registry }}whisk/controller:{{ docker_image_tag }}"
     state: reloaded
     restart_policy: "{{ docker.restart.policy }}"
-    hostname: "controller_{{ansible_host}}:{{docker.port}}"
+    hostname: "controller_{{inventory_hostname}}:{{docker.port}}"
     env:
       "COMPONENT_NAME": "controller"
-      "CONSULSERVER_HOST": "{{ ansible_host }}"
+      "CONSULSERVER_HOST": "{{ inventory_hostname }}"
       "CONSUL_HOST_PORT4": "{{ consul.port.http }}"
       "PORT": 8080
       "WHISK_VERSION_NAME": "{{ whisk.version.name }}"
