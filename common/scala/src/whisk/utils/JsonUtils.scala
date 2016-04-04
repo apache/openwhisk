@@ -48,7 +48,7 @@ object JsonUtils {
         val entries = (0 to r.size - 1) map {
             i => gsonToSprayJson(r.get(i))
         }
-        JsArray(entries toList)
+        JsArray(entries : _*)
     }
 
     def gsonToSprayJson(e: JsonElement): JsValue = {

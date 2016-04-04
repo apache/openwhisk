@@ -37,8 +37,8 @@ import common.WhiskProperties
  */
 object PingTests {
     val bin: File = WhiskProperties.getFileRelativeToWhiskHome("tools/health")
-      
-    def isAlive(name: String, whiskPropertyFile: String) : (String,String) = {
+
+    def isAlive(name: String, whiskPropertyFile: String): (String, String) = {
         val p = TestUtils.runCmd(TestUtils.SUCCESS_EXIT, bin, WhiskProperties.python, "isAlive", "-d", whiskPropertyFile, "--wait", "30", name)
         (p.fst, p.snd)
     }
@@ -52,7 +52,7 @@ class PingTests {
      * Check that the docker REST interface at endpoint is up. envVar is the
      * environment variable from which we obtain.
      */
-    def pingDocker(envVar: String, endpoint: String) : Unit = {
+    def pingDocker(envVar: String, endpoint: String): Unit = {
         assertTrue(envVar + " not set", endpoint != null)
         assertTrue(envVar + " not set", endpoint.length() > 0)
 
@@ -66,47 +66,47 @@ class PingTests {
      * Check that the main docker endpoint is functioning.
      */
     @Test
-    def pingMainDocker() : Unit = {
-        pingDocker("main.docker.endpoint", WhiskProperties.getMainDockerEndpoint());
+    def pingMainDocker(): Unit = {
+        pingDocker("main.docker.endpoint", WhiskProperties.getMainDockerEndpoint())
     }
 
     /**
      * Check the kafka docker endpoint is functioning.
      */
     @Test
-    def pingKafkaDocker() : Unit = {
-        pingDocker("kafka.docker.endpoint", WhiskProperties.getKafkaDockerEndpoint());
+    def pingKafkaDocker(): Unit = {
+        pingDocker("kafka.docker.endpoint", WhiskProperties.getKafkaDockerEndpoint())
     }
 
     /**
      * Check that the zookeeper endpoint is up and running
      */
     @Test
-    def pingZookeeper() : Unit = {
-        PingTests.isAlive("zookeeper", WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath());
+    def pingZookeeper(): Unit = {
+        PingTests.isAlive("zookeeper", WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath())
     }
 
     /**
      * Check that the kafka endpoint is up and running
      */
     @Test
-    def pingKafka() : Unit = {
-        PingTests.isAlive("kafka", WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath());
+    def pingKafka(): Unit = {
+        PingTests.isAlive("kafka", WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath())
     }
 
     /**
      * Check that the activator endpoint is up and running
      */
     @Test
-    def pingActivator() : Unit = {
-        PingTests.isAlive("activator", WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath());
+    def pingActivator(): Unit = {
+        PingTests.isAlive("activator", WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath())
     }
 
     /**
      * Check that the invoker endpoints are up and running
      */
     @Test
-    def pingInvoker() : Unit = {
+    def pingInvoker(): Unit = {
         for (i <- 0 until WhiskProperties.numberOfInvokers()) {
             PingTests.isAlive("invoker" + i, WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath())
         }
@@ -116,15 +116,15 @@ class PingTests {
      * Check that the loadbalancer endpoint is up and running
      */
     @Test
-    def pingLoadBalancer() : Unit = {
-        PingTests.isAlive("loadbalancer", WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath());
+    def pingLoadBalancer(): Unit = {
+        PingTests.isAlive("loadbalancer", WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath())
     }
 
     /**
      * Check that the controller endpoint is up and running
      */
     @Test
-    def pingController() : Unit = {
-        PingTests.isAlive("controller", WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath());
+    def pingController(): Unit = {
+        PingTests.isAlive("controller", WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath())
     }
 }
