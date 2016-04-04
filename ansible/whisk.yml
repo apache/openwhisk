@@ -1,6 +1,11 @@
 ---
 # This playbook deploys an Openwhisk stack.  
 
+- hosts: ansible
+  tasks:
+  - name: deploy database
+    local_action: shell "./wipeTransientDBs.sh" chdir="{{ playbook_dir }}/../tools/db"
+
 - hosts: all
   roles:
   - consul
@@ -15,7 +20,7 @@
 
 - hosts: loadbalancers
   roles:
-  - loadbalancer
+- loadbalancer
 
 - hosts: activators
   roles:
