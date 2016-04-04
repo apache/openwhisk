@@ -57,7 +57,7 @@ sealed abstract class Exec(val kind: String) {
         this match {
             case NodeJSExec(code, init) =>
                 gson.add("code", new JsonPrimitive(code))
-                gson.add("init", init map { new JsonPrimitive(_) } getOrElse new JsonNull())
+                gson.add("init", init map { new JsonPrimitive(_) } getOrElse JsonNull.INSTANCE)
 
             case BlackBoxExec(image) =>
                 gson.add("image", new JsonPrimitive(image))

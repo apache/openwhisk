@@ -66,7 +66,7 @@ protected[core] class Parameters protected[entity] (
 
     /** Add parameters from p to existing map, overwriting existing values in case of overlap in keys. */
     protected[core] def ++(p: Parameters) = new Parameters(params ++ p.params)
-    protected[core] def toJsArray = JsArray(params map { p => JsObject("key" -> p._1().toJson, "value" -> p._2().toJson) } toList)
+    protected[core] def toJsArray = JsArray(params map { p => JsObject("key" -> p._1().toJson, "value" -> p._2().toJson) } toSeq : _*)
     protected[core] def toJsObject = JsObject(params map { p => (p._1() -> p._2().toJson) })
     override def toString = toJsArray.compactPrint
 
