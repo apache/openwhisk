@@ -39,7 +39,7 @@ object PingTests {
     val bin: File = WhiskProperties.getFileRelativeToWhiskHome("tools/health")
       
     def isAlive(name: String, whiskPropertyFile: String) : (String,String) = {
-        val p = TestUtils.runCmd(TestUtils.SUCCESS_EXIT, bin, WhiskProperties.python, "isAlive", "-d", whiskPropertyFile, name)
+        val p = TestUtils.runCmd(TestUtils.SUCCESS_EXIT, bin, WhiskProperties.python, "isAlive", "-d", whiskPropertyFile, "--wait", "30", name)
         (p.fst, p.snd)
     }
 }
