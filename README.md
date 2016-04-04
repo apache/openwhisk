@@ -145,11 +145,11 @@ When `cf` is set up, issue the following commands to create a Cloudant database.
   # Create Cloudant service keys
   cf create-service-key cloudant-for-openwhisk openwhisk
 
-  # Get Cloudant service keys
+  # Get Cloudant service keys, including the username and password
   cf service-key cloudant-for-openwhisk openwhisk
   ```
 
-Make note of the `username` and `password` so you can create the required `cloudant-local.env`.
+Make note of the `username` and `password`, which can be retrived via the above 'cf service-key' command, so you can create the required `cloudant-local.env`.
 
 ##### Create a Cloudant account directly with Cloudant
 
