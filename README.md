@@ -131,7 +131,7 @@ To try out OpenWhisk without managing your own CouchDB installation, you can sta
 
 #### Using Cloudant
 
-As an alternative to a self-managed CouchDB, you may want to try Cloudant which is a cloud-based databas service. There are two ways to get a Cloudant account and configure OpenWhisk to use it. You only need to establish an account once, either through IBM Bluemix or with Cloudant directly. Once you have created a Cloudant account, make note of the account `username` and `password`. Then within your `openwhisk` directory, copy the file `template-cloudant-local.env` to `cloudant-local.env` and edit as appropriate.
+As an alternative to a self-managed CouchDB, you may want to try Cloudant which is a cloud-based database service. There are two ways to get a Cloudant account and configure OpenWhisk to use it. You only need to establish an account once, either through IBM Bluemix or with Cloudant directly. Once you have created a Cloudant account, make note of the account `username` and `password`. Then within your `openwhisk` directory, copy the file `template-cloudant-local.env` to `cloudant-local.env` and edit as appropriate.
 
 ##### Create a Cloudant account via IBM Bluemix
 Sign up for an account via [IBM Bluemix](https://bluemix.net). Bluemix offers trial accounts and its signup process is straightforward so it is not described here in detail. Using Bluemix, the most convenient way to create a Cloudant instance is via the `cf` command-line tool. See [here](https://www.ng.bluemix.net/docs/starters/install_cli.html) for instructions on how to download and configure `cf` to work with your Bluemix account.
@@ -145,11 +145,11 @@ When `cf` is set up, issue the following commands to create a Cloudant database.
   # Create Cloudant service keys
   cf create-service-key cloudant-for-openwhisk openwhisk
 
-  # Get Cloudant service keys
+  # Get Cloudant username and password
   cf service-key cloudant-for-openwhisk openwhisk
   ```
 
-Make note of the `username` and `password` so you can create the required `cloudant-local.env`.
+Make note of the Cloudant `username` and `password` from the last `cf` command so you can create the required `cloudant-local.env`.
 
 ##### Create a Cloudant account directly with Cloudant
 
