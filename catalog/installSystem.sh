@@ -16,6 +16,7 @@ echo Installing whisk.system entities.
 createPackage system -a description "Low-level OpenWhisk utilities"
 createPackage util -a description "Building blocks that format and assemble data"
 createPackage samples -a description "A suite of simple actions to help you get started with OpenWhisk"
+createPackage ifttt -a description "calling ifttt maker channel from OpenWhisk"
 
 waitForAll
 
@@ -57,6 +58,10 @@ install samples/wc.js             samples/wordCount -a description 'Count words 
 install samples/echo.js           samples/echo -a description 'Returns the input' -a parameters '[{"name": "payload", "required":false, "description": "Any JSON entity"}]' \
                                                -a sampleInput '{ "payload": "Five fuzzy felines"}' \
                                                -a sampleOutput '{ "payload": "Five fuzzy felines"}'
+
+install ifttt/whiskToMaker.js   ifttt/whiskToMaker -a description 'calls IFTTT Maker channel from OpenWhisk' -a parameters '[ {"name":"event", "required":true}, {"name":"apiKey", "required":true, "type":"password", "bindTime":true},{"name":"value1", "required":false},{"name":"value2", "required":false},{"name":"value3", "required":false}]' \
+-a sampleInput '{"event":"iftttevent", "value1":"from whisk", "apiKey":"XXX"}' \
+-a sampleOutput '{}'
 
 
 waitForAll
