@@ -82,10 +82,10 @@ object WhiskServices extends LoadbalancerRequest {
      */
     def performLoadBalancerRequest(config: WhiskConfig, timeout: Timeout = 10 seconds)(
         implicit as: ActorSystem, ec: ExecutionContext): (String, ActivationMessage, TransactionId) => Future[LoadBalancerResponse] = {
-        if (true) {
+        if (false) {
             // This connects to a separate LoadBalancer micro-service.
             val requester = request(config.loadbalancerHost, timeout)
-            (component: String, message : ActivationMessage, tran : TransactionId) => { requester(Post(component, message.toJson.asJsObject)) }
+            (component: String, message : ActivationMessage, tran : TransactionId) => { requester(Post(publish(component), message.toJson.asJsObject)) }
         } else {
             // This version runs a local LoadBalanceService
             val loadBalancer = new LoadBalancerService(config, Verbosity.Loud)

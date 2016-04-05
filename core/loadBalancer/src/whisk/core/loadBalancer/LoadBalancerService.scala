@@ -62,6 +62,9 @@ class LoadBalancerService(config: WhiskConfig, verbosity: Verbosity.Level)
     private val invokerHealth = new InvokerHealth(config, { () => producer.sentCount() })
     private val _activationThrottle = new ActivationThrottle(LoadBalancer.config.consulServer, invokerHealth)
 
+    // This must happen after the overrides
+    setVerbosity(verbosity)
+
     // --- WIP -----
     private var count = 0
     private val overloadThreshold = 5000 // this is the total across all invokers.  Disable by setting to -1.

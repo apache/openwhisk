@@ -58,7 +58,7 @@ class KafkaProducerConnector(
                 sentCounter.next()
                 promise.success(status)
             case Failure(t) =>
-                error(this, s"sending message failed: ${t.getMessage}")
+                error(this, s"sending message on topic '$topic' failed: ${t.getMessage}")
                 promise.failure(t)
         }
         promise.future
