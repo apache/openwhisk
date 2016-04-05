@@ -89,7 +89,6 @@
         <var file="whisk.properties" />
         <echo message="wiping databases with prefix ${db.prefix}" />
         <exec dir="${openwhisk.home}/tools/db" executable="/bin/bash">
-            <env key="DB_PREFIX" value="${db.prefix}" />
             <arg value="wipeTransientDBs.sh" />
         </exec>
     </target>
