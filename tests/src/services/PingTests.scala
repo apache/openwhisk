@@ -113,14 +113,6 @@ class PingTests {
     }
 
     /**
-     * Check that the loadbalancer endpoint is up and running
-     */
-    @Test
-    def pingLoadBalancer(): Unit = {
-        PingTests.isAlive("loadbalancer", WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath())
-    }
-
-    /**
      * Check that the controller endpoint is up and running
      */
     @Test

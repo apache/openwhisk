@@ -80,7 +80,7 @@ protected trait ControllerTestCommon
     val entitlementService: EntitlementService = new LocalEntitlementService(config)(executionContext)
     val actorSystem = ActorSystem("controllertests")
     val activationId = ActivationId() // need a static activation id to test activations api
-    val performLoadBalancerRequest = (comp: String, msg: ActivationMessage, transid: TransactionId) => Future {
+    val performLoadBalancerRequest = (lbr : WhiskServices.LoadBalancerReq) => Future {
         LoadBalancerResponse.id(activationId)
     }
     val consulServer = "???"
