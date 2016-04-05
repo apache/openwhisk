@@ -96,6 +96,11 @@ case class WhiskActivation(
         val newFields = (baseFields - "response") + ("response" -> response.toExtendedJson)
         JsObject(newFields)
     }
+
+    def getResultJson : JsObject = {
+        response.toExtendedJson.fields("result").asJsObject
+    }
+
 }
 
 object WhiskActivation
