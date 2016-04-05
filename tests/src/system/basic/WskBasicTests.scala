@@ -50,7 +50,7 @@ class WskBasicTests
     with Matchers {
 
     implicit val wskprops = WskProps()
-    implicit val wsk = new Wsk()
+    val wsk = new Wsk()
     val defaultAction = Some(TestUtils.getCatalogFilename("samples/hello.js"))
 
     behavior of "Wsk CLI"
