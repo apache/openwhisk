@@ -10,13 +10,13 @@
         <parallel threadCount="${deploythreads}" failonany="true">
             <ant antfile="${openwhisk.home}/core/controller/build.xml" target="startController" />
             <ant antfile="${openwhisk.home}/core/dispatcher/build.xml" target="startActivator" />
-            <ant antfile="${openwhisk.home}/core/loadBalancer/build.xml" target="startLoadBalancer" />
+            <!-- <ant antfile="${openwhisk.home}/core/loadBalancer/build.xml" target="startLoadBalancer" /> -->
             <antcall target="deploySlaves" />
         </parallel>
         <parallel threadCount="${deploythreads}" failonany="true">
             <ant antfile="${openwhisk.home}/core/controller/build.xml" target="waitController" />
             <ant antfile="${openwhisk.home}/core/dispatcher/build.xml" target="waitActivator" />
-            <ant antfile="${openwhisk.home}/core/loadBalancer/build.xml" target="waitLoadBalancer" />
+            <!-- <ant antfile="${openwhisk.home}/core/loadBalancer/build.xml" target="waitLoadBalancer" /> -->
         </parallel>
     </target>
 
