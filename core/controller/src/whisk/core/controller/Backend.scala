@@ -53,6 +53,9 @@ import whisk.core.entitlement.RemoteEntitlementService
 import whisk.core.loadBalancer.LoadBalancerService
 
 object WhiskServices extends LoadbalancerRequest {
+
+    type LoadBalancerReq = (String, ActivationMessage, TransactionId)
+
     def requiredProperties = WhiskConfig.loadbalancerHost ++
         WhiskConfig.consulServer ++
         WhiskConfig.entitlementHost
@@ -80,16 +83,16 @@ object WhiskServices extends LoadbalancerRequest {
      * @return function that accepts an HttpRequest, posts request to load balancer
      * and returns the HTTP response from the load balancer as a future
      */
-    def performLoadBalancerRequest(config: WhiskConfig, timeout: Timeout = 10 seconds)(
-        implicit as: ActorSystem, ec: ExecutionContext): (String, ActivationMessage, TransactionId) => Future[LoadBalancerResponse] = {
+    def makeLoadBalancer(config: WhiskConfig, timeout: Timeout = 10 seconds)(
+        implicit as: ActorSystem, ec: ExecutionContext): LoadBalancerReq => Future[LoadBalancerResponse] = {
         if (false) {
             // This connects to a separate LoadBalancer micro-service.
             val requester = request(config.loadbalancerHost, timeout)
-            (component: String, message : ActivationMessage, tran : TransactionId) => { requester(Post(publish(component), message.toJson.asJsObject)) }
+            (lbr : LoadBalancerReq) => { requester(Post(publish(lbr._1), lbr._2.toJson.asJsObject)) }
         } else {
             // This version runs a local LoadBalanceService
             val loadBalancer = new LoadBalancerService(config, Verbosity.Loud)
-            (component: String, message : ActivationMessage, tran: TransactionId)  => { loadBalancer.doPublish(component, message)(tran) }
+            (lbr : LoadBalancerReq) => { loadBalancer.doPublish(lbr._1, lbr._2)(lbr._3) }
         }
     }
 }
@@ -99,7 +102,7 @@ trait WhiskServices {
     protected val entitlementService: EntitlementService
 
     /** Synchronously perform a request to the load balancer.  */
-    protected val performLoadBalancerRequest: (String, ActivationMessage, TransactionId) => Future[LoadBalancerResponse]
+    protected val performLoadBalancerRequest: WhiskServices.LoadBalancerReq => Future[LoadBalancerResponse]
 
     /** The hostname of the consul server */
     protected val consulServer: String
