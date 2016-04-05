@@ -57,7 +57,9 @@ class DispatcherTests extends FlatSpec with Matchers with BeforeAndAfter {
     def logContains(w: String)(implicit stream: java.io.ByteArrayOutputStream): Boolean = {
         whisk.utils.retry {
             val log = stream.toString()
-            log.contains(w)
+            val result = log.contains(w)
+            assert(result) // throws exception required to retry
+            result
         }
     }
 
