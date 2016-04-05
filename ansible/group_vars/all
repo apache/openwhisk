@@ -2,9 +2,6 @@ whisk:
   version:
     date: "21-02-2016"
     name: "ansible"
-  ssl:
-    cert: config/keys/openwhisk-self-cert.pem
-    key: config/keys/openwhisk-self-key.pem
 
 docker_image_tag: latest
 docker:
@@ -41,3 +38,9 @@ invoker:
 
 loadbalancer:
   port: 10003
+
+nginx:
+  port:
+    http: 80
+    https1: 443
+    https2: 8443

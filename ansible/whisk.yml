@@ -25,6 +25,6 @@
   roles:
   - invoker
 
-# - hosts: edge
-#   roles:
-#   - nginx
+- hosts: edge
+  roles:
+  - nginx

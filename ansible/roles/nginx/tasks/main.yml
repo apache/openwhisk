@@ -1,0 +1,32 @@
+---
+# This role starts a nginx component
+
+- name: ensure nginx config directory exists
+  file:
+    path: "{{ nginx_conf_dir }}"
+    state: directory
+
+- name: copy template from local to remote in nginx config directory
+  template:
+    src: nginx.conf.j2
+    dest: "{{ nginx_conf_dir }}/nginx.conf"
+
+- name: copy cert files from local to remote in nginx config directory
+  copy: 
+    src: "files/"
+    dest: "{{ nginx_conf_dir }}"
+
+- name: (re)start nginx
+  docker:
+    name: nginx
+    image: nginx
+    state: reloaded
+    restart_policy: "{{ docker.restart.policy }}"
+    hostname: "nginx_{{ inventory_hostname }}:{{ docker.port }}"
+    volumes:
+      - "{{ whisk_logs_dir }}/nginx:/logs"
+      - "{{ nginx_conf_dir }}:/etc/nginx"
+    ports:
+      - "{{ nginx.port.http }}:80"
+      - "{{ nginx.port.https1 }}:443"
+      - "{{ nginx.port.https2 }}:8443"
