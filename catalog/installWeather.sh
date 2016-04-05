@@ -26,7 +26,7 @@ install "$CATALOG_HOME/weather/forecast.js" \
 
 install 'weather/pollen.js'       weather/pollen \
     -a description 'Weather.com pollen information' \
-    -a parameters '[{"name":"latitude", "required":true}, {"name":"longitude", "required":true}, {"name":"apiKey", "required":true, "type":"password", "bindTime":true}]'
+    -a parameters '[{"name":"latitude", "required":true}, {"name":"longitude", "required":true}, {"name":"apiKey", "required":true, "type":"password", "bindTime":true}]' \
     -a sampleInput '{"latitude":"34.063", "longitude":"-84.217", "apiKey":"XXX"}' \
 	-a sampleOutput '{"pollenobservations":[{"class":"pollenobs", "loc_id":"ATL", "loc_nm":"Atlanta", "loc_st":"GA", "rpt_dt":"2016-03-29T12:26:00Z", "process_time_gmt":1396983306, "treenames":[{"tree_nm":"Oak"}], "total_pollen_cnt":1156, "pollenobservation":[{"pollen_type":"Tree","pollen_idx":"4","pollen_desc":"Very High"}]}]}'
 
