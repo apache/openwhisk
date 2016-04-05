@@ -23,8 +23,9 @@ import akka.japi.Creator
 import spray.routing.Directive.pimpApply
 import whisk.common.TransactionId
 import whisk.common.Verbosity
+import whisk.core.loadBalancer.InvokerHealth
 import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig.consulServer
+import whisk.core.WhiskConfig.{consulServer, kafkaHost, kafkaPartitions}
 import whisk.http.BasicHttpService
 import whisk.http.BasicRasService
 import whisk.utils.ExecutionContextFactory
@@ -53,9 +54,13 @@ class Controller(
 }
 
 object Controller {
-    def requiredProperties = Map(WhiskConfig.servicePort -> 8080.toString) ++
+    def requiredProperties = 
+        Map(WhiskConfig.servicePort -> 8080.toString) ++
         RestAPIVersion_v1.requiredProperties ++
-        consulServer
+        consulServer ++
+        kafkaHost ++
+        Map(kafkaPartitions -> null) ++
+        InvokerHealth.requiredProperties
 
     private class ServiceBuilder(config: WhiskConfig, instance: Int) extends Creator[Controller] {
         implicit val executionContext = ExecutionContextFactory.makeExecutionContext()
