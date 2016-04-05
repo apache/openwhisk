@@ -238,7 +238,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      * - 500 Internal Server Error
      */
     override def activate(user: Subject, namespace: Namespace, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
-        parameter('blocking ? false) { blocking =>
+        parameter('blocking ? false, 'result ? false) { (blocking, result) =>
             entity(as[Option[JsObject]]) { payload =>
                 val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
                 getEntity(WhiskAction, entityStore, docid, Some {
@@ -248,12 +248,13 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                             case Success((activationId, None)) =>
                                 complete(Accepted, activationId.toJsObject)
                             case Success((activationId, Some(activation))) =>
+                                val response = if (result) activation.getResultJson else activation.toExtendedJson
                                 if (activation.response.isSuccess) {
-                                    complete(OK, activation.toExtendedJson)
+                                    complete(OK, response)
                                 } else if (activation.response.isWhiskError) {
-                                    complete(InternalServerError, activation.toExtendedJson)
+                                    complete(InternalServerError, response)
                                 } else {
-                                    complete(BadGateway, activation.toExtendedJson)
+                                    complete(BadGateway, response)
                                 }
                             case Failure(t: BlockingInvokeTimeout) =>
                                 info(this, s"[POST] action activation waiting period expired")
