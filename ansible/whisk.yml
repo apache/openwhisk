@@ -20,7 +20,7 @@
 
 - hosts: loadbalancers
   roles:
-- loadbalancer
+  - loadbalancer
 
 - hosts: activators
   roles:
@@ -33,3 +33,8 @@
 - hosts: edge
   roles:
   - nginx
+
+- hosts: ansible
+  tasks:
+  - name: install catalog
+    local_action: shell "./installCatalog.sh" "{{ playbook_dir }}/../config/keys/auth.whisk.system" chdir="{{ playbook_dir }}/../catalog"
