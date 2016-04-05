@@ -167,23 +167,10 @@ echo "invoker.hosts.baseport=12001" >> "$WHISK_HOME/whisk.properties"
 # DB
 echo "db.provider="$OPEN_WHISK_DB_PROVIDER >> "$WHISK_HOME/whisk.properties"
 echo "db.protocol="$OPEN_WHISK_DB_PROTOCOL >> "$WHISK_HOME/whisk.properties"
+echo "db.host="$OPEN_WHISK_DB_HOST >> "$WHISK_HOME/whisk.properties"
+echo "db.port="$OPEN_WHISK_DB_PORT >> "$WHISK_HOME/whisk.properties"
+echo "db.username="$OPEN_WHISK_DB_USERNAME >> "$WHISK_HOME/whisk.properties"
+echo "db.password="$OPEN_WHISK_DB_PASSWORD >> "$WHISK_HOME/whisk.properties"
 echo "db.prefix="$DB_PREFIX >> "$WHISK_HOME/whisk.properties"
 echo "db.whisk.actions="$DB_WHISK_ACTIONS >> "$WHISK_HOME/whisk.properties"
 echo "db.whisk.auths="$DB_WHISK_AUTHS >> "$WHISK_HOME/whisk.properties"
-
-if [ "$OPEN_WHISK_DB_PROVIDER" == "Cloudant" ]; then
-    # Cloudant
-    echo "db.host=$CLOUDANT_USERNAME.cloudant.com" >> "$WHISK_HOME/whisk.properties"
-    echo "db.port=443" >> "$WHISK_HOME/whisk.properties"
-    echo "db.username="$CLOUDANT_USERNAME >> "$WHISK_HOME/whisk.properties"
-    echo "db.password="$CLOUDANT_PASSWORD >> "$WHISK_HOME/whisk.properties"
-elif [ "$OPEN_WHISK_DB_PROVIDER" == "CouchDB" ]; then
-    # CouchDB
-    echo "db.host="$COUCHDB_HOST >> "$WHISK_HOME/whisk.properties"
-    echo "db.port="$COUCHDB_PORT >> "$WHISK_HOME/whisk.properties"
-    echo "db.username="$COUCHDB_USERNAME >> "$WHISK_HOME/whisk.properties"
-    echo "db.password="$COUCHDB_PASSWORD >> "$WHISK_HOME/whisk.properties"
-else
-    echo "Error: unknown DB provider: '$OPEN_WHISK_DB_PROVIDER'"
-    exit 1
-fi

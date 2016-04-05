@@ -6,7 +6,7 @@
 # This script determines which DB configuration to use, out of three options:
 #   - locally configured Cloudant connection
 #   - locally configured CouchDB connection
-#   - globally configured Cloudant connection
+#   - globally configured DB provider in which case required properties must be in environment
 #
 # The determination process is based on the existence of specific files.
 
@@ -20,20 +20,14 @@ LOCAL_CLOUDANT_ENV=$WHISK_HOME/cloudant-local.env
 # ...of a local env file with CouchDB credentials...
 LOCAL_COUCHDB_ENV=$WHISK_HOME/couchdb-local.env
 
-# ...or a master env file rooted up from the whisk home in a credentials directory.
-MASTER_CLOUDANT_ENV=$WHISK_HOME/../credentials/cloudant.sh
-
 if [ -e "$LOCAL_CLOUDANT_ENV" ]; then
     OPEN_WHISK_DB_PROVIDER="Cloudant"
     source "$LOCAL_CLOUDANT_ENV"
 elif [ -e "$LOCAL_COUCHDB_ENV" ]; then
     OPEN_WHISK_DB_PROVIDER="CouchDB"
     source "$LOCAL_COUCHDB_ENV"
-elif [ -e "$MASTER_CLOUDANT_ENV" ]; then
-    OPEN_WHISK_DB_PROVIDER="Cloudant"
-    source "$MASTER_CLOUDANT_ENV"
-else
-    echo "DB environment cannot be set because credentials are not defined, for either Cloudant or CouchDB."
+elif [ -z "$OPEN_WHISK_DB_PROVIDER" ]; then
+    echo "DB environment cannot be set because a provider is not defined: must be either Cloudant or CouchDB."
     exit 1
 fi
 
