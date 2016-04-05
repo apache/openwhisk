@@ -21,6 +21,7 @@
             <arg line="-e &quot;CONSUL_HOST_PORT4=${consul.host.port4}&quot;" />
             <arg line="-e &quot;PORT=${controller.docker.port}&quot;" />
             <arg line="-e &quot;COMPONENT_NAME=controller&quot;" />
+            <arg line="-e &quot;KAFKA_NUMPARTITIONS=2&quot;" />
             <arg line="-e &quot;WHISK_VERSION_NAME=${whisk.version.name}&quot;" />
             <arg line="-e &quot;WHISK_VERSION_DATE=${whisk.version.date}&quot;" />
             <arg line="-e &quot;WHISK_VERSION_BUILDNO=${whisk.version.buildno}&quot;" />
