@@ -120,7 +120,7 @@ class Action(Item):
             if not (args.result and args.blocking and res.status == httplib.OK):
                 print 'ok: invoked %(name)s with id %(id)s' % {'name': args.name, 'id': result['activationId'] }
             if res.status == httplib.OK and args.result:
-                print getPrettyJson(result['response']['result'])
+                print getPrettyJson(result)
             elif res.status == httplib.OK :
                 print bold('response:')
                 print getPrettyJson(result)
@@ -131,11 +131,12 @@ class Action(Item):
     # invokes the action and returns HTTP response
     def doInvoke(self, args, props):
         namespace, pname = parseQName(args.name, props)
-        url = 'https://%(apibase)s/namespaces/%(namespace)s/actions/%(name)s?blocking=%(blocking)s' % {
+        url = 'https://%(apibase)s/namespaces/%(namespace)s/actions/%(name)s?blocking=%(blocking)s&result=%(result)s' % {
             'apibase': apiBase(props),
             'namespace': urllib.quote(namespace),
             'name': self.getSafeName(pname),
-            'blocking': 'true' if args.blocking else 'false'
+            'blocking': 'true' if args.blocking else 'false',
+            'result': 'true' if args.result else 'false'
         }
         payload = json.dumps(getActivationArgument(args))
         headers = {
