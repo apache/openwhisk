@@ -551,7 +551,7 @@ public class WskCli {
 
     /**
      * Invoke Item in blocking mode, ignoring the return code.
-     * 
+     *
      * @param name
      *            name of the item to invoke
      * @param params
@@ -583,7 +583,7 @@ public class WskCli {
     /**
      * Get a list of the activation ids for all activations of a particular
      * action name.
-     * 
+     *
      * @param name
      *            name of the action.
      * @return the activation ids
@@ -595,7 +595,7 @@ public class WskCli {
     /**
      * Get a list of the activation ids for the most recent N activations of a
      * particular action name.
-     * 
+     *
      * @param name
      *            name of the action.
      * @param lastN
@@ -617,7 +617,7 @@ public class WskCli {
     /**
      * Does there exist an activation id for a particular action which equals
      * the expected string?
-     * 
+     *
      * @param name
      *            the name of the action.
      * @param expecte
@@ -640,7 +640,7 @@ public class WskCli {
 
     /**
      * Wait for at least N activation ids for a particular action to appear.
-     * 
+     *
      * @param name
      *            name of the action.
      * @param expected
@@ -670,7 +670,7 @@ public class WskCli {
 
     /**
      * Do the logs for a particular activation contain a certain string?
-     * 
+     *
      * @param activationId
      *            the id of the activation
      * @param w
@@ -738,7 +738,7 @@ public class WskCli {
 
     /***
      * Do the logs for a particular action contain a certain string?
-     * 
+     *
      * @param action
      *            name of the action.
      * @param w
@@ -755,7 +755,7 @@ public class WskCli {
     /**
      * Do the logs for a particular action contain a certain string? If so
      * return the matching log. If not, return null.
-     * 
+     *
      * @param action
      *            name of the action.
      * @param w
@@ -800,7 +800,7 @@ public class WskCli {
 
     /**
      * Do the logs for a particular action contain a certain string?
-     * 
+     *
      * @param action
      *            name of the action.
      * @param w
@@ -820,7 +820,7 @@ public class WskCli {
 
     /**
      * Do the logs for a particular action contain a certain string?
-     * 
+     *
      * @param action
      *            name of the action.
      * @param w
@@ -922,7 +922,7 @@ public class WskCli {
 
     /**
      * Run a command wsk [params].
-     * 
+     *
      * @return <stdout,sterr>
      * @throws IOException
      * @throws IllegalArgumentException
@@ -934,7 +934,7 @@ public class WskCli {
     /**
      * Run a command wsk [params] where the arguments come in as an array. Use
      * this instead of the other form with quoting.
-     * 
+     *
      * @param expectedExitCode
      *            if DONTCARE_EXIT then exit code is ignored, else check that
      *            exit code matches expected value

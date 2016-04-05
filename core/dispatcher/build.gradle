@@ -5,7 +5,7 @@ apply plugin: 'eclipse'
 ext.dockerImageName = 'whisk/dispatcher'
 apply from: '../../docker.gradle'
 distDocker.dependsOn ':common:scala:distDocker', 'distTar'
- 
+
 repositories {
     mavenCentral()
 }

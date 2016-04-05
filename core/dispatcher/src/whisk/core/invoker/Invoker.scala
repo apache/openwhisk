@@ -223,13 +223,13 @@ class Invoker(
                 val params = con.mergeParams(payload)
                 val timeoutMillis = action.limits.timeout.millis
                 initResultOpt match {
-                        case None => (false, con.run(params, msg.meta, auth.compact, timeoutMillis, 
+                        case None => (false, con.run(params, msg.meta, auth.compact, timeoutMillis,
                                                      action.fullyQualifiedName, msg.activationId.toString))  // cached
                         case Some((start, end, Some((200, _)))) => { // successful init
                             // Try a little slack for json log driver to process
                             Thread.sleep(if (con.isBlackbox) BlackBoxSlack else RegularSlack)
                             tran.initInterval = Some(start, end)
-                            (false, con.run(params, msg.meta, auth.compact, timeoutMillis, 
+                            (false, con.run(params, msg.meta, auth.compact, timeoutMillis,
                                             action.fullyQualifiedName, msg.activationId.toString))
                         }
                         case _ => (true, initResultOpt.get) //  unsucessful initialiation
@@ -397,20 +397,20 @@ class Invoker(
     }
 
     // -------------------------------------------------------------------------------------------------------------
-    private def makeWhiskActivation(transaction: Transaction, isBlackbox : Boolean, msg: Message, action: WhiskAction, 
+    private def makeWhiskActivation(transaction: Transaction, isBlackbox : Boolean, msg: Message, action: WhiskAction,
                                     payload: JsObject, response: Option[(Int, String)], log: JsArray)(
                                         implicit transid: TransactionId): WhiskActivation = {
         makeWhiskActivation(transaction, isBlackbox, msg, action.name, action.version, payload, response, log)
     }
 
-    private def makeWhiskActivation(transaction: Transaction, isBlackbox : Boolean, msg: Message, actionName: EntityName, 
+    private def makeWhiskActivation(transaction: Transaction, isBlackbox : Boolean, msg: Message, actionName: EntityName,
                                     actionVersion: SemVer, payload: JsObject, response: Option[(Int, String)], log: JsArray)(
                                         implicit transid: TransactionId): WhiskActivation = {
         val interval = (transaction.initInterval, transaction.runInterval) match {
             case (None, Some(run)) => run
             case (Some(init), None) => init
             case (None, None) => (Instant.now(Clock.systemUTC()), Instant.now(Clock.systemUTC()))
-            case (Some(init), Some(run)) => 
+            case (Some(init), Some(run)) =>
                 val durMilli = init._2.toEpochMilli() - init._1.toEpochMilli()
                 (run._1.minusMillis(durMilli), run._2)
         }

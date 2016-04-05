@@ -43,18 +43,18 @@ class Package(Item):
         subcmd.add_argument('-a', '--annotation', help='annotations', nargs=2, action='append')
         subcmd.add_argument('-p', '--param', help='default parameters', nargs=2, action='append')
         subcmd.add_argument('--shared', nargs='?', const='yes', choices=['yes', 'no'], help='shared action (default: private)')
-        
+
         subcmd = parser.add_parser('bind', help='bind parameters to the package')
         subcmd.add_argument('package', help='the name of the package')
         subcmd.add_argument('name', help='the name of the bound package')
         addAuthenticatedCommand(subcmd, props)
         subcmd.add_argument('-a', '--annotation', help='annotations', nargs=2, action='append')
         subcmd.add_argument('-p', '--param', help='default parameters', nargs=2, action='append')
-        
+
         subcmd = parser.add_parser('refresh', help='refresh package bindings')
         subcmd.add_argument('name', nargs='?', help='the namespace to refresh')
         addAuthenticatedCommand(subcmd, props)
-        
+
         self.addDefaultCommands(parser, props)
 
     def cmd(self, args, props):
@@ -88,7 +88,7 @@ class Package(Item):
             sys.exit(1)
         binding = { 'namespace': pkgNamespace, 'name': pkgName }
         payload = {
-            'binding': binding, 
+            'binding': binding,
             'annotations': getAnnotations(args),
             'parameters': getParams(args)
         }
@@ -110,7 +110,7 @@ class Package(Item):
             'apibase': apiBase(props),
             'namespace': urllib.quote(namespace)
         }
-        
+
         res = request('POST', url, auth=args.auth, verbose=args.verbose)
         if res.status == httplib.OK:
             result = json.loads(res.read())
@@ -129,8 +129,8 @@ class Package(Item):
             result = json.loads(res.read())
             print 'error: %(error)s' % {'error': result['error']}
             return responseError(res)
-            
-        
+
+
     def formatListEntity(self, e):
         ns = e['namespace']
         name = getQName(e['name'], ns)

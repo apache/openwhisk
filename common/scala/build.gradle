@@ -3,7 +3,7 @@ apply plugin: 'eclipse'
 
 ext.dockerImageName = 'whisk/scala'
 apply from: '../../docker.gradle'
- 
+
 repositories {
     mavenCentral()
 }

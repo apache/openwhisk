@@ -51,7 +51,7 @@ public class BasicLauncher extends Launcher {
         result.append(getCmd());
         return result.toString();
     }
-    
+
     /*
      * Launch with no timeout.
      */
@@ -61,7 +61,7 @@ public class BasicLauncher extends Launcher {
 
     /**
      * Launch the process and wait until it is finished. Returns the exit value
-     * of the process.  Timeout is expressed in milli-seconds and a value of 0 
+     * of the process.  Timeout is expressed in milli-seconds and a value of 0
      * indicates no timeout.
      */
     public int launch(int timeoutMilli) throws IllegalArgumentException, IOException {

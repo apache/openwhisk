@@ -61,4 +61,4 @@ class ConfigTests extends FlatSpec with Matchers {
         val config = new Config(Map("a" -> null, "b" -> null), file)
         assert(!config.isValid && config("b") == null)
     }
-}    
+}

@@ -76,7 +76,7 @@ object ActionContainer {
         }
     }
 
-    // Tying it all together, we have a method that runs docker, waits for 
+    // Tying it all together, we have a method that runs docker, waits for
     // completion for some time then returns the exit code, the output stream
     // and the error stream.
     private def awaitDocker(cmd: String, t: Duration): (Int, String, String) = {

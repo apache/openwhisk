@@ -152,7 +152,7 @@ protected trait ControllerTestCommon
     after {
         cleanup()
     }
-    
+
     override def afterAll() {
         println("Shutting down cloudant connections");
         entityStore.shutdown()

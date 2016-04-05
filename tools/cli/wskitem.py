@@ -30,7 +30,7 @@ class Item:
 
     name = False
     collection = False
-   
+
     # @param name: the singular form of the noun -- used on the command line
     # @parma collection:  the plural form of the noun -- used in REST APIs
     def __init__(self, name, collection):
@@ -123,7 +123,7 @@ class Item:
     def put(self, args, props, update, payload):
         res = self.httpPut(args, props, update, payload)
         return self.putResponse(res, update)
-            
+
     def get(self, args, props):
         res = self.httpGet(args, props)
         if res.status == httplib.OK:
@@ -185,7 +185,7 @@ class Item:
             'name': self.getSafeName(pname),
             'update': '?overwrite=true' if update else ''
         }
-        
+
         headers= {
             'Content-Type': 'application/json'
         }
@@ -208,7 +208,7 @@ class Item:
             'collection': self.collection,
             'name': self.getSafeName(pname)
         }
-        
+
         return request('GET', url, auth=args.auth, verbose=args.verbose)
 
     # returns the HTTP response for deleting an item.

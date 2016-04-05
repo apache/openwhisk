@@ -8,7 +8,7 @@ var watson = require('watson-developer-cloud');
  * @param translateParam The input parameter to translate. Defaults to 'payload'.
  * @param username The Watson service username.
  * @param password The Watson service password.
- * @return The translateParam parameter with all values translated, or error if 
+ * @return The translateParam parameter with all values translated, or error if
  * Watson service returns error
  */
 function main(params) {

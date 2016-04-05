@@ -34,7 +34,7 @@ SLACK_SECONDS = 5
 lastTime = 0
 
 #
-# 'wsk activations' CLI 
+# 'wsk activations' CLI
 #
 class Activation(Item):
 
@@ -136,7 +136,7 @@ class Activation(Item):
            'namespace': urllib.quote(namespace),
            'id': aid
         }
-        
+
         res = request('GET', url, auth=args.auth, verbose=args.verbose)
 
         if res.status == httplib.OK:
@@ -158,7 +158,7 @@ class Activation(Item):
         }
 
         res = request('GET', url, auth=args.auth, verbose=args.verbose)
-        
+
         if res.status == httplib.OK:
             result = json.loads(res.read())
             logs = result['logs']
@@ -174,7 +174,7 @@ class Activation(Item):
         name = args.name if args.name else '/_'
         args.name = getQName(name, '_') # kludge: use default namespace unless explicitly specified
         print 'Hit Ctrl-C to exit.'
-        try: 
+        try:
             self.console(args, props)
         except KeyboardInterrupt:
             print ''
@@ -216,7 +216,7 @@ class Activation(Item):
             d = timedelta(seconds=args.since_secs, minutes=args.since_mins, hours=args.since_hrs, days=args.since_days)
             e = datetime(1970, 1, 1)
             lastTime = int((n-d-e).total_seconds()*1000)
-    
+
         reported = set()
         localStartTime = int(time.time())
         print 'Polling for logs'
@@ -260,7 +260,7 @@ class Activation(Item):
         # fetch all activations starting from SLACK_SECONDS seconds in the past
         if beginMillis > SLACK_SECONDS * 1000:
             beginMillis = beginMillis - (SLACK_SECONDS * 1000);
-    
+
         a = copy.deepcopy(args)
         a.name = args.name
         a.full = True
@@ -285,7 +285,7 @@ def extractTimestamp(activation):
 
 #
 # Print all the logs for an activation record
-# 
+#
 # auth: whisk auth key
 #
 def printLogsForActivation(activation):
@@ -301,7 +301,7 @@ def printLogsForActivation(activation):
             lastTime = activation['start']
 #
 # Print all the logs for a list of activation records
-# 
+#
 # L: set of activation records
 # reported: set of ids already reported to the user
 #

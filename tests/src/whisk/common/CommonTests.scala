@@ -37,19 +37,19 @@ class CommonTests extends FlatSpec with Matchers {
         println(s"${WhiskConfig.dockerRegistry} is: '${config.dockerRegistry}'")
         assert(config.isValid)
     }
-    
+
     it should "read properties from consulserver" in {
         val tester = new WhiskConfig(WhiskConfig.consulServer);
         val consul = new ConsulKV(tester.consulServer)
- 
+
         val key = "whiskprops/CONSUL_TEST_CASE"
         consul.put(key, JsString("thiswastested"))
-        
+
         val config = new WhiskConfig(Map("consul.test.case" -> null))
-        
+
         assert(config.isValid)
         assert(config("consul.test.case").equals("thiswastested"))
-        
+
         consul.delete(key)
     }
-}    
+}

@@ -135,7 +135,7 @@ object WhiskConfig {
     val whiskVersionName = "whisk.version.name"
     val whiskVersionDate = "whisk.version.date"
     val whiskVersionBuildno = "whisk.version.buildno"
-    
+
     val whiskVersion = Map(whiskVersionName -> null, whiskVersionDate -> null, whiskVersionBuildno -> null)
 
     val dockerImageTag = "docker.image.tag"

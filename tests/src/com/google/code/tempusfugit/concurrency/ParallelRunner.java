@@ -18,8 +18,8 @@
  * Here's a quick hack to allow us to control the number of threads
  * used by tempus fugit dynamically.   This is cloned-and-owned from tempusfugit
  * since the library is not designed to allow extension.
- * 
- * We have to put it in this package to fake Java out into allowing us to 
+ *
+ * We have to put it in this package to fake Java out into allowing us to
  * see package-protected classes.
  */
 

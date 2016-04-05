@@ -24,7 +24,7 @@ var server = app.listen(port, function () {
     console.log('kafka monitor listening at http://%s:%s', host, port)
 })
 
-// This determines if Kafka is up and core topics are set up.  
+// This determines if Kafka is up and core topics are set up.
 var topics = ['whisk']
 for (var i = 0; i < 10; i++) {
     topics.push('invoke' + i.toString());
@@ -39,7 +39,7 @@ function makeTopics(index) {
                           console.log("[kafkaMonitor]", "makeTopic calls failed with code", code);
                       makeTopics(index+1)
                   });
-    else 
+    else
         setTimeout(steadyState, 1000);
 }
 
@@ -90,11 +90,11 @@ function checkTopics(next) {
 }
 
 /**
- * Make a topic with the given replication topic passing to the continuation 
+ * Make a topic with the given replication topic passing to the continuation
  * a status code of the call.
  */
 function makeTopic(topic, numPartitions, next) {
-    exec("/kafka/bin/kafka-topics.sh", 
+    exec("/kafka/bin/kafka-topics.sh",
          [ '--zookeeper', zookeeper, '--create', '--topic', topic, '--partition', numPartitions,  '--replication-factor', '1'],
          function(stdout, stderr, code) {
              next(code);
@@ -118,7 +118,7 @@ function getOffsets(next) {
 }
 
 /**
- * Get a list of existing topics passing to the continuation either a failure code 
+ * Get a list of existing topics passing to the continuation either a failure code
  * or a list of the topics.
  */
 function getTopics(next) {
@@ -147,7 +147,7 @@ function cleanArray(actual) {
 }
 
 /**
- * Wraps a spawn and captures output.  The callback is executed 
+ * Wraps a spawn and captures output.  The callback is executed
  * when the child process exits and given a triple of stdout/stderr/code.
  */
 function exec(command, args, callback) {

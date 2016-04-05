@@ -202,7 +202,7 @@ object WhiskEntityQueries {
             } groupBy { _._1 } mapValues { _.map(_._2) }
         }
     }
-    
+
     /**
      * Queries the datastore for all entities without activations in a namespace, and converts the list of entities
      * to a map that collects the entities by their type.

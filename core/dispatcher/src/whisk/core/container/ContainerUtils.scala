@@ -70,7 +70,7 @@ trait ContainerUtils extends Logging {
         val fileHandleLimit = Array("--ulimit", "nofile=64:64")
         val processLimit = Array("--ulimit", "nproc=512:512")
         val containerNetwork = Array("--net", network)
-        val cmd = Array("run") ++ makeEnvVars(env) ++ consulServiceIgnore ++ nameOption ++ memoryArg ++ 
+        val cmd = Array("run") ++ makeEnvVars(env) ++ consulServiceIgnore ++ nameOption ++ memoryArg ++
                     capabilityArg ++ fileHandleLimit ++ processLimit ++ containerNetwork ++ Array("-d", image) ++ args
         runDockerCmd(cmd: _*)
     }

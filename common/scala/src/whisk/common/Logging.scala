@@ -84,7 +84,7 @@ trait Logging {
     def setComponentName(comp: String) =
         this.componentName = comp
 
-    def debug(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.dontcare) = 
+    def debug(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.dontcare) =
         if (level == Verbosity.Debug)
             emit("DEBUG", id, from, message)
 

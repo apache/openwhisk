@@ -6,7 +6,7 @@ import codecs
 
 HOST=os.environ["CONTAINER"]
 if HOST == "":
-	HOST = "localhost"
+    HOST = "localhost"
 
 DEST="http://%s:8080/run" % HOST
 

@@ -368,7 +368,7 @@ class ContainerPool(
         con
     }
 
-    private def getWarmNodejsContainer(key: String)(implicit transid: TransactionId): Option[WhiskContainer] = 
+    private def getWarmNodejsContainer(key: String)(implicit transid: TransactionId): Option[WhiskContainer] =
         retrieve(warmNodejsKey) match {
             case Success(con, _) =>
                 info(this, s"Obtained a pre-warmed container")
@@ -391,10 +391,10 @@ class ContainerPool(
         initWhiskContainer(action, con)
     }
 
-    // Make a container somewhat generically without introducing into data structure.  
+    // Make a container somewhat generically without introducing into data structure.
     // There is access to global settings (docker registry)
     // and generic settings (image name - static limits) but without access to WhiskAction.
-    private def makeGeneralContainer(key : String, containerName : String, 
+    private def makeGeneralContainer(key : String, containerName : String,
                                      imageName: String, limits : ActionLimits)(implicit transid: TransactionId): WhiskContainer = {
         val network = config.invokerContainerNetwork
         val env = getContainerEnvironment()
@@ -424,7 +424,7 @@ class ContainerPool(
 
     /*
      * The caller must have synchronized to maintain data structure atomicity.
-     * 
+     *
      * Add the container into the data structure in an Idle state.
      */
     private def introduceContainer(key: String, container: Container)(implicit transid: TransactionId): ContainerInfo = {

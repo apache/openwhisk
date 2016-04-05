@@ -1,13 +1,13 @@
 function main(msg) {
     var hostToPing = msg.payload;
     console.log('Pinging to ' + hostToPing);
-    
+
     var spawn = require('child_process').exec;
     var child = spawn('ping -c 3 ' + hostToPing);
 
     var tmp = { stdout : "", stderr : ""};
-    
-    child.stdout.on('data', function (data) {        
+
+    child.stdout.on('data', function (data) {
         tmp.stdout = tmp.stdout + data;
     });
 
@@ -21,5 +21,5 @@ function main(msg) {
         whisk.done(tmp);
     });
 
-    return whisk.async(); 
+    return whisk.async();
 }

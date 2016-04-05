@@ -16,7 +16,7 @@
 # limitations under the License.
 #
 
-# Determine if a docker endpoint is alive.  
+# Determine if a docker endpoint is alive.
 
 import os
 import sys

@@ -43,7 +43,7 @@ object InvokerHealth {
 
 /**
  * Monitors the health of the invokers. The number of invokers is dynamic, and preferably a power of 2.
- * 
+ *
  * We are starting to put real load-balancer logic in here too.  Should probably be moved out at some point.
  */
 class InvokerHealth(config: WhiskConfig, getKafkaPostCount: () => Int) extends Logging {
@@ -66,7 +66,7 @@ class InvokerHealth(config: WhiskConfig, getKafkaPostCount: () => Int) extends L
 
     /*
      * The path contains more than the action per se but seems sufficiently
-     * isomorphic as the other parts are constant.  Extracting just the 
+     * isomorphic as the other parts are constant.  Extracting just the
      * action out specifically will involve some hairy regex's that the
      * Invoker is currently using and which is better avoid if/until
      * these are moved to some common place (like a subclass of Message?)
@@ -129,7 +129,7 @@ class InvokerHealth(config: WhiskConfig, getKafkaPostCount: () => Int) extends L
                 val freshMap = info.flatMap {
                     case (k, JsString(lastDate)) =>
                         ConsulKV.InvokerKeys.getStatusIndex(k) map {
-                            index => 
+                            index =>
                               val activationCount = info.get(ConsulKV.InvokerKeys.activationCount(index)) match {
                                 case Some(JsNumber(v)) => v.toInt
                                 case _ => 0

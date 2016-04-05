@@ -117,9 +117,9 @@ class Rule(Item):
             'namespace': urllib.quote(namespace),
             'name': self.getSafeName(pname)
         }
-        
+
         res = request('GET', url, auth=args.auth, verbose=args.verbose)
-        
+
         if res.status == httplib.OK:
             result = json.loads(res.read())
             print 'ok: rule %(name)s is %(status)s' % { 'name': args.name, 'status': result['status'] }

@@ -27,7 +27,7 @@ import org.scalatest.junit.JUnitRunner
 @RunWith(classOf[JUnitRunner])
 class JsonSchemaTests extends FlatSpec with Matchers with JsonSchema {
 
-    def TEST_SCHEMA = """{ 
+    def TEST_SCHEMA = """{
       "type" : "object",
       "properties" : {
         "price" : {"type" : "number"},

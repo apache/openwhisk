@@ -94,7 +94,7 @@ public abstract class Launcher {
 
     /**
      * Spawn a process to execute the given command
-     * 
+     *
      * @return an object representing the process
      */
     protected Process spawnProcess(String cmd) throws IllegalArgumentException, IOException {
@@ -111,7 +111,7 @@ public abstract class Launcher {
 
     /**
      * Spawn a process to execute the given command
-     * 
+     *
      * @return an object representing the process
      */
     protected Process spawnProcess(String[] cmd) throws IllegalArgumentException, IOException {

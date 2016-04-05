@@ -84,4 +84,4 @@ class ConsulKVTests extends FlatSpec with Matchers {
         retry { assert(consul.get(key) == JsNull) }
     }
 
-}    
+}

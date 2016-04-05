@@ -157,7 +157,7 @@ public class CLIPackageTests {
             checkForParameters(bindDescription, packageParams, bindParams);
             checkForParameters(packageActionDescription, packageParams, actionParams);
             checkForParameters(bindActionDescription, packageParams, bindParams, actionParams);
-            
+
             // Check that inherited parameters are passed to the action.
             String now = new Date().toString();
             String activationId = wsk.invoke(bindActionName, TestUtils.makeParameter("payload", now));
@@ -182,7 +182,7 @@ public class CLIPackageTests {
                 mergedParams.put(entry.getKey(), entry.getValue());
             }
         }
-        
+
         String flatDescription = itemDescription.replace("\n", "").replace("\r", "");
         for (Entry<String, String> entry : mergedParams.entrySet()) {
             assertTrue("Expected key-value not found: " + entry, descriptionContainsKeyValue(flatDescription, entry.getKey(), entry.getValue()));

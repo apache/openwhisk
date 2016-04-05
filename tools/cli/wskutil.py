@@ -59,11 +59,11 @@ def request(method, urlString, body = '', headers = {}, auth = None, verbose = F
             conn = httplib.HTTPSConnection(url.netloc, context=ssl._create_unverified_context())
         else:
             conn = httplib.HTTPSConnection(url.netloc)
-    
+
     if auth != None:
         auth = base64.encodestring(auth).replace('\n', '')
         headers['Authorization'] = 'Basic %s' % auth
-    
+
     if verbose:
         print '========'
         print 'REQUEST:'
@@ -82,7 +82,7 @@ def request(method, urlString, body = '', headers = {}, auth = None, verbose = F
             body = res.read()
         except httplib.IncompleteRead as e:
             body = e.partial
-    
+
         # patch the read to return just the body since the normal read
         # can only be done once
         res.read = lambda: body

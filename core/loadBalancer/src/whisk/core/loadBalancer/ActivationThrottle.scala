@@ -144,7 +144,7 @@ object ActivationThrottle {
 
         val subjects = userActivationCounter.keySet toList
         val groups = subjects.groupBy { user => user.substring(0, 1) }
-        groups.keySet map { prefix => 
+        groups.keySet map { prefix =>
           val key = LoadBalancerKeys.userActivationCountKey + "/" + prefix
           val users = groups.getOrElse(prefix, Set())
           val items = users map { u => (u, JsNumber(userActivationCounter.get(u) map { c => c.cur } getOrElse 0))}

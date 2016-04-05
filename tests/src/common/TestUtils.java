@@ -143,7 +143,7 @@ public class TestUtils {
         /**
          * a method that returns a T when some condition is satisfied,
          * and otherwise returns null.
-         * 
+         *
          * The intention is that this will be called until satisfied once, and then no more.
          */
         T once() throws IOException;
@@ -239,7 +239,7 @@ public class TestUtils {
     public static Pair<String, String> runCmd(int expectedExitCode, File dir, String... params) throws IllegalArgumentException, IOException {
         return runCmd(expectedExitCode, dir, logger, null, params).logs();
     }
-    
+
     public static Pair<String, String> runQuietly(int expectedExitCode, File dir, String... params) throws IllegalArgumentException, IOException {
         return runCmd(expectedExitCode, dir, null, null, params).logs();
     }
@@ -247,14 +247,14 @@ public class TestUtils {
     /*
      * Run with no timeout.
      */
-    public static RunResult runCmd(int expectedExitCode, File dir, Logger logger, 
+    public static RunResult runCmd(int expectedExitCode, File dir, Logger logger,
                                    Map<String, String> env, String... params) throws IllegalArgumentException, IOException {
         return runCmd(expectedExitCode, 0, dir, logger, env, params);
     }
 
     /**
      * Run a command in another process (exec())
-     * 
+     *
      * @param expectedExitCode the exit code expected from the command when it exists
      * @param timeoutMilli kill the underlying process after this amount of time (0 if no timeout)
      * @param dir the working directory the command runs with
@@ -263,7 +263,7 @@ public class TestUtils {
      * @param params parameters to pass on the command line to the spawnded command
      * @return
      */
-    public static RunResult runCmd(int expectedExitCode, int timeoutMilli, File dir, Logger logger, 
+    public static RunResult runCmd(int expectedExitCode, int timeoutMilli, File dir, Logger logger,
                                    Map<String, String> env, String... params) throws IllegalArgumentException, IOException {
 
         BasicLauncher bl = new BasicLauncher(true, true, logger);
