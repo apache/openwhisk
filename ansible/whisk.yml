@@ -6,7 +6,7 @@
   - name: deploy database
     local_action: shell "./wipeTransientDBs.sh" chdir="{{ playbook_dir }}/../tools/db"
 
-- hosts: all
+- hosts: all:!ansible
   roles:
   - consul
 
@@ -33,6 +33,7 @@
 - hosts: edge
   roles:
   - nginx
+  - cli
 
 - hosts: ansible
   tasks:
