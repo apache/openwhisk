@@ -39,7 +39,6 @@ import com.google.gson.JsonParser;
 import common.Pair;
 import common.TestUtils;
 import common.TestUtils.RunResult;
-import common.WhiskProperties;
 import common.WskCli;
 
 /**
