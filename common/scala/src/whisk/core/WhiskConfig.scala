@@ -176,6 +176,7 @@ object WhiskConfig {
     val invokerHosts = Map(invokerHostsList -> null)
     val elkHost = Map(elkHostName -> null, elkHostPort -> null)
     val kafkaHost = Map(kafkaHostName -> null, kafkaHostPort -> null)
+    val controllerHost = Map(controllerHostName -> null, controllerHostPort -> null)
     val loadbalancerHost = Map(loadbalancerHostName -> null, loadbalancerHostPort -> null)
     val messagehubtriggerHost = Map(messagehubtriggerHostName -> null, messagehubtriggerHostPort -> null)
     val monitorHost = Map(monitorHostName -> null, monitorHostPort -> null)

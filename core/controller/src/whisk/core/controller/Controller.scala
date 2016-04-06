@@ -51,10 +51,11 @@ class Controller(
 
     /** The REST APIs. */
     private val apiv1 = new RestAPIVersion_v1(config, verbosity, context.system, executionContext)
+
 }
 
 object Controller {
-    def requiredProperties = 
+    def requiredProperties =
         Map(WhiskConfig.servicePort -> 8080.toString) ++
         RestAPIVersion_v1.requiredProperties ++
         consulServer ++

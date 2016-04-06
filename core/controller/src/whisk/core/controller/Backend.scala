@@ -76,25 +76,32 @@ object WhiskServices extends LoadbalancerRequest {
     }
 
     /**
-     * Creates an instance of a Load Balancer.
+     * Creates an instance of a Load Balancer service.
      *
      * @param config the configuration with loadbalancerHost defined
      * @param timeout the duration before timing out the HTTP request
-     * @return function that accepts an HttpRequest, posts request to load balancer
+     * @return function that accepts a LoadBalancerReq, posts request to load balancer
      * and returns the HTTP response from the load balancer as a future
      */
-    def makeLoadBalancer(config: WhiskConfig, timeout: Timeout = 10 seconds)(
+    def makeLoadBalancerService(config: WhiskConfig, timeout: Timeout = 10 seconds)(
         implicit as: ActorSystem, ec: ExecutionContext): LoadBalancerReq => Future[LoadBalancerResponse] = {
-        if (false) {
             // This connects to a separate LoadBalancer micro-service.
             val requester = request(config.loadbalancerHost, timeout)
             (lbr : LoadBalancerReq) => { requester(Post(publish(lbr._1), lbr._2.toJson.asJsObject)) }
-        } else {
-            // This version runs a local LoadBalanceService
-            val loadBalancer = new LoadBalancerService(config, Verbosity.Loud)
-            (lbr : LoadBalancerReq) => { loadBalancer.doPublish(lbr._1, lbr._2)(lbr._3) }
         }
+
+    /**
+     * Creates an internal load balancer component for use.
+     * The signature is different here so we can leak the LoadBalancerService out due to
+     * the Activator needing access to the LoadBalancer as a passthrough.
+     */
+    def makeLoadBalancerComponent(config: WhiskConfig, timeout: Timeout = 10 seconds):
+        (LoadBalancerReq => Future[LoadBalancerResponse], () => JsObject) = {
+            val loadBalancer = new LoadBalancerService(config, Verbosity.Loud)
+            val requestTaker = (lbr : LoadBalancerReq) => { loadBalancer.doPublish(lbr._1, lbr._2)(lbr._3) }
+            (requestTaker, loadBalancer.getInvokerHealth)
     }
+
 }
 
 trait WhiskServices {
