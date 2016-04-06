@@ -34,7 +34,7 @@ import common.WskCli;
 public class CLIJavaTests {
 
     private static final WskCli wsk = new WskCli();
-    private static final int DEFAULT_WAIT = 30;
+    private static final int DEFAULT_WAIT = 60;
 
     /**
      * Test the Java "hello world" demo sequence
