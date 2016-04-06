@@ -44,7 +44,7 @@ public class CLIPackageTests {
 
     private static final WskCli wsk = new WskCli();
 
-    private static final int DELAY = 60;  // Wait this long for logs to show up
+    private static final int DELAY = 80;  // Wait this long for logs to show up
 
     @BeforeClass
     public static void setUp() throws Exception {
