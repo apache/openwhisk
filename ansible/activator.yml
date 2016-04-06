@@ -1,0 +1,6 @@
+---
+# This playbook deploys Openwhisk Activators.  
+
+- hosts: activators
+  roles:
+  - activator

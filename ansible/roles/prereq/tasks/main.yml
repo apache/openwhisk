@@ -1,0 +1,10 @@
+---
+# This role will prepare a whisk deployment.  
+# In deploy mode it will write whisk.properties and deploy the database.
+# In clean mode it will remove whisk.properties
+
+- include: deploy.yml
+  when: mode == "deploy"
+
+- include: clean.yml
+  when: mode == "clean"

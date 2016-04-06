@@ -1,0 +1,15 @@
+---
+# Remove activator containers.
+
+- name: remove activator
+  docker:
+    name: activator
+    image: "{{ docker_registry }}whisk/dispatcher:{{ docker_image_tag }}"
+    state: absent
+  ignore_errors: True
+
+- name: remove activator log directory
+  file:
+    path: "{{ whisk_logs_dir }}/activator"
+    state: absent
+  become: true

@@ -1,15 +1,14 @@
 ; the first parameter in a host is the inventory_hostname which has to be
 ; either an ip
 ; or a resolvable hostname
+
+; used for local actions only
 ansible ansible_connection=local
 
 [edge]
 172.17.0.1 ansible_connection=local
 
 [controllers]
-172.17.0.1 ansible_connection=local
-
-[loadbalancers]
 172.17.0.1 ansible_connection=local
 
 [activators]
@@ -23,4 +22,8 @@ ansible ansible_connection=local
 172.17.0.1 ansible_connection=local
 
 [invokers]
+172.17.0.1 ansible_connection=local
+
+; db group is only used if db_provider is CouchDB
+[db]
 172.17.0.1 ansible_connection=local

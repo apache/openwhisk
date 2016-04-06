@@ -1,7 +1,9 @@
+mode: deploy
+prompt_user: true
+
 whisk:
   version:
-    date: "21-02-2016"
-    name: "ansible"
+    date: "{{ansible_date_time.iso8601}}"
 
 docker_image_tag: latest
 docker:
@@ -20,7 +22,7 @@ consul:
     serf_wan: 8302
     rpc: 8400
     http: 8500
-    dns: 53
+    dns: 8600
 
 kafka:
   port: 9092
@@ -36,11 +38,15 @@ activator:
 invoker:
   port: 12001
 
-loadbalancer:
-  port: 10003
-
 nginx:
   port:
     http: 80
     https1: 443
     https2: 8443
+
+db:
+  auth: subjects
+  immortal: subjects
+  authkeys:
+  - guest
+  - whisk.system

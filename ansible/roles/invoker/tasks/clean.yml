@@ -1,0 +1,24 @@
+---
+# Remove invoker containers.
+
+- name: remove invoker
+  docker:
+    name: "invoker{{play_hosts.index(inventory_hostname)}}"
+    image: "{{ docker_registry }}whisk/dispatcher:{{ docker_image_tag }}"
+    state: absent
+  ignore_errors: True
+
+# Unless invoker cleans up its own containers we have to do this here.
+- name: unpause remaining actions
+  shell: "docker unpause $(docker ps -aq)"
+  ignore_errors: True
+
+- name: remove remaining actions
+  shell: "docker rm -f $(docker ps -aq)"
+  ignore_errors: True
+
+- name: remove invoker log directory
+  file:
+    path: "{{ whisk_logs_dir }}/invoker{{play_hosts.index(inventory_hostname)}}"
+    state: absent
+  become: true

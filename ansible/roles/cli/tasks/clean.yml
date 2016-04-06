@@ -1,0 +1,8 @@
+---
+# Remove cli_conf_dir.
+
+- name: remove cli config directory
+  file:
+    path: "{{ cli_conf_dir }}"
+    state: absent
+  become: true

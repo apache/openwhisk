@@ -1,0 +1,37 @@
+---
+# This role will run a CouchDB server on the db group
+
+- name: (re)start CouchDB
+  docker:
+    name: couchdb
+    image: couchdb
+    state: reloaded
+    restart_policy: "{{ docker.restart.policy }}"
+    ports:
+      - "{{ db_port }}:5984"
+
+- name: wait until the CouchDB in this host is up and running
+  wait_for:
+    delay: 2
+    host: "{{ inventory_hostname }}"
+    port: "{{ db_port }}"
+    timeout: 60
+
+- name: create admin user
+  uri:
+    url: "{{ db_protocol }}://{{ inventory_hostname }}:{{ db_port }}/_config/admins/{{ db_username }}"
+    method: PUT
+    body: "{{ db_password }}"
+    body_format: json
+    status_code: 200
+
+- name: disable reduce limit on views
+  uri:
+    url: "{{ db_protocol }}://{{ inventory_hostname }}:{{ db_port }}/_config/query_server_config/reduce_limit"
+    method: PUT
+    body: "false"
+    body_format: json
+    status_code: 200
+    user: "{{ db_username }}"
+    password: "{{ db_password }}"
+    force_basic_auth: yes

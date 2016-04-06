@@ -1,0 +1,15 @@
+---
+# Remove CouchDB server
+
+- name: remove CouchDB
+  docker:
+    name: couch
+    image: couchdb
+    state: absent
+  ignore_errors: True
+
+# TODO: remove this once we drop ant
+- name: remove database env file
+  file:
+    path: "{{ whisk_dir }}/{{ db_provider|lower }}-local.env"
+    state: absent

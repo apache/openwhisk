@@ -1,0 +1,21 @@
+---
+# Remove nginx containers.
+
+- name: remove nginx
+  docker:
+    name: nginx
+    image: nginx
+    state: absent
+  ignore_errors: True
+
+- name: remove nginx config directory
+  file:
+    path: "{{ nginx_conf_dir }}"
+    state: absent
+  become: true
+
+- name: remove nginx log directory
+  file:
+    path: "{{ whisk_logs_dir }}/nginx"
+    state: absent
+  become: true

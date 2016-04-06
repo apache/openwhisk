@@ -1,0 +1,34 @@
+---
+# Remove consul agent/server and registrator containers as well as the consul_conf_dir
+
+- name: remove registrator
+  docker:
+    name: registrator
+    image: "gliderlabs/registrator"
+    state: absent
+  ignore_errors: True
+
+- name: remove consul
+  docker:
+    name: consul
+    image: "{{ docker_registry }}whisk/consul:{{ docker_image_tag }}"
+    state: absent
+  ignore_errors: True
+
+- name: remove consul config directory
+  file:
+    path: "{{ consul_conf_dir }}"
+    state: absent
+  become: true
+
+- name: remove consul log directory
+  file:
+    path: "{{ whisk_logs_dir }}/consul"
+    state: absent
+  become: true
+
+- name: remove registrator log directory
+  file:
+    path: "{{ whisk_logs_dir }}/registrator"
+    state: absent
+  become: true

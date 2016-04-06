@@ -1,0 +1,36 @@
+---
+# This role will install Controller in group 'controllers' in the environment inventory
+
+- name: pull the required image of controller
+  shell: "docker pull {{ docker_registry }}whisk/controller:{{ docker_image_tag }}"
+  when: docker_registry != ""
+
+- name: (re)start controller
+  docker:
+    name: controller
+    image: "{{ docker_registry }}whisk/controller:{{ docker_image_tag }}"
+    state: reloaded
+    restart_policy: "{{ docker.restart.policy }}"
+    hostname: "controller_{{inventory_hostname}}:{{docker.port}}"
+    env:
+      "COMPONENT_NAME": "controller"
+      "CONSULSERVER_HOST": "{{ inventory_hostname }}"
+      "CONSUL_HOST_PORT4": "{{ consul.port.http }}"
+      "PORT": 8080
+      "WHISK_VERSION_NAME": "{{ whisk_version_name }}"
+      "WHISK_VERSION_DATE": "{{ whisk.version.date }}"
+      "KAFKA_NUMPARTITIONS": 2
+      "SERVICE_CHECK_HTTP": "/ping"
+      "SERVICE_CHECK_TIMEOUT": "2s"
+      "SERVICE_CHECK_INTERVAL": "15s"
+    volumes:
+      - "{{ whisk_logs_dir }}/controller:/logs"
+    ports:
+      - "{{ controller.port }}:8080"
+
+- name: wait until the Controller in this host is up and running
+  wait_for:
+    delay: 2
+    host: "{{ inventory_hostname }}"
+    port: "{{ controller.port }}"
+    timeout: 60

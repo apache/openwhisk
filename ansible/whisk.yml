@@ -1,41 +1,23 @@
 ---
 # This playbook deploys an Openwhisk stack.  
+# It assumes you have already set up your database with the respective db provider playbook (currently cloudant.yml or couchdb.yml)
 
 - hosts: ansible
-  tasks:
-  - name: deploy database
-    local_action: shell "./wipeTransientDBs.sh" chdir="{{ playbook_dir }}/../tools/db"
-
-- hosts: all:!ansible
   roles:
-  - consul
+  - prereq
 
-- hosts: kafka
-  roles:
-  - kafka
+- include: consul.yml
 
-- hosts: controllers
-  roles:
-  - controller
+- include: kafka.yml
 
-- hosts: loadbalancers
-  roles:
-  - loadbalancer
+- include: controller.yml
 
-- hosts: activators
-  roles:
-  - activator
+- include: activator.yml
 
-- hosts: invokers
-  roles:
-  - invoker
+- include: invoker.yml
 
-- hosts: edge
-  roles:
-  - nginx
-  - cli
+- include: edge.yml
 
 - hosts: ansible
-  tasks:
-  - name: install catalog
-    local_action: shell "./installCatalog.sh" "{{ playbook_dir }}/../config/keys/auth.whisk.system" chdir="{{ playbook_dir }}/../catalog"
+  roles:
+  - postdeploy

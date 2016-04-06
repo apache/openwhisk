@@ -1,0 +1,9 @@
+---
+# This playbook deploys Openwhisk Edge servers.
+# The edge is usually populated with NGINX serving as proxy.
+# The CLI also gets built and published for downloading from NGINX.  
+
+- hosts: edge
+  roles:
+  - nginx
+  - cli

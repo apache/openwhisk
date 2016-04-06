@@ -1,32 +1,10 @@
 ---
-# This role will install Controller in group 'controllers' in the environment inventory
+# This role will install controller in group 'controllers' in the environment inventory
+# In deploy mode it will deploy controllers.
+# In clean mode it will remove the controller containers.
 
-- name: pull the required image of controller
-  shell: "docker pull {{ docker_registry }}whisk/controller:{{ docker_image_tag }}"
-  when: docker_registry != ""
+- include: deploy.yml
+  when: mode == "deploy"
 
-- name: (re)start controller
-  docker:
-    name: controller
-    image: "{{ docker_registry }}whisk/controller:{{ docker_image_tag }}"
-    state: reloaded
-    restart_policy: "{{ docker.restart.policy }}"
-    hostname: "controller_{{inventory_hostname}}:{{docker.port}}"
-    env:
-      "COMPONENT_NAME": "controller"
-      "CONSULSERVER_HOST": "{{ inventory_hostname }}"
-      "CONSUL_HOST_PORT4": "{{ consul.port.http }}"
-      "PORT": 8080
-      "WHISK_VERSION_NAME": "{{ whisk.version.name }}"
-      "WHISK_VERSION_DATE": "{{ whisk.version.date }}"
-    volumes:
-      - "{{ whisk_logs_dir }}/controller:/logs"
-    ports:
-      - "{{ controller.port }}:8080"
-
-- name: wait until the Controller in this host is up and running
-  wait_for:
-    delay: 2
-    host: "{{ inventory_hostname }}"
-    port: "{{ controller.port }}"
-    timeout: 60
+- include: clean.yml
+  when: mode == "clean"

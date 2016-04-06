@@ -1,0 +1,7 @@
+---
+# Remove whisk.properties
+
+- name: remove whisk.properties
+  file:
+    path: "{{ whisk_dir }}/whisk.properties"
+    state: absent

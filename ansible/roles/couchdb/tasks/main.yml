@@ -1,0 +1,14 @@
+---
+# This role will deploy a database server. Use the role if you want to use CouchCB locally instead of Cloudant. 
+# In initdb mode it will create initial auth dbs in the database (you need to do this every time you run a fresh CouchDB).
+# In deploy mode it will start the CouchDB container.
+# In clean mode it will remove the CouchDB container and db template files.
+
+- include: initdb.yml
+  when: mode == "initdb"
+
+- include: deploy.yml
+  when: mode == "deploy"
+
+- include: clean.yml
+  when: mode == "clean"

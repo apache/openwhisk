@@ -1,0 +1,16 @@
+---
+# Remove kafka and zookeeper containers.
+
+- name: remove kafka
+  docker:
+    name: kafka
+    image: "{{ docker_registry }}whisk/kafka:{{ docker_image_tag }}"
+    state: absent
+  ignore_errors: True
+
+- name: remove zookeeper
+  docker:
+    name: zookeeper
+    image: "{{ docker_registry }}whisk/zookeeper:{{ docker_image_tag }}"
+    state: absent
+  ignore_errors: True
