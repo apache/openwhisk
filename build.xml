@@ -13,7 +13,8 @@
     </target>
 
     <!-- scan the code base, checking some conventions that are enforced -->
-    <target name="scanCode">
+    <target name="scanCode" depends="writePropertyFile">
+        <var file="whisk.properties" />
         <exec executable="${python.27}" failonerror="true">
             <arg value="${openwhisk.home}/tools/build/scanCode.py" />
             <arg value="${basedir}" />
