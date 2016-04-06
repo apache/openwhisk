@@ -19,15 +19,13 @@ package whisk.core.controller
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
+import scala.util.{Success, Failure}
 
 import akka.actor.ActorSystem
 import spray.http.HttpRequest
-import spray.http.StatusCodes.OK
-import spray.http.StatusCodes.PermanentRedirect
-import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
-import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
-import spray.json.DefaultJsonProtocol.RootJsObjectFormat
-import spray.json.DefaultJsonProtocol.StringJsonFormat
+import spray.http.StatusCodes.{OK, InternalServerError, PermanentRedirect}
+import spray.httpx.SprayJsonSupport._
+import spray.json.DefaultJsonProtocol._
 import spray.json.JsObject
 import spray.json.pimpAny
 import spray.routing.Directive.pimpApply
@@ -40,8 +38,7 @@ import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.whiskVersionDate
 import whisk.core.WhiskConfig.whiskVersionBuildno
 import whisk.core.connector.LoadBalancerResponse
-import whisk.core.connector.ActivationMessage
-import whisk.core.connector.Message
+import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.core.entitlement.{Collection, EntitlementService, Privilege, Resource}
 import whisk.core.entity.{Subject, WhiskActivationStore, WhiskAuthStore, WhiskEntityStore}
 import whisk.core.entity.types.{ActivationStore, AuthStore, EntityStore}
@@ -114,8 +111,7 @@ protected[controller] class RestAPIVersion_v1(
             } ~ path(swaggerdocpath) {
                 getFromResource("whiskswagger.json")
             }
-
-        }
+        } ~ internalPublish ~ internalInvokerHealth
     }
 
     // initialize datastores
@@ -126,7 +122,7 @@ protected[controller] class RestAPIVersion_v1(
     // initialize backend services
     protected implicit val consulServer = WhiskServices.consulServer(config)
     protected implicit val entitlementService = WhiskServices.entitlementService(config)
-    protected implicit val performLoadBalancerRequest = WhiskServices.makeLoadBalancer(config)
+    protected implicit val (performLoadBalancerRequest, getInvokerHealth) = WhiskServices.makeLoadBalancerComponent(config)
 
     // register collections and set verbosities on datastores and backend services
     Collection.initialize(entityStore, verbosity)
@@ -219,4 +215,39 @@ protected[controller] class RestAPIVersion_v1(
         extends WhiskPackagesApi with WhiskServices {
         setVerbosity(verbosity)
     }
+
+    /** These are private routes that used to be in the load balancer.
+     *  They are still needed for use by the activator and health checker.
+     */
+
+    /**
+     * Handles POST /publish/topic URI.
+     *
+     * @param component the component name extracted from URI (invoker, or activator)
+     * @param msg the Message received via POST
+     * @return response to terminate HTTP connection with
+     */
+    def internalPublish(implicit transid: TransactionId) = {
+        (path("publish" / s"""(${Message.ACTIVATOR}|${Message.INVOKER})""".r) & post & entity(as[Message])) {
+            (component, message) =>
+                onComplete(performLoadBalancerRequest(component, message, message.transid)) {
+                    case Success(response) => complete(OK, response)
+                    case Failure(t)        => complete(InternalServerError)
+                }
+        }
+    }
+
+     /**
+     * Handles GET /invokers URI.
+     *
+     * @return JSON of invoker health
+     */
+     val internalInvokerHealth = {
+        (path("invokers") & get) {
+            complete {
+                getInvokerHealth()
+            }
+        }
+    }
+
 }

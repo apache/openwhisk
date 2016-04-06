@@ -173,6 +173,14 @@ public class WhiskProperties {
         return Integer.parseInt(whiskProperties.getProperty("loadbalancer.host.port"));
     }
 
+    public static String getControllerHost() {
+        return whiskProperties.getProperty("controller.host");
+    }
+
+    public static int getControllerPort() {
+        return Integer.parseInt(whiskProperties.getProperty("controller.host.port"));
+    }
+
     /**
      * are we running on Mac OS X?
      */

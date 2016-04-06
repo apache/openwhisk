@@ -38,7 +38,7 @@ import spray.json.pimpAny
 import whisk.common.HttpUtils
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig.loadbalancerHost
+import whisk.core.WhiskConfig.{controllerHost, loadbalancerHost}
 import whisk.core.dispatcher.DispatchRule
 import whisk.core.dispatcher.Dispatcher
 import whisk.core.entity.ActivationId
@@ -110,5 +110,5 @@ class PostInvoke(
 }
 
 object PostInvoke {
-    def requiredProperties = loadbalancerHost
+    def requiredProperties = loadbalancerHost ++ controllerHost
 }

@@ -195,7 +195,7 @@ class Activator(
     }
 
     private def getUniqueName(name: String, subject: Subject): String = s"$subject.$name"
-    private val postLoadBalancerRequest = request(config.loadbalancerHost)
+    private val postLoadBalancerRequest = request(config.controllerHost)
     private val datastore = WhiskEntityStore.datastore(config)
     datastore.setVerbosity(Verbosity.Loud)
 }
