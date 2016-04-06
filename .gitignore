@@ -12,6 +12,7 @@ nginx.conf
 /logs/
 /config/custom-config.xml
 cloudant-local.env
+couchdb-local.env
 results
 .gradle
 *.retry

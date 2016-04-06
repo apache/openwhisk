@@ -1,0 +1,18 @@
+---
+# This role will initialize the immortal DBs in the database account.
+# This step is usually done only once per account.
+
+- name: copy createImmortalDBs template to temp folder
+  template:
+    src: createImmortalDBs.sh.j2
+    dest: "/tmp/createImmortalDBs.sh"
+    mode: 0744
+    
+- name: create Immortal DBs
+  local_action: shell "./createImmortalDBs.sh" "--dropit" chdir="/tmp"
+
+# TODO: remove this once we drop ant
+- name: generate database env file
+  template:
+    src: "{{ db_provider|lower }}-local.env.j2"
+    dest: "{{ whisk_dir }}/{{ db_provider|lower }}-local.env"

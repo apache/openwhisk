@@ -1,0 +1,46 @@
+---
+# This role installs invokers.
+
+- name: Pull dispatcher image
+  shell: "docker pull {{docker_registry}}whisk/dispatcher:{{docker_image_tag}}"
+  when: docker_registry != ""
+- name: Pull nodejsaction image
+  shell: "docker pull {{docker_registry}}whisk/nodejsaction:{{docker_image_tag}}"
+  when: docker_registry != ""
+- name: Pull swiftaction image
+  shell: "docker pull {{docker_registry}}whisk/swiftaction:{{docker_image_tag}}"
+  when: docker_registry != ""
+- name: Pull javaaction image
+  shell: "docker pull {{docker_registry}}whisk/javaaction:{{docker_image_tag}}"
+  when: docker_registry != ""
+
+- name: (Re)start invoker
+  docker:
+    name: "invoker{{play_hosts.index(inventory_hostname)}}"
+    image: "{{docker_registry}}whisk/dispatcher:{{docker_image_tag}}"
+    state: reloaded
+    restart_policy: "{{docker.restart.policy}}"
+    hostname: "invoker{{play_hosts.index(inventory_hostname)}}_{{inventory_hostname}}:{{docker.port}}"
+    env:
+      "COMPONENT_NAME": "invoker{{play_hosts.index(inventory_hostname)}}"
+      "CONSULSERVER_HOST": "{{inventory_hostname}}"
+      "CONSUL_HOST_PORT4": "{{consul.port.http}}"
+      "SELF_DOCKER_ENDPOINT": "{{inventory_hostname}}:{{docker.port}}"
+      "SERVICE_NAME": "invoker{{play_hosts.index(inventory_hostname)}}"
+      "SERVICE_CHECK_HTTP": "/ping"
+      "SERVICE_CHECK_TIMEOUT": "2s"
+      "SERVICE_CHECK_INTERVAL": "15s"
+      "PORT": 8080 
+    volumes:
+      - "{{whisk_logs_dir}}/invoker{{play_hosts.index(inventory_hostname)}}:/logs"
+      - "/var/lib/docker/containers/:/containers"
+    ports:
+      - "{{invoker.port}}:8080"
+    command: "/dispatcher/bin/dispatcher invoker {{play_hosts.index(inventory_hostname)}}"
+
+- name: Wait until Invoker is up and running
+  wait_for:
+    delay: 2
+    host: "{{inventory_hostname}}"
+    port: "{{invoker.port}}"
+    timeout: 60

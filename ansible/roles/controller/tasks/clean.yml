@@ -1,0 +1,15 @@
+---
+# Remove controller containers.
+
+- name: remove controller
+  docker:
+    name: controller
+    image: "{{ docker_registry }}whisk/controller:{{ docker_image_tag }}"
+    state: absent
+  ignore_errors: True
+
+- name: remove controller log directory
+  file:
+    path: "{{ whisk_logs_dir }}/controller"
+    state: absent
+  become: true

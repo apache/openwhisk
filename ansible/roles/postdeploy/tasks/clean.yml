@@ -1,0 +1,5 @@
+---
+# Nothing to do atm.
+
+- name: do nothing
+  command: "true"

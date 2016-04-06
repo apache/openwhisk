@@ -1,0 +1,35 @@
+---
+# This role will install activator in group 'activators' in the environment inventory
+
+- name: pull the required image of activator
+  shell: "docker pull {{ docker_registry }}whisk/dispatcher:{{ docker_image_tag }}"
+  when: docker_registry != ""
+
+- name: (re)start activator
+  docker:
+    name: activator
+    image: "{{ docker_registry }}whisk/dispatcher:{{ docker_image_tag }}"
+    state: reloaded
+    restart_policy: "{{ docker.restart.policy }}"
+    hostname: "activator_{{inventory_hostname}}:{{docker.port}}"
+    env:
+      "COMPONENT_NAME": "activator"
+      "CONSULSERVER_HOST": "{{ inventory_hostname }}"
+      "CONSUL_HOST_PORT4": "{{ consul.port.http }}"
+      "PORT": 8080
+      "SERVICE_NAME": "activator"
+      "SERVICE_CHECK_HTTP": "/ping"
+      "SERVICE_CHECK_TIMEOUT": "2s"
+      "SERVICE_CHECK_INTERVAL": "15s"
+    volumes:
+      - "{{ whisk_logs_dir }}/activator:/logs"
+    ports:
+      - "{{ activator.port }}:8080"
+    command: "/dispatcher/bin/dispatcher activator"
+
+- name: wait until the activator in this host is up and running
+  wait_for:
+    delay: 2
+    host: "{{ inventory_hostname }}"
+    port: "{{ activator.port }}"
+    timeout: 60

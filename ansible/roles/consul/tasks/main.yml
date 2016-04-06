@@ -1,64 +1,10 @@
 ---
-# This role will install Consul Servers/Agents in all machines. After that it installs the Registrators.
-# There is a group of machines in the corresponding environment inventory called 'consul_servers' where the Consul Servers are installed
-# In this way they build up a Consul Cluster
-# Other machines that are not in the 'consul_servers' group, have the Consul Agents
-# The template 'config.json.j2' will look at the environment inventory to decide to generate a config file for booting a server or an agent
+# This role will install Consul Servers/Agents in all machines. 
+# In deploy mode it will deploy a consul agent or server depending on whether the host is in the consul_servers group.
+# In clean mode it will remove consul agents/server and registrator containers as well as consul_conf_dir
 
-- name: pull the lastest image of consul
-  shell: "docker pull {{ docker_registry }}whisk/consul:{{ docker_image_tag }}"
-  when: docker_registry != ""
+- include: deploy.yml
+  when: mode == "deploy"
 
-- name: ensure consul config directory exists
-  file:
-    path: "{{ consul_conf_dir }}"
-    state: directory
-
-- name: copy template from local to remote in consul config directory
-  template:
-    src: config.json.j2
-    dest: "{{ consul_conf_dir }}/config.json"
-
-- name: (re)start consul server/agent
-  docker:
-    name: consul
-    image: "{{ docker_registry }}whisk/consul:{{ docker_image_tag }}"
-    state: reloaded
-    command: /bin/consul agent -config-file=/consul/config/config.json >> /logs/consul.log 2>&1 
-    restart_policy: "{{ docker.restart.policy }}"
-    log_driver: syslog
-    volumes:
-      - "{{ whisk_logs_dir }}/consul:/logs"
-      - "{{ consul_conf_dir }}:/consul/config"
-    ports:
-      - "{{ consul.port.dns }}:53/udp"
-      - "{{ consul.port.http }}:8500"
-      - "{{ consul.port.rpc }}:8400"
-      - "{{ consul.port.serf_wan }}:8302"
-      - "{{ consul.port.serf_lan }}:8301"
-      - "{{ consul.port.serf_wan }}:8302/udp"
-      - "{{ consul.port.serf_lan }}:8301/udp"
-      - "{{ consul.port.server }}:8300"
-
-- name: wait until the Consul Server/Agent in this host is up and running
-  wait_for:
-    delay: 5
-    host: "{{ inventory_hostname }}"
-    port: "{{ consul.port.http }}"
-    timeout: 60
-
-- name: notify handler to fill in Consul KV store with parameters in whisk.properties
-  command: "true"
-  notify: fill consul kv
-
-- name: (re)start registrator
-  docker:
-    name: registrator
-    image: gliderlabs/registrator
-    state: reloaded
-    restart_policy: "{{ docker.restart.policy }}"
-    log_driver: syslog
-    volumes:
-      - "{{ whisk_logs_dir }}/registrator:/logs"
-      - "/var/run/docker.sock:/tmp/docker.sock"
-    command: "-ip {{ inventory_hostname }} -resync 2 consul://{{ inventory_hostname }}:{{ consul.port.http }}"
+- include: clean.yml
+  when: mode == "clean"

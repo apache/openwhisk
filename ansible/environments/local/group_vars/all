@@ -1,5 +1,26 @@
+whisk_dir: "/home/vagrant/openwhisk"
+whisk_version_name: local
 nginx_conf_dir: /tmp/nginx
 consul_conf_dir: /tmp/consul
 whisk_logs_dir: /tmp/wsklogs
 cli_conf_dir: /tmp/cli
 docker_registry: ""
+docker_dns: ""
+
+db_prefix: "{{ ansible_user_id }}_{{ ansible_hostname|lower }}_"
+
+# Put your db credentials here if you want to use Cloudant
+db_provider: Cloudant
+db_username: ""
+db_password: ""
+db_protocol: https
+db_host: "{{ db_username }}.cloudant.com"
+db_port: 443
+
+# Uncomment this if you want to use CouchDB
+# db_provider: CouchDB
+# db_username: whisk_couchdb_admin
+# db_password: some_gener1c_passw0rd
+# db_protocol: http
+# db_host: "{{ groups['db']|first }}"
+# db_port: 5984

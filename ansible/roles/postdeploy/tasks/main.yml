@@ -1,0 +1,10 @@
+---
+# This role will install additional packages after whisk has been deployed. It is optional.
+# In deploy mode it will install the package catalog into the whisk deployment.
+# In clean mode it will do nothing at the moment.
+
+- include: deploy.yml
+  when: mode == "deploy"
+
+- include: clean.yml
+  when: mode == "clean"
