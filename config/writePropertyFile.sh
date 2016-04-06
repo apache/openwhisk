@@ -11,6 +11,7 @@ WHISK_CONFIG_NAME=`echo $WHISK_CONFIG_NAME | sed -e 's/Env.sh//'`
 # Where am I? Get config.
 SOURCE="${BASH_SOURCE[0]}"
 DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+OPENWHISK_HOME="$(dirname $DIR)"
 
 # Get root project directory
 WHISK_HOME="$(dirname "$DIR")"
@@ -18,6 +19,7 @@ rm -f "$WHISK_HOME/whisk.properties"
 
 touch "$WHISK_HOME/whisk.properties"
 
+echo "openwhisk.home="$OPENWHISK_HOME >> "$WHISK_HOME/whisk.properties"
 echo "whisk.logs.dir="$WHISK_LOGS_DIR >> "$WHISK_HOME/whisk.properties"
 
 echo "docker.port="$DOCKER_PORT >> "$WHISK_HOME/whisk.properties"

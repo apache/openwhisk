@@ -35,13 +35,13 @@ USE_DOCKER_REGISTRY=false # skip push/pull locally
 USE_CLI_DOWNLOAD=false # do not download CLI
 DOCKER_REGISTRY=
 
-WHISK_TEST_AUTH=guest
+WHISK_TEST_AUTH=$DIR/keys/auth.guest
 
 #
 # SSL certificate used by router
 #
-WHISK_SSL_CERTIFICATE=config/keys/openwhisk-self-cert.pem
-WHISK_SSL_KEY=config/keys/openwhisk-self-key.pem
+WHISK_SSL_CERTIFICATE=$DIR/keys/openwhisk-self-cert.pem
+WHISK_SSL_KEY=$DIR/keys/openwhisk-self-key.pem
 WHISK_SSL_CHALLENGE=openwhisk
 
 #

@@ -31,12 +31,6 @@ import java.util.Properties;
 public class WhiskProperties {
 
     /**
-     * The root of the whisk installation, used to retrieve files relative to
-     * home.
-     */
-    private static final String whiskHome = getWhiskHome();
-
-    /**
      * The name of the properties file.
      */
     protected static final String WHISK_PROPS_FILE = "whisk.properties";
@@ -63,14 +57,56 @@ public class WhiskProperties {
     public static final int concurrentTestCount = getConcurrentTestCount(System.getProperty("testthreads", null));
 
     /**
+     * The root of the whisk installation, used to retrieve files relative to
+     * home.
+     */
+    private static final String whiskHome;
+
+    /**
      * The properties read from the WHISK_PROPS_FILE.
      */
-    private static final Properties whiskProperties = loadProperties(getFileRelativeToWhiskHome(WHISK_PROPS_FILE));
+    private static final Properties whiskProperties;
 
     static {
+        /**
+         * Finds the whisk home directory. This is resolved to either (in
+         * order):
+         *
+         * 1. a system property openwhisk.dir
+         *
+         * 2. OPENWHISK_HOME from the environment
+         *
+         * 3. a path in the directory tree containing WHISK_PROPS_FILE.
+         *
+         * @return the path to whisk home as a string
+         * @throws assertion
+         *             failure if whisk home cannot be determined
+         */
+        String wskdir = System.getProperty("openwhisk.home", System.getenv("OPENWHISK_HOME"));
+        if (wskdir == null) {
+            String dir = System.getProperty("user.dir");
+
+            if (dir != null) {
+                File propfile = findFileRecursively(dir, WHISK_PROPS_FILE);
+                if (propfile != null) {
+                    wskdir = propfile.getParent();
+                }
+            }
+        }
+
+        assertTrue("could not determine openwhisk home", wskdir != null);
+
+        File wskpropsFile = new File(wskdir, WHISK_PROPS_FILE);
+        assertTrue(String.format("'%s' does not exists but required", wskpropsFile), wskpropsFile.exists());
+
+        // loads properties from file
+        whiskProperties = loadProperties(wskpropsFile);
+
+        // set whisk home from read properties
+        whiskHome = whiskProperties.getProperty("openwhisk.home");
+
         System.out.format("deploy target %s\n", deployTarget != null ? deployTarget : "not defined");
         System.out.format("test router? %s\n", testRouter);
-        // System.out.println(WhiskProperties.whiskProperties);
     }
 
     public static File getFileRelativeToWhiskHome(String name) {
@@ -182,6 +218,45 @@ public class WhiskProperties {
     }
 
     /**
+     * read the contents of auth key file and return as a Pair
+     * <username,password>
+     */
+    public static Pair<String, String> getBasicAuth() {
+        File f = getAuthFileForTesting();
+        String contents = readAuthKey(f);
+        String[] parts = contents.split(":");
+        assert parts.length == 2;
+        return Pair.make(parts[0], parts[1]);
+    }
+
+    /**
+     * @return the path to a file holding the auth key used during junit testing
+     */
+    public static File getAuthFileForTesting() {
+        String testAuth = getAuthForTesting();
+        if (testAuth.startsWith(File.separator)) {
+            return new File(testAuth);
+        } else {
+            return WhiskProperties.getFileRelativeToWhiskHome(testAuth);
+        }
+    }
+
+    /**
+     * read the contents of a file which holds an auth key.
+     */
+    public static String readAuthKey(File filename) {
+        // the following funny relative path works both from Eclipse and when
+        // running in bin/ directory from ant
+        try {
+            byte[] encoded = Files.readAllBytes(filename.toPath());
+            String authKey = new String(encoded, "UTF-8").trim();
+            return authKey;
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /**
      * are we running on Mac OS X?
      */
     public static boolean onMacOSX() {
@@ -201,36 +276,6 @@ public class WhiskProperties {
      * where is python 2.7?
      */
     public static final String python = findPython();
-
-    /**
-     * Finds the whisk home directory. This is resolved to either (in order):
-     *
-     * 1. a system property openwhisk.dir
-     *
-     * 2. OPENWHISK_HOME from the environment
-     *
-     * 3. a path in the directory tree up containing WHISK_PROPS_FILE.
-     *
-     * @return the path to whisk home as a string
-     * @throws assertion
-     *             failure if whisk home cannot be determined
-     */
-    private static String getWhiskHome() {
-        String wskdir = System.getProperty("openwhisk.dir", System.getenv("OPENWHISK_HOME"));
-        if (wskdir == null) {
-            String dir = System.getProperty("user.dir");
-
-            if (dir != null) {
-                File propfile = findFileRecursively(dir, WHISK_PROPS_FILE);
-                if (propfile != null) {
-                    wskdir = propfile.getParent();
-                }
-            }
-        }
-
-        assertTrue("could not determine openwhisk home", wskdir != null);
-        return wskdir;
-    }
 
     protected static File findFileRecursively(String dir, String needle) {
         if (dir != null) {
@@ -291,43 +336,6 @@ public class WhiskProperties {
             }
         }
         return DEFAULT_CONCURRENCY;
-    }
-
-    /**
-     * read the contents of auth key file and return as a Pair
-     * <username,password>
-     */
-    public static Pair<String, String> getBasicAuth() {
-        File f = getAuthFileForTesting();
-        String contents = readAuthKey(f);
-        String[] parts = contents.split(":");
-        assert parts.length == 2;
-        return Pair.make(parts[0], parts[1]);
-    }
-
-    /**
-     * @return the path to a file holding the auth key used during junit testing
-     */
-    static File getAuthFileForTesting() {
-        String testAuth = getAuthForTesting();
-        String relativePath = testAuth.equals("guest") ? "config/keys/auth.guest" : "../credentials/" + testAuth;
-        File f = WhiskProperties.getFileRelativeToWhiskHome(relativePath);
-        return f;
-    }
-
-    /**
-     * read the contents of a file which holds an auth key.
-     */
-    public static String readAuthKey(File filename) {
-        // the following funny relative path works both from Eclipse and when
-        // running in bin/ directory from ant
-        try {
-            byte[] encoded = Files.readAllBytes(filename.toPath());
-            String authKey = new String(encoded, "UTF-8").trim();
-            return authKey;
-        } catch (IOException e) {
-            throw new IllegalStateException(e);
-        }
     }
 
 }
