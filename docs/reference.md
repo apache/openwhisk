@@ -302,7 +302,7 @@ There are entity endpoints for each type of entity:
 - `https://$BASEURL/api/v1/namespaces/{namespace}/packages/{packageName}`
 - `https://$BASEURL/api/v1/namespaces/{namespace}/activations/{activationName}`
 
-The namespace and activation endpoints only support GET requests, but the endpoints for actions, triggers, rules and packages also support PUT and DELETE requests. Refer to the [API reference](http://petstore.swagger.io/?url=https://raw.githubusercontent.com/openwhisk/openwhisk/master/core/controller/src/resources/whiskswagger.json) for details.
+The namespace and activation endpoints only support GET requests, but the endpoints for actions, triggers, rules and packages also support PUT and DELETE requests. Refer to the [API reference](http://petstore.swagger.io/?url=https://raw.githubusercontent.com/openwhisk/openwhisk/master/core/controller/src/resources/resources/whiskswagger.json) for details.
 
 All APIs are protected with HTTP Basic authentication. The Basic auth credentials are in the `AUTH` property in your `~/.wskprops` file, delimited by a colon. You can also retrieve these credentials in the [CLI configuration steps](../README.md#setup-cli).
 
