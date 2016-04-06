@@ -120,7 +120,7 @@ protected[controller] class RestAPIVersion_v1(
             } ~ path(swaggeruipath) {
                 redirect(s"$swaggeruipath/index.html", PermanentRedirect)
             } ~ path(swaggerdocpath) {
-                getFromResource("resources/whiskswagger.json")
+                getFromResource("whiskswagger.json")
             }
 
         }
