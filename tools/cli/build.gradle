@@ -1,0 +1,53 @@
+apply plugin: 'eclipse'
+eclipse {
+    project {
+        natures 'org.python.pydev.pythonNature'
+        buildCommand 'org.python.pydev.PyDevBuilder'
+    }
+}
+
+ext.dockerImageName = 'whisk/cli'
+apply from: '../../docker.gradle'
+
+task clean(type: Delete) {
+    delete 'build'
+}
+
+task removeDistribution(type: Delete) {
+    delete 'build/distributions'
+}
+
+task establishStructure(type: Copy) {
+    into 'build/tmp'
+    from('packagescripts') {
+        include '*.rst', '*.in', 'setup.py'
+    }
+
+    into('openwhisk') {
+        from('.') {
+            include '*.py', 'wsk'
+            rename('^wsk$', 'wsk.py')
+        }
+        from('packagescripts') {
+            include '__init__.py'
+        }
+    }
+}
+distDocker.dependsOn(establishStructure)
+
+task distTar(dependsOn: [removeDistribution, distDocker]) << {
+    run "docker rm -f cli"
+    run "docker run --name cli whisk/cli"
+    run "docker cp cli:/cli/dist/ ${buildDir}/distributions/"
+    run "docker rm -f cli"
+}
+distDocker.finalizedBy(distTar)
+
+def run(cmd) {
+    println("Executing '${cmd}'")
+    def proc = cmd.execute()
+    proc.waitForProcessOutput(System.out, System.err)
+    if(proc.exitValue() != 0) {
+        println("Command '${cmd}' failed with exitCode ${proc.exitValue()}")
+    }
+}
