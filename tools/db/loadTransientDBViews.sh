@@ -96,7 +96,7 @@ DB_HOST=$(getProperty "$PROPERTIES_FILE" "db.host")
 DB_PORT=$(getProperty "$PROPERTIES_FILE" "db.port")
 DB_USERNAME=$(getProperty "$PROPERTIES_FILE" "db.username")
 DB_PASSWORD=$(getProperty "$PROPERTIES_FILE" "db.password")
-source "$SCRIPTDIR/../../config/dbSetup.sh"
+DB_WHISK_ACTIONS=$(getProperty "$PROPERTIES_FILE" "db.whisk.actions")
 
 if [ "$DB_PROVIDER" == "CouchDB" ]; then
     CURL_ADMIN="curl -s -k --user $DB_USERNAME:$DB_PASSWORD"
