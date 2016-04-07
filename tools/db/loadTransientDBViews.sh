@@ -106,7 +106,13 @@ fi
 URL_BASE="$DB_PROTOCOL://$DB_HOST:$DB_PORT"
 
 PREV_REV=`$CURL_ADMIN -X GET $URL_BASE/$DB_WHISK_ACTIONS/_design/whisks | awk -F"," '{print $2}'`
-$CURL_ADMIN -X POST -H 'Content-Type: application/json' -d "$(addRevision "$(view)" $PREV_REV)" $URL_BASE/$DB_WHISK_ACTIONS; echo
+RES=`$CURL_ADMIN -X POST -H 'Content-Type: application/json' -d "$(addRevision "$(view)" $PREV_REV)" $URL_BASE/$DB_WHISK_ACTIONS`
+if [[ "$RES" =~ ^\{\"ok\":true.* ]]; then
+    echo VIEWS LOADED
+else
+    echo ERROR: $RES
+    exit 1
+fi
 
 #
 # Create a query index that can be used for ad hoc cloudant queries.
@@ -114,5 +120,11 @@ $CURL_ADMIN -X POST -H 'Content-Type: application/json' -d "$(addRevision "$(vie
 #
 if [ "$DB_PROVIDER" == "Cloudant" ]; then
     echo Create Cloudant Query search index for $DB_WHISK_ACTIONS
-    $CURL_ADMIN -X POST $URL_BASE/$DB_WHISK_ACTIONS/_index -d '{ "index": {}, "type": "text"}'
+    RES=`$CURL_ADMIN -X POST $URL_BASE/$DB_WHISK_ACTIONS/_index -d '{ "index": {}, "type": "text"}'`
+    if [[ "$RES" =~ ^\{\"ok\":true.* ]]; then
+        echo QUERY INDEX LOADED
+    else
+       # ok if this fails
+       echo WARNING: $RES
+    fi
 fi

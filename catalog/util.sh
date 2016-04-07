@@ -19,6 +19,7 @@ function createPackage() {
     PACKAGE_NAME=$1
     REST=("${@:2}")
     CMD_ARRAY=($PYTHON "$OPENWHISK_HOME/bin/wsk" --apihost "$EDGE_HOST" package update --auth "$AUTH_KEY" --shared yes "$PACKAGE_NAME" "${REST[@]}")
+    export WSK_CONFIG_FILE= # override local property file to avoid namespace clashes
     "${CMD_ARRAY[@]}" &
     PID=$!
     PIDS+=($PID)
@@ -30,6 +31,7 @@ function install() {
     ACTION_NAME=$2
     REST=("${@:3}")
     CMD_ARRAY=($PYTHON "$OPENWHISK_HOME/bin/wsk" --apihost "$EDGE_HOST" action update --auth "$AUTH_KEY" --shared yes "$ACTION_NAME" "$RELATIVE_PATH" "${REST[@]}")
+    export WSK_CONFIG_FILE= # override local property file to avoid namespace clashes
     "${CMD_ARRAY[@]}" &
     PID=$!
     PIDS+=($PID)

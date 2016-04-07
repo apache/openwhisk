@@ -61,13 +61,23 @@ do
 
     # drop the database
     CMD="$CURL_ADMIN -X DELETE $URL_BASE/$db"
-    #echo $CMD
-    $CMD
+    RES=$($CMD)
+    if [[ "$RES" == '{"ok":true}' ]]; then
+        echo DELETED
+    else
+        # table may not exist
+        echo WARNING: $RES
+    fi
 
     echo "recreating database '$db'"
     CMD="$CURL_ADMIN -X PUT $URL_BASE/$db"
-    #echo $CMD
-    $CMD
+    RES=$($CMD)
+    if [[ "$RES" == '{"ok":true}' ]]; then
+        echo RECREATED
+    else
+        echo ERROR: $RES
+        exit 1
+    fi
 done
 
 # recreate views required by whisk.core.entity.WhiskStore
