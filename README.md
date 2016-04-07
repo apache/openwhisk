@@ -212,6 +212,8 @@ Once you have created and configured one of `cloudant-local.env` or `couchdb-loc
 
 **Tip:** Since the first build takes some time, it is not uncommon for some step to fail if there's a network hiccup or other interruption of some kind. If this happens you may see a `Build FAILED` message that suggests a Docker operation timed out. You can simply try `ant build` again and it will mostly pick up where it left off. This should only be an issue the very first time you build -- subsequent builds do far less network activity thanks to Docker caching.
 
+**Tip:** By default the build will be timeout in 20 minutes, if you want to change that, you could modify the '240' to a bigger value such as '480' in `docker.gradle`.
+
 To teardown OpenWhisk and remove all Docker containers, run `ant teardown`. You can then redeploy the system with `ant deploy`. To do both at once, use `ant redeploy`.
 
 ### Add OpenWhisk command line tools to your path
