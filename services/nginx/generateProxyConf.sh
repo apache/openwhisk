@@ -12,6 +12,7 @@ function apiPort() {
     echo "   }"
     echo "   location /api/v1 {"
     echo "      proxy_pass http://$CONTROLLER_HOST:$CONTROLLER_PORT;"
+    echo "      proxy_read_timeout 300s;"
     echo "   }"
     echo
 # regex does not work yet
