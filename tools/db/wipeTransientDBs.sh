@@ -44,9 +44,8 @@ DB_HOST=$(getProperty "$PROPERTIES_FILE" "db.host")
 DB_PORT=$(getProperty "$PROPERTIES_FILE" "db.port")
 DB_USERNAME=$(getProperty "$PROPERTIES_FILE" "db.username")
 DB_PASSWORD=$(getProperty "$PROPERTIES_FILE" "db.password")
-
-# Need this to get the list of transient DBs.
-source "$SCRIPTDIR/../../config/dbSetup.sh"
+#FIXME: ok as long as there is only one transient db
+DB_TRANSIENT_DBS=$(getProperty "$PROPERTIES_FILE" "db.whisk.actions")
 
 if [ "$DB_PROVIDER" == "CouchDB" ]; then
     CURL_ADMIN="curl -s -k --user $DB_USERNAME:$DB_PASSWORD"

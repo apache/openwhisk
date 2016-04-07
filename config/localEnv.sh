@@ -70,7 +70,7 @@ INVOKER_HOSTS=$LOCALHOST
 
 CLI_API_HOST=$LOCALHOST
 
-# Override docker/service  endpoints as local is special
+# Override docker/service endpoints as local is special
 MAIN_DOCKER_ENDPOINT="$LOCALHOST:4243"
 CONSULSERVER_DOCKER_ENDPOINT=$MAIN_DOCKER_ENDPOINT
 EDGE_DOCKER_ENDPOINT=$MAIN_DOCKER_ENDPOINT
