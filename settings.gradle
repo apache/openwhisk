@@ -12,8 +12,6 @@ include 'services:kafka'
 include 'services:registrator'
 include 'services:zookeeper'
 
-include 'tools:cli'
-
 include 'tests'
 
 rootProject.name = 'openwhisk'
