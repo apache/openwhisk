@@ -44,7 +44,7 @@ import whisk.core.entity.DocInfo
 /** This class only handles the basic communication to the proper endpoints
  *  ("JSON in, JSON out"). It is up to its clients to interpret the results.
  */
-class CouchDbRestClient private(system: ActorSystem, urlBase: String, username: String, password: String, db: String) extends Logging {
+class CouchDbRestClient(system: ActorSystem, urlBase: String, username: String, password: String, db: String) extends Logging {
     import system.dispatcher
     import SprayJsonSupport._
 
@@ -55,13 +55,13 @@ class CouchDbRestClient private(system: ActorSystem, urlBase: String, username: 
     // distinct. This function creates URI paths from "segments"; within a
     // segment, slashes are encoded, and segments are separated with unencoded
     // slashes.
-    private def uri(segments: Any*) : Uri = {
+    def uri(segments: Any*) : Uri = {
         val encodedSegments = segments.map(s => URLEncoder.encode(s.toString, StandardCharsets.UTF_8.name))
         Uri(urlBase + "/" + encodedSegments.mkString("/"))
     }
 
     // For JSON-producing requests that do not expect a specific revision
-    private val simplePipeline = (
+    val simplePipeline = (
         addCredentials(creds)
         ~> addHeader("Accept", "application/json")
         ~> sendReceive
@@ -69,7 +69,7 @@ class CouchDbRestClient private(system: ActorSystem, urlBase: String, username: 
     )
 
     // For JSON-producing requests that apply to a specific document revision
-    private def revdPipeline(rev: String) = (
+    def revdPipeline(rev: String) = (
         addCredentials(creds)
         ~> addHeader("Accept", "application/json")
         ~> addHeader("If-Match", rev)
@@ -78,7 +78,7 @@ class CouchDbRestClient private(system: ActorSystem, urlBase: String, username: 
     )
 
     // Catches the exceptions spray-client throws when the response is not 2xx.
-    private def safeRequest[T](f: Future[T]) : Future[Either[StatusCode,T]] = f map { v =>
+    def safeRequest[T](f: Future[T]) : Future[Either[StatusCode,T]] = f map { v =>
         Right(v)
     } recover {
         case e: UnsuccessfulResponseException => Left(e.response.status)
@@ -103,6 +103,7 @@ class CouchDbRestClient private(system: ActorSystem, urlBase: String, username: 
     // http://docs.couchdb.org/en/1.6.1/api/document/common.html#delete--db-docid
     def deleteDoc(id: String, rev: String) : Future[Either[StatusCode,JsObject]] =
         safeRequest(revdPipeline(rev)(Delete(uri(db, id))))
+
 
     // http://docs.couchdb.org/en/1.6.1/api/ddoc/views.html
     def executeView(designDoc: String, viewName: String)(
