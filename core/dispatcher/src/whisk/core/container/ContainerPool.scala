@@ -29,6 +29,7 @@ import scala.collection.mutable.ListBuffer
 import akka.actor.ActorSystem
 
 import whisk.common.Counter
+import whisk.common.LoggingMarkers._
 import whisk.common.TransactionId
 import whisk.common.Verbosity
 import whisk.core.WhiskConfig
@@ -130,12 +131,12 @@ class ContainerPool(
      * In case of failure to start a container, None is returned.
      */
     def getAction(action: WhiskAction, auth: WhiskAuth)(implicit transid: TransactionId): Option[(WhiskContainer, Option[RunResult])] = {
-        info(this, s"Getting container for ${action.fullyQualifiedName} with ${auth.uuid}")
+        info(this, s"Getting container for ${action.fullyQualifiedName} with ${auth.uuid}", INVOKER_GET_CONTAINER_START)
         val key = makeKey(action, auth)
         getImpl(key, { () => makeWhiskContainer(action, auth) }) map {
             case (c, initResult) =>
                 val cacheMsg = if (!initResult.isDefined) "(Cache Hit)" else "(Cache Miss)"
-                info(this, s"ContainerPool.getAction obtained container ${c.id} ${cacheMsg}")
+                info(this, s"ContainerPool.getAction obtained container ${c.id} ${cacheMsg}", INVOKER_GET_CONTAINER_DONE)
                 (c.asInstanceOf[WhiskContainer], initResult)
         }
     }
@@ -264,25 +265,25 @@ class ContainerPool(
      */
     def putBack(container: Container, delete: Boolean = false)(implicit transid: TransactionId): Unit = {
         info(this, s"ContainerPool.putBack returning container ${container.id}  delete = $delete")
-        if (!delete) container.pause()                      // Docker operation outside sync block. Don't pause if we are deleting.
-        val toBeDeleted = this.synchronized {               // Return container to pool logically and then optionally delete
+        if (!delete) container.pause() // Docker operation outside sync block. Don't pause if we are deleting.
+        val toBeDeleted = this.synchronized { // Return container to pool logically and then optionally delete
             // Always put back logically for consistency
             val Some(ci) = containerMap.get(container)
             assert(ci.state == State.Active)
             ci.lastUsed = System.currentTimeMillis()
             ci.state = State.Idle
             val toBeDeleted = if (delete) {
-                removeContainerInfo(ci)                     // no docker operation here
+                removeContainerInfo(ci) // no docker operation here
                 List(ci)
             } else
                 List()
             this.notify()
             toBeDeleted
         }
-        teardownContainers(toBeDeleted)                     // perform delete docker operation outside lock
+        teardownContainers(toBeDeleted) // perform delete docker operation outside lock
         // Perform capacity-based GC here.
-        if (gcOn) {                                         // Synchronization occurs inside calls in a fine-grained manner.
-            while (idleCount() > _maxIdle) {                // it is safe for this to be non-atomic with body
+        if (gcOn) { // Synchronization occurs inside calls in a fine-grained manner.
+            while (idleCount() > _maxIdle) { // it is safe for this to be non-atomic with body
                 removeOldestIdle()
             }
         }
@@ -338,9 +339,8 @@ class ContainerPool(
     // Easier to walk containerMap than keyMap
     private def countByState(state: State.Value) = this.synchronized { containerMap.count({ case (_, ci) => ci.state == state }) }
 
-
     // Sample container name: wsk1_1_joeibmcomhelloWorldDemo_20150901T202701852Z
-    private def makeContainerName(localName : String): String =
+    private def makeContainerName(localName: String): String =
         ContainerCounter.containerName(invokerInstance.toString(), localName)
 
     private def makeContainerName(action: WhiskAction): String =
@@ -399,8 +399,8 @@ class ContainerPool(
     // Make a container somewhat generically without introducing into data structure.
     // There is access to global settings (docker registry)
     // and generic settings (image name - static limits) but without access to WhiskAction.
-    private def makeGeneralContainer(key : String, containerName : String,
-                                     imageName: String, limits : ActionLimits)(implicit transid: TransactionId): WhiskContainer = {
+    private def makeGeneralContainer(key: String, containerName: String,
+                                     imageName: String, limits: ActionLimits)(implicit transid: TransactionId): WhiskContainer = {
         val network = config.invokerContainerNetwork
         val env = getContainerEnvironment()
         val pull = !imageName.contains("whisk/")

@@ -23,6 +23,7 @@ import scala.concurrent.Future
 import spray.json.JsObject
 import whisk.common.Counter
 import whisk.common.Logging
+import whisk.common.LoggingMarkers._
 import whisk.common.TransactionId
 import whisk.common.Verbosity
 import whisk.connector.kafka.KafkaProducerConnector
@@ -61,7 +62,7 @@ trait LoadBalancerToKafka extends Logging {
                     info(this, s"(DoS) '$subject' maxed concurrent invocations")
                     Future.successful(throttleError)
                 } else {
-                    info(this, s"posting topic '$topic' with activation id '${msg.activationId}'")
+                    info(this, s"posting topic '$topic' with activation id '${msg.activationId}'", LOADBALANCER_POST_KAFKA)
                     producer.send(topic, msg) map { status =>
                         if (component == Message.INVOKER) {
                             activationCounter.next()
