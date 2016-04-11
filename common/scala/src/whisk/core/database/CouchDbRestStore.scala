@@ -160,7 +160,6 @@ class CouchDbRestStore[Unused, DocumentAbstraction <: DocumentSerializer](
             require(doc != null, "doc undefined")
             require(deserialize != null, "deserializer undefined")
             info(this, s"[GET] '$dbName' finding document: '$doc'")
-
             val request: CouchDbRestClient=>Future[Either[StatusCode,JsObject]] = if(doc.rev.rev != null) {
                 client => client.getDoc(doc.id.id, doc.rev.rev)
             } else {
@@ -172,7 +171,6 @@ class CouchDbRestStore[Unused, DocumentAbstraction <: DocumentSerializer](
             ) yield eitherResponse match {
                     case Right(response) =>
                         info(this, s"[GET] '$dbName' completed: found document '$doc', response: '$response'")
-
                         val asFormat = jsonFormat.read(response)
                         // For backwards compatibility, we should fail with IllegalArgumentException
                         // if the retrieved type doesn't match the expected type. The following does

@@ -41,6 +41,7 @@ import whisk.common.ConsulKV
 import whisk.common.ConsulKV.InvokerKeys
 import whisk.common.ConsulKVReporter
 import whisk.common.Counter
+import whisk.common.LoggingMarkers._
 import whisk.common.SimpleExec
 import whisk.common.TransactionId
 import whisk.common.Verbosity
@@ -151,29 +152,36 @@ class Invoker(
         // caching is enabled since actions have revision id and an updated
         // action will not hit in the cache due to change in the revision id;
         // if the doc revision is missing, then bypass cache
+        info(this, "", INVOKER_FETCH_ACTION_START)
         val actionFuture = WhiskAction.get(entityStore, action, action.rev != DocRevision())
         actionFuture onFailure {
-            case t => error(this, s"failed to fetch action ${action.id}: ${t.getMessage}")
+            case t => error(this, s"failed to fetch action ${action.id}: ${t.getMessage}", INVOKER_FETCH_ACTION_FAILED)
         }
 
+        info(this, "", INVOKER_FETCH_AUTH_START)
         // keys are immutable, cache them
         val authFuture = WhiskAuth.get(authStore, subject, true)
         authFuture onFailure {
-            case t => error(this, s"failed to fetch auth key for $subject: ${t.getMessage}")
+            case t => error(this, s"failed to fetch auth key for $subject: ${t.getMessage}", INVOKER_FETCH_AUTH_FAILED)
         }
 
         // when records are fetched, invoke action
         val activationDocFuture =
             actionFuture flatMap { theAction =>
+                // assume this future is done here
+                info(this, "", INVOKER_FETCH_ACTION_DONE)
                 authFuture flatMap { theAuth =>
+                    // assume this future is done here
+                    info(this, "", INVOKER_FETCH_AUTH_DONE)
                     invokeAction(theAction, theAuth, payload, tran)
                 }
             }
         activationDocFuture onComplete {
             case Success(activationDoc) =>
-                info(this, s"recorded activation '$activationDoc'")
+                info(this, s"recorded activation '$activationDoc'", INVOKER_ACTIVATION_END)
                 activationDoc
             case Failure(t) =>
+                info(this, s"action ${action.id}", INVOKER_FAILED_ACTIVATION)
                 completeTransactionWithError(action, tran, s"failed to invoke action ${action.id}: ${t.getMessage}")
         }
 
@@ -213,7 +221,9 @@ class Invoker(
                     activationCounter.next() // this is the global invoker counter
                     incrementUserActivationCounter(tran.msg.subject)
                     // Since there is no active action taken for completion from the invoker, writing activation record is it.
+                    info(this, "recording the activation result to the data store", INVOKER_RECORD_ACTIVATION_START)
                     val result = WhiskActivation.put(activationStore, activation)
+                    info(this, "finished recording the activation result", INVOKER_RECORD_ACTIVATION_DONE)
                     tran.result = Some(result)
                     result
                 }
@@ -286,7 +296,7 @@ class Invoker(
 
     /**
      * Waits for log cursor to advance. This will retry up to tries times
-     * if the curor has not yet advanced. This will penalize containers that
+     * if the cursor has not yet advanced. This will penalize containers that
      * do not log. It is OK for nodejs containers because the runtime emits
      * the END_OF_ACTIVATION_MARKER automatically and that advances the cursor.
      *
