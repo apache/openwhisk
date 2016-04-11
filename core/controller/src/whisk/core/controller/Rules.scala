@@ -146,17 +146,16 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
                         if (rule.status != Status.ACTIVATING && rule.status != Status.DEACTIVATING && requestedState != rule.status) {
                             val nextState = Status.next(rule.status)
                             val newRule = rule.toggle(nextState)
-                            info(this, s"[POST] rule state change initiated ${rule.status} -> $nextState -> $requestedState")
+                            info(this, s"[POST] rule state change initiated: ${rule.status} -> $nextState -> $requestedState")
                             Future successful (rule.status, newRule)
                         } else {
-                            info(this, s"[POST] rule state change ignored, cannot change from ${rule.status} -> $requestedState")
+                            info(this, s"[POST] rule state change ignored, cannot change from: ${rule.status} -> $requestedState")
                             Future failed { IgnoredRuleActivation(requestedState == rule.status) }
                         }
                     } flatMap {
                         case (prevState, newRule) =>
-                            info(this, s"[POST] attempting to set rule state to ${newRule.status}")
+                            info(this, s"[POST] attempting to set rule state to: ${newRule.status}")
                             WhiskRule.put(entityStore, newRule) map { docid =>
-                                info(this, s"[POST] rule state set to ${newRule.status}")
                                 postToActivator(user, namespace, name, prevState, newRule, docid)
                             }
                     }
@@ -305,10 +304,10 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
         val post = performLoadBalancerRequest(ACTIVATOR, message, transid) flatMap { response =>
             response.id match {
                 case Some(_) =>
-                    info(this, s"[POST] rule status change to ${newRule.status} activated")
+                    info(this, s"[POST] rule status set to: ${newRule.status}")
                     Future successful docid
                 case None =>
-                    error(this, s"[POST] rule activation failed: ${response.error.getOrElse("??")}")
+                    error(this, s"[POST] rule status change cannot be completed: ${response.error.getOrElse("??")}")
                     Future failed {
                         new IllegalStateException(s"activation failed with error: ${response.error.getOrElse("??")}")
                     }
@@ -342,8 +341,8 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
                 info(this, s"[POST] rule state change rejected by activator, reverting rule to $prevState: ${t.getMessage}")
                 // TODO: have to retry until one succeeds
                 WhiskRule.put(entityStore, newRule.toggle(prevState).revision[WhiskRule](docid.rev)) onComplete {
-                    case Success(_) => info(this, s"[POST] rule state reverted to $prevState")
-                    case Failure(t) => error(this, s"[POST] rule state not reverted to $prevState, rule may be stuck in bad state: ${t.getMessage}")
+                    case Success(_) => info(this, s"[POST] rule state reverted to '$prevState'")
+                    case Failure(t) => error(this, s"[POST] rule state not reverted to '$prevState', rule may be stuck in bad state: ${t.getMessage}")
                 }
         }
 

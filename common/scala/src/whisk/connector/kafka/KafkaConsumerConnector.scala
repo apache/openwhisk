@@ -42,26 +42,44 @@ class KafkaConsumerConnector(
     with Logging
     with TransactionCounter {
 
-    def getMessages(duration: Duration = 1000 milliseconds) = consumer.poll(duration.toMillis)
+    /**
+     * Long poll for messages. Method returns once message are available but no later than given
+     * duration.
+     *
+     * @param duration the maximum duration for the long poll
+     * @param autoCommit update offsets on the topic iff true, else must be updated explicitly
+     */
+    def getMessages(duration: Duration = 1000 milliseconds, autoCommit: Boolean = true) = {
+        val records = consumer.poll(duration.toMillis)
+        if (autoCommit) commit()
+        records
+    }
+
+    /**
+     * Commits offsets from last poll.
+     */
+    def commit() = consumer.commitSync()
 
     override def onMessage(process: Array[Byte] => Boolean) = {
         val self = this
         val thread = new Thread() {
             override def run() = {
                 while (!disconnect) {
-                    Try { getMessages() } map { records =>
-                        val count = records.size
-                        records foreach { r =>
-                            val topic = r.topic
-                            val partition = r.partition
-                            val offset = r.offset
-                            val msg = r.value
-                            info(self, s"processing $topic[$partition][$offset ($count)]")
-                            val consumed = process(msg)
-                        }
+                    Try { getMessages(autoCommit = false) } map {
+                        records =>
+                            val count = records.size
+                            records foreach { r =>
+                                val topic = r.topic
+                                val partition = r.partition
+                                val offset = r.offset
+                                val msg = r.value
+                                info(self, s"processing $topic[$partition][$offset ($count)]")
+                                val consumed = process(msg)
+                            }
+                            commit()
                     } match {
                         case Failure(t) => error(self, s"while polling: $t")
-                        case _          =>
+                        case _          => // ok
                     }
                 }
                 warn(self, "consumer stream terminated")
@@ -81,7 +99,7 @@ class KafkaConsumerConnector(
         props.put(ConsumerConfig.GROUP_ID_CONFIG, groupid)
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkahost)
         props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, "10000");
-        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true.toString)
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false.toString)
         props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, "1000");
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, if (!readeos) "latest" else "earliest")
         props

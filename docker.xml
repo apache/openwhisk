@@ -3,61 +3,6 @@
 <project>
     <import file="config/config.xml" />
 
-    <!-- start a private docker registry on the main docker endpoint, 
-         and map it to the localhost port 5000  -->
-    <target name="startWhiskDockerRegistry" depends="writePropertyFile" if="${use.docker.registry}">
-        <var file="whisk.properties" />
-        <!-- we DO NOT fail on error here.   
-             if the whisk docker registry is already running, the command will fail.  so be it.
-             TODO: be less lazy and check if the docker registry is already running cleanly -->
-        <if>
-            <equals arg1="${docker.registry}" arg2="localhost:5000/" />
-            <then>
-                <exec executable="docker" failonerror="false">
-                    <arg value="--host" />
-                    <arg value="tcp://${main.docker.endpoint}" />
-                    <arg line="${docker.tls.cmd}" />
-                    <arg line="run -d -p 5000:5000 -e GUNICORN_OPTS=[--preload] --name=whisk_docker_registry --log-driver=none registry:2.1" />
-                </exec>
-        
-                <ant target="tunnelDockerRegistry" />
-            </then>
-        </if>
-    </target>
-
-    <!-- wait up to a minute for the docker registry to start.  Usually takes XX sec -->
-    <target name="waitWhiskDockerRegistry" depends="writePropertyFile" if="${use.docker.registry}">
-        <var file="whisk.properties" />
-        <if>
-            <equals arg1="${docker.registry}" arg2="localhost:5000/" forcestring="true" casesensitive="false" />
-            <then>
-                <exec executable="${python.27}" failonerror="true">
-                    <env key="DOCKER_REGISTRY_HOST" value="${master.host}" />
-                    <arg line="${openwhisk.home}/tools/health/isAlive -d ${basedir} --wait 60 docker.registry" />
-                </exec>
-            </then>
-        </if>
-    </target>
-
-
-    <!-- save a docker image on the local host to a tar file-->
-    <target name="saveDockerImage" depends="writePropertyFile">
-        <var file="whisk.properties" />
-        <exec executable="docker" failonerror="true">
-            <arg line="save -o ${build.dir}/temp_image.tar ${docker.image.to.save} " />
-        </exec>
-    </target>
-
-    <!-- load a docker image from a tar file on the local host to a tar file-->
-    <target name="loadDockerImage" depends="writePropertyFile">
-        <var file="whisk.properties" />
-        <exec executable="docker" failonerror="true">
-            <arg value="--host" />
-            <arg value="tcp://${docker.endpoint}" />
-            <arg line="load -i ${build.dir}/temp_image.tar" />
-        </exec>
-    </target>
-
     <!-- tag an image from docker.endpoint to match its name if pushed to the registry-->
     <!-- images should be tagged regardless of deploy target but this slows down local builds by more than 2 minutes; so skip -->
     <target name="tagImage" if="${use.docker.registry}">
@@ -89,38 +34,6 @@
             <arg line="${docker.tls.cmd}" />
             <arg line="pull ${docker.registry}${docker.image.to.pull}:${docker.image.tag}" />
         </exec>
-    </target>
-
-    <!-- pull an image from the whisk registry on the main docker endpoint
-         to another endpoint.  This version spawns the command in 
-         the background; it's intended as a prefetch optimization -->
-    <target name="prefetchPull" depends="writePropertyFile">
-        <var file="whisk.properties" />
-        <exec executable="docker" spawn="true">
-            <arg value="--host" />
-            <arg value="tcp://${docker.endpoint}" />
-            <arg line="pull ${docker.registry}${docker.image.to.pull}:${docker.image.tag}" />
-        </exec>
-    </target>
-
-    <!-- establish ssh tunnels from each machine to the registry host,
-         to allow insecure access to the docker registry via "localhost:5000"
-    -->
-    <target name="tunnelDockerRegistry" depends="writePropertyFile">
-        <var file="whisk.properties" />
-        <echo message="${deploy.target}" />
-        <if>
-            <not>
-                <equals arg1="local" arg2="${deploy.target}" />
-            </not>
-            <then>
-                <exec executable="/bin/bash">
-                    <env key="WHISK_DOCKER_REGISTRY" value="${whisk.docker.registry}" />
-                    <arg value="tools/build/docker/createRegistryTunnels.sh" />
-                    <arg value="${basedir}/whisk.properties" />
-                </exec>
-            </then>
-        </if>
     </target>
 
 </project>
