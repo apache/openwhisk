@@ -108,8 +108,8 @@ class Invoker(
      */
     case class Transaction(msg: Message) {
         var result: Option[Future[DocInfo]] = None
-        var initInterval : Option[(Instant, Instant)] = None
-        var runInterval : Option[(Instant, Instant)] = None
+        var initInterval: Option[(Instant, Instant)] = None
+        var runInterval: Option[(Instant, Instant)] = None
     }
 
     /**
@@ -149,29 +149,33 @@ class Invoker(
         // caching is enabled since actions have revision id and an updated
         // action will not hit in the cache due to change in the revision id;
         // if the doc revision is missing, then bypass cache
-        val actionPromise = WhiskAction.get(entityStore, action, action.rev != DocRevision())
-        // bypass cache and fetch from datastore directly since record may be stale
-        // due to out of band update
-        val authPromise = WhiskAuth.get(authStore, subject, false)
+        val actionFuture = WhiskAction.get(entityStore, action, action.rev != DocRevision())
+        actionFuture onFailure {
+            case t => error(this, s"failed to fetch action ${action.id}: ${t.getMessage}")
+        }
 
-        val activationPostCheck = actionPromise flatMap { theAction =>
-            authPromise flatMap { theAuth =>
-                invokeAction(theAction, theAuth, payload, tran) map {
-                    activationDoc =>
-                        info(this, s"recorded activation '$activationDoc'")
-                        activationDoc
+        // keys are immutable, cache them
+        val authFuture = WhiskAuth.get(authStore, subject, true)
+        authFuture onFailure {
+            case t => error(this, s"failed to fetch auth key for $subject: ${t.getMessage}")
+        }
+
+        // when records are fetched, invoke action
+        val activationDocFuture =
+            actionFuture flatMap { theAction =>
+                authFuture flatMap { theAuth =>
+                    invokeAction(theAction, theAuth, payload, tran)
                 }
             }
+        activationDocFuture onComplete {
+            case Success(activationDoc) =>
+                info(this, s"recorded activation '$activationDoc'")
+                activationDoc
+            case Failure(t) =>
+                completeTransactionWithError(action, tran, s"failed to invoke action ${action.id}: ${t.getMessage}")
         }
 
-        actionPromise onFailure {
-            case t => completeTransactionWithError(action, tran, s"failed to fetch action ${action.id}: ${t.getMessage}")
-        }
-        authPromise onFailure {
-            case t => completeTransactionWithError(action, tran, s"failed to fetch auth key for $subject: ${t.getMessage}")
-        }
-        // This is a composition of actionPromise, authPromise, and invokeAction so not onFailure
-        activationPostCheck
+        activationDocFuture
     }
 
     /*
@@ -204,7 +208,7 @@ class Invoker(
             tran.result match {
                 case Some(res) => res
                 case None => {
-                    activationCounter.next()   // this is the global invoker counter
+                    activationCounter.next() // this is the global invoker counter
                     incrementUserActivationCounter(tran.msg.subject)
                     // Since there is no active action taken for completion from the invoker, writing activation record is it.
                     val result = WhiskActivation.put(activationStore, activation)
@@ -223,16 +227,16 @@ class Invoker(
                 val params = con.mergeParams(payload)
                 val timeoutMillis = action.limits.timeout.millis
                 initResultOpt match {
-                        case None => (false, con.run(params, msg.meta, auth.compact, timeoutMillis,
-                                                     action.fullyQualifiedName, msg.activationId.toString))  // cached
-                        case Some((start, end, Some((200, _)))) => { // successful init
-                            // Try a little slack for json log driver to process
-                            Thread.sleep(if (con.isBlackbox) BlackBoxSlack else RegularSlack)
-                            tran.initInterval = Some(start, end)
-                            (false, con.run(params, msg.meta, auth.compact, timeoutMillis,
-                                            action.fullyQualifiedName, msg.activationId.toString))
-                        }
-                        case _ => (true, initResultOpt.get) //  unsucessful initialiation
+                    case None => (false, con.run(params, msg.meta, auth.compact, timeoutMillis,
+                        action.fullyQualifiedName, msg.activationId.toString)) // cached
+                    case Some((start, end, Some((200, _)))) => { // successful init
+                        // Try a little slack for json log driver to process
+                        Thread.sleep(if (con.isBlackbox) BlackBoxSlack else RegularSlack)
+                        tran.initInterval = Some(start, end)
+                        (false, con.run(params, msg.meta, auth.compact, timeoutMillis,
+                            action.fullyQualifiedName, msg.activationId.toString))
+                    }
+                    case _ => (true, initResultOpt.get) //  unsuccessful initialization
                 }
             } flatMap {
                 case (failedInit, (start, end, response)) =>
@@ -323,7 +327,7 @@ class Invoker(
                 _.get.getFields("time", "stream", "log") match {
                     case Seq(JsString(t), JsString(s), JsString(l)) => f"$t%-30s $s: ${l.trim}".toJson
                 }
-            } toList)
+            } toVector)
         } else {
             warn(this, s"log message is empty")
             JsArray()
@@ -397,19 +401,19 @@ class Invoker(
     }
 
     // -------------------------------------------------------------------------------------------------------------
-    private def makeWhiskActivation(transaction: Transaction, isBlackbox : Boolean, msg: Message, action: WhiskAction,
+    private def makeWhiskActivation(transaction: Transaction, isBlackbox: Boolean, msg: Message, action: WhiskAction,
                                     payload: JsObject, response: Option[(Int, String)], log: JsArray)(
                                         implicit transid: TransactionId): WhiskActivation = {
         makeWhiskActivation(transaction, isBlackbox, msg, action.name, action.version, payload, response, log)
     }
 
-    private def makeWhiskActivation(transaction: Transaction, isBlackbox : Boolean, msg: Message, actionName: EntityName,
+    private def makeWhiskActivation(transaction: Transaction, isBlackbox: Boolean, msg: Message, actionName: EntityName,
                                     actionVersion: SemVer, payload: JsObject, response: Option[(Int, String)], log: JsArray)(
                                         implicit transid: TransactionId): WhiskActivation = {
         val interval = (transaction.initInterval, transaction.runInterval) match {
-            case (None, Some(run)) => run
+            case (None, Some(run))  => run
             case (Some(init), None) => init
-            case (None, None) => (Instant.now(Clock.systemUTC()), Instant.now(Clock.systemUTC()))
+            case (None, None)       => (Instant.now(Clock.systemUTC()), Instant.now(Clock.systemUTC()))
             case (Some(init), Some(run)) =>
                 val durMilli = init._2.toEpochMilli() - init._1.toEpochMilli()
                 (run._1.minusMillis(durMilli), run._2)
@@ -432,7 +436,7 @@ class Invoker(
     private val authStore = WhiskAuthStore.datastore(config)
     private val activationStore = WhiskActivationStore.datastore(config)
     private val pool = new ContainerPool(config, instance)
-    private val activationCounter = new Counter()
+    private val activationCounter = new Counter() // global activation counter
     private val userActivationCounter = new TrieMap[String, Counter]
 
     /**
@@ -498,9 +502,8 @@ object InvokerService {
             implicit val ec = Dispatcher.executionContext
 
             implicit val actorSystem = ActorSystem(
-                name="invoker-actor-system",
-                defaultExecutionContext=Some(ec)
-            )
+                name = "invoker-actor-system",
+                defaultExecutionContext = Some(ec))
 
             val invoker = new Invoker(config, instance)
 
