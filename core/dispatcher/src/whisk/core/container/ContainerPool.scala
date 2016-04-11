@@ -29,6 +29,7 @@ import scala.collection.mutable.ListBuffer
 import akka.actor.ActorSystem
 
 import whisk.common.Counter
+import whisk.common.LoggingMarkers._
 import whisk.common.TransactionId
 import whisk.common.Verbosity
 import whisk.core.WhiskConfig
@@ -130,12 +131,12 @@ class ContainerPool(
      * In case of failure to start a container, None is returned.
      */
     def getAction(action: WhiskAction, auth: WhiskAuth)(implicit transid: TransactionId): Option[(WhiskContainer, Option[RunResult])] = {
-        info(this, s"Getting container for ${action.fullyQualifiedName} with ${auth.uuid}")
+        marker(this, INVOKER_GET_CONTAINER_START, s"Getting container for ${action.fullyQualifiedName} with ${auth.uuid}")
         val key = makeKey(action, auth)
         getImpl(key, { () => makeWhiskContainer(action, auth) }) map {
             case (c, initResult) =>
                 val cacheMsg = if (!initResult.isDefined) "(Cache Hit)" else "(Cache Miss)"
-                info(this, s"ContainerPool.getAction obtained container ${c.id} ${cacheMsg}")
+                marker(this, INVOKER_GET_CONTAINER_DONE, s"ContainerPool.getAction obtained container ${c.id} ${cacheMsg}")
                 (c.asInstanceOf[WhiskContainer], initResult)
         }
     }

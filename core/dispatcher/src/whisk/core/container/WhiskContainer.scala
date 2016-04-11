@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import spray.json.JsObject
 import spray.json.JsString
 import whisk.common.HttpUtils
+import whisk.common.LoggingMarkers._
 import whisk.common.TransactionId
 import whisk.core.entity.ActionLimits
 
@@ -75,7 +76,7 @@ class WhiskContainer(
         val start = ContainerCounter.now()
         // this shouldn't be needed but leave it for now
         if (isBlackbox) Thread.sleep(3000)
-        info(this, s"sending initialization to ${this.details}")
+        marker(this, INVOKER_CONTAINER_INIT, s"sending initialization to ${this.details}")
         val result = sendPayload("/init", JsObject("value" -> args), initTimeoutMilli)   // This will retry.
         val end = ContainerCounter.now()
         info(this, s"initialization result: ${result}")
@@ -91,9 +92,9 @@ class WhiskContainer(
     def run(args: JsObject, meta: JsObject, authKey : String, timeout: Int, actionName: String, activationId: String)
            (implicit transid: TransactionId): RunResult = {
         val start = ContainerCounter.now()
-        info("Invoker", s"sending arguments to $actionName $details")
+        marker("Invoker", INVOKER_SEND_ARGS,  s"sending arguments to $actionName $details")
         val response = sendPayload("/run", JsObject(meta.fields + ("value" -> args) + ("authKey" -> JsString(authKey))), timeout)
-        info("Invoker", s"finished running activation id: $activationId")
+        marker("Invoker", INVOKER_ACTIVATION_END, s"finished running activation id: $activationId")
         (start, ContainerCounter.now(), response)
     }
 

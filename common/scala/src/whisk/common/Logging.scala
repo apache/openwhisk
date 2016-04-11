@@ -22,9 +22,11 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 
 import scala.util.Try
 
+import spray.json.JsArray
 import spray.json.JsNumber
 import spray.json.JsValue
 import spray.json.RootJsonFormat
@@ -37,9 +39,11 @@ object Verbosity extends Enumeration {
 /**
  * A transaction id.
  */
-case class TransactionId private (id: Long) extends AnyVal {
-    override def toString = if (id > 0) s"#tid_$id" else (if (id < 0) s"#sid_${-id}" else "??")
+case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
+    override def toString = if (meta.id > 0) s"#tid_${meta.id}" else (if (meta.id < 0) s"#sid_${-meta.id}" else "??")
 }
+
+case class TransactionMetadata(val id: Long, val start: Instant)
 
 object TransactionId {
     val unknown = TransactionId(0)
@@ -47,16 +51,21 @@ object TransactionId {
     val invoker = TransactionId(-100)                // Invoker startup/shutdown or GC activity
     val invokerWarmup = TransactionId(-101)          // Invoker warmup thread
 
-    def apply(tid: BigDecimal): Try[TransactionId] = {
-        Try { TransactionId(tid.toLong) }
+    def apply(tid: BigDecimal): TransactionId = {
+        Try {
+            val now = Instant.now(Clock.systemUTC())
+            TransactionId(TransactionMetadata(tid.toLong, now))
+        } getOrElse unknown
     }
 
     implicit val serdes = new RootJsonFormat[TransactionId] {
-        def write(t: TransactionId) = JsNumber(t.id)
+        def write(t: TransactionId) = JsArray(JsNumber(t.meta.id), JsNumber(t.meta.start.toEpochMilli))
 
         def read(value: JsValue) = Try {
-            val JsNumber(tid) = value
-            TransactionId(tid.longValue)
+            value match {
+                case JsArray(Vector(JsNumber(id), JsNumber(start))) => TransactionId(TransactionMetadata(id.longValue, Instant.ofEpochMilli(start.longValue)))
+                case _ => unknown
+            }
         } getOrElse unknown
     }
 }
@@ -102,8 +111,13 @@ trait Logging {
     def error(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) =
         emit("ERROR", id, from, message)
 
-    def emit(category: AnyRef, id: TransactionId, from: AnyRef, message: String) = {
+    def marker(from: AnyRef, token: String, msg: String = "", category: AnyRef = "INFO")(implicit id: TransactionId = TransactionId.unknown) = {
         val now = Instant.now(Clock.systemUTC())
+        val firstDiff = now.toEpochMilli - id.meta.start.toEpochMilli
+        emit(category, id, from, s"[marker:$token:$firstDiff] $msg", now)
+    }
+
+    def emit(category: AnyRef, id: TransactionId, from: AnyRef, message: String, now: Instant = Instant.now(Clock.systemUTC())) = {
         val time = Logging.timeFormat.format(now)
         val name = if (from.isInstanceOf[String]) {
             from
@@ -132,4 +146,28 @@ private object Logging {
     private val timeFormat = DateTimeFormatter.
         ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").
         withZone(ZoneId.of("UTC"))
+}
+
+object LoggingMarkers {
+    val CONTROLLER_CREATE_ACTIVATION = "controller_create_activation"
+    val LOADBALANCER_POST_KAFKA = "loadbalancer_post_kafka"
+    val CONTROLLER_ACTIVATION_END = "controller_activation_end"
+    val CONTROLLER_BLOCKING_ACTIVATION_END = "controller_blocking_activation_end"
+    val CONTROLLER_BLOCK_FOR_RESULT = "controller_block_for_result"
+    val CONTROLLER_ACTIVATION_REJECTED = "controller_activation_rejected"
+    val CONTROLLER_ACTIVATION_FAILED = "controller_activation_failed"
+    val INVOKER_FETCH_ACTION_START = "invoker_fetch_action_start"
+    val INVOKER_FETCH_ACTION_DONE = "invoker_fetch_action_done"
+    val INVOKER_FETCH_ACTION_FAILED = "invoker_fetch_action_failed"
+    val INVOKER_FETCH_AUTH_START = "invoker_fetch_auth_start"
+    val INVOKER_FETCH_AUTH_DONE = "invoker_fetch_auth_done"
+    val INVOKER_FETCH_AUTH_FAILED = "invoker_fetch_auth_failed"
+    val INVOKER_GET_CONTAINER_START = "invoker_get_container_start"
+    val INVOKER_GET_CONTAINER_DONE = "invoker_get_container_done"
+    val INVOKER_CONTAINER_INIT = "invoker_container_init"
+    val INVOKER_SEND_ARGS = "invoker_send_args"
+    val INVOKER_ACTIVATION_END = "invoker_activation_end"
+    val INVOKER_RECORD_ACTIVATION_START = "invoker_record_activation_start"
+    val INVOKER_RECORD_ACTIVATION_DONE = "invoker_record_activation_done"
+    val INVOKER_FAILED_ACTIVATION = "invoker_failed_activation"
 }
