@@ -30,6 +30,7 @@ import whisk.core.entity.ActionLimits
  * Reifies a whisk container - one that respects the whisk container API.
  */
 class WhiskContainer(
+    originalId: TransactionId,
     pool: ContainerPool,
     key: String,
     containerName: String,
@@ -38,8 +39,8 @@ class WhiskContainer(
     pull: Boolean,
     env: Map[String, String],
     limits: ActionLimits,
-    args: Array[String] = Array())(implicit transid: TransactionId)
-    extends Container(pool, key, Some(containerName), image, network, pull, limits, env, args) {
+    args: Array[String] = Array())
+    extends Container(originalId, pool, key, Some(containerName), image, network, pull, limits, env, args) {
 
     var boundParams = JsObject()  // Mutable to support pre-alloc containers
     var lastLogSize = 0L

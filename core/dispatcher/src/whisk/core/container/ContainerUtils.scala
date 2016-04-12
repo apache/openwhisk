@@ -169,7 +169,7 @@ trait ContainerUtils extends Logging {
      * Synchronously runs the given docker command returning stdout if successful.
      */
     def runDockerCmd(skipLogError: Boolean, args: Seq[String])(implicit transid: TransactionId): DockerOutput = {
-        getDockerCmd(dockerhost) map { _ ++ args } map { SimpleExec.syncRunCmd(_) } match {
+        getDockerCmd(dockerhost) map { _ ++ args } map { info(this, s"runDockerCmd: transid = $transid"); SimpleExec.syncRunCmd(_)(transid) } match {
             case Some((stdout, stderr, exitCode)) =>
                 if (exitCode == 0) {
                     Some(stdout.trim)

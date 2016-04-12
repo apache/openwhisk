@@ -27,6 +27,7 @@ import whisk.common.Counter
  * Reifies a docker container.
  */
 class Container(
+    originalId: TransactionId,
     pool: ContainerPool,
     val key: String,
     containerName: Option[String],
@@ -35,10 +36,12 @@ class Container(
     pull: Boolean = false,
     val limits: ActionLimits = ActionLimits(),
     env: Map[String, String] = Map(),
-    args: Array[String] = Array())(implicit transid: TransactionId)
+    args: Array[String] = Array())
     extends ContainerUtils {
 
     setVerbosity(pool.getVerbosity())
+
+    implicit var transid = originalId
 
     val id = Container.idCounter.next()
     val name = containerName.getOrElse("anon")

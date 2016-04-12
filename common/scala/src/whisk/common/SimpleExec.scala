@@ -23,7 +23,7 @@ import scala.sys.process.stringSeqToProcess
  * Utility methods for running commands.
  */
 object SimpleExec extends Logging {
-    def syncRunCmd(cmd: Seq[String])(implicit transid: TransactionId = TransactionId.dontcare): (String, String, Int) = {
+    def syncRunCmd(cmd: Seq[String])(implicit transid: TransactionId): (String, String, Int) = {
         info(this, s"Running command: ${cmd.mkString(" ")}")
         val pb = stringSeqToProcess(cmd)
         var outs = List[String]()

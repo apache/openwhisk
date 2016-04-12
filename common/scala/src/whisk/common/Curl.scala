@@ -24,9 +24,9 @@ object Curl extends Logging {
   private val curl = "/usr/bin/curl"
 
   def put(url : String, body : String) =
-    SimpleExec.syncRunCmd(Array(curl, "-sS", "-XPUT", url,  "-d", body))
+    SimpleExec.syncRunCmd(Array(curl, "-sS", "-XPUT", url,  "-d", body))(TransactionId.dontcare)
 
   def get(url : String) =
-    SimpleExec.syncRunCmd(Array(curl, "-sS", "-XGET", url))
+    SimpleExec.syncRunCmd(Array(curl, "-sS", "-XGET", url))(TransactionId.dontcare)
 
 }

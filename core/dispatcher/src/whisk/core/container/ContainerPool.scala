@@ -194,7 +194,7 @@ class ContainerPool(
                 }
                 try {
                     conMaker() match { /* We make the container outside synchronization */
-                        // Unfortuantely, variables are not allowed in pattern alternatives even when the types line up.
+                        // Unfortunately, variables are not allowed in pattern alternatives even when the types line up.
                         case res @ Success(con, initResult) =>
                             this.synchronized {
                                 val ci = introduceContainer(key, con)
@@ -211,6 +211,7 @@ class ContainerPool(
                 }
             }
             case s @ Success(con, initResult) =>
+                con.transid = transid
                 con.unpause()
                 s
             case other => other
@@ -372,6 +373,7 @@ class ContainerPool(
         retrieve(warmNodejsKey) match {
             case Success(con, _) =>
                 info(this, s"Obtained a pre-warmed container")
+                con.transid = transid
                 val Some(ci) = containerMap.get(con)
                 changeKey(ci, warmNodejsKey, key)
                 con.unpause()
@@ -400,7 +402,7 @@ class ContainerPool(
         val env = getContainerEnvironment()
         val pull = !imageName.contains("whisk/")
         // This will start up the container
-        val con = new WhiskContainer(this, key, containerName, imageName, network, pull, env, limits)
+        val con = new WhiskContainer(transid, this, key, containerName, imageName, network, pull, env, limits)
         info(this, s"ContainerPool: started container - about to send init")
         con
     }
@@ -417,7 +419,7 @@ class ContainerPool(
     }
 
     private def makeContainer(imageName: String, args: Array[String])(implicit transid: TransactionId): ContainerResult = {
-        val con = new Container(this, makeKey(imageName, args), None, imageName, config.invokerContainerNetwork, false, ActionLimits(), Map(), args)
+        val con = new Container(transid, this, makeKey(imageName, args), None, imageName, config.invokerContainerNetwork, false, ActionLimits(), Map(), args)
         con.setVerbosity(getVerbosity())
         Success(con, None)
     }
