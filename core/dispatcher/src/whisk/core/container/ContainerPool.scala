@@ -259,29 +259,32 @@ class ContainerPool(
     }
 
     /*
-     * Return the container to the pool.
+     * Return the container to the pool or delete altogether.
+     * This call can be slow but not while locking data structure so it does not interfere with other activations.
      */
     def putBack(container: Container, delete: Boolean = false)(implicit transid: TransactionId): Unit = {
-        info(this, s"ContainerPool.putBack returning container ${container.id}")
-        this.synchronized {
+        info(this, s"ContainerPool.putBack returning container ${container.id}  delete = $delete")
+        if (!delete) container.pause()                      // Docker operation outside sync block. Don't pause if we are deleting.
+        val toBeDeleted = this.synchronized {               // Return container to pool logically and then optionally delete
             // Always put back logically for consistency
             val Some(ci) = containerMap.get(container)
             assert(ci.state == State.Active)
-            // Perform GC at this point.
-            if (gcOn) {
-                while (idleCount() >= _maxIdle) {
-                    removeOldestIdle()
-                }
-            }
-            container.pause()
-            ci.state = State.Idle
             ci.lastUsed = System.currentTimeMillis()
-            // Finally delete if requested
-            if (delete) {
-                removeContainerInfo(ci)
-                teardownContainers(List(ci))
-            }
+            ci.state = State.Idle
+            val toBeDeleted = if (delete) {
+                removeContainerInfo(ci)                     // no docker operation here
+                List(ci)
+            } else
+                List()
             this.notify()
+            toBeDeleted
+        }
+        teardownContainers(toBeDeleted)                     // perform delete docker operation outside lock
+        // Perform capacity-based GC here.
+        if (gcOn) {                                         // Synchronization occurs inside calls in a fine-grained manner.
+            while (idleCount() > _maxIdle) {                // it is safe for this to be non-atomic with body
+                removeOldestIdle()
+            }
         }
     }
 
