@@ -162,7 +162,10 @@ public class CLIPackageTests {
             String now = new Date().toString();
             String activationId = wsk.invoke(bindActionName, TestUtils.makeParameter("payload", now));
             String expected = String.format(".*key0: value0.*key1a: value1a.*key1b: value2b.*key2a: value2a.*payload: %s", now);
-            assertTrue("Expected message not found: " + expected + " in activation " + activationId, wsk.logsForActivationContain(activationId, expected, DELAY));
+            if (!wsk.logsForActivationContain(activationId, expected, DELAY)) {
+                String result = wsk.getResult(activationId).stdout.trim();
+                assertTrue("Expected message not found: " + expected + " in activation " + activationId + "\n" + result, false);
+            }
         } finally {
             wsk.sanitize(Package, bindName);
             wsk.sanitize(Action, packageActionName);
