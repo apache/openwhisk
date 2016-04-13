@@ -43,8 +43,6 @@ public class CLIJavaTests {
     public void helloWorldJava() throws Exception {
         final String actionName = "helloJava";
 
-        long start = System.currentTimeMillis();
-
         try {
             wsk.sanitize(Action, actionName);
             wsk.createAction(actionName, TestUtils.getCatalogFilename("samples/helloJava/build/libs/helloJava.jar"));
@@ -60,8 +58,6 @@ public class CLIJavaTests {
                 assertTrue("Did not find " + expected[i] + " in activation " + activationIds[i], pass);
             }
 
-            long duration = System.currentTimeMillis() - start;
-            assertTrue("Test took " + duration + "ms -- this is too slow.", duration < DEFAULT_WAIT * 1000);
         } finally {
             wsk.delete(Action, actionName);
         }
