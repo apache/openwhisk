@@ -46,3 +46,6 @@ nginx:
 db:
   auth: subjects
   immortal: subjects
+  authkeys:
+  - guest
+  - whisk.system
