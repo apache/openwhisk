@@ -7,6 +7,11 @@ language: scala
 services:
   - docker
 
+env:  
+  global:
+    - DOCKER_VERSION=1.10.3
+
+
 notifications:
   email: false
   slack:
