@@ -60,7 +60,7 @@ class ContainerPoolTests extends FlatSpec
 
     implicit val actorSystem = ActorSystem()
 
-    implicit val transid = TransactionId.dontcare
+    implicit val transid = TransactionId.testing
     implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
 
     val config = new WhiskConfig(

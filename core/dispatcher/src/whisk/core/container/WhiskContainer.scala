@@ -103,7 +103,7 @@ class WhiskContainer(
     def run(payload: String, activationId: String): RunResult = {
         val params = JsObject("payload" -> JsString(payload))
         val meta = JsObject("activationId" -> JsString(activationId))
-        run(params, meta, "no_auth_key", 30000, "no_action", "no_activation_id")(TransactionId.dontcare)
+        run(params, meta, "no_auth_key", 30000, "no_action", "no_activation_id")(TransactionId.testing)
     }
 
     /**

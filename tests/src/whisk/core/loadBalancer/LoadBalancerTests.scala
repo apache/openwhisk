@@ -70,7 +70,7 @@ class LoadBalancerTests
 
     behavior of "LoadBalancer API"
 
-    implicit val trid = TransactionId.dontcare
+    implicit val trid = TransactionId.testing
     implicit val routeTestTimeout = RouteTestTimeout(Duration(90, SECONDS))
     implicit val executionContext = new ExecutionContext {
         def execute(runnable: Runnable) {
@@ -139,7 +139,7 @@ class LoadBalancerTests
     }
 
     it should "post" in {
-        val msg = Message(TransactionId.dontcare, "", Subject(), ActivationId(), None)
+        val msg = Message(TransactionId.testing, "", Subject(), ActivationId(), None)
         Post("/publish/whisk", msg) ~> routes ~> check {
             status === OK
             val response = responseAs[LoadBalancerResponse]

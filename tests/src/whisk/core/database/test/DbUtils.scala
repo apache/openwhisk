@@ -183,7 +183,7 @@ trait DbUtils extends TransactionCounter {
      * Deletes all documents added to gc queue.
      */
     def cleanup()(implicit timeout: Duration = 10 seconds) = {
-        docsToDelete.map { e => Try(Await.result(e._1.del(e._2)(TransactionId.dontcare), timeout)) }
+        docsToDelete.map { e => Try(Await.result(e._1.del(e._2)(TransactionId.testing), timeout)) }
         docsToDelete.clear()
     }
 }

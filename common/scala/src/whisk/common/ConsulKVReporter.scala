@@ -36,7 +36,7 @@ class ConsulKVReporter(
     private val t = new Thread() {
         override def run() = {
             Thread.sleep(initialDelayMilli)
-            val (selfHostname, stderr, exitCode) = SimpleExec.syncRunCmd(Array("hostname", "-f"))(TransactionId.dontcare)
+            val (selfHostname, stderr, exitCode) = SimpleExec.syncRunCmd(Array("hostname", "-f"))(TransactionId.unknown)
             kvStore.put(hostKey, JsString(selfHostname))
             kvStore.put(startKey, JsString(s"${DateUtil.getTimeString}"))
             while (true) {

@@ -454,7 +454,7 @@ class Invoker(
         })
 
     // This will remove leftover action containers
-    pool.killStragglers()(TransactionId.dontcare)
+    pool.killStragglers()(TransactionId.invoker)
 
     // This is used for the getContainer endpoint used in perfContainer testing it is not real state
     private val activationIdMap = new TrieMap[ActivationId, String]

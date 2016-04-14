@@ -346,7 +346,7 @@ class ContainerPool(
     // A background thread that re-populates the container pool with fresh (un-instantiated) nodejs containers.
     private val warmupThread = new Thread {
         override def run {
-            val tid = TransactionId.dontcare
+            val tid = TransactionId.invokerWarmup
             while (true) {
                 if (getNumberOfIdleContainers(warmNodejsKey)(tid) < WARM_NODEJS_CONTAINERS) {
                     makeWarmNodejsContainer()(tid)
@@ -469,7 +469,7 @@ class ContainerPool(
     private val timer = new Timer()
     private val gcTask = new TimerTask {
         def run() {
-            performGC()(TransactionId.dontcare)
+            performGC()(TransactionId.invoker)
         }
     }
     timer.scheduleAtFixedRate(gcTask, 0, gcFreqMilli)

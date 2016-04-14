@@ -51,7 +51,7 @@ import whisk.core.entity.WhiskTrigger
 
 @RunWith(classOf[JUnitRunner])
 class DispatcherTests extends FlatSpec with Matchers with BeforeAndAfter with BeforeAndAfterAll {
-    implicit val transid = TransactionId.dontcare
+    implicit val transid = TransactionId.testing
     implicit val ec = Dispatcher.executionContext
 
     val dispatcher = new TestDispatcher("whisk")
@@ -79,7 +79,7 @@ class DispatcherTests extends FlatSpec with Matchers with BeforeAndAfter with Be
 
         val today = Calendar.getInstance().getTime().toString
         val content = JsObject("payload" -> JsString(today))
-        val msg = Message(TransactionId.dontcare, "", Subject(), ActivationId(), Some(content))
+        val msg = Message(TransactionId.testing, "", Subject(), ActivationId(), Some(content))
         implicit val stream = new java.io.ByteArrayOutputStream
         dispatcher.setVerbosity(Verbosity.Loud)
         Console.withOut(stream) {
@@ -99,7 +99,7 @@ class DispatcherTests extends FlatSpec with Matchers with BeforeAndAfter with Be
         assert(config.isValid)
 
         val today = Calendar.getInstance.getTime.toString
-        val msg = Message(TransactionId.dontcare, "", Subject(), ActivationId(), Some(JsObject("payload" -> JsString(today))))
+        val msg = Message(TransactionId.testing, "", Subject(), ActivationId(), Some(JsObject("payload" -> JsString(today))))
         val namespace = Namespace("post test namespace")
         val dispatcher = new TestDispatcher("invoke0")
         implicit val stream = new java.io.ByteArrayOutputStream

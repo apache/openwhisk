@@ -38,11 +38,14 @@ object Verbosity extends Enumeration {
  * A transaction id.
  */
 case class TransactionId private (id: Long) extends AnyVal {
-    override def toString = if (id == -1) "??" else s"#tid_$id"
+    override def toString = if (id > 0) s"#tid_$id" else (if (id < 0) s"#sid_${-id}" else "??")
 }
 
 object TransactionId {
-    val dontcare = TransactionId(-1)
+    val unknown = TransactionId(0)
+    val testing = TransactionId(-1)                  // unit testing
+    val invoker = TransactionId(-100)                // Invoker startup/shutdown or GC activity
+    val invokerWarmup = TransactionId(-101)          // Invoker warmup thread
 
     def apply(tid: BigDecimal): Try[TransactionId] = {
         Try { TransactionId(tid.toLong) }
@@ -54,7 +57,7 @@ object TransactionId {
         def read(value: JsValue) = Try {
             val JsNumber(tid) = value
             TransactionId(tid.longValue)
-        } getOrElse dontcare
+        } getOrElse unknown
     }
 }
 
@@ -66,7 +69,7 @@ trait TransactionCounter {
         TransactionId(cnt.incrementAndGet())
     }
 
-    private val cnt = new AtomicInteger(0)
+    private val cnt = new AtomicInteger(1)
 }
 
 /**
@@ -84,19 +87,19 @@ trait Logging {
     def setComponentName(comp: String) =
         this.componentName = comp
 
-    def debug(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.dontcare) =
+    def debug(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) =
         if (level == Verbosity.Debug)
             emit("DEBUG", id, from, message)
 
-    def info(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.dontcare) =
+    def info(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) =
         if (level != Verbosity.Quiet)
             emit("INFO", id, from, message)
 
-    def warn(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.dontcare) =
+    def warn(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) =
         if (level != Verbosity.Quiet)
             emit("WARN", id, from, message)
 
-    def error(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.dontcare) =
+    def error(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) =
         emit("ERROR", id, from, message)
 
     def emit(category: AnyRef, id: TransactionId, from: AnyRef, message: String) = {

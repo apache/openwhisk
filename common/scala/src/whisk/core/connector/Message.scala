@@ -35,7 +35,7 @@ trait Message {
     /**
      * A transaction id to attach to the message. If not defined, defaults to 'dontcare' value.
      */
-    val transid = TransactionId.dontcare
+    val transid = TransactionId.unknown
 
     /**
      * Serializes message to string. Must be idempotent.

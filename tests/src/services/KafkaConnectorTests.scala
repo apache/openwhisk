@@ -38,7 +38,7 @@ import whisk.utils.ExecutionContextFactory
 
 @RunWith(classOf[JUnitRunner])
 class KafkaConnectorTests extends FlatSpec with Matchers with BeforeAndAfter {
-    implicit val transid = TransactionId.dontcare
+    implicit val transid = TransactionId.testing
     implicit val ec = ExecutionContextFactory.makeSingleThreadExecutionContext()
 
     behavior of "Kafka connector"
