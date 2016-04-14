@@ -7,6 +7,11 @@ language: scala
 services:
   - docker
 
+env:  
+  global:
+    - DOCKER_VERSION=1.10.3
+
+
 notifications:
   email: false
   slack:
@@ -16,7 +21,7 @@ install: true
 
 before_install:
   - sudo apt-get -y update -qq
-  - sudo apt-get -o Dpkg::Options::="--force-confnew" --force-yes -y install docker-engine
+  - sudo apt-get -o Dpkg::Options::="--force-confnew" --force-yes -y install docker-engine=1.10.3-0~trusty
   - docker --version
   - sudo apt-get -y install python-pip
   - pip install --user jsonschema
