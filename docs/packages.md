@@ -380,10 +380,10 @@ After the actions and feeds that comprise a package are debugged and tested, the
 1. Share the package with all users:
 
   ```
-  $ wsk package update sample --shared
+  $ wsk package update custom --shared
   ```
   ```
-  ok: updated package sample
+  ok: updated package custom
   ```
 
 2. Display the `publish` property of the package to verify that it is now true.
