@@ -26,7 +26,11 @@ before_install:
   - ./tools/travis/setup.sh
 
 script:
-  - ansible-playbook -i ansible/environments/travis ansible/whisk.yml -e mode=initdb
+# disable ansible deployment for now. to be enabled later.
+#  - ansible-playbook -i ansible/environments/travis ansible/whisk.yml -e mode=initdb
+  - ./tools/db/couchdb/start-couchdb-box.sh whisk_couchdb_admin some_gener1c_passw0rd
+  - ./tools/db/createImmortalDBs.sh --dropit
   - ant build
-  - ansible-playbook -i ansible/environments/travis ansible/whisk.yml
+#  - ansible-playbook -i ansible/environments/travis ansible/whisk.yml
+  - ant deploy
   - ant run -Dtestsfailonfailure=true
