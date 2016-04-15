@@ -28,6 +28,7 @@ import spray.json.JsNumber
 import spray.json.JsString
 import spray.json.JsNull
 import spray.json.JsValue
+import scala.concurrent.duration._
 
 @RunWith(classOf[JUnitRunner])
 class ConsulKVTests extends FlatSpec with Matchers {
@@ -57,7 +58,7 @@ class ConsulKVTests extends FlatSpec with Matchers {
         val kvInner = List(("k1", JsNumber(55)), ("k2", JsString("dog")), ("k3/inner", JsString("monkey")))
         val kv = kvInner.map { case (k, v) => (s"$keyPrefix/$k", v) }
         kv foreach { case (k, v) => consul.put(k, v) }
-        retry {
+        retry ({
             val retrieved: Map[String, JsValue] = consul.getRecurse(keyPrefix)
             assert(retrieved.size == kv.size)
             kv.foreach {
@@ -65,7 +66,7 @@ class ConsulKVTests extends FlatSpec with Matchers {
                     println(s"$k -> $v")
                     assert(retrieved.get(k) == Some(v)) // not a KV operation - no inner retry
             }
-        }
+        }, 5, waitBeforeRetry = Some(5 second))
         kv.foreach({
             case (k, v) =>
                 consul.delete(k)
@@ -78,10 +79,12 @@ class ConsulKVTests extends FlatSpec with Matchers {
         val value = JsString("testValue")
 
         consul.put(key, value)
-        retry { assert(consul.get(key) == value) }
+        retry ({ assert(consul.get(key) == value) },
+               5, waitBeforeRetry = Some(5 second))
 
         consul.delete(key)
-        retry { assert(consul.get(key) == JsNull) }
+        retry ({ assert(consul.get(key) == JsNull) },
+              5, waitBeforeRetry = Some(5 second))
     }
 
 }
