@@ -352,7 +352,6 @@ You can set default parameters for all the entities in a package. You do this by
   $ wsk action invoke --blocking --result custom/identity
   ```
   ```
-  ok: invoked sample/identity with id cccaf61a77054101952494522f36c1ca
   {
       "city": "Austin",
       "country": "USA"
