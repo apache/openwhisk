@@ -41,7 +41,7 @@
             <!-- arg line="${docker.syslog.driver}" /-->
             <arg line="-v '${whisk.logs.dir}'/nginx:/logs" />
             <arg line="-v '${nginx.conf.dir}':/etc/nginx" />
-            <arg line="-h nginx_${edge.docker.endpoint}" />
+            <arg line="-h nginx" />
             <arg line="-d --name nginx -p 80:80 -p 443:443 -p 8443:8443 nginx" />
         </exec>
     </target>

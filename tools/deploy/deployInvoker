@@ -175,7 +175,7 @@ def startInvoker(whiskprops,index, invokerHost, tag):
     '-e', 'SERVICE_CHECK_INTERVAL=15s',
     '-v', whiskLogsDir + '/' + invokerName + ':/logs',
     '-v', '/var/lib/docker/containers/:/containers',
-    '-h', invokerName + '_' + dockerEndpoint,
+    '-h', invokerName,
     '--name', invokerName,
     '-d', image, '/dispatcher/bin/dispatcher', 'invoker', str(index)]
   print 'Starting', invokerName, '       at', dockerEndpoint,

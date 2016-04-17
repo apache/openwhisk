@@ -20,7 +20,7 @@
             <arg line="${consul.ignore.service}" />
             <arg line="${docker.syslog.driver}" />
             <arg line="-v ${whisk.logs.dir}/consul-server:/logs" />
-            <arg line="-h consulserver_${consulserver.docker.endpoint}" />
+            <arg line="-h consulserver" />
             <arg line="-d --name consulserver -p ${consul.host.port4}:${consul.docker.port4} -p ${consul.host.port5}:${consul.docker.port5} ${docker.registry}whisk/consul:${docker.image.tag} /startconsulserver.sh" />
         </exec>
     </target>
@@ -40,7 +40,7 @@
             <arg line="${docker.restart.opts}" />
             <arg line="${docker.timezone.mount}" />
             <arg line="-v ${whisk.logs.dir}/consul-client:/logs" />
-            <arg line="-h consulclient_${consulserver.docker.endpoint}" />
+            <arg line="-h consulclient" />
             <arg line="-d --name consulclient -p ${consul.host.port4}:${consul.docker.port4} ${docker.registry}whisk/consul:${docker.image.tag} /startconsulclient.sh -name client" />
         </exec>
     </target>
