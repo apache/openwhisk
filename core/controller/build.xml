@@ -26,7 +26,7 @@
             <arg line="-e &quot;WHISK_VERSION_DATE=${whisk.version.date}&quot;" />
             <arg line="-e &quot;WHISK_VERSION_BUILDNO=${whisk.version.buildno}&quot;" />
             <arg line="-v ${whisk.logs.dir}/controller:/logs" />
-            <arg line="-h controller_${main.docker.endpoint}" />
+            <arg line="-h controller" />
             <arg line="${consul.service.check}" />
             <arg line="-d --name controller -p ${controller.host.port}:${controller.docker.port} ${docker.registry}whisk/controller:${docker.image.tag}" />
         </exec>

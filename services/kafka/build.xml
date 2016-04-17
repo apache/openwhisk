@@ -22,7 +22,7 @@
             <arg line="-p ${kafka.host.port}:${kafka.docker.port}" />
             <arg line="-p ${kafkaras.host.port}:${kafkaras.docker.port}" />
             <arg line="-e EXPOSED_HOST=${kafka.host}" />
-            <arg line="-h kafka_${kafka.docker.endpoint}" />
+            <arg line="-h kafka" />
             <arg line="${docker.registry}whisk/kafka:${docker.image.tag}" />
         </exec>
     </target>

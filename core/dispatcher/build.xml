@@ -26,7 +26,7 @@
             <arg line="-e &quot;SERVICE_NAME=activator&quot;" />
             <arg line="${consul.service.check}" />
             <arg line="-v ${whisk.logs.dir}/activator:/logs" />
-            <arg line="-h activator_${main.docker.endpoint}" />
+            <arg line="-h activator" />
             <arg line="-d --name activator ${docker.registry}whisk/dispatcher:${docker.image.tag} /dispatcher/bin/dispatcher activator" />
         </exec>
     </target>

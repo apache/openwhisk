@@ -23,7 +23,7 @@
             <arg line="-e &quot;CONSUL_HOST_PORT4=${consul.host.port4}&quot;" />
             <arg line="-p ${loadbalancer.host.port}:${loadbalancer.docker.port}" />
             <arg line="-v ${whisk.logs.dir}/loadbalancer:/logs" />
-            <arg line="-h loadbalancer_${main.docker.endpoint}" />
+            <arg line="-h loadbalancer" />
             <arg line="${consul.service.check}" />
             <arg line="-d --name loadbalancer ${docker.registry}whisk/loadbalancer:${docker.image.tag}" />
         </exec>
