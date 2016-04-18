@@ -3,9 +3,8 @@ FROM whisk/scala
 ENV CONSUL_VERSION 0.6.4
 
 RUN cd / && mkdir consul && mkdir consul/data && \
-apt-get install -y unzip && \
-apt-get install -y bc && \
-apt-get install -y python && \
+apt-get update && \
+apt-get install -y unzip bc python && \
 cd /tmp && \
 wget https://releases.hashicorp.com/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_linux_amd64.zip && \
 mv consul_${CONSUL_VERSION}_linux_amd64.zip consul.zip && \

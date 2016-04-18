@@ -3,6 +3,8 @@
 sudo: required
 
 language: scala
+scala:
+   - 2.11.6
 
 services:
   - docker
@@ -21,8 +23,6 @@ before_install:
   - docker --version
   - sudo apt-get -y install python-pip
   - pip install --user jsonschema
-  - pip install --user argcomplete
-  - pip install --user ansible
   - ./tools/travis/setup.sh
 
 script:

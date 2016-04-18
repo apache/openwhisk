@@ -59,5 +59,5 @@ unset JMX_PORT
 
 echo "Starting monitor (will make base topics)"
 echo "----------------------------------------"
-cd /monitor; /usr/bin/node ./app.js $ZOOKEEPER_IP:$ZOOKEEPER_PORT
+cd /monitor; /usr/local/bin/node ./app.js $ZOOKEEPER_IP:$ZOOKEEPER_PORT
 

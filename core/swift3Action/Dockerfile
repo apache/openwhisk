@@ -1,29 +1,22 @@
 # This Dockerfile is partially based on:
 #   https://github.com/swiftdocker/docker-swift/
-FROM ubuntu:14.04
+FROM buildpack-deps:trusty
 
 ENV DEBIAN_FRONTEND noninteractive
 
-# Upgrade and install Python and helpers
+# Upgrade and install Python dependencies
 RUN apt-get -y purge && \
     apt-get -y update && \
-    apt-get -y install --fix-missing python2.7 && \
-    apt-get -y install --fix-missing python2.7-dev && \
-    apt-get -y install --fix-missing python-distribute && \
-    apt-get -y install --fix-missing python-pip && \
-    apt-get -y install --fix-missing python-gevent && \
-    apt-get clean && \
-    pip install -U flask
+    apt-get -y install --fix-missing python2.7 python-distribute python-pip
 
-# Upgrade and install Swift dependencies.
-RUN apt-get -y dist-upgrade
+# Install Python proxy support
+RUN apt-get -y install --fix-missing python2.7-dev python-gevent python-flask
 
-# OpenWhisk dependencies
-RUN apt-get -y install  build-essential wget clang libedit-dev libicu52 rsync libxml2-dev emacs24-nox
-# Kitura dependencies
+# Upgrade and install Swift dependencies
+RUN apt-get -y install build-essential wget clang libedit-dev libicu52 libxml2-dev
+
+ # Kitura dependencies
 RUN apt-get -y install autoconf libtool libkqueue-dev libkqueue0 libdispatch-dev libdispatch0 libcurl4-openssl-dev libbsd-dev
-
-RUN apt-get -y install git
 RUN apt-get clean
 
 # Install Swift keys

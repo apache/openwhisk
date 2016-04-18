@@ -5,7 +5,7 @@
     <import file="../../config/config.xml" />
 
     <!-- build the CLI python package for distribution -->
-    <target name="buildCLI" >
+    <target name="buildCLI">
 
         <var file="whisk.properties" />
 
@@ -15,31 +15,36 @@
             <arg line="${openwhisk.home}/tools/cli/generateDefaultProps.sh" />
             <arg line="${basedir}" />
         </exec>
-        
+
         <!-- copy files needed to build image to a scratch space -->
         <mkdir dir="${cli.build.dir}" />
+        <!-- make a nested build dir to match gradle -->
+        <mkdir dir="${cli.build.dir}/build/tmp" />
         <copy todir="${cli.build.dir}">
+            <fileset dir="${openwhisk.home}/tools/cli">
+                <include name="Dockerfile" />
+            </fileset>
+        </copy>
+        <copy todir="${cli.build.dir}/build/tmp">
             <fileset dir="${openwhisk.home}/tools/cli/packagescripts" />
         </copy>
-        <copy todir="${cli.build.dir}/openwhisk">
+        <copy todir="${cli.build.dir}/build/tmp/openwhisk">
             <fileset dir="${openwhisk.home}/tools/cli">
-                <!--<include name="default.props" />-->
-                <exclude name=".project" />
-                <exclude name="*.pyc" />
-                <exclude name="setup.py" />
+                <include name="wsk" />
+                <include name="*.py" />
             </fileset>
         </copy>
 
         <!-- generate default.props -->
-        <exec executable="/bin/bash" failonerror="true" output="${cli.build.dir}/openwhisk/default.props">
+        <exec executable="/bin/bash" failonerror="true" output="${cli.build.dir}/build/tmp/openwhisk/default.props">
             <arg line="${openwhisk.home}/tools/cli/generateDefaultProps.sh" />
             <arg line="${basedir}" />
         </exec>
 
         <!-- Python packaging expects .py extensions. -->
-        <move file="${cli.build.dir}/openwhisk/wsk" tofile="${cli.build.dir}/openwhisk/wsk.py" />
+        <move file="${cli.build.dir}/build/tmp/openwhisk/wsk" tofile="${cli.build.dir}/build/tmp/openwhisk/wsk.py" />
         <!-- Need this file in the right place so it looks like a Pyton package. -->
-        <move file="${cli.build.dir}/__init__.py" todir="${cli.build.dir}/openwhisk" />
+        <move file="${cli.build.dir}/build/tmp/__init__.py" todir="${cli.build.dir}/build/tmp/openwhisk" />
         <!-- build package for distribution -->
         <exec executable="/bin/bash" failonerror="true">
             <arg line="${openwhisk.home}/tools/docker/dockerWithRetry.sh ${docker.timeout.long}" />

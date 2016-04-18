@@ -1,12 +1,12 @@
-FROM ubuntu:14.04
+FROM buildpack-deps:trusty
 
 ENV DEBIAN_FRONTEND noninteractive
 
-RUN apt-get update --fix-missing && \
-  apt-get -y dist-upgrade && \
-  apt-get -y install python2.7 && \
-  apt-get -y install python-distribute python-pip && \
-  apt-get clean
+# Upgrade and install basic Python dependencies
+RUN apt-get -y purge && \
+    apt-get -y update && \
+    apt-get -y install --fix-missing python2.7 python-distribute python-pip
+RUN apt-get clean
 
 ADD build/tmp /cli
-CMD cd /cli && python setup.py sdist
+RUN cd /cli && python setup.py sdist

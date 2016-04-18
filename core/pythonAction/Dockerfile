@@ -1,18 +1,16 @@
 # Dockerfile for python action
-FROM ubuntu:14.04
+FROM buildpack-deps:trusty
 
 ENV DEBIAN_FRONTEND noninteractive
 
-# Upgrade and install python
-RUN apt-get -y purge
-RUN apt-get -y update
-RUN apt-get -y install --fix-missing python2.7
-RUN apt-get -y install --fix-missing python2.7-dev
-RUN apt-get clean
+# Upgrade and install basic Python dependencies
+RUN apt-get -y purge && \
+    apt-get -y update && \
+    apt-get -y install --fix-missing python2.7 python-distribute python-pip
 
-# Install Python CGI helpers.
-RUN apt-get -y install --fix-missing python-distribute python-pip python-gevent
-RUN pip install -U flask
+# Install Python proxy support
+RUN apt-get -y install --fix-missing python2.7-dev python-gevent python-flask
+RUN apt-get clean
  
 ENV FLASK_PROXY_PORT 8080
 

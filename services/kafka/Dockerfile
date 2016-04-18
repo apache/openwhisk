@@ -11,12 +11,14 @@ ENV DOCKER_FIX '                                             '
 EXPOSE 9092 7203 8080
 
 # install nodejs and npm
+# based on https://github.com/nodejs/docker-node
+ENV NODE_VERSION 0.12.14
+RUN curl -SLO "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-x64.tar.gz" \
+  && tar -xzf "node-v$NODE_VERSION-linux-x64.tar.gz" -C /usr/local --strip-components=1 \
+  && rm "node-v$NODE_VERSION-linux-x64.tar.gz"
+
 # Install Kafka Stuff
-RUN apt-get update -y && \
-  curl -sL https://deb.nodesource.com/setup_0.12 | bash - && \
-  apt-get install -y nodejs && \
-  mkdir /kafka /data && \
-  apt-get install -y ca-certificates
+RUN mkdir /kafka /data
 ENV KAFKA_RELEASE_ARCHIVE kafka_2.11-0.9.0.0.tgz
 
 # Download Kafka binary distribution
@@ -40,9 +42,7 @@ RUN wget http://www.us.apache.org/dist/kafka/0.9.0.0/${KAFKA_RELEASE_ARCHIVE} &&
 ADD monitor  /monitor
 RUN cd /monitor && npm install
 
-RUN sudo apt-get install -y maven
-RUN mvn org.apache.maven.plugins:maven-dependency-plugin:2.1:get -DrepoUrl=https://jcenter.bintray.com -Dartifact=org.slf4j:slf4j-log4j12:1.7.6
-RUN find ${HOME} -name 'slf4j-log4j12-1.7.6.jar' -exec cp {} /kafka/libs/ \;
+RUN cd /kafka/libs/ && wget https://jcenter.bintray.com/org/slf4j/slf4j-log4j12/1.7.6/slf4j-log4j12-1.7.6.jar
 ADD config /kafka/config
 ADD start.sh /start.sh
 

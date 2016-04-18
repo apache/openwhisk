@@ -1,22 +1,24 @@
-FROM ubuntu:14.04
+FROM buildpack-deps:trusty-curl
 
 ENV DEBIAN_FRONTEND noninteractive
 
-# Initial update and some basics.
-# This odd double update seems necessary to get curl to download without 404 errors.
-RUN apt-get update --fix-missing && \
-  apt-get install -y wget && \
-  apt-get update && \
-  apt-get install -y curl && \
-  apt-get update && \
-  curl -sL https://deb.nodesource.com/setup_0.12 | bash - && \
-  apt-get install -y nodejs
+# based on https://github.com/nodejs/docker-node
+ENV NODE_VERSION 0.12.14
+RUN curl -SLO "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-x64.tar.gz" \
+  && tar -xzf "node-v$NODE_VERSION-linux-x64.tar.gz" -C /usr/local --strip-components=1 \
+  && rm "node-v$NODE_VERSION-linux-x64.tar.gz"
 
-# Install Image Magick
+# Initial update and some basics.
 RUN apt-get update && apt-get install -y imagemagick
 
-# Install "standard" npm packages 
-RUN npm install -g \
+# App
+ADD . /nodejsAction
+WORKDIR /nodejsAction
+
+# Install app dependencies
+RUN rm -rf .project .settings build.xml Dockerfile README node_modules logs
+RUN npm install .
+RUN npm install \
 apn@1.7.4 \
 async@1.5.2 \
 body-parser@1.12.0 \
@@ -54,13 +56,5 @@ xml2js@0.4.15 \
 xmlhttprequest@1.7.0 \
 yauzl@2.3.1
 
-
-# App
-ADD . /nodejsAction
-
-# Install app dependencies
-RUN cd /nodejsAction; rm -rf .project .settings build.xml Dockerfile README node_modules logs && ln -s /usr/lib/node_modules node_modules 
-RUN cd /nodejsAction; npm install .
-
 # See app.js
-CMD node /nodejsAction/app.js
+CMD node app.js
