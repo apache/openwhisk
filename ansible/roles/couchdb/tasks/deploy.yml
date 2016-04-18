@@ -3,7 +3,7 @@
 
 - name: (re)start CouchDB
   docker:
-    name: couch
+    name: couchdb
     image: couchdb
     state: reloaded
     restart_policy: "{{ docker.restart.policy }}"

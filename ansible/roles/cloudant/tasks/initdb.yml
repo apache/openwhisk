@@ -2,6 +2,14 @@
 # This role will initialize the immortal DBs in the database account.
 # This step is usually done only once per account.
 
+- name: wait for user confirmation
+  pause: 
+    prompt: > 
+            About to drop and recreate database {{ db.immortal }} in this {{ db_provider }} account.
+            This will wipe the previous database if it exists and this is not reversible.
+            Are you sure? (press CTRL-C)
+  when: prompt_user
+
 - name: delete Immortal DBs
   uri:
     url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ item }}"

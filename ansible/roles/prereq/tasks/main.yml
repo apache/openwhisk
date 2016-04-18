@@ -2,13 +2,9 @@
 # This role will prepare a whisk deployment.  
 # In deploy mode it will write whisk.properties and deploy the database.
 # In clean mode it will remove whisk.properties
-# In initdb mode it will create initial auth dbs in the database (do this only once per environment).
 
 - include: deploy.yml
   when: mode == "deploy"
 
 - include: clean.yml
   when: mode == "clean"
-
-- include: initdb.yml
-  when: mode == "initdb"

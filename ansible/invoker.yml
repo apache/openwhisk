@@ -1,0 +1,6 @@
+---
+# This playbook deploys Openwhisk Invokers.  
+
+- hosts: invokers
+  roles:
+  - invoker

@@ -1,38 +1,22 @@
 ---
 # This playbook deploys an Openwhisk stack.  
-
-- hosts: db
-  roles:
-  - db
+# It assumes you have already set up your database with the respective db provider playbook (currently cloudant.yml or couchdb.yml)
 
 - hosts: ansible
   roles:
   - prereq
 
-- hosts: all:!ansible
-  roles:
-  - consul
+- include: consul.yml
 
-- hosts: kafka
-  roles:
-  - kafka
+- include: kafka.yml
 
-- hosts: controllers
-  roles:
-  - controller
+- include: controller.yml
 
-- hosts: activators
-  roles:
-  - activator
+- include: activator.yml
 
-- hosts: invokers
-  roles:
-  - invoker
+- include: invoker.yml
 
-- hosts: edge
-  roles:
-  - nginx
-  - cli
+- include: edge.yml
 
 - hosts: ansible
   roles:

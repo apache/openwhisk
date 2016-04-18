@@ -1,4 +1,5 @@
 mode: deploy
+prompt_user: true
 
 whisk:
   version:

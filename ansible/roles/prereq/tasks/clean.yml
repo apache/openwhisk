@@ -5,9 +5,3 @@
   file:
     path: "{{ whisk_dir }}/whisk.properties"
     state: absent
-
-# TODO: remove this once we drop ant
-- name: remove database env file
-  file:
-    path: "{{ whisk_dir }}/{{ db_provider|lower }}-local.env"
-    state: absent

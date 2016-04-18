@@ -1,9 +1,0 @@
----
-# Remove CouchDB server
-
-- name: remove CouchDB
-  docker:
-    name: couch
-    image: couchdb
-    state: absent
-  ignore_errors: True

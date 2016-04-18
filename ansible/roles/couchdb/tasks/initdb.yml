@@ -1,0 +1,7 @@
+---
+# This role will initialize the immortal DBs in the database account.
+# This step is usually done only once per account.
+
+# Same as cloudant, so include here.
+
+- include: roles/cloudant/tasks/initdb.yml
