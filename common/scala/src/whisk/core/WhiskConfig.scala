@@ -76,6 +76,11 @@ class WhiskConfig(
     val entitlementHost = this(WhiskConfig.entitlementHostName) + ":" + this(WhiskConfig.entitlementHostPort)
     val routerHost = this(WhiskConfig.routerHost)
     val cliApiHost = this(WhiskConfig.cliApiHost)
+
+    val edgeDockerEndpoint = this(WhiskConfig.edgeDockerEndpoint)
+    val kafkaDockerEndpoint = this(WhiskConfig.kafkaDockerEndpoint)
+    val mainDockerEndpoint = this(WhiskConfig.mainDockerEndpoint)
+    val routerDockerEndpoint = this(WhiskConfig.routerDockerEndpoint)
 }
 
 object WhiskConfig {
@@ -143,6 +148,11 @@ object WhiskConfig {
 
     val routerHost = "router.host"
     val cliApiHost = "cli.api.host"
+
+    val edgeDockerEndpoint= "edge.docker.endpoint"
+    val kafkaDockerEndpoint = "kafka.docker.endpoint"
+    val mainDockerEndpoint = "main.docker.endpoint"
+    val routerDockerEndpoint = "router.docker.endpoint"
 
     private val controllerHostName = "controller.host"
     private val elkHostName = "elk.host"
