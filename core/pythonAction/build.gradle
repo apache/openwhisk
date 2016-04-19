@@ -1,0 +1,2 @@
+ext.dockerImageName = 'whisk/pythonaction'
+apply from: '../../docker.gradle'

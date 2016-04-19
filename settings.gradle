@@ -4,6 +4,7 @@ include 'core:controller'
 include 'core:dispatcher'
 include 'core:nodejsAction'
 include 'core:swiftAction'
+include 'core:pythonAction'
 include 'core:javaAction'
 
 include 'services:consul'

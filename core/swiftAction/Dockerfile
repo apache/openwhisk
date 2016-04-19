@@ -5,6 +5,7 @@ FROM ubuntu:14.04
 ENV DEBIAN_FRONTEND noninteractive
 
 # Upgrade and install Swift dependencies.
+RUN apt-get -y purge
 RUN apt-get -y update
 RUN apt-get -y dist-upgrade
 RUN apt-get -y install build-essential wget clang libedit-dev python2.7 python2.7-dev libicu52 rsync libxml2-dev

@@ -40,8 +40,8 @@ import java.util.Base64
  * For Java actions, a base64-encoded string representing a jar file is
  * required, as well as the name of the entrypoint class.
  *
- * exec: { kind  : one of "nodejs", "blackbox", "swift",
- *         code  : code to execute if kind is "nodejs" or "swift",
+ * exec: { kind  : one of "nodejs", "blackbox", "swift", "python"
+ *         code  : code to execute if kind is "nodejs" or "swift" or "python",
  *         init  : optional zipfile reference when kind is "nodejs",
  *         image : container name when kind is "blackbox",
  *         jar   : a base64-encoded JAR file when kind is "java",
@@ -65,6 +65,9 @@ sealed abstract class Exec(val kind: String) {
             case SwiftExec(code) =>
                 gson.add("code", new JsonPrimitive(code))
 
+            case PythonExec(code) =>
+                gson.add("code", new JsonPrimitive(code))
+
             case JavaExec(jar, main) =>
                 gson.add("jar",  new JsonPrimitive(jar))
                 gson.add("main", new JsonPrimitive(main))
@@ -86,6 +89,10 @@ protected[core] case class SwiftExec(code: String) extends Exec(Exec.SWIFT) {
     val image = "whisk/swiftaction"
 }
 
+protected[core] case class PythonExec(code: String) extends Exec(Exec.PYTHON) {
+    val image = "whisk/pythonaction"
+}
+
 protected[core] case class JavaExec(jar: String, main: String) extends Exec(Exec.JAVA) {
     val image = "whisk/javaaction"
 }
@@ -101,6 +108,7 @@ protected[core] object Exec
     protected[core] val BLACKBOX = "blackbox"
     protected[core] val SWIFT    = "swift"
     protected[core] val JAVA     = "java"
+    protected[core] val PYTHON   = "python"
 
     protected[core] def js(code: String, init: String = null): Exec = NodeJSExec(trim(code), Option(init).map(_.trim))
     protected[core] def bb(image: String): Exec = BlackBoxExec(trim(image))
@@ -114,6 +122,7 @@ protected[core] object Exec
             case BlackBoxExec(image)          => JsObject("kind" -> JsString(Exec.BLACKBOX), "image" -> JsString(image))
             case SwiftExec(code)              => JsObject("kind" -> JsString(Exec.SWIFT), "code" -> JsString(code))
             case JavaExec(jar, main)          => JsObject("kind" -> JsString(Exec.JAVA), "jar" -> JsString(jar), "main" -> JsString(main))
+            case PythonExec(code)             => JsObject("kind" -> JsString(Exec.PYTHON), "code" -> JsString(code))
         }
 
         override def read(v: JsValue) = {
@@ -153,6 +162,13 @@ protected[core] object Exec
                     }
                     SwiftExec(code)
 
+                case Exec.PYTHON =>
+                    val code: String = obj.getFields("code") match {
+                        case Seq(JsString(c)) => c
+                        case _ => throw new DeserializationException(s"'code' must be a string defined in 'exec' for '${Exec.PYTHON}' actions")
+                    }
+                    PythonExec(code)
+
                 case Exec.JAVA =>
                     val jar: String = obj.getFields("jar") match {
                         case Seq(JsString(j)) => j //if Try(b64decoder.decode(j)).isSuccess => j
@@ -164,7 +180,7 @@ protected[core] object Exec
                     }
                     JavaExec(jar, main)
 
-                case _ => throw new DeserializationException(s"'kind' must be one of {${Exec.NODEJS},${Exec.BLACKBOX},${Exec.SWIFT},${Exec.JAVA}}")
+                case _ => throw new DeserializationException(s"'kind' must be one of {${Exec.NODEJS},${Exec.BLACKBOX},${Exec.SWIFT},${Exec.JAVA}, ${Exec.PYTHON}")
             }
         }
     }

@@ -156,6 +156,7 @@ class Action(Item):
     #   where initializer is optional, or:
     # { kind: "blackbox", image: "docker image" }, or:
     # { kind: "swift", code: "swift code" }, or:
+    # { kind: "python", code: "python code" }, or:
     # { kind: "java", jar: "base64-encoded JAR", main: "FQN of main class" }
     def getExec(self, args, props):
         exe = {}
@@ -172,6 +173,9 @@ class Action(Item):
             contents = open(args.artifact, 'rb').read()
             if args.artifact.endswith('.swift'):
                 exe['kind'] = 'swift'
+                exe['code'] = contents
+            elif args.artifact.endswith('.py'):
+                exe['kind'] = 'python'
                 exe['code'] = contents
             elif args.artifact.endswith('.jar'):
                 exe['kind'] = 'java'
