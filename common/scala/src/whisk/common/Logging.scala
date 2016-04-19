@@ -24,6 +24,8 @@ import java.time.format.DateTimeFormatter
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
+import scala.util.Try
+
 import spray.json.JsArray
 import spray.json.JsNumber
 import spray.json.JsValue
@@ -33,51 +35,6 @@ import spray.json.RootJsonFormat
 object Verbosity extends Enumeration {
     type Level = Value
     val Quiet, Loud, Debug = Value
-}
-
-/**
- * A transaction id.
- */
-case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
-    override def toString = if (meta.id > 0) s"#tid_${meta.id}" else (if (meta.id < 0) s"#sid_${-meta.id}" else "??")
-}
-
-case class TransactionMetadata(val id: Long, val start: Instant)
-
-object TransactionId {
-    val unknown = TransactionId(0)
-    val testing = TransactionId(-1)                  // unit testing
-    val invoker = TransactionId(-100)                // Invoker startup/shutdown or GC activity
-    val invokerWarmup = TransactionId(-101)          // Invoker warmup thread
-
-    def apply(tid: BigDecimal): TransactionId = {
-        Try {
-            val now = Instant.now(Clock.systemUTC())
-            TransactionId(TransactionMetadata(tid.toLong, now))
-        } getOrElse unknown
-    }
-
-    implicit val serdes = new RootJsonFormat[TransactionId] {
-        def write(t: TransactionId) = JsArray(JsNumber(t.meta.id), JsNumber(t.meta.start.toEpochMilli))
-
-        def read(value: JsValue) = Try {
-            value match {
-                case JsArray(Vector(JsNumber(id), JsNumber(start))) => TransactionId(TransactionMetadata(id.longValue, Instant.ofEpochMilli(start.longValue)))
-                case _ => unknown
-            }
-        } getOrElse unknown
-    }
-}
-
-/**
- * A thread-safe transaction counter.
- */
-trait TransactionCounter {
-    def transid(): TransactionId = {
-        TransactionId(cnt.incrementAndGet())
-    }
-
-    private val cnt = new AtomicInteger(1)
 }
 
 /**
