@@ -31,7 +31,7 @@ class Container(
     pool: ContainerPool,
     val key: String,
     containerName: Option[String],
-    image: String,
+    val image: String,
     network: String,
     pull: Boolean = false,
     val limits: ActionLimits = ActionLimits(),
