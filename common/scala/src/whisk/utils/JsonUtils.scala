@@ -31,6 +31,7 @@ import spray.json.JsValue
 import spray.json.JsArray
 import com.google.gson.JsonPrimitive
 import com.google.gson.JsonNull
+import scala.language.postfixOps
 
 /**
  * Utility functions for manipulating Json objects

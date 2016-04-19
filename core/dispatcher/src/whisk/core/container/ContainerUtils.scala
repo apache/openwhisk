@@ -22,6 +22,7 @@ import whisk.common.TransactionId
 import whisk.core.entity.ActionLimits
 import java.io.File
 import scala.util.Try
+import scala.language.postfixOps
 
 /**
  * Information from docker ps.

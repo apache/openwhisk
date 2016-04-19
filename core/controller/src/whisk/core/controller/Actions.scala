@@ -91,6 +91,7 @@ import whisk.core.entity.WhiskEntityQueries
 import whisk.http.ErrorResponse
 import whisk.http.ErrorResponse.{ terminate }
 import spray.routing.RequestContext
+import scala.language.postfixOps
 
 object WhiskActionsApi {
     def requiredProperties = WhiskServices.requiredProperties ++
@@ -388,24 +389,22 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         // merge package parameters with action (action parameters supersede), then merge in payload
         val args = { env map { _ ++ action.parameters } getOrElse action.parameters } merge payload
         val message = Message(transid, s"/actions/invoke/${action.namespace}/${action.name}/${action.rev}", user, ActivationId(), args)
-        // TODO keep this info msg as is and extract the activation id
-        marker(this, CONTROLLER_CREATE_ACTIVATION, s"[POST] action activation id: ${message.activationId}")
+        info(this, s"[POST] action activation id: ${message.activationId}", CONTROLLER_CREATE_ACTIVATION)
         performLoadBalancerRequest(INVOKER, message, transid) map {
             (action.limits.timeout(), _)
         } flatMap {
             case (duration, response) =>
                 response.id match {
                     case Some(activationId) =>
-                        marker(this, CONTROLLER_ACTIVATION_END)
+                        info(this, "", CONTROLLER_ACTIVATION_END)
                         Future successful (duration, activationId)
                     case None =>
                         if (response.error.getOrElse("??").equals("too many concurrent activations")) {
-                            // got here because of DoS throttle: log marker with warn log level
-                            marker(this, CONTROLLER_ACTIVATION_REJECTED,s"[POST] action activation rejected: ${response.error.getOrElse("??")}", "WARN")
+                            // DoS throttle
+                            warn(this, s"[POST] action activation rejected: ${response.error.getOrElse("??")}", CONTROLLER_ACTIVATION_REJECTED)
                             Future failed new TooManyActivationException("too many concurrent activations")
                         } else {
-                            // log marker with error log level
-                            marker(this, CONTROLLER_ACTIVATION_FAILED, s"[POST] action activation failed: ${response.error.getOrElse("??")}", "ERROR")
+                            error(this, s"[POST] action activation failed: ${response.error.getOrElse("??")}", CONTROLLER_ACTIVATION_FAILED)
                             Future failed new IllegalStateException(s"activation failed with error: ${response.error.getOrElse("??")}")
                         }
                 }
@@ -415,11 +414,11 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                     val docid = DocId(WhiskEntity.qualifiedName(user.namespace, activationId))
                     val timeout = duration + blockingInvokeGrace
                     val promise = Promise[(ActivationId, Option[WhiskActivation])]
-                    marker(this, CONTROLLER_BLOCK_FOR_RESULT, s"[POST] action activation will block on result up to $timeout ($duration + $blockingInvokeGrace grace)")
+                    info(this, s"[POST] action activation will block on result up to $timeout ($duration + $blockingInvokeGrace grace)", CONTROLLER_BLOCK_FOR_RESULT)
                     pollForResult(docid.asDocInfo, activationId, promise)
                     val response = promise.future withTimeout (timeout, new BlockingInvokeTimeout(activationId))
                     response onFailure { case t => promise.tryFailure(t) } // short circuits polling on result
-                    marker(this, CONTROLLER_BLOCKING_ACTIVATION_END)
+                    info(this, "", CONTROLLER_BLOCKING_ACTIVATION_END)
                     response // will either complete with activation or fail with timeout
                 } else Future { (activationId, None) }
         }

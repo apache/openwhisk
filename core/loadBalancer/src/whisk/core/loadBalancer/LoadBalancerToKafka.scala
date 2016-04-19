@@ -62,7 +62,7 @@ trait LoadBalancerToKafka extends Logging {
                     info(this, s"(DoS) '$subject' maxed concurrent invocations")
                     Future.successful(throttleError)
                 } else {
-                    marker(this, LOADBALANCER_POST_KAFKA, s"posting topic '$topic' with activation id '${msg.activationId}'")
+                    info(this, s"posting topic '$topic' with activation id '${msg.activationId}'", LOADBALANCER_POST_KAFKA)
                     producer.send(topic, msg) map { status =>
                         if (component == Message.INVOKER) {
                             activationCounter.next()

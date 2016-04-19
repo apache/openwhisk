@@ -28,6 +28,7 @@ import whisk.core.database.CloudantProvider
 import whisk.core.entity.DocRevision
 import whisk.core.entity.WhiskAuth
 import whisk.core.entity.schema.AuthRecord
+import scala.language.postfixOps
 
 protected[entity] object CloudantReader {
 

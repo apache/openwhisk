@@ -44,6 +44,7 @@ import whisk.core.entity.schema.ActivationRecord
 import whisk.core.entity.schema.AuthRecord
 import whisk.core.entity.schema.EntityRecord
 import java.time.Instant
+import scala.language.postfixOps
 
 package object types {
     type AuthStore = ArtifactStore[AuthRecord, WhiskAuth]

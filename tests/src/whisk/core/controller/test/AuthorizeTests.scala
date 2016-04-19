@@ -49,6 +49,7 @@ import whisk.core.entity.Namespace
 import whisk.core.entitlement.Collection._
 import whisk.core.entitlement.Resource
 import whisk.core.entitlement.Privilege._
+import scala.language.postfixOps
 
 /**
  * Tests authorization handler which guards resources.

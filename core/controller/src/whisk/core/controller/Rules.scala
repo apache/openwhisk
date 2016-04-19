@@ -68,6 +68,7 @@ import whisk.core.entity.ActivationId
 import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.core.connector.ActivationMessage.{ publish, ACTIVATOR }
 import whisk.http.ErrorResponse.{ terminate }
+import scala.language.postfixOps
 
 object WhiskRulesApi {
     def requiredProperties = WhiskServices.requiredProperties ++

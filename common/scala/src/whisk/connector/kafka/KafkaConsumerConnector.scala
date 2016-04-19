@@ -17,6 +17,7 @@
 package whisk.connector.kafka
 
 import java.util.Properties
+import scala.language.postfixOps
 
 import scala.collection.JavaConversions.iterableAsScalaIterable
 import scala.collection.JavaConversions.seqAsJavaList

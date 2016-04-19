@@ -35,6 +35,7 @@ import spray.json.RootJsonFormat
 import spray.json.JsString
 import spray.json.deserializationError
 import spray.json.JsArray
+import scala.language.postfixOps
 
 /**
  * WhiskPackagePut is a restricted WhiskPackage view that eschews properties

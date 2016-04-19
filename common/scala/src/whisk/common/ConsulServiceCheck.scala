@@ -25,6 +25,7 @@ import spray.json.JsNull
 import scala.util.Try
 import spray.json.JsArray
 import spray.json.JsObject
+import scala.language.postfixOps
 
 /**
  * Interface with consul receives the host where a consul agent is running

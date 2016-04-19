@@ -39,6 +39,7 @@ import scala.util.Try
 import scala.util.Failure
 import scala.util.Success
 import scala.concurrent.ExecutionContext
+import scala.language.postfixOps
 
 /**
  * Implements web server to handle certain REST API calls for testing.

@@ -25,6 +25,7 @@ import spray.json.JsValue
 import spray.json.JsNumber
 import spray.json.RootJsonFormat
 import scala.util.Try
+import scala.language.postfixOps
 
 /**
  * TimeLimit encapsulates a duration for an action. The duration must be within a

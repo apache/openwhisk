@@ -51,6 +51,7 @@ import whisk.core.entitlement.EntitlementService
 import whisk.core.entitlement.LocalEntitlementService
 import whisk.core.entitlement.RemoteEntitlementService
 import whisk.core.loadBalancer.LoadBalancerService
+import scala.language.postfixOps
 
 object WhiskServices extends LoadbalancerRequest {
 

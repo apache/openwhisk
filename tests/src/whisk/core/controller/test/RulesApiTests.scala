@@ -54,6 +54,7 @@ import whisk.http.ErrorResponse
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.SECONDS
+import scala.language.postfixOps
 
 /**
  * Tests Rules API.

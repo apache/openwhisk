@@ -24,12 +24,11 @@ import java.time.format.DateTimeFormatter
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
-import scala.util.Try
-
 import spray.json.JsArray
 import spray.json.JsNumber
 import spray.json.JsValue
 import spray.json.RootJsonFormat
+
 
 object Verbosity extends Enumeration {
     type Level = Value
@@ -83,7 +82,6 @@ trait TransactionCounter {
 
 /**
  * A logging facility in which output is one line and fields are bracketed.
- *
  */
 trait Logging {
     var outputStream: PrintStream = Console.out
@@ -96,42 +94,53 @@ trait Logging {
     def setComponentName(comp: String) =
         this.componentName = comp
 
-    def debug(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) =
-        if (level == Verbosity.Debug)
-            emit("DEBUG", id, from, message)
-
-    def info(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) =
-        if (level != Verbosity.Quiet)
-            emit("INFO", id, from, message)
-
-    def warn(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) =
-        if (level != Verbosity.Quiet)
-            emit("WARN", id, from, message)
-
-    def error(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) =
-        emit("ERROR", id, from, message)
-
-    def marker(from: AnyRef, token: String, msg: String = "", category: AnyRef = "INFO")(implicit id: TransactionId = TransactionId.unknown) = {
-        val now = Instant.now(Clock.systemUTC())
-        val firstDiff = now.toEpochMilli - id.meta.start.toEpochMilli
-        emit(category, id, from, s"[marker:$token:$firstDiff] $msg", now)
+    def debug(from: AnyRef, message: String, marker: String = null)(implicit id: TransactionId = TransactionId.unknown) = {
+        val mark = id.mark(marker)
+        if (level == Verbosity.Debug || mark.isDefined)
+            emit("DEBUG", id, from, message, mark)
     }
 
-    def emit(category: AnyRef, id: TransactionId, from: AnyRef, message: String, now: Instant = Instant.now(Clock.systemUTC())) = {
+    def info(from: AnyRef, message: String, marker: String = null)(implicit id: TransactionId = TransactionId.unknown) = {
+        val mark = id.mark(marker)
+        if (level != Verbosity.Quiet || mark.isDefined)
+            emit("INFO", id, from, message, mark)
+    }
+
+    def warn(from: AnyRef, message: String, marker: String = null)(implicit id: TransactionId = TransactionId.unknown) = {
+        val mark = id.mark(marker)
+        if (level != Verbosity.Quiet || mark.isDefined)
+            emit("WARN", id, from, message, mark)
+    }
+
+    def error(from: AnyRef, message: String, marker: String = null)(implicit id: TransactionId = TransactionId.unknown) = {
+        emit("ERROR", id, from, message, id.mark(marker))
+    }
+
+
+    def emit(category: AnyRef, id: TransactionId, from: AnyRef, message: String, mark: Option[LogMarker] = None) = {
+        val now = mark map { _.now } getOrElse Instant.now(Clock.systemUTC)
         val time = Logging.timeFormat.format(now)
-        val name = if (from.isInstanceOf[String]) {
-            from
-        } else Logging.getCleanSimpleClassName(from.getClass)
-        if (componentName != "")
-            outputStream.println(s"[$time] [$category] [$id] [$componentName] [$name] $message")
-        else
-            outputStream.println(s"[$time] [$category] [$id] [$name] $message")
+        val name = if (from.isInstanceOf[String]) from else Logging.getCleanSimpleClassName(from.getClass)
+        val msg = mark map { m => s"[marker:${m.token}:${m.delta}] $message" } getOrElse message
+
+        if (componentName != "") {
+            outputStream.println(s"[$time] [$category] [$id] [$componentName] [$name] $msg")
+        } else {
+            outputStream.println(s"[$time] [$category] [$id] [$name] $msg")
+        }
     }
 
     private var level = Verbosity.Quiet
     private var componentName = "";
     private var sequence = new AtomicInteger()
 }
+
+/**
+ * A triple representing the timestamp relative to which the elapsed time was computed,
+ * typically for a TransactionId, the elapsed time in milliseconds and a string containing
+ * the given marker token.
+ */
+protected case class LogMarker(now: Instant, delta: Long, token: String)
 
 private object Logging {
     /**

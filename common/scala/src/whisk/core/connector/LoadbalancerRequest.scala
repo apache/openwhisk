@@ -17,6 +17,7 @@
 package whisk.core.connector
 
 import scala.concurrent.ExecutionContext
+import scala.language.postfixOps
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 

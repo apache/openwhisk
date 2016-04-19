@@ -39,6 +39,7 @@ import whisk.core.entity.Namespace
 import whisk.core.entity.Parameters
 import whisk.core.entity.Subject
 import whisk.http.ErrorResponse.terminate
+import scala.language.postfixOps
 
 /** A trait implementing the basic operations on WhiskEntities in support of the various APIs. */
 trait WhiskCollectionAPI

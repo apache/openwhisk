@@ -74,6 +74,7 @@ import whisk.core.entity.WhiskAuthStore
 import whisk.core.entity.WhiskEntity
 import whisk.core.entity.WhiskEntityStore
 import whisk.http.BasicHttpService
+import scala.language.postfixOps
 
 /**
  * A kafka message handler that invokes actions as directed by message on topic "/actions/invoke".
@@ -150,36 +151,36 @@ class Invoker(
         // caching is enabled since actions have revision id and an updated
         // action will not hit in the cache due to change in the revision id;
         // if the doc revision is missing, then bypass cache
-        marker(this, INVOKER_FETCH_ACTION_START)
+        info(this, "", INVOKER_FETCH_ACTION_START)
         val actionFuture = WhiskAction.get(entityStore, action, action.rev != DocRevision())
         actionFuture onFailure {
-            case t => marker(this, INVOKER_FETCH_ACTION_FAILED, s"failed to fetch action ${action.id}: ${t.getMessage}", "ERROR")
+            case t => error(this, s"failed to fetch action ${action.id}: ${t.getMessage}", INVOKER_FETCH_ACTION_FAILED)
         }
 
-        marker(this, INVOKER_FETCH_AUTH_START)
+        info(this, "", INVOKER_FETCH_AUTH_START)
         // keys are immutable, cache them
         val authFuture = WhiskAuth.get(authStore, subject, true)
         authFuture onFailure {
-            case t => marker(this, INVOKER_FETCH_AUTH_FAILED, s"failed to fetch auth key for $subject: ${t.getMessage}", "ERROR")
-        }
+            case t => error(this, s"failed to fetch auth key for $subject: ${t.getMessage}", INVOKER_FETCH_AUTH_FAILED)
 
+        }
         // when records are fetched, invoke action
         val activationDocFuture =
             actionFuture flatMap { theAction =>
                 // assume this future is done here
-                marker(this, INVOKER_FETCH_ACTION_DONE)
+                info(this, "", INVOKER_FETCH_ACTION_DONE)
                 authFuture flatMap { theAuth =>
                     // assume this future is done here
-                    marker(this, INVOKER_FETCH_AUTH_DONE)
+                    info(this, "", INVOKER_FETCH_AUTH_DONE)
                     invokeAction(theAction, theAuth, payload, tran)
                 }
             }
         activationDocFuture onComplete {
             case Success(activationDoc) =>
-                marker(this, INVOKER_ACTIVATION_END, s"recorded activation '$activationDoc'")
+                info(this, s"recorded activation '$activationDoc'", INVOKER_ACTIVATION_END)
                 activationDoc
             case Failure(t) =>
-                marker(this, INVOKER_FAILED_ACTIVATION, s"action ${action.id}")
+                info(this, s"action ${action.id}", INVOKER_FAILED_ACTIVATION)
                 completeTransactionWithError(action, tran, s"failed to invoke action ${action.id}: ${t.getMessage}")
         }
 
@@ -219,9 +220,9 @@ class Invoker(
                     activationCounter.next() // this is the global invoker counter
                     incrementUserActivationCounter(tran.msg.subject)
                     // Since there is no active action taken for completion from the invoker, writing activation record is it.
-                    marker(this, INVOKER_RECORD_ACTIVATION_START, "recording the activation result to the data store")
+                    info(this, "recording the activation result to the data store", INVOKER_RECORD_ACTIVATION_START)
                     val result = WhiskActivation.put(activationStore, activation)
-                    marker(this, INVOKER_RECORD_ACTIVATION_DONE, "finished recording the activation result")
+                    info(this, "finished recording the activation result", INVOKER_RECORD_ACTIVATION_DONE)
                     tran.result = Some(result)
                     result
                 }

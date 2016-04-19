@@ -47,6 +47,7 @@ import whisk.core.entity.WhiskAuth
 import whisk.core.entity.WhiskAuthStore
 import whisk.core.entity.WhiskEntityStore
 import whisk.utils.ExecutionContextFactory
+import scala.language.postfixOps
 
 /**
  * Unit tests for ContainerPool and, by association, Container and WhiskContainer.

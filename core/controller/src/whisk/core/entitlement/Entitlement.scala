@@ -36,6 +36,7 @@ import whisk.core.entity.Namespace
 import whisk.core.entity.Parameters
 import whisk.core.entity.Subject
 import whisk.http.ErrorResponse
+import scala.language.postfixOps
 
 package object types {
     type Entitlements = TrieMap[(Subject, String), Set[Privilege]]
