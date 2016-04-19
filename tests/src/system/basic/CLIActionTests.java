@@ -22,6 +22,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -118,6 +119,10 @@ public class CLIActionTests {
         }
     }
 
+    private static String[] testSentences = new String[] {
+            "Mary had a little lamb, little lamb, little lamb, da.",
+            "It was the best of times.  It was the worst of times.",
+            "To be or not to be" };
 
     @Test(timeout=240*1000)
     public void twoAction() throws Exception {
@@ -128,7 +133,7 @@ public class CLIActionTests {
             wsk.createAction("twoAction2", TestUtils.getCatalogFilename("samples/wc.js"));
             ArrayList<String> expected = new ArrayList<String>();
             ArrayList<String> activationIds = new ArrayList<String>();
-            for (String s : CLIBasicTests.testSentences) {
+            for (String s : testSentences) {
                 String word = s.substring(0, s.indexOf(' '));
                 String activationId = wsk.invoke("twoAction1", TestUtils.makeParameter("payload", word));
                 expected.add(word);
@@ -441,4 +446,36 @@ public class CLIActionTests {
         }
     }
 
+    /**
+     * Test creating an action from a js file always returning an application error.
+     * The invocation should succeed, the activation result should contain an error as
+     * defined in the action and the logs should be empty.
+     */
+    @Test
+    public void applicationError() throws Exception {
+        for(int i = 1; i <= 2; i++) {
+            String actionName = "APPLICATIONERROR" + i;
+            String result;
+
+            wsk.sanitize(Action, actionName);
+            result = wsk.createAction(actionName,  TestUtils.getTestActionFilename("applicationError" + i + ".js"));
+            assertTrue(result, result.contains("ok: created"));
+
+            String activationId = wsk.invoke(actionName, Collections.<String,String>emptyMap());
+
+            boolean bool = wsk.checkResultFor(activationId, "error thrown on purpose", 45);
+            assertTrue("result must contain 'error'.", bool);
+
+            RunResult logs = wsk.getLogsForActivation(activationId);
+
+            String stdout = logs.stdout.trim();
+            String stderr = logs.stderr.trim();
+
+            assertTrue("stdout should be empty, was:\n" + stdout, stdout.isEmpty());
+            assertTrue("stderr should be empty, was:\n" + stderr, stderr.isEmpty());
+
+            result = wsk.delete(Action, actionName);
+            assertTrue(result, result.contains("ok: deleted"));
+        }
+    }
 }
