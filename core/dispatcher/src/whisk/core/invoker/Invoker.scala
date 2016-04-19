@@ -63,6 +63,7 @@ import whisk.core.entity.DocInfo
 import whisk.core.entity.DocRevision
 import whisk.core.entity.EntityName
 import whisk.core.entity.Namespace
+import whisk.core.entity.NodeJSExec
 import whisk.core.entity.SemVer
 import whisk.core.entity.Subject
 import whisk.core.entity.WhiskAction
@@ -220,6 +221,10 @@ class Invoker(
         }
     }
 
+    // These are related to initialization
+    private val RegularSlack  = 100 // millis
+    private val BlackBoxSlack = 200 // millis
+
     protected def invokeAction(action: WhiskAction, auth: WhiskAuth, payload: JsObject, tran: Transaction)(
         implicit transid: TransactionId): Future[DocInfo] = {
         val msg = tran.msg
@@ -242,11 +247,8 @@ class Invoker(
             } flatMap {
                 case (failedInit, (start, end, response)) =>
                     if (!failedInit) tran.runInterval = Some(start, end)
-                    val size = waitForLogs(con)
-                    val rawContents = con.getDockerLogContent(con.lastLogSize, size, runningInContainer)
-                    val contents = processJsonDriverLogContents(con.name, con.lastLogSize, size, rawContents)
+                    val contents = getContainerLogs(con)
                     val activation = makeWhiskActivation(tran, con.isBlackbox, msg, action, payload, response, contents)
-                    con.lastLogSize = size
                     // only for whitebox testing - deprecated and going away soon
                     putContainerName(activation.activationId, con.name + "@" + con.containerIP.get)
                     val res = completeTransaction(tran, activation)
@@ -264,50 +266,72 @@ class Invoker(
         }
     }
 
-    private val RegularSlack = 100 // millis
-    private val BlackBoxSlack = 200 // millis
-    private val AdditionalSlack = 200 // millis
 
     // The nodeJsAction runner inserts this line in the logs at the end
     // of each activation
-    private val END_OF_ACTIVATION_MARKER = "XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX"
+    private val LogRetryCount = 10
+    private val LogRetry = 100 // millis
+    private val LOG_ACTIVATION_SENTINEL = "XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX"
+
+    /*
+     * Get the action container's logs from the docker json driver's output from the file system.
+     */
+    private def getContainerLogs(con: WhiskContainer)(implicit transid: TransactionId): JsArray = {
+        val incrementalLog = waitForLogs(con)
+        processJsonDriverLogContents(con.name, incrementalLog)
+    }
+
+
+    val nodejsImageName = WhiskAction.containerImageName(NodeJSExec("", None), config.dockerRegistry, config.dockerImageTag)
 
     /**
-     * Waits for log cursor to advance. This will retry up to 'abort' times
+     * Waits for log cursor to advance. This will retry up to tries times
      * if the curor has not yet advanced. This will penalize containers that
      * do not log. It is OK for nodejs containers because the runtime emits
      * the END_OF_ACTIVATION_MARKER automatically and that advances the cursor.
      *
-     * Splitting the logs from the response of the activation will reduce this
-     * delay.
+     * Note: Updates the container's log cursor to indicate consumption of log.
      */
-    private def waitForLogs(con: WhiskContainer, abort: Int = 3)(implicit transid: TransactionId): Long = {
+    private def waitForLogs(con: WhiskContainer, tries: Int = LogRetryCount)(implicit transid: TransactionId): String = {
         val size = con.getLogSize(runningInContainer)
-        if (size == con.lastLogSize && abort > 0) {
-            info(this, s"log cursor has not yet advanced, trying $abort more ${if (abort == 1) "time" else "times"}")
-            Thread.sleep(AdditionalSlack)
-            waitForLogs(con, abort - 1)
-        } else size
+        val advanced = size != con.lastLogSize
+        if (tries <= 0 || advanced) {
+            val rawLogBytes = con.getDockerLogContent(con.lastLogSize, size, runningInContainer)
+            val rawLog = new String(rawLogBytes, "UTF-8")
+            val isNodeJs = con.image == nodejsImageName
+            // If nodeJs, we wait til we see the sentinel unless we are out of tries
+            if (tries > 0 && isNodeJs && !rawLog.contains(LOG_ACTIVATION_SENTINEL)) {
+                info(this, s"log cursor advanced but missing sentinel, trying $tries more times")
+                Thread.sleep(LogRetry)
+                waitForLogs(con, tries-1)
+            } else {
+                con.lastLogSize = size
+                rawLog
+            }
+        } else {
+            info(this, s"log cursor has not advanced, trying $tries more times")
+            Thread.sleep(LogRetry)
+            waitForLogs(con, tries-1)
+        }
     }
 
     /**
      * Checks if msg hold a normal user-generated log message.
      */
-    private def containsNormalLogMessage(msg: JsObject): Boolean = {
+    private def isNormalLogMessage(msg: JsObject): Boolean = {
         msg.fields.get("log") map {
-            case JsString(s) => s.trim != END_OF_ACTIVATION_MARKER
+            case JsString(s) => s.trim != LOG_ACTIVATION_SENTINEL
             case _           => false
         } getOrElse false
     }
+
 
     /**
      * Checks the output of the docker json-file log driver is not truncated (not flushed).
      * It returns a possibly sanitized version of the output.
      */
-    private def processJsonDriverLogContents(name: String, start: Long, end: Long, contents: Array[Byte])(
+    private def processJsonDriverLogContents(name: String, logMsgs: String)(
         implicit transid: TransactionId): JsArray = {
-        val logMsgs = new String(contents, "UTF-8")
-        info(this, s"!!! $name $start..$end")
 
         if (logMsgs.nonEmpty) {
             JsArray(logMsgs.split("\n") map { l =>
@@ -318,7 +342,7 @@ class Invoker(
             } filter {
                 case Success(t) =>
                     // drop message if it contains a system marker
-                    containsNormalLogMessage(t)
+                    isNormalLogMessage(t)
                 case Failure(t) =>
                     // drop lines that did not parse to JSON objects
                     // but this is an error since we are using the json log driver (not dependent on user logic)
