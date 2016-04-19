@@ -93,7 +93,7 @@ object WhiskTrigger
             revision[WhiskTrigger](r.docinfo.rev)
     }
 
-    override val cacheEnabled = true
+    override val cacheEnabled = false //disabled for now until redis in place
     override def cacheKeys(w: WhiskTrigger) = Set(w.docid.asDocInfo, w.docinfo)
 }
 
