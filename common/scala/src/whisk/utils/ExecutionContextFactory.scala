@@ -26,6 +26,7 @@ import scala.concurrent.duration.FiniteDuration
 import akka.actor.ActorSystem
 import akka.pattern.after
 import java.util.concurrent.Executors
+import scala.language.postfixOps
 
 object ExecutionContextFactory {
 

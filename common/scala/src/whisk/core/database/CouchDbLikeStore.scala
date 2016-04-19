@@ -28,6 +28,7 @@ import whisk.common.TransactionId
 import whisk.core.entity.DocInfo
 import whisk.utils.ExecutionContextFactory
 import spray.json.JsArray
+import scala.language.postfixOps
 
 /**
  * Basic client to put and delete artifacts in a data store.

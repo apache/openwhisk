@@ -90,6 +90,7 @@ import whisk.core.entity.WhiskEntityQueries
 import whisk.http.ErrorResponse
 import whisk.http.ErrorResponse.{ terminate }
 import spray.routing.RequestContext
+import scala.language.postfixOps
 
 object WhiskActionsApi {
     def requiredProperties = WhiskServices.requiredProperties ++

@@ -45,6 +45,7 @@ import scala.util.Failure
 import scala.util.Success
 import whisk.http.ErrorResponse.{ terminate }
 import whisk.http.ErrorResponse
+import scala.language.postfixOps
 
 /** A trait for routes that require entitlement checks. */
 trait BasicAuthorizedRouteProvider extends Directives with Logging {

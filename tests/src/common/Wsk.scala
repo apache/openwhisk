@@ -33,6 +33,7 @@ import TestUtils.SUCCESS_EXIT
 import common.TestUtils.RunResult
 import spray.json.JsValue
 import whisk.utils.retry
+import scala.language.postfixOps
 
 /**
  * Provide Scala bindings for the whisk CLI.

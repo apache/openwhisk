@@ -21,6 +21,7 @@ import scala.concurrent.duration.DurationInt
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
+import scala.language.postfixOps
 
 object retry {
     /**

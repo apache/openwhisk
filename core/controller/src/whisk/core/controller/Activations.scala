@@ -51,6 +51,7 @@ import whisk.core.entitlement.Privilege
 import whisk.core.entitlement.Privilege.READ
 import whisk.core.entitlement.Resource
 import whisk.core.entity.WhiskAuth
+import scala.language.postfixOps
 
 object WhiskActivationsApi {
     def requiredProperties = WhiskActivationStore.requiredProperties

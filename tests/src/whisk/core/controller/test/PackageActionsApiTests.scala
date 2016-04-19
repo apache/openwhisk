@@ -63,6 +63,7 @@ import whisk.core.controller.WhiskPackagesApi
 import whisk.core.entity.WhiskPackagePut
 import whisk.core.entity.WhiskEntity
 import whisk.utils.retry
+import scala.language.postfixOps
 
 /**
  * Tests Packages API.

@@ -46,6 +46,8 @@ import whisk.core.entity.Secret
 import whisk.core.entity.SemVer
 import whisk.core.entity.TimeLimit
 import whisk.core.entity.UUID
+import scala.language.postfixOps
+import scala.language.reflectiveCalls
 
 @RunWith(classOf[JUnitRunner])
 class SchemaTests extends FlatSpec with BeforeAndAfter {

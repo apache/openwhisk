@@ -33,6 +33,8 @@ import spray.json.DefaultJsonProtocol.mapFormat
 import spray.json.RootJsonFormat
 import spray.json.deserializationError
 import spray.json.pimpAny
+import scala.language.postfixOps
+import scala.language.reflectiveCalls
 
 /**
  * Parameters is a key-value map from parameter names to parameter values. The value of a

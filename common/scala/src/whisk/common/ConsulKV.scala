@@ -27,6 +27,7 @@ import spray.json.JsArray
 import org.apache.jute.compiler.JString
 import spray.json.JsString
 import spray.json.JsObject
+import scala.language.postfixOps
 
 /**
  * See https://www.consul.io/intro/getting-started/kv.html

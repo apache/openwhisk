@@ -47,6 +47,8 @@ import whisk.core.entity.Status
 import whisk.core.entity.Subject
 import whisk.core.entity.WhiskEntityStore
 import whisk.core.entity.WhiskRule
+import scala.language.postfixOps
+import scala.language.reflectiveCalls
 
 @RunWith(classOf[JUnitRunner])
 class ActivatorTests extends FlatSpec

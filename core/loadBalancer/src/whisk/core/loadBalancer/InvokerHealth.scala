@@ -36,6 +36,7 @@ import whisk.common.Verbosity
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.consulServer
 import whisk.core.connector.{ ActivationMessage => Message }
+import scala.language.postfixOps
 
 object InvokerHealth {
     val requiredProperties = consulServer

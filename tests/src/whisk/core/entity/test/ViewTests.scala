@@ -57,6 +57,7 @@ import whisk.core.entity.WhiskRule
 import whisk.core.entity.WhiskTrigger
 import java.util.Date
 import org.scalatest.BeforeAndAfterAll
+import scala.language.postfixOps
 
 @RunWith(classOf[JUnitRunner])
 class ViewTests extends FlatSpec

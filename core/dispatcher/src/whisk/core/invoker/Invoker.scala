@@ -73,6 +73,7 @@ import whisk.core.entity.WhiskAuthStore
 import whisk.core.entity.WhiskEntity
 import whisk.core.entity.WhiskEntityStore
 import whisk.http.BasicHttpService
+import scala.language.postfixOps
 
 /**
  * A kafka message handler that invokes actions as directed by message on topic "/actions/invoke".

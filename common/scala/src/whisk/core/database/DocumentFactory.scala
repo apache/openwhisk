@@ -26,6 +26,7 @@ import whisk.common.Logging
 import scala.concurrent.Promise
 import whisk.core.entity.DocRevision
 import whisk.core.entity.DocRevision
+import scala.language.implicitConversions
 
 /**
  * A common trait for all records that are stored in the datastore requiring an _id field,

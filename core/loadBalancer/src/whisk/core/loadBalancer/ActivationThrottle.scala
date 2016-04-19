@@ -28,6 +28,7 @@ import whisk.common.ConsulKV
 import whisk.common.ConsulKV.LoadBalancerKeys
 import whisk.common.Counter
 import whisk.common.Logging
+import scala.language.postfixOps
 
 
 class ActivationThrottle(consulServer: String,

@@ -43,6 +43,7 @@ import whisk.core.entity.DocId
 import java.util.concurrent.TimeoutException
 import whisk.common.TransactionCounter
 import whisk.utils.ExecutionContextFactory
+import scala.language.postfixOps
 
 trait DbUtils extends TransactionCounter {
 

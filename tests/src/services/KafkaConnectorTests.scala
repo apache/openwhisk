@@ -35,6 +35,7 @@ import whisk.connector.kafka.KafkaProducerConnector
 import whisk.core.WhiskConfig
 import whisk.core.connector.Message
 import whisk.utils.ExecutionContextFactory
+import scala.language.postfixOps
 
 @RunWith(classOf[JUnitRunner])
 class KafkaConnectorTests extends FlatSpec with Matchers with BeforeAndAfter {

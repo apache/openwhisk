@@ -52,6 +52,7 @@ import whisk.core.entity.WhiskAuth
 import whisk.core.entity.WhiskAuthStore
 import whisk.core.entity.WhiskEntityStore
 import whisk.core.invoker.Invoker
+import scala.language.postfixOps
 
 @RunWith(classOf[JUnitRunner])
 class InvokerTests extends FlatSpec

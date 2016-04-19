@@ -27,6 +27,7 @@ import spray.json.JsValue
 import spray.json.RootJsonFormat
 import spray.json.deserializationError
 import spray.json.pimpAny
+import scala.language.postfixOps
 
 /**
  * An activation id, is a unique id assigned to activations (invoke action or fire trigger).
