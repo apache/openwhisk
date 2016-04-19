@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import spray.json.JsObject
 import spray.json.JsString
 import whisk.common.HttpUtils
+import whisk.common.LoggingMarkers._
 import whisk.common.TransactionId
 import whisk.core.entity.ActionLimits
 
@@ -42,7 +43,7 @@ class WhiskContainer(
     args: Array[String] = Array())
     extends Container(originalId, pool, key, Some(containerName), image, network, pull, limits, env, args) {
 
-    var boundParams = JsObject()  // Mutable to support pre-alloc containers
+    var boundParams = JsObject() // Mutable to support pre-alloc containers
     var lastLogSize = 0L
     val initTimeoutMilli = 60000
 
@@ -67,7 +68,6 @@ class WhiskContainer(
         JsObject(boundParams.fields ++ payload.fields)
     }
 
-
     /**
      * Send initialization payload to container.
      */
@@ -75,8 +75,8 @@ class WhiskContainer(
         val start = ContainerCounter.now()
         // this shouldn't be needed but leave it for now
         if (isBlackbox) Thread.sleep(3000)
-        info(this, s"sending initialization to ${this.details}")
-        val result = sendPayload("/init", JsObject("value" -> args), initTimeoutMilli)   // This will retry.
+        info(this, s"sending initialization to ${this.details}", INVOKER_CONTAINER_INIT)
+        val result = sendPayload("/init", JsObject("value" -> args), initTimeoutMilli) // This will retry.
         val end = ContainerCounter.now()
         info(this, s"initialization result: ${result}")
         (start, end, result)
@@ -88,12 +88,11 @@ class WhiskContainer(
      * @param state the value of the status to compare the actual state against
      * @return triple of start time, end time, response for user action.
      */
-    def run(args: JsObject, meta: JsObject, authKey : String, timeout: Int, actionName: String, activationId: String)
-           (implicit transid: TransactionId): RunResult = {
+    def run(args: JsObject, meta: JsObject, authKey: String, timeout: Int, actionName: String, activationId: String)(implicit transid: TransactionId): RunResult = {
         val start = ContainerCounter.now()
-        info("Invoker", s"sending arguments to $actionName $details")
+        info("Invoker", s"sending arguments to $actionName $details", INVOKER_SEND_ARGS)
         val response = sendPayload("/run", JsObject(meta.fields + ("value" -> args) + ("authKey" -> JsString(authKey))), timeout)
-        info("Invoker", s"finished running activation id: $activationId")
+        info("Invoker", s"finished running activation id: $activationId", INVOKER_ACTIVATION_END)
         (start, ContainerCounter.now(), response)
     }
 

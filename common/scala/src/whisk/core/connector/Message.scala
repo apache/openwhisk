@@ -83,14 +83,5 @@ object ActivationMessage extends DefaultJsonProtocol {
         serdes.read(msg.parseJson)
     }
 
-    private implicit object TransidJsonFormat extends RootJsonFormat[TransactionId] {
-        def write(tid: TransactionId) = tid.id.toJson
-
-        def read(value: JsValue) = Try {
-            val JsNumber(tid) = value
-            TransactionId(tid).get
-        } getOrElse deserializationError("transaction id malformed")
-    }
-
     implicit val serdes = jsonFormat6(ActivationMessage.apply)
 }
