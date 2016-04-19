@@ -43,8 +43,7 @@ public class WhiskProperties {
     /**
      * The deployment target, e.g., local.
      */
-    //public static final String deployTarget = System.getProperty("deploy.target");
-    public static final String deployTarget = "local";
+    public static final String deployTarget = System.getProperty("deploy.target");
 
     /**
      * If true, then tests will direct to the router rather than the edge
