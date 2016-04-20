@@ -37,12 +37,12 @@ class TestDispatcher(topic: String)
         producer.send(topic, msg)
     }
 
-    def onMessage(process: Array[Byte] => Boolean): Unit = {
+    def onMessage(process: (String, Array[Byte]) => Boolean): Unit = {
         new Thread {
             override def run() = while (!closed) {
                 val msg = queue.take()
                 println(s"received message for '$topic' ${new String(msg, "utf-8")}")
-                process(msg)
+                process(topic, msg)
             }
         }.start
     }

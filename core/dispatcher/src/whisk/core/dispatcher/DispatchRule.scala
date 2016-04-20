@@ -42,10 +42,11 @@ abstract class DispatchRule(
      * The method is run inside a future. If the method fails with an exception, the exception completes
      * the wrapping future within which the method is run.
      *
+     * @param topic the topic the message came in on
      * @param msg the Message object to process
      * @param matches a sequences of pattern matches that triggered this action
      * @param transid the transaction id for the kafka message
      * @return Future that execute the handler
      */
-    def doit(msg: Message, matches: Seq[Match])(implicit transid: TransactionId): Future[Any]
+    def doit(topic: String, msg: Message, matches: Seq[Match])(implicit transid: TransactionId): Future[Any]
 }

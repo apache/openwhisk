@@ -98,7 +98,7 @@ class ActivatorTests extends FlatSpec
         put(datastore, rule)
 
         // send activator message to activate
-        val future = activator.doit(message, activator.matches(s"/rules/${Status.ACTIVATING}/${rule.docid}"))
+        val future = activator.doit("someTopic", message, activator.matches(s"/rules/${Status.ACTIVATING}/${rule.docid}"))
         future onFailure { case t => println(t) }
         val result = Await.result(future, timeout)
 
@@ -116,7 +116,7 @@ class ActivatorTests extends FlatSpec
         put(datastore, rule)
 
         // send activator message to activate
-        val future = activator.doit(message, activator.matches(s"/rules/${Status.ACTIVATING}/${rule.docid}"))
+        val future = activator.doit("someTopic", message, activator.matches(s"/rules/${Status.ACTIVATING}/${rule.docid}"))
         future onFailure { case t => println(t) }
         val result = Await.result(future, timeout)
 
@@ -130,7 +130,7 @@ class ActivatorTests extends FlatSpec
         put(datastore, newRule)
 
         intercept[IllegalStateException] {
-            val future = activator.doit(message, activator.matches(s"/rules/${Status.ACTIVATING}/${rule.docid}"))
+            val future = activator.doit("someTopic", message, activator.matches(s"/rules/${Status.ACTIVATING}/${rule.docid}"))
             future onFailure { case t => println(t) }
             val result = Await.result(future, timeout)
         }
@@ -144,7 +144,7 @@ class ActivatorTests extends FlatSpec
         put(datastore, rule)
 
         // send activator message to activate
-        val future = activator.doit(message, activator.matches(s"/rules/${Status.ACTIVATING}/${rule.docid}"))
+        val future = activator.doit("someTopic", message, activator.matches(s"/rules/${Status.ACTIVATING}/${rule.docid}"))
         future onFailure { case t => println(t) }
         val result = Await.result(future, timeout)
 
@@ -156,7 +156,7 @@ class ActivatorTests extends FlatSpec
         // set state to deactivating in datastore
         val newRule = updatedRule.toggle(Status.DEACTIVATING)
         put(datastore, newRule); {
-            val future = activator.doit(message, activator.matches(s"/rules/${Status.DEACTIVATING}/${rule.docid}"))
+            val future = activator.doit("someTopic", message, activator.matches(s"/rules/${Status.DEACTIVATING}/${rule.docid}"))
             future onFailure { case t => println(t) }
             val result = Await.result(future, timeout)
 
@@ -172,7 +172,7 @@ class ActivatorTests extends FlatSpec
             val rule = WhiskRule(namespace, EntityName("fail when enabling already enabled rule"), Status.ACTIVE, EntityName("a trigger"), EntityName("an action"))
             val message = Message(tid, "", Subject(), ActivationId(), None, None)
             put(datastore, rule)
-            val future = activator.doit(message, activator.matches(s"/rules/${Status.ACTIVATING}/${rule.docid}"))
+            val future = activator.doit("someTopic", message, activator.matches(s"/rules/${Status.ACTIVATING}/${rule.docid}"))
             future onFailure { case t => println(t) }
             val result = Await.result(future, timeout)
         }
@@ -185,7 +185,7 @@ class ActivatorTests extends FlatSpec
             val message = Message(tid, "", Subject(), ActivationId(), None, None)
             put(datastore, rule)
             val msg = JsObject("subject" -> "some test subject".toJson)
-            val future = activator.doit(message, activator.matches(s"/rules/${Status.ACTIVATING}/${rule.docid}"))
+            val future = activator.doit("someTopic", message, activator.matches(s"/rules/${Status.ACTIVATING}/${rule.docid}"))
             future onFailure { case t => println(t) }
             val result = Await.result(future, timeout)
         }
@@ -198,7 +198,7 @@ class ActivatorTests extends FlatSpec
             val message = Message(tid, "", Subject(), ActivationId(), None, None)
             put(datastore, rule)
             val msg = JsObject("subject" -> "some test subject".toJson)
-            val future = activator.doit(message, activator.matches(s"/rules/${Status.DEACTIVATING}/${rule.docid}"))
+            val future = activator.doit("someTopic", message, activator.matches(s"/rules/${Status.DEACTIVATING}/${rule.docid}"))
             future onFailure { case t => println(t) }
             val result = Await.result(future, timeout)
         }
@@ -211,7 +211,7 @@ class ActivatorTests extends FlatSpec
             val message = Message(tid, "", Subject(), ActivationId(), None, None)
             put(datastore, rule)
             val msg = JsObject("subject" -> "some test subject".toJson)
-            val future = activator.doit(message, activator.matches(s"/rules/${Status.DEACTIVATING}/${rule.docid}"))
+            val future = activator.doit("someTopic", message, activator.matches(s"/rules/${Status.DEACTIVATING}/${rule.docid}"))
             future onFailure { case t => println(t) }
             val result = Await.result(future, timeout)
         }
@@ -224,7 +224,7 @@ class ActivatorTests extends FlatSpec
             val message = Message(tid, "", Subject(), ActivationId(), None, None)
             put(datastore, rule)
             val msg = JsObject("subject" -> "some test subject".toJson)
-            val future = activator.doit(message, activator.matches(s"/rules/${Status.DEACTIVATING}/${rule.docid}"))
+            val future = activator.doit("someTopic", message, activator.matches(s"/rules/${Status.DEACTIVATING}/${rule.docid}"))
             future onFailure { case t => println(t) }
             val result = Await.result(future, timeout)
         }
@@ -233,13 +233,13 @@ class ActivatorTests extends FlatSpec
     it should "fail when arguments do not conform" in {
         implicit val tid = transid()
         intercept[IllegalArgumentException] {
-            val future = activator.doit(null, activator.matches(s"/rules/${Status.ACTIVATING}/"))
+            val future = activator.doit("someTopic", null, activator.matches(s"/rules/${Status.ACTIVATING}/"))
             future onFailure { case t => println(t) }
             val result = Await.result(future, timeout)
         }
 
         intercept[IllegalArgumentException] {
-            val future = activator.doit(null, activator.matches(s"/rules/${Status.ACTIVATING}/xyz"))
+            val future = activator.doit("someTopic", null, activator.matches(s"/rules/${Status.ACTIVATING}/xyz"))
             future onFailure { case t => println(t) }
             val result = Await.result(future, timeout)
         }

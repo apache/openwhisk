@@ -78,7 +78,7 @@ class Activator(
      * @param matches dictates if request is to enable or disable a rule and the rule id
      * @return Future[DocInfo] with document id and revision if the status change was successful
      */
-    override def doit(msg: Message, matches: Seq[Match])(implicit transid: TransactionId): Future[DocInfo] = {
+    override def doit(topic: String, msg: Message, matches: Seq[Match])(implicit transid: TransactionId): Future[DocInfo] = {
         Future {
             // conformance checks can terminate the future if a variance is detected
             require(matches != null && matches.size == 1, "matches undefined")

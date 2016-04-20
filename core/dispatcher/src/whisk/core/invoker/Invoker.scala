@@ -127,7 +127,7 @@ class Invoker(
      * @param msg is the kafka message payload as Json
      * @param matches contains the regex matches
      */
-    override def doit(msg: Message, matches: Seq[Match])(implicit transid: TransactionId): Future[DocInfo] = {
+    override def doit(topic: String, msg: Message, matches: Seq[Match])(implicit transid: TransactionId): Future[DocInfo] = {
         Future {
             // conformance checks can terminate the future if a variance is detected
             require(matches != null && matches.size >= 1, "matches undefined")
