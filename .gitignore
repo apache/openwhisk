@@ -1,18 +1,40 @@
-*~
-*.pyc
-.ant-targets-build.xml
-.DS_Store
-node_modules
-whisk.properties
-/tools/vagrant/.vagrant
+# Whisk
 nginx.conf
-.ipynb_checkpoints/
-/result/s
-/build/
+whisk.properties
+default.props
+
+.ant-targets-build.xml
+/results/
 /logs/
 /config/custom-config.xml
 cloudant-local.env
 couchdb-local.env
 results
-.gradle
 *.retry
+
+# Eclipse
+bin/
+**/.project
+.settings/
+.classpath
+.cache-main
+
+# Linux
+*~
+
+# Mac
+.DS_Store
+
+# Gradle
+.gradle
+build/
+
+# Python
+.ipynb_checkpoints/
+*.pyc
+
+# NodeJS
+node_modules
+
+# Vagrant
+/tools/vagrant/.vagrant
