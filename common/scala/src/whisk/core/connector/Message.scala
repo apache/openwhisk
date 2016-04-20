@@ -85,3 +85,28 @@ object ActivationMessage extends DefaultJsonProtocol {
 
     implicit val serdes = jsonFormat6(ActivationMessage.apply)
 }
+
+
+/**
+  * When adding fields, the serdes of the companion object must be updated also.
+  */
+case class CompletionMessage(
+    override val transid: TransactionId,
+    activationId: ActivationId)
+    extends Message {
+
+    override def serialize = CompletionMessage.serdes.write(this).compactPrint
+
+    override def toString = {
+        s"$activationId"
+    }
+}
+
+object CompletionMessage extends DefaultJsonProtocol {
+
+    def apply(msg: String): Try[CompletionMessage] = Try {
+        serdes.read(msg.parseJson)
+    }
+
+    implicit val serdes = jsonFormat2(CompletionMessage.apply)
+}
