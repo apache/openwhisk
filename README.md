@@ -1,7 +1,7 @@
 OpenWhisk
 =========
 
-Hello Jeremias, This is a Demo
+Hello Jeremias Werner, This is a Demo
 
 [![Build Status](https://travis-ci.org/openwhisk/openwhisk.svg?branch=master)](https://travis-ci.org/openwhisk/openwhisk)
 
