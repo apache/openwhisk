@@ -31,6 +31,19 @@ install "$CATALOG_HOME/watson/languageId.js" \
     -a sampleInput '{"payload": "Bonjour", "username":"XXX", "password":"XXX"}' \
     -a sampleOutput '{"language": "French", "confidence": 1}'
 
+install "$CATALOG_HOME/watson/textToSpeech.js" \
+    watson/textToSpeech \
+    -a description 'Synthesize text to spoken audio' \
+    -a parameters '[
+        {"name":"username", "required":true, "bindTime":true, "description":"The Watson service username"},
+        {"name":"password", "required":true, "type":"password", "bindTime":true, "description":"The Watson service password"},
+        {"name":"payload", "required":true, "description":"The text to be synthesized"},
+        {"name":"voice", "required":false, "description":"The voice to be used for synthesis"},
+        {"name":"accept", "required":false, "description":"The requested MIME type of the audio"},
+        {"name":"encoding", "required":false, "description":"The encoding of the speech binary data"}]' \
+    -a sampleInput '{"payload":"Hello, world.", "encoding":"base64", "accept":"audio/wav", "username":"XXX", "password":"XXX" }' \
+    -a sampleOutput '{"payload":"<base64 encoding of a .wav file>", "encoding":"base64", "content_type":"audio/wav"}'
+
 waitForAll
 
 echo Watson package ERRORS = $ERRORS
