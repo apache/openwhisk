@@ -47,7 +47,6 @@ dependencies {
 
     testCompile project(':common:scala')
     testCompile project(':core:controller')
-    testCompile project(':core:loadBalancer')
     testCompile project(':core:dispatcher')
 }
 
