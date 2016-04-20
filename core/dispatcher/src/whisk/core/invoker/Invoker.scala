@@ -52,6 +52,8 @@ import whisk.core.WhiskConfig.edgeHost
 import whisk.core.WhiskConfig.logsDir
 import whisk.core.WhiskConfig.whiskVersion
 import whisk.core.connector.{ ActivationMessage => Message }
+import whisk.core.connector.CompletionMessage
+import whisk.connector.kafka.KafkaProducerConnector
 import whisk.core.container.ContainerPool
 import whisk.core.container.WhiskContainer
 import whisk.core.dispatcher.DispatchRule
@@ -94,12 +96,16 @@ class Invoker(
 
     implicit private val executionContext: ExecutionContext = actorSystem.dispatcher
 
+    /** This generates completion messages back to the controller */
+    val producer = new KafkaProducerConnector(config.kafkaHost, executionContext)
+
     override def setVerbosity(level: Verbosity.Level) = {
         super.setVerbosity(level)
         pool.setVerbosity(level)
         entityStore.setVerbosity(level)
         authStore.setVerbosity(level)
         activationStore.setVerbosity(level)
+        producer.setVerbosity(level)
     }
 
     /*
@@ -121,7 +127,7 @@ class Invoker(
      * @param msg is the kafka message payload as Json
      * @param matches contains the regex matches
      */
-    override def doit(msg: Message, matches: Seq[Match])(implicit transid: TransactionId): Future[DocInfo] = {
+    override def doit(topic: String, msg: Message, matches: Seq[Match])(implicit transid: TransactionId): Future[DocInfo] = {
         Future {
             // conformance checks can terminate the future if a variance is detected
             require(matches != null && matches.size >= 1, "matches undefined")
@@ -259,9 +265,11 @@ class Invoker(
                     if (!failedInit) tran.runInterval = Some(start, end)
                     val contents = getContainerLogs(con)
                     val activation = makeWhiskActivation(tran, con.isBlackbox, msg, action, payload, response, contents)
-                    // only for whitebox testing - deprecated and going away soon
-                    putContainerName(activation.activationId, con.name + "@" + con.containerIP.get)
                     val res = completeTransaction(tran, activation)
+                    val completeMsg = CompletionMessage(transid, msg.activationId)
+                    producer.send("completed", completeMsg) map { status =>
+                        info(this, s"posted completion of activation ${msg.activationId}")
+                    }
                     // We return the container last as that is slow and we want the activation to logically finish fast
                     pool.putBack(con, failedInit)
                     res

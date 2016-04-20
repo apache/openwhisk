@@ -69,7 +69,7 @@ class PostInvoke(
     /**
      * Posts invoke request as a kafka message.
      */
-    override def doit(msg: Message, matches: Seq[Match])(implicit transid: TransactionId): Future[DocInfo] = {
+    override def doit(topic: String, msg: Message, matches: Seq[Match])(implicit transid: TransactionId): Future[DocInfo] = {
         val ruleActivationId = ActivationId()
         val message = Message(transid, s"/actions/invoke/$actionId", subject, ActivationId(), msg.content, Some(ruleActivationId))
         info("PostInvoke", s"[POST] rule activation id: $ruleActivationId")

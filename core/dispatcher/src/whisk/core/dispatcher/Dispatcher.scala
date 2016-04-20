@@ -111,7 +111,7 @@ trait MessageDispatcher extends Registrar with Logging {
      * if it is not active.
      */
     def start() = if (!started) {
-        consumer.onMessage(bytes => {
+        consumer.onMessage((topic, bytes) => {
             val raw = new String(bytes, "utf-8")
             val msg = Message(raw)
             msg match {
@@ -121,7 +121,7 @@ trait MessageDispatcher extends Registrar with Logging {
                         inform(handlers.par) foreach {
                             case (name, handler) =>
                                 val matches = handler.matches(m.path)
-                                handleMessage(handler, m, matches)
+                                handleMessage(handler, topic, m, matches)
                         }
                     }
                     true
@@ -139,13 +139,13 @@ trait MessageDispatcher extends Registrar with Logging {
         started = false
     }
 
-    private def handleMessage(rule: DispatchRule, msg: Message, matches: Seq[Match]) = {
+    private def handleMessage(rule: DispatchRule, topic: String, msg: Message, matches: Seq[Match]) = {
         implicit val ec = Dispatcher.executionContext
         implicit val tid = msg.transid
         if (matches.nonEmpty) Future {
             val count = counter.next()
             info(this, s"activeCount = $count while handling ${rule.name}")
-            rule.doit(msg, matches)
+            rule.doit(topic, msg, matches)
         } flatMap (identity) onComplete {
             case Success(a) => info(this, s"activeCount = ${counter.prev()} after handling $rule")
             case Failure(t) => error(this, s"activeCount = ${counter.prev()} ${errorMsg(rule, t)}")

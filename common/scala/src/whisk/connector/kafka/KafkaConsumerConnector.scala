@@ -61,7 +61,7 @@ class KafkaConsumerConnector(
      */
     def commit() = consumer.commitSync()
 
-    override def onMessage(process: Array[Byte] => Boolean) = {
+    override def onMessage(process: (String, Array[Byte]) => Boolean) = {
         val self = this
         val thread = new Thread() {
             override def run() = {
@@ -75,7 +75,7 @@ class KafkaConsumerConnector(
                                 val offset = r.offset
                                 val msg = r.value
                                 info(self, s"processing $topic[$partition][$offset ($count)]")
-                                val consumed = process(msg)
+                                val consumed = process(topic, msg)
                             }
                             commit()
                     } match {

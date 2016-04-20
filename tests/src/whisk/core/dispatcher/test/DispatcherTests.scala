@@ -116,7 +116,7 @@ class DispatcherTests extends FlatSpec with Matchers with BeforeAndAfter with Be
             }
             dispatcher.addHandler(post, replace = false)
             dispatcher.start()
-            post.doit(msg, Seq()) onFailure { case t => t.printStackTrace() }
+            post.doit("someTopic", msg, Seq()) onFailure { case t => t.printStackTrace() }
             logContains("received")
         }
         dispatcher.stop()

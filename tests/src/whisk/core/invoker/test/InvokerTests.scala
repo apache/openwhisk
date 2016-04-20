@@ -95,7 +95,7 @@ class InvokerTests extends FlatSpec
         val activationDoc = Console.withOut(stream) {
             val rule = new Invoker(config, 1, false)
             rule.setVerbosity(Verbosity.Loud)
-            val future = rule.doit(message, rule.matches(s"/actions/invoke/${wsk.docid}"))
+            val future = rule.doit("someTopic", message, rule.matches(s"/actions/invoke/${wsk.docid}"))
             val docinfo = Await.result(future, 10 seconds)
             val activationResult = Await.result(WhiskActivation.get(activationstore, docinfo), dbOpTimeout)
             Await.result(WhiskActivation.del(activationstore, docinfo), dbOpTimeout)

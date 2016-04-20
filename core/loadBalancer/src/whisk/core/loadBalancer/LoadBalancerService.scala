@@ -21,6 +21,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Success
+import scala.util.matching.Regex.Match
 
 import spray.http.StatusCodes.InternalServerError
 import spray.http.StatusCodes.OK
@@ -34,10 +35,12 @@ import whisk.common.ConsulKVReporter
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.common.Verbosity
-import whisk.core.WhiskConfig
-import whisk.core.connector.{ ActivationMessage => Message }
-import whisk.core.connector.LoadBalancerResponse
 import whisk.connector.kafka.KafkaProducerConnector
+import whisk.connector.kafka.KafkaConsumerConnector
+import whisk.core.WhiskConfig
+import whisk.core.connector.{Message, ActivationMessage, CompletionMessage }
+import whisk.core.connector.LoadBalancerResponse
+import whisk.core.entity.DocInfo
 import whisk.http.BasicRasService
 import whisk.utils.ExecutionContextFactory
 
@@ -53,7 +56,7 @@ class LoadBalancerService(config: WhiskConfig, verbosity: Verbosity.Level)
      */
     def getInvokerHealth(): JsObject = invokerHealth.getInvokerHealth()
 
-    override def getInvoker(message: Message): Option[Int] = invokerHealth.getInvoker(message)
+    override def getInvoker(message: ActivationMessage): Option[Int] = invokerHealth.getInvoker(message)
     override def activationThrottle = _activationThrottle
 
     override val producer = new KafkaProducerConnector(config.kafkaHost, executionContext)
@@ -65,7 +68,6 @@ class LoadBalancerService(config: WhiskConfig, verbosity: Verbosity.Level)
     // This must happen after the overrides
     setVerbosity(verbosity)
 
-    // --- WIP -----
     private var count = 0
     private val overloadThreshold = 5000 // this is the total across all invokers.  Disable by setting to -1.
     private val reporter = new ConsulKVReporter(kvStore, 3000, 2000,
@@ -85,5 +87,28 @@ class LoadBalancerService(config: WhiskConfig, verbosity: Verbosity.Level)
                 LoadBalancerKeys.invokerHealth -> getInvokerHealth()) ++
                 getUserActivationCounts()
         })
+
+    /**
+     * WIP
+     *
+     * @param msg is the kafka message payload as Json
+     */
+    def processCompletion(msg: CompletionMessage) = {
+        implicit val tid = msg.transid
+        val aid = msg.activationId
+        info(this, s"LoadBalancerService.processCompletion: activation id $aid")
+    }
+
+    val consumer = new KafkaConsumerConnector(config.kafkaHost, "completions", "completed")
+    consumer.onMessage((topic, bytes) => {
+        val raw = new String(bytes, "utf-8")
+        CompletionMessage(raw) match {
+            case Success(m) =>
+                processCompletion(m)
+            case Failure(t) =>
+                error(this, s"failed processing message: $raw with $t")
+        }
+        true
+    })
 
 }

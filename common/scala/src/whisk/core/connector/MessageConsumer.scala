@@ -18,7 +18,7 @@ package whisk.core.connector
 
 trait MessageConsumer {
     /** Calls process for every message received. */
-    def onMessage(process: (Array[Byte]) => Boolean): Unit
+    def onMessage(process: (String, Array[Byte]) => Boolean): Unit
 
     /** Closes consumer. */
     def close(): Unit
