@@ -46,8 +46,7 @@ import common.WskProps
 @RunWith(classOf[JUnitRunner])
 class WskBasicTests
     extends TestHelpers
-    with WskTestHelpers
-    with Matchers {
+    with WskTestHelpers {
 
     implicit val wskprops = WskProps()
     val wsk = new Wsk()
@@ -241,7 +240,7 @@ class WskBasicTests
 
     it should "reject delete of action that does not exist" in {
         wsk.action.sanitize("deleteFantasy").
-            stdout should include("error: The requested resource does not exist.")
+            stdout should include regex ("""error: The requested resource does not exist. \(code \d+\)""")
     }
 
     it should "reject create with missing file" in {

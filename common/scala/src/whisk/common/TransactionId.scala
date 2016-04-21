@@ -35,6 +35,7 @@ import spray.json.RootJsonFormat
  * indirectly in the referenced meta object.
  */
 case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
+    def apply() = meta.id
     override def toString = if (meta.id > 0) s"#tid_${meta.id}" else (if (meta.id < 0) s"#sid_${-meta.id}" else "??")
 
     /**

@@ -18,6 +18,7 @@ package system.basic
 
 import java.io.File
 import java.util.Date
+import scala.language.postfixOps
 import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.HashMap
 import scala.concurrent.duration.Duration
@@ -50,8 +51,7 @@ import common.WskProps
 @RunWith(classOf[JUnitRunner])
 class PackageTests
     extends TestHelpers
-    with WskTestHelpers
-    with Matchers {
+    with WskTestHelpers {
 
     implicit val wskprops = WskProps()
     val wsk = new Wsk()
@@ -103,7 +103,6 @@ class PackageTests
             }
     }
 
-
     it should "perform package binds so parameters are inherited" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val packageName = "package1"
@@ -112,8 +111,8 @@ class PackageTests
             val packageActionName = packageName + "/" + actionName
             val bindActionName = bindName + "/" + actionName
             val packageParams = Map("key1a" -> "value1a".toJson, "key1b" -> "value1b".toJson)
-            val bindParams    = Map("key2a" -> "value2a".toJson, "key1b" -> "value2b".toJson)
-            val actionParams  = Map("key0"  -> "value0".toJson)
+            val bindParams = Map("key2a" -> "value2a".toJson, "key1b" -> "value2b".toJson)
+            val actionParams = Map("key0" -> "value0".toJson)
             val file = TestUtils.getCatalogFilename("samples/printParams.js")
             assetHelper.withCleaner(wsk.pkg, packageName) { (pkg, _) =>
                 pkg.create(packageName, packageParams)
@@ -144,22 +143,20 @@ class PackageTests
             assert(found, s"Did not find '$expected' in activation($activationId) ${logs getOrElse "empty"}")
     }
 
-
     /**
      * Check that a description of an item includes the specified parameters.
      * Parameters keys in later parameter maps override earlier ones.
      */
     def checkForParameters(itemDescription: String, paramSets: Map[String, JsValue]*) {
         // Merge and the parameters handling overrides.
-        val merged = HashMap.empty[String,JsValue]
+        val merged = HashMap.empty[String, JsValue]
         paramSets.foreach { merged ++= _ }
         val flatDescription = itemDescription.replace("\n", "").replace("\r", "")
-        merged.foreach {case (key:String, value:JsValue) =>
-            val toFind = s""""key": "${key}",            "value": ${value.toString}"""
-            flatDescription should include regex toFind
+        merged.foreach {
+            case (key: String, value: JsValue) =>
+                val toFind = s""""key": "${key}",            "value": ${value.toString}"""
+                flatDescription should include regex toFind
         }
     }
-
-
 
 }

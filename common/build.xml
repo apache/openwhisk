@@ -13,12 +13,6 @@
         </parallel>
     </target>
 
-    <path id="libJars">
-        <fileset dir="${openwhisk.home}/common/libs">
-            <include name="**/*.jar" />
-        </fileset>
-    </path>
-
     <!-- build the docker base image with scala -->
     <target name="buildScalaBaseImage">
         <var file="whisk.properties" />
@@ -47,7 +41,6 @@
         <mkdir dir="${build.dir}/commonScala" />
         <scalac destdir="${build.dir}/commonScala" failonerror="true" scalacdebugging="true" fork="true">
             <src path="${openwhisk.home}/common/scala/src" />
-            <classpath refid="libJars" />
             <classpath path="${build.dir}/commonScala" />
             <classpath refid="scala.build.classpath" />
         </scalac>

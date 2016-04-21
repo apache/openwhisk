@@ -146,7 +146,9 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         put(entityStore, rule)
         Delete(s"$collectionPath/$name") ~> sealRoute(routes(creds)) ~> check {
             status should be(Conflict)
-            responseAs[ErrorResponse].error should be(s"rule status is '${Status.ACTIVE}', must be '${Status.INACTIVE}' to delete")
+            val response = responseAs[ErrorResponse]
+            response.error should be(s"rule status is '${Status.ACTIVE}', must be '${Status.INACTIVE}' to delete")
+            response.code() should be >= 1L
         }
     }
 
