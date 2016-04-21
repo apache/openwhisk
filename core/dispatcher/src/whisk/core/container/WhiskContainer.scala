@@ -90,9 +90,9 @@ class WhiskContainer(
      */
     def run(args: JsObject, meta: JsObject, authKey: String, timeout: Int, actionName: String, activationId: String)(implicit transid: TransactionId): RunResult = {
         val start = ContainerCounter.now()
-        info("Invoker", s"sending arguments to $actionName $details", INVOKER_SEND_ARGS)
+        info("Invoker", s"sending arguments to $actionName $details", INVOKER_ACTIVATION_RUN_START)
         val response = sendPayload("/run", JsObject(meta.fields + ("value" -> args) + ("authKey" -> JsString(authKey))), timeout)
-        info("Invoker", s"finished running activation id: $activationId", INVOKER_ACTIVATION_END)
+        info("Invoker", s"finished running activation id: $activationId", INVOKER_ACTIVATION_RUN_DONE)
         (start, ContainerCounter.now(), response)
     }
 
