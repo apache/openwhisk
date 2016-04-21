@@ -1738,7 +1738,8 @@
             }
         },
         "TriggerLimits": {
-            "description": "Limits on a specific trigger"
+            "description": "Limits on a specific trigger",
+            "type": "object"
         },
         "Package": {
             "required": [
