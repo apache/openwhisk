@@ -16,7 +16,7 @@
     src: default.props.j2
     dest: "{{whisk_dir}}/tools/cli/default.props"
 
-- name: pull the required image of cli
+- name: "pull the {{ docker_image_tag }} image of cli"
   shell: "docker pull {{ docker_registry }}whisk/cli:{{ docker_image_tag }}"
   when: docker_registry != ""
 

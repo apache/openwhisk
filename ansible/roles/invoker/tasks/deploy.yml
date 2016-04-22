@@ -1,16 +1,16 @@
 ---
 # This role installs invokers.
 
-- name: Pull dispatcher image
+- name: "Pull dispatcher {{docker_image_tag}} image"
   shell: "docker pull {{docker_registry}}whisk/dispatcher:{{docker_image_tag}}"
   when: docker_registry != ""
-- name: Pull nodejsaction image
+- name: "Pull nodejsaction {{docker_image_tag}} image"
   shell: "docker pull {{docker_registry}}whisk/nodejsaction:{{docker_image_tag}}"
   when: docker_registry != ""
-- name: Pull swiftaction image
+- name: "Pull swiftaction {{docker_image_tag}} image"
   shell: "docker pull {{docker_registry}}whisk/swiftaction:{{docker_image_tag}}"
   when: docker_registry != ""
-- name: Pull javaaction image
+- name: "Pull javaaction {{docker_image_tag}} image"
   shell: "docker pull {{docker_registry}}whisk/javaaction:{{docker_image_tag}}"
   when: docker_registry != ""
 
@@ -20,7 +20,7 @@
     image: "{{docker_registry}}whisk/dispatcher:{{docker_image_tag}}"
     state: reloaded
     restart_policy: "{{docker.restart.policy}}"
-    hostname: "invoker{{play_hosts.index(inventory_hostname)}}_{{inventory_hostname}}:{{docker.port}}"
+    hostname: "invoker{{play_hosts.index(inventory_hostname)}}"
     env:
       "COMPONENT_NAME": "invoker{{play_hosts.index(inventory_hostname)}}"
       "CONSULSERVER_HOST": "{{inventory_hostname}}"

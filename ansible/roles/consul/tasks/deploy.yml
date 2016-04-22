@@ -5,7 +5,7 @@
 # Other machines that are not in the 'consul_servers' group, have the Consul Agents
 # The template 'config.json.j2' will look at the environment inventory to decide to generate a config file for booting a server or an agent
 
-- name: pull the lastest image of consul
+- name: "pull the {{ docker_image_tag }} image of consul"
   shell: "docker pull {{ docker_registry }}whisk/consul:{{ docker_image_tag }}"
   when: docker_registry != ""
 
@@ -22,6 +22,7 @@
 - name: (re)start consul server/agent
   docker:
     name: consul
+    hostname: "consul{{play_hosts.index(inventory_hostname)}}"
     image: "{{ docker_registry }}whisk/consul:{{ docker_image_tag }}"
     state: reloaded
     command: /bin/consul agent -config-file=/consul/config/config.json 
@@ -53,6 +54,7 @@
 - name: (re)start registrator
   docker:
     name: registrator
+    hostname: registrator
     image: gliderlabs/registrator
     state: reloaded
     restart_policy: "{{ docker.restart.policy }}"

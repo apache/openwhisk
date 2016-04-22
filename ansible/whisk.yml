@@ -4,7 +4,7 @@
 
 - hosts: ansible
   roles:
-  - prereq
+  - predeploy
 
 - include: consul.yml
 

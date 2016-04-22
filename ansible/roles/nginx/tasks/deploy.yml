@@ -22,7 +22,7 @@
     image: nginx
     state: reloaded
     restart_policy: "{{ docker.restart.policy }}"
-    hostname: "nginx_{{ inventory_hostname }}:{{ docker.port }}"
+    hostname: "nginx"
     volumes:
       - "{{ whisk_logs_dir }}/nginx:/logs"
       - "{{ nginx_conf_dir }}:/etc/nginx"

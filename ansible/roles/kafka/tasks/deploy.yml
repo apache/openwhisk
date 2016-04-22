@@ -1,7 +1,7 @@
 ---
 # This role will install Kafka with Zookeeper in group 'kafka' in the environment inventory
 
-- name: pull the lastest image of zookeeper
+- name: "pull the {{ docker_image_tag }} image of zookeeper"
   shell: "docker pull {{ docker_registry }}whisk/zookeeper:{{ docker_image_tag }}"
   when: docker_registry != ""
 
@@ -22,7 +22,7 @@
     port: "{{ zookeeper.port }}"
     timeout: 60
 
-- name: pull the lastest image of kafka
+- name: "pull the {{ docker_image_tag }} image of kafka"
   shell: "docker pull {{ docker_registry }}whisk/kafka:{{ docker_image_tag }}"
   when: docker_registry != ""
 

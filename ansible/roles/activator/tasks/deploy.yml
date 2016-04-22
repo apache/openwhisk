@@ -1,7 +1,7 @@
 ---
 # This role will install activator in group 'activators' in the environment inventory
 
-- name: pull the required image of activator
+- name: "pull the {{ docker_image_tag }} image of activator"
   shell: "docker pull {{ docker_registry }}whisk/dispatcher:{{ docker_image_tag }}"
   when: docker_registry != ""
 
@@ -11,7 +11,7 @@
     image: "{{ docker_registry }}whisk/dispatcher:{{ docker_image_tag }}"
     state: reloaded
     restart_policy: "{{ docker.restart.policy }}"
-    hostname: "activator_{{inventory_hostname}}:{{docker.port}}"
+    hostname: activator
     env:
       "COMPONENT_NAME": "activator"
       "CONSULSERVER_HOST": "{{ inventory_hostname }}"
