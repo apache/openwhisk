@@ -7,8 +7,8 @@ default.props
 /results/
 /logs/
 /config/custom-config.xml
-cloudant-local.env
-couchdb-local.env
+cloudant-local.env*
+couchdb-local.env*
 results
 *.retry
 
