@@ -50,7 +50,7 @@ socket.io@1.3.5 \
 superagent@1.3.0 \
 swagger-tools@0.8.7 \
 tmp@0.0.28 \
-watson-developer-cloud@0.9.29 \
+watson-developer-cloud@1.4.1 \
 when@3.7.3 \
 xml2js@0.4.15 \
 xmlhttprequest@1.7.0 \
