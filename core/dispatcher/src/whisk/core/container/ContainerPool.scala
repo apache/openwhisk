@@ -213,7 +213,7 @@ class ContainerPool(
             }
             case s @ Success(con, initResult) =>
                 con.transid = transid
-                con.unpause()
+                runDockerOp { con.unpause() }
                 s
             case other => other
         }
@@ -265,7 +265,8 @@ class ContainerPool(
      */
     def putBack(container: Container, delete: Boolean = false)(implicit transid: TransactionId): Unit = {
         info(this, s"ContainerPool.putBack returning container ${container.id}  delete = $delete")
-        if (!delete) container.pause() // Docker operation outside sync block. Don't pause if we are deleting.
+        if (!delete) // Docker operation outside sync block. Don't pause if we are deleting.
+            runDockerOp { container.pause() }
         val toBeDeleted = this.synchronized { // Return container to pool logically and then optionally delete
             // Always put back logically for consistency
             val Some(ci) = containerMap.get(container)
@@ -359,12 +360,23 @@ class ContainerPool(
         }
     }
 
+    val dockerLock = new Object()
+
+    /*
+     * All docker operations from the pool must pass through here.
+     */
+    private def runDockerOp[T](dockerOp: => T): T = {
+        dockerLock.synchronized {
+            dockerOp
+        }
+    }
+
     private def makeWarmNodejsContainer()(implicit transid: TransactionId): WhiskContainer = {
         val imageName = WhiskAction.containerImageName(nodejsExec, config.dockerRegistry, config.dockerImageTag)
         val limits = ActionLimits(TimeLimit(), defaultMemoryLimit)
         val containerName = makeContainerName("warmJsContainer")
         val con = makeGeneralContainer(warmNodejsKey, containerName, imageName, limits)
-        con.pause()
+        runDockerOp { con.pause() }
         this.synchronized {
             introduceContainer(warmNodejsKey, con)
         }
@@ -379,7 +391,7 @@ class ContainerPool(
                 con.transid = transid
                 val Some(ci) = containerMap.get(con)
                 changeKey(ci, warmNodejsKey, key)
-                con.unpause()
+                runDockerOp { con.unpause() }
                 Some(con.asInstanceOf[WhiskContainer])
             case _ => None
         }
@@ -405,7 +417,7 @@ class ContainerPool(
         val env = getContainerEnvironment()
         val pull = !imageName.contains("whisk/")
         // This will start up the container
-        val con = new WhiskContainer(transid, this, key, containerName, imageName, network, pull, env, limits)
+        val con = runDockerOp { new WhiskContainer(transid, this, key, containerName, imageName, network, pull, env, limits) }
         info(this, s"ContainerPool: started container - about to send init")
         con
     }
@@ -422,7 +434,8 @@ class ContainerPool(
     }
 
     private def makeContainer(imageName: String, args: Array[String])(implicit transid: TransactionId): ContainerResult = {
-        val con = new Container(transid, this, makeKey(imageName, args), None, imageName, config.invokerContainerNetwork, false, ActionLimits(), Map(), args)
+        val con = runDockerOp { new Container(transid, this, makeKey(imageName, args), None, imageName,
+                                              config.invokerContainerNetwork, false, ActionLimits(), Map(), args) }
         con.setVerbosity(getVerbosity())
         Success(con, None)
     }
@@ -547,7 +560,7 @@ class ContainerPool(
             val filename = s"${_logDir}/${conName}.log"
             Files.write(Paths.get(filename), logs.getBytes(StandardCharsets.UTF_8))
             info(this, s"teardownContainers: wrote docker logs to $filename")
-            ci.container.remove()
+            runDockerOp { ci.container.remove() }
         }
     }
 
