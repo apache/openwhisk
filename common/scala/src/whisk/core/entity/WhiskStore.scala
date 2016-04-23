@@ -75,19 +75,19 @@ protected[core] trait WhiskDocument
 }
 
 protected[core] object Util {
-    def makeStore[R, D <: DocumentSerializer](config: WhiskConfig, name: WhiskConfig=>String)(
+    def makeStore[R, D <: DocumentSerializer](config: WhiskConfig, name: WhiskConfig => String)(
         implicit jsonFormat: RootJsonFormat[D],
-        actorSystem: ActorSystem) : ArtifactStore[R, D] = {
+        actorSystem: ActorSystem): ArtifactStore[R, D] = {
         require(config != null && config.isValid, "config is undefined or not valid")
         require(config.dbProvider == "Cloudant" || config.dbProvider == "CouchDB", "Unsupported db.provider: " + config.dbProvider)
 
-        if(config.dbProvider == "Cloudant") {
+        if (false && config.dbProvider == "Cloudant") { // use new spray-based API
             CloudantStore.make(config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name(config))
         } else {
             // CouchDbStore.make(config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name(config))
             // New Spray-based API.
             import whisk.core.database.CouchDbRestStore
-            new CouchDbRestStore[R,D](config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name(config))
+            new CouchDbRestStore[R, D](config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name(config))
         }
     }
 }

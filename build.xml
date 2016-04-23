@@ -89,7 +89,7 @@
     <target name="deployDatabase">
         <var file="whisk.properties" />
         <echo message="wiping databases with prefix ${db.prefix}" />
-        <exec dir="${openwhisk.home}/tools/db" executable="/bin/bash">
+        <exec dir="${openwhisk.home}/tools/db" executable="/bin/bash" failonerror="true">
             <arg value="wipeTransientDBs.sh" />
         </exec>
     </target>

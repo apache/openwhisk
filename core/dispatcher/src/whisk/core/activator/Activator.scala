@@ -42,6 +42,7 @@ import whisk.core.entity.WhiskEntity
 import whisk.core.entity.WhiskEntityStore
 import whisk.core.entity.WhiskRule
 import whisk.http.BasicRasService
+import whisk.utils.ExecutionContextFactory
 
 /**
  * A kafka message handler that interprets a database of whisk rules, and
@@ -221,7 +222,7 @@ object ActivatorService {
 
         if (config.isValid) {
             val dispatcher = new Dispatcher(config, "whisk", "activator")
-            val activator = new Activator(config, dispatcher, actorSystem, Dispatcher.executionContext)
+            val activator = new Activator(config, dispatcher, actorSystem, ExecutionContextFactory.makeExecutionContext())
 
             activator.setVerbosity(Verbosity.Loud)
             dispatcher.setVerbosity(Verbosity.Loud)
