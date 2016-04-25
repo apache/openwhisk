@@ -85,7 +85,7 @@ public class ConsoleTests {
     @Test
     public void countdown() throws Exception {
         String actionName = "countdown";
-        Future<String> f = startConsole(35);
+        Future<String> f = startConsole(50);
 
         Thread.sleep(3000); // sleep a little before starting the action
 
