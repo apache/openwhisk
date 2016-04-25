@@ -36,8 +36,14 @@ import scala.language.postfixOps
  */
 class ConsulKV(agent: String) {
 
-    private val consulAgent = new HttpUtils(agent)
+    private val consulClient = HttpUtils.makeHttpClient(30000, true)
+    private val consulAgent = new HttpUtils(consulClient, agent)
     private val kvEndpoint = "/v1/kv/"
+
+    override def finalize() = {
+        /** Closes HTTP connection to consul. */
+        consulClient.close()
+    }
 
     /**
      * Performs the given put, adding a new entry or over-writing an existing one.
@@ -122,8 +128,8 @@ object ConsulKV {
     object InvokerKeys {
         // All invoker written information written here.
         // Underneath this, each invoker has its own path.
-        val allInvokers = "invokers"               // we store a small amount of data here
-        val allInvokersData = "invokersData"       // we store large amounts of data here
+        val allInvokers = "invokers" // we store a small amount of data here
+        val allInvokersData = "invokersData" // we store large amounts of data here
         def instancePath(instance: Int) = s"${allInvokers}/invoker${instance}"
         def instanceDataPath(instance: Int) = s"${allInvokersData}/invoker${instance}"
 

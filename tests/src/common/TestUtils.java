@@ -41,12 +41,13 @@ public class TestUtils {
     public static final int SUCCESS_EXIT = 0;
     public static final int ERROR_EXIT = 1;
     public static final int MISUSE_EXIT = 2;
-    public static final int BAD_REQUEST = 144; // 400 overflows
-    public static final int UNAUTHORIZED = 145; // 401 overflows
-    public static final int FORBIDDEN = 147; // 403 overflows
-    public static final int NOT_FOUND = 148; // 404 overflows
-    public static final int NOTALLOWED = 149; // 405 overflows
-    public static final int CONFLICT = 153; // 409 overflows
+    public static final int BAD_REQUEST = 144; // 400
+    public static final int UNAUTHORIZED = 145; // 401
+    public static final int FORBIDDEN = 147; // 403
+    public static final int NOT_FOUND = 148; // 404
+    public static final int NOTALLOWED = 149; // 405
+    public static final int CONFLICT = 153; // 409
+    public static final int TIMEOUT = 246; // 502
     public static final int DONTCARE_EXIT = -1;   // any value is ok
     public static final int ANY_ERROR_EXIT = -2;  // any non-zero value is ok
 

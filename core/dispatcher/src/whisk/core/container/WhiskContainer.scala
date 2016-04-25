@@ -26,6 +26,7 @@ import whisk.common.HttpUtils
 import whisk.common.LoggingMarkers._
 import whisk.common.TransactionId
 import whisk.core.entity.ActionLimits
+import scala.util.Try
 
 /**
  * Reifies a whisk container - one that respects the whisk container API.
@@ -132,10 +133,12 @@ class WhiskContainer(
      * @param msg the message to post
      * @return response from container if any as array of byte
      */
-    private def sendPayload(endpoint: String, msg: JsObject, timeout: Int = 30000): Option[(Int, String)] = {
+    private def sendPayload(endpoint: String, msg: JsObject, timeout: Int): Option[(Int, String)] = {
         containerIP map { host =>
-            val http = new HttpUtils(host)
+            val connection = HttpUtils.makeHttpClient(timeout, true)
+            val http = new HttpUtils(connection, host)
             val (code, bytes) = http.dopost(endpoint, msg, Map(), timeout)
+            Try { connection.close() }
             Some(code, new String(bytes, "UTF-8"))
         } getOrElse None
     }

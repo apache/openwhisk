@@ -43,6 +43,11 @@ class ConsulServiceCheck(agent: String) {
     def getAllWarning() = getAllByState(State.Warning)
     def getAllAnyState() = getAllByState(State.Any)
 
+    override def finalize() = {
+        /** Closes HTTP connection to consul. */
+        consulClient.close()
+    }
+
     private def getAllByState(state: State.Value): List[String] = {
         val passing = Try {
             val response = consulAgent.doget(stateEndpoint + state.toString(), Map(), 10000, true)._2
@@ -62,7 +67,8 @@ class ConsulServiceCheck(agent: String) {
         }
     }
 
-    private val consulAgent = new HttpUtils(agent)
+    private val consulClient = HttpUtils.makeHttpClient(30000, true)
+    private val consulAgent = new HttpUtils(consulClient, agent)
     private val servicesEndpoint = "/v1/catalog/services"
     private val stateEndpoint = "/v1/health/state/"
 }

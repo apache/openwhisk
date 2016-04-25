@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package whisk.common;
+package whisk.common
 
 import java.net.URI
 import java.nio.charset.StandardCharsets
@@ -48,19 +48,35 @@ import org.apache.http.ssl.TrustStrategy
 import org.apache.http.util.EntityUtils
 
 import spray.json.JsValue
+import javax.net.ssl.SSLSocketFactory
 
 /**
  * Http Client.
  * @deprecated Use {@link HttpClient} instead.
  */
 @Deprecated
-class HttpUtils(hostname: String, apiKey: String = "") {
+class HttpUtils(httpclient: CloseableHttpClient, hostname: String, apiKey: String = "") {
 
     def dopost(endpoint: String, post: JsValue, get: Map[String, String] = Map(), timeoutMsec: Integer = 30000): (Int, Array[Byte]) =
         doPutOrPost(endpoint, new StringEntity(post.compactPrint), get, false, timeoutMsec)
 
     def doput(endpoint: String, put: JsValue, get: Map[String, String] = Map(), timeoutMsec: Integer = 30000): (Int, Array[Byte]) =
         doPutOrPost(endpoint, new StringEntity(put.compactPrint), get, true, timeoutMsec)
+
+    def doget(endpoint: String, get: Map[String, String] = Map(), timeoutMsec: Integer = 10000, useHttps: Boolean = false): (Int, Array[Byte]) = {
+        val uri = makeUri(endpoint, get, useHttps)
+        val request = new HttpGet(uri)
+        execute(request, timeoutMsec, doget(endpoint, get, _))
+    }
+
+    def dodelete(endpoint: String, get: Map[String, String] = Map(), timeoutMsec: Integer = 10000): (Int, Array[Byte]) = {
+        val uri = makeUri(endpoint, get)
+        val request = new HttpDelete(uri)
+        if (this.apiKey.length > 0) {
+            request.setHeader("Authorization", "Basic " + Base64.getEncoder.encodeToString(this.apiKey.getBytes(StandardCharsets.UTF_8)))
+        }
+        execute(request, timeoutMsec, dodelete(endpoint, get, _))
+    }
 
     private def doPutOrPost(endpoint: String, form: StringEntity, get: Map[String, String], put: Boolean, timeoutMsec: Integer): (Int, Array[Byte]) = {
         val uri = makeUri(endpoint, get)
@@ -78,23 +94,7 @@ class HttpUtils(hostname: String, apiKey: String = "") {
         execute(request, timeoutMsec, doPutOrPost(endpoint, form, get, put, _))
     }
 
-    def doget(endpoint: String, get: Map[String, String] = Map(), timeoutMsec: Integer = 10000, useHttps: Boolean = false): (Int, Array[Byte]) = {
-        val uri = makeUri(endpoint, get, useHttps)
-        val request = new HttpGet(uri)
-        execute(request, timeoutMsec, doget(endpoint, get, _))
-    }
-
-    def dodelete(endpoint: String, get: Map[String, String] = Map(), timeoutMsec: Integer = 10000): (Int, Array[Byte]) = {
-        val uri = makeUri(endpoint, get)
-        val request = new HttpDelete(uri)
-        if (this.apiKey.length > 0) {
-            request.setHeader("Authorization", "Basic " + Base64.getEncoder.encodeToString(this.apiKey.getBytes(StandardCharsets.UTF_8)))
-        }
-        execute(request, timeoutMsec, dodelete(endpoint, get, _))
-    }
-
     private def execute(request: HttpRequestBase, timeoutMsec: Integer, retry: (Integer => (Int, Array[Byte]))): (Int, Array[Byte]) = {
-        val httpclient = makeHttpClient(timeoutMsec)
         try {
             val response = httpclient.execute(request)
             try {
@@ -106,12 +106,10 @@ class HttpUtils(hostname: String, apiKey: String = "") {
         } catch {
             case t: HttpHostConnectException =>
                 if (timeoutMsec > 0) {
-                    Thread sleep 100;
+                    Thread sleep 100
                     retry(timeoutMsec - 100)
                 } else (-1, t.getMessage.getBytes)
             case t: Throwable => (-1, t.getMessage.getBytes)
-        } finally {
-            if (httpclient != null) httpclient.close
         }
     }
 
@@ -137,15 +135,23 @@ class HttpUtils(hostname: String, apiKey: String = "") {
                 .setPath(endpoint)
                 .build
     }
+}
 
-    private def makeHttpClient(timeoutMsec: Integer): CloseableHttpClient = {
-
-        // setup a Trust Strategy that allows all certificates.
-        val sslContext = new SSLContextBuilder().loadTrustMaterial(null, new TrustStrategy() {
-            def isTrusted(x509Certificates: Array[X509Certificate], s: String): Boolean = {
-                true
+object HttpUtils {
+    def makeHttpClient(timeoutMsec: Integer, tlsAcceptUnauthorized: Boolean): CloseableHttpClient = {
+        val sslContext = {
+            val builder = new SSLContextBuilder()
+            if (tlsAcceptUnauthorized) {
+                // setup a Trust Strategy that allows all certificates.
+                builder.loadTrustMaterial(new TrustStrategy() {
+                    override def isTrusted(x509Certificates: Array[X509Certificate], s: String): Boolean = {
+                        true
+                    }
+                })
             }
-        }).build();
+            builder.build()
+        }
+
         val sslSocketFactory = new SSLConnectionSocketFactory(sslContext, NoopHostnameVerifier.INSTANCE)
         val socketFactoryRegistry = RegistryBuilder.create[ConnectionSocketFactory]()
             .register("http", PlainConnectionSocketFactory.getSocketFactory)

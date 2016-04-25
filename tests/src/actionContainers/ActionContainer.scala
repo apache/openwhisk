@@ -117,9 +117,11 @@ object ActionContainer {
 
     private def syncPost(host: String, endPoint: String, content: JsValue): (Int, Option[JsObject]) = {
         import whisk.common.HttpUtils
-        val (code, bytes) = new HttpUtils(host).dopost(endPoint, content, Map.empty)
+        val connection = HttpUtils.makeHttpClient(30000, true)
+        val (code, bytes) = new HttpUtils(connection, host).dopost(endPoint, content, Map.empty)
         val str = new java.lang.String(bytes)
         val json = Try(str.parseJson.asJsObject).toOption
+        Try { connection.close() }
         (code, json)
     }
 

@@ -28,10 +28,9 @@ object ConsulServiceHealth extends App {
         val consul = new ConsulServiceCheck(consulServer)
 
         if (config.isValid) {
-            // retrieve set of services to check
-            var servicesToCheck = config.consulServices.split(",").toSet
-            // add invoker0 to the list
-            servicesToCheck = servicesToCheck + ("invoker0")
+            // retrieve set of services to check and invoker0 to the list which exists in all deployments
+            // TODO: add invokers specific to a deployment
+            val servicesToCheck = config.consulServices.split(",").toSet + "invoker0"
             val passing = consul.getAllPassing()
             val critical = consul.getAllCritical()
             val warning = consul.getAllWarning()
