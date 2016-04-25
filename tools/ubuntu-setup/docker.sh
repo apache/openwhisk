@@ -14,7 +14,7 @@ sudo apt-cache policy docker-engine
 sudo apt-get -y install linux-image-extra-$(uname -r)
 
 # DOCKER
-sudo apt-get install -y --force-yes docker-engine=1.10.3-0~trusty
+sudo apt-get install -y --force-yes docker-engine=1.11.0-0~trusty
 
 # enable (security - use 127.0.0.1)
 sudo -E bash -c 'echo '\''DOCKER_OPTS="-H tcp://0.0.0.0:4243 -H unix:///var/run/docker.sock --api-enable-cors --storage-driver=aufs"'\'' >> /etc/default/docker'
