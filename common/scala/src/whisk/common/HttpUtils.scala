@@ -110,6 +110,8 @@ class HttpUtils(hostname: String, apiKey: String = "") {
                     retry(timeoutMsec - 100)
                 } else (-1, t.getMessage.getBytes)
             case t: Throwable => (-1, t.getMessage.getBytes)
+        } finally {
+            if (httpclient != null) httpclient.close
         }
     }
 
