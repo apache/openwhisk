@@ -1,11 +1,11 @@
 ---
-# This role will write whisk.properties to the whisk_dir. Currently whisk.properties is still needed for consul and tests.
+# This role will write whisk.properties to the openwhisk_home. Currently whisk.properties is still needed for consul and tests.
 # It will also prepare the configured database for deployment.
 
-- name: copy whisk.properties template to whisk_dir
+- name: copy whisk.properties template to openwhisk_home
   template:
     src: whisk.properties.j2
-    dest: "{{ whisk_dir }}/whisk.properties"
+    dest: "{{ openwhisk_home }}/whisk.properties"
 
 - name: deploy database
-  local_action: shell "./wipeTransientDBs.sh" chdir="{{ whisk_dir }}/tools/db"
+  local_action: shell "./wipeTransientDBs.sh" chdir="{{ openwhisk_home }}/tools/db"

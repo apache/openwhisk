@@ -21,7 +21,6 @@ before_install:
   - sudo apt-get -y install python-pip
   - pip install --user jsonschema
   - pip install --user argcomplete
-  - pip install --user docker-py
   - pip install --user ansible
   - ./tools/travis/setup.sh
 

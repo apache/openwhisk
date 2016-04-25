@@ -14,7 +14,7 @@
 - name: copy default.props to cli dir to make test happy
   template:
     src: default.props.j2
-    dest: "{{whisk_dir}}/tools/cli/default.props"
+    dest: "{{openwhisk_home}}/tools/cli/default.props"
 
 - name: "pull the {{ docker_image_tag }} image of cli"
   shell: "docker pull {{ docker_registry }}whisk/cli:{{ docker_image_tag }}"
@@ -29,6 +29,10 @@
     volumes:
       - "{{ cli_conf_dir }}/default.props:/cli/default.props"
       - "{{ cli_conf_dir }}/output:/cli/dist"
+
+- name: wait until cli tar is generated
+  wait_for: 
+    path: "{{ cli_conf_dir }}/output/openwhisk-0.1.0.tar.gz"
 
 - name: copy cli tarball to nginx config directory
   shell: "cp -f {{ cli_conf_dir }}/output/openwhisk-0.1.0.tar.gz {{ nginx_conf_dir }}"

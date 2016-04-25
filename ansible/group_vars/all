@@ -1,6 +1,8 @@
 mode: deploy
 prompt_user: true
 
+openwhisk_home: "{{ lookup('env', 'OPENWHISK_HOME')|default(playbook_dir + '/..', true) }}"
+
 whisk:
   version:
     date: "{{ansible_date_time.iso8601}}"

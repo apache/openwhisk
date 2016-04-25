@@ -1,0 +1,10 @@
+---
+# This role will prepare target VMs for a whisk deployment using ansible.
+# In deploy mode it will install all necessary packages and programs.
+# In clean mode it will uninstall packages from deploy mode.
+
+- include: deploy.yml
+  when: mode == "deploy"
+
+- include: clean.yml
+  when: mode == "clean"
