@@ -19,14 +19,13 @@ package whisk.common
 import java.time.Clock
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
-
 import scala.math.BigDecimal.int2bigDecimal
 import scala.util.Try
-
 import spray.json.JsArray
 import spray.json.JsNumber
 import spray.json.JsValue
 import spray.json.RootJsonFormat
+import scala.collection.mutable.Map
 
 /**
  * A transaction id for tracking operations in the system that are specific to a request.
@@ -44,11 +43,21 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
      * @param token the marker name
      * @return Some LogMarker iff token is defined and None otherwise
      */
-    def mark(token: String): Option[LogMarker] = {
+    def mark(token: LogMarkerToken): Option[LogMarker] = {
         val now = Instant.now(Clock.systemUTC())
-        Option(token) filter { _.trim.nonEmpty } map { _ =>
-            val delta = now.toEpochMilli - meta.start.toEpochMilli
-            LogMarker(now, delta, token.trim)
+        Option(token) filter { _ != null } map { _ =>
+            val delta = now.toEpochMilli - meta.metrics.getOrElse("start", now).toEpochMilli
+            val metricKey = token.component + token.operation
+            meta.metrics.get(metricKey) match {
+                case Some(startTokenTimestamp) => {
+                    val deltaBetweenMarkers = now.toEpochMilli - startTokenTimestamp.toEpochMilli
+                    LogMarker(now, delta, token, Some(deltaBetweenMarkers))
+                }
+                case None => {
+                    meta.metrics(metricKey) = now
+                    LogMarker(now, delta, token, None)
+                }
+            }
         }
     }
 }
@@ -60,7 +69,7 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
  *           negative for system operation and zero when originator is not known
  * @param start the timestamp when the request processing commenced
  */
-protected case class TransactionMetadata(val id: Long, val start: Instant)
+protected case class TransactionMetadata(val id: Long, val metrics: Map[String, Instant])
 
 object TransactionId {
     val unknown = TransactionId(0)
@@ -71,17 +80,17 @@ object TransactionId {
     def apply(tid: BigDecimal): TransactionId = {
         Try {
             val now = Instant.now(Clock.systemUTC())
-            TransactionId(TransactionMetadata(tid.toLong, now))
+            TransactionId(TransactionMetadata(tid.toLong, Map("start" -> now)))
         } getOrElse unknown
     }
 
     implicit val serdes = new RootJsonFormat[TransactionId] {
-        def write(t: TransactionId) = JsArray(JsNumber(t.meta.id), JsNumber(t.meta.start.toEpochMilli))
+        def write(t: TransactionId) = JsArray(JsNumber(t.meta.id), JsNumber(t.meta.metrics.getOrElse("start", Instant.now(Clock.systemUTC())).toEpochMilli))
 
         def read(value: JsValue) = Try {
             value match {
                 case JsArray(Vector(JsNumber(id), JsNumber(start))) =>
-                    TransactionId(TransactionMetadata(id.longValue, Instant.ofEpochMilli(start.longValue)))
+                    TransactionId(TransactionMetadata(id.longValue, Map("start" -> Instant.ofEpochMilli(start.longValue))))
             }
         } getOrElse unknown
     }
