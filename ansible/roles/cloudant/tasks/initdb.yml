@@ -67,4 +67,4 @@
 - name: generate database env file
   template:
     src: "{{ db_provider|lower }}-local.env.j2"
-    dest: "{{ whisk_dir }}/{{ db_provider|lower }}-local.env"
+    dest: "{{ openwhisk_home }}/{{ db_provider|lower }}-local.env"

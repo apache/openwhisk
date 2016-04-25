@@ -1,0 +1,13 @@
+---
+# This role will install all necessary packages for Openwhisk.
+
+- name: install pip
+  apt: 
+    name: python-pip
+  become: true
+
+- name: install docker-py
+  pip: 
+    name: docker-py
+    version: 1.8.0
+  become: true

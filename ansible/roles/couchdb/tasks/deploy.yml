@@ -21,7 +21,8 @@
   uri:
     url: "{{ db_protocol }}://{{ inventory_hostname }}:{{ db_port }}/_config/admins/{{ db_username }}"
     method: PUT
-    body: "{{ db_password }}"
+    body: >
+        "{{ db_password }}"
     body_format: json
     status_code: 200
 
@@ -29,7 +30,8 @@
   uri:
     url: "{{ db_protocol }}://{{ inventory_hostname }}:{{ db_port }}/_config/query_server_config/reduce_limit"
     method: PUT
-    body: "false"
+    body: >
+        "false"
     body_format: json
     status_code: 200
     user: "{{ db_username }}"

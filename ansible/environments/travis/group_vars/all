@@ -1,4 +1,3 @@
-whisk_dir: "{{playbook_dir}}/../"
 whisk_version_name: travis
 nginx_conf_dir: /tmp/nginx
 consul_conf_dir: /tmp/consul

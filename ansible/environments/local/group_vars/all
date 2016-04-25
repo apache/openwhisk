@@ -1,4 +1,3 @@
-whisk_dir: "/home/vagrant/openwhisk"
 whisk_version_name: local
 nginx_conf_dir: /tmp/nginx
 consul_conf_dir: /tmp/consul

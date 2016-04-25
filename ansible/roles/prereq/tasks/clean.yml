@@ -1,0 +1,15 @@
+---
+# Remove prereq packages
+
+- name: remove docker-py
+  pip: 
+    name: docker-py
+    state: absent
+  become: true
+  
+- name: remove pip
+  apt: 
+    name: python-pip
+    state: absent
+  become: true
+
