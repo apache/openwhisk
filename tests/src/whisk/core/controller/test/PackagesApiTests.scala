@@ -65,6 +65,7 @@ import whisk.core.entity.WhiskEntity
 import whisk.http.ErrorResponse
 import whisk.core.entity.WhiskPackageWithActions
 import whisk.core.entity.WhiskPackageAction
+import spray.json.JsArray
 
 /**
  * Tests Packages API.
@@ -495,12 +496,18 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
         put(entityStore, reference)
         put(entityStore, action)
         whisk.utils.retry {
-            Delete(s"$collectionPath/${provider.name}") ~> sealRoute(routes(creds)) ~> check {
-                status should be(Conflict)
-                val response = responseAs[ErrorResponse]
-                response.error should include("Package not empty (contains 1 entity)")
-                response.code() should be >= 1L
+            Get(s"$collectionPath/${provider.name}") ~> sealRoute(routes(creds)) ~> check {
+                status should be(OK)
+                val response = responseAs[JsObject]
+                response.fields("actions").asInstanceOf[JsArray].elements.length should be(1)
             }
+        }
+
+        Delete(s"$collectionPath/${provider.name}") ~> sealRoute(routes(creds)) ~> check {
+            status should be(Conflict)
+            val response = responseAs[ErrorResponse]
+            response.error should include("Package not empty (contains 1 entity)")
+            response.code() should be >= 1L
         }
     }
 

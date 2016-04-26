@@ -161,7 +161,6 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         implicit val tid = transid()
         val provider = WhiskPackage(namespace, aname, None)
         put(entityStore, provider)
-        // Not adding retry here as it's not a read operation
         Delete(s"$collectionPath/${provider.name}/") ~> sealRoute(routes(creds)) ~> check {
             status should be(NotFound)
         }
