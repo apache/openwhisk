@@ -2,9 +2,7 @@
 # This playbook deploys an Openwhisk stack.  
 # It assumes you have already set up your database with the respective db provider playbook (currently cloudant.yml or couchdb.yml)
 
-- hosts: ansible
-  roles:
-  - predeploy
+- include: predeploy.yml
 
 - include: consul.yml
 
@@ -18,6 +16,4 @@
 
 - include: edge.yml
 
-- hosts: ansible
-  roles:
-  - postdeploy
+- include: postdeploy.yml
