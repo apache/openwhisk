@@ -144,6 +144,7 @@ function NodeActionService(config, rawLog, logger) {
             userScript.whisk.setAuthKey(authKey)
             userScript.run(args, function(response) {
                 rawLog.log('XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX')
+                rawLog.error('XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX')
                 logger.info('[doRun]', 'response is', response.result);
                 logger.info('[usage]', userScript.userScriptName,
                             ': activationId = ', (ids || {}).activationId,

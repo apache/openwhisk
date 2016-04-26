@@ -36,8 +36,9 @@ class NodeJsActionContainerTests extends FlatSpec with Matchers {
             "main" -> JsString("main")))
     def runPayload(args: JsValue) = JsObject("value" -> args)
 
-    // Filters out the weird markers inserted by the container (see relevant private code in Invoker.scala)
-    def filtered(str: String) = str.replaceAll("XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX", "")
+    // Filters out the sentinel markers inserted by the container (see relevant private code in Invoker.scala)
+    val sentinel = "XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX"
+    def filtered(str: String) = str.replaceAll(sentinel, "")
 
     behavior of "whisk/nodejsaction"
 
@@ -65,7 +66,7 @@ class NodeJsActionContainerTests extends FlatSpec with Matchers {
         }
 
         filtered(out).trim shouldBe empty
-        err.trim shouldBe empty
+        filtered(err).trim shouldBe empty
     }
 
     it should "fail to initialize with bad code" in {
@@ -160,7 +161,7 @@ class NodeJsActionContainerTests extends FlatSpec with Matchers {
         }
 
         filtered(out).trim shouldBe empty
-        err.trim shouldBe empty
+        filtered(err).trim shouldBe empty
     }
 
     it should "not warn when returning whisk.done" in {
@@ -179,7 +180,7 @@ class NodeJsActionContainerTests extends FlatSpec with Matchers {
         }
 
         filtered(out).trim shouldBe empty
-        err.trim shouldBe empty
+        filtered(err).trim shouldBe empty
     }
 
     it should "warn when using whisk.done twice" in {
@@ -236,7 +237,7 @@ class NodeJsActionContainerTests extends FlatSpec with Matchers {
         }
 
         filtered(out).trim shouldBe empty
-        err.trim shouldBe empty
+        filtered(err).trim shouldBe empty
     }
 
     it should "support the documentation examples (2)" in {
@@ -258,7 +259,7 @@ class NodeJsActionContainerTests extends FlatSpec with Matchers {
         }
 
         filtered(out).trim shouldBe empty
-        err.trim shouldBe empty
+        filtered(err).trim shouldBe empty
     }
 
     it should "support the documentation examples (3)" in {
@@ -289,6 +290,6 @@ class NodeJsActionContainerTests extends FlatSpec with Matchers {
         }
 
         filtered(out).trim shouldBe empty
-        err.trim shouldBe empty
+        filtered(err).trim shouldBe empty
     }
 }

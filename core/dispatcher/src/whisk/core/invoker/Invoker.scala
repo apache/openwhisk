@@ -290,17 +290,7 @@ class Invoker(
     private val LogRetryCount = 10
     private val LogRetry = 100 // millis
     private val LOG_ACTIVATION_SENTINEL = "XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX"
-
-    /*
-     * Get the action container's logs from the docker json driver's output from the file system.
-     */
-    private def getContainerLogs(con: WhiskContainer)(implicit transid: TransactionId): JsArray = {
-        val incrementalLog = waitForLogs(con)
-        processJsonDriverLogContents(con.name, incrementalLog)
-    }
-
-
-    val nodejsImageName = WhiskAction.containerImageName(NodeJSExec("", None), config.dockerRegistry, config.dockerImageTag)
+    private val nodejsImageName = WhiskAction.containerImageName(NodeJSExec("", None), config.dockerRegistry, config.dockerImageTag)
 
     /**
      * Waits for log cursor to advance. This will retry up to tries times
@@ -310,71 +300,69 @@ class Invoker(
      *
      * Note: Updates the container's log cursor to indicate consumption of log.
      */
-    private def waitForLogs(con: WhiskContainer, tries: Int = LogRetryCount)(implicit transid: TransactionId): String = {
+    private def getContainerLogs(con: WhiskContainer, tries: Int = LogRetryCount)(implicit transid: TransactionId): JsArray = {
         val size = con.getLogSize(runningInContainer)
         val advanced = size != con.lastLogSize
         if (tries <= 0 || advanced) {
             val rawLogBytes = con.getDockerLogContent(con.lastLogSize, size, runningInContainer)
             val rawLog = new String(rawLogBytes, "UTF-8")
             val isNodeJs = con.image == nodejsImageName
-            // If nodeJs, we wait til we see the sentinel unless we are out of tries
-            if (tries > 0 && isNodeJs && !rawLog.contains(LOG_ACTIVATION_SENTINEL)) {
+            val (complete, logArray) = processJsonDriverLogContents(rawLog, isNodeJs)
+            if (tries > 0 && !complete) {
                 info(this, s"log cursor advanced but missing sentinel, trying $tries more times")
                 Thread.sleep(LogRetry)
-                waitForLogs(con, tries-1)
+                getContainerLogs(con, tries-1)
             } else {
                 con.lastLogSize = size
-                rawLog
+                logArray
             }
         } else {
             info(this, s"log cursor has not advanced, trying $tries more times")
             Thread.sleep(LogRetry)
-            waitForLogs(con, tries-1)
+            getContainerLogs(con, tries-1)
         }
     }
 
     /**
-     * Checks if msg hold a normal user-generated log message.
+     * Given the json driver's raw incremental output of a docker container,
+     * convert it into our own JSON format.  If asked, check for
+     * sentinel markers (which are not included in the output).
      */
-    private def isNormalLogMessage(msg: JsObject): Boolean = {
-        msg.fields.get("log") map {
-            case JsString(s) => s.trim != LOG_ACTIVATION_SENTINEL
-            case _           => false
-        } getOrElse false
-    }
-
-
-    /**
-     * Checks the output of the docker json-file log driver is not truncated (not flushed).
-     * It returns a possibly sanitized version of the output.
-     */
-    private def processJsonDriverLogContents(name: String, logMsgs: String)(
-        implicit transid: TransactionId): JsArray = {
+    private def processJsonDriverLogContents(logMsgs: String, requireSentinel: Boolean)(
+        implicit transid: TransactionId): (Boolean, JsArray) = {
 
         if (logMsgs.nonEmpty) {
-            JsArray(logMsgs.split("\n") map { l =>
-                Try {
-                    // each line should be a JSON object
-                    l.parseJson.asJsObject
+            val records : Vector[(String, String, String)] = logMsgs.split("\n").toVector flatMap {
+                line => Try { line.parseJson.asJsObject } match {
+                    case Success(t) =>
+                        t.getFields("time", "stream", "log") match {
+                            case Seq(JsString(t), JsString(s), JsString(l)) => Some(t, s, l.trim)
+                            case _ => None
+                        }
+                    case Failure(t) =>
+                        // Drop lines that did not parse to JSON objects.
+                        // However, should not happen since we are using the json log driver.
+                        error(this, s"log line skipped/did not parse: $t")
+                        None
                 }
-            } filter {
-                case Success(t) =>
-                    // drop message if it contains a system marker
-                    isNormalLogMessage(t)
-                case Failure(t) =>
-                    // drop lines that did not parse to JSON objects
-                    // but this is an error since we are using the json log driver (not dependent on user logic)
-                    error(this, s"log line skipped/did not parse: $t")
-                    false
-            } map {
-                _.get.getFields("time", "stream", "log") match {
-                    case Seq(JsString(t), JsString(s), JsString(l)) => f"$t%-30s $s: ${l.trim}".toJson
-                }
-            } toVector)
+            }
+            if (requireSentinel) {
+                val (sentinels, regulars) = records.partition(_._3 == LOG_ACTIVATION_SENTINEL)
+                val hasOut = sentinels.exists(_._2 == "stdout")
+                val hasErr = sentinels.exists(_._2 == "stderr")
+                (hasOut && hasErr, JsArray(regulars map formatLog))
+            } else {
+                (true, JsArray(records map formatLog))
+            }
         } else {
             warn(this, s"log message is empty")
-            JsArray()
+            (!requireSentinel, JsArray())
         }
+    }
+
+    private def formatLog(time_stream_msg : (String, String, String)) = {
+        val (time, stream, msg) = time_stream_msg
+        f"$time%-30s $stream: ${msg.trim}".toJson
     }
 
     private def processResponseContent(isBlackbox: Boolean, response: Option[(Int, String)])(
