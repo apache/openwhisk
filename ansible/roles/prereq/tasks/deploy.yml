@@ -1,13 +1,24 @@
 ---
 # This role will install all necessary packages for Openwhisk.
 
+- name: check for pip
+  shell: "pip"
+  register: pip_result
+  ignore_errors: true
+
 - name: install pip
-  apt: 
-    name: python-pip
+  shell: "curl -k https://bootstrap.pypa.io/get-pip.py | python"
   become: true
+  when: pip_result.rc != 0
 
 - name: install docker-py
   pip: 
     name: docker-py
     version: 1.8.0
+  become: true
+
+- name: install httplib2
+  pip: 
+    name: httplib2
+    version: 0.9.2
   become: true

@@ -1,0 +1,6 @@
+---
+# This playbook installs additional packages after whisk has been deployed.
+
+- hosts: ansible
+  roles:
+  - postdeploy

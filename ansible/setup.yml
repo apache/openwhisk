@@ -1,0 +1,15 @@
+---
+# This playbook prepares ansible configuration
+
+- hosts: localhost
+  tasks:
+  - local_action: shell "docker-machine" "ip" "{{docker_machine_name | default('whisk')}}"
+    register: result
+    ignore_errors: true
+
+  - set_fact: 
+      docker_machine_ip: "{{ result.stdout }}"
+  
+  - name: gen hosts for docker-machine 
+    local_action: template src="{{playbook_dir}}/environments/mac/hosts.j2.ini" dest="{{ playbook_dir }}/environments/mac/hosts"
+    when: result.rc == 0
