@@ -25,6 +25,7 @@ import java.util.TimerTask
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.ListBuffer
+import scala.annotation.tailrec
 
 import akka.actor.ActorSystem
 
@@ -152,7 +153,8 @@ class ContainerPool(
      * This method will apply retry so that the caller is blocked until retry succeeds.
      *
      */
-    def getImpl(key: String, conMaker: () => ContainerResult)(implicit transid: TransactionId): Option[(Container, Option[RunResult])] = {
+    @tailrec
+    final def getImpl(key: String, conMaker: () => ContainerResult)(implicit transid: TransactionId): Option[(Container, Option[RunResult])] = {
         getOrMake(key, conMaker) match {
             case Success(con, initResult) =>
                 info(this, s"""Obtained container ${con.containerId.getOrElse("unknown")}""")
