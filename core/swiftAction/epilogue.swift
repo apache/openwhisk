@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2015-2016 IBM Corporation
  *
@@ -18,16 +17,17 @@
 // Deliberate whitespaces above.
 
 /* This code is appended to user-supplied action code.
-   It reads from the standard input, deserializes into JSON and invokes the
-   main function. Currently, actions print strings to stdout. This can evolve once
-   JSON serialization is available in Foundation. */
+ It reads from the standard input, deserializes into JSON and invokes the
+ main function. Currently, actions print strings to stdout. This can evolve once
+ JSON serialization is available in Foundation. */
 
 import Foundation
+
 
 func _whisk_json2dict(txt: String) -> [String:Any]? {
     if let data = txt.dataUsingEncoding(NSUTF8StringEncoding) {
         do {
-            return try NSJSONSerialization.JSONObjectWithData(data, options: .AllowFragments) as? [String:Any]
+            return try NSJSONSerialization.jsonObject(with: data, options: NSJSONReadingOptions.AllowFragments) as? [String:Any]
         } catch {
             return nil
         }
@@ -36,55 +36,52 @@ func _whisk_json2dict(txt: String) -> [String:Any]? {
 }
 
 class _Whisk_JSONSerialization {
-    enum JSONSerializationError: ErrorType {
+    enum JSONSerializationError: ErrorProtocol {
         case UnsupportedValue(value: Any)
     }
-
+    
     private class func escStr(str: String) -> String {
-        return (str
-            .bridge()
-            .stringByReplacingOccurrencesOfString("\\", withString: "\\\\")
-            .bridge()
-            .stringByReplacingOccurrencesOfString("\"", withString: "\\\""))
+        return (str.bridge().stringByReplacingOccurrencesOfString("\\", withString:"\\\\").bridge().stringByReplacingOccurrencesOfString("\"", withString: "\\\""))
     }
-
+    
     class func serialize(value: Any) throws -> String {
         if let _ = value as? NSNull {
             return "null"
         }
-
+        
         if let str = value as? String {
-            return "\"\(escStr(str))\""
+            return "\"\(escStr(str: str))\""
         }
-
+        
         if let num = value as? Double {
             return "\(num)"
         }
-
+        
         if let num = value as? Int {
             return "\(num)"
         }
-
+        
         if let b = value as? Bool {
             return b ? "true" : "false"
         }
-
+        
         // More numeric types should go above.
-
+        
         let mirror = Mirror(reflecting: value)
-
-        if mirror.displayStyle == .Collection {
-            return try serializeArray(mirror.children.map({ return $0.value }))
+        
+        
+        if mirror.displayStyle == Mirror.DisplayStyle.collection {
+            return try serializeArray(array: mirror.children.map({ return $0.value }))
         }
-
-        if mirror.displayStyle == .Dictionary {
-            return try serializeObject(mirror.children.map({ return $0.value }))
+        
+        if mirror.displayStyle == Mirror.DisplayStyle.dictionary {
+            return try serializeObject(pairs: mirror.children.map({ return $0.value }))
         }
-
+        
         print("Couldn't handle \(value) of type \(value.dynamicType)")
         throw JSONSerializationError.UnsupportedValue(value: value)
     }
-
+    
     private class func serializeArray(array: [Any]) throws -> String {
         if array.count == 0 {
             return "[]"
@@ -92,14 +89,14 @@ class _Whisk_JSONSerialization {
         var out = "["
         var sep = " "
         for e in array {
-            let es = try serialize(e)
+            let es = try serialize(value: e)
             out = out + sep + es
             sep = ", "
         }
         out = out + " ]"
         return out
     }
-
+    
     private class func serializeObject(pairs: [Any]) throws -> String {
         if pairs.count == 0 {
             return "{}"
@@ -108,12 +105,12 @@ class _Whisk_JSONSerialization {
         var sep = " "
         for pair in pairs {
             let pairMirror = Mirror(reflecting: pair)
-            if pairMirror.displayStyle == .Tuple && pairMirror.children.count == 2 {
-                let g = pairMirror.children.generate()
+            if pairMirror.displayStyle == Mirror.DisplayStyle.tuple && pairMirror.children.count == 2 {
+                let g = pairMirror.children.makeIterator()
                 let k = g.next()!.value
                 let v = g.next()!.value
-                let ks = escStr(k as! String)
-                let vs = try serialize(v)
+                let ks = escStr(str: k as! String)
+                let vs = try serialize(value: v)
                 out = out + sep + "\"\(ks)\": " + vs
                 sep = ", "
             } else {
@@ -128,11 +125,11 @@ class _Whisk_JSONSerialization {
 func _run_main() -> Void {
     let env = NSProcessInfo.processInfo().environment
     let inputStr: String = env["WHISK_INPUT"] ?? "{}"
-
-    if let parsed = _whisk_json2dict(inputStr) {
-        let result = main(parsed)
+    
+    if let parsed = _whisk_json2dict(txt: inputStr) {
+        let result = main(args:parsed)
         do {
-            try print(_Whisk_JSONSerialization.serialize(result))
+            try print(_Whisk_JSONSerialization.serialize(value:result))
         } catch {
             print("Serialization failed (\(result)).")
         }
