@@ -17,6 +17,8 @@
 package whisk.http
 
 import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
+
 import akka.actor.Actor
 import akka.actor.ActorContext
 import akka.actor.ActorSystem
@@ -27,12 +29,13 @@ import akka.japi.Creator
 import akka.pattern.ask
 import akka.util.Timeout
 import spray.can.Http
+import spray.http.ContentType
+import spray.http.HttpEntity
 import spray.http.HttpRequest
+import spray.http.HttpResponse
 import spray.http.MediaTypes.`text/plain`
-import spray.httpx.marshalling
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
-import spray.json.DefaultJsonProtocol.jsonFormat1
-import spray.json.DefaultJsonProtocol.StringJsonFormat
+import spray.httpx.marshalling
 import spray.routing.Directive.pimpApply
 import spray.routing.HttpService
 import spray.routing.RejectionHandler
@@ -43,10 +46,6 @@ import spray.routing.directives.LoggingMagnet.forMessageFromFullShow
 import whisk.common.Logging
 import whisk.common.TransactionCounter
 import whisk.common.TransactionId
-import spray.http.HttpResponse
-import spray.http.HttpEntity
-import spray.http.ContentType
-import spray.routing.MalformedRequestContentRejection
 
 trait BasicHttpService extends HttpService with TransactionCounter with Logging {
 
@@ -116,7 +115,7 @@ object BasicHttpService {
         val system = ActorSystem(name)
         val actor = system.actorOf(Props.create(service), s"$name-service")
 
-        implicit val timeout = Timeout(5.seconds)
+        implicit val timeout = Timeout(5 seconds)
         IO(Http)(system) ? Http.Bind(actor, interface, port)
     }
 }

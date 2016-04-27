@@ -126,7 +126,7 @@ You can use the `changes` feed to configure a service to fire a trigger on every
 
 You can now create rules and associate them to actions to react to the document updates.
 
-The content of the generated events depends on the value of the value of the `includeDoc` parameter when creating the trigger. If set to true, each trigger event that is fired includes the modified Cloudant document. For example, consider the following modified document:
+The content of the generated events depends on the value of the `includeDoc` parameter when creating the trigger. If set to true, each trigger event that is fired includes the modified Cloudant document. For example, consider the following modified document:
 
   ```
   {

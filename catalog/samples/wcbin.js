@@ -12,15 +12,17 @@ function main(params) {
         },
         blocking : true,
         next : function(error, activation) {
-            console.log('error:', error, 'activation:', activation);
+            console.log('activation:', activation);
             if (!error) {
                 var wordsInDecimal = activation.result.count;
                 var wordsInBinary = wordsInDecimal.toString(2) + ' (base 2)';
                 whisk.done({
                     binaryCount : wordsInBinary
                 });
-            } else
+            } else {
+                console.log('error:', error);
                 whisk.error(error);
+            }
         }
     });
     return whisk.async();

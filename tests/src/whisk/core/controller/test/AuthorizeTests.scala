@@ -68,7 +68,7 @@ class AuthorizeTests extends ControllerTestCommon with Authenticate {
 
     behavior of "Authorize"
 
-    val requestTimeout = 1 seconds
+    val requestTimeout = 1 second
     val someUser = Subject()
     val adminUser = Subject("admin")
     val guestUser = Subject("anonym")

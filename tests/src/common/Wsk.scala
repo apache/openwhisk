@@ -540,8 +540,8 @@ class WskActivation()
         activationId: String,
         needle: String,
         project: String = "logs",
-        initialWait: Duration = 1 seconds,
-        pollPeriod: Duration = 1 seconds,
+        initialWait: Duration = 1 second,
+        pollPeriod: Duration = 1 second,
         totalWait: Duration = 30 seconds)(
             implicit wp: WskProps): (Boolean, Option[String]) = {
         val wsk = this
@@ -657,8 +657,8 @@ trait WaitFor {
      */
     def waitfor[T](
         step: () => T,
-        initialWait: Duration = 1 seconds,
-        pollPeriod: Duration = 1 seconds,
+        initialWait: Duration = 1 second,
+        pollPeriod: Duration = 1 second,
         totalWait: Duration = 30 seconds): T = {
         Thread.sleep(initialWait.toMillis)
         val endTime = System.currentTimeMillis() + totalWait.toMillis

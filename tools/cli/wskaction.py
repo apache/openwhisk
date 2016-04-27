@@ -20,7 +20,6 @@ import base64
 import httplib
 import argparse
 import urllib
-import re
 import subprocess
 from wskitem import Item
 from wskutil import addAuthenticatedCommand, bold, request, getParams, getActivationArgument, getAnnotations, responseError, parseQName, getQName, apiBase, getPrettyJson
@@ -122,7 +121,7 @@ class Action(Item):
                 print getPrettyJson(result['response']['result'])
             elif res.status == httplib.OK :
                 print bold('response:')
-                print getPrettyJson(result['response'])
+                print getPrettyJson(result)
             return 0
         else:
             return responseError(res)

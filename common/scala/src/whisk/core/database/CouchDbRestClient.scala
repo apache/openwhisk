@@ -16,30 +16,36 @@
 
 package whisk.core.database
 
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
+
+import scala.Left
+import scala.Right
 import scala.concurrent.Future
-import scala.concurrent.duration._
+import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
 
 import akka.actor.ActorSystem
 import akka.io.IO
 import akka.pattern.ask
 import akka.util.Timeout
-
+import spray.can.Http
 import spray.can.Http
 import spray.client.pipelining._
 import spray.io.ClientSSLEngineProvider
-import spray.json._
 import spray.json.DefaultJsonProtocol._
 import spray.http._
 import spray.httpx.RequestBuilding.addCredentials
 import spray.httpx.UnsuccessfulResponseException
 import spray.httpx.SprayJsonSupport
 import spray.util._
-
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
-
+import spray.json.JsArray
+import spray.json.JsBoolean
+import spray.json.JsNumber
+import spray.json.JsObject
+import spray.json.JsString
+import spray.json.JsValue
 import whisk.common.Logging
-import whisk.core.entity.DocInfo
 
 /** This class only handles the basic communication to the proper endpoints
  *  ("JSON in, JSON out"). It is up to its clients to interpret the results.
@@ -151,7 +157,7 @@ class CouchDbRestClient protected(system: ActorSystem, urlBase: String, username
 
     def shutdown() : Future[Unit] = {
         implicit val actorSystem = system
-        implicit val timeout = Timeout(45.seconds)
+        implicit val timeout = Timeout(45 seconds)
         IO(Http).ask(Http.CloseAll).map(_ => ())
     }
 }

@@ -29,6 +29,9 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+
 import common.TestUtils.RunResult;
 
 /**
@@ -546,7 +549,8 @@ public class WskCli {
         String response = invoke(SUCCESS_EXIT, name, params, true).stdout;
         String activationId = extractActivationIdFromCliResult(response);
         String result = extractActivationResultFromCliResult(response);
-        return Pair.make(activationId, result);
+        JsonObject json = new JsonParser().parse(result).getAsJsonObject();
+        return Pair.make(activationId, json.get("response").toString());
     }
 
     /**

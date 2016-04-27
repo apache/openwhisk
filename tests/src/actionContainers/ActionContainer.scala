@@ -16,24 +16,27 @@
 
 package actionContainers
 
-import spray.json._
-import spray.json.DefaultJsonProtocol._
-import scala.util.Random
-
+import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.PrintWriter
 
-import common.WhiskProperties
-
-import scala.util.Try
-import scala.concurrent.duration._
 import scala.concurrent.Await
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.blocking
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.sys.process._
+import scala.concurrent.duration.Duration
+import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
+import scala.sys.process.ProcessLogger
+import scala.sys.process.stringToProcess
+import scala.util.Random
+import scala.util.Try
 
-import java.io.ByteArrayOutputStream
-import java.io.PrintWriter
+import common.WhiskProperties
+import spray.json.JsObject
+import spray.json.JsValue
+import spray.json.pimpString
+import whisk.common.HttpUtils
 
 /**
  * For testing convenience, this interface abstracts away the REST calls to a
@@ -88,11 +91,11 @@ object ActionContainer {
         val name = imageName.toLowerCase.replaceAll("""[^a-z]""", "") + rand
 
         // We create the container...
-        val runOut = awaitDocker(s"run --name $name -d $imageName", 10.seconds)
+        val runOut = awaitDocker(s"run --name $name -d $imageName", 10 seconds)
         assert(runOut._1 == 0, "'docker run' did not exit with 0: " + runOut)
 
         // ...find out its IP address...
-        val ipOut = awaitDocker(s"""inspect --format '{{.NetworkSettings.IPAddress}}' $name""", 10.seconds)
+        val ipOut = awaitDocker(s"""inspect --format '{{.NetworkSettings.IPAddress}}' $name""", 10 seconds)
         assert(ipOut._1 == 0, "'docker inspect did not exit with 0")
         val ip = ipOut._2.replaceAll("""[^0-9.]""", "")
 
@@ -107,11 +110,11 @@ object ActionContainer {
             code(mock)
             // I'm told this is good for the logs.
             Thread.sleep(100)
-            val (_, out, err) = awaitDocker(s"logs $name", 10.seconds)
+            val (_, out, err) = awaitDocker(s"logs $name", 10 seconds)
             (out, err)
         } finally {
-            awaitDocker(s"kill $name", 10.seconds)
-            awaitDocker(s"rm $name", 10.seconds)
+            awaitDocker(s"kill $name", 10 seconds)
+            awaitDocker(s"rm $name", 10 seconds)
         }
     }
 

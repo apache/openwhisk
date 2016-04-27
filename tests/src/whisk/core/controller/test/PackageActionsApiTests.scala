@@ -328,7 +328,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         put(entityStore, binding)
         put(entityStore, action)
         val pkgaccess = Resource(provider.namespace, PACKAGES, Some(provider.name()))
-        Await.result(entitlementService.grant(auser.subject, READ, pkgaccess), 1 seconds)
+        Await.result(entitlementService.grant(auser.subject, READ, pkgaccess), 1 second)
         Get(s"$collectionPath/${binding.name}/${action.name}") ~> sealRoute(routes(auser)) ~> check {
             status should be(OK)
             val response = responseAs[WhiskAction]
@@ -472,7 +472,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         put(entityStore, reference)
         put(entityStore, action)
         val pkgaccess = Resource(provider.namespace, PACKAGES, Some(provider.name()))
-        Await.result(entitlementService.grant(auser.subject, ACTIVATE, pkgaccess), 1 seconds)
+        Await.result(entitlementService.grant(auser.subject, ACTIVATE, pkgaccess), 1 second)
         Post(s"$collectionPath/${reference.name}/${action.name}", content) ~> sealRoute(routes(auser)) ~> check {
             status should be(Accepted)
             val response = responseAs[JsObject]

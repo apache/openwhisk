@@ -48,7 +48,7 @@ public class TestUtils {
     public static final int NOTALLOWED = 149;    // 405 - 256 = 149
     public static final int CONFLICT = 153;      // 409 - 256 = 153
     public static final int THROTTLED = 173;     // 429 (TOO_MANY_REQUESTS) - 256 = 173
-    public static final int TIMEOUT = 246;       // 502 (GATEWAY_TIMEOUT)   - 256 = 173
+    public static final int TIMEOUT = 246;       // 502 (GATEWAY_TIMEOUT)   - 256 = 246
     public static final int DONTCARE_EXIT = -1;  // any value is ok
     public static final int ANY_ERROR_EXIT = -2; // any non-zero value is ok
 

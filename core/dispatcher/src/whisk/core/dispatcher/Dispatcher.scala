@@ -159,10 +159,10 @@ trait MessageDispatcher extends Registrar with Logging {
     }
 
     private def errorMsg(handler: DispatchRule, e: Throwable): String =
-        s"failed applying handler: $handler\n" + errorMsg(e)
+        s"failed applying handler '${handler.name}': ${errorMsg(e)}"
 
     private def errorMsg(msg: String, e: Throwable) =
-        s"failed processing message: $msg\n$e${e.getStackTrace.mkString("", " ", "")}"
+        s"failed processing message: $msg $e${e.getStackTrace.mkString("", " ", "")}"
 
     private def errorMsg(e: Throwable): String = {
         if (e.isInstanceOf[java.util.concurrent.ExecutionException])
