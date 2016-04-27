@@ -213,7 +213,7 @@ def waitInvoker(whiskprops, index, host = None):
 
   invokerName = "invoker" + str(index)
   start = time.time()
-  isAliveCmd = [isAlive, '-d', rootDir, '--wait', '60', invokerName]
+  isAliveCmd = [isAlive, '-d', rootDir, '--wait', '15', invokerName]
   if (host != None):
       isAliveCmd = isAliveCmd + ['--host', host]
   print 'Checking', invokerName,
@@ -230,31 +230,22 @@ def waitInvoker(whiskprops, index, host = None):
 # A list of triples of the form (N, endpoint, adhoc) which will cause invoke_N to deploy there.
 # The adhoc flag indicates that the endpoint was not derived from whisk property.
 #
-def deploy(whiskprops,invokerHostTriplets, kill, tag):
+def deploy(whiskprops, invokerHostTriples, kill, tag):
   totalStart = time.time()
-  failCount = 0
-  print 'The invoker hosts are', invokerHostTriplets
+  failedTriples = []
+  print 'The invoker hosts are', invokerHostTriples
   if (kill):
-      for (index, invokerHost, adhoc) in invokerHostTriplets:
+      for (index, invokerHost, adhoc) in invokerHostTriples:
           killInvoker(whiskprops,index, invokerHost)
   else:
-      for (index, invokerHost, adhoc) in invokerHostTriplets:
+      for (index, invokerHost, adhoc) in invokerHostTriples:
           killInvoker(whiskprops,index, invokerHost)
           startInvoker(whiskprops,index, invokerHost, tag)
-      for (index, invokerHost, adhoc) in invokerHostTriplets:
+      for (index, invokerHost, adhoc) in invokerHostTriples:
           if (not(waitInvoker(whiskprops, index, invokerHost if adhoc else None))) :
-              failCount = failCount + 1
-
+              failedTriples.append((index, invokerHost, adhoc))
   elapsed = round((time.time() - totalStart) * 10) / 10
-
-  # ---------- Final Output -------------------
-  print '\nTried to', ('kill' if kill else 'deploy'), len(invokerHostTriplets), 'invokers.',
-  if (failCount == 0):
-      print 'All done in', elapsed, 'sec.'
-      sys.exit(0)
-  else:
-      print 'Failed to process', failCount, 'invokers in', elapsed, 'sec.'
-      sys.exit(failCount)
+  return (elapsed, failedTriples)
 
 # Convert the list of strings to one of integers - returning None if failed
 def asInts(strs):
@@ -290,10 +281,24 @@ whiskprops = wskprop.importPropsIfAvailable(wskprop.propfile(args.dir))
 
 
 if (args.host != None):
-  invokerHostTriplets = [(args.index, args.host, kill)]
+  invokerHostTriples = [(args.index, args.host, kill)]
 else:
   invokerHostsString = getProp(whiskprops,'INVOKER_HOSTS')
   invokerHosts = invokerHostsString.split(",")
-  invokerHostTriplets = zip(range(0, len(invokerHosts)), invokerHosts, [False] * len(invokerHosts))
+  invokerHostTriples = zip(range(0, len(invokerHosts)), invokerHosts, [False] * len(invokerHosts))
 
-deploy(whiskprops, invokerHostTriplets, args.kill, args.tag)                # Will perform sys.exit
+# Deploy (or just kill) all invokers
+curTriples = invokerHostTriples
+failedTriples = []
+for iteration in (0, 2):
+  if (iteration > 0):
+    print 'Retrying'
+  (elapsed, failedTriples) = deploy(whiskprops, curTriples, args.kill, args.tag)
+  print '\nTried to', ('kill' if args.kill else 'deploy'), len(curTriples), 'invokers.',
+  if (len(failedTriples) == 0):
+    print 'All done in', elapsed, 'sec.'
+    sys.exit(0)
+  else:
+    print 'Failed to process', len(failedTriples), 'invokers in', elapsed, 'sec.'
+    curTriples = failedTriples
+sys.exit(len(failedTriples))
