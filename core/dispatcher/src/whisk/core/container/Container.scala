@@ -59,11 +59,11 @@ class Container(
     }
 
     def pause() {
-      containerId map pauseContainer
+        containerId map pauseContainer
     }
 
     def unpause() {
-      containerId map unpauseContainer
+        containerId map unpauseContainer
     }
 
     /**
@@ -82,16 +82,28 @@ class Container(
     }
 
     /**
-     * Removes a container (it may be running).
+     * Unpauses and removes a container (it may be running).
      */
-    def remove()(implicit transid: TransactionId): Unit = {
-        info(this, s"Removing container $containerId")
-        unpause()  // a paused container cannot be removed
-        rmContainer(containerId)
+    def remove(tryCount: Int = Container.removeContainerRetryCount)(implicit transid: TransactionId): Unit = {
+        if (tryCount <= 0) {
+            error(this, s"Failed to remove container $containerId")
+        } else {
+            if (tryCount == Container.removeContainerRetryCount) {
+                info(this, s"Removing container $containerId")
+            } else {
+                warn(this, s"Retrying to remove container $containerId")
+            }
+            unpause() // a paused container cannot be removed
+            rmContainer(containerId) match {
+                case None => remove(tryCount - 1)
+                case _    => ()
+            }
+        }
     }
 }
 
 object Container {
     def requiredProperties = Map(selfDockerEndpoint -> null, invokerContainerNetwork -> "bridge")
     private val idCounter = new Counter()
+    private val removeContainerRetryCount = 2
 }
