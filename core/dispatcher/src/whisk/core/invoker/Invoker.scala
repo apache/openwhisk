@@ -187,7 +187,7 @@ class Invoker(
                 info(this, s"recorded activation '$activationDoc'", INVOKER_ACTIVATION_END)
                 activationDoc
             case Failure(t) =>
-                info(this, s"action ${action.id}", INVOKER_FAILED_ACTIVATION)
+                info(this, s"failed to invoke action ${action.id} due to ${t.getMessage}", INVOKER_FAILED_ACTIVATION)
                 completeTransactionWithError(action, tran, s"failed to invoke action ${action.id}: ${t.getMessage}")
         }
 

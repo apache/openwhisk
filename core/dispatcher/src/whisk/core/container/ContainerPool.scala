@@ -309,7 +309,7 @@ class ContainerPool(
         def isIdle() = state == State.Idle
     }
 
-    // The result of trying to start a class.  Option is too weak to do it.
+    // The result of trying to obtain a container.  Option is too weak to do it.
     abstract class ContainerResult
     case class Success(con: Container, initResult: Option[RunResult]) extends ContainerResult
     case class CacheMiss() extends ContainerResult
@@ -419,9 +419,7 @@ class ContainerPool(
         val env = getContainerEnvironment()
         val pull = !imageName.contains("whisk/")
         // This will start up the container
-        val con = runDockerOp { new WhiskContainer(transid, this, key, containerName, imageName, network, pull, env, limits) }
-        info(this, s"ContainerPool: started container - about to send init")
-        con
+        runDockerOp { new WhiskContainer(transid, this, key, containerName, imageName, network, pull, env, limits) }
     }
 
     // We send the payload here but eventually must also handle morphing a pre-allocated container into the right state.

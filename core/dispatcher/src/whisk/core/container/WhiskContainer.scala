@@ -49,7 +49,8 @@ class WhiskContainer(
     val initTimeoutMilli = 60000
 
     /*
-     * Start time, End time, response from container consisting of status code and payload
+     * Start time, End time, Some(response) from container consisting of status code and payload
+     * If there is no response or an exception, then None.
      */
     type RunResult = (Instant, Instant, Option[(Int, String)])
 
@@ -73,14 +74,12 @@ class WhiskContainer(
      * Send initialization payload to container.
      */
     def init(args: JsObject)(implicit transid: TransactionId): RunResult = {
-        val start = ContainerCounter.now()
         // this shouldn't be needed but leave it for now
         if (isBlackbox) Thread.sleep(3000)
         info(this, s"sending initialization to ${this.details}", INVOKER_CONTAINER_INIT)
         val result = sendPayload("/init", JsObject("value" -> args), initTimeoutMilli) // This will retry.
-        val end = ContainerCounter.now()
         info(this, s"initialization result: ${result}")
-        (start, end, result)
+        result
     }
 
     /**
@@ -90,11 +89,10 @@ class WhiskContainer(
      * @return triple of start time, end time, response for user action.
      */
     def run(args: JsObject, meta: JsObject, authKey: String, timeout: Int, actionName: String, activationId: String)(implicit transid: TransactionId): RunResult = {
-        val start = ContainerCounter.now()
         info("Invoker", s"sending arguments to $actionName $details", INVOKER_ACTIVATION_RUN_START)
-        val response = sendPayload("/run", JsObject(meta.fields + ("value" -> args) + ("authKey" -> JsString(authKey))), timeout)
+        val result = sendPayload("/run", JsObject(meta.fields + ("value" -> args) + ("authKey" -> JsString(authKey))), timeout)
         info("Invoker", s"finished running activation id: $activationId", INVOKER_ACTIVATION_RUN_DONE)
-        (start, ContainerCounter.now(), response)
+        result
     }
 
     /**
@@ -133,14 +131,24 @@ class WhiskContainer(
      * @param msg the message to post
      * @return response from container if any as array of byte
      */
-    private def sendPayload(endpoint: String, msg: JsObject, timeout: Int): Option[(Int, String)] = {
-        containerIP map { host =>
-            val connection = HttpUtils.makeHttpClient(timeout, true)
-            val http = new HttpUtils(connection, host)
-            val (code, bytes) = http.dopost(endpoint, msg, Map(), timeout)
-            Try { connection.close() }
-            Some(code, new String(bytes, "UTF-8"))
+    private def sendPayload(endpoint: String, msg: JsObject, timeout: Int): RunResult = {
+        val start = ContainerCounter.now()
+        val result = containerIP map { host =>
+            try {
+                val connection = HttpUtils.makeHttpClient(timeout, true)
+                val http = new HttpUtils(connection, host)
+                val (code, bytes) = http.dopost(endpoint, msg, Map(), timeout)
+                Try { connection.close() }
+                Some(code, new String(bytes, "UTF-8"))
+            } catch {
+                case t: Throwable => {
+                    warn(this, s"Exception while posting to action container ${t.getMessage}")
+                    None
+                }
+            }
         } getOrElse None
+        val end = ContainerCounter.now()
+        (start, end, result)
     }
 
 }
