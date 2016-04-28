@@ -1,9 +1,9 @@
 import sys
 def main(dict):
-    if 'user' in dict:
-        print("hello, " + dict['user'] + "!")
-        return {"user":dict['user']}
+    if 'name' in dict:
+        name = dict['name']
     else:
-        print("hello world!")
-        return {"user":"world"}
-
+        name = "stranger"
+    greeting = "Hello " + name + "!"
+    print(greeting)
+    return {"greeting":greeting}
