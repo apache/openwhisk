@@ -12,28 +12,19 @@ var request = require('request');
  * @return The hourly forecast for the lat/long.
  */
 function main(params) {
-    console.log('input params:', params)
+    console.log('input params:', params);
     var apiKey = params.apiKey;
     var lat = params.latitude || '0';
     var lon = params.longitude ||  '0';
-    var zip = params.zipCode;
-    var language = 'en-US';
-    var units = 'm';
+    var language = params.language || 'en-US';
+    var units = params.units || 'm';
 
     // Construct url.
-    var url = 'https://api.weather.com/v1';
-    if (zip)
-        url += '/location/' + zip + ':4:US';
-    else
-        url += '/geocode/' + lat + '/' + lon;
-    url += '/forecast/daily/10day.json'
-         + '?language=' + language
-         + '&apiKey=' + apiKey
-         + '&units=' + units;
+    var url = 'https://' + apiKey + '@twcservice.mybluemix.net:443/api/weather/v2/forecast/daily/10day?units=' + units + '&geocode=' + lat + '%2C' + lon + '&language=' + language;
 
     console.log('url:', url);
     request(url, function (error, response, body) {
-        if (!error && response.statusCode == 200) {
+        if (!error && response.statusCode === 200) {
             var j = JSON.parse(body);
             whisk.done(j);
         } else {
