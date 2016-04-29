@@ -7,8 +7,10 @@ ENV DEBIAN_FRONTEND noninteractive
 # Upgrade and install Swift dependencies.
 RUN apt-get -y update
 RUN apt-get -y dist-upgrade
-RUN apt-get -y install build-essential wget clang libedit-dev python2.7 python2.7-dev libicu52 rsync libxml2-dev
-RUN apt-get -y install git-core
+#RUN apt-get -y install  build-essential wget clang libedit-dev python2.7 python2.7-dev libicu52 rsync libxml2-dev
+RUN apt-get -y install autoconf build-essential libtool wget clang libedit-dev python2.7 python2.7-dev libicu52 rsync libxml2-dev  libcurl3 libcurl4-openssl-dev libdispatch-dev libdispatch0 libblocksruntime-dev libkqueue-dev libpthread-workqueue-dev libbsd-dev libhttp-parser-dev libhiredis-dev libbsd-dev
+
+RUN apt-get -y install git
 RUN apt-get clean
 
 # Install Python CGI helpers.
@@ -38,9 +40,19 @@ ADD . /swiftAction
 RUN cd /swiftAction; rm -rf .project .settings build.xml Dockerfile
 
 # Where the script will live.
+#RUN mkdir -p /swiftAction
+#RUN touch /swiftAction/action.swift
+
+#build lib dispatch for kitura net
+RUN git clone -b experimental/foundation https://github.com/apple/swift-corelibs-libdispatch.git
+RUN cd swift-corelibs-libdispatch && git submodule init && git submodule update && sh ./autogen.sh && ./configure --with-swift-toolchain=/usr --prefix=/usr && make && make install
+
+
+# Build kitura net
 RUN mkdir -p /swiftAction
-RUN touch /swiftAction/action.swift
+RUN touch /swiftAction/spm-build/action.swift
+RUN cd /swiftAction/spm-build; swift build -Xcc -fblocks
 
 ENV FLASK_PROXY_PORT 8080
 
-CMD ["/bin/bash", "-c", "cd swiftAction && python proxy.py"]
+#CMD ["/bin/bash", "-c", "cd swiftAction && python proxy.py"]
