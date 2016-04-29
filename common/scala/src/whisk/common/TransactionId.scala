@@ -44,11 +44,11 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
      * @param token the marker name
      * @return Some LogMarker iff token is defined and None otherwise
      */
-    def mark(token: String): Option[LogMarker] = {
+    def mark(token: LogMarkerToken): Option[LogMarker] = {
         val now = Instant.now(Clock.systemUTC())
-        Option(token) filter { _.trim.nonEmpty } map { _ =>
+        Option(token) filter { _.toString.trim.nonEmpty } map { _ =>
             val delta = now.toEpochMilli - meta.start.toEpochMilli
-            LogMarker(now, delta, token.trim)
+            LogMarker(now, delta, token.toString.trim)
         }
     }
 }
