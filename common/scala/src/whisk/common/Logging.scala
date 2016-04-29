@@ -42,25 +42,25 @@ trait Logging {
     def setComponentName(comp: String) =
         this.componentName = comp
 
-    def debug(from: AnyRef, message: String, marker: String = null)(implicit id: TransactionId = TransactionId.unknown) = {
+    def debug(from: AnyRef, message: String, marker: LogMarkerToken = null)(implicit id: TransactionId = TransactionId.unknown) = {
         val mark = id.mark(marker)
         if (level == Verbosity.Debug || mark.isDefined)
             emit("DEBUG", id, from, message, mark)
     }
 
-    def info(from: AnyRef, message: String, marker: String = null)(implicit id: TransactionId = TransactionId.unknown) = {
+    def info(from: AnyRef, message: String, marker: LogMarkerToken = null)(implicit id: TransactionId = TransactionId.unknown) = {
         val mark = id.mark(marker)
         if (level != Verbosity.Quiet || mark.isDefined)
             emit("INFO", id, from, message, mark)
     }
 
-    def warn(from: AnyRef, message: String, marker: String = null)(implicit id: TransactionId = TransactionId.unknown) = {
+    def warn(from: AnyRef, message: String, marker: LogMarkerToken = null)(implicit id: TransactionId = TransactionId.unknown) = {
         val mark = id.mark(marker)
         if (level != Verbosity.Quiet || mark.isDefined)
             emit("WARN", id, from, message, mark)
     }
 
-    def error(from: AnyRef, message: String, marker: String = null)(implicit id: TransactionId = TransactionId.unknown) = {
+    def error(from: AnyRef, message: String, marker: LogMarkerToken = null)(implicit id: TransactionId = TransactionId.unknown) = {
         emit("ERROR", id, from, message, id.mark(marker))
     }
 
@@ -104,27 +104,55 @@ private object Logging {
         withZone(ZoneId.of("UTC"))
 }
 
+case class LogMarkerToken(component: String, action: String, state: String) {
+    override def toString() = component + "_" + action + "_" + state
+}
+
 object LoggingMarkers {
-    val CONTROLLER_CREATE_ACTIVATION = "controller_create_activation"
-    val LOADBALANCER_POST_KAFKA = "loadbalancer_post_kafka"
-    val CONTROLLER_ACTIVATION_END = "controller_activation_end"
-    val CONTROLLER_BLOCKING_ACTIVATION_END = "controller_blocking_activation_end"
-    val CONTROLLER_BLOCK_FOR_RESULT = "controller_block_for_result"
-    val CONTROLLER_ACTIVATION_REJECTED = "controller_activation_rejected"
-    val CONTROLLER_ACTIVATION_FAILED = "controller_activation_failed"
-    val INVOKER_FETCH_ACTION_START = "invoker_fetch_action_start"
-    val INVOKER_FETCH_ACTION_DONE = "invoker_fetch_action_done"
-    val INVOKER_FETCH_ACTION_FAILED = "invoker_fetch_action_failed"
-    val INVOKER_FETCH_AUTH_START = "invoker_fetch_auth_start"
-    val INVOKER_FETCH_AUTH_DONE = "invoker_fetch_auth_done"
-    val INVOKER_FETCH_AUTH_FAILED = "invoker_fetch_auth_failed"
-    val INVOKER_GET_CONTAINER_START = "invoker_get_container_start"
-    val INVOKER_GET_CONTAINER_DONE = "invoker_get_container_done"
-    val INVOKER_CONTAINER_INIT = "invoker_container_init"
-    val INVOKER_ACTIVATION_RUN_START = "invoker_activation_run_start"
-    val INVOKER_ACTIVATION_RUN_DONE = "invoker_activation_run_done"
-    val INVOKER_ACTIVATION_END = "invoker_activation_end"
-    val INVOKER_RECORD_ACTIVATION_START = "invoker_record_activation_start"
-    val INVOKER_RECORD_ACTIVATION_DONE = "invoker_record_activation_done"
-    val INVOKER_FAILED_ACTIVATION = "invoker_failed_activation"
+    private val start = "start"
+    private val finish = "finish"
+    private val error = "error"
+
+    private val controller = "controller"
+    private val loadbalancer = "loadbalancer"
+    private val invoker = "invoker"
+
+    private val activation = "activation"
+    val CONTROLLER_CREATE_ACTIVATION = LogMarkerToken(controller, activation, start)
+    val CONTROLLER_ACTIVATION_END = LogMarkerToken(controller, activation, finish)
+    val CONTROLLER_ACTIVATION_REJECTED = LogMarkerToken(controller, activation, "reject")
+    val CONTROLLER_ACTIVATION_FAILED = LogMarkerToken(controller, activation, error)
+
+    private val waitForBlockingActivation = "waitForBlockingActivation"
+    val CONTROLLER_BLOCK_FOR_RESULT = LogMarkerToken(controller, waitForBlockingActivation, start)
+    val CONTROLLER_BLOCKING_ACTIVATION_END = LogMarkerToken(controller, waitForBlockingActivation, finish)
+
+    val LOADBALANCER_POST_KAFKA = LogMarkerToken(loadbalancer, "postToKafka", start)
+
+    private val fetchAction = "fetchAction"
+    val INVOKER_FETCH_ACTION_START = LogMarkerToken(invoker, fetchAction, start)
+    val INVOKER_FETCH_ACTION_DONE = LogMarkerToken(invoker, fetchAction, finish)
+    val INVOKER_FETCH_ACTION_FAILED = LogMarkerToken(invoker, fetchAction, error)
+
+    private val fetchAuth = "fetchAuth"
+    val INVOKER_FETCH_AUTH_START = LogMarkerToken(invoker, fetchAuth, start)
+    val INVOKER_FETCH_AUTH_DONE = LogMarkerToken(invoker, fetchAuth, finish)
+    val INVOKER_FETCH_AUTH_FAILED = LogMarkerToken(invoker, fetchAuth, error)
+
+    private val getContainer = "getContainer"
+    val INVOKER_GET_CONTAINER_START = LogMarkerToken(invoker, getContainer, start)
+    val INVOKER_GET_CONTAINER_DONE = LogMarkerToken(invoker, getContainer, finish)
+
+    val INVOKER_CONTAINER_INIT = LogMarkerToken(invoker, "initContainer", start)
+
+    private val activationRun = "activationRun"
+    val INVOKER_ACTIVATION_RUN_START = LogMarkerToken(invoker, activationRun, start)
+    val INVOKER_ACTIVATION_RUN_DONE = LogMarkerToken(invoker, activationRun, finish)
+
+    val INVOKER_ACTIVATION_END = LogMarkerToken(invoker, activation, finish)
+    val INVOKER_FAILED_ACTIVATION = LogMarkerToken(invoker, activation, error)
+
+    private val recordActivation = "recordActivation"
+    val INVOKER_RECORD_ACTIVATION_START = LogMarkerToken(invoker, recordActivation, start)
+    val INVOKER_RECORD_ACTIVATION_DONE = LogMarkerToken(invoker, recordActivation, finish)
 }
