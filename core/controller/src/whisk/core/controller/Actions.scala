@@ -390,7 +390,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         val args = { env map { _ ++ action.parameters } getOrElse action.parameters } merge payload
         val message = Message(transid, s"/actions/invoke/${action.namespace}/${action.name}/${action.rev}", user, ActivationId(), args)
 
-        info(this, s"[POST] action activation id: ${message.activationId}", CONTROLLER_CREATE_ACTIVATION)
+        info(this, s"[POST] action activation id: ${message.activationId}", CONTROLLER_ACTIVATION_CREATE)
         performLoadBalancerRequest(INVOKER, message, transid) map {
             (action.limits.timeout(), _)
         } flatMap {
@@ -415,7 +415,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                     val docid = DocId(WhiskEntity.qualifiedName(user.namespace, activationId))
                     val timeout = duration + blockingInvokeGrace
                     val promise = Promise[(ActivationId, Option[WhiskActivation])]
-                    info(this, s"[POST] action activation will block on result up to $timeout ($duration + $blockingInvokeGrace grace)", CONTROLLER_BLOCK_FOR_RESULT)
+                    info(this, s"[POST] action activation will block on result up to $timeout ($duration + $blockingInvokeGrace grace)", CONTROLLER_BLOCK_FOR_RESULT_START)
                     pollForResult(docid.asDocInfo, activationId, promise)
                     val response = promise.future withTimeout (timeout, new BlockingInvokeTimeout(activationId))
                     response onFailure { case t => promise.tryFailure(t) } // short circuits polling on result
