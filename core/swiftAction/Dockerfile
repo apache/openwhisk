@@ -50,7 +50,7 @@ RUN cd swift-corelibs-libdispatch && git submodule init && git submodule update 
 
 # Build kitura net
 RUN mkdir -p /swiftAction
-RUN touch /swiftAction/spm-build/action.swift
+RUN touch /swiftAction/spm-build/main.swift
 RUN cd /swiftAction/spm-build; swift build -Xcc -fblocks
 
 ENV FLASK_PROXY_PORT 8080
