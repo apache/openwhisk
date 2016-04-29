@@ -136,6 +136,11 @@ case class WhiskAction(
                 "jar" -> jar.toJson,
                 "main" -> main.toJson)
 
+        case Swift3Exec(code) =>
+            JsObject(
+                "name" -> name.toJson,
+                "code" -> code.toJson)
+
         case _: BlackBoxExec =>
             JsObject()
 
@@ -160,7 +165,7 @@ object WhiskAction
 
     def containerImageName(exec: Exec, registry: String = null, tag: String = "latest"): String = {
         exec match {
-            case _: NodeJSExec | _: SwiftExec | _: JavaExec | _: PythonExec =>
+            case _: NodeJSExec | _: PythonExec | _: SwiftExec | _: Swift3Exec | _: JavaExec =>
                 Option(registry).filter { _.nonEmpty }.map { r =>
                     val prefix = if (r.endsWith("/")) r else s"$r/"
                     s"${prefix}${exec.image}:${tag}"

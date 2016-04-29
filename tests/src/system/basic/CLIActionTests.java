@@ -320,6 +320,22 @@ public class CLIActionTests {
     }
 
     @Test(timeout=120*1000)
+    public void createActionWithKind() throws Exception {
+        String action = "updateActionWithKind";
+        String publishFalseStr = "\"publish\": false";
+        String publishTrueStr = "\"publish\": true";
+        try {
+            wsk.sanitize(Action, action);
+            // create public action then update it to private
+            wsk.createActionWithKind(action, TestUtils.getCatalogFilename("samples/httpGet.swift"), "swift:3");
+            String item = wsk.get(Action, action);
+            assertTrue("Expect action to not be shared", item.contains(publishFalseStr));
+        } finally {
+            wsk.delete(Action, action);
+        }
+    }
+
+    @Test(timeout=120*1000)
     public void invokeActionWithSpace() throws Exception {
         String name = "WORD COUNT";
         try {
