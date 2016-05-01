@@ -16,40 +16,32 @@
 
 package whisk.core.loadBalancer
 
-import akka.actor.Actor
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
+import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
-import scala.util.matching.Regex.Match
 
-import spray.http.StatusCodes.InternalServerError
-import spray.http.StatusCodes.OK
-import spray.httpx.SprayJsonSupport._
-import spray.json.DefaultJsonProtocol._
+import akka.actor.ActorSystem
 import spray.json.JsBoolean
 import spray.json.JsObject
-import whisk.common.ConsulKV
+import whisk.common.ConsulClient
 import whisk.common.ConsulKV.LoadBalancerKeys
 import whisk.common.ConsulKVReporter
 import whisk.common.Logging
-import whisk.common.TransactionId
 import whisk.common.Verbosity
-import whisk.connector.kafka.KafkaProducerConnector
 import whisk.connector.kafka.KafkaConsumerConnector
+import whisk.connector.kafka.KafkaProducerConnector
 import whisk.core.WhiskConfig
-import whisk.core.connector.{Message, ActivationMessage, CompletionMessage }
-import whisk.core.connector.LoadBalancerResponse
-import whisk.core.entity.DocInfo
-import whisk.http.BasicRasService
+import whisk.core.WhiskConfig.{ servicePort, kafkaHost, consulServer, kafkaPartitions }
+import whisk.core.connector.{ ActivationMessage, CompletionMessage }
 import whisk.utils.ExecutionContextFactory
+import scala.concurrent.ExecutionContext
 
-class LoadBalancerService(config: WhiskConfig, verbosity: Verbosity.Level)
+class LoadBalancerService(config: WhiskConfig, verbosity: Verbosity.Level)(
+    implicit val actorSystem: ActorSystem,
+    val executionContext: ExecutionContext)
     extends LoadBalancerToKafka
     with Logging {
-
-    /** The execution context for futures */
-    implicit val executionContext = ExecutionContextFactory.makeExecutionContext()
 
     /**
      * The two public methods are getInvokerHealth and the inherited doPublish methods.
@@ -61,24 +53,25 @@ class LoadBalancerService(config: WhiskConfig, verbosity: Verbosity.Level)
 
     override val producer = new KafkaProducerConnector(config.kafkaHost, executionContext)
 
-    private val kvStore = new ConsulKV(config.consulServer)
     private val invokerHealth = new InvokerHealth(config, { () => producer.sentCount() })
-    private val _activationThrottle = new ActivationThrottle(LoadBalancer.config.consulServer, invokerHealth)
+    private val _activationThrottle = new ActivationThrottle(config.consulServer, invokerHealth)
 
     // This must happen after the overrides
     setVerbosity(verbosity)
 
     private var count = 0
     private val overloadThreshold = 5000 // this is the total across all invokers.  Disable by setting to -1.
-    private val reporter = new ConsulKVReporter(kvStore, 3000, 2000,
+    private val kv = new ConsulClient(config.consulServer)
+    private val reporter = new ConsulKVReporter(kv, 3 seconds, 2 seconds,
         LoadBalancerKeys.hostnameKey,
         LoadBalancerKeys.startKey,
         LoadBalancerKeys.statusKey,
         { () =>
             val producedCount = getActivationCount()
             val invokerInfo = invokerHealth.getInvokerActivationCounts()
-            val consumedCounts = invokerInfo map {indexCount => indexCount._2}
-            val consumedCount = consumedCounts.foldLeft(0)(_ + _)
+            val consumedCount = invokerInfo map {
+                case (index, count) => count
+            } sum
             val inFlight = producedCount - consumedCount
             val overload = JsBoolean(overloadThreshold > 0 && inFlight >= overloadThreshold)
             count = count + 1
@@ -114,4 +107,13 @@ class LoadBalancerService(config: WhiskConfig, verbosity: Verbosity.Level)
         true
     })
 
+}
+
+object LoadBalancerService {
+    def requiredProperties =
+        Map(servicePort -> null) ++
+            kafkaHost ++
+            consulServer ++
+            Map(kafkaPartitions -> null) ++
+            InvokerHealth.requiredProperties
 }

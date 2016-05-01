@@ -20,14 +20,19 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
 import scala.collection.concurrent.TrieMap
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
 
+import akka.actor.ActorSystem
 import spray.json.DefaultJsonProtocol.IntJsonFormat
 import spray.json.DefaultJsonProtocol.StringJsonFormat
-import spray.json.JsNumber
 import spray.json.JsObject
 import spray.json.JsString
 import spray.json.pimpAny
-import whisk.common.ConsulKV
+import spray.json.pimpString
+import whisk.common.ConsulClient
+import whisk.common.ConsulKV.InvokerKeys
 import whisk.common.ConsulKV.LoadBalancerKeys
 import whisk.common.ConsulKVReporter
 import whisk.common.DateUtil
@@ -36,7 +41,6 @@ import whisk.common.Verbosity
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.consulServer
 import whisk.core.connector.{ ActivationMessage => Message }
-import scala.language.postfixOps
 
 object InvokerHealth {
     val requiredProperties = consulServer
@@ -47,14 +51,18 @@ object InvokerHealth {
  *
  * We are starting to put real load-balancer logic in here too.  Should probably be moved out at some point.
  */
-class InvokerHealth(config: WhiskConfig, getKafkaPostCount: () => Int) extends Logging {
+class InvokerHealth(
+    config: WhiskConfig,
+    getKafkaPostCount: () => Int)(
+        implicit val system: ActorSystem,
+        val ec: ExecutionContext) extends Logging {
 
     setComponentName("LoadBalancer");
     setVerbosity(Verbosity.Loud);
 
     private val activationCountBeforeNextInvoker = 10
 
-    def getInvoker(msg : Message): Option[Int] = {
+    def getInvoker(msg: Message): Option[Int] = {
         val (hash, count) = hashAndCountSubjectAction(msg)
         val numInv = numInvokers // dynamic
         if (numInv > 0) {
@@ -72,20 +80,20 @@ class InvokerHealth(config: WhiskConfig, getKafkaPostCount: () => Int) extends L
      * Invoker is currently using and which is better avoid if/until
      * these are moved to some common place (like a subclass of Message?)
      */
-    def hashAndCountSubjectAction(msg : Message): (Int, Int) = {
-         val subject = msg.subject().toString()
-         val path = msg.path
-         val hash = subject.hashCode() ^ path.hashCode()
-         val key = (subject, path)
-         val count = activationCountMap.get(key) match {
-           case Some(counter) => counter.getAndIncrement()
-           case None => {
-             activationCountMap.put(key, new AtomicInteger(0))
-             0
-           }
-         }
-         //info(this, s"getInvoker: ${subject} ${path} -> ${hash} ${count}")
-         return (hash, count)
+    def hashAndCountSubjectAction(msg: Message): (Int, Int) = {
+        val subject = msg.subject().toString()
+        val path = msg.path
+        val hash = subject.hashCode() ^ path.hashCode()
+        val key = (subject, path)
+        val count = activationCountMap.get(key) match {
+            case Some(counter) => counter.getAndIncrement()
+            case None => {
+                activationCountMap.put(key, new AtomicInteger(0))
+                0
+            }
+        }
+        //info(this, s"getInvoker: ${subject} ${path} -> ${hash} ${count}")
+        return (hash, count)
     }
 
     def getInvokerHealth(): JsObject = {
@@ -93,62 +101,55 @@ class InvokerHealth(config: WhiskConfig, getKafkaPostCount: () => Int) extends L
         JsObject(health toMap)
     }
 
-    def getInvokerIndices() : Array[Int] = {
-        invokers.get() map { status => status.index }
+    def getInvokerIndices(): Array[Int] = {
+        invokers.get() map { _.index }
     }
 
-    def getInvokerActivationCounts() : Array[(Int, Int)] = {
+    def getInvokerActivationCounts(): Array[(Int, Int)] = {
         invokers.get() map { status => (status.index, status.activationCount) }
     }
 
-    new Thread() {
-        /** query the KV store this often */
-        private val healthCheckPeriodMillis = 2000
-        /** allow the last invoker update to be this far behind */
-        private val maximumAllowedDelayMilli = 5000
+    private val maximumAllowedDelay = 5 seconds
+    def isFresh(lastDate: String) = {
+        val lastDateMilli = DateUtil.parseToMilli(lastDate)
+        val now = System.currentTimeMillis() // We fetch this repeatedly in case KV fetch is slow
+        (now - lastDateMilli) <= maximumAllowedDelay.toMillis
+    }
 
-        def isFresh(lastDate: String) = {
-            val lastDateMilli = DateUtil.parseToMilli(lastDate)
-            val now = System.currentTimeMillis() // We fetch this repeatedly in case KV fetch is slow
-            (now - lastDateMilli) <= maximumAllowedDelayMilli
+    private val kv = new ConsulClient(config.consulServer)
+    private val reporter = new ConsulKVReporter(kv, 3 seconds, 2 seconds,
+        LoadBalancerKeys.hostnameKey,
+        LoadBalancerKeys.startKey,
+        LoadBalancerKeys.statusKey,
+        { () =>
+            Map(LoadBalancerKeys.invokerHealth -> getInvokerHealth(),
+                LoadBalancerKeys.activationCountKey -> getKafkaPostCount().toJson)
+        })
+
+    /** query the KV store this often */
+    private val healthCheckInterval = 2 seconds
+
+    system.scheduler.schedule(0 seconds, healthCheckInterval) {
+        kv.getRecurse(InvokerKeys.allInvokers) foreach { invokerInfo =>
+            // keys are like invokers/invokerN/count
+            val flattened = ConsulClient.dropKeyLevel(invokerInfo)
+            val nested = ConsulClient.toNestedMap(flattened)
+
+            val status = nested map {
+                case (key, inner) =>
+                    val index = key.substring(7).toInt // key is invokerN
+                    val JsString(lastDate) = inner("status").parseJson
+                    Status(index, isFresh(lastDate), inner("activationCount").toInt)
+            }
+
+            val newStatus = status.toArray.sortBy(_.index)
+            val oldStatus = invokers.get()
+            invokers.set(newStatus)
+            if (newStatus.deep != oldStatus.deep) {
+                warn(this, s"InvokerHealth status change: ${newStatus.deep.mkString(" ")}")
+            }
         }
-
-        private val kvStore = new ConsulKV(config.consulServer)
-        private val reporter = new ConsulKVReporter(kvStore, 3000, 2000,
-            LoadBalancerKeys.hostnameKey,
-            LoadBalancerKeys.startKey,
-            LoadBalancerKeys.statusKey,
-            { () =>
-                Map(LoadBalancerKeys.invokerHealth -> getInvokerHealth(),
-                    LoadBalancerKeys.activationCountKey -> getKafkaPostCount().toJson)
-            })
-
-        /** Continously read from the KV store to get invoker status.*/
-        override def run() = {
-            while (true) {
-                val info = kvStore.getRecurse(ConsulKV.InvokerKeys.allInvokers)
-                val freshMap = info.flatMap {
-                    case (k, JsString(lastDate)) =>
-                        ConsulKV.InvokerKeys.getStatusIndex(k) map {
-                            index =>
-                              val activationCount = info.get(ConsulKV.InvokerKeys.activationCount(index)) match {
-                                case Some(JsNumber(v)) => v.toInt
-                                case _ => 0
-                              }
-                              Some((k, Status(index, isFresh(lastDate), activationCount)))
-                        } getOrElse None
-                    case _ => None
-                }
-                val newStatus = freshMap.values.toArray.sortWith(_.index < _.index)
-                val oldStatus = invokers.get()
-                invokers.set(newStatus)
-                if (newStatus.deep != oldStatus.deep) {
-                    warn(this, s"InvokerHealth status change: ${newStatus.deep.mkString(" ")}")
-                }
-                Thread.sleep(healthCheckPeriodMillis)
-            } // while
-        }
-    }.start()
+    }
 
     /**
      * Finds an available invoker starting at current index and trying for remaining indexes.
@@ -179,7 +180,7 @@ class InvokerHealth(config: WhiskConfig, getKafkaPostCount: () => Int) extends L
     private val msgCount = new AtomicInteger(0)
 
     // Because we are not using 0-based indexing yet...
-    private case class Status(index: Int, status: Boolean, activationCount : Int) {
+    private case class Status(index: Int, status: Boolean, activationCount: Int) {
         override def toString = s"index: $index, healthy: $status, activations: $activationCount"
     }
     private lazy val invokers = new AtomicReference(Array(): Array[Status])

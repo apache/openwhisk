@@ -22,6 +22,8 @@ import java.time.Instant
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
+import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
@@ -37,7 +39,7 @@ import spray.json.JsObject
 import spray.json.JsString
 import spray.json.pimpAny
 import spray.json.pimpString
-import whisk.common.ConsulKV
+import whisk.common.ConsulClient
 import whisk.common.ConsulKV.InvokerKeys
 import whisk.common.ConsulKVReporter
 import whisk.common.Counter
@@ -45,6 +47,7 @@ import whisk.common.LoggingMarkers._
 import whisk.common.SimpleExec
 import whisk.common.TransactionId
 import whisk.common.Verbosity
+import whisk.connector.kafka.KafkaProducerConnector
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.consulServer
 import whisk.core.WhiskConfig.dockerRegistry
@@ -53,7 +56,6 @@ import whisk.core.WhiskConfig.logsDir
 import whisk.core.WhiskConfig.whiskVersion
 import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.core.connector.CompletionMessage
-import whisk.connector.kafka.KafkaProducerConnector
 import whisk.core.container.ContainerPool
 import whisk.core.container.WhiskContainer
 import whisk.core.dispatcher.DispatchRule
@@ -77,7 +79,6 @@ import whisk.core.entity.WhiskAuthStore
 import whisk.core.entity.WhiskEntity
 import whisk.core.entity.WhiskEntityStore
 import whisk.http.BasicHttpService
-import scala.language.postfixOps
 
 /**
  * A kafka message handler that invokes actions as directed by message on topic "/actions/invoke".
@@ -238,7 +239,7 @@ class Invoker(
     }
 
     // These are related to initialization
-    private val RegularSlack  = 100 // millis
+    private val RegularSlack = 100 // millis
     private val BlackBoxSlack = 200 // millis
 
     protected def invokeAction(action: WhiskAction, auth: WhiskAuth, payload: JsObject, tran: Transaction)(
@@ -284,7 +285,6 @@ class Invoker(
         }
     }
 
-
     // The nodeJsAction runner inserts this line in the logs at the end
     // of each activation
     private val LogRetryCount = 10
@@ -311,7 +311,7 @@ class Invoker(
             if (tries > 0 && !complete) {
                 info(this, s"log cursor advanced but missing sentinel, trying $tries more times")
                 Thread.sleep(LogRetry)
-                getContainerLogs(con, tries-1)
+                getContainerLogs(con, tries - 1)
             } else {
                 con.lastLogSize = size
                 logArray
@@ -319,7 +319,7 @@ class Invoker(
         } else {
             info(this, s"log cursor has not advanced, trying $tries more times")
             Thread.sleep(LogRetry)
-            getContainerLogs(con, tries-1)
+            getContainerLogs(con, tries - 1)
         }
     }
 
@@ -332,19 +332,20 @@ class Invoker(
         implicit transid: TransactionId): (Boolean, JsArray) = {
 
         if (logMsgs.nonEmpty) {
-            val records : Vector[(String, String, String)] = logMsgs.split("\n").toVector flatMap {
-                line => Try { line.parseJson.asJsObject } match {
-                    case Success(t) =>
-                        t.getFields("time", "stream", "log") match {
-                            case Seq(JsString(t), JsString(s), JsString(l)) => Some(t, s, l.trim)
-                            case _ => None
-                        }
-                    case Failure(t) =>
-                        // Drop lines that did not parse to JSON objects.
-                        // However, should not happen since we are using the json log driver.
-                        error(this, s"log line skipped/did not parse: $t")
-                        None
-                }
+            val records: Vector[(String, String, String)] = logMsgs.split("\n").toVector flatMap {
+                line =>
+                    Try { line.parseJson.asJsObject } match {
+                        case Success(t) =>
+                            t.getFields("time", "stream", "log") match {
+                                case Seq(JsString(t), JsString(s), JsString(l)) => Some(t, s, l.trim)
+                                case _ => None
+                            }
+                        case Failure(t) =>
+                            // Drop lines that did not parse to JSON objects.
+                            // However, should not happen since we are using the json log driver.
+                            error(this, s"log line skipped/did not parse: $t")
+                            None
+                    }
             }
             if (requireSentinel) {
                 val (sentinels, regulars) = records.partition(_._3 == LOG_ACTIVATION_SENTINEL)
@@ -360,7 +361,7 @@ class Invoker(
         }
     }
 
-    private def formatLog(time_stream_msg : (String, String, String)) = {
+    private def formatLog(time_stream_msg: (String, String, String)) = {
         val (time, stream, msg) = time_stream_msg
         f"$time%-30s $stream: ${msg.trim}".toJson
     }
@@ -473,9 +474,8 @@ class Invoker(
     /**
      * Repeatedly updates the KV store as to the invoker's last check-in.
      */
-    private val healthUpdatePeriodMillis = 2000
-    private val kvStore = new ConsulKV(config.consulServer)
-    private val reporter = new ConsulKVReporter(kvStore, 3000, healthUpdatePeriodMillis,
+    private val kv = new ConsulClient(config.consulServer)
+    private val reporter = new ConsulKVReporter(kv, 3 seconds, 2 seconds,
         InvokerKeys.hostname(instance),
         InvokerKeys.start(instance),
         InvokerKeys.status(instance),
