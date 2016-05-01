@@ -16,8 +16,17 @@
 
 package whisk.common
 
+import scala.annotation.implicitNotFound
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.FiniteDuration
+import scala.language.postfixOps
+
+import akka.actor.ActorSystem
+
 import spray.json.JsValue
-import spray.json.JsString
+import spray.json.pimpAny
+import spray.json.DefaultJsonProtocol.StringJsonFormat
 
 /**
  * An object with an underlying thread that periodically stores into the ConsulKV store.
@@ -25,28 +34,26 @@ import spray.json.JsString
  * Set up a Consul KV interface at the given agent address.
  */
 class ConsulKVReporter(
-    kvStore: ConsulKV,
-    initialDelayMilli: Int,
-    periodMilli: Int,
+    kv: ConsulClient,
+    initialDelay: FiniteDuration,
+    interval: FiniteDuration,
     hostKey: String,
     startKey: String,
     statusKey: String,
-    updater: () => Map[String, JsValue]) {
+    updater: () => Map[String, JsValue])(
+        implicit val system: ActorSystem,
+        val ec: ExecutionContext) {
 
-    private val t = new Thread() {
-        override def run() = {
-            Thread.sleep(initialDelayMilli)
-            val (selfHostname, stderr, exitCode) = SimpleExec.syncRunCmd(Array("hostname", "-f"))(TransactionId.unknown)
-            kvStore.put(hostKey, JsString(selfHostname))
-            kvStore.put(startKey, JsString(s"${DateUtil.getTimeString}"))
-            while (true) {
-                kvStore.put(statusKey, JsString(s"${DateUtil.getTimeString}"))
-                updater().foreach({ case (k, v) => kvStore.put(k, v) })
-                Thread.sleep(periodMilli)
+    system.scheduler.scheduleOnce(initialDelay) {
+        val (selfHostname, stderr, exitCode) = SimpleExec.syncRunCmd(Array("hostname", "-f"))(TransactionId.unknown)
+        kv.put(hostKey, selfHostname.toJson.compactPrint)
+        kv.put(startKey, DateUtil.getTimeString.toJson.compactPrint)
+
+        system.scheduler.schedule(0 seconds, interval) {
+            kv.put(statusKey, DateUtil.getTimeString.toJson.compactPrint)
+            updater() foreach {
+                case (k, v) => kv.put(k, v.compactPrint)
             }
         }
     }
-
-    // Start the actual thread
-    t.start()
 }
