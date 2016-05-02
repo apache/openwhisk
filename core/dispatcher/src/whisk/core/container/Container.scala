@@ -81,13 +81,24 @@ class Container(
         getContainerLogs(containerId) getOrElse ""
     }
 
+    private val removeRetryCount = 2
     /**
-     * Removes a container (it may be running).
+     * Unpauses and removes a container (it may be running).
      */
-    def remove()(implicit transid: TransactionId): Unit = {
-        info(this, s"Removing container $containerId")
-        unpause()  // a paused container cannot be removed
-        rmContainer(containerId)
+    def remove(tryCount: Int = removeRetryCount)(implicit transid: TransactionId): Unit = {
+        if (tryCount <= 0) {
+            error(this, s"Failed to remove container $containerId")
+        } else {
+            if (tryCount == removeRetryCount)
+                info(this, s"Removing container $containerId")
+            else
+                warn(this, s"Retrying to remove container $containerId")
+            unpause()  // a paused container cannot be removed
+            rmContainer(containerId) match {
+                case None => remove(tryCount - 1)
+                case _ => ()
+            }
+        }
     }
 }
 
