@@ -174,7 +174,7 @@ function Whisk(apihost, version, logger) {
             var error = undefined;
             var errorCode = undefined;
 
-            if (response.statusCode == 200) {
+            if (response && response.statusCode == 200) {
                 activation = { activation: body.activationId }; // id always present
             } else {
                 // activation failed, set error to API host error response (msg and code)
@@ -271,7 +271,8 @@ function post(packet, logger, next) {
 
     request.post(options, function(error, response, body) {
         logger && logger.info('[whisk]', 'post status:', response ? response.statusCode : undefined);
-        error  && logger.info('[whisk]', 'post error:', error);
+        // print the error to console.error to help post-mortem debugging
+        error  && console.error('[whisk]', 'post error:', error);
         if (next) next(error, response, body || {});
     });
 }
