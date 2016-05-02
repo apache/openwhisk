@@ -41,15 +41,16 @@ public class TestUtils {
     public static final int SUCCESS_EXIT = 0;
     public static final int ERROR_EXIT = 1;
     public static final int MISUSE_EXIT = 2;
-    public static final int BAD_REQUEST = 144; // 400
-    public static final int UNAUTHORIZED = 145; // 401
-    public static final int FORBIDDEN = 147; // 403
-    public static final int NOT_FOUND = 148; // 404
-    public static final int NOTALLOWED = 149; // 405
-    public static final int CONFLICT = 153; // 409
-    public static final int TIMEOUT = 246; // 502
-    public static final int DONTCARE_EXIT = -1;   // any value is ok
-    public static final int ANY_ERROR_EXIT = -2;  // any non-zero value is ok
+    public static final int BAD_REQUEST = 144;   // 400 - 256 = 144
+    public static final int UNAUTHORIZED = 145;  // 401 - 256 = 145
+    public static final int FORBIDDEN = 147;     // 403 - 256 = 147
+    public static final int NOT_FOUND = 148;     // 404 - 256 = 148
+    public static final int NOTALLOWED = 149;    // 405 - 256 = 149
+    public static final int CONFLICT = 153;      // 409 - 256 = 153
+    public static final int THROTTLED = 173;     // 429 (TOO_MANY_REQUESTS) - 256 = 173
+    public static final int TIMEOUT = 246;       // 502 (GATEWAY_TIMEOUT)   - 256 = 173
+    public static final int DONTCARE_EXIT = -1;  // any value is ok
+    public static final int ANY_ERROR_EXIT = -2; // any non-zero value is ok
 
     private static final File catalogDir = WhiskProperties.getFileRelativeToWhiskHome("catalog");
     private static final File testActionsDir = WhiskProperties.getFileRelativeToWhiskHome("tests/dat/actions");
