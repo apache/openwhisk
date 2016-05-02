@@ -290,9 +290,9 @@ else:
 # Deploy (or just kill) all invokers
 curTriples = invokerHostTriples
 failedTriples = []
-for iteration in (0, 2):
+for iteration in (0, 3):
   if (iteration > 0):
-    print 'Retrying'
+    print 'Retrying', iteration
   (elapsed, failedTriples) = deploy(whiskprops, curTriples, args.kill, args.tag)
   print '\nTried to', ('kill' if args.kill else 'deploy'), len(curTriples), 'invokers.',
   if (len(failedTriples) == 0):
