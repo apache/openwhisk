@@ -28,9 +28,11 @@ proxy = flask.Flask(__name__)
 proxy.debug = False
 
 SRC_EPILOGUE_FILE = "./epilogue.swift"
-DEST_SCRIPT_FILE = "/swiftAction/action.swift"
-DEST_BIN_FILE = "/swiftAction/action"
-BUILD_PROCESS = [ "swiftc", "-O", DEST_SCRIPT_FILE, "-o", DEST_BIN_FILE ]
+DEST_SCRIPT_FILE = "/swiftAction/spm-build/main.swift"
+DEST_SCRIPT_DIR = "/swiftAction/spm-build"
+DEST_BIN_FILE = "/swiftAction/spm-build/.build/debug/Action"
+BUILD_PROCESS = [ "swift", "build", "-Xcc", "-fblocks", "-Xlinker", "-rpath", "-Xlinker", "/swiftAction/spm-build/.build/debug"]
+#BUILD_PROCESS = [ "swift", "build", "-Xcc", "-fblocks"]
 # RUN_PROCESS = [ "swift", DEST_SCRIPT_FILE ]
 RUN_PROCESS = [ DEST_BIN_FILE ]
 
@@ -48,7 +50,7 @@ def init():
             with codecs.open(SRC_EPILOGUE_FILE, "r", "utf-8") as ep:
                 fp.write(ep.read())
 
-        p = subprocess.Popen(BUILD_PROCESS)
+        p = subprocess.Popen(BUILD_PROCESS, cwd=DEST_SCRIPT_DIR)
 
         (o,e) = p.communicate()
 

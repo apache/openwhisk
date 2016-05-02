@@ -8,7 +8,12 @@ ENV DEBIAN_FRONTEND noninteractive
 RUN apt-get -y update
 RUN apt-get -y dist-upgrade
 #RUN apt-get -y install  build-essential wget clang libedit-dev python2.7 python2.7-dev libicu52 rsync libxml2-dev
-RUN apt-get -y install autoconf build-essential libtool wget clang libedit-dev python2.7 python2.7-dev libicu52 rsync libxml2-dev  libcurl3 libcurl4-openssl-dev libdispatch-dev libdispatch0 libblocksruntime-dev libkqueue-dev libpthread-workqueue-dev libbsd-dev libhttp-parser-dev libhiredis-dev libbsd-dev
+#RUN apt-get -y install autoconf build-essential libtool wget clang libedit-dev python2.7 python2.7-dev libicu52 rsync libxml2-dev  libcurl3 libcurl4-openssl libdispatch-dev libdispatch0 libblocksruntime-dev libkqueue-dev libpthread-workqueue-dev libbsd-dev libhiredis-dev libbsd-dev
+
+# OpenWhisk dependencies
+RUN apt-get -y install  build-essential wget clang libedit-dev python2.7 python2.7-dev libicu52 rsync libxml2-dev emacs24-nox
+# Kitura dependencies
+RUN apt-get -y install autoconf libtool libkqueue-dev libkqueue0 libdispatch-dev libdispatch0 libcurl4-openssl-dev libbsd-dev
 
 RUN apt-get -y install git
 RUN apt-get clean
@@ -34,6 +39,10 @@ RUN SWIFT_ARCHIVE_NAME=swift-$SWIFT_VERSION-$SWIFT_PLATFORM && \
     tar -xzf $SWIFT_ARCHIVE_NAME.tar.gz --directory / --strip-components=1 && \
     rm -rf $SWIFT_ARCHIVE_NAME* /tmp/* /var/tmp/*
 
+#build lib dispatch for kitura net
+RUN git clone -b experimental/foundation https://github.com/apple/swift-corelibs-libdispatch.git
+RUN cd swift-corelibs-libdispatch && git submodule init && git submodule update && sh ./autogen.sh && ./configure --with-swift-toolchain=/usr --prefix=/usr && make && make install
+
 # Copy the Flask proxy. Following the pattern in nodejsAction.
 ADD . /swiftAction
 
@@ -43,16 +52,11 @@ RUN cd /swiftAction; rm -rf .project .settings build.xml Dockerfile
 #RUN mkdir -p /swiftAction
 #RUN touch /swiftAction/action.swift
 
-#build lib dispatch for kitura net
-RUN git clone -b experimental/foundation https://github.com/apple/swift-corelibs-libdispatch.git
-RUN cd swift-corelibs-libdispatch && git submodule init && git submodule update && sh ./autogen.sh && ./configure --with-swift-toolchain=/usr --prefix=/usr && make && make install
-
-
 # Build kitura net
 RUN mkdir -p /swiftAction
 RUN touch /swiftAction/spm-build/main.swift
-RUN cd /swiftAction/spm-build; swift build -Xcc -fblocks
+RUN cd /swiftAction/spm-build; swift build -Xcc -fblocks -Xlinker -rpath -Xlinker /swiftAction/spm-build/.build/debug
 
 ENV FLASK_PROXY_PORT 8080
 
-#CMD ["/bin/bash", "-c", "cd swiftAction && python proxy.py"]
+CMD ["/bin/bash", "-c", "cd swiftAction && python proxy.py"]
