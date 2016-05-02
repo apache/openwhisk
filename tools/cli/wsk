@@ -66,7 +66,7 @@ def main():
 
         if (args.verbose):
             print props
-        if apihost is None and (args.cmd != 'property' or args.cmd == 'property' and args.subcmd != 'get'):
+        if apihost is None and (args.cmd != 'property' or args.cmd == 'property' and args.subcmd != 'set'):
             print 'error: API host is not set. Set it with "wsk property set --apihost <host>".'
             return 2
 
