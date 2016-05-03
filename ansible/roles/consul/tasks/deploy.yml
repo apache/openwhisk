@@ -62,4 +62,4 @@
     volumes:
       - "{{ whisk_logs_dir }}/registrator:/logs"
       - "/var/run/docker.sock:/tmp/docker.sock"
-    command: "-ip {{ inventory_hostname }} -resync 2 consul://{{ inventory_hostname }}:{{ consul.port.http }}"
+    command: "-ip {{ ansible_host | default(inventory_hostname) }} -resync 2 consul://{{ ansible_host | default(inventory_hostname) }}:{{ consul.port.http }}"
