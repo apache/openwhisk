@@ -1,2 +1,2 @@
-ext.dockerImageName = 'whisk/swiftaction'
+ext.dockerImageName = 'whisk/swift3action'
 apply from: '../../docker.gradle'
