@@ -94,7 +94,7 @@ protected[core] case class JavaExec(jar: String, main: String) extends Exec(Exec
     val image = "whisk/javaaction"
 }
 
-protected[core] case class Swift3Exec(code: String) extends Exec(Exec.SWIFT) {
+protected[core] case class Swift3Exec(code: String) extends Exec(Exec.SWIFT3) {
     val image = "whisk/swift3action"
 }
 
@@ -114,6 +114,7 @@ protected[core] object Exec
     protected[core] def js(code: String, init: String = null): Exec = NodeJSExec(trim(code), Option(init).map(_.trim))
     protected[core] def bb(image: String): Exec = BlackBoxExec(trim(image))
     protected[core] def swift(code: String): Exec = SwiftExec(trim(code))
+    protected[core] def swift3(code: String): Exec = Swift3Exec(trim(code))
     protected[core] def java(jar: String, main: String): Exec = JavaExec(trim(jar), trim(main))
 
     override protected[core] implicit val serdes = new RootJsonFormat[Exec] {
