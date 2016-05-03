@@ -49,6 +49,7 @@ class Action(Item):
         subcmd.add_argument('-m', '--memory', help='the memory limit in MB of the container that runs the action', type=int)
 
         subcmd = parser.add_parser('update', help='update an existing action')
+        subcmd.add_argument('--type', help='the type of version of the runtime')
         subcmd.add_argument('name', help='the name of the action')
         subcmd.add_argument('artifact', nargs='?', default=None, help='artifact (e.g., file name) containing action definition')
         addAuthenticatedCommand(subcmd, props)

@@ -41,7 +41,7 @@ import java.util.Base64
  * required, as well as the name of the entrypoint class.
  *
  * exec: { kind  : one of "nodejs", "blackbox", "swift", "swift3"
- *         code  : code to execute if kind is "nodejs", "swift", or "swift3" 
+ *         code  : code to execute if kind is "nodejs", "swift", or "swift3"
  *         init  : optional zipfile reference when kind is "nodejs",
  *         image : container name when kind is "blackbox",
  *         jar   : a base64-encoded JAR file when kind is "java",
@@ -92,6 +92,7 @@ protected[core] case class SwiftExec(code: String) extends Exec(Exec.SWIFT) {
 
 protected[core] case class JavaExec(jar: String, main: String) extends Exec(Exec.JAVA) {
     val image = "whisk/javaaction"
+}
 
 protected[core] case class Swift3Exec(code: String) extends Exec(Exec.SWIFT) {
     val image = "whisk/swift3action"
