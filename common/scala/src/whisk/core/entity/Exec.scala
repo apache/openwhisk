@@ -40,8 +40,8 @@ import java.util.Base64
  * For Java actions, a base64-encoded string representing a jar file is
  * required, as well as the name of the entrypoint class.
  *
- * exec: { kind  : one of "nodejs", "blackbox", "swift",
- *         code  : code to execute if kind is "nodejs" or "swift",
+ * exec: { kind  : one of "nodejs", "blackbox", "swift", "swift3"
+ *         code  : code to execute if kind is "nodejs", "swift", or "swift3" 
  *         init  : optional zipfile reference when kind is "nodejs",
  *         image : container name when kind is "blackbox",
  *         jar   : a base64-encoded JAR file when kind is "java",
@@ -65,9 +65,14 @@ sealed abstract class Exec(val kind: String) {
             case SwiftExec(code) =>
                 gson.add("code", new JsonPrimitive(code))
 
+<<<<<<< HEAD
             case JavaExec(jar, main) =>
                 gson.add("jar",  new JsonPrimitive(jar))
                 gson.add("main", new JsonPrimitive(main))
+=======
+            case Swift3Exec(code) =>
+                gson.add("code", new JsonPrimitive(code))
+>>>>>>> 58dd1ff... Test of integrating Swift3 runtime
         }
 
         gson
@@ -86,8 +91,13 @@ protected[core] case class SwiftExec(code: String) extends Exec(Exec.SWIFT) {
     val image = "whisk/swiftaction"
 }
 
+<<<<<<< HEAD
 protected[core] case class JavaExec(jar: String, main: String) extends Exec(Exec.JAVA) {
     val image = "whisk/javaaction"
+=======
+protected[core] case class Swift3Exec(code: String) extends Exec(Exec.SWIFT) {
+    val image = "whisk/swift3action"
+>>>>>>> 58dd1ff... Test of integrating Swift3 runtime
 }
 
 protected[core] object Exec
@@ -99,8 +109,13 @@ protected[core] object Exec
     // The possible values of the JSON 'kind' field.
     protected[core] val NODEJS   = "nodejs"
     protected[core] val BLACKBOX = "blackbox"
+<<<<<<< HEAD
     protected[core] val SWIFT    = "swift"
     protected[core] val JAVA     = "java"
+=======
+    protected[core] val SWIFT = "swift"
+    protected[core] val SWIFT3 = "swift3"
+>>>>>>> 58dd1ff... Test of integrating Swift3 runtime
 
     protected[core] def js(code: String, init: String = null): Exec = NodeJSExec(trim(code), Option(init).map(_.trim))
     protected[core] def bb(image: String): Exec = BlackBoxExec(trim(image))
@@ -113,7 +128,11 @@ protected[core] object Exec
             case NodeJSExec(code, Some(init)) => JsObject("kind" -> JsString(Exec.NODEJS), "code" -> JsString(code), "init" -> JsString(init))
             case BlackBoxExec(image)          => JsObject("kind" -> JsString(Exec.BLACKBOX), "image" -> JsString(image))
             case SwiftExec(code)              => JsObject("kind" -> JsString(Exec.SWIFT), "code" -> JsString(code))
+<<<<<<< HEAD
             case JavaExec(jar, main)          => JsObject("kind" -> JsString(Exec.JAVA), "jar" -> JsString(jar), "main" -> JsString(main))
+=======
+            case Swift3Exec(code)              => JsObject("kind" -> JsString(Exec.SWIFT3), "code" -> JsString(code))
+>>>>>>> 58dd1ff... Test of integrating Swift3 runtime
         }
 
         override def read(v: JsValue) = {
@@ -153,6 +172,7 @@ protected[core] object Exec
                     }
                     SwiftExec(code)
 
+<<<<<<< HEAD
                 case Exec.JAVA =>
                     val jar: String = obj.getFields("jar") match {
                         case Seq(JsString(j)) => j //if Try(b64decoder.decode(j)).isSuccess => j
@@ -165,6 +185,16 @@ protected[core] object Exec
                     JavaExec(jar, main)
 
                 case _ => throw new DeserializationException(s"'kind' must be one of {${Exec.NODEJS},${Exec.BLACKBOX},${Exec.SWIFT},${Exec.JAVA}}")
+=======
+                case "swift3" =>
+                    val code: String = obj.getFields("code") match {
+                        case Seq(JsString(c)) => c
+                        case _                => throw new DeserializationException(s"'code' must be a string defined in 'exec' for '${Exec.SWIFT}, ${Exec.SWIFT3}' actions")
+                    }
+                    Swift3Exec(code)
+
+                case _ => throw new DeserializationException(s"'kind' must be one of {${Exec.NODEJS},${Exec.BLACKBOX},${Exec.SWIFT}, ${Exec.SWIFT3}")
+>>>>>>> 58dd1ff... Test of integrating Swift3 runtime
             }
         }
     }

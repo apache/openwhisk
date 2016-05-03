@@ -157,6 +157,8 @@ class Action(Item):
     # { kind: "blackbox", image: "docker image" }, or:
     # { kind: "swift", code: "swift code" }, or:
     # { kind: "java", jar: "base64-encoded JAR", main: "FQN of main class" }
+    # { kind: "swift", code: "swift code" } or:
+    # { kind: "swift3", code: "swift3 code" }
     def getExec(self, args, props):
         exe = {}
         if args.docker:
