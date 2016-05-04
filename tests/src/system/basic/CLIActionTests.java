@@ -318,7 +318,7 @@ public class CLIActionTests {
             wsk.delete(Action, action);
         }
     }
-    
+
     @Test(timeout=120*1000)
     public void createActionWithKind() throws Exception {
         String action = "updateActionWithKind";

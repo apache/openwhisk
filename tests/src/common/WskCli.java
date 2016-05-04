@@ -319,7 +319,7 @@ public class WskCli {
         return createAction(expectedCode, name, file, null, params, false, update, false, shared, 0, null);
 
     }
-    
+
     public String createActionWithKind(String name, String file, String kind) throws IOException {
         return createAction(SUCCESS_EXIT, name, file, null, null, false, false, false, false, 0, kind);
     }
@@ -332,7 +332,7 @@ public class WskCli {
         if (update && artifact != null) {
             cmd = Util.concat(cmd, new String[] { artifact });
         }
-        
+
         if (kind != null) {
             cmd = Util.concat(cmd, new String[] { "--kind", kind });
         }
