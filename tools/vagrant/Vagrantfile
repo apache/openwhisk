@@ -48,7 +48,7 @@ Vagrant.configure('2') do |config|
   # Do not use shared mode for Windows based system because file permissions and symbolic
   # links don't translate.
   if ENV['ENV'] == 'shared'
-    config.vm.synced_folder '../../../openwhisk', '/home/vagrant/openwhisk', id: "whisk-root",
+    config.vm.synced_folder '../../', '/home/vagrant/openwhisk', id: "whisk-root",
       owner: "vagrant",
       group: "www-data",
       mount_options: ["dmode=700,fmode=700"]
