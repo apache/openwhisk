@@ -40,8 +40,8 @@ import java.util.Base64
  * For Java actions, a base64-encoded string representing a jar file is
  * required, as well as the name of the entrypoint class.
  *
- * exec: { kind  : one of "nodejs", "blackbox", "java", swift", "swift3"
- *         code  : code to execute if kind is "nodejs", "java", swift", or "swift3"
+ * exec: { kind  : one of "nodejs", "blackbox", "java", swift", "swift:3"
+ *         code  : code to execute if kind is "nodejs", "java", swift", or "swift:3"
  *         init  : optional zipfile reference when kind is "nodejs",
  *         image : container name when kind is "blackbox",
  *         jar   : a base64-encoded JAR file when kind is "java",
@@ -109,7 +109,7 @@ protected[core] object Exec
     protected[core] val BLACKBOX = "blackbox"
     protected[core] val SWIFT    = "swift"
     protected[core] val JAVA     = "java"
-    protected[core] val SWIFT3   = "swift3"
+    protected[core] val SWIFT3   = "swift:3"
 
     protected[core] def js(code: String, init: String = null): Exec = NodeJSExec(trim(code), Option(init).map(_.trim))
     protected[core] def bb(image: String): Exec = BlackBoxExec(trim(image))

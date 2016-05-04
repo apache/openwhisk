@@ -175,7 +175,7 @@ class Action(Item):
         elif args.artifact is not None and os.path.isfile(args.artifact):
             contents = open(args.artifact, 'rb').read()
             if args.kind in ['swift:3','swift:3.0','swift:3.0.0']:
-                exe['kind'] = 'swift3'
+                exe['kind'] = 'swift:3'
                 exe['code'] = contents
             elif args.artifact.endswith('.swift'):
                 exe['kind'] = 'swift'
