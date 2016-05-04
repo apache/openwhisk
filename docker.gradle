@@ -33,7 +33,7 @@ task distDocker << {
     retry(cmd, dockerRetries, dockerTimeout)
 }
 task tagImage << {
-    def cmd = dockerBinary + ['tag', dockerImageName, dockerRegistry + dockerImageName + ':' + dockerImageTag]
+    def cmd = dockerBinary + ['tag', '-f', dockerImageName, dockerRegistry + dockerImageName + ':' + dockerImageTag]
     retry(cmd, dockerRetries, dockerTimeout)
 }
 task pushImage << {
