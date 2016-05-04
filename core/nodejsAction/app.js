@@ -30,7 +30,7 @@ var logger  = require('./src/logger').getLogger('logs/nodejsaction.log', 'nodejs
 /**
  * instantiate an object which handles REST calls from the Invoker
  */
-var service = require('./src/service').getService(config, console, logger);
+var service = require('./src/service').getService(config, logger);
 
 app.set('port', config.port);
 app.use(bodyParser.json({limit: 1048576}));

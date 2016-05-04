@@ -16,11 +16,9 @@
 
 var NodeActionRunner = require('../runner');
 var fs = require('fs');
-var yauzl = require('yauzl');
 var whisk = require('./whisk');
 
-// There should be no calls to console.log. Use rawLog.
-function NodeActionService(config, rawLog, logger) {
+function NodeActionService(config, logger) {
 
     var Status = {
         ready: 'ready',
@@ -65,7 +63,8 @@ function NodeActionService(config, rawLog, logger) {
                         if (success)
                             res.status(200).send();
                         else {
-                            console.log('Error during initialization:', userScript.initError);
+                            // this writes to the activation logs visible to the user
+                            console.error('Error during initialization:', userScript.initError);
                             var errStr = String(userScript.initError.stack)
                             res.status(400).json({ msg: 'Error: Initialization has failed due to: ' + errStr });
                         }
@@ -123,7 +122,7 @@ function NodeActionService(config, rawLog, logger) {
 
     function doInit(message) {
         var context = newWhiskContext(config, logger);
-        userScript = new NodeActionRunner(message, context, rawLog);
+        userScript = new NodeActionRunner(message, context);
         if (typeof userScript.userScriptMain === 'function') {
             setStatus(Status.ready);
             logger.info('[doInit]', 'initCode initialized:', userScript.userScriptName);
@@ -143,8 +142,8 @@ function NodeActionService(config, rawLog, logger) {
             var authKey = (req.body || {}).authKey;
             userScript.whisk.setAuthKey(authKey)
             userScript.run(args, function(response) {
-                rawLog.log('XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX')
-                rawLog.error('XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX')
+                console.log('XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX')
+                console.error('XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX')
                 logger.info('[doRun]', 'response is', response.result);
                 logger.info('[usage]', userScript.userScriptName,
                             ': activationId = ', (ids || {}).activationId,
@@ -171,8 +170,8 @@ function newWhiskContext(config, logger) {
     return new whisk(apihost, config.whiskVersion, logger);
 }
 
-NodeActionService.getService = function(config, rawLog, logger) {
-    return new NodeActionService(config, rawLog, logger);
+NodeActionService.getService = function(config, logger) {
+    return new NodeActionService(config, logger);
 }
 
 module.exports = NodeActionService;
