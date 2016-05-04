@@ -117,6 +117,7 @@ def run():
         json_output = json.loads(last_line)
         if isinstance(json_output, dict):
             response = flask.jsonify(json_output)
+            response.status_code = 200
             return response
         else:
             response = flask.jsonify({ "error": "the action did not return an object", "action_output": json_output })

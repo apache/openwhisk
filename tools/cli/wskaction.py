@@ -34,7 +34,7 @@ class Action(Item):
 
     def getItemSpecificCommands(self, parser, props):
         subcmd = parser.add_parser('create', help='create new action')
-        subcmd.add_argument('--type', help='the type of version of the runtime')
+        subcmd.add_argument('--kind', help='the kind of the Swift runtime (example: swift:3)', type=str)
         subcmd.add_argument('name', help='the name of the action')
         subcmd.add_argument('artifact', help='artifact (e.g., file name) containing action definition')
         addAuthenticatedCommand(subcmd, props)
@@ -49,7 +49,7 @@ class Action(Item):
         subcmd.add_argument('-m', '--memory', help='the memory limit in MB of the container that runs the action', type=int)
 
         subcmd = parser.add_parser('update', help='update an existing action')
-        subcmd.add_argument('--type', help='the type of version of the runtime')
+        subcmd.add_argument('--kind', help='the kind of the Swift runtime (example: swift:3)', type=str)
         subcmd.add_argument('name', help='the name of the action')
         subcmd.add_argument('artifact', nargs='?', default=None, help='artifact (e.g., file name) containing action definition')
         addAuthenticatedCommand(subcmd, props)
@@ -174,19 +174,18 @@ class Action(Item):
             exe = self.getActionExec(args, props, pipeAction)
         elif args.artifact is not None and os.path.isfile(args.artifact):
             contents = open(args.artifact, 'rb').read()
-            # FIXME:
-            # Add supprt for more types
-            if args.type:
-                exe['kind'] = 'swift3'
-                exe['code'] = contents
-            elif args.artifact.endswith('.swift'):
-                exe['kind'] = 'swift'
-                exe['code'] = contents
-            elif args.artifact.endswith('.jar'):
-                exe['kind'] = 'java'
-                exe['jar'] = base64.b64encode(contents)
-                exe['main'] = self.findMainClass(args.artifact)
-            else:
+
+        if args.kind in ['swift:3','swift:3.0','swift:3.0.0']:
+            exe['kind'] = 'swift3'
+            exe['code'] = contents
+        elif args.artifact.endswith('.swift'):
+            exe['kind'] = 'swift'
+            exe['code'] = contents
+        elif args.artifact.endswith('.jar'):
+            exe['kind'] = 'java'
+            exe['jar'] = base64.b64encode(contents)
+            exe['main'] = self.findMainClass(args.artifact)
+        else:
                 exe['kind'] = 'nodejs'
                 exe['code'] = contents
         if args.lib:

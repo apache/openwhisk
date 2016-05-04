@@ -28,7 +28,7 @@ import ActionContainer.withContainer
 import scala.util.Random
 
 @RunWith(classOf[JUnitRunner])
-class SwiftActionContainerTests extends FlatSpec
+class Swift3ActionContainerTests extends FlatSpec
     with Matchers
     with BeforeAndAfter {
 
@@ -65,7 +65,8 @@ class SwiftActionContainerTests extends FlatSpec
             }
         }
 
-        out.trim shouldBe empty
+        // note: "out" will likely not be empty as swift build likes
+        // to print status messages and there doesn't seem to be a way to quiet them
         err.trim shouldBe empty
     }
 

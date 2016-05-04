@@ -28,6 +28,7 @@ RUN wget -q -O - https://swift.org/keys/all-keys.asc | gpg --import - && \
 
 # Install Swift Ubuntu 14.04 Snapshot
 ENV SWIFT_VERSION DEVELOPMENT-SNAPSHOT-2016-04-25-a
+#ENV SWIFT_VERSION DEVELOPMENT-SNAPSHOT-2016-05-03-a
 ENV SWIFT_PLATFORM ubuntu14.04
 
 RUN SWIFT_ARCHIVE_NAME=swift-$SWIFT_VERSION-$SWIFT_PLATFORM && \
@@ -55,6 +56,7 @@ RUN cd /swift3Action; rm -rf .project .settings build.xml Dockerfile
 RUN mkdir -p /swift3Action
 RUN touch /swift3Action/spm-build/main.swift
 RUN cd /swift3Action/spm-build; swift build -Xcc -fblocks -Xlinker -rpath -Xlinker /swift3Action/spm-build/.build/debug
+RUN rm /swift3Action/spm-build/.build/debug/Action
 
 ENV FLASK_PROXY_PORT 8080
 
