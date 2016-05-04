@@ -178,7 +178,7 @@ protected[core] object Exec
                 case  Exec.SWIFT3 =>
                     val code: String = obj.getFields("code") match {
                         case Seq(JsString(c)) => c
-                        case _                => throw new DeserializationException(s"'code' must be a string defined in 'exec' for '${Exec.SWIFT}, ${Exec.SWIFT3}' actions")
+                        case _                => throw new DeserializationException(s"'code' must be a string defined in 'exec' for '${Exec.SWIFT3}' actions")
                     }
                     Swift3Exec(code)
 
