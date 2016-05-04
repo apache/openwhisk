@@ -174,18 +174,17 @@ class Action(Item):
             exe = self.getActionExec(args, props, pipeAction)
         elif args.artifact is not None and os.path.isfile(args.artifact):
             contents = open(args.artifact, 'rb').read()
-
-        if args.kind in ['swift:3','swift:3.0','swift:3.0.0']:
-            exe['kind'] = 'swift3'
-            exe['code'] = contents
-        elif args.artifact.endswith('.swift'):
-            exe['kind'] = 'swift'
-            exe['code'] = contents
-        elif args.artifact.endswith('.jar'):
-            exe['kind'] = 'java'
-            exe['jar'] = base64.b64encode(contents)
-            exe['main'] = self.findMainClass(args.artifact)
-        else:
+            if args.kind in ['swift:3','swift:3.0','swift:3.0.0']:
+                exe['kind'] = 'swift3'
+                exe['code'] = contents
+            elif args.artifact.endswith('.swift'):
+                exe['kind'] = 'swift'
+                exe['code'] = contents
+            elif args.artifact.endswith('.jar'):
+                exe['kind'] = 'java'
+                exe['jar'] = base64.b64encode(contents)
+                exe['main'] = self.findMainClass(args.artifact)
+            else:
                 exe['kind'] = 'nodejs'
                 exe['code'] = contents
         if args.lib:
