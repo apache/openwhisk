@@ -145,4 +145,97 @@ class SwiftActionContainerTests extends FlatSpec
             runRes.get.fields.get("error") shouldBe defined
         }
     }
+
+    it should "Allow swift code to be wrapped in a struct" in {
+        val (out, err) = withSwiftContainer { c =>
+            val code = """
+                | struct MyStruct {
+                | func main(args: [String: Any]) -> [String: Any] {
+                |     return args
+                | }
+                | }
+            """.stripMargin
+
+            val (initCode, out) = c.init(initPayload(code))
+
+            initCode should be(200)
+
+            val argss = List(
+                JsObject("greeting" -> JsString("hi!")),
+                JsObject("numbers" -> JsArray(JsNumber(42), JsNumber(1))))
+
+            for (args <- argss) {
+                val (runCode, out) = c.run(runPayload(args))
+                runCode should be(200)
+                out should be(Some(args))
+            }
+        }
+
+        out.trim shouldBe empty
+        err.trim shouldBe empty
+    }
+
+    it should "Allow swift code to be wrapped in a struct when the opening brace is not on the same line" in {
+        val (out, err) = withSwiftContainer { c =>
+            val code = """
+                | struct MyStruct
+                | // some craziness here...
+                | {
+                | func main(args: [String: Any]) -> [String: Any] {
+                |     return args
+                | }
+                | }
+            """.stripMargin
+
+            val (initCode, out) = c.init(initPayload(code))
+
+            initCode should be(200)
+
+            val argss = List(
+                JsObject("greeting" -> JsString("hi!")),
+                JsObject("numbers" -> JsArray(JsNumber(42), JsNumber(1))))
+
+            for (args <- argss) {
+                val (runCode, out) = c.run(runPayload(args))
+                runCode should be(200)
+                out should be(Some(args))
+            }
+        }
+
+        out.trim shouldBe empty
+        err.trim shouldBe empty
+    }
+
+    it should "Allow swift code use a struct inside main()" in {
+        // make sure we don't strip out the use of a struct
+        val (out, err) = withSwiftContainer { c =>
+            val code = """
+                | func main(args: [String: Any]) -> [String: Any] {
+                |      struct InnerStruct {
+                |        func howdy() { print("Hoooooowdy Ho!") }
+                |      }
+                |      InnerStruct().howdy()
+                |
+                |     return args
+                | }
+            """.stripMargin
+
+            val (initCode, out) = c.init(initPayload(code))
+
+            initCode should be(200)
+
+            val argss = List(
+                JsObject("greeting" -> JsString("hi!")),
+                JsObject("numbers" -> JsArray(JsNumber(42), JsNumber(1))))
+
+            for (args <- argss) {
+                val (runCode, out) = c.run(runPayload(args))
+                runCode should be(200)
+                out should be(Some(args))
+            }
+        }
+
+        out.trim shouldBe empty
+        err.trim shouldBe empty
+    }
 }
