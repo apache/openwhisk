@@ -23,7 +23,7 @@
  */
 var util  = require('util');
 
-function NodeActionRunner(message, whisk, console) {
+function NodeActionRunner(message, whisk) {
     this.userScriptName = getname(message.name);
     this.userScriptMain = undefined;
     this.initError = undefined;
