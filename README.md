@@ -1,5 +1,5 @@
-OpenWhisk
-=========
+# OpenWhisk
+
 
 [![Build Status](https://travis-ci.org/openwhisk/openwhisk.svg?branch=master)](https://travis-ci.org/openwhisk/openwhisk)
 
@@ -56,9 +56,16 @@ A [Vagrant](http://vagrantup.com) machine is the easiest way to run OpenWhisk on
 
   # Login
   vagrant ssh
+  
+  # Install git if it is not installed
+  sudo apt-get install -y git
 
-  # Follow instructions for Ubuntu users
+  # Clone openwhisk
+  git clone --depth=1 https://github.com/openwhisk/openwhisk.git
 
+  # Install all required software
+  (cd openwhisk/tools/ubuntu-setup && source all.sh)
+  
   # When all steps are completed, logout
   logout
 
@@ -66,7 +73,12 @@ A [Vagrant](http://vagrantup.com) machine is the easiest way to run OpenWhisk on
   vagrant reload
   ```
 
-Login to the virtual machine either using the VirtualBox terminal or with `vagrant ssh`. The login username is `vagrant` and the password is `vagrant`. You can proceed to [configure](#configure-datastore) the datastore and [build](#build-and-deploy-openwhisk) OpenWhisk in your Vagrant machine.
+
+Login to the virtual machine either using the VirtualBox terminal or with `vagrant ssh`. 
+
+If prompted, login username is `vagrant` and the password is `vagrant`. 
+
+You can proceed to [configure](#configure-datastore) the datastore and [build](#build-and-deploy-openwhisk) OpenWhisk in your Vagrant machine.
 
 **Tip:** The Vagrant file is configured to allocate a virtual machine with a recommended 4GB of RAM.
 
@@ -99,8 +111,8 @@ Mac users can clone, build and deploy OpenWhisk either with a Vagrant or Docker 
 
 ### Configure datastore
 
-Before you can build and deploy OpenWhisk, you must configure a backing datastore. The system supports any self-managed CouchDB instance or
-[Cloudant](https://cloudant.com) as a cloud-based database service.
+Before you can build and deploy OpenWhisk, you must configure a backing datastore. The system supports any self-managed [CouchDB](using-couchdb) instance or
+[Cloudant](using-cloudant) as a cloud-based database service.
 
 #### Using CouchDB
 
@@ -131,7 +143,9 @@ To try out OpenWhisk without managing your own CouchDB installation, you can sta
 
 #### Using Cloudant
 
-As an alternative to a self-managed CouchDB, you may want to try Cloudant which is a cloud-based database service. There are two ways to get a Cloudant account and configure OpenWhisk to use it. You only need to establish an account once, either through IBM Bluemix or with Cloudant directly. Once you have created a Cloudant account, make note of the account `username` and `password`. Then within your `openwhisk` directory, copy the file `template-cloudant-local.env` to `cloudant-local.env` and edit as appropriate.
+As an alternative to a self-managed CouchDB, you may want to try [Cloudant](https://cloudant.com) which is a cloud-based database service. 
+There are two ways to get a Cloudant account and configure OpenWhisk to use it. 
+You only need to establish an account once, either through IBM Bluemix or with Cloudant directly. 
 
 ##### Create a Cloudant account via IBM Bluemix
 Sign up for an account via [IBM Bluemix](https://bluemix.net). Bluemix offers trial accounts and its signup process is straightforward so it is not described here in detail. Using Bluemix, the most convenient way to create a Cloudant instance is via the `cf` command-line tool. See [here](https://www.ng.bluemix.net/docs/starters/install_cli.html) for instructions on how to download and configure `cf` to work with your Bluemix account.
@@ -154,12 +168,30 @@ Make note of the Cloudant `username` and `password` from the last `cf` command s
 ##### Create a Cloudant account directly with Cloudant
 
 As an alternative to IBM Bluemix, you may sign up for an account with [Cloudant](https://cloudant.com) directly. Cloudant is free to try and offers a metered pricing where the first $50 of usage is free each month. The signup process is straightforward so it is not described here in detail.
+Once you have created a Cloudant account, make note of the account `username` and `password` from the Cloudant dashboard, so you can create the required `cloudant-local.env`.
+
+##### Setting the Cloudant credentials 
+ 
+Then within your `openwhisk` directory, copy the file `template-cloudant-local.env` to `cloudant-local.env` and edit as appropriate.
+
+```
+# Work out of your openwhisk directory
+cd $HOME/openwhisk 
+
+# Make a copy of the template
+cp template-cloudant-local.env cloudant-local.env
+
+# Set the credentials for username and password
+sed -i.bak s/OPEN_WHISK_DB_USERNAME=/OPEN_WHISK_DB_USERNAME=username/g cloudant-local.env
+sed -i.bak s/OPEN_WHISK_DB_PASSWORD=/OPEN_WHISK_DB_PASSWORD=password/g cloudant-local.env
+```
+
 
 #### Initializing database for authorization keys
 
 The system requires certain authorization keys to install standard assets (i.e., samples) and provide guest access for running unit tests.
-These are called immortal keys. If you are using a persisted datastore (e.g., Cloudant), you only need to perform this operation _once_.
-If you are using an ephemeral CouchDB container, you need to run this script every time you tear down and deploy the system.
+These are called immortal keys. If you are using a persisted datastore (e.g., Cloudant), you only need to perform this operation **once**.
+If you are [using an ephemeral CouchDB container](#using-an-ephemeral-couchdb-container), you need to run this script every time you tear down and deploy the system.
 
   ```
   # Work out of your openwhisk directory
@@ -183,9 +215,9 @@ Confirm initialization by typing `DROPIT`. The output should resemble the follow
 
   ```
   subjects
-  curl --user ... -X DELETE https://<cloudant-username>.cloudant.com/subjects
+  curl -s --user ... -X DELETE https://<cloudant-username>.cloudant.com/subjects
   {"error":"not_found","reason":"Database does not exist."}
-  curl --user ... -X PUT https://<cloudant-username>.cloudant.com/subjects
+  curl -s --user ... -X PUT https://<cloudant-username>.cloudant.com/subjects
   {"ok":true}
   {"ok":true,"id":"_design/subjects","rev":"1-..."}
   Create immortal key for guest ...
@@ -198,23 +230,54 @@ Confirm initialization by typing `DROPIT`. The output should resemble the follow
 
 Once you have created and configured one of `cloudant-local.env` or `couchdb-local.env` _and_ initialized the datastore, you are ready to build and deploy OpenWhisk. The following commands are relative to the OpenWhisk directory. If necessary, change your working directory with `cd /your/path/to/openwhisk`.
 
-  ```
-  # Build and deploy OpenWhisk in the virtual machine
-  ant clean build deploy
-
-  # Optionally run the unit tests against your local deployment
-  ant run
-  ```
+```
+  # Clean the build first
+  ant clean 
+```
 
 **Tip:** If during the steps above it appears some required software (e.g. `ant`) is missing, run the machine provisioning again and capture the output to see if some installation step failed.
 
-**Tip:** The first build will take some time as it fetches many dependencies from the Internet. The duration of this step can range from 25 minutes to an hour or more depending on your network speed. Once deployed, several Docker containers will be running in your virtual machine.
+Check is docker host is running and listening, if not reboot or do `vagrant reload`
+```
+  # Check docker host 
+  docker ps
+  docker version
+```
 
-**Tip:** Since the first build takes some time, it is not uncommon for some step to fail if there's a network hiccup or other interruption of some kind. If this happens you may see a `Build FAILED` message that suggests a Docker operation timed out. You can simply try `ant build` again and it will mostly pick up where it left off. This should only be an issue the very first time you build -- subsequent builds do far less network activity thanks to Docker caching.
+```
+  # Build OpenWhisk 
+  ant build 
+```
 
-**Tip:** By default, each `docker` command will timeout after 420 seconds (6 minutes). If you're on a really slow connection, this might be too short. You can modify the timeout value in [`docker.gradle`](https://github.com/openwhisk/openwhisk/blob/master/docker.gradle#L22) as needed.
 
+**Important:** It is not uncommon for some step to fail if there's a network hiccup or other interruption of some kind. If this happens you may see a `Build FAILED` message that suggests a Docker operation failed. 
+You can simply try `ant build` again and it will mostly pick up where it left off. This should only be an issue the very first time you build -- subsequent builds do far less network activity thanks to Docker caching.
+
+**Tip:** The first build will take some time as it fetches many dependencies from the Internet. The duration of this step can range from **25 minutes to an hour** or more depending on your network speed.
+
+**Tip:** By default, each `docker` command will timeout after 420 seconds (7 minutes). If you're on a really slow connection, this might be too short. You can modify the timeout value in [`docker.gradle`](https://github.com/openwhisk/openwhisk/blob/master/docker.gradle#L22) as needed.
+
+
+```
+  # Build OpenWhisk 
+  ant deploy 
+```
+Once deployed, several Docker containers will be running in your virtual machine.
+You can check that containers are running by using the docker cli with the command  `docker ps`
+
+```
+  # Optionally run the unit tests against your local deployment
+  ant run
+```
+
+
+### Teardown and Redeploy OpenWhisk
 To teardown OpenWhisk and remove all Docker containers, run `ant teardown`. You can then redeploy the system with `ant deploy`. To do both at once, use `ant redeploy`.
+
+```
+  # Redeploy after making changes to OpenWhisk
+  ant redeploy
+```
 
 ### Add OpenWhisk command line tools to your path
 
@@ -222,12 +285,20 @@ The OpenWhisk command line tools are located in the `openwhisk/bin` folder. The 
 
 See the script in `openwhisk/tools/ubuntu-setup/bashprofile.sh` if you need help or to see how to add tab completion for the OpenWhisk CLI. _Do not source or run this script if you have your own `.bash_profile` as it will overwrite it._
 
+For Vagrant you can setup using `bashprofile.sh`
+```
+#Setup openwhisk/bin/wsk to the PATH
+source tools/ubuntu-setup/bashprofile.sh
+source $HOME/.bash_profile
+```
+
 **Tip:** The command line tools require Python 2.7. If you are using OpenWhisk from an unsupported system, make sure you have this version of Python available.
 
-### Add OpenWhisk users
+### Adding OpenWhisk users (Optional)
 
 An OpenWhisk user, also known as a *subject*, requires a valid authorization key.
 OpenWhisk is preconfigured with a guest key located in `config/keys/auth.guest`.
+The default namespace is __guest__
 
 You may use this key if you like, or use `wskadmin` to create a new key.
 
@@ -287,13 +358,17 @@ If you cloned OpenWhisk natively onto a Mac and using a Vagrant machine to host 
 By default, the virtual machine IP address is `192.168.33.13` (see Vagrant file). From your _host_, configure `wsk` to use your Vagrant-hosted OpenWhisk deployment and run the "echo" action again to test.
 
   ```
-  wsk property set --apihost 192.168.33.13 --auth <auth key>
+  wsk property set --apihost 192.168.33.13 --namespace guest --auth <auth key>
 
   wsk action invoke /whisk.system/samples/echo -p message hello --blocking --result
   {
     "message": "hello"
   }
   ```
+  
+  **Tip:** To connect to a different host API (i.e. bluemix.net) with the CLI, you will need to 
+  configure the CLI with new values for __apihost__, __namespace__, and __auth__ key
+  
 
 ### SSL certificate
 
@@ -326,10 +401,14 @@ Browse the [documentation](docs/) to learn more. Here are some topics you may be
 interested in:
 
 - [System overview](docs/about.md)
-- [Create and invoke actions](./docs/actions.md)
-- [Create triggers and rules](./docs/triggers_rules.md)
-- [Use and create packages](./docs/packages.md)
-- [Browse and use the catalog](./docs/catalog.md)
+- [Getting Started](docs/README.md)
+- [Create and invoke actions](docs/actions.md)
+- [Create triggers and rules](docs/triggers_rules.md)
+- [Use and create packages](docs/packages.md)
+- [Browse and use the catalog](docs/catalog.md)
+- [Using the OpenWhisk mobile SDK](docs/mobile_sdk.md)
+- [OpenWhisk system details](docs/reference.md)
+
 
 
 ### License
