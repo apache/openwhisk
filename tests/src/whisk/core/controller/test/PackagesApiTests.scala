@@ -104,11 +104,13 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
         }.toList
         providers foreach { put(entityStore, _) }
         waitOnView(entityStore, WhiskPackage, namespace, providers.length)
-        Get(s"$collectionPath") ~> sealRoute(routes(creds)) ~> check {
-            status should be(OK)
-            val response = responseAs[List[JsObject]]
-            providers.length should be(response.length)
-            providers forall { p => response contains p.summaryAsJson } should be(true)
+        whisk.utils.retry {
+            Get(s"$collectionPath") ~> sealRoute(routes(creds)) ~> check {
+                status should be(OK)
+                val response = responseAs[List[JsObject]]
+                providers.length should be(response.length)
+                providers forall { p => response contains p.summaryAsJson } should be(true)
+            }
         }
 
         val auser = WhiskAuth(Subject(), AuthKey())
