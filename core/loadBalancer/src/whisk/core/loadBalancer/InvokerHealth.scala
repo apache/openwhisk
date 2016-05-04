@@ -97,8 +97,8 @@ class InvokerHealth(config: WhiskConfig, getKafkaPostCount: () => Int) extends L
         invokers.get() map { status => status.index }
     }
 
-    def getInvokerActivationCounts() : Array[Int] = {
-        invokers.get() map { status => status.activationCount }
+    def getInvokerActivationCounts() : Array[(Int, Int)] = {
+        invokers.get() map { status => (status.index, status.activationCount) }
     }
 
     new Thread() {
@@ -139,7 +139,7 @@ class InvokerHealth(config: WhiskConfig, getKafkaPostCount: () => Int) extends L
                         } getOrElse None
                     case _ => None
                 }
-                val newStatus = freshMap.values.toArray
+                val newStatus = freshMap.values.toArray.sortWith(_.index < _.index)
                 val oldStatus = invokers.get()
                 invokers.set(newStatus)
                 if (newStatus.deep != oldStatus.deep) {

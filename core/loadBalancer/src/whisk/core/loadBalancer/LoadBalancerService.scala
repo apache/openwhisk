@@ -76,12 +76,15 @@ class LoadBalancerService(config: WhiskConfig, verbosity: Verbosity.Level)
         LoadBalancerKeys.statusKey,
         { () =>
             val producedCount = getActivationCount()
-            val consumedCounts = invokerHealth.getInvokerActivationCounts()
-            val inFlight = producedCount - consumedCounts.fold(0) { (total, n) => total + n }
+            val invokerInfo = invokerHealth.getInvokerActivationCounts()
+            val consumedCounts = invokerInfo map {indexCount => indexCount._2}
+            val consumedCount = consumedCounts.foldLeft(0)(_ + _)
+            val inFlight = producedCount - consumedCount
             val overload = JsBoolean(overloadThreshold > 0 && inFlight >= overloadThreshold)
             count = count + 1
             if (count % 10 == 0) {
-                warn(this, s"In flight: ${producedCount} - [${consumedCounts.mkString(", ")}] = ${inFlight} ${overload}")
+                warn(this, s"In flight: $producedCount - $consumedCount = $inFlight $overload")
+                info(this, s"Completion counts: [${invokerInfo.mkString(", ")}]")
             }
             Map(LoadBalancerKeys.overloadKey -> overload,
                 LoadBalancerKeys.invokerHealth -> getInvokerHealth()) ++
