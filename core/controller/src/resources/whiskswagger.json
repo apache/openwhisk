@@ -1541,13 +1541,14 @@
                     "enum": [
                         "nodejs",
                         "blackbox",
-                        "swift"
+                        "swift",
+                        "swift:3"
                     ],
                     "description": "the type of action"
                 },
                 "code": {
                     "type": "string",
-                    "description": "Javascript or Swift code to execute when kind is 'nodejs' or 'swift'"
+                    "description": "Javascript or Swift code to execute when kind is 'nodejs' or 'swift' or 'swift:3'"
                 },
                 "image": {
                     "type": "string",
