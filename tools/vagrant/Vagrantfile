@@ -6,7 +6,7 @@ BOX = "ubuntu/trusty64-2"
 BOX_URL =  "https://cloud-images.ubuntu.com/vagrant/trusty/current/trusty-server-cloudimg-amd64-vagrant-disk1.box"
 BOX_MEMORY = ENV['BOX_MEMORY'] || '4096'
 BOX_CPUS = ENV['BOX_CPUS'] || '8'
-MACHINE_IP = ENV['MACHINE_IP'] || '192.168.56.111'
+MACHINE_IP = ENV['MACHINE_IP'] || '192.168.33.13'
 
 Vagrant.configure('2') do |config|
 
