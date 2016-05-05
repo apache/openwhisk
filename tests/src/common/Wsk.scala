@@ -194,7 +194,7 @@ class WskAction()
     def create(
         name: String,
         artifact: Option[String],
-        kind: Option[String] = None, // one of docker, copy, sequence or none for node/swift auto select
+        kind: Option[String] = None, // one of docker, copy, sequence or none for autoselect else an explicit type
         parameters: Map[String, JsValue] = Map(),
         annotations: Map[String, JsValue] = Map(),
         timeout: Option[Duration] = None,
@@ -205,7 +205,12 @@ class WskAction()
             implicit wp: WskProps): RunResult = {
         val params = Seq(noun, if (!update) "create" else "update", "--auth", wp.authKey, fqn(name)) ++
             { artifact map { Seq(_) } getOrElse Seq() } ++
-            { kind map { k => Seq(s"--$k") } getOrElse Seq() } ++
+            {
+                kind map { k =>
+                    if (k == "docker" || k == "sequence" || k == "copy") Seq(s"--$k")
+                    else Seq("--kind", k)
+                } getOrElse Seq()
+            } ++
             { parameters flatMap { p => Seq("-p", p._1, p._2.compactPrint) } } ++
             { annotations flatMap { p => Seq("-p", p._1, p._2.compactPrint) } } ++
             { timeout map { t => Seq("-t", t.toMillis.toString) } getOrElse Seq() } ++

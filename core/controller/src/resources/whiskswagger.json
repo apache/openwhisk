@@ -1540,15 +1540,17 @@
                     "type": "string",
                     "enum": [
                         "nodejs",
-                        "blackbox",
+                        "python",
                         "swift",
-                        "swift:3"
+                        "swift:3",
+                        "java",
+                        "blackbox"
                     ],
                     "description": "the type of action"
                 },
                 "code": {
                     "type": "string",
-                    "description": "Javascript or Swift code to execute when kind is 'nodejs' or 'swift' or 'swift:3'"
+                    "description": "The code to execute when kind is not 'blackbox'"
                 },
                 "image": {
                     "type": "string",

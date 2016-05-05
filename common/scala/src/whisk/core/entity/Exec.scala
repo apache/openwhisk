@@ -114,7 +114,7 @@ protected[core] object Exec
     protected[core] val NODEJS   = "nodejs"
     protected[core] val PYTHON   = "python"
     protected[core] val SWIFT    = "swift"
-    protected[core] val SWIFT3   = "swift3"
+    protected[core] val SWIFT3   = "swift:3"
     protected[core] val JAVA     = "java"
     protected[core] val BLACKBOX = "blackbox"
 
@@ -197,7 +197,7 @@ protected[core] object Exec
                     }
                     BlackBoxExec(image)
 
-                case _ => throw new DeserializationException(s"'kind' must be one of {${Exec.NODEJS}, ${Exec.PYTHON}, ${Exec.SWIFT}, ${Exec.SWIFT3}, ${Exec.JAVA}, ${Exec.BLACKBOX}}")
+                case _ => throw new DeserializationException(s"kind '$kind' not one of {${Exec.NODEJS}, ${Exec.PYTHON}, ${Exec.SWIFT}, ${Exec.SWIFT3}, ${Exec.JAVA}, ${Exec.BLACKBOX}}")
             }
         }
     }

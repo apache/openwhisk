@@ -32,8 +32,13 @@ class SwiftActionContainerTests extends FlatSpec
     with Matchers
     with BeforeAndAfter {
 
+    // note: "out" will likely not be empty in some swift build as the compiler
+    // prints status messages and there doesn't seem to be a way to quiet them
+    val checkStdOutEmpty = true
+    val swiftContainerImageName = "whisk/swiftaction"
+
     // Helpers specific to swiftaction
-    def withSwiftContainer(code: ActionContainer => Unit) = withContainer("whisk/swiftaction")(code)
+    def withSwiftContainer(code: ActionContainer => Unit) = withContainer(swiftContainerImageName)(code)
     def initPayload(code: String) = JsObject(
         "value" -> JsObject(
             "name" -> JsString("someSwiftAction"),
@@ -65,7 +70,7 @@ class SwiftActionContainerTests extends FlatSpec
             }
         }
 
-        out.trim shouldBe empty
+        if (checkStdOutEmpty) out.trim shouldBe empty
         err.trim shouldBe empty
     }
 
@@ -101,14 +106,13 @@ class SwiftActionContainerTests extends FlatSpec
             """.stripMargin
 
             val (initCode, _) = c.init(initPayload(code))
-            initCode should not be(200)
+            initCode should not be (200)
 
             val (runCode, runRes) = c.run(runPayload(JsObject("basic" -> JsString("forever"))))
             runCode should be(502)
         }
         err.toLowerCase should include("error")
     }
-
 
     it should "support application errors" in {
         withSwiftContainer { c =>

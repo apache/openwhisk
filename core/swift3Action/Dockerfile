@@ -4,23 +4,27 @@ FROM ubuntu:14.04
 
 ENV DEBIAN_FRONTEND noninteractive
 
+# Upgrade and install Python and helpers
+RUN apt-get -y purge && \
+    apt-get -y update && \
+    apt-get -y install --fix-missing python2.7 && \
+    apt-get -y install --fix-missing python2.7-dev && \
+    apt-get -y install --fix-missing python-distribute && \
+    apt-get -y install --fix-missing python-pip && \
+    apt-get clean && \
+    pip install -U flask && \
+    pip install -U gevent
+
 # Upgrade and install Swift dependencies.
-RUN apt-get -y purge
-RUN apt-get -y update
 RUN apt-get -y dist-upgrade
 
 # OpenWhisk dependencies
-RUN apt-get -y install  build-essential wget clang libedit-dev python2.7 python2.7-dev libicu52 rsync libxml2-dev emacs24-nox
+RUN apt-get -y install  build-essential wget clang libedit-dev libicu52 rsync libxml2-dev emacs24-nox
 # Kitura dependencies
 RUN apt-get -y install autoconf libtool libkqueue-dev libkqueue0 libdispatch-dev libdispatch0 libcurl4-openssl-dev libbsd-dev
 
 RUN apt-get -y install git
 RUN apt-get clean
-
-# Install Python CGI helpers.
-RUN apt-get -y install python-distribute python-pip
-RUN pip install -U flask
-RUN pip install -U gevent
 
 # Install Swift keys
 RUN wget -q -O - https://swift.org/keys/all-keys.asc | gpg --import - && \

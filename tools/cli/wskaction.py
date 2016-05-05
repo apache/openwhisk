@@ -34,7 +34,7 @@ class Action(Item):
 
     def getItemSpecificCommands(self, parser, props):
         subcmd = parser.add_parser('create', help='create new action')
-        subcmd.add_argument('--kind', help='the kind of the Swift runtime (example: swift:3)', type=str)
+        subcmd.add_argument('--kind', help='the kind of the action runtime (example: swift:3)', type=str)
         subcmd.add_argument('name', help='the name of the action')
         subcmd.add_argument('artifact', help='artifact (e.g., file name) containing action definition')
         addAuthenticatedCommand(subcmd, props)
@@ -49,7 +49,7 @@ class Action(Item):
         subcmd.add_argument('-m', '--memory', help='the memory limit in MB of the container that runs the action', type=int)
 
         subcmd = parser.add_parser('update', help='update an existing action')
-        subcmd.add_argument('--kind', help='the kind of the Swift runtime (example: swift:3)', type=str)
+        subcmd.add_argument('--kind', help='the kind of the action runtime (example: swift:3)', type=str)
         subcmd.add_argument('name', help='the name of the action')
         subcmd.add_argument('artifact', nargs='?', default=None, help='artifact (e.g., file name) containing action definition')
         addAuthenticatedCommand(subcmd, props)
@@ -154,14 +154,12 @@ class Action(Item):
         return limits
 
     # creates one of:
-    # { kind: "nodejs", code: "js code", initializer: "base64 encoded string" }
-    #   where initializer is optional, or:
-    # { kind: "blackbox", image: "docker image" }, or:
-    # { kind: "swift", code: "swift code" }, or:
-    # { kind: "python", code: "python code" }, or:
-    # { kind: "java", jar: "base64-encoded JAR", main: "FQN of main class" }
-    # { kind: "swift", code: "swift code" } or:
+    # { kind: "nodejs", code: "js code", initializer: "base64 encoded string" } where initializer is optional
+    # { kind: "python", code: "python code" }
+    # { kind: "swift", code: "swift code" }
     # { kind: "swift3", code: "swift3 code" }
+    # { kind: "java", jar: "base64-encoded JAR", main: "FQN of main class" }
+    # { kind: "blackbox", image: "docker image" }
     def getExec(self, args, props):
         exe = {}
         if args.docker:
