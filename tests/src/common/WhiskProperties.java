@@ -257,6 +257,18 @@ public class WhiskProperties {
     }
 
     /**
+     * @return the path to a file holding the VCAP_SERVICES used during junit testing
+     */
+    public static File getVCAPServicesFile() {
+        String vcapServices = whiskProperties.getProperty("vcap.services.file");
+        if (vcapServices.startsWith(File.separator)) {
+            return new File(vcapServices);
+        } else {
+            return WhiskProperties.getFileRelativeToWhiskHome(vcapServices);
+        }
+    }
+
+    /**
      * are we running on Mac OS X?
      */
     public static boolean onMacOSX() {
