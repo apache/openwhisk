@@ -40,8 +40,8 @@ import java.util.Base64
  * For Java actions, a base64-encoded string representing a jar file is
  * required, as well as the name of the entrypoint class.
  *
- * exec: { kind  : one of "nodejs", "blackbox", "swift",
- *         code  : code to execute if kind is "nodejs" or "swift",
+ * exec: { kind  : one of "nodejs", "blackbox", "java", swift", "swift:3"
+ *         code  : code to execute if kind is "nodejs", "java", swift", or "swift:3"
  *         init  : optional zipfile reference when kind is "nodejs",
  *         image : container name when kind is "blackbox",
  *         jar   : a base64-encoded JAR file when kind is "java",
@@ -68,6 +68,10 @@ sealed abstract class Exec(val kind: String) {
             case JavaExec(jar, main) =>
                 gson.add("jar",  new JsonPrimitive(jar))
                 gson.add("main", new JsonPrimitive(main))
+
+            case Swift3Exec(code) =>
+                gson.add("code", new JsonPrimitive(code))
+
         }
 
         gson
@@ -90,6 +94,10 @@ protected[core] case class JavaExec(jar: String, main: String) extends Exec(Exec
     val image = "whisk/javaaction"
 }
 
+protected[core] case class Swift3Exec(code: String) extends Exec(Exec.SWIFT3) {
+    val image = "whisk/swift3action"
+}
+
 protected[core] object Exec
     extends ArgNormalizer[Exec]
     with DefaultJsonProtocol {
@@ -101,10 +109,12 @@ protected[core] object Exec
     protected[core] val BLACKBOX = "blackbox"
     protected[core] val SWIFT    = "swift"
     protected[core] val JAVA     = "java"
+    protected[core] val SWIFT3   = "swift:3"
 
     protected[core] def js(code: String, init: String = null): Exec = NodeJSExec(trim(code), Option(init).map(_.trim))
     protected[core] def bb(image: String): Exec = BlackBoxExec(trim(image))
     protected[core] def swift(code: String): Exec = SwiftExec(trim(code))
+    protected[core] def swift3(code: String): Exec = Swift3Exec(trim(code))
     protected[core] def java(jar: String, main: String): Exec = JavaExec(trim(jar), trim(main))
 
     override protected[core] implicit val serdes = new RootJsonFormat[Exec] {
@@ -114,6 +124,7 @@ protected[core] object Exec
             case BlackBoxExec(image)          => JsObject("kind" -> JsString(Exec.BLACKBOX), "image" -> JsString(image))
             case SwiftExec(code)              => JsObject("kind" -> JsString(Exec.SWIFT), "code" -> JsString(code))
             case JavaExec(jar, main)          => JsObject("kind" -> JsString(Exec.JAVA), "jar" -> JsString(jar), "main" -> JsString(main))
+            case Swift3Exec(code)             => JsObject("kind" -> JsString(Exec.SWIFT3), "code" -> JsString(code))
         }
 
         override def read(v: JsValue) = {
@@ -164,7 +175,14 @@ protected[core] object Exec
                     }
                     JavaExec(jar, main)
 
-                case _ => throw new DeserializationException(s"'kind' must be one of {${Exec.NODEJS},${Exec.BLACKBOX},${Exec.SWIFT},${Exec.JAVA}}")
+                case  Exec.SWIFT3 =>
+                    val code: String = obj.getFields("code") match {
+                        case Seq(JsString(c)) => c
+                        case _                => throw new DeserializationException(s"'code' must be a string defined in 'exec' for '${Exec.SWIFT3}' actions")
+                    }
+                    Swift3Exec(code)
+
+                case _ => throw new DeserializationException(s"'kind' must be one of {${Exec.NODEJS},${Exec.BLACKBOX},${Exec.SWIFT}, ${Exec.SWIFT3},${Exec.JAVA}}")
             }
         }
     }

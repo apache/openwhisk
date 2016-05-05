@@ -262,7 +262,7 @@ public class WskCli {
     }
 
     public String copyAction(String name, String existingAction) throws IOException {
-        return createAction(SUCCESS_EXIT, name, existingAction, null, null, false, true, true, false, 0);
+        return createAction(SUCCESS_EXIT, name, existingAction, null, null, false, true, true, false, 0, null);
     }
 
     public String createAction(String name, String file) throws IOException {
@@ -279,12 +279,12 @@ public class WskCli {
 
     public String createAction(String name, String[] actions) throws IOException {
         String csv = String.join(",", actions);
-        return createAction(SUCCESS_EXIT, name, csv, null, null, true, false, false, true, 0);
+        return createAction(SUCCESS_EXIT, name, csv, null, null, true, false, false, true, 0, null);
     }
 
     public String createAction(String name, String[] actions, int timeoutMillis) throws IOException {
         String csv = String.join(",", actions);
-        return createAction(SUCCESS_EXIT, name, csv, null, null, true, false, false, true, timeoutMillis);
+        return createAction(SUCCESS_EXIT, name, csv, null, null, true, false, false, true, timeoutMillis, null);
     }
 
     public String createAction(String name, String file, Map<String, String> params) throws IOException {
@@ -292,41 +292,49 @@ public class WskCli {
     }
 
     public String createAction(String name, String file, String library) throws IOException {
-        return createAction(SUCCESS_EXIT, name, file, library, null, false, false, false, false, 0);
+        return createAction(SUCCESS_EXIT, name, file, library, null, false, false, false, false, 0, null);
     }
 
     public String createAction(String name, String file, String library, Map<String, String> params) throws IOException {
-        return createAction(SUCCESS_EXIT, name, file, library, params, false, false, false, false, 0);
+        return createAction(SUCCESS_EXIT, name, file, library, params, false, false, false, false, 0, null);
     }
 
     public String createAction(String name, String file, boolean update, boolean shared) throws IOException {
-        return createAction(SUCCESS_EXIT, name, file, null, null, false, update, false, shared, 0);
+        return createAction(SUCCESS_EXIT, name, file, null, null, false, update, false, shared, 0, null);
     }
 
     public String createAction(String name, String file, Map<String, String> params, boolean update, boolean shared) throws IOException {
-        return createAction(SUCCESS_EXIT, name, file, null, params, false, update, false, shared, 0);
+        return createAction(SUCCESS_EXIT, name, file, null, params, false, update, false, shared, 0, null);
     }
 
     public String createAction(String name, String file, Map<String, String> params, boolean update, boolean shared, int timeoutMillis) throws IOException {
-        return createAction(SUCCESS_EXIT, name, file, null, params, false, update, false, shared, timeoutMillis);
+        return createAction(SUCCESS_EXIT, name, file, null, params, false, update, false, shared, timeoutMillis, null);
     }
 
     public String updateAction(String name, boolean shared) throws IOException {
-        return createAction(SUCCESS_EXIT, name, null, null, null, false, true, false, shared, 0);
+        return createAction(SUCCESS_EXIT, name, null, null, null, false, true, false, shared, 0, null);
     }
 
     public String createAction(int expectedCode, String name, String file, Map<String, String> params, boolean update, boolean shared) throws IOException {
-        return createAction(expectedCode, name, file, null, params, false, update, false, shared, 0);
+        return createAction(expectedCode, name, file, null, params, false, update, false, shared, 0, null);
 
     }
 
-    public String createAction(int expectedCode, String name, String artifact, String library, Map<String, String> params, boolean sequence, boolean update, boolean copy, boolean shared, int timeoutMillis) throws IOException {
+    public String createActionWithKind(String name, String file, String kind) throws IOException {
+        return createAction(SUCCESS_EXIT, name, file, null, null, false, false, false, false, 0, kind);
+    }
+
+    public String createAction(int expectedCode, String name, String artifact, String library, Map<String, String> params, boolean sequence, boolean update, boolean copy, boolean shared, int timeoutMillis, String kind) throws IOException {
         String[] cmd1 = { "action", "update", "--auth", authKey, name };
         String[] cmd2 = { "action", "create", "--auth", authKey, name, artifact };
         String[] cmd = update ? cmd1 : cmd2;
 
         if (update && artifact != null) {
             cmd = Util.concat(cmd, new String[] { artifact });
+        }
+
+        if (kind != null) {
+            cmd = Util.concat(cmd, new String[] { "--kind", kind });
         }
 
         if (params != null) {

@@ -95,6 +95,22 @@ def getImageId(inspectOutput):
   records = json.loads(inspectOutput)
   return records[0]['Image']
 
+
+# utility function to pull an image given the docker registry, the name and the tag of the image and 
+# the docker endpoint where the image is pulled 
+def pullImage(dockerRegistry, imageName, tag, dockerEndpoint, dockerTlsCmd):
+      image= dockerRegistry + imageName + ":" + tag
+      print 'Pulling' + image + ' image at', dockerEndpoint,
+      (elapsed, rc, output) = runDocker(dockerEndpoint, dockerTlsCmd, ['pull', image])
+      if (rc == 0):
+          print '   ', elapsed, 'sec   SUCCEEDED'
+      else:
+          print '   ', elapsed, 'sec   FAILED', rc
+          print output
+      return rc
+
+# a list with the images to be pulled
+imagesToPull = ['whisk/dispatcher', 'whisk/nodejsaction', 'whisk/swiftaction',  'whisk/swift3action', 'whisk/javaaction']
 #
 # Teardown and start up an invoker.
 # Will pull the image whisk/dispatcher first.
@@ -118,44 +134,10 @@ def startInvoker(whiskprops,index, invokerHost, tag):
   dockerEndpoint = invokerHost + ":" + dockerPort
   image = dockerRegistry + "whisk/dispatcher" + ":" + tag
   if (dockerRegistry != ''):
-      print 'Pulling dispatcher image at', dockerEndpoint,
-      (elapsed, rc, output) = runDocker(dockerEndpoint, dockerTlsCmd, ['pull', image])
-      if (rc == 0):
-          print '   ', elapsed, 'sec   SUCCEEDED'
-      else:
-          print '   ', elapsed, 'sec   FAILED', rc
-          print output
-          return rc
-
-      nodeJsImage= dockerRegistry + "whisk/nodejsaction" + ":" + tag
-      print 'Pulling nodejs image at', dockerEndpoint,
-      (elapsed, rc, output) = runDocker(dockerEndpoint, dockerTlsCmd, ['pull', nodeJsImage])
-      if (rc == 0):
-          print '   ', elapsed, 'sec   SUCCEEDED'
-      else:
-          print '   ', elapsed, 'sec   FAILED', rc
-          print output
-          return rc
-
-      swiftImage= dockerRegistry + "whisk/swiftaction" + ":" + tag
-      print 'Pulling swift image at', dockerEndpoint,
-      (elapsed, rc, output) = runDocker(dockerEndpoint, dockerTlsCmd, ['pull', swiftImage])
-      if (rc == 0):
-          print '   ', elapsed, 'sec   SUCCEEDED'
-      else:
-          print '   ', elapsed, 'sec   FAILED', rc
-          print output
-          return rc
-
-      javaImage= dockerRegistry + "whisk/javaaction" + ":" + tag
-      print 'Pulling java image at', dockerEndpoint,
-      (elapsed, rc, output) = runDocker(dockerEndpoint, dockerTlsCmd, ['pull', javaImage])
-      if (rc == 0):
-          print '   ', elapsed, 'sec   SUCCEEDED'
-      else:
-          print '   ', elapsed, 'sec   FAILED', rc
-          print output
-          return rc
+    for image in imagesToPull:
+      rc = pullImage(dockerRegistry, image, tag, dockerEndpoint, dockerTlsCmd)
+      if (rc != 0):
+        return rc
   else:
       print 'Skipping pull'
 
