@@ -47,6 +47,9 @@ echo "whisk.ssl.cert=$WHISK_SSL_CERTIFICATE" >> "$WHISK_HOME/whisk.properties"
 echo "whisk.ssl.key=$WHISK_SSL_KEY" >> "$WHISK_HOME/whisk.properties"
 echo "whisk.ssl.challenge=$WHISK_SSL_CHALLENGE" >> "$WHISK_HOME/whisk.properties"
 
+# VCAP Services file to use for tests
+echo "vcap.services.file=$VCAP_SERVICES_FILE" >> "$WHISK_HOME/whisk.properties"
+
 #Hosts
 echo "activator.host="$ACTIVATOR_HOST >> "$WHISK_HOME/whisk.properties"
 echo "consulserver.host="$CONSULSERVER_HOST >> "$WHISK_HOME/whisk.properties"
