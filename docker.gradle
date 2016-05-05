@@ -19,7 +19,7 @@
 ext {
     dockerRegistry = project.hasProperty('dockerRegistry') ? dockerRegistry + '/' : ''
     dockerImageTag = project.hasProperty('dockerImageTag') ? dockerImageTag : 'latest'
-    dockerTimeout = project.hasProperty('dockerTimeout') ? dockerTimeout.toInteger() : 240
+    dockerTimeout = project.hasProperty('dockerTimeout') ? dockerTimeout.toInteger() : 420
     dockerRetries = project.hasProperty('dockerRetries') ? dockerRetries.toInteger() : 3
     dockerBinary = project.hasProperty('dockerBinary') ? [dockerBinary] : ['docker']
 }

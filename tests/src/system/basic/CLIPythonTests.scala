@@ -49,7 +49,6 @@ class CLIPythonTests
     implicit val wskprops = WskProps()
     val wsk = new Wsk()
 
-
     behavior of "Native Python Action"
 
     it should "invoke a blocking action and get the result" in withAssetCleaner(wskprops) {
