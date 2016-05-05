@@ -18,9 +18,29 @@ function main(params) {
     var lon = params.longitude ||  '0';
     var language = params.language || 'en-US';
     var units = params.units || 'm';
+    var timePeriod = params.timePeriod || '10day';
+    var timeURL ='/forecast/daily/10day';
+
+    switch(timePeriod) {
+        case '10day':
+            timeURL = '/forecast/daily/10day';
+            break;
+   	    case '24hour':
+            timeURL = '/forecast/hourly/24hour';
+            break;
+        case 'current':
+            timeURL = '/observations/current';
+            break;
+        case 'timeseries':
+            timeURL = '/observations/timeseries/24hour';
+            break;
+        default:
+            timeURL = '/forecast/daily/10day';
+            break;
+    }
 
     // Construct url.
-    var url = 'https://' + apiKey + '@twcservice.mybluemix.net:443/api/weather/v2/forecast/daily/10day?units=' + units + '&geocode=' + lat + '%2C' + lon + '&language=' + language;
+    var url = 'https://' + apiKey + '@twcservice.mybluemix.net/api/weather/v2' + timeURL + '?units=' + units + '&geocode=' + lat + '%2C' + lon + '&language=' + language;
 
     console.log('url:', url);
     request(url, function (error, response, body) {
