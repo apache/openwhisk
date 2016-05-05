@@ -550,7 +550,11 @@ public class WskCli {
         String activationId = extractActivationIdFromCliResult(response);
         String result = extractActivationResultFromCliResult(response);
         JsonObject json = new JsonParser().parse(result).getAsJsonObject();
-        return Pair.make(activationId, json.get("response").toString());
+        if (json == null || json.get("response") == null) {
+            return Pair.make(activationId, "invalid Json response: " + result);
+        } else {
+            return Pair.make(activationId, json.get("response").toString());
+        }
     }
 
     /**
