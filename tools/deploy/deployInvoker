@@ -107,7 +107,7 @@ def pullImage(dockerRegistry, imageName, tag, dockerEndpoint, dockerTlsCmd):
       else:
           print '   ', elapsed, 'sec   FAILED', rc
           print output
-          return rc
+      return rc
 
 # a list with the images to be pulled
 imagesToPull = ['whisk/dispatcher', 'whisk/nodejsaction', 'whisk/swiftaction',  'whisk/swift3action', 'whisk/javaaction']
