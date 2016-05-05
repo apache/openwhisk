@@ -98,15 +98,15 @@ def getImageId(inspectOutput):
 # utility function to pull an image given the docker registry, the name and the tag of the image and 
 # the docker endpoint where the image is pulled 
 def pullImage(dockerRegistry, imageName, tag, dockerEndpoint, dockerTlsCmd):
-      image= dockerRegistry + imageName + ":" + tag
-      print 'Pulling' + image + ' image at', dockerEndpoint,
-      (elapsed, rc, output) = runDocker(dockerEndpoint, dockerTlsCmd, ['pull', image])
-      if (rc == 0):
-          print '   ', elapsed, 'sec   SUCCEEDED'
-      else:
-          print '   ', elapsed, 'sec   FAILED', rc
-          print output
-          return rc
+    image= dockerRegistry + imageName + ":" + tag
+    print 'Pulling' + image + ' image at', dockerEndpoint,
+    (elapsed, rc, output) = runDocker(dockerEndpoint, dockerTlsCmd, ['pull', image])
+    if (rc == 0):
+        print '   ', elapsed, 'sec   SUCCEEDED'
+    else:
+        print '   ', elapsed, 'sec   FAILED', rc
+        print output
+    return rc
 
 # a list with the images to be pulled
 imagesToPull = ['whisk/dispatcher', 'whisk/nodejsaction', 'whisk/swiftaction', 'whisk/javaaction', 'whisk/pythonaction']
