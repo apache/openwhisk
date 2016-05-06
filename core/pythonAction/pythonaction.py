@@ -21,7 +21,6 @@ import subprocess
 import codecs
 import traceback
 import flask
-from gevent.wsgi import WSGIServer
 
 proxy = flask.Flask(__name__)
 proxy.debug = False
@@ -81,5 +80,4 @@ def run():
 # start server in a forever loop
 if __name__ == "__main__":
     PORT = int(os.getenv("FLASK_PROXY_PORT", 8080))
-    server = WSGIServer(('', PORT), proxy, log=None)
-    server.serve_forever()
+    proxy.run(port=PORT)
