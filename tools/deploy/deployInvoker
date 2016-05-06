@@ -98,7 +98,7 @@ def getImageId(inspectOutput):
 # utility function to pull an image given the docker registry, the name and the tag of the image and 
 # the docker endpoint where the image is pulled 
 def pullImage(dockerRegistry, imageName, tag, dockerEndpoint, dockerTlsCmd):
-    image= dockerRegistry + imageName + ":" + tag
+    image = dockerRegistry + imageName + ":" + tag
     print 'Pulling ' + image + ' image at', dockerEndpoint,
     (elapsed, rc, output) = runDocker(dockerEndpoint, dockerTlsCmd, ['pull', image])
     if (rc == 0):
@@ -130,9 +130,7 @@ def startInvoker(whiskprops,index, invokerHost, tag):
   consulserverHost = getProp(whiskprops,'CONSULSERVER_HOST')
   consulHostPort4 = getProp(whiskprops,'CONSUL_HOST_PORT4')
 
-
   dockerEndpoint = invokerHost + ":" + dockerPort
-  image = dockerRegistry + "whisk/dispatcher" + ":" + tag
   if (dockerRegistry != ''):
       for image in imagesToPull:
           rc = pullImage(dockerRegistry, image, tag, dockerEndpoint, dockerTlsCmd)
@@ -141,6 +139,7 @@ def startInvoker(whiskprops,index, invokerHost, tag):
   else:
       print 'Skipping pull'
 
+  image = dockerRegistry + "whisk/dispatcher" + ":" + tag
   invokerName = "invoker" + str(index)
   invokerPort = invokerHostsBaseport + index
   timezone = dockerTimezoneMount.split(' ') if dockerTimezoneMount != '' else []
