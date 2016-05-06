@@ -149,4 +149,34 @@ class SwiftActionContainerTests extends FlatSpec
             runRes.get.fields.get("error") shouldBe defined
         }
     }
+
+    it should "ensure EDGE_HOST is available as an environment variable" in {
+        val (out, err) = withSwiftContainer { c =>
+            val code = """
+                | func main(args: [String: Any]) -> [String: Any] {
+                |     let env = NSProcessInfo.processInfo().environment
+                |     var host = "fakehost:80"
+                |     if let edgeHost : String = env["EDGE_HOST"] {
+                |       host = "\(edgeHost)"
+                |     }
+                |    return ["host": host]
+                | }
+            """.stripMargin
+
+            val (initCode, _) = c.init(initPayload(code))
+
+            initCode should be(200)
+
+            val (runCode, response) = c.run(runPayload(JsObject()))
+
+            runCode should be(200)
+            response.get.fields.get("host") shouldBe defined
+            // I can't know what the exact value will be, but the default value should be
+            // overwritten by the environment variable value
+            response.get.fields.get("host") shouldNot be("fakehost:80")
+        }
+
+        if (checkStdOutEmpty) out.trim shouldBe empty
+        err.trim shouldBe empty
+    }
 }
