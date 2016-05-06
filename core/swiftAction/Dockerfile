@@ -13,9 +13,8 @@ RUN apt-get -y install git-core
 RUN apt-get clean
 
 # Install Python CGI helpers.
-RUN apt-get -y install python-distribute python-pip
+RUN apt-get -y install python-distribute python-pip python-gevent
 RUN pip install -U flask
-RUN pip install -U gevent
 
 # Install Swift keys
 RUN wget -q -O - https://swift.org/keys/all-keys.asc | gpg --import - && \
