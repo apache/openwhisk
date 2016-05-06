@@ -13,7 +13,6 @@ RUN apt-get clean
 # Install Python CGI helpers.
 RUN apt-get -y install --fix-missing python-distribute python-pip
 RUN pip install -U flask
-RUN pip install -U gevent
  
 ENV FLASK_PROXY_PORT 8080
 

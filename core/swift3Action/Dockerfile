@@ -12,8 +12,7 @@ RUN apt-get -y purge && \
     apt-get -y install --fix-missing python-distribute && \
     apt-get -y install --fix-missing python-pip && \
     apt-get clean && \
-    pip install -U flask && \
-    pip install -U gevent
+    pip install -U flask
 
 # Upgrade and install Swift dependencies.
 RUN apt-get -y dist-upgrade
