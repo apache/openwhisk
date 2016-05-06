@@ -26,7 +26,7 @@ import Foundation
 
 
 func _whisk_json2dict(txt: String) -> [String:Any]? {
-    if let data = txt.dataUsingEncoding(NSUTF8StringEncoding) {
+    if let data = txt.data(using: NSUTF8StringEncoding, allowLossyConversion: true) {
         do {
             return try NSJSONSerialization.jsonObject(with: data, options: NSJSONReadingOptions.AllowFragments) as? [String:Any]
         } catch {

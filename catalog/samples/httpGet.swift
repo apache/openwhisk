@@ -6,6 +6,7 @@
 import KituraNet
 import Dispatch
 import Foundation
+import SwiftyJSON
 
 func main(args:[String:Any]) -> [String:Any] {
 
@@ -13,7 +14,7 @@ func main(args:[String:Any]) -> [String:Any] {
     var str = "No response"
     dispatch_sync(dispatch_get_global_queue(0, 0)) {
 
-            Http.get("https://httpbin.org/get") { response in
+            HTTP.get("https://httpbin.org/get") { response in
 
                 do {
                    str = try response!.readString()!
@@ -29,7 +30,17 @@ func main(args:[String:Any]) -> [String:Any] {
     var result:[String:Any]?
 
     // Convert to NSData
-    let data = str.bridge().dataUsingEncoding(NSUTF8StringEncoding)!
+    let data = str.data(using: NSUTF8StringEncoding, allowLossyConversion: true)!
+
+    // test SwiftyJSON
+    let json = JSON(data: data)
+    if let jsonUrl = json["url"].string {
+        print("Got json url \(jsonUrl)")
+    } else {
+        print("JSON DID NOT PARSE")
+    }
+
+    // create result object to return
     do {
         result = try NSJSONSerialization.jsonObject(with: data, options: []) as? [String: Any]
     } catch {
