@@ -93,7 +93,25 @@ Mac users can clone, build and deploy OpenWhisk either with a Vagrant or Docker 
   (cd openwhisk/tools/ubuntu-setup && source all.sh)
   ```
 
-**Tip:** Optionally, if you want to use Ubuntu desktop `(cd openwhisk/tools/ubuntu-setup && source ubuntu-desktop.sh)`
+### Non-UI vs. Ubuntu Desktop
+
+By default, the provisioned VM starts with a UI enabled. If you need an X-Window system you can enable it by running
+```
+(cd openwhisk/tools/ubuntu-setup && source ubuntu-desktop.sh)
+```
+inside the Vagrant box.
+
+However, if you don't want to use the GUI (e.g. for headless builds using Vagrant) you can disable it by passing the **VB_GUI** parameter at startup:
+```
+cd tools/vagrant
+VB_GUI=false vagrant up
+```
+in shared mode:
+```
+cd tools/vagrant
+ENV=shared VB_GUI=false vagrant up
+```
+
 
 **Your virtual machine is now ready to build and run OpenWhisk. _Login to the virtual machine to complete the next steps._**
 
