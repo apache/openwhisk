@@ -1,4 +1,7 @@
-SCRIPTDIR="$(cd $(dirname "$0")/ && pwd)"
+#!/bin/bash
+SOURCE="${BASH_SOURCE[0]}"
+SCRIPTDIR="$( dirname "$SOURCE" )"
+
 ERRORS=0
 
 

@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# Start with a new VM
+if [ -d ".vagrant" ]; then
+  vagrant destroy
+fi
+
+vagrant up
+
+./wsk action invoke /whisk.system/samples/echo -p message hello --blocking --result
+
+if [ $? -ne 0 ]; then
+  echo "wsk failed, build might be broken try running ./resume_build"
+fi
+
