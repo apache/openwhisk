@@ -116,6 +116,7 @@ object LoggingMarkers {
     private val controller = "controller"
     private val loadbalancer = "loadbalancer"
     private val invoker = "invoker"
+    private val cloudant = "cloudant"
 
     private val activation = "activation"
     val CONTROLLER_CREATE_ACTIVATION = LogMarkerToken(controller, activation, start)
@@ -149,10 +150,14 @@ object LoggingMarkers {
     val INVOKER_ACTIVATION_RUN_START = LogMarkerToken(invoker, activationRun, start)
     val INVOKER_ACTIVATION_RUN_DONE = LogMarkerToken(invoker, activationRun, finish)
 
+    val INVOKER_ACTIVATION_START = LogMarkerToken(invoker, activation, start)
     val INVOKER_ACTIVATION_END = LogMarkerToken(invoker, activation, finish)
-    val INVOKER_FAILED_ACTIVATION = LogMarkerToken(invoker, activation, error)
+    val INVOKER_ACTIVATION_ERROR = LogMarkerToken(invoker, activation, error)
 
     private val recordActivation = "recordActivation"
     val INVOKER_RECORD_ACTIVATION_START = LogMarkerToken(invoker, recordActivation, start)
     val INVOKER_RECORD_ACTIVATION_DONE = LogMarkerToken(invoker, recordActivation, finish)
+
+    val CLOUDANT_CACHE_HIT = LogMarkerToken(cloudant, "cacheHit", start)
+    val CLOUDANT_CACHE_MISS = LogMarkerToken(cloudant, "cacheMiss", start)
 }
