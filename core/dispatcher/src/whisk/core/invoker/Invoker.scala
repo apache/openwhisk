@@ -180,6 +180,7 @@ class Invoker(
                 authFuture flatMap { theAuth =>
                     // assume this future is done here
                     info(this, "", INVOKER_FETCH_AUTH_DONE)
+                    info(this, "", INVOKER_ACTIVATION_START)
                     invokeAction(theAction, theAuth, payload, tran)
                 }
             }
@@ -188,7 +189,7 @@ class Invoker(
                 info(this, s"recorded activation '$activationDoc'", INVOKER_ACTIVATION_END)
                 activationDoc
             case Failure(t) =>
-                info(this, s"failed to invoke action ${action.id} due to ${t.getMessage}", INVOKER_FAILED_ACTIVATION)
+                info(this, s"failed to invoke action ${action.id} due to ${t.getMessage}", INVOKER_ACTIVATION_ERROR)
                 completeTransactionWithError(action, tran, s"failed to invoke action ${action.id}: ${t.getMessage}")
         }
 

@@ -23,6 +23,8 @@ import whisk.core.entity.ActionLimits
 import java.io.File
 import scala.util.Try
 import scala.language.postfixOps
+import whisk.common.LogMarkerToken
+import whisk.common.LogMarkerToken
 
 /**
  * Information from docker ps.
@@ -72,7 +74,7 @@ trait ContainerUtils extends Logging {
         val processLimit = Array("--ulimit", "nproc=512:512")
         val containerNetwork = Array("--net", network)
         val cmd = Array("run") ++ makeEnvVars(env) ++ consulServiceIgnore ++ nameOption ++ memoryArg ++
-                    capabilityArg ++ fileHandleLimit ++ processLimit ++ containerNetwork ++ Array("-d", image) ++ args
+            capabilityArg ++ fileHandleLimit ++ processLimit ++ containerNetwork ++ Array("-d", image) ++ args
         runDockerCmd(cmd: _*)
     }
 
@@ -129,7 +131,7 @@ trait ContainerUtils extends Logging {
      * It is assumed that the contents does exist and that region is not changing concurrently.
      */
     def getDockerLogContent(containerId: String, start: Long, end: Long, mounted: Boolean)(implicit transid: TransactionId): Array[Byte] = {
-        var fis : java.io.FileInputStream = null
+        var fis: java.io.FileInputStream = null
         try {
             val file = getDockerLogFile(containerId, mounted)
             fis = new java.io.FileInputStream(file)
@@ -140,7 +142,7 @@ trait ContainerUtils extends Logging {
                 val read = channel.read(buffer)
                 if (read > 0)
                     remain = read - read.toInt
-                Thread.sleep(50)   // TODO What is this for?
+                Thread.sleep(50) // TODO What is this for?
             }
             buffer.array
         } catch {
@@ -170,18 +172,19 @@ trait ContainerUtils extends Logging {
      * Synchronously runs the given docker command returning stdout if successful.
      */
     def runDockerCmd(skipLogError: Boolean, args: Seq[String])(implicit transid: TransactionId): DockerOutput = {
-        getDockerCmd(dockerhost) map { _ ++ args } map { info(this, s"runDockerCmd: transid = $transid"); SimpleExec.syncRunCmd(_)(transid) } match {
+        getDockerCmd(dockerhost) map { _ ++ args } map { info(this, s"runDockerCmd: transid = $transid", LogMarkerToken("invoker", s"docker.${args(0)}", "start")); SimpleExec.syncRunCmd(_)(transid) } match {
             case Some((stdout, stderr, exitCode)) =>
                 if (exitCode == 0) {
+                    info(this, "", LogMarkerToken("invoker", s"docker.${args(0)}", "finish"))
                     Some(stdout.trim)
                 } else {
                     if (!skipLogError) {
-                      error(this, s"stdout:\n$stdout\nstderr:\n$stderr")
+                        error(this, s"stdout:\n$stdout\nstderr:\n$stderr", LogMarkerToken("invoker", s"docker.${args(0)}", "error"))
                     }
                     None
                 }
             case None =>
-                error(this, "docker executable not found")
+                error(this, "docker executable not found", LogMarkerToken("invoker", s"docker.${args(0)}", "error"))
                 None
         }
     }
