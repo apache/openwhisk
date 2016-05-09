@@ -43,8 +43,50 @@ def init():
     message = message.get("value", {})
 
     if "code" in message:
+        # if the main function is wrapped in a struct, this code will strip the
+        # struct declaration away, freeing the main function. If not, the result
+        # will be the same as code
+        codeWithoutStruct = ""
+
         with codecs.open(DEST_SCRIPT_FILE, "w", "utf-8") as fp:
-            fp.write(str(message["code"]))
+            strippedStruct = False
+            code = str(message["code"])
+
+            lines = code.splitlines()
+            foundStruct = False
+            removedStructDeclaration = False
+
+            for currentLine in lines:
+                strippedLine = currentLine.lstrip()
+
+                if not foundStruct and strippedLine.startswith("func main"):
+                    # short circuit out and stop trying to remove a struct envelope
+                    codeWithoutStruct = code
+                    break
+
+                if removedStructDeclaration:
+                    codeWithoutStruct += currentLine + "\n"
+
+                if not foundStruct:
+                    # look for struct declaration
+                    foundStruct = strippedLine.startswith("struct")
+
+                if foundStruct and not removedStructDeclaration:
+                    curlyBraceIndex = currentLine.find('{')
+
+                    if curlyBraceIndex is not -1:
+                        # scrape out everything up to and including the curly brace
+                        codeWithoutStruct += currentLine[curlyBraceIndex + 1:]
+                        removedStructDeclaration = True
+                    # else:
+                        # we have no use for this line. throw it away
+
+            if removedStructDeclaration:
+                # lop off the last }
+                codeWithoutStruct = codeWithoutStruct[:codeWithoutStruct.rfind('}')]
+
+            fp.write(codeWithoutStruct + "\n")
+
             with codecs.open(SRC_EPILOGUE_FILE, "r", "utf-8") as ep:
                 fp.write(ep.read())
 
