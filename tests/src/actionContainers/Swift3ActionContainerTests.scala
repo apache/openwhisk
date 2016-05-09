@@ -17,15 +17,10 @@
 package actionContainers
 
 import org.junit.runner.RunWith
-import org.scalatest.BeforeAndAfter
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
-import spray.json._
 
-import ActionContainer.withContainer
-
-import scala.util.Random
+import spray.json.JsObject
+import spray.json.JsString
 
 @RunWith(classOf[JUnitRunner])
 class Swift3ActionContainerTests extends SwiftActionContainerTests {
@@ -45,7 +40,7 @@ class Swift3ActionContainerTests extends SwiftActionContainerTests {
                 |   var str = "No response"
                 |   let url = args["getUrl"] as? String
                 |   dispatch_sync(dispatch_get_global_queue(0,0)) {
-                |       Http.get(url!) { response in
+                |       HTTP.get(url!) { response in
                 |           do {
                 |               if let response = response {
                 |                   str = try response.readString()!
@@ -56,7 +51,7 @@ class Swift3ActionContainerTests extends SwiftActionContainerTests {
                 |       }
                 |   }
                 |   var result: [String:Any]?
-                |   let data = str.bridge().dataUsingEncoding(NSUTF8StringEncoding)!
+                |   let data = str.data(using: NSUTF8StringEncoding, allowLossyConversion: true)!
                 |   do {
                 |       result = try NSJSONSerialization.jsonObject(with: data, options:[]) as? [String:Any]
                 |   } catch {
@@ -85,5 +80,4 @@ class Swift3ActionContainerTests extends SwiftActionContainerTests {
         if (checkStdOutEmpty) out.trim shouldBe empty
         err.trim shouldBe empty
     }
-
 }

@@ -26,6 +26,7 @@ import spray.json._
 import ActionContainer.withContainer
 
 import scala.util.Random
+import common.WhiskProperties
 
 @RunWith(classOf[JUnitRunner])
 class SwiftActionContainerTests extends FlatSpec
@@ -43,7 +44,9 @@ class SwiftActionContainerTests extends FlatSpec
         "value" -> JsObject(
             "name" -> JsString("someSwiftAction"),
             "code" -> JsString(code)))
-    def runPayload(args: JsValue) = JsObject("value" -> args)
+    def runPayload(args: JsValue) = JsObject(
+            "authKey" -> JsString(WhiskProperties.readAuthKey(WhiskProperties.getAuthFileForTesting)),
+            "value" -> args)
 
     behavior of "whisk/swiftaction"
 
