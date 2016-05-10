@@ -43,8 +43,8 @@ invoker:
 nginx:
   port:
     http: 80
-    https1: 443
-    https2: 8443
+    api: 443
+    adminportal: 8443
 
 db:
   auth: subjects
