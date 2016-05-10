@@ -16,18 +16,17 @@
 
 package whisk.common
 
+import scala.language.postfixOps
+import scala.util.Try
+
 import org.apache.commons.codec.binary.Base64
-import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig.consulServer
+
+import spray.json.JsArray
+import spray.json.JsNull
+import spray.json.JsObject
+import spray.json.JsString
 import spray.json.JsValue
 import spray.json.pimpString
-import scala.util.Try
-import spray.json.JsNull
-import spray.json.JsArray
-import org.apache.jute.compiler.JString
-import spray.json.JsString
-import spray.json.JsObject
-import scala.language.postfixOps
 
 /**
  * See https://www.consul.io/intro/getting-started/kv.html
@@ -145,30 +144,10 @@ object ConsulKV {
         // Invokers store how many activations they have processed per user here.
         private val userActivationCountKey = "userActivationCount"
         def userActivationCount(instance: Int) = s"${instanceDataPath(instance)}/${userActivationCountKey}"
-        def getUserActivationCountIndex(key: String): Option[Int] = {
-            val prefix = s"${allInvokersData}/invoker"
-            val suffix = s"/${userActivationCountKey}"
-            if (key.startsWith(prefix) && key.endsWith(suffix)) {
-                val middle = key.substring(prefix.length, key.length - suffix.length)
-                try {
-                    Some(middle.toInt)
-                } catch {
-                    case e: Throwable => None
-                }
-            } else None
-        }
 
         // Invokers store their most recent check in time here
         private val statusKey = "status"
         def status(instance: Int) = s"${instancePath(instance)}/${statusKey}"
-        def getStatusIndex(key: String): Option[Int] = {
-            val prefix = s"${allInvokers}/invoker"
-            val suffix = s"/${statusKey}"
-            if (key.startsWith(prefix) && key.endsWith(suffix)) {
-                val middle = key.substring(prefix.length, key.length - suffix.length)
-                Try { middle.toInt } toOption
-            } else None
-        }
     }
 
     // All load balancer written information under here.
