@@ -19,6 +19,8 @@ package common;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -27,6 +29,8 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
 
@@ -54,6 +58,9 @@ public class TestUtils {
 
     private static final File catalogDir = WhiskProperties.getFileRelativeToWhiskHome("catalog");
     private static final File testActionsDir = WhiskProperties.getFileRelativeToWhiskHome("tests/dat/actions");
+    private static final File vcapFile = WhiskProperties.getVCAPServicesFile();
+    private static final String envServices = System.getenv("VCAP_SERVICES");
+
 
     static {
         logger.setLevel(Level.WARNING);
@@ -77,6 +84,25 @@ public class TestUtils {
      */
     public static String getTestActionFilename(String name) {
         return new File(testActionsDir, name).toString();
+    }
+
+    /**
+     * Gets the value of VCAP_SERVICES
+     * @return VCAP_SERVICES as a JSON object
+     */
+    public static JsonObject getVCAPServices() {
+        JsonObject jsonObject;
+        if (envServices != null) {
+            jsonObject = new JsonParser().parse(envServices).getAsJsonObject();
+        }
+        else  {
+            try {
+                jsonObject = new JsonParser().parse(new FileReader(vcapFile)).getAsJsonObject();
+            } catch (FileNotFoundException e) {
+                return new JsonObject();
+            }
+        }
+        return jsonObject;
     }
 
     /**
