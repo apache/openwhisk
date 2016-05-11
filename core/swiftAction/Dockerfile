@@ -43,4 +43,4 @@ RUN touch /swiftAction/action.swift
 
 ENV FLASK_PROXY_PORT 8080
 
-CMD ["/bin/bash", "-c", "cd swiftAction && python proxy.py"]
+CMD ["/bin/bash", "-c", "cd swiftAction && python -u proxy.py"]

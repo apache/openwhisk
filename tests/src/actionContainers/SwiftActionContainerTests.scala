@@ -98,6 +98,25 @@ class SwiftActionContainerTests extends FlatSpec
         }
     }
 
+    it should "log stdout" in {
+        val (out, _) = withSwiftContainer() { c =>
+            val code = """
+                | func main(args: [String: Any]) -> [String: Any] {
+                |     print("Hello logs!")
+                |     return [ "lookAt": "the logs" ]
+                | }
+            """.stripMargin
+
+            val (initCode, _) = c.init(initPayload(code))
+            initCode should be(200)
+
+            val (runCode, runRes) = c.run(runPayload(JsObject()))
+            runCode should be(200)
+        }
+
+        out should include("Hello logs!")
+    }
+
     it should "log compilation errors" in {
         val (_, err) = withSwiftContainer() { c =>
             val code = """
