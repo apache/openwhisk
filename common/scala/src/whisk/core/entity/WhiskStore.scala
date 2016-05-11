@@ -36,8 +36,7 @@ import whisk.core.WhiskConfig.dbHost
 import whisk.core.WhiskConfig.dbPort
 import whisk.core.WhiskConfig.dbWhisk
 import whisk.core.database.ArtifactStore
-import whisk.core.database.CloudantStore
-import whisk.core.database.CouchDbStore
+import whisk.core.database.CouchDbRestStore
 import whisk.core.database.DocumentRevisionProvider
 import whisk.core.database.DocumentSerializer
 import whisk.core.entity.schema.ActivationRecord
@@ -81,14 +80,7 @@ protected[core] object Util {
         require(config != null && config.isValid, "config is undefined or not valid")
         require(config.dbProvider == "Cloudant" || config.dbProvider == "CouchDB", "Unsupported db.provider: " + config.dbProvider)
 
-        if (false && config.dbProvider == "Cloudant") { // use new spray-based API
-            CloudantStore.make(config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name(config))
-        } else {
-            // CouchDbStore.make(config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name(config))
-            // New Spray-based API.
-            import whisk.core.database.CouchDbRestStore
-            new CouchDbRestStore[R, D](config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name(config))
-        }
+        new CouchDbRestStore[R, D](config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name(config))
     }
 }
 
