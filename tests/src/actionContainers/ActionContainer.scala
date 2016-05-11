@@ -86,12 +86,15 @@ object ActionContainer {
         Await.result(proc(docker(cmd)), t)
     }
 
-    def withContainer(imageName: String)(code: ActionContainer => Unit): (String, String) = {
+    def withContainer(imageName: String, environment: Map[String,String]=Map.empty)(code: ActionContainer => Unit): (String, String) = {
         val rand = { val r = Random.nextInt; if (r < 0) -r else r }
         val name = imageName.toLowerCase.replaceAll("""[^a-z]""", "") + rand
+        val envArgs = environment.toSeq.map {
+            case (k,v) => s"-e ${k}=${v}"
+        } mkString(" ")
 
         // We create the container...
-        val runOut = awaitDocker(s"run --name $name -d $imageName", 10 seconds)
+        val runOut = awaitDocker(s"run --name $name $envArgs -d $imageName", 10 seconds)
         assert(runOut._1 == 0, "'docker run' did not exit with 0: " + runOut)
 
         // ...find out its IP address...

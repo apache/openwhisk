@@ -36,7 +36,7 @@ class Swift3ActionContainerTests extends SwiftActionContainerTests {
     behavior of "whisk/swift3action"
 
     it should "properly use KituraNet and Dispatch" in {
-        val (out, err) = withSwiftContainer { c =>
+        val (out, err) = withSwiftContainer() { c =>
             val code = """
                 | import Foundation
                 | import Dispatch
