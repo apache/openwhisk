@@ -33,34 +33,51 @@ class Swift3ActionContainerTests extends SwiftActionContainerTests {
     it should "properly use KituraNet and Dispatch" in {
         val (out, err) = withSwiftContainer() { c =>
             val code = """
+                | import KituraNet
                 | import Foundation
                 | import Dispatch
-                | import KituraNet
-                | func main(args: [String: Any]) -> [String: Any] {
-                |   var str = "No response"
-                |   let url = args["getUrl"] as? String
-                |   dispatch_sync(dispatch_get_global_queue(0,0)) {
-                |       HTTP.get(url!) { response in
+                | func main(args:[String: Any]) -> [String:Any] {
+                |       print("Entering Swift3ActionContainer KituraNet test")
+                |       let Retries = 3
+                |       var respStr = "No response"
+                |       var attempts = 0
+                |       while attempts < Retries {
+                |           let group = dispatch_group_create()
+                |           dispatch_group_async(group, dispatch_get_global_queue(0,0), {
+                |               HTTP.get("http://httpbin.org/get", callback: { response in
+                |                   if let response = response {
+                |                       print("Status code is \(response.statusCode)")
+                |                           do {
+                |                           if let str = try response.readString() {
+                |                                   respStr = str
+                |                                   print("Got string2 \(str)")
+                |                              } else {
+                |                                   print("Could not read string")
+                |                               }
+                |                           } catch {
+                |                               print("Error reading string body")
+                |                           }
+                |                   }
+                |               })
+                |           })
+                |       let maxWait = dispatch_time(DISPATCH_TIME_NOW, Int64(10 * NSEC_PER_SEC))
+                |       let code = dispatch_group_wait(group, maxWait)
+                |       if code == 0 {
+                |           let data = respStr.data(using: NSUTF8StringEncoding, allowLossyConversion: true)!
                 |           do {
-                |               if let response = response {
-                |                   str = try response.readString()!
+                |               if let result = try NSJSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
+                |                   return ["reply": result]
                 |               }
                 |           } catch {
-                |               print("Error reading server response: \(error)")
+                |                print("Error \(error)")
                 |           }
+                |           return ["reply": respStr, "code": code]
+                |       } else {
+                |           print("WAIT timed out or failed on \(attempts) attempts with code \(code), retrying")
+                |           attempts = attempts + 1
                 |       }
                 |   }
-                |   var result: [String:Any]?
-                |   let data = str.data(using: NSUTF8StringEncoding, allowLossyConversion: true)!
-                |   do {
-                |       result = try NSJSONSerialization.jsonObject(with: data, options:[]) as? [String:Any]
-                |   } catch {
-                |      print("Error serializing server response: \(error)")
-                |   }
-                |   if let result = result {
-                |       return result
-                |   }
-                |   return ["message":str]
+                |   return ["status": "Exceeded \(Retries) tries, returning."]
                 | }
             """.stripMargin
 
@@ -76,6 +93,11 @@ class Swift3ActionContainerTests extends SwiftActionContainerTests {
                 runCode should be(200)
             }
         }
+
+        // in side try catch finally print (out file)
+        // in catch block an error has occurred, get docker logs and print
+        // throw
+
 
         if (checkStdOutEmpty) out.trim shouldBe empty
         err.trim shouldBe empty
