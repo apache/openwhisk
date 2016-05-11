@@ -26,6 +26,8 @@
     volumes:
       - "{{ whisk_logs_dir }}/nginx:/logs"
       - "{{ nginx_conf_dir }}:/etc/nginx"
+    expose:
+      - 8443
     ports:
       - "{{ nginx.port.http }}:80"
       - "{{ nginx.port.api }}:443"
