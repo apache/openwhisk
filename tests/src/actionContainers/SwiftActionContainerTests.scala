@@ -38,7 +38,7 @@ class SwiftActionContainerTests extends FlatSpec
     val swiftContainerImageName = "whisk/swiftaction"
 
     // Helpers specific to swiftaction
-    def withSwiftContainer(code: ActionContainer => Unit) = withContainer(swiftContainerImageName)(code)
+    def withSwiftContainer(env: Map[String,String] = Map.empty)(code: ActionContainer => Unit) = withContainer(swiftContainerImageName, env)(code)
     def initPayload(code: String) = JsObject(
         "value" -> JsObject(
             "name" -> JsString("someSwiftAction"),
@@ -48,7 +48,7 @@ class SwiftActionContainerTests extends FlatSpec
     behavior of "whisk/swiftaction"
 
     it should "support valid flows" in {
-        val (out, err) = withSwiftContainer { c =>
+        val (out, err) = withSwiftContainer() { c =>
             val code = """
                 | func main(args: [String: Any]) -> [String: Any] {
                 |     return args
@@ -75,7 +75,7 @@ class SwiftActionContainerTests extends FlatSpec
     }
 
     it should "return some error on action error" in {
-        withSwiftContainer { c =>
+        withSwiftContainer() { c =>
             val code = """
                 | // You need an indirection, or swiftc detects the div/0
                 | // at compile-time. Smart.
@@ -98,8 +98,27 @@ class SwiftActionContainerTests extends FlatSpec
         }
     }
 
+    it should "log stdout" in {
+        val (out, _) = withSwiftContainer() { c =>
+            val code = """
+                | func main(args: [String: Any]) -> [String: Any] {
+                |     print("Hello logs!")
+                |     return [ "lookAt": "the logs" ]
+                | }
+            """.stripMargin
+
+            val (initCode, _) = c.init(initPayload(code))
+            initCode should be(200)
+
+            val (runCode, runRes) = c.run(runPayload(JsObject()))
+            runCode should be(200)
+        }
+
+        out should include("Hello logs!")
+    }
+
     it should "log compilation errors" in {
-        val (_, err) = withSwiftContainer { c =>
+        val (_, err) = withSwiftContainer() { c =>
             val code = """
               | 10 PRINT "Hello!"
               | 20 GOTO 10
@@ -115,7 +134,7 @@ class SwiftActionContainerTests extends FlatSpec
     }
 
     it should "support application errors" in {
-        withSwiftContainer { c =>
+        withSwiftContainer() { c =>
             val code = """
                 | func main(args: [String: Any]) -> [String: Any] {
                 |     return [ "error": "sorry" ]
@@ -134,7 +153,7 @@ class SwiftActionContainerTests extends FlatSpec
     }
 
     it should "enforce that the user returns an object" in {
-        withSwiftContainer { c =>
+        withSwiftContainer() { c =>
             val code = """
                 | func main(args: [String: Any]) -> String {
                 |     return "rebel, rebel"
@@ -148,5 +167,33 @@ class SwiftActionContainerTests extends FlatSpec
             runCode should be(502)
             runRes.get.fields.get("error") shouldBe defined
         }
+    }
+
+    it should "ensure EDGE_HOST is available as an environment variable" in {
+        val (out, err) = withSwiftContainer(Map("EDGE_HOST" -> "realhost:80")) { c =>
+            val code = """
+                | func main(args: [String: Any]) -> [String: Any] {
+                |     let env = NSProcessInfo.processInfo().environment
+                |     var host = "fakehost:80"
+                |     if let edgeHost : String = env["EDGE_HOST"] {
+                |       host = "\(edgeHost)"
+                |     }
+                |    return ["host": host]
+                | }
+            """.stripMargin
+
+            val (initCode, _) = c.init(initPayload(code))
+
+            initCode should be(200)
+
+            val (runCode, response) = c.run(runPayload(JsObject()))
+
+            runCode should be(200)
+
+            response.get.fields.get("host") should be(Some(JsString("realhost:80")))
+        }
+
+        if (checkStdOutEmpty) out.trim shouldBe empty
+        err.trim shouldBe empty
     }
 }

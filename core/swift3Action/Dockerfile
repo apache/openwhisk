@@ -57,4 +57,4 @@ RUN rm /swift3Action/spm-build/.build/debug/Action
 
 ENV FLASK_PROXY_PORT 8080
 
-CMD ["/bin/bash", "-c", "cd swift3Action && python proxy.py"]
+CMD ["/bin/bash", "-c", "cd swift3Action && python -u proxy.py"]

@@ -87,7 +87,9 @@ def run():
         response.status_code = 502
         return response
 
-    swift_env_in = { "WHISK_INPUT" : json.dumps(value) }
+    # make sure to include all the env vars passed in by the invoker
+    swift_env_in = os.environ
+    swift_env_in["WHISK_INPUT"] = json.dumps(value)
 
     p = subprocess.Popen(
         RUN_PROCESS,
