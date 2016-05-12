@@ -1,7 +1,7 @@
 var watson = require('watson-developer-cloud');
 
 /**
- * Identify the languge of some text.
+ * Identify the language of some text.
  *
  * @param payload The text to identify.
  * @param username The watson service username.
