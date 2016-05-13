@@ -4,4 +4,4 @@
 
 # TODO: avoid py script? persist a file in the role would be better
 - name: fill consul kv
-  local_action: command python "{{ playbook_dir }}/../tools/health/kvstore" --import -d "{{ playbook_dir }}/../"
+  local_action: command python "{{ openwhisk_home }}/tools/health/kvstore" --import -d "{{ playbook_dir }}/../"
