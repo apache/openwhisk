@@ -55,6 +55,7 @@ import whisk.core.entity.WhiskPackage
 import whisk.core.entity.WhiskRule
 import whisk.core.entity.WhiskTrigger
 import org.scalatest.BeforeAndAfterAll
+import whisk.core.entity.WhiskActivation
 
 protected trait ControllerTestCommon
     extends FlatSpec
@@ -80,7 +81,7 @@ protected trait ControllerTestCommon
     val entitlementService: EntitlementService = new LocalEntitlementService(config)(executionContext)
     val actorSystem = ActorSystem("controllertests")
     val activationId = ActivationId() // need a static activation id to test activations api
-    val performLoadBalancerRequest = (lbr : WhiskServices.LoadBalancerReq) => Future {
+    val performLoadBalancerRequest = (lbr: WhiskServices.LoadBalancerReq) => Future {
         LoadBalancerResponse.id(activationId)
     }
     val consulServer = "???"
@@ -96,6 +97,13 @@ protected trait ControllerTestCommon
         Await.result(WhiskAction.get(entityStore, doc.asDocInfo) flatMap { doc =>
             info(this, s"deleting ${doc.docinfo}")
             WhiskAction.del(entityStore, doc.docinfo)
+        }, dbOpTimeout)
+    }
+
+    def deleteActivation(doc: DocId)(implicit transid: TransactionId) = {
+        Await.result(WhiskActivation.get(entityStore, doc.asDocInfo) flatMap { doc =>
+            info(this, s"deleting ${doc.docinfo}")
+            WhiskActivation.del(entityStore, doc.docinfo)
         }, dbOpTimeout)
     }
 

@@ -231,7 +231,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      * to the loadbalancer.
      *
      * Responses are one of (Code, Message)
-     * - 200 Activation as JSON if blocking
+     * - 200 Activation as JSON if blocking or just the result JSON iff '&result=true'
      * - 202 ActivationId as JSON (this is issued on non-blocking activation or blocking activation that times out)
      * - 404 Not Found
      * - 502 Bad Gateway
@@ -248,7 +248,12 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                             case Success((activationId, None)) =>
                                 complete(Accepted, activationId.toJsObject)
                             case Success((activationId, Some(activation))) =>
-                                val response = if (result) activation.getResultJson else activation.toExtendedJson
+                                val response = if (result) {
+                                    activation.getResultJson
+                                } else {
+                                    activation.toExtendedJson
+                                }
+
                                 if (activation.response.isSuccess) {
                                     complete(OK, response)
                                 } else if (activation.response.isWhiskError) {

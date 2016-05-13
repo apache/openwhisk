@@ -372,6 +372,17 @@
                         ]
                     },
                     {
+                        "name": "result",
+                        "in": "query",
+                        "description": "Return only the result of a blocking activation. Default is false.",
+                        "required": false,
+                        "type": "string",
+                        "enum": [
+                            "true",
+                            "false"
+                        ]
+                    },
+                    {
                         "name": "payload",
                         "in": "body",
                         "description": "The parameters for the action being invoked",
@@ -383,10 +394,14 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Activation",
+                        "description": "Successful activation",
                         "schema": {
                             "$ref": "#/definitions/Activation"
                         }
+                    },
+                    "202": {
+                        "description": "Activation request accepted",
+                        "$ref": "#/responses/AcceptedActivation"
                     },
                     "401": {
                         "$ref": "#/responses/UnauthorizedRequest"
@@ -399,6 +414,12 @@
                     },
                     "500": {
                         "$ref": "#/responses/ServerError"
+                    },
+                    "502": {
+                        "description": "Activation produced an application error",
+                        "schema": {
+                            "$ref": "#/definitions/Activation"
+                        }
                     }
                 }
             }
@@ -2068,6 +2089,12 @@
             "schema": {
                 "$ref": "#/definitions/ErrorMessage"
             }
+        },
+        "AcceptedActivation": {
+            "description": "Accepted activation request",
+            "schema": {
+                "$ref": "#/definitions/ItemId"
+            }            
         },
         "AcceptedRuleStateChange": {
             "description": "Rule has been enabled or disabled"
