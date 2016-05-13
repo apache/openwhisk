@@ -90,6 +90,10 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     val collectionPath = s"/${Namespace.DEFAULT}/${collection.path}"
     def aname = MakeName.next("packages_tests")
 
+    private def bindingAnnotation(binding: Binding) = {
+        Parameters(WhiskPackage.bindingFieldName, Binding.serdes.write(binding))
+    }
+
     //// GET /packages
     it should "list all packages/references" in {
         implicit val tid = transid()
@@ -269,7 +273,9 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
         Get(s"$collectionPath/${reference.name}") ~> sealRoute(routes(creds)) ~> check {
             status should be(OK)
             val response = responseAs[WhiskPackageWithActions]
-            response should be(reference ++ provider.parameters withActions ())
+            response should be(reference inherit provider.parameters withActions ())
+            // this is redundant in case the precendence orders on inherit are changed incorrectly
+            response.wp.parameters should be(Parameters("a", "A") ++ Parameters("b", "b") ++ Parameters("c", "C"))
         }
     }
 
@@ -324,8 +330,10 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     //// PUT /packages/name
     it should "create package" in {
         implicit val tid = transid()
-        val provider = WhiskPackage(namespace, aname, None)
-        val content = WhiskPackagePut()
+        val provider = WhiskPackage(namespace, aname, None, annotations = Parameters("a", "b"))
+        // binding annotation should be removed
+        val someBindingAnnotation = Parameters(WhiskPackage.bindingFieldName, "???")
+        val content = WhiskPackagePut(annotations = Some(someBindingAnnotation ++ Parameters("a", "b")))
         Put(s"$collectionPath/${provider.name}", content) ~> sealRoute(routes(creds)) ~> check {
             deletePackage(provider.docid)
             status should be(OK)
@@ -337,8 +345,10 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     it should "create package reference with explicit namespace" in {
         implicit val tid = transid()
         val provider = WhiskPackage(namespace, aname)
-        val reference = WhiskPackage(namespace, aname, provider.bind)
-        val content = WhiskPackagePut(reference.binding)
+        val reference = WhiskPackage(namespace, aname, provider.bind, annotations = bindingAnnotation(provider.bind.get) ++ Parameters("a", "b"))
+        // binding annotation should be removed and set by controller
+        val someBindingAnnotation = Parameters(WhiskPackage.bindingFieldName, "???")
+        val content = WhiskPackagePut(reference.binding, annotations = Some(someBindingAnnotation ++ Parameters("a", "b")))
         put(entityStore, provider)
 
         // it should "reject create package reference in some other namespace" in {
@@ -365,7 +375,10 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
             deletePackage(reference.docid)
             status should be(OK)
             val response = responseAs[WhiskPackage]
-            response should be(WhiskPackage(namespace, reference.name, provider.bind))
+            response should be {
+                WhiskPackage(reference.namespace, reference.name, provider.bind,
+                    annotations = bindingAnnotation(provider.bind.get))
+            }
         }
     }
 
@@ -411,12 +424,14 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     it should "update package reference" in {
         implicit val tid = transid()
         val provider = WhiskPackage(namespace, aname)
-        val reference = WhiskPackage(namespace, aname, provider.bind)
-        val content = WhiskPackagePut(publish = Some(true))
+        val reference = WhiskPackage(namespace, aname, provider.bind, annotations = bindingAnnotation(provider.bind.get))
+        // create a bogus binding annotation which should be replaced by the PUT
+        val someBindingAnnotation = Some(Parameters(WhiskPackage.bindingFieldName, "???") ++ Parameters("a", "b"))
+        val content = WhiskPackagePut(publish = Some(true), annotations = someBindingAnnotation)
         put(entityStore, provider)
         put(entityStore, reference)
 
-        // it should "reject update package reference owned by different user" in {
+        // it should "reject update package reference owned by different user"
         val auser = WhiskAuth(Subject(), AuthKey())
         Put(s"/$namespace/${collection.path}/${reference.name}?overwrite=true", content) ~> sealRoute(routes(auser)) ~> check {
             status should be(Forbidden)
@@ -426,7 +441,13 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
             deletePackage(reference.docid)
             status should be(OK)
             val response = responseAs[WhiskPackage]
-            response should be(WhiskPackage(namespace, reference.name, reference.binding, version = reference.version.upPatch, publish = true))
+            println(responseAs[String])
+            response should be {
+                WhiskPackage(reference.namespace, reference.name, reference.binding,
+                    version = reference.version.upPatch,
+                    publish = true,
+                    annotations = reference.annotations ++ Parameters("a", "b"))
+            }
         }
     }
 

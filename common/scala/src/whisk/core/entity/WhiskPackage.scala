@@ -81,7 +81,7 @@ case class WhiskPackage(
      * Merges parameters into existing set of parameters for package.
      * Existing parameters supersede those in p.
      */
-    def ++(p: Parameters) = {
+    def inherit(p: Parameters) = {
         WhiskPackage(namespace, name, binding, p ++ parameters, version, publish, annotations)
     }
 

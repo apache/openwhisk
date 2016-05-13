@@ -68,7 +68,15 @@ protected[core] class Parameters protected[entity] (
 
     /** Add parameters from p to existing map, overwriting existing values in case of overlap in keys. */
     protected[core] def ++(p: Parameters) = new Parameters(params ++ p.params)
-    protected[core] def toJsArray = JsArray(params map { p => JsObject("key" -> p._1().toJson, "value" -> p._2().toJson) } toSeq : _*)
+
+    /** Remove parameter by name. */
+    protected[core] def --(p: String) = {
+        Try { new ParameterName(p) } map {
+            param => new Parameters(params - param)
+        } getOrElse this
+    }
+
+    protected[core] def toJsArray = JsArray(params map { p => JsObject("key" -> p._1().toJson, "value" -> p._2().toJson) } toSeq: _*)
     protected[core] def toJsObject = JsObject(params map { p => (p._1() -> p._2().toJson) })
     override def toString = toJsArray.compactPrint
 
@@ -139,6 +147,23 @@ protected[core] object Parameters extends ArgNormalizer[Parameters] {
         Parameters() ++ {
             (new ParameterName(ArgNormalizer.trim(p)),
                 new ParameterValue(Option(v) map { _.trim.toJson } getOrElse JsNull))
+        }
+    }
+
+    /**
+     * Creates a parameter tuple from a parameter name and JsValue.
+     *
+     * @param p the parameter name
+     * @param v the parameter value
+     * @return (ParameterName, ParameterValue)
+     * @throws IllegalArgumentException if key is not defined
+     */
+    @throws[IllegalArgumentException]
+    protected[core] def apply(p: String, v: JsValue): Parameters = {
+        require(p != null && p.trim.nonEmpty, "key undefined")
+        Parameters() ++ {
+            (new ParameterName(ArgNormalizer.trim(p)),
+                new ParameterValue(Option(v) getOrElse JsNull))
         }
     }
 

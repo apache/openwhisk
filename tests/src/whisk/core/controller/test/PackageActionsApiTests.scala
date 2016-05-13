@@ -275,7 +275,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             Get(s"$collectionPath/${provider.name}/${action.name}") ~> sealRoute(routes(creds)) ~> check {
                 status should be(OK)
                 val response = responseAs[WhiskAction]
-                response should be(action ++ provider.parameters)
+                response should be(action inherit provider.parameters)
             }
         }
     }
@@ -293,7 +293,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             Get(s"$collectionPath/${binding.name}/${action.name}") ~> sealRoute(routes(auser)) ~> check {
                 status should be(OK)
                 val response = responseAs[WhiskAction]
-                response should be(action ++ (provider.parameters ++ binding.parameters))
+                response should be(action inherit (provider.parameters ++ binding.parameters))
             }
         }
     }
@@ -311,7 +311,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             Get(s"$collectionPath/${binding.name}/${action.name}") ~> sealRoute(routes(auser)) ~> check {
                 status should be(OK)
                 val response = responseAs[WhiskAction]
-                response should be(action ++ (provider.parameters ++ binding.parameters))
+                response should be(action inherit (provider.parameters ++ binding.parameters))
             }
         }
     }
@@ -332,7 +332,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         Get(s"$collectionPath/${binding.name}/${action.name}") ~> sealRoute(routes(auser)) ~> check {
             status should be(OK)
             val response = responseAs[WhiskAction]
-            response should be(action ++ (provider.parameters ++ binding.parameters))
+            response should be(action inherit (provider.parameters ++ binding.parameters))
         }
     }
 
