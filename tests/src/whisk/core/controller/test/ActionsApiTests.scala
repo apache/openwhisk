@@ -22,9 +22,10 @@ import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import spray.http.StatusCodes.Accepted
 import spray.http.StatusCodes.BadRequest
-import spray.http.StatusCodes.Forbidden
-import spray.http.StatusCodes.MethodNotAllowed
 import spray.http.StatusCodes.Conflict
+import spray.http.StatusCodes.Forbidden
+import spray.http.StatusCodes.InternalServerError
+import spray.http.StatusCodes.MethodNotAllowed
 import spray.http.StatusCodes.NotFound
 import spray.http.StatusCodes.OK
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
@@ -32,6 +33,7 @@ import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
 import spray.json.DefaultJsonProtocol.RootJsObjectFormat
 import spray.json.DefaultJsonProtocol.listFormat
 import spray.json.DefaultJsonProtocol.StringJsonFormat
+import spray.json.DefaultJsonProtocol.mapFormat
 import spray.json.JsObject
 import spray.json.pimpAny
 import spray.json.pimpString
@@ -144,9 +146,8 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     it should "get action by name in default namespace" in {
         implicit val tid = transid()
         val action = WhiskAction(namespace, aname, Exec.js("??"), Parameters("x", "b"))
-        val name = action.name().replaceAll(" ", "%20")
         put(entityStore, action)
-        Get(s"$collectionPath/$name") ~> sealRoute(routes(creds)) ~> check {
+        Get(s"$collectionPath/${action.name}") ~> sealRoute(routes(creds)) ~> check {
             status should be(OK)
             val response = responseAs[WhiskAction]
             response should be(action)
@@ -156,9 +157,8 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     it should "get action by name in explicit namespace" in {
         implicit val tid = transid()
         val action = WhiskAction(namespace, aname, Exec.js("??"), Parameters("x", "b"))
-        val name = action.name().replaceAll(" ", "%20")
         put(entityStore, action)
-        Get(s"/$namespace/${collection.path}/$name") ~> sealRoute(routes(creds)) ~> check {
+        Get(s"/$namespace/${collection.path}/${action.name}") ~> sealRoute(routes(creds)) ~> check {
             status should be(OK)
             val response = responseAs[WhiskAction]
             response should be(action)
@@ -166,7 +166,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
         // it should "reject get action by name in explicit namespace not owned by subject" in
         val auser = WhiskAuth(Subject(), AuthKey())
-        Get(s"/$namespace/${collection.path}/$name") ~> sealRoute(routes(auser)) ~> check {
+        Get(s"/$namespace/${collection.path}/${action.name}") ~> sealRoute(routes(auser)) ~> check {
             status should be(Forbidden)
         }
     }
@@ -182,16 +182,15 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     it should "delete action by name" in {
         implicit val tid = transid()
         val action = WhiskAction(namespace, aname, Exec.js("??"), Parameters("x", "b"))
-        val name = action.name().replaceAll(" ", "%20")
         put(entityStore, action)
 
         // it should "reject delete action by name not owned by subject" in
         val auser = WhiskAuth(Subject(), AuthKey())
-        Get(s"/$namespace/${collection.path}/$name") ~> sealRoute(routes(auser)) ~> check {
+        Get(s"/$namespace/${collection.path}/${action.name}") ~> sealRoute(routes(auser)) ~> check {
             status should be(Forbidden)
         }
 
-        Delete(s"$collectionPath/$name") ~> sealRoute(routes(creds)) ~> check {
+        Delete(s"$collectionPath/${action.name}") ~> sealRoute(routes(creds)) ~> check {
             status should be(OK)
             val response = responseAs[WhiskAction]
             response should be(action)
@@ -238,8 +237,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         implicit val tid = transid()
         val action = WhiskAction(namespace, aname, Exec.js("??"))
         val content = WhiskActionPut(Some(action.exec))
-        val name = action.name().replaceAll(" ", "%20")
-        Put(s"$collectionPath/$name", content) ~> sealRoute(routes(creds)) ~> check {
+        Put(s"$collectionPath/${action.name}", content) ~> sealRoute(routes(creds)) ~> check {
             deleteAction(action.docid)
             status should be(OK)
             val response = responseAs[WhiskAction]
@@ -292,7 +290,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     it should "put and then get action from cache" in {
         val action = WhiskAction(namespace, aname, Exec.js("??"), Parameters("x", "b"))
         val content = WhiskActionPut(Some(action.exec), Some(action.parameters), Some(ActionLimitsOption(Some(action.limits.timeout), Some(action.limits.memory))))
-        val name = action.name().replaceAll(" ", "%20")
+        val name = action.name
 
         val stream = new ByteArrayOutputStream
         val printstream = new PrintStream(stream)
@@ -337,9 +335,8 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         implicit val tid = transid()
         val action = WhiskAction(namespace, aname, Exec.js("??"), Parameters("x", "b"))
         val content = WhiskActionPut(Some(action.exec))
-        val name = action.name().replaceAll(" ", "%20")
         put(entityStore, action)
-        Put(s"$collectionPath/$name", content) ~> sealRoute(routes(creds)) ~> check {
+        Put(s"$collectionPath/${action.name}", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(Conflict)
         }
     }
@@ -348,9 +345,8 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         implicit val tid = transid()
         val action = WhiskAction(namespace, aname, Exec.js("??"), Parameters("x", "b"))
         val content = WhiskActionPut(Some(Exec.js("_")), Some(Parameters("x", "X")))
-        val name = action.name().replaceAll(" ", "%20")
         put(entityStore, action)
-        Put(s"$collectionPath/$name?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
+        Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
             deleteAction(action.docid)
             status should be(OK)
             val response = responseAs[WhiskAction]
@@ -359,18 +355,26 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     }
 
     //// POST /actions/name
-    it should "invoke an action without arguments, nonblocking" in {
+    it should "invoke an action with arguments, nonblocking" in {
         implicit val tid = transid()
         val action = WhiskAction(namespace, aname, Exec.js("??"), Parameters("x", "b"))
+        val args = JsObject("xxx" -> "yyy".toJson)
         put(entityStore, action)
 
-        // it should "reject post to action in namespace not owned by subject" in
+        // it should "reject post to action in namespace not owned by subject"
         val auser = WhiskAuth(Subject(), AuthKey())
-        Post(s"/$namespace/${collection.path}/${action.name}") ~> sealRoute(routes(auser)) ~> check {
+        Post(s"/$namespace/${collection.path}/${action.name}", args) ~> sealRoute(routes(auser)) ~> check {
             status should be(Forbidden)
         }
 
-        Post(s"$collectionPath/${action.name}") ~> sealRoute(routes(creds)) ~> check {
+        Post(s"$collectionPath/${action.name}", args) ~> sealRoute(routes(creds)) ~> check {
+            status should be(Accepted)
+            val response = responseAs[JsObject]
+            response.fields("activationId") should not be None
+        }
+
+        // it should "ignore &result when invoking nonblocking action"
+        Post(s"$collectionPath/${action.name}?result=true", args) ~> sealRoute(routes(creds)) ~> check {
             status should be(Accepted)
             val response = responseAs[JsObject]
             response.fields("activationId") should not be None
@@ -379,11 +383,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     it should "invoke an action, nonblocking" in {
         implicit val tid = transid()
-        val action = WhiskAction(namespace, aname, Exec.js("??"), Parameters("x", "b"))
-        val name = action.name().replaceAll(" ", "%20")
-        val content = JsObject("xxx" -> "yyy".toJson)
+        val action = WhiskAction(namespace, aname, Exec.js("??"))
         put(entityStore, action)
-        Post(s"$collectionPath/$name", content) ~> sealRoute(routes(creds)) ~> check {
+        Post(s"$collectionPath/${action.name}") ~> sealRoute(routes(creds)) ~> check {
             status should be(Accepted)
             val response = responseAs[JsObject]
             response.fields("activationId") should not be None
@@ -392,11 +394,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     it should "invoke an action, blocking with timeout" in {
         implicit val tid = transid()
-        val action = WhiskAction(namespace, aname, Exec.js("??"), Parameters("x", "b"), ActionLimits(TimeLimit(1000), MemoryLimit()))
-        val name = action.name().replaceAll(" ", "%20")
-        val content = JsObject("xxx" -> "yyy".toJson)
+        val action = WhiskAction(namespace, aname, Exec.js("??"), limits = ActionLimits(TimeLimit(1000), MemoryLimit()))
         put(entityStore, action)
-        Post(s"$collectionPath/$name?blocking=true", content) ~> sealRoute(routes(creds)) ~> check {
+        Post(s"$collectionPath/${action.name}?blocking=true") ~> sealRoute(routes(creds)) ~> check {
             status should be(Accepted)
             val response = responseAs[JsObject]
             response.fields("activationId") should not be None
@@ -405,16 +405,44 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     it should "invoke an action, blocking" in {
         implicit val tid = transid()
-        val action = WhiskAction(namespace, aname, Exec.js("??"), Parameters("x", "b"))
-        val name = action.name().replaceAll(" ", "%20")
-        val content = JsObject("xxx" -> "yyy".toJson)
-        val activation = WhiskActivation(action.namespace, action.name, creds.subject, activationId, start = Instant.now, end = Instant.now)
+        val action = WhiskAction(namespace, aname, Exec.js("??"))
+        val activation = WhiskActivation(action.namespace, action.name, creds.subject, activationId,
+            start = Instant.now,
+            end = Instant.now,
+            response = ActivationResponse.success(Some(JsObject("test" -> "yes".toJson))))
         put(entityStore, action)
         put(activationStore, activation)
-        Post(s"$collectionPath/$name?blocking=true", content) ~> sealRoute(routes(creds)) ~> check {
+        Post(s"$collectionPath/${action.name}?blocking=true") ~> sealRoute(routes(creds)) ~> check {
             status should be(OK)
             val response = responseAs[JsObject]
             response should be(activation.toExtendedJson)
         }
+
+        // repeat invoke, get only result back
+        Post(s"$collectionPath/${action.name}?blocking=true&result=true") ~> sealRoute(routes(creds)) ~> check {
+            status should be(OK)
+            val response = responseAs[JsObject]
+            response should be(activation.getResultJson)
+        }
+
+        deleteActivation(activation.docid)
+    }
+
+    it should "invoke a blocking action and return error response when activation fails" in {
+        implicit val tid = transid()
+        val action = WhiskAction(namespace, aname, Exec.js("??"))
+        val activation = WhiskActivation(action.namespace, action.name, creds.subject, activationId,
+            start = Instant.now,
+            end = Instant.now,
+            response = ActivationResponse.whiskError("test"))
+        put(entityStore, action)
+        put(activationStore, activation)
+        Post(s"$collectionPath/${action.name}?blocking=true") ~> sealRoute(routes(creds)) ~> check {
+            status should be(InternalServerError)
+            val response = responseAs[JsObject]
+            response should be(activation.toExtendedJson)
+        }
+
+        deleteActivation(activation.docid)
     }
 }
