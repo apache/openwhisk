@@ -204,18 +204,19 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
         content.binding match {
             case Some(binding) =>
                 val promise = Promise[WhiskPackage]
-                val resolvedBinding = binding.resolve(namespace)
-                WhiskPackage.get(entityStore, resolvedBinding.docid.asDocInfo) onComplete {
+                val resolvedBinding = Some(binding.resolve(namespace))
+                WhiskPackage.get(entityStore, resolvedBinding.get.docid.asDocInfo) onComplete {
                     case Success(doc) =>
                         if (doc.binding.isEmpty) promise success {
                             WhiskPackage(
                                 namespace,
                                 name,
-                                Some(resolvedBinding),
+                                resolvedBinding,
                                 content.parameters getOrElse Parameters(),
                                 content.version getOrElse SemVer(),
                                 content.publish getOrElse false,
-                                content.annotations getOrElse Parameters())
+                                // override any binding annotation from PUT (always set by the controller)
+                                (content.annotations getOrElse Parameters()) ++ bindingAnnotation(resolvedBinding))
                         }
                         else promise failure {
                             RejectRequest(BadRequest, "entity specified in binding is not a package")
@@ -232,7 +233,8 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
                         content.parameters getOrElse Parameters(),
                         content.version getOrElse SemVer(),
                         content.publish getOrElse false,
-                        content.annotations getOrElse Parameters())
+                        // remove any binding annotation from PUT (always set by the controller)
+                        (content.annotations map { _ -- WhiskPackage.bindingFieldName }) getOrElse Parameters())
                 }
         }
     }
@@ -246,17 +248,19 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
                 }
                 else {
                     val promise = Promise[WhiskPackage]
+                    val resolvedBinding = Some(binding.resolve(wp.namespace))
                     WhiskPackage.get(entityStore, binding.docid.asDocInfo) onComplete {
                         case Success(_) =>
                             promise success {
                                 WhiskPackage(
                                     wp.namespace,
                                     wp.name,
-                                    content.binding map { _.resolve(wp.namespace) },
+                                    resolvedBinding,
                                     content.parameters getOrElse wp.parameters,
                                     content.version getOrElse wp.version.upPatch,
                                     content.publish getOrElse wp.publish,
-                                    content.annotations getOrElse wp.annotations).
+                                    // override any binding annotation from PUT (always set by the controller)
+                                    (content.annotations getOrElse wp.annotations) ++ bindingAnnotation(resolvedBinding)).
                                     revision[WhiskPackage](wp.docinfo.rev)
                             }
                         case Failure(t) => promise.failure { RejectRequest(BadRequest, t) }
@@ -272,10 +276,26 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
                         content.parameters getOrElse wp.parameters,
                         content.version getOrElse wp.version.upPatch,
                         content.publish getOrElse wp.publish,
-                        content.annotations getOrElse wp.annotations).
+                        // override any binding annotation from PUT (always set by the controller)
+                        (content.annotations map {
+                            _ -- WhiskPackage.bindingFieldName
+                        } getOrElse wp.annotations) ++ bindingAnnotation(wp.binding)).
                         revision[WhiskPackage](wp.docinfo.rev)
                 }
         }
+    }
+
+    /**
+     * Constructs a "binding" annotation. This is redundant with the binding
+     * information available in WhiskPackage but necessary for some client which
+     * fetch package lists but cannot determine which package may be bound. An
+     * alternative is to include the binding in the package list "view" but this
+     * will require an API change. So using an annotation instead.
+     */
+    private def bindingAnnotation(binding: Option[Binding]): Parameters = {
+        binding map {
+            b => Parameters(WhiskPackage.bindingFieldName, Binding.serdes.write(b))
+        } getOrElse Parameters()
     }
 
     /**
@@ -292,7 +312,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
                     mergePackageWithBinding(Some { wp }) _
                 })
         } getOrElse {
-            val pkg = ref map { _ ++ wp.parameters } getOrElse wp
+            val pkg = ref map { _ inherit wp.parameters } getOrElse wp
             info(this, s"fetching package actions in '${wp.path}'")
             val actions = WhiskAction.listCollectionInNamespace(entityStore, wp.path, skip = 0, limit = 0) flatMap {
                 case Left(list) => Future successful {

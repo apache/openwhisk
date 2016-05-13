@@ -295,7 +295,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
     override def fetch(namespace: Namespace, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
         val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
         getEntity(WhiskAction, entityStore, docid, Some { action: WhiskAction =>
-            val mergedAction = env map { action ++ _ } getOrElse action
+            val mergedAction = env map { action inherit _ } getOrElse action
             complete(OK, mergedAction)
         })
     }
@@ -502,7 +502,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         } getOrElse {
             // a subject has implied rights to all resources in a package, so dispatch
             // operation without further entitlement checks
-            val params = { ref map { _ ++ wp.parameters } getOrElse wp } parameters
+            val params = { ref map { _ inherit wp.parameters } getOrElse wp } parameters
             val ns = wp.namespace.addpath(wp.name) // the package namespace
             val resource = Resource(ns, collection, Some { action() }, Some { params })
             val right = collection.determineRight(method, resource.entity)

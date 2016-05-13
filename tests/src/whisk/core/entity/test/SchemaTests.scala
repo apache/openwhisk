@@ -283,13 +283,13 @@ class SchemaTests extends FlatSpec with BeforeAndAfter {
             Parameters.serdes.read(null: JsValue)
         }
         intercept[IllegalArgumentException] {
-            Parameters(null, null)
+            Parameters(null, null: String)
         }
         intercept[IllegalArgumentException] {
-            Parameters("", null)
+            Parameters("", null: JsValue)
         }
         intercept[IllegalArgumentException] {
-            Parameters(" ", null)
+            Parameters(" ", null: String)
         }
         intercept[IllegalArgumentException] {
             Parameters(null, "")
@@ -303,7 +303,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter {
     }
 
     it should "serialize to json" in {
-        assert(Parameters("k", null).toString == JsArray(JsObject("key" -> "k".toJson, "value" -> JsNull)).compactPrint)
+        assert(Parameters("k", null: String).toString == JsArray(JsObject("key" -> "k".toJson, "value" -> JsNull)).compactPrint)
         assert(Parameters("k", "").toString == JsArray(JsObject("key" -> "k".toJson, "value" -> "".toJson)).compactPrint)
         assert(Parameters("k", " ").toString == JsArray(JsObject("key" -> "k".toJson, "value" -> "".toJson)).compactPrint)
         assert(Parameters("k", "v").toString == JsArray(JsObject("key" -> "k".toJson, "value" -> "v".toJson)).compactPrint)

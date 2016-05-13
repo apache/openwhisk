@@ -91,7 +91,7 @@ case class WhiskAction(
      * Merges parameters (usually from package) with existing action parameters.
      * Existing parameters supersede those in p.
      */
-    def ++(p: Parameters) = {
+    def inherit(p: Parameters) = {
         WhiskAction(namespace, name, exec, p ++ parameters, limits, version, publish, annotations)
     }
 
