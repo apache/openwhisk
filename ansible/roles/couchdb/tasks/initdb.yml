@@ -4,4 +4,4 @@
 
 # Same as cloudant, so include here.
 
-- include: roles/cloudant/tasks/initdb.yml
+- include: "{{ openwhisk_home }}/ansible/roles/cloudant/tasks/initdb.yml"
