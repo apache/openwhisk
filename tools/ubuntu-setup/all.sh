@@ -1,23 +1,50 @@
+SCRIPTDIR="$(cd $(dirname "$0")/ && pwd)"
+ERRORS=0
+
+
+function install() {
+    "$1/$2" &
+    pid=$!
+    wait $pid
+    status=$?
+    printf "$pid finished with status $status \n\n"
+    if [ $status -ne 0 ]
+    then
+        let ERRORS=ERRORS+1
+    fi
+}
+
 echo "*** installing basics"
-source ./misc.sh
+install "$SCRIPTDIR" misc.sh
+
 
 echo "*** installing python dependences"
-source ./pip.sh
+install "$SCRIPTDIR" pip.sh
+
 
 echo "*** installing java"
-source ./java8.sh
+install "$SCRIPTDIR" java8.sh
+
 
 echo "*** installing ant"
-source ./ant.sh
+install "$SCRIPTDIR" ant.sh
+
 
 echo "*** install scala"
-source ./scala.sh
+install "$SCRIPTDIR" scala.sh
+
 
 echo "*** installing docker"
-source ./docker.sh
+install "$SCRIPTDIR" docker.sh
+
 
 echo "*** installing gradle"
-source ./gradle.sh
+install "$SCRIPTDIR" gradle.sh
+
 
 echo "*** installing ansible"
-source ./ansible.sh
+install "$SCRIPTDIR" ansible.sh
+
+
+echo install all with total errors number $ERRORS
+exit $ERRORS
