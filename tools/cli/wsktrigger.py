@@ -127,14 +127,19 @@ class Trigger(Item):
             'auth': args.auth
         }
 
-        feedResponse = Action().doInvoke(dict2obj(feedArgs), props)
-        if feedResponse.status == httplib.OK:
+        try:
+            feedResponse = Action().doInvoke(dict2obj(feedArgs), props)
+        except Exception as e:
+            print 'exception: %s' % e
+            feedResponse = None
+
+        if feedResponse and feedResponse.status == httplib.OK:
             print 'ok: created %s feed %s' % (self.name, args.name)
         else:
             print 'error: failed to create %s feed %s' % (self.name, args.name)
             # clean up by deleting trigger
             self.httpDelete(args, props)
-            return responseError(feedResponse, None)
+            return responseError(feedResponse, None) if feedResponse else 1
 
     def deleteFeed(self, args, props, res):
         trigger = json.loads(res.read())
@@ -158,9 +163,14 @@ class Trigger(Item):
                 'auth': args.auth
             }
 
-            feedResponse = Action().doInvoke(dict2obj(feedArgs), props)
-            if feedResponse.status == httplib.OK:
+            try:
+                feedResponse = Action().doInvoke(dict2obj(feedArgs), props)
+            except Exception as e:
+                print 'exception: %s' % e
+                feedResponse = None
+
+            if feedResponse and feedResponse.status == httplib.OK:
                 return self.deleteResponse(args, res)
             else:
                 print 'error: failed to delete %s feed %s but did delete the trigger' % (self.name, args.name)
-                return responseError(feedResponse, None)
+                return responseError(feedResponse, None) if feedResponse else 1

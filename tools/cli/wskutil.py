@@ -99,7 +99,7 @@ def request(method, urlString, body = '', headers = {}, auth = None, verbose = F
         res = dict2obj({ 'status' : 500, 'error': str(e) })
         return res
 
-def responseError(res, prefix = 'error:'):
+def responseError(res, prefix = 'error:', flatten = True):
     if prefix:
         print prefix,
     response = None
@@ -108,7 +108,7 @@ def responseError(res, prefix = 'error:'):
         result = json.loads(response)
         if 'error' in result and 'code' in result:
             print '%s (code %s)' % (result['error'], result['code'])
-        elif 'error' in result:
+        elif 'error' in result and flatten:
             print result['error']
         else:
             print getPrettyJson(result)

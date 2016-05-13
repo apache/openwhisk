@@ -22,7 +22,7 @@ import argparse
 import urllib
 import subprocess
 from wskitem import Item
-from wskutil import addAuthenticatedCommand, bold, request, getParams, getActivationArgument, getAnnotations, responseError, parseQName, getQName, apiBase, getPrettyJson
+from wskutil import addAuthenticatedCommand, request, getParams, getActivationArgument, getAnnotations, responseError, parseQName, getQName, apiBase, getPrettyJson
 
 #
 # 'wsk actions' CLI
@@ -112,20 +112,22 @@ class Action(Item):
 
     def invoke(self, args, props):
         res = self.doInvoke(args, props)
-        # OK implies successful blocking invoke
-        # ACCEPTED implies non-blocking
-        # All else are failures
-        if res.status == httplib.OK or res.status == httplib.ACCEPTED:
+        try:
             result = json.loads(res.read())
-            if not (args.result and args.blocking and res.status == httplib.OK):
+            if 'activationId' in result: # if args.result is true, there is no activation id
                 print 'ok: invoked %(name)s with id %(id)s' % {'name': args.name, 'id': result['activationId'] }
-            if res.status == httplib.OK and args.result:
-                print getPrettyJson(result)
-            elif res.status == httplib.OK :
-                print bold('response:')
-                print getPrettyJson(result)
-            return 0
-        else:
+            if res.status == httplib.OK: # true iff args.blocking is true
+                print getPrettyJson(result) # prints the activation or just the result if args.result
+                return 0
+            elif res.status == httplib.ACCEPTED:
+                return 0 if not args.blocking else res.status
+            elif res.status == httplib.BAD_GATEWAY:
+                return responseError(res, prefix = '', flatten = False)
+            elif res.status == httplib.INTERNAL_SERVER_ERROR and 'code' not in result:
+                return responseError(res, prefix = '', flatten = False)
+            else:
+                return responseError(res)
+        except:
             return responseError(res)
 
     # invokes the action and returns HTTP response
@@ -136,7 +138,7 @@ class Action(Item):
             'namespace': urllib.quote(namespace),
             'name': self.getSafeName(pname),
             'blocking': 'true' if args.blocking else 'false',
-            'result': 'true' if args.result else 'false'
+            'result': 'true' if 'result' in args and args.result else 'false'
         }
         payload = json.dumps(getActivationArgument(args))
         headers = {

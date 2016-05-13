@@ -317,6 +317,21 @@ class WskBasicTests
             wsk.trigger.list().stdout should include(name)
     }
 
+    it should "not create a trigger when feed fails to initialize" in {
+        val name = "badfeed"
+        wsk.trigger.create(name, feed = Some(s"bogus"), expectedExitCode = ANY_ERROR_EXIT).
+            exitCode should { equal(NOT_FOUND) or equal(FORBIDDEN) }
+        wsk.trigger.get(name, expectedExitCode = NOT_FOUND)
+
+        wsk.trigger.create(name, feed = Some(s"bogus/feed"), expectedExitCode = ANY_ERROR_EXIT).
+            exitCode should { equal(NOT_FOUND) or equal(FORBIDDEN) }
+        wsk.trigger.get(name, expectedExitCode = NOT_FOUND)
+
+        // verify that the feed runs and returns an application error (502 or Gateway Timeout)
+        wsk.trigger.create(name, feed = Some(s"/whisk.system/github/webhook"), expectedExitCode = TIMEOUT)
+        wsk.trigger.get(name, expectedExitCode = NOT_FOUND)
+    }
+
     behavior of "Wsk Rule CLI"
 
     it should "create rule, get rule, update rule and list rule" in withAssetCleaner(wskprops) {

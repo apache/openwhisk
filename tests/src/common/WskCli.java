@@ -908,10 +908,10 @@ public class WskCli {
     }
 
     protected static String extractActivationResultFromCliResult(String result) {
-        assertTrue(result, result.contains("response:"));
         // a characteristic string that comes right before the result
-        String resultPrefix = "response:";
-        int start = result.indexOf(resultPrefix) + resultPrefix.length();
+        String resultPrefix = "{";
+        assertTrue(result, result.contains(resultPrefix));
+        int start = result.indexOf(resultPrefix);
         int end = result.length();
         return result.substring(start, end); // the result
     }

@@ -169,7 +169,6 @@ You can use an action to store a document in a Cloudant database called `testdb`
   ```
   ```
   ok: invoked /myNamespace/myCoudant/write with id 62bf696b38464fd1bcaff216a68b8287
-  response:
   {
     "id": "heisenberg",
     "ok": true,
