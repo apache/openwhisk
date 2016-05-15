@@ -107,7 +107,7 @@ class Action(Item):
             if not args.copy:
                 print 'the artifact "%s" is not a valid file. If this is a docker image, use --docker.' % args.artifact
             else:
-                print 'the action "%s" does not exit (or your are not entitled to it).' % args.artifact
+                print 'the action "%s" does not exit, is malformed, or your are not entitled to it.' % args.artifact
             return 2
 
     def invoke(self, args, props):

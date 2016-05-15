@@ -262,7 +262,7 @@ public class WskCli {
     }
 
     public String copyAction(String name, String existingAction) throws IOException {
-        return createAction(SUCCESS_EXIT, name, existingAction, null, null, false, true, true, false, 0);
+        return createAction(SUCCESS_EXIT, name, existingAction, null, null, false, false, true, false, 0);
     }
 
     public String createAction(String name, String file) throws IOException {

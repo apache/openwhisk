@@ -24,35 +24,10 @@
 #
 
 SCRIPTDIR="$(cd $(dirname "$0")/ && pwd)"
-PROPERTIES_FILE="$SCRIPTDIR/../../whisk.properties"
+source "$SCRIPTDIR/common.sh"
 
-# Looks up a value in a property file.
-# arg $1: the path to the property file.
-# arg $2: the name of the property to look up
-# return (print to stdout): the value of the property.
-function getProperty() {
-    file=$1
-    name=$2
-    value=$(cat "$file" | grep "^$name=" |cut -d "=" -f 2)
-    echo $value
-}
-
-DB_PROVIDER=$(getProperty "$PROPERTIES_FILE" "db.provider")
-DB_PROTOCOL=$(getProperty "$PROPERTIES_FILE" "db.protocol")
-DB_PREFIX=$(getProperty "$PROPERTIES_FILE" "db.prefix")
-DB_HOST=$(getProperty "$PROPERTIES_FILE" "db.host")
-DB_PORT=$(getProperty "$PROPERTIES_FILE" "db.port")
-DB_USERNAME=$(getProperty "$PROPERTIES_FILE" "db.username")
-DB_PASSWORD=$(getProperty "$PROPERTIES_FILE" "db.password")
 #FIXME: ok as long as there is only one transient db
 DB_TRANSIENT_DBS=$(getProperty "$PROPERTIES_FILE" "db.whisk.actions")
-
-if [ "$DB_PROVIDER" == "CouchDB" ]; then
-    CURL_ADMIN="curl -s -k --user $DB_USERNAME:$DB_PASSWORD"
-else
-    CURL_ADMIN="curl -s --user $DB_USERNAME:$DB_PASSWORD"
-fi
-URL_BASE="$DB_PROTOCOL://$DB_HOST:$DB_PORT"
 
 ## drop and recreate the transient databases
 for db in $DB_TRANSIENT_DBS

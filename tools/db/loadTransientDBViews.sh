@@ -24,18 +24,7 @@
 #
 
 SCRIPTDIR="$(cd $(dirname "$0")/ && pwd)"
-PROPERTIES_FILE="$SCRIPTDIR/../../whisk.properties"
-
-# Looks up a value in a property file.
-# arg $1: the path to the property file.
-# arg $2: the name of the property to look up
-# return (print to stdout): the value of the property.
-function getProperty() {
-    file=$1
-    name=$2
-    value=$(cat "$file" | grep "^$name=" |cut -d "=" -f 2)
-    echo $value
-}
+source "$SCRIPTDIR/common.sh"
 
 function addRevision() {
     VIEW=$1
@@ -89,21 +78,7 @@ function view() {
     }'
 }
 
-DB_PROVIDER=$(getProperty "$PROPERTIES_FILE" "db.provider")
-DB_PROTOCOL=$(getProperty "$PROPERTIES_FILE" "db.protocol")
-DB_PREFIX=$(getProperty "$PROPERTIES_FILE" "db.prefix")
-DB_HOST=$(getProperty "$PROPERTIES_FILE" "db.host")
-DB_PORT=$(getProperty "$PROPERTIES_FILE" "db.port")
-DB_USERNAME=$(getProperty "$PROPERTIES_FILE" "db.username")
-DB_PASSWORD=$(getProperty "$PROPERTIES_FILE" "db.password")
 DB_WHISK_ACTIONS=$(getProperty "$PROPERTIES_FILE" "db.whisk.actions")
-
-if [ "$DB_PROVIDER" == "CouchDB" ]; then
-    CURL_ADMIN="curl -s -k --user $DB_USERNAME:$DB_PASSWORD"
-else
-    CURL_ADMIN="curl -s --user $DB_USERNAME:$DB_PASSWORD"
-fi
-URL_BASE="$DB_PROTOCOL://$DB_HOST:$DB_PORT"
 
 PREV_REV=`$CURL_ADMIN -X GET $URL_BASE/$DB_WHISK_ACTIONS/_design/whisks | awk -F"," '{print $2}'`
 RES=`$CURL_ADMIN -X POST -H 'Content-Type: application/json' -d "$(addRevision "$(view)" $PREV_REV)" $URL_BASE/$DB_WHISK_ACTIONS`

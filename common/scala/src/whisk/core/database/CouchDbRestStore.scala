@@ -170,7 +170,7 @@ class CouchDbRestStore[Unused, DocumentAbstraction <: DocumentSerializer](
                 eitherResponse <- request(client)
             ) yield eitherResponse match {
                     case Right(response) =>
-                        info(this, s"[GET] '$dbName' completed: found document '$doc', response: '$response'")
+                        info(this, s"[GET] '$dbName' completed: found document '$doc'")
                         val asFormat = jsonFormat.read(response)
                         // For backwards compatibility, we should fail with IllegalArgumentException
                         // if the retrieved type doesn't match the expected type. The following does

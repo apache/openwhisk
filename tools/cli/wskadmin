@@ -32,12 +32,14 @@ import string
 import random
 import uuid
 
-DB_WHISK_AUTHS = 'DB_WHISK_AUTHS'
-DB_PROTOCOL    = 'DB_PROTOCOL'
-DB_HOST        = 'DB_HOST'
-DB_PORT        = 'DB_PORT'
-DB_USERNAME    = 'DB_USERNAME'
-DB_PASSWORD    = 'DB_PASSWORD'
+DB_PROTOCOL = 'DB_PROTOCOL'
+DB_HOST     = 'DB_HOST'
+DB_PORT     = 'DB_PORT'
+DB_USERNAME = 'DB_USERNAME'
+DB_PASSWORD = 'DB_PASSWORD'
+
+DB_WHISK_AUTHS   = 'DB_WHISK_AUTHS'
+DB_WHISK_ACTIONS = 'DB_WHISK_ACTIONS'
 
 # SCRIPT_DIR is going to be traversing all links and point to tools/cli/wsk
 CLI_DIR = os.path.dirname(os.path.realpath(sys.argv[0]))
@@ -45,8 +47,8 @@ CLI_DIR = os.path.dirname(os.path.realpath(sys.argv[0]))
 ROOT_DIR = os.path.join(os.path.join(CLI_DIR, os.pardir), os.pardir)
 
 def main():
+    requiredprops = [ DB_PROTOCOL, DB_HOST, DB_PORT, DB_USERNAME, DB_PASSWORD, DB_WHISK_AUTHS, DB_WHISK_ACTIONS ]
     whiskprops = wskprop.importPropsIfAvailable(wskprop.propfile(os.getcwd()))
-    requiredprops = [ DB_WHISK_AUTHS, DB_PROTOCOL, DB_HOST, DB_PORT, DB_USERNAME, DB_PASSWORD ]
     (valid, props, deferredInfo) = wskprop.checkRequiredProperties(requiredprops, whiskprops)
 
     exitCode = 0 if valid else 2
@@ -56,7 +58,8 @@ def main():
             if (args.verbose):
                 print deferredInfo
             exitCode = {
-              'user' : userCmd
+              'user' : userCmd,
+              'db'   : dbCmd
             }[args.cmd](args, props)
         except Exception as e:
             print 'Exception: ', e
@@ -84,6 +87,14 @@ def parseArgs():
     subcmd = subparser.add_parser('whois', help='identify user from UUID (for convenience you can provide the entire authorization key')
     subcmd.add_argument('uuid', help='the user UUID to lookup')
 
+    propmenu = subparsers.add_parser('db', help='work with dbs')
+    subparser = propmenu.add_subparsers(title='available commands', dest='subcmd')
+
+    subcmd = subparser.add_parser('get', help='get contents of database')
+    subcmd.add_argument('database', help='the database name')
+    subcmd.add_argument('-v', '--view', help='the view in the database to get')
+    subcmd.add_argument('--docs', help='include document contents', action='store_true')
+
     return parser.parse_args()
 
 def userCmd(args, props):
@@ -99,6 +110,13 @@ def userCmd(args, props):
         print 'unknown command'
         return 2
 
+def dbCmd(args, props):
+    if args.subcmd == 'get':
+        return getDbCmd(args, props)
+    else:
+        print 'unknown command'
+        return 2
+  
 def createUserCmd(args, props):
     protocol = props[DB_PROTOCOL]
     host     = props[DB_HOST]
@@ -244,6 +262,52 @@ def whoisUserCmd(args, props):
             print 'Subject id is not recognized'
         return 0
     print 'Failed to delete subject (%s)' % res.read().strip()
+    return 1
+
+def getDbCmd(args, props):
+    protocol = props[DB_PROTOCOL]
+    host     = props[DB_HOST]
+    port     = props[DB_PORT]
+    username = props[DB_USERNAME]
+    password = props[DB_PASSWORD]
+
+    if args.database == 'subjects':
+        database = props[DB_WHISK_AUTHS]
+    elif args.database == 'whisks':
+        database = props[DB_WHISK_ACTIONS]
+    else:
+        database = args.database
+
+    if args.view:
+        try:
+            parts = args.view.split('/')
+            designdoc = parts[0]
+            viewname  = parts[1]
+        except:
+            print 'view name "%s" is not formatted correctly, should be design/view' % args.view
+            return 2
+
+    url = '%(protocol)s://%(host)s:%(port)s/%(database)s%(design)s/%(index)s?include_docs=%(docs)s' % {
+        'protocol': protocol,
+        'host'    : host,
+        'port'    : port,
+        'database': database,
+        'design'  : '/_design/' + designdoc +'/_view' if args.view else '',
+        'index'   : viewname if args.view else '_all_docs',
+        'docs'    : 'true' if args.docs else 'false' 
+    }
+
+    headers = {
+        'Content-Type': 'application/json',
+    }
+
+    print 'getting contents for %s (%s)' % (database, args.view if args.view else 'primary index')
+    res = request('GET', url, headers=headers, auth='%s:%s' % (username, password), verbose=args.verbose)
+    if res.status == 200:
+        table = json.loads(res.read())
+        print json.dumps(table, sort_keys=True, indent=4, separators=(',', ': '))
+        return 0
+    print 'Failed to get database (%s)' % res.read().strip()
     return 1
 
 if __name__ == '__main__':
