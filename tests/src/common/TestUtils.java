@@ -16,24 +16,25 @@
 
 package common;
 
-import static org.junit.Assert.assertTrue;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import junit.runner.Version;
+import org.junit.rules.TestWatcher;
+import org.junit.runner.Description;
 
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import org.junit.rules.TestWatcher;
-import org.junit.runner.Description;
-
-import junit.runner.Version;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Miscellaneous utilities used in whisk test suite
@@ -99,6 +100,26 @@ public class TestUtils {
         } catch (Throwable t) {
             System.out.println("faild to parse VCAP" + t);
             return new JsonObject();
+        }
+    }
+
+    /**
+     * Gets the username and password from VCAP_SERVICES credentials
+     * @return a map containing the username and password
+     */
+    public static Map<String, String> getVCAPUsernameAndPasswordMap(String vcapService) {
+        try {
+            JsonArray vcapArray = getVCAPServices().get(vcapService).getAsJsonArray();
+            JsonObject vcapObject = vcapArray.get(0).getAsJsonObject();
+            JsonObject credentials = vcapObject.get("credentials").getAsJsonObject();
+
+            Map<String, String> map = new HashMap<String, String>(2);
+            map.put("username", credentials.get("username").getAsString());
+            map.put("password", credentials.get("password").getAsString());
+            return map;
+        } catch (Throwable t) {
+            System.out.println("faild to parse VCAP" + t);
+            return Collections.EMPTY_MAP;
         }
     }
 
