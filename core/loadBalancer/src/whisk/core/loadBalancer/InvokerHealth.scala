@@ -96,17 +96,21 @@ class InvokerHealth(
         return (hash, count)
     }
 
-    def getInvokerHealth(): JsObject = {
-        val health = invokers.get().map { s => s"invoker${s.index}" -> (if (s.status) "up" else "down").toJson }
-        JsObject(health toMap)
-    }
-
     def getInvokerIndices(): Array[Int] = {
         invokers.get() map { _.index }
     }
 
     def getInvokerActivationCounts(): Array[(Int, Int)] = {
         invokers.get() map { status => (status.index, status.activationCount) }
+    }
+
+    def getInvokerHealth(): Array[(Int, Boolean)] = {
+        invokers.get() map { status => (status.index, status.status) }
+    }
+
+    def getInvokerHealthJson(): JsObject = {
+        val health = getInvokerHealth().map { case (index, isUp) => s"invoker${index}" -> (if (isUp) "up" else "down").toJson }
+        JsObject(health toMap)
     }
 
     private val maximumAllowedDelay = 5 seconds
@@ -122,7 +126,7 @@ class InvokerHealth(
         LoadBalancerKeys.startKey,
         LoadBalancerKeys.statusKey,
         { () =>
-            Map(LoadBalancerKeys.invokerHealth -> getInvokerHealth(),
+            Map(LoadBalancerKeys.invokerHealth -> getInvokerHealthJson(),
                 LoadBalancerKeys.activationCountKey -> getKafkaPostCount().toJson)
         })
 
@@ -137,9 +141,10 @@ class InvokerHealth(
 
             val status = nested map {
                 case (key, inner) =>
-                    val index = key.substring(7).toInt // key is invokerN
-                    val JsString(lastDate) = inner("status").parseJson
-                    Status(index, isFresh(lastDate), inner("activationCount").toInt)
+                    val index = InvokerKeys.extractInvokerIndex(key)
+                    val JsString(startDate) = inner(InvokerKeys.startKey).parseJson
+                    val JsString(lastDate) = inner(InvokerKeys.statusKey).parseJson
+                    Status(index, startDate, lastDate, isFresh(lastDate), inner(InvokerKeys.activationCountKey).toInt)
             }
 
             val newStatus = status.toArray.sortBy(_.index)
@@ -180,8 +185,8 @@ class InvokerHealth(
     private val msgCount = new AtomicInteger(0)
 
     // Because we are not using 0-based indexing yet...
-    private case class Status(index: Int, status: Boolean, activationCount: Int) {
-        override def toString = s"index: $index, healthy: $status, activations: $activationCount"
+    private case class Status(index: Int, startDate: String, lastDate: String, status: Boolean, activationCount : Int) {
+        override def toString = s"index: $index, healthy: $status, activations: $activationCount, start: $startDate, last: $lastDate"
     }
     private lazy val invokers = new AtomicReference(Array(): Array[Status])
     private def numInvokers = invokers.get().length

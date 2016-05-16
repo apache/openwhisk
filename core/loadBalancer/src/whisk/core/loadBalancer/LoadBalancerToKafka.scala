@@ -53,7 +53,7 @@ trait LoadBalancerToKafka extends Logging {
      */
     def doPublish(component: String, msg: Message)(implicit transid: TransactionId): Future[LoadBalancerResponse] = {
         getTopic(component, msg) match {
-            case Some(topic) =>
+            case Some((invokerIndex, topic)) =>
                 val subject = msg.subject()
                 val userCount = activationThrottle.countForNamespace(subject)
                 val userLimit = activationThrottle.limitForNamespace(subject)
@@ -65,8 +65,7 @@ trait LoadBalancerToKafka extends Logging {
                     info(this, s"posting topic '$topic' with activation id '${msg.activationId}'", LOADBALANCER_POST_KAFKA)
                     producer.send(topic, msg) map { status =>
                         if (component == Message.INVOKER) {
-                            activationCounter.next()
-                            val counter = incrementUserActivationCounter(subject)
+                            val counter = updateActivationCount(subject, invokerIndex)
                             info(this, s"user has ${counter} activations posted. Posted to ${status.topic()}[${status.partition()}][${status.offset()}]")
                         }
                         LoadBalancerResponse.id(msg.activationId)
@@ -83,32 +82,38 @@ trait LoadBalancerToKafka extends Logging {
      */
     def getInvoker(message: Message): Option[Int]
 
-    private def getTopic(component: String, message: Message): Option[String] = {
+    private def getTopic(component: String, message: Message): Option[(Int, String)] = {
         if (component == Message.INVOKER) {
-            getInvoker(message) map { i => s"$component$i" }
-        } else Some(component)
+            getInvoker(message) map { i => (i, s"$component$i") }
+        } else Some(-1, component)
     }
 
-    private def incrementUserActivationCounter(user: String): Int = {
+    private def updateActivationCount(user: String, invokerIndex: Int): Int = {
+        invokerActivationCounter get invokerIndex match {
+            case Some(counter) => counter.next()
+            case None =>
+                invokerActivationCounter(invokerIndex) = new Counter()
+                invokerActivationCounter(invokerIndex).next
+        }
         userActivationCounter get user match {
             case Some(counter) => counter.next()
             case None =>
-                val counter = new Counter()
-                counter.next()
-                userActivationCounter(user) = counter
-                counter.cur
+                userActivationCounter(user) = new Counter()
+                userActivationCounter(user).next
         }
     }
 
-    def getActivationCount(): Int = {
-        activationCounter.cur
+    // Make a new immutable map so caller cannot mess up the state
+    def getInvokerActivationCount(): Map[Int, Int] = {
+        invokerActivationCounter.foldLeft(Map[Int,Int]()) { case (map, (index, counter)) => map ++ Map(index -> counter.cur)  }
     }
 
     protected def getUserActivationCounts(): Map[String, JsObject] = {
         ActivationThrottle.encodeLoadBalancerUserActivation(userActivationCounter)
     }
 
-    private val activationCounter = new Counter()
+    // A count of how many activations have been posted to Kafka based on invoker index or user/subject.
+    private val invokerActivationCounter = new TrieMap[Int, Counter]
     private val userActivationCounter = new TrieMap[String, Counter]
     private val idError = LoadBalancerResponse.error("no invokers available")
     private val throttleError = LoadBalancerResponse.error("too many concurrent activations")

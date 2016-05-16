@@ -22,6 +22,7 @@ import scala.util.Failure
 import scala.util.Success
 
 import akka.actor.ActorSystem
+
 import spray.json.JsBoolean
 import spray.json.JsObject
 import whisk.common.ConsulClient
@@ -33,7 +34,7 @@ import whisk.connector.kafka.KafkaConsumerConnector
 import whisk.connector.kafka.KafkaProducerConnector
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.{ servicePort, kafkaHost, consulServer, kafkaPartitions }
-import whisk.core.connector.{ ActivationMessage, CompletionMessage }
+import whisk.core.connector.{Message, ActivationMessage, CompletionMessage, LoadBalancerResponse }
 import whisk.utils.ExecutionContextFactory
 import scala.concurrent.ExecutionContext
 
@@ -46,7 +47,7 @@ class LoadBalancerService(config: WhiskConfig, verbosity: Verbosity.Level)(
     /**
      * The two public methods are getInvokerHealth and the inherited doPublish methods.
      */
-    def getInvokerHealth(): JsObject = invokerHealth.getInvokerHealth()
+    def getInvokerHealth(): JsObject = invokerHealth.getInvokerHealthJson()
 
     override def getInvoker(message: ActivationMessage): Option[Int] = invokerHealth.getInvoker(message)
     override def activationThrottle = _activationThrottle
@@ -67,17 +68,20 @@ class LoadBalancerService(config: WhiskConfig, verbosity: Verbosity.Level)(
         LoadBalancerKeys.startKey,
         LoadBalancerKeys.statusKey,
         { () =>
-            val producedCount = getActivationCount()
-            val invokerInfo = invokerHealth.getInvokerActivationCounts()
-            val consumedCount = invokerInfo map {
-                case (index, count) => count
-            } sum
+            val producedCounts = getInvokerActivationCount()
+            val health = invokerHealth.getInvokerHealth()
+            val invokerCounts = invokerHealth.getInvokerActivationCounts()
+            val consumedCounts = invokerCounts map {indexCount => indexCount._2}
+            val producedCount = producedCounts.foldLeft(0)(_ + _._2)
+            val consumedCount = consumedCounts.foldLeft(0)(_ + _)
             val inFlight = producedCount - consumedCount
             val overload = JsBoolean(overloadThreshold > 0 && inFlight >= overloadThreshold)
             count = count + 1
             if (count % 10 == 0) {
                 warn(this, s"In flight: $producedCount - $consumedCount = $inFlight $overload")
-                info(this, s"Completion counts: [${invokerInfo.mkString(", ")}]")
+                info(this, s"Issued counts: [${producedCounts.mkString(", ")}]")
+                info(this, s"Completion counts: [${invokerCounts.mkString(", ")}]")
+                info(this, s"Invoker health: [${health.mkString(", ")}]")
             }
             Map(LoadBalancerKeys.overloadKey -> overload,
                 LoadBalancerKeys.invokerHealth -> getInvokerHealth()) ++

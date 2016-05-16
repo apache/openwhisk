@@ -129,25 +129,44 @@ object ConsulKV {
         // Underneath this, each invoker has its own path.
         val allInvokers = "invokers" // we store a small amount of data here
         val allInvokersData = "invokersData" // we store large amounts of data here
-        def instancePath(instance: Int) = s"${allInvokers}/invoker${instance}"
-        def instanceDataPath(instance: Int) = s"${allInvokersData}/invoker${instance}"
+        private val invokerKeyPrefix = "invoker"
+        def instancePath(instance: Int) = s"${allInvokers}/${invokerKeyPrefix}${instance}"
+        def instanceDataPath(instance: Int) = s"${allInvokersData}/${invokerKeyPrefix}${instance}"
 
         // Invokers store the hostname they are running on here.
         def hostname(instance: Int) = s"${instancePath(instance)}/hostname"
 
         // Invokers store when they start here.
-        def start(instance: Int) = s"${instancePath(instance)}/start"
+        val startKey = "start"
+        def start(instance: Int) = s"${instancePath(instance)}/$startKey"
 
         // Invokers store how many activations they have processed here.
-        def activationCount(instance: Int) = s"${instancePath(instance)}/activationCount"
+        val activationCountKey = "activationCount"
+        def activationCount(instance: Int) = s"${instancePath(instance)}/$activationCountKey"
 
         // Invokers store how many activations they have processed per user here.
         private val userActivationCountKey = "userActivationCount"
         def userActivationCount(instance: Int) = s"${instanceDataPath(instance)}/${userActivationCountKey}"
 
         // Invokers store their most recent check in time here
-        private val statusKey = "status"
+        val statusKey = "status"
         def status(instance: Int) = s"${instancePath(instance)}/${statusKey}"
+
+        // Extract index from just the element of the path such as "invoker5"
+        def extractInvokerIndex(key: String): Int = key.substring(invokerKeyPrefix.length).toInt
+
+        // Get the invoker index given a key somewhere in that invoker's KV sub-hierarchy
+        def getInvokerIndexFromAny(key: String): Option[Int] = {
+            val prefix = s"${allInvokers}/${invokerKeyPrefix}"
+            if (key.startsWith(prefix)) {
+                val middle = key.substring(prefix.length)
+                val slashIndex = middle.indexOf("/")
+                if (slashIndex > 0) {
+                    Try { middle.substring(0, slashIndex).toInt } toOption
+                } else None
+            } else None
+        }
+
     }
 
     // All load balancer written information under here.
