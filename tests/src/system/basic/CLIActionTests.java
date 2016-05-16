@@ -163,7 +163,8 @@ public class CLIActionTests {
             String now = String.format("%s %s", action, new Date().toString());
             String activationId = wsk.invoke(action, TestUtils.makeParameter("payload", now));
             String expected = String.format("The message '%s' has", now);
-            assertTrue("Expected message not found: " + expected, wsk.logsForActivationContain(activationId, expected, DEFAULT_WAIT));
+            boolean present = wsk.logsForActivationContain(activationId, expected, DEFAULT_WAIT);
+            assertTrue("Expected '" + expected + "' which is missing in log for activation " + activationId, present);
             String result = wsk.getResult(activationId).stdout.trim();
             assertTrue("Expected result for " + activationId + " to be non-empty but is '" + result + "'", result.contains("7"));
             assertTrue("Expected result to not contain error", !result.contains("error"));
@@ -173,7 +174,7 @@ public class CLIActionTests {
     }
 
     @Test(timeout=120*1000)
-    public void invokeActionWithPayload() throws Exception {
+    public void incorrectActionInvoke() throws Exception {
         String payload = "bob";
         String[] cmd = { "action", "invoke", "/whisk.system/samples/helloWorld", payload };
         RunResult rr = wsk.runCmd(cmd);
@@ -191,7 +192,8 @@ public class CLIActionTests {
             String now = String.format("%s %s", action, new Date().toString());
             String activationId = wsk.invoke(action, TestUtils.makeParameter("payload", now));
             String expected = String.format("The message '%s' has", now);
-            assertTrue("Expected message not found: " + expected, wsk.logsForActivationContain(activationId, expected, DEFAULT_WAIT));
+            boolean present = wsk.logsForActivationContain(activationId, expected, DEFAULT_WAIT);
+            assertTrue("Expected '" + expected + "' which is missing in log for activation " + activationId, present);
             String result = wsk.getResult(activationId).stdout.trim();
             assertTrue("Expected result for " + activationId + " to be non-empty but is '" + result + "'", result.contains("7"));
             assertTrue("Expected result to not contain error but is '" + result + "'", !result.contains("error"));
@@ -210,7 +212,7 @@ public class CLIActionTests {
             String activationId = wsk.invoke(action, TestUtils.makeParameter("payload", now));
             String expected = String.format("The message '%s' has", now);
             boolean present = wsk.logsForActivationContain(activationId, expected, DEFAULT_WAIT);
-            assertTrue("Expected message not found for activation " + activationId + ": " + expected, present);
+            assertTrue("Expected '" + expected + "' which is missing in log for activation " + activationId, present);
             String result = wsk.getResult(activationId).stdout.trim();
             assertTrue("Expected result for " + activationId + " to be non-empty but is '" + result + "'", result.contains("7"));
             assertTrue("Expected result to be positive", !result.contains("-1"));
@@ -229,7 +231,8 @@ public class CLIActionTests {
             String now = String.format("%s %s", action, new Date().toString());
             String activationId = wsk.invoke(action, TestUtils.makeParameter("payload", now));
             String expected = String.format("The message '%s' has", now);
-            assertTrue("Expected message not found: " + expected, wsk.logsForActivationContain(activationId, expected, DEFAULT_WAIT));
+            boolean present = wsk.logsForActivationContain(activationId, expected, DEFAULT_WAIT);
+            assertTrue("Expected '" + expected + "' which is missing in log for activation " + activationId, present);
             String result = wsk.getResult(activationId).stdout.trim();
             assertTrue("Expected result of " + activationId + " to be non-empty but is '" + result + "'", result.contains("7"));
             assertTrue("Expected result to be positive", !result.contains("-1"));
@@ -251,7 +254,8 @@ public class CLIActionTests {
             String activationId = pair.fst;
             String result = pair.snd;
             String expected = String.format("The message '%s' has", now);
-            assertTrue("Expected message not found: " + expected, wsk.logsForActivationContain(activationId, expected, DEFAULT_WAIT));
+            boolean present = wsk.logsForActivationContain(activationId, expected, DEFAULT_WAIT);
+            assertTrue("Expected '" + expected + "' which is missing in log for activation " + activationId, present);
             assertTrue("Result should have number of words", result.contains(String.valueOf(numWords)));
             assertTrue("Expected result to not contain error", !result.contains("error"));
         } finally {
@@ -291,7 +295,8 @@ public class CLIActionTests {
             String now = String.format("%s %s", action, new Date().toString());
             String activationId = wsk.invoke(action, TestUtils.makeParameter("payload", now));
             String expected = String.format("The message '%s' has", now);
-            assertTrue("Expected message not found: " + expected, wsk.logsForActivationContain(activationId, expected, DEFAULT_WAIT));
+            boolean present = wsk.logsForActivationContain(activationId, expected, DEFAULT_WAIT);
+            assertTrue("Expected '" + expected + "' which is missing in log for activation " + activationId, present);
             String result = wsk.getResult(activationId).stdout.trim();
             assertTrue("Expected result of " + activationId + " to be non-empty", result.contains("7"));
             assertTrue("Expected result to not contain error", !result.contains("error"));
@@ -327,7 +332,8 @@ public class CLIActionTests {
             wsk.createAction(name, TestUtils.getCatalogFilename("samples/wc.js"));
             String activationId = wsk.invoke(name, TestUtils.makeParameter("payload", "bob barker"));
             String expected = "The message 'bob barker' has";
-            assertTrue("Expected message not found: " + expected, wsk.logsForActivationContain(activationId, expected, DEFAULT_WAIT));
+            boolean present = wsk.logsForActivationContain(activationId, expected, DEFAULT_WAIT);
+            assertTrue("Expected '" + expected + "' which is missing in log for activation " + activationId, present);
         } finally {
             wsk.delete(Action, name);
         }
@@ -348,12 +354,14 @@ public class CLIActionTests {
             String now = new Date().toString();
             String activationId = wsk.invoke("PB_PRINT", TestUtils.makeParameter("payload", now));
             String expected = String.format(".*bar: test1.*foo: test2.*payload: %s", now);
-            assertTrue("Expected message not found: " + expected + " in activation " + activationId, wsk.logsForActivationContain(activationId, expected, DEFAULT_WAIT));
+            boolean present = wsk.logsForActivationContain(activationId, expected, DEFAULT_WAIT);
+            assertTrue("Expected '" + expected + "' which is missing in log for activation " + activationId, present);
 
             // Check if run time parameter overrides bound parameter.
             activationId = wsk.invoke("PB_PRINT", TestUtils.makeParameter("foo", now));
             expected = String.format(".*bar: test1.*foo: %s", now);
-            assertTrue("Expected message not found: " + expected + " in activation " + activationId, wsk.logsForActivationContain(activationId, expected, DEFAULT_WAIT));
+            present = wsk.logsForActivationContain(activationId, expected, DEFAULT_WAIT);
+            assertTrue("Expected '" + expected + "' which is missing in log for activation " + activationId, present);
         } finally {
             wsk.delete(Action, "PB_PRINT");
         }
@@ -376,10 +384,11 @@ public class CLIActionTests {
             String[] lines = {"comment t'appelle tu", nowString, "come ti chiami"};
 
             Pair<String, String> pair = wsk.invokeBlocking(action, TestUtils.makeParameter("payload", String.join("\n", lines)));
+            String activationId = pair.fst;
             JsonObject response = new JsonParser().parse(pair.snd).getAsJsonObject();
             String resultStr = response.get("result").toString();
-
-            assertTrue("Result should have the date string", resultStr.contains(nowString));
+            boolean present = resultStr.contains(nowString);
+            assertTrue("Expected '" + nowString + "' which is missing in result for activation " + activationId, present);
         } finally {
             wsk.delete(Action, action);
             wsk.delete(Package, myPackage);
@@ -397,7 +406,9 @@ public class CLIActionTests {
           wsk.sanitize(Action, action);
           wsk.createAction(action, TestUtils.getCatalogFilename("samples/wc.js"));
           String activationId = wsk.invoke(action, TestUtils.makeParameter("payload", now));
-          assertTrue("Expected message not found: " + expectedFirstResult, wsk.logsForActivationContain(activationId, expectedFirstResult, DEFAULT_WAIT));
+          boolean present = wsk.logsForActivationContain(activationId, expectedFirstResult, DEFAULT_WAIT);
+          assertTrue("Expected '" + expectedFirstResult + "' which is missing in log for activation " + activationId, present);
+
           String result = wsk.getResult(activationId).stdout.trim();
           assertTrue("Expected result for " + activationId + " to be non-empty but is '" + result + "'", result.contains("7"));
           assertTrue("Expected result to not contain error", !result.contains("error"));
@@ -406,8 +417,10 @@ public class CLIActionTests {
           wsk.createAction(action, TestUtils.getCatalogFilename("samples/hello.js"));
 
           activationId = wsk.invoke(action, TestUtils.makeParameter("payload", now));
-          assertFalse("Unexpected message found: " + expectedFirstResult, wsk.logsForActivationContain(activationId, expectedFirstResult, DEFAULT_WAIT));
-          assertTrue("Expected message not found: " + expectedSecondResult + " in activation " + activationId, wsk.logsForActivationContain(activationId, expectedSecondResult, DEFAULT_WAIT));
+          present = wsk.logsForActivationContain(activationId, expectedFirstResult, DEFAULT_WAIT);
+          assertTrue("Unexpected '" + expectedFirstResult + "' which is in log for activation " + activationId, !present);
+          present = wsk.logsForActivationContain(activationId, expectedSecondResult, DEFAULT_WAIT);
+          assertTrue("Expected '" + expectedSecondResult + "' which is missing in log for activation " + activationId, present);
       } finally {
           wsk.delete(Action, action);
       }
@@ -423,7 +436,8 @@ public class CLIActionTests {
             String msg = "«ταБЬℓσö»: 1<2 & 4+1>³, now 20%€§$ off!";
             String expected = "hello " + msg;
             String activationId = wsk.invoke(action, TestUtils.makeParameter("payload", msg));
-            assertTrue("Expected message not found: " + expected + " in activation " + activationId, wsk.logsForActivationContain(activationId, expected, DEFAULT_WAIT));
+            boolean present = wsk.logsForActivationContain(activationId, expected, DEFAULT_WAIT);
+            assertTrue("Expected '" + expected + "' which is missing in log for activation " + activationId, present);
         } finally {
             wsk.delete(Action, action);
         }
@@ -464,7 +478,7 @@ public class CLIActionTests {
             String activationId = wsk.invoke(actionName, Collections.<String,String>emptyMap());
 
             boolean bool = wsk.checkResultFor(activationId, "error thrown on purpose", 45);
-            assertTrue("result must contain 'error'.", bool);
+            assertTrue("Expected 'error' which is missing in result for activation " + activationId, bool);
 
             RunResult logs = wsk.getLogsForActivation(activationId);
 
