@@ -17,7 +17,7 @@
 package system.basic
 
 import java.io.File
-import scala.collection.mutable.ListBuffer
+
 import org.apache.commons.io.FileUtils
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterAll
@@ -27,22 +27,23 @@ import org.scalatest.Matchers
 import org.scalatest.ParallelTestExecution
 import org.scalatest.TestData
 import org.scalatest.junit.JUnitRunner
+
 import common.DeleteFromCollection
-import common.RunWskAdminCmd
 import common.RunWskCmd
+import common.TestHelpers
+import common.TestHelpers
 import common.TestUtils
 import common.TestUtils._
 import common.Wsk
 import common.WskAction
 import common.WskProps
+import common.WskProps
+import common.WskTestHelpers
 import spray.json._
 import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json.PimpedAny
-import common.TestHelpers
-import common.WskTestHelpers
-import common.TestHelpers
-import common.WskProps
 import whisk.core.entity.WhiskPackage
+import java.time.Instant
 
 @RunWith(classOf[JUnitRunner])
 class WskBasicTests
@@ -285,7 +286,9 @@ class WskBasicTests
 
             val expected = "ReferenceError" // representing nodejs giving an error when given malformed.js
             val (found, logs) = wsk.activation.contains(activationId.get, expected)
-            assert(found, s"Did not find '$expected' in activation($activationId) ${logs getOrElse "empty"}")
+            withClue(s"Did not find '$expected' in activation($activationId) ${logs getOrElse "empty"}") {
+                found should be(true)
+            }
     }
 
     it should "invoke a blocking action and get only the result" in withAssetCleaner(wskprops) {
@@ -300,7 +303,7 @@ class WskBasicTests
 
     behavior of "Wsk Trigger CLI"
 
-    it should "create trigger, get trigger, update trigger and list trigger" in withAssetCleaner(wskprops) {
+    it should "create, update, get, fire and list trigger" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "listTriggers"
             val params = Map("a" -> "A".toJson)
@@ -314,6 +317,23 @@ class WskBasicTests
             stdout should include regex (""""value": "A"""")
             stdout should include regex (""""publish": true""")
             stdout should include regex (""""version": "0.0.2"""")
+
+            val fired = wsk.trigger.fire(name, Map("t" -> "T".toJson))
+            val activationId = wsk.trigger.extractActivationId(fired)
+            activationId shouldBe a[Some[_]]
+
+            val (foundParams, getResult) = wsk.activation.contains(activationId.get, """"t": "T"""", project = "response")
+            withClue(s"Trigger payload is wrong in activation($activationId) ${getResult getOrElse "empty"}") {
+                foundParams should be(true)
+                getResult.get should not include(""""a": "A"""")
+            }
+
+            val endtime = Instant.EPOCH.toEpochMilli.toString
+            val (foundEndtime, getEnd) = wsk.activation.contains(activationId.get, endtime, project = "end")
+            withClue(s"Did not find expected trigger endtime to follow convention in activation($activationId) ${getEnd getOrElse "empty"}") {
+                foundEndtime should be(true)
+            }
+
             wsk.trigger.list().stdout should include(name)
     }
 

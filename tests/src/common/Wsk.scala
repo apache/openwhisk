@@ -176,10 +176,28 @@ trait DeleteFromCollection extends FullyQualifiedNames {
     }
 }
 
+trait HasActivation {
+    def extractActivationId(result: RunResult): Option[String] = {
+        Try {
+            val stdout = result.stdout
+            assert(stdout.contains("ok: invoked") || stdout.contains("ok: triggered"), stdout)
+            // a characteristic string that comes right before the activationId
+            val idPrefix = "with id ";
+            val start = result.stdout.indexOf(idPrefix) + idPrefix.length
+            var end = start
+            assert(start > 0)
+            while (end < stdout.length && stdout.charAt(end) != '\n')
+                end = end + 1
+            result.stdout.substring(start, end) // a uuid
+        } toOption
+    }
+}
+
 class WskAction()
     extends RunWskCmd
     with ListOrGetFromCollection
     with DeleteFromCollection
+    with HasActivation
     with WaitFor {
 
     override protected val noun = "action"
@@ -239,27 +257,13 @@ class WskAction()
             { if (result) Seq("--result") else Seq() }
         cli(wp.overrides ++ params, expectedExitCode)
     }
-
-    def extractActivationId(result: RunResult): Option[String] = {
-        Try {
-            val stdout = result.stdout
-            assert(stdout.contains("ok: invoked"), stdout)
-            // a characteristic string that comes right before the activationId
-            val idPrefix = "with id ";
-            val start = result.stdout.indexOf(idPrefix) + idPrefix.length
-            var end = start
-            assert(start > 0)
-            while (end < stdout.length && stdout.charAt(end) != '\n')
-                end = end + 1
-            result.stdout.substring(start, end) // a uuid
-        } toOption
-    }
 }
 
 class WskTrigger()
     extends RunWskCmd
     with ListOrGetFromCollection
     with DeleteFromCollection
+    with HasActivation
     with WaitFor {
 
     override protected val noun = "trigger"
@@ -551,7 +555,7 @@ class WskActivation()
             implicit wp: WskProps): (Boolean, Option[String]) = {
         val wsk = this
         val haystack = waitfor(() => {
-            val result = cli(wp.overrides ++ Seq(noun, project, activationId, "--auth", wp.authKey),
+            val result = cli(wp.overrides ++ Seq(noun, "get", activationId, project, "--auth", wp.authKey),
                 expectedExitCode = DONTCARE_EXIT)
             if (result.exitCode == NOT_FOUND) {
                 null

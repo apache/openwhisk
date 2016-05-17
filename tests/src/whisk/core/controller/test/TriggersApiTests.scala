@@ -16,8 +16,11 @@
 
 package whisk.core.controller.test
 
+import java.time.Instant
+
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
+
 import spray.http.StatusCodes.BadRequest
 import spray.http.StatusCodes.NotFound
 import spray.http.StatusCodes.OK
@@ -35,12 +38,9 @@ import whisk.core.controller.WhiskTriggersApi
 import whisk.core.entity.ActivationId
 import whisk.core.entity.AuthKey
 import whisk.core.entity.DocId
-import whisk.core.entity.EntityName
 import whisk.core.entity.Namespace
 import whisk.core.entity.Parameters
-import whisk.core.entity.SemVer
 import whisk.core.entity.Subject
-import whisk.core.entity.TriggerLimits
 import whisk.core.entity.WhiskActivation
 import whisk.core.entity.WhiskAuth
 import whisk.core.entity.WhiskEntity
@@ -215,8 +215,13 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
             val response = responseAs[JsObject]
             val JsString(id) = response.fields("activationId")
             val activationId = ActivationId(id)
-            del(entityStore, DocId(WhiskEntity.qualifiedName(namespace, activationId)), WhiskActivation)
             response.fields("activationId") should not be None
+
+            val activationDoc = DocId(WhiskEntity.qualifiedName(namespace, activationId)).asDocInfo
+            val activation = get(activationStore, activationDoc, WhiskActivation, garbageCollect = false)
+            del(entityStore, DocId(WhiskEntity.qualifiedName(namespace, activationId)), WhiskActivation)
+            activation.end should be(Instant.EPOCH)
+            activation.response.result should be(Some(content))
         }
     }
 
