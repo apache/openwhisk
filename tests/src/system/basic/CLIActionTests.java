@@ -376,7 +376,7 @@ public class CLIActionTests {
             wsk.sanitize(Action, action);
             wsk.sanitize(Package, myPackage);
             wsk.bindPackage(TestUtils.SUCCESS_EXIT, commonPackage, myPackage, null);
-            String[] actions = new String[]{"cat", "sort", "head", "cat"};
+            String[] actions = new String[]{"split", "sort", "head", "cat"};
             for (int i = 0; i < actions.length; i++)
                 actions[i] = myPackage + "/" + actions[i];
             wsk.createAction(action, actions, 120 * 1000);
