@@ -29,6 +29,13 @@ install "$CATALOG_HOME/utils/cat.js" \
      -a sampleInput '{ "lines": [4, 2, 3] }' \
      -a sampleOutput '{ "lines": [4, 2, 3] }'
 
+install "$CATALOG_HOME/utils/split.js" \
+     util/split \
+     -a description 'Split a string into an array' \
+     -a parameters '[{"name": "payload", "required":true, "description":"A string"}], { "name": "separator", "required": false, "description": "The character, or the regular expression, to use for splitting the string }]' \
+     -a sampleInput '{ "payload": "one,two,three" "separator": "," }' \
+     -a sampleOutput '{ "lines": [one, two, three], "payload": "one,two,three"}'
+
 install "$CATALOG_HOME/utils/sort.js" \
      util/sort \
      -a description 'Sorts an array' \
