@@ -16,136 +16,111 @@
 
 package whisk.core.entity.test
 
-import scala.collection.JavaConversions.asScalaBuffer
+import akka.actor.ActorSystem
+import scala.util.Try
 import org.junit.runner.RunWith
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
+import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
+import org.scalatest.time.{Minutes, Seconds, Span}
 import com.cloudant.client.api.Database
+import whisk.common.TransactionCounter
+import whisk.common.Verbosity
 import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig.dbAuths
-import whisk.core.WhiskConfig.dbProvider
-import whisk.core.WhiskConfig.dbProtocol
-import whisk.core.WhiskConfig.dbHost
-import whisk.core.WhiskConfig.dbPort
-import whisk.core.WhiskConfig.dbPassword
-import whisk.core.WhiskConfig.dbUsername
-import whisk.core.WhiskConfig.dbWhisk
-import whisk.core.database.CouchDbLikeProvider
-import whisk.core.database.CloudantProvider
-import whisk.core.database.CouchDbProvider
-import whisk.core.entity.schema.ActionRecord
-import whisk.core.entity.schema.ActivationRecord
-import whisk.core.entity.schema.AuthRecord
-import whisk.core.entity.schema.PackageRecord
-import whisk.core.entity.schema.RuleRecord
-import whisk.core.entity.schema.TriggerRecord
-import com.google.gson.JsonObject
+import whisk.core.WhiskConfig._
+import whisk.core.database.ArtifactStore
+import whisk.core.entity._
+import whisk.core.entity.schema._
+import spray.json.JsObject
+import spray.json.DefaultJsonProtocol
 
 /**
  *  Tests to ensure our database records conform to the intended schema
  */
 @RunWith(classOf[JUnitRunner])
-class ConformanceTests extends FlatSpec with Matchers {
+class ConformanceTests extends FlatSpec
+    with Matchers
+    with BeforeAndAfterAll
+    with ScalaFutures
+    with DefaultJsonProtocol
+    with TransactionCounter {
 
-    type Doc = JsonObject
+    implicit val actorSystem = ActorSystem()
 
-    /**
-     * Helper function to access the proper database provider in a given scope.
-     */
-    def withDbProvider(block: CouchDbLikeProvider[_]=>Unit) : Unit = {
-        val config = new WhiskConfig(Map(dbProvider -> null))
+    implicit val defaultPatience =
+        PatienceConfig(timeout = Span(1, Minutes), interval = Span(1, Seconds))
 
-        assert(config.isValid)
 
-        require(config.dbProvider == "Cloudant" || config.dbProvider == "CouchDB")
+    // Properties for WhiskAuthStore and WhiskEntityStore.
+    val config = new WhiskConfig(Map(
+        dbProvider -> null,
+        dbProtocol -> null,
+        dbUsername -> null,
+        dbPassword -> null,
+        dbHost -> null,
+        dbPort -> null,
+        dbAuths -> null,
+        dbWhisk -> null))
+    assert(config.isValid)
 
-        if(config.dbProvider == "Cloudant") {
-           block(CloudantProvider)
-        } else {
-           block(CouchDbProvider)
-        }
+    val datastore: ArtifactStore[EntityRecord, WhiskEntity] = WhiskEntityStore.datastore(config)
+    datastore.setVerbosity(Verbosity.Loud)
+
+    val authstore: ArtifactStore[AuthRecord, WhiskAuth] = WhiskAuthStore.datastore(config)
+    authstore.setVerbosity(Verbosity.Loud)
+
+    override def afterAll() {
+        println("Shutting down store connections")
+        datastore.shutdown()
+        authstore.shutdown()
+        println("Shutting down actor system")
+        actorSystem.shutdown()
     }
 
     /**
      * Helper functions: if d represents a document from the database,
      * is it a design doc, whisk record or whisk activation?
      */
-    def isDesignDoc(d: Doc): Boolean = d.get("_id").getAsString.startsWith("_design")
-    def isAction(m: Doc): Boolean = m.entrySet().contains("exec")
-    def isRule(m: Doc): Boolean =  m.entrySet().contains("trigger")
-    def isTrigger(m: Doc): Boolean = !isAction(m) &&  m.entrySet().contains("parameters") && ! m.entrySet().contains("binding")
-    def isPackage(m: Doc): Boolean =  m.entrySet().contains("binding")
-    def isActivation(m: Doc): Boolean =  m.entrySet().contains("activationId")
+    def isDesignDoc(d: JsObject) = Try(d.fields("_id").convertTo[String].startsWith("_design")).getOrElse(false)
+    def isAction(m: JsObject) = m.fields.isDefinedAt("exec")
+    def isRule(m: JsObject) = m.fields.isDefinedAt("trigger")
+    def isTrigger(m: JsObject) = !isAction(m) && m.fields.isDefinedAt("parameters") && !m.fields.isDefinedAt("binding")
+    def isPackage(m: JsObject) =  m.fields.isDefinedAt("binding")
+    def isActivation(m: JsObject) = m.fields.isDefinedAt("activationId")
 
     /**
      * Check that all records in the database each have the required fields
      */
-    def checkDatabaseFields(provider: CouchDbLikeProvider[_])(db: provider.Database, requiredFields: Array[String], filter: Doc => Boolean) = {
-        val docs = provider.allDocsInDB[Doc](db)
-        docs.map(doc => {
-            doc match {
-                case m: Doc => if (!isDesignDoc(m) && filter(m)) {
-                    requiredFields.map { f =>
-                        assert(m.get(f) != null, "did not find field " + f + " in database record: " + m)
-                    }
+    def checkDatabaseFields[T,U,K](store: ArtifactStore[T,U], viewName: String, klass: Class[K], filter: JsObject=>Boolean, optional: Set[String]=Set.empty) = {
+        implicit val tid = transid()
+
+        val futureDocs = store.query(viewName, Nil, Nil, 0, 0, true, false, false)
+        val requiredFields = klass.getDeclaredFields.map(_.getName)
+
+        whenReady(futureDocs) { docs =>
+            for(doc <- docs if !isDesignDoc(doc) && filter(doc)) {
+                for(field <- requiredFields if !optional(field)) {
+                    assert(doc.fields.isDefinedAt(field), s"did not find field '$field' in database record $doc expected to be of class '${klass.getCanonicalName}'")
                 }
             }
-        })
+        }
     }
 
     "Auth Database" should "conform to expected schema" in {
-        val config = new WhiskConfig(Map(
-            dbProvider -> null,
-            dbProtocol -> null,
-            dbHost -> null,
-            dbPort -> null,
-            dbUsername -> null,
-            dbPassword -> null
-        ))
-
-        assert(config.isValid)
-
-        withDbProvider { provider =>
-            val client = provider.mkClient(config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword)
-            val authDb = provider.getDB(client, config.dbAuths)
-
-            val requiredFields = classOf[AuthRecord].getDeclaredFields.map(f => f.getName)
-            checkDatabaseFields(provider)(authDb, requiredFields, _ => true)
-        }
+        checkDatabaseFields(authstore, "subjects/uuids", classOf[AuthRecord], _ => true)
     }
 
     "Whisk Database" should "conform to expected schema" in {
-        val config = new WhiskConfig(Map(
-            dbProvider -> null,
-            dbProtocol -> null,
-            dbHost -> null,
-            dbPort -> null,
-            dbUsername -> null,
-            dbPassword -> null,
-            dbWhisk -> null
-        ))
+        checkDatabaseFields(datastore, "whisks/all", classOf[ActionRecord], isAction)
 
-        assert(config.isValid)
+        checkDatabaseFields(datastore, "whisks/all", classOf[TriggerRecord], isTrigger)
 
-        withDbProvider { provider =>
-            val client = provider.mkClient(config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword)
-            val whiskDb = provider.getDB(client, config.dbWhisk)
+        checkDatabaseFields(datastore, "whisks/all", classOf[RuleRecord], isRule)
 
-            val requiredActionFields = classOf[ActionRecord].getDeclaredFields.map(f => f.getName)
-            checkDatabaseFields(provider)(whiskDb, requiredActionFields, isAction)
+        checkDatabaseFields(datastore, "whisks/all", classOf[ActivationRecord], isActivation, optional=Set("cause"))
 
-            val requiredTriggerFields = classOf[TriggerRecord].getDeclaredFields.map(f => f.getName)
-            checkDatabaseFields(provider)(whiskDb, requiredTriggerFields, isTrigger)
-
-            val requiredRuleFields = classOf[RuleRecord].getDeclaredFields.map(f => f.getName)
-            checkDatabaseFields(provider)(whiskDb, requiredRuleFields, isRule)
-
-            val requiredActivationFields = classOf[ActivationRecord].getDeclaredFields.map(f => f.getName)
-            checkDatabaseFields(provider)(whiskDb, requiredActivationFields, isActivation)
-
-            val requiredPackageFields = classOf[PackageRecord].getDeclaredFields.map(f => f.getName)
-            checkDatabaseFields(provider)(whiskDb, requiredPackageFields, isPackage)
-        }
+        checkDatabaseFields(datastore, "whisks/all", classOf[PackageRecord], isPackage)
     }
 }
