@@ -77,7 +77,7 @@ class PostInvoke(
         val start = Instant.now(Clock.systemUTC())
         val postInvoke = loadbalancerRequest(Post(publish(INVOKER), message.toJson.asJsObject)) flatMap {
             response =>
-                val end = Instant.now(Clock.systemUTC())
+                val end = Instant.EPOCH  // by convention end == 0 for rules
                 val activation = WhiskActivation(
                     namespace = subject.namespace, // all activations should end up in the one space regardless rule.namespace,
                     name = rule.name,

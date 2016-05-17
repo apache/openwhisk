@@ -127,7 +127,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                             response =>
                                 response.id match {
                                     case Some(activationId) =>
-                                        val end = Instant.now(Clock.systemUTC())
+                                        val end = Instant.EPOCH  // by convention end == 0 for triggers
                                         val activation = WhiskActivation(
                                             namespace = user.namespace, // all activations should end up in the one space regardless trigger.namespace,
                                             name,
