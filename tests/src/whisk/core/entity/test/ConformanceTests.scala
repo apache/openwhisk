@@ -24,6 +24,7 @@ import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
+import org.scalatest.time.{Minutes, Seconds, Span}
 import com.cloudant.client.api.Database
 import whisk.common.TransactionCounter
 import whisk.common.Verbosity
@@ -47,6 +48,10 @@ class ConformanceTests extends FlatSpec
     with TransactionCounter {
 
     implicit val actorSystem = ActorSystem()
+
+    implicit val defaultPatience =
+        PatienceConfig(timeout = Span(1, Minutes), interval = Span(1, Seconds))
+
 
     // Properties for WhiskAuthStore and WhiskEntityStore.
     val config = new WhiskConfig(Map(
@@ -88,7 +93,7 @@ class ConformanceTests extends FlatSpec
     /**
      * Check that all records in the database each have the required fields
      */
-    def checkDatabaseFields[T,U,K](store: ArtifactStore[T,U], viewName: String, klass: Class[K], filter: JsObject=>Boolean) = {
+    def checkDatabaseFields[T,U,K](store: ArtifactStore[T,U], viewName: String, klass: Class[K], filter: JsObject=>Boolean, optional: Set[String]=Set.empty) = {
         implicit val tid = transid()
 
         val futureDocs = store.query(viewName, Nil, Nil, 0, 0, true, false, false)
@@ -96,7 +101,7 @@ class ConformanceTests extends FlatSpec
 
         whenReady(futureDocs) { docs =>
             for(doc <- docs if !isDesignDoc(doc) && filter(doc)) {
-                for(field <- requiredFields) {
+                for(field <- requiredFields if !optional(field)) {
                     assert(doc.fields.isDefinedAt(field), s"did not find field '$field' in database record $doc expected to be of class '${klass.getCanonicalName}'")
                 }
             }
@@ -114,7 +119,7 @@ class ConformanceTests extends FlatSpec
 
         checkDatabaseFields(datastore, "whisks/all", classOf[RuleRecord], isRule)
 
-        checkDatabaseFields(datastore, "whisks/all", classOf[ActivationRecord], isActivation)
+        checkDatabaseFields(datastore, "whisks/all", classOf[ActivationRecord], isActivation, optional=Set("cause"))
 
         checkDatabaseFields(datastore, "whisks/all", classOf[PackageRecord], isPackage)
     }
