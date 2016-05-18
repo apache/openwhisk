@@ -1,0 +1,6 @@
+---
+# This playbook writes whisk.properties and deploy the database.
+
+- hosts: ansible
+  roles:
+  - predeploy

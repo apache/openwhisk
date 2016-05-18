@@ -8,7 +8,7 @@ docker_dns: ""
 
 db_prefix: "{{ ansible_user_id }}_{{ ansible_hostname|lower }}_"
 
-# Put your db credentials here if you want to use Cloudant
+# Uncomment and put your db credentials here if you want to use Cloudant
 #db_provider: Cloudant
 #db_username: ""
 #db_password: ""
@@ -16,7 +16,7 @@ db_prefix: "{{ ansible_user_id }}_{{ ansible_hostname|lower }}_"
 #db_host: "{{ db_username }}.cloudant.com"
 #db_port: 443
 
-# Uncomment this if you want to use CouchDB
+# Comment this if you do not want to use CouchDB
 db_provider: CouchDB
 db_username: whisk_couchdb_admin
 db_password: some_gener1c_passw0rd

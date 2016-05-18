@@ -3,7 +3,7 @@
 
 - name: remove CouchDB
   docker:
-    name: couch
+    name: couchdb
     image: couchdb
     state: absent
   ignore_errors: True

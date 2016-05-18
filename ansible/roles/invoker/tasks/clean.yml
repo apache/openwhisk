@@ -10,11 +10,11 @@
 
 # Unless invoker cleans up its own containers we have to do this here.
 - name: unpause remaining actions
-  shell: "docker unpause $(docker ps -aq)"
+  shell: "docker unpause $(docker ps -aq --filter name=wsk)"
   ignore_errors: True
 
 - name: remove remaining actions
-  shell: "docker rm -f $(docker ps -aq)"
+  shell: "docker rm -f $(docker ps -aq --filter name=wsk)"
   ignore_errors: True
 
 - name: remove invoker log directory
