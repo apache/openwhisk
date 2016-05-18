@@ -174,8 +174,8 @@ trait ContainerUtils extends Logging {
     def runDockerCmd(skipLogError: Boolean, args: Seq[String])(implicit transid: TransactionId): DockerOutput = {
         getDockerCmd(dockerhost) map { _ ++ args } map { info(this, s"runDockerCmd: transid = $transid", LogMarkerToken("invoker", s"docker.${args(0)}", "start")); SimpleExec.syncRunCmd(_)(transid) } match {
             case Some((stdout, stderr, exitCode)) =>
+                info(this, "", LogMarkerToken("invoker", s"docker.${args(0)}", "finish"))
                 if (exitCode == 0) {
-                    info(this, "", LogMarkerToken("invoker", s"docker.${args(0)}", "finish"))
                     Some(stdout.trim)
                 } else {
                     if (!skipLogError) {

@@ -116,7 +116,7 @@ object LoggingMarkers {
     private val controller = "controller"
     private val loadbalancer = "loadbalancer"
     private val invoker = "invoker"
-    private val cloudant = "cloudant"
+    private val database = "database"
 
     private val activation = "activation"
     val CONTROLLER_CREATE_ACTIVATION = LogMarkerToken(controller, activation, start)
@@ -151,13 +151,33 @@ object LoggingMarkers {
     val INVOKER_ACTIVATION_RUN_DONE = LogMarkerToken(invoker, activationRun, finish)
 
     val INVOKER_ACTIVATION_START = LogMarkerToken(invoker, activation, start)
-    val INVOKER_ACTIVATION_END = LogMarkerToken(invoker, activation, finish)
+    val INVOKER_ACTIVATION_DONE = LogMarkerToken(invoker, activation, finish)
     val INVOKER_ACTIVATION_ERROR = LogMarkerToken(invoker, activation, error)
 
     private val recordActivation = "recordActivation"
     val INVOKER_RECORD_ACTIVATION_START = LogMarkerToken(invoker, recordActivation, start)
     val INVOKER_RECORD_ACTIVATION_DONE = LogMarkerToken(invoker, recordActivation, finish)
 
-    val CLOUDANT_CACHE_HIT = LogMarkerToken(cloudant, "cacheHit", start)
-    val CLOUDANT_CACHE_MISS = LogMarkerToken(cloudant, "cacheMiss", start)
+    val DATABASE_CACHE_HIT = LogMarkerToken(database, "cacheHit", start)
+    val DATABASE_CACHE_MISS = LogMarkerToken(database, "cacheMiss", start)
+
+    private val saveDocument = "saveDocument"
+    val DATABASE_SAVE_START = LogMarkerToken(database, saveDocument, start)
+    val DATABASE_SAVE_DONE = LogMarkerToken(database, saveDocument, finish)
+    val DATABASE_SAVE_ERROR = LogMarkerToken(database, saveDocument, error)
+
+    private val deleteDocument = "deleteDocument"
+    val DATABASE_DELETE_START = LogMarkerToken(database, deleteDocument, start)
+    val DATABASE_DELETE_DONE = LogMarkerToken(database, deleteDocument, finish)
+    val DATABASE_DELETE_ERROR = LogMarkerToken(database, deleteDocument, error)
+
+    private val getDocument = "getDocument"
+    val DATABASE_GET_START = LogMarkerToken(database, getDocument, start)
+    val DATABASE_GET_DONE = LogMarkerToken(database, getDocument, finish)
+    val DATABASE_GET_ERROR = LogMarkerToken(database, getDocument, error)
+
+    private val queryView = "queryView"
+    val DATABASE_QUERY_START = LogMarkerToken(database, queryView, start)
+    val DATABASE_QUERY_DONE = LogMarkerToken(database, queryView, finish)
+    val DATABASE_QUERY_ERROR = LogMarkerToken(database, queryView, error)
 }

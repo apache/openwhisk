@@ -186,7 +186,7 @@ class Invoker(
             }
         activationDocFuture onComplete {
             case Success(activationDoc) =>
-                info(this, s"recorded activation '$activationDoc'", INVOKER_ACTIVATION_END)
+                info(this, s"recorded activation '$activationDoc'", INVOKER_ACTIVATION_DONE)
                 activationDoc
             case Failure(t) =>
                 info(this, s"failed to invoke action ${action.id} due to ${t.getMessage}", INVOKER_ACTIVATION_ERROR)
