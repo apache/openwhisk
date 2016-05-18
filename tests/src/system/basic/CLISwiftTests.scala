@@ -63,11 +63,13 @@ class CLISwiftTests
             }
 
             val start = System.currentTimeMillis()
-            wsk.action.invoke(name, blocking = true, result = true)
-                .stdout should include("Hello stranger!")
+            withActivation(wsk.activation, wsk.action.invoke(name)) {
+                _.fields("response").toString should include("Hello stranger!")
+            }
 
-            wsk.action.invoke(name, Map("name" -> "Sir".toJson), blocking = true, result = true)
-                .stdout should include("Hello Sir!")
+            withActivation(wsk.activation, wsk.action.invoke(name, Map("name" -> "Sir".toJson))) {
+                _.fields("response").toString should include("Hello Sir!")
+            }
 
             withClue("Test duration exceeds expectation (ms)") {
                 val duration = System.currentTimeMillis() - start
@@ -85,8 +87,10 @@ class CLISwiftTests
                 (action, _) => action.create(name, Some(TestUtils.getCatalogFilename("samples/httpGet.swift")), kind = Some("swift:3"))
             }
 
-            val stdout = wsk.action.invoke(name, blocking = true, result = true).stdout
-            stdout should include(""""url": "https://httpbin.org/get"""")
-            stdout should not include("Error")
+            withActivation(wsk.activation, wsk.action.invoke(name)) {
+                activation =>
+                    activation.fields("response").toString should include(""""url":"https://httpbin.org/get"""")
+                    activation.fields("response").toString should not include ("Error")
+            }
     }
 }

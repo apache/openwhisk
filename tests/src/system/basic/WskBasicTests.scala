@@ -27,6 +27,8 @@ import org.scalatest.Matchers
 import org.scalatest.ParallelTestExecution
 import org.scalatest.TestData
 import org.scalatest.junit.JUnitRunner
+import spray.json.DefaultJsonProtocol._
+import spray.json.pimpAny
 
 import common.DeleteFromCollection
 import common.RunWskCmd
@@ -280,14 +282,12 @@ class WskBasicTests
                 (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("malformed.js")))
             }
 
-            val activation = wsk.action.invoke(name, Map("payload" -> "whatever".toJson))
-            val activationId = wsk.action.extractActivationId(activation)
-            activationId shouldBe a[Some[_]]
-
-            val expected = "ReferenceError" // representing nodejs giving an error when given malformed.js
-            val (found, logs) = wsk.activation.contains(activationId.get, expected)
-            withClue(s"Did not find '$expected' in activation($activationId) ${logs getOrElse "empty"}") {
-                found should be(true)
+            val run = wsk.action.invoke(name, Map("payload" -> "whatever".toJson))
+            withActivation(wsk.activation, run) {
+                activation =>
+                    activation.fields("response").asJsObject.fields("status") should be("action developer error".toJson)
+                    // representing nodejs giving an error when given malformed.js
+                    activation.fields("response").asJsObject.toString should include("ReferenceError")
             }
     }
 
@@ -318,20 +318,12 @@ class WskBasicTests
             stdout should include regex (""""publish": true""")
             stdout should include regex (""""version": "0.0.2"""")
 
-            val fired = wsk.trigger.fire(name, Map("t" -> "T".toJson))
-            val activationId = wsk.trigger.extractActivationId(fired)
-            activationId shouldBe a[Some[_]]
-
-            val (foundParams, getResult) = wsk.activation.contains(activationId.get, """"t": "T"""", project = "response")
-            withClue(s"Trigger payload is wrong in activation($activationId) ${getResult getOrElse "empty"}") {
-                foundParams should be(true)
-                getResult.get should not include(""""a": "A"""")
-            }
-
-            val endtime = Instant.EPOCH.toEpochMilli.toString
-            val (foundEndtime, getEnd) = wsk.activation.contains(activationId.get, endtime, project = "end")
-            withClue(s"Did not find expected trigger endtime to follow convention in activation($activationId) ${getEnd getOrElse "empty"}") {
-                foundEndtime should be(true)
+            val dynamicParams = Map("t" -> "T".toJson)
+            val run = wsk.trigger.fire(name, dynamicParams)
+            withActivation(wsk.activation, run) {
+                activation =>
+                    activation.fields("response").asJsObject.fields("result") should be(dynamicParams.toJson)
+                    activation.fields("end") should be(Instant.EPOCH.toEpochMilli.toJson)
             }
 
             wsk.trigger.list().stdout should include(name)

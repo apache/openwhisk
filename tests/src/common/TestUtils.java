@@ -240,20 +240,20 @@ public class TestUtils {
         public void validateExitCode(int expectedExitCode) {
             if (expectedExitCode == TestUtils.DONTCARE_EXIT)
                 return;
-            boolean ok = (exitCode == expectedExitCode) ||
-                         (expectedExitCode == TestUtils.ANY_ERROR_EXIT &&
-                          exitCode != 0);
+            boolean ok = (exitCode == expectedExitCode) || (expectedExitCode == TestUtils.ANY_ERROR_EXIT && exitCode != 0);
             if (!ok) {
-                System.out.format("exit code = %d\n", exitCode);
-                System.out.format("expected exit code = %d\n", expectedExitCode);
-                System.out.println("stdout:");
-                System.out.print(stdout);
-                System.out.println();
-                System.out.println("stderr:");
-                System.out.print(stderr);
-                System.out.println();
+                System.out.format("expected exit code = %d\n%s", expectedExitCode, toString());
                 assertTrue("Exit code:" + exitCode, exitCode == expectedExitCode);
             }
+        }
+
+        @Override
+        public String toString() {
+            StringBuilder fmt = new StringBuilder();
+            fmt.append(String.format("exit code = %d\n", exitCode));
+            fmt.append(String.format("stdout: %s\n", stdout));
+            fmt.append(String.format("stderr: %s\n", stderr));
+            return fmt.toString();
         }
     }
 

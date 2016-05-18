@@ -57,7 +57,9 @@ class CLIPythonTests
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) => action.create(name, Some(TestUtils.getCatalogFilename("samples/hello.py")))
             }
-            wsk.action.invoke(name, Map("name" -> "Prince".toJson), blocking = true, result = true)
-                .stdout should include regex ("""Prince""")
+
+            withActivation(wsk.activation, wsk.action.invoke(name, Map("name" -> "Prince".toJson))) {
+                _.fields("response").toString should include("Prince")
+            }
     }
 }

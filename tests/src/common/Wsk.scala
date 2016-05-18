@@ -19,10 +19,15 @@ package common
 import java.io.File
 import java.util.regex.Pattern
 
+import scala.Left
+import scala.Right
+import scala.annotation.elidable
+import scala.annotation.elidable.ASSERTION
 import scala.collection.JavaConversions.mapAsJavaMap
 import scala.collection.mutable.Buffer
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
@@ -31,9 +36,10 @@ import TestUtils.DONTCARE_EXIT
 import TestUtils.NOT_FOUND
 import TestUtils.SUCCESS_EXIT
 import common.TestUtils.RunResult
+import spray.json.JsObject
 import spray.json.JsValue
+import spray.json.pimpString
 import whisk.utils.retry
-import scala.language.postfixOps
 
 /**
  * Provide Scala bindings for the whisk CLI.
@@ -197,8 +203,7 @@ class WskAction()
     extends RunWskCmd
     with ListOrGetFromCollection
     with DeleteFromCollection
-    with HasActivation
-    with WaitFor {
+    with HasActivation {
 
     override protected val noun = "action"
 
@@ -263,8 +268,7 @@ class WskTrigger()
     extends RunWskCmd
     with ListOrGetFromCollection
     with DeleteFromCollection
-    with HasActivation
-    with WaitFor {
+    with HasActivation {
 
     override protected val noun = "trigger"
 
@@ -427,10 +431,10 @@ class WskRule()
 
 class WskActivation()
     extends RunWskCmd
-    with DeleteFromCollection
+    with HasActivation
     with WaitFor {
 
-    override protected val noun = "activation"
+    protected val noun = "activation"
 
     /**
      * Lists activations.
@@ -540,35 +544,39 @@ class WskActivation()
     }
 
     /**
-     * Checks if a projection of the activation (haystack) contains
-     * an expected message (needle).
+     * Polls for an activation matching the given id. If found
+     * return Right(activation) else Left(result of running CLI command).
      *
-     * @return (found needle, Option[haystack as String])
+     * @return either Left(error message) or Right(activation as JsObject)
      */
-    def contains(
+    def waitForActivation(
         activationId: String,
-        needle: String,
-        project: String = "logs",
         initialWait: Duration = 1 second,
         pollPeriod: Duration = 1 second,
         totalWait: Duration = 30 seconds)(
-            implicit wp: WskProps): (Boolean, Option[String]) = {
-        val wsk = this
-        val haystack = waitfor(() => {
-            val result = cli(wp.overrides ++ Seq(noun, "get", activationId, project, "--auth", wp.authKey),
+            implicit wp: WskProps): Either[String, JsObject] = {
+        val activation = waitfor(() => {
+            val result = cli(wp.overrides ++ Seq(noun, "get", activationId, "--auth", wp.authKey),
                 expectedExitCode = DONTCARE_EXIT)
             if (result.exitCode == NOT_FOUND) {
                 null
             } else if (result.exitCode == SUCCESS_EXIT) {
-                result.stdout
-            } else s"$result"
+                Right(result.stdout)
+            } else Left(s"$result")
         }, initialWait, pollPeriod, totalWait)
 
-        if (haystack != null) {
-            if (Pattern.compile(s""".*$needle.*""", Pattern.DOTALL) matcher (haystack) find) {
-                (true, Some(haystack))
-            } else (false, Some(haystack))
-        } else (false, None)
+        Option(activation) map {
+            case Right(stdout) =>
+                Try {
+                    // strip first line and convert the rest to JsObject
+                    assert(stdout.startsWith("ok: got activation"))
+                    val firstNewline = stdout.indexOf("\n")
+                    stdout.substring(firstNewline + 1).parseJson.asJsObject
+                } map {
+                    Right(_)
+                } getOrElse Left(s"cannot parse activation from '$stdout'")
+            case Left(error) => Left(error)
+        } getOrElse Left(s"$activationId not found")
     }
 
     /** Used in polling for activations to record partial results from retry poll. */
@@ -577,8 +585,7 @@ class WskActivation()
 
 class WskNamespace()
     extends RunWskCmd
-    with FullyQualifiedNames
-    with WaitFor {
+    with FullyQualifiedNames {
 
     protected val noun = "namespace"
 
@@ -612,9 +619,7 @@ class WskNamespace()
 class WskPackage()
     extends RunWskCmd
     with ListOrGetFromCollection
-    with DeleteFromCollection
-    with WaitFor {
-
+    with DeleteFromCollection {
     override protected val noun = "package"
 
     /**
@@ -664,7 +669,7 @@ trait WaitFor {
     /**
      * Waits up to totalWait seconds for a 'step' to return value.
      * Often tests call this routine immediately after starting work.
-     * Performs an initial wait before hitting the log for the first time.
+     * Performs an initial wait before entering poll loop.
      */
     def waitfor[T](
         step: () => T,

@@ -19,10 +19,14 @@ package common
 import scala.collection.mutable.ListBuffer
 import scala.util.Failure
 import scala.util.Try
+import scala.concurrent.duration.Duration
+import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
 
 import org.scalatest.Matchers
 
 import common.TestUtils.RunResult
+import spray.json.JsObject
 
 /**
  * Test fixture to ease cleaning of whisk entities created during testing.
@@ -79,6 +83,38 @@ trait WskTestHelpers extends Matchers {
                     true
             }
             assert(deletedAll, "some assets were not deleted")
+        }
+    }
+
+    /**
+     * Extracts an activation id from a wsk command producing a RunResult with such an id.
+     * If id is found, polls activations until one matching id is found. If found, pass
+     * the activation as a JsObject to the post processor which then check for expected values.
+     */
+    def withActivation(
+        wsk: WskActivation,
+        run: RunResult,
+        initialWait: Duration = 1 second,
+        pollPeriod: Duration = 1 second,
+        totalWait: Duration = 30 seconds)(
+            check: JsObject => Unit)(
+                implicit wskprops: WskProps): Unit = {
+        val activationId = wsk.extractActivationId(run)
+
+        withClue(s"did not find an activation id in '$run'") {
+            activationId shouldBe a[Some[_]]
+        }
+
+        val id = activationId.get
+        val activation = wsk.waitForActivation(id, initialWait, pollPeriod, totalWait)
+        if (activation.isLeft) {
+            assert(false, s"error waiting for activation $id: ${activation.left.get}")
+        } else try {
+            check(activation.right.get)
+        } catch {
+            case error: Throwable =>
+                println(s"check failed for activation $id: ${activation.right.get}")
+                throw error
         }
     }
 }

@@ -136,11 +136,11 @@ class PackageTests
 
             // Check that inherited parameters are passed to the action.
             val now = new Date().toString()
-            val activation = wsk.action.invoke(bindActionName, Map("payload" -> now.toJson))
-            val activationId = wsk.action.extractActivationId(activation)
-            val expected = String.format(".*key0: value0.*key1a: value1a.*key1b: value2b.*key2a: value2a.*payload: %s", now)
-            val (found, logs) = wsk.activation.contains(activationId.get, expected, totalWait = LOG_DELAY)
-            assert(found, s"Did not find '$expected' in activation($activationId) ${logs getOrElse "empty"}")
+            val run = wsk.action.invoke(bindActionName, Map("payload" -> now.toJson))
+            withActivation(wsk.activation, run, totalWait = LOG_DELAY) {
+                _.fields("logs").toString should include regex (
+                    String.format(".*key0: value0.*key1a: value1a.*key1b: value2b.*key2a: value2a.*payload: %s", now))
+            }
     }
 
     /**
