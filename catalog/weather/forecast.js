@@ -41,21 +41,23 @@ function main(params) {
 
     // Construct url.
     var url = 'https://' + apiKey + '@twcservice.mybluemix.net/api/weather/v2' + timeURL + '?units=' + units + '&geocode=' + lat + '%2C' + lon + '&language=' + language;
-
     console.log('url:', url);
-    request(url, function (error, response, body) {
+    request({url:url, timeout: 30000}, function (error, response, body) {
         if (!error && response.statusCode === 200) {
             var j = JSON.parse(body);
             whisk.done(j);
         } else {
             console.log('error getting forecast');
-            console.log('http status code:', response.statusCode);
+            console.log('http status code:', (response||{}).statusCode);
             console.log('error:', error);
             console.log('body:', body);
-            whisk.error(body || error);
+            whisk.error({
+               error: error,
+               response: response,
+               body: body
+            });
         }
     });
 
     return whisk.async();
 }
-
