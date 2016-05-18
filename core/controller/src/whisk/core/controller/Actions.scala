@@ -92,6 +92,7 @@ import whisk.http.ErrorResponse
 import whisk.http.ErrorResponse.{ terminate }
 import spray.routing.RequestContext
 import scala.language.postfixOps
+import whisk.common.LoggingMarkers
 
 object WhiskActionsApi {
     def requiredProperties = WhiskServices.requiredProperties ++
@@ -246,8 +247,10 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                         val postToLoadBalancer = postInvokeRequest(user, action, env, payload, blocking)
                         onComplete(postToLoadBalancer) {
                             case Success((activationId, None)) =>
+                                info(this, "", CONTROLLER_ACTIVATION_DONE)
                                 complete(Accepted, activationId.toJsObject)
                             case Success((activationId, Some(activation))) =>
+                                info(this, "", CONTROLLER_BLOCKING_ACTIVATION_DONE)
                                 val response = if (result) {
                                     activation.getResultJson
                                 } else {
@@ -396,14 +399,13 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         val args = { env map { _ ++ action.parameters } getOrElse action.parameters } merge payload
         val message = Message(transid, s"/actions/invoke/${action.namespace}/${action.name}/${action.rev}", user, ActivationId(), args)
 
-        info(this, s"[POST] action activation id: ${message.activationId}", CONTROLLER_CREATE_ACTIVATION)
+        info(this, s"[POST] action activation id: ${message.activationId}", if (blocking) LoggingMarkers.CONTROLLER_BLOCKING_ACTIVATION_START else LoggingMarkers.CONTROLLER_ACTIVATION_START)
         performLoadBalancerRequest(INVOKER, message, transid) map {
             (action.limits.timeout(), _)
         } flatMap {
             case (duration, response) =>
                 response.id match {
                     case Some(activationId) =>
-                        info(this, "", CONTROLLER_ACTIVATION_END)
                         Future successful (duration, activationId)
                     case None =>
                         if (response.error.getOrElse("??").equals("too many concurrent activations")) {
@@ -421,11 +423,10 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                     val docid = DocId(WhiskEntity.qualifiedName(user.namespace, activationId))
                     val timeout = duration + blockingInvokeGrace
                     val promise = Promise[(ActivationId, Option[WhiskActivation])]
-                    info(this, s"[POST] action activation will block on result up to $timeout ($duration + $blockingInvokeGrace grace)", CONTROLLER_BLOCK_FOR_RESULT)
+                    info(this, s"[POST] action activation will block on result up to $timeout ($duration + $blockingInvokeGrace grace)")
                     pollForResult(docid.asDocInfo, activationId, promise)
                     val response = promise.future withTimeout (timeout, new BlockingInvokeTimeout(activationId))
                     response onFailure { case t => promise.tryFailure(t) } // short circuits polling on result
-                    info(this, "", CONTROLLER_BLOCKING_ACTIVATION_END)
                     response // will either complete with activation or fail with timeout
                 } else Future { (activationId, None) }
         }

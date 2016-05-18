@@ -61,6 +61,7 @@ import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.core.connector.ActivationMessage.{ publish, ACTIVATOR }
 import whisk.http.ErrorResponse.{ terminate }
 import whisk.core.entity.ActivationResponse
+import whisk.common.LoggingMarkers
 
 object WhiskTriggersApi {
     def requiredProperties = WhiskServices.requiredProperties ++
@@ -121,7 +122,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                     trigger: WhiskTrigger =>
                         val args = trigger.parameters.merge(payload)
                         val message = Message(transid, s"/triggers/fire/${trigger.docid}", user, ActivationId(), args)
-                        info(this, s"[POST] trigger activation id: ${message.activationId}")
+                        info(this, s"[POST] trigger activation id: ${message.activationId}", LoggingMarkers.CONTROLLER_FIRE_TRIGGER_START)
                         val start = Instant.now(Clock.systemUTC())
                         val postToLoadbalancer = performLoadBalancerRequest(ACTIVATOR, message, transid) flatMap {
                             response =>
@@ -153,13 +154,14 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
 
                         onComplete(postToLoadbalancer) {
                             case Success(activationId) =>
+                                info(this, "", LoggingMarkers.CONTROLLER_FIRE_TRIGGER_DONE)
                                 complete(OK, activationId.toJsObject)
                             case Failure(t) => t match {
                                 case _: TooManyActivationException =>
-                                    info(this, s"[POST] max activation limit has exceeded")
+                                    info(this, s"[POST] max activation limit has exceeded", LoggingMarkers.CONTROLLER_FIRE_TRIGGER_DONE)
                                     terminate(TooManyRequests)
                                 case _: Throwable =>
-                                    error(this, s"[POST] trigger activation failed: ${t.getMessage}")
+                                    error(this, s"[POST] trigger activation failed: ${t.getMessage}", LoggingMarkers.CONTROLLER_FIRE_TRIGGER_ERROR)
                                     terminate(InternalServerError, t.getMessage)
                             }
                         }

@@ -22,7 +22,6 @@ import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.util.Failure
 import scala.util.Success
-
 import Privilege.REJECT
 import spray.http.StatusCodes.ClientError
 import spray.http.StatusCodes.TooManyRequests
@@ -37,6 +36,7 @@ import whisk.core.entity.Parameters
 import whisk.core.entity.Subject
 import whisk.http.ErrorResponse
 import scala.language.postfixOps
+import whisk.common.LoggingMarkers
 
 package object types {
     type Entitlements = TrieMap[(Subject, String), Set[Privilege]]
@@ -169,7 +169,7 @@ protected[core] abstract class EntitlementService(config: WhiskConfig)(implicit 
             // accepted for the time being however because there exists no external mechanism to create
             // explicit grants
             val grant = if (right != REJECT) {
-                info(this, s"checking user '$subject' has privilege '$right' for '$resource'")
+                info(this, s"checking user '$subject' has privilege '$right' for '$resource'", LoggingMarkers.CONTROLLER_CHECK_ENTITLEMENT_START)
                 namespaces(subject) flatMap {
                     resource.collection.implicitRights(_, right, resource) flatMap {
                         case true  => Future successful true
@@ -180,10 +180,10 @@ protected[core] abstract class EntitlementService(config: WhiskConfig)(implicit 
 
             grant onComplete {
                 case Success(r) =>
-                    info(this, if (r) "authorized" else "not authorized")
+                    info(this, if (r) "authorized" else "not authorized", LoggingMarkers.CONTROLLER_CHECK_ENTITLEMENT_DONE)
                     promise success r
                 case Failure(t) =>
-                    error(this, s"failed while checking entitlement: ${t.getMessage}")
+                    error(this, s"failed while checking entitlement: ${t.getMessage}", LoggingMarkers.CONTROLLER_CHECK_ENTITLEMENT_ERROR)
                     promise success false
             }
 
