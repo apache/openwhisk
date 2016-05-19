@@ -312,7 +312,7 @@ public class CLIActionTests {
         String publishTrueStr = "\"publish\": true";
         try {
             wsk.sanitize(Action, action);
-            // create public action then update it to private
+            // create private action then update it to public
             wsk.createAction(action, TestUtils.getCatalogFilename("samples/wc.js"), false, false);
             String item = wsk.get(Action, action);
             assertTrue("Expect action to not be shared", item.contains(publishFalseStr));
