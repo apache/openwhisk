@@ -9,7 +9,7 @@
  * - dockerImageName (required): The name of the image to build (e.g. whisk/controller)
  * - dockerRegistry (optional): The registry to push to
  * - dockerImageTag (optional, default 'latest'): The tag for the image
- * - dockerTimeout (optional, default 240): Timeout for docker operations in seconds
+ * - dockerTimeout (optional, default 840): Timeout for docker operations in seconds
  * - dockerRetries (optional, default 3): How many times to retry docker operations
  * - dockerBinary (optional, default 'docker'): The binary to execute docker commands
  * - dockerHost (optional): The docker host to run commands on, default behaviour is
@@ -19,7 +19,7 @@
 ext {
     dockerRegistry = project.hasProperty('dockerRegistry') ? dockerRegistry + '/' : ''
     dockerImageTag = project.hasProperty('dockerImageTag') ? dockerImageTag : 'latest'
-    dockerTimeout = project.hasProperty('dockerTimeout') ? dockerTimeout.toInteger() : 420
+    dockerTimeout = project.hasProperty('dockerTimeout') ? dockerTimeout.toInteger() : 840
     dockerRetries = project.hasProperty('dockerRetries') ? dockerRetries.toInteger() : 3
     dockerBinary = project.hasProperty('dockerBinary') ? [dockerBinary] : ['docker']
 }
