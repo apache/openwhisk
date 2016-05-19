@@ -94,6 +94,10 @@ import spray.routing.RequestContext
 import scala.language.postfixOps
 import whisk.common.LoggingMarkers
 
+/**
+ * A singleton object which defines the properties that must be present in a configuration
+ * in order to implement the actions API
+ */
 object WhiskActionsApi {
     def requiredProperties = WhiskServices.requiredProperties ++
         WhiskEntityStore.requiredProperties ++

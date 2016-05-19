@@ -16,7 +16,7 @@
 
 package whisk.common
 
-/*
+/**
  * Utility methods for spawning curl commands.
  */
 object Curl extends Logging {
