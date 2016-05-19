@@ -12,9 +12,7 @@
     dest: "{{cli_conf_dir}}/default.props"
 
 - name: copy default.props to cli dir to make test happy
-  template:
-    src: default.props.j2
-    dest: "{{openwhisk_home}}/tools/cli/default.props"
+  local_action: template src="default.props.j2" dest="{{openwhisk_home}}/tools/cli/default.props"
 
 - name: "pull the {{ docker_image_tag }} image of cli"
   shell: "docker pull {{ docker_registry }}whisk/cli:{{ docker_image_tag }}"
