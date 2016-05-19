@@ -16,24 +16,44 @@
 
 package whisk.core.controller
 
+import scala.Left
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
+import scala.concurrent.Promise
+import scala.util.Failure
+import scala.util.Success
 
-import spray.routing.Directives
+import spray.http.StatusCodes.InternalServerError
+import spray.http.StatusCodes.ServiceUnavailable
+import spray.routing.Rejection
+import spray.routing.RequestContext
 import spray.routing.Route
-import spray.routing.authentication.BasicAuth
+import spray.routing.authentication.BasicHttpAuthenticator
 import spray.routing.authentication.UserPass
 import whisk.common.TransactionId
 import whisk.core.entity.WhiskAuth
+import whisk.http.CustomRejection
 
 /** A common trait for secured routes */
-trait AuthenticatedRoute extends Directives {
+trait AuthenticatedRoute {
+
     /** An execution context for futures */
     protected implicit val executionContext: ExecutionContext
 
     /** Creates HTTP BaiscAuth handler */
-    protected def basicauth(implicit transid: TransactionId) =
-        BasicAuth(validateCredentials _, realm = "whisk rest service")
+    protected def basicauth(implicit transid: TransactionId) = {
+        new BasicHttpAuthenticator[WhiskAuth](realm = "whisk rest service", validateCredentials _) {
+            override def apply(ctx: RequestContext) = {
+                val promise = Promise[Either[Rejection, WhiskAuth]]
+                super.apply(ctx) onComplete {
+                    case Success(t)                        => promise.success(t)
+                    case Failure(t: IllegalStateException) => promise.success(Left(CustomRejection(InternalServerError)))
+                    case Failure(t)                        => promise.success(Left(CustomRejection(ServiceUnavailable)))
+                }
+                promise.future
+            }
+        }
+    }
 
     /** Validates credentials against database of subjects */
     protected def validateCredentials(userpass: Option[UserPass])(implicit transid: TransactionId): Future[Option[WhiskAuth]]

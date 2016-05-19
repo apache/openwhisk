@@ -32,27 +32,31 @@ import spray.json.RootJsonFormat
 import spray.json.deserializationError
 import spray.json.pimpAny
 import spray.routing.Directives
+import spray.routing.Rejection
 import spray.routing.StandardRoute
 import whisk.common.TransactionId
 
-/** Return all rejections as Json object. */
+/** Replaces rejections with Json object containing cause and transaction id. */
 case class ErrorResponse(error: String, code: TransactionId)
+
+/** Custom rejection, wraps status code for response and a cause. */
+case class CustomRejection private (status: StatusCode, cause: String) extends Rejection
 
 object ErrorResponse extends Directives {
 
-    def terminate(code: StatusCode, error: String)(implicit transid: TransactionId): StandardRoute = {
-        terminate(code, if (error != null && error.trim.nonEmpty) {
-            Some(ErrorResponse(error.trim, transid))
-        } else None)
+    def terminate(status: StatusCode, error: String)(implicit transid: TransactionId): StandardRoute = {
+        terminate(status, Option(error) filter { _.trim.nonEmpty } map {
+            e => Some(ErrorResponse(e.trim, transid))
+        } getOrElse None)
     }
 
-    def terminate(code: StatusCode, error: Option[ErrorResponse] = None)(implicit transid: TransactionId): StandardRoute = {
-        complete(code, error getOrElse response(code))
+    def terminate(status: StatusCode, error: Option[ErrorResponse] = None)(implicit transid: TransactionId): StandardRoute = {
+        complete(status, error getOrElse response(status))
     }
 
-    def response(code: StatusCode)(implicit transid: TransactionId): ErrorResponse = code match {
+    def response(status: StatusCode)(implicit transid: TransactionId): ErrorResponse = status match {
         case NotFound => ErrorResponse("The requested resource does not exist.", transid)
-        case _        => ErrorResponse(code.defaultMessage, transid)
+        case _        => ErrorResponse(status.defaultMessage, transid)
     }
 
     implicit val serializer = new RootJsonFormat[ErrorResponse] {
@@ -70,4 +74,10 @@ object ErrorResponse extends Directives {
         } getOrElse deserializationError("error response malformed")
     }
 
+}
+
+object CustomRejection {
+    def apply(status: StatusCode): CustomRejection = {
+        CustomRejection(status, status.defaultMessage)
+    }
 }
