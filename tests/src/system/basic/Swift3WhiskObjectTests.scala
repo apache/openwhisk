@@ -16,8 +16,10 @@
 
 package system.basic
 
+import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
+
 import org.junit.runner.RunWith
-import org.scalatest.Finders
 import org.scalatest.junit.JUnitRunner
 
 import common.TestHelpers
@@ -40,54 +42,52 @@ class Swift3WhiskObjectTests
 
     it should "allow Swift actions to invoke other actions" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            // use Wsk to create action from dat/actions/invokeAction.swift
-            val file = TestUtils.getTestActionFilename("invokeAction.swift")
+            // use CLI to create action from dat/actions/invokeAction.swift
+            val file = TestUtils.getCatalogFilename("/samples/invoke.swift")
             val actionName = "invokeAction"
-            assetHelper.withCleaner(wsk.action, actionName) { (action, _) =>
-                action.create(name = actionName, artifact = Some(file), kind = Some("swift:3"), parameters = Map("key0" -> "value0".toJson), expectedExitCode =0)
+            assetHelper.withCleaner(wsk.action, actionName) {
+                (action, _) => action.create(name = actionName, artifact = Some(file), kind = Some("swift:3"))
             }
 
             // invoke the action
-            val invokeResult = wsk.action.invoke(actionName, Map("key0" -> "value0".toJson), blocking = true, result = false, 0).stdout
+            val run = wsk.action.invoke(actionName, Map("key0" -> "value0".toJson))
+            withActivation(wsk.activation, run, initialWait = 5 seconds, totalWait = 60 seconds) {
+                activation =>
+                    val logs = activation.fields("logs").toString
 
-            invokeResult should include("It is now")
-            invokeResult shouldNot include("Could not parse date of of the response.")
-            invokeResult shouldNot include("Could not invoke date action.")
+                    logs should include("It is now")
+                    logs should not include ("Could not parse date of of the response.")
+                    logs should not include ("Could not invoke date action.")
+            }
     }
 
     it should "allow Swift actions to trigger events" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             // create a trigger
-            val triggerName = "TestTrigger"
+            val triggerName = s"TestTrigger ${System.currentTimeMillis()}"
             assetHelper.withCleaner(wsk.trigger, triggerName) {
                 (trigger, _) => trigger.create(triggerName)
             }
 
             // create an action that fires the trigger
-            val file = TestUtils.getTestActionFilename("triggerEvent.swift")
+            val file = TestUtils.getCatalogFilename("/samples/trigger.swift")
             val actionName = "ActionThatTriggers"
-            assetHelper.withCleaner(wsk.action, actionName) { (action, _) =>
-                action.create(name = actionName, artifact = Some(file), kind = Some("swift:3"), parameters = Map("key0" -> "value0".toJson), expectedExitCode =0)
+            assetHelper.withCleaner(wsk.action, actionName) {
+                (action, _) => action.create(name = actionName, artifact = Some(file), kind = Some("swift:3"))
             }
 
             // invoke the action
-            val invokeResult = wsk.action.invoke(actionName, Map("key0" -> "value0".toJson), blocking = true, result = false, 0).stdout
+            val run = wsk.action.invoke(actionName, Map("triggerName" -> triggerName.toJson))
+            withActivation(wsk.activation, run, initialWait = 5 seconds, totalWait = 60 seconds) {
+                activation =>
+                    activation.fields("logs").toString should include(s"Tigger Name: $triggerName")
 
-            // verify from the activation logs that TestTrigger was fired as a result of running ActionThatTriggers
-            val lastTwoActivations = wsk.activation.list(limit = Some(2))
-
-            System.out.println("Last two activations:")
-            System.out.println(lastTwoActivations.stdout)
-
-            val activationIds = wsk.activation.ids(lastTwoActivations)
-
-            activationIds.size shouldBe 2
-
-            val latestActivation = wsk.activation.get(activationIds.head)
-            latestActivation.stdout should include(triggerName)
-
-            val previousActivation = wsk.activation.get(activationIds.tail.head)
-            previousActivation.stdout should include(actionName)
+                    // wait for trigger activation
+                    val triggerActivations = wsk.activation.pollFor(1, Some(triggerName), retries = 20)
+                    withClue(s"trigger activations for $triggerName:") {
+                        triggerActivations.length should be(1)
+                    }
+            }
     }
 
 }
