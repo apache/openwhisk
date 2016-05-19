@@ -27,14 +27,16 @@ import spray.can.Http
 import spray.client.pipelining.SendReceive
 import spray.client.pipelining.sendReceive
 
+/**
+ * Trait which implements a method to make an HTTP Request.
+ */
 trait HttpClient {
     /** Creates HTTP request client. */
     protected def httpRequest(host: String, port: Int, timeout: Timeout)(
         implicit as: ActorSystem, ec: ExecutionContext): Future[SendReceive] = {
         implicit val duration = timeout
         for (
-            Http.HostConnectorInfo(connector, _) <- IO(Http) ?
-                Http.HostConnectorSetup(host, port)
+            Http.HostConnectorInfo(connector, _) <- IO(Http) ? Http.HostConnectorSetup(host, port)
         ) yield sendReceive(connector)
     }
 }

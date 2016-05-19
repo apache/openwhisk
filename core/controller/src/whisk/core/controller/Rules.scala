@@ -70,6 +70,10 @@ import whisk.core.connector.ActivationMessage.{ publish, ACTIVATOR }
 import whisk.http.ErrorResponse.{ terminate }
 import scala.language.postfixOps
 
+/**
+ * A singleton object which defines the properties that must be present in a configuration
+ * in order to implement the rules API.
+ */
 object WhiskRulesApi {
     def requiredProperties = WhiskServices.requiredProperties ++
         WhiskEntityStore.requiredProperties

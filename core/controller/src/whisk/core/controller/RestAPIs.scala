@@ -19,11 +19,11 @@ package whisk.core.controller
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
-import scala.util.{Success, Failure}
+import scala.util.{ Success, Failure }
 
 import akka.actor.ActorSystem
 import spray.http.HttpRequest
-import spray.http.StatusCodes.{OK, InternalServerError, PermanentRedirect}
+import spray.http.StatusCodes.{ OK, InternalServerError, PermanentRedirect }
 import spray.httpx.SprayJsonSupport._
 import spray.json.DefaultJsonProtocol._
 import spray.json.JsObject
@@ -32,18 +32,22 @@ import spray.routing.Directive.pimpApply
 import spray.routing.Directives
 import spray.routing.Route
 
-import whisk.common.{TransactionId, Verbosity}
+import whisk.common.{ TransactionId, Verbosity }
 import whisk.common.Verbosity.Level
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.whiskVersionDate
 import whisk.core.WhiskConfig.whiskVersionBuildno
 import whisk.core.connector.LoadBalancerResponse
 import whisk.core.connector.{ ActivationMessage => Message }
-import whisk.core.entitlement.{Collection, EntitlementService, Privilege, Resource}
-import whisk.core.entity.{Subject, WhiskActivationStore, WhiskAuthStore, WhiskEntityStore}
-import whisk.core.entity.types.{ActivationStore, AuthStore, EntityStore}
+import whisk.core.entitlement.{ Collection, EntitlementService, Privilege, Resource }
+import whisk.core.entity.{ Subject, WhiskActivationStore, WhiskAuthStore, WhiskEntityStore }
+import whisk.core.entity.types.{ ActivationStore, AuthStore, EntityStore }
 import whisk.core.controller.WhiskServices.LoadBalancerReq
 
+/**
+ * Abstract class which provides basic Directives which are used to construct route structures
+ * which are common to all versions of the Rest API.
+ */
 abstract protected[controller] class RestAPIVersion(
     protected val apiversion: String,
     protected val build: String,
@@ -58,7 +62,15 @@ abstract protected[controller] class RestAPIVersion(
     protected val swaggerdocpath = "api-docs"
 
     def prefix = pathPrefix(apipath / apiversion)
+
+    /**
+     * This is the most important method -- it provides the routes that define the REST API.
+     */
     def routes(implicit transid: TransactionId): Route
+
+    /**
+     * Information which describes details of a particular deployment of the REST API.
+     */
     def info = {
         JsObject(
             "openwhisk" -> "hello".toJson,
@@ -68,6 +80,10 @@ abstract protected[controller] class RestAPIVersion(
     }
 }
 
+/**
+ * A singleton object which defines properties needed to instantiate a service for v1
+ * of the REST API.
+ */
 protected[controller] object RestAPIVersion_v1 {
     def requiredProperties =
         WhiskConfig.whiskVersion ++
@@ -81,6 +97,9 @@ protected[controller] object RestAPIVersion_v1 {
             Collection.requiredProperties
 }
 
+/**
+ * An object which creates the Routes that define v1 of the whisk REST API.
+ */
 protected[controller] class RestAPIVersion_v1(
     config: WhiskConfig,
     verbosity: Verbosity.Level,
@@ -90,7 +109,13 @@ protected[controller] class RestAPIVersion_v1(
     with Authenticate
     with AuthenticatedRoute {
 
-    override def routes(implicit transid: TransactionId) = {
+    /**
+     * Here is the key method: it defines the Route (route tree) which implement v1 of the REST API.
+     *
+     * @Idioglossia This relies on the spray routing DSL.
+     * @see http://spray.io/documentation/1.2.2/spray-routing/
+     */
+    override def routes(implicit transid: TransactionId): Route = {
         pathPrefix(apipath / apiversion) {
             pathEndOrSingleSlash {
                 complete(OK, info)
@@ -216,8 +241,10 @@ protected[controller] class RestAPIVersion_v1(
         setVerbosity(verbosity)
     }
 
-    /** These are private routes that used to be in the load balancer.
-     *  They are still needed for use by the activator and health checker.
+    /*
+     * Below here are private routes that used to be in the load balancer.
+     * They are still needed for use by the activator and health checker.
+     * These should go away eventually.
      */
 
     /**
@@ -237,12 +264,12 @@ protected[controller] class RestAPIVersion_v1(
         }
     }
 
-     /**
+    /**
      * Handles GET /invokers URI.
      *
      * @return JSON of invoker health
      */
-     val internalInvokerHealth = {
+    val internalInvokerHealth = {
         (path("invokers") & get) {
             complete {
                 getInvokerHealth()

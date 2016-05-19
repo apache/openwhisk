@@ -16,17 +16,18 @@
 
 package whisk.common
 
-/*
+/**
  * Utility methods for spawning curl commands.
  */
 object Curl extends Logging {
 
-  private val curl = "/usr/bin/curl"
+    private val curl = "/usr/bin/curl"
 
-  def put(url : String, body : String) =
-    SimpleExec.syncRunCmd(Array(curl, "-sS", "-XPUT", url,  "-d", body))(TransactionId.unknown)
+    def put(url: String, body: String) = {
+        SimpleExec.syncRunCmd(Array(curl, "-sS", "-XPUT", url, "-d", body))(TransactionId.unknown)
+    }
 
-  def get(url : String) =
-    SimpleExec.syncRunCmd(Array(curl, "-sS", "-XGET", url))(TransactionId.unknown)
-
+    def get(url: String) = {
+        SimpleExec.syncRunCmd(Array(curl, "-sS", "-XGET", url))(TransactionId.unknown)
+    }
 }

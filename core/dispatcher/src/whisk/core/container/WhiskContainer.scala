@@ -48,7 +48,7 @@ class WhiskContainer(
     var lastLogSize = 0L
     val initTimeoutMilli = 60000
 
-    /*
+    /**
      * Start time, End time, Some(response) from container consisting of status code and payload
      * If there is no response or an exception, then None.
      */
@@ -58,7 +58,7 @@ class WhiskContainer(
      * This predicate works for registry and non-registry use.
      * When a registry is not used (local deploy), the image is typically "whisk/foo"
      * With a registry in place, it becomes "hostname:port/whisk/foo"
-     *  In either case, the scheme only has one slash which is preceded by non-numeric characters.
+     * In either case, the scheme only has one slash which is preceded by non-numeric characters.
      */
     def isBlackbox = !image.contains("whisk/")
 
@@ -71,7 +71,7 @@ class WhiskContainer(
     }
 
     /**
-     * Send initialization payload to container.
+     * Sends initialization payload to container.
      */
     def init(args: JsObject)(implicit transid: TransactionId): RunResult = {
         // this shouldn't be needed but leave it for now
@@ -119,7 +119,7 @@ class WhiskContainer(
     def getLogSize(mounted: Boolean) = pool.getLogSize(this, mounted)
 
     /**
-     * Gets docker logs
+     * Gets docker logs.
      */
     def getDockerLogContent(start: Long, end: Long, mounted: Boolean)(implicit transid: TransactionId): Array[Byte] = {
         this.synchronized {

@@ -19,10 +19,16 @@ package whisk.common
 import scala.sys.process.ProcessLogger
 import scala.sys.process.stringSeqToProcess
 
-/*
- * Utility methods for running commands.
+/**
+ * Utility to exec processes
  */
 object SimpleExec extends Logging {
+    /**
+     * Runs a external process.
+     *
+     * @param cmd an array of String -- their concatenation is the command to exec
+     * @return a triple of (stdout, stderr, exitcode) from running the command
+     */
     def syncRunCmd(cmd: Seq[String])(implicit transid: TransactionId): (String, String, Int) = {
         info(this, s"Running command: ${cmd.mkString(" ")}")
         val pb = stringSeqToProcess(cmd)

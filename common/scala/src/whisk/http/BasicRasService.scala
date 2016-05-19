@@ -24,6 +24,10 @@ import whisk.common.TransactionId
 import spray.httpx.SprayJsonSupport._
 import spray.json.DefaultJsonProtocol._
 
+/**
+ * This trait extends the BasicHttpService with a standard "ping" endpoint which
+ * responds to health queries, intended for monitoring.
+ */
 trait BasicRasService extends BasicHttpService {
 
     override def routes(implicit transid: TransactionId) = ping
@@ -41,16 +45,26 @@ trait BasicRasService extends BasicHttpService {
     }
 }
 
+/**
+ * Singleton which provides a factory for instances of the BasicRasService.
+ */
 object BasicRasService {
 
     def startService(name: String, interface: String, port: Integer) = {
         BasicHttpService.startService(name, interface, port, new ServiceBuilder)
     }
 
+    /**
+     * In spray, we send messages to an Akka Actor. A RasService represents an Actor
+     * which extends the BasicRasService trait.
+     */
     private class RasService extends BasicRasService with Actor {
         override def actorRefFactory = context
     }
 
+    /**
+     * Akka-style factory for RasService.
+     */
     private class ServiceBuilder extends Creator[RasService] {
         def create = new RasService
     }

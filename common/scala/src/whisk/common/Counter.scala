@@ -18,17 +18,23 @@ package whisk.common
 
 import java.util.concurrent.atomic.AtomicInteger
 
-/*
+/**
  * A simple thread-safe counter.
  */
 class Counter {
     private val cnt = new AtomicInteger(0)
     def cur = cnt.get()
-    // Increment and get the current value
+
+    /**
+     * Increments and gets the current value.
+     */
     def next(): Int = {
         cnt.incrementAndGet()
     }
-    // Decrement and get the current value
+
+    /**
+     * Decrements and gets the current value.
+     */
     def prev(): Int = {
         cnt.decrementAndGet()
     }

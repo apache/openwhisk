@@ -90,8 +90,15 @@ class Config(
 
 }
 
+/**
+ * Singleton object which provides global methods to manage configuration.
+ */
 object Config extends Logging {
 
+    /**
+     * Reads a Map of key-value pairs from the Consul service -- store them in the
+     * mutable properties object.
+     */
     def readPropertiesFromConsul(properties: Settings) = {
         //try to get consulServer prop
         val consulString = for {
@@ -123,6 +130,10 @@ object Config extends Logging {
         }
     }
 
+    /**
+     * Reads a Map of key-value pairs from the environment (sys.env) -- store them in the
+     * mutable properties object.
+     */
     def readPropertiesFromEnvironment(properties: Settings) = {
         for (p <- properties.keys) {
             val envp = p.replace('.', '_').toUpperCase
@@ -134,6 +145,10 @@ object Config extends Logging {
         }
     }
 
+    /**
+     * Reads a Map of key-value pairs from the environment (sys.env) -- store them in the
+     * mutable properties object.
+     */
     def readPropertiesFromFile(properties: Settings, file: File) = {
         if (file != null && file.exists) {
             info("config", s"reading properties from file $file")
@@ -151,6 +166,12 @@ object Config extends Logging {
         }
     }
 
+    /**
+     * Checks that the properties object defines all the required properties.
+     *
+     * @param required a key-value map where the keys are required properties
+     * @param properties a set of properties to check
+     */
     def validateProperties(required: Map[String, String], properties: Settings): Boolean = {
         if (required.nonEmpty) {
             required.keys.map { p =>

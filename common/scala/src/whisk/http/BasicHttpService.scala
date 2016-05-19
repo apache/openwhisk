@@ -47,6 +47,10 @@ import whisk.common.Logging
 import whisk.common.TransactionCounter
 import whisk.common.TransactionId
 
+/**
+ * This trait extends the spray HttpService trait with logging and transaction counting
+ * facilities common to all OpenWhisk REST services.
+ */
 trait BasicHttpService extends HttpService with TransactionCounter with Logging {
 
     /**
