@@ -1,0 +1,6 @@
+{
+  "_id":"_design/subjects",
+  "views": { "uuids": { "map": "function (doc) {\n  emit([doc.uuid], {secret: doc.key});\n}" } },
+  "language":"javascript",
+  "indexes": {}
+}

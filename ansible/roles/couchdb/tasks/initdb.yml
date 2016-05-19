@@ -2,6 +2,69 @@
 # This role will initialize the immortal DBs in the database account.
 # This step is usually done only once per account.
 
-# Same as cloudant, so include here.
+- name: wait for user confirmation
+  pause: 
+    prompt: > 
+            About to drop and recreate database {{ db.immortal }} in this {{ db_provider }} account.
+            This will wipe the previous database if it exists and this is not reversible.
+            Are you sure? (press CTRL-C)
+  when: prompt_user
 
-- include: "{{ openwhisk_home }}/ansible/roles/cloudant/tasks/initdb.yml"
+- name: delete Immortal DBs
+  uri:
+    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ item }}"
+    method: DELETE
+    status_code: 200,404
+    user: "{{ db_username }}"
+    password: "{{ db_password }}"
+    force_basic_auth: yes
+  with_items: "{{ db.immortal }}"
+
+- name: create Immortal DBs
+  uri:
+    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ item }}"
+    method: PUT
+    status_code: 200,201
+    user: "{{ db_username }}"
+    password: "{{ db_password }}"
+    force_basic_auth: yes
+  with_items: "{{ db.immortal }}"
+
+- name: recreate the "full" index on the "auth" database
+  vars:
+    auth_index: "{{ lookup('file', 'files/auth_index.json') }}"
+  uri:
+    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db.auth }}"
+    method: POST
+    status_code: 200,201
+    body_format: json
+    body: "{{ auth_index }}"
+    user: "{{ db_username }}"
+    password: "{{ db_password }}"
+    force_basic_auth: yes
+
+- name: recreate necessary "auth" keys
+  vars:
+    key: "{{ lookup('file', 'files/auth.{{ item }}') }}"
+  uri:
+    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db.auth }}"
+    method: POST
+    status_code: 200,201
+    body_format: json
+    body: >
+          {
+            "_id": "{{ item }}",
+            "subject": "{{ item }}",
+            "uuid": "{{ key.split(":")[0] }}",
+            "key": "{{ key.split(":")[1] }}"
+          }
+    user: "{{ db_username }}"
+    password: "{{ db_password }}"
+    force_basic_auth: yes
+  with_items: "{{ db.authkeys }}"
+
+# TODO: remove this once we drop ant
+- name: generate database env file
+  template:
+    src: "{{ db_provider|lower }}-local.env.j2"
+    dest: "{{ openwhisk_home }}/{{ db_provider|lower }}-local.env"
