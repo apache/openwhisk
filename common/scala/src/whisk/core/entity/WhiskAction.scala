@@ -162,6 +162,8 @@ case class WhiskAction(
         r.limits = limits.toGson
         r
     }
+
+    def toJson = WhiskAction.serdes.write(this).asJsObject
 }
 
 object WhiskAction

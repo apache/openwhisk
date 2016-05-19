@@ -125,6 +125,8 @@ case class WhiskPackage(
         r
     }
 
+    def toJson = WhiskPackage.serdes.write(this).asJsObject
+
     override def summaryAsJson = {
         val JsObject(fields) = super.summaryAsJson
         JsObject(fields + (WhiskPackage.bindingFieldName -> binding.isDefined.toJson))
@@ -152,12 +154,15 @@ object WhiskPackage
     override val collectionName = "packages"
 
     override implicit val serdes = {
-        // This is to support records created in the old style where {} represents None.
+        // This is to conform to the old style where {} represents None.
         val tolerantOptionBindingFormat: JsonFormat[Option[Binding]] = {
             val bs = Binding.serdes // helps the compiler
             val base = implicitly[JsonFormat[Option[Binding]]]
             new JsonFormat[Option[Binding]] {
-                override def write(ob: Option[Binding]) = base.write(ob)
+                override def write(ob: Option[Binding]) = ob match {
+                    case None => JsObject()
+                    case _ => base.write(ob)
+                }
                 override def read(js: JsValue) = {
                     if (js == JsObject()) None else base.read(js)
                 }

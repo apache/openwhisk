@@ -86,6 +86,8 @@ case class WhiskActivation(
         r
     }
 
+    def toJson = WhiskActivation.serdes.write(this).asJsObject
+
     override def summaryAsJson = {
         val JsObject(fields) = super.summaryAsJson
         JsObject(fields + ("activationId" -> activationId.toJson))
@@ -100,7 +102,6 @@ case class WhiskActivation(
     def getResultJson : JsObject = {
         response.toExtendedJson.fields("result").asJsObject
     }
-
 }
 
 object WhiskActivation
