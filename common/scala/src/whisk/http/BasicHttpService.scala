@@ -36,7 +36,9 @@ import spray.http.HttpResponse
 import spray.http.MediaTypes.`text/plain`
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
 import spray.httpx.marshalling
+import spray.httpx.marshalling.ToResponseMarshallable.isMarshallable
 import spray.routing.Directive.pimpApply
+import spray.routing.Directives
 import spray.routing.HttpService
 import spray.routing.RejectionHandler
 import spray.routing.Route
@@ -88,20 +90,10 @@ trait BasicHttpService extends HttpService with TransactionCounter with Logging 
     protected val assignId = extract(_ => transid())
 
     /** Rejection handler to terminate connection on a bad request. Delegates to Spray handler. */
-    protected def badRequestHandler(implicit transid: TransactionId) = RejectionHandler {
+    protected def customRejectionHandler(implicit transid: TransactionId) = RejectionHandler {
         case rejections =>
             info(this, s"[REJECT] $rejections")
-            rejections match {
-                // get default rejection message, package it as an ErrorResponse instance
-                // which gets serialized into a Json object
-                case r if RejectionHandler.Default.isDefinedAt(r) =>
-                    ctx => RejectionHandler.Default(r) {
-                        ctx.withHttpResponseMapped {
-                            case resp @ HttpResponse(_, HttpEntity.NonEmpty(ContentType(`text/plain`, _), msg), _, _) =>
-                                resp.withEntity(marshalling.marshalUnsafe(ErrorResponse(msg.asString, transid)))
-                        }
-                    }
-            }
+            BasicHttpService.customRejectionHandler.apply(rejections)
     }
 
     /** Generates log entry for every request. */
@@ -114,12 +106,28 @@ trait BasicHttpService extends HttpService with TransactionCounter with Logging 
     }
 }
 
-object BasicHttpService {
+object BasicHttpService extends Directives {
     def startService[T <: Actor](name: String, interface: String, port: Integer, service: Creator[T]) = {
         val system = ActorSystem(name)
         val actor = system.actorOf(Props.create(service), s"$name-service")
 
         implicit val timeout = Timeout(5 seconds)
         IO(Http)(system) ? Http.Bind(actor, interface, port)
+    }
+
+    /** Rejection handler to terminate connection on a bad request. Delegates to Spray handler. */
+    def customRejectionHandler(implicit transid: TransactionId) = RejectionHandler {
+        // get default rejection message, package it as an ErrorResponse instance
+        // which gets serialized into a Json object
+        case r if RejectionHandler.Default.isDefinedAt(r) => {
+            ctx =>
+                RejectionHandler.Default(r) {
+                    ctx.withHttpResponseMapped {
+                        case resp @ HttpResponse(_, HttpEntity.NonEmpty(ContentType(`text/plain`, _), msg), _, _) =>
+                            resp.withEntity(marshalling.marshalUnsafe(ErrorResponse(msg.asString, transid)))
+                    }
+                }
+        }
+        case CustomRejection(status, cause) :: _ => complete(status, ErrorResponse(cause, transid))
     }
 }

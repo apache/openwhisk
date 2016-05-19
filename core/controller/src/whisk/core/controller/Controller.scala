@@ -68,7 +68,7 @@ class Controller(
     override def routes(implicit transid: TransactionId) : Route = {
         // handleRejections wraps the inner Route with a logical error-handler for
         // unmatched paths
-        handleRejections(badRequestHandler) {
+        handleRejections(customRejectionHandler) {
             super.routes ~ apiv1.routes
         }
     }

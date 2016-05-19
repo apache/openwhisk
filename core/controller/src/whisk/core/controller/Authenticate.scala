@@ -21,7 +21,8 @@ import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.util.Failure
 import scala.util.Success
-import scala.util.Try
+
+import org.lightcouch.NoDocumentException
 
 import spray.routing.authentication.UserPass
 import whisk.common.Logging
@@ -71,9 +72,12 @@ trait Authenticate extends Logging {
             } onComplete {
                 case Success(s) =>
                     promise.success(s)
+                case Failure(_: NoDocumentException | _: IllegalArgumentException) =>
+                    info(this, s"authentication not valid")
+                    promise.success(None)
                 case Failure(t) =>
                     info(this, s"authentication error: $t")
-                    promise.success(None)
+                    promise.failure(t)
             }
         } getOrElse {
             info(this, s"credentials are malformed")
