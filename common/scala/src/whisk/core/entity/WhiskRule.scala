@@ -26,6 +26,7 @@ import spray.json.RootJsonFormat
 import spray.json.deserializationError
 import whisk.core.database.DocumentFactory
 import whisk.core.entity.schema.RuleRecord
+import whisk.core.entity.schema.Record
 import spray.json.JsObject
 
 /**
@@ -88,6 +89,8 @@ case class WhiskRule(
         r.action = action()
         r
     }
+
+    def toJson = WhiskRule.serdes.write(this).asJsObject
 }
 
 /**

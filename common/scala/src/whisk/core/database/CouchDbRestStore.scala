@@ -65,36 +65,43 @@ class CouchDbRestStore[Unused, DocumentAbstraction <: DocumentSerializer](
     private implicit def fakeDeserializer[U <: Unused, T <: DocumentAbstraction]: Deserializer[U, T] = (x: U) => ???
 
     override protected[database] def put(d: DocumentAbstraction)(implicit transid: TransactionId): Future[DocInfo] = {
-        val serialized = d.serialize().get
-        require(serialized != null, "doc undefined after serialization")
-        serialized.confirmId
-        info(this, s"[PUT] '$dbName' saving document: '${serialized.docinfo}'", LoggingMarkers.DATABASE_SAVE_START)
+        // Uses Spray-JSON only.
+        val asJson = d.toDocumentRecord
 
-        // The spray-json version. This seems to be missing some important fields?
-        val asJson = jsonFormat.write(d).asJsObject
+        val id: String = asJson.fields("_id").convertTo[String].trim
+        val rev: Option[String] = asJson.fields.get("_rev").map(_.convertTo[String])
+        require(!id.isEmpty, "document id must be defined")
 
-        // The GSON version:
-        val asGson = {
+        val docinfoStr = s"id: $id, rev: ${rev.getOrElse("null")}"
+
+        info(this, s"[PUT] '$dbName' saving document: '${docinfoStr}'", LoggingMarkers.DATABASE_SAVE_START)
+
+        // The GSON version, as a sanity check.
+        {
             import spray.json._
             import DefaultJsonProtocol._
             import com.google.gson.Gson
+            val serialized = d.serialize().get
+            require(serialized != null, "doc undefined after serialization")
+            serialized.confirmId
             val srzd: String = new Gson().toJson(serialized)
-            srzd.parseJson.asJsObject
+            val asGson = srzd.parseJson.asJsObject
+
+            // Sanity check
+            if(asJson != asGson) {
+                warn(this, s"[PUT] JSON/GSON mismatch:")
+                warn(this, s"[PUT]   - json : " + asJson)
+                warn(this, s"[PUT]   - gson : " + asGson)
+                assert(false)
+            }
         }
 
-        // We'll activate this warning once we start getting rid of GSON.
-        // It doesn't really matter for now, because we insert from the GSON view
-        // anyway.
-        if (false && asJson != asGson) {
-            warn(this, s"[PUT] JSON/GSON mismatch:")
-            warn(this, s"[PUT]   - json : " + asJson)
-            warn(this, s"[PUT]   - gson : " + asGson)
-        }
+        val request: CouchDbRestClient => Future[Either[StatusCode, JsObject]] = rev match {
+            case Some(r) =>
+                client => client.putDoc(id, r, asJson)
 
-        val request: CouchDbRestClient => Future[Either[StatusCode, JsObject]] = if (serialized.update) {
-            client => client.putDoc(serialized.docinfo.id.id, serialized.docinfo.rev.rev, asGson /* Not ideal. */ )
-        } else {
-            client => client.putDoc(serialized.docinfo.id.id, asGson /* Not ideal. */ )
+            case None =>
+                client => client.putDoc(id, asJson)
         }
 
         reportFailure({
@@ -102,18 +109,18 @@ class CouchDbRestStore[Unused, DocumentAbstraction <: DocumentSerializer](
                 eitherResponse <- request(client)
             ) yield eitherResponse match {
                 case Right(response) =>
-                    info(this, s"[PUT] '$dbName' completed document: '${serialized.docinfo}', response: '$response'", LoggingMarkers.DATABASE_SAVE_DONE)
+                    info(this, s"[PUT] '$dbName' completed document: '${docinfoStr}', response: '$response'", LoggingMarkers.DATABASE_SAVE_DONE)
                     val id = response.fields("id").convertTo[String]
                     val rev = response.fields("rev").convertTo[String]
                     DocInfo ! (id, rev)
 
                 case Left(StatusCodes.Conflict) =>
-                    info(this, s"[PUT] '$dbName', document: '${serialized.docinfo}'; conflict.", LoggingMarkers.DATABASE_SAVE_DONE)
+                    info(this, s"[PUT] '$dbName', document: '${docinfoStr}'; conflict.", LoggingMarkers.DATABASE_SAVE_DONE)
                     // For compatibility.
                     throw new org.lightcouch.DocumentConflictException("conflict on 'put'")
 
                 case Left(code) =>
-                    error(this, s"[PUT] '$dbName' failed to put document: '${serialized.docinfo}'; http status: '${code}'", LoggingMarkers.DATABASE_SAVE_ERROR)
+                    error(this, s"[PUT] '$dbName' failed to put document: '${docinfoStr}'; http status: '${code}'", LoggingMarkers.DATABASE_SAVE_ERROR)
                     throw new Exception("Unexpected http response code: " + code)
             }
         },

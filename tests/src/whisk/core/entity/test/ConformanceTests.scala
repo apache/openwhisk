@@ -119,6 +119,7 @@ class ConformanceTests extends FlatSpec
 
         checkDatabaseFields(datastore, "whisks/all", classOf[RuleRecord], isRule)
 
+        // Added an exception for 'cause', as it doesn't seem to be present for all records.
         checkDatabaseFields(datastore, "whisks/all", classOf[ActivationRecord], isActivation, optional=Set("cause"))
 
         checkDatabaseFields(datastore, "whisks/all", classOf[PackageRecord], isPackage)
