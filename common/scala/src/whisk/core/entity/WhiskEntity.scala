@@ -20,6 +20,8 @@ import scala.util.Try
 import spray.json.JsValue
 import spray.json.JsObject
 import spray.json.JsBoolean
+import spray.json.JsString
+import spray.json.JsNumber
 import spray.json.RootJsonFormat
 import spray.json.DeserializationException
 import whisk.core.entity.schema.EntityRecord
@@ -71,6 +73,22 @@ abstract class WhiskEntity protected[entity] (en: EntityName) extends WhiskDocum
         w.annotations = annotations.toGson
         w.updated = updated.toEpochMilli
         w
+    }
+
+    /**
+     * Returns a JSON object with the fields specific to this abstract class.
+     */
+    protected def entityDocumentRecord : JsObject = JsObject(
+        "name" -> JsString(name.toString),
+        "updated" -> JsNumber(updated.toEpochMilli())
+    )
+
+    override def toDocumentRecord : JsObject = {
+        val extraFields = entityDocumentRecord.fields
+        val base = super.toDocumentRecord
+
+        // In this order to make sure the subclass can rewrite using toJson.
+        JsObject(extraFields ++ base.fields)
     }
 
     /**

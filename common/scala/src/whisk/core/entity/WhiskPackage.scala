@@ -125,6 +125,8 @@ case class WhiskPackage(
         r
     }
 
+    def toJson = WhiskPackage.serdes.write(this).asJsObject
+
     override def summaryAsJson = {
         val JsObject(fields) = super.summaryAsJson
         JsObject(fields + (WhiskPackage.bindingFieldName -> binding.isDefined.toJson))

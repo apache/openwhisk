@@ -71,6 +71,26 @@ protected[core] trait WhiskDocument
      * document revision if one exists.
      */
     protected[core] final def docinfo: DocInfo = DocInfo(docid, rev)
+
+    /**
+     * The representation as JSON, e.g. for REST calls. Does not include id/rev.
+     */
+    def toJson: JsObject
+
+    /**
+     * Database JSON representation. Includes id/rev when appropriate. May
+     * differ from `toJson` in exceptional cases.
+     */
+    override def toDocumentRecord: JsObject = {
+        val id = docid.id
+        val revOrNull = rev.rev
+
+        // Building up the fields.
+        val base    = this.toJson.fields
+        val withId  = base + ("_id" -> JsString(id))
+        val withRev = if(revOrNull == null) withId else { withId + ("_rev" -> JsString(revOrNull)) }
+        JsObject(withRev)
+    }
 }
 
 protected[core] object Util {

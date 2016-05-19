@@ -28,6 +28,8 @@ import whisk.core.entity.DocRevision
 import whisk.core.entity.DocRevision
 import scala.language.implicitConversions
 
+import spray.json.JsObject
+
 /**
  * A common trait for all records that are stored in the datastore requiring an _id field,
  * the unique document identifier. The _id field on a document must be defined (not null,
@@ -102,6 +104,13 @@ trait DocumentSerializer {
      * @return Try[Document]
      */
     def serialize(): Try[Document]
+
+    /**
+     * A JSON view including the document metadata.
+     *
+     * @return JsObject
+     */
+    def toDocumentRecord: JsObject
 }
 
 /**

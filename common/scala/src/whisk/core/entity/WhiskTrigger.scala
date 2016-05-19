@@ -20,6 +20,7 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 import spray.json.DefaultJsonProtocol
+import spray.json.JsObject
 import whisk.core.database.DocumentFactory
 import whisk.core.entity.schema.TriggerRecord
 import spray.json.JsString
@@ -71,6 +72,8 @@ case class WhiskTrigger(
         r.limits = limits.toGson
         r
     }
+
+    def toJson = WhiskTrigger.serdes.write(this).asJsObject
 }
 
 object WhiskTrigger
