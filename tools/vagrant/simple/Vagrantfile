@@ -37,6 +37,11 @@ Vagrant.configure('2') do |config|
 $script = <<SCRIPT
   set -e
   set -x
+    if [ -d "openwhisk" ]; then
+    #sometimes vagrant forgets that it's already provisioned
+    echo openwhisk already exists 
+    exit 0
+  fi
   sudo add-apt-repository ppa:git-core/ppa
   sudo apt-get update
   sudo apt-get install git -y
