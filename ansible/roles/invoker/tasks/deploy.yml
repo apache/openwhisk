@@ -23,7 +23,7 @@
     hostname: "invoker{{play_hosts.index(inventory_hostname)}}"
     env:
       "COMPONENT_NAME": "invoker{{play_hosts.index(inventory_hostname)}}"
-      "CONSULSERVER_HOST": "{{inventory_hostname}}"
+      "CONSULSERVER_HOST": "{{ groups['consul_servers'] | first }}"
       "CONSUL_HOST_PORT4": "{{consul.port.http}}"
       "SELF_DOCKER_ENDPOINT": "{{inventory_hostname}}:{{docker.port}}"
       "SERVICE_NAME": "invoker{{play_hosts.index(inventory_hostname)}}"
