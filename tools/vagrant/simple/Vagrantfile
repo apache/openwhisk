@@ -37,7 +37,9 @@ Vagrant.configure('2') do |config|
 $script = <<SCRIPT
   set -e
   set -x
-  sudo apt-get install -y git
+  sudo add-apt-repository ppa:git-core/ppa
+  sudo apt-get update
+  sudo apt-get install git -y
   git clone --depth=1 https://github.com/openwhisk/openwhisk.git
   cd openwhisk
   (cd tools/ubuntu-setup && source all.sh)
