@@ -77,7 +77,9 @@ class WhiskContainer(
         // this shouldn't be needed but leave it for now
         if (isBlackbox) Thread.sleep(3000)
         info(this, s"sending initialization to ${this.details}", INVOKER_CONTAINER_INIT)
-        val result = sendPayload("/init", JsObject("value" -> args), initTimeoutMilli) // This will retry.
+        // when invoking /init, don't wait longer than the timeout configured for this action
+        val timeout = Math.min(initTimeoutMilli, limits.timeout.duration.toMillis).toInt
+        val result = sendPayload("/init", JsObject("value" -> args), timeout) // This will retry.
         info(this, s"initialization result: ${result}")
         result
     }
