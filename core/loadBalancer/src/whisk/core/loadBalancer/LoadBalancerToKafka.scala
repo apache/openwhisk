@@ -117,7 +117,7 @@ trait LoadBalancerToKafka extends Logging {
     }
 
     protected def getUserActivationCounts(): Map[String, JsObject] = {
-        ActivationThrottle.encodeLoadBalancerUserActivation(userActivationCounter)
+        ActivationThrottle.encodeLoadBalancerUserActivation(userActivationCounter.toMap)
     }
 
     // A count of how many activations have been posted to Kafka based on invoker index or user/subject.

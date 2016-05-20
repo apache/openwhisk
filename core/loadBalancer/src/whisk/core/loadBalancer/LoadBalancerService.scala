@@ -16,13 +16,13 @@
 
 package whisk.core.loadBalancer
 
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 
 import akka.actor.ActorSystem
-
 import spray.json.JsBoolean
 import spray.json.JsObject
 import whisk.common.ConsulClient
@@ -34,9 +34,7 @@ import whisk.connector.kafka.KafkaConsumerConnector
 import whisk.connector.kafka.KafkaProducerConnector
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.{ servicePort, kafkaHost, consulServer, kafkaPartitions }
-import whisk.core.connector.{ Message, ActivationMessage, CompletionMessage, LoadBalancerResponse }
-import whisk.utils.ExecutionContextFactory
-import scala.concurrent.ExecutionContext
+import whisk.core.connector.{ ActivationMessage, CompletionMessage }
 
 class LoadBalancerService(config: WhiskConfig, verbosity: Verbosity.Level)(
     implicit val actorSystem: ActorSystem,
@@ -55,7 +53,7 @@ class LoadBalancerService(config: WhiskConfig, verbosity: Verbosity.Level)(
     override val producer = new KafkaProducerConnector(config.kafkaHost, executionContext)
 
     private val invokerHealth = new InvokerHealth(config, resetIssueCountByInvoker, () => producer.sentCount())
-    private val _activationThrottle = new ActivationThrottle(config.consulServer, invokerHealth)
+    private val _activationThrottle = new ActivationThrottle(config)
 
     // This must happen after the overrides
     setVerbosity(verbosity)
@@ -119,5 +117,6 @@ object LoadBalancerService {
             kafkaHost ++
             consulServer ++
             Map(kafkaPartitions -> null) ++
-            InvokerHealth.requiredProperties
+            InvokerHealth.requiredProperties ++
+            ActivationThrottle.requiredProperties
 }
