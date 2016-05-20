@@ -32,6 +32,10 @@ object Verbosity extends Enumeration {
  * A logging facility in which output is one line and fields are bracketed.
  */
 trait Logging {
+    /**
+     * The output stream, defaults to Console.out.
+     * This is mutable to allow unit tests to capture the stream.
+     */
     var outputStream: PrintStream = Console.out
 
     def setVerbosity(level: Verbosity.Level) =

@@ -41,7 +41,7 @@ class Controller(
     override def actorRefFactory = context
 
     override def routes(implicit transid: TransactionId) = {
-        handleRejections(badRequestHandler) {
+        handleRejections(customRejectionHandler) {
             super.routes ~ apiv1.routes
         }
     }

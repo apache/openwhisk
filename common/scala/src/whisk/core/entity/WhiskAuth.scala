@@ -17,22 +17,19 @@
 package whisk.core.entity
 
 import scala.concurrent.Future
-import scala.util.Failure
-import scala.util.Success
 import scala.util.Try
 
-import spray.caching.Cache
+import org.lightcouch.NoDocumentException
+
 import spray.json.JsObject
 import spray.json.JsString
 import spray.json.JsValue
 import spray.json.RootJsonFormat
 import spray.json.deserializationError
-import spray.json.pimpAny
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.database.ArtifactStore
 import whisk.core.database.DocumentFactory
-import whisk.core.database.InMemoryCache
 import whisk.core.entity.schema.AuthRecord
 
 /**
@@ -134,7 +131,7 @@ object WhiskAuth extends DocumentFactory[AuthRecord, WhiskAuth] {
                         }
                     case 0 =>
                         logger.info(this, s"$viewName[$uuid] does not exist")
-                        throw new IllegalStateException("uuid does not exist")
+                        throw new NoDocumentException("uuid does not exist")
                     case _ =>
                         logger.error(this, s"$viewName[$uuid] is not unique")
                         throw new IllegalStateException("uuid is not unique")

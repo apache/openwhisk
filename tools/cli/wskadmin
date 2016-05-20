@@ -48,7 +48,7 @@ ROOT_DIR = os.path.join(os.path.join(CLI_DIR, os.pardir), os.pardir)
 
 def main():
     requiredprops = [ DB_PROTOCOL, DB_HOST, DB_PORT, DB_USERNAME, DB_PASSWORD, DB_WHISK_AUTHS, DB_WHISK_ACTIONS ]
-    whiskprops = wskprop.importPropsIfAvailable(wskprop.propfile(os.getcwd()))
+    whiskprops = wskprop.importPropsIfAvailable(wskprop.propfile(ROOT_DIR))
     (valid, props, deferredInfo) = wskprop.checkRequiredProperties(requiredprops, whiskprops)
 
     exitCode = 0 if valid else 2
