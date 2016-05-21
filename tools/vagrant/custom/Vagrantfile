@@ -4,6 +4,10 @@
 
 # Custom OpenWhisk
 
+# vagrant resume issue https://github.com/mitchellh/vagrant/issues/6787
+# Don't use vagrant resume, it will run the provisioning a second producing errors
+# Use vagrant suspend and vagrant up (using up it skips provisioning)
+
 BOX = "ubuntu/trusty64-2"
 BOX_URL =  "https://cloud-images.ubuntu.com/vagrant/trusty/current/trusty-server-cloudimg-amd64-vagrant-disk1.box"
 BOX_MEMORY = ENV['BOX_MEMORY'] || '4096'
@@ -42,12 +46,14 @@ Vagrant.configure('2') do |config|
 $script_common = <<SCRIPT
   set -e
   set -x
-  sudo apt-get install -y git
+  sudo add-apt-repository ppa:git-core/ppa
+  sudo apt-get update
+  sudo apt-get install git -y
   cd /home/vagrant/openwhisk
   (cd tools/ubuntu-setup && source all.sh)
 SCRIPT
 
-  config.vm.provision "script_common", type: "shell", inline: $script_common
+  config.vm.provision "script_common", type: "shell", keep_color: true, inline: $script_common
    
   # Configure Databse 
 $script_db = <<SCRIPT
@@ -60,11 +66,11 @@ $script_db = <<SCRIPT
 SCRIPT
   
   if OW_DB
-    config.vm.provision "script_db", type: "shell", inline: $script_db
+    config.vm.provision "script_db", type: "shell", keep_color: true, inline: $script_db
   else
-    config.vm.provision "start-couchdb-box.sh", type: "shell", inline: "/home/vagrant/openwhisk/tools/db/couchdb/start-couchdb-box.sh whisk_admin some_passw0rd"    
+    config.vm.provision "start-couchdb-box.sh", type: "shell", keep_color: true, inline: "/home/vagrant/openwhisk/tools/db/couchdb/start-couchdb-box.sh whisk_admin some_passw0rd"    
   end
-  config.vm.provision "createImmortalDBs", type: "shell", inline: "/home/vagrant/openwhisk/tools/db/createImmortalDBs.sh --dropit"
+  config.vm.provision "createImmortalDBs", type: "shell", keep_color: true, inline: "/home/vagrant/openwhisk/tools/db/createImmortalDBs.sh --dropit"
     
   # Build and Deploy
 $script_end = <<SCRIPT
@@ -85,17 +91,17 @@ $script_end = <<SCRIPT
   HOME=/home/vagrant bin/wsk action invoke /whisk.system/samples/echo -p message hello --blocking --result
 SCRIPT
 
-  config.vm.provision "script_end", type: "shell", inline: $script_end
+  config.vm.provision "script_end", type: "shell", keep_color: true, inline: $script_end
 
   if ENV['gui'] == 'true'
     # Install ubuntu-desktop and virtualbox additions
-    config.vm.provision "shell", inline: "apt-get update"
-    config.vm.provision "shell", inline: "apt-get install -y virtualbox-guest-dkms"
-    config.vm.provision "shell", inline: "apt-get install -y virtualbox-guest-utils"
-    config.vm.provision "shell", inline: "apt-get install -y virtualbox-guest-x11"
-    config.vm.provision "shell", inline: "sed -i 's/allowed_users=.*$/allowed_users=anybody/' /etc/X11/Xwrapper.config"
+    config.vm.provision "shell", keep_color: true, inline: "apt-get update"
+    config.vm.provision "shell", keep_color: true, inline: "apt-get install -y virtualbox-guest-dkms"
+    config.vm.provision "shell", keep_color: true, inline: "apt-get install -y virtualbox-guest-utils"
+    config.vm.provision "shell", keep_color: true, inline: "apt-get install -y virtualbox-guest-x11"
+    config.vm.provision "shell", keep_color: true, inline: "sed -i 's/allowed_users=.*$/allowed_users=anybody/' /etc/X11/Xwrapper.config"
     #the ; true is used to ignore errors from ubuntu-desktop, vagrant reload should be done after provisioning
-    config.vm.provision "shell", inline: "sudo sh -c 'apt-get install -y ubuntu-desktop ; true'"
+    config.vm.provision "shell", keep_color: true, inline: "sudo sh -c 'apt-get install -y ubuntu-desktop ; true'"
   end
 
 end

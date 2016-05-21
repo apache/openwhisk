@@ -154,25 +154,27 @@ Do not use these certificates in production: add your own and modify
 the configuration to use trusted certificates instead
 
 
-### Using Vagrant vm in GUI mode (Optional)
-Create vm with Desktop GUI username=vagrant password=vagrant
-```
-  gui=true ./hello
-  gui=true vagrant reload
-```
-
-**Tip**: Ignore error message `Sub-process /usr/bin/dpkg returned an error code (1)` when 
-creating Vagrant vm using `gui-true`
-
 ### Misc
 ```
 # Suspend vagrant vm when done having fun
   vagrant suspend
 
 # Resume vagrant vm to have fun again
-  vagrant resume
-  
+  vagrant up
+
 # Read the help for wsk CLI
-  wsk -h
-  wsk <command> -h
+  vagrant ssh -- wsk -h
+  vagrant ssh -- wsk <command> -h
 ```
+**Tip**: Don't use vagrant resume https://github.com/mitchellh/vagrant/issues/6787 
+
+### Using Vagrant vm in GUI mode (Optional)
+Create vm with Desktop GUI username=vagrant password=vagrant
+```
+  gui=true ./hello
+  gui=true vagrant reload
+```
+**Tip**: Ignore error message `Sub-process /usr/bin/dpkg returned an error code (1)` when 
+creating Vagrant vm using `gui-true`. Remember to use `gui=true` everytime you do `vagrant resume` or `vagrant reload`, 
+you can make gui enable by default by editing the `Vagrant` file
+
