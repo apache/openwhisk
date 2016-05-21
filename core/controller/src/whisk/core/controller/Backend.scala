@@ -105,6 +105,9 @@ object WhiskServices extends LoadbalancerRequest {
 
 }
 
+/**
+ * A trait which defines a few services which a whisk microservice may rely on.
+ */
 trait WhiskServices {
     /** An entitlement service to check access rights. */
     protected val entitlementService: EntitlementService

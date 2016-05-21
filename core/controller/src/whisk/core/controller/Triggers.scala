@@ -63,6 +63,10 @@ import whisk.http.ErrorResponse.{ terminate }
 import whisk.core.entity.ActivationResponse
 import whisk.common.LoggingMarkers
 
+/**
+ * A singleton object which defines the properties that must be present in a configuration
+ * in order to implement the triggers API
+ */
 object WhiskTriggersApi {
     def requiredProperties = WhiskServices.requiredProperties ++
         WhiskEntityStore.requiredProperties

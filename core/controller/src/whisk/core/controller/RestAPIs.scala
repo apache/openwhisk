@@ -44,6 +44,11 @@ import whisk.core.entity.{Subject, WhiskActivationStore, WhiskAuthStore, WhiskEn
 import whisk.core.entity.types.{ActivationStore, AuthStore, EntityStore}
 import whisk.core.controller.WhiskServices.LoadBalancerReq
 
+/**
+ * Abstract class which provides basic Directives which are used to construct route structures
+ * which are common to all versions of the Rest API.
+ *
+ */
 abstract protected[controller] class RestAPIVersion(
     protected val apiversion: String,
     protected val build: String,
@@ -58,7 +63,15 @@ abstract protected[controller] class RestAPIVersion(
     protected val swaggerdocpath = "api-docs"
 
     def prefix = pathPrefix(apipath / apiversion)
+
+    /**
+     * This is the most important method -- it provides the routes that define the REST API.
+     */
     def routes(implicit transid: TransactionId): Route
+
+    /**
+     * Information which describes details of a particular deployment of the REST API.
+     */
     def info = {
         JsObject(
             "openwhisk" -> "hello".toJson,
@@ -68,6 +81,10 @@ abstract protected[controller] class RestAPIVersion(
     }
 }
 
+/**
+ * A singleton object which defines properties needed to instantiate a service for v1
+ * of the REST API
+ */
 protected[controller] object RestAPIVersion_v1 {
     def requiredProperties =
         WhiskConfig.whiskVersion ++
@@ -81,6 +98,9 @@ protected[controller] object RestAPIVersion_v1 {
             Collection.requiredProperties
 }
 
+/**
+ * An object which creates the Routes that define v1 of the whisk REST API
+ */
 protected[controller] class RestAPIVersion_v1(
     config: WhiskConfig,
     verbosity: Verbosity.Level,
@@ -90,7 +110,13 @@ protected[controller] class RestAPIVersion_v1(
     with Authenticate
     with AuthenticatedRoute {
 
-    override def routes(implicit transid: TransactionId) = {
+    /**
+     * Here's the key method: it defines the Route (route tree) which implement v1 of the REST API.
+     *
+     * @Idioglossia This relies on the spray routing DSL.
+     * @see http://spray.io/documentation/1.2.2/spray-routing/
+     */
+    override def routes(implicit transid: TransactionId) : Route = {
         pathPrefix(apipath / apiversion) {
             pathEndOrSingleSlash {
                 complete(OK, info)
@@ -216,8 +242,10 @@ protected[controller] class RestAPIVersion_v1(
         setVerbosity(verbosity)
     }
 
-    /** These are private routes that used to be in the load balancer.
+    /*
+     *  Below here are private routes that used to be in the load balancer.
      *  They are still needed for use by the activator and health checker.
+     *  These should go away eventually.
      */
 
     /**

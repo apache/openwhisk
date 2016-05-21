@@ -20,13 +20,13 @@ import java.util.Date
 import java.text.SimpleDateFormat
 import java.lang.System
 
-/*
- * Some methods for creating formatted date strings.
+/**
+ * Utility methods for creating formatted date strings.
  *
  */
 object DateUtil {
 
-    /*
+    /**
      * Return the current time as a string in yyyy-MM-dd'T'HH:mm:ss.SSSZ format.
      */
     def getTimeString() : String = {
@@ -36,7 +36,7 @@ object DateUtil {
       }
     }
 
-    /*
+    /**
      * Takes a string in a format given by getTimeString and returns time in epoch millis.
      */
     def parseToMilli(dateStr : String) : Long = {
