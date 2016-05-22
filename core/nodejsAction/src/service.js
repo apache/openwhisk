@@ -167,7 +167,7 @@ function newWhiskContext(config, logger) {
         apihost = protocol + '://' + config.edgeHost;
     }
 
-    return new whisk(apihost, config.whiskVersion, logger);
+    return new whisk(apihost, logger);
 }
 
 NodeActionService.getService = function(config, logger) {

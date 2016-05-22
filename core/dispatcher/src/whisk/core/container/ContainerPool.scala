@@ -474,8 +474,7 @@ class ContainerPool(
     }
 
     private def getContainerEnvironment(): Map[String, String] = {
-        Map(WhiskConfig.asEnvVar(WhiskConfig.edgeHostName) -> config.edgeHost,
-            WhiskConfig.asEnvVar(WhiskConfig.whiskVersionName) -> config.whiskVersion)
+        Map(WhiskConfig.asEnvVar(WhiskConfig.edgeHostName) -> config.edgeHost)
     }
 
     private val defaultMaxIdle = 10

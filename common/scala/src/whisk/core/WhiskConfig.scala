@@ -44,8 +44,6 @@ class WhiskConfig(
 
     val invokerContainerNetwork = this(WhiskConfig.invokerContainerNetwork)
 
-    val whiskVersion = this(WhiskConfig.whiskVersionName) + ":" + this(WhiskConfig.whiskVersionDate)
-
     val controllerHost = this(WhiskConfig.controllerHostName) + ":" + this(WhiskConfig.controllerHostPort)
     val edgeHost = this(WhiskConfig.edgeHostName) + ":" + this(WhiskConfig.edgeHostApiPort)
     val elkHost = this(WhiskConfig.elkHostName) + ":" + this(WhiskConfig.elkHostPort)
@@ -136,11 +134,10 @@ object WhiskConfig {
     // in the invoker (they are part of the environment
     // passed to the user container)
     val edgeHostName = "edge.host"
-    val whiskVersionName = "whisk.version.name"
     val whiskVersionDate = "whisk.version.date"
     val whiskVersionBuildno = "whisk.version.buildno"
 
-    val whiskVersion = Map(whiskVersionName -> null, whiskVersionDate -> null, whiskVersionBuildno -> null)
+    val whiskVersion = Map(whiskVersionDate -> null, whiskVersionBuildno -> null)
 
     val dockerImageTag = "docker.image.tag"
 

@@ -24,11 +24,9 @@ var request = require('request');
  * javascript actions.
  *
  * @param apihost the API end point 'https://host[:port]'
- * @param apikey  the API key to use for whisk API calls,
- * @param version the whisk version, optional
  * @param logger an optional log4js logger (with info() method)
  */
-function Whisk(apihost, version, logger) {
+function Whisk(apihost, logger) {
 
     this.apikey = "uninit_apikey";
 
@@ -54,13 +52,6 @@ function Whisk(apihost, version, logger) {
             parsed.name = qname;
         }
         return parsed;
-    }
-
-    /**
-     * Gets a string naming the whisk version of the current deployment.
-     */
-    this.getWhiskVersion = function() {
-        return version;
     }
 
     /**
