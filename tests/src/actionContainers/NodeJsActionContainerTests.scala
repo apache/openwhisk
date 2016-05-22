@@ -20,9 +20,10 @@ import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
-import spray.json._
 
 import ActionContainer.withContainer
+import spray.json._
+
 
 @RunWith(classOf[JUnitRunner])
 class NodeJsActionContainerTests extends FlatSpec with Matchers {
@@ -85,6 +86,19 @@ class NodeJsActionContainerTests extends FlatSpec with Matchers {
         val combined = filtered(out) + err
         combined.toLowerCase should include("error")
         combined.toLowerCase should include("syntax")
+    }
+
+    it should "fail to initialize with no code" in {
+        val (out, err) = withNodeJsContainer { c =>
+            val code = ""
+
+            val (initCode, error) = c.init(initPayload(code))
+
+            initCode should not be (200)
+            error shouldBe a[Some[_]]
+            error.get shouldBe a[JsObject]
+            error.get.fields("error").toString should include("no code to execute")
+        }
     }
 
     it should "return some error on action error" in {

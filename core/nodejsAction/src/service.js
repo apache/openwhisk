@@ -66,17 +66,21 @@ function NodeActionService(config, logger) {
                             // this writes to the activation logs visible to the user
                             console.error('Error during initialization:', userScript.initError);
                             var errStr = String(userScript.initError.stack)
-                            res.status(400).json({ msg: 'Error: Initialization has failed due to: ' + errStr });
+                            res.status(502).json({ error: 'Initialization has failed due to: ' + errStr });
                         }
                     } else {
-                        res.status(500).json({ error: "'lib' option not supported." });
+                        setStatus(Status.ready);
+                        res.status(500).json({ error: "Library and code dependencies not yet supported." });
                     }
+                } else {
+                    setStatus(Status.ready);
+                    res.status(500).json({ error: "Missing main/no code to execute." });
                 }
             } catch (e) {
                 logger.error('[initCode]', 'exception', e);
-                shutdown(res, 500, { msg: 'exception in server ' + String(e) });
+                shutdown(res, 500, { error: 'Internal system error: ' + String(e) });
             }
-        } else res.status(409).send();
+        } else res.status(502).send({ error: 'Internal system error: system not ready.' });
     }
 
     /**
