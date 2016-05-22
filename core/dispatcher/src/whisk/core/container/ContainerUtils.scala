@@ -172,8 +172,11 @@ trait ContainerUtils extends Logging {
      * Synchronously runs the given docker command returning stdout if successful.
      */
     def runDockerCmd(skipLogError: Boolean, args: Seq[String])(implicit transid: TransactionId): DockerOutput = {
-        getDockerCmd(dockerhost) map { _ ++ args } map { info(this, s"runDockerCmd: transid = $transid", LogMarkerToken("invoker", s"docker.${args(0)}", "start")); SimpleExec.syncRunCmd(_)(transid) } match {
-            case Some((stdout, stderr, exitCode)) =>
+        getDockerCmd(dockerhost) map { _ ++ args } map {
+            info(this, s"runDockerCmd: transid = $transid", LogMarkerToken("invoker", s"docker.${args(0)}", "start"))
+            SimpleExec.syncRunCmd(_)(transid)
+        } map {
+            case (stdout, stderr, exitCode) =>
                 info(this, "", LogMarkerToken("invoker", s"docker.${args(0)}", "finish"))
                 if (exitCode == 0) {
                     Some(stdout.trim)
@@ -183,9 +186,9 @@ trait ContainerUtils extends Logging {
                     }
                     None
                 }
-            case None =>
-                error(this, "docker executable not found", LogMarkerToken("invoker", s"docker.${args(0)}", "error"))
-                None
+        } getOrElse {
+            error(this, "docker executable not found", LogMarkerToken("invoker", s"docker.${args(0)}", "error"))
+            None
         }
     }
 

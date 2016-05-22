@@ -156,7 +156,7 @@ class ContainerPool(
     final def getImpl(key: String, conMaker: () => ContainerResult)(implicit transid: TransactionId): Option[(Container, Option[RunResult])] = {
         getOrMake(key, conMaker) match {
             case Success(con, initResult) =>
-                info(this, s"""Obtained container ${con.containerId.getOrElse("unknown")}""")
+                info(this, s"Obtained container ${con.containerId.getOrElse("unknown")}")
                 return Some(con, initResult)
             case Error(str) =>
                 error(this, s"Error starting container: $str")
@@ -574,15 +574,21 @@ class ContainerPool(
      * Remove all containers with the actionContainerPrefix to kill leftover action containers.
      * Useful for a hotswap.
      */
-    def killStragglers()(implicit transid: TransactionId) =
-        listAll.foreach({
+    def killStragglers()(implicit transid: TransactionId) = {
+        listAll foreach {
             case ContainerState(id, image, name) => {
                 if (name.startsWith(actionContainerPrefix)) {
                     unpauseContainer(name)
                     killContainer(name)
                 }
             }
-        })
+        }
+    }
+
+    def warmupContainers() = {
+        if (useWarmContainers)
+            warmupThread.start
+    }
 
     /*
      * Get the size of the mounted file associated with this whisk container.
@@ -590,9 +596,6 @@ class ContainerPool(
     def getLogSize(con: WhiskContainer, mounted: Boolean)(implicit transid: TransactionId): Long = {
         con.containerId map { id => getDockerLogSize(id, mounted) } getOrElse 0
     }
-
-    if (useWarmContainers)
-        warmupThread.start
 }
 
 object ContainerPool {
