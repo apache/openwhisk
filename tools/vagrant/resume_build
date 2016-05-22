@@ -1,0 +1,16 @@
+#!/bin/bash
+
+set -e
+set -x
+
+vagrant ssh -- "cd openwhisk && ant build"
+
+vagrant ssh -- "cd openwhisk && ant deploy"
+
+vagrant ssh -- "cd openwhisk && source tools/ubuntu-setup/bashprofile.sh"
+
+vagrant ssh -- "source .bash_profile"
+
+vagrant ssh -- "cd openwhisk && cat config/keys/auth.guest | xargs bin/wsk property set --auth"
+
+vagrant ssh -- "openwhisk/bin/wsk action invoke /whisk.system/samples/echo -p message hello --blocking --result"
