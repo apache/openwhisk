@@ -17,35 +17,33 @@
 package system.basic
 
 import java.io.File
+import java.time.Instant
 
 import org.apache.commons.io.FileUtils
 import org.junit.runner.RunWith
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.BeforeAndAfterEachTestData
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
-import org.scalatest.ParallelTestExecution
-import org.scalatest.TestData
 import org.scalatest.junit.JUnitRunner
-import spray.json.DefaultJsonProtocol._
-import spray.json.pimpAny
 
-import common.DeleteFromCollection
-import common.RunWskCmd
-import common.TestHelpers
 import common.TestHelpers
 import common.TestUtils
-import common.TestUtils._
+import common.TestUtils.ANY_ERROR_EXIT
+import common.TestUtils.BAD_REQUEST
+import common.TestUtils.CONFLICT
+import common.TestUtils.FORBIDDEN
+import common.TestUtils.MISUSE_EXIT
+import common.TestUtils.NOTALLOWED
+import common.TestUtils.NOT_FOUND
+import common.TestUtils.SUCCESS_EXIT
+import common.TestUtils.TIMEOUT
+import common.TestUtils.UNAUTHORIZED
 import common.Wsk
-import common.WskAction
-import common.WskProps
 import common.WskProps
 import common.WskTestHelpers
-import spray.json._
+import spray.json.DefaultJsonProtocol.JsValueFormat
+import spray.json.DefaultJsonProtocol.LongJsonFormat
 import spray.json.DefaultJsonProtocol.StringJsonFormat
-import spray.json.PimpedAny
+import spray.json.DefaultJsonProtocol.mapFormat
+import spray.json.pimpAny
 import whisk.core.entity.WhiskPackage
-import java.time.Instant
 
 @RunWith(classOf[JUnitRunner])
 class WskBasicTests

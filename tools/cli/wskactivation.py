@@ -227,7 +227,7 @@ class Activation(Item):
                     return
             L = self.fetchActivations(lastTime, args, props)
             if L:
-                printLogs(L, reported)
+                printLogs(reversed(L), reported)
                 time.sleep(SLEEP_SECONDS)
 
     #

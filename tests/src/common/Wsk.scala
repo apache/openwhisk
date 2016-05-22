@@ -40,6 +40,7 @@ import spray.json.JsObject
 import spray.json.JsValue
 import spray.json.pimpString
 import whisk.utils.retry
+import java.time.Instant
 
 /**
  * Provide Scala bindings for the whisk CLI.
@@ -437,20 +438,40 @@ class WskActivation()
     protected val noun = "activation"
 
     /**
+     * Activation polling console.
+     *
+     * @param duration exits console after duration
+     * @param since (optional) time travels back to activation since given duration
+     */
+    def console(
+        duration: Duration,
+        since: Option[Duration] = None,
+        expectedExitCode: Int = SUCCESS_EXIT)(
+            implicit wp: WskProps): RunResult = {
+        val params = Seq(noun, "poll", "--auth", wp.authKey, "--exit", duration.toSeconds.toString) ++
+            { since map { s => Seq("--since-seconds", s.toSeconds.toString) } getOrElse Seq() }
+        cli(wp.overrides ++ params, expectedExitCode)
+    }
+
+    /**
      * Lists activations.
      *
      * @param filter (optional) if define, must be a simple entity name
+     * @param limit (optional) the maximum number of activation to return
+     * @param since (optional) only the activations since this timestamp are included
      * @param expectedExitCode (optional) the expected exit code for the command
      * if the code is anything but DONTCARE_EXIT, assert the code is as expected
      */
     def list(
         filter: Option[String] = None,
         limit: Option[Int] = None,
+        since: Option[Instant] = None,
         expectedExitCode: Int = SUCCESS_EXIT)(
             implicit wp: WskProps): RunResult = {
         val params = Seq(noun, "list", "--auth", wp.authKey) ++
             { filter map { Seq(_) } getOrElse Seq() } ++
-            { limit map { l => Seq("--limit", l.toString) } getOrElse Seq() }
+            { limit map { l => Seq("--limit", l.toString) } getOrElse Seq() } ++
+            { since map { i => Seq("--since", i.toEpochMilli.toString) } getOrElse Seq() }
         cli(wp.overrides ++ params, expectedExitCode)
     }
 
@@ -522,6 +543,7 @@ class WskActivation()
      * @param N the number of activations desired
      * @param entity the name of the entity to filter from activation list
      * @param limit the maximum number of entities to list (if entity name is not unique use Some(0))
+     * @param since (optional) only the activations since this timestamp are included
      * @param retries the maximum retries (total timeout is retries + 1 seconds)
      * @return activation ids found, caller must check length of sequence
      */
@@ -529,11 +551,12 @@ class WskActivation()
         N: Int,
         entity: Option[String],
         limit: Option[Int] = None,
+        since: Option[Instant] = None,
         retries: Int = 10)(
             implicit wp: WskProps): Seq[String] = {
         Try {
             retry({
-                val result = ids(list(filter = entity, limit = limit))
+                val result = ids(list(filter = entity, limit = limit, since = since))
                 if (result.length >= N) result else throw PartialResult(result)
             }, retries, waitBeforeRetry = Some(1 second))
         } match {

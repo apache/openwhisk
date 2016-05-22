@@ -18,14 +18,16 @@ package whisk.core.controller.test
 
 import scala.concurrent.Await
 import scala.concurrent.Future
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.SECONDS
+import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
+
 import org.scalatest.BeforeAndAfter
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
+
 import akka.actor.ActorSystem
 import spray.http.BasicHttpCredentials
-import spray.http.HttpRequest
 import spray.routing.HttpService
 import spray.testkit.ScalatestRouteTest
 import whisk.common.Logging
@@ -34,7 +36,6 @@ import whisk.common.TransactionId
 import whisk.common.Verbosity
 import whisk.core.WhiskConfig
 import whisk.core.connector.LoadBalancerResponse
-import whisk.core.connector.ActivationMessage
 import whisk.core.controller.WhiskActionsApi
 import whisk.core.controller.WhiskServices
 import whisk.core.database.test.DbUtils
@@ -47,6 +48,7 @@ import whisk.core.entity.DocId
 import whisk.core.entity.EntityName
 import whisk.core.entity.Subject
 import whisk.core.entity.WhiskAction
+import whisk.core.entity.WhiskActivation
 import whisk.core.entity.WhiskActivationStore
 import whisk.core.entity.WhiskAuth
 import whisk.core.entity.WhiskAuthStore
@@ -54,8 +56,6 @@ import whisk.core.entity.WhiskEntityStore
 import whisk.core.entity.WhiskPackage
 import whisk.core.entity.WhiskRule
 import whisk.core.entity.WhiskTrigger
-import org.scalatest.BeforeAndAfterAll
-import whisk.core.entity.WhiskActivation
 
 protected trait ControllerTestCommon
     extends FlatSpec
@@ -70,7 +70,7 @@ protected trait ControllerTestCommon
     with Logging {
 
     override val actorRefFactory = null
-    implicit val routeTestTimeout = RouteTestTimeout(Duration(90, SECONDS))
+    implicit val routeTestTimeout = RouteTestTimeout(90 seconds)
 
     val config = new WhiskConfig(WhiskActionsApi.requiredProperties)
     assert(config.isValid)
