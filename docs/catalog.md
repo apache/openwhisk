@@ -124,6 +124,8 @@ You can use the `changes` feed to configure a service to fire a trigger on every
 
 4. Observe new activations for the `myCloudantTrigger` trigger for each document change.
 
+**Note**: If you are unable to observe new activations, see the subsequent sections on reading from and writing to a Cloudant database. Testing the reading and writing steps below will help verify that your Cloudant credentials are correct.
+
 You can now create rules and associate them to actions to react to the document updates.
 
 The content of the generated events depends on the value of the `includeDoc` parameter when creating the trigger. If set to true, each trigger event that is fired includes the modified Cloudant document. For example, consider the following modified document:
@@ -215,7 +217,7 @@ The package includes the following feed.
 
 The `/whisk.system/alarms/alarm` feed configures the Alarm service to fire a trigger event at a specified frequency. The parameters are as follows:
 
-- `cron`: A string, based on the Unix crontab syntax, that indicates when to fire the trigger. The string is a sequence of six fields separated by spaces: `X X X X X X `. Here are some examples of the frequency indicated by the string:
+- `cron`: A string, based on the Unix crontab syntax, that indicates when to fire the trigger in Coordinated Universal Time (UTC). The string is a sequence of six fields separated by spaces: `X X X X X X `. For more details on using cron syntax, see: https://github.com/ncb000gt/node-cron. Here are some examples of the frequency indicated by the string:
 
   - `* * * * * *`: every second.
   - `0 * * * * *`: top of every minute.
@@ -307,6 +309,7 @@ The package includes the following actions.
 | `/whisk.system/watson` | package | username, password | Actions for the Watson analytics APIs |
 | `/whisk.system/watson/translate` | action | translateFrom, translateTo, translateParam, username, password | Translate text |
 | `/whisk.system/watson/languageId` | action | payload, username, password | Identify language |
+| `/whisk.system/watson/textToSpeech` | action | payload, voice, accept, encoding, username, password | Convert text into audio |
 
 While not required, it's suggested that you create a package binding with the `username` and `password` values. This way you don't need to specify these credentials every time you invoke the actions in the package.
 
@@ -367,6 +370,37 @@ Here is an example of creating a package binding and identifying the language of
     "payload": "Ciel bleu a venir",
     "language": "fr",
     "confidence": 0.710906
+  }
+  ```
+
+
+### Converting some text to speech
+
+The `/whisk.system/watson/textToSpeech` action converts some text into an audio speech. The parameters are as follows:
+
+- `username`: The Watson API username.
+- `password`: The Watson API password.
+- `payload`: The text to convert into speech.
+- `voice`: The voice of the speaker.
+- `accept`: The format of the speech file.
+- `encoding`: The encoding of the speech binary data.
+
+Here is an example of creating a package binding and converting some text to speech.
+
+1. Create a package binding with your Watson credentials.
+
+  ```
+  $ wsk package bind /whisk.system/watson myWatson -p username 'MY_WATSON_USERNAME' -p password 'MY_WATSON_PASSWORD'
+  ```
+
+2. Invoke the `textToSpeech` action in your package binding to convert the text.
+
+  ```
+  $ wsk action invoke myWatson/textToSpeech --blocking --result --param payload 'Hey.' --param voice 'en-US_MichaelVoice' --param accept 'audio/wav' --param encoding 'base64'
+  ```
+  ```
+  {
+    "payload": "<base64 encoding of a .wav file>"
   }
   ```
 
