@@ -35,12 +35,12 @@
       - "{{whisk_logs_dir}}/invoker{{play_hosts.index(inventory_hostname)}}:/logs"
       - "/var/lib/docker/containers/:/containers"
     ports:
-      - "{{invoker.port}}:8080"
+      - "{{invoker.port + play_hosts.index(inventory_hostname)}}:8080"
     command: "/dispatcher/bin/dispatcher invoker {{play_hosts.index(inventory_hostname)}}"
 
 - name: Wait until Invoker is up and running
   wait_for:
     delay: 2
     host: "{{inventory_hostname}}"
-    port: "{{invoker.port}}"
+    port: "{{invoker.port + play_hosts.index(inventory_hostname)}}"
     timeout: 60
