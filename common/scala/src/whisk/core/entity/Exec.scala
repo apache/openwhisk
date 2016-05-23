@@ -59,6 +59,10 @@ sealed abstract class Exec(val kind: String) {
                 gson.add("code", new JsonPrimitive(code))
                 gson.add("init", init map { new JsonPrimitive(_) } getOrElse JsonNull.INSTANCE)
 
+            case NodeJS6Exec(code, init) =>
+                gson.add("code", new JsonPrimitive(code))
+                gson.add("init", init map { new JsonPrimitive(_) } getOrElse JsonNull.INSTANCE)
+
             case PythonExec(code) =>
                 gson.add("code", new JsonPrimitive(code))
 
@@ -84,6 +88,10 @@ sealed abstract class Exec(val kind: String) {
 
 protected[core] case class NodeJSExec(code: String, init: Option[String]) extends Exec(Exec.NODEJS) {
     val image = "whisk/nodejsaction"
+}
+
+protected[core] case class NodeJS6Exec(code: String, init: Option[String]) extends Exec(Exec.NODEJS6) {
+    val image = "whisk/nodejs6action"
 }
 
 protected[core] case class PythonExec(code: String) extends Exec(Exec.PYTHON) {
@@ -112,6 +120,7 @@ protected[core] object Exec
 
     // The possible values of the JSON 'kind' field.
     protected[core] val NODEJS   = "nodejs"
+    protected[core] val NODEJS6  = "nodejs:6"
     protected[core] val PYTHON   = "python"
     protected[core] val SWIFT    = "swift"
     protected[core] val SWIFT3   = "swift:3"
@@ -119,6 +128,7 @@ protected[core] object Exec
     protected[core] val BLACKBOX = "blackbox"
 
     protected[core] def js(code: String, init: String = null): Exec = NodeJSExec(trim(code), Option(init).map(_.trim))
+    protected[core] def js6(code: String, init: String = null): Exec = NodeJS6Exec(trim(code), Option(init).map(_.trim))
     protected[core] def bb(image: String): Exec = BlackBoxExec(trim(image))
     protected[core] def swift(code: String): Exec = SwiftExec(trim(code))
     protected[core] def swift3(code: String): Exec = Swift3Exec(trim(code))
@@ -126,13 +136,15 @@ protected[core] object Exec
 
     override protected[core] implicit val serdes = new RootJsonFormat[Exec] {
         override def write(e: Exec) = e match {
-            case NodeJSExec(code, None)       => JsObject("kind" -> JsString(Exec.NODEJS), "code" -> JsString(code))
-            case NodeJSExec(code, Some(init)) => JsObject("kind" -> JsString(Exec.NODEJS), "code" -> JsString(code), "init" -> JsString(init))
-            case PythonExec(code)             => JsObject("kind" -> JsString(Exec.PYTHON), "code" -> JsString(code))
-            case SwiftExec(code)              => JsObject("kind" -> JsString(Exec.SWIFT), "code" -> JsString(code))
-            case Swift3Exec(code)             => JsObject("kind" -> JsString(Exec.SWIFT3), "code" -> JsString(code))
-            case JavaExec(jar, main)          => JsObject("kind" -> JsString(Exec.JAVA), "jar" -> JsString(jar), "main" -> JsString(main))
-            case BlackBoxExec(image)          => JsObject("kind" -> JsString(Exec.BLACKBOX), "image" -> JsString(image))
+            case NodeJSExec(code, None)        => JsObject("kind" -> JsString(Exec.NODEJS), "code" -> JsString(code))
+            case NodeJSExec(code, Some(init))  => JsObject("kind" -> JsString(Exec.NODEJS), "code" -> JsString(code), "init" -> JsString(init))
+            case NodeJS6Exec(code, None)       => JsObject("kind" -> JsString(Exec.NODEJS6), "code" -> JsString(code))
+            case NodeJS6Exec(code, Some(init)) => JsObject("kind" -> JsString(Exec.NODEJS6), "code" -> JsString(code), "init" -> JsString(init))
+            case PythonExec(code)              => JsObject("kind" -> JsString(Exec.PYTHON), "code" -> JsString(code))
+            case SwiftExec(code)               => JsObject("kind" -> JsString(Exec.SWIFT), "code" -> JsString(code))
+            case Swift3Exec(code)              => JsObject("kind" -> JsString(Exec.SWIFT3), "code" -> JsString(code))
+            case JavaExec(jar, main)           => JsObject("kind" -> JsString(Exec.JAVA), "jar" -> JsString(jar), "main" -> JsString(main))
+            case BlackBoxExec(image)           => JsObject("kind" -> JsString(Exec.BLACKBOX), "image" -> JsString(image))
         }
 
         override def read(v: JsValue) = {
@@ -157,6 +169,18 @@ protected[core] object Exec
                         case _                => None
                     }
                     NodeJSExec(code, init)
+
+                case Exec.NODEJS6 =>
+                    val code: String = obj.getFields("code") match {
+                        case Seq(JsString(c)) => c
+                        case _                => throw new DeserializationException(s"'code' must be a string defined in 'exec' for '${Exec.NODEJS6}' actions")
+                    }
+                    val init: Option[String] = obj.getFields("init") match {
+                        case Seq(JsString(i)) => Some(i)
+                        case Seq(_)           => throw new DeserializationException(s"if defined, 'init' must a string in 'exec' for '${Exec.NODEJS6}' actions")
+                        case _                => None
+                    }
+                    NodeJS6Exec(code, init)
 
                 case Exec.PYTHON =>
                     val code: String = obj.getFields("code") match {
@@ -197,7 +221,7 @@ protected[core] object Exec
                     }
                     BlackBoxExec(image)
 
-                case _ => throw new DeserializationException(s"kind '$kind' not one of {${Exec.NODEJS}, ${Exec.PYTHON}, ${Exec.SWIFT}, ${Exec.SWIFT3}, ${Exec.JAVA}, ${Exec.BLACKBOX}}")
+                case _ => throw new DeserializationException(s"kind '$kind' not one of {${Exec.NODEJS},${Exec.NODEJS6}, ${Exec.PYTHON}, ${Exec.SWIFT}, ${Exec.SWIFT3}, ${Exec.JAVA}, ${Exec.BLACKBOX}}")
             }
         }
     }

@@ -119,6 +119,7 @@ def pullActionContainerImages(whiskprops, invokerHost, tag):
     imagesToPull = [
         'whisk/dispatcher',
         'whisk/nodejsaction',
+        'whisk/nodejs6action',
         'whisk/pythonaction',
         'whisk/swiftaction',
         'whisk/swift3action',

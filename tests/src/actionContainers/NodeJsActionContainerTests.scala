@@ -28,8 +28,10 @@ import spray.json._
 @RunWith(classOf[JUnitRunner])
 class NodeJsActionContainerTests extends FlatSpec with Matchers {
 
+    val nodejsContainerImageName = "whisk/nodejsaction"
+
     // Helpers specific to nodejsaction
-    def withNodeJsContainer(code: ActionContainer => Unit) = withContainer("whisk/nodejsaction")(code)
+    def withNodeJsContainer(code: ActionContainer => Unit) = withContainer(nodejsContainerImageName)(code)
     def initPayload(code: String) = JsObject(
         "value" -> JsObject(
             "name" -> JsString("dummyAction"),

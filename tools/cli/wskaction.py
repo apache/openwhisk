@@ -158,6 +158,7 @@ class Action(Item):
 
     # creates one of:
     # { kind: "nodejs", code: "js code", initializer: "base64 encoded string" } where initializer is optional
+    # { kind: "nodejs6", code: "js6 code", initializer: "base64 encoded string" } where initializer is optional
     # { kind: "python", code: "python code" }
     # { kind: "swift", code: "swift code" }
     # { kind: "swift3", code: "swift3 code" }
@@ -189,6 +190,9 @@ class Action(Item):
                 exe['kind'] = 'java'
                 exe['jar'] = base64.b64encode(contents)
                 exe['main'] = self.findMainClass(args.artifact)
+            elif args.kind in ['nodejs:6','nodejs:6.0','nodejs:6.0.0']:
+                exe['kind'] = 'nodejs:6'
+                exe['code'] = contents
             else:
                 exe['kind'] = 'nodejs'
                 exe['code'] = contents
