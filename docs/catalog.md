@@ -370,6 +370,38 @@ Here is an example of creating a package binding and identifying the language of
   }
   ```
 
+### Synthesizes text input to spoken audio
+
+The `/whisk.system/watson/textToSpeech` action help synthesize text input of any supported language to produce audio output. The parameters are as follows:
+
+- `username`: The Watson API username.
+- `password`: The Watson API password.
+- `payload`: The text to be synthesized.
+- `voice`: The voice to be used for synthesis.
+- `accept`: The requested MIME type of the audio.
+- `encoding`: The encoding of the speech binary data.
+
+Here is an example of creating a package binding and synthesize the audio of some input text.
+
+1. Create a package binding with your Watson credentials.
+
+  ```
+  $ wsk package bind /whisk.system/watson myWatson -p username 'MY_WATSON_USERNAME' -p password 'MY_WATSON_PASSWORD'
+  ```
+
+2. Invoke the `textToSpeech` action in your package binding to identify the language.
+
+  ```
+  $ wsk action invoke myWatson/textToSpeech --blocking --result --param payload 'hello world'  --param voice 'en-US_MichaelVoice' --param accept 'audio/wav' --param encoding 'base64'
+  ```
+  ```
+  {
+    "encoding": "base64",
+    "mimetype": "audio/wav",
+    "payload": "UklGRV///..."
+  }
+  ```
+
 
 ## Using the Slack package
 
