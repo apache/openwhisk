@@ -25,11 +25,16 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.Collections;
+import java.util.Iterator;
 
 import com.google.gson.JsonObject;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonParser;
+import com.google.gson.JsonElement;
 import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
 
@@ -98,8 +103,28 @@ public class TestUtils {
                 return new JsonParser().parse(new FileReader(vcapFile)).getAsJsonObject();
             }
         } catch (Throwable t) {
-            System.out.println("faild to parse VCAP" + t);
+            System.out.println("failed to parse VCAP" + t);
             return new JsonObject();
+        }
+    }
+
+    /* Gets a VCAP_SERVICES credentials
+     * @return VCAP credentials as a <String, String> map for each <property, value> pair in credentials
+     */
+    public static Map<String, String> getVCAPcredentials(String vcapService) {
+        try {
+            JsonArray vcapArray = getVCAPServices().get(vcapService).getAsJsonArray();
+            JsonObject vcapObject = vcapArray.get(0).getAsJsonObject();
+            JsonObject credentials = vcapObject.get("credentials").getAsJsonObject();
+            Map<String,String> map = new HashMap<String,String>();
+            for(Map.Entry<String, JsonElement> entry : credentials.entrySet()) {
+                map.put(entry.getKey(), credentials.get(entry.getKey()).getAsString());
+            }
+
+            return map;
+        } catch (Throwable t) {
+            System.out.println("failed to parse VCAP" + t);
+            return Collections.EMPTY_MAP;
         }
     }
 
