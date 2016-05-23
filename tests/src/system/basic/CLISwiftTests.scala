@@ -73,7 +73,7 @@ class CLISwiftTests
     /**
      * Test the Swift 3 example
      */
-    it should "invoke a swift:3 action" in withAssetCleaner(wskprops) {
+    ignore should "invoke a swift:3 action" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "helloSwift3"
             assetHelper.withCleaner(wsk.action, name) {
