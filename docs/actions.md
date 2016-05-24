@@ -323,6 +323,102 @@ Several utility actions are provided in a package called `/whisk.system/util` th
 
   In the result, you see that the lines are sorted.
 
+## Creating Python actions
+
+The process of creating Python actions is similar to that of JavaScript actions. The following sections guide you through creating and invoking a single Python action, and adding parameters to that action.
+
+### Creating and invoking an action
+
+An action is simply a top-level Python function, which means it is necessary to have a method named 'main'. For example, create a file called
+`hello.py` with the following content:
+
+```
+    def main(dict):
+        name = dict.get('name', "Stranger")
+        greeting = "Hello " + name + "."
+        print(greeting)
+        return {"greeting": greeting}
+```
+
+Note that just like JavaScript actions, Python actions always consume a dictionary and produce a
+dictionary. The simplicity of Python is that there is no need to define the type of the parameter
+before using it. Parameters are able to name and use as the expected type in the code. As in the
+above code, a value for the key "name" is expected. If this key is not available, "Stranger" will
+be taken as the default value.
+
+You can create a OpenWhisk action called `helloPython` from this function as
+follows:
+
+```
+$ wsk action create helloPython hello.py
+```
+
+When using the command line and a `.py` source file, you do not need to
+specify that you are creating a Python action (as opposed to a JavaScript action);
+the tool determines that from the file extension.
+
+You can specify the parameters in terms of the key-value pairs. The format is to add
+one more option "--param <key> <value>". With each option "--param", you can input one
+key-value pair. For example, you can input a value "World" for the key "name" by typing
+"--param name World":
+
+```
+$ wsk action invoke --blocking --result helloPython --param name World
+```
+
+The result of the above command will be:
+```
+  {
+      "greeting": "Hello World."
+  }
+```
+
+If you want to input more than one key-value pairs as the parameter, simply add another
+option "--param <key> <value>" in the end of the command. For example, you would like to
+add another value "Male" to the key "gender":
+
+```
+$ wsk action invoke --blocking --result helloPython --param name World --param gender Male
+```
+
+The result will remain the same as the previous one, since the Python code does not parse
+the key "gender". In order to see the difference, let's change the Python code as the
+following:
+
+```
+    def main(dict):
+        name = dict.get('name', "Stranger")
+        gender = dict.get('gender', "Unknown")
+        greeting = "Hello " + name + ". " + "Your gender is "+ gender + "."
+        print(greeting)
+        return {"greeting": greeting}
+```
+
+Delete the action helloPython via:
+
+```
+$ wsk action delete helloPython
+```
+
+Then create this action again via:
+
+```
+$ wsk action create helloPython hello.py
+```
+
+When it is created successfully, run the following command again:
+
+```
+$ wsk action invoke --blocking --result helloPython --param name World --param gender Male
+```
+
+The result of the above command will be:
+```
+  {
+      "greeting": "Hello World. Your gender is Male."
+  }
+```
+
 ## Creating Swift actions
 
 The process of creating Swift actions is similar to that of JavaScript actions. The following sections guide you through creating and invoking a single swift action, and adding parameters to that action.
