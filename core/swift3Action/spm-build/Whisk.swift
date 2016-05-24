@@ -53,7 +53,7 @@ class Whisk {
         if let edgeHostEnv : String = env["EDGE_HOST"] {
             edgeHost = "\(edgeHostEnv)"
         } else {
-          fatalError("EDGE_HOST environment variable was not set.")
+            fatalError("EDGE_HOST environment variable was not set.")
         }
 
         let hostComponents = edgeHost.components(separatedBy: ":")
@@ -94,11 +94,15 @@ class Whisk {
         let request = HTTP.request(requestOptions) { response in
             if response != nil {
                 do {
-                    let responseString = try response!.readString()!
-                    print(responseString)
-                    callback(["response": responseString])
+                    // this is odd, but that's just how KituraNet has you get
+                    // the response as NSData
+                    let jsonData = NSMutableData()
+                    try response!.readAllData(into: jsonData)
+
+                    let resp = try NSJSONSerialization.jsonObject(with: jsonData, options: [])
+                    callback(resp as! [String:Any])
                 } catch {
-                    callback(["error": "Action did not produce a valid JSON response."])
+                    callback(["error": "Could not parse a valid JSON response."])
                 }
             } else {
                 callback(["error": "Did not receive a response."])

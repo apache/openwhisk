@@ -27,6 +27,7 @@ import common.TestUtils
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
+import spray.json.DefaultJsonProtocol.BooleanJsonFormat
 import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json.pimpAny
 
@@ -40,7 +41,7 @@ class Swift3WhiskObjectTests
 
     behavior of "Swift 3 Whisk backend API"
 
-    ignore should "allow Swift actions to invoke other actions" in withAssetCleaner(wskprops) {
+    it should "allow Swift actions to invoke other actions" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             // use CLI to create action from dat/actions/invokeAction.swift
             val file = TestUtils.getCatalogFilename("/samples/invoke.swift")
@@ -50,18 +51,21 @@ class Swift3WhiskObjectTests
             }
 
             // invoke the action
-            val run = wsk.action.invoke(actionName, Map("key0" -> "value0".toJson))
+            val run = wsk.action.invoke(actionName)
             withActivation(wsk.activation, run, initialWait = 5 seconds, totalWait = 60 seconds) {
                 activation =>
-                    val logs = activation.fields("logs").toString
+                    // should be successful
+                    activation.fields("response").asJsObject.fields("success") should be(true.toJson)
 
-                    logs should include("It is now")
-                    logs should not include ("Could not parse date of of the response.")
-                    logs should not include ("Could not invoke date action.")
+                    // should have a field named "activationId" which is the date action's activationId
+                    activation.fields("response").asJsObject.fields("result").asJsObject.fields("activationId").toString.length should be >= 32
+
+                    // should have somewhere in the "result" field the phrase "It is now" printed from the invoked date action
+                    activation.fields("response").asJsObject.fields("result").toString should include("It is now")
             }
     }
 
-    ignore should "allow Swift actions to trigger events" in withAssetCleaner(wskprops) {
+    it should "allow Swift actions to trigger events" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             // create a trigger
             val triggerName = s"TestTrigger ${System.currentTimeMillis()}"
@@ -80,14 +84,17 @@ class Swift3WhiskObjectTests
             val run = wsk.action.invoke(actionName, Map("triggerName" -> triggerName.toJson))
             withActivation(wsk.activation, run, initialWait = 5 seconds, totalWait = 60 seconds) {
                 activation =>
-                    activation.fields("logs").toString should include(s"Tigger Name: $triggerName")
+                    // should be successful
+                    activation.fields("response").asJsObject.fields("success") should be(true.toJson)
 
-                    // wait for trigger activation
+                    // should have a field named "activationId" which is the date action's activationId
+                    activation.fields("response").asJsObject.fields("result").asJsObject.fields("activationId").toString.length should be >= 32
+
+                    // should result in an activation for triggerName
                     val triggerActivations = wsk.activation.pollFor(1, Some(triggerName), retries = 20)
                     withClue(s"trigger activations for $triggerName:") {
                         triggerActivations.length should be(1)
                     }
             }
     }
-
 }
