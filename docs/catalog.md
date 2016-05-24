@@ -222,7 +222,7 @@ The `/whisk.system/alarms/alarm` feed configures the Alarm service to fire a tri
   - `* * * * * *`: every second.
   - `0 * * * * *`: top of every minute.
   - `* 0 * * * *`: top of every hour.
-  - `* * * 8 * *`: sometime on the eighth day of every month
+  - `0 0 9 8 * *`: at 9:00:00AM (UTC) on the eighth day of every month
 
 - `trigger_payload`: The value of this parameter becomes the content of the trigger every time the trigger is fired.
 
@@ -231,7 +231,7 @@ The `/whisk.system/alarms/alarm` feed configures the Alarm service to fire a tri
 Here is an example of creating a trigger that will be fired once every 20 seconds with `name` and `place` values in the trigger event.
 
   ```
-  $ wsk trigger create periodic --feed /whisk.system/alarms/alarm --param cron '/20 * * * * *' --param trigger_payload '{"name":"Odin","place":"Asgard"}'
+  $ wsk trigger create periodic --feed /whisk.system/alarms/alarm --param cron '*/20 * * * * *' --param trigger_payload '{"name":"Odin","place":"Asgard"}'
   ```
 
 Each generated event will include as parameters the properties specified in the `trigger_payload` value. In this case, each trigger event will have parameters `name=Odin` and `place=Asgard`.
