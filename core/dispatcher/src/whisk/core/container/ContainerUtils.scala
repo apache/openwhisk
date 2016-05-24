@@ -78,8 +78,7 @@ trait ContainerUtils extends Logging {
         runDockerCmd(cmd: _*)
     }
 
-    def killContainer(name: String)(implicit transid: TransactionId): DockerOutput =
-        runDockerCmd("kill", name)
+    def killContainer(name: String)(implicit transid: TransactionId): DockerOutput = killContainer(Some(name))
 
     def killContainer(container: ContainerName)(implicit transid: TransactionId): DockerOutput = {
         container map { name => runDockerCmd("kill", name) } getOrElse None
@@ -97,8 +96,10 @@ trait ContainerUtils extends Logging {
         runDockerCmd(true, Array("unpause", name))
     }
 
+    def rmContainer(container: String)(implicit transid: TransactionId): DockerOutput = rmContainer(Some(container))
+
     /**
-     * Forcefully removes a container, can be used on a running container.
+     * Forcefully removes a container, can be used on a running container but not a paused one.
      */
     def rmContainer(container: ContainerName)(implicit transid: TransactionId): DockerOutput = {
         container map { name => runDockerCmd("rm", "-f", name) } getOrElse None

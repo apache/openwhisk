@@ -72,8 +72,7 @@ class ContainerPoolTests extends FlatSpec
             ++ WhiskAuthStore.requiredProperties)
     assert(config.isValid)
 
-    val pool = new ContainerPool(config, 0, false)
-    pool.setVerbosity(Verbosity.Loud)
+    val pool = new ContainerPool(config, 0, Verbosity.Loud, false)
     pool.logDir = "/tmp"
 
     val datastore = WhiskEntityStore.datastore(config)

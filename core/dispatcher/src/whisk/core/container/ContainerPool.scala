@@ -58,12 +58,14 @@ import whisk.common.LogMarkerToken
 class ContainerPool(
     config: WhiskConfig,
     invokerInstance: Integer = 0,
+    verbosity: Verbosity.Level = Verbosity.Loud,
     useWarmContainers: Boolean = true)(implicit actorSystem: ActorSystem)
     extends ContainerUtils {
 
     val dockerhost = config.selfDockerEndpoint
     private val datastore = WhiskEntityStore.datastore(config)
     private val authStore = WhiskAuthStore.datastore(config)
+    setVerbosity(verbosity)
 
     // Eventually, we will have a more sophisticated warmup strategy that does multiple sizes
     private val defaultMemoryLimit = MemoryLimit(MemoryLimit.STD_MEMORY)
@@ -115,6 +117,7 @@ class ContainerPool(
     def idleCount() = countByState(State.Idle)
     def activeCount() = countByState(State.Active)
     private val startingCounter = new Counter()
+    private var shuttingDown = false
 
     /*
      * Convenience method to list _ALL_ containers at this docker point with "docker ps -a --no-trunc".
@@ -130,16 +133,20 @@ class ContainerPool(
      * The invariant of returning the container back to the pool holds regardless of whether init succeeded or not.
      * In case of failure to start a container, None is returned.
      */
-    def getAction(action: WhiskAction, auth: WhiskAuth)(implicit transid: TransactionId): Option[(WhiskContainer, Option[RunResult])] = {
-        info(this, s"Getting container for ${action.fullyQualifiedName} with ${auth.uuid}", INVOKER_GET_CONTAINER_START)
-        val key = makeKey(action, auth)
-        getImpl(key, { () => makeWhiskContainer(action, auth) }) map {
-            case (c, initResult) =>
+    def getAction(action: WhiskAction, auth: WhiskAuth)(implicit transid: TransactionId): Option[(WhiskContainer, Option[RunResult])] =
+        if (shuttingDown) {
+            info(this, s"Shutting down: Not getting container for ${action.fullyQualifiedName} with ${auth.uuid}", INVOKER_GET_CONTAINER_START)
+            None
+        } else {
+            info(this, s"Getting container for ${action.fullyQualifiedName} with ${auth.uuid}", INVOKER_GET_CONTAINER_START)
+            val key = makeKey(action, auth)
+            getImpl(key, { () => makeWhiskContainer(action, auth) }) map {
+              case (c, initResult) =>
                 val cacheMsg = if (!initResult.isDefined) "(Cache Hit)" else "(Cache Miss)"
                 info(this, s"ContainerPool.getAction obtained container ${c.id} ${cacheMsg}", INVOKER_GET_CONTAINER_DONE)
                 (c.asInstanceOf[WhiskContainer], initResult)
+            }
         }
-    }
 
     def getByImageName(imageName: String, args: Array[String])(implicit transid: TransactionId): Option[Container] = {
         info(this, s"Getting container for image $imageName with args " + args.mkString(" "))
@@ -348,12 +355,18 @@ class ContainerPool(
     private def makeContainerName(action: WhiskAction): String =
         makeContainerName(action.fullyQualifiedName)
 
-    // A background thread that re-populates the container pool with fresh (un-instantiated) nodejs containers.
-    private val warmupThread = new Thread {
+    val dockerLock = new Object()
+
+    /* A background thread that
+     *   1. Kills leftover action containers
+     *   2. Periodically re-populates the container pool with fresh (un-instantiated) nodejs containers.
+     */
+    private val nannyThread = new Thread {
         override def run {
-            val tid = TransactionId.invokerWarmup
-            while (true) {
-                if (getNumberOfIdleContainers(warmNodejsKey)(tid) < WARM_NODEJS_CONTAINERS) {
+            implicit val tid = TransactionId.invokerWarmup
+            killStragglers()
+            while (useWarmContainers) {
+                if (getNumberOfIdleContainers(warmNodejsKey) < WARM_NODEJS_CONTAINERS) {
                     makeWarmNodejsContainer()(tid)
                 }
                 Thread.sleep(100)
@@ -361,7 +374,14 @@ class ContainerPool(
         }
     }
 
-    val dockerLock = new Object()
+    /*
+     * Graceful termination by shutting down containers upon SIGTERM.
+     * If one desires to kill the invoker without this, send it SIGKILL.
+     */
+    private def shutdown() = {
+        shuttingDown = true
+        killStragglers()(TransactionId.invokerWarmup)
+    }
 
     /*
      * All docker operations from the pool must pass through here.
@@ -572,22 +592,19 @@ class ContainerPool(
 
     /*
      * Remove all containers with the actionContainerPrefix to kill leftover action containers.
-     * Useful for a hotswap.
+     * This is needed for startup and shutdown.
+     * Concurrent access from clients must be prevented.
      */
-    def killStragglers()(implicit transid: TransactionId) = {
-        listAll foreach {
+    private def killStragglers()(implicit transid: TransactionId) = dockerLock.synchronized {
+        val candidates = listAll.filter { case ContainerState(id, image, name) => name.startsWith(actionContainerPrefix) }
+        info(this, s"Now removing ${candidates.length} leftover containers")
+        candidates foreach {
             case ContainerState(id, image, name) => {
-                if (name.startsWith(actionContainerPrefix)) {
-                    unpauseContainer(name)
-                    killContainer(name)
-                }
+                unpauseContainer(name)
+                rmContainer(name)
             }
         }
-    }
-
-    def warmupContainers() = {
-        if (useWarmContainers)
-            warmupThread.start
+        info(this, s"Leftover container removal completed")
     }
 
     /*
@@ -596,6 +613,14 @@ class ContainerPool(
     def getLogSize(con: WhiskContainer, mounted: Boolean)(implicit transid: TransactionId): Long = {
         con.containerId map { id => getDockerLogSize(id, mounted) } getOrElse 0
     }
+
+    nannyThread.start
+    sys addShutdownHook {
+        warn(this, "Shutdown hook activated.  Starting container shutdown")
+        shutdown()
+        warn(this, "Shutdown hook completed.")
+    }
+
 }
 
 object ContainerPool {
