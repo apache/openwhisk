@@ -373,6 +373,73 @@ $ wsk action invoke --blocking --result helloSwift --param name World
 **Attention:** Swift actions run in a Linux environment. Swift on Linux is still in
 development, and OpenWhisk usually uses the latest available release, which is not necessarily stable. In addition, the version of Swift that is used with OpenWhisk might be inconsistent with versions of Swift from stable releases of XCode on MacOS.
 
+## Creating Java actions
+
+The process of creating Java actions is similar to that of JavaScript and Swift actions. The following sections guide you through creating and invoking a single Java action, and adding parameters to that action.
+
+In order to compile, test and archive Java files, you must have a [JDK 8](http://www.oracle.com/technetwork/java/javase/downloads/index.html) installed locally.
+
+### Creating and invoking an action
+
+A Java action is a Java program with a method called `main` that has the exact signature below:
+```
+public static com.google.gson.JsonObject main(com.google.gson.JsonObject);
+```
+
+For example, create a Java file called `Hello.java` with the following content:
+
+```
+import com.google.gson.JsonObject;
+
+public class Hello {
+
+    public static JsonObject main(JsonObject args) {
+
+        String name = "stranger";
+        if (args.has("name"))
+            name = args.getAsJsonPrimitive("name").getAsString();
+
+        JsonObject response = new JsonObject();
+        response.addProperty("greeting", "Hello " + name + "!");
+        return response;
+
+    }
+}
+```
+
+Then compile `Hello.java` into a jar file `hello.jar` as follows:
+```
+$ javac Hello.java
+$ jar cvf hello.jar Hello.class
+
+```
+Note that [google-gson](https://github.com/google/gson) must exist in your Java CLASSPATH when compiling the Java file.
+
+You can create a OpenWhisk action called `helloJava` from this jar file as
+follows:
+
+```
+$ wsk action create helloJava hello.jar
+```
+
+When using the command line and a `.jar` source file, you do not need to
+specify that you are creating a Java action;
+the tool determines that from the file extension.
+
+Action invocation is the same for Java actions as it is for Swift and JavaScript actions:
+
+```
+$ wsk action invoke --blocking --result helloJava --param name World
+```
+
+```
+  {
+      "greeting": "Hello World!"
+  }
+```
+
+Note that if the jar file has more than one class with a main method matching required signature, the CLI tool will use the first one reported by `jar -tf`.
+
 ## Creating Docker actions
 
 With OpenWhisk Docker actions, you can write your actions in any language.
