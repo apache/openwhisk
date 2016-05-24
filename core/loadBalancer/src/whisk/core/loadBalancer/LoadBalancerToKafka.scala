@@ -103,9 +103,17 @@ trait LoadBalancerToKafka extends Logging {
         }
     }
 
+    def resetIssueCountByInvoker(invokerIndices: Array[Int]) = {
+        invokerIndices.foreach {
+            invokerActivationCounter(_) = new Counter()
+        }
+    }
+
     // Make a new immutable map so caller cannot mess up the state
-    def getInvokerActivationCount(): Map[Int, Int] = {
-        invokerActivationCounter.foldLeft(Map[Int,Int]()) { case (map, (index, counter)) => map ++ Map(index -> counter.cur)  }
+    def getIssueCountByInvoker(): Map[Int, Int] = {
+        invokerActivationCounter.foldLeft(Map[Int, Int]()) {
+            case (map, (index, counter)) => map ++ Map(index -> counter.cur)
+        }
     }
 
     protected def getUserActivationCounts(): Map[String, JsObject] = {

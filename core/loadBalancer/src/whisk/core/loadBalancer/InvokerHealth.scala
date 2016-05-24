@@ -53,6 +53,7 @@ object InvokerHealth {
  */
 class InvokerHealth(
     config: WhiskConfig,
+    instanceChange: Array[Int] => Unit,
     getKafkaPostCount: () => Int)(
         implicit val system: ActorSystem,
         val ec: ExecutionContext) extends Logging {
@@ -97,16 +98,18 @@ class InvokerHealth(
     }
 
     def getInvokerIndices(): Array[Int] = {
-        invokers.get() map { _.index }
+        curStatus.get() map { _.index }
     }
 
     def getInvokerActivationCounts(): Array[(Int, Int)] = {
-        invokers.get() map { status => (status.index, status.activationCount) }
+        curStatus.get() map { status => (status.index, status.activationCount) }
     }
 
-    def getInvokerHealth(): Array[(Int, Boolean)] = {
-        invokers.get() map { status => (status.index, status.status) }
+    private def getHealth(statuses: Array[Status]): Array[(Int, Boolean)] = {
+        statuses map { status => (status.index, status.status) }
     }
+
+    def getInvokerHealth(): Array[(Int, Boolean)] = getHealth(curStatus.get())
 
     def getInvokerHealthJson(): JsObject = {
         val health = getInvokerHealth().map { case (index, isUp) => s"invoker${index}" -> (if (isUp) "up" else "down").toJson }
@@ -139,20 +142,33 @@ class InvokerHealth(
             val flattened = ConsulClient.dropKeyLevel(invokerInfo)
             val nested = ConsulClient.toNestedMap(flattened)
 
-            val status = nested map {
+            // Get the new status (some entries may correspond to new instances)
+            val statusMap = nested map {
                 case (key, inner) =>
                     val index = InvokerKeys.extractInvokerIndex(key)
                     val JsString(startDate) = inner(InvokerKeys.startKey).parseJson
                     val JsString(lastDate) = inner(InvokerKeys.statusKey).parseJson
-                    Status(index, startDate, lastDate, isFresh(lastDate), inner(InvokerKeys.activationCountKey).toInt)
+                    (index, Status(index, startDate, lastDate, isFresh(lastDate), inner(InvokerKeys.activationCountKey).toInt))
             }
+            val newStatus = statusMap.values.toArray.sortBy(_.index)
 
-            val newStatus = status.toArray.sortBy(_.index)
-            val oldStatus = invokers.get()
-            invokers.set(newStatus)
-            if (newStatus.deep != oldStatus.deep) {
+            // Warning is issued only if up/down is changed
+            if (getInvokerHealth().deep != getHealth(newStatus).deep) {
                 warn(this, s"InvokerHealth status change: ${newStatus.deep.mkString(" ")}")
             }
+
+            // Existing entries that have become stale require recording and a warning
+            val stale = curStatus.get().filter {
+                case Status(index, startDate, _, _, _) =>
+                    statusMap.get(index).map(startDate != _.startDate) getOrElse false
+            }
+            if (!stale.isEmpty) {
+                oldStatus.set(oldStatus.get() ++ stale)
+                warn(this, s"Stale invoker status has changed: ${oldStatus.get().deep.mkString(" ")}")
+                instanceChange(stale.map(_.index))
+            }
+
+            curStatus.set(newStatus)
         }
     }
 
@@ -161,7 +177,7 @@ class InvokerHealth(
      */
     private def getNext(current: Int, remain: Int): Option[Int] = {
         if (remain > 0) {
-            val choice = invokers.get()(current)
+            val choice = curStatus.get()(current)
             choice.status match {
                 case true  => Some(choice.index)
                 case false => getNext(nextInvoker(current), remain - 1)
@@ -182,13 +198,19 @@ class InvokerHealth(
         if (numInv > 0) (i + 1) % numInv else 0
     }
 
-    private val msgCount = new AtomicInteger(0)
+    private def numInvokers = curStatus.get().length
 
-    // Because we are not using 0-based indexing yet...
-    private case class Status(index: Int, startDate: String, lastDate: String, status: Boolean, activationCount : Int) {
+    /*
+     * Invoker indices are 0-based.
+     * curStatus maintains the status of the curent instance at a particular index while oldStatus
+     * tracks instances (potentially many per index) that are not longer fresh (invoker was restarted).
+     */
+    private case class Status(index: Int, startDate: String, lastDate: String, status: Boolean, activationCount: Int) {
         override def toString = s"index: $index, healthy: $status, activations: $activationCount, start: $startDate, last: $lastDate"
     }
-    private lazy val invokers = new AtomicReference(Array(): Array[Status])
-    private def numInvokers = invokers.get().length
+    private lazy val curStatus = new AtomicReference(Array(): Array[Status])
+    private lazy val oldStatus = new AtomicReference(Array(): Array[Status])
+
+    private val msgCount = new AtomicInteger(0)
     private val activationCountMap = TrieMap[(String, String), AtomicInteger]()
 }
