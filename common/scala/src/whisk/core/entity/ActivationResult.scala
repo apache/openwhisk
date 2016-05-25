@@ -18,8 +18,6 @@ package whisk.core.entity
 
 import scala.util.Try
 
-import com.google.gson.JsonObject
-
 import spray.json.DefaultJsonProtocol
 import spray.json.JsBoolean
 import spray.json.JsNull
@@ -31,12 +29,6 @@ protected[core] case class ActivationResponse private (
     val statusCode: Int, val result: Option[JsValue]) {
 
     def toJsonObject = ActivationResponse.serdes.write(this).asJsObject
-    def toGson = {
-        val gson = new JsonObject()
-        gson.addProperty("statusCode", statusCode)
-        result foreach { r => gson.add("result", whisk.utils.JsonUtils.sprayJsonToGson(r)) }
-        gson
-    }
 
     // Used when presenting to end-users, to hide the statusCode (which is an implementation detail),
     // and to provide a convenience boolean "success" field.
@@ -89,13 +81,6 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
     protected[core] def containerError(errorMsg: String)        = error(ContainerError, JsString(errorMsg))
     protected[core] def whiskError(errorValue: JsValue)         = error(WhiskError, errorValue)
     protected[core] def whiskError(errorMsg: String)            = error(WhiskError, JsString(errorMsg))
-
-    @throws[IllegalArgumentException]
-    protected[entity] def apply(gson: JsonObject): ActivationResponse = {
-        val convert = Try { whisk.utils.JsonUtils.gsonToSprayJson(gson) }
-        require(convert.isSuccess, "activation response malformed")
-        serdes.read(convert.get)
-    }
 
     protected[core] implicit val serdes = jsonFormat2(ActivationResponse.apply)
 }

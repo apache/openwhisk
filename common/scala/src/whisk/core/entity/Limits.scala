@@ -27,8 +27,6 @@ import spray.json.deserializationError
 import spray.json.pimpAny
 import spray.json.serializationError
 import spray.json.DefaultJsonProtocol
-import com.google.gson.JsonObject
-import com.google.gson.JsonPrimitive
 
 /**
  * Abstract type for limits on triggers and actions. This may
@@ -37,7 +35,6 @@ import com.google.gson.JsonPrimitive
  */
 protected[entity] abstract class Limits {
     protected[entity] def toJson: JsValue
-    protected[entity] def toGson: JsonObject
     override def toString = toJson.compactPrint
 }
 
@@ -52,12 +49,6 @@ protected[entity] abstract class Limits {
  */
 protected[core] case class ActionLimits protected[core] (timeout: TimeLimit, memory: MemoryLimit) extends Limits {
     override protected[entity] def toJson = ActionLimits.serdes.write(this)
-    override protected[entity] def toGson = {
-        val gson = new JsonObject()
-        gson.add("timeout", new JsonPrimitive(timeout.millis))
-        gson.add("memory", new JsonPrimitive(memory.megabytes))
-        gson
-    }
 }
 
 /**
@@ -65,7 +56,6 @@ protected[core] case class ActionLimits protected[core] (timeout: TimeLimit, mem
  */
 protected[core] case class TriggerLimits protected[core] () extends Limits {
     override protected[entity] def toJson: JsValue = TriggerLimits.serdes.write(this)
-    override protected[entity] def toGson = new JsonObject()
 }
 
 protected[core] object ActionLimits
@@ -96,26 +86,12 @@ protected[core] object ActionLimits
     @throws[IllegalArgumentException]
     protected[entity] def !(duration: FiniteDuration, megabytes: Int): ActionLimits = ActionLimits(TimeLimit(duration), MemoryLimit(megabytes))
 
-    @throws[IllegalArgumentException]
-    protected[entity] def apply(gson: JsonObject): ActionLimits = {
-        val convert = Try { whisk.utils.JsonUtils.gsonToSprayJson(gson) }
-        require(convert.isSuccess, "action limits malformed")
-        serdes.read(convert.get)
-    }
-
     override protected[core] implicit val serdes = jsonFormat2(ActionLimits.apply)
 }
 
 protected[core] object TriggerLimits
     extends ArgNormalizer[TriggerLimits]
     with DefaultJsonProtocol {
-
-    @throws[IllegalArgumentException]
-    protected[entity] def apply(gson: JsonObject): TriggerLimits = {
-        val convert = Try { whisk.utils.JsonUtils.gsonToSprayJson(gson) }
-        require(convert.isSuccess, "trigger limits malformed")
-        serdes.read(convert.get)
-    }
 
     override protected[core] implicit val serdes = jsonFormat0(TriggerLimits.apply)
 }
