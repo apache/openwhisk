@@ -469,7 +469,7 @@ class Invoker(
     private val entityStore = WhiskEntityStore.datastore(config)
     private val authStore = WhiskAuthStore.datastore(config)
     private val activationStore = WhiskActivationStore.datastore(config)
-    private val pool = new ContainerPool(config, instance, getVerbosity())
+    private val pool = new ContainerPool(config, instance, verbosity)
     private val activationCounter = new Counter() // global activation counter
     private val userActivationCounter = new TrieMap[String, Counter]
 
@@ -530,17 +530,18 @@ object InvokerService {
 
         if (config.isValid) {
             val instance = if (args.length > 0) args(1).toInt else 0
-            val dispatcher = new Dispatcher(config, s"invoke${instance}", "invokers")
-            dispatcher.setVerbosity(Verbosity.Loud)
-            implicit val ec = Dispatcher.executionContext
+            val verbosity = Verbosity.Loud
 
+            SimpleExec.setVerbosity(verbosity)
+
+            val dispatcher = new Dispatcher(config, s"invoke${instance}", "invokers")
+            implicit val ec = Dispatcher.executionContext
             implicit val actorSystem = ActorSystem(
                 name = "invoker-actor-system",
                 defaultExecutionContext = Some(ec))
 
-            SimpleExec.setVerbosity(Verbosity.Loud)
-            val invoker = new Invoker(config, instance, Verbosity.Loud)
-
+            val invoker = new Invoker(config, instance, verbosity)
+            dispatcher.setVerbosity(verbosity)
             dispatcher.addHandler(invoker, true)
             dispatcher.start()
 
