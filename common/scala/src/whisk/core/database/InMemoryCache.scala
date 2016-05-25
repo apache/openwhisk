@@ -25,7 +25,7 @@ import whisk.common.TransactionId
 import scala.concurrent.ExecutionContext
 import whisk.common.LoggingMarkers
 
-trait InMemoryCache[R, W] {
+trait InMemoryCache[W] {
 
     /** Toggle to enable/disable caching. */
     protected def cacheEnabled = false
@@ -40,8 +40,8 @@ trait InMemoryCache[R, W] {
         }
     }
 
-    protected def cacheLookup[Rsuper >: R, Wsuper >: W](
-        datastore: ArtifactStore[Rsuper, Wsuper],
+    protected def cacheLookup[Wsuper >: W](
+        datastore: ArtifactStore[Wsuper],
         key: Any,
         future: => Future[W],
         fromCache: Boolean = cacheEnabled)(

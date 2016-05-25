@@ -18,10 +18,6 @@ package whisk.core.entity
 
 import scala.language.postfixOps
 import scala.util.Try
-
-import com.google.gson.JsonObject
-import com.google.gson.JsonPrimitive
-
 import spray.json.DefaultJsonProtocol
 import spray.json.DefaultJsonProtocol.BooleanJsonFormat
 import spray.json.JsArray
@@ -32,7 +28,6 @@ import spray.json.RootJsonFormat
 import spray.json.deserializationError
 import spray.json.pimpAny
 import whisk.core.database.DocumentFactory
-import whisk.core.entity.schema.PackageRecord
 
 /**
  * WhiskPackagePut is a restricted WhiskPackage view that eschews properties
@@ -117,14 +112,6 @@ case class WhiskPackage(
         WhiskPackageWithActions(this, actionGroups.getOrElse(false, List()), actionGroups.getOrElse(true, List()))
     }
 
-    override def serialize: Try[PackageRecord] = Try {
-        implicit val serdes = Binding.serdes
-        val r = serialize[PackageRecord](new PackageRecord)
-        r.binding = binding map { _.toGson } getOrElse new JsonObject()
-        r.parameters = parameters.toGson
-        r
-    }
-
     def toJson = WhiskPackage.serdes.write(this).asJsObject
 
     override def summaryAsJson = {
@@ -146,7 +133,7 @@ case class WhiskPackageAction(name: EntityName, version: SemVer, annotations: Pa
 case class WhiskPackageWithActions(wp: WhiskPackage, actions: List[WhiskPackageAction], feeds: List[WhiskPackageAction])
 
 object WhiskPackage
-    extends DocumentFactory[PackageRecord, WhiskPackage]
+    extends DocumentFactory[WhiskPackage]
     with WhiskEntityQueries[WhiskPackage]
     with DefaultJsonProtocol {
 
@@ -173,18 +160,6 @@ object WhiskPackage
         jsonFormat7(WhiskPackage.apply)
     }
 
-    override def apply(r: PackageRecord): Try[WhiskPackage] = Try {
-        WhiskPackage(
-            Namespace(r.namespace),
-            EntityName(r.name),
-            if (r.binding == null || r.binding.entrySet.isEmpty) None else Some(Binding(r.binding)),
-            Parameters(r.parameters),
-            SemVer(r.version),
-            r.publish,
-            Parameters(r.annotations)).
-            revision[WhiskPackage](r.docinfo.rev)
-    }
-
     override val cacheEnabled = true
     override def cacheKeys(w: WhiskPackage) = Set(w.docid.asDocInfo, w.docinfo)
 }
@@ -195,12 +170,6 @@ object WhiskPackage
  */
 case class Binding(namespace: Namespace, name: EntityName) {
     def docid = DocId(WhiskEntity.qualifiedName(namespace, name))
-    def toGson = {
-        val gson = new JsonObject()
-        gson.add("namespace", new JsonPrimitive(namespace.toString))
-        gson.add("name", new JsonPrimitive(name()))
-        gson
-    }
     override def toString = WhiskEntity.qualifiedName(namespace, name)
 
     /**
@@ -216,14 +185,6 @@ case class Binding(namespace: Namespace, name: EntityName) {
 }
 
 object Binding extends ArgNormalizer[Binding] with DefaultJsonProtocol {
-
-    @throws[IllegalArgumentException]
-    protected[entity] def apply(json: JsonObject): Binding = {
-        val convert = Try { whisk.utils.JsonUtils.gsonToSprayJson(json) }
-        require(convert.isSuccess, "binding malformed")
-        serdes.read(convert.get)
-    }
-
     override protected[core] implicit val serdes = jsonFormat2(Binding.apply)
 }
 

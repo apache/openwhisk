@@ -46,23 +46,20 @@ import whisk.common.LoggingMarkers
  * @param dbName the name of the database to operate on
  * @param serializerEvidence confirms the document abstraction is serializable to a Document with an id
  */
-class CouchDbRestStore[Unused, DocumentAbstraction <: DocumentSerializer](
+class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
     dbProtocol: String,
     dbHost: String,
     dbPort: Int,
     dbUsername: String,
     dbPassword: String,
     dbName: String)(implicit system: ActorSystem, jsonFormat: RootJsonFormat[DocumentAbstraction])
-    extends ArtifactStore[Unused, DocumentAbstraction]
+    extends ArtifactStore[DocumentAbstraction]
     with DefaultJsonProtocol {
 
     protected[core] implicit val executionContext = system.dispatcher
 
     private val client: CouchDbRestClient = CouchDbRestClient.make(
         dbProtocol, dbHost, dbPort, dbUsername, dbPassword, dbName)
-
-    // To make the typechecker happy.
-    private implicit def fakeDeserializer[U <: Unused, T <: DocumentAbstraction]: Deserializer[U, T] = (x: U) => ???
 
     override protected[database] def put(d: DocumentAbstraction)(implicit transid: TransactionId): Future[DocInfo] = {
         // Uses Spray-JSON only.
@@ -75,26 +72,6 @@ class CouchDbRestStore[Unused, DocumentAbstraction <: DocumentSerializer](
         val docinfoStr = s"id: $id, rev: ${rev.getOrElse("null")}"
 
         info(this, s"[PUT] '$dbName' saving document: '${docinfoStr}'", LoggingMarkers.DATABASE_SAVE_START)
-
-        // The GSON version, as a sanity check.
-        {
-            import spray.json._
-            import DefaultJsonProtocol._
-            import com.google.gson.Gson
-            val serialized = d.serialize().get
-            require(serialized != null, "doc undefined after serialization")
-            serialized.confirmId
-            val srzd: String = new Gson().toJson(serialized)
-            val asGson = srzd.parseJson.asJsObject
-
-            // Sanity check
-            if(asJson != asGson) {
-                warn(this, s"[PUT] JSON/GSON mismatch:")
-                warn(this, s"[PUT]   - json : " + asJson)
-                warn(this, s"[PUT]   - gson : " + asGson)
-                assert(false)
-            }
-        }
 
         val request: CouchDbRestClient => Future[Either[StatusCode, JsObject]] = rev match {
             case Some(r) =>
@@ -152,15 +129,12 @@ class CouchDbRestStore[Unused, DocumentAbstraction <: DocumentSerializer](
             failure => error(this, s"[DEL] '$dbName' internal error, doc: '$doc', failure: '${failure.getMessage}'", LoggingMarkers.DATABASE_DELETE_ERROR))
     }
 
-    override protected[database] def get[U <: Unused, A <: DocumentAbstraction](doc: DocInfo)(
+    override protected[database] def get[A <: DocumentAbstraction](doc: DocInfo)(
         implicit transid: TransactionId,
-        deserialize: Deserializer[U, A],
-        mu: Manifest[U],
         ma: Manifest[A]): Future[A] = {
 
         reportFailure({
             require(doc != null, "doc undefined")
-            require(deserialize != null, "deserializer undefined")
             info(this, s"[GET] '$dbName' finding document: '$doc'", LoggingMarkers.DATABASE_GET_START)
             val request: CouchDbRestClient => Future[Either[StatusCode, JsObject]] = if (doc.rev.rev != null) {
                 client => client.getDoc(doc.id.id, doc.rev.rev)

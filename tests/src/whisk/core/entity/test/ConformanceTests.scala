@@ -32,7 +32,6 @@ import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig._
 import whisk.core.database.ArtifactStore
 import whisk.core.entity._
-import whisk.core.entity.schema._
 import spray.json.JsObject
 import spray.json.DefaultJsonProtocol
 
@@ -65,10 +64,10 @@ class ConformanceTests extends FlatSpec
         dbWhisk -> null))
     assert(config.isValid)
 
-    val datastore: ArtifactStore[EntityRecord, WhiskEntity] = WhiskEntityStore.datastore(config)
+    val datastore: ArtifactStore[WhiskEntity] = WhiskEntityStore.datastore(config)
     datastore.setVerbosity(Verbosity.Loud)
 
-    val authstore: ArtifactStore[AuthRecord, WhiskAuth] = WhiskAuthStore.datastore(config)
+    val authstore: ArtifactStore[WhiskAuth] = WhiskAuthStore.datastore(config)
     authstore.setVerbosity(Verbosity.Loud)
 
     override def afterAll() {
@@ -93,35 +92,34 @@ class ConformanceTests extends FlatSpec
     /**
      * Check that all records in the database each have the required fields
      */
-    def checkDatabaseFields[T,U,K](store: ArtifactStore[T,U], viewName: String, klass: Class[K], filter: JsObject=>Boolean, optional: Set[String]=Set.empty) = {
+    def checkDatabaseFields[U,K](store: ArtifactStore[U], viewName: String, filter: JsObject=>Boolean, requiredFields: Set[String]) = {
         implicit val tid = transid()
 
         val futureDocs = store.query(viewName, Nil, Nil, 0, 0, true, false, false)
-        val requiredFields = klass.getDeclaredFields.map(_.getName)
 
         whenReady(futureDocs) { docs =>
             for(doc <- docs if !isDesignDoc(doc) && filter(doc)) {
-                for(field <- requiredFields if !optional(field)) {
-                    assert(doc.fields.isDefinedAt(field), s"did not find field '$field' in database record $doc expected to be of class '${klass.getCanonicalName}'")
+                for(field <- requiredFields) {
+                    assert(doc.fields.isDefinedAt(field), s"did not find field '$field' in database record $doc")
                 }
             }
         }
     }
 
     "Auth Database" should "conform to expected schema" in {
-        checkDatabaseFields(authstore, "subjects/uuids", classOf[AuthRecord], _ => true)
+        checkDatabaseFields(authstore, "subjects/uuids", _ => true, Set("subject", "uuid", "key", "_id", "_rev"))
     }
 
     "Whisk Database" should "conform to expected schema" in {
-        checkDatabaseFields(datastore, "whisks/all", classOf[ActionRecord], isAction)
+        checkDatabaseFields(datastore, "whisks/all", isAction, Set("exec", "limits", "parameters"))
 
-        checkDatabaseFields(datastore, "whisks/all", classOf[TriggerRecord], isTrigger)
+        checkDatabaseFields(datastore, "whisks/all", isTrigger, Set("limits", "parameters"))
 
-        checkDatabaseFields(datastore, "whisks/all", classOf[RuleRecord], isRule)
+        checkDatabaseFields(datastore, "whisks/all", isRule, Set("status", "trigger", "action"))
 
         // Added an exception for 'cause', as it doesn't seem to be present for all records.
-        checkDatabaseFields(datastore, "whisks/all", classOf[ActivationRecord], isActivation, optional=Set("cause"))
+        checkDatabaseFields(datastore, "whisks/all", isActivation, Set("subject", "activationId", "cause", "start", "end", "response", "logs") - "cause")
 
-        checkDatabaseFields(datastore, "whisks/all", classOf[PackageRecord], isPackage)
+        checkDatabaseFields(datastore, "whisks/all", isPackage, Set("binding", "parameters"))
     }
 }

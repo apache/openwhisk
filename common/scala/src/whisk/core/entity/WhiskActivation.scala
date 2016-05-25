@@ -29,7 +29,6 @@ import spray.json.RootJsonFormat
 import spray.json.deserializationError
 import spray.json.pimpAny
 import whisk.core.database.DocumentFactory
-import whisk.core.entity.schema.ActivationRecord
 
 /**
  * A WhiskActivation provides an abstraction of the meta-data
@@ -74,18 +73,6 @@ case class WhiskActivation(
     require(response != null, "response undefined")
     require(logs != null, "logs undefined")
 
-    override def serialize: Try[ActivationRecord] = Try {
-        val r = serialize[ActivationRecord](new ActivationRecord)
-        r.subject = subject.toString
-        r.activationId = activationId.toString
-        r.start = start.toEpochMilli
-        r.end = end.toEpochMilli
-        r.cause = if (cause != null) { cause map { _.toString } getOrElse null } else null
-        r.response = response.toGson
-        r.logs = logs.toGson
-        r
-    }
-
     def toJson = WhiskActivation.serdes.write(this).asJsObject
 
     override def summaryAsJson = {
@@ -105,7 +92,7 @@ case class WhiskActivation(
 }
 
 object WhiskActivation
-    extends DocumentFactory[ActivationRecord, WhiskActivation]
+    extends DocumentFactory[WhiskActivation]
     with WhiskEntityQueries[WhiskActivation]
     with DefaultJsonProtocol {
 
@@ -123,23 +110,6 @@ object WhiskActivation
 
     override val collectionName = "activations"
     override implicit val serdes = jsonFormat12(WhiskActivation.apply)
-
-    override def apply(r: ActivationRecord): Try[WhiskActivation] = Try {
-        WhiskActivation(
-            Namespace(r.namespace),
-            EntityName(r.name),
-            Subject(r.subject),
-            ActivationId(r.activationId),
-            Instant.ofEpochMilli(r.start),
-            Instant.ofEpochMilli(r.end),
-            if (r.cause == null) None else Some(ActivationId(r.cause)),
-            ActivationResponse(r.response),
-            ActivationLogs(r.logs),
-            SemVer(r.version),
-            r.publish,
-            Parameters(r.annotations)).
-            revision[WhiskActivation](r.docinfo.rev)
-    }
 
     override val cacheEnabled = true
     override def cacheKeys(w: WhiskActivation) = Set(w.docid.asDocInfo, w.docinfo)
