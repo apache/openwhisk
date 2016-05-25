@@ -154,7 +154,8 @@ object WhiskPackage
     override val collectionName = "packages"
 
     override implicit val serdes = {
-        // This is to support records created in the old style where {} represents None.
+        // This is to support the old style where {} represents None.
+        // Note that all new entries use `null` for None.
         val tolerantOptionBindingFormat: JsonFormat[Option[Binding]] = {
             val bs = Binding.serdes // helps the compiler
             val base = implicitly[JsonFormat[Option[Binding]]]
