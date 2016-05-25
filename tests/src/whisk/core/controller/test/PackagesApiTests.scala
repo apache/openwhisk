@@ -388,6 +388,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
         val content = WhiskPackagePut(binding)
         Put(s"$collectionPath/$aname", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
+            responseAs[ErrorResponse].error should include ("binding references a package that does not exist")
         }
     }
 
@@ -399,6 +400,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
         put(entityStore, reference)
         Put(s"$collectionPath/$aname", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
+            responseAs[ErrorResponse].error should include ("cannot bind to another package binding")
         }
     }
 

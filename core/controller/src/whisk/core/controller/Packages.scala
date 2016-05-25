@@ -33,6 +33,7 @@ import spray.routing.Directive.pimpApply
 import spray.routing.RequestContext
 import spray.routing.directives.OnCompleteFutureMagnet.apply
 import spray.routing.directives.ParamDefMagnet.apply
+import org.lightcouch.NoDocumentException
 import whisk.common.TransactionId
 import whisk.core.entitlement.Collection
 import whisk.core.entity.Binding
@@ -219,7 +220,11 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
                                 (content.annotations getOrElse Parameters()) ++ bindingAnnotation(resolvedBinding))
                         }
                         else promise failure {
-                            RejectRequest(BadRequest, "entity specified in binding is not a package")
+                            RejectRequest(BadRequest, "cannot bind to another package binding")
+                        }
+                    case Failure(t: NoDocumentException) =>
+                        promise failure {
+                            RejectRequest(BadRequest, "binding references a package that does not exist")
                         }
                     case Failure(t) => promise failure RejectRequest(BadRequest, t)
                 }
