@@ -32,7 +32,6 @@ import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig._
 import whisk.core.database.ArtifactStore
 import whisk.core.entity._
-import whisk.core.entity.schema._
 import spray.json.JsObject
 import spray.json.DefaultJsonProtocol
 
@@ -65,10 +64,10 @@ class ConformanceTests extends FlatSpec
         dbWhisk -> null))
     assert(config.isValid)
 
-    val datastore: ArtifactStore[EntityRecord, WhiskEntity] = WhiskEntityStore.datastore(config)
+    val datastore: ArtifactStore[WhiskEntity] = WhiskEntityStore.datastore(config)
     datastore.setVerbosity(Verbosity.Loud)
 
-    val authstore: ArtifactStore[AuthRecord, WhiskAuth] = WhiskAuthStore.datastore(config)
+    val authstore: ArtifactStore[WhiskAuth] = WhiskAuthStore.datastore(config)
     authstore.setVerbosity(Verbosity.Loud)
 
     override def afterAll() {
@@ -93,7 +92,7 @@ class ConformanceTests extends FlatSpec
     /**
      * Check that all records in the database each have the required fields
      */
-    def checkDatabaseFields[T,U,K](store: ArtifactStore[T,U], viewName: String, klass: Class[K], filter: JsObject=>Boolean, optional: Set[String]=Set.empty) = {
+    def checkDatabaseFields[U,K](store: ArtifactStore[U], viewName: String, klass: Class[K], filter: JsObject=>Boolean, optional: Set[String]=Set.empty) = {
         implicit val tid = transid()
 
         val futureDocs = store.query(viewName, Nil, Nil, 0, 0, true, false, false)
@@ -109,19 +108,19 @@ class ConformanceTests extends FlatSpec
     }
 
     "Auth Database" should "conform to expected schema" in {
-        checkDatabaseFields(authstore, "subjects/uuids", classOf[AuthRecord], _ => true)
+        checkDatabaseFields(authstore, "subjects/uuids", classOf[WhiskAuth], _ => true)
     }
 
     "Whisk Database" should "conform to expected schema" in {
-        checkDatabaseFields(datastore, "whisks/all", classOf[ActionRecord], isAction)
+        checkDatabaseFields(datastore, "whisks/all", classOf[WhiskAction], isAction)
 
-        checkDatabaseFields(datastore, "whisks/all", classOf[TriggerRecord], isTrigger)
+        checkDatabaseFields(datastore, "whisks/all", classOf[WhiskTrigger], isTrigger)
 
-        checkDatabaseFields(datastore, "whisks/all", classOf[RuleRecord], isRule)
+        checkDatabaseFields(datastore, "whisks/all", classOf[WhiskRule], isRule)
 
         // Added an exception for 'cause', as it doesn't seem to be present for all records.
-        checkDatabaseFields(datastore, "whisks/all", classOf[ActivationRecord], isActivation, optional=Set("cause"))
+        checkDatabaseFields(datastore, "whisks/all", classOf[WhiskActivation], isActivation, optional=Set("cause"))
 
-        checkDatabaseFields(datastore, "whisks/all", classOf[PackageRecord], isPackage)
+        checkDatabaseFields(datastore, "whisks/all", classOf[WhiskPackage], isPackage)
     }
 }

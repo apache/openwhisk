@@ -24,7 +24,6 @@ import spray.json.JsString
 import spray.json.JsNumber
 import spray.json.RootJsonFormat
 import spray.json.DeserializationException
-import whisk.core.entity.schema.EntityRecord
 import java.time.Instant
 import java.time.Clock
 
@@ -59,21 +58,6 @@ abstract class WhiskEntity protected[entity] (en: EntityName) extends WhiskDocum
 
     /** The primary key for the entity in the datastore */
     override final def docid = DocId(WhiskEntity.qualifiedName(namespace, en))
-
-    /**
-     * @return T instead of Try[T] for convenience. The overrides must
-     * wrap calls to serialize with try {} and return a Try instance.
-     */
-    protected def serialize[T <: EntityRecord](w: T): T = {
-        w.docinfo(docinfo)
-        w.namespace = namespace.toString
-        w.name = name.toString
-        w.version = version.toString
-        w.publish = publish
-        w.annotations = annotations.toGson
-        w.updated = updated.toEpochMilli
-        w
-    }
 
     /**
      * Returns a JSON object with the fields specific to this abstract class.

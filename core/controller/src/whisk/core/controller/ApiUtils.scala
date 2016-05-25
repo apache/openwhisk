@@ -156,14 +156,13 @@ trait ReadOps extends Directives with Messages with Logging {
      * - 404 Not Found
      * - 500 Internal Server Error
      */
-    protected def getEntity[R, A, Ru >: R, Au >: A](
-        factory: DocumentFactory[R, A],
-        datastore: ArtifactStore[Ru, Au],
+    protected def getEntity[A, Au >: A](
+        factory: DocumentFactory[A],
+        datastore: ArtifactStore[Au],
         docid: DocId,
         postProcess: Option[PostProcessEntity[A]] = None)(
             implicit transid: TransactionId,
             format: RootJsonFormat[A],
-            mr: Manifest[R],
             ma: Manifest[A]) = {
         onComplete(factory.get(datastore, docid.asDocInfo)) {
             case Success(entity) =>
@@ -194,14 +193,13 @@ trait ReadOps extends Directives with Messages with Logging {
      * - 404 Not Found
      * - 500 Internal Server Error
      */
-    protected def getEntityAndProject[R, A, Ru >: R, Au >: A](
-        factory: DocumentFactory[R, A],
-        datastore: ArtifactStore[Ru, Au],
+    protected def getEntityAndProject[A, Au >: A](
+        factory: DocumentFactory[A],
+        datastore: ArtifactStore[Au],
         docid: DocId,
         project: A => JsObject)(
             implicit transid: TransactionId,
             format: RootJsonFormat[A],
-            mr: Manifest[R],
             ma: Manifest[A]) = {
         onComplete(factory.get(datastore, docid.asDocInfo)) {
             case Success(entity) =>
@@ -253,9 +251,9 @@ trait WriteOps extends Directives with Messages with Logging {
      * - 409 Conflict
      * - 500 Internal Server Error
      */
-    protected def putEntity[R, A, Ru >: R, Au >: A](
-        factory: DocumentFactory[R, A],
-        datastore: ArtifactStore[Ru, Au],
+    protected def putEntity[A, Au >: A](
+        factory: DocumentFactory[A],
+        datastore: ArtifactStore[Au],
         docid: DocId,
         overwrite: Boolean,
         update: A => Future[A],
@@ -263,7 +261,6 @@ trait WriteOps extends Directives with Messages with Logging {
         treatExistsAsConflict: Boolean = true)(
             implicit transid: TransactionId,
             format: RootJsonFormat[A],
-            mr: Manifest[R],
             ma: Manifest[A]) = {
         // marker to return an existing doc with status OK rather than conflict if overwrite is false
         case class IdentityPut(self: A) extends Throwable
@@ -324,14 +321,13 @@ trait WriteOps extends Directives with Messages with Logging {
      * - 409 Conflict
      * - 500 Internal Server Error
      */
-    protected def deleteEntity[R, A <: WhiskDocument, Ru >: R, Au >: A](
-        factory: DocumentFactory[R, A],
-        datastore: ArtifactStore[Ru, Au],
+    protected def deleteEntity[A <: WhiskDocument, Au >: A](
+        factory: DocumentFactory[A],
+        datastore: ArtifactStore[Au],
         docid: DocId,
         confirm: A => Future[Boolean])(
             implicit transid: TransactionId,
             format: RootJsonFormat[A],
-            mr: Manifest[R],
             ma: Manifest[A]) = {
         onComplete(factory.get(datastore, docid.asDocInfo) flatMap {
             entity =>

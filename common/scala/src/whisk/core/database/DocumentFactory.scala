@@ -99,14 +99,7 @@ protected[core] trait DocumentRevisionProvider {
  */
 trait DocumentSerializer {
     /**
-     * Serializes instance into a Document for writing to datastore.
-     *
-     * @return Try[Document]
-     */
-    def serialize(): Try[Document]
-
-    /**
-     * A JSON view including the document metadata.
+     * A JSON view including the document metadata, for writing to the datastore.
      *
      * @return JsObject
      */
@@ -116,21 +109,12 @@ trait DocumentSerializer {
 /**
  * A common trait for all records that are deserialized from raw documents in the datastore
  *
- * The type parameters R and W represent the "raw" and "whisk" types, respectively, where the latter
- * is the document abstraction to use in core components. The trait is invariant in these types
- * but the get permits a datastore of their respective super types so that a single datastore client
- * may be used for multiple types (because the raw types are stored in the same database for example).
+ * The type parameter W represents the "whisk" type, the document abstraction to
+ * use in core components. The trait is invariant in W
+ * but the get permits a datastore of its super type so that a single datastore client
+ * may be used for multiple types (because the types are stored in the same database for example).
  */
-trait DocumentFactory[R, W] extends (R => Try[W]) with InMemoryCache[R, W] {
-
-    /**
-     * Converts a raw record of type R into its corresponding abstraction of type W.
-     *
-     * @param r the raw record, typically retrieved from the datastore
-     * @return Try(W) which matches Success(W) or Failure(Exception) if the raw record cannot be converted into W
-     */
-    implicit def apply(r: R): Try[W]
-
+trait DocumentFactory[W] extends InMemoryCache[W] {
     /**
      * Puts a record of type W in the datastore.
      *
@@ -143,7 +127,7 @@ trait DocumentFactory[R, W] extends (R => Try[W]) with InMemoryCache[R, W] {
      * @param transid the transaction id for logging
      * @return Future[DocInfo] with completion to DocInfo containing the save document id and revision
      */
-    def put[Rsuper >: R, Wsuper >: W](db: ArtifactStore[Rsuper, Wsuper], doc: W)(
+    def put[Wsuper >: W](db: ArtifactStore[Wsuper], doc: W)(
         implicit transid: TransactionId): Future[DocInfo] = {
         Try {
             require(db != null, "db undefined")
@@ -168,7 +152,7 @@ trait DocumentFactory[R, W] extends (R => Try[W]) with InMemoryCache[R, W] {
         }
     }
 
-    def del[Rsuper >: R, Wsuper >: W](db: ArtifactStore[Rsuper, Wsuper], doc: DocInfo)(
+    def del[Wsuper >: W](db: ArtifactStore[Wsuper], doc: DocInfo)(
         implicit transid: TransactionId): Future[Boolean] = {
         Try {
             require(db != null, "db undefined")
@@ -185,7 +169,7 @@ trait DocumentFactory[R, W] extends (R => Try[W]) with InMemoryCache[R, W] {
     }
 
     /**
-     * Fetches a raw record of type R from the datastore by its id (and revision if given)
+     * FIXME UPDATE Fetches a raw record of type R from the datastore by its id (and revision if given)
      * and converts it to Success(W) or Failure(Throwable) if there is an error fetching
      * the record or deserializing it.
      *
@@ -197,18 +181,17 @@ trait DocumentFactory[R, W] extends (R => Try[W]) with InMemoryCache[R, W] {
      * @param doc the entity document information (must contain a valid id, and optional revision)
      * @param fromCache will only query cache if true (defaults to collection settings)
      * @param transid the transaction id for logging
-     * @param mr a manifest for R (hint to compiler to preserve type R for runtime)
      * @param mw a manifest for W (hint to compiler to preserve type R for runtime)
      * @return Future[W] with completion to Success(W), or Failure(Throwable) if the raw record cannot be converted into W
      */
-    def get[Rsuper >: R, Wsuper >: W](db: ArtifactStore[Rsuper, Wsuper], doc: DocInfo, fromCache: Boolean = cacheEnabled)(
-        implicit transid: TransactionId, mr: Manifest[R], mw: Manifest[W]): Future[W] = {
+    def get[Wsuper >: W](db: ArtifactStore[Wsuper], doc: DocInfo, fromCache: Boolean = cacheEnabled)(
+        implicit transid: TransactionId, mw: Manifest[W]): Future[W] = {
         Try {
             require(db != null, "db undefined")
             require(doc != null, "doc undefined")
         } map {
             implicit val logger = db: Logging
-            _ => cacheLookup(db, doc, db.get[R, W](doc), fromCache)
+            _ => cacheLookup(db, doc, db.get[W](doc), fromCache)
         } match {
             case Success(f) => f
             case Failure(t) => Future.failed(t)

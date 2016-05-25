@@ -26,7 +26,7 @@ import whisk.common.TransactionId
 import whisk.core.entity.DocInfo
 
 /** Basic client to put and delete artifacts in a data store. */
-trait ArtifactStore[RawDocument, DocumentAbstraction] extends Logging {
+trait ArtifactStore[DocumentAbstraction] extends Logging {
 
     /** Execution context for futures */
     protected[core] implicit val executionContext: ExecutionContext
@@ -56,16 +56,12 @@ trait ArtifactStore[RawDocument, DocumentAbstraction] extends Logging {
      * If the operation is successful, the future completes with the requested document if it exists.
      *
      * @param doc the document info for the record to get (must contain valid id and rev)
-     * @param deserialize a function from R => Try[A] where R is the RawDocument type and A is the DocumentAbstraction type
      * @param transid the transaction id for logging
-     * @param mr manifest for R to determine its runtime type, required by some db APIs
      * @param ma manifest for A to determine its runtime type, required by some db APIs
      * @return a future that completes either with DocumentAbstraction if the document exists and is deserializable into desired type
      */
-    protected[database] def get[R <: RawDocument, A <: DocumentAbstraction](doc: DocInfo)(
+    protected[database] def get[A <: DocumentAbstraction](doc: DocInfo)(
         implicit transid: TransactionId,
-        deserialize: Deserializer[R, A],
-        mr: Manifest[R],
         ma: Manifest[A]): Future[A]
 
     /**
@@ -85,9 +81,6 @@ trait ArtifactStore[RawDocument, DocumentAbstraction] extends Logging {
      */
     protected[core] def query(table: String, startKey: List[Any], endKey: List[Any], skip: Int, limit: Int, includeDocs: Boolean, descending: Boolean, reduce: Boolean)(
         implicit transid: TransactionId): Future[List[JsObject]]
-
-    /** Type for deserializer function that converts between raw document and abstraction. */
-    protected type Deserializer[R <: RawDocument, A <: DocumentAbstraction] = R => Try[A]
 
     /** Shut it down. After this invocation, every other call is invalid. */
     def shutdown() : Unit
