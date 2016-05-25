@@ -59,7 +59,7 @@ class ContainerPool(
     config: WhiskConfig,
     invokerInstance: Integer = 0,
     verbosity: Verbosity.Level = Verbosity.Loud,
-    useWarmContainers: Boolean = true)(implicit actorSystem: ActorSystem)
+    standalone: Boolean = false)(implicit actorSystem: ActorSystem)
     extends ContainerUtils {
 
     val dockerhost = config.selfDockerEndpoint
@@ -365,7 +365,7 @@ class ContainerPool(
         override def run {
             implicit val tid = TransactionId.invokerWarmup
             killStragglers()
-            while (useWarmContainers) {
+            while (true) {
                 if (getNumberOfIdleContainers(warmNodejsKey) < WARM_NODEJS_CONTAINERS) {
                     makeWarmNodejsContainer()(tid)
                 }
@@ -614,11 +614,13 @@ class ContainerPool(
         con.containerId map { id => getDockerLogSize(id, mounted) } getOrElse 0
     }
 
-    nannyThread.start
-    sys addShutdownHook {
-        warn(this, "Shutdown hook activated.  Starting container shutdown")
-        shutdown()
-        warn(this, "Shutdown hook completed.")
+    if (!standalone) {
+        nannyThread.start
+        sys addShutdownHook {
+            warn(this, "Shutdown hook activated.  Starting container shutdown")
+            shutdown()
+            warn(this, "Shutdown hook completed.")
+        }
     }
 
 }
