@@ -155,12 +155,14 @@ object WhiskPackage
 
     override implicit val serdes = {
         // This is to support the old style where {} represents None.
-        // Note that all new entries use `null` for None.
         val tolerantOptionBindingFormat: JsonFormat[Option[Binding]] = {
             val bs = Binding.serdes // helps the compiler
             val base = implicitly[JsonFormat[Option[Binding]]]
             new JsonFormat[Option[Binding]] {
-                override def write(ob: Option[Binding]) = base.write(ob)
+                override def write(ob: Option[Binding]) = ob match {
+                    case None => JsObject()
+                    case _ => base.write(ob)
+                }
                 override def read(js: JsValue) = {
                     if (js == JsObject()) None else base.read(js)
                 }
