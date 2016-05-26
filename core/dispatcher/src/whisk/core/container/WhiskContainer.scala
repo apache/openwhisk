@@ -114,20 +114,6 @@ class WhiskContainer(
     }
 
     /**
-     * Gets the current size of the mounted file associated with this whisk container.
-     */
-    def getLogSize(mounted: Boolean) = pool.getLogSize(this, mounted)
-
-    /**
-     * Gets docker logs.
-     */
-    def getDockerLogContent(start: Long, end: Long, mounted: Boolean)(implicit transid: TransactionId): Array[Byte] = {
-        this.synchronized {
-            containerId map { id => pool.getDockerLogContent(id, start, end, mounted) } getOrElse Array()
-        }
-    }
-
-    /**
      * Posts a message to the container.
      *
      * @param msg the message to post

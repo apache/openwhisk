@@ -22,6 +22,7 @@ import java.nio.file.Paths
 import java.time.Instant
 import java.util.Timer
 import java.util.TimerTask
+import java.util.concurrent.ConcurrentLinkedQueue
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.ListBuffer
 import scala.annotation.tailrec
@@ -289,7 +290,7 @@ class ContainerPool(
             this.notify()
             toBeDeleted
         }
-        teardownContainers(toBeDeleted) // perform delete docker operation outside lock
+        toBeDeleted.foreach(toBeRemoved.offer(_))
         // Perform capacity-based GC here.
         if (gcOn) { // Synchronization occurs inside calls in a fine-grained manner.
             while (idleCount() > _maxIdle) { // it is safe for this to be non-atomic with body
@@ -322,9 +323,12 @@ class ContainerPool(
     case class Busy() extends ContainerResult
     case class Error(string: String) extends ContainerResult
 
-    private val LOG_SLACK = 150 // Delay for XX msec for docker output to show up.  Relevant only for teardown not regular running.
     private val containerMap = new TrieMap[Container, ContainerInfo]
     private val keyMap = new TrieMap[String, ListBuffer[ContainerInfo]]
+
+    // These are containers that are already removed from the data structure waiting to be docker-removed
+    private val toBeRemoved = new ConcurrentLinkedQueue[ContainerInfo]()
+
 
     // Note that the prefix seprates the name space of this from regular keys.
     // TODO: Generalize across language by storing image name when we generalize to other languages
@@ -358,18 +362,28 @@ class ContainerPool(
     val dockerLock = new Object()
 
     /* A background thread that
-     *   1. Kills leftover action containers
+     *   1. Kills leftover action containers on startup
      *   2. Periodically re-populates the container pool with fresh (un-instantiated) nodejs containers.
+     *   3. Periodically tears down containers that have logically been removed from the system
      */
     private val nannyThread = new Thread {
         override def run {
             implicit val tid = TransactionId.invokerWarmup
-            killStragglers()
+            if (!standalone) killStragglers()
             while (true) {
-                if (getNumberOfIdleContainers(warmNodejsKey) < WARM_NODEJS_CONTAINERS) {
+                Thread.sleep(100)      // serves to prevent busy looping
+                if (!standalone && getNumberOfIdleContainers(warmNodejsKey) < WARM_NODEJS_CONTAINERS) {
                     makeWarmNodejsContainer()(tid)
                 }
-                Thread.sleep(100)
+                // We grab the size first so we know there has been enough delay for anything we are shutting down
+                val size = toBeRemoved.size()
+                1 to size foreach { _ =>
+                    val ci = toBeRemoved.poll()
+                    if (ci != null) {  // should never happen but defensive
+                        Thread.sleep(100)  // serves to not hog docker lock and add slack
+                        teardownContainer(ci.container)
+                    }
+                }
             }
         }
     }
@@ -539,7 +553,7 @@ class ContainerPool(
                 keyMap retain { case (key, ciList) => !ciList.isEmpty }
                 idle.values
             }
-            teardownContainers(idleInfo)
+            idleInfo.foreach(toBeRemoved.offer(_))
         }
     }
 
@@ -564,7 +578,7 @@ class ContainerPool(
                 List(oldestConInfo)
             }
         }
-        teardownContainers(oldestIdle)
+        oldestIdle.foreach(toBeRemoved.offer(_))
     }
 
     // Getter/setter for this are above.
@@ -573,19 +587,14 @@ class ContainerPool(
 
     /*
      * Actually delete the containers.
-     * The delay is needed for the forwarders.
-     * TODO: Maybe use a Future so caller is not blocked.
      */
-    private def teardownContainers(containers: Iterable[ContainerInfo])(implicit transid: TransactionId) = {
-        Thread.sleep(LOG_SLACK)
-        containers foreach { ci =>
-            val logs = ci.container.getLogs()
-            val conName = ci.container.name
-            val filename = s"${_logDir}/${conName}.log"
-            Files.write(Paths.get(filename), logs.getBytes(StandardCharsets.UTF_8))
-            info(this, s"teardownContainers: wrote docker logs to $filename")
-            runDockerOp { ci.container.remove() }
-        }
+    private def teardownContainer(container: Container)(implicit transid: TransactionId) = {
+        val size = container.getLogSize(!standalone)
+        val rawLogBytes = container.getDockerLogContent(0, size, !standalone)
+        val filename = s"${_logDir}/${container.name}.log"
+        Files.write(Paths.get(filename), rawLogBytes)
+        info(this, s"teardownContainers: wrote docker logs to $filename")
+        runDockerOp { container.remove() }
     }
 
     /*
@@ -608,17 +617,15 @@ class ContainerPool(
     /*
      * Get the size of the mounted file associated with this whisk container.
      */
-    def getLogSize(con: WhiskContainer, mounted: Boolean)(implicit transid: TransactionId): Long = {
+    def getLogSize(con: Container, mounted: Boolean)(implicit transid: TransactionId): Long = {
         con.containerId map { id => getDockerLogSize(id, mounted) } getOrElse 0
     }
 
-    if (!standalone) {
-        nannyThread.start
-        sys addShutdownHook {
-            warn(this, "Shutdown hook activated.  Starting container shutdown")
-            shutdown()
-            warn(this, "Shutdown hook completed.")
-        }
+    nannyThread.start
+    sys addShutdownHook {
+        warn(this, "Shutdown hook activated.  Starting container shutdown")
+        shutdown()
+        warn(this, "Shutdown hook completed.")
     }
 
 }
