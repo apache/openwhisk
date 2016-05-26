@@ -397,7 +397,6 @@ class ContainerPool(
         val limits = ActionLimits(TimeLimit(), defaultMemoryLimit)
         val containerName = makeContainerName("warmJsContainer")
         val con = makeGeneralContainer(warmNodejsKey, containerName, imageName, limits)
-        runDockerOp { con.pause() }
         this.synchronized {
             introduceContainer(warmNodejsKey, con)
         }
@@ -412,7 +411,6 @@ class ContainerPool(
                 con.transid = transid
                 val Some(ci) = containerMap.get(con)
                 changeKey(ci, warmNodejsKey, key)
-                runDockerOp { con.unpause() }
                 Some(con.asInstanceOf[WhiskContainer])
             case _ => None
         }
