@@ -39,6 +39,7 @@
             <arg value="-PdockerHost=${main.docker.endpoint}" />
         </exec>
         <ant antfile="${openwhisk.home}/services/nginx/build.xml" target="buildProxy" />
+        <ant antfile="tools/build.xml" target="build" />
     </target>
 
     <!-- run unit tests-->
@@ -52,7 +53,7 @@
         <ant antfile="${openwhisk.home}/services/nginx/build.xml" target="startProxy" />
         <ant antfile="services/build.xml" target="deploy" />
         <ant antfile="core/build.xml" target="deploy" />
-        <ant antfile="tools/cli/build.xml" target="buildCLI" />
+        <ant antfile="tools/build.xml" target="deploy" />
         <antcall target="installCatalog" />
     </target>
 
