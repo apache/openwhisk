@@ -112,6 +112,7 @@ class ContainerPoolTests extends FlatSpec
     def ensureClean() = {
         pool.enableGC();
         pool.forceGC();
+        Thread.sleep(2 * pool.gcFreqMilli + 1500) // GC should collect this by now
         assert(pool.idleCount() == 0);
         assert(pool.activeCount() == 0);
     }
@@ -145,6 +146,7 @@ class ContainerPoolTests extends FlatSpec
         assert(pool.idleCount() == startIdleCount + 1)
         pool.enableGC();
         pool.forceGC(); // force all containers in pool to be freed
+        Thread.sleep(2 * pool.gcFreqMilli + 1500) // GC should collect this by now
         assert(!poolHasContainerIdPrefix(containerIdPrefix)) // container must be gone by now
         assert(pool.idleCount() == 0)
     }
