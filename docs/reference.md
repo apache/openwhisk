@@ -257,11 +257,13 @@ JavaScript actions are executed in a Node.js version 0.12.9 environment with the
 - semver
 - serve-favicon
 - socket.io
+- socket.io-client
 - superagent
 - swagger-tools
 - tmp
 - watson-developer-cloud
 - when
+- ws
 - xml2js
 - xmlhttprequest
 - yauzl

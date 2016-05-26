@@ -47,11 +47,13 @@ rimraf@2.5.1 \
 semver@4.3.6 \
 serve-favicon@2.2.0 \
 socket.io@1.3.5 \
+socket.io-client@1.3.5 \
 superagent@1.3.0 \
 swagger-tools@0.8.7 \
 tmp@0.0.28 \
 watson-developer-cloud@1.4.1 \
 when@3.7.3 \
+ws@1.1.0 \
 xml2js@0.4.15 \
 xmlhttprequest@1.7.0 \
 yauzl@2.3.1
