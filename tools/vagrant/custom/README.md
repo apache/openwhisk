@@ -12,7 +12,7 @@ cd openwhisk/tools/vagrant/custom
 ```
 
 ### Create vm using custom datastore (Cloudant or CouchDB)
-Follow instructions [tools/db/README.md](../db/README.md) on how to configure a datastore for OpenWhisk.
+Follow instructions [tools/db/README.md](../../db/README.md) on how to configure a datastore for OpenWhisk.
 
 #### Option 1: Create VM using Cloudant DB
 ```
