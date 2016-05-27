@@ -622,12 +622,13 @@ class ContainerPool(
     }
 
     nannyThread.start
-    sys addShutdownHook {
-        warn(this, "Shutdown hook activated.  Starting container shutdown")
-        shutdown()
-        warn(this, "Shutdown hook completed.")
+    if (!standalone) {
+        sys addShutdownHook {
+            warn(this, "Shutdown hook activated.  Starting container shutdown")
+            shutdown()
+            warn(this, "Shutdown hook completed.")
+        }
     }
-
 }
 
 object ContainerPool {
