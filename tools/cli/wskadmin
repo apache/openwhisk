@@ -27,10 +27,15 @@ import sys
 import argparse
 import json
 import wskprop
-from wskutil import request
 import string
 import random
 import uuid
+from subprocess import Popen, PIPE, STDOUT
+try:
+    import argcomplete
+except ImportError:
+    argcomplete = False
+from wskutil import request
 
 DB_PROTOCOL = 'DB_PROTOCOL'
 DB_HOST     = 'DB_HOST'
@@ -41,13 +46,18 @@ DB_PASSWORD = 'DB_PASSWORD'
 DB_WHISK_AUTHS   = 'DB_WHISK_AUTHS'
 DB_WHISK_ACTIONS = 'DB_WHISK_ACTIONS'
 
+LOGS_DIR = 'WHISK_LOGS_DIR'
+
 # SCRIPT_DIR is going to be traversing all links and point to tools/cli/wsk
 CLI_DIR = os.path.dirname(os.path.realpath(sys.argv[0]))
 # ROOT_DIR is the repository root
 ROOT_DIR = os.path.join(os.path.join(CLI_DIR, os.pardir), os.pardir)
 
 def main():
-    requiredprops = [ DB_PROTOCOL, DB_HOST, DB_PORT, DB_USERNAME, DB_PASSWORD, DB_WHISK_AUTHS, DB_WHISK_ACTIONS ]
+    requiredprops = [
+        DB_PROTOCOL, DB_HOST, DB_PORT, DB_USERNAME, DB_PASSWORD,
+        DB_WHISK_AUTHS, DB_WHISK_ACTIONS,
+        LOGS_DIR ]
     whiskprops = wskprop.importPropsIfAvailable(wskprop.propfile(ROOT_DIR))
     (valid, props, deferredInfo) = wskprop.checkRequiredProperties(requiredprops, whiskprops)
 
@@ -59,7 +69,8 @@ def main():
                 print deferredInfo
             exitCode = {
               'user' : userCmd,
-              'db'   : dbCmd
+              'db'   : dbCmd,
+              'syslog' : syslogCmd
             }[args.cmd](args, props)
         except Exception as e:
             print 'Exception: ', e
@@ -95,6 +106,15 @@ def parseArgs():
     subcmd.add_argument('-v', '--view', help='the view in the database to get')
     subcmd.add_argument('--docs', help='include document contents', action='store_true')
 
+    propmenu = subparsers.add_parser('syslog', help='work with system logs')
+    subparser = propmenu.add_subparsers(title='available commands', dest='subcmd')
+
+    subcmd = subparser.add_parser('get', help='get logs for a transaction id')
+    subcmd.add_argument('tid', help='the transaction id')
+    subcmd.add_argument('component', help='component, one of [controller, invokerN] where N is invoker index')
+
+    if argcomplete:
+        argcomplete.autocomplete(parser)
     return parser.parse_args()
 
 def userCmd(args, props):
@@ -113,6 +133,13 @@ def userCmd(args, props):
 def dbCmd(args, props):
     if args.subcmd == 'get':
         return getDbCmd(args, props)
+    else:
+        print 'unknown command'
+        return 2
+
+def syslogCmd(args, props):
+    if args.subcmd == 'get':
+        return getLogsCmd(args, props)
     else:
         print 'unknown command'
         return 2
@@ -309,6 +336,29 @@ def getDbCmd(args, props):
         return 0
     print 'Failed to get database (%s)' % res.read().strip()
     return 1
+
+def getLogsCmd(args, props):
+    path = '%s/%s/%s_logs.log' % (props[LOGS_DIR], args.component, args.component)
+    cmd = 'grep "\[#tid_%s\]" %s' % (args.tid, path)
+    (output, error) = shell(cmd, verbose = args.verbose)
+    if output:
+        print output.strip()
+    if error:
+        print error.strip()
+        return 1
+    else:
+        return 0
+
+def shell(cmd, data=None, verbose=False):
+    if verbose:
+        print cmd
+    if input:
+        p = Popen(cmd, shell=True, stdout=PIPE, stderr=STDOUT, stdin=PIPE)
+        out, err = p.communicate(input=data)
+    else:
+        out, err = Popen(cmd, shell=True, stdout=PIPE, stderr=STDOUT)
+    p.wait()
+    return (out, err)
 
 if __name__ == '__main__':
     main()
