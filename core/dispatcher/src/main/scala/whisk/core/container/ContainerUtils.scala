@@ -48,8 +48,8 @@ trait ContainerUtils extends Logging {
      * @param image the docker image to run
      * @return container id and container host
      */
-    def bringup(name: Option[String], image: String, network: String, env: Map[String, String], args: Array[String], limits: ActionLimits)(implicit transid: TransactionId): (ContainerId, ContainerIP) = {
-        val id = makeContainer(name, image, network, env, args, limits)
+    def bringup(name: Option[String], image: String, network: String, env: Map[String, String], args: Array[String], limits: ActionLimits, policy: Option[String])(implicit transid: TransactionId): (ContainerId, ContainerIP) = {
+        val id = makeContainer(name, image, network, env, args, limits, policy)
         val host = if (id.isDefined) getContainerHost(name) else None
         (id, host)
     }
@@ -65,16 +65,17 @@ trait ContainerUtils extends Logging {
     /*
      * TODO: The file handle and process limits should be moved to some global limits config.
      */
-    def makeContainer(name: Option[String], image: String, network: String, env: Map[String, String], args: Array[String], limits: ActionLimits)(implicit transid: TransactionId): ContainerId = {
+    def makeContainer(name: Option[String], image: String, network: String, env: Map[String, String], args: Array[String], limits: ActionLimits, policy: Option[String])(implicit transid: TransactionId): ContainerId = {
         val nameOption = if (name isDefined) Array("--name", name.getOrElse("")) else Array.empty[String]
         val memoryArg = Array("-m", s"${limits.memory()}m")
         val capabilityArg = Array("--cap-drop", "NET_RAW", "--cap-drop", "NET_ADMIN")
         val consulServiceIgnore = Array("-e", "SERVICE_IGNORE=true")
         val fileHandleLimit = Array("--ulimit", "nofile=64:64")
         val processLimit = Array("--ulimit", "nproc=512:512")
+        val securityOpts = policy map { p => Array("--security-opt", s"apparmor:${p}" ) } getOrElse(Array.empty[String])
         val containerNetwork = Array("--net", network)
         val cmd = Array("run") ++ makeEnvVars(env) ++ consulServiceIgnore ++ nameOption ++ memoryArg ++
-            capabilityArg ++ fileHandleLimit ++ processLimit ++ containerNetwork ++ Array("-d", image) ++ args
+            capabilityArg ++ fileHandleLimit ++ processLimit ++ securityOpts ++ containerNetwork ++ Array("-d", image) ++ args
         runDockerCmd(cmd: _*)
     }
 
