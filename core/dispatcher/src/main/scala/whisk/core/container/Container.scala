@@ -33,6 +33,7 @@ class Container(
     containerName: Option[String],
     val image: String,
     network: String,
+    policy: Option[String],
     pull: Boolean = false,
     val limits: ActionLimits = ActionLimits(),
     env: Map[String, String] = Map(),
@@ -49,7 +50,7 @@ class Container(
 
     if (pull) pullImage(image)
 
-    val (containerId, containerIP) = bringup(containerName, image, network, env, args, limits)
+    val (containerId, containerIP) = bringup(containerName, image, network, env, args, limits, policy)
 
     def details: String = {
         val name = containerName getOrElse "??"

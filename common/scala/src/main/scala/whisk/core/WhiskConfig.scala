@@ -44,6 +44,7 @@ class WhiskConfig(
     val dockerImageTag = this(WhiskConfig.dockerImageTag)
 
     val invokerContainerNetwork = this(WhiskConfig.invokerContainerNetwork)
+    val invokerContainerPolicy = if (this(WhiskConfig.invokerContainerPolicy) == "") None else Some(this(WhiskConfig.invokerContainerPolicy))
 
     val controllerHost = this(WhiskConfig.controllerHostName) + ":" + this(WhiskConfig.controllerHostPort)
     val edgeHost = this(WhiskConfig.edgeHostName) + ":" + this(WhiskConfig.edgeHostApiPort)
@@ -147,6 +148,7 @@ object WhiskConfig {
     val dockerImageTag = "docker.image.tag"
 
     val invokerContainerNetwork = "invoker.container.network"
+    val invokerContainerPolicy = "invoker.container.policy"
 
     val routerHost = "router.host"
     val cliApiHost = "cli.api.host"

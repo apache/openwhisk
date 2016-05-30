@@ -34,6 +34,7 @@ import whisk.common.Verbosity
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.dockerImageTag
 import whisk.core.WhiskConfig.invokerContainerNetwork
+import whisk.core.WhiskConfig.invokerContainerPolicy
 import whisk.core.WhiskConfig.selfDockerEndpoint
 import whisk.core.entity.ActionLimits
 import whisk.core.entity.MemoryLimit
@@ -454,10 +455,11 @@ class ContainerPool(
     private def makeGeneralContainer(key: String, containerName: String,
                                      imageName: String, limits: ActionLimits)(implicit transid: TransactionId): WhiskContainer = {
         val network = config.invokerContainerNetwork
+        val policy = config.invokerContainerPolicy
         val env = getContainerEnvironment()
         val pull = !imageName.contains("whisk/")
         // This will start up the container
-        runDockerOp { new WhiskContainer(transid, this, key, containerName, imageName, network, pull, env, limits) }
+        runDockerOp { new WhiskContainer(transid, this, key, containerName, imageName, network, policy, pull, env, limits) }
     }
 
     // We send the payload here but eventually must also handle morphing a pre-allocated container into the right state.
@@ -474,7 +476,7 @@ class ContainerPool(
     private def makeContainer(imageName: String, args: Array[String])(implicit transid: TransactionId): ContainerResult = {
         val con = runDockerOp {
             new Container(transid, this, makeKey(imageName, args), None, imageName,
-                config.invokerContainerNetwork, false, ActionLimits(), Map(), args)
+                config.invokerContainerNetwork, config.invokerContainerPolicy, false, ActionLimits(), Map(), args)
         }
         con.setVerbosity(getVerbosity())
         Success(con, None)
@@ -633,6 +635,6 @@ class ContainerPool(
 }
 
 object ContainerPool {
-    def requiredProperties = Map(selfDockerEndpoint -> "localhost") ++ Map(dockerImageTag -> "latest") ++ Map(invokerContainerNetwork -> "bridge")
+    def requiredProperties = Map(selfDockerEndpoint -> "localhost") ++ Map(dockerImageTag -> "latest") ++ Map(invokerContainerNetwork -> "bridge") ++ Map(invokerContainerPolicy -> "")
     type RunResult = (Instant, Instant, Option[(Int, String)])
 }

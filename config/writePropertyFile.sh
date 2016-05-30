@@ -67,6 +67,9 @@ else
     echo "invoker.container.network=bridge" >> "$WHISK_HOME/whisk.properties"
 fi
 
+if [ "$INVOKER_CONTAINER_POLICY" != "" ]; then
+    echo "invoker.container.policy=$INVOKER_CONTAINER_POLICY" >> "$WHISK_HOME/whisk.properties"
+fi
 
 # Docker endpoints
 echo "consulserver.docker.endpoint="$CONSULSERVER_DOCKER_ENDPOINT >> "$WHISK_HOME/whisk.properties"

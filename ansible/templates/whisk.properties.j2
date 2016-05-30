@@ -16,6 +16,7 @@ cli.api.host={{ cli_api_host | default(groups['edge'] | first) }}
 zookeeper.host={{ groups["kafka"]|first }}
 invoker.hosts={{ groups["invokers"] | join(",") }}
 invoker.container.network=bridge
+invoker.container.policy={{ invoker_container_policy_name | default()}}
 consulserver.docker.endpoint={{ groups["consul_servers"]|first }}:{{ docker.port }}
 edge.docker.endpoint={{ groups["edge"]|first }}:{{ docker.port }}
 kafka.docker.endpoint={{ groups["kafka"]|first }}:{{ docker.port }}
