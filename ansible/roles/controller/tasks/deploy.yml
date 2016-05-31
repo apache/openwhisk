@@ -19,6 +19,7 @@
       "PORT": 8080
       "WHISK_VERSION_NAME": "{{ whisk_version_name }}"
       "WHISK_VERSION_DATE": "{{ whisk.version.date }}"
+      "WHISK_VERSION_BUILDNO": "{{ docker_image_tag }}"
       "KAFKA_NUMPARTITIONS": 2
       "SERVICE_CHECK_HTTP": "/ping"
       "SERVICE_CHECK_TIMEOUT": "2s"
