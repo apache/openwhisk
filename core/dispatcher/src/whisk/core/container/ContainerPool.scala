@@ -366,10 +366,10 @@ class ContainerPool(
      *   2. Periodically re-populates the container pool with fresh (un-instantiated) nodejs containers.
      *   3. Periodically tears down containers that have logically been removed from the system
      */
-    private val nannyThread = new Thread {
+    private def nannyThread(allContainers: Array[ContainerState]) = new Thread {
         override def run {
             implicit val tid = TransactionId.invokerWarmup
-            if (!standalone) killStragglers()
+            if (!standalone) killStragglers(allContainers)
             while (true) {
                 Thread.sleep(100)      // serves to prevent busy looping
                 if (!standalone && getNumberOfIdleContainers(warmNodejsKey) < WARM_NODEJS_CONTAINERS) {
@@ -393,17 +393,18 @@ class ContainerPool(
      * If one desires to kill the invoker without this, send it SIGKILL.
      */
     private def shutdown() = {
+        implicit val id = TransactionId.invokerWarmup
         shuttingDown = true
-        killStragglers()(TransactionId.invokerWarmup)
+        killStragglers(listAll())
     }
 
     /*
      * All docker operations from the pool must pass through here.
      */
     private def runDockerOp[T](dockerOp: => T): T = {
-        dockerLock.synchronized {
+//        dockerLock.synchronized {
             dockerOp
-        }
+//        }
     }
 
     private def makeWarmNodejsContainer()(implicit transid: TransactionId): WhiskContainer = {
@@ -602,8 +603,8 @@ class ContainerPool(
      * This is needed for startup and shutdown.
      * Concurrent access from clients must be prevented.
      */
-    private def killStragglers()(implicit transid: TransactionId) = dockerLock.synchronized {
-        val candidates = listAll.filter { case ContainerState(id, image, name) => name.startsWith(actionContainerPrefix) }
+    private def killStragglers(allContainers: Array[ContainerState])(implicit transid: TransactionId) = {
+        val candidates = allContainers.filter { case ContainerState(id, image, name) => name.startsWith(actionContainerPrefix) }
         info(this, s"Now removing ${candidates.length} leftover containers")
         candidates foreach {
             case ContainerState(id, image, name) => {
@@ -621,7 +622,7 @@ class ContainerPool(
         con.containerId map { id => getDockerLogSize(id, mounted) } getOrElse 0
     }
 
-    nannyThread.start
+    nannyThread(listAll()(TransactionId.invokerWarmup)).start
     if (!standalone) {
         sys addShutdownHook {
             warn(this, "Shutdown hook activated.  Starting container shutdown")
