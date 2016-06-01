@@ -32,7 +32,7 @@ For example, consider a system with the following actions:
 
 Also, suppose that there are two event sources that are firing the following triggers:
 - `newTweet` trigger that is fired when a new tweet is posted.
-- `newImage` trigger that is fired when an image is uploaded to a website.
+- `imageUpload` trigger that is fired when an image is uploaded to a website.
 
 You can set up rules so that a single trigger event invokes multiple actions, and have multiple triggers invoke the same action:
 - `newTweet -> classifyImage` rule.

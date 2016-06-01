@@ -187,7 +187,7 @@ It is possible for an action is synchronous on some inputs and asynchronous on o
   }
 ```
 
-- In this case, the `main` function should return `whisk.async()`. When the activation result is available, the `whisk.done()` function should be called with the result is passed as a JSON object. This is referred to as an *asynchronous* activation.
+- In this case, the `main` function should return `whisk.async()`. When the activation result is available, the `whisk.done()` function should be called with the result passed as a JSON object. This is referred to as an *asynchronous* activation.
 
 Note that regardless of whether an activation is synchronous or asynchronous, the invocation of the action can be blocking or non-blocking.
 
@@ -197,8 +197,7 @@ The `whisk.invoke()` function invokes another action. It takes as an argument a 
 
 - *name*: The fully qualified name of the action to invoke,
 - *parameters*: A JSON object representing the input to the invoked action. If omitted, defaults to an empty object.
-- *apiKey*: The authorization key with which to invoke the action.
-action is running. Defaults to `whisk.getAuthKey()`. 
+- *apiKey*: The authorization key with which to invoke the action. Defaults to `whisk.getAuthKey()`. 
 - *blocking*: Whether the action should be invoked in blocking or non-blocking mode. Defaults to `false`, indicating a non-blocking invocation.
 - *next*: An optional callback function to be executed when the invocation completes.
 
@@ -281,6 +280,7 @@ The main binary program should be copied to the `dockerSkeleton/client/clientApp
 
 You can also include any compilation steps or dependencies by modifying the `dockerSkeleton/Dockerfile`. For example you can install Python if your action is a Python script.
 
+
 ## REST API
 
 All the capabilites in the system are available through a REST API. There are collection and entity endpoints for actions, triggers, rules, packages, activations, and namespaces.
@@ -299,7 +299,7 @@ You can perform a GET request on the collection endpoints to fetch a list of ent
 There are entity endpoints for each type of entity:
 
 - `https://$BASEURL/api/v1/namespaces/{namespace}`
-- `https://$BASEURL/api/v1/namespaces/{namespace}/actions/{actionName}`
+- `https://$BASEURL/api/v1/namespaces/{namespace}/actions/[{packageName}/]{actionName}`
 - `https://$BASEURL/api/v1/namespaces/{namespace}/triggers/{triggerName}`
 - `https://$BASEURL/api/v1/namespaces/{namespace}/rules/{ruleName}`
 - `https://$BASEURL/api/v1/namespaces/{namespace}/packages/{packageName}`
