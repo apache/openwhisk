@@ -57,7 +57,7 @@
     </target>
 
     <!-- teardown and deploy all services -->
-    <target name="redeploy" depends="teardown,deploy" />
+    <target name="redeploy" depends="teardownRedeploy,deploy" />
 
     <target name="teardownLocal">
         <exec executable="/bin/bash">
@@ -65,6 +65,13 @@
         </exec>
     </target>
 
+    <target name="teardownLocalRedeploy">
+        <exec executable="/bin/bash">
+            <arg value="tools/docker/cleanDocker.sh" />
+        	<arg value="couchdb" />
+        </exec>
+    </target>
+ 
     <!-- kill all containers, garbage collect docker images -->
     <target name="teardown" depends="teardownLocal,writePropertyFile">
         <var file="whisk.properties" />
@@ -72,6 +79,16 @@
             <env key="DOCKER_PORT" value="${docker.port}" />
             <arg value="tools/docker/cleanAllDockers.sh" />
             <arg value="${basedir}/whisk.properties" />
+        </exec>
+    </target>
+
+    <target name="teardownRedeploy" depends="teardownLocalRedeploy,writePropertyFile">
+        <var file="whisk.properties" />
+        <exec executable="/bin/bash">
+            <env key="DOCKER_PORT" value="${docker.port}" />
+            <arg value="tools/docker/cleanAllDockers.sh" />
+            <arg value="${basedir}/whisk.properties" />
+        	<arg value="couchdb" />
         </exec>
     </target>
 
