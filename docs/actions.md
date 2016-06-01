@@ -323,6 +323,9 @@ Several utility actions are provided in a package called `/whisk.system/util` th
 
   In the result, you see that the lines are sorted.
 
+**Note**: For more information on invoking action sequences with multiple named parameters, see [Setting default parameters](./actions.md#setting-default-parameters)
+
+
 ## Creating Python actions
 
 The process of creating Python actions is similar to that of JavaScript actions. The following sections guide you through creating and invoking a single Python action, and adding parameters to that action.
@@ -418,6 +421,7 @@ The result of the above command will be:
       "greeting": "Hello World. Your gender is Male."
   }
 ```
+
 
 ## Creating Swift actions
 

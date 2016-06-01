@@ -3,14 +3,14 @@
 
 OpenWhisk provides a mobile SDK for iOS and watchOS 2 devices that enables mobile apps to easily fire remote triggers and invoke remote actions. A version for Android is currently not available; Android developers can use the OpenWhisk REST API directly.
 
-The mobile SDK is written in Swift 2.0 and supports iOS 9 and later releases.
+The mobile SDK is written in Swift 2.2 and supports iOS 9 and later releases.
 
 ## Adding the SDK to your app
-You can install the mobile SDK by using CocoaPods, or from the source directory.
+You can install the mobile SDK by using CocoaPods, Carthage, or from the source directory.
 
 ### Installing by using CocoaPods 
 
-The OpenWhisk SDK for mobile is available for public distribution through CocoaPods. The following lines in a Podfile install the SDK for an iOS app with a watchOS 2 extension:
+The OpenWhisk SDK for mobile is available for public distribution through CocoaPods. Assuming CocoaPods is installed, put the following lines into a file called 'Podfile' inside the starter app project directory. 
 
 ```
 source 'https://github.com/openwhisk/openwhisk-podspecs.git'
@@ -25,9 +25,22 @@ target 'MyApp WatchKit Extension' do
 end
 ```
 
+From the command line, type `pod install`. This will install the SDK for an iOS app with a watchOS 2 extension.  Use the workspace file CocoaPods creates for your app to open the project in Xcode.
+
+### Installing using Carthage
+
+Create a file in your app's project directory all it 'Cartfile'. Put the following line in the Cartfile:
+```
+github "openwhisk//openwhisk-client-swift.git" ~> 0.1.0 # Or latest version
+```
+
+From the command line, type `carthage update --platform ios`. Carthage downloads and builds the SDK, creates a directory called Carthage in your app's project directory, and puts an OpenWhisk.framework file inside Carthage/build/iOS.
+
+You must then add OpenWhisk.framework to the embedded frameworks in your Xcode project
+
 ### Installing from source code
 
-Source code is available at https://github.com/openwhisk/openwhisk. The SDK is in mobile/iOS/SDK.
+Source code is available at https://github.com/openwhisk//openwhisk-client-swift.git. Open project using the OpenWhisk.xcodeproj file in Xcode.  The project contains two schemes "OpenWhisk" and "OpenWhiskWatch" targetted for iOS and watchOS 2, respectively.  Build the project for the targets you need and add the resulting frameworks to your app (usually in ~/Library/Developer/Xcode/DerivedData/your app name).
 
 ## Installing the starter app example
 
@@ -35,7 +48,7 @@ You can use the OpenWhisk CLI to download example code that embeds the OpenWhisk
 
 To install the starter app example, enter the following command:
 ```
-$ wsk sdk install ios
+wsk sdk install iOS
 ```
 
 ## Getting started with the SDK
@@ -54,9 +67,8 @@ In previous example, you pass in the `myKey` and `myToken` you get from OpenWhis
 ```
 $ wsk property get --auth
 ```
-
 ```
-whisk auth              kkkkkkkk-kkkk-kkkk-kkkk-kkkkkkkkkkkk:tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt
+whisk auth        kkkkkkkk-kkkk-kkkk-kkkk-kkkkkkkkkkkk:tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt
 ```
 
 The strings before and after the colon are your key and token, respectively.
