@@ -16,6 +16,8 @@
 # limitations under the License.
 #
 
+DATABASE_EXEMPT=$1
+
 # Kill all running containers and remove all dangling (non-leaf) images
 # Add "--purge" to remove all images
 if [ -n "${DOCKER_ENDPOINT+1}" ]; then
@@ -38,7 +40,13 @@ fi
 # *catalog*
 # *swarm*
 #
-RUNNING=$($DOCKER ps -a | fgrep -v "whisk_docker_registry" | fgrep -v "whiskrouter" | fgrep -v "catalog" | fgrep -v "swarm" | sed '1d' | awk '{print $1}')
+
+if [ "$DATABASE_EXEMPT" == "couchdb" ];
+then
+    RUNNING=$($DOCKER ps -a | fgrep -v "whisk_docker_registry" | fgrep -v "whiskrouter" | fgrep -v "catalog" | fgrep -v "swarm" | fgrep -v "couchdb" | sed '1d' | awk '{print $1}')
+else
+    RUNNING=$($DOCKER ps -a | fgrep -v "whisk_docker_registry" | fgrep -v "whiskrouter" | fgrep -v "catalog" | fgrep -v "swarm" | sed '1d' | awk '{print $1}')
+fi
 
 if [ -n "$RUNNING" ]
 then
