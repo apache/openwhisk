@@ -19,8 +19,6 @@ package whisk.core.entity
 import scala.concurrent.Future
 import scala.util.Try
 
-import org.lightcouch.NoDocumentException
-
 import spray.json.JsObject
 import spray.json.JsString
 import spray.json.JsValue
@@ -30,6 +28,7 @@ import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.database.ArtifactStore
 import whisk.core.database.DocumentFactory
+import whisk.core.database.NoDocumentException
 
 /**
  * A WhiskAuth provides an abstraction of the meta-data

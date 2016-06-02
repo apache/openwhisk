@@ -24,8 +24,6 @@ import scala.concurrent.TimeoutException
 import scala.concurrent.duration.DurationInt
 import scala.util.Failure
 import scala.util.Success
-import org.lightcouch.NoDocumentException
-import org.lightcouch.DocumentConflictException
 import akka.actor.ActorSystem
 import spray.client.pipelining.Post
 import spray.http.StatusCodes.Accepted
@@ -46,6 +44,8 @@ import spray.json.JsObject
 import spray.json.pimpString
 import spray.json.pimpAny
 import whisk.common.TransactionId
+import whisk.core.database.NoDocumentException
+import whisk.core.database.DocumentConflictException
 import whisk.core.entitlement.Collection
 import whisk.core.entity.DocId
 import whisk.core.entity.DocInfo

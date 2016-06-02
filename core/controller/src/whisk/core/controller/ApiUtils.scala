@@ -20,8 +20,6 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Success
-import org.lightcouch.NoDocumentException
-import org.lightcouch.DocumentConflictException
 import spray.http.HttpRequest
 import spray.http.StatusCode
 import spray.http.StatusCodes.ClientError
@@ -44,6 +42,8 @@ import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.database.ArtifactStore
 import whisk.core.database.DocumentFactory
+import whisk.core.database.NoDocumentException
+import whisk.core.database.DocumentConflictException
 import whisk.core.entity.DocId
 import whisk.core.entity.EntityName
 import whisk.core.entity.Namespace
