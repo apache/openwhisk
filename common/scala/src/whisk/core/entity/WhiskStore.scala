@@ -85,7 +85,7 @@ protected[core] trait WhiskDocument
         // Building up the fields.
         val base    = this.toJson.fields
         val withId  = base + ("_id" -> JsString(id))
-        val withRev = if(revOrNull == null) withId else { withId + ("_rev" -> JsString(revOrNull)) }
+        val withRev = if (revOrNull == null) withId else { withId + ("_rev" -> JsString(revOrNull)) }
         JsObject(withRev)
     }
 }

@@ -27,10 +27,10 @@ import scala.concurrent.duration.DurationInt
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-import org.lightcouch.NoDocumentException
 import whisk.common.TransactionId
 import whisk.core.database.ArtifactStore
 import whisk.core.database.DocumentFactory
+import whisk.core.database.NoDocumentException
 import whisk.core.entity.DocInfo
 import whisk.core.entity.Namespace
 import whisk.core.entity.UUID

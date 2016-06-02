@@ -94,7 +94,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
                 case Left(StatusCodes.Conflict) =>
                     info(this, s"[PUT] '$dbName', document: '${docinfoStr}'; conflict.", LoggingMarkers.DATABASE_SAVE_DONE)
                     // For compatibility.
-                    throw new org.lightcouch.DocumentConflictException("conflict on 'put'")
+                    throw DocumentConflictException("conflict on 'put'")
 
                 case Left(code) =>
                     error(this, s"[PUT] '$dbName' failed to put document: '${docinfoStr}'; http status: '${code}'", LoggingMarkers.DATABASE_SAVE_ERROR)
@@ -119,7 +119,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
                 case Left(StatusCodes.NotFound) =>
                     info(this, s"[DEL] '$dbName', document: '${doc}'; not found.", LoggingMarkers.DATABASE_DELETE_DONE)
                     // for compatibility
-                    throw new org.lightcouch.NoDocumentException("not found on 'del'")
+                    throw NoDocumentException("not found on 'delete'")
 
                 case Left(code) =>
                     error(this, s"[DEL] '$dbName' failed to delete document: '${doc}'; http status: '${code}'", LoggingMarkers.DATABASE_DELETE_ERROR)
@@ -157,7 +157,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
 
                     val responseRev = response.fields("_rev").convertTo[String]
                     assert(doc.rev.rev == null || doc.rev.rev == responseRev, "Returned revision should match original argument")
-                    // FIXME Ugly hack that hopefully will go away once we're GSON-free.
+                    // FIXME remove mutability from appropriate classes now that it is no longer required by GSON.
                     deserialized.asInstanceOf[WhiskDocument].revision(DocRevision(responseRev))
 
                     deserialized
@@ -165,7 +165,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
                 case Left(StatusCodes.NotFound) =>
                     info(this, s"[GET] '$dbName', document: '${doc}'; not found.", LoggingMarkers.DATABASE_GET_DONE)
                     // for compatibility
-                    throw new org.lightcouch.NoDocumentException("not found on 'get'")
+                    throw NoDocumentException("not found on 'get'")
 
                 case Left(code) =>
                     error(this, s"[GET] '$dbName' failed to get document: '${doc}'; http status: '${code}'", LoggingMarkers.DATABASE_GET_ERROR)
@@ -232,10 +232,8 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
 
     private def reportFailure[T, U](f: Future[T], onFailure: Throwable => U): Future[T] = {
         f.onFailure({
-            // These failures are intentional and shouldn't trigger the catcher.
-            case _ : org.lightcouch.NoDocumentException => ;
-            case _ : org.lightcouch.DocumentConflictException => ;
-            case x => onFailure(x)
+            case _: ArtifactStoreException => // These failures are intentional and shouldn't trigger the catcher.
+            case x                         => onFailure(x)
         })
         f
     }

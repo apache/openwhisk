@@ -25,7 +25,6 @@ import scala.util.Try
 import scala.util.Failure
 import scala.util.Success
 import java.util.concurrent.atomic.AtomicReference
-import org.lightcouch.NoDocumentException
 import akka.actor.ActorSystem
 import spray.client.pipelining.Post
 import spray.http.HttpMethod
@@ -57,6 +56,7 @@ import whisk.common.ConsulKV.LoadBalancerKeys
 import whisk.common.LoggingMarkers._
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
+import whisk.core.database.NoDocumentException
 import whisk.core.entity.ActionLimits
 import whisk.core.entity.ActivationId
 import whisk.core.entity.DocId

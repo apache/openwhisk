@@ -17,10 +17,8 @@
 #
 
 ##
-# Whisk command line interface
+# Whisk Admin command line interface
 ##
-
-# TODO: protect this as an admin operation
 
 import os
 import sys
