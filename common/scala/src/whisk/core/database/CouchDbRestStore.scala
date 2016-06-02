@@ -257,7 +257,12 @@ class CouchDbRestStore[Unused, DocumentAbstraction <: DocumentSerializer](
     }
 
     private def reportFailure[T, U](f: Future[T], onFailure: Throwable => U): Future[T] = {
-        f.onFailure({ case x => onFailure(x) })
+        f.onFailure({
+            // These failures are intentional and shouldn't trigger the catcher.
+            case _ : org.lightcouch.NoDocumentException => ;
+            case _ : org.lightcouch.DocumentConflictException => ;
+            case x => onFailure(x)
+        })
         f
     }
 }
