@@ -28,8 +28,8 @@ ENV KAFKA_RELEASE_ARCHIVE kafka_2.11-0.9.0.0.tgz
 # Install Kafka to /kafka
 
 WORKDIR /tmp
-RUN wget http://www.us.apache.org/dist/kafka/0.9.0.0/${KAFKA_RELEASE_ARCHIVE} && \
-    wget https://dist.apache.org/repos/dist/release/kafka/0.9.0.0/${KAFKA_RELEASE_ARCHIVE}.md5  && \
+RUN wget --no-verbose http://www.us.apache.org/dist/kafka/0.9.0.0/${KAFKA_RELEASE_ARCHIVE} && \
+    wget --no-verbose https://dist.apache.org/repos/dist/release/kafka/0.9.0.0/${KAFKA_RELEASE_ARCHIVE}.md5  && \
     npm install -g express@4.8.0 nano@5.10.0 process@0.10.1 websocket@1.0.17 && \
   echo VERIFY CHECKSUM: && \
   gpg --print-md MD5 ${KAFKA_RELEASE_ARCHIVE} 2>/dev/null && \
@@ -42,7 +42,7 @@ RUN wget http://www.us.apache.org/dist/kafka/0.9.0.0/${KAFKA_RELEASE_ARCHIVE} &&
 ADD monitor  /monitor
 RUN cd /monitor && npm install
 
-RUN cd /kafka/libs/ && wget https://jcenter.bintray.com/org/slf4j/slf4j-log4j12/1.7.6/slf4j-log4j12-1.7.6.jar
+RUN cd /kafka/libs/ && wget --no-verbose https://jcenter.bintray.com/org/slf4j/slf4j-log4j12/1.7.6/slf4j-log4j12-1.7.6.jar
 ADD config /kafka/config
 ADD start.sh /start.sh
 

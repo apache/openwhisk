@@ -6,7 +6,7 @@ RUN cd / && mkdir consul && mkdir consul/data && \
 apt-get update && \
 apt-get install -y unzip bc python && \
 cd /tmp && \
-wget https://releases.hashicorp.com/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_linux_amd64.zip && \
+wget --no-verbose https://releases.hashicorp.com/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_linux_amd64.zip && \
 mv consul_${CONSUL_VERSION}_linux_amd64.zip consul.zip && \
 cd /bin && \
 unzip /tmp/consul.zip &&  \
@@ -14,7 +14,7 @@ chmod +x /bin/consul && \
 rm /tmp/consul.zip && \
 cd /consul && \
 mkdir ui && cd ui && \
-wget https://releases.hashicorp.com/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_web_ui.zip && \
+wget --no-verbose https://releases.hashicorp.com/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_web_ui.zip && \
 unzip consul_${CONSUL_VERSION}_web_ui.zip && \
 rm consul_${CONSUL_VERSION}_web_ui.zip 
 
