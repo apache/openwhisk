@@ -46,14 +46,14 @@ import whisk.common.LoggingMarkers
  * @param dbName the name of the database to operate on
  * @param serializerEvidence confirms the document abstraction is serializable to a Document with an id
  */
-class CouchDbRestStore[Unused, DocumentAbstraction <: DocumentSerializer](
+class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
     dbProtocol: String,
     dbHost: String,
     dbPort: Int,
     dbUsername: String,
     dbPassword: String,
     dbName: String)(implicit system: ActorSystem, jsonFormat: RootJsonFormat[DocumentAbstraction])
-    extends ArtifactStore[Unused, DocumentAbstraction]
+    extends ArtifactStore[DocumentAbstraction]
     with DefaultJsonProtocol {
 
     protected[core] implicit val executionContext = system.dispatcher
@@ -61,40 +61,24 @@ class CouchDbRestStore[Unused, DocumentAbstraction <: DocumentSerializer](
     private val client: CouchDbRestClient = CouchDbRestClient.make(
         dbProtocol, dbHost, dbPort, dbUsername, dbPassword, dbName)
 
-    // To make the typechecker happy.
-    private implicit def fakeDeserializer[U <: Unused, T <: DocumentAbstraction]: Deserializer[U, T] = (x: U) => ???
-
     override protected[database] def put(d: DocumentAbstraction)(implicit transid: TransactionId): Future[DocInfo] = {
-        val serialized = d.serialize().get
-        require(serialized != null, "doc undefined after serialization")
-        serialized.confirmId
-        info(this, s"[PUT] '$dbName' saving document: '${serialized.docinfo}'", LoggingMarkers.DATABASE_SAVE_START)
+        // Uses Spray-JSON only.
+        val asJson = d.toDocumentRecord
 
-        // The spray-json version. This seems to be missing some important fields?
-        val asJson = jsonFormat.write(d).asJsObject
+        val id: String = asJson.fields("_id").convertTo[String].trim
+        val rev: Option[String] = asJson.fields.get("_rev").map(_.convertTo[String])
+        require(!id.isEmpty, "document id must be defined")
 
-        // The GSON version:
-        val asGson = {
-            import spray.json._
-            import DefaultJsonProtocol._
-            import com.google.gson.Gson
-            val srzd: String = new Gson().toJson(serialized)
-            srzd.parseJson.asJsObject
-        }
+        val docinfoStr = s"id: $id, rev: ${rev.getOrElse("null")}"
 
-        // We'll activate this warning once we start getting rid of GSON.
-        // It doesn't really matter for now, because we insert from the GSON view
-        // anyway.
-        if (false && asJson != asGson) {
-            warn(this, s"[PUT] JSON/GSON mismatch:")
-            warn(this, s"[PUT]   - json : " + asJson)
-            warn(this, s"[PUT]   - gson : " + asGson)
-        }
+        info(this, s"[PUT] '$dbName' saving document: '${docinfoStr}'", LoggingMarkers.DATABASE_SAVE_START)
 
-        val request: CouchDbRestClient => Future[Either[StatusCode, JsObject]] = if (serialized.update) {
-            client => client.putDoc(serialized.docinfo.id.id, serialized.docinfo.rev.rev, asGson /* Not ideal. */ )
-        } else {
-            client => client.putDoc(serialized.docinfo.id.id, asGson /* Not ideal. */ )
+        val request: CouchDbRestClient => Future[Either[StatusCode, JsObject]] = rev match {
+            case Some(r) =>
+                client => client.putDoc(id, r, asJson)
+
+            case None =>
+                client => client.putDoc(id, asJson)
         }
 
         reportFailure({
@@ -102,18 +86,18 @@ class CouchDbRestStore[Unused, DocumentAbstraction <: DocumentSerializer](
                 eitherResponse <- request(client)
             ) yield eitherResponse match {
                 case Right(response) =>
-                    info(this, s"[PUT] '$dbName' completed document: '${serialized.docinfo}', response: '$response'", LoggingMarkers.DATABASE_SAVE_DONE)
+                    info(this, s"[PUT] '$dbName' completed document: '${docinfoStr}', response: '$response'", LoggingMarkers.DATABASE_SAVE_DONE)
                     val id = response.fields("id").convertTo[String]
                     val rev = response.fields("rev").convertTo[String]
                     DocInfo ! (id, rev)
 
                 case Left(StatusCodes.Conflict) =>
-                    info(this, s"[PUT] '$dbName', document: '${serialized.docinfo}'; conflict.", LoggingMarkers.DATABASE_SAVE_DONE)
+                    info(this, s"[PUT] '$dbName', document: '${docinfoStr}'; conflict.", LoggingMarkers.DATABASE_SAVE_DONE)
                     // For compatibility.
-                    throw new org.lightcouch.DocumentConflictException("conflict on 'put'")
+                    throw DocumentConflictException("conflict on 'put'")
 
                 case Left(code) =>
-                    error(this, s"[PUT] '$dbName' failed to put document: '${serialized.docinfo}'; http status: '${code}'", LoggingMarkers.DATABASE_SAVE_ERROR)
+                    error(this, s"[PUT] '$dbName' failed to put document: '${docinfoStr}'; http status: '${code}'", LoggingMarkers.DATABASE_SAVE_ERROR)
                     throw new Exception("Unexpected http response code: " + code)
             }
         },
@@ -135,7 +119,7 @@ class CouchDbRestStore[Unused, DocumentAbstraction <: DocumentSerializer](
                 case Left(StatusCodes.NotFound) =>
                     info(this, s"[DEL] '$dbName', document: '${doc}'; not found.", LoggingMarkers.DATABASE_DELETE_DONE)
                     // for compatibility
-                    throw new org.lightcouch.NoDocumentException("not found on 'del'")
+                    throw NoDocumentException("not found on 'del'")
 
                 case Left(code) =>
                     error(this, s"[DEL] '$dbName' failed to delete document: '${doc}'; http status: '${code}'", LoggingMarkers.DATABASE_DELETE_ERROR)
@@ -145,15 +129,12 @@ class CouchDbRestStore[Unused, DocumentAbstraction <: DocumentSerializer](
             failure => error(this, s"[DEL] '$dbName' internal error, doc: '$doc', failure: '${failure.getMessage}'", LoggingMarkers.DATABASE_DELETE_ERROR))
     }
 
-    override protected[database] def get[U <: Unused, A <: DocumentAbstraction](doc: DocInfo)(
+    override protected[database] def get[A <: DocumentAbstraction](doc: DocInfo)(
         implicit transid: TransactionId,
-        deserialize: Deserializer[U, A],
-        mu: Manifest[U],
         ma: Manifest[A]): Future[A] = {
 
         reportFailure({
             require(doc != null, "doc undefined")
-            require(deserialize != null, "deserializer undefined")
             info(this, s"[GET] '$dbName' finding document: '$doc'", LoggingMarkers.DATABASE_GET_START)
             val request: CouchDbRestClient => Future[Either[StatusCode, JsObject]] = if (doc.rev.rev != null) {
                 client => client.getDoc(doc.id.id, doc.rev.rev)
@@ -184,7 +165,7 @@ class CouchDbRestStore[Unused, DocumentAbstraction <: DocumentSerializer](
                 case Left(StatusCodes.NotFound) =>
                     info(this, s"[GET] '$dbName', document: '${doc}'; not found.", LoggingMarkers.DATABASE_GET_DONE)
                     // for compatibility
-                    throw new org.lightcouch.NoDocumentException("not found on 'get'")
+                    throw NoDocumentException("not found on 'get'")
 
                 case Left(code) =>
                     error(this, s"[GET] '$dbName' failed to get document: '${doc}'; http status: '${code}'", LoggingMarkers.DATABASE_GET_ERROR)
@@ -250,7 +231,11 @@ class CouchDbRestStore[Unused, DocumentAbstraction <: DocumentSerializer](
     }
 
     private def reportFailure[T, U](f: Future[T], onFailure: Throwable => U): Future[T] = {
-        f.onFailure({ case x => onFailure(x) })
+        f.onFailure({
+            // These failures are intentional and shouldn't trigger the catcher.
+            case _ : ArtifactStoreException => ;
+            case x => onFailure(x)
+        })
         f
     }
 }

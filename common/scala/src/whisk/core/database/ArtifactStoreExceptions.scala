@@ -13,20 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package whisk.core.database
 
-package whisk.core.entity.schema
+sealed abstract class ArtifactStoreException(message: String) extends Exception(message)
 
-import com.google.gson.JsonObject
+case class NoDocumentException(message: String) extends ArtifactStoreException(message)
 
-/**
- * The most basic whisk representation in the database for limits on entities such as
- * triggers and actions. This trait adds the limits property.
- *
- * This class must match the datastore schema in terms of the fields defined
- * and must also define a nullary constructor. The imperative nature is forced
- * upon us due to datastore interaction.
- */
-protected[entity] trait EntityLimits {
-    /** The limits to impose on instance of an entity */
-    protected[entity] var limits: JsonObject = null
-}
+case class DocumentConflictException(message: String) extends ArtifactStoreException(message)

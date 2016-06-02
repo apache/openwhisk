@@ -16,8 +16,6 @@
 
 package whisk.core.entity
 
-import com.cloudant.client.api.model.{ Response => CloudantResponse }
-import org.lightcouch.{ Response => CouchDbResponse }
 import whisk.core.entity.ArgNormalizer.trim
 import scala.util.Try
 import spray.json.JsValue
@@ -110,36 +108,6 @@ protected[core] object DocRevision {
 }
 
 protected[core] object DocInfo {
-    /**
-     * Creates a DocInfo from Cloudant response.
-     *
-     * @param doc the cloudant API response, must not be null and must have valid id
-     * @return DocInfo for id and revision
-     * @throws IllegalArgumentException if id is null or empty
-     */
-    @throws[IllegalArgumentException]
-    protected[core] def apply(doc: CloudantResponse): DocInfo = {
-        // FIXME this is Cloudant-specific. Should it be moved out?
-        // Difficult due to protected status.
-        require(doc != null, "response undefined")
-        DocInfo(DocId(doc.getId), DocRevision(doc.getRev))
-    }
-
-    /**
-     * Creates a DocInfo from a CouchDb response.
-     *
-     * @param doc the cloudant API response, must not be null and must have valid id
-     * @return DocInfo for id and revision
-     * @throws IllegalArgumentException if id is null or empty
-     */
-    @throws[IllegalArgumentException]
-    protected[core] def apply(doc: CouchDbResponse): DocInfo = {
-        // FIXME this is CouchDb-specific. Should it be moved out?
-        // Difficult due to protected status.
-        require(doc != null, "response undefined")
-        DocInfo(DocId(doc.getId), DocRevision(doc.getRev))
-    }
-
     /**
      * Creates a DocInfo with id set to the argument and no revision.
      *

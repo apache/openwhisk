@@ -19,9 +19,6 @@ package whisk.core.entity
 import scala.Vector
 import scala.util.Try
 
-import com.google.gson.JsonArray
-import com.google.gson.JsonPrimitive
-
 import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json.JsArray
 import spray.json.JsObject
@@ -34,23 +31,11 @@ import spray.json.pimpAny
 protected[core] case class ActivationLogs(private val logs: Vector[String] = Vector()) extends AnyVal {
     def toJsonObject = JsObject("logs" -> toJson)
     def toJson = JsArray(logs map { _.toJson })
-    def toGson = {
-        val gson = new JsonArray()
-        logs foreach { l => gson.add(new JsonPrimitive(l)) }
-        gson
-    }
+
     override def toString = logs mkString ("[", ", ", "]")
 }
 
 protected[core] object ActivationLogs {
-
-    @throws[IllegalArgumentException]
-    protected[entity] def apply(gson: JsonArray): ActivationLogs = {
-        val convert = Try { whisk.utils.JsonUtils.gsonToSprayJson(gson) }
-        require(convert.isSuccess, "activation logs malformed")
-        serdes.read(convert.get)
-    }
-
     protected[core] implicit val serdes = new RootJsonFormat[ActivationLogs] {
         def write(l: ActivationLogs) = l.toJson
 

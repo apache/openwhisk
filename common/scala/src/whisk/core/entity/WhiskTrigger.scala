@@ -20,8 +20,8 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 import spray.json.DefaultJsonProtocol
+import spray.json.JsObject
 import whisk.core.database.DocumentFactory
-import whisk.core.entity.schema.TriggerRecord
 import spray.json.JsString
 import spray.json.pimpString
 
@@ -65,33 +65,16 @@ case class WhiskTrigger(
 
     require(limits != null, "limits undefined")
 
-    override def serialize: Try[TriggerRecord] = Try {
-        val r = serialize[TriggerRecord](new TriggerRecord)
-        r.parameters = parameters.toGson
-        r.limits = limits.toGson
-        r
-    }
+    def toJson = WhiskTrigger.serdes.write(this).asJsObject
 }
 
 object WhiskTrigger
-    extends DocumentFactory[TriggerRecord, WhiskTrigger]
+    extends DocumentFactory[WhiskTrigger]
     with WhiskEntityQueries[WhiskTrigger]
     with DefaultJsonProtocol {
 
     override val collectionName = "triggers"
     override implicit val serdes = jsonFormat7(WhiskTrigger.apply)
-
-    override def apply(r: TriggerRecord): Try[WhiskTrigger] = Try {
-        WhiskTrigger(
-            Namespace(r.namespace),
-            EntityName(r.name),
-            Parameters(r.parameters),
-            TriggerLimits(r.limits),
-            SemVer(r.version),
-            r.publish,
-            Parameters(r.annotations)).
-            revision[WhiskTrigger](r.docinfo.rev)
-    }
 
     override val cacheEnabled = false //disabled for now until redis in place
     override def cacheKeys(w: WhiskTrigger) = Set(w.docid.asDocInfo, w.docinfo)

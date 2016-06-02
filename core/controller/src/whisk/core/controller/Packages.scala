@@ -33,8 +33,8 @@ import spray.routing.Directive.pimpApply
 import spray.routing.RequestContext
 import spray.routing.directives.OnCompleteFutureMagnet.apply
 import spray.routing.directives.ParamDefMagnet.apply
-import org.lightcouch.NoDocumentException
 import whisk.common.TransactionId
+import whisk.core.database.NoDocumentException
 import whisk.core.entitlement.Collection
 import whisk.core.entity.Binding
 import whisk.core.entity.DocId

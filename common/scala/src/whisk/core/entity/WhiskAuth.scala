@@ -19,8 +19,6 @@ package whisk.core.entity
 import scala.concurrent.Future
 import scala.util.Try
 
-import org.lightcouch.NoDocumentException
-
 import spray.json.JsObject
 import spray.json.JsString
 import spray.json.JsValue
@@ -30,7 +28,7 @@ import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.database.ArtifactStore
 import whisk.core.database.DocumentFactory
-import whisk.core.entity.schema.AuthRecord
+import whisk.core.database.NoDocumentException
 
 /**
  * A WhiskAuth provides an abstraction of the meta-data
@@ -60,11 +58,6 @@ case class WhiskAuth(
     }
 
     override def docid = DocId(subject())
-    override def serialize(): Try[AuthRecord] = Try {
-        val r = new AuthRecord(subject.toString, authkey.uuid.toString, authkey.key.toString)
-        r.docinfo(docinfo)
-        r
-    }
 
     def toJson = JsObject(
         "subject" -> subject.toJson,
@@ -72,20 +65,12 @@ case class WhiskAuth(
         "key" -> authkey.key.toJson)
 }
 
-object WhiskAuth extends DocumentFactory[AuthRecord, WhiskAuth] {
+object WhiskAuth extends DocumentFactory[WhiskAuth] {
 
     private val viewName = "subjects/uuids"
 
     private def apply(s: Subject, u: UUID, k: Secret): WhiskAuth = {
         WhiskAuth(s, AuthKey(u, k))
-    }
-
-    override def apply(r: AuthRecord): Try[WhiskAuth] = Try {
-        WhiskAuth(
-            Subject(r.subject),
-            UUID(r.uuid),
-            Secret(r.key)).
-            revision[WhiskAuth](r.docinfo.rev)
     }
 
     implicit val serdes = new RootJsonFormat[WhiskAuth] {
@@ -102,13 +87,13 @@ object WhiskAuth extends DocumentFactory[AuthRecord, WhiskAuth] {
     override val cacheEnabled = true
     override def cacheKeys(w: WhiskAuth) = Set(w.docid.asDocInfo, w.docinfo, w.uuid)
 
-    def get(datastore: ArtifactStore[AuthRecord, WhiskAuth], subject: Subject, fromCache: Boolean)(
+    def get(datastore: ArtifactStore[WhiskAuth], subject: Subject, fromCache: Boolean)(
         implicit transid: TransactionId): Future[WhiskAuth] = {
         implicit val logger: Logging = datastore
         super.get(datastore, DocInfo(subject()), fromCache)
     }
 
-    def get(datastore: ArtifactStore[AuthRecord, WhiskAuth], uuid: UUID)(
+    def get(datastore: ArtifactStore[WhiskAuth], uuid: UUID)(
         implicit transid: TransactionId): Future[WhiskAuth] = {
         implicit val logger: Logging = datastore
         // it is assumed that there exists at most one record matching the uuid
@@ -140,7 +125,7 @@ object WhiskAuth extends DocumentFactory[AuthRecord, WhiskAuth] {
         })
     }
 
-    def list(datastore: ArtifactStore[AuthRecord, WhiskAuth], uuid: UUID)(
+    def list(datastore: ArtifactStore[WhiskAuth], uuid: UUID)(
         implicit transid: TransactionId): Future[List[JsObject]] = {
         val key = List(uuid.toString)
         datastore.query(viewName,
