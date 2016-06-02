@@ -3,7 +3,7 @@ FROM whisk/scala
 ENV DEBIAN_FRONTEND noninteractive
 
 # Install swagger-ui
-Run wget https://github.com/swagger-api/swagger-ui/archive/v2.1.4.tar.gz && \
+RUN wget --no-verbose https://github.com/swagger-api/swagger-ui/archive/v2.1.4.tar.gz && \
     mkdir swagger-ui && \
     tar zxf v2.1.4.tar.gz -C /swagger-ui --strip-components=2 swagger-ui-2.1.4/dist && \ 
     rm v2.1.4.tar.gz && \
