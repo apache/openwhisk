@@ -25,7 +25,6 @@ import org.scalatest.Matchers
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.time.{Minutes, Seconds, Span}
-import com.cloudant.client.api.Database
 import whisk.common.TransactionCounter
 import whisk.common.Verbosity
 import whisk.core.WhiskConfig

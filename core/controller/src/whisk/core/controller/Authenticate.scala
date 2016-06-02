@@ -22,11 +22,10 @@ import scala.concurrent.Promise
 import scala.util.Failure
 import scala.util.Success
 
-import org.lightcouch.NoDocumentException
-
 import spray.routing.authentication.UserPass
 import whisk.common.Logging
 import whisk.common.TransactionId
+import whisk.core.database.NoDocumentException
 import whisk.core.entity.AuthKey
 import whisk.core.entity.Secret
 import whisk.core.entity.UUID
