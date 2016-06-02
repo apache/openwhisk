@@ -17,11 +17,6 @@
 package whisk.core.entity
 
 import scala.util.Try
-
-import com.google.gson.JsonArray
-import com.google.gson.JsonObject
-import com.google.gson.JsonPrimitive
-
 import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json.JsArray
 import spray.json.JsNull
@@ -53,17 +48,6 @@ protected[core] class Parameters protected[entity] (
 
     protected[entity] def ++(p: ParameterName, v: ParameterValue) = {
         new Parameters(params + (p -> v))
-    }
-
-    protected[entity] def toGson = {
-        val gson = new JsonArray()
-        params foreach { p =>
-            val o = new JsonObject()
-            o.add("key", new JsonPrimitive(p._1()))
-            o.add("value", whisk.utils.JsonUtils.sprayJsonToGson(p._2()))
-            gson.add(o)
-        }
-        gson
     }
 
     /** Add parameters from p to existing map, overwriting existing values in case of overlap in keys. */
@@ -165,13 +149,6 @@ protected[core] object Parameters extends ArgNormalizer[Parameters] {
             (new ParameterName(ArgNormalizer.trim(p)),
                 new ParameterValue(Option(v) getOrElse JsNull))
         }
-    }
-
-    @throws[IllegalArgumentException]
-    protected[entity] def apply(gson: JsonArray): Parameters = {
-        val convert = Try { whisk.utils.JsonUtils.gsonToSprayJson(gson) }
-        require(convert.isSuccess, "parameters malformed")
-        serdes.read(convert.get)
     }
 
     override protected[core] implicit val serdes = new RootJsonFormat[Parameters] {

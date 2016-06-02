@@ -18,10 +18,6 @@ package whisk.core.entity
 
 import scala.language.postfixOps
 import scala.util.Try
-
-import com.google.gson.JsonObject
-import com.google.gson.JsonPrimitive
-
 import spray.json.DefaultJsonProtocol
 import spray.json.DefaultJsonProtocol.BooleanJsonFormat
 import spray.json.JsArray
@@ -174,12 +170,6 @@ object WhiskPackage
  */
 case class Binding(namespace: Namespace, name: EntityName) {
     def docid = DocId(WhiskEntity.qualifiedName(namespace, name))
-    def toGson = {
-        val gson = new JsonObject()
-        gson.add("namespace", new JsonPrimitive(namespace.toString))
-        gson.add("name", new JsonPrimitive(name()))
-        gson
-    }
     override def toString = WhiskEntity.qualifiedName(namespace, name)
 
     /**
@@ -195,14 +185,6 @@ case class Binding(namespace: Namespace, name: EntityName) {
 }
 
 object Binding extends ArgNormalizer[Binding] with DefaultJsonProtocol {
-
-    @throws[IllegalArgumentException]
-    protected[entity] def apply(json: JsonObject): Binding = {
-        val convert = Try { whisk.utils.JsonUtils.gsonToSprayJson(json) }
-        require(convert.isSuccess, "binding malformed")
-        serdes.read(convert.get)
-    }
-
     override protected[core] implicit val serdes = jsonFormat2(Binding.apply)
 }
 

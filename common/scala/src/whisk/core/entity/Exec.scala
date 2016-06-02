@@ -23,9 +23,6 @@ import spray.json.{ JsValue, JsObject, JsString }
 import spray.json.DeserializationException
 import whisk.core.entity.ArgNormalizer.trim
 import spray.json.pimpString
-import com.google.gson.JsonObject
-import com.google.gson.JsonNull
-import com.google.gson.JsonPrimitive
 import scala.util.Try
 import spray.json.DeserializationException
 
@@ -49,35 +46,6 @@ import java.util.Base64
  */
 sealed abstract class Exec(val kind: String) {
     def image: String
-
-    def toGson = {
-        val gson = new JsonObject()
-        gson.add("kind", new JsonPrimitive(kind))
-
-        this match {
-            case NodeJSExec(code, init) =>
-                gson.add("code", new JsonPrimitive(code))
-                gson.add("init", init map { new JsonPrimitive(_) } getOrElse JsonNull.INSTANCE)
-
-            case PythonExec(code) =>
-                gson.add("code", new JsonPrimitive(code))
-
-            case SwiftExec(code) =>
-                gson.add("code", new JsonPrimitive(code))
-
-            case Swift3Exec(code) =>
-                gson.add("code", new JsonPrimitive(code))
-
-            case JavaExec(jar, main) =>
-                gson.add("jar", new JsonPrimitive(jar))
-                gson.add("main", new JsonPrimitive(main))
-
-            case BlackBoxExec(image) =>
-                gson.add("image", new JsonPrimitive(image))
-        }
-
-        gson
-    }
 
     override def toString = Exec.serdes.write(this).compactPrint
 }
@@ -200,12 +168,5 @@ protected[core] object Exec
                 case _ => throw new DeserializationException(s"kind '$kind' not one of {${Exec.NODEJS}, ${Exec.PYTHON}, ${Exec.SWIFT}, ${Exec.SWIFT3}, ${Exec.JAVA}, ${Exec.BLACKBOX}}")
             }
         }
-    }
-
-    @throws[IllegalArgumentException]
-    protected[entity] def apply(gson: JsonObject): Exec = {
-        val convert = Try { whisk.utils.JsonUtils.gsonToSprayJson(gson) }
-        require(convert.isSuccess, "exec malformed")
-        serdes.read(convert.get)
     }
 }
