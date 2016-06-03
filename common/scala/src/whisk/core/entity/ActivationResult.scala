@@ -30,6 +30,11 @@ protected[core] case class ActivationResponse private (
 
     def toJsonObject = ActivationResponse.serdes.write(this).asJsObject
 
+    // Extract result field as a JsObject
+    def getResultJson : JsObject = {
+        toExtendedJson.fields("result").asJsObject
+    }
+
     // Used when presenting to end-users, to hide the statusCode (which is an implementation detail),
     // and to provide a convenience boolean "success" field.
     def toExtendedJson: JsObject = {

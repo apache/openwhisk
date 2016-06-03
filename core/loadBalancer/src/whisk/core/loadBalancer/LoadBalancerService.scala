@@ -16,8 +16,9 @@
 
 package whisk.core.loadBalancer
 
-import scala.concurrent.ExecutionContext
+import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration.DurationInt
+import scala.concurrent.{ ExecutionContext, Future, Promise, TimeoutException }
 import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
@@ -29,12 +30,15 @@ import whisk.common.ConsulClient
 import whisk.common.ConsulKV.LoadBalancerKeys
 import whisk.common.ConsulKVReporter
 import whisk.common.Logging
+import whisk.common.TransactionId
 import whisk.common.Verbosity
-import whisk.connector.kafka.KafkaConsumerConnector
-import whisk.connector.kafka.KafkaProducerConnector
+import whisk.connector.kafka.{KafkaConsumerConnector, KafkaProducerConnector}
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.{ servicePort, kafkaHost, consulServer, kafkaPartitions }
-import whisk.core.connector.{ ActivationMessage, CompletionMessage }
+import whisk.core.connector.{ Message, ActivationMessage, CompletionMessage, LoadBalancerResponse }
+import whisk.core.entity.{ ActivationId, WhiskActivation }
+import whisk.utils.ExecutionContextFactory
+import whisk.utils.ExecutionContextFactory.FutureExtensions
 
 class LoadBalancerService(config: WhiskConfig, verbosity: Verbosity.Level)(
     implicit val actorSystem: ActorSystem,
@@ -54,6 +58,7 @@ class LoadBalancerService(config: WhiskConfig, verbosity: Verbosity.Level)(
 
     private val invokerHealth = new InvokerHealth(config, resetIssueCountByInvoker, () => producer.sentCount())
     private val _activationThrottle = new ActivationThrottle(config)
+    private val queryMap = new TrieMap[ActivationId, Promise[WhiskActivation]]
 
     // This must happen after the overrides
     setVerbosity(verbosity)
@@ -87,14 +92,32 @@ class LoadBalancerService(config: WhiskConfig, verbosity: Verbosity.Level)(
         })
 
     /**
-     * WIP
+     * When a completion message arrives, we try to fill in the result slot (ie promise)
+     * The promise is removed form the map when the result arrives or upon timeout.
      *
      * @param msg is the kafka message payload as Json
      */
     def processCompletion(msg: CompletionMessage) = {
         implicit val tid = msg.transid
         val aid = msg.activationId
-        info(this, s"LoadBalancerService.processCompletion: activation id $aid")
+        val response = msg.response
+        queryMap.get(aid) map { promise =>
+            info(this, s"LoadBalancerService.processCompletion: Active reponse for $aid with $response")
+            promise.trySuccess(response)
+            queryMap -= aid
+        }
+    }
+
+    /*
+     * We try for a while to get a WhiskActivation from the fast path instead of hitting the DB.
+     * Instead of sleep/poll, the promise is filled in when the completion messages arrives.
+     * If for some reason, there is no ack, we eventually time out and the promise is removed.
+     */
+    def queryActivationResponse(activationId: ActivationId, transid: TransactionId): Future[WhiskActivation] = {
+        implicit val tid = transid
+        val promise = Promise[WhiskActivation]
+        queryMap += activationId -> promise
+        promise.future withTimeout (30 seconds, { queryMap -= activationId; new ActiveAckTimeout(activationId) })
     }
 
     val consumer = new KafkaConsumerConnector(config.kafkaHost, "completions", "completed")
@@ -120,3 +143,5 @@ object LoadBalancerService {
             InvokerHealth.requiredProperties ++
             ActivationThrottle.requiredProperties
 }
+
+private case class ActiveAckTimeout(activationId: ActivationId) extends TimeoutException

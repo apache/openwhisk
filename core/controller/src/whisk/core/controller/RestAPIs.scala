@@ -43,7 +43,7 @@ import whisk.core.WhiskConfig.whiskVersionBuildno
 import whisk.core.connector.LoadBalancerResponse
 import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.core.entitlement.{ Collection, EntitlementService, Privilege, Resource }
-import whisk.core.entity.{ Subject, WhiskActivationStore, WhiskAuthStore, WhiskEntityStore }
+import whisk.core.entity.{ ActivationId, Subject, WhiskActivation, WhiskActivationStore, WhiskAuthStore, WhiskEntityStore }
 import whisk.core.entity.types.{ ActivationStore, AuthStore, EntityStore }
 import whisk.core.controller.WhiskServices.LoadBalancerReq
 
@@ -167,7 +167,7 @@ protected[controller] class RestAPIVersion_v1(
     // initialize backend services
     protected implicit val consulServer = WhiskServices.consulServer(config)
     protected implicit val entitlementService = WhiskServices.entitlementService(config)
-    protected implicit val (performLoadBalancerRequest, getInvokerHealth) = WhiskServices.makeLoadBalancerComponent(config)
+    protected implicit val (performLoadBalancerRequest, getInvokerHealth, queryActivationResponse) = WhiskServices.makeLoadBalancerComponent(config)
 
     // register collections and set verbosities on datastores and backend services
     Collection.initialize(entityStore, verbosity)
@@ -203,6 +203,7 @@ protected[controller] class RestAPIVersion_v1(
             override val activationStore: ActivationStore,
             override val entitlementService: EntitlementService,
             override val performLoadBalancerRequest: LoadBalancerReq => Future[LoadBalancerResponse],
+            override val queryActivationResponse: (ActivationId, TransactionId) => Future[WhiskActivation],
             override val consulServer: String,
             override val executionContext: ExecutionContext)
         extends WhiskActionsApi with WhiskServices {
@@ -218,6 +219,7 @@ protected[controller] class RestAPIVersion_v1(
             override val entitlementService: EntitlementService,
             override val activationStore: ActivationStore,
             override val performLoadBalancerRequest: LoadBalancerReq => Future[LoadBalancerResponse],
+            override val queryActivationResponse: (ActivationId, TransactionId) => Future[WhiskActivation],
             override val consulServer: String,
             override val executionContext: ExecutionContext)
         extends WhiskTriggersApi with WhiskServices {
@@ -232,6 +234,7 @@ protected[controller] class RestAPIVersion_v1(
             override val entityStore: EntityStore,
             override val entitlementService: EntitlementService,
             override val performLoadBalancerRequest: LoadBalancerReq => Future[LoadBalancerResponse],
+            override val queryActivationResponse: (ActivationId, TransactionId) => Future[WhiskActivation],
             override val consulServer: String,
             override val executionContext: ExecutionContext)
         extends WhiskRulesApi with WhiskServices {
@@ -256,6 +259,7 @@ protected[controller] class RestAPIVersion_v1(
             implicit override val entityStore: EntityStore,
             override val entitlementService: EntitlementService,
             override val performLoadBalancerRequest: LoadBalancerReq => Future[LoadBalancerResponse],
+            override val queryActivationResponse: (ActivationId, TransactionId) => Future[WhiskActivation],
             override val consulServer: String,
             override val executionContext: ExecutionContext)
         extends WhiskPackagesApi with WhiskServices {

@@ -87,8 +87,23 @@ case class WhiskActivation(
     }
 
     def getResultJson : JsObject = {
-        response.toExtendedJson.fields("result").asJsObject
+        response.getResultJson
     }
+
+    def stripLogs : WhiskActivation =
+        WhiskActivation(
+            namespace = namespace,
+            name = name,
+            subject = subject,
+            activationId = activationId,
+            start = start,
+            end = end,
+            cause = cause,
+            response = response,
+            logs = ActivationLogs(),
+            version = version,
+            publish = publish,
+            annotations = annotations)
 }
 
 object WhiskActivation

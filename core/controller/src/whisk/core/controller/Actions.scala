@@ -59,6 +59,7 @@ import whisk.core.WhiskConfig
 import whisk.core.database.NoDocumentException
 import whisk.core.entity.ActionLimits
 import whisk.core.entity.ActivationId
+import whisk.core.entity.ActivationResponse
 import whisk.core.entity.DocId
 import whisk.core.entity.DocInfo
 import whisk.core.entity.EntityName
@@ -248,25 +249,19 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                 val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
                 getEntity(WhiskAction, entityStore, docid, Some {
                     action: WhiskAction =>
-                        val postToLoadBalancer = postInvokeRequest(user.subject, action, env, payload, blocking)
+                        val postToLoadBalancer = postInvokeRequest(user.subject, action, env, payload, blocking, result)
                         onComplete(postToLoadBalancer) {
                             case Success((activationId, None)) =>
                                 info(this, "", CONTROLLER_ACTIVATION_DONE)
                                 complete(Accepted, activationId.toJsObject)
-                            case Success((activationId, Some(activation))) =>
+                            case Success((activationId, Some((activationResponse, activationResult)))) =>
                                 info(this, "", CONTROLLER_BLOCKING_ACTIVATION_DONE)
-                                val response = if (result) {
-                                    activation.getResultJson
+                                if (activationResponse.isSuccess) {
+                                    complete(OK, activationResult)
+                                } else if (activationResponse.isWhiskError) {
+                                    complete(InternalServerError, activationResult)
                                 } else {
-                                    activation.toExtendedJson
-                                }
-
-                                if (activation.response.isSuccess) {
-                                    complete(OK, response)
-                                } else if (activation.response.isWhiskError) {
-                                    complete(InternalServerError, response)
-                                } else {
-                                    complete(BadGateway, response)
+                                    complete(BadGateway, activationResult)
                                 }
                             case Failure(t: BlockingInvokeTimeout) =>
                                 info(this, s"[POST] action activation waiting period expired")
@@ -397,8 +392,8 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      * @param transid a transaction id for logging
      * @return a promise that completes with (ActivationId, Some(WhiskActivation)) if blocking else (ActivationId, None)
      */
-    private def postInvokeRequest(user: Subject, action: WhiskAction, env: Option[Parameters], payload: Option[JsObject], blocking: Boolean)(
-        implicit transid: TransactionId): Future[(ActivationId, Option[WhiskActivation])] = {
+    private def postInvokeRequest(user: Subject, action: WhiskAction, env: Option[Parameters], payload: Option[JsObject], blocking: Boolean, resultOnly: Boolean)(
+        implicit transid: TransactionId): Future[(ActivationId, Option[(ActivationResponse, JsObject)])] = {
         // merge package parameters with action (action parameters supersede), then merge in payload
         val args = { env map { _ ++ action.parameters } getOrElse action.parameters } merge payload
         val message = Message(transid, s"/actions/invoke/${action.namespace}/${action.name}/${action.rev}", user, ActivationId(), args)
@@ -426,13 +421,32 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                 if (blocking) {
                     val docid = DocId(WhiskEntity.qualifiedName(user.namespace, activationId))
                     val timeout = duration + blockingInvokeGrace
-                    val promise = Promise[(ActivationId, Option[WhiskActivation])]
+                    val promise = Promise[(ActivationId, Option[(ActivationResponse, JsObject)])]
                     info(this, s"[POST] action activation will block on result up to $timeout ($duration + $blockingInvokeGrace grace)")
-                    pollForResult(docid.asDocInfo, activationId, promise)
+                    pollLocalForResult(docid.asDocInfo, activationId, resultOnly, promise)
                     val response = promise.future withTimeout (timeout, new BlockingInvokeTimeout(activationId))
                     response onFailure { case t => promise.tryFailure(t) } // short circuits polling on result
                     response // will either complete with activation or fail with timeout
                 } else Future { (activationId, None) }
+        }
+    }
+
+    /**
+     * This is a fast path used for blocking calls in which we do not need the full WhiskActivation record from the DB.
+     * Polls for the activation response from an underlying data structure populated from Kakfa active acknowledgements.
+     * If this mechanism fails to produce an answer quickly, the future will fail and we back off into using
+     * a database operation to obtain the canonical answer.
+     */
+    private def pollLocalForResult(docid: DocInfo, activationId: ActivationId, resultOnly: Boolean,
+                                   promise: Promise[(ActivationId, Option[(ActivationResponse, JsObject)])])(implicit transid: TransactionId): Unit = {
+        queryActivationResponse(activationId, transid) map {
+            activation =>
+                val response = if (resultOnly) activation.getResultJson else activation.toExtendedJson
+                promise.trySuccess(activationId, Some((activation.response, response)))
+        } onFailure {
+            case t: Throwable => {
+                pollDbForResult(docid, activationId, resultOnly, promise)
+            }
         }
     }
 
@@ -442,15 +456,19 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      * either there is an error in the get, or the promise has completed because it timed out. The promise MUST
      * complete in the caller to terminate the polling.
      */
-    private def pollForResult(docid: DocInfo, activationId: ActivationId, promise: Promise[(ActivationId, Option[WhiskActivation])])(implicit transid: TransactionId): Unit = {
+    private def pollDbForResult(docid: DocInfo, activationId: ActivationId, resultOnly: Boolean,
+                                promise: Promise[(ActivationId, Option[(ActivationResponse, JsObject)])])(implicit transid: TransactionId): Unit = {
         if (!promise.isCompleted) {
             WhiskActivation.get(activationStore, docid) map {
-                activation => promise.trySuccess(activationId, Some(activation))
+                fullActivation =>
+                    val activation = fullActivation.stripLogs
+                    val response = if (resultOnly) activation.getResultJson else activation.toExtendedJson
+                    promise.trySuccess(activationId, Some((activation.response, response)))
             } onFailure {
                 case e: NoDocumentException =>
                     Thread.sleep(500)
                     info(this, s"[POST] action activation not yet timed out, will poll for result")
-                    pollForResult(docid, activationId, promise)
+                    pollDbForResult(docid, activationId, resultOnly, promise)
                 case t: Throwable =>
                     error(this, s"[POST] action activation failed while waiting on result: ${t.getMessage}")
                     promise.tryFailure(t)

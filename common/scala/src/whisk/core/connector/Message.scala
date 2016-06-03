@@ -29,6 +29,7 @@ import spray.json.pimpString
 import whisk.common.TransactionId
 import whisk.core.entity.ActivationId
 import whisk.core.entity.Subject
+import whisk.core.entity.WhiskActivation
 
 /** Basic trait for messages that are sent on a message bus connector. */
 trait Message {
@@ -87,10 +88,12 @@ object ActivationMessage extends DefaultJsonProtocol {
 
 /**
  * When adding fields, the serdes of the companion object must be updated also.
+ * The whisk activation field will have its logs stripped.
  */
 case class CompletionMessage(
     override val transid: TransactionId,
-    activationId: ActivationId)
+    activationId: ActivationId,
+    response: WhiskActivation)
     extends Message {
 
     override def serialize = CompletionMessage.serdes.write(this).compactPrint
@@ -106,5 +109,5 @@ object CompletionMessage extends DefaultJsonProtocol {
         serdes.read(msg.parseJson)
     }
 
-    implicit val serdes = jsonFormat2(CompletionMessage.apply)
+    implicit val serdes = jsonFormat3(CompletionMessage.apply)
 }
