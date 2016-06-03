@@ -1,0 +1,14 @@
+---
+# Remove SDK artifacts from nginx.
+
+- name: remove blackbox sdk
+  file:
+    path: "{{ cli_conf_dir }}/blackbox-0.1.0.tar.gz"
+    state: absent
+  become: true
+
+- name: remove iOS sdk
+  file:
+    path: "{{ cli_conf_dir }}/OpenWhiskIOSStarterApp.zip"
+    state: absent
+  become: true
