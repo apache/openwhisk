@@ -74,6 +74,14 @@ protected[core] object ActivationId extends ArgNormalizer[ActivationId] {
      */
     protected[core] def apply(): ActivationId = new ActivationId(java.util.UUID.randomUUID())
 
+    /**
+     * Overrides factory method so that string is not interpreted as number
+     * e.g., 2e11.
+     */
+    override protected[entity] def factory(s: String): ActivationId = {
+        serdes.read(JsString(s))
+    }
+
     override protected[core] implicit val serdes = new RootJsonFormat[ActivationId] {
         def write(d: ActivationId) = JsString(d.toString)
 
