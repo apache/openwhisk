@@ -31,7 +31,7 @@ From the command line, type `pod install`. This will install the SDK for an iOS 
 
 Create a file in your app's project directory all it 'Cartfile'. Put the following line in the Cartfile:
 ```
-github "openwhisk//openwhisk-client-swift.git" ~> 0.1.0 # Or latest version
+github "openwhisk/openwhisk-client-swift.git" ~> 0.1.0 # Or latest version
 ```
 
 From the command line, type `carthage update --platform ios`. Carthage downloads and builds the SDK, creates a directory called Carthage in your app's project directory, and puts an OpenWhisk.framework file inside Carthage/build/iOS.
@@ -40,7 +40,7 @@ You must then add OpenWhisk.framework to the embedded frameworks in your Xcode p
 
 ### Installing from source code
 
-Source code is available at https://github.com/openwhisk//openwhisk-client-swift.git. Open project using the OpenWhisk.xcodeproj file in Xcode.  The project contains two schemes "OpenWhisk" and "OpenWhiskWatch" targetted for iOS and watchOS 2, respectively.  Build the project for the targets you need and add the resulting frameworks to your app (usually in ~/Library/Developer/Xcode/DerivedData/your app name).
+Source code is available at https://github.com/openwhisk/openwhisk-client-swift.git. Open project using the OpenWhisk.xcodeproj file in Xcode.  The project contains two schemes "OpenWhisk" and "OpenWhiskWatch" targetted for iOS and watchOS 2, respectively.  Build the project for the targets you need and add the resulting frameworks to your app (usually in ~/Library/Developer/Xcode/DerivedData/your app name).
 
 ## Installing the starter app example
 
