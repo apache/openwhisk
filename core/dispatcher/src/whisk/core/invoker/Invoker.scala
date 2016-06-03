@@ -270,7 +270,7 @@ class Invoker(
                     val contents = getContainerLogs(con)
                     val activation = makeWhiskActivation(tran, con.isBlackbox, msg, action, payload, response, contents)
                     val res = completeTransaction(tran, activation)
-                    val completeMsg = CompletionMessage(transid, msg.activationId)
+                    val completeMsg = CompletionMessage(transid, activation withoutLogs)
                     producer.send("completed", completeMsg) map { status =>
                         info(this, s"posted completion of activation ${msg.activationId}")
                     }
