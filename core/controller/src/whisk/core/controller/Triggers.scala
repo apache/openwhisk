@@ -21,7 +21,6 @@ import java.time.Instant
 import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Success
-import org.lightcouch.NoDocumentException
 import spray.client.pipelining.Post
 import spray.http.StatusCodes.BadRequest
 import spray.http.StatusCodes.InternalServerError
@@ -40,6 +39,7 @@ import spray.routing.Directive.pimpApply
 import spray.routing.directives.OnCompleteFutureMagnet.apply
 import spray.routing.directives.ParamDefMagnet.apply
 import whisk.common.TransactionId
+import whisk.core.database.NoDocumentException
 import whisk.core.entitlement.Collection
 import whisk.core.entity.ActivationId
 import whisk.core.entity.DocId

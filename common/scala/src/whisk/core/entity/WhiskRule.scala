@@ -25,7 +25,6 @@ import spray.json.JsValue
 import spray.json.RootJsonFormat
 import spray.json.deserializationError
 import whisk.core.database.DocumentFactory
-import whisk.core.entity.schema.RuleRecord
 import spray.json.JsObject
 
 /**
@@ -81,13 +80,7 @@ case class WhiskRule(
             revision[WhiskRule](docinfo.rev)
     }
 
-    override def serialize: Try[RuleRecord] = Try {
-        val r = serialize[RuleRecord](new RuleRecord)
-        r.status = status.toString
-        r.trigger = trigger()
-        r.action = action()
-        r
-    }
+    def toJson = WhiskRule.serdes.write(this).asJsObject
 }
 
 /**
@@ -179,25 +172,12 @@ protected[core] object Status extends ArgNormalizer[Status] {
 }
 
 object WhiskRule
-    extends DocumentFactory[RuleRecord, WhiskRule]
+    extends DocumentFactory[WhiskRule]
     with WhiskEntityQueries[WhiskRule]
     with DefaultJsonProtocol {
 
     override val collectionName = "rules"
     override implicit val serdes = jsonFormat8(WhiskRule.apply)
-
-    override def apply(r: RuleRecord): Try[WhiskRule] = Try {
-        WhiskRule(
-            Namespace(r.namespace),
-            EntityName(r.name),
-            Status(r.status),
-            EntityName(r.trigger),
-            EntityName(r.action),
-            SemVer(r.version),
-            r.publish,
-            Parameters(r.annotations)).
-            revision[WhiskRule](r.docinfo.rev)
-    }
 
     /**
      * Rules are updated in two components: the controller which locks the record

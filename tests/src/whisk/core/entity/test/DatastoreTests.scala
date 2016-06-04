@@ -24,8 +24,6 @@ import scala.concurrent.Await
 import akka.actor.ActorSystem
 
 import org.junit.runner.RunWith
-import org.lightcouch.DocumentConflictException
-import org.lightcouch.NoDocumentException
 import org.scalatest.BeforeAndAfter
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
@@ -33,6 +31,8 @@ import org.scalatest.junit.JUnitRunner
 
 import whisk.common.Verbosity
 import whisk.core.WhiskConfig
+import whisk.core.database.DocumentConflictException
+import whisk.core.database.NoDocumentException
 import whisk.core.database.test.DbUtils
 import whisk.core.entity.ActionLimits
 import whisk.core.entity.ActivationId

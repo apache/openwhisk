@@ -36,20 +36,16 @@ import whisk.core.WhiskConfig.dbHost
 import whisk.core.WhiskConfig.dbPort
 import whisk.core.WhiskConfig.dbWhisk
 import whisk.core.database.ArtifactStore
-import whisk.core.database.CloudantStore
-import whisk.core.database.CouchDbStore
+import whisk.core.database.CouchDbRestStore
 import whisk.core.database.DocumentRevisionProvider
 import whisk.core.database.DocumentSerializer
-import whisk.core.entity.schema.ActivationRecord
-import whisk.core.entity.schema.AuthRecord
-import whisk.core.entity.schema.EntityRecord
 import java.time.Instant
 import scala.language.postfixOps
 
 package object types {
-    type AuthStore = ArtifactStore[AuthRecord, WhiskAuth]
-    type EntityStore = ArtifactStore[EntityRecord, WhiskEntity]
-    type ActivationStore = ArtifactStore[ActivationRecord, WhiskActivation]
+    type AuthStore = ArtifactStore[WhiskAuth]
+    type EntityStore = ArtifactStore[WhiskEntity]
+    type ActivationStore = ArtifactStore[WhiskActivation]
 
     // A placeholder type should we change the trigger and action references
     // to a type that more explicitly captures the namespace, name, and version
@@ -72,23 +68,36 @@ protected[core] trait WhiskDocument
      * document revision if one exists.
      */
     protected[core] final def docinfo: DocInfo = DocInfo(docid, rev)
+
+    /**
+     * The representation as JSON, e.g. for REST calls. Does not include id/rev.
+     */
+    def toJson: JsObject
+
+    /**
+     * Database JSON representation. Includes id/rev when appropriate. May
+     * differ from `toJson` in exceptional cases.
+     */
+    override def toDocumentRecord: JsObject = {
+        val id = docid.id
+        val revOrNull = rev.rev
+
+        // Building up the fields.
+        val base    = this.toJson.fields
+        val withId  = base + ("_id" -> JsString(id))
+        val withRev = if(revOrNull == null) withId else { withId + ("_rev" -> JsString(revOrNull)) }
+        JsObject(withRev)
+    }
 }
 
 protected[core] object Util {
-    def makeStore[R, D <: DocumentSerializer](config: WhiskConfig, name: WhiskConfig => String)(
+    def makeStore[D <: DocumentSerializer](config: WhiskConfig, name: WhiskConfig => String)(
         implicit jsonFormat: RootJsonFormat[D],
-        actorSystem: ActorSystem): ArtifactStore[R, D] = {
+        actorSystem: ActorSystem): ArtifactStore[D] = {
         require(config != null && config.isValid, "config is undefined or not valid")
         require(config.dbProvider == "Cloudant" || config.dbProvider == "CouchDB", "Unsupported db.provider: " + config.dbProvider)
 
-        if (false && config.dbProvider == "Cloudant") { // use new spray-based API
-            CloudantStore.make(config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name(config))
-        } else {
-            // CouchDbStore.make(config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name(config))
-            // New Spray-based API.
-            import whisk.core.database.CouchDbRestStore
-            new CouchDbRestStore[R, D](config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name(config))
-        }
+        new CouchDbRestStore[D](config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name(config))
     }
 }
 
@@ -103,7 +112,7 @@ object WhiskAuthStore {
             dbAuths -> null)
 
     def datastore(config: WhiskConfig)(implicit system: ActorSystem) =
-        Util.makeStore[AuthRecord, WhiskAuth](config, _.dbAuths)
+        Util.makeStore[WhiskAuth](config, _.dbAuths)
 }
 
 object WhiskEntityStore {
@@ -117,7 +126,7 @@ object WhiskEntityStore {
             dbWhisk -> null)
 
     def datastore(config: WhiskConfig)(implicit system: ActorSystem) =
-        Util.makeStore[EntityRecord, WhiskEntity](config, _.dbWhisk)(WhiskEntityJsonFormat, system)
+        Util.makeStore[WhiskEntity](config, _.dbWhisk)(WhiskEntityJsonFormat, system)
 }
 
 object WhiskActivationStore {
@@ -131,7 +140,7 @@ object WhiskActivationStore {
             dbActivations -> null)
 
     def datastore(config: WhiskConfig)(implicit system: ActorSystem) =
-        Util.makeStore[ActivationRecord, WhiskActivation](config, _.dbActivations)
+        Util.makeStore[WhiskActivation](config, _.dbActivations)
 }
 
 /**
@@ -186,8 +195,8 @@ object WhiskEntityQueries {
      * Queries the datastore for all entities in a namespace, and converts the list of entities
      * to a map that collects the entities by their type.
      */
-    def listAllInNamespace[R <: EntityRecord, A <: WhiskEntity](
-        db: ArtifactStore[R, A],
+    def listAllInNamespace[A <: WhiskEntity](
+        db: ArtifactStore[A],
         namespace: Namespace,
         includeDocs: Boolean)(
             implicit transid: TransactionId): Future[Map[String, List[JsObject]]] = {
@@ -208,8 +217,8 @@ object WhiskEntityQueries {
      * Queries the datastore for all entities without activations in a namespace, and converts the list of entities
      * to a map that collects the entities by their type.
      */
-    def listEntitiesInNamespace[R <: EntityRecord, A <: WhiskEntity](
-        db: ArtifactStore[R, A],
+    def listEntitiesInNamespace[A <: WhiskEntity](
+        db: ArtifactStore[A],
         namespace: Namespace,
         includeDocs: Boolean)(
             implicit transid: TransactionId): Future[Map[String, List[JsObject]]] = {
@@ -226,8 +235,8 @@ object WhiskEntityQueries {
         }
     }
 
-    def listCollectionInAnyNamespace[R <: EntityRecord, A <: WhiskEntity, T](
-        db: ArtifactStore[R, A],
+    def listCollectionInAnyNamespace[A <: WhiskEntity, T](
+        db: ArtifactStore[A],
         collection: String,
         skip: Int,
         limit: Int,
@@ -243,8 +252,8 @@ object WhiskEntityQueries {
         query(db, viewname(collection, true), startKey, endKey, skip, limit, reduce, convert)
     }
 
-    def listCollectionInNamespace[R <: EntityRecord, A <: WhiskEntity, T](
-        db: ArtifactStore[R, A],
+    def listCollectionInNamespace[A <: WhiskEntity, T](
+        db: ArtifactStore[A],
         collection: String,
         namespace: Namespace,
         skip: Int,
@@ -260,8 +269,8 @@ object WhiskEntityQueries {
         query(db, viewname(collection), startKey, endKey, skip, limit, reduce = false, convert)
     }
 
-    def listCollectionByName[R <: EntityRecord, A <: WhiskEntity, T](
-        db: ArtifactStore[R, A],
+    def listCollectionByName[A <: WhiskEntity, T](
+        db: ArtifactStore[A],
         collection: String,
         namespace: Namespace,
         name: EntityName,
@@ -278,8 +287,8 @@ object WhiskEntityQueries {
         query(db, viewname(collection), startKey, endKey, skip, limit, reduce = false, convert)
     }
 
-    private def query[R <: EntityRecord, A <: WhiskEntity, T](
-        db: ArtifactStore[R, A],
+    private def query[A <: WhiskEntity, T](
+        db: ArtifactStore[A],
         view: String,
         startKey: List[Any],
         endKey: List[Any],
@@ -315,8 +324,8 @@ trait WhiskEntityQueries[T] {
     val collectionName: String
     val serdes: RootJsonFormat[T]
 
-    def listCollectionInAnyNamespace[R <: EntityRecord, A <: WhiskEntity, T](
-        db: ArtifactStore[R, A],
+    def listCollectionInAnyNamespace[A <: WhiskEntity, T](
+        db: ArtifactStore[A],
         skip: Int,
         limit: Int,
         docs: Boolean = false,
@@ -329,8 +338,8 @@ trait WhiskEntityQueries[T] {
         WhiskEntityQueries.listCollectionInAnyNamespace(db, collectionName, skip, limit, reduce, since, upto, convert)
     }
 
-    def listCollectionInNamespace[R <: EntityRecord, A <: WhiskEntity, T](
-        db: ArtifactStore[R, A],
+    def listCollectionInNamespace[A <: WhiskEntity, T](
+        db: ArtifactStore[A],
         namespace: Namespace,
         skip: Int,
         limit: Int,
@@ -343,8 +352,8 @@ trait WhiskEntityQueries[T] {
         WhiskEntityQueries.listCollectionInNamespace(db, collectionName, namespace, skip, limit, since, upto, convert)
     }
 
-    def listCollectionByName[R <: EntityRecord, A <: WhiskEntity, T](
-        db: ArtifactStore[R, A],
+    def listCollectionByName[A <: WhiskEntity, T](
+        db: ArtifactStore[A],
         namespace: Namespace,
         name: EntityName,
         skip: Int,

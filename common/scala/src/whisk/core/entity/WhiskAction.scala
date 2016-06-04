@@ -33,7 +33,6 @@ import spray.json.deserializationError
 import spray.json.pimpAny
 
 import whisk.core.database.DocumentFactory
-import whisk.core.entity.schema.ActionRecord
 
 /**
  * ActionLimitsOption mirrors ActionLimits but makes both the timeout and memory
@@ -155,17 +154,11 @@ case class WhiskAction(
 
     }
 
-    override def serialize: Try[ActionRecord] = Try {
-        val r = serialize[ActionRecord](new ActionRecord)
-        r.exec = exec.toGson
-        r.parameters = parameters.toGson
-        r.limits = limits.toGson
-        r
-    }
+    def toJson = WhiskAction.serdes.write(this).asJsObject
 }
 
 object WhiskAction
-    extends DocumentFactory[ActionRecord, WhiskAction]
+    extends DocumentFactory[WhiskAction]
     with WhiskEntityQueries[WhiskAction]
     with DefaultJsonProtocol {
 
@@ -182,19 +175,6 @@ object WhiskAction
 
             case BlackBoxExec(image) => image
         }
-    }
-
-    override def apply(r: ActionRecord): Try[WhiskAction] = Try {
-        WhiskAction(
-            Namespace(r.namespace),
-            EntityName(r.name),
-            Exec(r.exec),
-            Parameters(r.parameters),
-            ActionLimits(r.limits),
-            SemVer(r.version),
-            r.publish,
-            Parameters(r.annotations)).
-            revision[WhiskAction](r.docinfo.rev)
     }
 
     override val cacheEnabled = true
