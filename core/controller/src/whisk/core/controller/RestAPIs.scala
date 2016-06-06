@@ -20,7 +20,6 @@ import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.util.{ Success, Failure }
-
 import akka.actor.ActorSystem
 import spray.http.HttpRequest
 import spray.http.StatusCodes.{ OK, InternalServerError, PermanentRedirect }
@@ -31,7 +30,6 @@ import spray.json.pimpAny
 import spray.routing.Directive.pimpApply
 import spray.routing.Directives
 import spray.routing.Route
-
 import whisk.common.{ TransactionId, Verbosity }
 import whisk.common.Verbosity.Level
 import whisk.core.WhiskConfig
@@ -43,6 +41,9 @@ import whisk.core.entitlement.{ Collection, EntitlementService, Privilege, Resou
 import whisk.core.entity.{ Subject, WhiskActivationStore, WhiskAuthStore, WhiskEntityStore }
 import whisk.core.entity.types.{ ActivationStore, AuthStore, EntityStore }
 import whisk.core.controller.WhiskServices.LoadBalancerReq
+import spray.http.HttpHeaders.`Access-Control-Allow-Origin`
+import spray.http.HttpHeaders.`Access-Control-Allow-Headers`
+import spray.http.AllOrigins
 
 /**
  * Abstract class which provides basic Directives which are used to construct route structures
@@ -115,26 +116,32 @@ protected[controller] class RestAPIVersion_v1(
      * @Idioglossia This relies on the spray routing DSL.
      * @see http://spray.io/documentation/1.2.2/spray-routing/
      */
+    private val sendCorsHeaders = respondWithHeaders(`Access-Control-Allow-Origin`(AllOrigins), `Access-Control-Allow-Headers`("Authorization", "Content-Type"))
+
     override def routes(implicit transid: TransactionId): Route = {
         pathPrefix(apipath / apiversion) {
-            pathEndOrSingleSlash {
-                complete(OK, info)
-            } ~ authenticate(basicauth) {
-                user =>
-                    namespaces.routes(user) ~
-                        pathPrefix(Collection.NAMESPACES) {
-                            actions.routes(user) ~
-                                triggers.routes(user) ~
-                                rules.routes(user) ~
-                                activations.routes(user) ~
-                                packages.routes(user)
-                        }
-            } ~ pathPrefix(swaggeruipath) {
-                getFromDirectory("/swagger-ui/")
-            } ~ path(swaggeruipath) {
-                redirect(s"$swaggeruipath/index.html", PermanentRedirect)
-            } ~ path(swaggerdocpath) {
-                getFromResource("whiskswagger.json")
+            sendCorsHeaders {
+                (pathEndOrSingleSlash & get) {
+                    complete(OK, info)
+                } ~ authenticate(basicauth) {
+                    user =>
+                        namespaces.routes(user) ~
+                            pathPrefix(Collection.NAMESPACES) {
+                                actions.routes(user) ~
+                                    triggers.routes(user) ~
+                                    rules.routes(user) ~
+                                    activations.routes(user) ~
+                                    packages.routes(user)
+                            }
+                } ~ pathPrefix(swaggeruipath) {
+                    getFromDirectory("/swagger-ui/")
+                } ~ path(swaggeruipath) {
+                    redirect(s"$swaggeruipath/index.html", PermanentRedirect)
+                } ~ path(swaggerdocpath) {
+                    getFromResource("whiskswagger.json")
+                } ~ options {
+                    complete(OK)
+                }
             }
         } ~ internalPublish ~ internalInvokerHealth
     }
