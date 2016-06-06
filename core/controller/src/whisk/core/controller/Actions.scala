@@ -155,7 +155,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                 pathEnd {
                     // matched /namespace/collection/name
                     // this is an action in default package, authorize and dispatch
-                    authorizeAndDispatch(m, user.subject, Resource(ns, collection, Some(outername)))
+                    authorizeAndDispatch(m, user, Resource(ns, collection, Some(outername)))
                 } ~ (get & pathSingleSlash) {
                     // matched GET /namespace/collection/package-name/
                     // list all actions in package iff subject is entitled to READ package
@@ -184,7 +184,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                                 // but rather an action in the package
                                 authorizeAndContinue(Privilege.READ, user.subject, packageResource, next = () => {
                                     getEntity(WhiskPackage, entityStore, packageDocId, Some {
-                                        mergeActionWithPackageAndDispatch(m, user.subject, EntityName(innername)) _
+                                        mergeActionWithPackageAndDispatch(m, user, EntityName(innername)) _
                                     })
                                 })
                             case PUT | DELETE =>
@@ -198,7 +198,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                                             _ => terminate(BadRequest, "Operation not permitted on package binding")
                                         } getOrElse {
                                             val actionResource = Resource(wp.path, collection, Some { innername })
-                                            dispatchOp(user.subject, right, actionResource)
+                                            dispatchOp(user, right, actionResource)
                                         }
                                     })
                                 })
@@ -242,13 +242,13 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      * - 502 Bad Gateway
      * - 500 Internal Server Error
      */
-    override def activate(user: Subject, namespace: Namespace, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
+    override def activate(user: WhiskAuth, namespace: Namespace, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
         parameter('blocking ? false, 'result ? false) { (blocking, result) =>
             entity(as[Option[JsObject]]) { payload =>
                 val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
                 getEntity(WhiskAction, entityStore, docid, Some {
                     action: WhiskAction =>
-                        val postToLoadBalancer = postInvokeRequest(user, action, env, payload, blocking)
+                        val postToLoadBalancer = postInvokeRequest(user.subject, action, env, payload, blocking)
                         onComplete(postToLoadBalancer) {
                             case Success((activationId, None)) =>
                                 info(this, "", CONTROLLER_ACTIVATION_DONE)
@@ -499,7 +499,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      * Once the package is resolved, the operation is dispatched to the action in the package
      * namespace.
      */
-    private def mergeActionWithPackageAndDispatch(method: HttpMethod, user: Subject, action: EntityName, ref: Option[WhiskPackage] = None)(wp: WhiskPackage)(
+    private def mergeActionWithPackageAndDispatch(method: HttpMethod, user: WhiskAuth, action: EntityName, ref: Option[WhiskPackage] = None)(wp: WhiskPackage)(
         implicit transid: TransactionId): RequestContext => Unit = {
         wp.binding map {
             case Binding(ns, n) =>

@@ -49,7 +49,6 @@ case class WhiskRulePut(
  *
  * @param namespace the namespace for the rule
  * @param name the name of the rule
- * @param status the status of the rule (one of active, inactive, changing)
  * @param trigger the trigger name to subscribe to
  * @param action the action name to invoke invoke when trigger is fired
  * @param version the semantic version
@@ -61,7 +60,6 @@ case class WhiskRulePut(
 case class WhiskRule(
     namespace: Namespace,
     override val name: EntityName,
-    status: Status,
     trigger: types.Trigger,
     action: types.Action,
     version: SemVer = SemVer(),
@@ -69,18 +67,38 @@ case class WhiskRule(
     annotations: Parameters = Parameters())
     extends WhiskEntity(name) {
 
-    /**
-     * Set rule status: if new status does not match existing status, generate new rule with appropriate status.
-     *
-     * @param status the rule status, true to indicate rule is enabled and false otherwise
-     * @return WhiskRule with status set according to status
-     */
-    def toggle(newStatus: Status): WhiskRule = {
-        WhiskRule(namespace, name, newStatus, trigger, action, version, publish, annotations).
-            revision[WhiskRule](docinfo.rev)
-    }
+    def withStatus(s: Status) = WhiskRuleResponse(namespace, name, s, trigger, action, version, publish, annotations)
 
     def toJson = WhiskRule.serdes.write(this).asJsObject
+}
+
+/**
+ * Rule as it is returned by the controller. Basically the same as WhiskRule,
+ * but including the Status which is gotten from the WhiskTrigger the rule
+ * refers to.
+ *
+ * @param namespace the namespace for the rule
+ * @param name the name of the rule
+ * @param status the status of the rule (one of active, inactive, changing)
+ * @param trigger the trigger name to subscribe to
+ * @param action the action name to invoke invoke when trigger is fired
+ * @param version the semantic version
+ * @param publish true to share the action or false otherwise
+ * @param annotation the set of annotations to attribute to the rule
+ * @throws IllegalArgumentException if any argument is undefined
+ */
+@throws[IllegalArgumentException]
+case class WhiskRuleResponse(
+    namespace: Namespace,
+    name: EntityName,
+    status: Status,
+    trigger: types.Trigger,
+    action: types.Action,
+    version: SemVer = SemVer(),
+    publish: Boolean = false,
+    annotations: Parameters = Parameters()) {
+
+    def toWhiskRule = WhiskRule(namespace, name, trigger, action, version, publish, annotations)
 }
 
 /**
@@ -107,15 +125,11 @@ class Status private (private val status: String) extends AnyVal {
 protected[core] object Status extends ArgNormalizer[Status] {
     val ACTIVE = new Status("active")
     val INACTIVE = new Status("inactive")
-    val ACTIVATING = new Status("activating")
-    val DEACTIVATING = new Status("deactivating")
 
     protected[core] def next(status: Status): Status = {
         status match {
-            case ACTIVE       => DEACTIVATING
-            case DEACTIVATING => INACTIVE
-            case INACTIVE     => ACTIVATING
-            case ACTIVATING   => ACTIVE
+            case ACTIVE   => INACTIVE
+            case INACTIVE => ACTIVE
         }
     }
 
@@ -129,8 +143,7 @@ protected[core] object Status extends ArgNormalizer[Status] {
     @throws[IllegalArgumentException]
     override protected[entity] def factory(str: String): Status = {
         val status = new Status(str)
-        require(status == ACTIVE || status == INACTIVE ||
-            status == ACTIVATING || status == DEACTIVATING,
+        require(status == ACTIVE || status == INACTIVE,
             s"$str is not a recognized rule state")
         status
     }
@@ -177,7 +190,7 @@ object WhiskRule
     with DefaultJsonProtocol {
 
     override val collectionName = "rules"
-    override implicit val serdes = jsonFormat8(WhiskRule.apply)
+    override implicit val serdes = jsonFormat7(WhiskRule.apply)
 
     /**
      * Rules are updated in two components: the controller which locks the record
@@ -192,6 +205,10 @@ object WhiskRule
      */
     override val cacheEnabled = false
     override def cacheKeys(w: WhiskRule) = Set(w.docid.asDocInfo, w.docinfo)
+}
+
+object WhiskRuleResponse extends DefaultJsonProtocol {
+    implicit val serdes = jsonFormat8(WhiskRuleResponse.apply)
 }
 
 object WhiskRulePut extends DefaultJsonProtocol {

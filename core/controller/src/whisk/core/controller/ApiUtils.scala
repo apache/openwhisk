@@ -231,6 +231,18 @@ trait WriteOps extends Directives with Messages with Logging {
     protected type PutPredicate = Future[Boolean]
 
     /**
+     * A convenient typedef for functions that post process an entity
+     * on a get operation and terminate the HTTP request.
+     */
+    protected type PostProcessEntityPut[A] = A => RequestContext => Unit
+
+    /**
+     * A convenient typedef for functions that post process an entity
+     * on a delete operation and terminate the HTTP request.
+     */
+    protected type PostProcessEntityDelete[A] = A => RequestContext => Unit
+
+    /**
      * Creates or updates an entity of type A in the datastore. First, fetch the entity
      * by id from the datastore (this is required to get the document revision for an update).
      * If the entity does not exist, create it. If it does exist, and 'overwrite' is enabled,
@@ -258,7 +270,8 @@ trait WriteOps extends Directives with Messages with Logging {
         overwrite: Boolean,
         update: A => Future[A],
         create: () => Future[A],
-        treatExistsAsConflict: Boolean = true)(
+        treatExistsAsConflict: Boolean = true,
+        postProcess: Option[PostProcessEntityPut[A]] = None)(
             implicit transid: TransactionId,
             format: RootJsonFormat[A],
             ma: Manifest[A]) = {
@@ -285,7 +298,7 @@ trait WriteOps extends Directives with Messages with Logging {
         }) {
             case Success(entity) =>
                 info(this, s"[PUT] entity success")
-                complete(OK, entity)
+                postProcess map { _(entity) } getOrElse complete(OK, entity)
             case Failure(IdentityPut(a)) =>
                 info(this, s"[PUT] entity exists, not overwriten")
                 complete(OK, a)
@@ -325,7 +338,8 @@ trait WriteOps extends Directives with Messages with Logging {
         factory: DocumentFactory[A],
         datastore: ArtifactStore[Au],
         docid: DocId,
-        confirm: A => Future[Boolean])(
+        confirm: A => Future[Boolean],
+        postProcess: Option[PostProcessEntityDelete[A]] = None)(
             implicit transid: TransactionId,
             format: RootJsonFormat[A],
             ma: Manifest[A]) = {
@@ -340,7 +354,7 @@ trait WriteOps extends Directives with Messages with Logging {
         }) {
             case Success(entity) =>
                 info(this, s"[DEL] entity success")
-                complete(OK, entity)
+                postProcess map { _(entity) } getOrElse complete(OK, entity)
             case Failure(t: NoDocumentException) =>
                 info(this, s"[DEL] entity does not exist")
                 terminate(NotFound)

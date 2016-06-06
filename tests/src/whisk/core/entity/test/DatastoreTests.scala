@@ -153,8 +153,8 @@ class DatastoreTests extends FlatSpec
         implicit val tid = transid()
         implicit val basename = EntityName("create rule")
         val rules = Seq(
-            WhiskRule(namespace, aname, Status.ACTIVE, EntityName("a trigger"), EntityName("an action")),
-            WhiskRule(namespace, aname, Status.ACTIVE, EntityName("a trigger"), EntityName("an action")))
+            WhiskRule(namespace, aname, EntityName("a trigger"), EntityName("an action")),
+            WhiskRule(namespace, aname, EntityName("a trigger"), EntityName("an action")))
         val docs = rules.map { entity =>
             putGetCheck(datastore, entity, WhiskRule)
         }
@@ -198,13 +198,13 @@ class DatastoreTests extends FlatSpec
     it should "reject rule with null arguments" in {
         val name = EntityName("bad rule")
         intercept[IllegalArgumentException] {
-            WhiskRule(namespace, name, Status.ACTIVE, EntityName(null), EntityName(null))
+            WhiskRule(namespace, name, EntityName(null), EntityName(null))
         }
         intercept[IllegalArgumentException] {
-            WhiskRule(namespace, name, Status.ACTIVE, EntityName(""), EntityName(null))
+            WhiskRule(namespace, name, EntityName(""), EntityName(null))
         }
         intercept[IllegalArgumentException] {
-            WhiskRule(namespace, name, Status.ACTIVE, EntityName(" "), EntityName(null))
+            WhiskRule(namespace, name, EntityName(" "), EntityName(null))
         }
     }
 
@@ -238,10 +238,9 @@ class DatastoreTests extends FlatSpec
     it should "update rule with a revision" in {
         implicit val tid = transid()
         implicit val basename = EntityName("update rule")
-        val rule = WhiskRule(namespace, aname, Status.ACTIVE, EntityName("a trigger"), EntityName("an action"))
-        val response = putGetCheck(datastore, rule, WhiskRule, false)
-        println(rule.docinfo, response._2.docinfo, response._1)
-        val revRule = response._2.toggle(Status.INACTIVE)
+        val rule = WhiskRule(namespace, aname, EntityName("a trigger"), EntityName("an action"))
+        val docinfo = putGetCheck(datastore, rule, WhiskRule, false)._2.docinfo
+        val revRule = WhiskRule(namespace, rule.name, rule.trigger, rule.action).revision[WhiskRule](docinfo.rev)
         putGetCheck(datastore, revRule, WhiskRule)
     }
 
@@ -287,7 +286,7 @@ class DatastoreTests extends FlatSpec
     it should "fail with document conflict when trying to write the same rule twice without a revision" in {
         implicit val tid = transid()
         implicit val basename = EntityName("create rule twice")
-        val rule = WhiskRule(namespace, aname, Status.ACTIVE, EntityName("a trigger"), EntityName("an action"))
+        val rule = WhiskRule(namespace, aname, EntityName("a trigger"), EntityName("an action"))
         putGetCheck(datastore, rule, WhiskRule)
         intercept[DocumentConflictException] {
             putGetCheck(datastore, rule, WhiskRule)
@@ -343,7 +342,7 @@ class DatastoreTests extends FlatSpec
     it should "fail with document does not exist when trying to delete the same rule twice" in {
         implicit val tid = transid()
         implicit val basename = EntityName("delete rule twice")
-        val rule = WhiskRule(namespace, aname, Status.ACTIVE, EntityName("a trigger"), EntityName("an action"))
+        val rule = WhiskRule(namespace, aname, EntityName("a trigger"), EntityName("an action"))
         val doc = putGetCheck(datastore, rule, WhiskRule, false)._1
         assert(Await.result(WhiskRule.del(datastore, doc), dbOpTimeout))
         intercept[NoDocumentException] {

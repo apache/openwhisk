@@ -17,10 +17,8 @@
 package whisk.core.controller.test
 
 import java.time.Instant
-
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-
 import spray.http.StatusCodes.BadRequest
 import spray.http.StatusCodes.NotFound
 import spray.http.StatusCodes.OK
@@ -46,6 +44,8 @@ import whisk.core.entity.WhiskAuth
 import whisk.core.entity.WhiskEntity
 import whisk.core.entity.WhiskTrigger
 import whisk.core.entity.WhiskTriggerPut
+import whisk.core.entity.WhiskTriggerResponse
+import whisk.core.entity.ReducedRule
 
 /**
  * Tests Trigger API.
@@ -110,8 +110,8 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
         put(entityStore, trigger)
         Get(s"$collectionPath/$name") ~> sealRoute(routes(creds)) ~> check {
             status should be(OK)
-            val response = responseAs[WhiskTrigger]
-            response should be(trigger)
+            val response = responseAs[WhiskTriggerResponse]
+            response should be(trigger.withoutRules)
         }
     }
 
@@ -123,8 +123,8 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
         put(entityStore, trigger)
         Delete(s"$collectionPath/$name") ~> sealRoute(routes(creds)) ~> check {
             status should be(OK)
-            val response = responseAs[WhiskTrigger]
-            response should be(trigger)
+            val response = responseAs[WhiskTriggerResponse]
+            response should be(trigger.withoutRules)
         }
     }
 
@@ -136,8 +136,8 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
         Put(s"$collectionPath/${trigger.name}", content) ~> sealRoute(routes(creds)) ~> check {
             deleteTrigger(trigger.docid)
             status should be(OK)
-            val response = responseAs[WhiskTrigger]
-            response should be(trigger)
+            val response = responseAs[WhiskTriggerResponse]
+            response should be(trigger.withoutRules)
         }
     }
 
@@ -148,8 +148,8 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
         Put(s"$collectionPath/${trigger.name}", content) ~> sealRoute(routes(creds)) ~> check {
             deleteTrigger(trigger.docid)
             status should be(OK)
-            val response = responseAs[WhiskTrigger]
-            response should be(trigger)
+            val response = responseAs[WhiskTriggerResponse]
+            response should be(trigger.withoutRules)
         }
     }
 
@@ -179,8 +179,8 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
         Put(s"$collectionPath/${trigger.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
             deleteTrigger(trigger.docid)
             status should be(OK)
-            val response = responseAs[WhiskTrigger]
-            response should be(WhiskTrigger(trigger.namespace, trigger.name, trigger.parameters, version = trigger.version.upPatch))
+            val response = responseAs[WhiskTriggerResponse]
+            response should be(WhiskTrigger(trigger.namespace, trigger.name, trigger.parameters, version = trigger.version.upPatch).withoutRules)
         }
     }
 
