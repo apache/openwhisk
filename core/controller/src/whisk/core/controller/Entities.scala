@@ -20,7 +20,6 @@ import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-
 import spray.http.StatusCodes.InternalServerError
 import spray.routing.ConjunctionMagnet.fromDirective
 import spray.routing.Directive.pimpApply
@@ -40,6 +39,8 @@ import whisk.core.entity.Parameters
 import whisk.core.entity.Subject
 import whisk.http.ErrorResponse.terminate
 import scala.language.postfixOps
+import whisk.core.entity.WhiskAuth
+import whisk.core.entity.Subject
 
 /** A trait implementing the basic operations on WhiskEntities in support of the various APIs. */
 trait WhiskCollectionAPI
@@ -56,7 +57,7 @@ trait WhiskCollectionAPI
     protected def create(namespace: Namespace, name: EntityName)(implicit transid: TransactionId): RequestContext => Unit
 
     /** Activates entity. Examples include invoking an action, firing a trigger, enabling/disabling a rule. */
-    protected def activate(user: Subject, namespace: Namespace, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId): RequestContext => Unit
+    protected def activate(user: WhiskAuth, namespace: Namespace, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId): RequestContext => Unit
 
     /** Removes entity from namespace. Terminates HTTP request. */
     protected def remove(namespace: Namespace, name: EntityName)(implicit transid: TransactionId): RequestContext => Unit
@@ -71,7 +72,7 @@ trait WhiskCollectionAPI
     protected val listRequiresPrivateEntityFilter = false // currently supported on PACKAGES only
 
     /** Dispatches resource to the proper handler depending on context. */
-    protected override def dispatchOp(user: Subject, op: Privilege, resource: Resource)(implicit transid: TransactionId) = {
+    protected override def dispatchOp(user: WhiskAuth, op: Privilege, resource: Resource)(implicit transid: TransactionId) = {
         resource.entity match {
             case Some(EntityName(name)) => op match {
                 case READ     => fetch(resource.namespace, name, resource.env)
@@ -88,7 +89,7 @@ trait WhiskCollectionAPI
                     // entitled to them which for now means they own the namespace. If the
                     // subject does not own the namespace, then exclude packages that are private
                     val checkIfSubjectOwnsResource = if (listRequiresPrivateEntityFilter) {
-                        entitlementService.namespaces(user) map {
+                        entitlementService.namespaces(user.subject) map {
                             _.contains(resource.namespace.root()) == false
                         }
                     } else Future.successful { false }

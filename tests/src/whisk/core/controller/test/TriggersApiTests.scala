@@ -26,14 +26,12 @@ import spray.http.StatusCodes.NotFound
 import spray.http.StatusCodes.OK
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
 import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
-import spray.json.DefaultJsonProtocol.RootJsObjectFormat
 import spray.json.DefaultJsonProtocol.listFormat
 import spray.json.DefaultJsonProtocol.RootJsObjectFormat
 import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json.JsObject
 import spray.json.JsString
 import spray.json.pimpAny
-import spray.json.pimpString
 import whisk.core.controller.WhiskTriggersApi
 import whisk.core.entity.ActivationId
 import whisk.core.entity.AuthKey
@@ -46,6 +44,8 @@ import whisk.core.entity.WhiskAuth
 import whisk.core.entity.WhiskEntity
 import whisk.core.entity.WhiskTrigger
 import whisk.core.entity.WhiskTriggerPut
+import whisk.core.entity.ReducedRule
+import whisk.core.entity.test.OldWhiskTrigger
 
 /**
  * Tests Trigger API.
@@ -106,12 +106,11 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     it should "get trigger by name in default namespace" in {
         implicit val tid = transid()
         val trigger = WhiskTrigger(namespace, aname, Parameters("x", "b"))
-        val name = trigger.name().replaceAll(" ", "%20")
         put(entityStore, trigger)
-        Get(s"$collectionPath/$name") ~> sealRoute(routes(creds)) ~> check {
+        Get(s"$collectionPath/${trigger.name}") ~> sealRoute(routes(creds)) ~> check {
             status should be(OK)
             val response = responseAs[WhiskTrigger]
-            response should be(trigger)
+            response should be(trigger.withoutRules)
         }
     }
 
@@ -119,12 +118,11 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     it should "delete trigger by name" in {
         implicit val tid = transid()
         val trigger = WhiskTrigger(namespace, aname, Parameters("x", "b"))
-        val name = trigger.name().replaceAll(" ", "%20")
         put(entityStore, trigger)
-        Delete(s"$collectionPath/$name") ~> sealRoute(routes(creds)) ~> check {
+        Delete(s"$collectionPath/${trigger.name}") ~> sealRoute(routes(creds)) ~> check {
             status should be(OK)
             val response = responseAs[WhiskTrigger]
-            response should be(trigger)
+            response should be(trigger.withoutRules)
         }
     }
 
@@ -137,7 +135,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
             deleteTrigger(trigger.docid)
             status should be(OK)
             val response = responseAs[WhiskTrigger]
-            response should be(trigger)
+            response should be(trigger.withoutRules)
         }
     }
 
@@ -149,7 +147,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
             deleteTrigger(trigger.docid)
             status should be(OK)
             val response = responseAs[WhiskTrigger]
-            response should be(trigger)
+            response should be(trigger.withoutRules)
         }
     }
 
@@ -180,7 +178,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
             deleteTrigger(trigger.docid)
             status should be(OK)
             val response = responseAs[WhiskTrigger]
-            response should be(WhiskTrigger(trigger.namespace, trigger.name, trigger.parameters, version = trigger.version.upPatch))
+            response should be(WhiskTrigger(trigger.namespace, trigger.name, trigger.parameters, version = trigger.version.upPatch).withoutRules)
         }
     }
 
@@ -245,6 +243,19 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
         put(entityStore, trigger)
         Get(s"$collectionPath/${trigger.name}/bar") ~> sealRoute(routes(creds)) ~> check {
             status should be(NotFound)
+        }
+    }
+
+    // migration path
+    it should "be able to handle a trigger as of the old schema" in {
+        implicit val tid = transid()
+        val trigger = OldWhiskTrigger(namespace, aname)
+        put(entityStore, trigger)
+        Get(s"$collectionPath/${trigger.name}") ~> sealRoute(routes(creds)) ~> check {
+            val response = responseAs[WhiskTrigger]
+            status should be(OK)
+
+            response should be(trigger.toWhiskTrigger)
         }
     }
 }

@@ -21,7 +21,6 @@ import scala.concurrent.Promise
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-
 import spray.http.StatusCodes.BadRequest
 import spray.http.StatusCodes.Conflict
 import spray.http.StatusCodes.InternalServerError
@@ -52,6 +51,7 @@ import whisk.core.entity.WhiskPackageAction
 import whisk.core.entity.WhiskPackagePut
 import whisk.core.entity.types.EntityStore
 import whisk.http.ErrorResponse.terminate
+import whisk.core.entity.WhiskAuth
 
 object WhiskPackagesApi {
     def requiredProperties = WhiskEntityStore.requiredProperties
@@ -103,7 +103,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
      * Responses are one of (Code, Message)
      * - 405 Not Allowed
      */
-    override def activate(user: Subject, namespace: Namespace, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
+    override def activate(user: WhiskAuth, namespace: Namespace, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
         error(this, "activate is not permitted on packages")
         reject
     }

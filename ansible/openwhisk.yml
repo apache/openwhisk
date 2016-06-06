@@ -1,5 +1,5 @@
 ---
-# This playbook deploys an Openwhisk stack.  
+# This playbook deploys an Openwhisk stack.
 # It assumes you have already set up your database with the respective db provider playbook (currently cloudant.yml or couchdb.yml)
 
 - include: predeploy.yml
@@ -9,8 +9,6 @@
 - include: kafka.yml
 
 - include: controller.yml
-
-- include: activator.yml
 
 - include: invoker.yml
 

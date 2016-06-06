@@ -95,14 +95,6 @@ class PingTests {
     }
 
     /**
-     * Check that the activator endpoint is up and running
-     */
-    @Test
-    def pingActivator(): Unit = {
-        PingTests.isAlive("activator", WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath())
-    }
-
-    /**
      * Check that the invoker endpoints are up and running
      */
     @Test

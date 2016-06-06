@@ -40,6 +40,7 @@ import spray.routing.directives.OnCompleteFutureMagnet.apply
 import spray.routing.directives.OnSuccessFutureMagnet.apply
 import whisk.common.Logging
 import whisk.common.TransactionId
+import whisk.core.controller.PostProcess.PostProcessEntity
 import whisk.core.database.ArtifactStore
 import whisk.core.database.DocumentFactory
 import whisk.core.database.NoDocumentException
@@ -106,17 +107,19 @@ protected[controller] object FilterEntityList {
     }
 }
 
+/**
+ * A convenient typedef for functions that post process an entity
+ * on an operation and terminate the HTTP request.
+ */
+package object PostProcess {
+    type PostProcessEntity[A] = A => RequestContext => Unit
+}
+
 /** A trait for REST APIs that read entities from a datastore */
 trait ReadOps extends Directives with Messages with Logging {
 
     /** An execution context for futures */
     protected implicit val executionContext: ExecutionContext
-
-    /**
-     * A convenient typedef for functions that post process an entity
-     * on a get operation and terminate the HTTP request.
-     */
-    protected type PostProcessEntity[A] = A => RequestContext => Unit
 
     /**
      * Get all entities of type A from datastore that match key. Terminates HTTP request.
@@ -258,7 +261,8 @@ trait WriteOps extends Directives with Messages with Logging {
         overwrite: Boolean,
         update: A => Future[A],
         create: () => Future[A],
-        treatExistsAsConflict: Boolean = true)(
+        treatExistsAsConflict: Boolean = true,
+        postProcess: Option[PostProcessEntity[A]] = None)(
             implicit transid: TransactionId,
             format: RootJsonFormat[A],
             ma: Manifest[A]) = {
@@ -285,7 +289,7 @@ trait WriteOps extends Directives with Messages with Logging {
         }) {
             case Success(entity) =>
                 info(this, s"[PUT] entity success")
-                complete(OK, entity)
+                postProcess map { _(entity) } getOrElse complete(OK, entity)
             case Failure(IdentityPut(a)) =>
                 info(this, s"[PUT] entity exists, not overwriten")
                 complete(OK, a)
@@ -325,7 +329,8 @@ trait WriteOps extends Directives with Messages with Logging {
         factory: DocumentFactory[A],
         datastore: ArtifactStore[Au],
         docid: DocId,
-        confirm: A => Future[Boolean])(
+        confirm: A => Future[Boolean],
+        postProcess: Option[PostProcessEntity[A]] = None)(
             implicit transid: TransactionId,
             format: RootJsonFormat[A],
             ma: Manifest[A]) = {
@@ -340,7 +345,7 @@ trait WriteOps extends Directives with Messages with Logging {
         }) {
             case Success(entity) =>
                 info(this, s"[DEL] entity success")
-                complete(OK, entity)
+                postProcess map { _(entity) } getOrElse complete(OK, entity)
             case Failure(t: NoDocumentException) =>
                 info(this, s"[DEL] entity does not exist")
                 terminate(NotFound)

@@ -35,7 +35,6 @@ import spray.json.JsString
 import whisk.common.TransactionId
 import whisk.common.Verbosity
 import whisk.core.WhiskConfig
-import whisk.core.activator.PostInvoke
 import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.core.connector.LoadBalancerResponse
 import whisk.core.dispatcher.Dispatcher
@@ -92,35 +91,5 @@ class DispatcherTests extends FlatSpec with Matchers with BeforeAndAfter with Be
         val logs = stream.toString()
         println(logs)
         logs should include regex (s"received message for 'whisk'.+$today.+")
-    }
-
-    it should "receive message from post" in {
-        val config = new WhiskConfig(whisk.core.dispatcher.Dispatcher.requiredProperties ++ PostInvoke.requiredProperties)
-        assert(config.isValid)
-
-        val today = Calendar.getInstance.getTime.toString
-        val msg = Message(TransactionId.testing, "", Subject(), ActivationId(), Some(JsObject("payload" -> JsString(today))))
-        val namespace = Namespace("post test namespace")
-        val dispatcher = new TestDispatcher("invoke0")
-        implicit val stream = new java.io.ByteArrayOutputStream
-        dispatcher.setVerbosity(Verbosity.Loud)
-        Console.withOut(stream) {
-            val trigger = WhiskTrigger(namespace, EntityName("post test trigger"))
-            val action = WhiskAction(namespace, EntityName("post test action"), Exec.js("code"))
-            val rule = WhiskRule(namespace, EntityName("post test rule"), Status.ACTIVE, EntityName("post test trigger"), EntityName("post test action"))
-            val post = new PostInvoke("testPostInvoke", rule, Subject(), config) with (HttpRequest => Future[LoadBalancerResponse]) {
-                override def apply(r: HttpRequest): Future[LoadBalancerResponse] = {
-                    dispatcher.send(msg)
-                    Future.successful(LoadBalancerResponse.id(msg.activationId))
-                }
-            }
-            dispatcher.addHandler(post, replace = false)
-            dispatcher.start()
-            post.doit("someTopic", msg, Seq()) onFailure { case t => t.printStackTrace() }
-            logContains("received")
-        }
-        dispatcher.stop()
-        val logs = stream.toString()
-        logs should include regex (s"received message for 'invoke0'.+$today.+")
     }
 }

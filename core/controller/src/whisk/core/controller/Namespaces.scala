@@ -79,7 +79,7 @@ trait WhiskNamespacesApi
             } ~ (entityOps & entityPrefix & pathEndOrSingleSlash & requestMethod) { (segment, m) =>
                 namespace(user.subject, segment) { ns =>
                     val resource = Resource(ns, collection, None)
-                    authorizeAndDispatch(m, user.subject, resource)
+                    authorizeAndDispatch(m, user, resource)
                 }
             }
         }
@@ -92,7 +92,7 @@ trait WhiskNamespacesApi
      * The namespace of the resource is derived from the authenticated user. The
      * resource entity name, if it is defined, may be a different namespace.
      */
-    protected override def dispatchOp(user: Subject, op: Privilege, resource: Resource)(implicit transid: TransactionId) = {
+    protected override def dispatchOp(user: WhiskAuth, op: Privilege, resource: Resource)(implicit transid: TransactionId) = {
         resource.entity match {
             case None if op == READ => getAllInNamespace(resource.namespace)
             case _                  => reject // should not get here

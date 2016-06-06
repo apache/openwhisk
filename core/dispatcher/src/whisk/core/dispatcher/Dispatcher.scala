@@ -29,7 +29,6 @@ import whisk.connector.kafka.KafkaConsumerConnector
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.servicePort
 import whisk.core.WhiskConfig.kafkaHost
-import whisk.core.activator.ActivatorService
 import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.core.connector.MessageConsumer
 import whisk.core.invoker.InvokerService
@@ -200,9 +199,8 @@ object Dispatcher extends Logging {
     def main(args: Array[String]): Unit = {
         val name = if (args.nonEmpty) args(0).trim.toLowerCase() else ""
         name match {
-            case "activator" => ActivatorService.main(args)
-            case "invoker"   => InvokerService.main(args)
-            case _           => error(Dispatcher, s"unrecognized app $name")
+            case "invoker" => InvokerService.main(args)
+            case _         => error(Dispatcher, s"unrecognized app $name")
         }
     }
 }
