@@ -87,12 +87,18 @@ ansible-playbook -i environments/<environment> couchdb.yml -e mode=initdb
 ansible-playbook -i environments/<environment> openwhisk.yml
 ```
 
-You need to run "initdb" on couch **every time** you deploy couchdb to initialize the db.
+You need to run `initdb` on couchdb **every time** you deploy couchdb to initialize the db.
+
+**Hint:** The `initdb` mode will ask for your confirmation to drop the database. To move on you need to enter `CTRL-C + C`. To abort you need to enter `CTRL-C + A`. You can skip this confirmation step by adding `-e prompt_user=false` to the command (only for `couchdb`, not for `cloudant`)
+
+```
+ansible-playbook -i environments/<environment> couchdb.yml -e mode=initdb -e prompt_user=false
+```
 
 ### Deploying Using Cloudant
 - Make sure the cloudant section is **uncommented** in in `environments/<environment>/group_vars/all`
 - Make sure the couchdb section is **commented out**
-- Enter your cloudant credentials (db_username, db_password) in the cloudant section
+- Enter your *cloudant credentials* (`db_username`, `db_password`) in the cloudant section
 - Then execute
 
 ```
@@ -102,13 +108,11 @@ cd ansible
 ansible-playbook -i environments/<environment> cloudant.yml -e mode=initdb
 ansible-playbook -i environments/<environment> openwhisk.yml
 ```
-You need to run "initdb" on cloudant **only once** per cloudant database to initialize the db.
+You need to run `initdb` on cloudant **only once** per cloudant database to initialize the db.
 
-**Hint:** In either case the `initdb` mode will ask for your confirmation to drop the database. To move on you need to enter `CTRL-C + C`. To abort you need to enter `CTRL-C + A`. You can skip this confirmation step by adding `-e prompt_user=false` to the command:
+**Hint:** The `initdb` mode will ask for your confirmation to drop the database. To move on you need to enter `CTRL-C + C`. To abort you need to enter `CTRL-C + A`.
 
-```
-ansible-playbook -i environments/<environment> couchdb.yml -e mode=initdb -e prompt_user=false
-```
+
 
 ### Hot-swapping a Single Component
 The playbook structure allows you to clean, deploy or re-deploy a single component as well as the entire Openwhisk stack. Let's assume you have deployed the entire stack using the "openwhisk.yml" playbook. You then make a change to a single component, for example the invoker. You will probably want a new tag on the invoker image so you first build it using:

@@ -8,7 +8,6 @@
             About to drop and recreate database {{ db.immortal }} in this {{ db_provider }} account.
             This will wipe the previous database if it exists and this is not reversible.
             Are you sure? (press CTRL-C)
-  when: prompt_user
 
 - name: delete Immortal DBs
   uri:
