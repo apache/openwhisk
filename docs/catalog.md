@@ -15,7 +15,7 @@ The `/whisk.system/cloudant` package enables you to work with a Cloudant databas
 | `/whisk.system/cloudant` | package | BluemixServiceName, host, username, password, dbname, includeDoc, overwrite | Work with a Cloudant database |
 | `/whisk.system/cloudant/read` | action | dbname, includeDoc, id | Read a document from a database |
 | `/whisk.system/cloudant/write` | action | dbname, overwrite, doc | Write a document to a database |
-| `/whisk.system/cloudant/changes` | feed | dbname, includeDoc | Fire trigger events on changes to a database |
+| `/whisk.system/cloudant/changes` | feed | dbname, includeDoc, maxTriggers | Fire trigger events on changes to a database |
 
 The following topics walk through setting up a Cloudant database, configuring an associated package, and using the actions and feeds in the `/whisk.system/cloudant` package.
 
@@ -103,7 +103,11 @@ If you're not using OpenWhisk in Bluemix or if you want to set up your Cloudant 
 
 ### Listening for changes to a Cloudant database
 
-You can use the `changes` feed to configure a service to fire a trigger on every change to your Cloudant database.
+You can use the `changes` feed to configure a service to fire a trigger on every change to your Cloudant database. The parameters are as follows:
+
+- `dbname`: Name of Cloudant database.
+- `includeDoc`: If set to true, each trigger event that is fired includes the modified Cloudant document. 
+- `maxTriggers`: Stop firing triggers when this limit is reached. Defaults to 1000. You can set it to maximum 10,000. If you try to set more than 10,000, the request is rejected.
 
 1. Create a trigger with the `changes` feed in the package binding that you created previously. Be sure to replace `/myNamespace/myCloudant` with your package name.
 
@@ -226,7 +230,7 @@ The `/whisk.system/alarms/alarm` feed configures the Alarm service to fire a tri
 
 - `trigger_payload`: The value of this parameter becomes the content of the trigger every time the trigger is fired.
 
-- `maxTriggers`: Stop firing triggers when this limit is reached. Defaults to 1000.
+- `maxTriggers`: Stop firing triggers when this limit is reached. Defaults to 1000. You can set it to maximum 10,000. If you try to set more than 10,000, the request is rejected.
 
 Here is an example of creating a trigger that will be fired once every 20 seconds with `name` and `place` values in the trigger event.
 
