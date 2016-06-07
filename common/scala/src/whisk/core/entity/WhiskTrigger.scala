@@ -108,7 +108,7 @@ case class WhiskTrigger(
 
     def toJson = WhiskTrigger.serdes.write(this).asJsObject
 
-    def withoutRules() = WhiskTriggerResponse(namespace, name, parameters, limits, version, publish, annotations)
+    def withoutRules = WhiskTriggerResponse(namespace, name, parameters, limits, version, publish, annotations)
 
     def addRule(rulename: Namespace, rule: ReducedRule) = {
         val entry = rulename -> rule

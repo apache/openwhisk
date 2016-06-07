@@ -328,6 +328,6 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
      * @param status the status to include in the response
      */
     private def completeAsTriggerResponse(trigger: WhiskTrigger): RequestContext => Unit = {
-        complete(OK, trigger.withoutRules())
+        complete(OK, trigger.withoutRules)
     }
 }

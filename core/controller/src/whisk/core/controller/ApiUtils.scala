@@ -106,17 +106,19 @@ protected[controller] object FilterEntityList {
     }
 }
 
+/**
+ * A convenient typedef for functions that post process an entity
+ * on an operation and terminate the HTTP request.
+ */
+package object PostProcess {
+    type PostProcessEntity[A] = A => RequestContext => Unit
+}
+
 /** A trait for REST APIs that read entities from a datastore */
 trait ReadOps extends Directives with Messages with Logging {
 
     /** An execution context for futures */
     protected implicit val executionContext: ExecutionContext
-
-    /**
-     * A convenient typedef for functions that post process an entity
-     * on a get operation and terminate the HTTP request.
-     */
-    protected type PostProcessEntity[A] = A => RequestContext => Unit
 
     /**
      * Get all entities of type A from datastore that match key. Terminates HTTP request.
@@ -160,7 +162,7 @@ trait ReadOps extends Directives with Messages with Logging {
         factory: DocumentFactory[A],
         datastore: ArtifactStore[Au],
         docid: DocId,
-        postProcess: Option[PostProcessEntity[A]] = None)(
+        postProcess: Option[PostProcess.PostProcessEntity[A]] = None)(
             implicit transid: TransactionId,
             format: RootJsonFormat[A],
             ma: Manifest[A]) = {
@@ -231,18 +233,6 @@ trait WriteOps extends Directives with Messages with Logging {
     protected type PutPredicate = Future[Boolean]
 
     /**
-     * A convenient typedef for functions that post process an entity
-     * on a get operation and terminate the HTTP request.
-     */
-    protected type PostProcessEntityPut[A] = A => RequestContext => Unit
-
-    /**
-     * A convenient typedef for functions that post process an entity
-     * on a delete operation and terminate the HTTP request.
-     */
-    protected type PostProcessEntityDelete[A] = A => RequestContext => Unit
-
-    /**
      * Creates or updates an entity of type A in the datastore. First, fetch the entity
      * by id from the datastore (this is required to get the document revision for an update).
      * If the entity does not exist, create it. If it does exist, and 'overwrite' is enabled,
@@ -271,7 +261,7 @@ trait WriteOps extends Directives with Messages with Logging {
         update: A => Future[A],
         create: () => Future[A],
         treatExistsAsConflict: Boolean = true,
-        postProcess: Option[PostProcessEntityPut[A]] = None)(
+        postProcess: Option[PostProcess.PostProcessEntity[A]] = None)(
             implicit transid: TransactionId,
             format: RootJsonFormat[A],
             ma: Manifest[A]) = {
@@ -339,7 +329,7 @@ trait WriteOps extends Directives with Messages with Logging {
         datastore: ArtifactStore[Au],
         docid: DocId,
         confirm: A => Future[Boolean],
-        postProcess: Option[PostProcessEntityDelete[A]] = None)(
+        postProcess: Option[PostProcess.PostProcessEntity[A]] = None)(
             implicit transid: TransactionId,
             format: RootJsonFormat[A],
             ma: Manifest[A]) = {

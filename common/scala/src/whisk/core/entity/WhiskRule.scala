@@ -192,17 +192,6 @@ object WhiskRule
     override val collectionName = "rules"
     override implicit val serdes = jsonFormat7(WhiskRule.apply)
 
-    /**
-     * Rules are updated in two components: the controller which locks the record
-     * during state changes, and the activator which resolves rule state to the desired
-     * state. The controller uses a nanny to confirm the activator completed its job
-     * and does an unconditional put on the rule record to reset it to its inactive
-     * state when the nanny expires; because the put is unconditional and because a put
-     * attempt invalidates the cache (which in turn is only updated if the put succeeds)
-     * it is possible to enable caching on the collection but this is not prudent because
-     * it will hold up the HTTP response until the nanny has completed, turning all status
-     * changes to worse case scenarios.
-     */
     override val cacheEnabled = false
     override def cacheKeys(w: WhiskRule) = Set(w.docid.asDocInfo, w.docinfo)
 }

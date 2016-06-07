@@ -401,13 +401,14 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
      * @return Status of the rule
      */
     private def getStatus(triggerOpt: Option[WhiskTrigger], ruleName: Namespace)(implicit transid: TransactionId): Status = {
-        triggerOpt.flatMap { trigger =>
-            trigger.rules.flatMap { rules =>
-                rules.get(ruleName).map { rule =>
-                    rule.status
-                }
-            }
-        }.getOrElse(Status.INACTIVE)
+        val statusFromTrigger = for {
+            trigger <- triggerOpt
+            rules <- trigger.rules
+            rule <- rules.get(ruleName)
+        } yield {
+            rule.status
+        }
+        statusFromTrigger getOrElse Status.INACTIVE
     }
 
     /**
