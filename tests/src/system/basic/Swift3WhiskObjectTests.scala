@@ -30,11 +30,13 @@ import common.WskTestHelpers
 import spray.json.DefaultJsonProtocol.BooleanJsonFormat
 import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json.pimpAny
+import common.JsHelpers
 
 @RunWith(classOf[JUnitRunner])
 class Swift3WhiskObjectTests
     extends TestHelpers
-    with WskTestHelpers {
+    with WskTestHelpers
+    with JsHelpers {
 
     implicit val wskprops = WskProps()
     val wsk = new Wsk()
@@ -60,8 +62,8 @@ class Swift3WhiskObjectTests
                     // should have a field named "activationId" which is the date action's activationId
                     activation.fields("response").asJsObject.fields("result").asJsObject.fields("activationId").toString.length should be >= 32
 
-                    // should have somewhere in the "result" field the phrase "It is now" printed from the invoked date action
-                    activation.fields("response").asJsObject.fields("result").toString should include("It is now")
+                    // check for "date" field that comes from invoking the date action
+                    activation.fieldPathExists("response", "result", "response", "result", "date") should be(true)
             }
     }
 
