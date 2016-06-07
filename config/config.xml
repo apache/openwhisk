@@ -99,14 +99,13 @@
     <property name="consul.service.check" value="-e SERVICE_CHECK_HTTP=/ping -e SERVICE_CHECK_TIMEOUT=2s -e SERVICE_CHECK_INTERVAL=15s" />
 
     <!-- gather values for environment variables and store them in a properties file -->
-    <target name="writePropertyFile" depends="setDeployTarget" unless="property.file.written">
-        <exec dir="config" failonerror="true" executable="/bin/bash">
+    <target name="writePropertyFile">
+        <exec dir="ansible" executable="ansible-playbook" failonerror="true">
             <env key="OPENWHISK_HOME" value="${openwhisk.home}" />
-            <env key="DOCKER_IMAGE_TAG" value="${docker.image.tag}" />
-            <arg value="setupProps.sh" />
-            <arg value="${deploy.target}Env.sh" />
+            <arg value="-i"/>
+            <arg value="environments/local"/>
+            <arg value="properties.yml" />
         </exec>
-        <property name="property.file.written" value="true" />
     </target>
 
     <!-- if the deploy.target variable is not yet set, set it -->

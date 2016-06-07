@@ -1,5 +1,0 @@
----
-# Do nothing on cloudant deploy.
-
-- name: Do nothing
-  command: "true"

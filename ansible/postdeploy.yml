@@ -1,6 +1,9 @@
 ---
 # This playbook installs additional packages after whisk has been deployed.
 
+- include: properties.yml
+
 - hosts: ansible
-  roles:
-  - postdeploy
+  tasks:
+    - include: tasks/installCatalog.yml
+      when: mode == "deploy"
