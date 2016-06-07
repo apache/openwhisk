@@ -3,6 +3,8 @@
 # Consul agents are installed on all hosts except the ansible host. 
 # Consul servers are installed on all hosts in the consul_servers group.
 
+- include: properties.yml
+
 - hosts: all:!ansible
   roles:
   - consul

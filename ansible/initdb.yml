@@ -1,0 +1,7 @@
+---
+# This playbook will initialize the immortal DBs in the database account.
+# This step is usually done only once per account.
+
+- hosts: ansible
+  tasks:
+  - include: tasks/initdb.yml

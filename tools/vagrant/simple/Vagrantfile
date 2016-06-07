@@ -47,8 +47,12 @@ $script = <<SCRIPT
   git clone --depth=1 https://github.com/openwhisk/openwhisk.git
   cd openwhisk
   (cd tools/ubuntu-setup && source all.sh)
-  tools/db/couchdb/start-couchdb-box.sh whisk_admin some_passw0rd
-  tools/db/createImmortalDBs.sh --dropit
+  cd ansible
+  ansible-playbook -i environments/local setup.yml
+  ansible-playbook -i environments/local prereq.yml
+  ansible-playbook -i environments/local couchdb.yml
+  ansible-playbook -i environments/local initdb.yml
+  cd ..
   ant build
   ant deploy
   # Add openwhisk/bin to system PATH to allow to work with vagrant ssh -- wsk

@@ -55,32 +55,63 @@ SCRIPT
 
   config.vm.provision "script_common", type: "shell", keep_color: true, inline: $script_common
    
-  # Configure Databse 
+  # Configure Custom Database
 $script_db = <<SCRIPT
-  cp -f /home/vagrant/openwhisk/template-#{ENV['OW_DB']}-local.env /home/vagrant/openwhisk/#{ENV['OW_DB']}-local.env
-  sed -i.bak s/OPEN_WHISK_DB_USERNAME=/OPEN_WHISK_DB_USERNAME=#{ENV['OW_DB_USERNAME']}/g /home/vagrant/openwhisk/#{ENV['OW_DB']}-local.env
-  sed -i.bak s/OPEN_WHISK_DB_PASSWORD=/OPEN_WHISK_DB_PASSWORD=#{ENV['OW_DB_PASSWORD']}/g /home/vagrant/openwhisk/#{ENV['OW_DB']}-local.env
-  sed -i.bak s/OPEN_WHISK_DB_PROTOCOL=/OPEN_WHISK_DB_PROTOCOL=#{ENV['OW_DB_PROTOCOL']}/g /home/vagrant/openwhisk/#{ENV['OW_DB']}-local.env
-  sed -i.bak s/OPEN_WHISK_DB_HOST=/OPEN_WHISK_DB_HOST=#{ENV['OW_DB_HOST']}/g /home/vagrant/openwhisk/#{ENV['OW_DB']}-local.env
-  sed -i.bak s/OPEN_WHISK_DB_PORT=/OPEN_WHISK_DB_PORT=#{ENV['OW_DB_PORT']}/g /home/vagrant/openwhisk/#{ENV['OW_DB']}-local.env
+export ANSIBLE_REMOTE_TEMP=/home/vagrant/openwhisk/ansible/tmp
+export OW_DB=#{ENV['OW_DB']}
+export OW_DB_USERNAME=#{ENV['OW_DB_USERNAME']}
+export OW_DB_PASSWORD=#{ENV['OW_DB_PASSWORD']}
+if [[ $OW_DB == "cloudant" ]]; then
+  export OW_DB="Cloudant"
+  export OW_DB_PROTOCOL="https"
+  export OW_DB_HOST="$OW_DB_USERNAME.cloudant.com"
+  export OW_DB_PORT="443"
+else
+  export OW_DB="CouchDB"
+  export OW_DB_PROTOCOL=#{ENV['OW_DB_PROTOCOL']}
+  export OW_DB_HOST=#{ENV['OW_DB_HOST']}
+  export OW_DB_PORT=#{ENV['OW_DB_PORT']}
+fi
+
+cd /home/vagrant/openwhisk/ansible
+ansible-playbook -i environments/local setup.yml
+ansible-playbook -i environments/local prereq.yml
 SCRIPT
+
+  # Configure Default CouchDB
+$couch_db = <<COUCH_DB
+export ANSIBLE_REMOTE_TEMP=/home/vagrant/openwhisk/ansible/tmp
+cd /home/vagrant/openwhisk/ansible
+ansible-playbook -i environments/local setup.yml
+ansible-playbook -i environments/local prereq.yml
+ansible-playbook -i environments/local couchdb.yml
+COUCH_DB
+
+$init_db = <<INIT_DB
+export ANSIBLE_REMOTE_TEMP=/home/vagrant/openwhisk/ansible/tmp
+cd /home/vagrant/openwhisk/ansible
+ansible-playbook -i environments/local initdb.yml
+INIT_DB
   
   if OW_DB
     config.vm.provision "script_db", type: "shell", keep_color: true, inline: $script_db
   else
-    config.vm.provision "start-couchdb-box.sh", type: "shell", keep_color: true, inline: "/home/vagrant/openwhisk/tools/db/couchdb/start-couchdb-box.sh whisk_admin some_passw0rd"    
+    config.vm.provision "start_couch", type: "shell", keep_color: true, inline: $couch_db
   end
-  config.vm.provision "createImmortalDBs", type: "shell", keep_color: true, inline: "/home/vagrant/openwhisk/tools/db/createImmortalDBs.sh --dropit"
-    
+  config.vm.provision "initdb", type: "shell", keep_color: true, inline: $init_db
+
   # Build and Deploy
 $script_end = <<SCRIPT
   set -e
   set -x
+  export ANSIBLE_REMOTE_TEMP=/home/vagrant/openwhisk/ansible/tmp
   cd /home/vagrant/openwhisk
   ant build
   ant deploy
   # Add openwhisk/bin to system PATH to allow to work with vagrant ssh -- wsk
   sed -i.bak s/:\\\\/bin/:\\\\/bin:\\\\/home\\\\/vagrant\\\\/openwhisk\\\\/bin/g /etc/environment
+  # Set remote tmp dir for ansible to fix shared folder problems on Windows
+  echo "ANSIBLE_REMOTE_TEMP=$ANSIBLE_REMOTE_TEMP" >> /etc/environment
   # TODO: redoing symlinks to workaround windows problem, when go-cli lands this needs to be removed and use of symlinks
   rm -r bin/wsk && rm -r bin/wskadmin
   (cd bin && sudo ln -s ../tools/cli/wsk wsk)
