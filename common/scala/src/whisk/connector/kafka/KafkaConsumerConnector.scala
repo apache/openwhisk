@@ -48,11 +48,11 @@ class KafkaConsumerConnector(
      * duration.
      *
      * @param duration the maximum duration for the long poll
-     * @param autoCommit update offsets on the topic iff true, else must be updated explicitly
+     * @param syncCommit update offsets on the topic immediately.  Default false as we use auto-commit.
      */
-    def getMessages(duration: Duration = 1000 milliseconds, autoCommit: Boolean = true) = {
+    def getMessages(duration: Duration = 500 milliseconds, syncCommit: Boolean = false) = {
         val records = consumer.poll(duration.toMillis)
-        if (autoCommit) commit()
+        if (syncCommit) commit()
         records
     }
 
@@ -66,7 +66,7 @@ class KafkaConsumerConnector(
         val thread = new Thread() {
             override def run() = {
                 while (!disconnect) {
-                    Try { getMessages(autoCommit = false) } map {
+                    Try { getMessages() } map {
                         records =>
                             val count = records.size
                             records foreach { r =>
@@ -100,9 +100,10 @@ class KafkaConsumerConnector(
         props.put(ConsumerConfig.GROUP_ID_CONFIG, groupid)
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkahost)
         props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, "10000");
-        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false.toString)
-        props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, "1000");
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true.toString)
+        props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, "10000");
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, if (!readeos) "latest" else "earliest")
+        props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, "0") //ensure we have no temporal batching
         props
     }
 
