@@ -40,6 +40,7 @@ import spray.routing.directives.OnCompleteFutureMagnet.apply
 import spray.routing.directives.OnSuccessFutureMagnet.apply
 import whisk.common.Logging
 import whisk.common.TransactionId
+import whisk.core.controller.PostProcess.PostProcessEntity
 import whisk.core.database.ArtifactStore
 import whisk.core.database.DocumentFactory
 import whisk.core.database.NoDocumentException
@@ -162,7 +163,7 @@ trait ReadOps extends Directives with Messages with Logging {
         factory: DocumentFactory[A],
         datastore: ArtifactStore[Au],
         docid: DocId,
-        postProcess: Option[PostProcess.PostProcessEntity[A]] = None)(
+        postProcess: Option[PostProcessEntity[A]] = None)(
             implicit transid: TransactionId,
             format: RootJsonFormat[A],
             ma: Manifest[A]) = {
@@ -261,7 +262,7 @@ trait WriteOps extends Directives with Messages with Logging {
         update: A => Future[A],
         create: () => Future[A],
         treatExistsAsConflict: Boolean = true,
-        postProcess: Option[PostProcess.PostProcessEntity[A]] = None)(
+        postProcess: Option[PostProcessEntity[A]] = None)(
             implicit transid: TransactionId,
             format: RootJsonFormat[A],
             ma: Manifest[A]) = {
@@ -329,7 +330,7 @@ trait WriteOps extends Directives with Messages with Logging {
         datastore: ArtifactStore[Au],
         docid: DocId,
         confirm: A => Future[Boolean],
-        postProcess: Option[PostProcess.PostProcessEntity[A]] = None)(
+        postProcess: Option[PostProcessEntity[A]] = None)(
             implicit transid: TransactionId,
             format: RootJsonFormat[A],
             ma: Manifest[A]) = {

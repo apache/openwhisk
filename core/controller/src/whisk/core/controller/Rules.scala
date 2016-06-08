@@ -16,66 +16,45 @@
 
 package whisk.core.controller
 
-import scala.Left
-import scala.Right
 import scala.concurrent.Future
 import scala.concurrent.Promise
-import scala.concurrent.TimeoutException
-import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
+
 import akka.actor.ActorSystem
-import spray.client.pipelining.Post
-import spray.http.StatusCodes.Accepted
 import spray.http.StatusCodes.BadRequest
 import spray.http.StatusCodes.Conflict
 import spray.http.StatusCodes.InternalServerError
-import spray.http.StatusCodes.NotFound
 import spray.http.StatusCodes.OK
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
 import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
-import spray.httpx.unmarshalling.Deserializer
-import spray.httpx.unmarshalling.MalformedContent
-import spray.json.DefaultJsonProtocol._
-import spray.json.RootJsonFormat
-import spray.json.JsString
-import spray.json.JsObject
-import spray.json.pimpString
-import spray.json.pimpAny
+import spray.httpx.marshalling.ToResponseMarshallable.isMarshallable
+import spray.routing.Directive.pimpApply
+import spray.routing.RequestContext
+import spray.routing.directives.OnCompleteFutureMagnet.apply
+import spray.routing.directives.ParamDefMagnet.apply
 import whisk.common.TransactionId
-import whisk.core.database.NoDocumentException
 import whisk.core.database.DocumentConflictException
+import whisk.core.database.NoDocumentException
 import whisk.core.entitlement.Collection
 import whisk.core.entity.DocId
 import whisk.core.entity.DocInfo
 import whisk.core.entity.EntityName
 import whisk.core.entity.Namespace
 import whisk.core.entity.Parameters
+import whisk.core.entity.ReducedRule
 import whisk.core.entity.SemVer
 import whisk.core.entity.Status
-import whisk.core.entity.types.EntityStore
 import whisk.core.entity.WhiskAction
+import whisk.core.entity.WhiskAuth
 import whisk.core.entity.WhiskEntity
 import whisk.core.entity.WhiskEntityStore
 import whisk.core.entity.WhiskRule
 import whisk.core.entity.WhiskRulePut
 import whisk.core.entity.WhiskTrigger
-import whisk.utils.ExecutionContextFactory.FutureExtensions
-import whisk.core.entity.Subject
-import whisk.core.connector.LoadbalancerRequest
-import whisk.core.entity.ActivationId
-import whisk.core.connector.{ ActivationMessage => Message }
-import whisk.core.connector.ActivationMessage.{ publish, ACTIVATOR }
-import whisk.http.ErrorResponse.{ terminate }
-import scala.language.postfixOps
-import whisk.core.entity.ReducedRule
-import whisk.core.entity.WhiskAuth
-import scala.util.Success
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Failure
-import spray.routing.RequestContext
-import whisk.core.entity.WhiskRuleResponse
+import whisk.core.entity.types.EntityStore
+import whisk.http.ErrorResponse.terminate
 
 /**
  * A singleton object which defines the properties that must be present in a configuration

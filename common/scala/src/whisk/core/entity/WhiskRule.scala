@@ -85,9 +85,7 @@ case class WhiskRule(
  * @param version the semantic version
  * @param publish true to share the action or false otherwise
  * @param annotation the set of annotations to attribute to the rule
- * @throws IllegalArgumentException if any argument is undefined
  */
-@throws[IllegalArgumentException]
 case class WhiskRuleResponse(
     namespace: Namespace,
     name: EntityName,

@@ -16,15 +16,8 @@
 
 package whisk.core.entity
 
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
 import spray.json.DefaultJsonProtocol
-import spray.json.JsObject
 import whisk.core.database.DocumentFactory
-import spray.json.JsString
-import spray.json.pimpString
-import spray.json.RootJsonFormat
 
 /**
  * WhiskTriggerPut is a restricted WhiskTrigger view that eschews properties
@@ -42,38 +35,12 @@ case class WhiskTriggerPut(
  * information needed to be able to determine if and which action is to
  * be fired.
  *
- * @param action the action to be fired
+ * @param action the fully qualified name of the action to be fired
  * @param status status of the rule
  */
 case class ReducedRule(
     action: Namespace,
     status: Status)
-
-/**
- * Trigger as it is returned by the controller. Basically the same as WhiskTrigger,
- * but not including the rule.
- *
- * @param namespace the namespace for the trigger
- * @param name the name of the trigger
- * @param parameters the set of parameters to bind to the trigger environment
- * @param limits the limits to impose on the trigger
- * @param version the semantic version
- * @param publish true to share the action or false otherwise
- * @param annotation the set of annotations to attribute to the trigger
- * @throws IllegalArgumentException if any argument is undefined
- */
-@throws[IllegalArgumentException]
-case class WhiskTriggerResponse(
-    namespace: Namespace,
-    name: EntityName,
-    parameters: Parameters = Parameters(),
-    limits: TriggerLimits = TriggerLimits(),
-    version: SemVer = SemVer(),
-    publish: Boolean = false,
-    annotations: Parameters = Parameters()) {
-
-    def toWhiskTrigger = WhiskTrigger(namespace, name, parameters, limits, version, publish, annotations)
-}
 
 /**
  * A WhiskTrigger provides an abstraction of the meta-data
@@ -101,20 +68,34 @@ case class WhiskTrigger(
     version: SemVer = SemVer(),
     publish: Boolean = false,
     annotations: Parameters = Parameters(),
-    rules: Option[Map[Namespace, ReducedRule]] = Some(Map[Namespace, ReducedRule]()))
+    rules: Option[Map[Namespace, ReducedRule]] = None)
     extends WhiskEntity(name) {
 
     require(limits != null, "limits undefined")
 
     def toJson = WhiskTrigger.serdes.write(this).asJsObject
 
-    def withoutRules = WhiskTriggerResponse(namespace, name, parameters, limits, version, publish, annotations)
+    def withoutRules = WhiskTrigger(namespace, name, parameters, limits, version, publish, annotations, None)
 
+    /**
+     * Inserts the rulename, its status and the action to be fired into the trigger.
+     *
+     * @param rulename The fully qualified name of the rule, that will be fired by this trigger.
+     * @param rule The rule, that will be fired by this trigger. It's from type ReducedRule. This type
+     * contains the fully qualified name of the action to be fired by the rule and the status of the rule.
+     */
     def addRule(rulename: Namespace, rule: ReducedRule) = {
         val entry = rulename -> rule
-        WhiskTrigger(namespace, name, parameters, limits, version, publish, annotations, rules.map(_ + entry)).revision[WhiskTrigger](docinfo.rev)
+        val links = rules getOrElse Map[Namespace, ReducedRule]()
+        WhiskTrigger(namespace, name, parameters, limits, version, publish, annotations, Some(links + entry)).revision[WhiskTrigger](docinfo.rev)
     }
 
+    /**
+     * Removes the rule from the trigger.
+     *
+     * @param rule The fully qualified name of the rule, that should be removed from the
+     * trigger. After removing the rule, it won't be fired anymore by this trigger.
+     */
     def removeRule(rule: Namespace) = {
         WhiskTrigger(namespace, name, parameters, limits, version, publish, annotations, rules.map(_ - rule)).revision[WhiskTrigger](docinfo.rev)
     }
@@ -138,8 +119,4 @@ object WhiskTrigger
 
 object WhiskTriggerPut extends DefaultJsonProtocol {
     implicit val serdes = jsonFormat5(WhiskTriggerPut.apply)
-}
-
-object WhiskTriggerResponse extends DefaultJsonProtocol {
-    implicit val serdes = jsonFormat7(WhiskTriggerResponse.apply)
 }
