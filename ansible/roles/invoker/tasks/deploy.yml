@@ -1,17 +1,19 @@
 ---
 # This role installs invokers.
 
-- name: "Pull dispatcher {{docker_image_tag}} image"
-  shell: "docker pull {{docker_registry}}whisk/dispatcher:{{docker_image_tag}}"
-  when: docker_registry != ""
-- name: "Pull nodejsaction {{docker_image_tag}} image"
-  shell: "docker pull {{docker_registry}}whisk/nodejsaction:{{docker_image_tag}}"
-  when: docker_registry != ""
-- name: "Pull swiftaction {{docker_image_tag}} image"
-  shell: "docker pull {{docker_registry}}whisk/swiftaction:{{docker_image_tag}}"
-  when: docker_registry != ""
-- name: "Pull javaaction {{docker_image_tag}} image"
-  shell: "docker pull {{docker_registry}}whisk/javaaction:{{docker_image_tag}}"
+- set_fact:
+     imagesToPull:
+      - 'whisk/dispatcher'
+      - 'whisk/nodejsaction'
+      - 'whisk/nodejs6action'
+      - 'whisk/pythonaction'
+      - 'whisk/swiftaction'
+      - 'whisk/swift3action'
+      - 'whisk/javaaction'
+
+- name: "Pull action images with tag {{docker_image_tag}}"
+  shell: "docker pull {{docker_registry}}{{item}}:{{docker_image_tag}}"
+  with_items: "{{imagesToPull}}"
   when: docker_registry != ""
 
 - name: (Re)start invoker
