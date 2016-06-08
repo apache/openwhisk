@@ -36,9 +36,26 @@ RUN SWIFT_ARCHIVE_NAME=swift-$SWIFT_VERSION-$SWIFT_PLATFORM && \
     rm -rf $SWIFT_ARCHIVE_NAME* /tmp/* /var/tmp/*
 
 #build lib dispatch for kitura net
-RUN git clone -b experimental/foundation https://github.com/apple/swift-corelibs-libdispatch.git
-RUN cd swift-corelibs-libdispatch && git submodule init && git submodule update && sh ./autogen.sh && ./configure --with-swift-toolchain=/usr --prefix=/usr && make && make install
+# Doesn't work for the moment.
+# RUN git clone -b experimental/foundation https://github.com/apple/swift-corelibs-libdispatch.git
+# RUN cd swift-corelibs-libdispatch && git submodule init && git submodule update && sh ./autogen.sh && ./configure --with-swift-toolchain=/usr --prefix=/usr && make && make install
 
+# builds a specific commit from the libdispatch branch.
+RUN \
+    mkdir swift-corelibs-libdispatch && \
+    git init && \
+    git remote add origin https://github.com/apple/swift-corelibs-libdispatch.git && \
+    git fetch origin experimental/foundation && \
+    git fetch origin 7459cde56bf5c2dd54cfcf57219edec9576fee1c:working-commit && \
+    git checkout working-commit && \
+    git submodule init && \
+    git submodule update || true && \
+    sh ./autogen.sh && \
+    ./configure --with-swift-toolchain=/usr --prefix=/usr && \ 
+    make && \
+    make install
+
+ 
 # Copy the Flask proxy. Following the pattern in nodejsAction.
 ADD . /swift3Action
 
