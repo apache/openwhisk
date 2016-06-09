@@ -30,7 +30,9 @@ import spray.json.DefaultJsonProtocol.listFormat
 import spray.json.DefaultJsonProtocol.RootJsObjectFormat
 import spray.json.JsObject
 import spray.json.JsString
+import spray.json.JsBoolean
 import spray.json.pimpAny
+import spray.json.DefaultJsonProtocol._
 import spray.routing.Directives
 import spray.http.HttpRequest
 import spray.routing.RequestContext
@@ -133,10 +135,17 @@ trait WhiskActivationsApi
 
                 listEntities {
                     activations map {
-                        l => if (docs) l.right.get map { _.toExtendedJson } else l.left.get
+                        l => if (docs) l.right.get map { _.toExtendedJson } else l.left.get map { toSimpleJson(_) }
                     }
                 }
         }
+    }
+
+    private def toSimpleJson(record: JsObject): JsObject = {
+      val statusCode = record.fields("response").asJsObject.fields("statusCode").convertTo[Long]
+      // TODO: this should be done in a different way.
+      val status = if (statusCode == 0) true else false
+      JsObject( record.fields - "response" + ("success" -> JsBoolean(status)))
     }
 
     /**

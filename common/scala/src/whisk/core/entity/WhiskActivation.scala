@@ -24,6 +24,7 @@ import spray.json.DefaultJsonProtocol
 import spray.json.JsNumber
 import spray.json.JsObject
 import spray.json.JsString
+import spray.json.JsBoolean
 import spray.json.JsValue
 import spray.json.RootJsonFormat
 import spray.json.deserializationError

@@ -110,11 +110,15 @@ class Activation(Item):
         if res.status == httplib.OK:
             result = json.loads(res.read())
             print bold('activations')
+            print '{:<45}{:<40}{:<27}{:<27}{:<8}'.format('ActivationId', 'Action Name', 'Start Time', 'End Time', 'Success')
+            epoch = datetime(1970, 1, 1)
             for a in result:
                 if args.full:
                     print getPrettyJson(a)
                 else:
-                    print '{:<45}{:<40}'.format(a['activationId'], a['name'])
+                    startTime = (epoch + timedelta(milliseconds = a['start'])).strftime('%d-%m-%Y %H:%M:%S.%f')[:-3]
+                    endTime = (epoch + timedelta(milliseconds = a['end'])).strftime('%d-%m-%Y %H:%M:%S.%f')[:-3]
+                    print '{:<45}{:<40}{:<27}{:<27}{:<8}'.format(a['activationId'], a['name'], startTime, endTime, str(a['success']))
             return 0
         else:
             return responseError(res)
