@@ -16,59 +16,45 @@
 
 package whisk.core.controller
 
-import scala.Left
-import scala.Right
 import scala.concurrent.Future
 import scala.concurrent.Promise
-import scala.concurrent.TimeoutException
-import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
+
 import akka.actor.ActorSystem
-import spray.client.pipelining.Post
-import spray.http.StatusCodes.Accepted
 import spray.http.StatusCodes.BadRequest
 import spray.http.StatusCodes.Conflict
 import spray.http.StatusCodes.InternalServerError
-import spray.http.StatusCodes.NotFound
 import spray.http.StatusCodes.OK
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
 import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
-import spray.httpx.unmarshalling.Deserializer
-import spray.httpx.unmarshalling.MalformedContent
-import spray.json.DefaultJsonProtocol.StringJsonFormat
-import spray.json.DefaultJsonProtocol.RootJsObjectFormat
-import spray.json.RootJsonFormat
-import spray.json.JsString
-import spray.json.JsObject
-import spray.json.pimpString
-import spray.json.pimpAny
+import spray.httpx.marshalling.ToResponseMarshallable.isMarshallable
+import spray.routing.Directive.pimpApply
+import spray.routing.RequestContext
+import spray.routing.directives.OnCompleteFutureMagnet.apply
+import spray.routing.directives.ParamDefMagnet.apply
 import whisk.common.TransactionId
-import whisk.core.database.NoDocumentException
 import whisk.core.database.DocumentConflictException
+import whisk.core.database.NoDocumentException
 import whisk.core.entitlement.Collection
 import whisk.core.entity.DocId
 import whisk.core.entity.DocInfo
 import whisk.core.entity.EntityName
 import whisk.core.entity.Namespace
 import whisk.core.entity.Parameters
+import whisk.core.entity.ReducedRule
 import whisk.core.entity.SemVer
 import whisk.core.entity.Status
-import whisk.core.entity.types.EntityStore
 import whisk.core.entity.WhiskAction
+import whisk.core.entity.WhiskAuth
 import whisk.core.entity.WhiskEntity
 import whisk.core.entity.WhiskEntityStore
 import whisk.core.entity.WhiskRule
 import whisk.core.entity.WhiskRulePut
 import whisk.core.entity.WhiskTrigger
-import whisk.utils.ExecutionContextFactory.FutureExtensions
-import whisk.core.entity.Subject
-import whisk.core.connector.LoadbalancerRequest
-import whisk.core.entity.ActivationId
-import whisk.core.connector.{ ActivationMessage => Message }
-import whisk.core.connector.ActivationMessage.{ publish, ACTIVATOR }
-import whisk.http.ErrorResponse.{ terminate }
-import scala.language.postfixOps
+import whisk.core.entity.types.EntityStore
+import whisk.http.ErrorResponse.terminate
 
 /**
  * A singleton object which defines the properties that must be present in a configuration
@@ -93,9 +79,6 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
 
     /** Path to Rules REST API */
     protected val rulesPath = "rules"
-
-    /** Duration to complete state change before timing out. */
-    protected val ruleChangeTimeout = 30 seconds
 
     /**
      * Creates or updates rule if it already exists. The PUT content is deserialized into a WhiskRulePut
@@ -124,7 +107,10 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
         parameter('overwrite ? false) { overwrite =>
             entity(as[WhiskRulePut]) { content =>
                 val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
-                putEntity(WhiskRule, entityStore, docid, overwrite, update(content) _, () => { create(content, namespace, name) })
+                putEntity(WhiskRule, entityStore, docid, overwrite, update(content) _, () => { create(content, namespace, name) },
+                    postProcess = Some { rule: WhiskRule =>
+                        completeAsRuleResponse(rule, Status.INACTIVE)
+                    })
             }
         }
     }
@@ -141,33 +127,41 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
      * - 409 Conflict
      * - 500 Internal Server Error
      */
-    override def activate(user: Subject, namespace: Namespace, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
+    override def activate(user: WhiskAuth, namespace: Namespace, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
         extractStatusRequest { requestedState =>
             val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
 
             getEntity(WhiskRule, entityStore, docid, Some {
                 rule: WhiskRule =>
-                    val changeStateInDatastore = {
-                        if (rule.status != Status.ACTIVATING && rule.status != Status.DEACTIVATING && requestedState != rule.status) {
-                            val nextState = Status.next(rule.status)
-                            val newRule = rule.toggle(nextState)
-                            info(this, s"[POST] rule state change initiated: ${rule.status} -> $nextState -> $requestedState")
-                            Future successful (rule.status, newRule)
+                    val tid = DocId(WhiskEntity.qualifiedName(namespace, rule.trigger)).asDocInfo
+                    val ruleName = Namespace(WhiskEntity.qualifiedName(rule.namespace, rule.name))
+
+                    val changeStatus = getTrigger(tid) map { trigger =>
+                        getStatus(trigger, ruleName)
+                    } flatMap { oldStatus =>
+                        if (requestedState != oldStatus) {
+                            info(this, s"[POST] rule state change initiated: ${oldStatus} -> $requestedState")
+                            Future successful requestedState
                         } else {
-                            info(this, s"[POST] rule state change ignored, cannot change from: ${rule.status} -> $requestedState")
-                            Future failed { IgnoredRuleActivation(requestedState == rule.status) }
+                            info(this, s"[POST] rule state will not be changed, the requested state is the same as the old state: ${oldStatus} -> $requestedState")
+                            Future failed { IgnoredRuleActivation(requestedState == oldStatus) }
                         }
                     } flatMap {
-                        case (prevState, newRule) =>
-                            info(this, s"[POST] attempting to set rule state to: ${newRule.status}")
-                            WhiskRule.put(entityStore, newRule) map { docid =>
-                                postToActivator(user, namespace, name, prevState, newRule, docid)
+                        case (newStatus) =>
+                            info(this, s"[POST] attempting to set rule state to: ${newStatus}")
+
+                            val actionName = Namespace(WhiskEntity.qualifiedName(namespace, rule.action))
+
+                            WhiskTrigger.get(entityStore, tid) flatMap { trigger =>
+                                val newTrigger = trigger.removeRule(ruleName)
+                                val triggerLink = ReducedRule(actionName, newStatus)
+                                WhiskTrigger.put(entityStore, newTrigger.addRule(ruleName, triggerLink))
                             }
                     }
 
-                    onComplete(changeStateInDatastore) {
+                    onComplete(changeStatus) {
                         case Success(response) =>
-                            complete(Accepted)
+                            complete(OK)
                         case Failure(t) => t match {
                             case _: DocumentConflictException =>
                                 info(this, s"[POST] rule update conflict")
@@ -195,12 +189,24 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
      */
     override def remove(namespace: Namespace, name: EntityName)(implicit transid: TransactionId) = {
         val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
-        deleteEntity(WhiskRule, entityStore, docid, (r: WhiskRule) =>
-            if (r.status == Status.INACTIVE) {
-                Future successful true
-            } else Future failed {
-                RejectRequest(Conflict, s"rule status is '${r.status}', must be '${Status.INACTIVE}' to delete")
-            })
+        deleteEntity(WhiskRule, entityStore, docid, (r: WhiskRule) => {
+            val tid = DocId(WhiskEntity.qualifiedName(namespace, r.trigger)).asDocInfo
+            val ruleName = Namespace(WhiskEntity.qualifiedName(r.namespace, r.name))
+            getTrigger(tid) map { trigger =>
+                (getStatus(trigger, ruleName), trigger)
+            } flatMap {
+                case (status, triggerOpt) =>
+                    if (status == Status.INACTIVE) {
+                        triggerOpt map { trigger =>
+                            WhiskTrigger.put(entityStore, trigger.removeRule(ruleName)) map { _ => true }
+                        } getOrElse Future.successful(true)
+                    } else Future failed {
+                        RejectRequest(Conflict, s"rule status is '${status}', must be '${Status.INACTIVE}' to delete")
+                    }
+            }
+        }, postProcess = Some { rule: WhiskRule =>
+            completeAsRuleResponse(rule, Status.INACTIVE)
+        })
     }
 
     /**
@@ -213,7 +219,22 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
      */
     override def fetch(namespace: Namespace, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
         val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
-        getEntity(WhiskRule, entityStore, docid)
+        getEntity(WhiskRule, entityStore, docid, Some { rule: WhiskRule =>
+            val ruleName = WhiskEntity.qualifiedName(namespace, name)
+            val triggerName = WhiskEntity.qualifiedName(namespace, rule.trigger)
+            val tid = DocId(triggerName).asDocInfo
+
+            val getRuleWithStatus = getTrigger(tid) map { trigger =>
+                getStatus(trigger, Namespace(ruleName))
+            } map { status =>
+                rule.withStatus(status)
+            }
+
+            onComplete(getRuleWithStatus) {
+                case Success(r) => complete(OK, r)
+                case Failure(t) => terminate(InternalServerError, t.getMessage)
+            }
+        })
     }
 
     /**
@@ -248,21 +269,30 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
         val predicate = Promise[WhiskRule]
 
         if (content.trigger.isDefined && content.action.isDefined) {
-            val tid = DocId(WhiskEntity.qualifiedName(namespace, content.trigger.get))
-            val aid = DocId(WhiskEntity.qualifiedName(namespace, content.action.get))
+            val ruleName = WhiskEntity.qualifiedName(namespace, name)
+            val triggerName = WhiskEntity.qualifiedName(namespace, content.trigger.get)
+            val actionName = WhiskEntity.qualifiedName(namespace, content.action.get)
+
+            val tid = DocId(triggerName)
+            val aid = DocId(actionName)
 
             checkTriggerAndActionExist(tid, aid) onComplete {
-                case Success(p) =>
+                case Success((trigger, action)) =>
                     val rule = WhiskRule(
                         namespace,
                         name,
-                        Status.INACTIVE,
                         content.trigger.get,
                         content.action.get,
                         content.version getOrElse SemVer(),
                         content.publish getOrElse false,
                         content.annotations getOrElse Parameters())
-                    predicate.success(rule)
+
+                    val triggerLink = ReducedRule(Namespace(actionName), Status.INACTIVE)
+                    val saveRule = WhiskTrigger.put(entityStore, trigger.addRule(Namespace(ruleName), triggerLink)) onComplete {
+                        case Success(_) => predicate.success(rule)
+                        case Failure(t) => predicate.failure(t)
+                    }
+
                 case Failure(t) => predicate.failure { RejectRequest(BadRequest, t) }
             }
         } else predicate.failure { RejectRequest(BadRequest, "rule requires a valid trigger and a valid action") }
@@ -273,85 +303,101 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
     /** Updates a WhiskTrigger from PUT content, merging old trigger where necessary. */
     private def update(content: WhiskRulePut)(rule: WhiskRule)(implicit transid: TransactionId): Future[WhiskRule] = {
         val predicate = Promise[WhiskRule]
+        val ruleName = WhiskEntity.qualifiedName(rule.namespace, rule.name)
+        val oldTriggerName = WhiskEntity.qualifiedName(rule.namespace, rule.trigger)
+        val oldTid = DocId(oldTriggerName).asDocInfo
 
-        if (rule.status == Status.INACTIVE) {
-            val trigger = content.trigger getOrElse rule.trigger
-            val action = content.action getOrElse rule.action
-            val tid = DocId(WhiskEntity.qualifiedName(rule.namespace, trigger))
-            val aid = DocId(WhiskEntity.qualifiedName(rule.namespace, action))
+        getTrigger(oldTid) map { trigger =>
+            (getStatus(trigger, Namespace(ruleName)), trigger)
+        } map {
+            case (status, oldTriggerOpt) =>
+                if (status == Status.INACTIVE) {
+                    val newTriggerEntity = content.trigger getOrElse rule.trigger
+                    val newTriggerName = WhiskEntity.qualifiedName(rule.namespace, newTriggerEntity)
+                    val tid = DocId(newTriggerName)
 
-            checkTriggerAndActionExist(tid, aid) onComplete {
-                case Success(p) =>
-                    val r = WhiskRule(
-                        rule.namespace,
-                        rule.name,
-                        Status.INACTIVE,
-                        trigger,
-                        action,
-                        content.version getOrElse rule.version.upPatch,
-                        content.publish getOrElse rule.publish,
-                        content.annotations getOrElse rule.annotations).
-                        revision[WhiskRule](rule.docinfo.rev)
-                    predicate.success(r)
-                case Failure(t) => predicate.failure { RejectRequest(BadRequest, t) }
-            }
-        } else predicate.failure { RejectRequest(Conflict, s"rule may not be updated while status is ${rule.status}") }
+                    val actionEntity = content.action getOrElse rule.action
+                    val actionName = WhiskEntity.qualifiedName(rule.namespace, actionEntity)
+                    val aid = DocId(actionName)
 
+                    checkTriggerAndActionExist(tid, aid) onComplete {
+                        case Success((newTrigger, newAction)) => {
+                            val r = WhiskRule(
+                                rule.namespace,
+                                rule.name,
+                                newTriggerEntity,
+                                actionEntity,
+                                content.version getOrElse rule.version.upPatch,
+                                content.publish getOrElse rule.publish,
+                                content.annotations getOrElse rule.annotations).
+                                revision[WhiskRule](rule.docinfo.rev)
+
+                            // Deletes reference from the old trigger iff it is different from the new one
+                            val deleteOldLink = for {
+                                isDifferentTrigger <- content.trigger.filter(_ => newTriggerName != oldTriggerName)
+                                oldTrigger <- oldTriggerOpt
+                            } yield {
+                                WhiskTrigger.put(entityStore, oldTrigger.removeRule(Namespace(ruleName)))
+                            }
+
+                            val triggerLink = ReducedRule(Namespace(actionName), Status.INACTIVE)
+                            val update = WhiskTrigger.put(entityStore, newTrigger.addRule(Namespace(ruleName), triggerLink))
+
+                            Future.sequence(Seq(deleteOldLink.getOrElse(Future.successful(true)), update)) onComplete {
+                                case Success(_) => predicate.success(r)
+                                case Failure(t) => predicate.failure(t)
+                            }
+
+                        }
+                        case Failure(t) => predicate.failure { RejectRequest(BadRequest, t) }
+                    }
+                } else predicate.failure { RejectRequest(Conflict, s"rule may not be updated while status is ${status}") }
+
+        }
         predicate.future
     }
 
     /**
-     * Posts state change request to activator. If the post fails, reverts the rule state. If activator times out
-     * or fails, unconditionally sets rule state to INACTIVE.
+     * Gets a WhiskTrigger defined by the given DocInfo. Gracefully falls back to None iff the trigger is not found.
+     *
+     * @param tid DocInfo defining the trigger to get
+     * @return a WhiskTrigger iff found, else None
      */
-    private def postToActivator(user: Subject, namespace: Namespace, name: EntityName, prevState: Status, newRule: WhiskRule, docid: DocInfo)(implicit transid: TransactionId) = {
-        val message = Message(transid, s"/rules/${newRule.status}/${newRule.docid}", user, ActivationId(), None)
-        val post = performLoadBalancerRequest(ACTIVATOR, message, transid) flatMap { response =>
-            response.id match {
-                case Some(_) =>
-                    info(this, s"[POST] rule status set to: ${newRule.status}")
-                    Future successful docid
-                case None =>
-                    error(this, s"[POST] rule status change cannot be completed: ${response.error.getOrElse("??")}")
-                    Future failed {
-                        new IllegalStateException(s"activation failed with error: ${response.error.getOrElse("??")}")
-                    }
-            }
+    private def getTrigger(tid: DocInfo)(implicit transid: TransactionId): Future[Option[WhiskTrigger]] = {
+        WhiskTrigger.get(entityStore, tid) map {
+            trigger => Some(trigger)
+        } recover {
+            case _: NoDocumentException => None
         }
+    }
 
-        post onSuccess {
-            case docid =>
-                val promise = Promise[Boolean]
-                val monitor = promise.future withTimeout (ruleChangeTimeout, new TimeoutException)
-                monitor.onFailure {
-                    case t =>
-                        // set the state back to inactive unconditionally, if successful then activator failed
-                        // or timed out and this update will cause it to abort; or this update will fail in which
-                        // case activator succeeded and nothing else is required
-                        // TODO: have to retry if put fails with error other than conflict
-                        WhiskRule.put(entityStore, newRule.toggle(Status.INACTIVE).revision[WhiskRule](docid.rev)) onComplete {
-                            case Success(_) => info(this, s"[POST] rule state change timed out, reset rule to ${Status.INACTIVE}")
-                            case Failure(t) => t match {
-                                case _: DocumentConflictException =>
-                                    info(this, s"[POST] rule state change completed")
-                                case _ =>
-                                    error(this, s"[POST] rule state reset failed, rule may be stuck in bad state: ${t.getMessage}")
-                            }
-                        }
-                }
+    /**
+     * Extracts the Status for the rule out of a WhiskTrigger that may be there. Falls back to INACTIVE if the trigger
+     * could not be found or the rule being worked on has not yet been written into the trigger record.
+     *
+     * @param triggerOpt Option containing a WhiskTrigger
+     * @param ruleName Namespace the name of the rule being worked on
+     * @return Status of the rule
+     */
+    private def getStatus(triggerOpt: Option[WhiskTrigger], ruleName: Namespace)(implicit transid: TransactionId): Status = {
+        val statusFromTrigger = for {
+            trigger <- triggerOpt
+            rules <- trigger.rules
+            rule <- rules.get(ruleName)
+        } yield {
+            rule.status
         }
+        statusFromTrigger getOrElse Status.INACTIVE
+    }
 
-        post onFailure {
-            case t: Throwable =>
-                info(this, s"[POST] rule state change rejected by activator, reverting rule to $prevState: ${t.getMessage}")
-                // TODO: have to retry until one succeeds
-                WhiskRule.put(entityStore, newRule.toggle(prevState).revision[WhiskRule](docid.rev)) onComplete {
-                    case Success(_) => info(this, s"[POST] rule state reverted to '$prevState'")
-                    case Failure(t) => error(this, s"[POST] rule state not reverted to '$prevState', rule may be stuck in bad state: ${t.getMessage}")
-                }
-        }
-
-        post
+    /**
+     * Completes an HTTP request with a WhiskRule including the computed Status
+     *
+     * @param rule the rule to send
+     * @param status the status to include in the response
+     */
+    private def completeAsRuleResponse(rule: WhiskRule, status: Status = Status.INACTIVE): RequestContext => Unit = {
+        complete(OK, rule.withStatus(status))
     }
 
     /**
@@ -361,12 +407,12 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
      * @param action the action id
      * @return promise that completes to true iff both documents exist
      */
-    private def checkTriggerAndActionExist(trigger: DocId, action: DocId)(implicit transid: TransactionId): Future[Boolean] = {
-        val validTrigger = Promise[Boolean]
-        val validAction = Promise[Boolean]
+    private def checkTriggerAndActionExist(trigger: DocId, action: DocId)(implicit transid: TransactionId): Future[(WhiskTrigger, WhiskAction)] = {
+        val validTrigger = Promise[WhiskTrigger]
+        val validAction = Promise[WhiskAction]
 
         val validateTrigger = WhiskTrigger.get(entityStore, trigger.asDocInfo) onComplete {
-            case Success(_) => validTrigger.success(true)
+            case Success(trigger) => validTrigger.success(trigger)
             case Failure(t) => t match {
                 case _: NoDocumentException => validTrigger.failure(new NoDocumentException(s"$trigger does not exist"))
                 case _                      => validTrigger.failure(t)
@@ -374,18 +420,18 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
         }
 
         val validateAction = WhiskAction.get(entityStore, action.asDocInfo) onComplete {
-            case Success(_) => validAction.success(true)
+            case Success(action) => validAction.success(action)
             case Failure(t) => t match {
                 case _: NoDocumentException => validAction.failure(new NoDocumentException(s"$action does not exist"))
                 case _                      => validAction.failure(t)
             }
         }
 
-        val valid = for {
+        val entities = for {
             triggerExists <- validTrigger.future
             actionExists <- validAction.future
-        } yield (triggerExists & actionExists)
-        valid
+        } yield (triggerExists, actionExists)
+        entities
     }
 
     /** Extracts status request subject to allowed values. */
@@ -396,4 +442,3 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
 }
 
 private case class IgnoredRuleActivation(noop: Boolean) extends Throwable
-private case class RuleChangeTimeout(docid: DocInfo) extends TimeoutException

@@ -93,13 +93,13 @@ trait WhiskActivationsApi
             entityname(segment) {
                 // defer rest of the path processing to the fetch operation, which is
                 // the only operation supported on activations that reach the inner route
-                name => authorizeAndDispatch(m, user.subject, Resource(ns, collection, Some(name)))
+                name => authorizeAndDispatch(m, user, Resource(ns, collection, Some(name)))
             }
         }
     }
 
     /** Dispatches resource to the proper handler depending on context. */
-    protected override def dispatchOp(user: Subject, op: Privilege, resource: Resource)(implicit transid: TransactionId) = {
+    protected override def dispatchOp(user: WhiskAuth, op: Privilege, resource: Resource)(implicit transid: TransactionId) = {
         resource.entity match {
             case Some(ActivationId(id)) => op match {
                 case READ => fetch(resource.namespace, id)

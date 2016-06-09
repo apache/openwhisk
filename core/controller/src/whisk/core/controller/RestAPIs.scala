@@ -193,6 +193,7 @@ protected[controller] class RestAPIVersion_v1(
         val apipath: String,
         val apiversion: String,
         val verbosity: Level)(
+            implicit override val actorSystem: ActorSystem,
             implicit override val entityStore: EntityStore,
             override val entitlementService: EntitlementService,
             override val activationStore: ActivationStore,

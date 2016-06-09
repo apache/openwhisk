@@ -70,11 +70,11 @@ trait BasicAuthorizedRouteProvider extends Directives with Logging {
     /** Checks entitlement and dispatches to handler if authorized. */
     protected def authorizeAndDispatch(
         method: HttpMethod,
-        user: Subject,
+        user: WhiskAuth,
         resource: Resource)(
             implicit transid: TransactionId): RequestContext => Unit = {
         val right = collection.determineRight(method, resource.entity)
-        authorizeAndContinue(right, user, resource, () => dispatchOp(user, right, resource))
+        authorizeAndContinue(right, user.subject, resource, () => dispatchOp(user, right, resource))
     }
 
     /** Checks entitlement and if authorized, continues with next handler. */
@@ -100,7 +100,7 @@ trait BasicAuthorizedRouteProvider extends Directives with Logging {
 
     /** Dispatches resource to the proper handler depending on context. */
     protected def dispatchOp(
-        user: Subject,
+        user: WhiskAuth,
         op: Privilege,
         resource: Resource)(
             implicit transid: TransactionId): RequestContext => Unit
@@ -151,7 +151,7 @@ trait AuthorizedRouteProvider extends BasicAuthorizedRouteProvider {
             namespace(user.subject, segment) { ns =>
                 (collectionOps & requestMethod) {
                     // matched /namespace/collection
-                    authorizeAndDispatch(_, user.subject, Resource(ns, collection, None))
+                    authorizeAndDispatch(_, user, Resource(ns, collection, None))
                 } ~ innerRoutes(user, ns)
             }
         }
@@ -164,7 +164,7 @@ trait AuthorizedRouteProvider extends BasicAuthorizedRouteProvider {
         (entityPrefix & entityOps & requestMethod) { (segment, m) =>
             // matched /namespace/collection/entity
             (entityname(segment) & pathEnd) {
-                name => authorizeAndDispatch(m, user.subject, Resource(ns, collection, Some(name)))
+                name => authorizeAndDispatch(m, user, Resource(ns, collection, Some(name)))
             }
         }
     }

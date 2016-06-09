@@ -34,9 +34,6 @@ kafka:
 zookeeper:
   port: 2181
 
-activator:
-  port: 12000
-
 invoker:
   port: 12001
 
