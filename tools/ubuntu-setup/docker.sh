@@ -20,6 +20,11 @@ sudo apt-get install -y --force-yes docker-engine=1.9.1-0~trusty
 sudo -E bash -c 'echo '\''DOCKER_OPTS="-H tcp://0.0.0.0:4243 -H unix:///var/run/docker.sock --api-enable-cors --storage-driver=aufs"'\'' >> /etc/default/docker'
 sudo gpasswd -a `whoami` docker
 
+# Set DOCKER_HOST as an environment variable
+sudo -E bash -c 'echo '\''export DOCKER_HOST="tcp://0.0.0.0:4243"'\'' >> ~/.bashrc'
+sudo -E bash -c 'echo '\''export DOCKER_HOST="tcp://0.0.0.0:4243"'\'' >> etc/default/docker'
+source ~/.bashrc
+
 sudo service docker restart
 
 # do not run this command without a vagrant reload during provisioning

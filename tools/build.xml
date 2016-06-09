@@ -1,0 +1,41 @@
+<!-- vim: set expandtab ts=4 sw=4 : -->
+
+<!-- targets in this file should be called from the parent directory -->
+<project basedir="..">
+    <!-- build all tools -->
+    <target name="build">
+        <ant antfile="${openwhisk.home}/tools/cli/build.xml" target="buildCLI" />
+        <antcall target="buildIOSStarterApp" />
+    </target>
+
+    <!-- deploy all tools -->
+    <target name="deploy">
+        <antcall target="publishIOSStarterApp" />
+    </target>
+
+    <!-- build the iOS starter app zip for distribution -->
+    <target name="buildIOSStarterApp">
+        <var file="whisk.properties" />
+        <!-- clean build dir, make build dir, and copy files into it -->
+        <delete includeemptydirs="true" quiet="true">
+            <fileset dir="${iosstarterapp.build.dir}" includes="**/*" />
+        </delete>
+        <mkdir dir="${iosstarterapp.build.dir}" />
+        <copy todir="${iosstarterapp.build.dir}/OpenWhiskIOSStarterApp">
+            <fileset dir="${openwhisk.home}/mobile/iOS/starterapp" />
+        </copy>
+        <!-- create zip -->
+        <zip destfile="${iosstarterapp.build.dir}/OpenWhiskIOSStarterApp.zip" basedir="${iosstarterapp.build.dir}/OpenWhiskIOSStarterApp" />
+    </target>
+
+    <!-- Copy iOS starter app zip to nginx. -->
+    <target name="publishIOSStarterApp">
+        <exec executable="/bin/bash" failonerror="true">
+            <arg value="${basedir}/tools/cli/publishArtifact.sh" />
+            <arg value="${iosstarterapp.build.dir}/OpenWhiskIOSStarterApp.zip" />
+            <arg value="${deploy.target}" />
+            <arg value="${basedir}" />
+        </exec>
+    </target>
+
+</project>
