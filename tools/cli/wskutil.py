@@ -50,15 +50,17 @@ def addAuthenticatedCommand(subcmd, props):
     required = True if auth is None else False
     subcmd.add_argument('-u', '--auth', help='authorization key', default=auth, required=required)
 
-def request(method, urlString, body = '', headers = {}, auth = None, verbose = False):
+def request(method, urlString, body = '', headers = {}, auth = None, verbose = False, https_proxy = os.getenv('https_proxy', None)):
     url = urlparse(urlString)
     if url.scheme == 'http':
         conn = httplib.HTTPConnection(url.netloc)
     else:
         if hasattr(ssl, '_create_unverified_context'):
-            conn = httplib.HTTPSConnection(url.netloc, context=ssl._create_unverified_context())
+            conn = httplib.HTTPSConnection(url.netloc if https_proxy is None else https_proxy, context=ssl._create_unverified_context())
         else:
-            conn = httplib.HTTPSConnection(url.netloc)
+            conn = httplib.HTTPSConnection(url.netloc if https_proxy is None else https_proxy)
+        if https_proxy:
+            conn.set_tunnel(url.netloc)
 
     if auth != None:
         auth = base64.encodestring(auth).replace('\n', '')
