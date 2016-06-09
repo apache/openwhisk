@@ -20,6 +20,7 @@ import java.time.Instant
 
 import scala.Vector
 import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 
 import akka.actor.ActorSystem
 
@@ -76,7 +77,8 @@ class DatastoreTests extends FlatSpec
         datastore.shutdown()
         authstore.shutdown()
         println("Shutting down actor system")
-        actorSystem.shutdown()
+        actorSystem.terminate()
+        Await.result(actorSystem.whenTerminated, Duration.Inf)
     }
 
     @volatile var counter = 0
