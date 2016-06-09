@@ -19,6 +19,7 @@ package whisk.core.entity.test
 import java.time.Clock
 import java.time.Instant
 import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 import scala.util.Try
 import akka.actor.ActorSystem
 import org.junit.runner.RunWith
@@ -96,7 +97,8 @@ class ViewTests extends FlatSpec
         println("Shutting down store connections")
         datastore.shutdown()
         println("Shutting down actor system")
-        actorSystem.shutdown()
+        actorSystem.terminate()
+        Await.result(actorSystem.whenTerminated, Duration.Inf)
     }
 
     behavior of "Datastore View"
