@@ -41,6 +41,7 @@ import whisk.common.Verbosity
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.consulServer
 import whisk.core.connector.{ ActivationMessage => Message }
+import whisk.common.Scheduler
 
 object InvokerHealth {
     val requiredProperties = consulServer
@@ -136,8 +137,8 @@ class InvokerHealth(
     /** query the KV store this often */
     private val healthCheckInterval = 2 seconds
 
-    system.scheduler.schedule(0 seconds, healthCheckInterval) {
-        kv.getRecurse(InvokerKeys.allInvokers) foreach { invokerInfo =>
+    Scheduler.scheduleWaitAtLeast(healthCheckInterval) { () =>
+        kv.getRecurse(InvokerKeys.allInvokers) map { invokerInfo =>
             // keys are like invokers/invokerN/count
             val flattened = ConsulClient.dropKeyLevel(invokerInfo)
             val nested = ConsulClient.toNestedMap(flattened)

@@ -27,11 +27,18 @@ import akka.actor.ActorSystem
 import spray.json.JsValue
 import spray.json.pimpAny
 import spray.json.DefaultJsonProtocol.StringJsonFormat
+import scala.concurrent.Future
 
 /**
- * An object with an underlying thread that periodically stores into the ConsulKV store.
+ * Helper utility to periodically report values to consul's key-value store
  *
- * Set up a Consul KV interface at the given agent address.
+ * @param kv instance of the ConsulClient to use
+ * @param initialDelay time to wait before starting the reporting initially
+ * @param interval time between two reports being send
+ * @param hostKey the key for the host adress of the component
+ * @param startKey the key for the startup timestamp of the component
+ * @param statusKey the key for the freshness timestamp of the component
+ * @param updater the function to call to update arbitrary values in consul
  */
 class ConsulKVReporter(
     kv: ConsulClient,
@@ -49,11 +56,14 @@ class ConsulKVReporter(
         kv.put(hostKey, selfHostname.toJson.compactPrint)
         kv.put(startKey, DateUtil.getTimeString.toJson.compactPrint)
 
-        system.scheduler.schedule(0 seconds, interval) {
-            kv.put(statusKey, DateUtil.getTimeString.toJson.compactPrint)
-            updater() foreach {
+        Scheduler.scheduleWaitAtLeast(interval) { () =>
+            val statusPut = kv.put(statusKey, DateUtil.getTimeString.toJson.compactPrint)
+            val updatePuts = updater() map {
                 case (k, v) => kv.put(k, v.compactPrint)
             }
+
+            val allPuts = updatePuts.toSeq :+ statusPut
+            Future.sequence(allPuts)
         }
     }
 }
