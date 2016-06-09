@@ -263,7 +263,7 @@ def whoisUserCmd(args, props):
     database = props[DB_WHISK_AUTHS]
     uuid     = args.uuid.split(':')[0]
 
-    url = '%(protocol)s://%(host)s:%(port)s/%(database)s/_design/%(database)s/_view/uuids?key=["%(uuid)s"]' % {
+    url = '%(protocol)s://%(host)s:%(port)s/%(database)s/_design/subjects/_view/uuids?key=["%(uuid)s"]' % {
         'protocol': protocol,
         'host'    : host,
         'port'    : port,
