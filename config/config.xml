@@ -13,6 +13,8 @@
     <!-- where all build artifacts go -->
     <property name="build.dir" value="${basedir}/build" />
     <property name="cli.build.dir" value="${basedir}/build/tools/cli" />
+    <property name="go-cli.build.dir" value="${openwhisk.home}/build/tools/go-cli" />
+    <property name="go-cli.src.dir" value="${openwhisk.home}/tools/go-cli" />
     <property name="blackbox.build.dir" value="${basedir}/build/tools/blackbox" />
     <property name="iosstarterapp.build.dir" value="${basedir}/build/tools/iosstarterapp" />
 
