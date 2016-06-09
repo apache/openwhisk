@@ -30,14 +30,16 @@ import org.scalatest.junit.JUnitRunner
 
 import akka.actor.ActorSystem
 import akka.actor.PoisonPill
+import scala.concurrent.Promise
 
 @RunWith(classOf[JUnitRunner])
 class SchedulerTests extends FlatSpec with Matchers {
     implicit val system = ActorSystem()
     implicit val ec = system.dispatcher
 
-    val minimumTimeBetweenCalls = 50 milliseconds
+    val timeBetweenCalls = 50 milliseconds
     val callsToProduce = 5
+    val schedulerSlack = 100 milliseconds
 
     /**
      * Calculates the duration between two consecutive elements
@@ -54,11 +56,11 @@ class SchedulerTests extends FlatSpec with Matchers {
     /**
      * Waits for the calls to be scheduled and executed. Adds one call-interval as additional slack
      */
-    def waitForCalls() = Thread.sleep((callsToProduce + 1) * minimumTimeBetweenCalls toMillis)
+    def waitForCalls(calls: Int = callsToProduce, interval: FiniteDuration = timeBetweenCalls) = Thread.sleep((calls + 1) * interval toMillis)
 
-    "Scheduler" should "be killable by sending it a poison pill" in {
+    "A WaitAtLeast Scheduler" should "be killable by sending it a poison pill" in {
         var callCount = 0
-        val scheduled = Scheduler.scheduleWaitAtLeast(minimumTimeBetweenCalls) { () =>
+        val scheduled = Scheduler.scheduleWaitAtLeast(timeBetweenCalls) { () =>
             callCount += 1
             Future successful true
         }
@@ -83,7 +85,7 @@ class SchedulerTests extends FlatSpec with Matchers {
     it should "wait at least the given interval between scheduled calls" in {
         val calls = Buffer[Instant]()
 
-        val scheduled = Scheduler.scheduleWaitAtLeast(minimumTimeBetweenCalls) { () =>
+        val scheduled = Scheduler.scheduleWaitAtLeast(timeBetweenCalls) { () =>
             calls += Instant.now
             Future successful true
         }
@@ -92,12 +94,12 @@ class SchedulerTests extends FlatSpec with Matchers {
         scheduled ! PoisonPill
 
         val differences = calculateDifferences(calls)
-        all(differences) should be > minimumTimeBetweenCalls
+        all(differences) should be > timeBetweenCalls
     }
 
     it should "stop the scheduler if an uncaught exception is thrown by the passed closure" in {
         var callCount = 0
-        val scheduled = Scheduler.scheduleWaitAtLeast(minimumTimeBetweenCalls) { () =>
+        val scheduled = Scheduler.scheduleWaitAtLeast(timeBetweenCalls) { () =>
             callCount += 1
             throw new Exception
             Future successful true
@@ -111,7 +113,7 @@ class SchedulerTests extends FlatSpec with Matchers {
     it should "not stop the scheduler if the future from the closure is failed" in {
         var callCount = 0
 
-        val scheduled = Scheduler.scheduleWaitAtLeast(minimumTimeBetweenCalls) { () =>
+        val scheduled = Scheduler.scheduleWaitAtLeast(timeBetweenCalls) { () =>
             callCount += 1
             Future failed new Exception
         }
@@ -120,5 +122,39 @@ class SchedulerTests extends FlatSpec with Matchers {
         scheduled ! PoisonPill
 
         callCount shouldBe callsToProduce
+    }
+
+    "A WaitAtMost Scheduler" should "wait at most the given interval between scheduled calls" in {
+        val calls = Buffer[Instant]()
+        val timeBetweenCalls = 200 milliseconds
+        val computationTime = 100 milliseconds
+
+        val scheduled = Scheduler.scheduleWaitAtMost(timeBetweenCalls) { () =>
+            calls += Instant.now
+            akka.pattern.after(computationTime, system.scheduler)(Future.successful(true))
+        }
+
+        waitForCalls(interval = timeBetweenCalls)
+        scheduled ! PoisonPill
+
+        val differences = calculateDifferences(calls)
+        all(differences) should be < timeBetweenCalls + schedulerSlack
+    }
+
+    it should "not wait when the closure takes longer than the interval" in {
+        val calls = Buffer[Instant]()
+        val timeBetweenCalls = 200 milliseconds
+        val computationTime = 300 milliseconds
+
+        val scheduled = Scheduler.scheduleWaitAtMost(timeBetweenCalls) { () =>
+            calls += Instant.now
+            akka.pattern.after(computationTime, system.scheduler)(Future.successful(true))
+        }
+
+        waitForCalls(interval = timeBetweenCalls)
+        scheduled ! PoisonPill
+
+        val differences = calculateDifferences(calls)
+        all(differences) should be < computationTime + schedulerSlack
     }
 }

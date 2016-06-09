@@ -28,14 +28,14 @@ import akka.actor.ActorSystem
 import akka.actor.Props
 
 /**
- * Scheduler utility functions to execute tasks in a repetetive way with controllable behaviour
+ * Scheduler utility functions to execute tasks in a repetitive way with controllable behavior
  * even for asynchronous tasks.
  */
 object Scheduler extends Logging {
     private case object Work
 
     /**
-     * Sets up an Actor to send itself a message to mimic schedulers behaviour in a more controllable way.
+     * Sets up an Actor to send itself a message to mimic schedulers behavior in a more controllable way.
      *
      * @param interval the time to wait between two runs
      * @param alwaysWait always wait for the given amount of time or calculate elapsed time to wait
@@ -50,10 +50,13 @@ object Scheduler extends Logging {
 
         def receive = {
             case Work =>
+                val deadline = interval.fromNow
                 Try(closure()) match {
                     case Success(result) =>
                         result onComplete { _ =>
-                            context.system.scheduler.scheduleOnce(interval, self, Work)
+                            val timeToWait = if (alwaysWait) interval else deadline.timeLeft.max(Duration.Zero)
+                            // context might be null here if a PoisonPill is sent while doing computations
+                            Option(context) foreach { _.system.scheduler.scheduleOnce(timeToWait, self, Work) }
                         }
                     case Failure(e) => error(this, s"next iteration could not be scheduled because of ${e.getMessage}. Scheduler is halted")
                 }
@@ -62,8 +65,22 @@ object Scheduler extends Logging {
 
     /**
      * Schedules a closure to run continuously scheduled, with at least the given interval in between runs.
-     * This waits until the Future of the closure has finished, ignores its result and then
-     * waits for the given interval.
+     * This waits until the Future of the closure has finished, ignores its result and waits for at most the
+     * time specified. If the closure took as long or longer than the time specified, the next iteration
+     * is immediately fired.
+     *
+     * @param interval the time to wait at most between two runs of the closure
+     * @param f the function to run
+     */
+    def scheduleWaitAtMost(interval: FiniteDuration)(f: () => Future[Any])(implicit system: ActorSystem) = {
+        require(interval > Duration.Zero)
+        system.actorOf(Props(new Worker(interval, false, f)))
+    }
+
+    /**
+     * Schedules a closure to run continuously scheduled, with at least the given interval in between runs.
+     * This waits until the Future of the closure has finished, ignores its result and then waits for the
+     * given interval.
      *
      * @param interval the time to wait between two runs of the closure
      * @param f the function to run
