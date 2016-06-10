@@ -67,15 +67,17 @@ import java.time.Instant
  * It also sets the apihost and apiversion explicitly to avoid ambiguity with
  * a local property file if it exists.
  */
+
+
 case class WskProps(
     authKey: String = WhiskProperties.readAuthKey(WhiskProperties.getAuthFileForTesting),
     namespace: String = "_",
     apiversion: String = "v1",
     apihost: String = WhiskProperties.getEdgeHost) {
-    def overrides = Seq("--apihost", apihost, "--apiversion", apiversion)
+    def overrides = Seq("-i", "--apihost", apihost, "--apiversion", apiversion)
 }
 
-class Wsk extends RunWskCmd {
+class Wsk(override val usePythonCLI: Boolean = true) extends RunWskCmd {
     implicit val action = new WskAction()
     implicit val trigger = new WskTrigger()
     implicit val rule = new WskRule()
@@ -719,7 +721,6 @@ trait WaitFor {
 }
 
 object Wsk {
-    private val cliDir = WhiskProperties.getFileRelativeToWhiskHome("bin")
     private val binaryName = "wsk"
 
     /** What is the path to a downloaded CLI? **/
@@ -727,31 +728,65 @@ object Wsk {
         s"${System.getProperty("user.home")}${File.separator}.local${File.separator}bin${File.separator}${binaryName}"
     }
 
-    def exists = {
+    def exists(usePythonCLI: Boolean) = {
         if (WhiskProperties.useCliDownload) {
             val binary = getDownloadedCliPath
             val f = new File(binary)
             assert(f.exists, s"did not find $f")
         } else {
-            val dir = cliDir
-            val exec = new File(dir, binaryName)
+            val cliPath = if (usePythonCLI) {
+                WhiskProperties.getPythonCLIPath();
+            } else {
+                WhiskProperties.getGoCLIPath();
+            }
+
+            val cliDir = if (usePythonCLI) {
+                WhiskProperties.getPythonCLIDir();
+            } else {
+                WhiskProperties.getGoCLIDir();
+            }
+
+            val dir = new File(cliDir)
+            val exec = new File(cliPath)
             assert(dir.exists, s"did not find $dir")
             assert(exec.exists, s"did not find $exec")
         }
     }
 
-    def baseCommand = if (WhiskProperties.useCliDownload()) {
-        Buffer(getDownloadedCliPath)
-    } else {
-        Buffer(WhiskProperties.python, new File(cliDir, binaryName).toString)
+    def baseCommand(usePythonCLI: Boolean) =  {
+        if (WhiskProperties.useCliDownload()) {
+            Buffer(getDownloadedCliPath)
+        } else {
+            val cliPath = if (usePythonCLI) {
+                WhiskProperties.getPythonCLIPath();
+            } else {
+                WhiskProperties.getGoCLIPath();
+            }
+
+            val cliDir = if (usePythonCLI) {
+                WhiskProperties.getPythonCLIDir();
+            } else {
+                WhiskProperties.getGoCLIDir();
+            }
+
+            if (usePythonCLI) {
+                Buffer(WhiskProperties.python, new File(cliPath).toString)
+
+            } else {
+                Buffer(new File(cliPath).toString)
+            }
+        }
     }
 }
 
 sealed trait RunWskCmd {
+
+    val usePythonCLI: Boolean = true
+
     /**
      * The base command to run.
      */
-    def baseCommand = Wsk.baseCommand
+    def baseCommand = Wsk.baseCommand(usePythonCLI)
 
     /**
      * Runs a command wsk [params] where the arguments come in as a sequence.
@@ -767,25 +802,25 @@ sealed trait RunWskCmd {
         val args = baseCommand
         if (verbose) args += "--verbose"
         if (showCmd) println(params.mkString(" "))
-        val rr = TestUtils.runCmd(DONTCARE_EXIT, workingDir, TestUtils.logger, env, args ++ params: _*)
+        val rr = TestUtils.runCmd(DONTCARE_EXIT, workingDir, TestUtils.logger, sys.env ++ env, args ++ params: _*)
         rr.validateExitCode(expectedExitCode)
         rr
     }
 }
 
 object WskAdmin {
-    private val cliDir = WhiskProperties.getFileRelativeToWhiskHome("bin")
+    private val binDir = WhiskProperties.getFileRelativeToWhiskHome("bin")
     private val binaryName = "wskadmin"
 
     def exists = {
-        val dir = cliDir
+        val dir = binDir
         val exec = new File(dir, binaryName)
         assert(dir.exists, s"did not find $dir")
         assert(exec.exists, s"did not find $exec")
     }
 
     def baseCommand = {
-        Buffer(WhiskProperties.python, new File(cliDir, binaryName).toString)
+        Buffer(WhiskProperties.python, new File(binDir, binaryName).toString)
     }
 }
 

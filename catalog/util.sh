@@ -15,10 +15,16 @@ if [ ! -f "$WHISKPROPS_FILE" ]; then
 fi
 EDGE_HOST=`fgrep edge.host= "$WHISKPROPS_FILE" | cut -d'=' -f2`
 
+USE_PYTHON_CLI=true
+
 function createPackage() {
     PACKAGE_NAME=$1
     REST=("${@:2}")
-    CMD_ARRAY=($PYTHON "$OPENWHISK_HOME/bin/wsk" --apihost "$EDGE_HOST" package update --auth "$AUTH_KEY" --shared yes "$PACKAGE_NAME" "${REST[@]}")
+    if [ "$USE_PYTHON_CLI" = true ]; then
+        CMD_ARRAY=($PYTHON "$OPENWHISK_HOME/bin/wsk" -i --apihost "$EDGE_HOST" package update --auth "$AUTH_KEY" --shared yes "$PACKAGE_NAME" "${REST[@]}")
+    else
+        CMD_ARRAY=("$OPENWHISK_HOME/bin/go-cli/wsk" -i --apihost "$EDGE_HOST" package update --auth "$AUTH_KEY" --shared yes "$PACKAGE_NAME" "${REST[@]}")
+    fi
     export WSK_CONFIG_FILE= # override local property file to avoid namespace clashes
     "${CMD_ARRAY[@]}" &
     PID=$!
@@ -30,7 +36,11 @@ function install() {
     RELATIVE_PATH=$1
     ACTION_NAME=$2
     REST=("${@:3}")
-    CMD_ARRAY=($PYTHON "$OPENWHISK_HOME/bin/wsk" --apihost "$EDGE_HOST" action update --auth "$AUTH_KEY" --shared yes "$ACTION_NAME" "$RELATIVE_PATH" "${REST[@]}")
+    if [ "$USE_PYTHON_CLI" = true ]; then
+        CMD_ARRAY=($PYTHON "$OPENWHISK_HOME/bin/wsk" -i --apihost "$EDGE_HOST" action update --auth "$AUTH_KEY" --shared yes "$ACTION_NAME" "$RELATIVE_PATH" "${REST[@]}")
+    else
+        CMD_ARRAY=("$OPENWHISK_HOME/bin/go-cli/wsk" -i --apihost "$EDGE_HOST" action update --auth "$AUTH_KEY" --shared yes "$ACTION_NAME" "$RELATIVE_PATH" "${REST[@]}")
+    fi
     export WSK_CONFIG_FILE= # override local property file to avoid namespace clashes
     "${CMD_ARRAY[@]}" &
     PID=$!

@@ -47,7 +47,8 @@ class CLIPythonTests
     with Matchers {
 
     implicit val wskprops = WskProps()
-    val wsk = new Wsk()
+    var usePythonCLI = true
+    val wsk = new Wsk(usePythonCLI)
 
     behavior of "Native Python Action"
 

@@ -47,8 +47,8 @@ import common.WskCli;
  */
 @RunWith(ParallelRunner.class)
 public class CLIRuleTests {
-
-    private static final WskCli wsk = new WskCli();
+    private static final Boolean usePythonCLI = true;
+    private static final WskCli wsk = new WskCli(usePythonCLI);
     private static final int RULE_DELAY = 30;
     private static final int DELAY = 90;
     // NEGATIVE_DELAY is used for tests when checking that something doesn't

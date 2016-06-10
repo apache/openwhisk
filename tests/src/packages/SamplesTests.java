@@ -34,8 +34,8 @@ import common.WskCli;
  */
 @RunWith(ParallelRunner.class)
 public class SamplesTests {
-
-    private final WskCli wsk = new WskCli();
+    private static final Boolean usePythonCLI = true;
+    private final WskCli wsk = new WskCli(usePythonCLI);
 
     @BeforeClass
     public static void setUp() throws Exception {

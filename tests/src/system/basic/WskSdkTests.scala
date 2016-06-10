@@ -33,7 +33,8 @@ class WskSdkTests
     with WskTestHelpers {
 
     implicit val wskprops = WskProps()
-    val wsk = new Wsk()
+    var usePythonCLI = true
+    val wsk = new Wsk(usePythonCLI)
 
     behavior of "Wsk SDK"
 
@@ -42,7 +43,7 @@ class WskSdkTests
         dir.delete()
         dir.mkdir() should be(true)
 
-        wsk.cli(Seq("sdk", "install", "docker"), workingDir = dir).
+        wsk.cli(wskprops.overrides ++ Seq("sdk", "install", "docker"), workingDir = dir).
             stdout should include("The docker skeleton is now installed at the current directory.")
 
         val sdk = new File(dir, "dockerSkeleton")
@@ -60,7 +61,7 @@ class WskSdkTests
         dir.delete()
         dir.mkdir() should be(true)
 
-        wsk.cli(Seq("sdk", "install", "iOS"), workingDir = dir).
+        wsk.cli(wskprops.overrides ++ Seq("sdk", "install", "iOS"), workingDir = dir).
             stdout should include("Downloaded OpenWhisk iOS starter app. Unzip OpenWhiskIOSStarterApp.zip and open the project in Xcode.")
 
         val sdk = new File(dir, "OpenWhiskIOSStarterApp.zip")
@@ -71,7 +72,7 @@ class WskSdkTests
     }
 
     it should "preview swift sdk" in {
-        wsk.cli(Seq("sdk", "install", "swift")).
+        wsk.cli(wskprops.overrides ++ Seq("sdk", "install", "swift")).
             stdout should include("Swift SDK coming soon.")
     }
 

@@ -45,7 +45,8 @@ class ConsoleTests
     with WskTestHelpers {
 
     implicit val wskprops = WskProps()
-    val wsk = new Wsk()
+    var usePythonCLI = true
+    val wsk = new Wsk(usePythonCLI)
 
     behavior of "Wsk Activation Console"
 

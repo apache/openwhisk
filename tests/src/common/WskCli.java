@@ -40,15 +40,18 @@ import common.TestUtils.RunResult;
  */
 public class WskCli {
 
-    private static final File cliDir = WhiskProperties.getFileRelativeToWhiskHome("bin");
+    private static String cliPath;
+    private static String cliDir;
+    private static final File binDir = WhiskProperties.getFileRelativeToWhiskHome("bin");
 
     private static final String adminBinaryName = "wskadmin";
-    private final String binaryName;
     private final File binaryPath;
     public String subject;
     public final String authKey;
 
     private Map<String, String> env = null;
+
+    private Boolean usePythonCLI = true;
 
     public static enum Item {
         Package("package"), Trigger("trigger"), Action("action"), Rule("rule"), Activation("activation");
@@ -61,30 +64,38 @@ public class WskCli {
     }
 
     public WskCli() {
-        this(WhiskProperties.getAuthFileForTesting());
+        this(true, WhiskProperties.getAuthFileForTesting());
     }
 
-    public WskCli(String authKey) {
-        this("wsk", "default", authKey);
+    public WskCli(Boolean usePythonCLI) {
+        this(usePythonCLI, WhiskProperties.getAuthFileForTesting());
     }
 
-    public WskCli(String subject, String authKey) {
-        this("wsk", subject, authKey);
+    public WskCli(Boolean usePythonCLI, String authKey) {
+        this(usePythonCLI, "default", authKey);
     }
 
-    protected WskCli(File authFile) {
-        this("wsk", "default", authFile);
+    protected WskCli(Boolean usePythonCLI, File authFile) {
+        this(usePythonCLI, "default", authFile);
     }
 
-    protected WskCli(String binaryName, String subject, File authFile) {
-        this(binaryName, subject, WhiskProperties.readAuthKey(authFile));
+    public WskCli(Boolean usePythonCLI, String subject, File authFile) {
+        this(usePythonCLI, subject, WhiskProperties.readAuthKey(authFile));
     }
 
-    protected WskCli(String binaryName, String subject, String authKey) {
-        this.binaryName = binaryName;
-        this.binaryPath = new File(cliDir, binaryName);
+    public WskCli(Boolean usePythonCLI, String subject, String authKey) {
+        if (usePythonCLI) {
+            cliPath = WhiskProperties.getPythonCLIPath();
+            cliDir = WhiskProperties.getPythonCLIDir();
+        } else {
+            cliPath = WhiskProperties.getGoCLIPath();
+            cliDir = WhiskProperties.getGoCLIDir();
+        }
+
+        this.binaryPath = new File(cliPath);
         this.subject = subject;
         this.authKey = authKey;
+        this.usePythonCLI = usePythonCLI;
     }
 
     public void setSubject(String subject) {
@@ -96,12 +107,15 @@ public class WskCli {
     }
 
     public boolean checkExists() {
+        File dir;
+
         if (WhiskProperties.useCliDownload()) {
             String binary = getDownloadedCliPath();
             File f = new File(binary);
             assertTrue("did not find " + f, f.exists());
         } else {
-            assertTrue("did not find " + cliDir, cliDir.exists());
+            dir = new File(cliDir);
+            assertTrue("did not find " + dir, dir.exists());
             assertTrue("did not find " + binaryPath, binaryPath.exists());
         }
         return true;
@@ -353,7 +367,7 @@ public class WskCli {
         }
 
         if (shared) {
-            cmd = Util.concat(cmd, new String[] { "--shared" });
+            cmd = Util.concat(cmd, new String[] { "--shared", "yes"});
         }
 
         RunResult result = cli(expectedCode, cmd);
@@ -968,11 +982,15 @@ public class WskCli {
      * @return RunResult which contains stdout,sterr, exit code
      */
     public RunResult cli(boolean verbose, int expectedExitCode, File workingDir, String... params) throws IllegalArgumentException, IOException {
-        String[] cmd = WhiskProperties.useCliDownload() ? new String[] { getDownloadedCliPath() } : new String[] { WhiskProperties.python, new File(cliDir, binaryName).toString() };
-        String[] args = verbose ? Util.concat(cmd, "--verbose") : cmd;
-        if (binaryName.equals("wsk")) {
-            args = Util.concat(cmd, "--apihost", WhiskProperties.getEdgeHost());
+        String[] cmd;
+        if (usePythonCLI) {
+            cmd = WhiskProperties.useCliDownload() ? new String[] { getDownloadedCliPath() } : new String[] { WhiskProperties.python, new File(cliPath).toString() };
+        } else {
+            cmd = WhiskProperties.useCliDownload() ? new String[] { getDownloadedCliPath() } : new String[] { new File(cliPath).toString() };
         }
+
+        cmd = verbose ? Util.concat(cmd, "--verbose") : cmd;
+        String[] args = Util.concat(cmd, "-i", "--apihost", WhiskProperties.getEdgeHost());
         RunResult rr = TestUtils.runCmd(DONTCARE_EXIT, workingDir, TestUtils.logger, this.env, Util.concat(args, params));
         rr.validateExitCode(expectedExitCode);
         return rr;
@@ -986,9 +1004,10 @@ public class WskCli {
      * Since there are many unit tests in Java and some of them need access to
      * WskAdmin, we lightly reflect the admin methods here.
      */
-    public static RunResult admin(String... params) throws IllegalArgumentException, IOException {
+    public RunResult admin(String... params) throws IllegalArgumentException, IOException {
         File workingDir = new File(".");
-        String[] cmd = new String[] { WhiskProperties.python, new File(cliDir, adminBinaryName).toString() };
+        String[] cmd = new String[] { WhiskProperties.python, new File(binDir, adminBinaryName).toString() };
+
         return TestUtils.runCmd(DONTCARE_EXIT, workingDir, TestUtils.logger, null, Util.concat(cmd, params));
     }
 
@@ -996,7 +1015,7 @@ public class WskCli {
      * Create a user. The caller is responsible for checking success upon which
      * stdout contains the authKey.
      */
-    public static RunResult createUser(String subject) throws Exception {
+    public RunResult createUser(String subject) throws Exception {
         return admin("user", "create", subject);
     }
 

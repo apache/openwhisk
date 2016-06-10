@@ -66,7 +66,8 @@ func main() {
             exitCode = werr.ExitCode
         } else {
             whisk.Debug(whisk.DbgError, "Got some other error - %s\n", err)
-            fmt.Printf("%s\n", err)
+            fmt.Fprintf(os.Stderr, "%s\n", err)
+
             displayUsage = false   // Cobra already displayed the usage message
             exitCode = 1;
         }
@@ -74,12 +75,13 @@ func main() {
         // If the err msg should be displayed to the console and it has not already been
         // displayed, display it now.
         if displayMsg && !msgDisplayed {
-            fmt.Println(err)
+            fmt.Fprintf(os.Stderr, "%s\n", err)
         }
 
+        // Displays usage
         if displayUsage {
-            fmt.Printf("Run '%v --help' for usage.\n", commands.WskCmd.CommandPath())
-        } // Displays usage
+            fmt.Fprintf(os.Stderr, "Run '%v --help' for usage.\n", commands.WskCmd.CommandPath())
+        }
     }
     os.Exit(exitCode)
     return

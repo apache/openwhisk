@@ -39,7 +39,8 @@ class CLIJavaTests
     with Matchers {
 
     implicit val wskprops = WskProps()
-    val wsk = new Wsk()
+    var usePythonCLI = true
+    val wsk = new Wsk(usePythonCLI)
     val expectedDuration = 120 seconds
     val activationPollDuration = 60 seconds
 
