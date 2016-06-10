@@ -22,7 +22,6 @@
 - name: (re)start consul server/agent
   docker:
     name: consul
-    hostname: "consul{{play_hosts.index(inventory_hostname)}}"
     image: "{{ docker_registry }}whisk/consul:{{ docker_image_tag }}"
     state: reloaded
     command: /bin/consul agent -config-file=/consul/config/config.json 
