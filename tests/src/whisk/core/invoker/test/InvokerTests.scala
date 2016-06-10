@@ -81,6 +81,8 @@ class InvokerTests extends FlatSpec
         datastore.shutdown()
         authstore.shutdown()
         activationstore.shutdown()
+        println("Shutting down HTTP connections")
+        Await.result(akka.http.scaladsl.Http().shutdownAllConnectionPools(), Duration.Inf)
         println("Shutting down actor system")
         actorSystem.terminate()
         Await.result(actorSystem.whenTerminated, Duration.Inf)
