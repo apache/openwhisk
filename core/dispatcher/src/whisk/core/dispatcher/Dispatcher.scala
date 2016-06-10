@@ -94,11 +94,8 @@ trait MessageDispatcher extends Registrar with Logging {
      * { path: the topic name,
      *   payload: the message body }
      *
-     * Expected topics are "/whisk/invoke[0..n-1]" (handled by Invoker)
-     * and "/whisk" (handled by Activator).
-     *
-     * Expected paths are "/rules/[enable,disable]" and "triggers/fire"
-     * (handled by Activator) and "actions/invoke" (handled by Invoker).
+     * Expected topics are "/whisk/invoke[0..n-1]" (handled by Invoker).
+     * Expected paths "actions/invoke" (handled by Invoker).
      *
      * The paths should generally mirror the REST API.
      *
@@ -176,7 +173,7 @@ trait MessageDispatcher extends Registrar with Logging {
 
 /**
  * Creates a dispatcher that uses kafka as the message pub/sub connector.
- * This is currently used by invoker and activator.
+ * This is currently used by invoker.
  *
  * @param config with zookeeper host properties
  * @topic the topic to subscribe to (creates a consumer client for this topic)

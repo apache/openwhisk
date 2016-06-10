@@ -116,9 +116,9 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
     }
 
     /**
-     * Toggles rule status from enabled -> disabled and vice versa. The trigger or action are not confirmed
-     * to still exist here. Instead, defer to a activator resource manager to deactivate rules that use an
-     * invalid trigger or action.
+     * Toggles rule status from enabled -> disabled and vice versa. The action are not confirmed
+     * to still exist. This is deferred to trigger activation which will fail to post activations
+     * for non-existent actions.
      *
      * Responses are one of (Code, Message)
      * - 200 OK rule in desired state

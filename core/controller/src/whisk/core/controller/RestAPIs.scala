@@ -16,11 +16,16 @@
 
 package whisk.core.controller
 
+import akka.actor.ActorSystem
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.util.{ Success, Failure }
-import akka.actor.ActorSystem
+import spray.http.AllOrigins
+import spray.http.HttpHeaders.`Access-Control-Allow-Origin`
+import spray.http.HttpHeaders.`Access-Control-Allow-Headers`
+import spray.http.StatusCodes.OK
+import spray.http.StatusCodes.PermanentRedirect
 import spray.http.HttpRequest
 import spray.http.StatusCodes.{ OK, InternalServerError, PermanentRedirect }
 import spray.httpx.SprayJsonSupport._
@@ -41,9 +46,7 @@ import whisk.core.entitlement.{ Collection, EntitlementService, Privilege, Resou
 import whisk.core.entity.{ Subject, WhiskActivationStore, WhiskAuthStore, WhiskEntityStore }
 import whisk.core.entity.types.{ ActivationStore, AuthStore, EntityStore }
 import whisk.core.controller.WhiskServices.LoadBalancerReq
-import spray.http.HttpHeaders.`Access-Control-Allow-Origin`
-import spray.http.HttpHeaders.`Access-Control-Allow-Headers`
-import spray.http.AllOrigins
+
 
 /**
  * Abstract class which provides basic Directives which are used to construct route structures
@@ -99,6 +102,17 @@ protected[controller] object RestAPIVersion_v1 {
 }
 
 /**
+ * A trait for wrapping routes with headers to include in response.
+ * Useful for CORS.
+ */
+protected[controller] trait RespondWithHeaders extends Directives {
+    val allowOrigin = `Access-Control-Allow-Origin`(AllOrigins)
+    val allowHeaders = `Access-Control-Allow-Headers`("Authorization", "Content-Type")
+
+    val sendCorsHeaders = respondWithHeaders(allowOrigin, allowHeaders)
+}
+
+/**
  * An object which creates the Routes that define v1 of the whisk REST API.
  */
 protected[controller] class RestAPIVersion_v1(
@@ -108,7 +122,8 @@ protected[controller] class RestAPIVersion_v1(
     implicit val executionContext: ExecutionContext)
     extends RestAPIVersion("v1", config(whiskVersionDate), config(whiskVersionBuildno))
     with Authenticate
-    with AuthenticatedRoute {
+    with AuthenticatedRoute
+    with RespondWithHeaders {
 
     /**
      * Here is the key method: it defines the Route (route tree) which implement v1 of the REST API.
@@ -116,8 +131,6 @@ protected[controller] class RestAPIVersion_v1(
      * @Idioglossia This relies on the spray routing DSL.
      * @see http://spray.io/documentation/1.2.2/spray-routing/
      */
-    private val sendCorsHeaders = respondWithHeaders(`Access-Control-Allow-Origin`(AllOrigins), `Access-Control-Allow-Headers`("Authorization", "Content-Type"))
-
     override def routes(implicit transid: TransactionId): Route = {
         pathPrefix(apipath / apiversion) {
             sendCorsHeaders {
@@ -143,7 +156,7 @@ protected[controller] class RestAPIVersion_v1(
                     complete(OK)
                 }
             }
-        } ~ internalPublish ~ internalInvokerHealth
+        } ~ internalInvokerHealth
     }
 
     // initialize datastores
@@ -247,29 +260,6 @@ protected[controller] class RestAPIVersion_v1(
             override val executionContext: ExecutionContext)
         extends WhiskPackagesApi with WhiskServices {
         setVerbosity(verbosity)
-    }
-
-    /*
-     * Below here are private routes that used to be in the load balancer.
-     * They are still needed for use by the activator and health checker.
-     * These should go away eventually.
-     */
-
-    /**
-     * Handles POST /publish/topic URI.
-     *
-     * @param component the component name extracted from URI (invoker, or activator)
-     * @param msg the Message received via POST
-     * @return response to terminate HTTP connection with
-     */
-    def internalPublish(implicit transid: TransactionId) = {
-        (path("publish" / s"""(${Message.ACTIVATOR}|${Message.INVOKER})""".r) & post & entity(as[Message])) {
-            (component, message) =>
-                onComplete(performLoadBalancerRequest(component, message, message.transid)) {
-                    case Success(response) => complete(OK, response)
-                    case Failure(t)        => complete(InternalServerError)
-                }
-        }
     }
 
     /**

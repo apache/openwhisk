@@ -77,24 +77,12 @@ object WhiskServices extends LoadbalancerRequest {
     }
 
     /**
-     * Creates an instance of a Load Balancer service.
+     * Creates an instance of a Load Balancer component.
      *
      * @param config the configuration with loadbalancerHost defined
      * @param timeout the duration before timing out the HTTP request
      * @return function that accepts a LoadBalancerReq, posts request to load balancer
      * and returns the HTTP response from the load balancer as a future
-     */
-    def makeLoadBalancerService(config: WhiskConfig, timeout: Timeout = 10 seconds)(
-        implicit as: ActorSystem, ec: ExecutionContext): LoadBalancerReq => Future[LoadBalancerResponse] = {
-        // This connects to a separate LoadBalancer micro-service.
-        val requester = request(config.loadbalancerHost, timeout)
-        (lbr: LoadBalancerReq) => { requester(Post(publish(lbr._1), lbr._2.toJson.asJsObject)) }
-    }
-
-    /**
-     * Creates an internal load balancer component for use.
-     * The signature is different here so we can leak the LoadBalancerService out due to
-     * the Activator needing access to the LoadBalancer as a passthrough.
      */
     def makeLoadBalancerComponent(config: WhiskConfig, timeout: Timeout = 10 seconds)(
         implicit as: ActorSystem, ec: ExecutionContext): (LoadBalancerReq => Future[LoadBalancerResponse], () => JsObject) = {

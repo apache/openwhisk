@@ -74,7 +74,6 @@ case class ActivationMessage(
 }
 
 object ActivationMessage extends DefaultJsonProtocol {
-    val ACTIVATOR = "whisk"
     val INVOKER = "invoke"
 
     def publish(component: String) = s"/publish/$component"
@@ -86,10 +85,9 @@ object ActivationMessage extends DefaultJsonProtocol {
     implicit val serdes = jsonFormat6(ActivationMessage.apply)
 }
 
-
 /**
-  * When adding fields, the serdes of the companion object must be updated also.
-  */
+ * When adding fields, the serdes of the companion object must be updated also.
+ */
 case class CompletionMessage(
     override val transid: TransactionId,
     activationId: ActivationId)
