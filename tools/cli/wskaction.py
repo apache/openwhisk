@@ -78,16 +78,13 @@ class Action(Item):
         else:
             return super(Action, self).cmd(args, props)
 
+    def csvToQualifiedActions(self, props, csv):
+        ns = props['namespace']
+        actions = self.csvToList(csv)
+        return [ getQName(a, ns) for a in actions ]
+
     def create(self, args, props, update):
         exe = self.getExec(args, props)
-        if args.sequence:
-            if args.param is None:
-                args.param = []
-            ns = props['namespace']
-            actions = self.csvToList(args.artifact)
-            actions = [ getQName(a, ns) for a in actions ]
-            args.param.append([ '_actions', json.dumps(actions)])
-
         validExe = exe is not None and 'kind' in exe
         if update or validExe: # if create action, then exe must be valid
             payload = {}
@@ -164,6 +161,7 @@ class Action(Item):
     # { kind: "swift3", code: "swift3 code" }
     # { kind: "java", jar: "base64-encoded JAR", main: "FQN of main class" }
     # { kind: "blackbox", image: "docker image" }
+    # { kind: "sequence", components: list of fully qualified actions }
     def getExec(self, args, props):
         exe = {}
         if args.docker:
@@ -173,8 +171,8 @@ class Action(Item):
             existingAction = args.artifact
             exe = self.getActionExec(args, props, existingAction)
         elif args.sequence:
-            pipeAction = '/whisk.system/system/pipe'
-            exe = self.getActionExec(args, props, pipeAction)
+            exe['kind'] = 'sequence'
+            exe['components'] = self.csvToQualifiedActions(props, args.artifact)
         elif args.artifact is not None and os.path.isfile(args.artifact):
             contents = open(args.artifact, 'rb').read()
             if args.kind in ['swift:3','swift:3.0','swift:3.0.0']:
