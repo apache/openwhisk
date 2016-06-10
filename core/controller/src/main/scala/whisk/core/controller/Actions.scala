@@ -48,8 +48,7 @@ import spray.json.DefaultJsonProtocol.RootJsObjectFormat
 import spray.json.DefaultJsonProtocol.mapFormat
 import spray.json.DefaultJsonProtocol.JsValueFormat
 import spray.json.RootJsonFormat
-import spray.json.JsString
-import spray.json.JsObject
+import spray.json.{ JsArray, JsObject, JsString }
 import spray.json.pimpString
 import spray.json.pimpAny
 import spray.routing.RequestContext
@@ -64,10 +63,10 @@ import whisk.core.entity.ActivationResponse
 import whisk.core.entity.DocId
 import whisk.core.entity.DocInfo
 import whisk.core.entity.EntityName
-import whisk.core.entity.Exec
+import whisk.core.entity.{Exec, SequenceExec}
 import whisk.core.entity.MemoryLimit
 import whisk.core.entity.Namespace
-import whisk.core.entity.Parameters
+import whisk.core.entity.{ Parameters, ParameterName, ParameterValue }
 import whisk.core.entity.SemVer
 import whisk.core.entity.TimeLimit
 import whisk.core.entity.WhiskAction
@@ -353,17 +352,26 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
     /** Creates a WhiskAction from PUT content, generating default values where necessary. */
     private def make(content: WhiskActionPut, namespace: Namespace, name: EntityName)(implicit transid: TransactionId) = {
         if (content.exec.isDefined) Future successful {
+            val exec = content.exec.get
             val limits = content.limits map { l =>
                 ActionLimits(
                     l.timeout getOrElse TimeLimit(),
                     l.memory getOrElse MemoryLimit())
             } getOrElse ActionLimits()
 
+            /* This is temporary while we are making sequencing directly supported in the controller.
+             * The parameter override allows this to work with Pipecode.code
+             */
+            val parameters = exec match {
+                case seqExec: SequenceExec => Parameters("_actions", JsArray(seqExec.components map { JsString(_) }))
+                case _ => content.parameters getOrElse Parameters()
+            }
+
             WhiskAction(
                 namespace,
                 name,
-                content.exec.get, // do NOT create a default exec
-                content.parameters getOrElse Parameters(),
+                exec,
+                parameters,
                 limits,
                 content.version getOrElse SemVer(),
                 content.publish getOrElse false,

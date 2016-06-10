@@ -19,7 +19,7 @@ package whisk.core.entity
 import scala.collection.JavaConversions.asScalaSet
 import spray.json.DefaultJsonProtocol
 import spray.json.RootJsonFormat
-import spray.json.{ JsValue, JsObject, JsString }
+import spray.json.{ JsValue, JsObject, JsString, JsArray }
 import spray.json.DeserializationException
 import whisk.core.entity.ArgNormalizer.trim
 import spray.json.pimpString
@@ -76,6 +76,10 @@ protected[core] case class JavaExec(jar: String, main: String) extends Exec(Exec
 
 protected[core] case class BlackBoxExec(image: String) extends Exec(Exec.BLACKBOX)
 
+protected[core] case class SequenceExec(code: String, components: Vector[String]) extends Exec(Exec.SEQUENCE) {
+    val image = "whisk/nodejsaction"
+}
+
 protected[core] object Exec
     extends ArgNormalizer[Exec]
     with DefaultJsonProtocol {
@@ -90,6 +94,7 @@ protected[core] object Exec
     protected[core] val SWIFT3   = "swift:3"
     protected[core] val JAVA     = "java"
     protected[core] val BLACKBOX = "blackbox"
+    protected[core] val SEQUENCE = "sequence"
 
     protected[core] def js(code: String, init: String = null): Exec = NodeJSExec(trim(code), Option(init).map(_.trim))
     protected[core] def js6(code: String, init: String = null): Exec = NodeJS6Exec(trim(code), Option(init).map(_.trim))
@@ -97,11 +102,14 @@ protected[core] object Exec
     protected[core] def swift(code: String): Exec = SwiftExec(trim(code))
     protected[core] def swift3(code: String): Exec = Swift3Exec(trim(code))
     protected[core] def java(jar: String, main: String): Exec = JavaExec(trim(jar), trim(main))
+    protected[core] def sequence(components: Vector[String]): Exec = SequenceExec(Pipecode.code, components)
 
     override protected[core] implicit val serdes = new RootJsonFormat[Exec] {
         override def write(e: Exec) = e match {
             case NodeJSExec(code, None)        => JsObject("kind" -> JsString(Exec.NODEJS), "code" -> JsString(code))
             case NodeJSExec(code, Some(init))  => JsObject("kind" -> JsString(Exec.NODEJS), "code" -> JsString(code), "init" -> JsString(init))
+            case SequenceExec(code, comp)      => JsObject("kind" -> JsString(Exec.SEQUENCE), "code" -> JsString(code),
+                                                           "components" -> JsArray(comp map { JsString(_) }))
             case NodeJS6Exec(code, None)       => JsObject("kind" -> JsString(Exec.NODEJS6), "code" -> JsString(code))
             case NodeJS6Exec(code, Some(init)) => JsObject("kind" -> JsString(Exec.NODEJS6), "code" -> JsString(code), "init" -> JsString(init))
             case PythonExec(code)              => JsObject("kind" -> JsString(Exec.PYTHON), "code" -> JsString(code))
@@ -133,6 +141,17 @@ protected[core] object Exec
                         case _                => None
                     }
                     NodeJSExec(code, init)
+                case Exec.SEQUENCE =>
+                    val comp: Vector[String] = obj.getFields("components") match {
+                        case Seq(JsArray(components)) =>
+                            components map { comp => comp match {
+                                case JsString(s) => s
+                                case _ => throw new DeserializationException(s"'components' must be an array of strings")
+                            }}
+                        case Seq(_)           => throw new DeserializationException(s"'components' must be an array")
+                        case _                => throw new DeserializationException(s"'components' must be defined for sequence kind")
+                    }
+                    SequenceExec(Pipecode.code, comp)
 
                 case Exec.NODEJS6 =>
                     val code: String = obj.getFields("code") match {
@@ -185,7 +204,7 @@ protected[core] object Exec
                     }
                     BlackBoxExec(image)
 
-                case _ => throw new DeserializationException(s"kind '$kind' not one of {${Exec.NODEJS},${Exec.NODEJS6}, ${Exec.PYTHON}, ${Exec.SWIFT}, ${Exec.SWIFT3}, ${Exec.JAVA}, ${Exec.BLACKBOX}}")
+                case _ => throw new DeserializationException(s"kind '$kind' not one of {${Exec.NODEJS},${Exec.NODEJS6}, ${Exec.PYTHON}, ${Exec.SWIFT}, ${Exec.SWIFT3}, ${Exec.JAVA}, ${Exec.BLACKBOX}, ${Exec.SEQUENCE}}")
             }
         }
     }
