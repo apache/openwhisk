@@ -76,6 +76,8 @@ class ConformanceTests extends FlatSpec
         println("Shutting down store connections")
         datastore.shutdown()
         authstore.shutdown()
+        println("Shutting down HTTP connections")
+        Await.result(akka.http.scaladsl.Http().shutdownAllConnectionPools(), Duration.Inf)
         println("Shutting down actor system")
         actorSystem.terminate()
         Await.result(actorSystem.whenTerminated, Duration.Inf)

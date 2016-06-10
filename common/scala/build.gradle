@@ -21,6 +21,8 @@ dependencies {
 
     compile 'com.typesafe.akka:akka-actor_2.11:2.4.7'
     compile 'com.typesafe.akka:akka-slf4j_2.11:2.4.7'
+    compile 'com.typesafe.akka:akka-http-core_2.11:2.4.7'
+    compile 'com.typesafe.akka:akka-http-spray-json-experimental_2.11:2.4.7'
 
     compile 'log4j:log4j:1.2.16'
     compile 'commons-codec:commons-codec:1.9'

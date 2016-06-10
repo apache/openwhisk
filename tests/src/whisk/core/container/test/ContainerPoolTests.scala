@@ -82,6 +82,8 @@ class ContainerPoolTests extends FlatSpec
     override def afterAll() {
         println("Shutting down store connections")
         datastore.shutdown()
+        println("Shutting down HTTP connections")
+        Await.result(akka.http.scaladsl.Http().shutdownAllConnectionPools(), Duration.Inf)
         println("Shutting down actor system")
         actorSystem.terminate()
         Await.result(actorSystem.whenTerminated, Duration.Inf)
