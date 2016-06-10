@@ -35,27 +35,7 @@ import whisk.core.WhiskConfig
 import whisk.core.database.DocumentConflictException
 import whisk.core.database.NoDocumentException
 import whisk.core.database.test.DbUtils
-import whisk.core.entity.ActionLimits
-import whisk.core.entity.ActivationId
-import whisk.core.entity.ActivationLogs
-import whisk.core.entity.ActivationResponse
-import whisk.core.entity.AuthKey
-import whisk.core.entity.DocInfo
-import whisk.core.entity.EntityName
-import whisk.core.entity.Exec
-import whisk.core.entity.Namespace
-import whisk.core.entity.Parameters
-import whisk.core.entity.SemVer
-import whisk.core.entity.Status
-import whisk.core.entity.Subject
-import whisk.core.entity.TriggerLimits
-import whisk.core.entity.WhiskAction
-import whisk.core.entity.WhiskActivation
-import whisk.core.entity.WhiskAuth
-import whisk.core.entity.WhiskAuthStore
-import whisk.core.entity.WhiskEntityStore
-import whisk.core.entity.WhiskRule
-import whisk.core.entity.WhiskTrigger
+import whisk.core.entity._
 
 @RunWith(classOf[JUnitRunner])
 class DatastoreTests extends FlatSpec
@@ -63,7 +43,8 @@ class DatastoreTests extends FlatSpec
     with BeforeAndAfterAll
     with DbUtils {
 
-    implicit val actorSystem = ActorSystem()
+    implicit val actorSystem      = ActorSystem()
+    implicit val executionContext = actorSystem.dispatcher
 
     val namespace = Namespace("test namespace")
     val config = new WhiskConfig(WhiskEntityStore.requiredProperties)
@@ -76,6 +57,8 @@ class DatastoreTests extends FlatSpec
         println("Shutting down store connections")
         datastore.shutdown()
         authstore.shutdown()
+        println("Shutting down HTTP connections")
+        Await.result(akka.http.scaladsl.Http().shutdownAllConnectionPools(), Duration.Inf)
         println("Shutting down actor system")
         actorSystem.terminate()
         Await.result(actorSystem.whenTerminated, Duration.Inf)
@@ -182,6 +165,7 @@ class DatastoreTests extends FlatSpec
             putGetCheck(datastore, entity, WhiskActivation)
         }
     }
+
 
     it should "reject action with null arguments" in {
         val name = EntityName("bad action")

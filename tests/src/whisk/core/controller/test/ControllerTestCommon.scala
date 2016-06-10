@@ -73,6 +73,7 @@ protected trait ControllerTestCommon
     implicit val routeTestTimeout = RouteTestTimeout(90 seconds)
 
     implicit val actorSystem = ActorSystem("controllertests")
+    val executionContext = actorSystem.dispatcher
 
     val config = new WhiskConfig(WhiskActionsApi.requiredProperties)
     assert(config.isValid)
