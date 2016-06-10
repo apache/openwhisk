@@ -33,7 +33,8 @@ class WskSdkTests
     with WskTestHelpers {
 
     implicit val wskprops = WskProps()
-    val wsk = new Wsk()
+    var usePythonCLI = true
+    val wsk = new Wsk(usePythonCLI)
 
     behavior of "Wsk SDK"
 
@@ -42,7 +43,7 @@ class WskSdkTests
         dir.delete()
         dir.mkdir() should be(true)
 
-        wsk.cli(Seq("sdk", "install", "docker"), workingDir = dir).
+        wsk.cli(Seq("-i", "sdk", "install", "docker"), workingDir = dir).
             stdout should include("The docker skeleton is now installed at the current directory.")
 
         val sdk = new File(dir, "dockerSkeleton")
@@ -71,7 +72,7 @@ class WskSdkTests
     }
 
     it should "preview swift sdk" in {
-        wsk.cli(Seq("sdk", "install", "swift")).
+        wsk.cli(Seq("-i", "sdk", "install", "swift")).
             stdout should include("Swift SDK coming soon.")
     }
 

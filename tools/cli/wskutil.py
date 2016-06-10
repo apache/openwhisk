@@ -103,31 +103,31 @@ def request(method, urlString, body = '', headers = {}, auth = None, verbose = F
 
 def responseError(res, prefix = 'error:', flatten = True):
     if prefix:
-        print prefix,
+        print >> sys.stderr, prefix,
     response = None
     try:
         response = res.read()
         result = json.loads(response)
         if 'error' in result and 'code' in result:
-            print '%s (code %s)' % (result['error'], result['code'])
+            print >> sys.stderr, '%s (code %s)' % (result['error'], result['code'])
         elif 'error' in result and flatten:
-            print result['error']
+            print >> sys.stderr, result['error']
         else:
-            print getPrettyJson(result)
+            print >> sys.stderr, getPrettyJson(result)
     except:
         if res.status == 502:
-            print 'connection failed or timed out'
+            print >> sys.stderr, 'connection failed or timed out'
         elif isinstance(res, collections.Iterable):
             if 'read' in res:
-                print res.read()
+                print >> sys.stderr,  res.read()
             elif 'error' in res:
-                print res['error']
+                print >> sys.stderr,  res['error']
             else:
-                print 'unrecognized failure'
+                print >> sys.stderr, 'unrecognized failure'
         elif response is not None:
-            print response
+            print >> sys.stderr, response
         else:
-            print 'unrecognized failure'
+            print >> sys.stderr,  'unrecognized failure'
     return res.status
 
 # creates [ { key: "key name", value: "the value" }* ] from annotations.

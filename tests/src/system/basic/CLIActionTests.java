@@ -44,8 +44,8 @@ import common.WskCli;
  */
 @RunWith(ParallelRunner.class)
 public class CLIActionTests {
-
-    private static final WskCli wsk = new WskCli();
+    private static final Boolean usePythonCLI = true;
+    private static final WskCli wsk = new WskCli(usePythonCLI);
 
     public static final String[] sampleTestWords = new String[] { "SHERLOCK", "WATSON", "LESTRADE" };
     private static final int DEFAULT_WAIT = 100;  // Wait this long for logs to show up
@@ -175,9 +175,16 @@ public class CLIActionTests {
         String payload = "bob";
         String[] cmd = { "action", "invoke", "/whisk.system/samples/helloWorld", payload };
         RunResult rr = wsk.runCmd(cmd);
-        assertTrue("Expect a cli error exit code", rr.exitCode == 2);
-        assertTrue("Expect a cli usage message", rr.stderr.contains("usage: wsk [-h] [-v]"));
-        assertTrue("Expect a cli error message", rr.stderr.contains("wsk: error: unrecognized arguments: " + payload));
+
+        if (usePythonCLI) {
+            assertTrue("Expect a cli error exit code", rr.exitCode == 2);
+            assertTrue("Expect a cli usage message", rr.stderr.contains("usage: wsk [-h] [-v]"));
+            assertTrue("Expect a cli error message", rr.stderr.contains("wsk: error: unrecognized arguments: " + payload));
+        } else {
+            assertTrue("Expect a cli error exit code", rr.exitCode == 1);
+            assertTrue("Expect a cli usage message", rr.stderr.contains("Run 'wsk --help' for usage."));
+            assertTrue("Expect a cli error message", rr.stderr.contains("error: Invalid argument list."));
+        }
     }
 
     @Test(timeout=120*1000)
