@@ -422,7 +422,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         Post(s"$collectionPath/${action.name}?blocking=true&result=true") ~> sealRoute(routes(creds)) ~> check {
             status should be(OK)
             val response = responseAs[JsObject]
-            response should be(activation.getResultJson)
+            response should be(activation.resultAsJson)
         }
 
         deleteActivation(activation.docid)

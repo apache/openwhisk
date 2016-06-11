@@ -19,12 +19,7 @@ package whisk.core.connector
 import scala.util.Try
 
 import spray.json.DefaultJsonProtocol
-import spray.json.JsNumber
 import spray.json.JsObject
-import spray.json.JsValue
-import spray.json.RootJsonFormat
-import spray.json.deserializationError
-import spray.json.pimpAny
 import spray.json.pimpString
 import whisk.common.TransactionId
 import whisk.core.entity.ActivationId
@@ -92,14 +87,13 @@ object ActivationMessage extends DefaultJsonProtocol {
  */
 case class CompletionMessage(
     override val transid: TransactionId,
-    activationId: ActivationId,
     response: WhiskActivation)
     extends Message {
 
     override def serialize = CompletionMessage.serdes.write(this).compactPrint
 
     override def toString = {
-        s"$activationId"
+        s"${response.activationId}"
     }
 }
 
@@ -109,5 +103,5 @@ object CompletionMessage extends DefaultJsonProtocol {
         serdes.read(msg.parseJson)
     }
 
-    implicit val serdes = jsonFormat3(CompletionMessage.apply)
+    implicit val serdes = jsonFormat2(CompletionMessage.apply)
 }

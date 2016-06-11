@@ -30,24 +30,20 @@ protected[core] case class ActivationResponse private (
 
     def toJsonObject = ActivationResponse.serdes.write(this).asJsObject
 
-    // Extract result field as a JsObject
-    def getResultJson : JsObject = {
-        toExtendedJson.fields("result").asJsObject
-    }
-
     // Used when presenting to end-users, to hide the statusCode (which is an implementation detail),
     // and to provide a convenience boolean "success" field.
     def toExtendedJson: JsObject = {
-      val baseFields = this.toJsonObject.fields
-      JsObject((baseFields - "statusCode") ++ Seq(
-          "success" -> JsBoolean(this.isSuccess),
-          "status" -> JsString(ActivationResponse.messageForCode(statusCode))
-          ))
+        val baseFields = this.toJsonObject.fields
+        JsObject((baseFields - "statusCode") ++ Seq(
+            "success" -> JsBoolean(this.isSuccess),
+            "status" -> JsString(ActivationResponse.messageForCode(statusCode))))
 
     }
 
     def isSuccess = statusCode == ActivationResponse.Success
     def isWhiskError = statusCode == ActivationResponse.WhiskError
+    def isContainerError = statusCode == ActivationResponse.ContainerError
+    def isApplicationError = statusCode == ActivationResponse.ApplicationError
 
     override def toString = toJsonObject.compactPrint
 }
@@ -74,18 +70,18 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
     private def isSuccess(code: Int) = (code == Success)
 
     private def error(code: Int, errorValue: JsValue) = {
-      require(code == ApplicationError || code == ContainerError || code == WhiskError)
-      ActivationResponse(code, Some(JsObject(ERROR_FIELD -> errorValue)))
+        require(code == ApplicationError || code == ContainerError || code == WhiskError)
+        ActivationResponse(code, Some(JsObject(ERROR_FIELD -> errorValue)))
     }
 
     protected[core] def success(result: Option[JsValue] = None) = ActivationResponse(Success, result)
 
-    protected[core] def applicationError(errorValue: JsValue)   = error(ApplicationError, errorValue)
-    protected[core] def applicationError(errorMsg: String)      = error(ApplicationError, JsString(errorMsg))
-    protected[core] def containerError(errorValue: JsValue)     = error(ContainerError, errorValue)
-    protected[core] def containerError(errorMsg: String)        = error(ContainerError, JsString(errorMsg))
-    protected[core] def whiskError(errorValue: JsValue)         = error(WhiskError, errorValue)
-    protected[core] def whiskError(errorMsg: String)            = error(WhiskError, JsString(errorMsg))
+    protected[core] def applicationError(errorValue: JsValue) = error(ApplicationError, errorValue)
+    protected[core] def applicationError(errorMsg: String)    = error(ApplicationError, JsString(errorMsg))
+    protected[core] def containerError(errorValue: JsValue)   = error(ContainerError, errorValue)
+    protected[core] def containerError(errorMsg: String)      = error(ContainerError, JsString(errorMsg))
+    protected[core] def whiskError(errorValue: JsValue)       = error(WhiskError, errorValue)
+    protected[core] def whiskError(errorMsg: String)          = error(WhiskError, JsString(errorMsg))
 
     protected[core] implicit val serdes = jsonFormat2(ActivationResponse.apply)
 }

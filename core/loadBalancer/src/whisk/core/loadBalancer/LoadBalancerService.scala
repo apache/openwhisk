@@ -32,7 +32,7 @@ import whisk.common.ConsulKVReporter
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.common.Verbosity
-import whisk.connector.kafka.{KafkaConsumerConnector, KafkaProducerConnector}
+import whisk.connector.kafka.{ KafkaConsumerConnector, KafkaProducerConnector }
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.{ servicePort, kafkaHost, consulServer, kafkaPartitions }
 import whisk.core.connector.{ Message, ActivationMessage, CompletionMessage, LoadBalancerResponse }
@@ -92,32 +92,40 @@ class LoadBalancerService(config: WhiskConfig, verbosity: Verbosity.Level)(
         })
 
     /**
-     * When a completion message arrives, we try to fill in the result slot (ie promise)
+     * Tries to fill in the result slot (i.e., complete the promise) when a completion message arrives.
      * The promise is removed form the map when the result arrives or upon timeout.
      *
      * @param msg is the kafka message payload as Json
      */
     def processCompletion(msg: CompletionMessage) = {
         implicit val tid = msg.transid
-        val aid = msg.activationId
+        val aid = msg.response.activationId
         val response = msg.response
         queryMap.get(aid) map { promise =>
-            info(this, s"LoadBalancerService.processCompletion: Active reponse for $aid with $response")
             promise.trySuccess(response)
             queryMap -= aid
+            info(this, s"processed active response for '$aid'")
         }
     }
 
-    /*
-     * We try for a while to get a WhiskActivation from the fast path instead of hitting the DB.
+    /**
+     * Tries for a while to get a WhiskActivation from the fast path instead of hitting the DB.
      * Instead of sleep/poll, the promise is filled in when the completion messages arrives.
-     * If for some reason, there is no ack, we eventually time out and the promise is removed.
+     * If for some reason, there is no ack, promise eventually times out and the promise is removed.
      */
     def queryActivationResponse(activationId: ActivationId, transid: TransactionId): Future[WhiskActivation] = {
         implicit val tid = transid
-        val promise = Promise[WhiskActivation]
-        queryMap += activationId -> promise
-        promise.future withTimeout (30 seconds, { queryMap -= activationId; new ActiveAckTimeout(activationId) })
+        // either create a new promise or reuse a previous one for this activation if it exists
+        queryMap.getOrElseUpdate(activationId, {
+            val promise = Promise[WhiskActivation]
+            // wait up to 30 seconds - consider making this proportional to
+            // action timeout e.g., max(30, action timeout / 2)
+            promise.future withTimeout (30 seconds, {
+                queryMap -= activationId
+                new ActiveAckTimeout(activationId)
+            })
+            promise
+        }).future
     }
 
     val consumer = new KafkaConsumerConnector(config.kafkaHost, "completions", "completed")
