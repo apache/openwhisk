@@ -6,3 +6,9 @@
     path: "{{ go_cli_conf_dir }}"
     state: absent
   become: true
+
+- name: remove go cli nginx directory
+  file:
+    path: "{{ go_cli_nginx_dir }}"
+    state: absent
+  become: true
