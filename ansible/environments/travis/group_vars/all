@@ -4,6 +4,7 @@ consul_conf_dir: /tmp/consul
 whisk_logs_dir: /tmp/wsklogs
 cli_conf_dir: /tmp/cli
 go_cli_conf_dir: /tmp/go-cli
+go_cli_nginx_dir: "{{ nginx_conf_dir }}/cli/go/download"
 docker_registry: ""
 docker_dns: ""
 

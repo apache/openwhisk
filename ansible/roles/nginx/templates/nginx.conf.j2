@@ -48,5 +48,9 @@ http {
         location /OpenWhiskIOSStarterApp.zip {
             root /etc/nginx;
         }
+        location /cli/go/download {
+            autoindex on;
+            root /etc/nginx;
+        }
     }
 }
