@@ -36,18 +36,18 @@ task establishStructure(type: Copy) {
 distDocker.dependsOn(establishStructure)
 
 task distTar(dependsOn: [removeDistribution, distDocker]) << {
-    run "docker rm -f cli"
-    run "docker run --name cli whisk/cli"
-    run "docker cp cli:/cli/dist/ ${buildDir}/distributions/"
-    run "docker rm -f cli"
+    run("docker rm -f cli", true) // Ignore error as this is a cleanup measure
+    run("docker run --name cli whisk/cli")
+    run("docker cp cli:/cli/dist/ ${buildDir}/distributions/")
+    run("docker rm -f cli")
 }
 distDocker.finalizedBy(distTar)
 
-def run(cmd) {
+def run(cmd, ignoreError = false) {
     println("Executing '${cmd}'")
     def proc = cmd.execute()
-    proc.waitForProcessOutput(System.out, System.err)
-    if(proc.exitValue() != 0) {
+    proc.waitFor()
+    if(!ignoreError && proc.exitValue() != 0) {
         println("Command '${cmd}' failed with exitCode ${proc.exitValue()}")
     }
 }
