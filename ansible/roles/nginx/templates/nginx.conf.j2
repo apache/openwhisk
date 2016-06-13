@@ -37,6 +37,7 @@ http {
         }
         location /api/v1 {
             proxy_pass http://{{ groups['controllers']|first }}:{{ controller.port }};
+            proxy_read_timeout 310s;
         }
         location /openwhisk-0.1.0.tar.gz {
             root /etc/nginx;
