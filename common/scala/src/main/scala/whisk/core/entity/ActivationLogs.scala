@@ -28,7 +28,7 @@ import spray.json.RootJsonFormat
 import spray.json.deserializationError
 import spray.json.pimpAny
 
-protected[core] case class ActivationLogs(private val logs: Vector[String] = Vector()) extends AnyVal {
+protected[core] case class ActivationLogs(val logs: Vector[String] = Vector()) extends AnyVal {
     def toJsonObject = JsObject("logs" -> toJson)
     def toJson = JsArray(logs map { _.toJson })
 
