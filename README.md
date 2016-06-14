@@ -77,3 +77,4 @@ Unless required by applicable law or agreed to in writing, software distributed 
 
 Report bugs, ask questions and request features [here on GitHub](../../issues).
 
+You can also join our slack channel and chat with developers.   To get access to our slack channel, please see the instructions [here](https://github.com/openwhisk/openwhisk/wiki).
