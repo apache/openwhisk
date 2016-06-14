@@ -80,6 +80,7 @@ import whisk.core.entity.WhiskAuthStore
 import whisk.core.entity.WhiskEntity
 import whisk.core.entity.WhiskEntityStore
 import whisk.http.BasicHttpService
+import scala.concurrent.duration.Duration
 
 /**
  * A kafka message handler that invokes actions as directed by message on topic "/actions/invoke".
@@ -209,7 +210,6 @@ class Invoker(
         val name = EntityName(actionDocInfo.id().split(Namespace.PATHSEP)(1))
         val version = SemVer() // TODO: this is wrong, when the semver is passed from controller, fix this
         val payload = msg.content getOrElse JsObject()
-        val now = Instant.now(Clock.systemUTC())
         val response = Some(404, JsObject(ActivationResponse.ERROR_FIELD -> errorMsg.toJson).compactPrint)
         val contents = JsArray()
         val activation = makeWhiskActivation(tran, false, msg, name, version, payload, response, contents)
@@ -274,8 +274,12 @@ class Invoker(
                     producer.send("completed", completeMsg) map { status =>
                         info(this, s"posted completion of activation ${msg.activationId}")
                     }
+                    // Force delete the container instead of just pausing it iff the initialization failed or the container
+                    // failed otherwise. An example of a ContainerError is the timeout of an action in which case the
+                    // container is to be removed to prevent leaking
+                    val removeContainer = failedInit || response.exists { _._1 == ActivationResponse.ContainerError }
                     // We return the container last as that is slow and we want the activation to logically finish fast
-                    pool.putBack(con, failedInit)
+                    pool.putBack(con, removeContainer)
                     res
             }
             case None => { // this corresponds to the container not even starting - not /init failing
@@ -372,43 +376,43 @@ class Invoker(
 
     private def processResponseContent(isBlackbox: Boolean, response: Option[(Int, String)])(
         implicit transid: TransactionId): ActivationResponse = {
-        response map { pair =>
-            val (code, contents) = pair
-            debug(this, s"response: '$contents'")
-            val json = Try { contents.parseJson.asJsObject }
+        response map {
+            case (code, contents) =>
+                debug(this, s"response: '$contents'")
+                val json = Try { contents.parseJson.asJsObject }
 
-            json match {
-                case Success(result @ JsObject(fields)) =>
-                    // The 'error' field of the object, if it exists.
-                    val errorOpt = fields.get(ActivationResponse.ERROR_FIELD)
+                json match {
+                    case Success(result @ JsObject(fields)) =>
+                        // The 'error' field of the object, if it exists.
+                        val errorOpt = fields.get(ActivationResponse.ERROR_FIELD)
 
-                    if (code == 200) {
-                        errorOpt.map { error =>
-                            ActivationResponse.applicationError(error)
-                        }.getOrElse {
-                            // The happy path.
-                            ActivationResponse.success(Some(result))
+                        if (code == 200) {
+                            errorOpt map { error =>
+                                ActivationResponse.applicationError(error)
+                            } getOrElse {
+                                // The happy path.
+                                ActivationResponse.success(Some(result))
+                            }
+                        } else {
+                            // Any non-200 code is treated as a container failure. We still need to check whether
+                            // there was a useful error message in there.
+                            val errorContent = errorOpt getOrElse {
+                                JsString(s"The action invocation failed with the output: ${result.toString}")
+                            }
+                            ActivationResponse.containerError(errorContent)
                         }
-                    } else {
-                        // Any non-200 code is treated as a container failure. We still need to check whether
-                        // there was a useful error message in there.
-                        val errorContent = errorOpt.getOrElse {
-                            JsString(s"The action invocation failed with the output: ${result.toString}")
-                        }
-                        ActivationResponse.containerError(errorContent)
-                    }
 
-                case Success(notAnObj) =>
-                    // This should affect only blackbox containers, since our own containers should already test for that.
-                    ActivationResponse.containerError(s"the action 'result' value is not an object: ${notAnObj.toString}")
+                    case Success(notAnObj) =>
+                        // This should affect only blackbox containers, since our own containers should already test for that.
+                        ActivationResponse.containerError(s"the action 'result' value is not an object: ${notAnObj.toString}")
 
-                case Failure(t) =>
-                    if (isBlackbox)
-                        warn(this, s"response did not json parse: '$contents' led to $t")
-                    else
-                        error(this, s"response did not json parse: '$contents' led to $t")
-                    ActivationResponse.containerError("the action did not produce a valid JSON response")
-            }
+                    case Failure(t) =>
+                        if (isBlackbox)
+                            warn(this, s"response did not json parse: '$contents' led to $t")
+                        else
+                            error(this, s"response did not json parse: '$contents' led to $t")
+                        ActivationResponse.containerError("the action did not produce a valid JSON response")
+                }
         } getOrElse ActivationResponse.whiskError("failed to obtain action invocation response")
     }
 
@@ -440,11 +444,11 @@ class Invoker(
     private def makeWhiskActivation(transaction: Transaction, isBlackbox: Boolean, msg: Message, action: WhiskAction,
                                     payload: JsObject, response: Option[(Int, String)], log: JsArray)(
                                         implicit transid: TransactionId): WhiskActivation = {
-        makeWhiskActivation(transaction, isBlackbox, msg, action.name, action.version, payload, response, log)
+        makeWhiskActivation(transaction, isBlackbox, msg, action.name, action.version, payload, response, log, action.limits.timeout.duration)
     }
 
     private def makeWhiskActivation(transaction: Transaction, isBlackbox: Boolean, msg: Message, actionName: EntityName,
-                                    actionVersion: SemVer, payload: JsObject, response: Option[(Int, String)], log: JsArray)(
+                                    actionVersion: SemVer, payload: JsObject, response: Option[(Int, String)], log: JsArray, timeout: Duration = Duration.Inf)(
                                         implicit transid: TransactionId): WhiskActivation = {
         val interval = (transaction.initInterval, transaction.runInterval) match {
             case (None, Some(run))  => run
@@ -454,6 +458,13 @@ class Invoker(
                 val durMilli = init._2.toEpochMilli() - init._1.toEpochMilli()
                 (run._1.minusMillis(durMilli), run._2)
         }
+        val duration = Duration.fromNanos(java.time.Duration.between(interval._1, interval._2).toNanos)
+        val activationResponse = if (duration >= timeout) {
+            ActivationResponse.applicationError(s"action exceeded its time limits of ${timeout.toMillis} milliseconds")
+        } else {
+            processResponseContent(isBlackbox, response)
+        }
+
         WhiskActivation(
             namespace = msg.subject.namespace,
             name = actionName,
@@ -464,7 +475,7 @@ class Invoker(
             cause = msg.cause,
             start = interval._1,
             end = interval._2,
-            response = processResponseContent(isBlackbox, response),
+            response = activationResponse,
             logs = ActivationLogs.serdes.read(log))
     }
 
