@@ -154,7 +154,8 @@ if __name__ == "__main__":
         ("build.xml",  [ line_checks([ no_tabs, no_trailing_spaces, eol_at_eof ]) ]),
         ("deploy.xml", [ line_checks([ no_tabs, no_trailing_spaces, eol_at_eof ]) ]),
         ("*.gradle",   [ line_checks([ no_tabs, no_trailing_spaces, eol_at_eof ]) ]),
-        ("*.md",       [ line_checks([ no_tabs, eol_at_eof ]) ])
+        ("*.md",       [ line_checks([ no_tabs, eol_at_eof ]) ]),
+        ("*.go",       [ has_block_copyright, line_checks([ no_tabs, no_trailing_spaces, eol_at_eof ]) ])
     ]
 
     all_errors = []

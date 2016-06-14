@@ -38,3 +38,6 @@ node_modules
 
 # Vagrant
 .vagrant*
+
+# IntelliJ
+.idea
