@@ -32,7 +32,7 @@ import common.WskCli;
  */
 @RunWith(ParallelRunner.class)
 public class SlackTests {
-  private static final Boolean usePythonCLI = true;
+  private static final Boolean usePythonCLI = false;
   private static final WskCli wsk = new WskCli(usePythonCLI);
 
   private static final int DEFAULT_WAIT = 100;

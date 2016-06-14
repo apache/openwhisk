@@ -28,6 +28,7 @@ package common;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.util.logging.Logger;
+import java.lang.System.*;
 
 /**
  * A generic process launcher.
@@ -80,6 +81,7 @@ public class BasicLauncher extends Launcher {
      * indicates no timeout.
      */
     public int launch(int timeoutMilli) throws IllegalArgumentException, IOException {
+        System.out.println(getCmd());
         Process p = spawnProcess(cmds);
         Thread d1 = isCaptureErr() ? captureStdErr(p) : drainStdErr(p);
         Thread d2 = isCaptureOutput() ? captureStdOut(p) : drainStdOut(p);

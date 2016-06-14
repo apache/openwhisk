@@ -27,6 +27,7 @@ function createPackage() {
     fi
     export WSK_CONFIG_FILE= # override local property file to avoid namespace clashes
     "${CMD_ARRAY[@]}" &
+    echo ${CMD_ARRAY[*]}
     PID=$!
     PIDS+=($PID)
     echo "Creating package $PACKAGE_NAME with pid $PID"
@@ -43,6 +44,8 @@ function install() {
     fi
     export WSK_CONFIG_FILE= # override local property file to avoid namespace clashes
     "${CMD_ARRAY[@]}" &
+        echo ${CMD_ARRAY[*]}
+
     PID=$!
     PIDS+=($PID)
     echo "Installing $ACTION_NAME with pid $PID"

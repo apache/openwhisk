@@ -54,7 +54,7 @@ class PackageTests
     with WskTestHelpers {
 
     implicit val wskprops = WskProps()
-    var usePythonCLI = true
+    var usePythonCLI = false
     val wsk = new Wsk(usePythonCLI)
     val LOG_DELAY = 80 seconds
 

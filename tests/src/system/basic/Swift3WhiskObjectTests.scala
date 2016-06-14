@@ -39,7 +39,7 @@ class Swift3WhiskObjectTests
     with JsHelpers {
 
     implicit val wskprops = WskProps()
-    var usePythonCLI = true
+    var usePythonCLI = false
     val wsk = new Wsk(usePythonCLI)
 
     behavior of "Swift 3 Whisk backend API"
