@@ -46,7 +46,7 @@ protected[entity] class TimeLimit private (val duration: FiniteDuration) extends
 protected[core] object TimeLimit extends ArgNormalizer[TimeLimit] {
     protected[entity] val MIN_DURATION = 100 milliseconds
     protected[entity] val MAX_DURATION = 5 minutes
-    protected[entity] val STD_DURATION = 1 minutes
+    protected[entity] val STD_DURATION = 1 minute
 
     /** Gets TimeLimit with default duration */
     protected[core] def apply(): TimeLimit = new TimeLimit(STD_DURATION)

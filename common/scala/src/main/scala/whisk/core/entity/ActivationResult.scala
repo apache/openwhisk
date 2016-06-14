@@ -52,10 +52,10 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
     /* The field name that is universally recognized as the marker of an error, from the application or otherwise. */
     val ERROR_FIELD: String = "error"
 
-    private val Success          = 0
-    private val ApplicationError = 1
-    private val ContainerError   = 2
-    private val WhiskError       = 3
+    val Success          = 0
+    val ApplicationError = 1
+    val ContainerError   = 2
+    val WhiskError       = 3
 
     private def messageForCode(code: Int) = {
         require(code >= 0 && code <= 3)

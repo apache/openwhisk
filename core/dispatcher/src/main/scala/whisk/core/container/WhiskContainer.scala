@@ -27,6 +27,7 @@ import whisk.common.LoggingMarkers._
 import whisk.common.TransactionId
 import whisk.core.entity.ActionLimits
 import scala.util.Try
+import whisk.core.entity.ActivationResponse
 
 /**
  * Reifies a whisk container - one that respects the whisk container API.
@@ -127,7 +128,8 @@ class WhiskContainer(
                 val http = new HttpUtils(connection, host)
                 val (code, bytes) = http.dopost(endpoint, msg, Map(), timeout)
                 Try { connection.close() }
-                Some(code, new String(bytes, "UTF-8"))
+                val returnCode = if (code == -1) ActivationResponse.ContainerError else code
+                Some(returnCode, new String(bytes, "UTF-8"))
             } catch {
                 case t: Throwable => {
                     warn(this, s"Exception while posting to action container ${t.getMessage}")
