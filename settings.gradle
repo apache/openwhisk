@@ -2,6 +2,7 @@ include 'common:scala'
 
 include 'core:controller'
 include 'core:dispatcher'
+include 'core:loadBalancer'
 include 'core:nodejsActionBase'
 include 'core:nodejsAction'
 include 'core:nodejs6Action'
