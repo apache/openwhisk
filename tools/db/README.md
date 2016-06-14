@@ -5,32 +5,22 @@ Before you can build and deploy OpenWhisk, you must configure a backing datastor
 
 #### Using CouchDB
 
-If you are using your own installation of CouchDB, make a note of the host, port, username and password. Then within your `openwhisk` directory, copy the file `template-couchdb-local.env` to `couchdb-local.env` and edit as appropriate. Note that:
+If you are using your own installation of CouchDB, make a note of the host, port, username and password. Then provision a [custom vagrant box](../vagrant/custom/README.md) by following the instructions for a persistent CouchDB. In case you already have a vagrant box, maybe using default settings you can simply adjust the existing db settings. Within your `openwhisk/ansible` directory, edit the file `db_local.ini` as appropriate. Note that:
 
    * the username must have administrative rights
    * the CouchDB instance must be accessible over `http` or `https` (the latter requires a valid certificate)
    * the CouchDB instance must set `reduce_limit` on views to `false` (see [this](couchdb/createAdmin.sh#L55) for how to do this via REST)
-   * make sure you do not have a `cloudant-local.env` file, as it takes precedence over the CouchDB configuration
- 
+
 
 ##### Using an ephemeral CouchDB container
 
 To try out OpenWhisk without managing your own CouchDB installation, you can start a CouchDB instance in a container as part of the OpenWhisk deployment. We advise that you use this method only as a temporary measure. Please note that:
 
   * no data will persist between two creations of the container
-  * you will need to run the creation script every time you `clean` or `teardown` the system (see below)
-  * you will need to initialize the datastore each time (`tools/db/createImmportalDBs.sh`, see below)
+  * you will need to run `ansible-playbook couchdb.yml` every time you `clean` or `teardown` the system (see below)
+  * you will need to initialize the datastore each time (`ansible-playbook initdb.yml`, see below)
 
-```
-  # Work out of your openwhisk directory
-  cd /your/path/to/openwhisk
-
-  # Start a CouchDB container and create an admin account
-  tools/db/couchdb/start-couchdb-box.sh whisk_admin some_passw0rd
-
-  # The script above automatically creates couchdb-local.env
-  cat couchdb-local.env
-```
+Detailed instructions are found in the [ansible readme](../../ansible/README.md)
 
 #### Using Cloudant
 
@@ -54,29 +44,26 @@ When `cf` is set up, issue the following commands to create a Cloudant database.
   cf service-key cloudant-for-openwhisk openwhisk
   ```
 
-Make note of the Cloudant `username` and `password` from the last `cf` command so you can create the required `cloudant-local.env`.
+Make note of the Cloudant `username` and `password` from the last `cf` command so you can create the required `db_local.ini`.
 
 ##### Create a Cloudant account directly with Cloudant
 
 As an alternative to IBM Bluemix, you may sign up for an account with [Cloudant](https://cloudant.com) directly. Cloudant is free to try and offers a metered pricing where the first $50 of usage is free each month. The signup process is straightforward so it is not described here in detail.
-Once you have created a Cloudant account, make note of the account `username` and `password` from the Cloudant dashboard, so you can create the required `cloudant-local.env`.
+Once you have created a Cloudant account, make note of the account `username` and `password` from the Cloudant dashboard, so you can create the required `db_local.ini`.
 
 ##### Setting the Cloudant credentials 
- 
-Within your `openwhisk` directory, copy the file `template-cloudant-local.env` to `cloudant-local.env` and edit as appropriate.
 
-```
-# Work out of your openwhisk directory
-cd $HOME/openwhisk 
+Provision a [custom vagrant box](../vagrant/custom/README.md) by following the instructions for cloudant.
 
-# Make a copy of the template
-cp template-cloudant-local.env cloudant-local.env
+If you alread have an existing box, you can simply modify the settings in the VM. Within your `openwhisk/ansible` directory, edit the file `db_local.ini` as appropriate.
 
-# Set the credentials for username and password
-sed -i.bak s/OPEN_WHISK_DB_USERNAME=/OPEN_WHISK_DB_USERNAME=username/g cloudant-local.env
-sed -i.bak s/OPEN_WHISK_DB_PASSWORD=/OPEN_WHISK_DB_PASSWORD=password/g cloudant-local.env
-```
+Note that:
 
+   * the protocol for cloudant is always https
+   * the port is always 443
+   * the host has the schema `<your cloudant user>.cloudant.com`
+
+More details on customizing `db_local.ini` are described in the [ansible readme](../../ansible/README.md)
 
 #### Initializing database for authorization keys
 
@@ -86,34 +73,46 @@ If you are [using an ephemeral CouchDB container](#using-an-ephemeral-couchdb-co
 
   ```
   # Work out of your openwhisk directory
-  cd /your/path/to/openwhisk
+  cd /your/path/to/openwhisk/ansible
   
   # Initialize datastore containing authorization keys
-  tools/db/createImmortalDBs.sh
+  ansible-playbook initdb.yml
   ```
 
-The script will ask you to confirm this database initialization.
+The playbook will create the required datastructures to prepare the account to be used.
+Don't worry if you are unsure whether or not the db has already been initialized. The playbook won't perform any action on a db that is already prepared.
+
+The output of the playbook will look similar to this (using CouchDB in this example):
 
   ```
-  About to drop and recreate database 'subjects' in this Cloudant account:
-  <cloudant username>
-  This will wipe the previous database if it exists and this is not reversible.
-  Respond with 'DROPIT' to continue and anything else to abort.
-  Are you sure?
-  ```
+  PLAY [ansible] *****************************************************************
 
-Confirm initialization by typing `DROPIT`. The output should resemble the following.
+  TASK [setup] *******************************************************************
+  Tuesday 14 June 2016  16:33:51 +0200 (0:00:00.017)       0:00:00.017 **********
+  ok: [ansible]
 
-  ```
-  subjects
-  curl -s --user ... -X DELETE https://<cloudant-username>.cloudant.com/subjects
-  {"error":"not_found","reason":"Database does not exist."}
-  curl -s --user ... -X PUT https://<cloudant-username>.cloudant.com/subjects
-  {"ok":true}
-  {"ok":true,"id":"_design/subjects","rev":"1-..."}
-  Create immortal key for guest ...
-  {"ok":true,"id":"guest","rev":"1-..."}
-  Create immortal key for whisk.system ...
-  {"ok":true,"id":"whisk.system","rev":"1-..."}
+  TASK [include] *****************************************************************
+  Tuesday 14 June 2016  16:33:51 +0200 (0:00:00.262)       0:00:00.280 **********
+  included: /Users/djall/hoang/openwhisk/ansible/tasks/initdb.yml for ansible
+
+  TASK [check if the immortal subjects db with CouchDB exists?] ******************
+  Tuesday 14 June 2016  16:33:51 +0200 (0:00:00.060)       0:00:00.340 **********
+  ok: [ansible]
+
+  TASK [create immortal subjects db with CouchDB] ********************************
+  Tuesday 14 June 2016  16:33:51 +0200 (0:00:00.329)       0:00:00.670 **********
+  ok: [ansible]
+
+  TASK [recreate the "full" index on the "auth" database] ************************
+  Tuesday 14 June 2016  16:33:52 +0200 (0:00:00.166)       0:00:00.837 **********
+  ok: [ansible]
+
+  TASK [recreate necessary "auth" keys] ******************************************
+  Tuesday 14 June 2016  16:33:52 +0200 (0:00:00.162)       0:00:01.000 **********
+  ok: [ansible] => (item=guest)
+  ok: [ansible] => (item=whisk.system)
+
+  PLAY RECAP *********************************************************************
+  ansible                    : ok=6    changed=0    unreachable=0    failed=0
   ```
 

@@ -74,10 +74,9 @@ When making changes, rebuild and deploy the system with:
 ```
 To teardown OpenWhisk and remove all Docker containers, run `vagrant ssh -- ant teardown`. You can then redeploy the system with `ant deploy`. To do both at once, use `ant redeploy`.
 
-**Tip** If you have problems with data stores check that `cloudant-local.env` or `couchdb-local.env` is present (inside the vm).
-If the file `cloudant-local.env` is present the `couchdb-local.env` is ignored.
+**Tip** If you have problems with data stores check that `ansible/db_local.ini` is present (inside the vm).
 
-**Tip** To initialize the data store from scratch run `../tools/db/createImmortalDBs.sh` inside the vm. Note that using an ephemeral CouchDB (Option 3) requires alternate steps.
+**Tip** To initialize the data store from scratch run `ansible-playbook initdb.yml` inside the vm as described in [ansible setup](../../../ansible/README.md).
 
 Once deployed, several Docker containers will be running in your virtual machine.
 You can check that containers are running by using the docker cli with the command `vagrant ssh -- docker ps`.
@@ -114,7 +113,7 @@ vagrant ssh -- ip route get 8.8.8.8 | awk '{print $NF; exit}'
 From your _host_, configure `wsk` to use your Vagrant-hosted OpenWhisk deployment and run the "echo" action again to test.
 ```
 # Set your OpenWhisk Namespace and Authorization Key.
-  wsk property set --apihost `vagrant ssh -- ip route get 8.8.8.8 | awk '{print $NF; exit}'` --namespace guest --auth `vagrant ssh -- cat openwhisk/config/keys/auth.guest`
+  wsk property set --apihost `vagrant ssh -- ip route get 8.8.8.8 | awk '{print $NF; exit}'` --namespace guest --auth `vagrant ssh -- cat ansible/files/auth.guest`
 
 # Run the hello sample action
   wsk action invoke /whisk.system/samples/echo -p message hello --blocking --result
@@ -131,23 +130,12 @@ configure the CLI with new values for __apihost__, __namespace__, and __auth__ k
 OpenWhisk includes a _self-signed_ SSL certificate and the `wsk` CLI allows untrusted certificates.
 
   ```
-  ls config/keys/openwhisk-self-*
-  config/keys/openwhisk-self-cert.pem
-  config/keys/openwhisk-self-key.pem
+  ls ansible/roles/nginx/files/openwhisk-*
+  ansible/roles/nginx/files/openwhisk-cert.pem
+  ansible/roles/nginx/files/openwhisk-key.pem
   ```
 
-These are configured in `config/localEnv.sh`
-
-  ```
-  #
-  # SSL certificate used by router
-  #
-  WHISK_SSL_CERTIFICATE=config/keys/openwhisk-self-cert.pem
-  WHISK_SSL_KEY=config/keys/openwhisk-self-key.pem
-  WHISK_SSL_CHALLENGE=openwhisk
-  ```
-
-Do not use these certificates in production: add your own and modify
+Do not use these certificates in production: replace with your own and modify
 the configuration to use trusted certificates instead.
 
 

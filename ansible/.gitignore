@@ -1,1 +1,3 @@
 environments/mac/hosts
+db_local.ini
+tmp
