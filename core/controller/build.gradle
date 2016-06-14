@@ -13,7 +13,6 @@ repositories {
 dependencies {
     compile 'org.scala-lang:scala-library:2.11.7'
     compile project(':common:scala')
-    compile project(':core:loadBalancer')
 }
 
 mainClassName = "whisk.core.controller.Controller"
