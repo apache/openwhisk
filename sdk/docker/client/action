@@ -5,4 +5,4 @@
 # in this folder.  For more info, see the Readme.md in 
 # parent directory.
 #
-echo "Hello $1 from custom binary"
+echo '{ "msg": "Hello from bash script!" }'

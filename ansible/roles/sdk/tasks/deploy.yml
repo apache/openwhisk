@@ -13,7 +13,7 @@
   register: tmpdir
 
 - name: build blackbox container artifact
-  local_action: shell "tar" "-czf" "{{tmpdir.stdout}}/blackbox-0.1.0.tar.gz" "dockerSkeleton" chdir="{{ openwhisk_home }}/sdk/docker/"
+  local_action: shell "tar" "--exclude=build.gradle" "--transform" "s/^docker/dockerSkeleton/" "-czf" "{{tmpdir.stdout}}/blackbox-0.1.0.tar.gz" "docker" chdir="{{ openwhisk_home }}/sdk/"
 
 - name: copy blackbox container artifact to nginx
   copy:

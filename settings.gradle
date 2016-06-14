@@ -16,6 +16,7 @@ include 'services:registrator'
 include 'services:zookeeper'
 
 include 'tools:cli'
+include 'sdk:docker'
 
 include 'tests'
 

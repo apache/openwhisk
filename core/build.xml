@@ -22,7 +22,7 @@
     <target name="deploySlaves">
         <var file="whisk.properties" />
         <exec executable="${python.27}" failonerror="true">
-            <arg line="${openwhisk.home}/tools/deploy/deployInvoker -d ${basedir} -t ${docker.image.tag}"/>
+            <arg line="'${openwhisk.home}/tools/deploy/deployInvoker' -d '${basedir}' -t ${docker.image.tag}"/>
         </exec>
     </target>
 </project>

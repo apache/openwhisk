@@ -38,7 +38,7 @@ distDocker.dependsOn(establishStructure)
 task distTar(dependsOn: [removeDistribution, distDocker]) << {
     run("docker rm -f cli", true) // Ignore error as this is a cleanup measure
     run("docker run --name cli whisk/cli")
-    run("docker cp cli:/cli/dist/ ${buildDir}/distributions/")
+    run("docker cp cli:/cli/dist/ \"${buildDir}/distributions/\"")
     run("docker rm -f cli")
 }
 distDocker.finalizedBy(distTar)

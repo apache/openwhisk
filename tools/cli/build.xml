@@ -12,8 +12,8 @@
         <!-- generate default.props in source directory.
              someday this should be nuked - legacy of old process -->
         <exec executable="/bin/bash" failonerror="true" output="${openwhisk.home}/tools/cli/default.props">
-            <arg line="${openwhisk.home}/tools/cli/generateDefaultProps.sh" />
-            <arg line="${basedir}" />
+            <arg line="'${openwhisk.home}/tools/cli/generateDefaultProps.sh'" />
+            <arg line="'${basedir}'" />
         </exec>
 
         <!-- copy files needed to build image to a scratch space -->
@@ -37,8 +37,8 @@
 
         <!-- generate default.props -->
         <exec executable="/bin/bash" failonerror="true" output="${cli.build.dir}/build/tmp/openwhisk/default.props">
-            <arg line="${openwhisk.home}/tools/cli/generateDefaultProps.sh" />
-            <arg line="${basedir}" />
+            <arg line="'${openwhisk.home}/tools/cli/generateDefaultProps.sh'" />
+            <arg line="'${basedir'}" />
         </exec>
 
         <!-- Python packaging expects .py extensions. -->
@@ -47,7 +47,7 @@
         <move file="${cli.build.dir}/build/tmp/__init__.py" todir="${cli.build.dir}/build/tmp/openwhisk" />
         <!-- build package for distribution -->
         <exec executable="/bin/bash" failonerror="true">
-            <arg line="${openwhisk.home}/tools/docker/dockerWithRetry.sh ${docker.timeout.long}" />
+            <arg line="'${openwhisk.home}/tools/docker/dockerWithRetry.sh' ${docker.timeout.long}" />
             <arg line="build -t whisk/cli '${cli.build.dir}'" />
         </exec>
         <exec executable="docker" failonerror="false" output="/dev/null" error="/dev/null">

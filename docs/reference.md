@@ -276,7 +276,7 @@ The action input "payload" parameter is passed as a positional argument to the b
 
 The Docker skeleton is a convenient way to build OpenWhisk-compatible Docker images. You can install the skeleton with the `wsk sdk install docker` CLI command.
 
-The main binary program should be copied to the `dockerSkeleton/client/clientApp` file. Any companion files or library can reside in the `dockerSkeleton/client` directory.
+The main binary program should be copied to the `dockerSkeleton/client/action` file. Any companion files or library can reside in the `dockerSkeleton/client` directory.
 
 You can also include any compilation steps or dependencies by modifying the `dockerSkeleton/Dockerfile`. For example you can install Python if your action is a Python script.
 
