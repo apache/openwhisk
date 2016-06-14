@@ -1,0 +1,380 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dialog xsi:noNamespaceSchemaLocation="WatsonDialogDocument_1.0.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <flow>
+        <folder label="Main">
+            <output>
+                <prompt selectionType="RANDOM">
+                    <item>Hi, I'm Watson! I can help you order a pizza, what size would you like?</item>
+                </prompt>
+                <goto ref="getUserInput_2442994"/>
+            </output>
+            <output>
+                <prompt selectionType="SEQUENTIAL">
+                    <item>What size would you like?</item>
+                </prompt>
+                <getUserInput id="getUserInput_2442994">
+                    <search ref="folder_2442998"/>
+                    <default>
+                        <output>
+                            <prompt selectionType="RANDOM">
+                                <item>I'm sorry I did not understand your question. All I can do is help you order a pizza...</item>
+                                <item>I did not quite get that.</item>
+                                <item>I didnt grasp what you said.</item>
+                                <item>I'm not following you at the moment.</item>
+                            </prompt>
+                        </output>
+                    </default>
+                </getUserInput>
+            </output>
+        </folder>
+        <folder label="Library">
+            <folder label="Live Content" id="folder_2442998">
+                <input>
+                    <grammar>
+                        <item>place an order</item>
+                        <item>$ place * order</item>
+                        <item>$ order another</item>
+                    </grammar>
+                    <output>
+                        <prompt selectionType="RANDOM">
+                            <item>Ok, let's do it!</item>
+                        </prompt>
+                    </output>
+                </input>
+                <folder label="Greetings">
+                    <input>
+                        <grammar>
+                            <item>How did you sleep?</item>
+                            <item>did you sleep well</item>
+                            <item>* did you sleep</item>
+                            <item>did you sleep *</item>
+                            <item>* did you sleep *</item>
+                            <item>$ How did you sleep?</item>
+                            <item>$ did you have a nice sleep</item>
+                        </grammar>
+                        <output>
+                            <prompt selectionType="RANDOM">
+                                <item>I slept very well thanks. You?</item>
+                                <item>I slept deeply, and dreamed AI dreams. What do you dream?</item>
+                                <item>I rarely sleep as I spend all my time chatting here.</item>
+                                <item>I don't care for sleep much as I prefer to chat here online.</item>
+                            </prompt>
+                        </output>
+                    </input>
+                </folder>
+                <folder label="Check Out">
+                    <if id="profileCheck_2469744">
+                        <cond varName="method" operator="HAS_VALUE"/>
+                        <cond varName="size" operator="HAS_VALUE"/>
+                        <if>
+                            <cond varName="topping4" operator="HAS_VALUE"/>
+                            <output>
+                                <prompt selectionType="RANDOM">
+                                    <item>Ok, I have one {size} {topping1}, {topping2}, {topping3} &amp; {topping4} pizza for {method}. Is that correct?</item>
+                                </prompt>
+                                <goto ref="getUserInput_2469815"/>
+                            </output>
+                        </if>
+                        <if>
+                            <cond varName="topping3" operator="HAS_VALUE"/>
+                            <output>
+                                <prompt selectionType="RANDOM">
+                                    <item>Ok, I have one {size} {topping1}, {topping2} &amp; {topping3} pizza for {method}. Is that correct?</item>
+                                </prompt>
+                                <goto ref="getUserInput_2469815"/>
+                            </output>
+                        </if>
+                        <if>
+                            <cond varName="topping2" operator="HAS_VALUE"/>
+                            <output>
+                                <prompt selectionType="RANDOM">
+                                    <item>Ok, I have one {size} {topping1} &amp; {topping2} pizza for {method}. Is that correct?
+</item>
+                                </prompt>
+                                <goto ref="getUserInput_2469815"/>
+                            </output>
+                        </if>
+                        <if>
+                            <cond varName="topping1" operator="HAS_VALUE"/>
+                            <output>
+                                <prompt selectionType="RANDOM">
+                                    <item>Ok, I have one {size} {topping1} pizza for {method}. Is that correct?
+</item>
+                                </prompt>
+                                <goto ref="getUserInput_2469815"/>
+                            </output>
+                        </if>
+                        <output>
+                            <prompt selectionType="RANDOM">
+                                <item>Ok, I have one {size} pizza with no toppings for {method}. Is that correct?</item>
+                            </prompt>
+                            <getUserInput id="getUserInput_2469815">
+                                <input>
+                                    <grammar>
+                                    <item>yes</item>
+                                    <item>$ yes</item>
+                                    <item>$ yep</item>
+                                    <item>$ yup</item>
+                                    <item>$ good</item>
+                                    </grammar>
+                                    <output>
+                                    <prompt selectionType="RANDOM">
+                                    <item>Sounds good! Your pizza will be ready in 20 minutes. Do you want to order another?</item>
+                                    </prompt>
+                                    <getUserInput>
+                                    <input>
+                                    <grammar>
+                                    <item>$ yes</item>
+                                    <item>$ yeah</item>
+                                    <item>$ yep</item>
+                                    <item>$ yup</item>
+                                    </grammar>
+                                    <output>
+                                    <prompt selectionType="RANDOM">
+                                    <item>Okay, let's make a pizza! What size would you like?</item>
+                                    </prompt>
+                                    <action
+                                    varName="method" operator="SET_TO_BLANK"/>
+                                    <action
+                                    varName="size" operator="SET_TO_BLANK"/>
+                                    <action
+                                    varName="topping1" operator="SET_TO_BLANK"/>
+                                    <action
+                                    varName="topping2" operator="SET_TO_BLANK"/>
+                                    <action
+                                    varName="topping3" operator="SET_TO_BLANK"/>
+                                    <action
+                                    varName="topping4" operator="SET_TO_BLANK"/>
+                                    <goto ref="getUserInput_2442994"/>
+                                    </output>
+                                    </input>
+                                    <input>
+                                    <grammar>
+                                    <item>$ no</item>
+                                    </grammar>
+                                    <output>
+                                    <prompt selectionType="RANDOM">
+                                    <item>Okay, thank you for your order! Just let me know if you want to place another order.</item>
+                                    </prompt>
+                                    <goto ref="getUserInput_2442994">
+                                    <action
+                                    varName="method" operator="SET_TO_BLANK"/>
+                                    <action
+                                    varName="size" operator="SET_TO_BLANK"/>
+                                    <action
+                                    varName="topping1" operator="SET_TO_BLANK"/>
+                                    <action
+                                    varName="topping2" operator="SET_TO_BLANK"/>
+                                    <action
+                                    varName="topping3" operator="SET_TO_BLANK"/>
+                                    <action
+                                    varName="topping4" operator="SET_TO_BLANK"/>
+                                    </goto>
+                                    </output>
+                                    </input>
+                                    </getUserInput>
+                                    </output>
+                                </input>
+                                <input>
+                                    <grammar>
+                                    <item>no</item>
+                                    <item>$ no</item>
+                                    </grammar>
+                                    <output>
+                                    <prompt selectionType="RANDOM">
+                                    <item>Oops! Let's start over. What size would you like?</item>
+                                    </prompt>
+                                    <goto ref="getUserInput_2442994">
+                                    <action varName="topping2" operator="SET_TO_BLANK"/>
+                                    <action varName="topping3" operator="SET_TO_BLANK"/>
+                                    <action varName="topping4" operator="SET_TO_BLANK"/>
+                                    <action varName="method" operator="SET_TO_BLANK"/>
+                                    <action varName="size" operator="SET_TO_BLANK"/>
+                                    <action varName="topping1" operator="SET_TO_BLANK"/>
+                                    </goto>
+                                    </output>
+                                </input>
+                            </getUserInput>
+                        </output>
+                    </if>
+                    <output>
+                        <prompt selectionType="RANDOM">
+                            <item>Your order is incomplete. </item>
+                        </prompt>
+                        <if>
+                            <cond varName="size" operator="IS_BLANK"/>
+                            <output>
+                                <prompt selectionType="RANDOM">
+                                    <item>What size would you like?</item>
+                                </prompt>
+                                <getUserInput>
+                                    <input>
+                                    <grammar>
+                                    <item>$ (Size)={size}</item>
+                                    </grammar>
+                                    <output>
+                                    <prompt/>
+                                    <action varName="size" operator="SET_TO">{size.value:main}</action>
+                                    <goto ref="profileCheck_2469744"/>
+                                    </output>
+                                    </input>
+                                </getUserInput>
+                            </output>
+                        </if>
+                        <if>
+                            <cond varName="method" operator="IS_BLANK"/>
+                            <goto ref="output_2469831"/>
+                        </if>
+                    </output>
+                </folder>
+            </folder>
+            <folder label="Storage"/>
+        </folder>
+        <folder label="Global"/>
+        <folder label="Concepts">
+            <concept>
+                <grammar>
+                    <item>No</item>
+                    <item>absolutely not</item>
+                    <item>apparently not</item>
+                    <item>Are not</item>
+                    <item>By no means</item>
+                </grammar>
+            </concept>
+            <concept description="OI 15/7/11: Item &quot;Sure&quot; was removed from this list as it was causing issues with matches when two different input nodes had &quot;I am not sure&quot; and &quot;$ yes&quot;.  OI: 4/8/11: &quot;fine&quot; and &quot;Good&quot; were removed as well  MO 18/10/12 removed &quot;all right&quot; and &quot;alright&quot; as they were causing conflict in perfect boyfriend  MO 29/10/12 removed &quot;always&quot;">
+                <grammar>
+                    <item>yes</item>
+                    <item>Absolutely</item>
+                    <item>absolutely correct</item>
+                    <item>absolutely yes</item>
+                </grammar>
+            </concept>
+            <concept>
+                <grammar>
+                    <item>I would like</item>
+                    <item>I want</item>
+                    <item>Give me</item>
+                    <item>Lets do</item>
+                    <item>I choose</item>
+                </grammar>
+            </concept>
+        </folder>
+    </flow>
+    <entities>
+        <entity name="Size">
+            <value name="small" value="Small">
+                <grammar>
+                    <item>sm</item>
+                    <item>smallest</item>
+                    <item>tiny</item>
+                    <item>little</item>
+                </grammar>
+            </value>
+            <value name="Medium" value="Medium">
+                <grammar>
+                    <item>Med</item>
+                </grammar>
+            </value>
+            <value name="large" value="Large">
+                <grammar>
+                    <item>lg</item>
+                    <item>lrg</item>
+                    <item>big</item>
+                </grammar>
+            </value>
+            <value name="extra large" value="extra large">
+                <grammar>
+                    <item>xl</item>
+                    <item>xlrg</item>
+                    <item>x-large</item>
+                    <item>xtra</item>
+                    <item>huge</item>
+                    <item>biggest</item>
+                </grammar>
+            </value>
+        </entity>
+    </entities>
+    <constants>
+        <var_folder name="Home">
+            <var_folder name="General" type="CONST">
+                <var name="VA" type="TAG" description="Name of the virtual agent">Peppe</var>
+            </var_folder>
+        </var_folder>
+    </constants>
+    <variables>
+        <var_folder name="Home">
+            <var name="topping1" type="TEXT"/>
+            <var name="topping2" type="TEXT"/>
+            <var name="topping3" type="TEXT"/>
+            <var name="topping4" type="TEXT"/>
+            <var name="sauce" type="TEXT" description="Describes the type of sauce to top a pizza with"/>
+            <var name="crust" type="TEXT"/>
+            <var name="size" type="TEXT" description="small, medium, large, or extra large"/>
+            <var name="method" type="TEXT" description="pickup or delivery"/>
+        </var_folder>
+    </variables>
+    <settings>
+        <setting name="USERIDNUM" type="USER">759</setting>
+        <setting name="EMAIL" type="USER"></setting>
+        <setting name="PASSWORD" type="USER"></setting>
+        <setting name="FIRSTNAME" type="USER">IBM</setting>
+        <setting name="LASTNAME" type="USER">Watson</setting>
+        <setting name="COUNTRY" type="USER">USA</setting>
+        <setting name="STATE" type="USER">NY State</setting>
+        <setting name="CITY" type="USER">NY</setting>
+        <setting name="BDAY" type="USER">1</setting>
+        <setting name="BMONTH" type="USER">1</setting>
+        <setting name="BYEAR" type="USER">2000</setting>
+        <setting name="SEX" type="USER">Male</setting>
+        <setting name="DISPLAYNAME" type="USER">IBM Watson</setting>
+        <setting name="PROVIDESECURITYPASSWORD" type="USER">false</setting>
+        <setting name="SECURITYPASSWORD" type="USER"></setting>
+        <setting name="SHOWPERSPROFILE" type="USER">false</setting>
+        <setting name="USETYPE" type="USER">0</setting>
+        <setting name="DATEJOINED" type="USER">2015-08-07 16:27:53.281</setting>
+        <setting name="LASTLOGIN" type="USER">2015-08-07 16:27:53.281</setting>
+        <setting name="LOGINCOUNT" type="USER">0</setting>
+        <setting name="CREDIT" type="USER">100</setting>
+        <setting name="CONVCOUNT" type="USER">4</setting>
+        <setting name="PERSONALITYTYPEID" type="USER">0</setting>
+        <setting name="SHOWSENDMESSAGE" type="USER">true</setting>
+        <setting name="ACTIVATED" type="USER">true</setting>
+        <setting name="MESSENGEREMAIL" type="USER"></setting>
+        <setting name="MESSENGERPASSWORD" type="USER"></setting>
+        <setting name="SENDCHATEMAIL" type="USER">true</setting>
+        <setting name="SENDFAVEMAIL" type="USER">true</setting>
+        <setting name="CACHE" type="USER">true</setting>
+        <setting name="CLASSTYPE" type="USER">3</setting>
+        <setting name="AUTOLEARN" type="USER">false</setting>
+        <setting name="LANGUAGE" type="USER">EN</setting>
+        <setting name="RESPONSETIME" type="USER">-2</setting>
+        <setting name="MAXAUTOLEARNITEMS" type="USER">0</setting>
+        <setting name="NUMAUTOSETRELATED" type="USER">0</setting>
+        <setting name="TIMEZONEID" type="USER">Australia/Sydney</setting>
+        <setting name="AUTOSETRELATEDNODEID" type="USER">0</setting>
+        <setting name="RETURNTOCHATNODEID" type="USER">0</setting>
+        <setting name="INPUTMASKTYPE" type="USER">0</setting>
+        <setting name="NUMLOGINATTEMPTS" type="USER">0</setting>
+        <setting name="CONCEPTMATCHING" type="USER">0</setting>
+        <setting name="UI_COLOUR"></setting>
+        <setting name="USE_CONCEPTS">3</setting>
+        <setting name="PARENT_ACCOUNT">parentconcepts</setting>
+        <setting name="AL_NONE_LABEL">None of the above</setting>
+        <setting name="ASR_RANDOM">true</setting>
+        <setting name="DYNAMIC_MESSAGING">false</setting>
+        <setting name="DOCBASE_NUM_RESULTS">3</setting>
+        <setting name="DOCBASE_DESC_LEN">250</setting>
+        <setting name="STATUS">0</setting>
+        <setting name="DEFAULT_DNR_RETURN_POINT_CANDIDATE">-1</setting>
+        <setting name="ENTITIES_SCOPE">3</setting>
+        <setting name="POSTNODEID"></setting>
+        <setting name="MULTISENT">0</setting>
+        <setting name="DNR_NODE_ID">-15</setting>
+        <setting name="CLEARCACHE">sd6pprd-dfd2 sd6pprd-1e75</setting>
+    </settings>
+    <specialSettings>
+        <specialSetting label="DNR Join Statement">
+            <variations/>
+        </specialSetting>
+    </specialSettings>
+</dialog>
