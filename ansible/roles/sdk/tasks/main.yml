@@ -1,0 +1,10 @@
+---
+# This role will build and publish Openwhisk SDKs. Currently covers blackbkox container and iOS starter app.
+# In deploy mode it will generate downloadable artifacts and copy them to nginx.
+# In clean mode it will remove the artifacts from nginx.
+
+- include: deploy.yml
+  when: mode == "deploy"
+
+- include: clean.yml
+  when: mode == "clean"

@@ -1,0 +1,42 @@
+---
+# Tasks for handling SDK generation and publishing
+
+- name: ensure nginx config directory exists
+  file:
+    path: "{{ nginx_conf_dir }}"
+    state: directory
+
+# Blackbox
+
+- name: make temp dir
+  local_action: shell "mktemp" "-d"
+  register: tmpdir
+
+- name: build blackbox container artifact
+  local_action: shell "tar" "-czf" "{{tmpdir.stdout}}/blackbox-0.1.0.tar.gz" "dockerSkeleton" chdir="{{ openwhisk_home }}/sdk/docker/"
+
+- name: copy blackbox container artifact to nginx
+  copy:
+    src: "{{tmpdir.stdout}}/blackbox-0.1.0.tar.gz"
+    dest: "{{ nginx_conf_dir }}"
+
+- name: remove temp dir
+  local_action: file path="{{tmpdir.stdout}}" state=absent
+
+
+# iOS
+
+- name: make temp dir
+  local_action: shell "mktemp" "-d"
+  register: tmpdir
+
+- name: build iOS starter app artifact
+  local_action: shell "zip" "-r" "{{tmpdir.stdout}}/OpenWhiskIOSStarterApp.zip" "." chdir="{{ openwhisk_home }}/mobile/iOS/starterapp"
+
+- name: copy iOS starter app artifact to nginx
+  copy:
+    src: "{{tmpdir.stdout}}/OpenWhiskIOSStarterApp.zip"
+    dest: "{{ nginx_conf_dir }}"
+
+- name: remove temp dir
+  local_action: file path="{{tmpdir.stdout}}" state=absent
