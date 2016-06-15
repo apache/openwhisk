@@ -21,6 +21,8 @@ import java.time.Instant
 import scala.util.Try
 
 import spray.json.DefaultJsonProtocol
+import spray.json.DefaultJsonProtocol.JsValueFormat
+import spray.json.DefaultJsonProtocol.optionFormat
 import spray.json.JsNumber
 import spray.json.JsObject
 import spray.json.JsString
@@ -71,7 +73,6 @@ case class WhiskActivation(
     require(start != null, "start undefined")
     require(end != null, "end undefined")
     require(response != null, "response undefined")
-    require(logs != null, "logs undefined")
 
     def toJson = WhiskActivation.serdes.write(this).asJsObject
 
@@ -80,15 +81,27 @@ case class WhiskActivation(
         JsObject(fields + ("activationId" -> activationId.toJson))
     }
 
-    def toExtendedJson : JsObject = {
+    def resultAsJson = response.result.toJson.asJsObject
+
+    def toExtendedJson = {
         val JsObject(baseFields) = WhiskActivation.serdes.write(this).asJsObject
         val newFields = (baseFields - "response") + ("response" -> response.toExtendedJson)
         JsObject(newFields)
     }
 
-    def getResultJson : JsObject = {
-        response.toExtendedJson.fields("result").asJsObject
-    }
+    def withoutLogs = WhiskActivation(
+        namespace = namespace,
+        name = name,
+        subject = subject,
+        activationId = activationId,
+        start = start,
+        end = end,
+        cause = cause,
+        response = response,
+        logs = ActivationLogs(),
+        version = version,
+        publish = publish,
+        annotations = annotations)
 }
 
 object WhiskActivation

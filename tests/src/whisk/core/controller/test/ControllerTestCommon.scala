@@ -84,6 +84,9 @@ protected trait ControllerTestCommon
     val performLoadBalancerRequest = (lbr: WhiskServices.LoadBalancerReq) => Future {
         LoadBalancerResponse.id(activationId)
     }
+    val queryActivationResponse = (activationId: ActivationId, transid: TransactionId) => Future {
+        (throw new IllegalArgumentException("Unit test does not need fast path")) : WhiskActivation
+    }
     val consulServer = "???"
 
     def createTempCredentials(implicit transid: TransactionId) = {
