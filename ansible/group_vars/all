@@ -44,7 +44,6 @@ nginx:
     adminportal: 8443
 
 db:
-  auth: subjects
   immortal: subjects
   authkeys:
   - guest

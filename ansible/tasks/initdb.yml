@@ -2,9 +2,9 @@
 # This task will initialize the immortal DBs in the database account.
 # This step is usually done only once per account.
 
-- name: check if the immortal {{ db.auth }} db with {{ db_provider }} exists?
+- name: check if the immortal {{ db_auth }} db with {{ db_provider }} exists?
   uri:
-    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db.auth }}"
+    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db_auth }}"
     method: GET
     status_code: 200,404
     user: "{{ db_username }}"
@@ -12,10 +12,10 @@
     force_basic_auth: yes
   register: result
 
-# create only the missing db.auth
-- name: create immortal {{ db.auth }} db with {{ db_provider }}
+# create only the missing db_auth
+- name: create immortal {{ db_auth }} db with {{ db_provider }}
   uri:
-    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db.auth }}"
+    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db_auth }}"
     method: PUT
     status_code: 200,201
     user: "{{ db_username }}"
@@ -27,7 +27,7 @@
   vars:
     auth_index: "{{ lookup('file', '{{ openwhisk_home }}/ansible/files/auth_index.json') }}"
   uri:
-    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db.auth }}"
+    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db_auth }}"
     method: POST
     status_code: 200,201
     body_format: json
@@ -41,7 +41,7 @@
   vars:
     key: "{{ lookup('file', 'files/auth.{{ item }}') }}"
   uri:
-    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db.auth }}"
+    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db_auth }}"
     method: POST
     status_code: 200,201
     body_format: json
