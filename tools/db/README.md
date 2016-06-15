@@ -5,7 +5,7 @@ Before you can build and deploy OpenWhisk, you must configure a backing datastor
 
 #### Using CouchDB
 
-If you are using your own installation of CouchDB, make a note of the host, port, username and password. Then provision a [custom Vagrant box](../vagrant/custom/README.md) by following the instructions for a persistent CouchDB. In case you already have a Vagrant box, maybe using default settings you can simply adjust the existing db settings. Within your `openwhisk/ansible` directory, edit the file `db_local.ini` as appropriate. Note that:
+If you are using your own installation of CouchDB, make a note of the host, port, username and password. Then provision a [custom Vagrant box](../vagrant/custom/README.md) by following the instructions for a persistent CouchDB. In case you already have a Vagrant box, maybe using default settings you can simply adjust the existing db settings. Within your `openwhisk/ansible` directory, edit the file `db_local.ini` as appropriate. If you do not find `db_local.ini`, refer to [Setup](../../ansible/README.md#setup) to create it. Note that:
 
    * the username must have administrative rights
    * the CouchDB instance must be accessible over `http` or `https` (the latter requires a valid certificate)
