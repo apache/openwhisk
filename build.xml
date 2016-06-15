@@ -49,12 +49,11 @@
 
     <!-- deploy containers -->
     <target name="deploy" depends="writePropertyFile">
-        <antcall target="deployDatabase" />
-        <ant antfile="${openwhisk.home}/services/nginx/build.xml" target="startProxy" />
-        <ant antfile="services/build.xml" target="deploy" />
-        <ant antfile="core/build.xml" target="deploy" />
-        <ant antfile="tools/build.xml" target="deploy" />
-        <antcall target="installCatalog" />
+        <exec executable="ansible-playbook" failonerror="true" dir="${basedir}/ansible">
+            <arg value="-i"/>
+            <arg value="environments/local"/>
+            <arg value="openwhisk.yml" />
+        </exec>
     </target>
 
     <!-- teardown and deploy all services -->

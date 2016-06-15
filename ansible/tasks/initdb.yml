@@ -1,39 +1,33 @@
 ---
-# This role will initialize the immortal DBs in the database account.
+# This task will initialize the immortal DBs in the database account.
 # This step is usually done only once per account.
 
-- name: wait for user confirmation
-  pause: 
-    prompt: > 
-            About to drop and recreate database {{ db.immortal }} in this {{ db_provider }} account.
-            This will wipe the previous database if it exists and this is not reversible.
-            Are you sure? (press CTRL-C)
-
-- name: delete Immortal DBs
+- name: check if the immortal {{ db_auth }} db with {{ db_provider }} exists?
   uri:
-    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ item }}"
-    method: DELETE
+    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db_auth }}"
+    method: GET
     status_code: 200,404
     user: "{{ db_username }}"
     password: "{{ db_password }}"
     force_basic_auth: yes
-  with_items: "{{ db.immortal }}"
+  register: result
 
-- name: create Immortal DBs
+# create only the missing db_auth
+- name: create immortal {{ db_auth }} db with {{ db_provider }}
   uri:
-    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ item }}"
+    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db_auth }}"
     method: PUT
     status_code: 200,201
     user: "{{ db_username }}"
     password: "{{ db_password }}"
     force_basic_auth: yes
-  with_items: "{{ db.immortal }}"
+  when: result.status == 404
 
 - name: recreate the "full" index on the "auth" database
   vars:
-    auth_index: "{{ lookup('file', 'files/auth_index.json') }}"
+    auth_index: "{{ lookup('file', '{{ openwhisk_home }}/ansible/files/auth_index.json') }}"
   uri:
-    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db.auth }}"
+    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db_auth }}"
     method: POST
     status_code: 200,201
     body_format: json
@@ -41,12 +35,13 @@
     user: "{{ db_username }}"
     password: "{{ db_password }}"
     force_basic_auth: yes
+  when: result.status == 404
 
 - name: recreate necessary "auth" keys
   vars:
     key: "{{ lookup('file', 'files/auth.{{ item }}') }}"
   uri:
-    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db.auth }}"
+    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db_auth }}"
     method: POST
     status_code: 200,201
     body_format: json
@@ -61,9 +56,4 @@
     password: "{{ db_password }}"
     force_basic_auth: yes
   with_items: "{{ db.authkeys }}"
-
-# TODO: remove this once we drop ant
-- name: generate database env file
-  template:
-    src: "{{ db_provider|lower }}-local.env.j2"
-    dest: "{{ openwhisk_home }}/{{ db_provider|lower }}-local.env"
+  when: result.status == 404

@@ -1,0 +1,7 @@
+---
+# This playbook wipes the database. Pls be sure you know what you are doing now!
+
+- hosts: ansible
+  tasks:
+    - include: tasks/wipeDatabase.yml
+      when: mode == "deploy"

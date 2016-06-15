@@ -1,25 +1,18 @@
-whisk_version_name: local
-nginx_conf_dir: /tmp/nginx
-consul_conf_dir: /tmp/consul
-whisk_logs_dir: /tmp/wsklogs
-cli_conf_dir: /tmp/cli
+whisk_version_name: mac
+nginx_conf_dir: /Users/Shared/nginx
+consul_conf_dir: /Users/Shared/consul
+whisk_logs_dir: /Users/Shared/wsklogs
+cli_conf_dir: /Users/Shared/cli
 docker_registry: ""
 docker_dns: ""
 
 db_prefix: "{{ ansible_user_id }}_{{ ansible_hostname|lower }}_"
+db_auth: "subjects"
 
-# Uncomment and put your db credentials here if you want to use Cloudant
-#db_provider: Cloudant
-#db_username: ""
-#db_password: ""
-#db_protocol: https
-#db_host: "{{ db_username }}.cloudant.com"
-#db_port: 443
-
-# Comment this if you do not want to use CouchDB
-db_provider: CouchDB
-db_username: whisk_couchdb_admin
-db_password: some_gener1c_passw0rd
-db_protocol: http
-db_host: "{{ groups['db']|first }}"
-db_port: 5984
+# Auto lookup to find the db credentials
+db_provider: "{{ lookup('ini', 'db_provider section=db_creds file={{ playbook_dir }}/db_local.ini') }}"
+db_username: "{{ lookup('ini', 'db_username section=db_creds file={{ playbook_dir }}/db_local.ini') }}"
+db_password: "{{ lookup('ini', 'db_password section=db_creds file={{ playbook_dir }}/db_local.ini') }}"
+db_protocol: "{{ lookup('ini', 'db_protocol section=db_creds file={{ playbook_dir }}/db_local.ini') }}"
+db_host: "{{ lookup('ini', 'db_host section=db_creds file={{ playbook_dir }}/db_local.ini') }}"
+db_port: "{{ lookup('ini', 'db_port section=db_creds file={{ playbook_dir }}/db_local.ini') }}"

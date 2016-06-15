@@ -10,9 +10,10 @@ cd $ROOTDIR/ansible
 
 ANSIBLE_CMD="ansible-playbook -i environments/travis"
 
+$ANSIBLE_CMD setup.yml
 $ANSIBLE_CMD prereq.yml
 $ANSIBLE_CMD couchdb.yml
-$ANSIBLE_CMD couchdb.yml -e mode=initdb -e prompt_user=false
+$ANSIBLE_CMD initdb.yml
 
 cd $ROOTDIR
 
@@ -23,5 +24,5 @@ cd $ROOTDIR/ansible
 $ANSIBLE_CMD openwhisk.yml
 
 cd $ROOTDIR
-
-ant run -Dtestsfailonfailure=true
+cat whisk.properties
+./gradlew :tests:test
