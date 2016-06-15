@@ -27,6 +27,16 @@ test {
     outputs.upToDateWhen { false } // force tests to run everytime
 }
 
+// Add all images needed for local testing here
+test.dependsOn([
+    ':core:nodejsAction:distDocker',
+    ':core:nodejs6Action:distDocker',
+    ':core:pythonAction:distDocker',
+    ':core:javaAction:distDocker',
+    ':core:swiftAction:distDocker',
+    ':core:swift3Action:distDocker'
+])
+
 dependencies {
     testCompile 'org.scala-lang:scala-library:2.11.7'
     testCompile 'org.apache.commons:commons-exec:1.1'
