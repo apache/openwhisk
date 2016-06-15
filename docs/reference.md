@@ -197,7 +197,7 @@ The `whisk.invoke()` function invokes another action. It takes as an argument a 
 
 - *name*: The fully qualified name of the action to invoke,
 - *parameters*: A JSON object representing the input to the invoked action. If omitted, defaults to an empty object.
-- *apiKey*: The authorization key with which to invoke the action. Defaults to `whisk.getAuthKey()`. 
+- *apiKey*: The authorization key with which to invoke the action. Defaults to `whisk.getAuthKey()`.
 - *blocking*: Whether the action should be invoked in blocking or non-blocking mode. Defaults to `false`, indicating a non-blocking invocation.
 - *next*: An optional callback function to be executed when the invocation completes.
 
@@ -333,6 +333,10 @@ $ curl -u USERNAME:PASSWORD https://openwhisk.ng.bluemix.net/api/v1/namespaces/w
 ]
 ```
 
+The API of OpenWhisk also supports asynchronous calls on websites from the client.
+To allow these calls from the browser directly, OpenWhisk responds to OPTIONS calls with Cross-Origin Resource Sharing headers for allowed origins and headers. Access-Control-Allow-Origin will always be * and Access-Control-Allow-Headers will always yield Authorization and Content-Type.
+
+**As OpenWhisk supports only one key per account currently, it is not recommended to use CORS beyond simple experiments at the moment. Your key would need to be embedded in a webapplication's code, thus being accessible by every viewer of that page. Use with caution.**
 
 ## System limits
 
