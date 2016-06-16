@@ -95,6 +95,7 @@ protected[core] object Exec
     protected[core] val JAVA     = "java"
     protected[core] val BLACKBOX = "blackbox"
     protected[core] val SEQUENCE = "sequence"
+    protected[core] val runtimes = Set(NODEJS, NODEJS6, PYTHON, SWIFT, SWIFT3, JAVA, BLACKBOX, SEQUENCE)
 
     protected[core] def js(code: String, init: String = null): Exec = NodeJSExec(trim(code), Option(init).map(_.trim))
     protected[core] def js6(code: String, init: String = null): Exec = NodeJS6Exec(trim(code), Option(init).map(_.trim))
@@ -108,8 +109,7 @@ protected[core] object Exec
         override def write(e: Exec) = e match {
             case NodeJSExec(code, None)        => JsObject("kind" -> JsString(Exec.NODEJS), "code" -> JsString(code))
             case NodeJSExec(code, Some(init))  => JsObject("kind" -> JsString(Exec.NODEJS), "code" -> JsString(code), "init" -> JsString(init))
-            case SequenceExec(code, comp)      => JsObject("kind" -> JsString(Exec.SEQUENCE), "code" -> JsString(code),
-                                                           "components" -> JsArray(comp map { JsString(_) }))
+            case SequenceExec(code, comp)      => JsObject("kind" -> JsString(Exec.SEQUENCE), "code" -> JsString(code), "components" -> JsArray(comp map { JsString(_) }))
             case NodeJS6Exec(code, None)       => JsObject("kind" -> JsString(Exec.NODEJS6), "code" -> JsString(code))
             case NodeJS6Exec(code, Some(init)) => JsObject("kind" -> JsString(Exec.NODEJS6), "code" -> JsString(code), "init" -> JsString(init))
             case PythonExec(code)              => JsObject("kind" -> JsString(Exec.PYTHON), "code" -> JsString(code))
@@ -144,12 +144,14 @@ protected[core] object Exec
                 case Exec.SEQUENCE =>
                     val comp: Vector[String] = obj.getFields("components") match {
                         case Seq(JsArray(components)) =>
-                            components map { comp => comp match {
-                                case JsString(s) => s
-                                case _ => throw new DeserializationException(s"'components' must be an array of strings")
-                            }}
-                        case Seq(_)           => throw new DeserializationException(s"'components' must be an array")
-                        case _                => throw new DeserializationException(s"'components' must be defined for sequence kind")
+                            components map {
+                                _ match {
+                                    case JsString(s) => s
+                                    case _           => throw new DeserializationException(s"'components' must be an array of strings")
+                                }
+                            }
+                        case Seq(_) => throw new DeserializationException(s"'components' must be an array")
+                        case _      => throw new DeserializationException(s"'components' must be defined for sequence kind")
                     }
                     SequenceExec(Pipecode.code, comp)
 
@@ -204,7 +206,7 @@ protected[core] object Exec
                     }
                     BlackBoxExec(image)
 
-                case _ => throw new DeserializationException(s"kind '$kind' not one of {${Exec.NODEJS},${Exec.NODEJS6}, ${Exec.PYTHON}, ${Exec.SWIFT}, ${Exec.SWIFT3}, ${Exec.JAVA}, ${Exec.BLACKBOX}, ${Exec.SEQUENCE}}")
+                case _ => throw new DeserializationException(s"kind '$kind' not in $runtimes")
             }
         }
     }

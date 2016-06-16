@@ -19,6 +19,7 @@ package packages.websocket
 import java.net.URI
 
 import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
 
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterAll
