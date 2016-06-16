@@ -11,12 +11,12 @@
 
     <!-- required properties with default values -->
     <!-- where all build artifacts go -->
-    <property name="build.dir" value="${basedir}/build" />
-    <property name="cli.build.dir" value="${basedir}/build/tools/cli" />
+    <property name="build.dir" value="${openwhisk.home}/build" />
+    <property name="cli.build.dir" value="${openwhisk.home}/build/tools/cli" />
     <property name="go-cli.build.dir" value="${openwhisk.home}/build/tools/go-cli" />
     <property name="go-cli.src.dir" value="${openwhisk.home}/tools/go-cli" />
-    <property name="blackbox.build.dir" value="${basedir}/build/tools/blackbox" />
-    <property name="iosstarterapp.build.dir" value="${basedir}/build/tools/iosstarterapp" />
+    <property name="blackbox.build.dir" value="${openwhisk.home}/build/tools/blackbox" />
+    <property name="iosstarterapp.build.dir" value="${openwhisk.home}/build/tools/iosstarterapp" />
 
     <!-- derived properties -->
     <property name="docker.scratch" value="${build.dir}/docker-scratch" />
@@ -102,8 +102,8 @@
     <target name="writePropertyFile">
         <exec dir="ansible" executable="ansible-playbook" failonerror="true">
             <env key="OPENWHISK_HOME" value="${openwhisk.home}" />
-            <arg value="-i"/>
-            <arg value="environments/local"/>
+            <arg value="-i" />
+            <arg value="environments/local" />
             <arg value="properties.yml" />
         </exec>
     </target>
