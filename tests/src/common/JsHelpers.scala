@@ -16,6 +16,9 @@
 
 package common
 
+import scala.language.postfixOps
+import scala.util.Try
+
 import spray.json.JsObject
 import spray.json.JsValue
 
@@ -23,7 +26,9 @@ trait JsHelpers {
     implicit class JsObjectHelper(js: JsObject) {
         def getFieldPath(path: String*): Option[JsValue] = {
             if (path.size == 1) {
-                Some(js.fields(path(0)))
+                Try {
+                    js.fields(path(0))
+                } toOption
             } else if (js.getFields(path(0)).size > 0) {
                 // current segment exists, but there are more...
                 js.fields(path(0)).asJsObject.getFieldPath(path.tail: _*)

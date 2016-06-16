@@ -63,7 +63,7 @@ import whisk.core.entity.ActivationResponse
 import whisk.core.entity.DocId
 import whisk.core.entity.DocInfo
 import whisk.core.entity.EntityName
-import whisk.core.entity.{Exec, SequenceExec}
+import whisk.core.entity.{ Exec, SequenceExec }
 import whisk.core.entity.MemoryLimit
 import whisk.core.entity.Namespace
 import whisk.core.entity.{ Parameters, ParameterName, ParameterValue }
@@ -91,7 +91,6 @@ import whisk.core.entity.Subject
 import whisk.core.entity.WhiskEntityQueries
 import whisk.http.ErrorResponse
 import whisk.http.ErrorResponse.{ terminate }
-
 
 /**
  * A singleton object which defines the properties that must be present in a configuration
@@ -359,12 +358,12 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                     l.memory getOrElse MemoryLimit())
             } getOrElse ActionLimits()
 
-            /* This is temporary while we are making sequencing directly supported in the controller.
-             * The parameter override allows this to work with Pipecode.code
-             */
+            // This is temporary while we are making sequencing directly supported in the controller.
+            // The parameter override allows this to work with Pipecode.code. Any parameters other
+            // than the action sequence itself are discarded and have no effect.
             val parameters = exec match {
-                case seqExec: SequenceExec => Parameters("_actions", JsArray(seqExec.components map { JsString(_) }))
-                case _ => content.parameters getOrElse Parameters()
+                case seq: SequenceExec => Parameters("_actions", JsArray(seq.components map { JsString(_) }))
+                case _                 => content.parameters getOrElse Parameters()
             }
 
             WhiskAction(
@@ -386,11 +385,20 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
             ActionLimits(l.timeout getOrElse action.limits.timeout, l.memory getOrElse action.limits.memory)
         } getOrElse action.limits
 
+        // This is temporary while we are making sequencing directly supported in the controller.
+        // The parameter override allows this to work with Pipecode.code. Any parameters other
+        // than the action sequence itself are discarded and have no effect unless a non-sequence
+        // exec is given.
+        val parameters = content.exec map {
+            case seq: SequenceExec => Parameters("_actions", JsArray(seq.components map { JsString(_) }))
+            case _                 => content.parameters getOrElse Parameters()
+        }
+
         WhiskAction(
             action.namespace,
             action.name,
             content.exec getOrElse action.exec,
-            content.parameters getOrElse action.parameters,
+            parameters getOrElse action.parameters,
             limits,
             content.version getOrElse action.version.upPatch,
             content.publish getOrElse action.publish,

@@ -33,6 +33,7 @@ import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
 import spray.json.DefaultJsonProtocol.RootJsObjectFormat
 import spray.json.DefaultJsonProtocol.listFormat
 import spray.json.DefaultJsonProtocol.StringJsonFormat
+import spray.json.DefaultJsonProtocol.vectorFormat
 import spray.json.DefaultJsonProtocol.mapFormat
 import spray.json.JsObject
 import spray.json.pimpAny
@@ -57,6 +58,9 @@ import whisk.core.entity.WhiskActivation
 import whisk.core.entity.WhiskAuth
 import whisk.core.entity.WhiskEntity
 import java.time.Instant
+import whisk.core.entity.SequenceExec
+import whisk.core.entity.Pipecode
+import whisk.core.entity.NodeJSExec
 
 /**
  * Tests Actions API.
@@ -242,6 +246,67 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             status should be(OK)
             val response = responseAs[WhiskAction]
             response should be(action)
+        }
+    }
+
+    it should "create and update an action sequence" in {
+        implicit var tid = transid()
+        val sequence = Vector("a", "b")
+        val action = WhiskAction(namespace, aname, Exec.sequence(sequence))
+        val content = WhiskActionPut(Some(action.exec))
+
+        // create an action sequence
+        Put(s"$collectionPath/${action.name}", content) ~> sealRoute(routes(creds)) ~> check {
+            status should be(OK)
+            val response = responseAs[WhiskAction]
+            response.exec shouldBe a[SequenceExec]
+            response.exec.kind should be(Exec.SEQUENCE)
+            val seq = response.exec.asInstanceOf[SequenceExec]
+            seq.code should be(Pipecode.code)
+            seq.components should be(sequence)
+            response.parameters shouldBe Parameters("_actions", sequence.toJson)
+        }
+
+        // update action sequence with parameters, where parameters should be ignored
+        tid = transid()
+        var update = WhiskActionPut(parameters = Some(Parameters("x", "b")))
+        Put(s"$collectionPath/${action.name}?overwrite=true", update) ~> sealRoute(routes(creds)) ~> check {
+            status should be(OK)
+            val response = responseAs[WhiskAction]
+            response.exec shouldBe a[SequenceExec]
+            response.exec.kind should be(Exec.SEQUENCE)
+            val seq = response.exec.asInstanceOf[SequenceExec]
+            seq.code should be(Pipecode.code)
+            seq.components should be(sequence)
+            response.parameters shouldBe Parameters("_actions", sequence.toJson)
+        }
+
+        // update action sequence with new sequence
+        tid = transid()
+        val newSequence = Vector("a", "c")
+        update = WhiskActionPut(Some(Exec.sequence(newSequence)))
+        Put(s"$collectionPath/${action.name}?overwrite=true", update) ~> sealRoute(routes(creds)) ~> check {
+            status should be(OK)
+            val response = responseAs[WhiskAction]
+            response.exec shouldBe a[SequenceExec]
+            response.exec.kind should be(Exec.SEQUENCE)
+            val seq = response.exec.asInstanceOf[SequenceExec]
+            seq.code should be(Pipecode.code)
+            seq.components should be(newSequence)
+            response.parameters shouldBe Parameters("_actions", newSequence.toJson)
+        }
+
+        // update action with non-sequence kind
+        tid = transid()
+        val newAction = WhiskActionPut(Some(Exec.js("?")), Some(Parameters("x", "X")))
+        Put(s"$collectionPath/${action.name}?overwrite=true", newAction) ~> sealRoute(routes(creds)) ~> check {
+            deleteAction(action.docid)
+            status should be(OK)
+            val response = responseAs[WhiskAction]
+            response.exec shouldBe a[NodeJSExec]
+            val js = response.exec.asInstanceOf[NodeJSExec]
+            js.code should be("?")
+            response.parameters shouldBe Parameters("x", "X")
         }
     }
 
