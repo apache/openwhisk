@@ -14,6 +14,7 @@
 *.sh            text eol=lf
 *.gradle        text
 *.xml           text
+*.bat           text eol=crlf
 
 *.jar           binary
 *.png           binary
