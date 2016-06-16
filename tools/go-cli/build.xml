@@ -35,15 +35,18 @@
 
         <!-- Copy binary into open/bin -->
         <delete dir="${openwhisk.home}/bin/go-cli" failonerror="false" />
+        <!-- Copy the Windows Go CLI binaries -->
         <mkdir dir="${openwhisk.home}/bin/go-cli" />
         <exec executable="docker" failonerror="true">
             <arg line="${docker.tls.cmd}" />
             <arg line="cp go-cli:/src/github.com/go-whisk-cli/windows '${openwhisk.home}/bin/go-cli/windows'" />
         </exec>
+        <!-- Copy the Mac Go CLI binaries -->
         <exec executable="docker" failonerror="true">
             <arg line="${docker.tls.cmd}" />
             <arg line="cp go-cli:/src/github.com/go-whisk-cli/mac '${openwhisk.home}/bin/go-cli/mac'" />
         </exec>
+        <!-- Copy the Linux Go CLI binaries -->
         <exec executable="docker" failonerror="true">
             <arg line="${docker.tls.cmd}" />
             <arg line="cp go-cli:/src/github.com/go-whisk-cli/linux '${openwhisk.home}/bin/go-cli/linux'" />
@@ -52,6 +55,7 @@
             <arg line="${docker.tls.cmd}" />
             <arg line="rm -f go-cli" />
         </exec>
+        
     </target>
 
 </project>
