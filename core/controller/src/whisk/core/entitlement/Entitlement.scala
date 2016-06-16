@@ -17,17 +17,23 @@
 package whisk.core.entitlement
 
 import scala.collection.concurrent.TrieMap
-import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
-import scala.util.Failure
-import scala.util.Success
+import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
+import scala.util.{ Try, Success, Failure }
+
 import Privilege.REJECT
+import akka.actor.ActorSystem
 import spray.http.StatusCodes.ClientError
 import spray.http.StatusCodes.TooManyRequests
 import spray.json.JsBoolean
-import whisk.common.ConsulKV
+import spray.json.pimpString
+import whisk.common.ConsulClient
+import whisk.common.ConsulKV.LoadBalancerKeys
 import whisk.common.Logging
+import whisk.common.LoggingMarkers
+import whisk.common.Scheduler
 import whisk.common.TransactionId
 import whisk.common.Verbosity
 import whisk.core.WhiskConfig
@@ -35,8 +41,6 @@ import whisk.core.entity.Namespace
 import whisk.core.entity.Parameters
 import whisk.core.entity.Subject
 import whisk.http.ErrorResponse
-import scala.language.postfixOps
-import whisk.common.LoggingMarkers
 
 package object types {
     type Entitlements = TrieMap[(Subject, String), Set[Privilege]]
@@ -72,35 +76,32 @@ protected[core] object EntitlementService {
 /**
  * A trait for entitlement service. This is a WIP.
  */
-protected[core] abstract class EntitlementService(config: WhiskConfig)(implicit ec: ExecutionContext) extends Logging {
+protected[core] abstract class EntitlementService(config: WhiskConfig)(
+        implicit actorSystem: ActorSystem) extends Logging {
 
-    private var loadbalancerOverload = false
+    import spray.json.DefaultJsonProtocol._
+
+    private implicit val executionContext = actorSystem.dispatcher
+
+    private var loadbalancerOverload: Option[Boolean] = None
     private val invokeRateThrottler = new RateThrottler(config, 120, 3600)
     private val triggerRateThrottler = new RateThrottler(config, 60, 720)
 
-    new Thread() {
-        /** query the KV store this often */
-        private val overloadCheckPeriodMillis = 10000
+    /** query the KV store this often */
+    private val overloadCheckPeriod = 10.seconds
 
-        private val kvStore = new ConsulKV(config.consulServer)
+    private val kvClient = new ConsulClient(config.consulServer)
 
-        /** Continously read from the KV store to get invoker status.*/
-        override def run() = {
-            var count = 0
-            while (true) {
-                val isOverload = kvStore.get(ConsulKV.LoadBalancerKeys.overloadKey)
-                isOverload match {
-                    case JsBoolean(v) => if ((count == 0) || loadbalancerOverload != v) {
-                        loadbalancerOverload = v
-                        info(this, s"EntitlementService: loadbalancerOverload = ${v}")
-                        count = count + 1
-                    }
-                    case _ => ()
+    Scheduler.scheduleWaitAtLeast(overloadCheckPeriod) { () =>
+        kvClient.get(LoadBalancerKeys.overloadKey).map { isOverloaded =>
+            Try(isOverloaded.parseJson.convertTo[Boolean]) foreach { v =>
+                if(loadbalancerOverload != Some(v)) {
+                    loadbalancerOverload = Some(v)
+                    info(this, s"EntitlementService: loadbalancerOverload = ${v}")
                 }
-                Thread.sleep(overloadCheckPeriodMillis)
             }
         }
-    }.start()
+    }
 
     override def setVerbosity(level: Verbosity.Level) = {
         super.setVerbosity(level)
@@ -193,7 +194,7 @@ protected[core] abstract class EntitlementService(config: WhiskConfig)(implicit 
 
     /** Limits activations if the load balancer is overloaded. */
     protected def checkSystemOverload(subject: Subject, right: Privilege, resource: Resource)(implicit transid: TransactionId) = {
-        val systemOverload = right == Privilege.ACTIVATE && loadbalancerOverload
+        val systemOverload = right == Privilege.ACTIVATE && loadbalancerOverload.getOrElse(false)
         if (systemOverload) {
             Some { Future failed ThrottleRejectRequest(TooManyRequests, Some(ErrorResponse("System is overloaded", transid))) }
         } else None
