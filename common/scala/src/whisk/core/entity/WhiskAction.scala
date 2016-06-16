@@ -103,6 +103,16 @@ case class WhiskAction(
      */
     def containerImageName(registry: String = null, tag: String = "latest") = WhiskAction.containerImageName(exec, registry, tag)
 
+    private def getNodeInitializer(code: String, optInit: Option[String]): JsObject = {
+        val init = JsObject(
+            "name" -> name.toJson,
+            "main" -> JsString("main"),
+            "code" -> JsString(code))
+        optInit map { lib =>
+            JsObject(init.fields + "lib" -> lib.toJson)
+        } getOrElse init
+    }
+
     /**
      * Gets initializer for action.
      * If the action is a black box action, return an empty initializer since
@@ -110,48 +120,28 @@ case class WhiskAction(
      * { name, main, code, lib } required to run the action.
      */
     def containerInitializer: JsObject = exec match {
-        case NodeJSExec(code, optInit) =>
-            val init = JsObject(
-                "name" -> name.toJson,
-                "main" -> JsString("main"),
-                "code" -> JsString(code))
-            optInit map { lib =>
-                JsObject(init.fields + "lib" -> lib.toJson)
-            } getOrElse init
-
+        case NodeJSExec(code, optInit)  => getNodeInitializer(code, optInit)
+        case NodeJS6Exec(code, optInit) => getNodeInitializer(code, optInit)
+        case SequenceExec(code, components) => getNodeInitializer(code, None)
         case SwiftExec(code) =>
             JsObject(
                 "name" -> name.toJson,
                 "code" -> code.toJson)
-
         case PythonExec(code) =>
             JsObject(
                 "name" -> name.toJson,
                 "code" -> code.toJson)
-
         case JavaExec(jar, main) =>
             JsObject(
                 "name" -> name.toJson,
                 "jar" -> jar.toJson,
                 "main" -> main.toJson)
-
         case Swift3Exec(code) =>
             JsObject(
                 "name" -> name.toJson,
                 "code" -> code.toJson)
-
-        case NodeJS6Exec(code, optInit) =>
-            val init = JsObject(
-                "name" -> name.toJson,
-                "main" -> JsString("main"),
-                "code" -> JsString(code))
-            optInit map { lib =>
-                JsObject(init.fields + "lib" -> lib.toJson)
-            } getOrElse init
-
         case _: BlackBoxExec =>
             JsObject()
-
     }
 
     def toJson = WhiskAction.serdes.write(this).asJsObject
@@ -167,7 +157,7 @@ object WhiskAction
 
     def containerImageName(exec: Exec, registry: String = null, tag: String = "latest"): String = {
         exec match {
-            case _: NodeJSExec | _: NodeJS6Exec | _: PythonExec | _: SwiftExec | _: Swift3Exec | _: JavaExec =>
+            case _: NodeJSExec | _: SequenceExec | _: NodeJS6Exec | _: PythonExec | _: SwiftExec | _: Swift3Exec | _: JavaExec =>
                 Option(registry).filter { _.nonEmpty }.map { r =>
                     val prefix = if (r.endsWith("/")) r else s"$r/"
                     s"${prefix}${exec.image}:${tag}"
