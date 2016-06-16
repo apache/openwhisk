@@ -16,7 +16,6 @@
 
 package whisk.core.loadBalancer;
 
-import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
@@ -27,7 +26,7 @@ import spray.json.JsObject
 import spray.json.pimpAny
 import spray.json.pimpString
 import whisk.common.ConsulClient
-import whisk.common.ConsulKV
+import whisk.common.ConsulKV.InvokerKeys
 import whisk.common.ConsulKV.LoadBalancerKeys
 import whisk.common.Counter
 import whisk.common.Logging
@@ -43,8 +42,9 @@ import whisk.core.WhiskConfig
  * @param config containing the config information needed (consulServer)
  */
 class ActivationThrottle(config: WhiskConfig)(
-    implicit val system: ActorSystem,
-    val ec: ExecutionContext) extends Logging {
+    implicit val system: ActorSystem) extends Logging {
+
+    implicit private val executionContext = system.dispatcher
 
     val DEFAULT_NAMESPACE_CONCURRENCY_LIMITS_KEY = "whiskprops/DEFAULT_NAMESPACE_CONCURRENCY_LIMITS"
     val DEFAULT_LIMIT = 100L
@@ -54,8 +54,8 @@ class ActivationThrottle(config: WhiskConfig)(
      * services to be able to determine whether a namespace should be throttled or not based on
      * the number of concurrent invocations it has in the system
      */
-    private var userActivationCounter = Map[String, Long]()
-    private var userActivationLimits = Map[String, Long]()
+    private var userActivationCounter = Map.empty[String, Long]
+    private var userActivationLimits = Map.empty[String, Long]
 
     private val healthCheckInterval = 2 seconds
     private val kvStore = new ConsulClient(config.consulServer)
@@ -93,7 +93,7 @@ class ActivationThrottle(config: WhiskConfig)(
      *     by the loadbalancer
      */
     private def getLoadBalancerActivationCount(): Future[Map[String, Long]] =
-        kvStore.getRecurse(ConsulKV.LoadBalancerKeys.userActivationCountKey) map {
+        kvStore.getRecurse(LoadBalancerKeys.userActivationCountKey) map {
             _ map {
                 case (_, users) => users.parseJson.convertTo[Map[String, Long]]
             } reduce { _ ++ _ } // keys are unique in every sub map, no adding necessary
@@ -106,7 +106,7 @@ class ActivationThrottle(config: WhiskConfig)(
      *     by all the invokers combined
      */
     private def getInvokerActivationCount(): Future[Map[String, Long]] =
-        kvStore.getRecurse(ConsulKV.InvokerKeys.allInvokersData) map { rawMaps =>
+        kvStore.getRecurse(InvokerKeys.allInvokersData) map { rawMaps =>
             val activationCountPerInvoker = rawMaps map {
                 case (_, users) => users.parseJson.convertTo[Map[String, Long]]
             }

@@ -53,8 +53,6 @@ import spray.json.JsObject
 import spray.json.pimpString
 import spray.json.pimpAny
 import spray.routing.RequestContext
-import whisk.common.ConsulKV
-import whisk.common.ConsulKV.LoadBalancerKeys
 import whisk.common.LoggingMarkers
 import whisk.common.LoggingMarkers._
 import whisk.common.TransactionId
