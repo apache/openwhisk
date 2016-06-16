@@ -16,8 +16,9 @@
 
 package whisk.core.entitlement
 
+import akka.actor.ActorSystem
+
 import scala.collection.concurrent.TrieMap
-import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
 import whisk.common.TransactionId
@@ -31,8 +32,10 @@ private object LocalEntitlementService {
 
 protected[core] class LocalEntitlementService(
     private val config : WhiskConfig)
-    (implicit ec: ExecutionContext)
+    (implicit actorSystem: ActorSystem)
     extends EntitlementService(config) {
+
+    private implicit val executionContext = actorSystem.dispatcher
 
     private val matrix = LocalEntitlementService.matrix
 

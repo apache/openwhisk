@@ -17,7 +17,6 @@
 package whisk.common
 
 import scala.annotation.implicitNotFound
-import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.language.postfixOps
 
@@ -53,9 +52,9 @@ object ConsulEntry extends DefaultJsonProtocol {
  * Client to access Consul's <a href="https://www.consul.io/docs/agent/http/kv.html">
  * key/value store</a>
  */
-class ConsulClient(host: String)(
-    implicit val actorSystem: ActorSystem,
-    val executionContext: ExecutionContext) {
+class ConsulClient(host: String)(implicit val actorSystem: ActorSystem) {
+
+    private implicit val executionContext = actorSystem.dispatcher
 
     private val kv = Path("/v1/kv")
 
