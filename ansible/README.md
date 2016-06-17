@@ -25,7 +25,7 @@ brew install python
 pip install ansible==2.0.2.0
 
 cd ansible
-ansible-playbook setup.yml [-e docker_machine_name=whisk]
+ansible-playbook -i environments/mac setup.yml [-e docker_machine_name=whisk]
 ```
 
 **Hint:** If you omit the optional `-e docker_machine_name` parameter, it will default to "whisk".  
@@ -72,7 +72,7 @@ After the playbook is done you should see a file called `db_local.ini` in your a
 If you want to use the ephemeral CouchDB, run this command
 
 ```
-ansible-playbook setup.yml
+ansible-playbook -i environments/<environment> setup.yml
 ```
 
 #####  Persistent CouchDB
@@ -87,7 +87,7 @@ export OW_DB_PROTOCOL=<your couchdb protocol>
 export OW_DB_HOST=<your couchdb host>
 export OW_DB_PORT=<your couchdb port>
 
-ansible-playbook setup.yml
+ansible-playbook -i environments/<environment> setup.yml
 ```
 
 ##### Cloudant
@@ -102,7 +102,7 @@ export OW_DB_PROTOCOL=https
 export OW_DB_HOST=<your cloudant user>.cloudant.com
 export OW_DB_PORT=443
 
-ansible-playbook setup.yml
+ansible-playbook -i environments/<environment> setup.yml
 ```
 
 #### Install Prerequisites
