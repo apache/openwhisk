@@ -402,9 +402,9 @@ class ContainerPool(
      * All docker operations from the pool must pass through here.
      */
     private def runDockerOp[T](dockerOp: => T): T = {
-//        dockerLock.synchronized {
+        dockerLock.synchronized {
             dockerOp
-//        }
+        }
     }
 
     private def makeWarmNodejsContainer()(implicit transid: TransactionId): WhiskContainer = {
