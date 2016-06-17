@@ -49,12 +49,16 @@ def main():
     props['ENV'] = args.target
     props['WSK_HOME'] = wskhome
     props['MAIN_DOCKER_ENDPOINT'] = getDockerHost()
+    doComponentSequence(props, args, args.components)
 
-    for c in args.component:
+def doComponentSequence(props, args, components):
+    for c in components:
         component = getComponent(c)
         if not component:
             print 'unknown component %s' % c
             exit(1)
+        elif component['steps']:
+           doComponentSequence(props, args, component['steps'])
         else:
             doOne(component, args, props)
 
@@ -66,7 +70,7 @@ def getArgs():
     parser.add_argument('-t', '--target', help='deploy target', default='mac')
     parser.add_argument('-n', '--just-print', help='prints the component configuration but does not run any targets', action='store_const', const=True, default=False, dest='skiprun')
     parser.add_argument('-c', '--list-components', help='list known component names and exit', action='store_const', const=True, default=False, dest='list')
-    parser.add_argument('component', nargs = '*', help='component name')
+    parser.add_argument('components', nargs = '*', help='component name(s) to run (in order specified if more than one)')
     parser.add_argument('--dir', help='whisk home directory')
 
     args = parser.parse_args()
@@ -83,7 +87,7 @@ def getArgs():
         for c in Components:
             print "{:<30}{:<40}".format(hilite(c['name']), c['description'])
         exit(0)
-    elif not args.component:
+    elif not args.components:
         parser.print_usage()
         exit(0)
     else:
@@ -111,7 +115,7 @@ class Playbook:
         return basedir + '/' + self.dir
 
     def execcmd(self, props, mode = False):
-        if self.dir and self.file and (mode in self.modes or mode is False):
+        if self.dir and self.file and (mode is False or mode in self.modes):
             cmd = [ self.cmd ]
             if self.env:
                 cmd.append('-i %s/%s' % (self.env, props['ENV']))
@@ -156,13 +160,24 @@ def makeComponent(name,                   # component name, implies playbook def
                   env = 'environments',
                   dir = 'ansible',
                   gradle = False,         # gradle buildable iff true
-                  tasks = 'distDocker'):
+                  tasks = 'distDocker',
+                  steps = None):          # comman separated, runs these steps in sequence, each step is a reference to another component (yaml/gradle not allowed)
     yaml = ('%s.yml' % name) if yaml is True else yaml
     playbook = Playbook(dir, yaml, modes, env) if yaml is not False else None
     gradle = Gradle(tasks, gradle) if gradle is not False else None
-    return { 'name': name, 'description': description, 'playbook': playbook, 'gradle': gradle }
+    if steps and (playbook is not None or gradle is not None):
+        print 'Cannot create component "%s" with a sequence of steps and also a playbook with gradle build target' % name
+        exit(-1)
+    elif steps:
+        steps = map(lambda c: c.strip(), steps.split(','))
+    return { 'name': name, 'description': description, 'playbook': playbook, 'gradle': gradle, 'steps': steps }
     
 Components = [ 
+    makeComponent('fresh',
+                  'setup, build, and deploy a fresh whisk system using couchdb',
+                  yaml = False,
+                  steps = 'setup, prereq, couchdb, initdb, deploy'),
+
     makeComponent('setup',
                   'system setup',
                   env = False),
