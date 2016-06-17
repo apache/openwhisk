@@ -9,7 +9,7 @@
 # Blackbox
 
 - name: make temp dir
-  local_action: shell "mktemp" "-d"
+  local_action: shell "mktemp" "-d" "{{ lookup('env', 'TMPDIR') | default('/tmp', true) }}/whisk.XXXXXXXX"
   register: tmpdir
 
 - name: build blackbox container artifact
@@ -27,7 +27,7 @@
 # iOS
 
 - name: make temp dir
-  local_action: shell "mktemp" "-d"
+  local_action: shell "mktemp" "-d" "{{ lookup('env', 'TMPDIR') | default('/tmp', true) }}/whisk.XXXXXXXX"
   register: tmpdir
 
 - name: build iOS starter app artifact
