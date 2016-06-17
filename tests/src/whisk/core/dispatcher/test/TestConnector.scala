@@ -19,6 +19,7 @@ package whisk.core.dispatcher.test
 import java.util.concurrent.LinkedBlockingQueue
 
 import scala.concurrent.Future
+import scala.concurrent.ExecutionContext
 
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.common.TopicPartition
@@ -29,7 +30,7 @@ import whisk.core.connector.MessageConsumer
 import whisk.core.connector.MessageProducer
 import whisk.core.dispatcher.MessageDispatcher
 
-class TestDispatcher(topic: String)
+class TestDispatcher(topic: String)(implicit val executionContext: ExecutionContext)
     extends MessageDispatcher
     with MessageConsumer {
 

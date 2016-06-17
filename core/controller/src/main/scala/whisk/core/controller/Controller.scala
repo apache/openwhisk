@@ -19,6 +19,7 @@ package whisk.core.controller
 import scala.concurrent.ExecutionContext
 
 import akka.actor.Actor
+import akka.actor.ActorSystem
 import akka.japi.Creator
 import spray.routing.Directive.pimpApply
 import whisk.common.TransactionId
@@ -28,7 +29,6 @@ import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.{ consulServer, kafkaHost, kafkaPartitions }
 import whisk.http.BasicHttpService
 import whisk.http.BasicRasService
-import whisk.utils.ExecutionContextFactory
 import spray.routing.Route
 import akka.actor.ActorContext
 
@@ -50,8 +50,7 @@ import akka.actor.ActorContext
 class Controller(
     config: WhiskConfig,
     instance: Int,
-    verbosity: Verbosity.Level,
-    executionContext: ExecutionContext)
+    verbosity: Verbosity.Level)
     extends BasicRasService
     with Actor {
 
@@ -77,7 +76,7 @@ class Controller(
     info(this, s"starting controller instance ${instance}")
 
     /** The REST APIs. */
-    private val apiv1 = new RestAPIVersion_v1(config, verbosity, context.system, executionContext)
+    private val apiv1 = new RestAPIVersion_v1(config, verbosity, context.system)
 
 }
 
@@ -99,8 +98,7 @@ object Controller {
 
     // akka-style factory to create a Controller object
     private class ServiceBuilder(config: WhiskConfig, instance: Int) extends Creator[Controller] {
-        implicit val executionContext = ExecutionContextFactory.makeExecutionContext()
-        def create = new Controller(config, instance, Verbosity.Loud, executionContext)
+        def create = new Controller(config, instance, Verbosity.Loud)
     }
 
     def main(args: Array[String]): Unit = {
@@ -111,9 +109,11 @@ object Controller {
         // second argument.  (TODO .. seems fragile)
         val instance = if (args.length > 0) args(1).toInt else 0
 
+        val system = ActorSystem("controller-actor-system")
+
         if (config.isValid) {
             val port = config.servicePort.toInt
-            BasicHttpService.startService("controller", "0.0.0.0", port, new ServiceBuilder(config, instance))
+            BasicHttpService.startService(system, "controller", "0.0.0.0", port, new ServiceBuilder(config, instance))
         }
     }
 }

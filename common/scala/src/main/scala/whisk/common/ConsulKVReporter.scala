@@ -48,8 +48,9 @@ class ConsulKVReporter(
     startKey: String,
     statusKey: String,
     updater: () => Map[String, JsValue])(
-        implicit val system: ActorSystem,
-        val ec: ExecutionContext) {
+        implicit val system: ActorSystem) {
+
+    implicit val executionContext = system.dispatcher
 
     system.scheduler.scheduleOnce(initialDelay) {
         val (selfHostname, stderr, exitCode) = SimpleExec.syncRunCmd(Array("hostname", "-f"))(TransactionId.unknown)

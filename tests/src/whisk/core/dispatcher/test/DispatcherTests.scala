@@ -53,11 +53,11 @@ import whisk.core.entity.WhiskTrigger
 @RunWith(classOf[JUnitRunner])
 class DispatcherTests extends FlatSpec with Matchers with BeforeAndAfter with BeforeAndAfterAll {
     implicit val transid = TransactionId.testing
-    implicit val ec = Dispatcher.executionContext
-
-    val dispatcher = new TestDispatcher("whisk")
 
     implicit val actorSystem = ActorSystem("dispatchertests")
+    implicit val ec = actorSystem.dispatcher
+
+    val dispatcher = new TestDispatcher("whisk")
 
     override def afterAll() {
         println("Shutting down actor system")
