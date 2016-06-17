@@ -9,7 +9,7 @@
 *.java          text
 *.js            text
 *.md            text
-*.py            text
+*.py            text eol=lf
 *.scala         text
 *.sh            text eol=lf
 *.gradle        text
@@ -18,3 +18,10 @@
 
 *.jar           binary
 *.png           binary
+
+# python files not having the .py extension
+tools/cli/wsk      text eol=lf
+tools/cli/wskadmin text eol=lf
+
+# bash files not having the .sh extension
+tools/vagrant/simple/wsk  text eol=lf

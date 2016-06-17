@@ -213,6 +213,14 @@ var propertyGetCmd = &cobra.Command{
     SilenceErrors:  true,
     RunE: func(cmd *cobra.Command, args []string) error {
 
+        // If no property is explicitly specified, default to all properties
+        if !(flags.property.all || flags.property.auth ||
+             flags.property.apiversion || flags.property.cliversion ||
+             flags.property.namespace || flags.property.apibuild ||
+             flags.property.apibuildno) {
+            flags.property.all = true
+        }
+
         if flags.property.all || flags.property.auth {
             fmt.Println("whisk auth\t\t", Properties.Auth)
         }
@@ -225,12 +233,12 @@ var propertyGetCmd = &cobra.Command{
             fmt.Println("whisk API version\t", Properties.APIVersion)
         }
 
-        if flags.property.all|| flags.property.cliversion {
-            fmt.Println("whisk CLI version\t", Properties.CLIVersion)
-        }
-
         if flags.property.all || flags.property.namespace {
             fmt.Println("whisk namespace\t\t", Properties.Namespace)
+        }
+
+        if flags.property.all || flags.property.cliversion {
+            fmt.Println("whisk CLI version\t", Properties.CLIVersion)
         }
 
         if flags.property.all || flags.property.apibuild || flags.property.apibuildno {
