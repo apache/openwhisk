@@ -51,6 +51,13 @@ To install the starter app example, enter the following command:
 wsk sdk install iOS
 ```
 
+This will download a zip file containing the starter app. Inside the project directory there is a Podfile. 
+
+To install the SDK, enter the following command:
+```
+pod install
+``` 
+
 ## Getting started with the SDK
 
 To get up and running quickly, create a WhiskCredentials object with your OpenWhisk API credentials and create an OpenWhisk instance from that.

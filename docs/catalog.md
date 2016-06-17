@@ -513,14 +513,13 @@ The `/whisk.system/github/webhook` feed configures a service to fire a trigger w
 - `username`: The username of the GitHub repository.
 - `repository`: The GitHub repository.
 - `accessToken`: Your GitHub personal access token. When you [create your token](https://github.com/settings/tokens), be sure to select the repo:status and public_repo scopes. Also, make sure you don't have any Webhooks already defined for your repository.
-- `events`: The [GitHub activity type](https://developer.github.com/v3/activity/events/types/) of interest.
+- `events`: The [GitHub event type](https://developer.github.com/v3/activity/events/types/) of interest.
 
 The following is an example of creating a trigger that will be fired each time that there is a new commit to a GitHub repository.
 
 1. Generate a GitHub [personal access token](https://github.com/settings/tokens).
 
-  The access token will be used in the next step.
-
+   The access token will be used in the next step.
 
 2. Create a package binding configured for your GitHub respository and with your accesss token.
 
@@ -533,3 +532,7 @@ The following is an example of creating a trigger that will be fired each time t
   ```
   $ wsk trigger create myGitTrigger --feed myGit/webhook --param events push
   ```
+
+A commit to the Github repository via a `git push` will cause the trigger to be fired by the webhook. If there is a rule that matches the trigger, then the associated action will be invoked.
+The action receives the Github webhook payload as an input parameter. Each Github webhook event has a similar JSON schema, but a unique payload object that is determined by its event type.
+For more information on the payload content see the [Github events and payload](https://developer.github.com/v3/activity/events/types/) API documentation.

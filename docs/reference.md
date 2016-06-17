@@ -30,9 +30,9 @@ examples of the fully qualified names of a number of entities and their aliases.
 
 | Fully qualified name | Alias | Namespace | Package | Name |
 | --- | --- | --- | --- | --- |
-| `/whisk.system/cloudant/read` | - | `/whisk.system` | `cloudant` | `read` |
+| `/whisk.system/cloudant/read` |  | `/whisk.system` | `cloudant` | `read` |
 | `/myOrg/video/transcode` | `video/transcode` | `/myOrg` | `video` | `transcode` |
-| `/myOrg/filter` | `filter` | `/myOrg` | - | `filter` |
+| `/myOrg/filter` | `filter` | `/myOrg` |  | `filter` |
 
 You will be using this naming scheme when you use the OpenWhisk CLI, among other places.
 
@@ -226,7 +226,7 @@ The `whisk.getAuthKey()` function returns the authorization key under which the 
 
 ### Runtime environment
 
-JavaScript actions are executed in a Node.js version 0.12.9 environment with the following packages available to be used by the action:
+JavaScript actions are executed in a Node.js version 0.12.14 environment with the following packages available to be used by the action:
 
 - apn
 - async
@@ -287,25 +287,30 @@ All the capabilites in the system are available through a REST API. There are co
 
 These are the collection endpoints:
 
-- `https://$BASEURL/api/v1/namespaces`
-- `https://$BASEURL/api/v1/namespaces/{namespace}/actions`
-- `https://$BASEURL/api/v1/namespaces/{namespace}/triggers`
-- `https://$BASEURL/api/v1/namespaces/{namespace}/rules`
-- `https://$BASEURL/api/v1/namespaces/{namespace}/packages`
-- `https://$BASEURL/api/v1/namespaces/{namespace}/activations`
+- `https://{BASE URL}/api/v1/namespaces`
+- `https://{BASE URL}/api/v1/namespaces/{namespace}/actions`
+- `https://{BASE URL}/api/v1/namespaces/{namespace}/triggers`
+- `https://{BASE URL}/api/v1/namespaces/{namespace}/rules`
+- `https://{BASE URL}/api/v1/namespaces/{namespace}/packages`
+- `https://{BASE URL}/api/v1/namespaces/{namespace}/activations`
+
+The `{BASE URL}` is the OpenWhisk API hostname (i.e. openwhisk.ng.bluemix.net, 172.17.0.1, etc..)
+
+For the `{namespace}` the character `_` can be use to specify the user's *default
+namespace* (i.e. email address)
 
 You can perform a GET request on the collection endpoints to fetch a list of entites in the collection.
 
 There are entity endpoints for each type of entity:
 
-- `https://$BASEURL/api/v1/namespaces/{namespace}`
-- `https://$BASEURL/api/v1/namespaces/{namespace}/actions/[{packageName}/]{actionName}`
-- `https://$BASEURL/api/v1/namespaces/{namespace}/triggers/{triggerName}`
-- `https://$BASEURL/api/v1/namespaces/{namespace}/rules/{ruleName}`
-- `https://$BASEURL/api/v1/namespaces/{namespace}/packages/{packageName}`
-- `https://$BASEURL/api/v1/namespaces/{namespace}/activations/{activationName}`
+- `https://{BASE URL}/api/v1/namespaces/{namespace}`
+- `https://{BASE URL}/api/v1/namespaces/{namespace}/actions/[{packageName}/]{actionName}`
+- `https://{BASE URL}/api/v1/namespaces/{namespace}/triggers/{triggerName}`
+- `https://{BASE URL}/api/v1/namespaces/{namespace}/rules/{ruleName}`
+- `https://{BASE URL}/api/v1/namespaces/{namespace}/packages/{packageName}`
+- `https://{BASE URL}/api/v1/namespaces/{namespace}/activations/{activationName}`
 
-The namespace and activation endpoints only support GET requests. The actions, triggers, rules and packages endpoints support GET, PUT and DELETE requests. The endpoints of actions, triggers and rules also support POST requests, which are used to invoke actions and triggers and enable or disable rules. Refer to the [API reference](http://petstore.swagger.io/?url=https://raw.githubusercontent.com/openwhisk/openwhisk/master/core/controller/src/resources/whiskswagger.json) for details.
+The namespace and activation endpoints only support GET requests. The actions, triggers, rules and packages endpoints support GET, PUT and DELETE requests. The endpoints of actions, triggers and rules also support POST requests, which are used to invoke actions and triggers and enable or disable rules. Refer to the [API reference](http://petstore.swagger.io/?url=https://raw.githubusercontent.com/openwhisk/openwhisk/master/core/controller/src/main/resources/whiskswagger.json) for details.
 
 All APIs are protected with HTTP Basic authentication. The Basic auth credentials are in the `AUTH` property in your `~/.wskprops` file, delimited by a colon. You can also retrieve these credentials in the [CLI configuration steps](../README.md#setup-cli).
 
@@ -359,13 +364,29 @@ OpenWhisk has a few system limits, including how much memory an action uses and 
 * A user can change the limit when creating the action.
 * A container cannot have more memory allocated than the limit.
 
-### Per namespace #Concurrent Invocation (#) (Default: 100)
+### Per action artifact (MB) (Fixed: 1MB)
+* The maximum code size for the action is 1MB.
+* It is recommended for a JavaScript action to use a tool to concatenate all source code including dependencies into a single bundled file.
+
+### Per activation payload size (MB) (Fixed: 1MB)
+* The maximum POST content size plus any curried parameters for an action invocation or trigger firing is 1MB.
+
+### Per namespace concurrent invocation (Default: 100)
 * The number of activations that are currently processed for a namespace cannot exceed 100.
 * The default limit can be statically configured by whisk in consul kvstore.
 * A user is currently not able to change the limits.
 
-
-### Invocations per minute/hour (#) (Fixed: 120/3600)
+### Invocations per minute/hour (Fixed: 120/3600)
 * The rate limit N is set to 120/3600 and limits the number of action invocations in one minute/hour windows.
 * A user cannot change this limit when creating the action.
 * A CLI call that exceeds this limit receives an error code corresponding to TOO_MANY_REQUESTS.
+
+### Per Docker action open files ulimit (Fixed: 64:64)
+* The maximum number of open file is 64 (this applies to both hard and soft limits).
+* The docker run command use the argument `--ulimit nofile=64:64`.
+* For more information on the ulimit for open files see the [docker run](https://docs.docker.com/engine/reference/commandline/run) documentation.
+
+### Per Docker action number of processes ulimit (Fixed: 512:512)
+* The maximum number of processes available to a user is 512 (this applies to both hard and soft limits).
+* The docker run command use the argument `--ulimit nproc=512:512`.
+* For more information on the ulimit for maximum number of processes see the [docker run](https://docs.docker.com/engine/reference/commandline/run) documentation.

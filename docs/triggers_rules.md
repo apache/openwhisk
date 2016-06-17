@@ -80,8 +80,9 @@ As an example, create a trigger to send user location updates, and manually fire
   ok: triggered locationUpdate with id fa495d1223a2408b999c3e0ca73b2677
   ```
 
-   Any events that you fire to the statusUpdate trigger currently don't do anything. To be useful, the trigger needs a rule that associates it with an action.
+  A trigger that is fired without an accompanying rule to match against has no visible effect.
 
+  Triggers may not be created inside a package, they must be created directly under a namespace.
 
 ## Using rules to associate triggers and actions
 
@@ -141,3 +142,6 @@ As an example, create a rule that calls the hello action whenever a location upd
   You see that the hello action received the event payload and returned the expected string.
 
   You can create multiple rules that associate the same trigger with different actions.
+
+  The trigger and action that make a rule must be in the same namespace and cannot belong to package.
+  If you want to use an action that belongs to a package, you can copy the action into your namespace, for example `wsk action create echo --copy /whisk.system/samples/echo`.
