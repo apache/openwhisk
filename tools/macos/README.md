@@ -4,7 +4,17 @@ One way to develop or deploy OpenWhisk on a Mac is to use [docker-machine](https
 
 # Prerequisites
 
-The following are required to build OpenWhisk. The easiest way to install the following is using [Homebrew](http://brew.sh/) with [Cask](https://github.com/caskroom/homebrew-cask). You can copy the entire section below and paste into your terminal to run all of the steps required.
+The following are required to build and deploy OpenWhisk from a Mac host:
+
+- [Oracle VM VirtualBox](https://www.virtualbox.org/wiki/Downloads)
+- [Docker](https://docs.docker.com/engine/installation/mac/) (including `docker-machine`)
+- [Java 8](http://www.oracle.com/technetwork/java/javase/downloads/index.html)
+- [Scala 2.11](http://scala-lang.org/download/)
+- [Ant](http://ant.apache.org/manual/install.html)
+- [Ant-Contrib Tasks](http://ant-contrib.sourceforge.net/)
+- [Gradle](https://docs.gradle.org/current/userguide/installation.html)
+
+[Homebrew](http://brew.sh/) is an easy way to install all of these and prepare your Mac to build and deploy OpenWhik. The following shell command is provided for your convenience to install `brew` with [Cask](https://github.com/caskroom/homebrew-cask) and bootstraps these to complete the setup. Copy the entire section below and paste it into your terminal to run it.
 
 ```
 echo '
@@ -40,9 +50,9 @@ docker-machine create -d virtualbox \
     whisk # the name of your docker machine
 ```
 
-The Docker virtual machine requires some tweaking to work from the Mac host and OpenWhisk.
+The Docker virtual machine requires some tweaking to work from the Mac host with OpenWhisk.
 The following [script](./tweak-dockermachine.sh) will disable TLS, add port forwarding
-within the VM and routes `172.17.x.x` form the Mac host to the Docker virtual machine.
+within the VM and routes `172.17.x.x` from the Mac host to the Docker virtual machine.
 Enter your sudo Mac password when prompted.
 
 ```
@@ -56,8 +66,11 @@ Run the following:
 export DOCKER_HOST="tcp://192.168.99.100:4243" # your Docker virtual machine IP may vary
 ```
 
-The Docker host reported by `docker-machine ip` will give you the IP address. You must use port `4243`.
-You may find it convenient to set these environment variable in your bash profile.
+The Docker host reported by `docker-machine ip whisk` will give you the IP address.
+Currently, the system requires that you use port `4243` to communicate with the Docker host
+from OpenWhisk.
+
+You may find it convenient to set these environment variable in your bash profile (e.g., `~/.bash_profile`).
 
 ```
 export OPENWHISK_HOME=/your/path/to/openwhisk
