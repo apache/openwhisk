@@ -17,7 +17,6 @@
 package whisk.core.entitlement
 
 import scala.collection.concurrent.TrieMap
-import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.duration.DurationInt
@@ -45,10 +44,11 @@ import whisk.core.entity.Subject
 
 protected[core] class RemoteEntitlementService(
     private val config: WhiskConfig,
-    private val timeout: FiniteDuration = 5 seconds,
-    private implicit val actorSystem: ActorSystem,
-    private implicit val ec: ExecutionContext)
+    private val timeout: FiniteDuration = 5 seconds)(
+    private implicit val actorSystem: ActorSystem)
     extends EntitlementService(config) {
+
+    private implicit val executionContext = actorSystem.dispatcher
 
     private val apiLocation = config.entitlementHost
     private val matrix = TrieMap[(Subject, String), Set[Privilege]]()

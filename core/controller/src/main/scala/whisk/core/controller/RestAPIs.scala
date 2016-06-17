@@ -118,12 +118,13 @@ protected[controller] trait RespondWithHeaders extends Directives {
 protected[controller] class RestAPIVersion_v1(
     config: WhiskConfig,
     verbosity: Verbosity.Level,
-    implicit val actorSystem: ActorSystem,
-    implicit val executionContext: ExecutionContext)
+    implicit val actorSystem: ActorSystem)
     extends RestAPIVersion("v1", config(whiskVersionDate), config(whiskVersionBuildno))
     with Authenticate
     with AuthenticatedRoute
     with RespondWithHeaders {
+
+    implicit val executionContext = actorSystem.dispatcher
 
     /**
      * Here is the key method: it defines the Route (route tree) which implement v1 of the REST API.

@@ -68,13 +68,13 @@ object WhiskServices extends LoadbalancerRequest {
      * Creates instance of an entitlement service.
      */
     def entitlementService(config: WhiskConfig, timeout: FiniteDuration = 5 seconds)(
-        implicit as: ActorSystem, ec: ExecutionContext) = {
+        implicit as: ActorSystem) = {
         // remote entitlement service requires a host:port definition. If not given,
         // i.e., the value equals ":" or ":xxxx", use a local entitlement flow.
         if (config.entitlementHost.startsWith(":")) {
             new LocalEntitlementService(config)
         } else {
-            new RemoteEntitlementService(config, timeout, as, ec)
+            new RemoteEntitlementService(config, timeout)
         }
     }
 
@@ -87,7 +87,7 @@ object WhiskServices extends LoadbalancerRequest {
      * and returns the HTTP response from the load balancer as a future
      */
     def makeLoadBalancerComponent(config: WhiskConfig, timeout: Timeout = 10 seconds)(
-        implicit as: ActorSystem, ec: ExecutionContext):
+        implicit as: ActorSystem):
         (LoadBalancerReq => Future[LoadBalancerResponse], () => JsObject, (ActivationId, TransactionId) => Future[WhiskActivation]) = {
         val loadBalancer = new LoadBalancerService(config, Verbosity.Loud)
         val requestTaker = (lbr: LoadBalancerReq) => { loadBalancer.doPublish(lbr._1, lbr._2)(lbr._3) }

@@ -19,6 +19,7 @@ package whisk.core.dispatcher
 import scala.collection.concurrent.TrieMap
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.Future
+import scala.concurrent.ExecutionContext
 import scala.util.Failure
 import scala.util.Success
 import scala.util.matching.Regex.Match
@@ -87,6 +88,8 @@ trait Registrar {
 trait MessageDispatcher extends Registrar with Logging {
     consumer: MessageConsumer =>
 
+    val executionContext: ExecutionContext
+
     /**
      * Starts a listener to consume message from connector (e.g., kafka).
      * The listener consumes messages from the bus using a streaming consumer
@@ -136,7 +139,8 @@ trait MessageDispatcher extends Registrar with Logging {
     }
 
     private def handleMessage(rule: DispatchRule, topic: String, msg: Message, matches: Seq[Match]) = {
-        implicit val ec = Dispatcher.executionContext
+        implicit val ec = executionContext
+
         implicit val tid = msg.transid
         if (matches.nonEmpty) Future {
             val count = counter.next()
@@ -182,7 +186,7 @@ trait MessageDispatcher extends Registrar with Logging {
 class Dispatcher(
     config: WhiskConfig,
     topic: String,
-    groupid: String)
+    groupid: String)(implicit val executionContext: ExecutionContext)
     extends KafkaConsumerConnector(config.kafkaHost, groupid, topic)
     with MessageDispatcher {
 }
@@ -190,8 +194,6 @@ class Dispatcher(
 object Dispatcher extends Logging {
     def requiredProperties =
         Map(servicePort -> 8080.toString()) ++ kafkaHost
-
-    val executionContext = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
 
     def main(args: Array[String]): Unit = {
         val name = if (args.nonEmpty) args(0).trim.toLowerCase() else ""

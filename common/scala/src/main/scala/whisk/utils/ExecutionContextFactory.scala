@@ -34,7 +34,8 @@ import akka.pattern.{ after => expire }
 object ExecutionContextFactory {
 
     implicit class FutureExtensions[T](f: Future[T]) {
-        def withTimeout(timeout: FiniteDuration, msg: => Throwable)(implicit system: ActorSystem, ec: ExecutionContext): Future[T] = {
+        def withTimeout(timeout: FiniteDuration, msg: => Throwable)(implicit system: ActorSystem): Future[T] = {
+            implicit val ec = system.dispatcher
             Future firstCompletedOf Seq(f, expire(timeout, system.scheduler)(Future.failed(msg)))
         }
     }
@@ -45,23 +46,11 @@ object ExecutionContextFactory {
      * The idiom to use is: promise after(duration, promise.tryFailure(TimeoutException)`.
      */
     implicit class PromiseExtensions[T](p: Promise[T]) {
-        def after(timeout: FiniteDuration, next: => Unit)(implicit system: ActorSystem, ec: ExecutionContext): Promise[T] = {
+        def after(timeout: FiniteDuration, next: => Unit)(implicit system: ActorSystem): Promise[T] = {
+            implicit val ec = system.dispatcher
             expire(timeout, system.scheduler)(Future { next })
             p
         }
-    }
-
-    /**
-     * Makes an execution context for Futures using Executors.newSingleThreadExecutorl. From the javadoc:
-     *
-     * Creates an Executor that uses a single worker thread operating off an unbounded queue. (Note
-     * however that if this single thread terminates due to a failure during execution prior to shutdown,
-     * a new one will take its place if needed to execute subsequent tasks.) Tasks are guaranteed to execute
-     * sequentially, and no more than one task will be active at any given time. Unlike the otherwise equivalent
-     * newFixedThreadPool(1) the returned executor is guaranteed not to be reconfigurable to use additional threads.
-     */
-    def makeSingleThreadExecutionContext(): ExecutionContext = {
-        ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor())
     }
 
     /**
@@ -78,19 +67,4 @@ object ExecutionContextFactory {
     def makeCachedThreadPoolExecutionContext(): ExecutionContext = {
         ExecutionContext.fromExecutor(Executors.newCachedThreadPool())
     }
-
-    /**
-     * Makes an execution context for Futures from a general ThreadPoolExecutor.
-     *
-     * @param poolSize the number of threads to keep in the pool even if they are idle
-     * @param maxPoolSize the maximum number of threads to allow in the pool
-     * @param keepAliveDuration the maximum time that excess idle threads will wait for new tasks before terminating
-     * @param workQueueSize the queue size for holding tasks before they are executed
-     */
-    def makeCustomThreadPoolExecutionContext(poolSize: Int = 16, maxPoolSize: Int = 32, keepAliveDuration: Duration = 10 seconds, workQueueSize: Int = 32767): ExecutionContext = {
-        ExecutionContext.fromExecutor(new ThreadPoolExecutor(poolSize, maxPoolSize, keepAliveDuration.length, keepAliveDuration.unit, new ArrayBlockingQueue[Runnable](workQueueSize)))
-    }
-
-    /** Default execution context factory. */
-    def makeExecutionContext() = makeCustomThreadPoolExecutionContext()
 }

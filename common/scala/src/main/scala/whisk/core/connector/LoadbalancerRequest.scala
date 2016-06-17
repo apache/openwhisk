@@ -50,7 +50,9 @@ trait LoadbalancerRequest extends HttpClient {
      * and returns the HTTP response from the load balancer as a future
      */
     protected def request(loadbalancerHost: String, timeout: Timeout = 5 seconds)(
-        implicit as: ActorSystem, ec: ExecutionContext): HttpRequest => Future[LoadBalancerResponse] = {
+        implicit as: ActorSystem): HttpRequest => Future[LoadBalancerResponse] = {
+
+        implicit val executionContext = as.dispatcher
         val loadbalancer = loadbalancerHost.split(":")
         (req: HttpRequest) => {
             httpRequest(loadbalancer(0), loadbalancer(1).toInt, timeout) flatMap {
