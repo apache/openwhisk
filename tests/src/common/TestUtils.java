@@ -122,7 +122,7 @@ public class TestUtils {
             return map;
         } catch (Throwable t) {
             System.out.println("failed to parse VCAP" + t);
-            return Collections.EMPTY_MAP;
+            return Collections.emptyMap();
         }
     }
 
