@@ -23,20 +23,18 @@ import scala.language.postfixOps
 import org.apache.commons.codec.binary.Base64
 
 import akka.actor.ActorSystem
-import spray.client.pipelining.Delete
-import spray.client.pipelining.Get
-import spray.client.pipelining.Put
-import spray.client.pipelining.WithTransformerConcatenation
-import spray.client.pipelining.sendReceive
-import spray.client.pipelining.sendReceive$default$3
-import spray.client.pipelining.unmarshal
-import spray.http.HttpRequest
-import spray.http.Uri
-import spray.http.Uri.Path
-import spray.http.Uri.Query
-import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
-import spray.json.DefaultJsonProtocol
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.headers._
+import akka.http.scaladsl.marshalling._
+import akka.http.scaladsl.unmarshalling._
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import akka.stream.ActorMaterializer
+import akka.stream.scaladsl._
+
 import java.util.NoSuchElementException
+
+import spray.json._
 
 case class ConsulEntry(key: String, value: Option[String]) {
     val decodedValue = value map { value =>
@@ -55,18 +53,16 @@ object ConsulEntry extends DefaultJsonProtocol {
  * Client to access Consul's <a href="https://www.consul.io/docs/agent/http/kv.html">
  * key/value store</a>
  */
-class ConsulClient(host: String)(implicit val actorSystem: ActorSystem) {
+class ConsulClient(hostAndPort: String)(implicit val actorSystem: ActorSystem) {
+    // A consequence of hostAndPort being merged in config.
+    private val host :: port :: Nil = hostAndPort.split(":").toList
 
     private implicit val executionContext = actorSystem.dispatcher
+    private implicit val materializer = ActorMaterializer()
 
-    private val kv = Path("/v1/kv")
+    private val base = Uri().withScheme("http").withHost(host).withPort(port.toInt)
 
-    private val pipeline = sendReceive
-    private val listPipeline: HttpRequest => Future[List[ConsulEntry]] = (
-        sendReceive
-        ~> unmarshal[List[ConsulEntry]])
-
-    private def uriWithKey(key: String) = Uri("http://" + host) withPath kv / key
+    private def uriWithKey(key: String) = base.withPath(Uri.Path(s"/v1/kv/$key"))
 
     /**
      * Gets the entry from Consul with the given key
@@ -76,12 +72,14 @@ class ConsulClient(host: String)(implicit val actorSystem: ActorSystem) {
      *         decoded value of the Consul entry
      */
     def get(key: String): Future[String] = {
-        listPipeline(Get(uriWithKey(key))) flatMap {
-            _.head.decodedValue match {
-                case Some(value) => Future successful value
-                case None        => Future failed new NoSuchElementException
-            }
-        }
+        Http().singleRequest(
+            HttpRequest(
+                method = HttpMethods.GET,
+                uri = uriWithKey(key)
+            )
+        ) flatMap { response =>
+            Unmarshal(response.entity).to[List[ConsulEntry]]
+        } map { _.head.decodedValue.getOrElse(throw new NoSuchElementException()) }
     }
 
     /**
@@ -93,7 +91,15 @@ class ConsulClient(host: String)(implicit val actorSystem: ActorSystem) {
      * @return a future that completes on success of the operation
      */
     def put(key: String, value: String): Future[Any] = {
-        pipeline(Put(uriWithKey(key), value))
+        Http().singleRequest(
+            HttpRequest(
+                method = HttpMethods.PUT,
+                uri = uriWithKey(key),
+                entity = value
+            )
+        ) flatMap { response =>
+            Unmarshal(response).to[Any]
+        }
     }
 
     /**
@@ -104,7 +110,14 @@ class ConsulClient(host: String)(implicit val actorSystem: ActorSystem) {
      * @return a future that completes on success of the operation
      */
     def del(key: String): Future[Any] = {
-        pipeline(Delete(uriWithKey(key)))
+        Http().singleRequest(
+            HttpRequest(
+                method = HttpMethods.DELETE,
+                uri = uriWithKey(key)
+            )
+        ) flatMap { response =>
+            Unmarshal(response).to[Any]
+        }
     }
 
     /**
@@ -114,11 +127,15 @@ class ConsulClient(host: String)(implicit val actorSystem: ActorSystem) {
      * @return a future that completes with key/value pairs
      */
     def getRecurse(root: String): Future[Map[String, String]] = {
-        val url = uriWithKey(root) withQuery Query("recurse" -> "true")
-        listPipeline(Get(url)) map { entries =>
-            entries map { entry =>
-                entry.key -> entry.decodedValue.getOrElse("")
-            } toMap
+        Http().singleRequest(
+            HttpRequest(
+                method = HttpMethods.GET,
+                uri = uriWithKey(root).withQuery(Uri.Query("recurse" -> "true"))
+            )
+        ) flatMap { response =>
+            Unmarshal(response).to[List[ConsulEntry]]
+        } map { entries =>
+            entries.map(e => e.key -> e.decodedValue.getOrElse("")).toMap
         }
     }
 }
