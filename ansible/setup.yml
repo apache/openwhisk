@@ -17,6 +17,7 @@
     local_action: template src="{{playbook_dir}}/environments/mac/hosts.j2.ini" dest="{{ playbook_dir }}/environments/mac/hosts"
     when: "'environments/mac' in inventory_dir"
 
+  # at the beginning, we don't have the hosts file, so we need this step in order to get step "prepare db_local.ini" working
   - name: add new db host on-the-fly
     add_host: name={{ docker_machine_ip }} groups=db
     when: "'environments/mac' in inventory_dir"
