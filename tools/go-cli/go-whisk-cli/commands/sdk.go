@@ -107,7 +107,7 @@ func dockerInstall() error {
 }
 
 func swiftInstall() error {
-    fmt.Println("swift SDK coming soon")
+    fmt.Println("Swift SDK coming soon.")
     return nil
 }
 
@@ -121,7 +121,7 @@ func iOSInstall() error {
         return werr
     }
 
-    fmt.Printf("Downloaded iOS whisk starter app. Unzip %s and open the project in Xcode", sdkMap[SDK_IOS_COMPONENT_NAME].FileName)
+    fmt.Printf("Downloaded OpenWhisk iOS starter app. Unzip %s and open the project in Xcode.\n", sdkMap[SDK_IOS_COMPONENT_NAME].FileName)
     return nil
 }
 

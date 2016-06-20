@@ -343,7 +343,9 @@ var ruleGetCmd = &cobra.Command{
         }
 
         fmt.Printf("%s got rule %s\n", color.GreenString("ok:"), boldString(ruleName))
-        printJSON(rule)
+        //printJSON(rule)
+        printJsonNoColor(rule)
+
         return nil
     },
 }

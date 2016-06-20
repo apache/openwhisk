@@ -21,6 +21,7 @@ import (
     "net/http"
     "strings"
     "errors"
+    "net/url"
 )
 
 type RuleService struct {
@@ -75,7 +76,7 @@ func (s *RuleService) List(options *RuleListOptions) ([]Rule, *http.Response, er
 }
 
 func (s *RuleService) Insert(rule *Rule, overwrite bool) (*Rule, *http.Response, error) {
-    route := fmt.Sprintf("rules/%s?overwrite=%t", rule.Name, overwrite)
+    route := fmt.Sprintf("rules/%s?overwrite=%t", strings.Replace(url.QueryEscape(rule.Name), "+", " ", -1), overwrite)
 
     req, err := s.client.NewRequest("PUT", route, rule)
     if err != nil {
@@ -98,7 +99,7 @@ func (s *RuleService) Insert(rule *Rule, overwrite bool) (*Rule, *http.Response,
 }
 
 func (s *RuleService) Get(ruleName string) (*Rule, *http.Response, error) {
-    route := fmt.Sprintf("rules/%s", ruleName)
+    route := fmt.Sprintf("rules/%s", strings.Replace(url.QueryEscape(ruleName), "+", " ", -1))
 
     req, err := s.client.NewRequest("GET", route, nil)
     if err != nil {
@@ -121,7 +122,7 @@ func (s *RuleService) Get(ruleName string) (*Rule, *http.Response, error) {
 }
 
 func (s *RuleService) Delete(ruleName string) (*http.Response, error) {
-    route := fmt.Sprintf("rules/%s", ruleName)
+    route := fmt.Sprintf("rules/%s", strings.Replace(url.QueryEscape(ruleName), "+", " ", -1))
 
     req, err := s.client.NewRequest("DELETE", route, nil)
     if err != nil {
@@ -151,7 +152,7 @@ func (s *RuleService) SetState(ruleName string, state string) (*Rule, *http.Resp
     }
 
     //MWD route := fmt.Sprintf("rules/%s?state=%s", ruleName, state)
-    route := fmt.Sprintf("rules/%s", ruleName)
+    route := fmt.Sprintf("rules/%s", strings.Replace(url.QueryEscape(ruleName), "+", " ", -1))
 
     ruleState := &Rule{ Status: state }
 

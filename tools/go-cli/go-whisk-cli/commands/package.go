@@ -102,15 +102,18 @@ var packageBindCmd = &cobra.Command{
             return werr
         }
 
+        client.Namespace = bindQName.namespace
+
+
         // Convert the binding's list of default parameters from a string into []KeyValue
         // The 1 or more --param arguments have all been combined into a single []string
         // e.g.   --p arg1,arg2 --p arg3,arg4   ->  [arg1, arg2, arg3, arg4]
 
         whisk.Debug(whisk.DbgInfo, "Parsing parameters: %#v\n", flags.common.param)
-        parameters, err := parseParameters(flags.common.param)
+        parameters, err := parseParametersArray(flags.common.param)
 
         if err != nil {
-            whisk.Debug(whisk.DbgError, "parseParameters(%#v) failed: %s\n", flags.common.param, err)
+            whisk.Debug(whisk.DbgError, "parseParametersArray(%#v) failed: %s\n", flags.common.param, err)
             errStr := fmt.Sprintf("Invalid parameter argument '%#v': %s", flags.common.param, err)
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             return werr
@@ -191,10 +194,10 @@ var packageCreateCmd = &cobra.Command{
         }
 
         whisk.Debug(whisk.DbgInfo, "Parsing parameters: %#v\n", flags.common.param)
-        parameters, err := parseParameters(flags.common.param)
+        parameters, err := parseParametersArray(flags.common.param)
 
         if err != nil {
-            whisk.Debug(whisk.DbgError, "parseParameters(%#v) failed: %s\n", flags.common.param, err)
+            whisk.Debug(whisk.DbgError, "parseParametersArray(%#v) failed: %s\n", flags.common.param, err)
             errStr := fmt.Sprintf("Invalid parameter argument '%#v': %s", flags.common.param, err)
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             return werr
@@ -312,10 +315,10 @@ var packageUpdateCmd = &cobra.Command{
         }
 
         whisk.Debug(whisk.DbgInfo, "Parsing parameters: %#v\n", flags.common.param)
-        parameters, err := parseParameters(flags.common.param)
+        parameters, err := parseParametersArray(flags.common.param)
 
         if err != nil {
-            whisk.Debug(whisk.DbgError, "parseParameters(%#v) failed: %s\n", flags.common.param, err)
+            whisk.Debug(whisk.DbgError, "parseParametersArray(%#v) failed: %s\n", flags.common.param, err)
             errStr := fmt.Sprintf("Invalid parameter argument '%#v': %s", flags.common.param, err)
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             return werr
@@ -510,14 +513,28 @@ var packageRefreshCmd = &cobra.Command{
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
 
-        if len(args) == 1 {
-            namespace := args[0]
-            currentNamespace := client.Config.Namespace
-            client.Config.Namespace = namespace
-            defer func() {
-                client.Config.Namespace = currentNamespace
-            }()
+        if len(args) != 1 {
+            whisk.Debug(whisk.DbgError, "Invalid number of arguments %d (expected 1 argument); args: %#v\n", len(args), args)
+            errStr := fmt.Sprintf("Invalid number of arguments (%d) provided; the package name is the only expected argument", len(args))
+            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            return werr
         }
+
+        qName, err := parseQualifiedName(args[0])
+        if err != nil {
+            whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[0], err)
+            errMsg := fmt.Sprintf("Failed to parse qualified name: %s\n", args[0])
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+                whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            return werr
+        }
+
+        currentNamespace := client.Config.Namespace
+        client.Config.Namespace = qName.namespace
+
+        defer func() {
+            client.Config.Namespace = currentNamespace
+        }()
 
         updates, resp, err := client.Packages.Refresh()
         if err != nil {
@@ -532,28 +549,25 @@ var packageRefreshCmd = &cobra.Command{
         case http.StatusOK:
             fmt.Printf("%s refreshed successfully\n", client.Config.Namespace)
 
+            fmt.Println("created bindings:")
+
             if len(updates.Added) > 0 {
-                fmt.Println("created bindings:")
                 //printJSON(updates.Added)
                 printArrayContents(updates.Added)
-            } else {
-                fmt.Println("no bindings created")
             }
+
+            fmt.Println("updated bindings:")
 
             if len(updates.Updated) > 0 {
-                fmt.Println("updated bindings:")
                 //printJSON(updates.Updated)
                 printArrayContents(updates.Updated)
-            } else {
-                fmt.Println("no bindings updated")
             }
 
+            fmt.Println("deleted bindings:")
+
             if len(updates.Deleted) > 0 {
-                fmt.Println("deleted bindings:")
                 //printJSON(updates.Deleted)
                 printArrayContents(updates.Deleted)
-            } else {
-                fmt.Println("no bindings deleted")
             }
 
         case http.StatusNotImplemented:

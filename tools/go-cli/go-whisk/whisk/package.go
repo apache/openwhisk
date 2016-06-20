@@ -22,6 +22,8 @@ import (
     "net/url"
     "errors"
     "reflect"
+    "encoding/json"
+    "strings"
 )
 
 type PackageService struct {
@@ -39,7 +41,7 @@ type SentPackagePublish struct {
     Version   string `json:"version,omitempty"`
     Publish   bool   `json:"publish"`
     Annotations 	 `json:"annotations,omitempty"`
-    Parameters  	 `json:"parameters,omitempty"`
+    Parameters  	 *json.RawMessage `json:"parameters,omitempty"`
 }
 func (p *SentPackagePublish) GetName() string {
     return p.Name
@@ -52,7 +54,7 @@ type SentPackageNoPublish struct {
     Version   string `json:"version,omitempty"`
     Publish   bool   `json:"publish,omitempty"`
     Annotations 	 `json:"annotations,omitempty"`
-    Parameters  	 `json:"parameters,omitempty"`
+    Parameters  	 *json.RawMessage `json:"parameters,omitempty"`
 }
 func (p *SentPackageNoPublish) GetName() string {
     return p.Name
@@ -66,7 +68,7 @@ type Package struct {
     Version   string    `json:"version,omitempty"`
     Publish   bool      `json:"publish"`
     Annotations 	    `json:"annotations,omitempty"`
-    Parameters  	    `json:"parameters,omitempty"`
+    Parameters  	    *json.RawMessage `json:"parameters,omitempty"`
     Binding             `json:"binding,omitempty"`
     Actions  []Action   `json:"actions,omitempty"`
     Feeds    []Action   `json:"feeds,omitempty"`
@@ -110,7 +112,7 @@ type BindingPackage struct {
     Version   string `json:"version,omitempty"`
     Publish   bool   `json:"publish"`
     Annotations 	 `json:"annotations,omitempty"`
-    Parameters  	 `json:"parameters,omitempty"`
+    Parameters  	 *json.RawMessage `json:"parameters,omitempty"`
     Binding          `json:"binding"`
 }
 func (p *BindingPackage) GetName() string {
@@ -171,7 +173,7 @@ func (s *PackageService) List(options *PackageListOptions) ([]Package, *http.Res
 }
 
 func (s *PackageService) Get(packageName string) (*Package, *http.Response, error) {
-    route := fmt.Sprintf("packages/%s", url.QueryEscape(packageName))
+    route := fmt.Sprintf("packages/%s", strings.Replace(url.QueryEscape(packageName), "+", " ", -1))
 
     req, err := s.client.NewRequest("GET", route, nil)
     if err != nil {
@@ -195,7 +197,8 @@ func (s *PackageService) Get(packageName string) (*Package, *http.Response, erro
 }
 
 func (s *PackageService) Insert(x_package PackageInterface, overwrite bool) (*Package, *http.Response, error) {
-    route := fmt.Sprintf("packages/%s?overwrite=%t", url.QueryEscape(x_package.GetName()), overwrite)
+    route := fmt.Sprintf("packages/%s?overwrite=%t",
+        url.QueryEscape(strings.Replace(url.QueryEscape(x_package.GetName()), "+", " ", -1)), overwrite)
 
     req, err := s.client.NewRequest("PUT", route, x_package)
     if err != nil {
@@ -218,7 +221,7 @@ func (s *PackageService) Insert(x_package PackageInterface, overwrite bool) (*Pa
 }
 
 func (s *PackageService) Delete(packageName string) (*http.Response, error) {
-    route := fmt.Sprintf("packages/%s", url.QueryEscape(packageName))
+    route := fmt.Sprintf("packages/%s", strings.Replace(url.QueryEscape(packageName), "+", " ", -1))
 
     req, err := s.client.NewRequest("DELETE", route, nil)
     if err != nil {

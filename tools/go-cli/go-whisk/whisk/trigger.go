@@ -20,6 +20,9 @@ import (
     "fmt"
     "net/http"
     "errors"
+    "encoding/json"
+    "strings"
+    "net/url"
 )
 
 type TriggerService struct {
@@ -33,7 +36,7 @@ type Trigger struct {
     Publish   bool   `json:"publish,omitempty"`
     ActivationId string `json:"activationId,omitempty"`
     Annotations `json:"annotations,omitempty"`
-    Parameters  `json:"parameters,omitempty"`
+    Parameters  *json.RawMessage `json:"parameters,omitempty"`
     //Limits      `json:"limits,omitempty"`
 }
 
@@ -44,7 +47,7 @@ type TriggerFromServer struct {
     Publish   bool   `json:"publish"`
     ActivationId string `json:"activationId,omitempty"`
     Annotations `json:"annotations"`
-    Parameters  `json:"parameters"`
+    Parameters  *json.RawMessage `json:"parameters"`
     Limits      `json:"limits"`
 }
 
@@ -86,7 +89,8 @@ func (s *TriggerService) List(options *TriggerListOptions) ([]TriggerFromServer,
 }
 
 func (s *TriggerService) Insert(trigger *Trigger, overwrite bool) (*TriggerFromServer, *http.Response, error) {
-    route := fmt.Sprintf("triggers/%s?overwrite=%t", trigger.Name, overwrite)
+    route := fmt.Sprintf("triggers/%s?overwrite=%t", strings.Replace(url.QueryEscape(trigger.Name), "+", " ", -1),
+        overwrite)
 
     req, err := s.client.NewRequest("PUT", route, trigger)
     if err != nil {
@@ -110,7 +114,7 @@ func (s *TriggerService) Insert(trigger *Trigger, overwrite bool) (*TriggerFromS
 }
 
 func (s *TriggerService) Get(triggerName string) (*TriggerFromServer, *http.Response, error) {
-    route := fmt.Sprintf("triggers/%s", triggerName)
+    route := fmt.Sprintf("triggers/%s", strings.Replace(url.QueryEscape(triggerName), "+", " ", -1))
 
     req, err := s.client.NewRequest("GET", route, nil)
     if err != nil {
@@ -133,30 +137,31 @@ func (s *TriggerService) Get(triggerName string) (*TriggerFromServer, *http.Resp
 
 }
 
-func (s *TriggerService) Delete(triggerName string) (*http.Response, error) {
-    route := fmt.Sprintf("triggers/%s", triggerName)
+func (s *TriggerService) Delete(triggerName string) (*TriggerFromServer, *http.Response, error) {
+    route := fmt.Sprintf("triggers/%s", strings.Replace(url.QueryEscape(triggerName), "+", " ", -1))
 
     req, err := s.client.NewRequest("DELETE", route, nil)
     if err != nil {
         Debug(DbgError, "http.NewRequest(DELETE, %s); error '%s'\n", route, err)
         errStr := fmt.Sprintf("Unable to create HTTP request for DELETE '%s'; error: %s", route, err)
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
-        return nil, werr
+        return nil, nil, werr
     }
 
-    resp, err := s.client.Do(req, nil)
+    t := new(TriggerFromServer)
+    resp, err := s.client.Do(req, &t)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
         errStr := fmt.Sprintf("Request failure: %s", err)
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
-        return resp, werr
+        return nil, resp, werr
     }
 
-    return resp, nil
+    return t, resp, nil
 }
 
-func (s *TriggerService) Fire(triggerName string, payload map[string]interface{}) (*TriggerFromServer, *http.Response, error) {
-    route := fmt.Sprintf("triggers/%s", triggerName)
+func (s *TriggerService) Fire(triggerName string, payload *json.RawMessage) (*TriggerFromServer, *http.Response, error) {
+    route := fmt.Sprintf("triggers/%s", strings.Replace(url.QueryEscape(triggerName), "+", " ", -1))
 
     req, err := s.client.NewRequest("POST", route, payload)
     if err != nil {
