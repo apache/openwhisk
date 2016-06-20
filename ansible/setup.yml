@@ -6,14 +6,21 @@
   - name: find the ip of docker-machine
     local_action: shell "docker-machine" "ip" "{{docker_machine_name | default('whisk')}}"
     register: result
-    ignore_errors: true
+    when: "'environments/mac' in inventory_dir"
 
-  - set_fact: 
+  - name: get the docker-machine ip
+    set_fact:
       docker_machine_ip: "{{ result.stdout }}"
-  
+    when: "'environments/mac' in inventory_dir"
+
   - name: gen hosts for docker-machine 
     local_action: template src="{{playbook_dir}}/environments/mac/hosts.j2.ini" dest="{{ playbook_dir }}/environments/mac/hosts"
-    when: result.rc == 0
+    when: "'environments/mac' in inventory_dir"
+
+  # at the beginning, we don't have the hosts file, so we need this step in order to get step "prepare db_local.ini" working
+  - name: add new db host on-the-fly
+    add_host: name={{ docker_machine_ip }} groups=db
+    when: "'environments/mac' in inventory_dir"
 
   - name: prepare db_local.ini
     local_action: template src="db_local.ini.j2" dest="{{ playbook_dir }}/db_local.ini"
