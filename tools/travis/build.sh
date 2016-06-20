@@ -6,6 +6,9 @@ set -e
 SCRIPTDIR=$(cd $(dirname "$0") && pwd)
 ROOTDIR="$SCRIPTDIR/../.."
 
+cd $ROOTDIR
+tools/build/scanCode.py .
+
 cd $ROOTDIR/ansible
 
 ANSIBLE_CMD="ansible-playbook -i environments/travis"
