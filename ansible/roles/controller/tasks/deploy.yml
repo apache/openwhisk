@@ -14,7 +14,7 @@
     hostname: controller
     env:
       "COMPONENT_NAME": "controller"
-      "CONSULSERVER_HOST": "{{ inventory_hostname }}"
+      "CONSULSERVER_HOST": "{{ groups['consul_servers'] | first }}"
       "CONSUL_HOST_PORT4": "{{ consul.port.http }}"
       "PORT": 8080
       "WHISK_VERSION_NAME": "{{ whisk_version_name }}"
