@@ -23,6 +23,7 @@ import (
     "errors"
     "strings"
     "reflect"
+    "encoding/json"
 )
 
 type ActionService struct {
@@ -36,7 +37,7 @@ type Action struct {
     Publish     bool        `json:"publish"`
     Exec        *Exec       `json:"exec,omitempty"`
     Annotations             `json:"annotations,omitempty"`
-    Parameters  interface{} `json:"parameters,omitempty"`   // Can be either []KeyValue or []KeyValues (action seq)
+    Parameters  *json.RawMessage `json:"parameters,omitempty"`   // Can be either []KeyValue or []KeyValues (action seq)
     Limits      *Limits     `json:"limits,omitempty"`
 }
 
@@ -71,7 +72,7 @@ type SentActionPublish struct {
     Namespace   string      `json:"-"`
     Version     string      `json:"-"`
     Publish     bool        `json:"publish"`
-    Parameters  interface{} `json:"parameters,omitempty"`
+    Parameters  *json.RawMessage `json:"parameters,omitempty"`
     Exec        *Exec       `json:"exec,omitempty"`
     Annotations             `json:"annotations,omitempty"`
     Limits      *Limits     `json:"limits,omitempty"`
@@ -83,7 +84,7 @@ type SentActionNoPublish struct {
     Namespace   string      `json:"-"`
     Version     string      `json:"-"`
     Publish     bool        `json:"publish,omitempty"`
-    Parameters  interface{} `json:"parameters,omitempty"`
+    Parameters  *json.RawMessage `json:"parameters,omitempty"`
     Exec        *Exec       `json:"exec,omitempty"`
     Annotations             `json:"annotations,omitempty"`
     Limits      *Limits     `json:"limits,omitempty"`
@@ -253,7 +254,7 @@ func (s *ActionService) Delete(actionName string) (*http.Response, error) {
     return resp, nil
 }
 
-func (s *ActionService) Invoke(actionName string, payload map[string]interface{}, blocking bool) (*Activation, *http.Response, error) {
+func (s *ActionService) Invoke(actionName string, payload *json.RawMessage, blocking bool) (*Activation, *http.Response, error) {
 
     actionName = strings.Replace(url.QueryEscape(actionName), "+", " ", -1)
     route := fmt.Sprintf("actions/%s?blocking=%t", actionName, blocking)

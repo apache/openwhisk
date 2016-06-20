@@ -34,6 +34,7 @@ import (
 
     "github.com/fatih/color"
     "github.com/spf13/cobra"
+    "encoding/json"
 )
 
 //////////////
@@ -194,10 +195,11 @@ var actionInvokeCmd = &cobra.Command{
         }
         client.Namespace = qName.namespace
 
-        payload := map[string]interface{}{}
+        var payload *json.RawMessage
 
         if len(flags.common.param) > 0 {
             whisk.Debug(whisk.DbgInfo, "Parsing parameters: %#v\n", flags.common.param)
+
             parameters, err := parseParameters(flags.common.param)
             if err != nil {
                 whisk.Debug(whisk.DbgError, "parseParameters(%#v) failed: %s\n", flags.common.param, err)
@@ -207,22 +209,13 @@ var actionInvokeCmd = &cobra.Command{
                 return whiskErr
             }
 
-            for _, param := range parameters {
-                payload[param.Key] = param.Value
-            }
+            payload = parameters
         }
 
-        /*if len(args) == 2 {
-            payloadArg = args[1]
-            reader := strings.NewReader(payloadArg)
-            err = json.NewDecoder(reader).Decode(&payload)
-
-            if err != nil {
-                payload["payload"] = payloadArg
-                whisk.Debug(whisk.DbgWarn, "json.NewDecoder().Decode() failure decoding '%s': : %s\n", payloadArg, err)
-                whisk.Debug(whisk.DbgWarn, "Defaulting payload to %#v\n", payload)
-            }
-        }*/
+        if payload == nil {
+            data := []byte("{}")
+            payload = (*json.RawMessage)(&data)
+        }
 
         activation, _, err := client.Actions.Invoke(qName.entityName, payload, flags.common.blocking)
         if err != nil {
@@ -234,12 +227,14 @@ var actionInvokeCmd = &cobra.Command{
         }
 
         if flags.common.blocking && flags.action.result {
-            printJSON(activation.Response.Result)
+            //printJSON(activation.Response.Result)
+            printJsonNoColor(activation.Response.Result)
         } else if flags.common.blocking {
             fmt.Printf("%s invoked /%s/%s with id %s\n", color.GreenString("ok:"), boldString(qName.namespace), boldString(qName.entityName),
                 boldString(activation.ActivationID))
             boldPrintf("response:\n")
-            printJSON(activation)
+            //printJSON(activation)
+            printJsonNoColor(activation)
         } else {
             fmt.Printf("%s invoked /%s/%s with id %s\n", color.GreenString("ok:"), boldString(qName.namespace), boldString(qName.entityName),
                 boldString(activation.ActivationID))
@@ -483,9 +478,9 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
     }
 
     whisk.Debug(whisk.DbgInfo, "Parsing parameters: %#v\n", flags.common.param)
-    parameters, err := parseParameters(flags.common.param)
+    parameters, err := parseParametersArray(flags.common.param)
     if err != nil {
-        whisk.Debug(whisk.DbgError, "parseParameters(%#v) failed: %s\n", flags.common.param, err)
+        whisk.Debug(whisk.DbgError, "parseParametersArray(%#v) failed: %s\n", flags.common.param, err)
         errMsg := fmt.Sprintf("Invalid parameter argument '%#v': %s", flags.common.param, err)
         whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
             whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
@@ -556,11 +551,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
         }
 
         if len(artifact) > 0 {
-            actionlist := whisk.ActionSequence{}
-            keyValues := whisk.KeyValues{
-                Key: "_actions",
-            }
-
+            actionList := "[{\"key\": \"_actions\", \"value\": ["
             actions := strings.Split(artifact, ",")
 
             for i := 0; i < len(actions); i++ {
@@ -574,10 +565,15 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
                     return nil, sharedSet, whiskErr
                 }
 
-                keyValues.Values = append(keyValues.Values, "/" + actionQName.namespace + "/" + actionQName.entityName)
+                actionList = actionList + "\"/" + actionQName.namespace + "/" + actionQName.entityName + "\""
+                if i < len(actions) -1 {
+                    actionList = actionList + ", "
+                }
             }
-            actionlist = append(actionlist, keyValues)
-            action.Parameters = actionlist
+
+            actionList = actionList + "]}]"
+            data := []byte(actionList)
+            action.Parameters = (*json.RawMessage)(&data)
         } else {
             whisk.Debug(whisk.DbgError, "--sequence specified, but no sequence of actions was provided\n")
             errMsg := fmt.Sprintf("Comma separated action sequence is missing")
@@ -698,7 +694,8 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
     action.Limits = limits
 
     // If the action sequence is not already the Parameters value, set it to the --param parameter values
-    if action.Parameters == nil && len(parameters) > 0 {
+    //if action.Parameters == nil && len(parameters) > 0 {
+    if action.Parameters == nil && parameters != nil {
         action.Parameters = parameters
     }
 

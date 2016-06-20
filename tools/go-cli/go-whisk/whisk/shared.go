@@ -16,6 +16,8 @@
 
 package whisk
 
+import "encoding/json"
+
 type KeyValue struct {
     Key   string        `json:"key,omitempty"`
     Value interface{}   `json:"value"`     // Whisk permits empty values, do don't omitemtpy
@@ -30,7 +32,8 @@ type Annotations []map[string]interface{}
 
 type ActionSequence []KeyValues
 
-type Parameters []KeyValue
+//type Parameters []KeyValue
+type Parameters *json.RawMessage
 
 type Limits struct {
     Timeout int `json:"timeout,omitempty"`
