@@ -53,6 +53,8 @@ class WhiskConfig(
     val loadbalancerHost = this(WhiskConfig.loadbalancerHostName) + ":" + this(WhiskConfig.loadbalancerHostPort)
     val messagehubtriggerHost = this(WhiskConfig.messagehubtriggerHostName) + ":" + this(WhiskConfig.messagehubtriggerHostPort)
 
+    val edgeHostName = this(WhiskConfig.edgeHostName)
+
     val monitorHost = this(WhiskConfig.monitorHostName) + ":" + this(WhiskConfig.monitorHostPort)
     val zookeeperHost = this(WhiskConfig.zookeeperHostName) + ":" + this(WhiskConfig.zookeeperHostPort)
     val consulServer = this(WhiskConfig.consulServerHost) + ":" + this(WhiskConfig.consulPort)
