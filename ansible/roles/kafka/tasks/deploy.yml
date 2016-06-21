@@ -15,12 +15,17 @@
     ports:
       - "{{ zookeeper.port }}:2181"
 
+# this is important but do not yet know why
+- name: wait before checking if zookeeper is up
+  pause:
+    seconds: 2
+
 - name: wait until the Zookeeper in this host is up and running
-  wait_for:
-    delay: 2
-    host: "{{ inventory_hostname }}"
-    port: "{{ zookeeper.port }}"
-    timeout: 60
+  action: shell echo ruok | nc -w 3 {{ inventory_hostname }} {{ zookeeper.port }}
+  register: result
+  until: '"imok" in result.stdout'
+  retries: 12
+  delay: 5
 
 - name: "pull the {{ docker_image_tag }} image of kafka"
   shell: "docker pull {{ docker_registry }}whisk/kafka:{{ docker_image_tag }}"
@@ -42,8 +47,9 @@
       - "{{ kafka.ras.port }}:8080"
 
 - name: wait until the Kafka in this host is up and running
-  wait_for:
-    delay: 2
-    host: "{{ inventory_hostname }}"
-    port: "{{ kafka.port }}"
-    timeout: 60
+  uri:
+    url: "http://{{ inventory_hostname }}:{{ kafka.ras.port }}/ready"
+  register: result
+  until: result.status == 200
+  retries: 12
+  delay: 5

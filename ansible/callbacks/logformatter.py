@@ -15,8 +15,12 @@ class CallbackModule(CallbackBase):
             cmd = data['cmd'] if 'cmd' in data else None
             stdout = data['stdout'] if 'stdout' in data else None
             stderr = data['stderr'] if 'stderr' in data else None
+            reason = data['reason'] if 'reason' in data else None
 
-            print(hilite('[%s]\n> %s' % (category, cmd), category))
+            if cmd:
+                print(hilite('[%s]\n> %s' % (category, cmd), category))
+            if reason:
+                print(hilite(reason, category))
             if stdout:
                 print(hilite(stdout, category))
             if stderr:
