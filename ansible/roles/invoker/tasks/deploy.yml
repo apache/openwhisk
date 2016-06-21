@@ -11,12 +11,12 @@
       - 'whisk/swift3action'
       - 'whisk/javaaction'
 
-- name: "Pull action images with tag {{docker_image_tag}}"
+- name: "pull action images with tag {{docker_image_tag}}"
   shell: "docker pull {{docker_registry}}{{item}}:{{docker_image_tag}}"
   with_items: "{{imagesToPull}}"
   when: docker_registry != ""
 
-- name: (Re)start invoker
+- name: (re)start invoker
   docker:
     name: "invoker{{play_hosts.index(inventory_hostname)}}"
     image: "{{docker_registry}}whisk/dispatcher:{{docker_image_tag}}"
@@ -40,9 +40,10 @@
       - "{{invoker.port + play_hosts.index(inventory_hostname)}}:8080"
     command: "/dispatcher/bin/dispatcher invoker {{play_hosts.index(inventory_hostname)}}"
 
-- name: Wait until Invoker is up and running
-  wait_for:
-    delay: 2
-    host: "{{inventory_hostname}}"
-    port: "{{invoker.port + play_hosts.index(inventory_hostname)}}"
-    timeout: 60
+- name: wait until Invoker is up and running
+  uri:
+    url: "http://{{ inventory_hostname }}:{{invoker.port + play_hosts.index(inventory_hostname)}}/ping"
+  register: result
+  until: result.status == 200
+  retries: 12
+  delay: 5
