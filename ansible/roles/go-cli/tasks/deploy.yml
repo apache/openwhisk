@@ -1,0 +1,20 @@
+---
+# Tasks for handling Go CLI customization and publishing
+
+- name: "Ensure go-cli directory exists"
+  file:
+    path: "{{ go_cli_conf_dir }}"
+    state: directory
+
+- name: "Pull the {{ docker_image_tag }} image of go-cli"
+  shell: "docker pull {{ docker_registry }}whisk/go-cli:{{ docker_image_tag }}"
+  when: docker_registry != ""
+
+# TODO: Publish compressed binaries using nginx
+
+- name: remove go-cli container after publishing
+  docker:
+    name: go-cli
+    image: "{{ docker_registry }}whisk/go-cli:{{ docker_image_tag }}"
+    state: absent
+

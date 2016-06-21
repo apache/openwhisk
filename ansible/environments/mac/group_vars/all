@@ -3,6 +3,7 @@ nginx_conf_dir: /Users/Shared/nginx
 consul_conf_dir: /Users/Shared/consul
 whisk_logs_dir: /Users/Shared/wsklogs
 cli_conf_dir: /Users/Shared/cli
+go_cli_conf_dir: /Users/Shared/go-cli
 docker_registry: ""
 docker_dns: ""
 
