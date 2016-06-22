@@ -235,8 +235,8 @@ This example invokes a Yahoo Weather service to get the current conditions at a 
   ```
     var request = require('request');
     
-    function main(msg) {
-        var location = msg.location || 'Vermont';
+    function main(params) {
+        var location = params.location || 'Vermont';
         var url = 'https://query.yahooapis.com/v1/public/yql?q=select item.condition from weather.forecast where woeid in (select woeid from geo.places(1) where text="' + location + '")&format=json';
     
         request.get(url, function(error, response, body) {
@@ -338,8 +338,8 @@ An action is simply a top-level Python function, which means it is necessary to 
 
 ```
     def main(dict):
-        name = dict.get("name", “stranger")
-        greeting = "Hello " + name + “!"
+        name = dict.get("name", "stranger")
+        greeting = "Hello " + name + "!"
         print(greeting)
         return {"greeting": greeting}
 ```
