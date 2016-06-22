@@ -11,12 +11,12 @@
 
     <!-- required properties with default values -->
     <!-- where all build artifacts go -->
-    <property name="build.dir" value="${basedir}/build" />
-    <property name="cli.build.dir" value="${basedir}/build/tools/cli" />
+    <property name="build.dir" value="${openwhisk.home}/build" />
+    <property name="cli.build.dir" value="${openwhisk.home}/build/tools/cli" />
     <property name="go-cli.build.dir" value="${openwhisk.home}/build/tools/go-cli" />
     <property name="go-cli.src.dir" value="${openwhisk.home}/tools/go-cli" />
-    <property name="blackbox.build.dir" value="${basedir}/build/tools/blackbox" />
-    <property name="iosstarterapp.build.dir" value="${basedir}/build/tools/iosstarterapp" />
+    <property name="blackbox.build.dir" value="${openwhisk.home}/build/tools/blackbox" />
+    <property name="iosstarterapp.build.dir" value="${openwhisk.home}/build/tools/iosstarterapp" />
 
     <!-- derived properties -->
     <property name="docker.scratch" value="${build.dir}/docker-scratch" />
@@ -99,20 +99,48 @@
     <property name="consul.service.check" value="-e SERVICE_CHECK_HTTP=/ping -e SERVICE_CHECK_TIMEOUT=2s -e SERVICE_CHECK_INTERVAL=15s" />
 
     <!-- gather values for environment variables and store them in a properties file -->
-    <target name="writePropertyFile">
+    <target name="writePropertyFile" depends="setDeployTarget" unless="property.file.written">
         <exec dir="ansible" executable="ansible-playbook" failonerror="true">
             <env key="OPENWHISK_HOME" value="${openwhisk.home}" />
-            <arg value="-i"/>
-            <arg value="environments/local"/>
+            <arg value="-i" />
+            <arg value="environments/${deploy.target}" />
             <arg value="properties.yml" />
         </exec>
+        <property name="property.file.written" value="true" />
+    </target>
+
+    <!-- deperacated: preserved for ant to ansible transition -->
+    <target name="writePropertyFile-legacy" depends="setDeployTarget" unless="property.file.written">
+        <exec dir="config" failonerror="true" executable="/bin/bash">
+            <env key="OPENWHISK_HOME" value="${openwhisk.home}" />
+            <env key="DOCKER_IMAGE_TAG" value="${docker.image.tag}" />
+            <arg value="setupProps.sh" />
+            <arg value="${deploy.target}Env.sh" />
+        </exec>
+        <property name="property.file.written" value="true" />
     </target>
 
     <!-- if the deploy.target variable is not yet set, set it -->
     <target name="setDeployTarget" unless="deploy.target">
-        <property name="deploy.target" value="local" />
+        <condition property="deploy.target" value="local">
+            <os name="Linux" />
+        </condition>
+
+        <condition property="deploy.target" value="mac">
+            <os name="Mac OS X" />
+        </condition>
+
+        <fail message="deploy target is not supported for OS '${os.name}'.">
+            <condition>
+                <not>
+                    <isset property="deploy.target" />
+                </not>
+            </condition>
+        </fail>
+
         <echo message="deploy target: ${deploy.target}" />
     </target>
+
 
     <!-- derived properties -->
     <target name="initScalaLocation">

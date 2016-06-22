@@ -18,6 +18,7 @@
 
 import os
 import sys
+import platform
 import argparse
 import shlex
 import subprocess
@@ -63,11 +64,20 @@ def doComponentSequence(props, args, components):
             doOne(component, args, props)
 
 def getArgs():
+    def detectDeployTarget():
+        osname = platform.system()
+        if osname == 'Linux':
+            return 'local'
+        elif osname == 'Darwin':
+            return 'mac'
+        else:
+            return None
+
     parser = argparse.ArgumentParser(description='[re]build and [re]deploy a whisk component if no args are given, otherwise do what is instructed')
     parser.add_argument('-b', '--build', help='build component', action='store_const', const=True, default=False)
     parser.add_argument('-x', '--teardown', help='teardown component', action='store_const', const=True, default=False)
     parser.add_argument('-d', '--deploy', help='deploy component', action='store_const', const=True, default=False)
-    parser.add_argument('-t', '--target', help='deploy target', default='mac')
+    parser.add_argument('-t', '--target', help='deploy target (one of [mac, local])', default=detectDeployTarget())
     parser.add_argument('-n', '--just-print', help='prints the component configuration but does not run any targets', action='store_const', const=True, default=False, dest='skiprun')
     parser.add_argument('-c', '--list-components', help='list known component names and exit', action='store_const', const=True, default=False, dest='list')
     parser.add_argument('components', nargs = '*', help='component name(s) to run (in order specified if more than one)')
@@ -75,9 +85,13 @@ def getArgs():
 
     args = parser.parse_args()
 
+    if args.target is None:
+        print 'Use "--target" to specify a deployment target because one could not be determined automatically for your platform (supported platforms are GNU/Linux (Ubuntu) and Mac OS X.'
+        exit(-1)
+
     if args.dir is None:
         if openwhiskHome is None:
-            print 'Must specify whisk home directory with --dir'
+            print 'Must specify whisk home directory with "--dir".'
             exit(-1)
         else:
             args.dir = openwhiskHome
@@ -179,8 +193,7 @@ Components = [
                   steps = 'setup, prereq, couchdb, initdb, deploy'),
 
     makeComponent('setup',
-                  'system setup',
-                  env = False),
+                  'system setup'),
 
     makeComponent('prereq',
                   'install requisites'),
