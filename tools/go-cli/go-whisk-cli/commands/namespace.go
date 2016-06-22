@@ -66,7 +66,7 @@ var namespaceGetCmd = &cobra.Command{
             qName, err = parseQualifiedName(args[0])
             if err != nil {
                 whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[0], err)
-                errMsg := fmt.Sprintf("Failed to parse qualified name: %s\n", args[0])
+                errMsg := fmt.Sprintf("Failed to parse qualified name: %s", args[0])
                 werr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                     whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return werr

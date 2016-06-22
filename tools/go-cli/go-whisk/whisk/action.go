@@ -125,7 +125,7 @@ func (s *ActionService) List(packageName string, options *ActionListOptions) ([]
     route, err := addRouteOptions(route, options)
     if err != nil {
         Debug(DbgError, "addRouteOptions(%s, %#v) error: '%s'\n", route, options, err)
-        errMsg := fmt.Sprintf("Unable to add route options: %s\n", options)
+        errMsg := fmt.Sprintf("Unable to add route options: %s", options)
         whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
@@ -144,7 +144,7 @@ func (s *ActionService) List(packageName string, options *ActionListOptions) ([]
     resp, err := s.client.Do(req, &actions)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
-        errMsg := fmt.Sprintf("Request failure: %s\n", err)
+        errMsg := fmt.Sprintf("Request failure: %s", err)
         whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, resp, whiskErr
@@ -190,7 +190,7 @@ func (s *ActionService) Insert(action *Action, sharedSet bool, overwrite bool) (
     resp, err := s.client.Do(req, &a)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
-        errMsg := fmt.Sprintf("Request failure: %s\n", err)
+        errMsg := fmt.Sprintf("Request failure: %s", err)
         whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, resp, whiskErr
@@ -217,7 +217,7 @@ func (s *ActionService) Get(actionName string) (*Action, *http.Response, error) 
     resp, err := s.client.Do(req, &a)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
-        errMsg := fmt.Sprintf("Request failure: %s\n", err)
+        errMsg := fmt.Sprintf("Request failure: %s", err)
         whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, resp, whiskErr
@@ -245,7 +245,7 @@ func (s *ActionService) Delete(actionName string) (*http.Response, error) {
     resp, err := s.client.Do(req, a)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
-        errMsg := fmt.Sprintf("Request failure: %s\n", err)
+        errMsg := fmt.Sprintf("Request failure: %s", err)
         whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return resp, whiskErr
@@ -273,7 +273,7 @@ func (s *ActionService) Invoke(actionName string, payload *json.RawMessage, bloc
     resp, err := s.client.Do(req, &a)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
-        errMsg := fmt.Sprintf("Request failure: %s\n", err)
+        errMsg := fmt.Sprintf("Request failure: %s", err)
         whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, resp, whiskErr

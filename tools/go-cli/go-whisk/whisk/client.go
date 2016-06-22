@@ -289,7 +289,7 @@ type ErrorResponse struct {
 }
 
 func (r ErrorResponse) Error() string {
-    return fmt.Sprintf("%v (code %d)\n", r.ErrMsg, r.Code)
+    return fmt.Sprintf("%v (code %d)", r.ErrMsg, r.Code)
 }
 
 ////////////////////////////

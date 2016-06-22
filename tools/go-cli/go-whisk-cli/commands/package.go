@@ -86,7 +86,7 @@ var packageBindCmd = &cobra.Command{
         pkgQName, err := parseQualifiedName(packageName)
         if err != nil {
             whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", packageName, err)
-            errMsg := fmt.Sprintf("Failed to parse qualified name: %s\n", packageName)
+            errMsg := fmt.Sprintf("Failed to parse qualified name: %s", packageName)
             werr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
@@ -96,7 +96,7 @@ var packageBindCmd = &cobra.Command{
         bindQName, err := parseQualifiedName(bindingName)
         if err != nil {
             whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", bindingName, err)
-            errMsg := fmt.Sprintf("Failed to parse qualified name: %s\n", bindingName)
+            errMsg := fmt.Sprintf("Failed to parse qualified name: %s", bindingName)
             werr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
@@ -176,7 +176,7 @@ var packageCreateCmd = &cobra.Command{
         qName, err := parseQualifiedName(args[0])
         if err != nil {
             whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[0], err)
-            errMsg := fmt.Sprintf("Failed to parse qualified name: %s\n", args[0])
+            errMsg := fmt.Sprintf("Failed to parse qualified name: %s", args[0])
             werr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
@@ -297,7 +297,7 @@ var packageUpdateCmd = &cobra.Command{
         qName, err := parseQualifiedName(args[0])
         if err != nil {
             whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[0], err)
-            errMsg := fmt.Sprintf("Failed to parse qualified name: %s\n", args[0])
+            errMsg := fmt.Sprintf("Failed to parse qualified name: %s", args[0])
             werr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
@@ -383,7 +383,7 @@ var packageGetCmd = &cobra.Command{
         qName, err := parseQualifiedName(args[0])
         if err != nil {
             whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[0], err)
-            errMsg := fmt.Sprintf("Failed to parse qualified name: %s\n", args[0])
+            errMsg := fmt.Sprintf("Failed to parse qualified name: %s", args[0])
             werr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
@@ -428,7 +428,7 @@ var packageDeleteCmd = &cobra.Command{
         qName, err := parseQualifiedName(args[0])
         if err != nil {
             whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[0], err)
-            errMsg := fmt.Sprintf("Failed to parse qualified name: %s\n", args[0])
+            errMsg := fmt.Sprintf("Failed to parse qualified name: %s", args[0])
             werr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
@@ -463,7 +463,7 @@ var packageListCmd = &cobra.Command{
             qName, err = parseQualifiedName(args[0])
             if err != nil {
                 whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[0], err)
-                errMsg := fmt.Sprintf("Failed to parse qualified name: %s\n", args[0])
+                errMsg := fmt.Sprintf("Failed to parse qualified name: %s", args[0])
                 werr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                     whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return werr
