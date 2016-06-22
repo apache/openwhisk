@@ -102,7 +102,7 @@ var actionCreateCmd = &cobra.Command{
             return whiskErr
         }
 
-        fmt.Printf("%s created action %s", color.GreenString("ok:"), boldString(action.Name))
+        fmt.Printf("%s created action %s\n", color.GreenString("ok:"), boldString(action.Name))
         return nil
     },
 }
@@ -163,7 +163,7 @@ var actionUpdateCmd = &cobra.Command{
             return whiskErr
         }
 
-        fmt.Printf("%s updated action %s", color.GreenString("ok:"), boldString(action.Name))
+        fmt.Printf("%s updated action %s\n", color.GreenString("ok:"), boldString(action.Name))
         return nil
     },
 }
@@ -345,7 +345,7 @@ var actionListCmd = &cobra.Command{
 
             if len(qName.namespace) == 0 {
                 whisk.Debug(whisk.DbgError, "Namespace is missing from '%s'\n", args[0])
-                errMsg := fmt.Sprintf("No valid namespace detected. Make sure that namespace argument is preceded by a \"/\"\n")
+                errMsg := fmt.Sprintf("No valid namespace detected. Make sure that namespace argument is preceded by a \"/\"")
                 whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                     whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return whiskErr

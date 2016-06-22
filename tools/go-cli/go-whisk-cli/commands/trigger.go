@@ -52,7 +52,7 @@ var triggerFireCmd = &cobra.Command{
         qName, err := parseQualifiedName(args[0])
         if err != nil {
             whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[0], err)
-            errMsg := fmt.Sprintf("Failed to parse qualified name: %s\n", args[0])
+            errMsg := fmt.Sprintf("Failed to parse qualified name: %s", args[0])
             whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
 
@@ -132,7 +132,7 @@ var triggerCreateCmd = &cobra.Command{
         qName, err := parseQualifiedName(args[0])
         if err != nil {
             whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[0], err)
-            errMsg := fmt.Sprintf("Failed to parse qualified name: %s\n", args[0])
+            errMsg := fmt.Sprintf("Failed to parse qualified name: %s", args[0])
             whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return whiskErr
@@ -165,7 +165,7 @@ var triggerCreateCmd = &cobra.Command{
             feedqName, err := parseQualifiedName(flags.common.feed)
             if err != nil {
                 whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", flags.common.feed, err)
-                errMsg := fmt.Sprintf("Failed to parse qualified feed name: %s\n", flags.common.feed)
+                errMsg := fmt.Sprintf("Failed to parse qualified feed name: %s", flags.common.feed)
                 whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                     whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
                 return whiskErr
@@ -282,7 +282,7 @@ var triggerUpdateCmd = &cobra.Command{
         qName, err := parseQualifiedName(args[0])
         if err != nil {
             whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[0], err)
-            errMsg := fmt.Sprintf("Failed to parse qualified name: %s\n", args[0])
+            errMsg := fmt.Sprintf("Failed to parse qualified name: %s", args[0])
             whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
 
@@ -380,7 +380,7 @@ var triggerGetCmd = &cobra.Command{
         qName, err := parseQualifiedName(args[0])
         if err != nil {
             whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[0], err)
-            errMsg := fmt.Sprintf("Failed to parse qualified name: %s\n", args[0])
+            errMsg := fmt.Sprintf("Failed to parse qualified name: %s", args[0])
             whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
 
@@ -429,7 +429,7 @@ var triggerDeleteCmd = &cobra.Command{
         qName, err := parseQualifiedName(args[0])
         if err != nil {
             whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[0], err)
-            errMsg := fmt.Sprintf("Failed to parse qualified name: %s\n", args[0])
+            errMsg := fmt.Sprintf("Failed to parse qualified name: %s", args[0])
             whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
 
