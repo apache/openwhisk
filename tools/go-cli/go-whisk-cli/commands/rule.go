@@ -37,6 +37,7 @@ var ruleEnableCmd = &cobra.Command{
     Short: "enable rule",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
 
         var err error
@@ -82,6 +83,7 @@ var ruleDisableCmd = &cobra.Command{
     Short: "disable rule",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
 
         var err error
@@ -127,6 +129,7 @@ var ruleStatusCmd = &cobra.Command{
     Short: "get rule status",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         if len(args) != 1 {
@@ -171,6 +174,7 @@ var ruleCreateCmd = &cobra.Command{
     Short: "create new rule",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         var shared bool
@@ -247,6 +251,7 @@ var ruleUpdateCmd = &cobra.Command{
     Short: "update existing rule",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         var shared bool
@@ -308,6 +313,7 @@ var ruleGetCmd = &cobra.Command{
     Short: "get rule",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         if len(args) != 1 {
@@ -355,6 +361,7 @@ var ruleDeleteCmd = &cobra.Command{
     Short: "delete rule",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         if len(args) != 1 {
@@ -409,6 +416,7 @@ var ruleListCmd = &cobra.Command{
     Short: "list all rules",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         qName := qualifiedName{}

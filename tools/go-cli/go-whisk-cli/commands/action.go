@@ -83,6 +83,7 @@ var actionCreateCmd = &cobra.Command{
     Short: "create a new action",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         action, sharedSet, err := parseAction(cmd, args)
         if err != nil {
@@ -144,6 +145,7 @@ var actionUpdateCmd = &cobra.Command{
     Short: "update an existing action",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         action, sharedSet, err := parseAction(cmd, args)
         if err != nil {
@@ -173,6 +175,7 @@ var actionInvokeCmd = &cobra.Command{
     Short: "invoke action",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         //var payloadArg string
@@ -249,6 +252,7 @@ var actionGetCmd = &cobra.Command{
     Short: "get action",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
 
@@ -297,6 +301,7 @@ var actionDeleteCmd = &cobra.Command{
     Short: "delete action",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         qName, err := parseQualifiedName(args[0])
         if err != nil {
@@ -329,6 +334,7 @@ var actionListCmd = &cobra.Command{
     Short: "list all actions",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var qName qualifiedName
         var err error
@@ -694,7 +700,6 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
     action.Limits = limits
 
     // If the action sequence is not already the Parameters value, set it to the --param parameter values
-    //if action.Parameters == nil && len(parameters) > 0 {
     if action.Parameters == nil && parameters != nil {
         action.Parameters = parameters
     }

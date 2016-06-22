@@ -73,6 +73,7 @@ var packageBindCmd = &cobra.Command{
     Short: "bind parameters to a package",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         if len(args) != 2 {
@@ -162,6 +163,7 @@ var packageCreateCmd = &cobra.Command{
     Short: "create a new package",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         var shared, sharedSet bool
@@ -283,6 +285,7 @@ var packageUpdateCmd = &cobra.Command{
     Short: "update an existing package",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         var shared, sharedSet bool
@@ -371,6 +374,7 @@ var packageGetCmd = &cobra.Command{
     Short: "get package",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         if len(args) != 1 {
@@ -416,6 +420,7 @@ var packageDeleteCmd = &cobra.Command{
     Short: "delete package",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         if len(args) != 1 {
@@ -454,6 +459,7 @@ var packageListCmd = &cobra.Command{
     Short: "list all packages",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         var shared bool
@@ -510,6 +516,7 @@ var packageRefreshCmd = &cobra.Command{
     Short: "refresh package bindings",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
 

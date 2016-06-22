@@ -37,6 +37,7 @@ var namespaceListCmd = &cobra.Command{
     Short: "list available namespaces",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         // add "TYPE" --> public / private
 
@@ -57,6 +58,7 @@ var namespaceGetCmd = &cobra.Command{
     Short: "get triggers, actions, and rules in the registry for a namespace",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var qName qualifiedName
         var err error
@@ -105,6 +107,7 @@ var listCmd = &cobra.Command{
     Short: "list triggers, actions, and rules in the registry for a namespace",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE:   namespaceGetCmd.RunE,
 }
 

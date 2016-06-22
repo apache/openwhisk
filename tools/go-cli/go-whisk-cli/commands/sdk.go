@@ -55,6 +55,7 @@ var sdkInstallCmd = &cobra.Command{
     Short: "install artifacts",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         if len(args) != 1 {

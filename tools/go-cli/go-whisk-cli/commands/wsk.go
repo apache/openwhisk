@@ -46,4 +46,5 @@ func init() {
         WskCmd.PersistentFlags().StringVarP(&flags.global.auth, "auth", "u", "", "authorization key")
         WskCmd.PersistentFlags().StringVar(&flags.global.apihost, "apihost", "", "whisk API host")
         WskCmd.PersistentFlags().StringVar(&flags.global.apiversion, "apiversion", "", "whisk API version")
+        WskCmd.PersistentFlags().BoolVarP(&flags.global.insecure, "insecure", "i", false, "bypass certificate checking")
 }
