@@ -25,12 +25,20 @@ import (
     "../go-whisk-cli/commands"
 )
 
+// CLI_BUILD_TIME holds the time of the CLI build.  During gradle builds,
+// this value will be overwritten via the command:
+//     go build -ldflags "-X main.CLI_BUILD_TIME=nnnnn"   // nnnnn is the new timestamp
+var CLI_BUILD_TIME string = "not set"
+
 var cliDebug = os.Getenv("WSK_CLI_DEBUG")  // Useful for tracing init() code
 
 func init() {
     if len(cliDebug) > 0 {
         whisk.SetDebug(true)
     }
+
+    // Rest of CLI uses the Properties struct, so set the build time there
+    commands.Properties.CLIVersion = CLI_BUILD_TIME
 }
 
 func main() {
