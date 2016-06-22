@@ -5,10 +5,29 @@ OpenWhisk is a distributed, event-driven compute service. OpenWhisk executes app
 
 For more details about how OpenWhisk works, see [About OpenWhisk](./about.md).
 
-## Setting up OpenWhisk
-You can use the OpenWhisk command line interface (CLI) to set up your namespace and authorization key. Go to [Configure CLI](../README.md#setup-cli) and follow the guided experience to install it. Note that you must have Python 2.7 installed on your system to use the CLI.
+## Setting up OpenWhisk CLI
 
-After OpenWhisk is set up with the CLI, you can begin using it from the command line or through REST APIs.
+To use the OpenWhisk CLI (Command Line Interface), follow these steps.
+
+- Install the wsk command line tool. You may also [download the CLI](https://new-console.ng.bluemix.net/openwhisk/cli/download) and install it from your local filesystem, using [pip](https://pip.pypa.io/).
+```
+sudo pip install --upgrade https://new-console.ng.bluemix.net/openwhisk/cli/download 
+```
+
+- Set your OpenWhisk **Namespace** and **Authorization Key**.
+```
+wsk property set --apihost <openwhisk_url> --auth username:password --namespace "username_namespace"
+```
+
+- Verify your setup. Here, we perform a blocking (synchronous) invocation of echo, passing it "hello" as an argument.
+```
+wsk action invoke /whisk.system/samples/echo -p message hello --blocking --result
+
+Output:
+{
+   "message": "hello"
+}
+```
 
 ## Using the OpenWhisk CLI
 After you have configured your environment, you can begin using the OpenWhisk CLI to do the following:
