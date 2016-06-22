@@ -479,7 +479,7 @@ Note that if the jar file has more than one class with a main method matching re
 
 With OpenWhisk Docker actions, you can write your actions in any language.
 
-Your code is compiled into a executable binary and embedded into a Docker image. The binary program interacts with the system by taking input from `stdin` and replying through `stdout`.
+Your code is compiled into an executable binary and embedded into a Docker image. The binary program interacts with the system by taking input from `stdin` and replying through `stdout`.
 
 As a prerequisite, you must have a Docker Hub account.  To set up a free Docker ID and account, go to [Docker Hub](https://hub.docker.com).
 
@@ -512,8 +512,8 @@ For the instructions that follow, assume that the user ID is "janesmith" and the
   #include <stdio.h>
   
   int main(int argc, char *argv[]) {
-      printf("Hello %s from arbitrary C program!\n",
-             (argc == 1) ? "anonymous" : argv[1]);
+      printf("{ \"msg\": \"Hello from arbitrary C program!\", \"args\": %s, \"argc\": %d }",
+             (argc == 1) ? "undefined" : argv[1]);
   }
   ```
 
@@ -543,10 +543,21 @@ For the instructions that follow, assume that the user ID is "janesmith" and the
   ```
   ```
   {
-      "msg": "Hello Rey from arbitrary C program!\n"
+      "args": {
+          "payload": "Rey"
+      },
+      "msg": "Hello from arbitrary C program!"
   }
   ```
 
+5. To update a Docker action, in addition of rerunning `buildAndPush.sh`, you have to run `wsk action update` to make the system to fetch the new image. Then a new invocation will start using the new image and not a warm image with the old code.
+
+  ```
+  $ ./buildAndPush.sh janesmith/blackboxdemo
+  ```
+  ```
+  $ wsk action update --docker example janesmith/blackboxdemo
+  ```
 
 You can find more information about creating Docker actions in the [References](./reference.md#docker-actions) section.
 
