@@ -44,7 +44,7 @@ type Activation struct {
 type Response struct {
     Status     string `json:"status,omitempty"`
     StatusCode int    `json:"statusCode,omitempty"`
-    Success    bool   `json:"success,omitempty"`
+    Success    bool   `json:"success"`
     Result     `json:"result,omitempty"`
 }
 
