@@ -198,7 +198,7 @@ func (s *PackageService) Get(packageName string) (*Package, *http.Response, erro
 
 func (s *PackageService) Insert(x_package PackageInterface, overwrite bool) (*Package, *http.Response, error) {
     route := fmt.Sprintf("packages/%s?overwrite=%t",
-        url.QueryEscape(strings.Replace(url.QueryEscape(x_package.GetName()), "+", " ", -1)), overwrite)
+        strings.Replace(url.QueryEscape(x_package.GetName()), "+", " ", -1), overwrite)
 
     req, err := s.client.NewRequest("PUT", route, x_package)
     if err != nil {
