@@ -179,8 +179,7 @@ Components = [
                   steps = 'setup, prereq, couchdb, initdb, deploy'),
 
     makeComponent('setup',
-                  'system setup',
-                  env = False),
+                  'system setup'),
 
     makeComponent('prereq',
                   'install requisites'),

@@ -43,11 +43,24 @@
   when: "'consul_servers' in group_names"
 
 - name: wait until the Consul Server/Agent in this host is up and running
-  wait_for:
-    delay: 5
-    host: "{{ inventory_hostname }}"
-    port: "{{ consul.port.http }}"
-    timeout: 60
+  uri:
+    method: PUT
+    url: "http://{{ inventory_hostname }}:{{ consul.port.http }}/v1/kv/consulIsAlive"
+    body: 'true'
+  register: result
+  until: result.status == 200
+  retries: 10
+  delay: 1
+  when: "'consul_servers' in group_names"
+
+- name: delete is alive token from Consul Server/Agent
+  uri:
+    method: DELETE
+    url: "http://{{ inventory_hostname }}:{{ consul.port.http }}/v1/kv/consulIsAlive"
+  register: result
+  until: result.status == 200
+  retries: 10
+  delay: 1
   when: "'consul_servers' in group_names"
 
 - name: notify handler to fill in Consul KV store with parameters in whisk.properties
