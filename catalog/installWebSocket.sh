@@ -12,7 +12,7 @@ source "$CATALOG_HOME/util.sh"
 echo Installing WebSocket package.
 
 createPackage websocket \
-    -a description "Utilities for communicating with WebSockets"
+    -a description "Utilities for communicating with WebSockets" \
     -a parameters '[ {"name":"uri", "required":true, "bindTime":true} ]'
 
 waitForAll
