@@ -1,5 +1,6 @@
 ext.dockerImageName = "whisk/go-cli"
 ext.dockerContainerName = "go-cli"
+ext.dockerBuildArgs = getDockerBuildArgs()
 apply from: "../../docker.gradle"
 
 // Detects if the local OS is Unix. If so, ant.properties.family is set to linux.
@@ -35,6 +36,13 @@ ant.condition(property: "arch", value: "386") {
 // Detects if the local CPU architecture is x86_32. If so, ant.properties.arch is set to 386.
 ant.condition(property: "arch", value: "386") {
     os(arch: "x86_32")
+}
+
+// Returns the Go CLI docker build args
+def getDockerBuildArgs() {
+    java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ")
+    String dateStr = sdf.format(new Date())
+    return "BUILDTIME="+dateStr
 }
 
 task removeBinary(type: Delete) {

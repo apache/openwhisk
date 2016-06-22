@@ -23,15 +23,12 @@ import (
     "os"
     "strings"
     "net/url"
-    "time"
 
     "github.com/mitchellh/go-homedir"
     "github.com/spf13/cobra"
 
     "../../go-whisk/whisk"
 )
-
-var CLI_BUILD_TIME string = time.Now().Format("2006-01-02T15:04:05-07:00")
 
 var Properties struct {
     Auth       string
@@ -304,8 +301,8 @@ func setDefaultProperties() {
     Properties.APIBuild = DefaultAPIBuild
     Properties.APIBuildNo = DefaultAPIBuildNo
     Properties.APIVersion = DefaultAPIVersion
-    Properties.CLIVersion = CLI_BUILD_TIME
     Properties.PropsFile = DefaultPropsFile
+    // Properties.CLIVersion value is set from main's init()
 }
 
 func getPropertiesFilePath() (propsFilePath string, werr error) {
