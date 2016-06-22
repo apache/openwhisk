@@ -47,11 +47,21 @@
         <ant antfile="tests/build.xml" target="runTests" />
     </target>
 
-    <!-- deploy containers -->
+    <!-- deperacated: deploy containers using ant -->
+    <target name="deploy-legacy" depends="writePropertyFile">
+        <antcall target="deployDatabase" />
+        <ant antfile="${openwhisk.home}/services/nginx/build.xml" target="startProxy" />
+        <ant antfile="services/build.xml" target="deploy" />
+        <ant antfile="core/build.xml" target="deploy" />
+        <ant antfile="tools/build.xml" target="deploy" />
+        <antcall target="installCatalog" />
+    </target>
+
+    <!-- deploy containers with ansible -->
     <target name="deploy" depends="writePropertyFile">
         <exec executable="ansible-playbook" failonerror="true" dir="${basedir}/ansible">
-            <arg value="-i"/>
-            <arg value="environments/local"/>
+            <arg value="-i" />
+            <arg value="environments/${deploy.target}" />
             <arg value="openwhisk.yml" />
         </exec>
     </target>
@@ -68,10 +78,10 @@
     <target name="teardownLocalRedeploy">
         <exec executable="/bin/bash">
             <arg value="tools/docker/cleanDocker.sh" />
-        	<arg value="couchdb" />
+            <arg value="couchdb" />
         </exec>
     </target>
- 
+
     <!-- kill all containers, garbage collect docker images -->
     <target name="teardown" depends="teardownLocal,writePropertyFile">
         <var file="whisk.properties" />
@@ -88,7 +98,7 @@
             <env key="DOCKER_PORT" value="${docker.port}" />
             <arg value="tools/docker/cleanAllDockers.sh" />
             <arg value="${basedir}/whisk.properties" />
-        	<arg value="couchdb" />
+            <arg value="couchdb" />
         </exec>
     </target>
 
