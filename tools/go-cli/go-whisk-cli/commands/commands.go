@@ -24,9 +24,46 @@ import (
 
     "../../go-whisk/whisk"
     "errors"
+    "github.com/spf13/cobra"
 )
 
 var client *whisk.Client
+
+func setupClientConfig(cmd *cobra.Command, args []string) (error){
+    var apiHostBaseUrl = fmt.Sprintf("https://%s/api/", Properties.APIHost)
+
+    baseURL, err := url.Parse(apiHostBaseUrl)
+
+    if err != nil {
+        whisk.Debug(whisk.DbgError, "url.Parse(%s) error: %s\n", apiHostBaseUrl, err)
+        errMsg := fmt.Sprintf("Invalid apiHost value '%s' : %s", Properties.APIHost, err)
+        whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+
+        return whiskErr
+    }
+
+    clientConfig := &whisk.Config{
+        AuthToken:  Properties.Auth,
+        Namespace:  Properties.Namespace,
+        BaseURL:    baseURL,
+        Version:    Properties.APIVersion,
+        Insecure:   flags.global.insecure,
+    }
+
+    // Setup client
+    client, err = whisk.NewClient(http.DefaultClient, clientConfig)
+
+    if err != nil {
+        whisk.Debug(whisk.DbgError, "whisk.NewClient(%#v, %#v) error: %s\n", http.DefaultClient, clientConfig, err)
+        errMsg := fmt.Sprintf("Unable to initialize server connection: %s", err)
+        whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+        return whiskErr
+    }
+
+    return nil
+}
 
 func init() {
     var err error
@@ -35,29 +72,6 @@ func init() {
     if err != nil {
         whisk.Debug(whisk.DbgError, "loadProperties() error: %s\n", err)
         fmt.Println(err)
-        os.Exit(whisk.EXITCODE_ERR_GENERAL)
-    }
-
-    var apiHostBaseUrl = fmt.Sprintf("https://%s/api/", Properties.APIHost)
-    baseURL, err := url.Parse(apiHostBaseUrl)
-    if err != nil {
-        whisk.Debug(whisk.DbgError, "url.Parse(%s) error: %s\n", apiHostBaseUrl, err)
-        fmt.Printf("Invalid apiHost value '%s' : %s\n", Properties.APIHost, err)
-        os.Exit(whisk.EXITCODE_ERR_GENERAL)
-    }
-
-    clientConfig := &whisk.Config{
-        AuthToken: Properties.Auth,
-        Namespace: Properties.Namespace,
-        BaseURL:   baseURL,
-        Version:   Properties.APIVersion,
-    }
-
-    // Setup client
-    client, err = whisk.NewClient(http.DefaultClient, clientConfig)
-    if err != nil {
-        whisk.Debug(whisk.DbgError, "whisk.NewClient(%#v, %#v) error: %s\n", http.DefaultClient, clientConfig, err)
-        fmt.Printf("Unable to initialize server connection: %s\n", err)
         os.Exit(whisk.EXITCODE_ERR_GENERAL)
     }
 }

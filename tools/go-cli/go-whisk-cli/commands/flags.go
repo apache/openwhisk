@@ -34,6 +34,7 @@ var flags struct {
         auth        string
         apihost     string
         apiversion  string
+        insecure    bool
     }
 
     common struct {
@@ -46,21 +47,22 @@ var flags struct {
         full        bool // return full records (docs=true for client request)
         summary     bool
         feed        string  // name of feed
-   }
+    }
 
     property struct {
-       auth             bool
-       apihost          bool
-       apiversion       bool
-       namespace        bool
-       cliversion       bool
-       apibuild         bool
-       apibuildno       bool
-       all              bool
-       apihostSet       string
-       apiversionSet    string
-       namespaceSet     string
-   }
+        auth            bool
+        apihost         bool
+        apiversion      bool
+        namespace       bool
+        cliversion      bool
+        apibuild        bool
+        apibuildno      bool
+        insecure        bool
+        all             bool
+        apihostSet      string
+        apiversionSet   string
+        namespaceSet    string
+    }
 
     action struct {
         docker      bool

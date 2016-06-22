@@ -62,6 +62,7 @@ var propertySetCmd = &cobra.Command{
     Short:          "set property",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var okMsg string
 
@@ -211,6 +212,7 @@ var propertyGetCmd = &cobra.Command{
     Short:          "get property",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
 
         // If no property is explicitly specified, default to all properties
@@ -390,35 +392,44 @@ func parseConfigFlags(cmd *cobra.Command, args []string) error {
 
     if auth := flags.global.auth; len(auth) > 0 {
         Properties.Auth = auth
-        client.Config.AuthToken = auth
+        if client != nil {
+            client.Config.AuthToken = auth
+        }
     }
 
     if namespace := flags.property.namespaceSet; len(namespace) > 0 {
         Properties.Namespace = namespace
-        client.Config.Namespace = namespace
+        if client != nil {
+            client.Config.Namespace = namespace
+        }
     }
 
     if apiVersion := flags.global.apiversion; len(apiVersion) > 0 {
         Properties.APIVersion = apiVersion
-        client.Config.Version = apiVersion
+        if client != nil {
+            client.Config.Version = apiVersion
+        }
     }
 
     if apiHost := flags.global.apihost; len(apiHost) > 0 {
         Properties.APIHost = apiHost
-        client.Config.Host = apiHost
 
-        // Place the host name (or ip addr) in whisk base URL string and parse
-        // it to create a URL object.  Parsing will also validate the URL providing
-        // a sanity check on the host/ip format
-        var apiHostBaseUrl = fmt.Sprintf("https://%s/api/", Properties.APIHost)
-        baseURL, err := url.Parse(apiHostBaseUrl)
-        if err != nil {
-            whisk.Debug(whisk.DbgError, "url.Parse(%s) failed: %s\n", apiHostBaseUrl, err)
-            errStr := fmt.Sprintf("Invalid host address: %s", err)
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
-            return werr
+        if client != nil {
+            client.Config.Host = apiHost
+
+            // Place the host name (or ip addr) in whisk base URL string and parse
+            // it to create a URL object.  Parsing will also validate the URL providing
+            // a sanity check on the host/ip format
+            var apiHostBaseUrl = fmt.Sprintf("https://%s/api/", Properties.APIHost)
+            baseURL, err := url.Parse(apiHostBaseUrl)
+            if err != nil {
+                whisk.Debug(whisk.DbgError, "url.Parse(%s) failed: %s\n", apiHostBaseUrl, err)
+                errStr := fmt.Sprintf("Invalid host address: %s", err)
+                werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                return werr
+            }
+            client.Config.BaseURL = baseURL
         }
-        client.Config.BaseURL = baseURL
     }
 
     if flags.global.debug {

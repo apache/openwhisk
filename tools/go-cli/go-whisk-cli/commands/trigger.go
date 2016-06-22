@@ -38,6 +38,7 @@ var triggerFireCmd = &cobra.Command{
     Short: "fire trigger event",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
 
         var err error
@@ -116,6 +117,7 @@ var triggerCreateCmd = &cobra.Command{
     Short: "create new trigger",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
 
         var err error
@@ -269,6 +271,7 @@ var triggerUpdateCmd = &cobra.Command{
     Short: "update existing trigger",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
 
         var err error
@@ -368,6 +371,7 @@ var triggerGetCmd = &cobra.Command{
     Short: "get trigger",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         if len(args) != 1 {
@@ -413,6 +417,7 @@ var triggerDeleteCmd = &cobra.Command{
     Short: "delete trigger",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         var feedParams []string
@@ -500,6 +505,7 @@ var triggerListCmd = &cobra.Command{
     Short: "list all triggers",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         qName := qualifiedName{}

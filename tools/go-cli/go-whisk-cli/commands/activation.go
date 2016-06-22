@@ -46,6 +46,7 @@ var activationListCmd = &cobra.Command{
     Short: "list activations",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         qName := qualifiedName{}
@@ -106,6 +107,7 @@ var activationGetCmd = &cobra.Command{
     Short: "get activation",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         if len(args) != 1 {
             whisk.Debug(whisk.DbgError, "Invalid number of arguments: %d\n", len(args))
@@ -140,6 +142,7 @@ var activationLogsCmd = &cobra.Command{
     Short: "get the logs of an activation",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         if len(args) != 1 {
             whisk.Debug(whisk.DbgError, "Invalid number of arguments: %d\n", len(args))
@@ -167,6 +170,7 @@ var activationResultCmd = &cobra.Command{
     Short: "get the result of an activation",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         if len(args) != 1 {
             whisk.Debug(whisk.DbgError, "Invalid number of arguments: %d\n", len(args))
@@ -196,6 +200,7 @@ var activationPollCmd = &cobra.Command{
     Short: "poll continuously for log messages from currently running actions",
     SilenceUsage:   true,
     SilenceErrors:  true,
+    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var name string
         var pollSince int64 // Represents an instant in time (in milliseconds since Jan 1 1970)

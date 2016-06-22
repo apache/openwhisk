@@ -17,97 +17,102 @@
 package whisk
 
 import (
-        "bytes"
-        "encoding/base64"
-        "encoding/json"
-        "fmt"
-        "io"
-        "io/ioutil"
-        "net/http"
-        "net/url"
-        "crypto/tls"
-        "errors"
-        "reflect"
+    "bytes"
+    "encoding/base64"
+    "encoding/json"
+    "fmt"
+    "io"
+    "io/ioutil"
+    "net/http"
+    "net/url"
+    "crypto/tls"
+    "errors"
+    "reflect"
 )
 
 const (
-        defaultBaseURL = "openwhisk.ng.bluemix.net"
+    defaultBaseURL = "openwhisk.ng.bluemix.net"
 )
 
 type Client struct {
-        client *http.Client
-        *Config
-        Transport *http.Transport
+    client *http.Client
+    *Config
+    Transport *http.Transport
 
-        Sdks        *SdkService
-        Triggers    *TriggerService
-        Actions     *ActionService
-        Rules       *RuleService
-        Activations *ActivationService
-        Packages    *PackageService
-        Namespaces  *NamespaceService
-        Info        *InfoService
+    Sdks        *SdkService
+    Triggers    *TriggerService
+    Actions     *ActionService
+    Rules       *RuleService
+    Activations *ActivationService
+    Packages    *PackageService
+    Namespaces  *NamespaceService
+    Info        *InfoService
 }
 
 type Config struct {
-        Namespace 	string // NOTE :: Default is "_"
-        AuthToken 	string
-        Host		string
-        BaseURL   	*url.URL // NOTE :: Default is "openwhisk.ng.bluemix.net"
-        Version   	string
-        Verbose   	bool
-        Debug       bool     // For detailed tracing
+    Namespace 	string // NOTE :: Default is "_"
+    AuthToken 	string
+    Host		string
+    BaseURL   	*url.URL // NOTE :: Default is "openwhisk.ng.bluemix.net"
+    Version   	string
+    Verbose   	bool
+    Debug       bool     // For detailed tracing
+    Insecure    bool
 }
 
 func NewClient(httpClient *http.Client, config *Config) (*Client, error) {
 
-        // TODO: only disable certificate checking in the dev environment
+    // Disable certificate checking in the dev environment if in insecure mode
+    if config.Insecure {
+        Debug(DbgInfo, "Disabling certificate checking.")
+
         tlsConfig := &tls.Config{
-                InsecureSkipVerify: true,
+            InsecureSkipVerify: true,
         }
 
         http.DefaultClient.Transport = &http.Transport{
-                TLSClientConfig: tlsConfig,
+            TLSClientConfig: tlsConfig,
         }
+    }
 
-        if httpClient == nil {
-                httpClient = http.DefaultClient
+    if httpClient == nil {
+        httpClient = http.DefaultClient
+    }
+
+    var err error
+    if config.BaseURL == nil {
+        config.BaseURL, err = url.Parse(defaultBaseURL)
+        if err != nil {
+            Debug(DbgError, "url.Parse(%s) error: %s", defaultBaseURL, err)
+            errStr := fmt.Sprintf("Unable to create request URL '%s': %s", defaultBaseURL, err)
+            werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+            return nil, werr
         }
+    }
 
-        var err error
-        if config.BaseURL == nil {
-                config.BaseURL, err = url.Parse(defaultBaseURL)
-                if err != nil {
-                    Debug(DbgError, "url.Parse(%s) error: %s", defaultBaseURL, err)
-                    errStr := fmt.Sprintf("Unable to create request URL '%s': %s", defaultBaseURL, err)
-                    werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
-                    return nil, werr
-                }
-        }
+    if len(config.Namespace) == 0 {
+        config.Namespace = "_"
+    }
 
-        if len(config.Namespace) == 0 {
-                config.Namespace = "_"
-        }
+    if len(config.Version) == 0 {
+        config.Version = "v1"
+    }
 
-        if len(config.Version) == 0 {
-                config.Version = "v1"
-        }
+    c := &Client{
+        client: httpClient,
+        Config: config,
+    }
 
-        c := &Client{
-                client: httpClient,
-                Config: config,
-        }
+    c.Sdks = &SdkService{client: c}
+    c.Triggers = &TriggerService{client: c}
+    c.Actions = &ActionService{client: c}
+    c.Rules = &RuleService{client: c}
+    c.Activations = &ActivationService{client: c}
+    c.Packages = &PackageService{client: c}
+    c.Namespaces = &NamespaceService{client: c}
+    c.Info = &InfoService{client: c}
 
-        c.Sdks = &SdkService{client: c}
-        c.Triggers = &TriggerService{client: c}
-        c.Actions = &ActionService{client: c}
-        c.Rules = &RuleService{client: c}
-        c.Activations = &ActivationService{client: c}
-        c.Packages = &PackageService{client: c}
-        c.Namespaces = &NamespaceService{client: c}
-        c.Info = &InfoService{client: c}
-
-        return c, nil
+    return c, nil
 }
 
 ///////////////////////////////
@@ -115,51 +120,50 @@ func NewClient(httpClient *http.Client, config *Config) (*Client, error) {
 ///////////////////////////////
 
 func (c *Client) NewRequest(method, urlStr string, body interface{}) (*http.Request, error) {
+    urlStr = fmt.Sprintf("%s/namespaces/%s/%s", c.Config.Version, c.Config.Namespace, urlStr)
 
-        urlStr = fmt.Sprintf("%s/namespaces/%s/%s", c.Config.Version, c.Config.Namespace, urlStr)
+    rel, err := url.Parse(urlStr)
+    if err != nil {
+        Debug(DbgError, "url.Parse(%s) error: %s\n", urlStr, err)
+        errStr := fmt.Sprintf("Invalid request URL '%s': %s", urlStr, err)
+        werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        return nil, werr
+    }
 
-        rel, err := url.Parse(urlStr)
+    u := c.BaseURL.ResolveReference(rel)
+
+    var buf io.ReadWriter
+    if body != nil {
+        buf = new(bytes.Buffer)
+        err := json.NewEncoder(buf).Encode(body)
         if err != nil {
-            Debug(DbgError, "url.Parse(%s) error: %s\n", urlStr, err)
-            errStr := fmt.Sprintf("Invalid request URL '%s': %s", urlStr, err)
+            Debug(DbgError, "json.Encode(%#v) error: %s\n", body, err)
+            errStr := fmt.Sprintf("Error encoding request body: %s", err)
             werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
             return nil, werr
         }
+    }
+    req, err := http.NewRequest(method, u.String(), buf)
+    if err != nil {
+        Debug(DbgError, "http.NewRequest(%v, %s, buf) error: %s\n", method, u.String(), err)
+        errStr := fmt.Sprintf("Error initializing request: %s", err)
+        werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        return nil, werr
+    }
+    if req.Body != nil {
+        req.Header.Add("Content-Type", "application/json")
+    }
 
-        u := c.BaseURL.ResolveReference(rel)
+    c.addAuthHeader(req)
 
-        var buf io.ReadWriter
-        if body != nil {
-                buf = new(bytes.Buffer)
-                err := json.NewEncoder(buf).Encode(body)
-                if err != nil {
-                    Debug(DbgError, "json.Encode(%#v) error: %s\n", body, err)
-                    errStr := fmt.Sprintf("Error encoding request body: %s", err)
-                    werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
-                    return nil, werr
-                }
-        }
-        req, err := http.NewRequest(method, u.String(), buf)
-        if err != nil {
-            Debug(DbgError, "http.NewRequest(%v, %s, buf) error: %s\n", method, u.String(), err)
-            errStr := fmt.Sprintf("Error initializing request: %s", err)
-            werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
-            return nil, werr
-        }
-        if req.Body != nil {
-                req.Header.Add("Content-Type", "application/json")
-        }
-
-        c.addAuthHeader(req)
-
-        return req, nil
+    return req, nil
 }
 
 func (c *Client) addAuthHeader(req *http.Request) {
-        if c.Config.AuthToken != "" {
-                encodedAuthToken := base64.StdEncoding.EncodeToString([]byte(c.Config.AuthToken))
-                req.Header.Add("Authorization", fmt.Sprintf("Basic %s", encodedAuthToken))
-        }
+    if c.Config.AuthToken != "" {
+        encodedAuthToken := base64.StdEncoding.EncodeToString([]byte(c.Config.AuthToken))
+        req.Header.Add("Authorization", fmt.Sprintf("Basic %s", encodedAuthToken))
+    }
 }
 
 // Do sends an API request and returns the API response.  The API response is
@@ -283,9 +287,9 @@ func (c *Client) Do(req *http.Request, v interface{}) (*http.Response, error) {
 //     "code": 1422870
 // }
 type ErrorResponse struct {
-        Response *http.Response         // HTTP response that caused this error
-        ErrMsg   string `json:"error"`  // error message string
-        Code     int64  `json:"code"`   // validation error code
+    Response *http.Response         // HTTP response that caused this error
+    ErrMsg   string `json:"error"`  // error message string
+    Code     int64  `json:"code"`   // validation error code
 }
 
 func (r ErrorResponse) Error() string {
