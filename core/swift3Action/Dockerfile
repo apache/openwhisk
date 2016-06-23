@@ -51,7 +51,7 @@ RUN cd /swift3Action; rm -rf .project .settings build.xml Dockerfile
 # Build kitura net
 RUN mkdir -p /swift3Action
 RUN touch /swift3Action/spm-build/main.swift
-RUN cd /swift3Action/spm-build; swift build -Xcc -fblocks -Xlinker -rpath -Xlinker /swift3Action/spm-build/.build/debug
+RUN cd /swift3Action/spm-build; swift build -Xcc -fblocks
 RUN rm /swift3Action/spm-build/.build/debug/Action
 
 ENV FLASK_PROXY_PORT 8080

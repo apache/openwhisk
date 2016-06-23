@@ -113,6 +113,9 @@ def run():
     if e is not None:
         sys.stderr.write(e)
 
+    # Add sentinel to stdout marker
+    sys.stdout.write("XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX\n")
+
     try:
         json_output = json.loads(last_line)
         if isinstance(json_output, dict):

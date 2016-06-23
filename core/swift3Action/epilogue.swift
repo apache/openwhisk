@@ -43,6 +43,7 @@ func _run_main() -> Void {
 
     if let parsed = _whisk_json2dict(txt: inputStr) {
         let result = main(args:parsed)
+        
         do {
             let resp = try NSJSONSerialization.data(withJSONObject: result.bridge(), options: [])
             if let string = NSString(data: resp, encoding: NSUTF8StringEncoding) {
