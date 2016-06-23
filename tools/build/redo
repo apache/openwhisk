@@ -56,9 +56,14 @@ def doComponentSequence(props, args, components):
     for c in components:
         component = getComponent(c)
         if not component:
-            print 'unknown component %s' % c
-            exit(1)
-        elif component['steps']:
+            if args.yaml:
+                file = c if c.endswith('.yml') else '%s.yml' % c
+                component = makeComponent('custom deployment', 'deploying using %s' % file, yaml = file)
+            else:
+                print 'unknown component %s' % c
+                exit(1)
+
+        if component['steps']:
            doComponentSequence(props, args, component['steps'])
         else:
             doOne(component, args, props)
@@ -78,6 +83,7 @@ def getArgs():
     parser.add_argument('-x', '--teardown', help='teardown component', action='store_const', const=True, default=False)
     parser.add_argument('-d', '--deploy', help='deploy component', action='store_const', const=True, default=False)
     parser.add_argument('-t', '--target', help='deploy target (one of [mac, local])', default=detectDeployTarget())
+    parser.add_argument('-y', '--yaml', help='deploy target using inferred YAML file if component is not one of known targets', action='store_const', const=True, default=False)
     parser.add_argument('-n', '--just-print', help='prints the component configuration but does not run any targets', action='store_const', const=True, default=False, dest='skiprun')
     parser.add_argument('-c', '--list-components', help='list known component names and exit', action='store_const', const=True, default=False, dest='list')
     parser.add_argument('components', nargs = '*', help='component name(s) to run (in order specified if more than one)')
@@ -209,8 +215,13 @@ Components = [
                   'recreate main db for entities',
                   yaml = 'wipe.yml'),
 
+    makeComponent('build',
+                  'build system',
+                  yaml = False,
+                  gradle = True),
+
     makeComponent('deploy',
-                  'deploy system',
+                  'build/deploy system',
                   yaml = 'openwhisk.yml',
                   modes = 'clean',
                   gradle = True),
