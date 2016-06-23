@@ -22,5 +22,10 @@
     add_host: name={{ docker_machine_ip }} groups=db
     when: "'environments/mac' in inventory_dir"
 
+  - name: check if db_local.ini exists?
+    stat: path="{{ playbook_dir }}/db_local.ini"
+    register: db
+
   - name: prepare db_local.ini
     local_action: template src="db_local.ini.j2" dest="{{ playbook_dir }}/db_local.ini"
+    when: not db.stat.exists
