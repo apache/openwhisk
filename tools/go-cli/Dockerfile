@@ -23,14 +23,17 @@ RUN cd /src/github.com/go-whisk-cli && /bin/godep restore -v
 #RUN cd /src/github.com/go-whisk-cli && go list -f '{{join .Deps "\n"}}' > ../../../wsk.deps.out
 RUN cd /src/github.com/go-whisk-cli && echo "Dependencies list requires restructuring the GO CLI packages" > ../../../wsk.deps.out
 
+# All of the Go CLI binaries will be placed under a build folder
+RUN mkdir /src/github.com/go-whisk-cli/build
+
 # Build the Go wsk CLI binaries
 ENV GOOS=windows
 ENV EXEC=wsk.exe
 ENV ARCHS="386 amd64"
 RUN for GOARCH in $ARCHS; do \
       cd /src/github.com/go-whisk-cli && \
-      go build -ldflags "-X main.CLI_BUILD_TIME=$BUILDTIME" -v -o $GOOS/$GOARCH/$EXEC main.go && \
-      zip $GOOS/$GOARCH/openwhisk-win-$GOARCH.zip $GOOS/$GOARCH/$EXEC; \
+      go build -ldflags "-X main.CLI_BUILD_TIME=$BUILDTIME" -v -o build/$GOOS/$GOARCH/$EXEC main.go && \
+      zip build/$GOOS/$GOARCH/openwhisk-win-$GOARCH.zip build/$GOOS/$GOARCH/$EXEC; \
     done
 
 ENV GOOS=darwin
@@ -38,10 +41,10 @@ ENV ARCHS="386 amd64 arm arm64"
 ENV EXEC=wsk
 RUN for GOARCH in $ARCHS; do \
       cd /src/github.com/go-whisk-cli && \
-      go build -ldflags "-X main.CLI_BUILD_TIME=$BUILDTIME" -v -o mac/$GOARCH/$EXEC main.go && \
-      tar -cf mac/$GOARCH/openwhisk-mac-$GOARCH.tar mac/$GOARCH/$EXEC && \
-      gzip < mac/$GOARCH/openwhisk-mac-$GOARCH.tar > mac/$GOARCH/openwhisk-mac-$GOARCH.tar.gz && \
-      rm -f mac/$GOARCH/openwhisk-mac-$GOARCH.tar; \
+      go build -ldflags "-X main.CLI_BUILD_TIME=$BUILDTIME" -v -o build/mac/$GOARCH/$EXEC main.go && \
+      tar -cf build/mac/$GOARCH/openwhisk-mac-$GOARCH.tar build/mac/$GOARCH/$EXEC && \
+      gzip < build/mac/$GOARCH/openwhisk-mac-$GOARCH.tar > build/mac/$GOARCH/openwhisk-mac-$GOARCH.tar.gz && \
+      rm -f build/mac/$GOARCH/openwhisk-mac-$GOARCH.tar; \
     done
 
 ENV GOOS=linux
@@ -49,8 +52,8 @@ ENV ARCHS="386 amd64 arm arm64 ppc64 ppc64le mips64 mips64le"
 ENV EXEC=wsk
 RUN for GOARCH in $ARCHS; do \
       cd /src/github.com/go-whisk-cli && \
-      go build -ldflags "-X main.CLI_BUILD_TIME=$BUILDTIME" -v -o $GOOS/$GOARCH/$EXEC main.go && \
-      tar -cf $GOOS/$GOARCH/openwhisk-$GOOS-$GOARCH.tar $GOOS/$GOARCH/$EXEC && \
-      gzip < $GOOS/$GOARCH/openwhisk-$GOOS-$GOARCH.tar > $GOOS/$GOARCH/openwhisk-$GOOS-$GOARCH.tar.gz && \
-      rm -f $GOOS/$GOARCH/openwhisk-$GOOS-$GOARCH.tar; \
+      go build -ldflags "-X main.CLI_BUILD_TIME=$BUILDTIME" -v -o build/$GOOS/$GOARCH/$EXEC main.go && \
+      tar -cf build/$GOOS/$GOARCH/openwhisk-$GOOS-$GOARCH.tar build/$GOOS/$GOARCH/$EXEC && \
+      gzip < build/$GOOS/$GOARCH/openwhisk-$GOOS-$GOARCH.tar > build/$GOOS/$GOARCH/openwhisk-$GOOS-$GOARCH.tar.gz && \
+      rm -f build/$GOOS/$GOARCH/openwhisk-$GOOS-$GOARCH.tar; \
     done

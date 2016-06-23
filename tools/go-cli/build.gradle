@@ -54,10 +54,15 @@ task distBinary(dependsOn: [removeBinary, distDocker]) << {
     run(["mkdir", "${projectDir}/../../bin/go-cli/"])
     run(dockerBinary + ["run", "--name", dockerContainerName, dockerImageName + ":" + dockerImageTag])
 
+    // Copy all Go binaries outside of Docker into openwhisk go-cli/bin/ folder
+    run(dockerBinary + ["cp", dockerContainerName +
+            ":/src/github.com/go-whisk-cli/build/.", "${projectDir}/../../bin/go-cli"])
+
     if (ant.properties.family in ["linux", "mac"] && ant.properties.arch in ["amd64", "386"]) {
-        run(dockerBinary + ["cp", dockerContainerName +
-            ":/src/github.com/go-whisk-cli/${ant.properties.family}/${ant.properties.arch}/wsk",
-            "${projectDir}/../../bin/go-cli/wsk"])
+        exec {
+            executable "ln"
+            args "${projectDir}/../../bin/go-cli/${ant.properties.family}/${ant.properties.arch}/wsk", "${projectDir}/../../bin/go-cli/wsk", "-s"
+        }
     }
 
     run(dockerBinary + ["rm", "-f", dockerContainerName])
