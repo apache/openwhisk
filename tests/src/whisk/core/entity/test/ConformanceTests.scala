@@ -111,7 +111,7 @@ class ConformanceTests extends FlatSpec
         }
     }
 
-    /* "Auth Database" */ ignore should "conform to expected schema" in {
+    "Auth Database" should "conform to expected schema" in {
         checkDatabaseFields(authstore, "subjects/uuids", _ => true, Set("subject", "uuid", "key", "_id", "_rev"))
     }
 
