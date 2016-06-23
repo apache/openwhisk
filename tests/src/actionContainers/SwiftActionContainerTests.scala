@@ -35,7 +35,7 @@ class SwiftActionContainerTests extends FlatSpec
 
     // note: "out" will likely not be empty in some swift build as the compiler
     // prints status messages and there doesn't seem to be a way to quiet them
-    val checkStdOutEmpty = true
+    val checkStdOutEmpty = false
     val swiftContainerImageName = "whisk/swiftaction"
 
     // Helpers specific to swiftaction
