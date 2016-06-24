@@ -17,22 +17,37 @@
 package whisk.utils
 
 import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.Executors
 import java.util.concurrent.ThreadPoolExecutor
+
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
+import scala.concurrent.Promise
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
-import akka.actor.ActorSystem
-import akka.pattern.after
-import java.util.concurrent.Executors
 import scala.language.postfixOps
+
+import akka.actor.ActorSystem
+import akka.pattern.{ after => expire }
 
 object ExecutionContextFactory {
 
     implicit class FutureExtensions[T](f: Future[T]) {
         def withTimeout(timeout: FiniteDuration, msg: => Throwable)(implicit system: ActorSystem, ec: ExecutionContext): Future[T] = {
-            Future firstCompletedOf Seq(f, after(timeout, system.scheduler)(Future.failed(msg)))
+            Future firstCompletedOf Seq(f, expire(timeout, system.scheduler)(Future.failed(msg)))
+        }
+    }
+
+    /**
+     * Extends a promise with an scheduled call back. The call back may be used to complete the promise. The result of the
+     * call back is not interesting to this method.
+     * The idiom to use is: promise afterTimeout(duration, promise.tryFailure(TimeoutException)`.
+     */
+    implicit class PromiseExtensions[T](p: Promise[T]) {
+        def after(timeout: FiniteDuration, next: => Unit)(implicit system: ActorSystem, ec: ExecutionContext): Promise[T] = {
+            expire(timeout, system.scheduler)(Future { next })
+            p
         }
     }
 

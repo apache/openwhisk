@@ -58,7 +58,7 @@ def doComponentSequence(props, args, components):
         if not component:
             if args.yaml:
                 file = c if c.endswith('.yml') else '%s.yml' % c
-                component = makeComponent('custom deployment', 'deploying using %s' % file, yaml = file)
+                component = makeComponent('custom deployment', 'deploying using %s' % file, yaml = file, modes = 'clean')
             else:
                 print 'unknown component %s' % c
                 exit(1)
@@ -256,6 +256,11 @@ Components = [
                   yaml = 'postDeploy.yml'),
 
     # the following (re)build images via gradle
+    makeComponent('gocli',
+                  'build go CLI',
+                  yaml = False,
+                  gradle = 'tools:go-cli'),
+
     makeComponent('nodejsaction',
                   'build node.js action container',
                   yaml = False,

@@ -17,8 +17,11 @@
 package whisk.core.loadBalancer
 
 import scala.collection.concurrent.TrieMap
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+import scala.concurrent.Promise
+import scala.concurrent.TimeoutException
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.{ ExecutionContext, Future, Promise, TimeoutException }
 import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
@@ -32,13 +35,18 @@ import whisk.common.ConsulKVReporter
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.common.Verbosity
-import whisk.connector.kafka.{ KafkaConsumerConnector, KafkaProducerConnector }
+import whisk.connector.kafka.KafkaConsumerConnector
+import whisk.connector.kafka.KafkaProducerConnector
 import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig.{ servicePort, kafkaHost, consulServer, kafkaPartitions }
-import whisk.core.connector.{ Message, ActivationMessage, CompletionMessage, LoadBalancerResponse }
-import whisk.core.entity.{ ActivationId, WhiskActivation }
-import whisk.utils.ExecutionContextFactory
-import whisk.utils.ExecutionContextFactory.FutureExtensions
+import whisk.core.WhiskConfig.consulServer
+import whisk.core.WhiskConfig.kafkaHost
+import whisk.core.WhiskConfig.kafkaPartitions
+import whisk.core.WhiskConfig.servicePort
+import whisk.core.connector.ActivationMessage
+import whisk.core.connector.CompletionMessage
+import whisk.core.entity.ActivationId
+import whisk.core.entity.WhiskActivation
+import whisk.utils.ExecutionContextFactory.PromiseExtensions
 
 class LoadBalancerService(config: WhiskConfig, verbosity: Verbosity.Level)(
     implicit val actorSystem: ActorSystem,
@@ -58,9 +66,12 @@ class LoadBalancerService(config: WhiskConfig, verbosity: Verbosity.Level)(
 
     private val invokerHealth = new InvokerHealth(config, resetIssueCountByInvoker, () => producer.sentCount())
     private val _activationThrottle = new ActivationThrottle(config)
+
+    // map stores the promise which either completes if an active response is received or
+    // after the set timeout expires
     private val queryMap = new TrieMap[ActivationId, Promise[WhiskActivation]]
 
-    // This must happen after the overrides
+    // this must happen after the overrides
     setVerbosity(verbosity)
 
     private var count = 0
@@ -101,9 +112,9 @@ class LoadBalancerService(config: WhiskConfig, verbosity: Verbosity.Level)(
         implicit val tid = msg.transid
         val aid = msg.response.activationId
         val response = msg.response
-        queryMap.get(aid) map { promise =>
-            promise.trySuccess(response)
-            queryMap -= aid
+        val promise = queryMap.remove(aid)
+        promise map { p =>
+            p.trySuccess(response)
             info(this, s"processed active response for '$aid'")
         }
     }
@@ -118,24 +129,24 @@ class LoadBalancerService(config: WhiskConfig, verbosity: Verbosity.Level)(
         // either create a new promise or reuse a previous one for this activation if it exists
         queryMap.getOrElseUpdate(activationId, {
             val promise = Promise[WhiskActivation]
-            // wait up to 30 seconds - consider making this proportional to
-            // action timeout e.g., max(30, action timeout / 2)
-            promise.future withTimeout (30 seconds, {
-                queryMap -= activationId
-                new ActiveAckTimeout(activationId)
+            // store the promise to complete on success, and the timed future that completes
+            // with the TimeoutException after alloted time has elapsed
+            promise after (30 seconds, {
+                queryMap.remove(activationId) map { p =>
+                    val failedit = p.tryFailure(new ActiveAckTimeout(activationId))
+                    if (failedit) info(this, "active response timed out")
+                }
             })
-            promise
         }).future
     }
 
     val consumer = new KafkaConsumerConnector(config.kafkaHost, "completions", "completed")
+    consumer.setVerbosity(verbosity)
     consumer.onMessage((topic, bytes) => {
         val raw = new String(bytes, "utf-8")
         CompletionMessage(raw) match {
-            case Success(m) =>
-                processCompletion(m)
-            case Failure(t) =>
-                error(this, s"failed processing message: $raw with $t")
+            case Success(m) => processCompletion(m)
+            case Failure(t) => error(this, s"failed processing message: $raw with $t")
         }
         true
     })
