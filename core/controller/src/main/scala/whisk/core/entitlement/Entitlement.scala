@@ -21,13 +21,15 @@ import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
-import scala.util.{ Try, Success, Failure }
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
 
 import Privilege.REJECT
 import akka.actor.ActorSystem
 import spray.http.StatusCodes.ClientError
 import spray.http.StatusCodes.TooManyRequests
-import spray.json.JsBoolean
+import spray.json.DefaultJsonProtocol.BooleanJsonFormat
 import spray.json.pimpString
 import whisk.common.ConsulClient
 import whisk.common.ConsulKV.LoadBalancerKeys
@@ -67,19 +69,16 @@ protected[core] case class Resource(
 
 protected[core] object EntitlementService {
     /**
-     * Remote entitlement service requires a host:port definition. If not given,
-     * i.e., the value equals ":", use a local entitlement service.
+     * The default list of namespaces for a subject.
      */
-    val LOCAL_ENTITLEMENT_HOST = ":"
+    protected[core] def defaultNamespaces(subject: Subject) = Set(subject())
 }
 
 /**
  * A trait for entitlement service. This is a WIP.
  */
 protected[core] abstract class EntitlementService(config: WhiskConfig)(
-        implicit actorSystem: ActorSystem) extends Logging {
-
-    import spray.json.DefaultJsonProtocol._
+    implicit actorSystem: ActorSystem) extends Logging {
 
     private implicit val executionContext = actorSystem.dispatcher
 
@@ -95,7 +94,7 @@ protected[core] abstract class EntitlementService(config: WhiskConfig)(
     Scheduler.scheduleWaitAtLeast(overloadCheckPeriod) { () =>
         kvClient.get(LoadBalancerKeys.overloadKey).map { isOverloaded =>
             Try(isOverloaded.parseJson.convertTo[Boolean]) foreach { v =>
-                if(loadbalancerOverload != Some(v)) {
+                if (loadbalancerOverload != Some(v)) {
                     loadbalancerOverload = Some(v)
                     info(this, s"EntitlementService: loadbalancerOverload = ${v}")
                 }
@@ -110,12 +109,15 @@ protected[core] abstract class EntitlementService(config: WhiskConfig)(
     }
 
     /**
-     * Gets the list of namespaces the subject has rights to.
+     * Gets the set of namespaces the subject has rights to (may be empty).
+     * The default set of namespaces contains only one entry, which is the subject name.
      *
      * @param subject the subject to lookup namespaces for
      * @return a promise that completes with list of namespaces the subject has rights to
      */
-    protected[core] def namespaces(subject: Subject)(implicit transid: TransactionId): Future[List[String]]
+    protected[core] def namespaces(subject: Subject)(implicit transid: TransactionId): Future[Set[String]] = Future.successful {
+        EntitlementService.defaultNamespaces(subject)
+    }
 
     /**
      * Grants a subject the right to access a resources.
@@ -171,10 +173,19 @@ protected[core] abstract class EntitlementService(config: WhiskConfig)(
             // explicit grants
             val grant = if (right != REJECT) {
                 info(this, s"checking user '$subject' has privilege '$right' for '$resource'", LoggingMarkers.CONTROLLER_CHECK_ENTITLEMENT_START)
-                namespaces(subject) flatMap {
-                    resource.collection.implicitRights(_, right, resource) flatMap {
-                        case true  => Future successful true
-                        case false => entitled(subject, right, resource)
+                // check the default namespace first, bypassing additional checks if permitted
+                val defaultNamespaces = EntitlementService.defaultNamespaces(subject)
+                resource.collection.implicitRights(defaultNamespaces, right, resource) flatMap {
+                    case true => Future successful true
+                    case false => namespaces(subject) flatMap {
+                        additionalNamespaces =>
+                            val newNamespacesToCheck = additionalNamespaces -- defaultNamespaces
+                            if (newNamespacesToCheck nonEmpty) {
+                                resource.collection.implicitRights(newNamespacesToCheck, right, resource) flatMap {
+                                    case true  => Future successful true
+                                    case false => entitled(subject, right, resource)
+                                }
+                            } else entitled(subject, right, resource)
                     }
                 }
             } else Future successful false

@@ -193,5 +193,9 @@ object WhiskConfig {
     val messagehubtriggerHost = Map(messagehubtriggerHostName -> null, messagehubtriggerHostPort -> null)
     val monitorHost = Map(monitorHostName -> null, monitorHostPort -> null)
     val zookeeperHost = Map(zookeeperHostName -> null, zookeeperHostPort -> null)
+
+    // use empty string as default for entitlement host as this is an optional service
+    // and the way to prevent the configuration checker from failing is to provide a value;
+    // an empty string is permitted but null is not
     val entitlementHost = Map(entitlementHostName -> "", entitlementHostPort -> "")
 }

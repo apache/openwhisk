@@ -45,7 +45,7 @@ import whisk.core.entity.Subject
 import whisk.core.WhiskConfig
 
 protected[core] class RemoteEntitlementService(
-    private val config : WhiskConfig,
+    private val config: WhiskConfig,
     private val timeout: FiniteDuration = 5 seconds,
     private implicit val actorSystem: ActorSystem,
     private implicit val ec: ExecutionContext)
@@ -54,7 +54,7 @@ protected[core] class RemoteEntitlementService(
     private val apiLocation = config.entitlementHost
     private val matrix = TrieMap[(Subject, String), Set[Privilege]]()
 
-    protected[core] override def namespaces(subject: Subject)(implicit transid: TransactionId): Future[List[String]] = {
+    protected[core] override def namespaces(subject: Subject)(implicit transid: TransactionId): Future[Set[String]] = {
         info(this, s"getting namespaces from ${apiLocation}")
 
         val url = Uri("http://" + apiLocation + "/namespaces").withQuery(
@@ -64,7 +64,7 @@ protected[core] class RemoteEntitlementService(
             addHeader("X-Transaction-Id", transid.toString())
             ~> sendReceive
             ~> unmarshal[List[String]])
-        pipeline(Get(url))
+        pipeline(Get(url)) map { _.toSet }
     }
 
     protected[core] override def grant(subject: Subject, right: Privilege, resource: Resource)(implicit transid: TransactionId): Future[Boolean] = {

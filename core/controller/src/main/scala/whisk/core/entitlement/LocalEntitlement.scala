@@ -31,20 +31,13 @@ private object LocalEntitlementService {
 }
 
 protected[core] class LocalEntitlementService(
-    private val config : WhiskConfig)
-    (implicit actorSystem: ActorSystem)
+    private val config: WhiskConfig)(
+        implicit actorSystem: ActorSystem)
     extends EntitlementService(config) {
 
     private implicit val executionContext = actorSystem.dispatcher
 
     private val matrix = LocalEntitlementService.matrix
-
-    /**
-     * The default namespace is the subject name. This is the only namespace.
-     */
-    protected[core] override def namespaces(subject: Subject)(implicit transid: TransactionId): Future[List[String]] = Future.successful {
-        List(subject())
-    }
 
     /** Grants subject right to resource by adding them to the entitlement matrix. */
     protected[core] override def grant(subject: Subject, right: Privilege, resource: Resource)(implicit transid: TransactionId) = Future {
