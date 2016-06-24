@@ -25,8 +25,8 @@ import whisk.core.entity.ArgNormalizer.trim
 import spray.json.pimpString
 import scala.util.Try
 import spray.json.DeserializationException
-
 import java.util.Base64
+import main.scala.whisk.core.entity.DefaultRuntimeVersions
 
 /**
  * Exec encodes the executable details of an action. For black
@@ -82,7 +82,8 @@ protected[core] case class SequenceExec(code: String, components: Vector[String]
 
 protected[core] object Exec
     extends ArgNormalizer[Exec]
-    with DefaultJsonProtocol {
+    with DefaultJsonProtocol
+    with DefaultRuntimeVersions {
 
     private lazy val b64decoder = Base64.getDecoder()
 
@@ -124,10 +125,13 @@ protected[core] object Exec
 
             val obj = v.asJsObject
 
-            val kind = obj.getFields("kind") match {
+            val kindField = obj.getFields("kind") match {
                 case Seq(JsString(k)) => k.trim.toLowerCase
                 case _                => throw new DeserializationException("'kind' must be a string defined in 'exec'")
             }
+
+            // map "default" virtual runtime versions to the currently blessed actual runtime version
+            val kind = resolveDefaultRuntime(kindField)
 
             kind match {
                 case Exec.NODEJS =>

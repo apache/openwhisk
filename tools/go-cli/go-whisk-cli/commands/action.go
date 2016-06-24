@@ -618,13 +618,14 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
 
         if flags.action.kind == "swift:3" || flags.action.kind == "swift:3.0" || flags.action.kind == "swift:3.0.0" {
             action.Exec.Kind = "swift:3"
-        } else if flags.action.kind == "nodejs:6" || flags.action.kind == "nodejs:6.0" ||
-            flags.action.kind == "nodejs:6.0.0" {
+        } else if flags.action.kind == "nodejs:6" || flags.action.kind == "nodejs:6.0" || flags.action.kind == "nodejs:6.0.0" {
             action.Exec.Kind = "nodejs:6"
+        } else if flags.action.kind == "nodejs" {
+            action.Exec.Kind = "nodejs"
         } else if matched, _ := regexp.MatchString(".swift$", stat.Name()); matched {
             action.Exec.Kind = "swift"
         } else if matched, _ := regexp.MatchString(".js", stat.Name()); matched {
-            action.Exec.Kind = "nodejs"
+            action.Exec.Kind = "nodejs:default"
         } else if matched, _ := regexp.MatchString(".py", stat.Name()); matched {
             action.Exec.Kind = "python"
         } else if matched, _ := regexp.MatchString(".jar", stat.Name()); matched {

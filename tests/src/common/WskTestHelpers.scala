@@ -117,4 +117,19 @@ trait WskTestHelpers extends Matchers {
                 throw error
         }
     }
+
+    /**
+     * In the case that test throws an exception, print stderr and stdout
+     * from the provided RunResult.
+     */
+    def withPrintOnFailure(runResult: RunResult)(test: () => Unit) {
+        try {
+            test()
+        } catch {
+            case error: Throwable =>
+                println(s"[stderr] ${runResult.stderr}")
+                println(s"[stdout] ${runResult.stdout}")
+                throw error
+        }
+    }
 }

@@ -189,11 +189,14 @@ class Action(Item):
                 exe['kind'] = 'java'
                 exe['jar'] = base64.b64encode(contents)
                 exe['main'] = self.findMainClass(args.artifact)
+            elif args.kind in ['nodejs']:
+                exe['kind'] = 'nodejs'
+                exe['code'] = contents
             elif args.kind in ['nodejs:6','nodejs:6.0','nodejs:6.0.0']:
                 exe['kind'] = 'nodejs:6'
                 exe['code'] = contents
             else:
-                exe['kind'] = 'nodejs'
+                exe['kind'] = 'nodejs:default'
                 exe['code'] = contents
         if args.lib:
             exe['initializer'] = base64.b64encode(args.lib.read())
