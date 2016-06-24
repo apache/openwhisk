@@ -125,7 +125,7 @@ protected[core] object Exec
             val obj = v.asJsObject
 
             val kind = obj.getFields("kind") match {
-                case Seq(JsString(k)) => k
+                case Seq(JsString(k)) => k.trim.toLowerCase
                 case _                => throw new DeserializationException("'kind' must be a string defined in 'exec'")
             }
 
