@@ -1,6 +1,10 @@
 ---
 # This role will run a CouchDB server on the db group
 
+- name: check if db credentials are valid for CouchDB
+  fail: msg="The db provider in your {{ inventory_dir }}/group_vars/all is {{ db_provider }}, it has to be CouchDB, pls double check"
+  when: db_provider != "CouchDB"
+
 - name: (re)start CouchDB
   docker:
     name: couchdb
