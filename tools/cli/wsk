@@ -100,6 +100,7 @@ def parseArgs(props):
 
     parser.add_argument('--apihost', help='whisk API host', dest='apihostOverride', metavar='hostname')
     parser.add_argument('--apiversion', help='whisk API version', dest='apiversionOverride', metavar='version')
+    parser.add_argument('-i', '--insecure', help='reserved command option', action='store_true')
 
     Action().getCommands(subparsers, props)
     Activation().getCommands(subparsers, props)
