@@ -79,7 +79,7 @@ protected[core] case class Collection protected (
      * to any resource in in any of their namespaces as long as the right (the implied operation)
      * is permitted on the resource.
      */
-    protected[core] def implicitRights(namespaces: List[String], right: Privilege, resource: Resource)(
+    protected[core] def implicitRights(namespaces: Set[String], right: Privilege, resource: Resource)(
         implicit ec: ExecutionContext, transid: TransactionId): Future[Boolean] = Future.successful {
         // if the resource root namespace is in any of the allowed namespaces
         // then this is an owner of the resource

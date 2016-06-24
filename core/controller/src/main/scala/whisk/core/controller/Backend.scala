@@ -69,11 +69,12 @@ object WhiskServices extends LoadbalancerRequest {
      */
     def entitlementService(config: WhiskConfig, timeout: FiniteDuration = 5 seconds)(
         implicit as: ActorSystem, ec: ExecutionContext) = {
-        config.entitlementHost match {
-            case EntitlementService.LOCAL_ENTITLEMENT_HOST =>
-                new LocalEntitlementService(config)
-            case _ =>
-                new RemoteEntitlementService(config, timeout, as, ec)
+        // remote entitlement service requires a host:port definition. If not given,
+        // i.e., the value equals ":" or ":xxxx", use a local entitlement flow.
+        if (config.entitlementHost.startsWith(":")) {
+            new LocalEntitlementService(config)
+        } else {
+            new RemoteEntitlementService(config, timeout, as, ec)
         }
     }
 

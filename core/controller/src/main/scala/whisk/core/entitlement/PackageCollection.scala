@@ -51,7 +51,7 @@ class PackageCollection(entityStore: EntityStore) extends Collection(Collection.
      * A published package makes all its assets public regardless of their shared bit.
      * All assets that are not in an explicit package are private because the default package is private.
      */
-    protected[core] override def implicitRights(namespaces: List[String], right: Privilege, resource: Resource)(
+    protected[core] override def implicitRights(namespaces: Set[String], right: Privilege, resource: Resource)(
         implicit ec: ExecutionContext, transid: TransactionId) = {
         resource.entity map {
             pkgname =>
@@ -83,7 +83,7 @@ class PackageCollection(entityStore: EntityStore) extends Collection(Collection.
      */
     private def checkPackageReadPermission(
         promise: Promise[Boolean],
-        namespaces: List[String],
+        namespaces: Set[String],
         isOwner: Boolean,
         doc: DocId)(
             implicit ec: ExecutionContext, transid: TransactionId): Unit = {

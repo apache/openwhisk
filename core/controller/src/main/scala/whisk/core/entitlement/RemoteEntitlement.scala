@@ -38,14 +38,13 @@ import spray.http.HttpResponse
 import spray.http.StatusCodes.OK
 import spray.http.Uri
 import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
-import spray.json.DefaultJsonProtocol.StringJsonFormat
-import spray.json.DefaultJsonProtocol.listFormat
+import spray.json.DefaultJsonProtocol._
 import whisk.common.TransactionId
-import whisk.core.entity.Subject
 import whisk.core.WhiskConfig
+import whisk.core.entity.Subject
 
 protected[core] class RemoteEntitlementService(
-    private val config : WhiskConfig,
+    private val config: WhiskConfig,
     private val timeout: FiniteDuration = 5 seconds,
     private implicit val actorSystem: ActorSystem,
     private implicit val ec: ExecutionContext)
@@ -54,16 +53,16 @@ protected[core] class RemoteEntitlementService(
     private val apiLocation = config.entitlementHost
     private val matrix = TrieMap[(Subject, String), Set[Privilege]]()
 
-    protected[core] override def namespaces(subject: Subject)(implicit transid: TransactionId): Future[List[String]] = {
+    protected[core] override def namespaces(subject: Subject)(implicit transid: TransactionId): Future[Set[String]] = {
         info(this, s"getting namespaces from ${apiLocation}")
 
         val url = Uri("http://" + apiLocation + "/namespaces").withQuery(
             "subject" -> subject())
 
-        val pipeline: HttpRequest => Future[List[String]] = (
+        val pipeline: HttpRequest => Future[Set[String]] = (
             addHeader("X-Transaction-Id", transid.toString())
             ~> sendReceive
-            ~> unmarshal[List[String]])
+            ~> unmarshal[Set[String]])
         pipeline(Get(url))
     }
 
