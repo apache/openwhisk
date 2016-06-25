@@ -24,25 +24,16 @@ import akka.http.scaladsl.model.HttpMethods
 import akka.http.scaladsl.model.StatusCode
 import spray.json._
 
-
-/** This class only handles the basic communication to the proper endpoints
+/**
+ * This class only handles the basic communication to the proper endpoints
  *  ("JSON in, JSON out"). It is up to its clients to interpret the results.
  */
-class CloudantRestClient protected(system: ActorSystem, protocol: String, host: String, port: Int, username: String, password: String, db: String)
-    extends CouchDbRestClient(system,protocol,host,port,username,password,db) {
+class CloudantRestClient(protocol: String, host: String, port: Int, username: String, password: String, db: String)(implicit system: ActorSystem)
+    extends CouchDbRestClient(protocol, host, port, username, password, db) {
+    require(protocol == "https", "For Cloudant, protocol must be https.")
 
     // https://cloudant.com/blog/cloudant-query-grows-up-to-handle-ad-hoc-queries/#.VvllCD-0z2C
-    def simpleQuery(doc: JsObject) : Future[Either[StatusCode,JsObject]] = {
-        request(mkRequest(HttpMethods.POST, uri(db, "_find"), body=Some(doc)))
-    }
-}
-
-object CloudantRestClient {
-    def make(protocol: String, host: String, port: Int, username: String, password: String, db: String)(
-        implicit system: ActorSystem) : CloudantRestClient = {
-
-        require(protocol == "https", "For Cloudant, protocol must be https.")
-
-        new CloudantRestClient(system, protocol, host, port, username, password, db)
+    def simpleQuery(doc: JsObject): Future[Either[StatusCode, JsObject]] = {
+        requestJson(mkJsonRequest(HttpMethods.POST, uri(db, "_find"), doc))
     }
 }

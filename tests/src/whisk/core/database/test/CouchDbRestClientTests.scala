@@ -23,6 +23,7 @@ import scala.concurrent.duration.DurationInt
 import scala.util._
 
 import org.junit.runner.RunWith
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
@@ -31,17 +32,20 @@ import org.scalatest.junit.JUnitRunner
 
 import akka.actor.Props
 import akka.http.scaladsl.model._
+import akka.util.ByteString
+import akka.stream.scaladsl._
 import common.WskActorSystem
 import spray.json._
+import spray.json.DefaultJsonProtocol._
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig._
-import whisk.core.database.CouchDbRestClient
 import whisk.test.http.RESTProxy
 
 @RunWith(classOf[JUnitRunner])
 class CouchDbRestClientTests extends FlatSpec
     with Matchers
     with ScalaFutures
+    with BeforeAndAfterAll
     with WskActorSystem {
 
     override implicit val patienceConfig = PatienceConfig(timeout = 10.seconds, interval = 0.5.seconds)
@@ -54,18 +58,26 @@ class CouchDbRestClientTests extends FlatSpec
         dbHost -> null,
         dbPort -> null))
 
-    val dbAuthority = Uri.Authority(
-        host = Uri.Host(config.dbHost),
-        port = config.dbPort.toInt
-    )
+    // We assume this DB does not exist.
+    val dbName = s"whisk_test_db_${Random.nextInt().abs.toInt}"
 
-    val proxyPort = 15975
-    val proxyActor = actorSystem.actorOf(Props(new RESTProxy("0.0.0.0", proxyPort)(dbAuthority, config.dbProtocol == "https")))
+    val client = new ExtendedCouchDbRestClient(config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, dbName)
 
-    // the (fake) DB name doesn't matter as this test only exercises the "/" endpoint ("instance info")
-    val client = CouchDbRestClient.make("http", "localhost", proxyPort, config.dbUsername, config.dbPassword, "fakeDB")
+    override def beforeAll() {
+        super.beforeAll()
+        whenReady(client.createDb()) { r =>
+            assert(r.isRight)
+        }
+    }
 
-    def checkResponse(response: Either[StatusCode,JsObject]) : Unit = response match {
+    override def afterAll() {
+        whenReady(client.deleteDb()) { r =>
+            assert(r.isRight)
+        }
+        super.afterAll()
+    }
+
+    def checkInstanceInfoResponse(response: Either[StatusCode, JsObject]): Unit = response match {
         case Right(obj) =>
             assert(obj.fields.contains("couchdb"), "response object doesn't contain 'couchdb'")
 
@@ -75,24 +87,35 @@ class CouchDbRestClientTests extends FlatSpec
 
     behavior of "CouchDbRestClient"
 
-    ignore /*it*/ should "successfully access the DB instance info" in {
+    it should "successfully access the DB instance info" in {
         assume(config.dbProvider == "Cloudant" || config.dbProvider == "CouchDB")
         val f = client.instanceInfo()
-        whenReady(f) { e => checkResponse(e) }
+        whenReady(f) { e => checkInstanceInfoResponse(e) }
     }
 
-    ignore /*it*/ should "successfully access the DB despite transient connection failures" in {
+    it should "successfully access the DB despite transient connection failures" in {
+        assume(config.dbProvider == "Cloudant" || config.dbProvider == "CouchDB")
+
+        val dbAuthority = Uri.Authority(
+            host = Uri.Host(config.dbHost),
+            port = config.dbPort.toInt)
+
+        val proxyPort = 15975
+        val proxyActor = actorSystem.actorOf(Props(new RESTProxy("0.0.0.0", proxyPort)(dbAuthority, config.dbProtocol == "https")))
+
+        val proxiedClient = new ExtendedCouchDbRestClient("http", "localhost", proxyPort, config.dbUsername, config.dbPassword, dbName)
+
         // sprays the client with requests, makes sure they are all answered
         // despite temporary connection failure.
         val numRequests = 30
         val timeSpan = 5.seconds
         val delta = timeSpan / numRequests
 
-        val promises = Vector.fill(numRequests)(Promise[Either[StatusCode,JsObject]])
+        val promises = Vector.fill(numRequests)(Promise[Either[StatusCode, JsObject]])
 
-        for(i <- 0 until numRequests) {
-            actorSystem.scheduler.scheduleOnce(delta * (i+1)) {
-                client.instanceInfo().andThen({ case r => promises(i).tryComplete(r) })
+        for (i <- 0 until numRequests) {
+            actorSystem.scheduler.scheduleOnce(delta * (i + 1)) {
+                proxiedClient.instanceInfo().andThen({ case r => promises(i).tryComplete(r) })
             }
         }
 
@@ -100,23 +123,55 @@ class CouchDbRestClientTests extends FlatSpec
         actorSystem.scheduler.scheduleOnce(2.5.seconds, proxyActor, RESTProxy.UnbindFor(1.second))
 
         // What a type!
-        val futures: Vector[Future[Try[Either[StatusCode,JsObject]]]] =
+        val futures: Vector[Future[Try[Either[StatusCode, JsObject]]]] =
             promises.map(_.future.map(e => Success(e)).recover { case t: Throwable => Failure(t) })
 
         whenReady(Future.sequence(futures), Timeout(timeSpan * 2)) { results =>
             // We check that the first result was OK
             // (i.e. the service worked before the disruption)
             results.head.toOption shouldBe defined
-            checkResponse(results.head.get)
+            checkInstanceInfoResponse(results.head.get)
 
             // We check that the last result was OK
             // (i.e. the service worked again after the disruption)
             results.last.toOption shouldBe defined
-            checkResponse(results.last.get)
+            checkInstanceInfoResponse(results.last.get)
 
             // We check that there was at least one error
             // (i.e. we did manage to unbind for a while)
             results.find(_.isFailure) shouldBe defined
+        }
+    }
+
+    it should "upload then download an attachment" in {
+        assume(config.dbProvider == "Cloudant" || config.dbProvider == "CouchDB")
+
+        val docId = "some_doc"
+        val doc = JsObject("greeting" -> JsString("hello"))
+        val attachmentName = "misc"
+        val attachmentType = ContentTypes.`text/plain(UTF-8)`
+        val attachment = ("""
+            | This could have been poetry.
+            | But it isn't.
+        """).stripMargin
+
+        val attachmentSource = Source.single(ByteString.fromString(attachment))
+
+        val retrievalSink = Sink.fold[String, ByteString]("")((s, bs) => s + bs.decodeString("UTF-8"))
+
+        val insertAndRetrieveResult: Future[String] = for (
+            docResponse <- client.putDoc(docId, doc);
+            Right(d) = docResponse;
+            rev1 = d.fields("rev").convertTo[String];
+            attResponse <- client.putAttachment(docId, rev1, attachmentName, attachmentType, attachmentSource);
+            Right(a) = attResponse;
+            rev2 = a.fields("rev").convertTo[String];
+            retResponse <- client.getAttachment[String](docId, rev2, attachmentName, retrievalSink);
+            Right(retrieved) = retResponse
+        ) yield retrieved
+
+        whenReady(insertAndRetrieveResult) { r =>
+            assert(r === attachment)
         }
     }
 }

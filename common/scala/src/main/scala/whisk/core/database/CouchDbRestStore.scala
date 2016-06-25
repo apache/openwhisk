@@ -57,8 +57,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
 
     private implicit val emitter: PrintStreamEmitter = this
 
-    private val client: CouchDbRestClient = CouchDbRestClient.make(
-        dbProtocol, dbHost, dbPort, dbUsername, dbPassword, dbName)
+    private val client: CouchDbRestClient = new CouchDbRestClient(dbProtocol, dbHost, dbPort.toInt, dbUsername, dbPassword, dbName)
 
     override protected[database] def put(d: DocumentAbstraction)(implicit transid: TransactionId): Future[DocInfo] = {
         // Uses Spray-JSON only.
@@ -173,8 +172,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
                     throw new Exception("Unexpected http response code: " + code)
             }
         },
-            failure => transid.failed(this, start, s"[GET] '$dbName' internal error, doc: '$doc', failure: '${failure.getMessage}'", ErrorLevel)
-        )
+            failure => transid.failed(this, start, s"[GET] '$dbName' internal error, doc: '$doc', failure: '${failure.getMessage}'", ErrorLevel))
     }
 
     override protected[core] def query(table: String, startKey: List[Any], endKey: List[Any], skip: Int, limit: Int, includeDocs: Boolean, descending: Boolean, reduce: Boolean)(
