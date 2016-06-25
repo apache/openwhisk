@@ -23,6 +23,9 @@ import base64
 import collections
 from urlparse import urlparse
 
+# global configurations, can control whether to allow untrusted certificates on HTTPS connections
+httpRequestProps = { 'secure': True }
+
 def supportsColor():
     if (sys.platform != 'win32' or 'ANSICON' in os.environ) and sys.stdout.isatty():
         return True
@@ -55,10 +58,10 @@ def request(method, urlString, body = '', headers = {}, auth = None, verbose = F
     if url.scheme == 'http':
         conn = httplib.HTTPConnection(url.netloc)
     else:
-        if hasattr(ssl, '_create_unverified_context'):
-            conn = httplib.HTTPSConnection(url.netloc if https_proxy is None else https_proxy, context=ssl._create_unverified_context())
-        else:
+        if httpRequestProps['secure'] or not hasattr(ssl, '_create_unverified_context'):
             conn = httplib.HTTPSConnection(url.netloc if https_proxy is None else https_proxy)
+        else:
+            conn = httplib.HTTPSConnection(url.netloc if https_proxy is None else https_proxy, context=ssl._create_unverified_context())
         if https_proxy:
             conn.set_tunnel(url.netloc)
 

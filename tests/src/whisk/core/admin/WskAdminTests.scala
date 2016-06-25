@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package admin
+package whisk.core.admin
 
 import org.junit.runner.RunWith
 import org.scalatest.Matchers
@@ -23,9 +23,12 @@ import org.scalatest.junit.JUnitRunner
 import common.RunWskAdminCmd
 import common.TestHelpers
 import common.WskAdmin
+import whisk.core.entity.AuthKey
+import whisk.core.entity.Subject
+import whisk.core.entity.WhiskAuth
 
 @RunWith(classOf[JUnitRunner])
-class WskAdminBasicTests
+class WskAdminTests
     extends TestHelpers
     with Matchers {
 
@@ -37,19 +40,25 @@ class WskAdminBasicTests
 
     it should "CRD a subject" in {
         val wskadmin = new RunWskAdminCmd {}
-        val rand = new scala.util.Random()
-        val subject = "anon-" + rand.alphanumeric.take(27).mkString
+        val auth = WhiskAuth(Subject(), AuthKey())
+        val subject = auth.subject()
+
         println(s"CRD subject: $subject")
         val create = wskadmin.cli(Seq("user", "create", subject))
         val get = wskadmin.cli(Seq("user", "get", subject))
         create.stdout should be(get.stdout)
+
         val authkey = get.stdout.trim
         authkey should include(":")
-        authkey.length should be >= 32
-        wskadmin.cli(Seq("user", "whois", authkey)).
-            stdout.trim should be(subject)
-        wskadmin.cli(Seq("user", "delete", subject)).
-            stdout should include("Subject deleted")
+        authkey.split(":")(0).length should be(36)
+        authkey.split(":")(1).length should be >= 64
+
+        wskadmin.cli(Seq("user", "whois", authkey)).stdout.trim should be(subject)
+        wskadmin.cli(Seq("user", "delete", subject)).stdout should include("Subject deleted")
+
+        val recreate = wskadmin.cli(Seq("user", "create", subject, "-u", auth.compact))
+        wskadmin.cli(Seq("user", "get", subject)).stdout.trim should be(auth.compact)
+        wskadmin.cli(Seq("user", "delete", subject)).stdout should include("Subject deleted")
     }
 
 }

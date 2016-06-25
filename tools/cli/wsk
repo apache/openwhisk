@@ -40,7 +40,8 @@ from wskrule import Rule
 from wskpackage import Package
 from wsknamespace import Namespace
 from wsksdk import Sdk
-from wskutil import addAuthenticatedCommand, apiBase, chooseFromArray, resolveNamespace, request, responseError
+from wskutil import addAuthenticatedCommand, apiBase, chooseFromArray, httpRequestProps, resolveNamespace, request, responseError
+
 
 def main():
     userpropsLocation = os.getenv('WSK_CONFIG_FILE', '%s/.wskprops' % os.path.expanduser('~'))
@@ -54,6 +55,7 @@ def main():
     exitCode = 0
     try:
         args = parseArgs(userprops)
+        httpRequestProps['secure'] = not args.insecure
         apihost = resolveOverrides(whiskprops['CLI_API_HOST'], userprops.get('APIHOST'), args.apihostOverride)
         apiversion = resolveOverrides('v1', userprops.get('APIVERSION'), args.apiversionOverride)
 
@@ -100,7 +102,8 @@ def parseArgs(props):
 
     parser.add_argument('--apihost', help='whisk API host', dest='apihostOverride', metavar='hostname')
     parser.add_argument('--apiversion', help='whisk API version', dest='apiversionOverride', metavar='version')
-    parser.add_argument('-i', '--insecure', help='reserved command option', action='store_true')
+    parser.add_argument('-i', '--insecure', help='allow untrusted SSL certificates', action='store_true', default=True)
+    parser.add_argument('-s', '--secure', help='disallow untrusted SSL certificates', action='store_false', dest='insecure')
 
     Action().getCommands(subparsers, props)
     Activation().getCommands(subparsers, props)

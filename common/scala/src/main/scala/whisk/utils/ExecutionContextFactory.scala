@@ -42,7 +42,7 @@ object ExecutionContextFactory {
     /**
      * Extends a promise with an scheduled call back. The call back may be used to complete the promise. The result of the
      * call back is not interesting to this method.
-     * The idiom to use is: promise afterTimeout(duration, promise.tryFailure(TimeoutException)`.
+     * The idiom to use is: promise after(duration, promise.tryFailure(TimeoutException)`.
      */
     implicit class PromiseExtensions[T](p: Promise[T]) {
         def after(timeout: FiniteDuration, next: => Unit)(implicit system: ActorSystem, ec: ExecutionContext): Promise[T] = {

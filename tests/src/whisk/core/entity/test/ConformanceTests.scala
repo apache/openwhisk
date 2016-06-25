@@ -114,7 +114,7 @@ class ConformanceTests extends FlatSpec
 
         checkDatabaseFields(datastore, "whisks/all", isTrigger, Set("limits", "parameters"))
 
-        checkDatabaseFields(datastore, "whisks/all", isRule, Set("status", "trigger", "action"))
+        checkDatabaseFields(datastore, "whisks/all", isRule, Set("trigger", "action"))
 
         // Added an exception for 'cause', as it doesn't seem to be present for all records.
         checkDatabaseFields(datastore, "whisks/all", isActivation, Set("subject", "activationId", "cause", "start", "end", "response", "logs") - "cause")
