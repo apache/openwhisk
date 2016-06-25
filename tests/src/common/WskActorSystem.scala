@@ -25,7 +25,8 @@ import akka.http.scaladsl.Http
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.Suite
 
-/** Helper trait to provide an implicit actor system and execution context
+/**
+ * Helper trait to provide an implicit actor system and execution context
  *  to tests, and properly shut it down at the end.
  *
  *  If you use this trait and override afterAll(), make sure to also call super.afterAll().
@@ -38,12 +39,12 @@ trait WskActorSystem extends BeforeAndAfterAll {
     implicit def executionContext: ExecutionContext = actorSystem.dispatcher
 
     override def afterAll() {
-        super.afterAll()
         try {
             Await.result(Http().shutdownAllConnectionPools(), 30.seconds)
         } finally {
             actorSystem.terminate()
             Await.result(actorSystem.whenTerminated, 30.seconds)
         }
+        super.afterAll()
     }
 }
