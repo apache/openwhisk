@@ -44,6 +44,7 @@ socket.io-client@1.3.5 \
 superagent@1.3.0 \
 swagger-tools@0.8.7 \
 tmp@0.0.28 \
+twilio@2.9.1 \
 watson-developer-cloud@1.4.1 \
 when@3.7.3 \
 ws@1.1.0 \
