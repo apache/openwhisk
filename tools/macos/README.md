@@ -24,8 +24,8 @@ echo '
 brew tap caskroom/cask
 # install virtualbox
 brew cask install virtualbox
-# install docker 1.10
-brew install https://raw.githubusercontent.com/Homebrew/homebrew-core/e010e91a6bb5ad6697fb158017b36f575bbe644f/Formula/docker.rb
+# install docker 1.9.1
+brew install https://raw.githubusercontent.com/Homebrew/homebrew-core/7702619bb7c1a42dc1ed83a57128727a1a1f5d9f/Formula/docker.rb
 # install docker-machine
 brew install docker-machine
 # install java 8, scala
