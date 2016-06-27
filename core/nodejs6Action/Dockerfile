@@ -45,6 +45,7 @@ pug@">2.0.0-alpha <2.0.1" \
 request@2.72.0 \
 rimraf@2.5.2 \
 semver@5.1.0 \
+sendgrid@3.0.5 \
 serve-favicon@2.3.0 \
 socket.io@1.4.6 \
 socket.io-client@1.4.6 \
