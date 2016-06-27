@@ -1,10 +1,5 @@
 FROM golang:1.6
 
-ADD . /src/github.com/
-
-# The BUILDTIME argument is used as the CLI build time property (wsk property get --all)
-ARG BUILDTIME
-
 # Install zip
 RUN apt-get -y update && \
     apt-get -y install zip
@@ -13,6 +8,8 @@ RUN apt-get -y update && \
 RUN echo "Installing the godep tool"
 ENV GOPATH=/
 RUN go get github.com/tools/godep
+
+ADD . /src/github.com/
 
 # Load all of the dependencies from the previously generated/saved godep generated godeps.json file
 RUN echo "Restoring Go dependencies"
@@ -25,6 +22,9 @@ RUN cd /src/github.com/go-whisk-cli && echo "Dependencies list requires restruct
 
 # All of the Go CLI binaries will be placed under a build folder
 RUN mkdir /src/github.com/go-whisk-cli/build
+
+# The BUILDTIME argument is used as the CLI build time property (wsk property get --all)
+ARG BUILDTIME
 
 # Build the Go wsk CLI binaries
 ENV GOOS=windows

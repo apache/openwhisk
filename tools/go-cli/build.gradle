@@ -41,7 +41,8 @@ ant.condition(property: "arch", value: "386") {
 // Returns the Go CLI docker build args
 def getDockerBuildArgs() {
     java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ")
-    String dateStr = sdf.format(new Date())
+    String envDateStr = "$System.env.WHISK_BUILD_TIMESTAMP"
+    String dateStr = ((envDateStr != "null") ? envDateStr : sdf.format(new Date()))
     return "BUILDTIME="+dateStr
 }
 
