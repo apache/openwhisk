@@ -38,6 +38,7 @@ process@0.11.0 \
 request@2.60.0 \
 rimraf@2.5.1 \
 semver@4.3.6 \
+sendgrid@3.0.5 \
 serve-favicon@2.2.0 \
 socket.io@1.3.5 \
 socket.io-client@1.3.5 \
