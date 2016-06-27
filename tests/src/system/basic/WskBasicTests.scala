@@ -367,6 +367,87 @@ class WskBasicTests
             stdout should not include regex(""""key": "xxx"""")
     }
 
+    it should "reject create of a package without a package name" in {
+        val stderr = wsk.cli(Seq("package", "create"), expectedExitCode = ERROR_EXIT).stderr
+        stderr should include("error: Invalid argument(s). A package name is required.")
+        stderr should include("Run 'wsk --help' for usage.")
+    }
+
+    it should "reject create of a package with an invalid argument" in {
+        val stderr = wsk.cli(Seq("package", "create", "packageName", "invalidArg"),
+            expectedExitCode = ERROR_EXIT).stderr
+        stderr should include("error: Invalid argument(s): invalidArg")
+        stderr should include("Run 'wsk --help' for usage.")
+    }
+
+    it should "reject update of a package without a package name" in {
+        val stderr = wsk.cli(Seq("package", "update"), expectedExitCode = ERROR_EXIT).stderr
+        stderr should include("error: Invalid argument(s). A package name is required.")
+        stderr should include("Run 'wsk --help' for usage.")
+    }
+
+    it should "reject update of a package with an invalid argument" in {
+        val stderr = wsk.cli(Seq("package", "update", "packageName", "invalidArg"),
+            expectedExitCode = ERROR_EXIT).stderr
+        stderr should include("error: Invalid argument(s): invalidArg")
+        stderr should include("Run 'wsk --help' for usage.")
+    }
+
+    it should "reject get of a package without a package name" in {
+        val stderr = wsk.cli(Seq("package", "get"), expectedExitCode = ERROR_EXIT).stderr
+        stderr should include("error: Invalid argument(s). A package name is required.")
+        stderr should include("Run 'wsk --help' for usage.")
+    }
+
+    it should "reject get of a package with an invalid argument" in {
+        val stderr = wsk.cli(Seq("package", "get", "packageName", "invalidArg"), expectedExitCode = ERROR_EXIT).stderr
+        stderr should include("error: Invalid argument(s): invalidArg")
+        stderr should include("Run 'wsk --help' for usage.")
+    }
+
+    it should "reject bind of a package without a package name" in {
+        val stderr = wsk.cli(Seq("package", "bind"), expectedExitCode = ERROR_EXIT).stderr
+        stderr should include("error: Invalid argument(s). A package name and binding name are required.")
+        stderr should include("Run 'wsk --help' for usage.")
+    }
+
+    it should "reject bind of a package without a binding name" in {
+        val stderr = wsk.cli(Seq("package", "bind", "somePackage"), expectedExitCode = ERROR_EXIT).stderr
+        stderr should include("error: Invalid argument(s). A package name and binding name are required.")
+        stderr should include("Run 'wsk --help' for usage.")
+    }
+
+    it should "reject bind of a package with an invalid argument" in {
+        val stderr = wsk.cli(Seq("package", "bind", "packageName", "bindingName", "invalidArg"),
+            expectedExitCode = ERROR_EXIT).stderr
+        stderr should include("error: Invalid argument(s): invalidArg")
+        stderr should include("Run 'wsk --help' for usage.")
+    }
+
+    it should "reject list of a package with an invalid argument" in {
+        val stderr = wsk.cli(Seq("package", "list", "namespace", "invalidArg"), expectedExitCode = ERROR_EXIT).stderr
+        stderr should include("error: Invalid argument(s): invalidArg")
+        stderr should include("Run 'wsk --help' for usage.")
+    }
+
+    it should "reject delete of a package without a package name" in {
+        val stderr = wsk.cli(Seq("package", "delete"), expectedExitCode = ERROR_EXIT).stderr
+        stderr should include("error: Invalid argument(s). A package name is required.")
+        stderr should include("Run 'wsk --help' for usage.")
+    }
+
+    it should "reject delete of a package with an invalid argument" in {
+        val stderr = wsk.cli(Seq("package", "delete", "namespace", "invalidArg"), expectedExitCode = ERROR_EXIT).stderr
+        stderr should include("error: Invalid argument(s): invalidArg")
+        stderr should include("Run 'wsk --help' for usage.")
+    }
+
+    it should "reject refresh of a package with an invalid argument" in {
+        val stderr = wsk.cli(Seq("package", "refresh", "namespace", "invalidArg"), expectedExitCode = ERROR_EXIT).stderr
+        stderr should include("error: Invalid argument(s): invalidArg")
+        stderr should include("Run 'wsk --help' for usage.")
+    }
+
     behavior of "Wsk Action CLI"
 
     it should "create the same action twice with different cases" in withAssetCleaner(wskprops) {

@@ -24,7 +24,6 @@ import (
 
     "../../go-whisk/whisk"
 
-    //"github.com/fatih/color"
     "github.com/spf13/cobra"
 )
 
@@ -33,42 +32,6 @@ var packageCmd = &cobra.Command{
     Short: "work with packages",
 }
 
-/*
-bind parameters to the package
-
-Usage:
-  wsk package bind <package string> <name string> [flags]
-
-Flags:
-  -a, --annotation value   annotations (default [])
-  -p, --param value        default parameters (default [])
-
-Global Flags:
-      --apihost string      whisk API host
-      --apiversion string   whisk API version
-  -u, --auth string         authorization key
-  -d, --debug               debug level output
-  -v, --verbose             verbose output
-
-Request URL
-PUT https://openwhisk.ng.bluemix.net/api/v1/namespaces/<namespace>/packages/<bindingname>
-
-payload:
-{
-  "binding": {
-    "namespace": "<pkgnamespace>",
-    "name": "<pkgname>"
-  },
-  "annotations": [
-    {"value": "abv1", "key": "ab1"}
-  ],
-  "parameters": [
-    {"value": "pbv1", "key": "pb1"}
-  ],
-  "publish": false
-}
-
-*/
 var packageBindCmd = &cobra.Command{
     Use:   "bind <package string> <name string>",
     Short: "bind parameters to a package",
@@ -77,11 +40,19 @@ var packageBindCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        if len(args) != 2 {
-            whisk.Debug(whisk.DbgError, "Invalid number of arguments %d; args: %#v\n", len(args), args)
-            errStr := fmt.Sprintf("Invalid number of arguments (%d) provided; either the package name or the binding name is missing", len(args))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
+
+        if len(args) < 2 {
+            whisk.Debug(whisk.DbgError, "Package bind command must have at least one argument\n")
+            errMsg := fmt.Sprintf("Invalid argument(s). A package name and binding name are required.")
+            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+                whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            return whiskErr
+        } else if len(args) > 2 {
+            whisk.Debug(whisk.DbgError, "Package bind command must not have more than two arguments\n")
+            errMsg := fmt.Sprintf("Invalid argument(s): %s.", strings.Join(args[2:], ", "))
+            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+                whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            return whiskErr
         }
 
         packageName := args[0]
@@ -169,11 +140,18 @@ var packageCreateCmd = &cobra.Command{
         var err error
         var shared, sharedSet bool
 
-        if len(args) != 1 {
-            whisk.Debug(whisk.DbgError, "Invalid number of arguments %d (expected 1 argument); args: %#v\n", len(args), args)
-            errStr := fmt.Sprintf("Invalid number of arguments (%d) provided; the package name is the only expected argument", len(args))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
+        if len(args) < 1 {
+            whisk.Debug(whisk.DbgError, "Package create command must have at least one argument\n")
+            errMsg := fmt.Sprintf("Invalid argument(s). A package name is required.")
+            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+                whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            return whiskErr
+        } else if len(args) > 1 {
+            whisk.Debug(whisk.DbgError, "Package create command must not have more than one argument\n")
+            errMsg := fmt.Sprintf("Invalid argument(s): %s.", strings.Join(args[1:], ", "))
+            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+                whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            return whiskErr
         }
 
         qName, err := parseQualifiedName(args[0])
@@ -243,44 +221,11 @@ var packageCreateCmd = &cobra.Command{
             return werr
         }
 
-        //fmt.Printf("%s created package %s\n", color.GreenString("ok:"), boldString(qName.entityName))
         fmt.Printf("ok: created package %s\n", qName.entityName)
         return nil
     },
 }
 
-/*
-usage: wsk package update [-h] [-u AUTH] [-a ANNOTATION ANNOTATION]
-                          [-p PARAM PARAM] [--shared [{yes,no}]]
-                          name
-
-positional arguments:
-  name                  the name of the package
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -u AUTH, --auth AUTH  authorization key
-  -a ANNOTATION ANNOTATION, --annotation ANNOTATION ANNOTATION
-                        annotations
-  -p PARAM PARAM, --param PARAM PARAM
-                        default parameters
-  --shared [{yes,no}]   shared action (default: private)
-
-  UPDATE:
-        If --shared is present, published is true. Otherwise, published is false.
-
-PUT https://172.17.0.1/api/v1/namespaces/_/packages/slack?overwrite=true: 400  []
-    https://172.17.0.1/api/v1/namespaces/_/packages/slack?overwrite=true
-
-Request URL
-
-https://raw.githubusercontent.com/api/v1/namespaces/_/packages/slack?overwrite=true
-
-payload:
-        {"name":"slack","publish":true,"annotations":[],"parameters":[],"binding":false}
-
-
- */
 var packageUpdateCmd = &cobra.Command{
     Use:   "update <name string>",
     Short: "update an existing package",
@@ -292,10 +237,17 @@ var packageUpdateCmd = &cobra.Command{
         var shared, sharedSet bool
 
         if len(args) < 1 {
-            whisk.Debug(whisk.DbgError, "Invalid number of arguments %d (expected 1 argument); args: %#v\n", len(args), args)
-            errStr := fmt.Sprintf("Invalid number of arguments (%d) provided; the package name is the only expected argument", len(args))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
+            whisk.Debug(whisk.DbgError, "Package update command must have at least one argument\n")
+            errMsg := fmt.Sprintf("Invalid argument(s). A package name is required.")
+            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+                whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            return whiskErr
+        } else if len(args) > 1 {
+            whisk.Debug(whisk.DbgError, "Package update command must not have more than one argument\n")
+            errMsg := fmt.Sprintf("Invalid argument(s): %s.", strings.Join(args[1:], ", "))
+            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+                whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            return whiskErr
         }
 
         qName, err := parseQualifiedName(args[0])
@@ -364,7 +316,6 @@ var packageUpdateCmd = &cobra.Command{
             return werr
         }
 
-        //fmt.Printf("%s updated package %s\n", color.GreenString("ok:"), boldString(qName.entityName))
         fmt.Printf("ok: updated package %s\n",qName.entityName)
         return nil
     },
@@ -378,11 +329,19 @@ var packageGetCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        if len(args) != 1 {
-            whisk.Debug(whisk.DbgError, "Invalid number of arguments %d (expected 1 argument); args: %#v\n", len(args), args)
-            errStr := fmt.Sprintf("Invalid number of arguments (%d) provided; the package name is the only expected argument", len(args))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
+
+        if len(args) < 1 {
+            whisk.Debug(whisk.DbgError, "Package get command must have at least one argument\n")
+            errMsg := fmt.Sprintf("Invalid argument(s). A package name is required.")
+            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+                whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            return whiskErr
+        } else if len(args) > 1 {
+            whisk.Debug(whisk.DbgError, "Package update command must not have more than one argument\n")
+            errMsg := fmt.Sprintf("Invalid argument(s): %s.", strings.Join(args[1:], ", "))
+            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+                whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            return whiskErr
         }
 
         qName, err := parseQualifiedName(args[0])
@@ -406,8 +365,6 @@ var packageGetCmd = &cobra.Command{
         if flags.common.summary {
             printSummary(xPackage)
         } else {
-            //fmt.Printf("%s got package %s\n", color.GreenString("ok:"), boldString(qName.entityName))
-            //printJSON(xPackage)
             fmt.Printf("ok: got package %s\n", qName.entityName)
             printJsonNoColor(xPackage)
         }
@@ -424,11 +381,19 @@ var packageDeleteCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        if len(args) != 1 {
-            whisk.Debug(whisk.DbgError, "Invalid number of arguments %d (expected 1 argument); args: %#v\n", len(args), args)
-            errStr := fmt.Sprintf("Invalid number of arguments (%d) provided; the package name is the only expected argument", len(args))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
+
+        if len(args) < 1 {
+            whisk.Debug(whisk.DbgError, "Package delete command must have at least one argument\n")
+            errMsg := fmt.Sprintf("Invalid argument(s). A package name is required.")
+            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+                whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            return whiskErr
+        } else if len(args) > 1 {
+            whisk.Debug(whisk.DbgError, "Package delete command must not have more than one argument\n")
+            errMsg := fmt.Sprintf("Invalid argument(s): %s.", strings.Join(args[1:], ", "))
+            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+                whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            return whiskErr
         }
 
         qName, err := parseQualifiedName(args[0])
@@ -449,14 +414,13 @@ var packageDeleteCmd = &cobra.Command{
             return werr
         }
 
-        //fmt.Printf("%s deleted package %s\n", color.GreenString("ok:"), boldString(qName.entityName))
         fmt.Printf("ok: deleted package %s\n", qName.entityName)
         return nil
     },
 }
 
 var packageListCmd = &cobra.Command{
-    Use:   "list <namespace string>",
+    Use:   "list [namespace string]",
     Short: "list all packages",
     SilenceUsage:   true,
     SilenceErrors:  true,
@@ -484,6 +448,12 @@ var packageListCmd = &cobra.Command{
             }
 
             client.Namespace = ns
+        } else if len(args) > 1 {
+            whisk.Debug(whisk.DbgError, "Package list command must not have more than one argument\n")
+            errMsg := fmt.Sprintf("Invalid argument(s): %s.", strings.Join(args[1:], ", "))
+            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+                whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            return whiskErr
         }
 
         if (flags.common.shared == "yes") {
@@ -567,21 +537,18 @@ var packageRefreshCmd = &cobra.Command{
             fmt.Println("created bindings:")
 
             if len(updates.Added) > 0 {
-                //printJSON(updates.Added)
                 printArrayContents(updates.Added)
             }
 
             fmt.Println("updated bindings:")
 
             if len(updates.Updated) > 0 {
-                //printJSON(updates.Updated)
                 printArrayContents(updates.Updated)
             }
 
             fmt.Println("deleted bindings:")
 
             if len(updates.Deleted) > 0 {
-                //printJSON(updates.Deleted)
                 printArrayContents(updates.Deleted)
             }
 
