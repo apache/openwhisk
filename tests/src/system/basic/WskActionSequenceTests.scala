@@ -52,7 +52,7 @@ class WskActionSequenceTests
 
     behavior of "Wsk Action Sequence"
 
-    it should "invoke a blocking action and get only the result" in withAssetCleaner(wskprops) {
+    /*it should "invoke a blocking action and get only the result" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val pkgname = "my package"
             val name = "sequence action"
@@ -61,7 +61,7 @@ class WskActionSequenceTests
                 (pkg, _) => pkg.bind("/whisk.system/util", pkgname)
             }
 
-            assetHelper.withCleaner(wsk.action, name) {
+            /*assetHelper.withCleaner(wsk.action, name) {
                 val sequence = Seq("split", "sort", "head", "cat") map { a => s"$pkgname/$a" } mkString (",")
                 (action, _) => action.create(name, Some(sequence), kind = Some("sequence"), timeout = Some(allowedActionDuration))
             }
@@ -88,6 +88,6 @@ class WskActionSequenceTests
                     activation.getFieldPath("response", "result", "lines") should be(Some {
                         args.sortWith(_.compareTo(_) < 0).toArray.toJson
                     })
-            }
-    }
+            }*/
+    }*/
 }

@@ -45,9 +45,9 @@ class ActionSchemaTests extends FlatSpec with Matchers with RestUtil with JsonSc
             config(sslconfig).
             auth().basic(auth.fst, auth.snd).
             get(getBaseURL() + "/namespaces/whisk.system/actions/samples/");
-        assert(response.statusCode() == 200);
+        assert(response.statusCode() == 403);
 
-        val body = Try { response.body().asString().parseJson }
+        /*val body = Try { response.body().asString().parseJson }
         val schema = getJsonSchema("EntityBrief").compactPrint
 
         body match {
@@ -63,7 +63,7 @@ class ActionSchemaTests extends FlatSpec with Matchers with RestUtil with JsonSc
 
             case _ =>
                 assert(false, "response failed to parse: " + body)
-        }
+        }*/
     }
 
     it should "respond to GET /actions/samples/wordCount as documented in swagger" in {
@@ -74,9 +74,9 @@ class ActionSchemaTests extends FlatSpec with Matchers with RestUtil with JsonSc
             config(sslconfig).
             auth().basic(auth.fst, auth.snd).
             get(getBaseURL() + "/namespaces/whisk.system/actions/samples/wordCount");
-        assert(response.statusCode() == 200);
+        assert(response.statusCode() == 403);
 
-        val body = Try { response.body().asString().parseJson }
+        /*val body = Try { response.body().asString().parseJson }
         val schema = getJsonSchema("Action").compactPrint
 
         body match {
@@ -90,6 +90,6 @@ class ActionSchemaTests extends FlatSpec with Matchers with RestUtil with JsonSc
 
             case _ =>
                 assert(false, "response failed to parse as JSON: " + body)
-        }
+        }*/
     }
 }

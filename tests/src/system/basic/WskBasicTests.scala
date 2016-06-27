@@ -17,6 +17,7 @@
 package system.basic
 
 import java.io.File
+
 import java.time.Instant
 
 import org.apache.commons.io.FileUtils
@@ -154,21 +155,6 @@ class WskBasicTests
             stderr should include(errormsg)
     }
 
-    it should "reject deleting action in shared package not owned by authkey" in {
-        wsk.action.get("/whisk.system/util/cat") // make sure it exists
-        wsk.action.delete("/whisk.system/util/cat", expectedExitCode = FORBIDDEN)
-    }
-
-    it should "reject create action in shared package not owned by authkey" in {
-        wsk.action.get("/whisk.system/util/notallowed", expectedExitCode = NOT_FOUND) // make sure it does not exist
-        val file = Some(TestUtils.getCatalogFilename("samples/hello.js"))
-        try {
-            wsk.action.create("/whisk.system/util/notallowed", file, expectedExitCode = FORBIDDEN)
-        } finally {
-            wsk.action.sanitize("/whisk.system/util/notallowed")
-        }
-    }
-
     it should "reject update action in shared package not owned by authkey" in {
         wsk.action.create("/whisk.system/util/cat", None,
             update = true, shared = Some(true), expectedExitCode = FORBIDDEN)
@@ -200,18 +186,6 @@ class WskBasicTests
 
     behavior of "Wsk Package CLI"
 
-    it should "list shared packages" in {
-        val result = wsk.pkg.list(Some("/whisk.system")).stdout
-        result should include regex ("""/whisk.system/samples\s+shared""")
-        result should include regex ("""/whisk.system/util\s+shared""")
-    }
-
-    it should "list shared package actions" in {
-        val result = wsk.action.list(Some("/whisk.system/util")).stdout
-        result should include regex ("""/whisk.system/util/head\s+shared""")
-        result should include regex ("""/whisk.system/util/date\s+shared""")
-    }
-
     it should "create, update, get and list a package" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "samplePackage"
@@ -227,22 +201,6 @@ class WskBasicTests
             stdout should include regex (""""publish": true""")
             stdout should include regex (""""version": "0.0.2"""")
             wsk.pkg.list().stdout should include(name)
-    }
-
-    it should "create a package binding" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val name = "bindPackage"
-            val provider = "/whisk.system/samples"
-            val annotations = Map("a" -> "A".toJson, WhiskPackage.bindingFieldName -> "xxx".toJson)
-            assetHelper.withCleaner(wsk.pkg, name) {
-                (pkg, _) =>
-                    pkg.bind(provider, name, annotations = annotations)
-            }
-            val stdout = wsk.pkg.get(name).stdout
-            stdout should include regex (""""key": "a"""")
-            stdout should include regex (""""value": "A"""")
-            stdout should include regex (s""""key": "${WhiskPackage.bindingFieldName}"""")
-            stdout should not include regex(""""key": "xxx"""")
     }
 
     behavior of "Wsk Action CLI"
@@ -269,11 +227,6 @@ class WskBasicTests
             stdout should include regex (""""publish": true""")
             stdout should include regex (""""version": "0.0.2"""")
             wsk.action.list().stdout should include(name)
-    }
-
-    it should "get an action" in {
-        wsk.action.get("/whisk.system/samples/wordCount").
-            stdout should include("words")
     }
 
     it should "reject delete of action that does not exist" in {
@@ -363,8 +316,9 @@ class WskBasicTests
             exitCode should { equal(NOT_FOUND) or equal(FORBIDDEN) }
         wsk.trigger.get(name, expectedExitCode = NOT_FOUND)
 
-        // verify that the feed runs and returns an application error (502 or Gateway Timeout)
-        wsk.trigger.create(name, feed = Some(s"/whisk.system/github/webhook"), expectedExitCode = TIMEOUT)
+        // verify that the feed runs and returns an application error
+        wsk.trigger.create(name, feed = Some(s"/whisk.system/github/webhook"), expectedExitCode = ANY_ERROR_EXIT).
+            exitCode should { equal(NOT_FOUND) or equal(FORBIDDEN) }
         wsk.trigger.get(name, expectedExitCode = NOT_FOUND)
     }
 

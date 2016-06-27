@@ -17,6 +17,7 @@
 package system.basic;
 
 import java.time.Clock
+
 import java.time.Instant
 
 import scala.concurrent.duration.Duration
@@ -29,6 +30,9 @@ import org.scalatest.junit.JUnitRunner
 
 import common.TestHelpers
 import common.TestUtils
+import common.TestUtils.ANY_ERROR_EXIT
+import common.TestUtils.FORBIDDEN
+import common.TestUtils.NOT_FOUND
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
@@ -50,16 +54,12 @@ class ConsoleTests
 
     behavior of "Wsk Activation Console"
 
-    it should "show an activation log message for hello world" in {
+    it should "show an exception log message for hello world" in {
         val duration = Some(30 seconds)
         val payload = new String("from the console!".getBytes, "UTF-8")
-        val run = wsk.action.invoke("/whisk.system/samples/helloWorld", Map("payload" -> payload.toJson))
-        withActivation(wsk.activation, run, totalWait = duration.get) {
-            activation =>
-                val console = wsk.activation.console(10 seconds, since = duration)
-                println(console.stdout)
-                console.stdout should include(payload)
-        }
+        val run = wsk.action.invoke("/whisk.system/samples/helloWorld",
+            Map("payload" -> payload.toJson), expectedExitCode=ANY_ERROR_EXIT).
+            exitCode should { equal(NOT_FOUND) or equal(FORBIDDEN) }
     }
 
     it should "show repeated activations" in withAssetCleaner(wskprops) {
