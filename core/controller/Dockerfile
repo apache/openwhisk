@@ -13,6 +13,6 @@ RUN wget --no-verbose https://github.com/swagger-api/swagger-ui/archive/v2.1.4.t
 # Copy app jars
 COPY build/distributions/controller.tar ./
 RUN tar xf controller.tar
-CMD controller/bin/controller
+CMD controller/bin/controller >> /logs/${COMPONENT_NAME}_logs.log 2>&1
 
 EXPOSE 8080
