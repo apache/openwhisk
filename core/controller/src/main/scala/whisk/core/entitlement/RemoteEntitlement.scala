@@ -38,11 +38,10 @@ import spray.http.HttpResponse
 import spray.http.StatusCodes.OK
 import spray.http.Uri
 import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
-import spray.json.DefaultJsonProtocol.StringJsonFormat
-import spray.json.DefaultJsonProtocol.listFormat
+import spray.json.DefaultJsonProtocol._
 import whisk.common.TransactionId
-import whisk.core.entity.Subject
 import whisk.core.WhiskConfig
+import whisk.core.entity.Subject
 
 protected[core] class RemoteEntitlementService(
     private val config: WhiskConfig,
@@ -60,11 +59,11 @@ protected[core] class RemoteEntitlementService(
         val url = Uri("http://" + apiLocation + "/namespaces").withQuery(
             "subject" -> subject())
 
-        val pipeline: HttpRequest => Future[List[String]] = (
+        val pipeline: HttpRequest => Future[Set[String]] = (
             addHeader("X-Transaction-Id", transid.toString())
             ~> sendReceive
-            ~> unmarshal[List[String]])
-        pipeline(Get(url)) map { _.toSet }
+            ~> unmarshal[Set[String]])
+        pipeline(Get(url))
     }
 
     protected[core] override def grant(subject: Subject, right: Privilege, resource: Resource)(implicit transid: TransactionId): Future[Boolean] = {
