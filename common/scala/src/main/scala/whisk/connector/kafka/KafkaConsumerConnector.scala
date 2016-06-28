@@ -103,7 +103,12 @@ class KafkaConsumerConnector(
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true.toString)
         props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, "10000");
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, if (!readeos) "latest" else "earliest")
-        props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, "0") //ensure we have no temporal batching
+
+        // This value controls the server-side wait time which affects polling latency.
+        // A low value improves latency performance but it is important to not set it too low
+        // as that will cause excessive busy-waiting.
+        props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, "20")
+
         props
     }
 
