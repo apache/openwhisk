@@ -103,7 +103,7 @@ class KafkaConsumerConnector(
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true.toString)
         props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, "10000");
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, if (!readeos) "latest" else "earliest")
-        props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, "0") //ensure we have no temporal batching
+        props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, "20") //ensure we have no temporal batching
         props
     }
 
