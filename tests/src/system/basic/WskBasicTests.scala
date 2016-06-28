@@ -177,7 +177,7 @@ class WskBasicTests
     it should "reject bad command" in {
         if (usePythonCLI) {
             wsk.cli(Seq("bogus"), expectedExitCode = MISUSE_EXIT).
-            stderr should include("usage:")
+                stderr should include("usage:")
         } else {
             val result = wsk.cli(Seq("bogus"), expectedExitCode = ERROR_EXIT)
             result.stderr should include regex ("""(?i)Run 'wsk --help' for usage""")
@@ -253,6 +253,23 @@ class WskBasicTests
             assetHelper.withCleaner(wsk.action, "twice") { (action, name) => action.create(name, defaultAction) }
     }
 
+    it should "create an action, then update its kind" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "createAndUpdate"
+            val file = Some(TestUtils.getCatalogFilename("samples/hello.js"))
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, file, kind = Some("nodejs"))
+            }
+
+            // create action as nodejs (v0.12)
+            wsk.action.get(name).stdout should include regex (""""kind": "nodejs"""")
+
+            // update to nodejs:6
+            wsk.action.create(name, file, kind = Some("nodejs:6"), update = true)
+            wsk.action.get(name).stdout should include regex (""""kind": "nodejs:6"""")
+    }
+
     it should "create, update, get and list an action" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "createAndUpdate"
@@ -264,8 +281,8 @@ class WskBasicTests
                     action.create(name, None, parameters = Map("b" -> "B".toJson), update = true)
             }
             val stdout = wsk.action.get(name).stdout
-            stdout should not include regex (""""key": "a"""")
-            stdout should not include regex (""""value": "A"""")
+            stdout should not include regex(""""key": "a"""")
+            stdout should not include regex(""""value": "A"""")
             stdout should include regex (""""key": "b""")
             stdout should include regex (""""value": "B"""")
             stdout should include regex (""""publish": true""")
@@ -286,17 +303,17 @@ class WskBasicTests
     it should "reject create with missing file" in {
         wsk.action.create("missingFile", Some("notfound"),
             expectedExitCode = MISUSE_EXIT).
-          stderr should include("not a valid file")
+            stderr should include("not a valid file")
     }
 
     it should "reject action update when specified file is missing" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-          // Create dummy action to update
-          val name = "updateMissingFile"
-          val file = Some(TestUtils.getCatalogFilename("samples/hello.js"))
-          assetHelper.withCleaner(wsk.action, name) { (action, name) => action.create(name, file) }
-          // Update it with a missing file
-          wsk.action.create("updateMissingFile", Some("notfound"), update = true, expectedExitCode = MISUSE_EXIT)
+            // Create dummy action to update
+            val name = "updateMissingFile"
+            val file = Some(TestUtils.getCatalogFilename("samples/hello.js"))
+            assetHelper.withCleaner(wsk.action, name) { (action, name) => action.create(name, file) }
+            // Update it with a missing file
+            wsk.action.create("updateMissingFile", Some("notfound"), update = true, expectedExitCode = MISUSE_EXIT)
     }
 
     /**
