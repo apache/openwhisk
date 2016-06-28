@@ -149,6 +149,10 @@ You need to run `initdb` on cloudant **only once** per cloudant database to init
 **Hint:** The `initdb.yml` playbook will only initialize your database if it is not initialized already, else it will skip initialization steps.
 
 
+### Verification after Deployment
+After a successful deployment you can use the `wsk` CLI (located in the `bin` folder of the repository) to verify that OpenWhisk is operable.
+See main [README](https://github.com/openwhisk/openwhisk/blob/master/README.md) for instructions on how to setup and use `wsk`.
+
 
 ### Hot-swapping a Single Component
 The playbook structure allows you to clean, deploy or re-deploy a single component as well as the entire Openwhisk stack. Let's assume you have deployed the entire stack using the "openwhisk.yml" playbook. You then make a change to a single component, for example the invoker. You will probably want a new tag on the invoker image so you first build it using:
