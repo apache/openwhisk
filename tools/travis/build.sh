@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# Build script for Travis-CI.
+# Build script for Travis-CI. Just check the Travis CI.
 
 SCRIPTDIR=$(cd $(dirname "$0") && pwd)
 ROOTDIR="$SCRIPTDIR/../.."
