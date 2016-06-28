@@ -70,7 +70,6 @@ var flags struct {
         pipe        bool
         shared      string
         sequence    bool
-        lib         string
         timeout     int
         memory      int
         result      bool
