@@ -19,7 +19,9 @@ RUN curl -SLO "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-
 
 # Install Kafka Stuff
 RUN mkdir /kafka /data
-ENV KAFKA_RELEASE_ARCHIVE kafka_2.11-0.9.0.0.tgz
+ENV KAFKA_RELEASE 0.9.0.1
+ENV KAFKA_SCALA_VERSION 2.11
+ENV KAFKA_RELEASE_ARCHIVE kafka_${KAFKA_SCALA_VERSION}-${KAFKA_RELEASE}.tgz
 
 # Download Kafka binary distribution
 #
@@ -28,8 +30,8 @@ ENV KAFKA_RELEASE_ARCHIVE kafka_2.11-0.9.0.0.tgz
 # Install Kafka to /kafka
 
 WORKDIR /tmp
-RUN wget --no-verbose http://www.us.apache.org/dist/kafka/0.9.0.0/${KAFKA_RELEASE_ARCHIVE} && \
-    wget --no-verbose https://dist.apache.org/repos/dist/release/kafka/0.9.0.0/${KAFKA_RELEASE_ARCHIVE}.md5  && \
+RUN wget --no-verbose http://www.us.apache.org/dist/kafka/${KAFKA_RELEASE}/${KAFKA_RELEASE_ARCHIVE} && \
+    wget --no-verbose https://dist.apache.org/repos/dist/release/kafka/${KAFKA_RELEASE}/${KAFKA_RELEASE_ARCHIVE}.md5  && \
     npm install -g express@4.8.0 nano@5.10.0 process@0.10.1 websocket@1.0.17 && \
   echo VERIFY CHECKSUM: && \
   gpg --print-md MD5 ${KAFKA_RELEASE_ARCHIVE} 2>/dev/null && \
