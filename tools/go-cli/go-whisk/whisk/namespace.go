@@ -19,7 +19,6 @@ package whisk
 import (
     "fmt"
     "net/http"
-    "net/url"
     "errors"
 )
 
@@ -41,26 +40,16 @@ type NamespaceService struct {
 func (s *NamespaceService) List() ([]Namespace, *http.Response, error) {
     // make a request to c.BaseURL / namespaces
 
-    urlStr := fmt.Sprintf("%s/namespaces", s.client.Config.Version)
-    ref, err := url.Parse(urlStr)
+    // Create the request against the namespaces resource
+    s.client.Config.Namespace = ""
+    route := ""
+    req, err := s.client.NewRequest("GET", route, nil)
     if err != nil {
-        Debug(DbgError, "url.Parse(%s) error: %s\n", urlStr, err)
-        errStr := fmt.Sprintf("Unable to parse URL '%s': %s", urlStr, err)
-        werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
-        return nil, nil, werr
-    }
-
-    u := s.client.BaseURL.ResolveReference(ref)
-
-    req, err := http.NewRequest("GET", u.String(), nil)
-    if err != nil {
-        Debug(DbgError, "http.NewRequest(GET, %s) error: %s\n", u.String(), err)
-        errStr := fmt.Sprintf("Unable to create HTTP request for GET '%s'; error: %s", u.String(), err)
+        Debug(DbgError, "s.client.NewRequest(GET) error: %s\n", err)
+        errStr := fmt.Sprintf("Unable to create HTTP request for GET; error: %s", err)
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
-
-    s.client.addAuthHeader(req)
 
     var namespaceNames []string
     resp, err := s.client.Do(req, &namespaceNames)
@@ -91,26 +80,13 @@ func (s *NamespaceService) Get(nsName string) (*Namespace, *http.Response, error
         nsName = s.client.Config.Namespace
     }
 
-    urlStr := fmt.Sprintf("%s/namespaces/%s", s.client.Config.Version, nsName)
-    ref, err := url.Parse(urlStr)
+    req, err := s.client.NewRequest("GET", "", nil)
     if err != nil {
-        Debug(DbgError, "url.Parse(%s) error: %s\n", urlStr, err)
-        errStr := fmt.Sprintf("Unable to parse URL '%s': %s", urlStr, err)
-        werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        Debug(DbgError, "s.client.NewRequest(GET) error: %s\n", err)
+        errStr := fmt.Sprintf("Unable to create HTTP request for GET; error: %s", err)
+        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
-
-    u := s.client.BaseURL.ResolveReference(ref)
-
-    req, err := http.NewRequest("GET", u.String(), nil)
-    if err != nil {
-        Debug(DbgError, "http.NewRequest(GET, %s) error: %s\n", u.String(), err)
-        errStr := fmt.Sprintf("Unable to create HTTP request for GET '%s'; error: %s", u.String(), err)
-        werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
-        return nil, nil, werr
-    }
-
-    s.client.addAuthHeader(req)
 
     ns := &Namespace{
         Name: nsName,

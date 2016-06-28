@@ -32,6 +32,8 @@ import (
 
 const (
     defaultBaseURL = "openwhisk.ng.bluemix.net"
+    AuthRequired = true
+    AuthOptional = false
 )
 
 type Client struct {
@@ -120,7 +122,11 @@ func NewClient(httpClient *http.Client, config *Config) (*Client, error) {
 ///////////////////////////////
 
 func (c *Client) NewRequest(method, urlStr string, body interface{}) (*http.Request, error) {
-    urlStr = fmt.Sprintf("%s/namespaces/%s/%s", c.Config.Version, c.Config.Namespace, urlStr)
+    if c.Config.Namespace != "" {
+        urlStr = fmt.Sprintf("%s/namespaces/%s/%s", c.Config.Version, c.Config.Namespace, urlStr)
+    } else {
+        urlStr = fmt.Sprintf("%s/namespaces", c.Config.Version)
+    }
 
     rel, err := url.Parse(urlStr)
     if err != nil {
@@ -154,16 +160,30 @@ func (c *Client) NewRequest(method, urlStr string, body interface{}) (*http.Requ
         req.Header.Add("Content-Type", "application/json")
     }
 
-    c.addAuthHeader(req)
+    err = c.addAuthHeader(req, AuthRequired)
+    if err != nil {
+        Debug(DbgError, "addAuthHeader() error: %s\n", err)
+        errStr := fmt.Sprintf("Unable to add the HTTP authentication header: %s", err)
+        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        return nil, werr
+    }
 
     return req, nil
 }
 
-func (c *Client) addAuthHeader(req *http.Request) {
+func (c *Client) addAuthHeader(req *http.Request, authRequired bool) error {
     if c.Config.AuthToken != "" {
         encodedAuthToken := base64.StdEncoding.EncodeToString([]byte(c.Config.AuthToken))
         req.Header.Add("Authorization", fmt.Sprintf("Basic %s", encodedAuthToken))
+    } else {
+        if authRequired {
+            Debug(DbgError, "The required authorization key is not configured - neither set as a property nor set via the --auth CLI argument\n")
+            errStr := fmt.Sprintf("Authorization key is not configured (--auth is required)")
+            werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_USAGE, DISPLAY_MSG, DISPLAY_USAGE)
+            return werr
+        }
     }
+    return nil
 }
 
 // Do sends an API request and returns the API response.  The API response is

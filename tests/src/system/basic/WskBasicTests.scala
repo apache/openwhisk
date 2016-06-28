@@ -188,14 +188,9 @@ class WskBasicTests
         // override wsk props file in case it exists
         val wskprops = File.createTempFile("wskprops", ".tmp")
         val env = Map("WSK_CONFIG_FILE" -> wskprops.getAbsolutePath())
-
-        if (usePythonCLI) {
-            val stderr = wsk.cli(Seq("list"), env = env, expectedExitCode = MISUSE_EXIT).stderr
-            stderr should include("usage:")
-            stderr should include("--auth is required")
-        } else {
-            val result = wsk.cli(Seq("list"), env = env, expectedExitCode = UNAUTHORIZED)
-        }
+        val stderr = wsk.cli(Seq("list"), env = env, expectedExitCode = MISUSE_EXIT).stderr
+        stderr should include regex (s"usage[:.]")  // Python CLI: "usage:", Go CLI: "usage."
+        stderr should include("--auth is required")
     }
 
     behavior of "Wsk Package CLI"

@@ -20,6 +20,7 @@ import (
     "fmt"
     "runtime"
     "strings"
+    "os"
 )
 
 type DebugLevel string
@@ -34,6 +35,12 @@ const MaxNameLen int = 25
 
 var isVerbose bool
 var isDebug bool
+
+func init() {
+    if len(os.Getenv("WSK_CLI_DEBUG")) > 0 {    // Useful for tracing init() code, before parms are parsed
+        SetDebug(true)
+    }
+}
 
 func SetDebug(b bool) {
     isDebug = b

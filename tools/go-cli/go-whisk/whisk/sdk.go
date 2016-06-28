@@ -48,7 +48,18 @@ func (s *SdkService) Install(relFileUrl string) (*http.Response, error) {
         return nil, werr
     }
 
-    s.client.addAuthHeader(req)
+    if IsVerbose() {
+        fmt.Println("REQUEST:")
+        fmt.Printf("[%s]\t%s\n", req.Method, req.URL)
+        if len(req.Header) > 0 {
+            fmt.Println("Req Headers")
+            printJSON(req.Header)
+        }
+        if req.Body != nil {
+            fmt.Println("Req Body")
+            fmt.Println(req.Body)
+        }
+    }
 
     // Directly use the HTTP client, not the Whisk CLI client, so that the response body is left alone
     resp, err := s.client.client.Do(req)

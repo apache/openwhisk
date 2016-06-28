@@ -78,12 +78,12 @@ case class WskProps(
 }
 
 class Wsk(override val usePythonCLI: Boolean = true) extends RunWskCmd {
-    implicit val action = new WskAction()
-    implicit val trigger = new WskTrigger()
-    implicit val rule = new WskRule()
-    implicit val activation = new WskActivation()
-    implicit val pkg = new WskPackage()
-    implicit val namespace = new WskNamespace()
+    implicit val action = new WskAction(usePythonCLI)
+    implicit val trigger = new WskTrigger(usePythonCLI)
+    implicit val rule = new WskRule(usePythonCLI)
+    implicit val activation = new WskActivation(usePythonCLI)
+    implicit val pkg = new WskPackage(usePythonCLI)
+    implicit val namespace = new WskNamespace(usePythonCLI)
 }
 
 trait FullyQualifiedNames {
@@ -202,13 +202,14 @@ trait HasActivation {
     }
 }
 
-class WskAction()
+class WskAction(override val usePythonCLI: Boolean = true)
     extends RunWskCmd
     with ListOrGetFromCollection
     with DeleteFromCollection
     with HasActivation {
 
     override protected val noun = "action"
+    override def baseCommand = Wsk.baseCommand(usePythonCLI)
 
     /**
      * Creates action. Parameters mirror those available in the CLI.
@@ -267,13 +268,14 @@ class WskAction()
     }
 }
 
-class WskTrigger()
+class WskTrigger(override val usePythonCLI: Boolean = true)
     extends RunWskCmd
     with ListOrGetFromCollection
     with DeleteFromCollection
     with HasActivation {
 
     override protected val noun = "trigger"
+    override def baseCommand = Wsk.baseCommand(usePythonCLI)
 
     /**
      * Creates trigger. Parameters mirror those available in the CLI.
@@ -317,13 +319,14 @@ class WskTrigger()
     }
 }
 
-class WskRule()
+class WskRule(override val usePythonCLI: Boolean = true)
     extends RunWskCmd
     with ListOrGetFromCollection
     with DeleteFromCollection
     with WaitFor {
 
     override protected val noun = "rule"
+    override def baseCommand = Wsk.baseCommand(usePythonCLI)
 
     /**
      * Creates rule. Parameters mirror those available in the CLI.
@@ -432,12 +435,13 @@ class WskRule()
     }
 }
 
-class WskActivation()
+class WskActivation(override val usePythonCLI: Boolean = true)
     extends RunWskCmd
     with HasActivation
     with WaitFor {
 
     protected val noun = "activation"
+    override def baseCommand = Wsk.baseCommand(usePythonCLI)
 
     /**
      * Activation polling console.
@@ -608,11 +612,12 @@ class WskActivation()
     private case class PartialResult(ids: Seq[String]) extends Throwable
 }
 
-class WskNamespace()
+class WskNamespace(override val usePythonCLI: Boolean = true)
     extends RunWskCmd
     with FullyQualifiedNames {
 
     protected val noun = "namespace"
+    override def baseCommand = Wsk.baseCommand(usePythonCLI)
 
     /**
      * Lists available namespaces for whisk properties.
@@ -641,11 +646,12 @@ class WskNamespace()
     }
 }
 
-class WskPackage()
+class WskPackage(override val usePythonCLI: Boolean = true)
     extends RunWskCmd
     with ListOrGetFromCollection
     with DeleteFromCollection {
     override protected val noun = "package"
+    override def baseCommand = Wsk.baseCommand(usePythonCLI)
 
     /**
      * Creates package. Parameters mirror those available in the CLI.

@@ -279,7 +279,7 @@ func init() {
     propertyGetCmd.Flags().BoolVar(&flags.property.apibuild, "apibuild", false, "whisk API build version")
     propertyGetCmd.Flags().BoolVar(&flags.property.apibuildno, "apibuildno", false, "whisk API build number")
     propertyGetCmd.Flags().BoolVar(&flags.property.cliversion, "cliversion", false, "whisk CLI version")
-    propertyGetCmd.Flags().BoolVar(&flags.property.namespace, "namespace", false, "authorization key")
+    propertyGetCmd.Flags().BoolVar(&flags.property.namespace, "namespace", false, "whisk namespace")
     propertyGetCmd.Flags().BoolVar(&flags.property.all, "all", false, "all properties")
 
     propertySetCmd.Flags().StringVarP(&flags.global.auth, "auth", "u", "", "authorization key")
