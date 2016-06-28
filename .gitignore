@@ -39,3 +39,6 @@ node_modules
 
 # IntelliJ
 .idea
+
+# Packages Installed from Blue
+/catalog/pushnotifications/
