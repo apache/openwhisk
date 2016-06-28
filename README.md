@@ -22,8 +22,8 @@ Follow these step to run your first OpenWhisk Action:
 # Clone openwhisk
 git clone --depth=1 https://github.com/openwhisk/openwhisk.git
 
-# Change directory to tools/vagrant/simple
-cd openwhisk/tools/vagrant/simple
+# Change directory to tools/vagrant
+cd openwhisk/tools/vagrant
 
 # Run script to create vm and run hello action
 ./hello
@@ -31,22 +31,22 @@ cd openwhisk/tools/vagrant/simple
 
 Wait for hello action output:
 ```
-vagrant ssh -- wsk action invoke /whisk.system/samples/echo -p message hello --blocking --result
+wsk action invoke /whisk.system/samples/echo -p message hello --blocking --result
 {
     "message": "hello"
 }
 ```
 
-For more information about the simple vagrant scenario see the [tools/vagrant/simple/README.md](tools/vagrant/simple/README.md)
+For more information about OpenWhisk vagrant scenarios see the [tools/vagrant/README.md](tools/vagrant/README.md)
 
 ### Custom Configurations
 
 The quick start above uses an ephemeral datastore that does not persist data when the vm is reloaded. The following instructions
 allow you to configure OpenWhisk to use a persistent datastore via Cloudant or CouchDB.
 
-These steps were tested on Mac OS X El Capitan, Ubuntu 14.04.3 LTS and may work on Windows using Vagrant.
+These steps were tested on Mac OS X El Capitan, Ubuntu 14.04.3 LTS and Windows using Vagrant.
 
-* [Vagrant on Mac, Windows PC, or GNU/Linux](tools/vagrant/custom/README.md)
+* [Vagrant on Mac, Windows PC, or GNU/Linux](tools/vagrant/README.md)
 * [OpenWhisk on Ubuntu natively](tools/ubuntu-setup/README.md)
 
 
