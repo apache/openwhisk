@@ -49,6 +49,14 @@ These steps were tested on Mac OS X El Capitan, Ubuntu 14.04.3 LTS and may work 
 * [Vagrant on Mac, Windows PC, or GNU/Linux](tools/vagrant/custom/README.md)
 * [OpenWhisk on Ubuntu natively](tools/ubuntu-setup/README.md)
 
+## Configure CLI
+
+The OpenWhisk CLI is located in `/bin/wsk`
+If not already configured, then it should be configure with the `namespace` "guest" and `auth` key from `ansible/files/auth.guest`
+For example run the following command
+```
+./bin/wsk property set --namespace guest --auth `cat ansible/files/auth.guest`
+```
 
 ### Learn concepts and commands
 
