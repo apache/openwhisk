@@ -36,9 +36,12 @@ import spray.http.Uri.Path
 import spray.http.Uri.Query
 import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
 import spray.json.DefaultJsonProtocol
+import java.util.NoSuchElementException
 
-case class ConsulEntry(key: String, value: String) {
-    val decodedValue = new String(Base64.decodeBase64(value))
+case class ConsulEntry(key: String, value: Option[String]) {
+    val decodedValue = value map { value =>
+        new String(Base64.decodeBase64(value))
+    }
 }
 
 object ConsulEntry extends DefaultJsonProtocol {
@@ -73,8 +76,11 @@ class ConsulClient(host: String)(implicit val actorSystem: ActorSystem) {
      *         decoded value of the Consul entry
      */
     def get(key: String): Future[String] = {
-        listPipeline(Get(uriWithKey(key))) map {
-            _.head.decodedValue
+        listPipeline(Get(uriWithKey(key))) flatMap {
+            _.head.decodedValue match {
+                case Some(value) => Future successful value
+                case None        => Future failed new NoSuchElementException
+            }
         }
     }
 
@@ -111,7 +117,7 @@ class ConsulClient(host: String)(implicit val actorSystem: ActorSystem) {
         val url = uriWithKey(root) withQuery Query("recurse" -> "true")
         listPipeline(Get(url)) map { entries =>
             entries map { entry =>
-                entry.key -> entry.decodedValue
+                entry.key -> entry.decodedValue.getOrElse("")
             } toMap
         }
     }
