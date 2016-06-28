@@ -17,16 +17,12 @@
 package commands
 
 import (
-    "archive/tar"
-    "compress/gzip"
     "encoding/base64"
     "errors"
     "fmt"
-    "io"
     "io/ioutil"
     "os"
     "os/exec"
-    "path/filepath"
     "regexp"
     "strings"
 
@@ -646,54 +642,6 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
         }
     }
 
-    if flags.action.lib != "" {
-        file, err := os.Open(flags.action.lib)
-        if err != nil {
-            whisk.Debug(whisk.DbgError, "os.Open(%s) error: %s\n", flags.action.lib, err)
-            errMsg := fmt.Sprintf("Unable to access library '%s': %s", flags.action.lib, err)
-            whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-                whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return nil, sharedSet, whiskErr
-        }
-
-        var r io.Reader
-        switch ext := filepath.Ext(file.Name()); ext {
-            case "tar":
-                r = tar.NewReader(file)
-            case "gzip":
-                r, err = gzip.NewReader(file)
-                if err != nil {
-                    whisk.Debug(whisk.DbgError, "gzip.NewReader(%s) error: %s\n", file.Name(), err)
-                    errMsg := fmt.Sprintf("Unable to decompress '%s': %s", file.Name(), err)
-                    whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-                        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-                    return nil, sharedSet, whiskErr
-                }
-            default:
-                whisk.Debug(whisk.DbgError, "filepath.Ext(%s) returned '%s' - an unsupported extension\n", file.Name(), ext)
-                errMsg := fmt.Sprintf("Library '%s' has an unsupported file compression: %s", file.Name(), ext)
-                whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-                    whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-                return nil, sharedSet, whiskErr
-        }
-
-        lib, err := ioutil.ReadAll(r)
-        if err != nil {
-            whisk.Debug(whisk.DbgError, "ioutil.ReadAll(%s) error: %s\n", r, err)
-            errMsg := fmt.Sprintf("Unable to parse action: %s", err)
-            whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-                whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-
-            return nil, sharedSet, whiskErr
-        }
-
-        if action.Exec == nil {
-            action.Exec = new(whisk.Exec)
-        }
-
-        action.Exec.Init = base64.StdEncoding.EncodeToString(lib)
-    }
-
     action.Name = qName.entityName
     action.Namespace = qName.namespace
     action.Publish = shared
@@ -721,7 +669,6 @@ func init() {
     actionCreateCmd.Flags().BoolVar(&flags.action.sequence, "sequence", false, "treat artifact as comma separated sequence of actions to invoke")
     actionCreateCmd.Flags().StringVar(&flags.action.kind, "kind", "", "the kind of the action runtime (example: swift:3)")
     actionCreateCmd.Flags().StringVar(&flags.action.shared, "shared", "", "shared action (default: private)")
-    actionCreateCmd.Flags().StringVar(&flags.action.lib, "lib", "", "add library to artifact (must be a gzipped tar file)")
     actionCreateCmd.Flags().StringVar(&flags.action.xPackage, "package", "", "package")
     actionCreateCmd.Flags().IntVarP(&flags.action.timeout, "timeout", "t", 0, "the timeout limit in miliseconds when the action will be terminated")
     actionCreateCmd.Flags().IntVarP(&flags.action.memory, "memory", "m", 0, "the memory limit in MB of the container that runs the action")
@@ -732,7 +679,6 @@ func init() {
     actionUpdateCmd.Flags().BoolVar(&flags.action.copy, "copy", false, "treat artifact as the name of an existing action")
     actionUpdateCmd.Flags().BoolVar(&flags.action.sequence, "sequence", false, "treat artifact as comma separated sequence of actions to invoke")
     actionUpdateCmd.Flags().StringVar(&flags.action.shared, "shared", "", "shared action (default: private)")
-    actionUpdateCmd.Flags().StringVar(&flags.action.lib, "lib", "", "add library to artifact (must be a gzipped tar file)")
     actionUpdateCmd.Flags().StringVar(&flags.action.xPackage, "package", "", "package")
     actionUpdateCmd.Flags().IntVarP(&flags.action.timeout, "timeout", "t", 0, "the timeout limit in miliseconds when the action will be terminated")
     actionUpdateCmd.Flags().IntVarP(&flags.action.memory, "memory", "m", 0, "the memory limit in MB of the container that runs the action")
