@@ -189,7 +189,7 @@ class WskBasicTests
         val wskprops = File.createTempFile("wskprops", ".tmp")
         val env = Map("WSK_CONFIG_FILE" -> wskprops.getAbsolutePath())
         val stderr = wsk.cli(Seq("list"), env = env, expectedExitCode = MISUSE_EXIT).stderr
-        stderr should include regex (s"usage[:.]")  // Python CLI: "usage:", Go CLI: "usage."
+        stderr should include regex (s"usage[:.]") // Python CLI: "usage:", Go CLI: "usage."
         stderr should include("--auth is required")
     }
 
