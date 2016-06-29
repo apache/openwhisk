@@ -47,7 +47,7 @@ import common.WskCli;
  */
 @RunWith(ParallelRunner.class)
 public class CLIRuleTests {
-    private static final Boolean usePythonCLI = true;
+    private static final Boolean usePythonCLI = false;
     private static final WskCli wsk = new WskCli(usePythonCLI);
     private static final int RULE_DELAY = 30;
     private static final int DELAY = 90;

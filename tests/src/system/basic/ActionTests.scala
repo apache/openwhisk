@@ -65,7 +65,7 @@ class ActionTests
     /**
      * Test an action that does not exceed the allowed execution timeout of an action.
      */
-    it should "suceed on an action staying within its time limits" in withAssetCleaner(wskprops) {
+    it should "succeed on an action staying within its time limits" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "TestActionCausingNoTimeout"
             assetHelper.withCleaner(wsk.action, name, confirmDelete = true) {
