@@ -10,3 +10,4 @@ sudo service ntp restart
 sudo ntpq -c lpeer
 
 sudo apt-get -y install git
+sudo apt-get -y install zip

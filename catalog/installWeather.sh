@@ -13,7 +13,7 @@ echo Installing Weather package.
 
 createPackage weather \
     -a description "Services from IBM Weather Insights" \
-    -a parameters '[ {"name":"apiKey", "required":false} ]'
+    -a parameters '[ {"name":"apiKey", "required":false, "bindTime":true} ]'
 
 waitForAll
 

@@ -1,5 +1,0 @@
----
-# This role will install the package catalog.
-
-- name: install catalog
-  local_action: shell "./installCatalog.sh" "{{ openwhisk_home }}/config/keys/auth.whisk.system" chdir="{{ openwhisk_home }}/catalog"

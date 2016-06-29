@@ -7,8 +7,6 @@ default.props
 /results/
 /logs/
 /config/custom-config.xml
-cloudant-local.env*
-couchdb-local.env*
 results
 *.retry
 
@@ -38,3 +36,6 @@ node_modules
 
 # Vagrant
 .vagrant*
+
+# IntelliJ
+.idea

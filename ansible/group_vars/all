@@ -34,9 +34,6 @@ kafka:
 zookeeper:
   port: 2181
 
-activator:
-  port: 12000
-
 invoker:
   port: 12001
 
@@ -47,7 +44,6 @@ nginx:
     adminportal: 8443
 
 db:
-  auth: subjects
   immortal: subjects
   authkeys:
   - guest

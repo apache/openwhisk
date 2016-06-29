@@ -1,0 +1,32 @@
+---
+# Tasks for handling Go CLI customization and publishing
+
+- name: "ensure go-cli directory exists"
+  file:
+    path: "{{ go_cli_conf_dir }}"
+    state: directory
+
+- name: "ensure nginx directory for go-cli exists"
+  file:
+    path: "{{ go_cli_nginx_dir  }}"
+    state: directory
+
+- name: "pull the {{ docker_image_tag }} image of go-cli"
+  shell: "docker pull {{ docker_registry }}whisk/go-cli:{{ docker_image_tag }}"
+  when: docker_registry != ""
+
+- name: "run Docker"
+  shell: "docker run --name go-cli {{ docker_registry }}whisk/go-cli:{{ docker_image_tag }}"
+
+- name: "copy all the go-cli binaries into nginx"
+  shell: "docker cp go-cli:/src/github.com/go-whisk-cli/build/. '{{ go_cli_nginx_dir }}'"
+  ignore_errors: yes
+
+- name: "stop Docker"
+  shell: "docker stop go-cli"
+  
+- name: "remove go-cli container after publishing"
+  docker:
+    name: go-cli
+    image: "{{ docker_registry }}whisk/go-cli:{{ docker_image_tag }}"
+    state: absent

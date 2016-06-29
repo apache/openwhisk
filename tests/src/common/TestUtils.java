@@ -25,11 +25,9 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.Collections;
-import java.util.Iterator;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonArray;
@@ -124,7 +122,7 @@ public class TestUtils {
             return map;
         } catch (Throwable t) {
             System.out.println("failed to parse VCAP" + t);
-            return Collections.EMPTY_MAP;
+            return Collections.emptyMap();
         }
     }
 

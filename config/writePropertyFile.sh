@@ -11,10 +11,10 @@ WHISK_CONFIG_NAME=`echo $WHISK_CONFIG_NAME | sed -e 's/Env.sh//'`
 # Where am I? Get config.
 SOURCE="${BASH_SOURCE[0]}"
 DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
-OPENWHISK_HOME="$(dirname $DIR)"
+OPENWHISK_HOME=$(dirname "$DIR")
 
 # Get root project directory
-WHISK_HOME="$(dirname "$DIR")"
+WHISK_HOME=$(dirname "$DIR")
 rm -f "$WHISK_HOME/whisk.properties"
 
 touch "$WHISK_HOME/whisk.properties"
@@ -51,7 +51,6 @@ echo "whisk.ssl.challenge=$WHISK_SSL_CHALLENGE" >> "$WHISK_HOME/whisk.properties
 echo "vcap.services.file=$VCAP_SERVICES_FILE" >> "$WHISK_HOME/whisk.properties"
 
 #Hosts
-echo "activator.host="$ACTIVATOR_HOST >> "$WHISK_HOME/whisk.properties"
 echo "consulserver.host="$CONSULSERVER_HOST >> "$WHISK_HOME/whisk.properties"
 echo "controller.host="$CONTROLLER_HOST >> "$WHISK_HOME/whisk.properties"
 echo "edge.host="$EDGE_HOST >> "$WHISK_HOME/whisk.properties"
@@ -142,13 +141,10 @@ echo "kafkaras.host.port=9093" >> "$WHISK_HOME/whisk.properties"
 echo "controller.host.port=10001" >> "$WHISK_HOME/whisk.properties"
 echo "loadbalancer.host.port=10003" >> "$WHISK_HOME/whisk.properties"
 
-echo "activator.host.port=12000" >> "$WHISK_HOME/whisk.properties"
-
 # Port mapping for container - this is the port the service binds to inside
 # the container; unless there are more than one service inside a container,
 # use a standard port like 8080. Of course if the service requires a particular
 # port use that port.
-echo "activator.docker.port=8080" >> "$WHISK_HOME/whisk.properties"
 echo "controller.docker.port=8080" >> "$WHISK_HOME/whisk.properties"
 echo "loadbalancer.docker.port=8080" >> "$WHISK_HOME/whisk.properties"
 echo "kafka.docker.port=9092" >> "$WHISK_HOME/whisk.properties"

@@ -17,7 +17,6 @@
 package system.basic;
 
 import static common.WskCli.Item.Action;
-import static common.WskCli.Item.Package;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -34,8 +33,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import com.google.code.tempusfugit.concurrency.ParallelRunner;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 
 import common.Pair;
 import common.TestUtils;
@@ -47,8 +44,8 @@ import common.WskCli;
  */
 @RunWith(ParallelRunner.class)
 public class CLIActionTests {
-
-    private static final WskCli wsk = new WskCli();
+    private static final Boolean usePythonCLI = true;
+    private static final WskCli wsk = new WskCli(usePythonCLI);
 
     public static final String[] sampleTestWords = new String[] { "SHERLOCK", "WATSON", "LESTRADE" };
     private static final int DEFAULT_WAIT = 100;  // Wait this long for logs to show up
@@ -178,9 +175,16 @@ public class CLIActionTests {
         String payload = "bob";
         String[] cmd = { "action", "invoke", "/whisk.system/samples/helloWorld", payload };
         RunResult rr = wsk.runCmd(cmd);
-        assertTrue("Expect a cli error exit code", rr.exitCode == 2);
-        assertTrue("Expect a cli usage message", rr.stderr.contains("usage: wsk [-h] [-v]"));
-        assertTrue("Expect a cli error message", rr.stderr.contains("wsk: error: unrecognized arguments: " + payload));
+
+        if (usePythonCLI) {
+            assertTrue("Expect a cli error exit code", rr.exitCode == 2);
+            assertTrue("Expect a cli usage message", rr.stderr.contains("usage: wsk [-h] [-v]"));
+            assertTrue("Expect a cli error message", rr.stderr.contains("wsk: error: unrecognized arguments: " + payload));
+        } else {
+            assertTrue("Expect a cli error exit code", rr.exitCode == 1);
+            assertTrue("Expect a cli usage message", rr.stderr.contains("Run 'wsk --help' for usage."));
+            assertTrue("Expect a cli error message", rr.stderr.contains("error: Invalid argument list."));
+        }
     }
 
     @Test(timeout=120*1000)
@@ -364,34 +368,6 @@ public class CLIActionTests {
             assertTrue("Expected '" + expected + "' which is missing in log for activation " + activationId, present);
         } finally {
             wsk.delete(Action, "PB_PRINT");
-        }
-    }
-
-    @Test(timeout=120*1000)
-    public void actionSequence() throws Exception {
-        String action = "AC_VARIOUS";
-        String commonPackage = "/whisk.system/util";
-        String myPackage = "mypackage";
-        try {
-            wsk.sanitize(Action, action);
-            wsk.sanitize(Package, myPackage);
-            wsk.bindPackage(TestUtils.SUCCESS_EXIT, commonPackage, myPackage, null);
-            String[] actions = new String[]{"split", "sort", "head", "cat"};
-            for (int i = 0; i < actions.length; i++)
-                actions[i] = myPackage + "/" + actions[i];
-            wsk.createAction(action, actions, 120 * 1000);
-            String nowString = "It is now " + new Date();
-            String[] lines = {"comment t'appelle tu", nowString, "come ti chiami"};
-
-            Pair<String, String> pair = wsk.invokeBlocking(action, TestUtils.makeParameter("payload", String.join("\n", lines)));
-            String activationId = pair.fst;
-            JsonObject response = new JsonParser().parse(pair.snd).getAsJsonObject();
-            String resultStr = response.get("result").toString();
-            boolean present = resultStr.contains(nowString);
-            assertTrue("Expected '" + nowString + "' which is missing in result for activation " + activationId, present);
-        } finally {
-            wsk.delete(Action, action);
-            wsk.delete(Package, myPackage);
         }
     }
 

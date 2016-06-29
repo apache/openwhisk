@@ -24,7 +24,7 @@
 #   deployInvoker index host      deploy an invoker with the given index on the given host
 #   deployInvoker --kill ...      kill rather than deploy
 # Returns:
-#  0                     if all were deployed sucessfully
+#  0                     if all were deployed successfully
 #  >0                    a count of failed deploys
 #
 # A pull, teardown, and isAlive check is performed as well.
@@ -69,36 +69,32 @@ def getProp(whiskprops, key, defaultValue = None) :
 
 
 def killInvoker(whiskprops,index, invokerHost):
-  whiskLogsDir = getProp(whiskprops,'WHISK_LOGS_DIR')
-  invokerDockerPort = getProp(whiskprops,'INVOKER_DOCKER_PORT')
-  dockerPort = getProp(whiskprops,'DOCKER_PORT')
-  dockerRegistry = getProp(whiskprops,'DOCKER_REGISTRY', '')
-  dockerTlsCmd = getProp(whiskprops,'DOCKER_TLS_CMD', '')
-  dockerTimezoneMount = getProp(whiskprops,'DOCKER_TIMEZONE_MOUNT', '')
-  consulserverHost = getProp(whiskprops,'CONSULSERVER_HOST')
-  consulHostPort4 = getProp(whiskprops,'CONSUL_HOST_PORT4')
+    dockerPort = getProp(whiskprops,'DOCKER_PORT')
+    dockerTlsCmd = getProp(whiskprops,'DOCKER_TLS_CMD', '')
+    dockerEndpoint = invokerHost + ":" + dockerPort
 
-  dockerEndpoint = invokerHost + ":" + dockerPort
-  invokerName = "invoker" + str(index)
-  killCmd = ['rm', '-f', invokerName]
-  print 'Removing', invokerName, '       at', dockerEndpoint,
-  (elapsed, rc, output) = runDocker(dockerEndpoint, dockerTlsCmd, killCmd)
-  if (rc == 0):
-      print '   ', elapsed, 'sec   SUCCEEDED'
-  elif (rc == 1):
-      print '   ', elapsed, 'sec   did nothing'
-  else:
-      print '   ', elapsed, 'sec   FAILED', rc
-      return rc
+    invokerName = "invoker" + str(index)
+    killCmd = ['rm', '-f', invokerName]
+
+    print 'Removing', invokerName, '       at', dockerEndpoint,
+    (elapsed, rc, output) = runDocker(dockerEndpoint, dockerTlsCmd, killCmd)
+    if (rc == 0):
+        print '   ', elapsed, 'sec   SUCCEEDED'
+    elif (rc == 1):
+        print '   ', elapsed, 'sec   did nothing'
+    else:
+        print '   ', elapsed, 'sec   FAILED', rc
+        return rc
 
 def getImageId(inspectOutput):
-  records = json.loads(inspectOutput)
-  return records[0]['Image']
+    records = json.loads(inspectOutput)
+    return records[0]['Image']
 
-# utility function to pull an image given the docker registry, the name and the tag of the image and 
-# the docker endpoint where the image is pulled 
+# utility function to pull an image given the docker registry, the name and the tag of the image
+# and the docker endpoint where the image is pulled
 def pullImage(dockerRegistry, imageName, tag, dockerEndpoint, dockerTlsCmd):
     image = dockerRegistry + imageName + ":" + tag
+
     print 'Pulling ' + image + ' image at', dockerEndpoint,
     (elapsed, rc, output) = runDocker(dockerEndpoint, dockerTlsCmd, ['pull', image])
     if (rc == 0):
@@ -108,8 +104,36 @@ def pullImage(dockerRegistry, imageName, tag, dockerEndpoint, dockerTlsCmd):
         print output
     return rc
 
-# a list with the images to be pulled
-imagesToPull = ['whisk/dispatcher', 'whisk/nodejsaction', 'whisk/pythonaction', 'whisk/swiftaction', 'whisk/swift3action', 'whisk/javaaction']
+#
+# Pulls images for action containers to invoker host.
+#
+# Return 0 on success or the non-zero error code of a failed command.
+#
+def pullActionContainerImages(whiskprops, invokerHost, tag):
+    dockerPort = getProp(whiskprops,'DOCKER_PORT')
+    dockerRegistry = getProp(whiskprops,'DOCKER_REGISTRY', '')
+    dockerTlsCmd = getProp(whiskprops,'DOCKER_TLS_CMD', '')
+    dockerEndpoint = invokerHost + ":" + dockerPort
+
+    # a list with the images to be pulled
+    imagesToPull = [
+        'whisk/dispatcher',
+        'whisk/nodejsaction',
+        'whisk/nodejs6action',
+        'whisk/pythonaction',
+        'whisk/swiftaction',
+        'whisk/swift3action',
+        'whisk/javaaction'
+    ]
+
+    if (dockerRegistry != ''):
+        for image in imagesToPull:
+            rc = pullImage(dockerRegistry, image, tag, dockerEndpoint, dockerTlsCmd)
+            if (rc != 0):
+                return rc
+    else:
+        print 'Skipping pull'
+    return 0
 
 #
 # Teardown and start up an invoker.
@@ -120,133 +144,127 @@ imagesToPull = ['whisk/dispatcher', 'whisk/nodejsaction', 'whisk/pythonaction', 
 # If all commands are successful but isAlive still says it's not up, then -1.
 #
 def startInvoker(whiskprops,index, invokerHost, tag):
-  whiskLogsDir = getProp(whiskprops,'WHISK_LOGS_DIR')
-  invokerHostsBaseport = int(getProp(whiskprops,'INVOKER_HOSTS_BASEPORT'))
-  invokerDockerPort = getProp(whiskprops,'INVOKER_DOCKER_PORT')
-  dockerPort = getProp(whiskprops,'DOCKER_PORT')
-  dockerRegistry = getProp(whiskprops,'DOCKER_REGISTRY', '')
-  dockerTlsCmd = getProp(whiskprops,'DOCKER_TLS_CMD', '')
-  dockerTimezoneMount = getProp(whiskprops,'DOCKER_TIMEZONE_MOUNT', '')
-  consulserverHost = getProp(whiskprops,'CONSULSERVER_HOST')
-  consulHostPort4 = getProp(whiskprops,'CONSUL_HOST_PORT4')
+    whiskLogsDir = getProp(whiskprops,'WHISK_LOGS_DIR')
+    invokerHostsBaseport = int(getProp(whiskprops,'INVOKER_HOSTS_BASEPORT'))
+    invokerDockerPort = getProp(whiskprops,'INVOKER_DOCKER_PORT')
+    dockerPort = getProp(whiskprops,'DOCKER_PORT')
+    dockerEndpoint = invokerHost + ":" + dockerPort
+    dockerRegistry = getProp(whiskprops,'DOCKER_REGISTRY', '')
+    dockerTlsCmd = getProp(whiskprops,'DOCKER_TLS_CMD', '')
+    dockerTimezoneMount = getProp(whiskprops,'DOCKER_TIMEZONE_MOUNT', '')
+    consulserverHost = getProp(whiskprops,'CONSULSERVER_HOST')
+    consulHostPort4 = getProp(whiskprops,'CONSUL_HOST_PORT4')
 
-  dockerEndpoint = invokerHost + ":" + dockerPort
-  if (dockerRegistry != ''):
-      for image in imagesToPull:
-          rc = pullImage(dockerRegistry, image, tag, dockerEndpoint, dockerTlsCmd)
-          if (rc != 0):
-              return rc
-  else:
-      print 'Skipping pull'
+    pullActionContainerImages(whiskprops, invokerHost, tag)
 
-  image = dockerRegistry + "whisk/dispatcher" + ":" + tag
-  invokerName = "invoker" + str(index)
-  invokerPort = invokerHostsBaseport + index
-  timezone = dockerTimezoneMount.split(' ') if dockerTimezoneMount != '' else []
-  runCmd = ['run'] + timezone + [
-    '-p', str(invokerPort) + ':' + str(invokerDockerPort),
-    '-e', 'PORT=' + invokerDockerPort,
-    '-e', 'CONSULSERVER_HOST=' + consulserverHost,
-    '-e', 'CONSUL_HOST_PORT4=' + consulHostPort4,
-    '-e', 'SELF_DOCKER_ENDPOINT=' + dockerEndpoint,
-    '-e', 'COMPONENT_NAME=' + invokerName,
-    '-e', 'SERVICE_NAME=' + invokerName,
-    '-e', 'SERVICE_CHECK_HTTP=/ping',
-    '-e', 'SERVICE_CHECK_TIMEOUT=2s',
-    '-e', 'SERVICE_CHECK_INTERVAL=15s',
-    '-v', whiskLogsDir + '/' + invokerName + ':/logs',
-    '-v', '/var/lib/docker/containers/:/containers',
-    '-h', invokerName,
-    '--name', invokerName,
-    '-d', image, '/dispatcher/bin/dispatcher', 'invoker', str(index)]
-  print 'Starting', invokerName, '       at', dockerEndpoint,
-  (elapsed, rc, output) = runDocker(dockerEndpoint, dockerTlsCmd, runCmd)
-  containerId = output.strip()
-  if (rc == 0):
-      print '   ', elapsed, 'sec   SUCCEEDED'
-  else:
-      print '   ', elapsed, 'sec   FAILED', rc, '\n', output
-      return rc
+    image = dockerRegistry + "whisk/dispatcher" + ":" + tag
+    invokerName = "invoker" + str(index)
+    invokerPort = invokerHostsBaseport + index
+    timezone = dockerTimezoneMount.split(' ') if dockerTimezoneMount != '' else []
+    runCmd = ['run'] + timezone + [
+        '-p', str(invokerPort) + ':' + str(invokerDockerPort),
+        '-e', 'PORT=' + invokerDockerPort,
+        '-e', 'CONSULSERVER_HOST=' + consulserverHost,
+        '-e', 'CONSUL_HOST_PORT4=' + consulHostPort4,
+        '-e', 'SELF_DOCKER_ENDPOINT=' + dockerEndpoint,
+        '-e', 'COMPONENT_NAME=' + invokerName,
+        '-e', 'SERVICE_NAME=' + invokerName,
+        '-e', 'SERVICE_CHECK_HTTP=/ping',
+        '-e', 'SERVICE_CHECK_TIMEOUT=2s',
+        '-e', 'SERVICE_CHECK_INTERVAL=15s',
+        '-v', whiskLogsDir + '/' + invokerName + ':/logs',
+        '-v', '/var/lib/docker/containers/:/containers',
+        '-h', invokerName,
+        '--name', invokerName,
+        '-d', image, '/dispatcher/bin/dispatcher', 'invoker', str(index)]
 
-  print 'Container', containerId[0:16], 'at', dockerEndpoint,
-  (elapsed, rc, output) = runDocker(dockerEndpoint, dockerTlsCmd, ['inspect', containerId])
-  if (rc == 0):
-      print '   ', elapsed, 'sec   SUCCEEDED'
-      imageId = getImageId(output)
-      print '  has imageId  ', imageId
-  else:
-      print '   ', elapsed, 'sec   FAILED', rc
-      print output
-      return rc
+    print 'Starting', invokerName, '       at', dockerEndpoint,
+    (elapsed, rc, output) = runDocker(dockerEndpoint, dockerTlsCmd, runCmd)
+    containerId = output.strip()
+    if (rc == 0):
+        print '   ', elapsed, 'sec   SUCCEEDED'
+    else:
+        print '   ', elapsed, 'sec   FAILED', rc, '\n', output
+        return rc
 
-  return 0
+    print 'Container', containerId[0:16], 'at', dockerEndpoint,
+    (elapsed, rc, output) = runDocker(dockerEndpoint, dockerTlsCmd, ['inspect', containerId])
+    if (rc == 0):
+        print '   ', elapsed, 'sec   SUCCEEDED'
+        imageId = getImageId(output)
+        print '  has imageId  ', imageId
+    else:
+        print '   ', elapsed, 'sec   FAILED', rc
+        print output
+        return rc
+    return 0
 
 def waitInvoker(whiskprops, index, host = None):
-  whiskLogsDir = getProp(whiskprops,'WHISK_LOGS_DIR')
-  invokerDockerPort = getProp(whiskprops,'INVOKER_DOCKER_PORT')
-  dockerPort = getProp(whiskprops,'DOCKER_PORT')
-  dockerRegistry = getProp(whiskprops,'DOCKER_REGISTRY', '')
-  dockerTlsCmd = getProp(whiskprops,'DOCKER_TLS_CMD', '')
-  dockerTimezoneMount = getProp(whiskprops,'DOCKER_TIMEZONE_MOUNT', '')
-  consulserverHost = getProp(whiskprops,'CONSULSERVER_HOST')
-  consulHostPort4 = getProp(whiskprops,'CONSUL_HOST_PORT4')
+    invokerName = "invoker" + str(index)
+    isAliveCmd = [isAlive, '-d', rootDir, '--wait', '15', invokerName]
 
+    if (host != None):
+        isAliveCmd = isAliveCmd + ['--host', host]
+    print 'Checking', invokerName,
 
-  invokerName = "invoker" + str(index)
-  start = time.time()
-  isAliveCmd = [isAlive, '-d', rootDir, '--wait', '15', invokerName]
-  if (host != None):
-      isAliveCmd = isAliveCmd + ['--host', host]
-  print 'Checking', invokerName,
-  (rc, output) = run(isAliveCmd)
-  elapsed = round((time.time() - start) * 10) / 10
-  if (rc == 0 and output.find('alive')):
-      print '                                             ', elapsed, 'sec   SUCCEEDED\n', output,
-  else:
-      print '                                             ', elapsed, 'sec   FAILED\n', 'return code =', rc, '\n', output,
-      return False
-  return True
+    start = time.time()
+    (rc, output) = run(isAliveCmd)
+    elapsed = round((time.time() - start) * 10) / 10
+
+    if (rc == 0 and output.find('alive')):
+        print '                                             ', elapsed, 'sec   SUCCEEDED\n', output,
+        return True
+    else:
+        print '                                             ', elapsed, 'sec   FAILED\n', 'return code =', rc, '\n', output,
+        return False
 
 #
 # A list of triples of the form (N, endpoint, adhoc) which will cause invoke_N to deploy there.
 # The adhoc flag indicates that the endpoint was not derived from whisk property.
 #
-def deploy(whiskprops, invokerHostTriples, kill, tag):
-  totalStart = time.time()
-  failedTriples = []
-  print 'The invoker hosts are', invokerHostTriples
-  if (kill):
-      for (index, invokerHost, adhoc) in invokerHostTriples:
-          killInvoker(whiskprops,index, invokerHost)
-  else:
-      for (index, invokerHost, adhoc) in invokerHostTriples:
-          killInvoker(whiskprops,index, invokerHost)
-          startInvoker(whiskprops,index, invokerHost, tag)
-      for (index, invokerHost, adhoc) in invokerHostTriples:
-          if (not(waitInvoker(whiskprops, index, invokerHost if adhoc else None))) :
-              failedTriples.append((index, invokerHost, adhoc))
-  elapsed = round((time.time() - totalStart) * 10) / 10
-  return (elapsed, failedTriples)
+def deploy(whiskprops, invokerHostTriples, args):
+    print 'The invoker hosts are', invokerHostTriples
+
+    totalStart = time.time()
+    failedTriples = []
+
+    for (index, invokerHost, adhoc) in invokerHostTriples:
+        if args.kill:
+            killInvoker(whiskprops, index, invokerHost)
+        elif args.pull:
+            pullActionContainerImages(whiskprops, invokerHost, args.tag)
+        else:
+            killInvoker(whiskprops, index, invokerHost)
+            startInvoker(whiskprops, index, invokerHost, args.tag)
+
+    if not (args.kill or args.pull):
+        for (index, invokerHost, adhoc) in invokerHostTriples:
+            if (not(waitInvoker(whiskprops, index, invokerHost if adhoc else None))) :
+                failedTriples.append((index, invokerHost, adhoc))
+
+    elapsed = round((time.time() - totalStart) * 10) / 10
+    return (elapsed, failedTriples)
 
 # Convert the list of strings to one of integers - returning None if failed
 def asInts(strs):
-  result = []
-  for s in strs:
-    try:
-        result.append(int(s))
-    except ValueError:
-        return None
-  return result
+    result = []
+    for s in strs:
+      try:
+          result.append(int(s))
+      except ValueError:
+          return None
+    return result
 
 # ---------------- Main ------------------------------
 # ------------ use argsParse and normalize this? -----
 
 parser = argparse.ArgumentParser(description='Invoker deployment')
-parser.add_argument('-k', '--kill', action='store_true', help='kill invoker rather than deploy')
 parser.add_argument('-d','--dir', help='directory for whisk.properties')
+parser.add_argument('--host', help='host on which to deploy')
 parser.add_argument('-i','--index', help='index of the invoker to deploy')
 parser.add_argument('-t','--tag', help='docker image tag to deploy')
-parser.add_argument('--host', help='host on which to deploy')
+parser.add_argument('-k', '--kill', action='store_true', help='kills invoker rather than deploy')
+parser.add_argument('-p', '--pull', action='store_true', help='pulls activation container images to invoker host rather than deploy')
 parser.set_defaults(kill=False)
 args = parser.parse_args()
 
@@ -262,24 +280,26 @@ whiskprops = wskprop.importPropsIfAvailable(wskprop.propfile(args.dir))
 
 
 if (args.host != None):
-  invokerHostTriples = [(args.index, args.host, kill)]
+    invokerHostTriples = [(args.index, args.host, kill)]
 else:
-  invokerHostsString = getProp(whiskprops,'INVOKER_HOSTS')
-  invokerHosts = invokerHostsString.split(",")
-  invokerHostTriples = zip(range(0, len(invokerHosts)), invokerHosts, [False] * len(invokerHosts))
+    invokerHostsString = getProp(whiskprops,'INVOKER_HOSTS')
+    invokerHosts = invokerHostsString.split(",")
+    invokerHostTriples = zip(range(0, len(invokerHosts)), invokerHosts, [False] * len(invokerHosts))
 
 # Deploy (or just kill) all invokers
 curTriples = invokerHostTriples
 failedTriples = []
 for iteration in (0, 3):
-  if (iteration > 0):
-    print 'Retrying', iteration
-  (elapsed, failedTriples) = deploy(whiskprops, curTriples, args.kill, args.tag)
-  print '\nTried to', ('kill' if args.kill else 'deploy'), len(curTriples), 'invokers.',
-  if (len(failedTriples) == 0):
-    print 'All done in', elapsed, 'sec.'
-    sys.exit(0)
-  else:
-    print 'Failed to process', len(failedTriples), 'invokers in', elapsed, 'sec.'
-    curTriples = failedTriples
+    if (iteration > 0):
+        print 'Retrying', iteration
+
+    (elapsed, failedTriples) = deploy(whiskprops, curTriples, args)
+    print '\nTried to', ('kill' if args.kill else 'deploy'), len(curTriples), 'invokers.',
+    if (len(failedTriples) == 0):
+        print 'All done in', elapsed, 'sec.'
+        sys.exit(0)
+    else:
+        print 'Failed to process', len(failedTriples), 'invokers in', elapsed, 'sec.'
+        curTriples = failedTriples
+
 sys.exit(len(failedTriples))

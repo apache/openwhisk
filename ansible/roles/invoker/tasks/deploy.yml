@@ -1,20 +1,22 @@
 ---
 # This role installs invokers.
 
-- name: "Pull dispatcher {{docker_image_tag}} image"
-  shell: "docker pull {{docker_registry}}whisk/dispatcher:{{docker_image_tag}}"
-  when: docker_registry != ""
-- name: "Pull nodejsaction {{docker_image_tag}} image"
-  shell: "docker pull {{docker_registry}}whisk/nodejsaction:{{docker_image_tag}}"
-  when: docker_registry != ""
-- name: "Pull swiftaction {{docker_image_tag}} image"
-  shell: "docker pull {{docker_registry}}whisk/swiftaction:{{docker_image_tag}}"
-  when: docker_registry != ""
-- name: "Pull javaaction {{docker_image_tag}} image"
-  shell: "docker pull {{docker_registry}}whisk/javaaction:{{docker_image_tag}}"
+- set_fact:
+     imagesToPull:
+      - 'whisk/dispatcher'
+      - 'whisk/nodejsaction'
+      - 'whisk/nodejs6action'
+      - 'whisk/pythonaction'
+      - 'whisk/swiftaction'
+      - 'whisk/swift3action'
+      - 'whisk/javaaction'
+
+- name: "pull action images with tag {{docker_image_tag}}"
+  shell: "docker pull {{docker_registry}}{{item}}:{{docker_image_tag}}"
+  with_items: "{{imagesToPull}}"
   when: docker_registry != ""
 
-- name: (Re)start invoker
+- name: (re)start invoker
   docker:
     name: "invoker{{play_hosts.index(inventory_hostname)}}"
     image: "{{docker_registry}}whisk/dispatcher:{{docker_image_tag}}"
@@ -23,7 +25,7 @@
     hostname: "invoker{{play_hosts.index(inventory_hostname)}}"
     env:
       "COMPONENT_NAME": "invoker{{play_hosts.index(inventory_hostname)}}"
-      "CONSULSERVER_HOST": "{{ groups['consul_servers'] | first }}"
+      "CONSULSERVER_HOST": "{{groups['consul_servers'] | first}}"
       "CONSUL_HOST_PORT4": "{{consul.port.http}}"
       "SELF_DOCKER_ENDPOINT": "{{inventory_hostname}}:{{docker.port}}"
       "SERVICE_NAME": "invoker{{play_hosts.index(inventory_hostname)}}"
@@ -38,9 +40,10 @@
       - "{{invoker.port + play_hosts.index(inventory_hostname)}}:8080"
     command: "/dispatcher/bin/dispatcher invoker {{play_hosts.index(inventory_hostname)}}"
 
-- name: Wait until Invoker is up and running
-  wait_for:
-    delay: 2
-    host: "{{inventory_hostname}}"
-    port: "{{invoker.port + play_hosts.index(inventory_hostname)}}"
-    timeout: 60
+- name: wait until Invoker is up and running
+  uri:
+    url: "http://{{ inventory_hostname }}:{{invoker.port + play_hosts.index(inventory_hostname)}}/ping"
+  register: result
+  until: result.status == 200
+  retries: 12
+  delay: 5

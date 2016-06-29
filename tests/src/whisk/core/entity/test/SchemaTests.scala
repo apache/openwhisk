@@ -17,6 +17,8 @@
 package whisk.core.entity.test
 
 import scala.Vector
+import scala.language.postfixOps
+import scala.language.reflectiveCalls
 
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfter
@@ -34,6 +36,7 @@ import spray.json.JsValue
 import spray.json.pimpAny
 import spray.json.pimpString
 import whisk.core.entity.ActionLimits
+import whisk.core.entity.ActivationId
 import whisk.core.entity.AuthKey
 import whisk.core.entity.DocId
 import whisk.core.entity.DocInfo
@@ -46,8 +49,6 @@ import whisk.core.entity.Secret
 import whisk.core.entity.SemVer
 import whisk.core.entity.TimeLimit
 import whisk.core.entity.UUID
-import scala.language.postfixOps
-import scala.language.reflectiveCalls
 
 @RunWith(classOf[JUnitRunner])
 class SchemaTests extends FlatSpec with BeforeAndAfter {
@@ -350,5 +351,10 @@ class SchemaTests extends FlatSpec with BeforeAndAfter {
         intercept[IllegalArgumentException] {
             ActionLimits(TimeLimit(TimeLimit.MAX_DURATION.toMillis.toInt + 1), MemoryLimit(MemoryLimit.MAX_MEMORY + 1))
         }
+    }
+
+    it should "parse activation id as uuid" in {
+        val id = "213174381920559471141441e1111111"
+        assert(ActivationId.unapply(id).isDefined)
     }
 }

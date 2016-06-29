@@ -1,3 +1,21 @@
+#!/usr/bin/env python
+
+#
+# Copyright 2015-2016 IBM Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 import collections
 import fnmatch
 import itertools
@@ -21,6 +39,7 @@ def exceptional_paths():
     return [
         "bin/wsk",
         "bin/wskadmin",
+        "bin/go-cli/wsk",
         "tests/src/com/google/code/tempusfugit/concurrency/ParallelRunner.java"
     ]
 
@@ -154,7 +173,8 @@ if __name__ == "__main__":
         ("build.xml",  [ line_checks([ no_tabs, no_trailing_spaces, eol_at_eof ]) ]),
         ("deploy.xml", [ line_checks([ no_tabs, no_trailing_spaces, eol_at_eof ]) ]),
         ("*.gradle",   [ line_checks([ no_tabs, no_trailing_spaces, eol_at_eof ]) ]),
-        ("*.md",       [ line_checks([ no_tabs, eol_at_eof ]) ])
+        ("*.md",       [ line_checks([ no_tabs, eol_at_eof ]) ]),
+        ("*.go",       [ has_block_copyright, line_checks([ no_tabs, no_trailing_spaces, eol_at_eof ]) ])
     ]
 
     all_errors = []

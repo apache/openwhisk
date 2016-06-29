@@ -69,7 +69,7 @@
     <target name="importWhiskProperties" >
         <exec executable="/bin/bash" failonerror="true">
             <arg value="-c" />
-            <arg value="${openwhisk.home}/tools/health/kvstore --import -d ." />
+            <arg value="'${openwhisk.home}/tools/health/kvstore' --import -d ." />
         </exec>
     </target>
 

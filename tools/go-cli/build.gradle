@@ -1,0 +1,79 @@
+ext.dockerImageName = "whisk/go-cli"
+ext.dockerContainerName = "go-cli"
+ext.dockerBuildArgs = getDockerBuildArgs()
+apply from: "../../docker.gradle"
+
+// Returns the Go CLI docker build args
+def getDockerBuildArgs() {
+    java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ")
+    String envDateStr = "$System.env.WHISK_BUILD_TIMESTAMP"
+    String dateStr = ((envDateStr != "null") ? envDateStr : sdf.format(new Date()))
+    return "BUILDTIME="+dateStr
+}
+
+task removeBinary(type: Delete) {
+    delete "${projectDir}/../../bin/go-cli"
+}
+
+task distBinary(dependsOn: [removeBinary, distDocker]) << {
+    run(dockerBinary + ["rm", "-f", dockerContainerName], true)
+    run(["mkdir", "${projectDir}/../../bin/go-cli/"])
+    run(dockerBinary + ["run", "--name", dockerContainerName, dockerImageName + ":" + dockerImageTag])
+
+    // Copy all Go binaries from Docker into openwhisk/bin/go-cli folder
+    run(dockerBinary + ["cp", dockerContainerName +
+            ":/src/github.com/go-whisk-cli/build/.", "${projectDir}/../../bin/go-cli"])
+
+    // Create a shorthand sym link to current platform appropriate Go CLI binary
+    String go_osname = mapOsNameToGoName(getOsName())
+    String go_osarch = mapOsArchToGoArch(getOsArch())
+    String link_to_path = new File("${projectDir}/../../bin/go-cli/wsk").getCanonicalPath()
+    String link_from_path = new File("${projectDir}/../../bin/go-cli/${go_osname}/${go_osarch}/wsk").getCanonicalPath()
+    exec {
+        executable "ln"
+        args "-s", "${link_from_path}", "${link_to_path}"
+    }
+
+    run(dockerBinary + ["rm", "-f", dockerContainerName])
+}
+
+distDocker.finalizedBy([removeBinary, distBinary])
+
+def run(cmd, ignoreError = false) {
+    println("Executing '${cmd.join(" ")}'")
+    def proc = cmd.execute()
+    proc.waitFor()
+    if(!ignoreError && proc.exitValue() != 0) {
+        println("Command '${cmd.join(" ")}' failed with exitCode ${proc.exitValue()}")
+    }
+}
+
+task dump_os() << {
+    println "os.name = "+getOsName()
+    println "os.arch = "+getOsArch()
+    println "go.name = "+mapOsNameToGoName(getOsName())
+    println "go.arch = "+mapOsArchToGoArch(getOsArch())
+}
+
+def getOsName() {
+    return System.properties['os.name']
+}
+
+def getOsArch() {
+    return System.properties['os.arch']
+}
+
+def mapOsNameToGoName(String osname) {
+    String osname_l = osname.toLowerCase()
+    if (osname_l.contains("nux") || osname.contains("nix")) return "linux"
+    if (osname_l.contains("mac")) return "mac"
+    if (osname_l.contains("windows")) return "windows"
+    return osname_l
+}
+
+def mapOsArchToGoArch(String osarch) {
+    String osarch_l = osarch.toLowerCase()
+    if (osarch_l.contains("x86_64") || osarch_l == "amd64") return "amd64"
+    if (osarch_l.contains("i386") || osarch_l.contains("x86_32")) return "386"
+    return osarch_l
+}

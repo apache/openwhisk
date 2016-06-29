@@ -10,8 +10,8 @@
 
 BOX = "ubuntu/trusty64-2"
 BOX_URL =  "https://cloud-images.ubuntu.com/vagrant/trusty/current/trusty-server-cloudimg-amd64-vagrant-disk1.box"
-BOX_MEMORY = ENV['BOX_MEMORY'] || '2048'
-BOX_CPUS = ENV['BOX_CPUS'] || '2'
+BOX_MEMORY = ENV['BOX_MEMORY'] || '4096'
+BOX_CPUS = ENV['BOX_CPUS'] || '4'
 
 Vagrant.configure('2') do |config|
   config.vm.box = BOX
@@ -47,8 +47,12 @@ $script = <<SCRIPT
   git clone --depth=1 https://github.com/openwhisk/openwhisk.git
   cd openwhisk
   (cd tools/ubuntu-setup && source all.sh)
-  tools/db/couchdb/start-couchdb-box.sh whisk_admin some_passw0rd
-  tools/db/createImmortalDBs.sh --dropit
+  cd ansible
+  ansible-playbook -i environments/local setup.yml
+  ansible-playbook -i environments/local prereq.yml
+  ansible-playbook -i environments/local couchdb.yml
+  ansible-playbook -i environments/local initdb.yml
+  cd ..
   ant build
   ant deploy
   # Add openwhisk/bin to system PATH to allow to work with vagrant ssh -- wsk

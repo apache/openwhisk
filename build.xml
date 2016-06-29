@@ -39,6 +39,7 @@
             <arg value="-PdockerHost=${main.docker.endpoint}" />
         </exec>
         <ant antfile="${openwhisk.home}/services/nginx/build.xml" target="buildProxy" />
+        <ant antfile="tools/build.xml" target="build" />
     </target>
 
     <!-- run unit tests-->
@@ -46,22 +47,38 @@
         <ant antfile="tests/build.xml" target="runTests" />
     </target>
 
-    <!-- deploy containers -->
-    <target name="deploy" depends="writePropertyFile">
+    <!-- deperacated: deploy containers using ant -->
+    <target name="deploy-legacy" depends="writePropertyFile">
         <antcall target="deployDatabase" />
         <ant antfile="${openwhisk.home}/services/nginx/build.xml" target="startProxy" />
         <ant antfile="services/build.xml" target="deploy" />
         <ant antfile="core/build.xml" target="deploy" />
-        <ant antfile="tools/cli/build.xml" target="buildCLI" />
+        <ant antfile="tools/build.xml" target="deploy" />
         <antcall target="installCatalog" />
     </target>
 
+    <!-- deploy containers with ansible -->
+    <target name="deploy" depends="writePropertyFile">
+        <exec executable="ansible-playbook" failonerror="true" dir="${basedir}/ansible">
+            <arg value="-i" />
+            <arg value="environments/${deploy.target}" />
+            <arg value="openwhisk.yml" />
+        </exec>
+    </target>
+
     <!-- teardown and deploy all services -->
-    <target name="redeploy" depends="teardown,deploy" />
+    <target name="redeploy" depends="teardownRedeploy,deploy" />
 
     <target name="teardownLocal">
         <exec executable="/bin/bash">
             <arg value="tools/docker/cleanDocker.sh" />
+        </exec>
+    </target>
+
+    <target name="teardownLocalRedeploy">
+        <exec executable="/bin/bash">
+            <arg value="tools/docker/cleanDocker.sh" />
+            <arg value="couchdb" />
         </exec>
     </target>
 
@@ -72,6 +89,16 @@
             <env key="DOCKER_PORT" value="${docker.port}" />
             <arg value="tools/docker/cleanAllDockers.sh" />
             <arg value="${basedir}/whisk.properties" />
+        </exec>
+    </target>
+
+    <target name="teardownRedeploy" depends="teardownLocalRedeploy,writePropertyFile">
+        <var file="whisk.properties" />
+        <exec executable="/bin/bash">
+            <env key="DOCKER_PORT" value="${docker.port}" />
+            <arg value="tools/docker/cleanAllDockers.sh" />
+            <arg value="${basedir}/whisk.properties" />
+            <arg value="couchdb" />
         </exec>
     </target>
 

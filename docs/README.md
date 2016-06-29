@@ -3,7 +3,7 @@
 
 OpenWhisk is a distributed, event-driven compute service. OpenWhisk executes application logic in response to events or direct invocations from web or mobile apps over HTTP. Events can be provided from Bluemix services like Cloudant, and from external sources. Developers can focus on writing application logic, and creating actions that are executed on demand. The rate of executing actions always matches the event rate, resulting in inherent scaling and resiliency, and optimal utilization. You pay for only what you use and you don't have to manage a server. You can also get the [source code](https://github.com/openwhisk/openwhisk) and run the system yourself.
 
-For more details about how OpenWhisk works, see [System overview](./about.md).
+For more details about how OpenWhisk works, see [About OpenWhisk](./about.md).
 
 ## Setting up OpenWhisk
 You can use the OpenWhisk command line interface (CLI) to set up your namespace and authorization key. Go to [Configure CLI](../README.md#setup-cli) and follow the guided experience to install it. Note that you must have Python 2.7 installed on your system to use the CLI.

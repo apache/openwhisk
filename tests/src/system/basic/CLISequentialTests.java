@@ -33,8 +33,8 @@ import common.WskCli;
  * thresholds.
  */
 public class CLISequentialTests {
-
-    private static final WskCli wsk = new WskCli();
+    private static final Boolean usePythonCLI = true;
+    private static final WskCli wsk = new WskCli(usePythonCLI);
 
     @BeforeClass
     public static void setUp() throws Exception {

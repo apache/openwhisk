@@ -72,17 +72,22 @@ protected trait ControllerTestCommon
     override val actorRefFactory = null
     implicit val routeTestTimeout = RouteTestTimeout(90 seconds)
 
+    implicit val actorSystem = ActorSystem("controllertests")
+
     val config = new WhiskConfig(WhiskActionsApi.requiredProperties)
     assert(config.isValid)
 
     val entityStore = WhiskEntityStore.datastore(config)
     val activationStore = WhiskActivationStore.datastore(config)
     val authStore = WhiskAuthStore.datastore(config)
-    val entitlementService: EntitlementService = new LocalEntitlementService(config)(executionContext)
-    val actorSystem = ActorSystem("controllertests")
+    val entitlementService: EntitlementService = new LocalEntitlementService(config)
+
     val activationId = ActivationId() // need a static activation id to test activations api
     val performLoadBalancerRequest = (lbr: WhiskServices.LoadBalancerReq) => Future {
         LoadBalancerResponse.id(activationId)
+    }
+    val queryActivationResponse = (activationId: ActivationId, transid: TransactionId) => Future.failed {
+        new IllegalArgumentException("Unit test does not need fast path")
     }
     val consulServer = "???"
 

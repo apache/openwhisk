@@ -102,4 +102,28 @@ class Swift3ActionContainerTests extends SwiftActionContainerTests {
         if (checkStdOutEmpty) out.trim shouldBe empty
         err.trim shouldBe empty
     }
+
+    it should "make Watson SDKs available to action authors" in {
+        val (out, err) = withSwiftContainer() { c =>
+            val code = """
+                | import RestKit
+                | import InsightsForWeather
+                | import AlchemyVision
+                |
+                | func main(args: [String:Any]) -> [String:Any] {
+                |   return ["message": "I compiled and was able to import Watson SDKs"]
+                | }
+            """.stripMargin
+
+            val (initCode, _) = c.init(initPayload(code))
+
+            initCode should be(200)
+
+            val (runCode, out) = c.run(runPayload(JsObject()))
+            runCode should be(200)
+        }
+
+        if (checkStdOutEmpty) out.trim shouldBe empty
+        err.trim shouldBe empty
+    }
 }

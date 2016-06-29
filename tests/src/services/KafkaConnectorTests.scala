@@ -40,11 +40,12 @@ import scala.language.postfixOps
 @RunWith(classOf[JUnitRunner])
 class KafkaConnectorTests extends FlatSpec with Matchers with BeforeAndAfter {
     implicit val transid = TransactionId.testing
-    implicit val ec = ExecutionContextFactory.makeSingleThreadExecutionContext()
+    implicit val ec = ExecutionContextFactory.makeCustomThreadPoolExecutionContext(poolSize = 4)
 
     behavior of "Kafka connector"
 
-    it should "send and receive a kafka message" in {
+    it should "send and receive a kafka message which sets up the topic" in {
+
         val config = new WhiskConfig(WhiskConfig.kafkaHost)
         assert(config.isValid)
 
@@ -52,19 +53,26 @@ class KafkaConnectorTests extends FlatSpec with Matchers with BeforeAndAfter {
         val topic = "Dinosaurs"
         val producer = new KafkaProducerConnector(config.kafkaHost, ec)
         val consumer = new KafkaConsumerConnector(config.kafkaHost, groupid, topic)
+
         producer.setVerbosity(Verbosity.Debug)
         consumer.setVerbosity(Verbosity.Debug)
 
         try {
-            val message = new Message { override val serialize = Calendar.getInstance().getTime().toString }
-            val sent = Await.result(producer.send(topic, message), 10 seconds)
-            val received = consumer.getMessages(10 seconds).map { r => new String(r.value, "utf-8") }
-            println(received)
-            received.size should be >= 1
-            received.last should be(message.serialize)
+            for (i <- 0 until 5) {
+              val message = new Message { override val serialize = Calendar.getInstance().getTime().toString }
+              val start = java.lang.System.currentTimeMillis
+              val sent = Await.result(producer.send(topic, message), 10 seconds)
+              val received = consumer.getMessages(10 seconds).map { r => new String(r.value, "utf-8") }
+              val end = java.lang.System.currentTimeMillis
+              val elapsed = end - start
+              println(s"Took $elapsed msec: $received\n\n")
+              received.size should be >= 1
+              received.last should be(message.serialize)
+            }
         } finally {
             producer.close()
             consumer.close()
         }
     }
+
 }

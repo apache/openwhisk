@@ -15,7 +15,7 @@ The `/whisk.system/cloudant` package enables you to work with a Cloudant databas
 | `/whisk.system/cloudant` | package | BluemixServiceName, host, username, password, dbname, includeDoc, overwrite | Work with a Cloudant database |
 | `/whisk.system/cloudant/read` | action | dbname, includeDoc, id | Read a document from a database |
 | `/whisk.system/cloudant/write` | action | dbname, overwrite, doc | Write a document to a database |
-| `/whisk.system/cloudant/changes` | feed | dbname, includeDoc | Fire trigger events on changes to a database |
+| `/whisk.system/cloudant/changes` | feed | dbname, includeDoc, maxTriggers | Fire trigger events on changes to a database |
 
 The following topics walk through setting up a Cloudant database, configuring an associated package, and using the actions and feeds in the `/whisk.system/cloudant` package.
 
@@ -103,7 +103,11 @@ If you're not using OpenWhisk in Bluemix or if you want to set up your Cloudant 
 
 ### Listening for changes to a Cloudant database
 
-You can use the `changes` feed to configure a service to fire a trigger on every change to your Cloudant database.
+You can use the `changes` feed to configure a service to fire a trigger on every change to your Cloudant database. The parameters are as follows:
+
+- `dbname`: Name of Cloudant database.
+- `includeDoc`: If set to true, each trigger event that is fired includes the modified Cloudant document. 
+- `maxTriggers`: Stop firing triggers when this limit is reached. Defaults to 1000. You can set it to maximum 10,000. If you try to set more than 10,000, the request is rejected.
 
 1. Create a trigger with the `changes` feed in the package binding that you created previously. Be sure to replace `/myNamespace/myCloudant` with your package name.
 
@@ -226,7 +230,7 @@ The `/whisk.system/alarms/alarm` feed configures the Alarm service to fire a tri
 
 - `trigger_payload`: The value of this parameter becomes the content of the trigger every time the trigger is fired.
 
-- `maxTriggers`: Stop firing triggers when this limit is reached. Defaults to 1000.
+- `maxTriggers`: Stop firing triggers when this limit is reached. Defaults to 1000. You can set it to maximum 10,000. If you try to set more than 10,000, the request is rejected.
 
 Here is an example of creating a trigger that will be fired once every 20 seconds with `name` and `place` values in the trigger event.
 
@@ -309,6 +313,7 @@ The package includes the following actions.
 | `/whisk.system/watson` | package | username, password | Actions for the Watson analytics APIs |
 | `/whisk.system/watson/translate` | action | translateFrom, translateTo, translateParam, username, password | Translate text |
 | `/whisk.system/watson/languageId` | action | payload, username, password | Identify language |
+| `/whisk.system/watson/speechToText` | action | payload, content_type, encoding, username, password, continuous, inactivity_timeout, interim_results, keywords, keywords_threshold, max_alternatives, model, timestamps, watson-token, word_alternatives_threshold, word_confidence, X-Watson-Learning-Opt-Out | Convert audio into text |
 | `/whisk.system/watson/textToSpeech` | action | payload, voice, accept, encoding, username, password | Convert text into audio |
 
 While not required, it's suggested that you create a package binding with the `username` and `password` values. This way you don't need to specify these credentials every time you invoke the actions in the package.
@@ -405,6 +410,48 @@ Here is an example of creating a package binding and converting some text to spe
   ```
 
 
+### Converting speech to text
+
+The `/whisk.system/watson/speechToText` action converts audio speech into text. The parameters are as follows:
+
+- `username`: The Watson API username.
+- `password`: The Watson API password.
+- `payload`: The encoded speech binary data to turn into text.
+- `content_type`: The MIME type of the audio.
+- `encoding`: The encoding of the speech binary data.
+- `continuous`: Indicates whether multiple final results that represent consecutive phrases separated by long pauses are returned.
+- `inactivity_timeout`: The time in seconds after which, if only silence is detected in submitted audio, the connection is closed.
+- `interim_results`: Indicates whether the service is to return interim results.
+- `keywords`: A list of keywords to spot in the audio.
+- `keywords_threshold`: A confidence value that is the lower bound for spotting a keyword.
+- `max_alternatives`: The maximum number of alternative transcripts to be returned.
+- `model`: The identifier of the model to be used for the recognition request.
+- `timestamps`: Indicates whether time alignment is returned for each word.
+- `watson-token`: Provides an authentication token for the service as an alternative to providing service credentials.
+- `word_alternatives_threshold`: A confidence value that is the lower bound for identifying a hypothesis as a possible word alternative.
+- `word_confidence`: Indicates whether a confidence measure in the range of 0 to 1 is to be returned for each word.
+- `X-Watson-Learning-Opt-Out`: Indicates whether to opt out of data collection for the call.
+ 
+Here is an example of creating a package binding and converting speech to text.
+
+1. Create a package binding with your Watson credentials.
+
+  ```
+  $ wsk package bind /whisk.system/watson myWatson -p username 'MY_WATSON_USERNAME' -p password 'MY_WATSON_PASSWORD'
+  ```
+
+2. Invoke the `speechToText` action in your package binding to convert the encoded audio.
+
+  ```
+  $ wsk action invoke myWatson/speechToText --blocking --result --param payload <base64 encoding of a .wav file> --param content_type 'audio/wav' --param encoding 'base64'
+  ```
+  ```
+  {
+    "data": "Hello Watson"
+  }
+  ```
+  
+  
 ## Using the Slack package
 
 The `/whisk.system/slack` package offers a convenient way to use the [Slack APIs](https://api.slack.com/).
@@ -466,14 +513,13 @@ The `/whisk.system/github/webhook` feed configures a service to fire a trigger w
 - `username`: The username of the GitHub repository.
 - `repository`: The GitHub repository.
 - `accessToken`: Your GitHub personal access token. When you [create your token](https://github.com/settings/tokens), be sure to select the repo:status and public_repo scopes. Also, make sure you don't have any Webhooks already defined for your repository.
-- `events`: The [GitHub activity type](https://developer.github.com/v3/activity/events/types/) of interest.
+- `events`: The [GitHub event type](https://developer.github.com/v3/activity/events/types/) of interest.
 
 The following is an example of creating a trigger that will be fired each time that there is a new commit to a GitHub repository.
 
 1. Generate a GitHub [personal access token](https://github.com/settings/tokens).
 
-  The access token will be used in the next step.
-
+   The access token will be used in the next step.
 
 2. Create a package binding configured for your GitHub respository and with your accesss token.
 
@@ -485,4 +531,132 @@ The following is an example of creating a trigger that will be fired each time t
 
   ```
   $ wsk trigger create myGitTrigger --feed myGit/webhook --param events push
+  ```
+
+A commit to the Github repository via a `git push` will cause the trigger to be fired by the webhook. If there is a rule that matches the trigger, then the associated action will be invoked.
+The action receives the Github webhook payload as an input parameter. Each Github webhook event has a similar JSON schema, but a unique payload object that is determined by its event type.
+For more information on the payload content see the [Github events and payload](https://developer.github.com/v3/activity/events/types/) API documentation.
+
+
+## Using the Push package
+
+The `/whisk.system/pushnotifications` package enables you to work with a push service. 
+
+### Install the IBM Push Notification OpenWhisk package 
+
+Download the Push package form the  [wsk-pkg-pushnotification](https://github.com/openwhisk/wsk-pkg-pushnotifications) repository.
+
+Run the install script provided inside the package download
+
+  ```
+  $ git clone --depth=1 https://github.com/openwhisk/wsk-pkg-pushnotifications
+  $ cd wsk-pkg-pushnotifications
+  $ ./install.sh APIHOST AUTH WSK_CLI
+  ```
+
+  The `APIHOST` is the OpenWhisk API hostname, `AUTH` is your auth key, and `WSK_CLI` is location of the Openwhisk CLI binary.		     
+
+
+The package includes the following feed:
+
+| Entity | Type | Parameters | Description |
+| --- | --- | --- | --- |
+| `/whisk.system/pushnotifications` | package | appId, appSecret  | Work with the Push Service |
+| `/whisk.system/pushnotifications/sendMessage` | action | text, url, deviceIds, platforms, tagNames, apnsBadge, apnsCategory, apnsActionKeyTitle, apnsSound, apnsPayload, apnsType, gcmCollapseKey, gcmDelayWhileIdle, gcmPayload, gcmPriority, gcmSound, gcmTimeToLive | Send push notification to the specified device(s) |
+| `/whisk.system/pushnotifications/webhook` | feed | events | Fire trigger events on device activities (device (un)registration / (un)subscription) on the Push Service |
+Even though its not mandatory , it's suggested that you create a package binding with the `appId` and `appSecret` values. This way you don't need to specify these credentials every time you invoke the actions in the package.
+
+### Setting up IBM Push Notifications package
+
+While creating a  IBM Push Notifications package you have to give the following parameters,
+
+-  `appId`: The Bluemix app GUID.
+-  `appSecret`: The Bluemix push notification service appSecret.
+
+The following is an example of creating a package binding.
+
+1. Create a Bluemix application in [Bluemix Dashboard](http://console.ng.bluemix.net).
+
+2. Initialize the Push Notification Service and bind the service to the Bluemix application
+
+3. Configure the [IBM Push Notification application](https://console.ng.bluemix.net/docs/services/mobilepush/index.html).
+
+  Be sure to remember the `App GUID`  and the `App Secret` of the Bluemix app you created.
+
+
+4. Create a package binding with the `/whisk.system/pushnotifications`.
+
+  ```
+  $ wsk package bind /whisk.system/pushnotifications myPush -p appId "myAppID" -p appSecret "myAppSecret"
+  ```
+
+5. Verify that the package binding exists.
+
+  ```
+  $ wsk package list
+  ```
+
+  ```
+  packages
+  /myNamespace/myPush private binding
+  ```
+
+### Sending Push Notifications
+
+The `/whisk.system/pushnotifications/sendMessage` action sends push notifications to registered devices. The parameters are as follows:
+- `text` - The notification message to be shown to the user. Eg: -p text "Hi ,OpenWhisk send a notification".
+- `url`: An optional URL that can be sent along with the alert. Eg : -p url "https:\\www.w3.ibm.com".
+- `gcmPayload` - Custom JSON payload that will be sent as part of the notification message. Eg: -p gcmPayload "{"hi":"hello"}"
+- `gcmSound` - The sound file (on device) that will be attempted to play when the notification arrives on the device .
+- `gcmCollapseKey` - This parameter identifies a group of messages
+- `gcmDelayWhileIdle` - When this parameter is set to true, it indicates that the message should not be sent until the device becomes active.
+- `gcmPriority` - Sets the priority of the message.
+- `gcmTimeToLive` - This parameter specifies how long (in seconds) the message should be kept in GCM storage if the device is offline.
+- `apnsBadge` - The number to display as the badge of the application icon.
+- `apnsCategory` -  The category identifier to be used for the interactive push notifications .
+- `apnsIosActionKey` - The title for the Action key .
+- `apnsPayload` - Custom JSON payload that will be sent as part of the notification message.
+- `apnsType` - ['DEFAULT', 'MIXED', 'SILENT'].
+- `apnsSound` - The name of the sound file in the application bundle. The sound of this file is played as an alert.
+
+Here is an example of sending push notification from the pushnotification package.
+
+1. Send push notification by using the `sendMessage` action in the package binding that you created previously. Be sure to replace `/myNamespace/myPush` with your package name.
+
+  ```
+  $ wsk action invoke /myNamespace/myPush/sendMessage --blocking --result  -p url https://example.com -p text "this is my message"  -p sound soundFileName -p deviceIds '["T1","T2"]'
+  ```
+
+  ```
+  {
+  "result": {
+  "pushResponse": "{"messageId":"11111H","message":{"message":{"alert":"this is my message","url":"http.google.com"},"settings":{"apns":{"sound":"default"},"gcm":{"sound":"default"},"target":{"deviceIds":["T1","T2"]}}}"
+  },
+  "status": "success",
+  "success": true
+  }
+  ```
+
+### Firing a trigger event on IBM Push Notifications Service activity
+
+The `/whisk.system/pushnotifications/webhook` configures the IBM Push Notifications service to fire a trigger when there is a device activity such as device registration / unregistration or subscription / unsubscription in a specified application
+
+The parameters are as follows:
+
+- `appId:` The Bluemix push notification service appSecret.
+- `appSecret:` The Bluemix app GUID.
+- `events:` Supported events are `onDeviceRegister`, `onDeviceUnregister`, `onDeviceUpdate`, `onSubscribe`, `onUnsubscribe`.To get notified for all events use the wildcard character `*`.
+
+The following is an example of creating a trigger that will be fired each time there is a new device registered with the IBM Push Notifications Service application.
+
+1. Create a package binding configured for your IBM Push Notifications service with your appId and appSecret.
+
+  ```
+  $ wsk package bind /whisk.system/pushnotifications myNewDeviceFeed --param appID myapp --param appSecret myAppSecret --param events onDeviceRegister
+  ```
+
+2. Create a trigger for the IBM Push Notifications Service `onDeviceRegister` event type using your `myPush/webhook` feed.
+
+  ```
+  $ wsk trigger create myPushTrigger --feed myPush/webhook --param events onDeviceRegister
   ```

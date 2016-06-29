@@ -1,0 +1,8 @@
+#!/bin/bash
+#
+# This file is a stub action and should be replaced with 
+# the client binary.  Client artifacts should be placed
+# in this folder.  For more info, see the Readme.md in 
+# parent directory.
+#
+echo '{ "msg": "Hello from bash script!" }'

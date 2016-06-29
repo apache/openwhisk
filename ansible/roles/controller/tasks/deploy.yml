@@ -14,11 +14,12 @@
     hostname: controller
     env:
       "COMPONENT_NAME": "controller"
-      "CONSULSERVER_HOST": "{{ inventory_hostname }}"
+      "CONSULSERVER_HOST": "{{ groups['consul_servers'] | first }}"
       "CONSUL_HOST_PORT4": "{{ consul.port.http }}"
       "PORT": 8080
       "WHISK_VERSION_NAME": "{{ whisk_version_name }}"
       "WHISK_VERSION_DATE": "{{ whisk.version.date }}"
+      "WHISK_VERSION_BUILDNO": "{{ docker_image_tag }}"
       "KAFKA_NUMPARTITIONS": 2
       "SERVICE_CHECK_HTTP": "/ping"
       "SERVICE_CHECK_TIMEOUT": "2s"
@@ -29,8 +30,9 @@
       - "{{ controller.port }}:8080"
 
 - name: wait until the Controller in this host is up and running
-  wait_for:
-    delay: 2
-    host: "{{ inventory_hostname }}"
-    port: "{{ controller.port }}"
-    timeout: 60
+  uri:
+    url: "http://{{ inventory_hostname }}:{{ controller.port }}/ping"
+  register: result
+  until: result.status == 200
+  retries: 12
+  delay: 5

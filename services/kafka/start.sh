@@ -7,28 +7,10 @@ echo "Preparing to start kafka"
 [ -n "$ZOOKEEPER_PORT_2181_TCP_ADDR" ] && ZOOKEEPER_IP=$ZOOKEEPER_PORT_2181_TCP_ADDR
 [ -n "$ZOOKEEPER_PORT_2181_TCP_PORT" ] && ZOOKEEPER_PORT=$ZOOKEEPER_PORT_2181_TCP_PORT
 
-# Necessary?
-
-EXTENSION=""
-case $BRANCH in
-  master)
-    EXTENSION=".prod"
-    CHROOT="/v0_8_1"
-  ;;
-  staging)
-    EXTENSION=".staging"
-    CHROOT="/v0_8_1"
-  ;;
-  *)
-    # Developer environments, etc.
-    EXTENSION=".default"
-  ;;
-esac
-
 IP=$(cat /etc/hosts | head -n1 | awk '{print $1}')
 PORT=9092
 
-cat /kafka/config/server.properties${EXTENSION} \
+cat /kafka/config/server.properties.default \
   | sed "s|{{ZOOKEEPER_IP}}|${ZOOKEEPER_IP}|g" \
   | sed "s|{{ZOOKEEPER_PORT}}|${ZOOKEEPER_PORT:-2181}|g" \
   | sed "s|{{BROKER_ID}}|${BROKER_ID:-0}|g" \

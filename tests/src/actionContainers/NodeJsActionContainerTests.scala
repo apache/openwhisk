@@ -28,8 +28,10 @@ import spray.json._
 @RunWith(classOf[JUnitRunner])
 class NodeJsActionContainerTests extends FlatSpec with Matchers {
 
+    val nodejsContainerImageName = "whisk/nodejsaction"
+
     // Helpers specific to nodejsaction
-    def withNodeJsContainer(code: ActionContainer => Unit) = withContainer("whisk/nodejsaction")(code)
+    def withNodeJsContainer(code: ActionContainer => Unit) = withContainer(nodejsContainerImageName)(code)
     def initPayload(code: String) = JsObject(
         "value" -> JsObject(
             "name" -> JsString("dummyAction"),
@@ -301,6 +303,55 @@ class NodeJsActionContainerTests extends FlatSpec with Matchers {
 
             c2 should be(200)
             r2 should be(Some(JsObject("done" -> JsBoolean(true))))
+        }
+
+        filtered(out).trim shouldBe empty
+        filtered(err).trim shouldBe empty
+    }
+
+    it should "error when requiring a non-existent package" in {
+        // NPM package names cannot start with a dot, and so there is no danger
+        // of the package below ever being valid.
+        // https://docs.npmjs.com/files/package.json
+        val (out, err) = withNodeJsContainer { c =>
+            val code = """
+                | function main(args) {
+                |     require('.mildlyinvalidnameofanonexistentpackage');
+                | }
+            """.stripMargin
+
+            val (initCode, _) = c.init(initPayload(code))
+
+            initCode should be(200)
+
+            val (runCode, out) = c.run(runPayload(JsObject()))
+
+            runCode should not be(200)
+        }
+
+        filtered(out).trim shouldBe empty
+        filtered(err).trim shouldBe empty
+    }
+
+    it should "have ws and socket.io-client packages available" in {
+        // GIVEN that it should "error when requiring a non-existent package" (see test above for this)
+        val (out, err) = withNodeJsContainer { c =>
+            val code = """
+                | function main(args) {
+                |     require('ws');
+                |     require('socket.io-client');
+                | }
+            """.stripMargin
+
+            val (initCode, _) = c.init(initPayload(code))
+
+            initCode should be(200)
+
+            // WHEN I run an action that requires ws and socket.io.client
+            val (runCode, out) = c.run(runPayload(JsObject()))
+
+            // THEN it should pass only when these packages are available
+            runCode should be(200)
         }
 
         filtered(out).trim shouldBe empty

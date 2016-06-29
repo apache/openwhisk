@@ -5,6 +5,8 @@
         <exec executable="./gradlew" failonerror="${testsfailonfailure}">
             <env key="OPENWHISK_HOME" value="${openwhisk.home}" />
             <arg value=":tests:test" />
+            <arg value="--tests" />
+            <arg value="${whisktests.prefix}*" />
             <arg line="-Dtestthreads=${testthreads}" />
         </exec>
     </target>

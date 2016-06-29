@@ -22,6 +22,7 @@
     "data_dir": "/consul/data",
     "ui_dir": "/consul/ui",
     "log_level": "WARN",
+    "node_name": "{{ ansible_host | default(inventory_hostname) }}",
     "client_addr": "0.0.0.0",
     "advertise_addr": "{{ ansible_host | default(inventory_hostname) }}",
     "ports": {

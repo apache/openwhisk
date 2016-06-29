@@ -7,22 +7,23 @@
 
 - name: "pull the {{ docker_image_tag }} image of consul"
   shell: "docker pull {{ docker_registry }}whisk/consul:{{ docker_image_tag }}"
-  when: docker_registry != ""
+  when: (docker_registry != "") and ("'consul_servers' in group_names")
 
 - name: ensure consul config directory exists
   file:
     path: "{{ consul_conf_dir }}"
     state: directory
+  when: "'consul_servers' in group_names"
 
 - name: copy template from local to remote in consul config directory
   template:
     src: config.json.j2
     dest: "{{ consul_conf_dir }}/config.json"
+  when: "'consul_servers' in group_names"
 
 - name: (re)start consul server/agent
   docker:
     name: consul
-    hostname: "consul{{play_hosts.index(inventory_hostname)}}"
     image: "{{ docker_registry }}whisk/consul:{{ docker_image_tag }}"
     state: reloaded
     command: /bin/consul agent -config-file=/consul/config/config.json 
@@ -39,17 +40,33 @@
       - "{{ consul.port.serf_wan }}:8302/udp"
       - "{{ consul.port.serf_lan }}:8301/udp"
       - "{{ consul.port.server }}:8300"
+  when: "'consul_servers' in group_names"
 
 - name: wait until the Consul Server/Agent in this host is up and running
-  wait_for:
-    delay: 5
-    host: "{{ inventory_hostname }}"
-    port: "{{ consul.port.http }}"
-    timeout: 60
+  uri:
+    method: PUT
+    url: "http://{{ inventory_hostname }}:{{ consul.port.http }}/v1/kv/consulIsAlive"
+    body: 'true'
+  register: result
+  until: result.status == 200
+  retries: 12
+  delay: 5
+  when: "'consul_servers' in group_names"
+
+- name: delete is alive token from Consul Server/Agent
+  uri:
+    method: DELETE
+    url: "http://{{ inventory_hostname }}:{{ consul.port.http }}/v1/kv/consulIsAlive"
+  register: result
+  until: result.status == 200
+  retries: 10
+  delay: 1
+  when: "'consul_servers' in group_names"
 
 - name: notify handler to fill in Consul KV store with parameters in whisk.properties
   command: "true"
   notify: fill consul kv
+  when: "'consul_servers' in group_names"
 
 - name: (re)start registrator
   docker:
@@ -62,4 +79,4 @@
     volumes:
       - "{{ whisk_logs_dir }}/registrator:/logs"
       - "/var/run/docker.sock:/tmp/docker.sock"
-    command: "-ip {{ ansible_host | default(inventory_hostname) }} -resync 2 consul://{{ ansible_host | default(inventory_hostname) }}:{{ consul.port.http }}"
+    command: "-ip {{ ansible_host | default(inventory_hostname) }} -resync 2 consul://{{ groups['consul_servers'] | first }}:{{ consul.port.http }}"

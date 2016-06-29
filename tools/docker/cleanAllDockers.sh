@@ -20,6 +20,8 @@ SCRIPTDIR="$(cd $(dirname "$0")/ && pwd)"
 WHISKPROPS=$1
 : ${WHISKPROPS:?"WHISKPROPS must be set and non-empty"}
 
+DATABASE_EXEMPT=$2
+
 #
 # run cleanDocker.sh on each docker endpoint
 #
@@ -29,6 +31,6 @@ DEFAULT_DOCKER_PORT=4243
 for h in $ALL_HOSTS
 do
     echo "Cleaning docker at $h:${DOCKER_PORT:-$DEFAULT_DOCKER_PORT}"
-    DOCKER_ENDPOINT=$h:${DOCKER_PORT:-$DEFAULT_DOCKER_PORT} "$SCRIPTDIR/cleanDocker.sh" &
+    DOCKER_ENDPOINT=$h:${DOCKER_PORT:-$DEFAULT_DOCKER_PORT} "$SCRIPTDIR/cleanDocker.sh" "$DATABASE_EXEMPT" &
 done
 wait

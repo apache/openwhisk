@@ -1,7 +1,0 @@
----
-# Remove whisk.properties
-
-- name: remove whisk.properties
-  file:
-    path: "{{ openwhisk_home }}/whisk.properties"
-    state: absent
