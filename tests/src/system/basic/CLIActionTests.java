@@ -329,6 +329,35 @@ public class CLIActionTests {
     }
 
     @Test(timeout=120*1000)
+    public void createActionWithEmptyFile() throws Exception {
+        String action = "createActionWithEmptyFile";
+        String expectedCode = "\"code\": \"\"";
+        try {
+            wsk.sanitize(Action, action);
+            wsk.createAction(action, TestUtils.getTestActionFilename("empty.js"), false, false);
+            String item = wsk.get(Action, action);
+            assertTrue("Expect code to be an empty string", item.contains(expectedCode));
+        } finally {
+            wsk.delete(Action, action);
+        }
+    }
+
+    @Test(timeout=120*1000)
+    public void invokeActionWithNoCode() throws Exception {
+        String name = "invokeActionWithNoCode";
+        try {
+            wsk.sanitize(Action, name);
+            wsk.createAction(name, TestUtils.getTestActionFilename("empty.js"));
+            String activationId = wsk.invoke(name, null);
+            String expected = "Missing main/no code to execute.";
+            boolean present = wsk.checkResultFor(activationId, expected, 45);
+            assertTrue("Expected '" + expected + "' which is missing in log for activation " + activationId, present);
+        } finally {
+            wsk.delete(Action, name);
+        }
+    }
+
+    @Test(timeout=120*1000)
     public void invokeActionWithSpace() throws Exception {
         String name = "WORD COUNT";
         try {
