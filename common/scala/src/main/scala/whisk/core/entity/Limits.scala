@@ -40,14 +40,17 @@ protected[entity] abstract class Limits {
 
 /**
  * Limits on a specific action. Includes the following properties
- * { timeout: maximum duration in msecs an action is allowed to consume in [100 msecs, 1 minute]
- *   memory: maximum memory in megabytes an action is allowed to consume in [128, 8192]
+ * {
+ *   timeout: maximum duration in msecs an action is allowed to consume in [100 msecs, 5 minutes],
+ *   memory: maximum memory in megabytes an action is allowed to consume in [128 MB, 512 MB],
+ *   logs: maximum logs line in megabytes an action is allowed to generate [10 MB]
  * }
  *
  * @param timeout the duration in milliseconds, assured to be non-null because it is a value
  * @param memory the memory limit in megabytes, assured to be non-null because it is a value
+ * @param logs the limit for logs written by the container and stored in the activation record, assured to be non-null because it is a value
  */
-protected[core] case class ActionLimits protected[core] (timeout: TimeLimit, memory: MemoryLimit) extends Limits {
+protected[core] case class ActionLimits protected[core] (timeout: TimeLimit, memory: MemoryLimit, logs: LogLimit) extends Limits {
     override protected[entity] def toJson = ActionLimits.serdes.write(this)
 }
 
@@ -62,31 +65,29 @@ protected[core] object ActionLimits
     extends ArgNormalizer[ActionLimits]
     with DefaultJsonProtocol {
 
-    /** Creates a ActionLimits instance with default duration and memory limit. */
-    protected[core] def apply(): ActionLimits = ActionLimits(TimeLimit(), MemoryLimit())
+    /** Creates a ActionLimits instance with default duration, memory and log limits. */
+    protected[core] def apply(): ActionLimits = ActionLimits(TimeLimit(), MemoryLimit(), LogLimit())
 
-    /**
-     * Creates a ActionLimits instance with given duration and default memory limit.
-     *
-     * @param duration the duration for the action, must not be null and must be within allowed limits
-     * @return corresponding ActionLimits
-     * @throws IllegalArgumentException if expected properties are missing or not valid
-     */
-    @throws[IllegalArgumentException]
-    protected[core] def apply(duration: FiniteDuration): ActionLimits = ActionLimits(TimeLimit(duration), MemoryLimit())
+    /** Creates a ActionLimits instance with given duration and memory and default log limit. */
+    protected[core] def apply(timeout: TimeLimit, memory: MemoryLimit): ActionLimits = ActionLimits(timeout, memory, LogLimit())
 
-    /**
-     * Creates an ActionsLimits instance from a duration and memory limit.
-     *
-     * @param duration the duration for the action, must not be null and must be within allowed limits
-     * @param megabytes the memory limit in megabytes, must be within allowed limits
-     * @return corresponding ActionLimits
-     * @throws IllegalArgumentException if expected properties are missing or not valid
-     */
-    @throws[IllegalArgumentException]
-    protected[entity] def !(duration: FiniteDuration, megabytes: Int): ActionLimits = ActionLimits(TimeLimit(duration), MemoryLimit(megabytes))
+    override protected[core] implicit val serdes = new RootJsonFormat[ActionLimits] {
+        val helper = jsonFormat3(ActionLimits.apply)
 
-    override protected[core] implicit val serdes = jsonFormat2(ActionLimits.apply)
+        def read(value: JsValue) = {
+            val obj = Try {
+                value.asJsObject.convertTo[Map[String, JsValue]]
+            } getOrElse deserializationError("no valid json object passed")
+
+            val time = TimeLimit.serdes.read(obj.get("timeout") getOrElse deserializationError("'timeout' is missing"))
+            val memory = MemoryLimit.serdes.read(obj.get("memory") getOrElse deserializationError("'memory' is missing"))
+            val logs = obj.get("logs") map { LogLimit.serdes.read(_) } getOrElse LogLimit()
+
+            ActionLimits(time, memory, logs)
+        }
+
+        def write(a: ActionLimits) = helper.write(a)
+    }
 }
 
 protected[core] object TriggerLimits

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package system.basic
+package limits
 
 import java.io.File
 
@@ -38,11 +38,16 @@ import whisk.core.entity.ByteSize
 import java.io.PrintWriter
 import java.nio.file.Files
 import whisk.core.entity.Exec
+import spray.json.DefaultJsonProtocol.LongJsonFormat
+import spray.json.DefaultJsonProtocol.IntJsonFormat
+import common.TestUtils
+import whisk.core.entity.size.SizeInt
+import whisk.core.entity.size.SizeString
+import spray.json._
+import spray.json.DefaultJsonProtocol._
 
 @RunWith(classOf[JUnitRunner])
-class ActionTests
-    extends TestHelpers
-    with WskTestHelpers {
+class ActionLimitsTests extends TestHelpers with WskTestHelpers {
 
     implicit val wskprops = WskProps()
     val wsk = new Wsk()
@@ -53,7 +58,7 @@ class ActionTests
     val testActionsDir = WhiskProperties.getFileRelativeToWhiskHome("tests/dat/actions")
     val actionCodeLimit = Exec.sizeLimit
 
-    behavior of "Actions CLI"
+    behavior of "Action limits"
 
     /**
      * Test a long running action that exceeds the maximum execution time allowed for action
@@ -87,6 +92,46 @@ class ActionTests
             withActivation(wsk.activation, run) {
                 _.fields("response").asJsObject.fields("result").toString should include(
                     """[OK] message terminated successfully""")
+
+            }
+    }
+
+    it should "succeed but truncate logs, if log size exceeds its limit" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "TestActionCausingExceededLogs"
+            assetHelper.withCleaner(wsk.action, name, confirmDelete = true) {
+                val actionName = TestUtils.getTestActionFilename("dosLogs.js")
+                (action, _) => action.create(name, Some(actionName))
+            }
+
+            val allowedSize = 10 megabytes
+            val writing = allowedSize + 2.megabytes
+            val characters = writing.toBytes / 2 // a character takes 2 bytes
+
+            val run = wsk.action.invoke(name, Map("payload" -> characters.toJson))
+            withActivation(wsk.activation, run) { response =>
+                val lines = response.fields("logs").convertTo[List[String]]
+                lines.last should be("Logs have been truncated because they exceeded the limit of 10 megabytes")
+                // dropping 39 characters (timestamp + streamname)
+                lines.dropRight(1).map(_.drop(39)).mkString.sizeInBytes should be <= allowedSize
+            }
+    }
+
+    it should "success with one log line" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "TestActionCausingExceededLogs"
+            assetHelper.withCleaner(wsk.action, name, confirmDelete = true) {
+                val actionName = TestUtils.getTestActionFilename("dosLogs.js")
+                (action, _) => action.create(name, Some(actionName))
+            }
+
+            val run = wsk.action.invoke(name)
+            withActivation(wsk.activation, run) { response =>
+                val logs = response.fields("logs").convertTo[List[String]]
+                logs.size shouldBe 1
+                logs.head should include("0123456789abcdef")
+                response.fields("response").asJsObject.fields("result").toString should include(s""""msg":1""")
+                response.fields("response").asJsObject.fields("status").toString should include("success")
             }
     }
 
