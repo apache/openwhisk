@@ -42,7 +42,9 @@ class WebSocketTests
         with JsHelpers {
 
     implicit val wskprops = WskProps()
-    val wsk = new Wsk()
+    var usePythonCLI = true
+
+    val wsk = new Wsk(usePythonCLI)
 
     val websocketSendAction = "/whisk.system/websocket/send"
 

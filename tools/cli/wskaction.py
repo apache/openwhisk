@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 
+import sys
 import os
 import json
 import base64
@@ -102,9 +103,9 @@ class Action(Item):
             return self.put(args, props, update, json.dumps(payload))
         else:
             if not args.copy:
-                print 'the artifact "%s" is not a valid file. If this is a docker image, use --docker.' % args.artifact
+                print >> sys.stderr, 'the artifact "%s" is not a valid file. If this is a docker image, use --docker.' % args.artifact
             else:
-                print 'the action "%s" does not exit, is malformed, or your are not entitled to it.' % args.artifact
+                print >> sys.stderr, 'the action "%s" does not exit, is malformed, or your are not entitled to it.' % args.artifact
             return 2
 
     def invoke(self, args, props):

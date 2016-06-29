@@ -67,7 +67,7 @@ def main():
         if (args.verbose):
             print props
         if apihost is None and (args.cmd != 'property' or args.cmd == 'property' and args.subcmd != 'set'):
-            print 'error: API host is not set. Set it with "wsk property set --apihost <host>".'
+            print >> sys.stderr, 'error: API host is not set. Set it with "wsk property set --apihost <host>".'
             return 2
 
         exitCode = {
@@ -164,7 +164,7 @@ def propCmd(args, props, userprops, propsLocation):
             else:
                 auth = userprops.get('AUTH')
             if auth is None:
-                print 'error: cannot set namespace without an authentication key'
+                print >> sys.stderr, 'error: cannot set namespace without an authentication key'
                 return 1
             res = request('GET', url, auth=auth, verbose=args.verbose)
             namespaces = None
@@ -183,7 +183,7 @@ def propCmd(args, props, userprops, propsLocation):
                         wskprop.updateProps('NAMESPACE', '%s' % choice, propsLocation)
                         print 'ok: namespace set to %s' % choice
                         return 0
-                print 'error: you are either not entitled to a namespace or you made an invalid choice'
+                print >> sys.stderr, 'error: you are either not entitled to a namespace or you made an invalid choice'
                 return 1
             else:
                 return responseError(res)
