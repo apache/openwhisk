@@ -87,7 +87,8 @@ class Action(Item):
     def create(self, args, props, update):
         exe = self.getExec(args, props)
         validExe = exe is not None and 'kind' in exe
-        if update or validExe: # if create action, then exe must be valid
+        fileok = args.artifact is None or os.path.isfile(args.artifact)
+        if (update and fileok) or validExe: # if create action, then exe must be valid
             payload = {}
             if args.annotation:
                 payload['annotations'] = getAnnotations(args)
