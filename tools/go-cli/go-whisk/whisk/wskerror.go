@@ -21,8 +21,9 @@ import (
 import "fmt"
 
 const EXITCODE_ERR_GENERAL      int = 1
-const EXITCODE_ERR_NETWORK      int = 2
-const EXITCODE_ERR_HTTP_RESP    int = 3
+const EXITCODE_ERR_USAGE        int = 2
+const EXITCODE_ERR_NETWORK      int = 3
+const EXITCODE_ERR_HTTP_RESP    int = 4
 
 const DISPLAY_MSG bool      = true
 const NO_DISPLAY_MSG bool   = false
@@ -72,11 +73,13 @@ func MakeWskErrorFromWskError (e error, werr error, ec int, flags ...bool ) (we 
         // werr can either be a pointer reference
         if we, ok := werr.(*WskError); ok {
             exitCode = we.ExitCode
+            flags[1] = we.DisplayUsage || flags[1]  // Display usage syntax if either error requests it
         }
 
         // ... or a value
         if we, ok := werr.(WskError); ok {
             exitCode = we.ExitCode
+            flags[1] = we.DisplayUsage || flags[1]  // Display usage syntax if either error requests it
         }
     }
 

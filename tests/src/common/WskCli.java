@@ -42,9 +42,7 @@ public class WskCli {
 
     private static String cliPath;
     private static String cliDir;
-    private static final File binDir = WhiskProperties.getFileRelativeToWhiskHome("bin");
 
-    private static final String adminBinaryName = "wskadmin";
     private final File binaryPath;
     public String subject;
     public final String authKey;
@@ -999,24 +997,4 @@ public class WskCli {
     public void setEnv(Map<String, String> env) {
         this.env = env;
     }
-
-    /*
-     * Since there are many unit tests in Java and some of them need access to
-     * WskAdmin, we lightly reflect the admin methods here.
-     */
-    public RunResult admin(String... params) throws IllegalArgumentException, IOException {
-        File workingDir = new File(".");
-        String[] cmd = new String[] { WhiskProperties.python, new File(binDir, adminBinaryName).toString() };
-
-        return TestUtils.runCmd(DONTCARE_EXIT, workingDir, TestUtils.logger, null, Util.concat(cmd, params));
-    }
-
-    /*
-     * Create a user. The caller is responsible for checking success upon which
-     * stdout contains the authKey.
-     */
-    public RunResult createUser(String subject) throws Exception {
-        return admin("user", "create", subject);
-    }
-
 }

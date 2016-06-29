@@ -596,7 +596,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
         if err != nil {
             whisk.Debug(whisk.DbgError, "os.Stat(%s) error: %s\n", artifact, err)
             errMsg := fmt.Sprintf("File '%s' does not exist: %s", artifact, err)
-            whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+            whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_USAGE,
                 whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             return nil, sharedSet, whiskErr
         }
