@@ -1,6 +1,6 @@
 ext.dockerImageName = "whisk/go-cli"
 ext.dockerContainerName = "go-cli"
-ext.dockerBuildArgs = getDockerBuildArgs()
+//ext.dockerBuildArgs = getDockerBuildArgs()
 apply from: "../../docker.gradle"
 
 // Returns the Go CLI docker build args
