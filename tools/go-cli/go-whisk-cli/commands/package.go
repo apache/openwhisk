@@ -166,7 +166,6 @@ var packageCreateCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        var shared, sharedSet bool
 
         if len(args) != 1 {
             whisk.Debug(whisk.DbgError, "Invalid number of arguments %d (expected 1 argument); args: %#v\n", len(args), args)
@@ -184,16 +183,6 @@ var packageCreateCmd = &cobra.Command{
             return werr
         }
         client.Namespace = qName.namespace
-
-        if (flags.common.shared == "yes") {
-            shared = true
-            sharedSet = true
-        } else if (flags.common.shared == "no") {
-            shared = false
-            sharedSet = true
-        } else {
-            sharedSet = false
-        }
 
         whisk.Debug(whisk.DbgInfo, "Parsing parameters: %#v\n", flags.common.param)
         parameters, err := parseParametersArray(flags.common.param)
@@ -215,28 +204,18 @@ var packageCreateCmd = &cobra.Command{
             return werr
         }
 
-        var p whisk.PackageInterface
-        if sharedSet {
-            p = &whisk.SentPackagePublish{
-                Name:        qName.entityName,
-                Namespace:   qName.namespace,
-                Publish:     shared,
-                Annotations: annotations,
-                Parameters:  parameters,
-            }
-        } else {
-            p = &whisk.SentPackageNoPublish{
-                Name:        qName.entityName,
-                Namespace:   qName.namespace,
-                Publish:     shared,
-                Annotations: annotations,
-                Parameters:  parameters,
-            }
+        var packageRequest whisk.PackageInterface
+        packageRequest = &whisk.SentPackage {
+            Name:        qName.entityName,
+            Namespace:   qName.namespace,
+            Publish:     flags.common.shared,
+            Annotations: annotations,
+            Parameters:  parameters,
         }
 
-        p, _, err = client.Packages.Insert(p, false)
+        packageRequest, _, err = client.Packages.Insert(packageRequest, false)
         if err != nil {
-            whisk.Debug(whisk.DbgError, "client.Packages.Insert(%#v, false) failed: %s\n", p, err)
+            whisk.Debug(whisk.DbgError, "client.Packages.Insert(%#v, false) failed: %s\n", packageRequest, err)
             errStr := fmt.Sprintf("Package creation failed: %s", err)
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
@@ -288,7 +267,6 @@ var packageUpdateCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        var shared, sharedSet bool
 
         if len(args) < 1 {
             whisk.Debug(whisk.DbgError, "Invalid number of arguments %d (expected 1 argument); args: %#v\n", len(args), args)
@@ -306,16 +284,6 @@ var packageUpdateCmd = &cobra.Command{
             return werr
         }
         client.Namespace = qName.namespace
-
-        if (flags.common.shared == "yes") {
-            shared = true
-            sharedSet = true
-        } else if (flags.common.shared == "no") {
-            shared = false
-            sharedSet = true
-        } else {
-            sharedSet = false
-        }
 
         whisk.Debug(whisk.DbgInfo, "Parsing parameters: %#v\n", flags.common.param)
         parameters, err := parseParametersArray(flags.common.param)
@@ -336,28 +304,19 @@ var packageUpdateCmd = &cobra.Command{
             return werr
         }
 
-        var p whisk.PackageInterface
-        if sharedSet {
-            p = &whisk.SentPackagePublish{
-                Name:        qName.entityName,
-                Namespace:   qName.namespace,
-                Publish:     shared,
-                Annotations: annotations,
-                Parameters:  parameters,
-            }
-        } else {
-            p = &whisk.SentPackageNoPublish{
-                Name:        qName.entityName,
-                Namespace:   qName.namespace,
-                Publish:     shared,
-                Annotations: annotations,
-                Parameters:  parameters,
-            }
+        var packageRequest whisk.PackageInterface
+        packageRequest = &whisk.SentPackage {
+            Name:        qName.entityName,
+            Namespace:   qName.namespace,
+            Publish:     flags.common.shared,
+            Annotations: annotations,
+            Parameters:  parameters,
         }
 
-        p, _, err = client.Packages.Insert(p, true)
+
+        packageRequest, _, err = client.Packages.Insert(packageRequest, true)
         if err != nil {
-            whisk.Debug(whisk.DbgError, "client.Packages.Insert(%#v, true) failed: %s\n", p, err)
+            whisk.Debug(whisk.DbgError, "client.Packages.Insert(%#v, true) failed: %s\n", packageRequest, err)
             errStr := fmt.Sprintf("Package update failed: %s", err)
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
@@ -462,7 +421,6 @@ var packageListCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        var shared bool
 
         qName := qualifiedName{}
         if len(args) == 1 {
@@ -485,16 +443,10 @@ var packageListCmd = &cobra.Command{
             client.Namespace = ns
         }
 
-        if (flags.common.shared == "yes") {
-            shared = true
-        } else  {
-            shared = false
-        }
-
         options := &whisk.PackageListOptions{
             Skip:   flags.common.skip,
             Limit:  flags.common.limit,
-            Public: shared,
+            Public: flags.common.shared,
             Docs:   flags.common.full,
         }
 
@@ -598,19 +550,19 @@ func init() {
     packageCreateCmd.Flags().StringSliceVarP(&flags.common.annotation, "annotation", "a", []string{}, "annotations")
     packageCreateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, "default parameters")
     packageCreateCmd.Flags().StringVarP(&flags.xPackage.serviceGUID, "service_guid", "s", "", "a unique identifier of the service")
-    packageCreateCmd.Flags().StringVar(&flags.common.shared, "shared", "" , "shared action (default: private)")
+    packageCreateCmd.Flags().BoolVar(&flags.common.shared, "shared", false, "make a package publically accessible")
 
     packageUpdateCmd.Flags().StringSliceVarP(&flags.common.annotation, "annotation", "a", []string{}, "annotations")
     packageUpdateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, "default parameters")
     packageUpdateCmd.Flags().StringVarP(&flags.xPackage.serviceGUID, "service_guid", "s", "", "a unique identifier of the service")
-    packageUpdateCmd.Flags().StringVar(&flags.common.shared, "shared", "", "shared action (default: private)")
+    packageUpdateCmd.Flags().BoolVar(&flags.common.shared, "shared", false, "make a package publically accessible")
 
     packageGetCmd.Flags().BoolVarP(&flags.common.summary, "summary", "s", false, "summarize entity details")
 
     packageBindCmd.Flags().StringSliceVarP(&flags.common.annotation, "annotation", "a", []string{}, "annotations")
     packageBindCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, "default parameters")
 
-    packageListCmd.Flags().StringVar(&flags.common.shared, "shared", "", "include publicly shared entities in the result")
+    packageListCmd.Flags().BoolVar(&flags.common.shared, "shared", false, "include publicly shared entities in the result")
     packageListCmd.Flags().IntVarP(&flags.common.skip, "skip", "s", 0, "skip this many entities from the head of the collection")
     packageListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, "only return this many entities from the collection")
     packageListCmd.Flags().BoolVar(&flags.common.full, "full", false, "include full entity description")

@@ -35,7 +35,7 @@ type PackageInterface interface {
 }
 
 // Use this struct to create/update a package/binding with the Publish setting
-type SentPackagePublish struct {
+type SentPackage struct {
     Namespace string `json:"-"`
     Name      string `json:"-"`
     Version   string `json:"version,omitempty"`
@@ -43,20 +43,7 @@ type SentPackagePublish struct {
     Annotations 	 `json:"annotations,omitempty"`
     Parameters  	 *json.RawMessage `json:"parameters,omitempty"`
 }
-func (p *SentPackagePublish) GetName() string {
-    return p.Name
-}
-
-// Use this struct to update a package/binding with no change to the Publish setting
-type SentPackageNoPublish struct {
-    Namespace string `json:"-"`
-    Name      string `json:"-"`
-    Version   string `json:"version,omitempty"`
-    Publish   bool   `json:"publish,omitempty"`
-    Annotations 	 `json:"annotations,omitempty"`
-    Parameters  	 *json.RawMessage `json:"parameters,omitempty"`
-}
-func (p *SentPackageNoPublish) GetName() string {
+func (p *SentPackage) GetName() string {
     return p.Name
 }
 

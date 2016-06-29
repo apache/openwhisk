@@ -85,7 +85,7 @@ var actionCreateCmd = &cobra.Command{
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
-        action, sharedSet, err := parseAction(cmd, args)
+        action, err := parseAction(cmd, args)
         if err != nil {
             whisk.Debug(whisk.DbgError, "parseAction(%s, %s) error: %s\n", cmd, args, err)
             errMsg := fmt.Sprintf("Unable to parse action command arguments: %s", err)
@@ -94,9 +94,9 @@ var actionCreateCmd = &cobra.Command{
             return whiskErr
         }
 
-        _, _, err = client.Actions.Insert(action, sharedSet, false)
+        _, _, err = client.Actions.Insert(action, false)
         if err != nil {
-            whisk.Debug(whisk.DbgError, "client.Actions.Insert(%#v, %t, false) error: %s\n", action, sharedSet, err)
+            whisk.Debug(whisk.DbgError, "client.Actions.Insert(%#v, false) error: %s\n", action, err)
             errMsg := fmt.Sprintf("Unable to create action: %s", err)
             whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_NETWORK,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
@@ -147,7 +147,7 @@ var actionUpdateCmd = &cobra.Command{
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
-        action, sharedSet, err := parseAction(cmd, args)
+        action, err := parseAction(cmd, args)
         if err != nil {
             whisk.Debug(whisk.DbgError, "parseAction(%s, %s) error: %s\n", cmd, args, err)
             errMsg := fmt.Sprintf("Unable to parse action command arguments: %s", err)
@@ -156,9 +156,9 @@ var actionUpdateCmd = &cobra.Command{
             return whiskErr
         }
 
-        _, _, err = client.Actions.Insert(action, sharedSet, true)
+        _, _, err = client.Actions.Insert(action, true)
         if err != nil {
-            whisk.Debug(whisk.DbgError, "client.Actions.Insert(%#v, %t, false) error: %s\n", action, sharedSet, err)
+            whisk.Debug(whisk.DbgError, "client.Actions.Insert(%#v, false) error: %s\n", action, err)
             errMsg := fmt.Sprintf("Unable to update action: %s", err)
             whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_NETWORK,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
@@ -443,9 +443,8 @@ usage: wsk action update [-h] [-u AUTH] [--docker] [--copy] [--sequence]
 [-t TIMEOUT] [-m MEMORY]
 name [artifact]
 */
-func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error) {
+func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, error) {
     var err error
-    var shared, sharedSet bool
     var artifact string
     var limits *whisk.Limits
 
@@ -455,7 +454,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
         errMsg := fmt.Sprintf("Invalid number of arguments (%d) provided; the action name is the only expected argument", len(args))
         whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
             whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-        return nil, sharedSet, whiskErr
+        return nil, whiskErr
     }
 
     qName := qualifiedName{}
@@ -465,22 +464,12 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
         errMsg := fmt.Sprintf("'%s' is not a valid qualified name: %s", args[0], err)
         whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
             whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-        return nil, sharedSet, whiskErr
+        return nil, whiskErr
     }
     client.Namespace = qName.namespace
 
     if len(args) == 2 {
         artifact = args[1]
-    }
-
-    if flags.action.shared == "yes" {
-        shared = true
-        sharedSet = true
-    } else if flags.action.shared == "no" {
-        shared = false
-        sharedSet = true
-    } else {
-        sharedSet = false
     }
 
     whisk.Debug(whisk.DbgInfo, "Parsing parameters: %#v\n", flags.common.param)
@@ -490,7 +479,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
         errMsg := fmt.Sprintf("Invalid parameter argument '%#v': %s", flags.common.param, err)
         whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
             whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-        return nil, sharedSet, whiskErr
+        return nil, whiskErr
     }
 
     whisk.Debug(whisk.DbgInfo, "Parsing annotations: %#v\n", flags.common.annotation)
@@ -500,7 +489,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
         errMsg := fmt.Sprintf("Invalid annotation argument '%#v': %s", flags.common.annotation, err)
         whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
             whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-        return nil, sharedSet, whiskErr
+        return nil, whiskErr
     }
 
     // Only include the memory and timeout limit if set
@@ -528,7 +517,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
             errMsg := fmt.Sprintf("'%s' is not a valid qualified name: %s", args[1], err)
             whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return nil, sharedSet, whiskErr
+            return nil, whiskErr
         }
         client.Namespace = qNameCopy.namespace
 
@@ -538,7 +527,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
             errMsg := fmt.Sprintf("Unable to obtain action '%s' to copy: %s", qName.entityName, err)
             whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return nil, sharedSet, whiskErr
+            return nil, whiskErr
         }
 
         client.Namespace = qName.namespace
@@ -553,7 +542,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
             errMsg := fmt.Sprintf("Unable to obtain the '%s' action needed for action sequencing: %s", "system/pipe", err)
             whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return nil, sharedSet, whiskErr
+            return nil, whiskErr
         }
 
         if len(artifact) > 0 {
@@ -568,7 +557,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
                     errMsg := fmt.Sprintf("'%s' is not a valid qualified name: %s", actions[i], err)
                     whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                         whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-                    return nil, sharedSet, whiskErr
+                    return nil, whiskErr
                 }
 
                 actionList = actionList + "\"/" + actionQName.namespace + "/" + actionQName.entityName + "\""
@@ -585,7 +574,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
             errMsg := fmt.Sprintf("Comma separated action sequence is missing")
             whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return nil, sharedSet, whiskErr
+            return nil, whiskErr
         }
 
         action.Exec = pipeAction.Exec
@@ -598,7 +587,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
             errMsg := fmt.Sprintf("File '%s' does not exist: %s", artifact, err)
             whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return nil, sharedSet, whiskErr
+            return nil, whiskErr
         }
 
         file, err := ioutil.ReadFile(artifact)
@@ -607,7 +596,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
             errMsg := fmt.Sprintf("Unable to read '%s': %s", artifact, err)
             whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return nil, sharedSet, whiskErr
+            return nil, whiskErr
         }
 
         if action.Exec == nil {
@@ -635,14 +624,14 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
             action.Exec.Main, err = findMainJarClass(artifact)
 
             if err != nil {
-                return nil, sharedSet, err
+                return nil, err
             }
         } else {
             whisk.Debug(whisk.DbgError, "--kind argument '%s' is invalid\n", flags.action.kind)
             errMsg := fmt.Sprintf("'%s' is not a supported action runtime", flags.action.kind)
             whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG,
                 whisk.DISPLAY_USAGE)
-            return nil, sharedSet, whiskErr
+            return nil, whiskErr
         }
     }
 
@@ -653,7 +642,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
             errMsg := fmt.Sprintf("Unable to access library '%s': %s", flags.action.lib, err)
             whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return nil, sharedSet, whiskErr
+            return nil, whiskErr
         }
 
         var r io.Reader
@@ -667,14 +656,14 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
                     errMsg := fmt.Sprintf("Unable to decompress '%s': %s", file.Name(), err)
                     whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                         whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-                    return nil, sharedSet, whiskErr
+                    return nil, whiskErr
                 }
             default:
                 whisk.Debug(whisk.DbgError, "filepath.Ext(%s) returned '%s' - an unsupported extension\n", file.Name(), ext)
                 errMsg := fmt.Sprintf("Library '%s' has an unsupported file compression: %s", file.Name(), ext)
                 whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                     whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-                return nil, sharedSet, whiskErr
+                return nil, whiskErr
         }
 
         lib, err := ioutil.ReadAll(r)
@@ -684,7 +673,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
             whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
 
-            return nil, sharedSet, whiskErr
+            return nil, whiskErr
         }
 
         if action.Exec == nil {
@@ -696,7 +685,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
 
     action.Name = qName.entityName
     action.Namespace = qName.namespace
-    action.Publish = shared
+    action.Publish = flags.common.shared
     action.Annotations = annotations
     action.Limits = limits
 
@@ -706,7 +695,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
     }
 
     whisk.Debug(whisk.DbgInfo, "Parsed action struct: %#v\n", action)
-    return action, sharedSet, nil
+    return action, nil
 }
 
 
@@ -720,7 +709,7 @@ func init() {
     actionCreateCmd.Flags().BoolVar(&flags.action.copy, "copy", false, "treat artifact as the name of an existing action")
     actionCreateCmd.Flags().BoolVar(&flags.action.sequence, "sequence", false, "treat artifact as comma separated sequence of actions to invoke")
     actionCreateCmd.Flags().StringVar(&flags.action.kind, "kind", "", "the kind of the action runtime (example: swift:3)")
-    actionCreateCmd.Flags().StringVar(&flags.action.shared, "shared", "", "shared action (default: private)")
+    actionCreateCmd.Flags().BoolVar(&flags.common.shared, "shared", false, "make an action publically accessible")
     actionCreateCmd.Flags().StringVar(&flags.action.lib, "lib", "", "add library to artifact (must be a gzipped tar file)")
     actionCreateCmd.Flags().StringVar(&flags.action.xPackage, "package", "", "package")
     actionCreateCmd.Flags().IntVarP(&flags.action.timeout, "timeout", "t", 0, "the timeout limit in miliseconds when the action will be terminated")
@@ -731,7 +720,7 @@ func init() {
     actionUpdateCmd.Flags().BoolVar(&flags.action.docker, "docker", false, "treat artifact as docker image path on dockerhub")
     actionUpdateCmd.Flags().BoolVar(&flags.action.copy, "copy", false, "treat artifact as the name of an existing action")
     actionUpdateCmd.Flags().BoolVar(&flags.action.sequence, "sequence", false, "treat artifact as comma separated sequence of actions to invoke")
-    actionUpdateCmd.Flags().StringVar(&flags.action.shared, "shared", "", "shared action (default: private)")
+    actionUpdateCmd.Flags().BoolVar(&flags.common.shared, "shared", false, "make an action publically accessible")
     actionUpdateCmd.Flags().StringVar(&flags.action.lib, "lib", "", "add library to artifact (must be a gzipped tar file)")
     actionUpdateCmd.Flags().StringVar(&flags.action.xPackage, "package", "", "package")
     actionUpdateCmd.Flags().IntVarP(&flags.action.timeout, "timeout", "t", 0, "the timeout limit in miliseconds when the action will be terminated")

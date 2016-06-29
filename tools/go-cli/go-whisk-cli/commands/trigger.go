@@ -214,24 +214,11 @@ var triggerCreateCmd = &cobra.Command{
             whisk.Debug(whisk.DbgInfo, "Trigger feed annotations: %#v\n", annotations)
         }
 
-        whisk.Debug(whisk.DbgInfo, "Trigger shared: %s\n", flags.common.shared)
-        shared := strings.ToLower(flags.common.shared)
-        if shared != "yes" && shared != "no" && shared != "" {  // "" means argument was not specified
-            whisk.Debug(whisk.DbgError, "Shared argument value '%s' is invalid\n", flags.common.shared)
-            errStr := fmt.Sprintf("Invalid --shared argument value '%s'; valid values are 'yes' or 'no'", flags.common.shared)
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), nil, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
-        }
-        publish := false
-        if shared == "yes" {
-            publish = true
-        }
-
         trigger := &whisk.Trigger{
             Name:        qName.entityName,
             Parameters:  parameters,
             Annotations: annotations,
-            Publish:     publish,
+            Publish:     flags.common.shared,
         }
 
         retTrigger, _, err := client.Triggers.Insert(trigger, false)
@@ -323,32 +310,11 @@ var triggerUpdateCmd = &cobra.Command{
             return werr
         }
 
-        whisk.Debug(whisk.DbgInfo, "Trigger shared: %s\n", flags.common.shared)
-        shared := strings.ToLower(flags.common.shared)
-
-        if shared != "yes" && shared != "no" && shared != "" {  // "" means argument was not specified
-            whisk.Debug(whisk.DbgError, "Shared argument value '%s' is invalid\n", flags.common.shared)
-            errStr := fmt.Sprintf("Invalid --shared argument value '%s'; valid values are 'yes' or 'no'", flags.common.shared)
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), nil, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
-        }
-        publishSet := false
-        publish := false
-        if shared == "yes" {
-            publishSet = true
-            publish = true
-        } else if shared == "no" {
-            publishSet = true
-            publish = false
-        }
-
         trigger := &whisk.Trigger{
             Name:        qName.entityName,
             Parameters:  parameters,
             Annotations: annotations,
-        }
-        if publishSet {
-            trigger.Publish = publish
+            Publish: flags.common.shared,
         }
 
         retTrigger, _, err := client.Triggers.Insert(trigger, true)
@@ -603,12 +569,12 @@ func init() {
 
     triggerCreateCmd.Flags().StringSliceVarP(&flags.common.annotation, "annotation", "a", []string{}, "annotations")
     triggerCreateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, "default parameters")
-    triggerCreateCmd.Flags().StringVar(&flags.common.shared, "shared", "no", "shared action [yes|no]")
+    triggerCreateCmd.Flags().BoolVar(&flags.common.shared, "shared", false, "make a trigger publically accessible")
     triggerCreateCmd.Flags().StringVarP(&flags.common.feed, "feed", "f", "", "trigger feed")
 
     triggerUpdateCmd.Flags().StringSliceVarP(&flags.common.annotation, "annotation", "a", []string{}, "annotations")
     triggerUpdateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, "default parameters")
-    triggerUpdateCmd.Flags().StringVar(&flags.common.shared, "shared", "", "shared action (yes = shared, no[default] = private)")
+    triggerUpdateCmd.Flags().BoolVar(&flags.common.shared, "shared", false, "make a trigger publically accessible")
 
     triggerFireCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, "default parameters")
 

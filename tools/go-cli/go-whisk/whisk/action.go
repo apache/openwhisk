@@ -68,22 +68,10 @@ func (p *Action) GetAnnotationKeyValue(key string) string {
     return val
 }
 
-type SentActionPublish struct {
+type SentAction struct {
     Namespace   string      `json:"-"`
     Version     string      `json:"-"`
     Publish     bool        `json:"publish"`
-    Parameters  *json.RawMessage `json:"parameters,omitempty"`
-    Exec        *Exec       `json:"exec,omitempty"`
-    Annotations             `json:"annotations,omitempty"`
-    Limits      *Limits     `json:"limits,omitempty"`
-    Error       string      `json:"error,omitempty"`
-    Code        int         `json:"code,omitempty"`
-}
-
-type SentActionNoPublish struct {
-    Namespace   string      `json:"-"`
-    Version     string      `json:"-"`
-    Publish     bool        `json:"publish,omitempty"`
     Parameters  *json.RawMessage `json:"parameters,omitempty"`
     Exec        *Exec       `json:"exec,omitempty"`
     Annotations             `json:"annotations,omitempty"`
@@ -153,33 +141,25 @@ func (s *ActionService) List(packageName string, options *ActionListOptions) ([]
     return actions, resp, err
 }
 
-func (s *ActionService) Insert(action *Action, sharedSet bool, overwrite bool) (*Action, *http.Response, error) {
-    var sentAction interface{}
+func (s *ActionService) Insert(action *Action, overwrite bool) (*Action, *http.Response, error) {
+    var requestAction interface{}
 
     action.Name = strings.Replace(url.QueryEscape(action.Name), "+", " ", -1)
     route := fmt.Sprintf("actions/%s?overwrite=%t", action.Name, overwrite)
 
-    if sharedSet {
-        sentAction = SentActionPublish{
-            Parameters: action.Parameters,
-            Exec: action.Exec,
-            Publish: action.Publish,
-            Annotations: action.Annotations,
-            Limits: action.Limits,
-        }
-    } else {
-        sentAction = SentActionNoPublish{
-            Parameters: action.Parameters,
-            Exec: action.Exec,
-            Annotations: action.Annotations,
-            Limits: action.Limits,
-        }
+    requestAction = SentAction{
+        Parameters: action.Parameters,
+        Exec: action.Exec,
+        Publish: action.Publish,
+        Annotations: action.Annotations,
+        Limits: action.Limits,
     }
+
     Debug(DbgInfo, "Action insert route: %s\n", route)
 
-    req, err := s.client.NewRequest("PUT", route, sentAction)
+    req, err := s.client.NewRequest("PUT", route, requestAction)
     if err != nil {
-        Debug(DbgError, "http.NewRequest(PUT, %s, %#v) error: '%s'\n", route, err, sentAction)
+        Debug(DbgError, "http.NewRequest(PUT, %s, %#v) error: '%s'\n", route, err, requestAction)
         errMsg := fmt.Sprintf("Unable to create HTTP request for PUT '%s'; error: %s", route, err)
         whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
@@ -241,8 +221,8 @@ func (s *ActionService) Delete(actionName string) (*http.Response, error) {
         return nil, whiskErr
     }
 
-    a := new(SentActionNoPublish)
-    resp, err := s.client.Do(req, a)
+    actionRequest := new(SentAction)
+    resp, err := s.client.Do(req, actionRequest)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
         errMsg := fmt.Sprintf("Request failure: %s", err)
