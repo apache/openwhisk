@@ -298,17 +298,17 @@ class WskBasicTests
     it should "reject create with missing file" in {
         wsk.action.create("missingFile", Some("notfound"),
             expectedExitCode = MISUSE_EXIT).
-            stderr should include("not a valid file")
+          stderr should include("not a valid file")
     }
 
     it should "reject action update when specified file is missing" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            // Create dummy action to update
-            val name = "updateMissingFile"
-            val file = Some(TestUtils.getCatalogFilename("samples/hello.js"))
-            assetHelper.withCleaner(wsk.action, name) { (action, name) => action.create(name, file) }
-            // Update it with a missing file
-            wsk.action.create("updateMissingFile", Some("notfound"), update = true, expectedExitCode = MISUSE_EXIT)
+          // Create dummy action to update
+          val name = "updateMissingFile"
+          val file = Some(TestUtils.getCatalogFilename("samples/hello.js"))
+          assetHelper.withCleaner(wsk.action, name) { (action, name) => action.create(name, file) }
+          // Update it with a missing file
+          wsk.action.create("updateMissingFile", Some("notfound"), update = true, expectedExitCode = MISUSE_EXIT)
     }
 
     /**
