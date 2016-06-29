@@ -48,6 +48,7 @@ import whisk.core.entity.Parameters
 import whisk.core.entity.Secret
 import whisk.core.entity.SemVer
 import whisk.core.entity.TimeLimit
+import whisk.core.entity.LogLimit
 import whisk.core.entity.UUID
 
 @RunWith(classOf[JUnitRunner])
@@ -314,11 +315,13 @@ class SchemaTests extends FlatSpec with BeforeAndAfter {
 
     it should "properly deserialize JSON" in {
         val json = Seq[JsValue](
-            JsObject("timeout" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson, "memory" -> MemoryLimit.STD_MEMORY.toJson),
-            JsObject("timeout" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson, "memory" -> MemoryLimit.STD_MEMORY.toJson, "foo" -> "bar".toJson))
-        val limits = json.map { l => ActionLimits.serdes.read(l) }
+            JsObject("timeout" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson, "memory" -> MemoryLimit.STD_MEMORY.toJson, "logs" -> LogLimit.STD_LOGSIZE.toJson),
+            JsObject("timeout" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson, "memory" -> MemoryLimit.STD_MEMORY.toJson, "logs" -> LogLimit.STD_LOGSIZE.toJson, "foo" -> "bar".toJson),
+            JsObject("timeout" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson, "memory" -> MemoryLimit.STD_MEMORY.toJson))
+        val limits = json.map(ActionLimits.serdes.read)
         assert(limits(0) == ActionLimits())
         assert(limits(1) == ActionLimits())
+        assert(limits(2) == ActionLimits())
         assert(limits(0).toJson == json(0))
         assert(limits(1).toJson == json(0)) // drops unknown prop "foo"
         assert(limits(1).toJson != json(1)) // drops unknown prop "foo"
@@ -331,6 +334,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter {
             JsNull,
             JsObject("timeout" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson),
             JsObject("memory" -> MemoryLimit.STD_MEMORY.toJson),
+            JsObject("logs" -> (LogLimit.STD_LOGSIZE + 1).toJson),
             JsObject("TIMEOUT" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson, "MEMORY" -> MemoryLimit.STD_MEMORY.toJson),
             JsObject("timeout" -> (TimeLimit.STD_DURATION.toMillis.toDouble + .01).toJson, "memory" -> (MemoryLimit.STD_MEMORY.toDouble + .01).toJson),
             JsObject("timeout" -> null, "memory" -> null),

@@ -30,7 +30,6 @@ import org.scalatest.junit.JUnitRunner
 
 import akka.actor.ActorSystem
 import akka.actor.PoisonPill
-import scala.concurrent.Promise
 
 @RunWith(classOf[JUnitRunner])
 class SchedulerTests extends FlatSpec with Matchers {
@@ -94,7 +93,9 @@ class SchedulerTests extends FlatSpec with Matchers {
         scheduled ! PoisonPill
 
         val differences = calculateDifferences(calls)
-        all(differences) should be >= timeBetweenCalls
+        withClue(s"expecting all $differences to be >= $timeBetweenCalls") {
+            differences.forall(_ >= timeBetweenCalls)
+        }
     }
 
     it should "stop the scheduler if an uncaught exception is thrown by the passed closure" in {
@@ -138,7 +139,9 @@ class SchedulerTests extends FlatSpec with Matchers {
         scheduled ! PoisonPill
 
         val differences = calculateDifferences(calls)
-        all(differences) should be <= timeBetweenCalls + schedulerSlack
+        withClue(s"expecting all $differences to be <= $timeBetweenCalls") {
+            differences.forall(_ <= timeBetweenCalls + schedulerSlack)
+        }
     }
 
     it should "not wait when the closure takes longer than the interval" in {
@@ -155,6 +158,8 @@ class SchedulerTests extends FlatSpec with Matchers {
         scheduled ! PoisonPill
 
         val differences = calculateDifferences(calls)
-        all(differences) should be <= computationTime + schedulerSlack
+        withClue(s"expecting all $differences to be <= $computationTime") {
+            differences.forall(_ <= computationTime + schedulerSlack)
+        }
     }
 }

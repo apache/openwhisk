@@ -92,6 +92,9 @@ trait SizeConversion {
     def B = sizeIn(SizeUnits.BYTE)
     def KB = sizeIn(SizeUnits.KB)
     def MB = sizeIn(SizeUnits.MB)
+    def bytes = B
+    def kilobytes = KB
+    def megabytes = MB
 
     def sizeInBytes = sizeIn(SizeUnits.BYTE)
 

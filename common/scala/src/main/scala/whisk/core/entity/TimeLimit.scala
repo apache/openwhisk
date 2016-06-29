@@ -29,7 +29,7 @@ import scala.language.postfixOps
 
 /**
  * TimeLimit encapsulates a duration for an action. The duration must be within a
- * permissible range (currently [100 msecs, 1 minute]).
+ * permissible range (currently [100 msecs, 5 minutes]).
  *
  * It is a value type (hence == is .equals, immutable and cannot be assigned null).
  * The constructor is private so that argument requirements are checked and normalized
