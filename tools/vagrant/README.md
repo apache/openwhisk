@@ -15,7 +15,8 @@ cd openwhisk/tools/vagrant
 
 #### Option 1: Create VM using ephemeral CouchDB
 **Important** We advise that you use this method for development of OpenWhisk.
-Please note that no data will persist between two creations of the container.
+Please note that no data will persist between two creations of the container, 
+data will persist after re-deploying or restaring VM.
 For more information on datastore configurations see [tools/db/README.md](../../db/README.md).
 ```
 # Configure with couchdb docker container running inside the VM
@@ -92,8 +93,6 @@ vagrant ssh
 wsk action invoke /whisk.system/samples/echo -p message hello --blocking --result
 ```
 
-
-
 ### Running tests
 ```
 vagrant ssh
@@ -101,21 +100,52 @@ gradle tests:test
 ```
 
 ### Build
-Use gradle to build docker images from inside the VM
+Use gradle to build docker images from inside the VM, this is done automatically once at VM creation.
 ```
 vagrant ssh
 cd openwhisk
 gradle distDocker
 ```
 
-### Deploy (ansible)
-Use ansible to re-deploy OpenWhisk from inside the VM
+### Safe Re-deploy (after VM restart)
+Use ansible to deploy from inside the VM, this is done automatically once at VM creation.
+You can deploy OpenWhisk and keep the last state of the data store.
+This will keep the transient data store including user actions and sytem catalog, even if using CouchDB container
+You can do this after restarting the Vagrant VM using `vagrant reload` or after starting the VM with `vagrant up` from halt or suspended state
 ```
 vagrant ssh
 cd openwhisk/ansible
 ansible-playbook -i environments/local openwhisk.yml -e mode=clean
 ansible-playbook -i environments/local openwhisk.yml
 ```
+
+### Teardown and Deploy (refresh the data store)
+Use ansible to re-deploy OpenWhisk from inside the VM
+```
+vagrant ssh
+cd openwhisk/ansible
+# system setup
+ansible-playbook -i environments/local setup.yml
+# install requisites
+ansible-playbook -i environments/local prereq.yml
+# deploy couchdb
+ansible-playbook -i environments/local couchdb.yml -e mode=clean
+ansible-playbook -i environments/local couchdb.yml
+# initialize db with guest/system keys
+ansible-playbook -i environments/local initdb.yml
+# recreate main db for entities
+ansible-playbook -i environments/local wipe.yml
+# build/deploy system
+cd ..
+gradle distDocker
+cd ansible
+ansible-playbook -i environments/local openwhisk.yml -e mode=clean
+ansible-playbook -i environments/local openwhisk.yml
+#install catalog
+ansible-playbook -i environments/local postdeploy.yml
+```
+
+**Tip** Do not restart the VM using Virtual Box, always use `vagrant` command line to start using `vagrant up` or to restart using `vagrant reload`, this allows the `$HOME/openwhisk` share folder to be available inside the VM.
 
 **Tip** If you have problems with data stores check that `ansible/db_local.ini`.
 
@@ -170,6 +200,9 @@ the configuration to use trusted certificates instead.
 
 # Resume Vagrant VM to have fun again
   vagrant up
+
+# Do not restart via Virtual Box, use Vagrant reload to have share directory $HOME/openwhisk
+  vagrant reload
 
 # Read the help for wsk CLI
   vagrant ssh -- wsk -h

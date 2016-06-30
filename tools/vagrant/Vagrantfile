@@ -51,8 +51,10 @@ $script_common = <<SCRIPT
   sudo add-apt-repository ppa:git-core/ppa
   sudo apt-get update
   sudo apt-get install git -y
+  sudo apt-get install htop
   cd /home/vagrant/openwhisk
-  (cd tools/ubuntu-setup && source all.sh)
+  cd tools/ubuntu-setup
+  su vagrant -c 'source all.sh'
 SCRIPT
 
   config.vm.provision "script_common", type: "shell", keep_color: true, inline: $script_common
@@ -76,23 +78,23 @@ else
 fi
 
 cd /home/vagrant/openwhisk/ansible
-ansible-playbook -i environments/local setup.yml
-ansible-playbook -i environments/local prereq.yml
+su vagrant -c 'ansible-playbook -i environments/local setup.yml'
+su vagrant -c 'ansible-playbook -i environments/local prereq.yml'
 SCRIPT
 
   # Configure Default CouchDB
 $couch_db = <<COUCH_DB
 export ANSIBLE_REMOTE_TEMP=/home/vagrant/openwhisk/ansible/tmp
 cd /home/vagrant/openwhisk/ansible
-ansible-playbook -i environments/local setup.yml
-ansible-playbook -i environments/local prereq.yml
-ansible-playbook -i environments/local couchdb.yml
+su vagrant -c 'ansible-playbook -i environments/local setup.yml'
+su vagrant -c 'ansible-playbook -i environments/local prereq.yml'
+su vagrant -c 'ansible-playbook -i environments/local couchdb.yml'
 COUCH_DB
 
 $init_db = <<INIT_DB
 export ANSIBLE_REMOTE_TEMP=/home/vagrant/openwhisk/ansible/tmp
 cd /home/vagrant/openwhisk/ansible
-ansible-playbook -i environments/local initdb.yml
+su vagrant -c 'ansible-playbook -i environments/local initdb.yml'
 INIT_DB
   
   if OW_DB
@@ -108,9 +110,11 @@ $script_end = <<SCRIPT
   set -x
   export ANSIBLE_REMOTE_TEMP=/home/vagrant/openwhisk/ansible/tmp
   cd /home/vagrant/openwhisk
-  gradle distDocker
+  su vagrant -c 'gradle distDocker --parallel' 
   cd ansible
-  ansible-playbook -i environments/local openwhisk.yml
+  su vagrant -c 'ansible-playbook -i environments/local wipe.yml'
+  su vagrant -c 'ansible-playbook -i environments/local openwhisk.yml'
+  su vagrant -c 'ansible-playbook -i environments/local postdeploy.yml'
   cd ..
   # Add openwhisk/bin to system PATH to allow to work with vagrant ssh -- wsk
   sed -i.bak s/:\\\\/bin/:\\\\/bin:\\\\/home\\\\/vagrant\\\\/openwhisk\\\\/bin/g /etc/environment
@@ -122,9 +126,11 @@ $script_end = <<SCRIPT
   (cd bin && sudo ln -s ../tools/cli/wskadmin wskadmin)
   OPENWHISK_AUTH=`cat ansible/files/auth.guest`
   HOME=/home/vagrant
+  # Adds openwhisk bins
+  echo PATH='$PATH':$HOME/openwhisk/bin:$HOME/openwhisk/tools/build >> "$HOME/.bash_profile"
   # Adds tab completion
   echo 'eval "$(register-python-argcomplete wsk)"' >> "$HOME/.bash_profile"
-  PATH=$PATH:$HOME/openwhisk/bin
+  source "$HOME/.bash_profile"
   chown -R vagrant:vagrant $HOME
   # This allows user to see how to configure the wsk cli outside the VM 
   wsk property set --apihost 192.168.33.13 --namespace guest --auth $OPENWHISK_AUTH 

@@ -196,7 +196,7 @@ Components = [
     makeComponent('fresh',
                   'setup, build, and deploy a fresh whisk system using couchdb',
                   yaml = False,
-                  steps = 'setup, prereq, couchdb, initdb, deploy'),
+                  steps = 'setup, prereq, couchdb, initdb, wipedb, deploy, catalog'),
 
     makeComponent('setup',
                   'system setup'),
@@ -253,7 +253,7 @@ Components = [
 
     makeComponent('catalog',
                   'install catalog',
-                  yaml = 'postDeploy.yml'),
+                  yaml = 'postdeploy.yml'),
 
     # the following (re)build images via gradle
     makeComponent('gocli',
