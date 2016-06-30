@@ -23,7 +23,7 @@
 - name: wait until the Zookeeper in this host is up and running
   action: shell echo ruok | nc -w 3 {{ inventory_hostname }} {{ zookeeper.port }}
   register: result
-  until: '"imok" in result.stdout'
+  until: (result.rc == 0) and (result.stdout == 'imok')
   retries: 12
   delay: 5
 
@@ -50,6 +50,6 @@
   uri:
     url: "http://{{ inventory_hostname }}:{{ kafka.ras.port }}/ready"
   register: result
-  until: result.status == 200
+  until: (result.status == 200) and (result.json.msg == 'yes')
   retries: 12
   delay: 5
