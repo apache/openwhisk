@@ -124,11 +124,14 @@ gradle distDocker
 cd ansible
 ansible-playbook -i environments/<environment> couchdb.yml
 ansible-playbook -i environments/<environment> initdb.yml
+ansible-playbook -i environments/<environment> wipe.yml
 ansible-playbook -i environments/<environment> openwhisk.yml
+ansible-playbook -i environments/<environment> postdeploy.yml
 ```
 
-You need to run `initdb.yml` on CouchDB **every time** you deploy CouchDB to initialize the database.
-
+You need to run `initdb.yml` on couchdb **every time** you do a fresh deploy CouchDB to initialize the subjects database.
+The playbooks `wipe.yml` and `postdeploy.yml` should be run on a fresh deployment only, otherwise all transient
+data that include actions and activations are lost.
 
 ### Deploying Using Cloudant
 - Make sure your `db_local.ini` file is set up for Cloudant. See [Setup](#setup)
@@ -139,12 +142,18 @@ cd <openwhisk_home>
 gradle distDocker
 cd ansible
 ansible-playbook -i environments/<environment> initdb.yml
+ansible-playbook -i environments/<environment> wipe.yml
 ansible-playbook -i environments/<environment> openwhisk.yml
+ansible-playbook -i environments/<environment> postdeploy.yml
 ```
-You need to run `initdb` on Cloudant **only once** per Cloudant database to initialize the db.
 
-**Hint:** The `initdb.yml` playbook will only initialize your database if it is not initialized already, else it will skip initialization steps.
+You need to run `initdb` on Cloudant **only once** per Cloudant database to initialize the subjects database.
+The `initdb.yml` playbook will only initialize your database if it is not initialized already, else it will skip initialization steps.
 
+The playbooks `wipe.yml` and `postdeploy.yml` should be run on a fresh deployment only, otherwise all transient
+data that include actions and activations are lost.
+
+Use `ansible-playbook -i environments/<environment> openwhisk.yml` to avoid wiping the data store. This is useful to start OpenWhisk after restarting your Operating System.
 
 ### Verification after Deployment
 After a successful deployment you can use the `wsk` CLI (located in the `bin` folder of the repository) to verify that OpenWhisk is operable.
@@ -152,7 +161,7 @@ See main [README](https://github.com/openwhisk/openwhisk/blob/master/README.md) 
 
 
 ### Hot-swapping a Single Component
-The playbook structure allows you to clean, deploy or re-deploy a single component as well as the entire OpenWhisk stack. Let's assume you have deployed the entire stack using the "openwhisk.yml" playbook. You then make a change to a single component, for example the invoker. You will probably want a new tag on the invoker image so you first build it using:
+The playbook structure allows you to clean, deploy or re-deploy a single component as well as the entire OpenWhisk stack. Let's assume you have deployed the entire stack using the `openwhisk.yml` playbook. You then make a change to a single component, for example the invoker. You will probably want a new tag on the invoker image so you first build it using:
 
 ```
 cd <openwhisk_home>
