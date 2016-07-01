@@ -40,7 +40,14 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
 
-            withActivation(wsk.activation, wsk.action.invoke("/whisk.system/util/cat", Map("lines" -> lines))) {
+            val file = TestUtils.getCatalogFilename("utils/cat.js")
+            val actionName = "catNodejs"
+
+            assetHelper.withCleaner(wsk.action, actionName) { (action, _) =>
+                action.create(name = actionName, artifact = Some(file), kind = Some("nodejs"))
+            }
+
+            withActivation(wsk.activation, wsk.action.invoke(actionName, Map("lines" -> lines))) {
                 _.fields("response").toString should include(""""payload":"seven\neight\nnine"""")
             }
     }
@@ -91,7 +98,14 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
 
-            withActivation(wsk.activation, wsk.action.invoke("/whisk.system/util/split", Map("payload" -> "seven,eight,nine".toJson, "separator" -> ",".toJson))) {
+            val file = TestUtils.getCatalogFilename("utils/split.js")
+            val actionName = "splitNodejs"
+
+            assetHelper.withCleaner(wsk.action, actionName) { (action, _) =>
+                action.create(name = actionName, artifact = Some(file), kind = Some("nodejs"))
+            }
+
+            withActivation(wsk.activation, wsk.action.invoke(actionName, Map("payload" -> "seven,eight,nine".toJson, "separator" -> ",".toJson))) {
                 _.fields("response").toString should include (""""lines":["seven","eight","nine"]""")
             }
     }
@@ -141,7 +155,14 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
 
-            withActivation(wsk.activation, wsk.action.invoke("/whisk.system/util/head", Map("lines" -> lines, "num" -> JsNumber(2)))) {
+            val file = TestUtils.getCatalogFilename("utils/head.js")
+            val actionName = "headNodejs"
+
+            assetHelper.withCleaner(wsk.action, actionName) { (action, _) =>
+                action.create(name = actionName, artifact = Some(file), kind = Some("nodejs"))
+            }
+
+            withActivation(wsk.activation, wsk.action.invoke(actionName, Map("lines" -> lines, "num" -> JsNumber(2)))) {
                 _.fields("response").toString should include(""""lines":["seven","eight"]""")
             }
     }
@@ -191,7 +212,14 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
 
-            withActivation(wsk.activation, wsk.action.invoke("/whisk.system/util/sort", Map("lines" -> lines))) {
+            val file = TestUtils.getCatalogFilename("utils/sort.js")
+            val actionName = "sortNodejs"
+
+            assetHelper.withCleaner(wsk.action, actionName) { (action, _) =>
+                action.create(name = actionName, artifact = Some(file), kind = Some("nodejs"))
+            }
+
+            withActivation(wsk.activation, wsk.action.invoke(actionName, Map("lines" -> lines))) {
                 _.fields("response").toString should include(""""lines":["eight","nine","seven"]""")
             }
     }
@@ -241,7 +269,14 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
 
-            withActivation(wsk.activation, wsk.action.invoke("/whisk.system/samples/wordCount", Map("payload" -> "one two three".toJson))) {
+            val file = TestUtils.getCatalogFilename("samples/wc.js")
+            val actionName = "wcNodejs"
+
+            assetHelper.withCleaner(wsk.action, actionName) { (action, _) =>
+                action.create(name = actionName, artifact = Some(file), kind = Some("nodejs"))
+            }
+
+            withActivation(wsk.activation, wsk.action.invoke(actionName, Map("payload" -> "one two three".toJson))) {
                 _.fields("response").toString should include(""""count":3""")
             }
     }
@@ -281,6 +316,44 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
 
             withActivation(wsk.activation, wsk.action.invoke(actionName, Map("payload" -> "one two three".toJson))) {
                 _.fields("response").toString should include(""""count":3""")
+            }
+    }
+
+    /**
+      * Test the Node.js "helloPromises" action
+      */
+    it should "return a hello message as an array of strings using the node.js helloPromises action" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val wsk = new Wsk(usePythonCLI)
+
+            val file = TestUtils.getCatalogFilename("samples/helloPromises.js")
+            val actionName = "promisesNodejs"
+
+            assetHelper.withCleaner(wsk.action, actionName) { (action, _) =>
+                action.create(name = actionName, artifact = Some(file), kind = Some("nodejs"))
+            }
+
+            withActivation(wsk.activation, wsk.action.invoke(actionName, Map("place" -> "Chicago".toJson))) {
+                _.fields("response").toString should include(""""lines":["Hello,","stranger","from","Chicago!"]""")
+            }
+    }
+
+    /**
+      * Test the "helloPromises" action using Node.js 6
+      */
+    it should "return a hello message as an array of strings using helloPromises action on nodejs 6" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val wsk = new Wsk(usePythonCLI)
+
+            val file = TestUtils.getCatalogFilename("samples/helloPromises.js")
+            val actionName = "promisesNodejs6"
+
+            assetHelper.withCleaner(wsk.action, actionName) { (action, _) =>
+                action.create(name = actionName, artifact = Some(file), kind = Some("nodejs:6"))
+            }
+
+            withActivation(wsk.activation, wsk.action.invoke(actionName, Map("place" -> "Chicago".toJson))) {
+                _.fields("response").toString should include(""""lines":["Hello,","stranger","from","Chicago!"]""")
             }
     }
 

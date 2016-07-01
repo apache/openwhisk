@@ -359,39 +359,39 @@ class NodeJsActionContainerTests extends FlatSpec with Matchers {
     }
 
     it should "support resolved promises" in {
-      val (out, err) = withNodeJsContainer { c =>
-      val code = """
-      | function main(args) {
-        |     return new Promise(function(resolve, reject) {
-        |       setTimeout(function() {
-        |         resolve({ done: true });
-        |       }, 100);
-        |    })
-        | }
-        """.stripMargin
+        val (out, err) = withNodeJsContainer { c =>
+        val code = """
+            | function main(args) {
+            |     return new Promise(function(resolve, reject) {
+            |       setTimeout(function() {
+            |         resolve({ done: true });
+            |       }, 100);
+            |    })
+            | }
+            """.stripMargin
 
         c.init(initPayload(code))._1 should be(200)
 
         val (runCode, runRes) = c.run(runPayload(JsObject()))
         runCode should be(200)
         runRes should be(Some(JsObject("done" -> JsBoolean(true))))
-      }
+        }
 
-      filtered(out).trim shouldBe empty
-      filtered(err).trim shouldBe empty
+        filtered(out).trim shouldBe empty
+        filtered(err).trim shouldBe empty
     }
 
     it should "support rejected promises" in {
-      val (out, err) = withNodeJsContainer { c =>
-      val code = """
-      | function main(args) {
-        |     return new Promise(function(resolve, reject) {
-        |       setTimeout(function() {
-        |         reject({ done: true });
-        |       }, 100);
-        |    })
-        | }
-        """.stripMargin
+        val (out, err) = withNodeJsContainer { c =>
+        val code = """
+            | function main(args) {
+            |     return new Promise(function(resolve, reject) {
+            |       setTimeout(function() {
+            |         reject({ done: true });
+            |       }, 100);
+            |    })
+            | }
+            """.stripMargin
 
         c.init(initPayload(code))._1 should be(200)
 
@@ -399,8 +399,9 @@ class NodeJsActionContainerTests extends FlatSpec with Matchers {
 
         runCode should be(200)
         runRes.get.fields.get("error") shouldBe defined
-      }
-      filtered(out).trim shouldBe empty
-      filtered(err).trim shouldBe empty
+        }
+
+        filtered(out).trim shouldBe empty
+        filtered(err).trim shouldBe empty
     }
 }
