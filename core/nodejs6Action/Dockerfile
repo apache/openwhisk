@@ -45,12 +45,14 @@ pug@">2.0.0-alpha <2.0.1" \
 request@2.72.0 \
 rimraf@2.5.2 \
 semver@5.1.0 \
+sendgrid@3.0.5 \
 serve-favicon@2.3.0 \
 socket.io@1.4.6 \
 socket.io-client@1.4.6 \
 superagent@1.8.3 \
 swagger-tools@0.10.1 \
 tmp@0.0.28 \
+twilio@2.9.1 \
 watson-developer-cloud@1.8.0 \
 when@3.7.7 \
 ws@1.1.0 \
