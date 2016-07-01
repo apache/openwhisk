@@ -39,8 +39,7 @@ class CLISwiftTests
     with Matchers {
 
     implicit val wskprops = WskProps()
-    var usePythonCLI = true
-    val wsk = new Wsk(usePythonCLI)
+    val wsk = new Wsk(usePythonCLI = false)
     val expectedDuration = 30 seconds
     val activationPollDuration = 60 seconds
 

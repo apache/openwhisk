@@ -44,7 +44,7 @@ import common.WskCli;
  */
 @RunWith(ParallelRunner.class)
 public class CLIActionTests {
-    private static final Boolean usePythonCLI = true;
+    private static final Boolean usePythonCLI = false;
     private static final WskCli wsk = new WskCli(usePythonCLI);
 
     public static final String[] sampleTestWords = new String[] { "SHERLOCK", "WATSON", "LESTRADE" };
