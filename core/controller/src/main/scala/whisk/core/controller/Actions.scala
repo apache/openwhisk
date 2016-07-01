@@ -386,19 +386,34 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         } getOrElse action.limits
 
         // This is temporary while we are making sequencing directly supported in the controller.
-        // The parameter override allows this to work with Pipecode.code. Any parameters other
-        // than the action sequence itself are discarded and have no effect unless a non-sequence
-        // exec is given.
+        // Actions that are updated with a sequence will have their parameter property overriden.
+        // Actions that are updated with non-sequence actions will either set the parameter property according to
+        // the content provided, or if that is not defined, and iff the previous version of the action was not a
+        // sequence, inherit previous parameters. This is because sequence parameters are special and should not
+        // leak to non-sequence actions.
+        // If updating an action but not specifying a new exec type, then preserve the previous parameters if the
+        // existing type of the action is a sequence (regardless of what parameters may be defined in the content)
+        // otherwise, parameters are inferred from the content or previous values.
         val parameters = content.exec map {
             case seq: SequenceExec => Parameters("_actions", JsArray(seq.components map { JsString(_) }))
-            case _                 => content.parameters getOrElse Parameters()
+            case _ => content.parameters getOrElse {
+                action.exec match {
+                    case seq: SequenceExec => Parameters()
+                    case _                 => action.parameters
+                }
+            }
+        } getOrElse {
+            action.exec match {
+                case seq: SequenceExec => action.parameters // discard content.parameters
+                case _                 => content.parameters getOrElse action.parameters
+            }
         }
 
         WhiskAction(
             action.namespace,
             action.name,
             content.exec getOrElse action.exec,
-            parameters getOrElse action.parameters,
+            parameters,
             limits,
             content.version getOrElse action.version.upPatch,
             content.publish getOrElse action.publish,
