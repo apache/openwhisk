@@ -32,7 +32,7 @@ type Rule struct {
     Namespace string `json:"namespace,omitempty"`
     Name      string `json:"name,omitempty"`
     Version   string `json:"version,omitempty"`
-    Publish   bool   `json:"publish,omitempty"`
+    Publish   bool   `json:"publish"`
 
     Status  string `json:"status"`
     Trigger string `json:"trigger"`

@@ -177,19 +177,12 @@ var ruleCreateCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        var shared bool
 
         if len(args) != 3 {
             whisk.Debug(whisk.DbgError, "Invalid number of arguments: %d\n", len(args))
             errStr := fmt.Sprintf("Invalid number of arguments (%d) provided; exactly three arguments are expected", len(args))
             werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             return werr
-        }
-
-        if (flags.common.shared == "yes") {
-            shared = true
-        } else {
-            shared = false
         }
 
         qName, err := parseQualifiedName(args[0])
@@ -215,7 +208,7 @@ var ruleCreateCmd = &cobra.Command{
             Name:    ruleName,
             Trigger: triggerName,
             Action:  actionName,
-            Publish: shared,
+            Publish: flags.common.shared,
         }
 
         whisk.Debug(whisk.DbgInfo, "Inserting rule:\n%+v\n", rule)
@@ -254,7 +247,6 @@ var ruleUpdateCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        var shared bool
 
         if len(args) != 3 {
             whisk.Debug(whisk.DbgError, "Invalid number of arguments: %d\n", len(args))
@@ -282,17 +274,11 @@ var ruleUpdateCmd = &cobra.Command{
         triggerName := args[1]  //MWD qualified name?
         actionName := args[2]   //MWD qualified name?
 
-        if (flags.common.shared == "yes") {
-            shared = true
-        } else {
-            shared = false
-        }
-
         rule := &whisk.Rule{
             Name:    ruleName,
             Trigger: triggerName,
             Action:  actionName,
-            Publish: shared,
+            Publish: flags.common.shared,
         }
 
         rule, _, err = client.Rules.Insert(rule, true)
@@ -461,12 +447,12 @@ var ruleListCmd = &cobra.Command{
 
 func init() {
 
-    ruleCreateCmd.Flags().StringVar(&flags.common.shared, "shared", "", "shared action (yes = shared, no[default] = private)")
-    ruleCreateCmd.Flags().BoolVar(&flags.rule.enable, "enable", false, "autmatically enable rule after creating it")
+    ruleCreateCmd.Flags().BoolVar(&flags.common.shared, "shared", false, "make a rule publically accessible")
+    ruleCreateCmd.Flags().BoolVar(&flags.rule.enable, "enable", false, "automatically enable rule after creating it")
 
-    ruleUpdateCmd.Flags().StringVar(&flags.common.shared, "shared", "", "shared action (yes = shared, no[default] = private)")
+    ruleUpdateCmd.Flags().BoolVar(&flags.common.shared, "shared", false, "make a rule publically accessible)")
 
-    ruleDeleteCmd.Flags().BoolVar(&flags.rule.disable, "disable", false, "autmatically disable rule before deleting it")
+    ruleDeleteCmd.Flags().BoolVar(&flags.rule.disable, "disable", false, "automatically disable rule before deleting it")
 
     ruleListCmd.Flags().IntVarP(&flags.common.skip, "skip", "s", 0, "skip this many entities from the head of the collection")
     ruleListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, "only return this many entities from the collection")
