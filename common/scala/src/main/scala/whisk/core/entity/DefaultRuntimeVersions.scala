@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package main.scala.whisk.core.entity
+package whisk.core.entity
 
 trait DefaultRuntimeVersions {
     def resolveDefaultRuntime(kind: String): String = {

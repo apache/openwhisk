@@ -16,17 +16,16 @@
 
 package whisk.core.entity
 
-import scala.collection.JavaConversions.asScalaSet
-import spray.json.DefaultJsonProtocol
-import spray.json.RootJsonFormat
-import spray.json.{ JsValue, JsObject, JsString, JsArray }
-import spray.json.DeserializationException
-import whisk.core.entity.ArgNormalizer.trim
-import spray.json.pimpString
-import scala.util.Try
-import spray.json.DeserializationException
 import java.util.Base64
-import main.scala.whisk.core.entity.DefaultRuntimeVersions
+
+import spray.json.DefaultJsonProtocol
+import spray.json.DeserializationException
+import spray.json.JsArray
+import spray.json.JsObject
+import spray.json.JsString
+import spray.json.JsValue
+import spray.json.RootJsonFormat
+import whisk.core.entity.ArgNormalizer.trim
 
 /**
  * Exec encodes the executable details of an action. For black
