@@ -391,14 +391,24 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         // exec is given.
         val parameters = content.exec map {
             case seq: SequenceExec => Parameters("_actions", JsArray(seq.components map { JsString(_) }))
-            case _                 => content.parameters getOrElse Parameters()
+            case _ => content.parameters getOrElse {
+                action.exec match {
+                    case seq: SequenceExec => Parameters()
+                    case _                 => action.parameters
+                }
+            }
+        } getOrElse {
+            action.exec match {
+                case seq: SequenceExec => action.parameters // discard content.parameters
+                case _                 => content.parameters getOrElse action.parameters
+            }
         }
 
         WhiskAction(
             action.namespace,
             action.name,
             content.exec getOrElse action.exec,
-            parameters getOrElse action.parameters,
+            parameters,
             limits,
             content.version getOrElse action.version.upPatch,
             content.publish getOrElse action.publish,

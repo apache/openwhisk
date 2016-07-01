@@ -249,14 +249,17 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         }
     }
 
-    it should "create and update an action sequence" in {
-        implicit var tid = transid()
+    private def seqParameters(seq: Vector[String]) = Parameters("_actions", seq.toJson)
+
+    it should "create an action sequence" in {
+        implicit val tid = transid()
         val sequence = Vector("a", "b")
         val action = WhiskAction(namespace, aname, Exec.sequence(sequence))
         val content = WhiskActionPut(Some(action.exec))
 
         // create an action sequence
         Put(s"$collectionPath/${action.name}", content) ~> sealRoute(routes(creds)) ~> check {
+            deleteAction(action.docid)
             status should be(OK)
             val response = responseAs[WhiskAction]
             response.exec shouldBe a[SequenceExec]
@@ -264,13 +267,19 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             val seq = response.exec.asInstanceOf[SequenceExec]
             seq.code should be(Pipecode.code)
             seq.components should be(sequence)
-            response.parameters shouldBe Parameters("_actions", sequence.toJson)
+            response.parameters shouldBe seqParameters(sequence)
         }
+    }
 
-        // update action sequence with parameters, where parameters should be ignored
-        tid = transid()
-        var update = WhiskActionPut(parameters = Some(Parameters("x", "b")))
-        Put(s"$collectionPath/${action.name}?overwrite=true", update) ~> sealRoute(routes(creds)) ~> check {
+    it should "create an action sequence ignoring parameters" in {
+        implicit val tid = transid()
+        val sequence = Vector("a", "b")
+        val action = WhiskAction(namespace, aname, Exec.sequence(sequence))
+        val content = WhiskActionPut(Some(action.exec), parameters = Some(Parameters("x", "X")))
+
+        // create an action sequence
+        Put(s"$collectionPath/${action.name}", content) ~> sealRoute(routes(creds)) ~> check {
+            deleteAction(action.docid)
             status should be(OK)
             val response = responseAs[WhiskAction]
             response.exec shouldBe a[SequenceExec]
@@ -278,14 +287,21 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             val seq = response.exec.asInstanceOf[SequenceExec]
             seq.code should be(Pipecode.code)
             seq.components should be(sequence)
-            response.parameters shouldBe Parameters("_actions", sequence.toJson)
+            response.parameters shouldBe seqParameters(sequence)
         }
+    }
 
-        // update action sequence with new sequence
-        tid = transid()
-        val newSequence = Vector("a", "c")
-        update = WhiskActionPut(Some(Exec.sequence(newSequence)))
-        Put(s"$collectionPath/${action.name}?overwrite=true", update) ~> sealRoute(routes(creds)) ~> check {
+    it should "update an action sequence with a new sequence" in {
+        implicit val tid = transid()
+        val sequence = Vector("a", "b")
+        val newSequence = Vector("c", "d")
+        val action = WhiskAction(namespace, aname, Exec.sequence(sequence), seqParameters(sequence))
+        val content = WhiskActionPut(Some(Exec.sequence(newSequence)))
+        put(entityStore, action, false)
+
+        // create an action sequence
+        Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
+            deleteAction(action.docid)
             status should be(OK)
             val response = responseAs[WhiskAction]
             response.exec shouldBe a[SequenceExec]
@@ -293,20 +309,62 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             val seq = response.exec.asInstanceOf[SequenceExec]
             seq.code should be(Pipecode.code)
             seq.components should be(newSequence)
-            response.parameters shouldBe Parameters("_actions", newSequence.toJson)
+            response.parameters shouldBe seqParameters(newSequence)
         }
+    }
 
-        // update action with non-sequence kind
-        tid = transid()
-        val newAction = WhiskActionPut(Some(Exec.js("?")), Some(Parameters("x", "X")))
-        Put(s"$collectionPath/${action.name}?overwrite=true", newAction) ~> sealRoute(routes(creds)) ~> check {
+    it should "update an action sequence ignoring parameters" in {
+        implicit val tid = transid()
+        val sequence = Vector("a", "b")
+        val action = WhiskAction(namespace, aname, Exec.sequence(sequence), seqParameters(sequence))
+        val content = WhiskActionPut(parameters = Some(Parameters("a", "A")))
+        put(entityStore, action, false)
+
+        // create an action sequence
+        Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
             deleteAction(action.docid)
             status should be(OK)
             val response = responseAs[WhiskAction]
-            response.exec shouldBe a[NodeJSExec]
-            val js = response.exec.asInstanceOf[NodeJSExec]
-            js.code should be("?")
-            response.parameters shouldBe Parameters("x", "X")
+            response.exec shouldBe a[SequenceExec]
+            response.exec.kind should be(Exec.SEQUENCE)
+            val seq = response.exec.asInstanceOf[SequenceExec]
+            seq.code should be(Pipecode.code)
+            seq.components should be(sequence)
+            response.parameters shouldBe seqParameters(sequence)
+        }
+    }
+
+    it should "reset parameters when changing sequence action to non sequence" in {
+        implicit val tid = transid()
+        val sequence = Vector("a", "b")
+        val action = WhiskAction(namespace, aname, Exec.sequence(sequence), seqParameters(sequence))
+        val content = WhiskActionPut(Some(Exec.js("")))
+        put(entityStore, action, false)
+
+        // create an action sequence
+        Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
+            deleteAction(action.docid)
+            status should be(OK)
+            val response = responseAs[WhiskAction]
+            response.exec.kind should be(Exec.NODEJS)
+            response.parameters shouldBe Parameters()
+        }
+    }
+
+    it should "preserve new parameters when changing sequence action to non sequence" in {
+        implicit val tid = transid()
+        val sequence = Vector("a", "b")
+        val action = WhiskAction(namespace, aname, Exec.sequence(sequence), seqParameters(sequence))
+        val content = WhiskActionPut(Some(Exec.js("")), parameters = Some(Parameters("a", "A")))
+        put(entityStore, action, false)
+
+        // create an action sequence
+        Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
+            deleteAction(action.docid)
+            status should be(OK)
+            val response = responseAs[WhiskAction]
+            response.exec.kind should be(Exec.NODEJS)
+            response.parameters should be(Parameters("a", "A"))
         }
     }
 
@@ -415,7 +473,24 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             deleteAction(action.docid)
             status should be(OK)
             val response = responseAs[WhiskAction]
-            response should be(WhiskAction(action.namespace, action.name, content.exec.get, content.parameters.get, version = action.version.upPatch))
+            response should be {
+                WhiskAction(action.namespace, action.name, content.exec.get, content.parameters.get, version = action.version.upPatch)
+            }
+        }
+    }
+
+    it should "update action parameters with a put" in {
+        implicit val tid = transid()
+        val action = WhiskAction(namespace, aname, Exec.js("??"), Parameters("x", "b"))
+        val content = WhiskActionPut(parameters = Some(Parameters("x", "X")))
+        put(entityStore, action)
+        Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
+            deleteAction(action.docid)
+            status should be(OK)
+            val response = responseAs[WhiskAction]
+            response should be {
+                WhiskAction(action.namespace, action.name, action.exec, content.parameters.get, version = action.version.upPatch)
+            }
         }
     }
 

@@ -261,11 +261,13 @@ class WskBasicTests
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) =>
                     action.create(name, file, parameters = params, shared = Some(true))
-                    action.create(name, None, update = true)
+                    action.create(name, None, parameters = Map("b" -> "B".toJson), update = true)
             }
             val stdout = wsk.action.get(name).stdout
-            stdout should include regex (""""key": "a"""")
-            stdout should include regex (""""value": "A"""")
+            stdout should not include regex (""""key": "a"""")
+            stdout should not include regex (""""value": "A"""")
+            stdout should include regex (""""key": "b""")
+            stdout should include regex (""""value": "B"""")
             stdout should include regex (""""publish": true""")
             stdout should include regex (""""version": "0.0.2"""")
             wsk.action.list().stdout should include(name)
