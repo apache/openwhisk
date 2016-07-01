@@ -10,8 +10,6 @@ The following are required to build and deploy OpenWhisk from a Mac host:
 - [Docker 1.9.1+](https://docs.docker.com/engine/installation/mac/) (including `docker-machine`)
 - [Java 8](http://www.oracle.com/technetwork/java/javase/downloads/index.html)
 - [Scala 2.11](http://scala-lang.org/download/)
-- [Ant](http://ant.apache.org/manual/install.html)
-- [Ant-Contrib Tasks](http://ant-contrib.sourceforge.net/)
 - [Gradle](https://docs.gradle.org/current/userguide/installation.html)
 
 [Homebrew](http://brew.sh/) is an easy way to install all of these and prepare your Mac to build and deploy OpenWhik. The following shell command is provided for your convenience to install `brew` with [Cask](https://github.com/caskroom/homebrew-cask) and bootstraps these to complete the setup. Copy the entire section below and paste it into your terminal to run it.
@@ -31,9 +29,7 @@ brew install docker-machine
 # install java 8, scala
 brew cask install java
 brew install scala
-# install ant and gradle
-brew install ant
-brew install ant-contrib
+# install gradle
 brew install gradle
 # the following is required for running tests
 sudo -H pip install jsonschema' | bash
@@ -98,3 +94,22 @@ run the following [script](./tweak-dockerhost.sh). Enter your sudo Mac password 
 cd /your/path/to/openwhisk
 ./tools/macos/tweak-dockerhost.sh
 ```
+
+# Build
+cd <home_openwhisk>
+gradle distDocker
+
+# Deploy
+Follow instructions in [ansible/README.md](../../ansible/README.md)
+
+### Configure the CLI
+Follow instructions in [Configure CLI](../../README.md#configure-cli)
+
+### Use the wsk CLI
+```
+bin/wsk action invoke /whisk.system/samples/echo -p message hello --blocking --result
+{
+    "message": "hello"
+}
+```
+
