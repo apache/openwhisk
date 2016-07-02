@@ -253,6 +253,25 @@ class WskBasicTests
             assetHelper.withCleaner(wsk.action, "twice") { (action, name) => action.create(name, defaultAction) }
     }
 
+    it should "create an action, then update the kind" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "createAndUpdate"
+            val file = Some(TestUtils.getCatalogFilename("samples/hello.js"))
+            val params = Map("a" -> "A".toJson)
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) =>
+                    action.create(name, file, parameters = params, shared = Some(true))
+            }
+
+            var stdout = wsk.action.get(name).stdout
+            stdout should include regex (""""kind": "nodejs:6""")
+
+            wsk.action.create(name, file, kind = Some("swift:3"), parameters = params, update = true)
+
+            stdout = wsk.action.get(name).stdout
+            stdout should include regex (""""kind": "swift:3""")
+    }
+
     it should "create, update, get and list an action" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "createAndUpdate"
