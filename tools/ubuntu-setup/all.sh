@@ -29,10 +29,6 @@ echo "*** installing java"
 install "$SCRIPTDIR" java8.sh
 
 
-echo "*** installing ant"
-install "$SCRIPTDIR" ant.sh
-
-
 echo "*** install scala"
 install "$SCRIPTDIR" scala.sh
 
