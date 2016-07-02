@@ -49,16 +49,6 @@ These steps were tested on Mac OS X El Capitan, Ubuntu 14.04.3 LTS and Windows u
 * [Vagrant on Mac, Windows PC, or GNU/Linux](tools/vagrant/README.md)
 * [OpenWhisk on Ubuntu natively](tools/ubuntu-setup/README.md)
 
-## Configure CLI
-
-The OpenWhisk CLI is located in `/bin/wsk`. For convenience, you may configure it to use the built-in "guest" namespace and authorization key as follows:
-
-```
-./bin/wsk property set --namespace guest --auth `cat ansible/files/auth.guest`
-```
-
-This allows you to use the CLI without specifying the namespace and authorization key on every command.
-
 ### Learn concepts and commands
 
 Browse the [documentation](docs/) to learn more. Here are some topics you may be
