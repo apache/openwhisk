@@ -26,10 +26,7 @@ import subprocess
 # the default openwhisk location in openwhisk checkouts
 defaultOpenwhisk = os.path.dirname(os.path.realpath(__file__)) + '/../../'
 # the openwhisk env var overrides if it exists
-openwhiskHome = os.getenv('OPENWHISK_HOME', defaultOpenwhisk)
-cliDir = os.path.join(openwhiskHome, 'tools/cli')
-sys.path.insert(1, cliDir)
-import wskprop
+whiskHome = os.getenv('WHISK_HOME', defaultOpenwhisk)
 
 def main():
     args = getArgs()
@@ -96,11 +93,11 @@ def getArgs():
         exit(-1)
 
     if args.dir is None:
-        if openwhiskHome is None:
+        if whiskHome is None:
             print 'Must specify whisk home directory with "--dir".'
             exit(-1)
         else:
-            args.dir = openwhiskHome
+            args.dir = whiskHome
 
     if args.list:
         print "{:<27}{:<40}".format(bold('component'), bold('description'))
