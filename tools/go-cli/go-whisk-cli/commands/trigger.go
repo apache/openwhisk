@@ -234,7 +234,7 @@ var triggerCreateCmd = &cobra.Command{
             Publish:     publish,
         }
 
-        retTrigger, _, err := client.Triggers.Insert(trigger, false)
+        _, _, err = client.Triggers.Insert(trigger, false)
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Triggers.Insert(%+v,false) failed: %s\n", trigger, err)
             errStr := fmt.Sprintf("Unable to create trigger '%s': %s", trigger.Name, err)
@@ -260,8 +260,6 @@ var triggerCreateCmd = &cobra.Command{
         }
 
         fmt.Println("ok: created trigger")
-        //MWD printJSON(retTrigger) // color does appear correctly on vagrant VM
-        printJsonNoColor(retTrigger)
         return nil
     },
 }
