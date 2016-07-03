@@ -38,6 +38,7 @@ import common.Pair;
 import common.TestUtils;
 import common.TestUtils.RunResult;
 import common.WskCli;
+import common.WhiskProperties;
 
 /**
  * Tests for rules using command line interface
@@ -176,7 +177,7 @@ public class CLIActionTests {
         String[] cmd = { "action", "invoke", "/whisk.system/samples/helloWorld", payload };
         RunResult rr = wsk.runCmd(cmd);
 
-        if (usePythonCLI) {
+        if (usePythonCLI || WhiskProperties.useCliDownload() ) {
             assertTrue("Expect a cli error exit code", rr.exitCode == 2);
             assertTrue("Expect a cli usage message", rr.stderr.contains("usage: wsk [-h] [-v]"));
             assertTrue("Expect a cli error message", rr.stderr.contains("wsk: error: unrecognized arguments: " + payload));
