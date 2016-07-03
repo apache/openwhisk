@@ -216,30 +216,36 @@ var actionInvokeCmd = &cobra.Command{
             payload = (*json.RawMessage)(&data)
         }
 
+        outputStream := os.Stdout
+
         activation, _, err := client.Actions.Invoke(qName.entityName, payload, flags.common.blocking)
         if err != nil {
-            whisk.Debug(whisk.DbgError, "client.Actions.Invoke(%s, %s, %t) error: %s\n", qName.entityName, payload, flags.common.blocking, err)
-            errMsg := fmt.Sprintf("Unable to invoke action '%s': %s", qName.entityName, err)
-            whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-                whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
-            return whiskErr
+            whiskErr, isWhiskErr := err.(*whisk.WskError)
+
+            if (isWhiskErr && whiskErr.ApplicationError != true) || !isWhiskErr {
+                whisk.Debug(whisk.DbgError, "client.Actions.Invoke(%s, %s, %t) error: %s\n", qName.entityName, payload,
+                    flags.common.blocking, err)
+                errMsg := fmt.Sprintf("Unable to invoke action '%s': %s", qName.entityName, err)
+                whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+                    whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                return whiskErr
+            } else {
+                outputStream = os.Stderr
+            }
         }
 
         if flags.common.blocking && flags.action.result {
-            //printJSON(activation.Response.Result)
-            printJsonNoColor(activation.Response.Result)
+            printJsonNoColor(activation.Response.Result, outputStream)
         } else if flags.common.blocking {
             fmt.Printf("%s invoked /%s/%s with id %s\n", color.GreenString("ok:"), boldString(qName.namespace), boldString(qName.entityName),
                 boldString(activation.ActivationID))
-            boldPrintf("response:\n")
-            //printJSON(activation)
-            printJsonNoColor(activation)
+            printJsonNoColor(activation, outputStream)
         } else {
             fmt.Printf("%s invoked /%s/%s with id %s\n", color.GreenString("ok:"), boldString(qName.namespace), boldString(qName.entityName),
                 boldString(activation.ActivationID))
         }
 
-        return nil
+        return err
     },
 }
 

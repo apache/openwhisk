@@ -269,15 +269,15 @@ func (s *ActionService) Invoke(actionName string, payload *json.RawMessage, bloc
         return nil, nil, whiskErr
     }
 
-    a := new(Activation)
-    resp, err := s.client.Do(req, &a)
+    activation := new(Activation)
+    resp, err := s.client.Do(req, &activation)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
         errMsg := fmt.Sprintf("Request failure: %s", err)
         whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
-        return nil, resp, whiskErr
+        return activation, resp, whiskErr
     }
 
-    return a, resp, nil
+    return activation, resp, nil
 }

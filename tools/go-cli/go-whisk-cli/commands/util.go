@@ -440,22 +440,18 @@ func printJSON(v interface{}) {
 }
 
 // Same as printJSON, but with coloring disabled.
-func printJsonNoColor(v interface{}) {
-    /*jsonFormatter := prettyjson.NewFormatter()
-    jsonFormatter.DisabledColor = true
-    output, err := jsonFormatter.Marshal(v)
-    if err != nil {
-        whisk.Debug(whisk.DbgError, "Marshal() failure: %s\n", err)
-    }
-    fmt.Println(string(output))*/
-
+func printJsonNoColor(v interface{}, stream ...io.Writer) {
     output, err := json.MarshalIndent(v, "", "    ")
 
     if err != nil {
         whisk.Debug(whisk.DbgError, "json.MarshalIndent() failure: %s\n", err)
     }
 
-    fmt.Println(string(output))
+    if len(stream) > 0 {
+        fmt.Fprintf(stream[0], "%s\n", string(output))
+    } else {
+        fmt.Fprintf(os.Stdout, "%s\n", string(output))
+    }
 }
 
 func unpackGzip(inpath string, outpath string) error {

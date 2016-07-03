@@ -375,6 +375,21 @@ class WskBasicTests
             }
     }
 
+    /**
+      * Tests creating an nodejs action that throws a whisk.error() response. The error message thrown by the
+      * whisk.error() should be returned.
+      */
+    it should "create and invoke a blocking action resulting in a whisk.error response" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "whiskError"
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("applicationError1.js")))
+            }
+
+            wsk.action.invoke(name, blocking = true, expectedExitCode = 246)
+              .stderr should include regex (""""error": "This error thrown on purpose by the action."""")
+    }
+
     it should "invoke a blocking action and get only the result" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "basicInvoke"

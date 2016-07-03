@@ -244,26 +244,10 @@ func (c *Client) Do(req *http.Request, v interface{}) (*http.Response, error) {
         return resp, werr
     }
 
-    // Handle 5. HTTP Failure + Body matching error format expectation
+    // Handle 5. HTTP Failure + Body matching error format expectation, or body matching a whisk.error() response
     // Handle 6. HTTP Failure + Body NOT matching error format expectation
     if !IsHttpRespSuccess(resp) && data != nil {
-        Debug(DbgInfo, "HTTP failure %d + body\n", resp.StatusCode)
-        errorResponse := &ErrorResponse{Response: resp}
-        err = json.Unmarshal(data, errorResponse)
-
-        // If the body matches the error response format, return an error containing
-        // the response error information (#5)
-        if err == nil {
-            Debug(DbgInfo, "HTTP failure %d; server error %s\n", resp.StatusCode, errorResponse)
-            werr := MakeWskError(errorResponse, resp.StatusCode - 256, DISPLAY_MSG, NO_DISPLAY_USAGE)
-            return resp, werr
-        } else {
-            // Otherwise, the body contents are unknown (#6)
-            Debug(DbgError, "HTTP response with unexpected body failed due to contents parsing error: '%v'\n", err)
-            var errStr = fmt.Sprintf("Request failed (status code = %d). Error details: %s", resp.StatusCode, data)
-            werr := MakeWskError(errors.New(errStr), resp.StatusCode - 256, DISPLAY_MSG, NO_DISPLAY_USAGE)
-            return resp, werr
-        }
+        return parseErrorResponse(resp, data, v)
     }
 
     // Handle 2. HTTP Success + No body expected
@@ -275,25 +259,75 @@ func (c *Client) Do(req *http.Request, v interface{}) (*http.Response, error) {
     // Handle 1. HTTP Success + Valid body matching request expectations
     // Handle 3. HTTP Success + Body does NOT match request expectations
     if IsHttpRespSuccess(resp) && v != nil {
-        Debug(DbgInfo, "Parsing HTTP response into struct type: %s\n", reflect.TypeOf(v) )
-        err = json.Unmarshal(data, v)
-
-        // If the decode was successful, return the response without error (#1)
-        if err == nil {
-            Debug(DbgInfo, "Successful parse of HTTP response into struct type: %s\n", reflect.TypeOf(v))
-            return resp, nil
-        } else {
-            // The decode did not work, so the server response was unexpected (#3)
-            Debug(DbgWarn, "Unsuccessful parse of HTTP response into struct type: %s; parse error '%v'\n", reflect.TypeOf(v), err)
-            Debug(DbgWarn, "Request was successful, so ignoring the following unexpected response body that could not be parsed: %s\n", data)
-            return resp, nil
-        }
+        return parseSuccessResponse(resp, data, v), nil
     }
 
     // We should never get here, but just in case return failure
     // to keep the compiler happy
     werr := MakeWskError(errors.New("Command failed due to an internal failure"), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
     return resp, werr
+}
+
+func parseErrorResponse(resp *http.Response, data []byte, v interface{}) (*http.Response, error) {
+    Debug(DbgInfo, "HTTP failure %d + body\n", resp.StatusCode)
+    errorResponse := &ErrorResponse{Response: resp}
+    err := json.Unmarshal(data, errorResponse)
+
+    // If the body matches the error response format, return an error containing the response error information.
+    // If an whisk.error() response was received parse the application error. (#5) Otherwise, the body contents are
+    // unknown (#6).
+    if err == nil {
+        if errorResponse.Code == 0 && len(errorResponse.ErrMsg) == 0 {
+            Debug(DbgInfo, "Error code, or error message is null\n")
+            return parseWhiskErrorResponse(resp, data, v)
+        } else {
+            Debug(DbgInfo, "HTTP failure %d; server error %s\n", resp.StatusCode, errorResponse)
+            werr := MakeWskError(errorResponse, resp.StatusCode - 256, DISPLAY_MSG, NO_DISPLAY_USAGE)
+            return resp, werr
+        }
+    } else {
+        Debug(DbgError, "HTTP response with unexpected body failed due to contents parsing error: '%v'\n", err)
+        var errStr = fmt.Sprintf("Request failed (status code = %d). Error details: %s", resp.StatusCode, data)
+        werr := MakeWskError(errors.New(errStr), resp.StatusCode - 256, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        return resp, werr
+    }
+}
+
+func parseWhiskErrorResponse(resp *http.Response, data []byte, v interface{}) (*http.Response, error) {
+    whiskErrorResponse := &WhiskErrorResponse{}
+    err := json.Unmarshal(data, whiskErrorResponse)
+
+    // Determine if a whisk.error() response was received. Otherwise, the body contents are unknown (#6)
+    if err == nil && whiskErrorResponse.Response.Result.Error != nil {
+        Debug(DbgInfo, "Detected that a whisk.error(\"%s\") was returned\n", *whiskErrorResponse.Response.Result.Error)
+        errMsg := fmt.Sprintf("The following application error was received: %s",
+            *whiskErrorResponse.Response.Result.Error)
+        whiskErr := MakeWskError(errors.New(errMsg), resp.StatusCode - 256, NO_DISPLAY_MSG, NO_DISPLAY_USAGE,
+            NO_MSG_DISPLAYED, NO_DISPLAY_PREFIX, APPLICATION_ERR)
+        return parseSuccessResponse(resp, data, v), whiskErr
+    } else {
+        Debug(DbgError, "HTTP response with unexpected body failed due to contents parsing error: '%v'\n", err)
+        errMsg := fmt.Sprintf("Request failed (status code = %d). Error details: %s", resp.StatusCode, data)
+        whiskErr := MakeWskError(errors.New(errMsg), resp.StatusCode - 256, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        return resp, whiskErr
+    }
+}
+
+func parseSuccessResponse(resp *http.Response, data []byte, v interface{}) (*http.Response) {
+    Debug(DbgInfo, "Parsing HTTP response into struct type: %s\n", reflect.TypeOf(v))
+
+    err := json.Unmarshal(data, v)
+
+    // If the decode was successful, return the response without error (#1). Otherwise, the decode did not work, so the
+    // server response was unexpected (#3)
+    if err == nil {
+        Debug(DbgInfo, "Successful parse of HTTP response into struct type: %s\n", reflect.TypeOf(v))
+        return resp
+    } else {
+        Debug(DbgWarn, "Unsuccessful parse of HTTP response into struct type: %s; parse error '%v'\n", reflect.TypeOf(v), err)
+        Debug(DbgWarn, "Request was successful, so ignoring the following unexpected response body that could not be parsed: %s\n", data)
+        return resp
+    }
 }
 
 ////////////
@@ -307,9 +341,23 @@ func (c *Client) Do(req *http.Request, v interface{}) (*http.Response, error) {
 //     "code": 1422870
 // }
 type ErrorResponse struct {
-    Response *http.Response         // HTTP response that caused this error
-    ErrMsg   string `json:"error"`  // error message string
-    Code     int64  `json:"code"`   // validation error code
+    Response *http.Response                     // HTTP response that caused this error
+    ErrMsg   string             `json:"error"`  // error message string
+    Code     int64              `json:"code"`   // validation error code
+}
+
+type WhiskErrorResponse struct {
+    Response WhiskErrorResult   `json:"response"`
+}
+
+type WhiskErrorResult struct {
+    Status  string              `json:"status"`
+    Success bool                `json:"success"`
+    Result  WhiskErrorMessage   `json:"result"`
+}
+
+type WhiskErrorMessage struct {
+    Error *string `json:"error"`
 }
 
 func (r ErrorResponse) Error() string {
