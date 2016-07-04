@@ -118,4 +118,3 @@ bin/wsk action invoke /whisk.system/samples/echo -p message hello --blocking --r
     "message": "hello"
 }
 ```
-
