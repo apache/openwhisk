@@ -57,6 +57,7 @@ import spray.http.HttpMethods.TRACE
 import spray.http.HttpRequest
 import spray.http.HttpResponse
 import spray.http.StatusCodes.Accepted
+import spray.http.StatusCodes.Forbidden
 import spray.http.StatusCodes.OK
 import spray.http.Uri
 import spray.http.Uri.Path
@@ -129,14 +130,6 @@ class HeadersTests extends FlatSpec
 
         response.status shouldBe OK
         containsHeaders(response.headers, allMethods)
-    }
-
-    it should "respond to POST action with headers" in {
-        val path = basePath / "namespaces" / "whisk.system" / "actions" / "samples" / "helloWorld"
-        val response = pipeline(Post(url.withPath(path)) ~> addCredentials(creds)) futureValue
-
-        response.status shouldBe Accepted
-        containsHeaders(response.headers)
     }
 
     // Activations

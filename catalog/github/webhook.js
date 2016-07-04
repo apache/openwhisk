@@ -10,6 +10,7 @@ var request = require('request');
  *  @return {object} whisk async
  */
 function main(params) {
+  // Let's convert this package into a mock, and remove the tests for this package.
   var username = params.username;
   var repository = params.repository;
   var accessToken = params.accessToken;
