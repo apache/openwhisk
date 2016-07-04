@@ -40,8 +40,8 @@ import common.TestUtils.RunResult;
  */
 public class WskCli {
 
-    private static String cliPath;
-    private static String cliDir;
+    private String cliPath;
+    private String cliDir;
 
     private final File binaryPath;
     public String subject;
