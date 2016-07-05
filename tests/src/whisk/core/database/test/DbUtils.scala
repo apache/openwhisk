@@ -46,9 +46,7 @@ import whisk.utils.ExecutionContextFactory
 import scala.language.postfixOps
 
 trait DbUtils extends TransactionCounter {
-
     implicit val dbOpTimeout = 15 seconds
-    implicit final val executionContext = ExecutionContextFactory.makeSingleThreadExecutionContext()
     val docsToDelete = ListBuffer[(ArtifactStore[_], DocInfo)]()
     case class RetryOp() extends Throwable
 
@@ -85,7 +83,7 @@ trait DbUtils extends TransactionCounter {
      * matches the given value.
      */
     def waitOnView[Au](db: ArtifactStore[Au], namespace: Namespace, count: Int)(
-        implicit transid: TransactionId, timeout: Duration) = {
+        implicit context: ExecutionContext, transid: TransactionId, timeout: Duration) = {
         val success = retry(() => {
             val startKey = List(namespace.toString)
             val endKey = List(namespace.toString, WhiskEntityQueries.TOP)
@@ -104,7 +102,7 @@ trait DbUtils extends TransactionCounter {
      * factory. The result count from the view is checked against the given value.
      */
     def waitOnView(db: EntityStore, factory: WhiskEntityQueries[_], namespace: Namespace, count: Int)(
-        implicit transid: TransactionId, timeout: Duration) = {
+        implicit context: ExecutionContext, transid: TransactionId, timeout: Duration) = {
         val success = retry(() => {
             factory.listCollectionInNamespace(db, namespace, 0, 0) map { l =>
                 if (l.left.get.length < count) {
@@ -120,7 +118,7 @@ trait DbUtils extends TransactionCounter {
      * specific to the WhiskAuth records.
      */
     def waitOnView(db: AuthStore, uuid: UUID, count: Int)(
-        implicit transid: TransactionId, timeout: Duration) = {
+        implicit context: ExecutionContext, transid: TransactionId, timeout: Duration) = {
         val success = retry(() => {
             WhiskAuth.list(db, uuid) map { l =>
                 if (l.length != count) {

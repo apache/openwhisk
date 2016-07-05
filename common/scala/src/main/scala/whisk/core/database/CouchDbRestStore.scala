@@ -21,8 +21,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.util.{ Try, Success, Failure }
 import spray.json.JsObject
-import spray.http.StatusCode
-import spray.http.StatusCodes
+import akka.http.scaladsl.model.{ StatusCode, StatusCodes }
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.entity.WhiskDocument
