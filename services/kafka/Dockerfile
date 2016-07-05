@@ -19,7 +19,7 @@ RUN curl -SLO "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-
 
 # Install Kafka Stuff
 RUN mkdir /kafka /data
-ENV KAFKA_RELEASE 0.9.0.1
+ENV KAFKA_RELEASE 0.10.0.0
 ENV KAFKA_SCALA_VERSION 2.11
 ENV KAFKA_RELEASE_ARCHIVE kafka_${KAFKA_SCALA_VERSION}-${KAFKA_RELEASE}.tgz
 
