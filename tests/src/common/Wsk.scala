@@ -730,59 +730,34 @@ object Wsk {
     private val binaryName = "wsk"
 
     /** What is the path to a downloaded CLI? **/
-    private def getDownloadedCliPath = {
+    private def getDownloadedPythonCLIPath = {
         s"${System.getProperty("user.home")}${File.separator}.local${File.separator}bin${File.separator}${binaryName}"
     }
 
+    /** What is the path to a downloaded CLI? **/
+    private def getDownloadedGoCLIPath = {
+        s"${System.getProperty("user.home")}${File.separator}.local${File.separator}bin${File.separator}go-cli${File.separator}${binaryName}"
+    }
+
     def exists(usePythonCLI: Boolean) = {
-        if (WhiskProperties.useCliDownload) {
-            val binary = getDownloadedCliPath
-            val f = new File(binary)
-            assert(f.exists, s"did not find $f")
+        val cliPath = if (usePythonCLI) {
+            if (WhiskProperties.useCLIDownload) getDownloadedPythonCLIPath else WhiskProperties.getPythonCLIPath
         } else {
-            val cliPath = if (usePythonCLI) {
-                WhiskProperties.getPythonCLIPath();
-            } else {
-                WhiskProperties.getGoCLIPath();
-            }
-
-            val cliDir = if (usePythonCLI) {
-                WhiskProperties.getPythonCLIDir();
-            } else {
-                WhiskProperties.getGoCLIDir();
-            }
-
-            val dir = new File(cliDir)
-            val exec = new File(cliPath)
-            assert(dir.exists, s"did not find $dir")
-            assert(exec.exists, s"did not find $exec")
+            if (WhiskProperties.useCLIDownload) getDownloadedGoCLIPath else WhiskProperties.getGoCLIPath
         }
+
+        assert((new File(cliPath)).exists, s"did not find $cliPath")
     }
 
-    def baseCommand(usePythonCLI: Boolean) =  {
-        if (WhiskProperties.useCliDownload()) {
-            Buffer(getDownloadedCliPath)
+    def baseCommand(usePythonCLI: Boolean) =
+        if (usePythonCLI) {
+            if (WhiskProperties.useCLIDownload)
+                Buffer(WhiskProperties.python, getDownloadedPythonCLIPath)
+            else
+                Buffer(WhiskProperties.python, WhiskProperties.getPythonCLIPath)
         } else {
-            val cliPath = if (usePythonCLI) {
-                WhiskProperties.getPythonCLIPath();
-            } else {
-                WhiskProperties.getGoCLIPath();
-            }
-
-            val cliDir = if (usePythonCLI) {
-                WhiskProperties.getPythonCLIDir();
-            } else {
-                WhiskProperties.getGoCLIDir();
-            }
-
-            if (usePythonCLI) {
-                Buffer(WhiskProperties.python, new File(cliPath).toString)
-
-            } else {
-                Buffer(new File(cliPath).toString)
-            }
+            if (WhiskProperties.useCLIDownload) Buffer(getDownloadedGoCLIPath) else Buffer(WhiskProperties.getGoCLIPath)
         }
-    }
 }
 
 sealed trait RunWskCmd {

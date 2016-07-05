@@ -181,7 +181,7 @@ public class WhiskProperties {
         return whiskProperties.getProperty("kafka.docker.endpoint");
     }
 
-    public static boolean useCliDownload() {
+    public static boolean useCLIDownload() {
         return whiskProperties.getProperty("use.cli.download").equals("true");
     }
 
