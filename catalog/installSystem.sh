@@ -62,14 +62,6 @@ install "$CATALOG_HOME/samples/hello.js" \
      -a sampleOutput '{ }' \
      -a sampleLogOutput '2016-03-22T01:02:26.387624916Z stdout: hello Cat!'
 
-install "$CATALOG_HOME/samples/greeting.js" \
-     samples/greeting \
-     -a description 'Returns a friendly greeting' \
-     -a parameters '[{"name": "name", "required":false}, {"name": "place", "required":false, "description":"The string to be included in the return value"}]' \
-     -a sampleInput '{ "payload": "Cat", "place": "Narrowsburg" }' \
-     -a sampleOutput '{ "payload": "Hello, Cat from Narrowsburg!" }' \
-     -a sampleLogOutput "2016-03-22T01:07:08.384982272Z stdout: params: { place: 'Narrowsburg', payload: 'Cat' }"
-
 install "$CATALOG_HOME/samples/wc.js" \
      samples/wordCount \
      -a description 'Count words in a string' -a parameters '[{"name": "payload", "required":true, "description":"A string"}]' \
