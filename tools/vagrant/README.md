@@ -70,13 +70,13 @@ From your _host_, configure `wsk` to use your Vagrant-hosted OpenWhisk deploymen
 The following commands assume that you have `wsk` setup correctly in your PATH.
 ```
 # Set your OpenWhisk Namespace and Authorization Key.
-  wsk property set --apihost 192.168.33.13 --namespace guest --auth `vagrant ssh -- cat openwhisk/ansible/files/auth.guest`
+wsk property set --apihost 192.168.33.13 --namespace guest --auth `vagrant ssh -- cat openwhisk/ansible/files/auth.guest`
 
 # Run the hello sample action
-  wsk action invoke /whisk.system/samples/echo -p message hello --blocking --result
-  {
+wsk action invoke /whisk.system/samples/echo -p message hello --blocking --result
+{
     "message": "hello"
-  }
+}
 ```
 **Tip:** To connect to a different host API (i.e. bluemix.net) with the CLI, you will need to 
 configure the CLI with new values for __apihost__, __namespace__, and __auth__ key.

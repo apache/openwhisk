@@ -16,10 +16,11 @@ You will need to know the base URL for the deployment you want to use and
 install it using [pip](https://pip.pypa.io/).
 
 ```
-sudo pip install --upgrade https://{BASE URL}/openwhisk-0.1.0.tar.gz
+sudo pip install --upgrade https://{BASE URL}/openwhisk-0.1.0.tar.gz [--trusted-host {BASE URL}]
 ```
 
-The `{BASE URL}` is the OpenWhisk API hostname or IP address (e.g., openwhisk.ng.bluemix.net, 172.17.0.1).
+The `{BASE URL}` is the OpenWhisk API hostname or IP address (e.g., openwhisk.ng.bluemix.net).
+The `--trusted-host` option allows you to download the CLI from a host with a [self-signed (i.e., untrusted) certificate](../tools/vagrant/README.md#ssl-certificate-configuration-optional).
 
 There are three properties to configure the CLI with:
 
