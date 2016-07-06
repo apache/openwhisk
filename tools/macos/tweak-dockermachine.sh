@@ -5,22 +5,20 @@
 # Set this to the name of the docker-machine VM.
 MACHINE_NAME=${1:-whisk}
 
+
 # Disable TLS.
 docker-machine ssh $MACHINE_NAME "echo DOCKER_TLS=no |sudo tee -a /var/lib/boot2docker/profile > /dev/null"
 docker-machine ssh $MACHINE_NAME "echo DOCKER_HOST=\'-H tcp://0.0.0.0:4243\' |sudo tee -a /var/lib/boot2docker/profile > /dev/null"
-
-# Perist prereqs
-cat <<WHISK_LOAD_EOF > bootsync.sh
-#!/bin/sh
+docker-machine ssh $MACHINE_NAME "echo '#!/bin/sh
 /sbin/syslogd
-su - docker -c "tce-load -wi python"
-WHISK_LOAD_EOF
-
-docker-machine scp bootsync.sh "$MACHINE_NAME:/tmp"
-docker-machine ssh $MACHINE_NAME "sudo mv /tmp/bootsync.sh /var/lib/boot2docker/"
+su - docker -c \"tce-load -wi python\"
+if ! [ -x /usr/local/bin/pip ]; then
+    curl -k https://bootstrap.pypa.io/get-pip.py | sudo python
+    sudo pip install \"docker-py==1.7.2\"
+    sudo pip install \"httplib2==0.9.2\"
+fi
+' | sudo tee /var/lib/boot2docker/bootsync.sh > /dev/null"
 docker-machine ssh $MACHINE_NAME "sudo chmod +x /var/lib/boot2docker/bootsync.sh"
-
-rm -f bootsync.sh
 
 
 # Install prereqs
@@ -42,9 +40,5 @@ netstat -nr |grep 172\.17
 
 # Env variables to set.
 # Note, the user CAN NOT do eval $(docker-machine env whisk) because of a bug in docker-machine that assumes TLS even if not enabled
-echo Run the following:
+echo Save the following to your shell profile:
 echo "  " export DOCKER_HOST="tcp://$MACHINE_VM_IP:4243"
-
-
-
-
