@@ -48,3 +48,47 @@ db:
   authkeys:
   - guest
   - whisk.system
+
+# The default value for catalog_source is empty, meaning that
+# openwhisk will not install the catalog from the catalog repositories.
+# If catalog_source is not set to "catalog-repos", the other variables
+# like catalog_namespace, catalog_auth_key and catalog_repos will not
+# be effective.
+catalog_source: ""
+
+# The default name space is /whisk.system. The catalog namespace must begin with a slash "/".
+catalog_namespace: "/whisk.system"
+
+# The catalog_auth_key is used to determine the secret key to authenticate the openwhisk service.
+# The value for this variable can be set to either the secret key itself or the file, which
+# saves the secret key.
+# By default, we take the key from {{ openwhisk_home }}/ansible/files/auth.whisk.system.
+catalog_auth_key: "{{ openwhisk_home }}/ansible/files/auth.whisk.system"
+
+# The catalog_repos is used to specify all the catalog names and repository URLs,
+# so that openwhisk knows where to download the catalog and install them. The key
+# specifies the catalog name and the url saves the URL of the repository. The location
+# specifies the location to save the code of the catalog. The version specifies the hash
+# of the commit to be cloned. If it is omit or set to HEAD, the latest commit will be
+# selected. The repo_update specifies whether to retrieve new revisions from the origin
+# repository and the default value is yes, meaning that it will retrieve the new
+# revisions. The keys url and location are mandatory and the keys version and repo_update
+# are optional. To add a new repository, please follow the template by adding:
+#
+# catalog_repos:
+#   ...
+#   <catalog-name>:
+#     url: <URL of repository>, mandatory.
+#     location: <local location to save the catalog>, mandatory.
+#     version: <hash of the commit>, optional, default to HEAD.
+#     repo_update: <whether to retrieve new revisions from the origin repository>,
+#                  optional, default to yes. Yes means to retrieve the new revisions, and
+#                  no means not to retrieve the new revisions.
+#
+catalog_repos:
+  openwhisk-catalog:
+    url: https://github.com/openwhisk/openwhisk-catalog.git
+    # Set the local location as the same level as openwhisk home, but it can be changed.
+    location: "{{ openwhisk_home }}/../openwhisk-catalog"
+    version: "HEAD"
+    repo_update: "yes"

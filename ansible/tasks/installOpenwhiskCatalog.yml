@@ -1,0 +1,34 @@
+---
+# This task will install the standard actions and packages available in openwhisk-catalog repos.
+
+- set_fact:
+    catalog_location={{ item.value.location }}
+    catalog_repo_url={{ item.value.url }}
+    api_host={{ groups['edge'] | first }}
+    version="HEAD"
+    repo_update="yes"
+
+- set_fact:
+    version={{ item.value.version }}
+  when: item.value.version is defined
+
+- set_fact:
+    repo_update={{ item.value.repo_update }}
+  when: item.value.repo_update is defined
+
+- name: "ensure catalog_location directory exists"
+  file:
+    path: "{{ catalog_location }}"
+    state: directory
+
+- name: download the catalog repository to the catalog location if necessary
+  git:
+    repo: "{{ catalog_repo_url }}"
+    dest: "{{ catalog_location }}"
+    update: "{{ repo_update }}"
+    version: "{{ version }}"
+
+- name: install the catalog from the catalog location
+  shell: ./installCatalog.sh {{ catalog_auth_key }} {{ api_host }} {{ catalog_namespace }} chdir="{{ catalog_location }}/packages"
+  environment:
+    OPENWHISK_HOME: "{{ openwhisk_home }}"
