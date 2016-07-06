@@ -1,10 +1,10 @@
-Deploying Openwhisk using Ansible
+Deploying OpenWhisk using Ansible
 =========
 
 
 ### Getting started
 
-If you want to deploy Openwhisk locally using Ansible, you first need to install Ansible on your development environment:
+If you want to deploy OpenWhisk locally using Ansible, you first need to install Ansible on your development environment:
 
 #### Ubuntu users
 ```
@@ -54,18 +54,18 @@ ansible | SUCCESS => {
 ```
 
 ### Using Ansible
-**Caveat:** All ansible commands are meant to be executed from the `ansible` directory.
+**Caveat:** All Ansible commands are meant to be executed from the `ansible` directory.
 This is important because that's where `ansible.cfg` is located which contains generic settings that are needed for the remaining steps.
 
 In all instructions, replace `<environment>` with your target environment. e.g. `mac`if you want to deploy using a local mac setup.
 By default, if you omit the `-i` parameter, the `local` environment will be used.
 
-In all instructions, replace `<openwhisk_home>` with the base directory of your Openwhisk source tree. e.g. `openwhisk`
+In all instructions, replace `<openwhisk_home>` with the base directory of your OpenWhisk source tree. e.g. `openwhisk`
 
 #### Setup
 
 This step needs to be done only once per development environment. It will generate configuration files based on your local settings. Notice that for the following playbook you don't need to specify a target environment as it will run only local actions.
-After the playbook is done you should see a file called `db_local.ini` in your ansible directory. It will by default contain settings for a local ephemeral CouchDB setup. Afterwards, you can change the values directly in `db_local.ini` 
+After the playbook is done you should see a file called `db_local.ini` in your `ansible` directory. It will by default contain settings for a local ephemeral CouchDB setup. Afterwards, you can change the values directly in `db_local.ini`.
 
 #####  Ephemeral CouchDB
 
@@ -114,11 +114,8 @@ ansible-playbook -i environments/<environment> prereq.yml
 
 **Hint:** During playbook execution the `TASK [prereq : check for pip]` can show as failed. This is normal if no pip is installed. The playbook will then move on and install pip on the target machines.
 
-**Caveat:** Mac users who have a docker-machine setup will have to re-run this playbook every time the boot2docker machine is rebooted. This is because installed prereqs are not persisted on TinyCore Linux.
-
-
 ### Deploying Using CouchDB
-- Make sure your `db_local.ini` file is set up for couchdb. See [Setup](#setup) 
+- Make sure your `db_local.ini` file is set up for CouchDB. See [Setup](#setup)
 - Then execute
 
 ```
@@ -130,11 +127,11 @@ ansible-playbook -i environments/<environment> initdb.yml
 ansible-playbook -i environments/<environment> openwhisk.yml
 ```
 
-You need to run `initdb.yml` on couchdb **every time** you deploy couchdb to initialize the database.
+You need to run `initdb.yml` on CouchDB **every time** you deploy CouchDB to initialize the database.
 
 
 ### Deploying Using Cloudant
-- Make sure your `db_local.ini` file is set up for cloudant. See [Setup](#setup) 
+- Make sure your `db_local.ini` file is set up for Cloudant. See [Setup](#setup)
 - Then execute
 
 ```
@@ -144,7 +141,7 @@ cd ansible
 ansible-playbook -i environments/<environment> initdb.yml
 ansible-playbook -i environments/<environment> openwhisk.yml
 ```
-You need to run `initdb` on cloudant **only once** per cloudant database to initialize the db.
+You need to run `initdb` on Cloudant **only once** per Cloudant database to initialize the db.
 
 **Hint:** The `initdb.yml` playbook will only initialize your database if it is not initialized already, else it will skip initialization steps.
 
@@ -155,7 +152,7 @@ See main [README](https://github.com/openwhisk/openwhisk/blob/master/README.md) 
 
 
 ### Hot-swapping a Single Component
-The playbook structure allows you to clean, deploy or re-deploy a single component as well as the entire Openwhisk stack. Let's assume you have deployed the entire stack using the "openwhisk.yml" playbook. You then make a change to a single component, for example the invoker. You will probably want a new tag on the invoker image so you first build it using:
+The playbook structure allows you to clean, deploy or re-deploy a single component as well as the entire OpenWhisk stack. Let's assume you have deployed the entire stack using the "openwhisk.yml" playbook. You then make a change to a single component, for example the invoker. You will probably want a new tag on the invoker image so you first build it using:
 
 ```
 cd <openwhisk_home>
@@ -182,7 +179,7 @@ ansible-playbook -i environments/<environment> controller.yml -e mode=clean
 **Caveat:** In distributed environments some components (e.g. Consul, Invoker, etc.) exist on multiple machines. So if you run a playbook to clean or deploy those components, it will run on **all** of the hosts targeted by the component's playbook.
 
 
-### Cleaning an Openwhisk Deployment
+### Cleaning an OpenWhisk Deployment
 Once you are done with the deployment you can clean it from the target environment.
 
 ```
@@ -201,13 +198,13 @@ ansible-playbook -i environments/<environment> prereq.yml -e mode=clean
 Some of the more common problems and their solution are listed here.
 
 #### Setuptools Version Mismatch
-If you encounter the following error message during ansible execution
+If you encounter the following error message during `ansible` execution
 
 ```
 ERROR! Unexpected Exception: ... Requirement.parse('setuptools>=11.3'))
 ```
 
-your setuptools package is probably outdated. To fix this, run this command:
+your `setuptools` package is likely out of date. You can upgrade the package using this command:
 
 ```
 pip install --upgrade setuptools --user python
@@ -215,8 +212,8 @@ pip install --upgrade setuptools --user python
 
 
 #### Mac Setup - Python Interpreter
-The MacOS environment makes the assumption that you installed python in /usr/local/bin using brew.
-If you encounter the following error message during testing of your setup
+The MacOS environment assumes Python is installed in `/usr/local/bin` which is the default location when using `brew`.
+The following error will occur if Python is located elsewhere:
 
 ```
 ansible all -i environments/mac -m ping
@@ -230,20 +227,20 @@ ansible | FAILED! => {
 }
 ```
 
-your python installation is probably pointed somewhere else. To fix this run this command:
+An expedient workaround is to create a link to the expected location:
 
 ```
 ln -s $(which python) /usr/local/bin/python
 ```
 
 #### Spaces in Paths
-Ansible does not like spaces in paths. There have been some efforts on fixing this issue but until now (read: ansible 2.1.0.0)
-it is still a problem. Many file imports and roles don't work correctly when included from a path that contains spaces.
-If you encounter this error message during ansible execution
+Ansible 2.1.0.0 and earlier versions do not support a space in file paths.
+Many file imports and roles will not work correctly when included from a path that contains spaces.
+If you encounter this error message during Ansible execution
 
 ```
 fatal: [ansible]: FAILED! => {"failed": true, "msg": "need more than 1 value to unpack"}
 ```
 
-the path to your Openwhisk ansible directory probably contains spaces. To fix this, please copy the source tree to a path
+the path to your OpenWhisk `ansible` directory contains spaces. To fix this, please copy the source tree to a path
 without spaces as there is no current fix available to this problem.
