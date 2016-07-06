@@ -59,7 +59,7 @@ public class CLISequentialTests {
             wsk.sanitize(Trigger, "T_del");
             wsk.sanitize(Rule, "R_del");
 
-            wsk.createAction("A_normal", TestUtils.getCatalogFilename("samples/hello.js"));
+            wsk.createAction("A_normal", TestUtils.getTestDatFilename("samples/hello.js"));
             wsk.createAction("A_del", TestUtils.getCatalogFilename("samples/wc.js"));
             wsk.createTrigger("T_del");
             wsk.createRule("R_del", "T_del", "A_del");

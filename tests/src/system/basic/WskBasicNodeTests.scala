@@ -39,7 +39,7 @@ class WskBasicNodeTests
 
     implicit val wskprops = WskProps()
     val wsk = new Wsk()
-    val defaultAction = Some(TestUtils.getCatalogFilename("samples/hello.js"))
+    val defaultAction = Some(TestUtils.getTestDatFilename("samples/hello.js"))
 
     val currentNodeJsDefaultKind = "nodejs:6"
 
@@ -65,7 +65,7 @@ class WskBasicNodeTests
     it should "Ensure that JS actions created with no explicit kind use the current default NodeJS runtime" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "jsWithNoKindSpecified"
-            val file = Some(TestUtils.getCatalogFilename("samples/hello.js"))
+            val file = Some(TestUtils.getTestDatFilename("samples/hello.js"))
 
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) =>

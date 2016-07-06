@@ -91,7 +91,7 @@ public class CLIActionTests {
             long start = System.currentTimeMillis();
 
             wsk.sanitize(Action, actionName);
-            wsk.createAction(actionName, TestUtils.getCatalogFilename("samples/hello.js"));
+            wsk.createAction(actionName, TestUtils.getTestDatFilename("samples/hello.js"));
 
             // keep track of invoke ids and use them to check the output of the activation
             List<String> activationIds = new ArrayList<String>();
@@ -126,7 +126,7 @@ public class CLIActionTests {
         try {
             wsk.sanitize(Action, "twoAction1");
             wsk.sanitize(Action, "twoAction2");
-            wsk.createAction("twoAction1", TestUtils.getCatalogFilename("samples/hello.js"));
+            wsk.createAction("twoAction1", TestUtils.getTestDatFilename("samples/hello.js"));
             wsk.createAction("twoAction2", TestUtils.getCatalogFilename("samples/wc.js"));
             ArrayList<String> expected = new ArrayList<String>();
             ArrayList<String> activationIds = new ArrayList<String>();
@@ -419,7 +419,7 @@ public class CLIActionTests {
           assertTrue("Expected result to not contain error", !result.contains("error"));
 
           wsk.delete(Action, action);
-          wsk.createAction(action, TestUtils.getCatalogFilename("samples/hello.js"));
+          wsk.createAction(action, TestUtils.getTestDatFilename("samples/hello.js"));
 
           activationId = wsk.invoke(action, TestUtils.makeParameter("payload", now));
           present = wsk.logsForActivationContain(activationId, expectedFirstResult, DEFAULT_WAIT);
@@ -437,7 +437,7 @@ public class CLIActionTests {
         String action = "invokeActionWithUTF8";
         try {
             wsk.sanitize(Action, action);
-            wsk.createAction(action, TestUtils.getCatalogFilename("samples/hello.js"));
+            wsk.createAction(action, TestUtils.getTestDatFilename("samples/hello.js"));
             String msg = "«ταБЬℓσö»: 1<2 & 4+1>³, now 20%€§$ off!";
             String expected = "hello " + msg;
             String activationId = wsk.invoke(action, TestUtils.makeParameter("payload", msg));

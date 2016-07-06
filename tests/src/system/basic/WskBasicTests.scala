@@ -54,7 +54,7 @@ class WskBasicTests
     implicit val wskprops = WskProps()
     var usePythonCLI = true
     val wsk = new Wsk(usePythonCLI)
-    val defaultAction = Some(TestUtils.getCatalogFilename("samples/hello.js"))
+    val defaultAction = Some(TestUtils.getTestDatFilename("samples/hello.js"))
 
     behavior of "Wsk CLI"
 
@@ -161,7 +161,7 @@ class WskBasicTests
 
     it should "reject create action in shared package not owned by authkey" in {
         wsk.action.get("/whisk.system/util/notallowed", expectedExitCode = NOT_FOUND) // make sure it does not exist
-        val file = Some(TestUtils.getCatalogFilename("samples/hello.js"))
+        val file = Some(TestUtils.getTestDatFilename("samples/hello.js"))
         try {
             wsk.action.create("/whisk.system/util/notallowed", file, expectedExitCode = FORBIDDEN)
         } finally {
@@ -256,7 +256,7 @@ class WskBasicTests
     it should "create an action, then update its kind" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "createAndUpdate"
-            val file = Some(TestUtils.getCatalogFilename("samples/hello.js"))
+            val file = Some(TestUtils.getTestDatFilename("samples/hello.js"))
 
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) => action.create(name, file, kind = Some("nodejs"))
@@ -273,7 +273,7 @@ class WskBasicTests
     it should "create, update, get and list an action" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "createAndUpdate"
-            val file = Some(TestUtils.getCatalogFilename("samples/hello.js"))
+            val file = Some(TestUtils.getTestDatFilename("samples/hello.js"))
             val params = Map("a" -> "A".toJson)
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) =>
@@ -310,7 +310,7 @@ class WskBasicTests
         (wp, assetHelper) =>
             // Create dummy action to update
             val name = "updateMissingFile"
-            val file = Some(TestUtils.getCatalogFilename("samples/hello.js"))
+            val file = Some(TestUtils.getTestDatFilename("samples/hello.js"))
             assetHelper.withCleaner(wsk.action, name) { (action, name) => action.create(name, file) }
             // Update it with a missing file
             wsk.action.create("updateMissingFile", Some("notfound"), update = true, expectedExitCode = MISUSE_EXIT)

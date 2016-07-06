@@ -47,7 +47,7 @@ class WskActionSequenceTests
     implicit val wskprops = WskProps()
     var usePythonCLI = true
     val wsk = new Wsk(usePythonCLI)
-    val defaultAction = Some(TestUtils.getCatalogFilename("samples/hello.js"))
+    val defaultAction = Some(TestUtils.getTestDatFilename("samples/hello.js"))
     val allowedActionDuration = 120 seconds
 
     behavior of "Wsk Action Sequence"

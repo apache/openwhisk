@@ -164,7 +164,7 @@ public class CLIRuleTests {
             wsk.sanitize(Rule, "R2_122");
 
             wsk.createAction("A1_122", TestUtils.getCatalogFilename("samples/wc.js"));
-            wsk.createAction("A2_122", TestUtils.getCatalogFilename("samples/hello.js"));
+            wsk.createAction("A2_122", TestUtils.getTestDatFilename("samples/hello.js"));
             wsk.createTrigger("T1_122");
             wsk.createRule("R1_122", "T1_122", "A1_122");
             wsk.createRule("R2_122", "T1_122", "A2_122");
@@ -206,7 +206,7 @@ public class CLIRuleTests {
             startMilli = endMilli;
 
             wsk.createAction("A1_222", TestUtils.getCatalogFilename("samples/wc.js"));
-            wsk.createAction("A2_222", TestUtils.getCatalogFilename("samples/hello.js"));
+            wsk.createAction("A2_222", TestUtils.getTestDatFilename("samples/hello.js"));
             wsk.createTrigger("T1_222");
             wsk.createTrigger("T2_222");
             wsk.createRule("Alpha", "T1_222", "A1_222");
