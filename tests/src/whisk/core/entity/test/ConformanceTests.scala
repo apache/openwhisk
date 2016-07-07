@@ -17,7 +17,11 @@
 package whisk.core.entity.test
 
 import akka.actor.ActorSystem
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
+
 import scala.util.Try
+
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
@@ -50,7 +54,6 @@ class ConformanceTests extends FlatSpec
     implicit val defaultPatience =
         PatienceConfig(timeout = Span(1, Minutes), interval = Span(1, Seconds))
 
-
     // Properties for WhiskAuthStore and WhiskEntityStore.
     val config = new WhiskConfig(Map(
         dbProvider -> null,
@@ -73,8 +76,11 @@ class ConformanceTests extends FlatSpec
         println("Shutting down store connections")
         datastore.shutdown()
         authstore.shutdown()
+        println("Shutting down HTTP connections")
+        Await.result(akka.http.scaladsl.Http().shutdownAllConnectionPools(), Duration.Inf)
         println("Shutting down actor system")
-        actorSystem.shutdown()
+        actorSystem.terminate()
+        Await.result(actorSystem.whenTerminated, Duration.Inf)
     }
 
     /**
@@ -105,7 +111,7 @@ class ConformanceTests extends FlatSpec
         }
     }
 
-    /* "Auth Database" */ ignore should "conform to expected schema" in {
+    "Auth Database" should "conform to expected schema" in {
         checkDatabaseFields(authstore, "subjects/uuids", _ => true, Set("subject", "uuid", "key", "_id", "_rev"))
     }
 

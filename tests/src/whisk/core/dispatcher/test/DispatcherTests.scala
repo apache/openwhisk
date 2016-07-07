@@ -19,6 +19,8 @@ package whisk.core.dispatcher.test
 import java.util.Calendar
 
 import scala.concurrent.Future
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 
 import akka.actor.ActorSystem
 
@@ -51,14 +53,16 @@ import whisk.core.entity.WhiskTrigger
 @RunWith(classOf[JUnitRunner])
 class DispatcherTests extends FlatSpec with Matchers with BeforeAndAfter with BeforeAndAfterAll {
     implicit val transid = TransactionId.testing
-    implicit val ec = Dispatcher.executionContext
+
+    implicit val actorSystem = ActorSystem("dispatchertests")
+    implicit val ec = actorSystem.dispatcher
 
     val dispatcher = new TestDispatcher("whisk")
 
-    implicit val actorSystem = ActorSystem()
-
     override def afterAll() {
-        actorSystem.shutdown()
+        println("Shutting down actor system")
+        actorSystem.terminate()
+        Await.result(actorSystem.whenTerminated, Duration.Inf)
     }
 
     behavior of "Dispatcher"

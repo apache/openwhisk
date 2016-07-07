@@ -49,10 +49,11 @@ import whisk.core.entity.WhiskActivation
 import whisk.utils.ExecutionContextFactory.PromiseExtensions
 
 class LoadBalancerService(config: WhiskConfig, verbosity: Verbosity.Level)(
-    implicit val actorSystem: ActorSystem,
-    val executionContext: ExecutionContext)
+    implicit val actorSystem: ActorSystem)
     extends LoadBalancerToKafka
     with Logging {
+
+    implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
     /**
      * The two public methods are getInvokerHealth and the inherited doPublish methods.

@@ -17,6 +17,8 @@
 package whisk.core.container.test
 
 import scala.concurrent.Future
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 
 import akka.actor.ActorSystem
 
@@ -80,8 +82,11 @@ class ContainerPoolTests extends FlatSpec
     override def afterAll() {
         println("Shutting down store connections")
         datastore.shutdown()
+        println("Shutting down HTTP connections")
+        Await.result(akka.http.scaladsl.Http().shutdownAllConnectionPools(), Duration.Inf)
         println("Shutting down actor system")
-        actorSystem.shutdown()
+        actorSystem.terminate()
+        Await.result(actorSystem.whenTerminated, Duration.Inf)
     }
 
     /**

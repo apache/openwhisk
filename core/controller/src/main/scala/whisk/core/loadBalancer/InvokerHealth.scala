@@ -20,7 +20,6 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
 import scala.collection.concurrent.TrieMap
-import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
@@ -56,8 +55,9 @@ class InvokerHealth(
     config: WhiskConfig,
     instanceChange: Array[Int] => Unit,
     getKafkaPostCount: () => Int)(
-        implicit val system: ActorSystem,
-        val ec: ExecutionContext) extends Logging {
+        implicit val system: ActorSystem) extends Logging {
+
+    private implicit val executionContext = system.dispatcher
 
     setComponentName("LoadBalancer");
     setVerbosity(Verbosity.Loud);

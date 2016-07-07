@@ -19,7 +19,7 @@ package whisk.core.invoker.test
 import java.util.Calendar
 
 import scala.concurrent.Await
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration._
 
 import akka.actor.ActorSystem
 
@@ -81,8 +81,11 @@ class InvokerTests extends FlatSpec
         datastore.shutdown()
         authstore.shutdown()
         activationstore.shutdown()
+        println("Shutting down HTTP connections")
+        Await.result(akka.http.scaladsl.Http().shutdownAllConnectionPools(), Duration.Inf)
         println("Shutting down actor system")
-        actorSystem.shutdown()
+        actorSystem.terminate()
+        Await.result(actorSystem.whenTerminated, Duration.Inf)
     }
 
     behavior of "Invoker"

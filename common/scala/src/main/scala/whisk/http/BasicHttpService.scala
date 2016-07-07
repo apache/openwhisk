@@ -107,8 +107,7 @@ trait BasicHttpService extends HttpService with TransactionCounter with Logging 
 }
 
 object BasicHttpService extends Directives {
-    def startService[T <: Actor](name: String, interface: String, port: Integer, service: Creator[T]) = {
-        val system = ActorSystem(name)
+    def startService[T <: Actor](system: ActorSystem, name: String, interface: String, port: Integer, service: Creator[T]) = {
         val actor = system.actorOf(Props.create(service), s"$name-service")
 
         implicit val timeout = Timeout(5 seconds)

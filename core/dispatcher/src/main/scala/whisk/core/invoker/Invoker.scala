@@ -80,6 +80,7 @@ import whisk.core.entity.WhiskAuthStore
 import whisk.core.entity.WhiskEntity
 import whisk.core.entity.WhiskEntityStore
 import whisk.http.BasicHttpService
+import whisk.utils.ExecutionContextFactory
 import scala.concurrent.duration.Duration
 
 /**
@@ -88,7 +89,6 @@ import scala.concurrent.duration.Duration
  *
  * @param config the whisk configuration
  * @param instance the invoker instance number
- * @param executionContext an execution context for futures
  * @param runningInContainer if false, invoker is run outside a container -- for testing
  */
 class Invoker(
@@ -547,11 +547,12 @@ object InvokerService {
 
             SimpleExec.setVerbosity(verbosity)
 
-            val dispatcher = new Dispatcher(config, s"invoke${instance}", "invokers")
-            implicit val ec = Dispatcher.executionContext
-            implicit val actorSystem = ActorSystem(
+            implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
+            implicit val system = ActorSystem(
                 name = "invoker-actor-system",
                 defaultExecutionContext = Some(ec))
+
+            val dispatcher = new Dispatcher(config, s"invoke${instance}", "invokers")
 
             val invoker = new Invoker(config, instance, verbosity)
             dispatcher.setVerbosity(verbosity)
@@ -559,7 +560,7 @@ object InvokerService {
             dispatcher.start()
 
             val port = config.servicePort.toInt
-            BasicHttpService.startService("invoker", "0.0.0.0", port, new ServiceBuilder(invoker))
+            BasicHttpService.startService(system, "invoker", "0.0.0.0", port, new ServiceBuilder(invoker))
         }
     }
 }

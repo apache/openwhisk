@@ -40,7 +40,7 @@ import scala.language.postfixOps
 @RunWith(classOf[JUnitRunner])
 class KafkaConnectorTests extends FlatSpec with Matchers with BeforeAndAfter {
     implicit val transid = TransactionId.testing
-    implicit val ec = ExecutionContextFactory.makeCustomThreadPoolExecutionContext(poolSize = 4)
+    implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
 
     behavior of "Kafka connector"
 

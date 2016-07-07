@@ -17,6 +17,7 @@
 package whisk.http
 
 import akka.actor.Actor
+import akka.actor.ActorSystem
 import akka.event.Logging
 import akka.japi.Creator
 import spray.http.MediaTypes.`application/json`
@@ -50,8 +51,8 @@ trait BasicRasService extends BasicHttpService {
  */
 object BasicRasService {
 
-    def startService(name: String, interface: String, port: Integer) = {
-        BasicHttpService.startService(name, interface, port, new ServiceBuilder)
+    def startService(system: ActorSystem, name: String, interface: String, port: Integer) = {
+        BasicHttpService.startService(system, name, interface, port, new ServiceBuilder)
     }
 
     /**
