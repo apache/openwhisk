@@ -42,7 +42,7 @@ class WebSocketTests
         with JsHelpers {
 
     implicit val wskprops = WskProps()
-    var usePythonCLI = true
+    var usePythonCLI = false
 
     val wsk = new Wsk(usePythonCLI)
 

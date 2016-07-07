@@ -52,7 +52,7 @@ class WskBasicTests
     with WskTestHelpers {
 
     implicit val wskprops = WskProps()
-    var usePythonCLI = true
+    var usePythonCLI = false
     val wsk = new Wsk(usePythonCLI)
     val defaultAction = Some(TestUtils.getCatalogFilename("samples/hello.js"))
 

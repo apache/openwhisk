@@ -49,7 +49,7 @@ public class WskCli {
 
     private Map<String, String> env = null;
 
-    private Boolean usePythonCLI = true;
+    private Boolean usePythonCLI = false;
 
     public static enum Item {
         Package("package"), Trigger("trigger"), Action("action"), Rule("rule"), Activation("activation");
@@ -62,7 +62,7 @@ public class WskCli {
     }
 
     public WskCli() {
-        this(true, WhiskProperties.getAuthFileForTesting());
+        this(false, WhiskProperties.getAuthFileForTesting());
     }
 
     public WskCli(Boolean usePythonCLI) {
@@ -365,7 +365,7 @@ public class WskCli {
         }
 
         if (shared) {
-            cmd = Util.concat(cmd, new String[] { "--shared", "yes"});
+            cmd = Util.concat(cmd, new String[] { "--shared", "yes" });
         }
 
         RunResult result = cli(expectedCode, cmd);

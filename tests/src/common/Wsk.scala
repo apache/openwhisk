@@ -77,7 +77,7 @@ case class WskProps(
     def overrides = Seq("-i", "--apihost", apihost, "--apiversion", apiversion)
 }
 
-class Wsk(override val usePythonCLI: Boolean = true) extends RunWskCmd {
+class Wsk(override val usePythonCLI: Boolean = false) extends RunWskCmd {
     implicit val action = new WskAction()
     implicit val trigger = new WskTrigger()
     implicit val rule = new WskRule()
@@ -781,7 +781,7 @@ object Wsk {
 
 sealed trait RunWskCmd {
 
-    val usePythonCLI: Boolean = true
+    val usePythonCLI: Boolean = false
 
     /**
      * The base command to run.
