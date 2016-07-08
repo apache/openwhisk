@@ -102,6 +102,20 @@ case class WhiskActivation(
         version = version,
         publish = publish,
         annotations = annotations)
+
+    def withLogs(logs: ActivationLogs) = WhiskActivation(
+        namespace = namespace,
+        name = name,
+        subject = subject,
+        activationId = activationId,
+        start = start,
+        end = end,
+        cause = cause,
+        response = response,
+        logs = logs,
+        version = version,
+        publish = publish,
+        annotations = annotations)
 }
 
 object WhiskActivation

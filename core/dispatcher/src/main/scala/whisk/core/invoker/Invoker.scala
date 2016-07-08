@@ -213,8 +213,7 @@ class Invoker(
         val version = SemVer() // TODO: this is wrong, when the semver is passed from controller, fix this
         val payload = msg.content getOrElse JsObject()
         val response = Some(404, JsObject(ActivationResponse.ERROR_FIELD -> errorMsg.toJson).compactPrint)
-        val contents = JsArray()
-        val activation = makeWhiskActivation(tran, false, msg, name, version, payload, response, contents)
+        val activation = makeWhiskActivation(tran, false, msg, name, version, payload, response)
         completeTransaction(tran, activation)
     }
 
@@ -269,16 +268,16 @@ class Invoker(
             } flatMap {
                 case (failedInit, (start, end, response)) =>
                     if (!failedInit) tran.runInterval = Some(start, end)
-                    val contents = getContainerLogs(con)
-                    val activation = makeWhiskActivation(tran, con.isBlackbox, msg, action, payload, response, contents)
-                    val res = completeTransaction(tran, activation)
-                    val completeMsg = CompletionMessage(transid, activation withoutLogs)
+                    val activationResult = makeWhiskActivation(tran, con.isBlackbox, msg, action, payload, response)
+                    val completeMsg = CompletionMessage(transid, activationResult)
                     producer.send("completed", completeMsg) map { status =>
                         info(this, s"posted completion of activation ${msg.activationId}")
                     }
+                    val contents = getContainerLogs(con)
                     // Force delete the container instead of just pausing it iff the initialization failed or the container
                     // failed otherwise. An example of a ContainerError is the timeout of an action in which case the
                     // container is to be removed to prevent leaking
+                    val res = completeTransaction(tran, activationResult withLogs ActivationLogs.serdes.read(contents))
                     val removeContainer = failedInit || response.exists { _._1 == ActivationResponse.ContainerError }
                     // We return the container last as that is slow and we want the activation to logically finish fast
                     pool.putBack(con, removeContainer)
@@ -288,8 +287,8 @@ class Invoker(
                 info(this, s"failed to start or get a container")
                 val response = Some(420, "Error starting container")
                 val contents = JsArray(JsString("Error starting container"))
-                val activation = makeWhiskActivation(tran, false, msg, action, payload, response, contents)
-                completeTransaction(tran, activation)
+                val activation = makeWhiskActivation(tran, false, msg, action, payload, response)
+                completeTransaction(tran, activation withLogs ActivationLogs.serdes.read(contents))
             }
         }
     }
@@ -447,13 +446,13 @@ class Invoker(
 
     // -------------------------------------------------------------------------------------------------------------
     private def makeWhiskActivation(transaction: Transaction, isBlackbox: Boolean, msg: Message, action: WhiskAction,
-                                    payload: JsObject, response: Option[(Int, String)], log: JsArray)(
+                                    payload: JsObject, response: Option[(Int, String)])(
                                         implicit transid: TransactionId): WhiskActivation = {
-        makeWhiskActivation(transaction, isBlackbox, msg, action.name, action.version, payload, response, log, action.limits.timeout.duration)
+        makeWhiskActivation(transaction, isBlackbox, msg, action.name, action.version, payload, response, action.limits.timeout.duration)
     }
 
     private def makeWhiskActivation(transaction: Transaction, isBlackbox: Boolean, msg: Message, actionName: EntityName,
-                                    actionVersion: SemVer, payload: JsObject, response: Option[(Int, String)], log: JsArray, timeout: Duration = Duration.Inf)(
+                                    actionVersion: SemVer, payload: JsObject, response: Option[(Int, String)], timeout: Duration = Duration.Inf)(
                                         implicit transid: TransactionId): WhiskActivation = {
         val interval = (transaction.initInterval, transaction.runInterval) match {
             case (None, Some(run))  => run
@@ -481,7 +480,7 @@ class Invoker(
             start = interval._1,
             end = interval._2,
             response = activationResponse,
-            logs = ActivationLogs.serdes.read(log))
+            logs = ActivationLogs())
     }
 
     private val entityStore = WhiskEntityStore.datastore(config)
