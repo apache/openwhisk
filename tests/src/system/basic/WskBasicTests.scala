@@ -311,6 +311,18 @@ class WskBasicTests
             wsk.action.create("updateMissingFile", Some("notfound"), update = true, expectedExitCode = MISUSE_EXIT)
     }
 
+    it should "create, and invoke an action that utilizes a docker container" in withAssetCleaner(wskprops) {
+        val name = "dockerContainer"
+        (wp, assetHelper) =>
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some("whisk/dockerskeleton"), kind = Some("docker"))
+            }
+
+            val run = wsk.action.invoke(name, Map("payload" -> "test".toJson), blocking = true, result = true)
+            run.stdout should include regex (""""msg": "Hello from arbitrary C program!"""")
+            run.stdout should include regex (""""payload": "test"""")
+    }
+
     /**
      * Tests creating an action from a malformed js file. This should fail in
      * some way - preferably when trying to create the action. If not, then

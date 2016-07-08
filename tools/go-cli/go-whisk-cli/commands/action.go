@@ -516,6 +516,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
     if flags.action.docker {
         action.Exec = new(whisk.Exec)
         action.Exec.Image = artifact
+        action.Exec.Kind = "blackbox"
     } else if flags.action.copy {
         qNameCopy := qualifiedName{}
         qNameCopy, err = parseQualifiedName(args[1])
