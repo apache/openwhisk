@@ -17,20 +17,23 @@
 #
 
 ##
-# Whisk command line interface
+# Whisk Admin command line interface
 ##
-
-# TODO: protect this as an admin operation
 
 import os
 import sys
 import argparse
 import json
 import wskprop
-from wskutil import request
 import string
 import random
 import uuid
+from subprocess import Popen, PIPE, STDOUT
+try:
+    import argcomplete
+except ImportError:
+    argcomplete = False
+from wskutil import request
 
 DB_PROTOCOL = 'DB_PROTOCOL'
 DB_HOST     = 'DB_HOST'
@@ -41,13 +44,18 @@ DB_PASSWORD = 'DB_PASSWORD'
 DB_WHISK_AUTHS   = 'DB_WHISK_AUTHS'
 DB_WHISK_ACTIONS = 'DB_WHISK_ACTIONS'
 
+LOGS_DIR = 'WHISK_LOGS_DIR'
+
 # SCRIPT_DIR is going to be traversing all links and point to tools/cli/wsk
 CLI_DIR = os.path.dirname(os.path.realpath(sys.argv[0]))
 # ROOT_DIR is the repository root
 ROOT_DIR = os.path.join(os.path.join(CLI_DIR, os.pardir), os.pardir)
 
 def main():
-    requiredprops = [ DB_PROTOCOL, DB_HOST, DB_PORT, DB_USERNAME, DB_PASSWORD, DB_WHISK_AUTHS, DB_WHISK_ACTIONS ]
+    requiredprops = [
+        DB_PROTOCOL, DB_HOST, DB_PORT, DB_USERNAME, DB_PASSWORD,
+        DB_WHISK_AUTHS, DB_WHISK_ACTIONS,
+        LOGS_DIR ]
     whiskprops = wskprop.importPropsIfAvailable(wskprop.propfile(ROOT_DIR))
     (valid, props, deferredInfo) = wskprop.checkRequiredProperties(requiredprops, whiskprops)
 
@@ -59,7 +67,8 @@ def main():
                 print deferredInfo
             exitCode = {
               'user' : userCmd,
-              'db'   : dbCmd
+              'db'   : dbCmd,
+              'syslog' : syslogCmd
             }[args.cmd](args, props)
         except Exception as e:
             print 'Exception: ', e
@@ -77,6 +86,7 @@ def parseArgs():
 
     subcmd = subparser.add_parser('create', help='create a user and show authorization key')
     subcmd.add_argument('subject', help='the subject to create')
+    subcmd.add_argument('-u', '--auth', help='the uuid:key to initialize the subject authorization key with')
 
     subcmd = subparser.add_parser('delete', help='delete a user')
     subcmd.add_argument('subject', help='the subject to delete')
@@ -95,6 +105,15 @@ def parseArgs():
     subcmd.add_argument('-v', '--view', help='the view in the database to get')
     subcmd.add_argument('--docs', help='include document contents', action='store_true')
 
+    propmenu = subparsers.add_parser('syslog', help='work with system logs')
+    subparser = propmenu.add_subparsers(title='available commands', dest='subcmd')
+
+    subcmd = subparser.add_parser('get', help='get logs for a transaction id')
+    subcmd.add_argument('tid', help='the transaction id')
+    subcmd.add_argument('component', help='component, one of [controller, invokerN] where N is invoker index')
+
+    if argcomplete:
+        argcomplete.autocomplete(parser)
     return parser.parse_args()
 
 def userCmd(args, props):
@@ -116,6 +135,13 @@ def dbCmd(args, props):
     else:
         print 'unknown command'
         return 2
+
+def syslogCmd(args, props):
+    if args.subcmd == 'get':
+        return getLogsCmd(args, props)
+    else:
+        print 'unknown command'
+        return 2
   
 def createUserCmd(args, props):
     protocol = props[DB_PROTOCOL]
@@ -130,10 +156,30 @@ def createUserCmd(args, props):
         print 'Subject name must be at least 5 characters'
         return 2
 
+    if args.auth:
+        try:
+            parts = args.auth.split(':')
+            try:
+                uid = str(uuid.UUID(parts[0], version = 4))
+            except ValueError:
+                print 'authorization id is not a valid UUID'
+                return 2
+
+            key = parts[1]
+            if len(key) < 64:
+                print 'authorization key must be at least 64 characters long'
+                return 2
+        except Exception as e:
+            print 'failed to determine authorization id and key: %s' % e
+            return 2
+    else:
+        uid = str(uuid.uuid4())
+        key = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(64))
+
     doc = {
         '_id': args.subject,
-        'key': ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(64)),
-        'uuid': str(uuid.uuid4()),
+        'uuid': uid,
+        'key': key,
         'subject': subject
     }
 
@@ -238,7 +284,7 @@ def whoisUserCmd(args, props):
     database = props[DB_WHISK_AUTHS]
     uuid     = args.uuid.split(':')[0]
 
-    url = '%(protocol)s://%(host)s:%(port)s/%(database)s/_design/%(database)s/_view/uuids?key=["%(uuid)s"]' % {
+    url = '%(protocol)s://%(host)s:%(port)s/%(database)s/_design/subjects/_view/uuids?key=["%(uuid)s"]' % {
         'protocol': protocol,
         'host'    : host,
         'port'    : port,
@@ -309,6 +355,29 @@ def getDbCmd(args, props):
         return 0
     print 'Failed to get database (%s)' % res.read().strip()
     return 1
+
+def getLogsCmd(args, props):
+    path = '%s/%s/%s_logs.log' % (props[LOGS_DIR], args.component, args.component)
+    cmd = 'grep "\[#tid_%s\]" %s' % (args.tid, path)
+    (output, error) = shell(cmd, verbose = args.verbose)
+    if output:
+        print output.strip()
+    if error:
+        print error.strip()
+        return 1
+    else:
+        return 0
+
+def shell(cmd, data=None, verbose=False):
+    if verbose:
+        print cmd
+    if input:
+        p = Popen(cmd, shell=True, stdout=PIPE, stderr=STDOUT, stdin=PIPE)
+        out, err = p.communicate(input=data)
+    else:
+        out, err = Popen(cmd, shell=True, stdout=PIPE, stderr=STDOUT)
+    p.wait()
+    return (out, err)
 
 if __name__ == '__main__':
     main()

@@ -19,6 +19,7 @@ package whisk.core.entity.test
 import java.time.Clock
 import java.time.Instant
 import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 import scala.util.Try
 import akka.actor.ActorSystem
 import org.junit.runner.RunWith
@@ -66,7 +67,8 @@ class ViewTests extends FlatSpec
     with Matchers
     with DbUtils {
 
-    implicit val actorSystem = ActorSystem()
+    implicit val actorSystem      = ActorSystem()
+    implicit val executionContext = actorSystem.dispatcher
 
     def aname = MakeName.next("viewtests")
 
@@ -95,8 +97,11 @@ class ViewTests extends FlatSpec
     override def afterAll() {
         println("Shutting down store connections")
         datastore.shutdown()
+        println("Shutting down HTTP connections")
+        Await.result(akka.http.scaladsl.Http().shutdownAllConnectionPools(), Duration.Inf)
         println("Shutting down actor system")
-        actorSystem.shutdown()
+        actorSystem.terminate()
+        Await.result(actorSystem.whenTerminated, Duration.Inf)
     }
 
     behavior of "Datastore View"
@@ -197,8 +202,8 @@ class ViewTests extends FlatSpec
             WhiskAction(pkgname1, actionName, exec),
             WhiskTrigger(namespace1, aname),
             WhiskTrigger(namespace1, aname),
-            WhiskRule(namespace1, aname, Status.INACTIVE, trigger = aname, action = aname),
-            WhiskRule(namespace1, aname, Status.INACTIVE, trigger = aname, action = aname),
+            WhiskRule(namespace1, aname, trigger = aname, action = aname),
+            WhiskRule(namespace1, aname, trigger = aname, action = aname),
             WhiskPackage(namespace1, aname),
             WhiskPackage(namespace1, aname),
             WhiskPackage(namespace1, aname, Some(Binding(namespace2, aname))),
@@ -214,8 +219,8 @@ class ViewTests extends FlatSpec
             WhiskAction(pkgname2, aname, exec),
             WhiskTrigger(namespace2, aname),
             WhiskTrigger(namespace2, aname),
-            WhiskRule(namespace2, aname, Status.INACTIVE, trigger = aname, action = aname),
-            WhiskRule(namespace2, aname, Status.INACTIVE, trigger = aname, action = aname),
+            WhiskRule(namespace2, aname, trigger = aname, action = aname),
+            WhiskRule(namespace2, aname, trigger = aname, action = aname),
             WhiskPackage(namespace2, aname),
             WhiskPackage(namespace2, aname),
             WhiskPackage(namespace2, aname, Some(Binding(namespace1, aname))),

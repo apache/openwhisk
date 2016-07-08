@@ -1,0 +1,8 @@
+---
+# This task will write whisk.properties to the openwhisk_home. 
+# Currently whisk.properties is still needed for consul and tests.
+
+- name: write whisk.properties template to openwhisk_home
+  template:
+    src: whisk.properties.j2
+    dest: "{{ openwhisk_home }}/whisk.properties"

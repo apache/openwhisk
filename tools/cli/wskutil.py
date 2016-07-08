@@ -23,6 +23,9 @@ import base64
 import collections
 from urlparse import urlparse
 
+# global configurations, can control whether to allow untrusted certificates on HTTPS connections
+httpRequestProps = { 'secure': True }
+
 def supportsColor():
     if (sys.platform != 'win32' or 'ANSICON' in os.environ) and sys.stdout.isatty():
         return True
@@ -50,15 +53,17 @@ def addAuthenticatedCommand(subcmd, props):
     required = True if auth is None else False
     subcmd.add_argument('-u', '--auth', help='authorization key', default=auth, required=required)
 
-def request(method, urlString, body = '', headers = {}, auth = None, verbose = False):
+def request(method, urlString, body = '', headers = {}, auth = None, verbose = False, https_proxy = os.getenv('https_proxy', None)):
     url = urlparse(urlString)
     if url.scheme == 'http':
         conn = httplib.HTTPConnection(url.netloc)
     else:
-        if hasattr(ssl, '_create_unverified_context'):
-            conn = httplib.HTTPSConnection(url.netloc, context=ssl._create_unverified_context())
+        if httpRequestProps['secure'] or not hasattr(ssl, '_create_unverified_context'):
+            conn = httplib.HTTPSConnection(url.netloc if https_proxy is None else https_proxy)
         else:
-            conn = httplib.HTTPSConnection(url.netloc)
+            conn = httplib.HTTPSConnection(url.netloc if https_proxy is None else https_proxy, context=ssl._create_unverified_context())
+        if https_proxy:
+            conn.set_tunnel(url.netloc)
 
     if auth != None:
         auth = base64.encodestring(auth).replace('\n', '')
@@ -101,31 +106,31 @@ def request(method, urlString, body = '', headers = {}, auth = None, verbose = F
 
 def responseError(res, prefix = 'error:', flatten = True):
     if prefix:
-        print prefix,
+        print >> sys.stderr, prefix,
     response = None
     try:
         response = res.read()
         result = json.loads(response)
         if 'error' in result and 'code' in result:
-            print '%s (code %s)' % (result['error'], result['code'])
+            print >> sys.stderr, '%s (code %s)' % (result['error'], result['code'])
         elif 'error' in result and flatten:
-            print result['error']
+            print >> sys.stderr, result['error']
         else:
-            print getPrettyJson(result)
+            print >> sys.stderr, getPrettyJson(result)
     except:
         if res.status == 502:
-            print 'connection failed or timed out'
+            print >> sys.stderr, 'connection failed or timed out'
         elif isinstance(res, collections.Iterable):
             if 'read' in res:
-                print res.read()
+                print >> sys.stderr,  res.read()
             elif 'error' in res:
-                print res['error']
+                print >> sys.stderr,  res['error']
             else:
-                print 'unrecognized failure'
+                print >> sys.stderr, 'unrecognized failure'
         elif response is not None:
-            print response
+            print >> sys.stderr, response
         else:
-            print 'unrecognized failure'
+            print >> sys.stderr,  'unrecognized failure'
     return res.status
 
 # creates [ { key: "key name", value: "the value" }* ] from annotations.

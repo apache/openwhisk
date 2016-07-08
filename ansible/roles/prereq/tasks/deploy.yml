@@ -14,7 +14,7 @@
 - name: install docker-py
   pip: 
     name: docker-py
-    version: 1.8.0
+    version: 1.7.2  # >= 1.8.0 requires docker 1.10 on the host
   become: true
 
 - name: install httplib2

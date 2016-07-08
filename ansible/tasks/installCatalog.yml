@@ -1,0 +1,7 @@
+---
+# This task will install the standard actions and packages.
+
+- name: install catalog
+  local_action: shell "./installCatalog.sh" "{{ openwhisk_home }}/config/keys/auth.whisk.system" chdir="{{ openwhisk_home }}/catalog"
+  environment: 
+    OPENWHISK_HOME: "{{ openwhisk_home }}"

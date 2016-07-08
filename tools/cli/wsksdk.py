@@ -50,7 +50,7 @@ class Sdk:
             print 'Unknown SDK component:', args.component
 
     def swiftDownload(self, args, props):
-        print 'Swift SDK coming soon'
+        print 'Swift SDK coming soon.'
 
     def dockerDownload(self, args, props):
         tarFile = 'blackbox-0.1.0.tar.gz'

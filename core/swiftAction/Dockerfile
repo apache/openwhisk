@@ -17,7 +17,7 @@ RUN apt-get -y install build-essential wget clang libedit-dev libicu52 libxml2-d
 RUN apt-get clean
 
 # Install Swift keys
-RUN wget -q -O - https://swift.org/keys/all-keys.asc | gpg --import - && \
+RUN wget --no-verbose -O - https://swift.org/keys/all-keys.asc | gpg --import - && \
     gpg --keyserver hkp://pool.sks-keyservers.net --refresh-keys Swift
 
 # Install Swift Ubuntu 14.04 Snapshot
@@ -26,8 +26,8 @@ ENV SWIFT_PLATFORM ubuntu14.04
 
 RUN SWIFT_ARCHIVE_NAME=swift-$SWIFT_VERSION-$SWIFT_PLATFORM && \
     SWIFT_URL=https://swift.org/builds/$(echo "$SWIFT_PLATFORM" | tr -d .)/swift-$SWIFT_VERSION/$SWIFT_ARCHIVE_NAME.tar.gz && \
-    wget -nv $SWIFT_URL && \
-    wget -nv $SWIFT_URL.sig && \
+    wget --no-verbose $SWIFT_URL && \
+    wget --no-verbose $SWIFT_URL.sig && \
     gpg --verify $SWIFT_ARCHIVE_NAME.tar.gz.sig && \
     tar -xzf $SWIFT_ARCHIVE_NAME.tar.gz --directory / --strip-components=1 && \
     rm -rf $SWIFT_ARCHIVE_NAME* /tmp/* /var/tmp/*

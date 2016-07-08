@@ -38,7 +38,7 @@ import monitorUtil
 whiskprops = importPropsIfAvailable(propfile(scriptDir))
 
 parser = argparse.ArgumentParser(description='Kill some whisk component by stopping its container.')
-parser.add_argument('component', help='name of component to kill: elk, kafka, activator, ...')
+parser.add_argument('component', help='name of component to kill: elk, kafka, ...')
 args = parser.parse_args()
 component = args.component
 
@@ -47,9 +47,8 @@ componentToDocker = { 'elk'             : 'ELK_DOCKER_ENDPOINT',
                       'zookeeper'       : 'KAFKA_DOCKER_ENDPOINT',
                       'loadbalancer'    : 'MAIN_DOCKER_ENDPOINT',
                       'controller'      : 'MAIN_DOCKER_ENDPOINT',
-                      'activator'       : 'MAIN_DOCKER_ENDPOINT',
                       'invokers'        : 'INVOKER_HOSTS',
-                      'cloudanttrigger' : 'CATALOG_DOCKER_ENDPOINT' 
+                      'cloudanttrigger' : 'CATALOG_DOCKER_ENDPOINT'
                     }
 
 isInvoker = component.find('invoker') == 0

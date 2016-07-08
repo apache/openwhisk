@@ -235,8 +235,8 @@ This example invokes a Yahoo Weather service to get the current conditions at a 
   ```
     var request = require('request');
     
-    function main(msg) {
-        var location = msg.location || 'Vermont';
+    function main(params) {
+        var location = params.location || 'Vermont';
         var url = 'https://query.yahooapis.com/v1/public/yql?q=select item.condition from weather.forecast where woeid in (select woeid from geo.places(1) where text="' + location + '")&format=json';
     
         request.get(url, function(error, response, body) {
@@ -281,18 +281,19 @@ Several utility actions are provided in a package called `/whisk.system/util` th
   ```
   ```
   package /whisk.system/util
-   action /whisk.system/util/cat: Concatenate array of strings, and split lines into an array
+   action /whisk.system/util/cat: Concatenate array of strings
    action /whisk.system/util/head: Filter first K array elements and discard rest
    action /whisk.system/util/date: Get current date and time
    action /whisk.system/util/sort: Sort array
+   action /whisk.system/util/split: Splits a string into an array of strings
   ```
 
-  You will be using the `cat` and `sort` actions in this example.
+  You will be using the `split` and `sort` actions in this example.
 
 2. Create an action sequence so that the result of one action is passed as an argument to the next action.
   
   ```
-  $ wsk action create myAction --sequence /whisk.system/util/cat,/whisk.system/util/sort
+  $ wsk action create myAction --sequence /whisk.system/util/split,/whisk.system/util/sort
   ```
 
   This action sequence converts some lines of text to an array, and sorts the lines.
@@ -323,6 +324,41 @@ Several utility actions are provided in a package called `/whisk.system/util` th
 
   In the result, you see that the lines are sorted.
 
+**Note**: For more information on invoking action sequences with multiple named parameters, see [Setting default parameters](./actions.md#setting-default-parameters)
+
+
+## Creating Python actions
+
+The process of creating Python actions is similar to that of JavaScript actions. The following sections guide you through creating and invoking a single Python action, and adding parameters to that action.
+
+### Creating and invoking an action
+
+An action is simply a top-level Python function, which means it is necessary to have a method named `main`. For example, create a file called
+`hello.py` with the following content:
+
+```
+    def main(dict):
+        name = dict.get("name", "stranger")
+        greeting = "Hello " + name + "!"
+        print(greeting)
+        return {"greeting": greeting}
+```
+
+Python actions always consume a dictionary and produce a dictionary.
+
+You can create an OpenWhisk action called `helloPython` from this function as
+follows:
+
+```
+$ wsk action create helloPython hello.py
+```
+
+When using the command line and a `.py` source file, you do not need to
+specify that you are creating a Python action (as opposed to a JavaScript action);
+the tool determines that from the file extension.
+
+
+
 ## Creating Swift actions
 
 The process of creating Swift actions is similar to that of JavaScript actions. The following sections guide you through creating and invoking a single swift action, and adding parameters to that action.
@@ -344,8 +380,7 @@ An action is simply a top-level Swift function. For example, create a file calle
   }
 ```
 
-Note that just like JavaScript actions, Swift actions always consume a
-dictionary and produce a dictionary.
+Swift actions always consume a dictionary and produce a dictionary.
 
 You can create a OpenWhisk action called `helloSwift` from this function as
 follows:
@@ -373,11 +408,78 @@ $ wsk action invoke --blocking --result helloSwift --param name World
 **Attention:** Swift actions run in a Linux environment. Swift on Linux is still in
 development, and OpenWhisk usually uses the latest available release, which is not necessarily stable. In addition, the version of Swift that is used with OpenWhisk might be inconsistent with versions of Swift from stable releases of XCode on MacOS.
 
+## Creating Java actions
+
+The process of creating Java actions is similar to that of JavaScript and Swift actions. The following sections guide you through creating and invoking a single Java action, and adding parameters to that action.
+
+In order to compile, test and archive Java files, you must have a [JDK 8](http://www.oracle.com/technetwork/java/javase/downloads/index.html) installed locally.
+
+### Creating and invoking an action
+
+A Java action is a Java program with a method called `main` that has the exact signature below:
+```
+public static com.google.gson.JsonObject main(com.google.gson.JsonObject);
+```
+
+For example, create a Java file called `Hello.java` with the following content:
+
+```
+import com.google.gson.JsonObject;
+
+public class Hello {
+
+    public static JsonObject main(JsonObject args) {
+
+        String name = "stranger";
+        if (args.has("name"))
+            name = args.getAsJsonPrimitive("name").getAsString();
+
+        JsonObject response = new JsonObject();
+        response.addProperty("greeting", "Hello " + name + "!");
+        return response;
+
+    }
+}
+```
+
+Then compile `Hello.java` into a jar file `hello.jar` as follows:
+```
+$ javac Hello.java
+$ jar cvf hello.jar Hello.class
+
+```
+Note that [google-gson](https://github.com/google/gson) must exist in your Java CLASSPATH when compiling the Java file.
+
+You can create a OpenWhisk action called `helloJava` from this jar file as
+follows:
+
+```
+$ wsk action create helloJava hello.jar
+```
+
+When using the command line and a `.jar` source file, you do not need to
+specify that you are creating a Java action;
+the tool determines that from the file extension.
+
+Action invocation is the same for Java actions as it is for Swift and JavaScript actions:
+
+```
+$ wsk action invoke --blocking --result helloJava --param name World
+```
+
+```
+  {
+      "greeting": "Hello World!"
+  }
+```
+
+Note that if the jar file has more than one class with a main method matching required signature, the CLI tool will use the first one reported by `jar -tf`.
+
 ## Creating Docker actions
 
 With OpenWhisk Docker actions, you can write your actions in any language.
 
-Your code is compiled into a executable binary and embedded into a Docker image. The binary program interacts with the system by taking input from `stdin` and replying through `stdout`.
+Your code is compiled into an executable binary and embedded into a Docker image. The binary program interacts with the system by taking input from `stdin` and replying through `stdout`.
 
 As a prerequisite, you must have a Docker Hub account.  To set up a free Docker ID and account, go to [Docker Hub](https://hub.docker.com).
 
@@ -410,8 +512,8 @@ For the instructions that follow, assume that the user ID is "janesmith" and the
   #include <stdio.h>
   
   int main(int argc, char *argv[]) {
-      printf("Hello %s from arbitrary C program!\n",
-             (argc == 1) ? "anonymous" : argv[1]);
+      printf("{ \"msg\": \"Hello from arbitrary C program!\", \"args\": %s, \"argc\": %d }",
+             (argc == 1) ? "undefined" : argv[1]);
   }
   ```
 
@@ -441,10 +543,21 @@ For the instructions that follow, assume that the user ID is "janesmith" and the
   ```
   ```
   {
-      "msg": "Hello Rey from arbitrary C program!\n"
+      "args": {
+          "payload": "Rey"
+      },
+      "msg": "Hello from arbitrary C program!"
   }
   ```
 
+5. To update a Docker action, run `buildAndPush.sh` to refresh the image on Docker Hub, then you have to run `wsk action update` to make the system to fetch the new image. New invocations will start using the new image and not a warm image with the old code.
+
+  ```
+  $ ./buildAndPush.sh janesmith/blackboxdemo
+  ```
+  ```
+  $ wsk action update --docker example janesmith/blackboxdemo
+  ```
 
 You can find more information about creating Docker actions in the [References](./reference.md#docker-actions) section.
 

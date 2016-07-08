@@ -1,6 +1,0 @@
----
-# This playbook initializes a Cloudant account for Openwhisk.  
-
-- hosts: ansible
-  roles:
-  - cloudant

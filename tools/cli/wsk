@@ -40,7 +40,8 @@ from wskrule import Rule
 from wskpackage import Package
 from wsknamespace import Namespace
 from wsksdk import Sdk
-from wskutil import addAuthenticatedCommand, apiBase, chooseFromArray, resolveNamespace, request, responseError
+from wskutil import addAuthenticatedCommand, apiBase, chooseFromArray, httpRequestProps, resolveNamespace, request, responseError
+
 
 def main():
     userpropsLocation = os.getenv('WSK_CONFIG_FILE', '%s/.wskprops' % os.path.expanduser('~'))
@@ -54,6 +55,7 @@ def main():
     exitCode = 0
     try:
         args = parseArgs(userprops)
+        httpRequestProps['secure'] = not args.insecure
         apihost = resolveOverrides(whiskprops['CLI_API_HOST'], userprops.get('APIHOST'), args.apihostOverride)
         apiversion = resolveOverrides('v1', userprops.get('APIVERSION'), args.apiversionOverride)
 
@@ -67,7 +69,7 @@ def main():
         if (args.verbose):
             print props
         if apihost is None and (args.cmd != 'property' or args.cmd == 'property' and args.subcmd != 'set'):
-            print 'error: API host is not set. Set it with "wsk property set --apihost <host>".'
+            print >> sys.stderr, 'error: API host is not set. Set it with "wsk property set --apihost <host>".'
             return 2
 
         exitCode = {
@@ -100,6 +102,8 @@ def parseArgs(props):
 
     parser.add_argument('--apihost', help='whisk API host', dest='apihostOverride', metavar='hostname')
     parser.add_argument('--apiversion', help='whisk API version', dest='apiversionOverride', metavar='version')
+    parser.add_argument('-i', '--insecure', help='allow untrusted SSL certificates', action='store_true', default=True)
+    parser.add_argument('-s', '--secure', help='disallow untrusted SSL certificates', action='store_false', dest='insecure')
 
     Action().getCommands(subparsers, props)
     Activation().getCommands(subparsers, props)
@@ -163,7 +167,7 @@ def propCmd(args, props, userprops, propsLocation):
             else:
                 auth = userprops.get('AUTH')
             if auth is None:
-                print 'error: cannot set namespace without an authentication key'
+                print >> sys.stderr, 'error: cannot set namespace without an authentication key'
                 return 1
             res = request('GET', url, auth=auth, verbose=args.verbose)
             namespaces = None
@@ -182,7 +186,7 @@ def propCmd(args, props, userprops, propsLocation):
                         wskprop.updateProps('NAMESPACE', '%s' % choice, propsLocation)
                         print 'ok: namespace set to %s' % choice
                         return 0
-                print 'error: you are either not entitled to a namespace or you made an invalid choice'
+                print >> sys.stderr, 'error: you are either not entitled to a namespace or you made an invalid choice'
                 return 1
             else:
                 return responseError(res)

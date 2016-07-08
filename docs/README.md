@@ -5,12 +5,51 @@ OpenWhisk is a distributed, event-driven compute service. OpenWhisk executes app
 
 For more details about how OpenWhisk works, see [System overview](./about.md).
 
-## Setting up OpenWhisk
-You can use the OpenWhisk command line interface (CLI) to set up your namespace and authorization key. Go to [Configure CLI](../README.md#setup-cli) and follow the guided experience to install it. Note that you must have Python 2.7 installed on your system to use the CLI.
+## Setting up the OpenWhisk CLI
 
-After OpenWhisk is set up with the CLI, you can begin using it from the command line or through REST APIs.
+The OpenWhisk command line interface (CLI) requires Python 2.7.
+
+- If you cloned the OpenWhisk respository, you will find the CLI in `openwhisk/bin/wsk`.
+
+- Otherwise, download the CLI from an existing deployment.
+You will need to know the base URL for the deployment you want to use and
+install it using [pip](https://pip.pypa.io/).
+
+```
+sudo pip install --upgrade https://{BASE URL}/openwhisk-0.1.0.tar.gz [--trusted-host {BASE URL}]
+```
+
+The `{BASE URL}` is the OpenWhisk API hostname or IP address (e.g., openwhisk.ng.bluemix.net).
+The `--trusted-host` option allows you to download the CLI from a host with a [self-signed (i.e., untrusted) certificate](../tools/vagrant/README.md#ssl-certificate-configuration-optional).
+
+There are three properties to configure the CLI with:
+
+1. **API host** (name or IP address) for the OpenWhisk deployment you want to use.
+2. **Authorization key** (username and password) which grants you access to the OpenWhisk API.
+3. **Namespace** where your OpenWhisk assets are stored.
+
+The CLI will usually have an API host already set. You can check its value with
+`wsk property get --apihost`.
+
+If you know your authorization key and namespace, you can configure the CLI to use them. Otherwise
+you will need to provide one or both for most CLI operations.
+
+```
+wsk property set [--apihost <openwhisk_baseurl>] --auth <username:password> --namespace <namespace>
+```
+
+The API host is set automatically when you build the CLI for your environment. A _guest_ account is available
+in local installations with an authorization key located in [ansible/files/auth.guest](../ansible/files/auth.guest) and the namespace `guest`.
+To configure the CLI to use the guest account, you can run the following command from your `openwhisk` directory:
+
+```
+./bin/wsk property set --namespace guest --auth `cat ansible/files/auth.guest`
+```
+
+To verify your CLI setup, try [creating and running an action](#openwhisk-hello-world-example).
 
 ## Using the OpenWhisk CLI
+
 After you have configured your environment, you can begin using the OpenWhisk CLI to do the following:
 
 * Run your code snippets, or actions, on OpenWhisk. See [Creating and invoking actions](./actions.md).
@@ -20,10 +59,12 @@ After you have configured your environment, you can begin using the OpenWhisk CL
 
 
 ## Using OpenWhisk from an iOS app
+
 You can use OpenWhisk from your iOS mobile app or Apple Watch by using the OpenWhisk iOS SDK. For more details refer to the [iOS documentation](./mobile_sdk.md).
 
 ## Using REST APIs with OpenWhisk
-After your OpenWhisk environment is enabled, you can use OpenWhisk with your web apps or mobile apps with REST API calls. For more details on the APIs for actions, activations, packages, rules, and triggers, see the [OpenWhisk API documentation](./reference.md#rest-api).
+
+After your OpenWhisk environment is enabled, you can use OpenWhisk with your web apps or mobile apps with REST API calls. For more details on the APIs for actions, activations, packages, rules, and triggers, see the [OpenWhisk API documentation](http://petstore.swagger.io/?url=https://raw.githubusercontent.com/openwhisk/openwhisk/master/core/controller/src/main/resources/whiskswagger.json).
 
 ## OpenWhisk Hello World example
 To get started with OpenWhisk, try the following JavaScript code example.

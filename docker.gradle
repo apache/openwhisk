@@ -12,6 +12,7 @@
  * - dockerTimeout (optional, default 840): Timeout for docker operations in seconds
  * - dockerRetries (optional, default 3): How many times to retry docker operations
  * - dockerBinary (optional, default 'docker'): The binary to execute docker commands
+ * - dockerBuildArgs (options, default ''): Project specific custom docker build arguments
  * - dockerHost (optional): The docker host to run commands on, default behaviour is
  *       docker's own DOCKER_HOST environment variable
  */
@@ -22,14 +23,20 @@ ext {
     dockerTimeout = project.hasProperty('dockerTimeout') ? dockerTimeout.toInteger() : 840
     dockerRetries = project.hasProperty('dockerRetries') ? dockerRetries.toInteger() : 3
     dockerBinary = project.hasProperty('dockerBinary') ? [dockerBinary] : ['docker']
+    dockerBuildArg = ['build']
 }
 
 if(project.hasProperty('dockerHost')) {
     dockerBinary += ['--host', project.dockerHost]
 }
 
+if(project.hasProperty('dockerBuildArgs')) {
+    dockerBuildArg += ['--build-arg', project.dockerBuildArgs]
+}
+
 task distDocker << {
-    def cmd = dockerBinary + ['build', '-t', dockerImageName, project.buildscript.sourceFile.getParentFile().getAbsolutePath()]
+    def cmd
+    cmd = dockerBinary + dockerBuildArg + ['-t', dockerImageName, project.buildscript.sourceFile.getParentFile().getAbsolutePath()]
     retry(cmd, dockerRetries, dockerTimeout)
 }
 task tagImage << {

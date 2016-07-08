@@ -54,13 +54,14 @@ class PackageTests
     with WskTestHelpers {
 
     implicit val wskprops = WskProps()
-    val wsk = new Wsk()
+    var usePythonCLI = true
+    val wsk = new Wsk(usePythonCLI)
     val LOG_DELAY = 80 seconds
 
     behavior of "Wsk Package"
 
     it should "confirm wsk exists" in {
-        Wsk.exists
+        Wsk.exists(wsk.usePythonCLI)
     }
 
     it should "allow creation and deletion of a package" in withAssetCleaner(wskprops) {
@@ -154,7 +155,7 @@ class PackageTests
         val flatDescription = itemDescription.replace("\n", "").replace("\r", "")
         merged.foreach {
             case (key: String, value: JsValue) =>
-                val toFind = s""""key": "${key}",            "value": ${value.toString}"""
+                val toFind = s""""key": "${key}",.*"value": ${value.toString}"""
                 flatDescription should include regex toFind
         }
     }

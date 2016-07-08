@@ -39,7 +39,8 @@ class CLISwiftTests
     with Matchers {
 
     implicit val wskprops = WskProps()
-    val wsk = new Wsk()
+    var usePythonCLI = true
+    val wsk = new Wsk(usePythonCLI)
     val expectedDuration = 30 seconds
     val activationPollDuration = 60 seconds
 
@@ -73,7 +74,7 @@ class CLISwiftTests
     /**
      * Test the Swift 3 example
      */
-    ignore should "invoke a swift:3 action" in withAssetCleaner(wskprops) {
+    it should "invoke a swift:3 action" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "helloSwift3"
             assetHelper.withCleaner(wsk.action, name) {

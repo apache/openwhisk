@@ -9,6 +9,10 @@ scala:
 services:
   - docker
 
+env:
+  global:
+    - TERM=dumb
+
 notifications:
   email: false
   slack:
@@ -18,11 +22,6 @@ notifications:
 install: true
 
 before_install:
-  - sudo apt-get -y update -qq
-  - sudo apt-get -o Dpkg::Options::="--force-confnew" --force-yes -y install docker-engine=1.11.0-0~trusty
-  - docker --version
-  - sudo apt-get -y install python-pip
-  - pip install --user jsonschema
   - ./tools/travis/setup.sh
 
 script:

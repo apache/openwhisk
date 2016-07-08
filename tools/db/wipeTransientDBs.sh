@@ -57,4 +57,4 @@ done
 
 # recreate views required by whisk.core.entity.WhiskStore
 echo "loading views"
-source loadTransientDBViews.sh
+source "$SCRIPTDIR/loadTransientDBViews.sh"

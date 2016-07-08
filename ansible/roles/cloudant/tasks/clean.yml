@@ -1,8 +1,0 @@
----
-# Remove db template file
-
-# TODO: remove this once we drop ant
-- name: remove database env file
-  file:
-    path: "{{ openwhisk_home }}/{{ db_provider|lower }}-local.env"
-    state: absent

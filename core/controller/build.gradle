@@ -10,20 +10,6 @@ repositories {
     mavenCentral()
 }
 
-sourceSets {
-    main {
-        scala {
-            // This does not work because this project cannot use that project reference
-            // srcDirs = ['src/'].plus(project(':core:loadbalancer').sourceSets.main.scala.srcDirs)
-            srcDirs = ['src/'].plus('../loadBalancer/src/').plus('../dispatcher/src/')
-            exclude 'resources/**'
-        }
-        resources {
-            srcDir 'src/resources'
-        }
-    }
-}
-
 dependencies {
     compile 'org.scala-lang:scala-library:2.11.7'
     compile project(':common:scala')

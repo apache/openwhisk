@@ -109,6 +109,34 @@ public class WhiskProperties {
         System.out.format("test router? %s\n", testRouter);
     }
 
+    /**
+     * The path to the Go CLI directory.
+     */
+    public static String getGoCLIDir() {
+        return whiskHome + "/bin/go-cli";
+    }
+
+    /**
+     * The path to the Go CLI executable.
+     */
+    public static String getGoCLIPath() {
+        return getGoCLIDir() + "/wsk";
+    }
+
+    /**
+     * The path to the Python CLI directory.
+     */
+    public static String getPythonCLIDir() {
+        return whiskHome + "/bin";
+    }
+
+    /**
+     * The path to the Python CLI executable.
+     */
+    public static String getPythonCLIPath() {
+        return getPythonCLIDir() + "/wsk";
+    }
+
     public static File getFileRelativeToWhiskHome(String name) {
         return new File(whiskHome, name);
     }

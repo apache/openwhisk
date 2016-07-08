@@ -1,0 +1,147 @@
+
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# Custom OpenWhisk
+
+# vagrant resume issue https://github.com/mitchellh/vagrant/issues/6787
+# Don't use vagrant resume, it will run the provisioning a second producing errors
+# Use vagrant suspend and vagrant up (using up it skips provisioning)
+
+BOX = "ubuntu/trusty64-2"
+BOX_URL =  "https://cloud-images.ubuntu.com/vagrant/trusty/current/trusty-server-cloudimg-amd64-vagrant-disk1.box"
+BOX_MEMORY = ENV['BOX_MEMORY'] || '4096'
+BOX_CPUS = ENV['BOX_CPUS'] || '4'
+MACHINE_IP = ENV['MACHINE_IP'] || '192.168.33.13'
+OW_DB = if ENV['OW_DB'] =~ (/^(cloudant|couchdb)$/i) then true else false end
+
+Vagrant.configure('2') do |config|
+  config.vm.box = BOX
+  config.vm.box_url = BOX_URL
+
+  config.vm.network :private_network, ip: MACHINE_IP
+  
+  # If true, then any SSH connections made will enable agent forwarding.
+  # Default value: false
+  config.ssh.forward_agent = true
+
+  config.vm.provider :virtualbox do |vb|
+    vb.name = "whisk-" + Time.now.strftime("%y%m%d%H%M")
+    vb.gui = ENV['gui'] || false
+    vb.cpus = BOX_CPUS
+    vb.customize ['modifyvm', :id, '--natdnshostresolver1', 'on']
+    vb.customize ['modifyvm', :id, '--natdnsproxy1', 'on']
+    vb.customize ['modifyvm', :id, '--ostype', 'Ubuntu_64']
+    vb.customize ['modifyvm', :id, '--memory', BOX_MEMORY]
+  end
+  
+  # Shared root of repository; do not use symlinks
+  config.vm.synced_folder '../../', '/home/vagrant/openwhisk'
+
+  # Prevents "stdin: is not a tty" on Ubuntu (https://github.com/mitchellh/vagrant/issues/1673)
+  config.vm.provision "fix-no-tty", type: "shell" do |s|
+    s.privileged = false
+    s.inline = "sudo sed -i '/tty/!s/mesg n/tty -s \\&\\& mesg n/' /root/.profile"
+  end
+  
+  # Install Software
+$script_common = <<SCRIPT
+  set -e
+  set -x
+  sudo add-apt-repository ppa:git-core/ppa
+  sudo apt-get update
+  sudo apt-get install git -y
+  cd /home/vagrant/openwhisk
+  (cd tools/ubuntu-setup && source all.sh)
+SCRIPT
+
+  config.vm.provision "script_common", type: "shell", keep_color: true, inline: $script_common
+   
+  # Configure Custom Database
+$script_db = <<SCRIPT
+export ANSIBLE_REMOTE_TEMP=/home/vagrant/openwhisk/ansible/tmp
+export OW_DB=#{ENV['OW_DB']}
+export OW_DB_USERNAME=#{ENV['OW_DB_USERNAME']}
+export OW_DB_PASSWORD=#{ENV['OW_DB_PASSWORD']}
+if [[ $OW_DB == "cloudant" ]]; then
+  export OW_DB="Cloudant"
+  export OW_DB_PROTOCOL="https"
+  export OW_DB_HOST="$OW_DB_USERNAME.cloudant.com"
+  export OW_DB_PORT="443"
+else
+  export OW_DB="CouchDB"
+  export OW_DB_PROTOCOL=#{ENV['OW_DB_PROTOCOL']}
+  export OW_DB_HOST=#{ENV['OW_DB_HOST']}
+  export OW_DB_PORT=#{ENV['OW_DB_PORT']}
+fi
+
+cd /home/vagrant/openwhisk/ansible
+ansible-playbook -i environments/local setup.yml
+ansible-playbook -i environments/local prereq.yml
+SCRIPT
+
+  # Configure Default CouchDB
+$couch_db = <<COUCH_DB
+export ANSIBLE_REMOTE_TEMP=/home/vagrant/openwhisk/ansible/tmp
+cd /home/vagrant/openwhisk/ansible
+ansible-playbook -i environments/local setup.yml
+ansible-playbook -i environments/local prereq.yml
+ansible-playbook -i environments/local couchdb.yml
+COUCH_DB
+
+$init_db = <<INIT_DB
+export ANSIBLE_REMOTE_TEMP=/home/vagrant/openwhisk/ansible/tmp
+cd /home/vagrant/openwhisk/ansible
+ansible-playbook -i environments/local initdb.yml
+INIT_DB
+  
+  if OW_DB
+    config.vm.provision "script_db", type: "shell", keep_color: true, inline: $script_db
+  else
+    config.vm.provision "start_couch", type: "shell", keep_color: true, inline: $couch_db
+  end
+  config.vm.provision "initdb", type: "shell", keep_color: true, inline: $init_db
+
+  # Build and Deploy
+$script_end = <<SCRIPT
+  set -e
+  set -x
+  export ANSIBLE_REMOTE_TEMP=/home/vagrant/openwhisk/ansible/tmp
+  cd /home/vagrant/openwhisk
+  gradle distDocker
+  cd ansible
+  ansible-playbook -i environments/local openwhisk.yml
+  cd ..
+  # Add openwhisk/bin to system PATH to allow to work with vagrant ssh -- wsk
+  sed -i.bak s/:\\\\/bin/:\\\\/bin:\\\\/home\\\\/vagrant\\\\/openwhisk\\\\/bin/g /etc/environment
+  # Set remote tmp dir for ansible to fix shared folder problems on Windows
+  echo "ANSIBLE_REMOTE_TEMP=$ANSIBLE_REMOTE_TEMP" >> /etc/environment
+  # TODO: redoing symlinks to workaround windows problem, when go-cli lands this needs to be removed and use of symlinks
+  rm -r bin/wsk && rm -r bin/wskadmin
+  (cd bin && sudo ln -s ../tools/cli/wsk wsk)
+  (cd bin && sudo ln -s ../tools/cli/wskadmin wskadmin)
+  OPENWHISK_AUTH=`cat ansible/files/auth.guest`
+  HOME=/home/vagrant
+  # Adds tab completion
+  echo 'eval "$(register-python-argcomplete wsk)"' >> "$HOME/.bash_profile"
+  PATH=$PATH:$HOME/openwhisk/bin
+  chown -R vagrant:vagrant $HOME
+  # This allows user to see how to configure the wsk cli outside the VM 
+  wsk property set --apihost 192.168.33.13 --namespace guest --auth $OPENWHISK_AUTH 
+  wsk action invoke /whisk.system/samples/echo -p message hello --blocking --result
+SCRIPT
+
+  config.vm.provision "script_end", type: "shell", keep_color: true, inline: $script_end
+
+  if ENV['gui'] == 'true'
+    # Install ubuntu-desktop and virtualbox additions
+    config.vm.provision "shell", keep_color: true, inline: "apt-get update"
+    config.vm.provision "shell", keep_color: true, inline: "apt-get install -y virtualbox-guest-dkms"
+    config.vm.provision "shell", keep_color: true, inline: "apt-get install -y virtualbox-guest-utils"
+    config.vm.provision "shell", keep_color: true, inline: "apt-get install -y virtualbox-guest-x11"
+    config.vm.provision "shell", keep_color: true, inline: "sed -i 's/allowed_users=.*$/allowed_users=anybody/' /etc/X11/Xwrapper.config"
+    #the ; true is used to ignore errors from ubuntu-desktop, vagrant reload should be done after provisioning
+    config.vm.provision "shell", keep_color: true, inline: "sudo sh -c 'apt-get install -y ubuntu-desktop ; true'"
+  end
+
+end

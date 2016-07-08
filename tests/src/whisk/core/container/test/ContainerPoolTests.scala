@@ -17,6 +17,8 @@
 package whisk.core.container.test
 
 import scala.concurrent.Future
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 
 import akka.actor.ActorSystem
 
@@ -72,7 +74,7 @@ class ContainerPoolTests extends FlatSpec
             ++ WhiskAuthStore.requiredProperties)
     assert(config.isValid)
 
-    val pool = new ContainerPool(config, 0, Verbosity.Loud, false)
+    val pool = new ContainerPool(config, 0, Verbosity.Loud, true)
     pool.logDir = "/tmp"
 
     val datastore = WhiskEntityStore.datastore(config)
@@ -80,8 +82,11 @@ class ContainerPoolTests extends FlatSpec
     override def afterAll() {
         println("Shutting down store connections")
         datastore.shutdown()
+        println("Shutting down HTTP connections")
+        Await.result(akka.http.scaladsl.Http().shutdownAllConnectionPools(), Duration.Inf)
         println("Shutting down actor system")
-        actorSystem.shutdown()
+        actorSystem.terminate()
+        Await.result(actorSystem.whenTerminated, Duration.Inf)
     }
 
     /**
@@ -112,6 +117,7 @@ class ContainerPoolTests extends FlatSpec
     def ensureClean() = {
         pool.enableGC();
         pool.forceGC();
+        Thread.sleep(2 * pool.gcFreqMilli + 1500) // GC should collect this by now
         assert(pool.idleCount() == 0);
         assert(pool.activeCount() == 0);
     }
@@ -145,6 +151,7 @@ class ContainerPoolTests extends FlatSpec
         assert(pool.idleCount() == startIdleCount + 1)
         pool.enableGC();
         pool.forceGC(); // force all containers in pool to be freed
+        Thread.sleep(2 * pool.gcFreqMilli + 1500) // GC should collect this by now
         assert(!poolHasContainerIdPrefix(containerIdPrefix)) // container must be gone by now
         assert(pool.idleCount() == 0)
     }

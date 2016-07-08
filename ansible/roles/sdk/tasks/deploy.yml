@@ -1,0 +1,45 @@
+---
+# Tasks for handling SDK generation and publishing
+
+- name: ensure nginx config directory exists
+  file:
+    path: "{{ nginx_conf_dir }}"
+    state: directory
+
+# Blackbox
+
+- name: make temp dir
+  local_action: shell "mktemp" "-d" "{{ lookup('env', 'TMPDIR') | default('/tmp', true) }}/whisk.XXXXXXXX"
+  register: tmpdir
+
+- name: copy docker sdk to dockerSkeleton in scratch space
+  local_action: copy src="{{ openwhisk_home }}/sdk/docker/" dest="{{ tmpdir.stdout }}/dockerSkeleton/"
+
+- name: build blackbox container artifact
+  local_action: shell "tar" "--exclude=build.gradle" "-czf" "{{ tmpdir.stdout }}/blackbox-0.1.0.tar.gz" "dockerSkeleton" chdir="{{ tmpdir.stdout }}"
+
+- name: copy blackbox container artifact to nginx
+  copy:
+    src: "{{ tmpdir.stdout }}/blackbox-0.1.0.tar.gz"
+    dest: "{{ nginx_conf_dir }}"
+
+- name: remove temp dir
+  local_action: file path="{{ tmpdir.stdout }}" state=absent
+
+
+# iOS
+
+- name: make temp dir
+  local_action: shell "mktemp" "-d" "{{ lookup('env', 'TMPDIR') | default('/tmp', true) }}/whisk.XXXXXXXX"
+  register: tmpdir
+
+- name: build iOS starter app artifact
+  local_action: shell "zip" "-r" "{{tmpdir.stdout}}/OpenWhiskIOSStarterApp.zip" "." chdir="{{ openwhisk_home }}/mobile/iOS/starterapp"
+
+- name: copy iOS starter app artifact to nginx
+  copy:
+    src: "{{tmpdir.stdout}}/OpenWhiskIOSStarterApp.zip"
+    dest: "{{ nginx_conf_dir }}"
+
+- name: remove temp dir
+  local_action: file path="{{tmpdir.stdout}}" state=absent
