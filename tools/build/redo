@@ -56,12 +56,15 @@ def doComponentSequence(props, args, components):
             if args.yaml:
                 file = c if c.endswith('.yml') else '%s.yml' % c
                 component = makeComponent('custom deployment', 'deploying using %s' % file, yaml = file, modes = 'clean')
+            elif args.gradle:
+                file = c if c.endswith('.gradle') else '%s.gradle' % c
+                component = makeComponent('custom build target', 'building using %s' % file, yaml = False, gradle = True, tasks = c)
             else:
                 print 'unknown component %s' % c
                 exit(1)
 
         if component['steps']:
-           doComponentSequence(props, args, component['steps'])
+            doComponentSequence(props, args, component['steps'])
         else:
             doOne(component, args, props)
 
@@ -81,8 +84,10 @@ def getArgs():
     parser.add_argument('-d', '--deploy', help='deploy component', action='store_const', const=True, default=False)
     parser.add_argument('-t', '--target', help='deploy target (one of [mac, local])', default=detectDeployTarget())
     parser.add_argument('-y', '--yaml', help='deploy target using inferred YAML file if component is not one of known targets', action='store_const', const=True, default=False)
+    parser.add_argument('-g', '--gradle', help='use target using inferred gradle file if component is not one of known targets', action='store_const', const=True, default=False)
     parser.add_argument('-n', '--just-print', help='prints the component configuration but does not run any targets', action='store_const', const=True, default=False, dest='skiprun')
     parser.add_argument('-c', '--list-components', help='list known component names and exit', action='store_const', const=True, default=False, dest='list')
+    parser.add_argument('-a', '--additional-task-arguments', dest='extraArgs', action='append', help='pass additional arguments to underlying task command')
     parser.add_argument('components', nargs = '*', help='component name(s) to run (in order specified if more than one)')
     parser.add_argument('--dir', help='whisk home directory')
 
@@ -131,7 +136,7 @@ class Playbook:
     def path(self, basedir):
         return basedir + '/' + self.dir
 
-    def execcmd(self, props, mode = False):
+    def execcmd(self, props, mode = False, extraArgs = ''):
         if self.dir and self.file and (mode is False or mode in self.modes):
             cmd = [ self.cmd ]
             if self.env:
@@ -139,6 +144,8 @@ class Playbook:
             cmd.append(self.file)
             if mode:
                 cmd.append('-e mode=%s' % mode)
+            if extraArgs is not '':
+                cmd.append(extraArgs)
             return ' '.join(cmd)
 
 class Gradle:
@@ -151,7 +158,7 @@ class Gradle:
         self.tasks = tasks.split(',')
         self.components = components
 
-    def execcmd(self, props, task):
+    def execcmd(self, props, task, extraArgs = ''):
         if task:
             if self.components and self.components is not True:
                 parts = map(lambda c: '%s:%s' % (c, task), self.components.split(','))
@@ -160,9 +167,10 @@ class Gradle:
                 parts = task
 
             dh = props['MAIN_DOCKER_ENDPOINT']
-            return '%s %s --parallel %s' % (
+            return '%s %s %s --parallel %s' % (
                    props['WSK_HOME'] + '/' + self.cmd,
                    parts,
+                   extraArgs,
                    ('-PdockerHost=%s' % dh) if dh else '')
 
 def getDockerHost():
@@ -371,16 +379,18 @@ def doOne(component, args, props):
     gradle = component['gradle']
     print bold(component['description'])
 
+    extraArgs = '' if args.extraArgs is None or [] else ' '.join(map(str, args.extraArgs))
+
     if args.build and gradle is not None:
-        cmd = gradle.execcmd(props, gradle.tasks[0])
+        cmd = gradle.execcmd(props, gradle.tasks[0], extraArgs)
         run(cmd, basedir, args.skiprun)
 
     if args.teardown and playbook is not None:
-        cmd = playbook.execcmd(props, 'clean')
+        cmd = playbook.execcmd(props, 'clean', extraArgs = extraArgs)
         run(cmd, playbook.path(basedir), args.skiprun)
 
     if args.deploy and playbook is not None:
-        cmd = playbook.execcmd(props)
+        cmd = playbook.execcmd(props, extraArgs = extraArgs)
         run(cmd, playbook.path(basedir), args.skiprun)
 
 if __name__ == '__main__':

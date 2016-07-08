@@ -1,6 +1,6 @@
 # Build helper scripts
 
-This directory contains the following utilities:
+This directory contains the following utilities.
 - `scanCode.py`: checks all code for conformance with respect to certain conventions,
 - `redo`: a wrapper around Ansible and Gradle commands, for which examples are given below,
 - `citool`: allows for command line monitoring of Jenkins and Travis CI builds.
@@ -24,6 +24,11 @@ Individual components such as the `controller` may be rebuilt and redeployed as 
   * To only teardown: `redo controller -x`.
   * To redeploy only: `redo controller -d`.
   * To do all at once: `redo controller -bxd` which is the default.
+
+Additional arguments may be passed to underlying shell commands for Gradle and Ansible using `-a`.
+For example, the following is handy to run a subset of all tests from the command line.
+
+  * `redo tests -a '--tests package.name.TestClass.evenMethodName'`
 
 ## How to use `citool` 
 
