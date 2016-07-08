@@ -67,6 +67,7 @@ object TransactionId {
     val testing = TransactionId(-1) // a common id for for unit testing
     val invoker = TransactionId(-100) // Invoker startup/shutdown or GC activity
     val invokerWarmup = TransactionId(-101) // Invoker warmup thread
+    val dispatcher = TransactionId(-102) // Kafka message dispatcher
 
     def apply(tid: BigDecimal): TransactionId = {
         Try {

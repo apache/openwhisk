@@ -17,27 +17,134 @@
 package whisk.core.dispatcher
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.Future
-import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.FiniteDuration
+import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 import scala.util.matching.Regex.Match
+
+import akka.actor.ActorSystem
+import akka.actor.Props
+import akka.actor.actorRef2Scala
 import whisk.common.Counter
 import whisk.common.Logging
 import whisk.common.TransactionId
-import whisk.connector.kafka.KafkaConsumerConnector
-import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig.servicePort
-import whisk.core.WhiskConfig.kafkaHost
+import whisk.common.Verbosity
 import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.core.connector.MessageConsumer
 import whisk.core.invoker.InvokerService
-import whisk.utils.ExecutionContextFactory
-import scala.util.Try
+
+object Dispatcher extends Logging {
+    def main(args: Array[String]): Unit = {
+        val name = if (args.nonEmpty) args(0).trim.toLowerCase() else ""
+        name match {
+            case "invoker" => InvokerService.main(args)
+            case _         => error(Dispatcher, s"unrecognized app $name")
+        }
+    }
+}
+
+/**
+ * Creates a dispatcher that pulls messages from the message pub/sub connector.
+ * This is currently used by invoker only. It may be removed in the future and
+ * its functionality merged directly with the invoker. The current model allows
+ * for different message types to be received by more than one consumer in the
+ * same process (via handler registration).
+ *
+ * @param verbosity level for logging
+ * @param consumer the consumer providing messages
+ * @param pollDuration the long poll duration (max duration to wait for new messages)
+ * @param maxPipelineDepth the maximum number of messages allowed in the queued (even >=2)
+ * @param actorSystem an actor system to create actor
+ */
+@throws[IllegalArgumentException]
+class Dispatcher(
+    verbosity: Verbosity.Level,
+    consumer: MessageConsumer,
+    pollDuration: FiniteDuration,
+    maxPipelineDepth: Int,
+    actorSystem: ActorSystem)
+    extends Registrar
+    with Logging {
+
+    setVerbosity(verbosity)
+
+    val activationFeed = actorSystem.actorOf(Props(new ActivationFeed(this: Logging, consumer, maxPipelineDepth, pollDuration, process)))
+
+    def start() = activationFeed ! ActivationFeed.FillQueueWithMessages
+    def stop() = consumer.close()
+
+    /**
+     * Consumes messages from the bus using a streaming consumer
+     * interface. Each message is a JSON object with at least these properties:
+     * { path: the topic name,
+     *   payload: the message body }
+     *
+     * Expected topics are "/whisk/invoke[0..n-1]" (handled by Invoker).
+     * Expected paths "actions/invoke" (handled by Invoker).
+     *
+     * The paths should generally mirror the REST API.
+     *
+     * For every message that is received, this method extracts the path property
+     * from the message and checks if there are registered handlers for the message.
+     * A handler is registered via addHandler and unregistered via removeHandler.
+     * All matches are checked in parallel, and messages are dispatched to all matching
+     * handlers. The handling of a message is wrapped in a Future. A handler is skipped
+     * if it is not active.
+     */
+    def process(topic: String, bytes: Array[Byte]) = {
+        val raw = new String(bytes, "utf-8")
+        Message(raw) match {
+            case Success(m) =>
+                implicit val tid = m.transid
+                if (m.path.nonEmpty) inform(handlers) foreach {
+                    case (name, handler) =>
+                        val matches = handler.matches(m.path)
+                        handleMessage(handler, topic, m, matches)
+                }
+            case Failure(t) => info(this, errorMsg(raw, t))
+        }
+    }
+
+    private def handleMessage(rule: DispatchRule, topic: String, msg: Message, matches: Seq[Match]) = {
+        implicit val tid = msg.transid
+        implicit val executionContext = actorSystem.dispatcher
+
+        if (matches.nonEmpty) Future {
+            val count = counter.next()
+            info(this, s"activeCount = $count while handling ${rule.name}")
+            rule.doit(topic, msg, matches) // returns a future which is flat-mapped to hang onComplete
+        } flatMap (identity) onComplete {
+            case Success(a) => info(this, s"activeCount = ${counter.prev()} after handling $rule")
+            case Failure(t) => error(this, s"activeCount = ${counter.prev()} ${errorMsg(rule, t)}")
+        }
+    }
+
+    private def inform(matchers: TrieMap[String, DispatchRule])(implicit transid: TransactionId) = {
+        val names = matchers map { _._2.name } reduce (_ + "," + _)
+        info(this, s"matching message to ${matchers.size} handlers: $names")
+        matchers
+    }
+
+    private def errorMsg(handler: DispatchRule, e: Throwable): String =
+        s"failed applying handler '${handler.name}': ${errorMsg(e)}"
+
+    private def errorMsg(msg: String, e: Throwable) =
+        s"failed processing message: $msg $e${e.getStackTrace.mkString("", " ", "")}"
+
+    private def errorMsg(e: Throwable): String = {
+        if (e.isInstanceOf[java.util.concurrent.ExecutionException]) {
+            s"$e${e.getCause.getStackTrace.mkString("", " ", "")}"
+        } else {
+            s"$e${e.getStackTrace.mkString("", " ", "")}"
+        }
+    }
+
+    private val counter = new Counter()
+}
 
 trait Registrar {
-
     /**
      * Adds handler for a message. The handler name must be unique, else
      * the new handler replaces a previously added one unless this behavior
@@ -79,127 +186,4 @@ trait Registrar {
     }
 
     protected val handlers = new TrieMap[String, DispatchRule]
-}
-
-/**
- * A general framework to read messages off a message bus (e.g., kafka)
- * and "dispatch" messages to registered handlers.
- */
-trait MessageDispatcher extends Registrar with Logging {
-    consumer: MessageConsumer =>
-
-    val executionContext: ExecutionContext
-
-    /**
-     * Starts a listener to consume message from connector (e.g., kafka).
-     * The listener consumes messages from the bus using a streaming consumer
-     * interface. Each message is a JSON object with at least these properties:
-     * { path: the topic name,
-     *   payload: the message body }
-     *
-     * Expected topics are "/whisk/invoke[0..n-1]" (handled by Invoker).
-     * Expected paths "actions/invoke" (handled by Invoker).
-     *
-     * The paths should generally mirror the REST API.
-     *
-     * For every message that is received, the listener extracts the path property
-     * from the message and checks if there are registered handlers for the message.
-     * A handler is registered via addHandler and unregistered via removeHandler.
-     * All matches are checked in parallel, and messages are dispatched to all matching
-     * handlers. The handling of a message is wrapped in a Future. A handler is skipped
-     * if it is not active.
-     */
-    def start() = if (!started) {
-        consumer.onMessage((topic, bytes) => {
-            val raw = new String(bytes, "utf-8")
-            val msg = Message(raw)
-            msg match {
-                case Success(m) =>
-                    implicit val tid = m.transid
-                    if (m.path.nonEmpty) {
-                        inform(handlers.par) foreach {
-                            case (name, handler) =>
-                                val matches = handler.matches(m.path)
-                                handleMessage(handler, topic, m, matches)
-                        }
-                    }
-                    true
-                case Failure(t) =>
-                    info(this, errorMsg(raw, t))
-                    true
-            }
-        })
-        started = true
-    }
-
-    /** Stops the message dispatch and closes the producer and consumer. */
-    def stop() = if (started) {
-        consumer.close()
-        started = false
-    }
-
-    private def handleMessage(rule: DispatchRule, topic: String, msg: Message, matches: Seq[Match]) = {
-        implicit val ec = executionContext
-
-        implicit val tid = msg.transid
-        if (matches.nonEmpty) Future {
-            val count = counter.next()
-            info(this, s"activeCount = $count while handling ${rule.name}")
-            rule.doit(topic, msg, matches)
-        } flatMap (identity) onComplete {
-            case Success(a) => info(this, s"activeCount = ${counter.prev()} after handling $rule")
-            case Failure(t) => error(this, s"activeCount = ${counter.prev()} ${errorMsg(rule, t)}")
-        }
-    }
-
-    private def inform(matchers: ParTrieMap[String, DispatchRule])(implicit transid: TransactionId) = {
-        val names = matchers map { _._2.name } reduce (_ + "," + _)
-        info(this, s"matching message to ${matchers.size} handlers: $names")
-        matchers
-    }
-
-    private def errorMsg(handler: DispatchRule, e: Throwable): String =
-        s"failed applying handler '${handler.name}': ${errorMsg(e)}"
-
-    private def errorMsg(msg: String, e: Throwable) =
-        s"failed processing message: $msg $e${e.getStackTrace.mkString("", " ", "")}"
-
-    private def errorMsg(e: Throwable): String = {
-        if (e.isInstanceOf[java.util.concurrent.ExecutionException])
-            s"$e${e.getCause.getStackTrace.mkString("", " ", "")}"
-        else
-            s"$e${e.getStackTrace.mkString("", " ", "")}"
-    }
-
-    private val counter = new Counter()
-    private var started = false
-}
-
-/**
- * Creates a dispatcher that uses kafka as the message pub/sub connector.
- * This is currently used by invoker.
- *
- * @param config with zookeeper host properties
- * @topic the topic to subscribe to (creates a consumer client for this topic)
- * @groupid the groupid for the topic consumer
- */
-class Dispatcher(
-    config: WhiskConfig,
-    topic: String,
-    groupid: String)(implicit val executionContext: ExecutionContext)
-    extends KafkaConsumerConnector(config.kafkaHost, groupid, topic)
-    with MessageDispatcher {
-}
-
-object Dispatcher extends Logging {
-    def requiredProperties =
-        Map(servicePort -> 8080.toString()) ++ kafkaHost
-
-    def main(args: Array[String]): Unit = {
-        val name = if (args.nonEmpty) args(0).trim.toLowerCase() else ""
-        name match {
-            case "invoker" => InvokerService.main(args)
-            case _         => error(Dispatcher, s"unrecognized app $name")
-        }
-    }
 }

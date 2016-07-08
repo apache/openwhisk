@@ -145,7 +145,7 @@ ansible-playbook -i environments/local openwhisk.yml
 ansible-playbook -i environments/local postdeploy.yml
 ```
 
-**Tip** Do not restart the VM using Virtual Box, always use `vagrant` command line to start using `vagrant up` or to restart using `vagrant reload`, this allows the `$HOME/openwhisk` share folder to be available inside the VM.
+**Tip** Do not restart the VM using Virtual Box, and always use `vagrant` from the command line: `vagrant up` to start the VM and `vagrant reload` to restart it. This allows the `$HOME/openwhisk` folder to be available inside the VM.
 
 **Tip** If you have problems with data stores check that `ansible/db_local.ini`.
 
@@ -201,7 +201,7 @@ the configuration to use trusted certificates instead.
 # Resume Vagrant VM to have fun again
   vagrant up
 
-# Do not restart via Virtual Box, use Vagrant reload to have share directory $HOME/openwhisk
+# Do not restart via Virtual Box, use Vagrant reload to mount $HOME/openwhisk as a shared directory
   vagrant reload
 
 # Read the help for wsk CLI

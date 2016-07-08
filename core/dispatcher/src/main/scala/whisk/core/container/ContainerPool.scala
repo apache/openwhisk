@@ -103,7 +103,7 @@ class ContainerPool(
     def maxActive_=(value: Int): Unit = _maxActive = Math.max(0, value)
 
     def resetMaxIdle() = _maxIdle = defaultMaxIdle
-    def resetMaxActive() = _maxActive = defaultMaxActive
+    def resetMaxActive() = _maxActive = ContainerPool.defaultMaxActive
     def resetGCThreshold() = _gcThreshold = defaultGCThreshold
 
     /*
@@ -143,10 +143,10 @@ class ContainerPool(
             info(this, s"Getting container for ${action.fullyQualifiedName} with ${auth.uuid}", INVOKER_GET_CONTAINER_START)
             val key = makeKey(action, auth)
             getImpl(key, { () => makeWhiskContainer(action, auth) }) map {
-              case (c, initResult) =>
-                val cacheMsg = if (!initResult.isDefined) "(Cache Hit)" else "(Cache Miss)"
-                info(this, s"ContainerPool.getAction obtained container ${c.id} ${cacheMsg}", INVOKER_GET_CONTAINER_DONE)
-                (c.asInstanceOf[WhiskContainer], initResult)
+                case (c, initResult) =>
+                    val cacheMsg = if (!initResult.isDefined) "(Cache Hit)" else "(Cache Miss)"
+                    info(this, s"ContainerPool.getAction obtained container ${c.id} ${cacheMsg}", INVOKER_GET_CONTAINER_DONE)
+                    (c.asInstanceOf[WhiskContainer], initResult)
             }
         }
 
@@ -330,7 +330,6 @@ class ContainerPool(
     // These are containers that are already removed from the data structure waiting to be docker-removed
     private val toBeRemoved = new ConcurrentLinkedQueue[ContainerInfo]()
 
-
     // Note that the prefix seprates the name space of this from regular keys.
     // TODO: Generalize across language by storing image name when we generalize to other languages
     //       Better heuristic for # of containers to keep warm - make sensitive to idle capacity
@@ -372,7 +371,7 @@ class ContainerPool(
             implicit val tid = TransactionId.invokerWarmup
             if (!standalone) killStragglers(allContainers)
             while (true) {
-                Thread.sleep(100)      // serves to prevent busy looping
+                Thread.sleep(100) // serves to prevent busy looping
                 if (!standalone && getNumberOfIdleContainers(warmNodejsKey) < WARM_NODEJS_CONTAINERS) {
                     makeWarmNodejsContainer()(tid)
                 }
@@ -380,8 +379,8 @@ class ContainerPool(
                 val size = toBeRemoved.size()
                 1 to size foreach { _ =>
                     val ci = toBeRemoved.poll()
-                    if (ci != null) {  // should never happen but defensive
-                        Thread.sleep(100)  // serves to not hog docker lock and add slack
+                    if (ci != null) { // should never happen but defensive
+                        Thread.sleep(100) // serves to not hog docker lock and add slack
                         teardownContainer(ci.container)
                     }
                 }
@@ -513,12 +512,11 @@ class ContainerPool(
     }
 
     private val defaultMaxIdle = 10
-    private val defaultMaxActive = 4
     private val defaultGCThreshold = 600.0 // seconds
 
     val gcFreqMilli = 1000 // this should not be leaked but a test needs this until GC count is implemented
     private var _maxIdle = defaultMaxIdle
-    private var _maxActive = defaultMaxActive
+    private var _maxActive = ContainerPool.defaultMaxActive
     private var _gcThreshold = defaultGCThreshold
     private var gcOn = true
     private val gcSync = new Object()
@@ -637,4 +635,5 @@ class ContainerPool(
 object ContainerPool {
     def requiredProperties = Map(selfDockerEndpoint -> "localhost") ++ Map(dockerImageTag -> "latest") ++ Map(invokerContainerNetwork -> "bridge") ++ Map(invokerContainerPolicy -> "")
     type RunResult = (Instant, Instant, Option[(Int, String)])
+    val defaultMaxActive = 4
 }

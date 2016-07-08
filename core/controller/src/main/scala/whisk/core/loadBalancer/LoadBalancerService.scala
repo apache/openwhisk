@@ -143,13 +143,12 @@ class LoadBalancerService(config: WhiskConfig, verbosity: Verbosity.Level)(
 
     val consumer = new KafkaConsumerConnector(config.kafkaHost, "completions", "completed")
     consumer.setVerbosity(verbosity)
-    consumer.onMessage((topic, bytes) => {
+    consumer.onMessage((topic, partition, offset, bytes) => {
         val raw = new String(bytes, "utf-8")
         CompletionMessage(raw) match {
             case Success(m) => processCompletion(m)
             case Failure(t) => error(this, s"failed processing message: $raw with $t")
         }
-        true
     })
 
 }

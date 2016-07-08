@@ -16,10 +16,36 @@
 
 package whisk.core.connector
 
+import scala.concurrent.duration.Duration
+
 trait MessageConsumer {
-    /** Calls process for every message received. */
-    def onMessage(process: (String, Array[Byte]) => Boolean): Unit
+
+    /** The maximum number of messages peeked (i.e., max number of messages retrieved during a long poll). */
+    val maxPeek: Int
+
+    /**
+     * Gets messages via a long poll. May or may not remove messages
+     * from the message connector. Use commit() to ensure messages are
+     * removed from the connector.
+     *
+     * @param duration for the long poll
+     * @return iterable collection (topic, partition, offset, bytes)
+     */
+    def peek(duration: Duration): Iterable[(String, Int, Long, Array[Byte])]
+
+    /**
+     * Commits offsets from last peek operation to ensure they are removed
+     * from the connector.
+     */
+    def commit()
+
+    /**
+     * Calls process for every message received. Process receives a tuple
+     * (topic, partition, offset, and message as byte array).
+     */
+    def onMessage(process: (String, Int, Long, Array[Byte]) => Unit): Unit
 
     /** Closes consumer. */
     def close(): Unit
+
 }

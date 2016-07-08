@@ -22,6 +22,7 @@ import java.time.Instant
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
+import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.util.Failure
@@ -29,7 +30,9 @@ import scala.util.Success
 import scala.util.Try
 import scala.util.matching.Regex.Match
 
+import akka.actor.ActorRef
 import akka.actor.ActorSystem
+import akka.actor.actorRef2Scala
 import akka.japi.Creator
 import spray.json.DefaultJsonProtocol.IntJsonFormat
 import spray.json.DefaultJsonProtocol.StringJsonFormat
@@ -43,21 +46,37 @@ import whisk.common.ConsulClient
 import whisk.common.ConsulKV.InvokerKeys
 import whisk.common.ConsulKVReporter
 import whisk.common.Counter
-import whisk.common.LoggingMarkers._
+import whisk.common.LoggingMarkers.INVOKER_ACTIVATION_DONE
+import whisk.common.LoggingMarkers.INVOKER_ACTIVATION_ERROR
+import whisk.common.LoggingMarkers.INVOKER_ACTIVATION_START
+import whisk.common.LoggingMarkers.INVOKER_FETCH_ACTION_DONE
+import whisk.common.LoggingMarkers.INVOKER_FETCH_ACTION_FAILED
+import whisk.common.LoggingMarkers.INVOKER_FETCH_ACTION_START
+import whisk.common.LoggingMarkers.INVOKER_FETCH_AUTH_DONE
+import whisk.common.LoggingMarkers.INVOKER_FETCH_AUTH_FAILED
+import whisk.common.LoggingMarkers.INVOKER_FETCH_AUTH_START
+import whisk.common.LoggingMarkers.INVOKER_RECORD_ACTIVATION_DONE
+import whisk.common.LoggingMarkers.INVOKER_RECORD_ACTIVATION_START
 import whisk.common.SimpleExec
 import whisk.common.TransactionId
 import whisk.common.Verbosity
+import whisk.connector.kafka.KafkaConsumerConnector
 import whisk.connector.kafka.KafkaProducerConnector
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.consulServer
 import whisk.core.WhiskConfig.dockerRegistry
 import whisk.core.WhiskConfig.edgeHost
+import whisk.core.WhiskConfig.kafkaHost
 import whisk.core.WhiskConfig.logsDir
+import whisk.core.WhiskConfig.servicePort
 import whisk.core.WhiskConfig.whiskVersion
 import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.core.connector.CompletionMessage
 import whisk.core.container.ContainerPool
 import whisk.core.container.WhiskContainer
+import whisk.core.dispatcher.ActivationFeed.ActivationNotification
+import whisk.core.dispatcher.ActivationFeed.ContainerReleased
+import whisk.core.dispatcher.ActivationFeed.FailedActivation
 import whisk.core.dispatcher.DispatchRule
 import whisk.core.dispatcher.Dispatcher
 import whisk.core.entity.ActivationId
@@ -68,12 +87,12 @@ import whisk.core.entity.DocInfo
 import whisk.core.entity.DocRevision
 import whisk.core.entity.EntityName
 import whisk.core.entity.Namespace
-import whisk.core.entity.NodeJSExec
 import whisk.core.entity.NodeJS6Exec
-import whisk.core.entity.SwiftExec
-import whisk.core.entity.Swift3Exec
+import whisk.core.entity.NodeJSExec
 import whisk.core.entity.SemVer
 import whisk.core.entity.Subject
+import whisk.core.entity.Swift3Exec
+import whisk.core.entity.SwiftExec
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskActivation
 import whisk.core.entity.WhiskActivationStore
@@ -83,7 +102,6 @@ import whisk.core.entity.WhiskEntity
 import whisk.core.entity.WhiskEntityStore
 import whisk.http.BasicHttpService
 import whisk.utils.ExecutionContextFactory
-import scala.concurrent.duration.Duration
 
 /**
  * A kafka message handler that invokes actions as directed by message on topic "/actions/invoke".
@@ -96,6 +114,7 @@ import scala.concurrent.duration.Duration
 class Invoker(
     config: WhiskConfig,
     instance: Int,
+    activationFeed: ActorRef,
     verbosity: Verbosity.Level = Verbosity.Loud,
     runningInContainer: Boolean = true)(implicit actorSystem: ActorSystem)
     extends DispatchRule("invoker", "/actions/invoke", s"""(.+)/(.+)/(.+),(.+)/(.+)""") {
@@ -178,17 +197,17 @@ class Invoker(
         }
 
         // when records are fetched, invoke action
-        val activationDocFuture =
-            actionFuture flatMap { theAction =>
+        val activationDocFuture = actionFuture flatMap { theAction =>
+            // assume this future is done here
+            info(this, "", INVOKER_FETCH_ACTION_DONE)
+            authFuture flatMap { theAuth =>
                 // assume this future is done here
-                info(this, "", INVOKER_FETCH_ACTION_DONE)
-                authFuture flatMap { theAuth =>
-                    // assume this future is done here
-                    info(this, "", INVOKER_FETCH_AUTH_DONE)
-                    info(this, "", INVOKER_ACTIVATION_START)
-                    invokeAction(theAction, theAuth, payload, tran)
-                }
+                info(this, "", INVOKER_FETCH_AUTH_DONE)
+                info(this, "", INVOKER_ACTIVATION_START)
+                invokeAction(theAction, theAuth, payload, tran)
             }
+        }
+
         activationDocFuture onComplete {
             case Success(activationDoc) =>
                 info(this, s"recorded activation '$activationDoc'", INVOKER_ACTIVATION_DONE)
@@ -214,7 +233,7 @@ class Invoker(
         val payload = msg.content getOrElse JsObject()
         val response = Some(404, JsObject(ActivationResponse.ERROR_FIELD -> errorMsg.toJson).compactPrint)
         val activation = makeWhiskActivation(tran, false, msg, name, version, payload, response)
-        completeTransaction(tran, activation)
+        completeTransaction(tran, activation, FailedActivation(transid))
     }
 
     /*
@@ -223,7 +242,7 @@ class Invoker(
      * Invariant: Only one call to here succeeds.  Even though the sync block wrap WhiskActivation.put,
      *            it is only blocking this transaction which is finishing anyway.
      */
-    protected def completeTransaction(tran: Transaction, activation: WhiskActivation)(
+    protected def completeTransaction(tran: Transaction, activation: WhiskActivation, releaseResource: ActivationNotification)(
         implicit transid: TransactionId): Future[DocInfo] = {
         tran.synchronized {
             tran.result match {
@@ -231,6 +250,10 @@ class Invoker(
                 case None => {
                     activationCounter.next() // this is the global invoker counter
                     incrementUserActivationCounter(tran.msg.subject)
+                    // Send a message to the activation feed indicating there is a free resource to handle another activation.
+                    // Since all transaction completions flow through this method and the invariant is that the transaction is
+                    // completed only once, there is only one completion message sent to the feed as a result.
+                    activationFeed ! releaseResource
                     // Since there is no active action taken for completion from the invoker, writing activation record is it.
                     info(this, "recording the activation result to the data store", INVOKER_RECORD_ACTIVATION_START)
                     val result = WhiskActivation.put(activationStore, activation)
@@ -257,7 +280,7 @@ class Invoker(
                     case None => (false, con.run(params, msg.meta, auth.compact, timeoutMillis,
                         action.fullyQualifiedName, msg.activationId.toString)) // cached
                     case Some((start, end, Some((200, _)))) => { // successful init
-                        // Try a little slack for json log driver to process
+                        // TODO:  @perryibm update comment if this is still necessary else remove
                         Thread.sleep(if (con.isBlackbox) BlackBoxSlack else RegularSlack)
                         tran.initInterval = Some(start, end)
                         (false, con.run(params, msg.meta, auth.compact, timeoutMillis,
@@ -277,18 +300,16 @@ class Invoker(
                     // Force delete the container instead of just pausing it iff the initialization failed or the container
                     // failed otherwise. An example of a ContainerError is the timeout of an action in which case the
                     // container is to be removed to prevent leaking
-                    val res = completeTransaction(tran, activationResult withLogs ActivationLogs.serdes.read(contents))
                     val removeContainer = failedInit || response.exists { _._1 == ActivationResponse.ContainerError }
-                    // We return the container last as that is slow and we want the activation to logically finish fast
                     pool.putBack(con, removeContainer)
-                    res
+                    completeTransaction(tran, activationResult withLogs ActivationLogs.serdes.read(contents), ContainerReleased(transid))
             }
             case None => { // this corresponds to the container not even starting - not /init failing
                 info(this, s"failed to start or get a container")
                 val response = Some(420, "Error starting container")
                 val contents = JsArray(JsString("Error starting container"))
                 val activation = makeWhiskActivation(tran, false, msg, action, payload, response)
-                completeTransaction(tran, activation withLogs ActivationLogs.serdes.read(contents))
+                completeTransaction(tran, activation withLogs ActivationLogs.serdes.read(contents), FailedActivation(transid))
             }
         }
     }
@@ -515,22 +536,25 @@ object Invoker {
     /**
      * An object which records the environment variables required for this component to run.
      */
-    def requiredProperties =
-        Map(logsDir -> null, dockerRegistry -> null) ++
-            WhiskAuthStore.requiredProperties ++
-            WhiskEntityStore.requiredProperties ++
-            WhiskActivationStore.requiredProperties ++
-            ContainerPool.requiredProperties ++
-            edgeHost ++
-            consulServer ++
-            whiskVersion
+    def requiredProperties = Map(
+        servicePort -> 8080.toString(),
+        logsDir -> null,
+        dockerRegistry -> null) ++
+        WhiskAuthStore.requiredProperties ++
+        WhiskEntityStore.requiredProperties ++
+        WhiskActivationStore.requiredProperties ++
+        ContainerPool.requiredProperties ++
+        kafkaHost ++
+        edgeHost ++
+        consulServer ++
+        whiskVersion
 }
 
 object InvokerService {
     /**
      * An object which records the environment variables required for this component to run.
      */
-    def requiredProperties = Invoker.requiredProperties ++ Dispatcher.requiredProperties
+    def requiredProperties = Invoker.requiredProperties
 
     private class ServiceBuilder(invoker: Invoker)(
         implicit val ec: ExecutionContext)
@@ -556,10 +580,13 @@ object InvokerService {
                 name = "invoker-actor-system",
                 defaultExecutionContext = Some(ec))
 
-            val dispatcher = new Dispatcher(config, s"invoke${instance}", "invokers")
+            val topic = s"invoke${instance}"
+            val groupid = "invokers"
+            val maxdepth = ContainerPool.defaultMaxActive
+            val consumer = new KafkaConsumerConnector(config.kafkaHost, groupid, topic, maxdepth)
+            val dispatcher = new Dispatcher(verbosity, consumer, 500 milliseconds, 2 * maxdepth, system)
 
-            val invoker = new Invoker(config, instance, verbosity)
-            dispatcher.setVerbosity(verbosity)
+            val invoker = new Invoker(config, instance, dispatcher.activationFeed, verbosity)
             dispatcher.addHandler(invoker, true)
             dispatcher.start()
 

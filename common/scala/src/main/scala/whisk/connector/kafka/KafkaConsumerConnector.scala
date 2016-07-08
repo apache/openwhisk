@@ -17,13 +17,14 @@
 package whisk.connector.kafka
 
 import java.util.Properties
-import scala.language.postfixOps
 
 import scala.collection.JavaConversions.iterableAsScalaIterable
 import scala.collection.JavaConversions.seqAsJavaList
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
 import scala.util.Failure
+import scala.util.Success
 import scala.util.Try
 
 import org.apache.kafka.clients.consumer.ConsumerConfig
@@ -38,6 +39,7 @@ class KafkaConsumerConnector(
     kafkahost: String,
     groupid: String,
     topic: String,
+    override val maxPeek: Int = Int.MaxValue,
     readeos: Boolean = true)
     extends MessageConsumer
     with Logging
@@ -48,12 +50,10 @@ class KafkaConsumerConnector(
      * duration.
      *
      * @param duration the maximum duration for the long poll
-     * @param syncCommit update offsets on the topic immediately.  Default false as we use auto-commit.
      */
-    def getMessages(duration: Duration = 500 milliseconds, syncCommit: Boolean = false) = {
+    override def peek(duration: Duration = 500 milliseconds) = {
         val records = consumer.poll(duration.toMillis)
-        if (syncCommit) commit()
-        records
+        records map { r => (r.topic, r.partition, r.offset, r.value) }
     }
 
     /**
@@ -61,27 +61,18 @@ class KafkaConsumerConnector(
      */
     def commit() = consumer.commitSync()
 
-    override def onMessage(process: (String, Array[Byte]) => Boolean) = {
+    override def onMessage(process: (String, Int, Long, Array[Byte]) => Unit) = {
         val self = this
         val thread = new Thread() {
             override def run() = {
                 while (!disconnect) {
-                    Try { getMessages() } map {
-                        records =>
-                            val count = records.size
-                            records foreach { r =>
-                                val topic = r.topic
-                                val partition = r.partition
-                                val offset = r.offset
-                                val msg = r.value
-                                info(self, s"processing $topic[$partition][$offset ($count)]")
-                                val consumed = process(topic, msg)
-                            }
-                            commit()
-                    } match {
-                        case Failure(t) => error(self, s"while polling: $t")
-                        case _          => // ok
+                    Try { peek() } match {
+                        case Success(records) =>
+                            records foreach { process.tupled(_) }
+                        case Failure(t) =>
+                            error(self, s"while polling: $t")
                     }
+                    commit()
                 }
                 warn(self, "consumer stream terminated")
                 consumer.close()
@@ -99,9 +90,10 @@ class KafkaConsumerConnector(
         val props = new Properties
         props.put(ConsumerConfig.GROUP_ID_CONFIG, groupid)
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkahost)
-        props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, "10000");
+        props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 10000.toString)
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true.toString)
-        props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, "10000");
+        props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, 10000.toString)
+        props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, maxPeek.toString)
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, if (!readeos) "latest" else "earliest")
 
         // This value controls the server-side wait time which affects polling latency.

@@ -115,7 +115,8 @@ def shell(cmd, data=None, verbose=False):
 
 def getJobUrl(args):
     if args.build.lower() == 'travis':
-        url = '%s/jobs/%s' % (args.url, args.job)
+        job = int(args.job) + 1 # travis job is N logs are at N+1
+        url = '%s/jobs/%s' % (args.url, job)
     else: # assume jenkins
         url = '%s/job/%s/%s' % (args.url, args.build, args.job)
     return url

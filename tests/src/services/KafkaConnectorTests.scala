@@ -59,15 +59,16 @@ class KafkaConnectorTests extends FlatSpec with Matchers with BeforeAndAfter {
 
         try {
             for (i <- 0 until 5) {
-              val message = new Message { override val serialize = Calendar.getInstance().getTime().toString }
-              val start = java.lang.System.currentTimeMillis
-              val sent = Await.result(producer.send(topic, message), 10 seconds)
-              val received = consumer.getMessages(10 seconds).map { r => new String(r.value, "utf-8") }
-              val end = java.lang.System.currentTimeMillis
-              val elapsed = end - start
-              println(s"Took $elapsed msec: $received\n\n")
-              received.size should be >= 1
-              received.last should be(message.serialize)
+                val message = new Message { override val serialize = Calendar.getInstance().getTime().toString }
+                val start = java.lang.System.currentTimeMillis
+                val sent = Await.result(producer.send(topic, message), 10 seconds)
+                val received = consumer.peek(10 seconds).map { case (_, _, _, msg) => new String(msg, "utf-8") }
+                val end = java.lang.System.currentTimeMillis
+                val elapsed = end - start
+                println(s"Took $elapsed msec: $received\n\n")
+                received.size should be >= 1
+                received.last should be(message.serialize)
+                consumer.commit()
             }
         } finally {
             producer.close()
