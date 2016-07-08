@@ -21,9 +21,3 @@ rm consul_${CONSUL_VERSION}_web_ui.zip
 # Expose standard ports, as well as ports used by consul
 EXPOSE 8300 8301 8301/udp 8302 8302/udp 8400 8500 53/udp
 
-ADD ./config /consul/config/
-ADD startconsulserver.sh .
-ADD startconsulclient.sh .
-
-RUN chmod 777 startconsulserver.sh 
-
