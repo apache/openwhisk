@@ -9,7 +9,7 @@ repositories {
 }
 
 dependencies {
-    compile 'org.scala-lang:scala-library:2.11.7'
+    compile 'org.scala-lang:scala-library:2.11.8'
 
     compile 'io.spray:spray-caching_2.11:1.3.3'
     compile 'io.spray:spray-json_2.11:1.3.2'
