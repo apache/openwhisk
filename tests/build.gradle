@@ -38,7 +38,7 @@ test.dependsOn([
 ])
 
 dependencies {
-    testCompile 'org.scala-lang:scala-library:2.11.7'
+    testCompile 'org.scala-lang:scala-library:2.11.8'
     testCompile 'org.apache.commons:commons-exec:1.1'
     testCompile 'org.apache.commons:commons-lang3:3.3.2'
     testCompile 'commons-logging:commons-logging:1.1.3'
