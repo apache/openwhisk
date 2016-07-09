@@ -15,11 +15,6 @@
     ports:
       - "{{ zookeeper.port }}:2181"
 
-# this is important but do not yet know why
-- name: wait before checking if zookeeper is up
-  pause:
-    seconds: 2
-
 - name: wait until the Zookeeper in this host is up and running
   action: shell echo ruok | nc -w 3 {{ inventory_hostname }} {{ zookeeper.port }}
   register: result
