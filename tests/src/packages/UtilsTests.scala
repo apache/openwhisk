@@ -27,7 +27,7 @@ import spray.json.DefaultJsonProtocol.StringJsonFormat
 class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
 
     implicit val wskprops = WskProps()
-    var usePythonCLI = false
+    val usePythonCLI = false
     val wsk = new Wsk(usePythonCLI)
     val lines = JsArray(JsString("seven"), JsString("eight"), JsString("nine"))
 

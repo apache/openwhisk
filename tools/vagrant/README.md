@@ -17,13 +17,13 @@ cd openwhisk/tools/vagrant
 **Important** We advise that you use this method for development of OpenWhisk.
 Please note that no data will persist between two creations of the container, 
 data will persist after re-deploying or restaring VM.
-For more information on datastore configurations see [tools/db/README.md](../../db/README.md).
+For more information on data store configurations see [tools/db/README.md](../../db/README.md).
 ```
 # Configure with couchdb docker container running inside the VM
 ./hello
 ```
 
-Follow instructions [tools/db/README.md](../../db/README.md) on how to configure a datastore for OpenWhisk.
+Follow instructions [tools/db/README.md](../../db/README.md) on how to configure a data store for OpenWhisk.
 
 #### Option 2: Create VM using Cloudant DB
 ```

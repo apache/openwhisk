@@ -41,8 +41,8 @@ For more information about OpenWhisk vagrant scenarios see the [tools/vagrant/RE
 
 ### Custom Configurations
 
-The quick start above uses an ephemeral datastore that does not persist data when the vm is reloaded. The following instructions
-allow you to configure OpenWhisk to use a persistent datastore via Cloudant or CouchDB.
+The quick start above uses an ephemeral data store that does not persist data when the vm is reloaded. The following instructions
+allow you to configure OpenWhisk to use a persistent data store via Cloudant or CouchDB.
 
 These steps were tested on Mac OS X El Capitan, Ubuntu 14.04.3 LTS and Windows using Vagrant.
 

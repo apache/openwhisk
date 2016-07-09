@@ -1,6 +1,6 @@
-### Configure datastore
+### Configure data store
 
-Before you can build and deploy OpenWhisk, you must configure a backing datastore. The system supports any self-managed [CouchDB](using-couchdb) instance or
+Before you can build and deploy OpenWhisk, you must configure a backing data store. The system supports any self-managed [CouchDB](using-couchdb) instance or
 [Cloudant](using-cloudant) as a cloud-based database service.
 
 #### Using CouchDB
@@ -18,9 +18,9 @@ To try out OpenWhisk without managing your own CouchDB installation, you can sta
 
   * no data will persist between two creations of the container
   * you will need to run `ansible-playbook couchdb.yml` every time you `clean` or `teardown` the system (see below)
-  * you will need to initialize the datastore each time (`ansible-playbook initdb.yml`, see below)
+  * you will need to initialize the data store each time (`ansible-playbook initdb.yml`, see below)
 
-Detailed instructions are found in the [ansible readme](../../ansible/README.md)
+Detailed instructions are found in the [ansible readme](../../ansible/README.md).
 
 #### Using Cloudant
 
@@ -63,23 +63,23 @@ Note that:
    * the port is always 443
    * the host has the schema `<your cloudant user>.cloudant.com`
 
-More details on customizing `db_local.ini` are described in the [ansible readme](../../ansible/README.md)
+More details on customizing `db_local.ini` are described in the [ansible readme](../../ansible/README.md).
 
 #### Initializing database for authorization keys
 
 The system requires certain authorization keys to install standard assets (i.e., samples) and provide guest access for running unit tests.
-These are called immortal keys. If you are using a persisted datastore (e.g., Cloudant), you only need to perform this operation **once**.
+These are called immortal keys. If you are using a persisted data store (e.g., Cloudant), you only need to perform this operation **once**.
 If you are [using an ephemeral CouchDB container](#using-an-ephemeral-couchdb-container), you need to run this script every time you tear down and deploy the system.
 
   ```
   # Work out of your openwhisk directory
   cd /your/path/to/openwhisk/ansible
   
-  # Initialize datastore containing authorization keys
+  # Initialize data store containing authorization keys
   ansible-playbook initdb.yml
   ```
 
-The playbook will create the required datastructures to prepare the account to be used.
+The playbook will create the required data structures to prepare the account to be used.
 Don't worry if you are unsure whether or not the db has already been initialized. The playbook won't perform any action on a db that is already prepared.
 
 The output of the playbook will look similar to this (using CouchDB in this example):

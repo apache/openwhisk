@@ -17,7 +17,7 @@ The following are verified to work on Ubuntu 14.04.3 LTS. You may need `sudo` or
   ```
 
 ### Select one type of data store when creating vm
-Follow instructions [tools/db/README.md](../db/README.md) on how to configure a datastore for OpenWhisk.
+Follow instructions [tools/db/README.md](../db/README.md) on how to configure a data store for OpenWhisk.
 
 ## Build
 
@@ -28,15 +28,10 @@ Follow instructions [tools/db/README.md](../db/README.md) on how to configure a 
 
 ## Deploy
 
-  ```
-  cd <home_openwhisk>
-  cd ansible
-  ```
-
-Follow the instructions in [ansible/README.md](../../ansible/README.md) to deploy and teardown
+Follow the instructions in [ansible/README.md](../../ansible/README.md) to deploy and teardown.
 
 Once deployed, several Docker containers will be running in your linux machine.
-You can check that containers are running by using the docker cli with the command  `docker ps`
+You can check that containers are running by using the docker cli with the command  `docker ps`.
 
 ### Configure the CLI
 Follow instructions in [Configure CLI](../../README.md#configure-cli)
