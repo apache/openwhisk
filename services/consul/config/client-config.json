@@ -1,6 +1,0 @@
-{
-   "client_addr": "0.0.0.0",
-   "data_dir": "/consul/data",
-   "log_level": "WARN",
-   "leave_on_terminate": true
-}

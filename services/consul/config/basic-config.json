@@ -1,5 +1,0 @@
-{
-   "client_addr": "0.0.0.0",
-   "data_dir": "/consul/data",
-   "leave_on_terminate": true
-}
