@@ -41,7 +41,7 @@ import common.TestUtils.RunResult;
 public class WskCli {
 
     private String cliPath;
-    private String cliDir;
+    private String[] baseCmd;
 
     private final File binaryPath;
     public String subject;
@@ -83,17 +83,17 @@ public class WskCli {
 
     public WskCli(Boolean usePythonCLI, String subject, String authKey) {
         if (usePythonCLI) {
-            cliPath = WhiskProperties.getPythonCLIPath();
-            cliDir = WhiskProperties.getPythonCLIDir();
+            cliPath = WhiskProperties.useCLIDownload() ? getDownloadedPythonCLIPath() : WhiskProperties.getPythonCLIPath();
+            baseCmd = new String[] {WhiskProperties.python, cliPath};
         } else {
-            cliPath = WhiskProperties.getGoCLIPath();
-            cliDir = WhiskProperties.getGoCLIDir();
+            cliPath = WhiskProperties.useCLIDownload() ? getDownloadedGoCLIPath() : WhiskProperties.getGoCLIPath();
+            baseCmd = new String[] {cliPath};
         }
 
-        this.binaryPath = new File(cliPath);
         this.subject = subject;
         this.authKey = authKey;
         this.usePythonCLI = usePythonCLI;
+        this.binaryPath = new File(cliPath);
     }
 
     public void setSubject(String subject) {
@@ -105,23 +105,20 @@ public class WskCli {
     }
 
     public boolean checkExists() {
-        File dir;
-
-        if (WhiskProperties.useCliDownload()) {
-            String binary = getDownloadedCliPath();
-            File f = new File(binary);
-            assertTrue("did not find " + f, f.exists());
-        } else {
-            dir = new File(cliDir);
-            assertTrue("did not find " + dir, dir.exists());
-            assertTrue("did not find " + binaryPath, binaryPath.exists());
-        }
+        assertTrue("did not find " + binaryPath, binaryPath.exists());
         return true;
     }
 
     /** What is the path to a downloaded CLI? **/
-    private String getDownloadedCliPath() {
+    private String getDownloadedPythonCLIPath() {
         String binary = System.getProperty("user.home") + File.separator + ".local" + File.separator + "bin" + File.separator + "wsk";
+        return binary;
+    }
+
+    /** What is the path to a downloaded Go CLI? **/
+    private String getDownloadedGoCLIPath() {
+        String binary = System.getProperty("user.home") + File.separator + ".local" + File.separator + "bin" +
+                File.separator + "go-cli" + File.separator + "wsk";
         return binary;
     }
 
@@ -980,14 +977,7 @@ public class WskCli {
      * @return RunResult which contains stdout,sterr, exit code
      */
     public RunResult cli(boolean verbose, int expectedExitCode, File workingDir, String... params) throws IllegalArgumentException, IOException {
-        String[] cmd;
-        if (usePythonCLI) {
-            cmd = WhiskProperties.useCliDownload() ? new String[] { getDownloadedCliPath() } : new String[] { WhiskProperties.python, new File(cliPath).toString() };
-        } else {
-            cmd = WhiskProperties.useCliDownload() ? new String[] { getDownloadedCliPath() } : new String[] { new File(cliPath).toString() };
-        }
-
-        cmd = verbose ? Util.concat(cmd, "--verbose") : cmd;
+        String[] cmd = verbose ? Util.concat(baseCmd, "--verbose") : baseCmd;
         String[] args = Util.concat(cmd, "-i", "--apihost", WhiskProperties.getEdgeHost());
         RunResult rr = TestUtils.runCmd(DONTCARE_EXIT, workingDir, TestUtils.logger, this.env, Util.concat(args, params));
         rr.validateExitCode(expectedExitCode);
