@@ -60,6 +60,7 @@ public class TestUtils {
     public static final int ANY_ERROR_EXIT = -2; // any non-zero value is ok
 
     private static final File catalogDir = WhiskProperties.getFileRelativeToWhiskHome("catalog");
+    private static final File testDatDir = WhiskProperties.getFileRelativeToWhiskHome("tests/dat");
     private static final File testActionsDir = WhiskProperties.getFileRelativeToWhiskHome("tests/dat/actions");
     private static final File vcapFile = WhiskProperties.getVCAPServicesFile();
     private static final String envServices = System.getenv("VCAP_SERVICES");
@@ -77,6 +78,15 @@ public class TestUtils {
      */
     public static String getCatalogFilename(String name) {
         return new File(catalogDir, name).toString();
+    }
+
+    /**
+     * Gets path to file relative to test dat directory.
+     *
+     * @param name relative filename
+     */
+    public static String getTestDatFilename(String name) {
+        return new File(testDatDir, name).toString();
     }
 
     /**
