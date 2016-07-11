@@ -317,7 +317,7 @@ func getPropertiesFilePath() (propsFilePath string, werr error) {
 
         if err != nil {
             whisk.Debug(whisk.DbgError, "homedir.Expand(%s) failed: %s\n", Properties.PropsFile, err)
-            errStr := fmt.Sprintf("Unable to locate properties file '%s'; error %s", Properties.PropsFile, err)
+            errStr := fmt.Sprintf("Unable to locate properties file '%s': %s", Properties.PropsFile, err)
             werr = whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return propsFilePath, werr
         }

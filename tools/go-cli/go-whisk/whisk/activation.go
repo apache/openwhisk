@@ -73,7 +73,7 @@ func (s *ActivationService) List(options *ActivationListOptions) ([]Activation, 
     route, err := addRouteOptions(route, options)
     if err != nil {
         Debug(DbgError, "addRouteOptions(%s, %#v) error: '%s'\n", route, options, err)
-        errStr := fmt.Sprintf("Unable to append options %#v to URL route '%s': error %s", options, route, err)
+        errStr := fmt.Sprintf("Unable to append options %#v to URL route '%s': %s", options, route, err)
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
@@ -81,7 +81,7 @@ func (s *ActivationService) List(options *ActivationListOptions) ([]Activation, 
     req, err := s.client.NewRequest("GET", route, nil)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s) error: '%s'\n", route, err)
-        errStr := fmt.Sprintf("Unable to create HTTP request for GET '%s'; error: %s", route, err)
+        errStr := fmt.Sprintf("Unable to create HTTP request for GET '%s': %s", route, err)
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
@@ -110,7 +110,7 @@ func (s *ActivationService) Get(activationID string) (*Activation, *http.Respons
     req, err := s.client.NewRequest("GET", route, nil)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s) error: '%s'\n", route, err)
-        errStr := fmt.Sprintf("Unable to create HTTP request for GET '%s'; error: %s", route, err)
+        errStr := fmt.Sprintf("Unable to create HTTP request for GET '%s': %s", route, err)
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
@@ -138,7 +138,7 @@ func (s *ActivationService) Logs(activationID string) (*Activation, *http.Respon
     req, err := s.client.NewRequest("GET", route, nil)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s) error: '%s'\n", route, err)
-        errStr := fmt.Sprintf("Unable to create HTTP request for GET '%s'; error: %s", route, err)
+        errStr := fmt.Sprintf("Unable to create HTTP request for GET '%s': %s", route, err)
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
@@ -165,7 +165,7 @@ func (s *ActivationService) Result(activationID string) (*Response, *http.Respon
     req, err := s.client.NewRequest("GET", route, nil)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s) error: '%s'\n", route, err)
-        errStr := fmt.Sprintf("Unable to create HTTP request for GET '%s'; error: %s", route, err)
+        errStr := fmt.Sprintf("Unable to create HTTP request for GET '%s': %s", route, err)
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }

@@ -39,7 +39,7 @@ type WskError struct {
 }
 
 func (e WskError) Error() string {
-    return fmt.Sprintf("error: %s", e.RootErr.Error())
+    return fmt.Sprintf("%s", e.RootErr.Error())
 }
 
 // Instantiate a WskError structure

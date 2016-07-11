@@ -50,15 +50,15 @@ func (s *RuleService) List(options *RuleListOptions) ([]Rule, *http.Response, er
     route, err := addRouteOptions(route, options)
     if err != nil {
         Debug(DbgError, "addRouteOptions(%s, %#v) error: '%s'\n", route, options, err)
-        errStr := fmt.Sprintf("Unable to append options %#v to URL route '%s': error %s", options, route, err)
+        errStr := fmt.Sprintf("Unable to append options %#v to URL route '%s': %s", options, route, err)
         werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
 
     req, err := s.client.NewRequest("GET", route, nil)
     if err != nil {
-        Debug(DbgError, "http.NewRequest(GET, %s); error '%s'\n", route, err)
-        errStr := fmt.Sprintf("Unable to create HTTP request for GET '%s'; error: %s", route, err)
+        Debug(DbgError, "http.NewRequest(GET, %s); error: '%s'\n", route, err)
+        errStr := fmt.Sprintf("Unable to create HTTP request for GET '%s': %s", route, err)
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
@@ -66,7 +66,7 @@ func (s *RuleService) List(options *RuleListOptions) ([]Rule, *http.Response, er
     var rules []Rule
     resp, err := s.client.Do(req, &rules)
     if err != nil {
-        Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
+        Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
         errStr := fmt.Sprintf("Request failure: %s", err)
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, resp, werr
@@ -80,8 +80,8 @@ func (s *RuleService) Insert(rule *Rule, overwrite bool) (*Rule, *http.Response,
 
     req, err := s.client.NewRequest("PUT", route, rule)
     if err != nil {
-        Debug(DbgError, "http.NewRequest(PUT, %s); error '%s'\n", route, err)
-        errStr := fmt.Sprintf("Unable to create HTTP request for PUT '%s'; error: %s", route, err)
+        Debug(DbgError, "http.NewRequest(PUT, %s); error: '%s'\n", route, err)
+        errStr := fmt.Sprintf("Unable to create HTTP request for PUT '%s': %s", route, err)
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
@@ -89,7 +89,7 @@ func (s *RuleService) Insert(rule *Rule, overwrite bool) (*Rule, *http.Response,
     r := new(Rule)
     resp, err := s.client.Do(req, &r)
     if err != nil {
-        Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
+        Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
         errStr := fmt.Sprintf("Request failure: %s", err)
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, resp, werr
@@ -103,8 +103,8 @@ func (s *RuleService) Get(ruleName string) (*Rule, *http.Response, error) {
 
     req, err := s.client.NewRequest("GET", route, nil)
     if err != nil {
-        Debug(DbgError, "http.NewRequest(GET, %s); error '%s'\n", route, err)
-        errStr := fmt.Sprintf("Unable to create HTTP request for GET '%s'; error: %s", route, err)
+        Debug(DbgError, "http.NewRequest(GET, %s); error: '%s'\n", route, err)
+        errStr := fmt.Sprintf("Unable to create HTTP request for GET '%s': %s", route, err)
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
@@ -112,7 +112,7 @@ func (s *RuleService) Get(ruleName string) (*Rule, *http.Response, error) {
     r := new(Rule)
     resp, err := s.client.Do(req, &r)
     if err != nil {
-        Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
+        Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
         errStr := fmt.Sprintf("Request failure: %s", err)
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, resp, werr
@@ -126,15 +126,15 @@ func (s *RuleService) Delete(ruleName string) (*http.Response, error) {
 
     req, err := s.client.NewRequest("DELETE", route, nil)
     if err != nil {
-        Debug(DbgError, "http.NewRequest(DELETE, %s); error '%s'\n", route, err)
-        errStr := fmt.Sprintf("Unable to create HTTP request for DELETE '%s'; error: %s", route, err)
+        Debug(DbgError, "http.NewRequest(DELETE, %s); error: '%s'\n", route, err)
+        errStr := fmt.Sprintf("Unable to create HTTP request for DELETE '%s': %s", route, err)
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, werr
     }
 
     resp, err := s.client.Do(req, nil)
     if err != nil {
-        Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
+        Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
         errStr := fmt.Sprintf("Request failure: %s", err)
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return resp, werr
@@ -158,8 +158,8 @@ func (s *RuleService) SetState(ruleName string, state string) (*Rule, *http.Resp
 
     req, err := s.client.NewRequest("POST", route, ruleState /*nil*/)
     if err != nil {
-        Debug(DbgError, "http.NewRequest(POST, %s); error '%s'\n", route, err)
-        errStr := fmt.Sprintf("Unable to create HTTP request for POST '%s'; error: %s", route, err)
+        Debug(DbgError, "http.NewRequest(POST, %s); error: '%s'\n", route, err)
+        errStr := fmt.Sprintf("Unable to create HTTP request for POST '%s': %s", route, err)
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
@@ -167,7 +167,7 @@ func (s *RuleService) SetState(ruleName string, state string) (*Rule, *http.Resp
     r := new(Rule)
     resp, err := s.client.Do(req, &r)
     if err != nil {
-        Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
+        Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
         errStr := fmt.Sprintf("Request failure: %s", err)
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, resp, werr

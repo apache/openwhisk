@@ -46,7 +46,7 @@ func (s *NamespaceService) List() ([]Namespace, *http.Response, error) {
     req, err := s.client.NewRequest("GET", route, nil)
     if err != nil {
         Debug(DbgError, "s.client.NewRequest(GET) error: %s\n", err)
-        errStr := fmt.Sprintf("Unable to create HTTP request for GET; error: %s", err)
+        errStr := fmt.Sprintf("Unable to create HTTP request for GET: %s", err)
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
@@ -83,7 +83,7 @@ func (s *NamespaceService) Get(nsName string) (*Namespace, *http.Response, error
     req, err := s.client.NewRequest("GET", "", nil)
     if err != nil {
         Debug(DbgError, "s.client.NewRequest(GET) error: %s\n", err)
-        errStr := fmt.Sprintf("Unable to create HTTP request for GET; error: %s", err)
+        errStr := fmt.Sprintf("Unable to create HTTP request for GET: %s", err)
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }

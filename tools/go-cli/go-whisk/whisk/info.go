@@ -40,7 +40,7 @@ func (s *InfoService) Get() (*Info, *http.Response, error) {
     ref, err := url.Parse(s.client.Config.Version)
     if err != nil {
         Debug(DbgError, "url.Parse(%s) error: %s\n", s.client.Config.Version, err)
-        errStr := fmt.Sprintf("Unable to URL parse '%s'; error: %s", s.client.Config.Version, err)
+        errStr := fmt.Sprintf("Unable to URL parse '%s': %s", s.client.Config.Version, err)
         werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
@@ -50,7 +50,7 @@ func (s *InfoService) Get() (*Info, *http.Response, error) {
     req, err := http.NewRequest("GET", u.String(), nil)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s) error: %s\n", u.String(), err)
-        errStr := fmt.Sprintf("Unable to create HTTP request for GET '%s'; error: %s", u.String(), err)
+        errStr := fmt.Sprintf("Unable to create HTTP request for GET '%s': %s", u.String(), err)
         werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }

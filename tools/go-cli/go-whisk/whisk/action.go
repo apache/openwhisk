@@ -135,7 +135,7 @@ func (s *ActionService) List(packageName string, options *ActionListOptions) ([]
     req, err := s.client.NewRequest("GET", route, nil)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s, nil) error: '%s'\n", route, err)
-        errMsg := fmt.Sprintf("Unable to create HTTP request for GET '%s'; error: %s", route, err)
+        errMsg := fmt.Sprintf("Unable to create HTTP request for GET '%s': %s", route, err)
         whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
@@ -180,7 +180,7 @@ func (s *ActionService) Insert(action *Action, sharedSet bool, overwrite bool) (
     req, err := s.client.NewRequest("PUT", route, sentAction)
     if err != nil {
         Debug(DbgError, "http.NewRequest(PUT, %s, %#v) error: '%s'\n", route, err, sentAction)
-        errMsg := fmt.Sprintf("Unable to create HTTP request for PUT '%s'; error: %s", route, err)
+        errMsg := fmt.Sprintf("Unable to create HTTP request for PUT '%s': %s", route, err)
         whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
@@ -207,7 +207,7 @@ func (s *ActionService) Get(actionName string) (*Action, *http.Response, error) 
     req, err := s.client.NewRequest("GET", route, nil)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s, nil) error: '%s'\n", route, err)
-        errMsg := fmt.Sprintf("Unable to create HTTP request for GET '%s'; error: %s", route, err)
+        errMsg := fmt.Sprintf("Unable to create HTTP request for GET '%s': %s", route, err)
         whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
@@ -235,7 +235,7 @@ func (s *ActionService) Delete(actionName string) (*http.Response, error) {
     req, err := s.client.NewRequest("DELETE", route, nil)
     if err != nil {
         Debug(DbgError, "http.NewRequest(DELETE, %s, nil) error: '%s'\n", route, err)
-        errMsg := fmt.Sprintf("Unable to create HTTP request for DELETE '%s'; error: %s", route, err)
+        errMsg := fmt.Sprintf("Unable to create HTTP request for DELETE '%s': %s", route, err)
         whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, whiskErr
@@ -263,7 +263,7 @@ func (s *ActionService) Invoke(actionName string, payload *json.RawMessage, bloc
     req, err := s.client.NewRequest("POST", route, payload)
     if err != nil {
         Debug(DbgError, "http.NewRequest(POST, %s, %#v) error: '%s'\n", route, payload, err)
-        errMsg := fmt.Sprintf("Unable to create HTTP request for POST '%s'; error: %s", route, err)
+        errMsg := fmt.Sprintf("Unable to create HTTP request for POST '%s': %s", route, err)
         whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
