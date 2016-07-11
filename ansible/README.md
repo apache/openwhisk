@@ -127,11 +127,13 @@ gradle distDocker
 cd ansible
 ansible-playbook -i environments/<environment> couchdb.yml
 ansible-playbook -i environments/<environment> initdb.yml
+ansible-playbook -i environments/<environment> wipe.yml
 ansible-playbook -i environments/<environment> openwhisk.yml
+ansible-playbook -i environments/<environment> postdeploy.yml
 ```
 
-You need to run `initdb.yml` on couchdb **every time** you deploy couchdb to initialize the database.
-
+You need to run `initdb.yml` on couchdb **every time** you do a fresh deploy couchdb to initialize the database.
+Don't run `wipe.yml` or `postdeploy.yml` to avoid removing the transient data store. Use it for fresh deployment.
 
 ### Deploying Using Cloudant
 - Make sure your `db_local.ini` file is set up for cloudant. See [Setup](#setup) 
@@ -142,12 +144,16 @@ cd <openwhisk_home>
 gradle distDocker
 cd ansible
 ansible-playbook -i environments/<environment> initdb.yml
+ansible-playbook -i environments/<environment> wipe.yml
 ansible-playbook -i environments/<environment> openwhisk.yml
+ansible-playbook -i environments/<environment> postdeploy.yml
 ```
 You need to run `initdb` on cloudant **only once** per cloudant database to initialize the db.
+Don't run `wipe.yml` or `postdeploy.yml` to avoid removing the transient data store. Use it for fresh deployment.
 
 **Hint:** The `initdb.yml` playbook will only initialize your database if it is not initialized already, else it will skip initialization steps.
 
+Use `ansible-playbook -i environments/<environment> openwhisk.yml` to avoid wiping the data store. This is useful to start OpenWhisk after restarting your Operating System.
 
 ### Verification after Deployment
 After a successful deployment you can use the `wsk` CLI (located in the `bin` folder of the repository) to verify that OpenWhisk is operable.
