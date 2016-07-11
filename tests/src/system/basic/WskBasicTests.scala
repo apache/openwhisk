@@ -311,16 +311,22 @@ class WskBasicTests
             wsk.action.create("updateMissingFile", Some("notfound"), update = true, expectedExitCode = MISUSE_EXIT)
     }
 
-    it should "create, and invoke an action that utilizes a docker container" in withAssetCleaner(wskprops) {
+    ignore should "create, and invoke an action that utilizes a docker container" in withAssetCleaner(wskprops) {
         val name = "dockerContainer"
         (wp, assetHelper) =>
             assetHelper.withCleaner(wsk.action, name) {
+                // this docker image will be need to be pulled from dockerhub and hence has to be published there first
                 (action, _) => action.create(name, Some("whisk/dockerskeleton"), kind = Some("docker"))
             }
 
-            val run = wsk.action.invoke(name, Map("payload" -> "test".toJson), blocking = true, result = true)
-            run.stdout should include regex (""""msg": "Hello from arbitrary C program!"""")
-            run.stdout should include regex (""""payload": "test"""")
+            val args = Map("payload" -> "test".toJson)
+            val run = wsk.action.invoke(name, args)
+            withActivation(wsk.activation, run) {
+                activation =>
+                    val result = activation.fields("response").asJsObject.fields("result").asJsObject
+                    result.fields("args") shouldBe args.toJson
+                    result.fields("msg") shouldBe "Hello from arbitrary C program!".toJson
+            }
     }
 
     /**
