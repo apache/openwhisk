@@ -77,7 +77,7 @@ case class WskProps(
     def overrides = Seq("-i", "--apihost", apihost, "--apiversion", apiversion)
 }
 
-class Wsk(override val usePythonCLI: Boolean = true) extends RunWskCmd {
+class Wsk(override val usePythonCLI: Boolean = false) extends RunWskCmd {
     implicit val action = new WskAction(usePythonCLI)
     implicit val trigger = new WskTrigger(usePythonCLI)
     implicit val rule = new WskRule(usePythonCLI)
@@ -202,7 +202,7 @@ trait HasActivation {
     }
 }
 
-class WskAction(override val usePythonCLI: Boolean = true)
+class WskAction(override val usePythonCLI: Boolean = false)
     extends RunWskCmd
     with ListOrGetFromCollection
     with DeleteFromCollection
@@ -268,7 +268,7 @@ class WskAction(override val usePythonCLI: Boolean = true)
     }
 }
 
-class WskTrigger(override val usePythonCLI: Boolean = true)
+class WskTrigger(override val usePythonCLI: Boolean = false)
     extends RunWskCmd
     with ListOrGetFromCollection
     with DeleteFromCollection
@@ -319,7 +319,7 @@ class WskTrigger(override val usePythonCLI: Boolean = true)
     }
 }
 
-class WskRule(override val usePythonCLI: Boolean = true)
+class WskRule(override val usePythonCLI: Boolean = false)
     extends RunWskCmd
     with ListOrGetFromCollection
     with DeleteFromCollection
@@ -435,7 +435,7 @@ class WskRule(override val usePythonCLI: Boolean = true)
     }
 }
 
-class WskActivation(override val usePythonCLI: Boolean = true)
+class WskActivation(override val usePythonCLI: Boolean = false)
     extends RunWskCmd
     with HasActivation
     with WaitFor {
@@ -612,7 +612,7 @@ class WskActivation(override val usePythonCLI: Boolean = true)
     private case class PartialResult(ids: Seq[String]) extends Throwable
 }
 
-class WskNamespace(override val usePythonCLI: Boolean = true)
+class WskNamespace(override val usePythonCLI: Boolean = false)
     extends RunWskCmd
     with FullyQualifiedNames {
 
@@ -646,7 +646,7 @@ class WskNamespace(override val usePythonCLI: Boolean = true)
     }
 }
 
-class WskPackage(override val usePythonCLI: Boolean = true)
+class WskPackage(override val usePythonCLI: Boolean = false)
     extends RunWskCmd
     with ListOrGetFromCollection
     with DeleteFromCollection {
@@ -762,7 +762,7 @@ object Wsk {
 
 sealed trait RunWskCmd {
 
-    val usePythonCLI: Boolean = true
+    val usePythonCLI: Boolean = false
 
     /**
      * The base command to run.
