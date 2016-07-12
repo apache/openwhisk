@@ -1,1 +1,1 @@
-github "openwhisk/swift-client-sdk.git" ~> 0.1.0 # Or latest version
+github "openwhisk/openwhisk-client-swift.git" ~> 0.1.0 # Or latest version
