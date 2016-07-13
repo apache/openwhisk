@@ -20,6 +20,7 @@ import (
     "errors"
     "fmt"
     "net/http"
+    "strings"
 
     "../../go-whisk/whisk"
 
@@ -512,28 +513,35 @@ var packageListCmd = &cobra.Command{
 }
 
 var packageRefreshCmd = &cobra.Command{
-    Use:   "refresh <namespace string>",
+    Use:   "refresh [namespace string]",
     Short: "refresh package bindings",
     SilenceUsage:   true,
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
+        var qName qualifiedName
 
-        if len(args) != 1 {
-            whisk.Debug(whisk.DbgError, "Invalid number of arguments %d (expected 1 argument); args: %#v\n", len(args), args)
-            errStr := fmt.Sprintf("Invalid number of arguments (%d) provided; the package name is the only expected argument", len(args))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
-        }
+        if len(args) > 1 {
+            whisk.Debug(whisk.DbgError, "Package refresh command must not have more than one argument\n")
+            errMsg := fmt.Sprintf("Invalid argument(s): %s.", strings.Join(args[1:], ", "))
+            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG,
+                whisk.DISPLAY_USAGE)
+            return whiskErr
+        } else {
+            if len(args) == 0 {
+                qName, err = parseQualifiedName("")
+            } else {
+                qName, err = parseQualifiedName(args[0])
+            }
 
-        qName, err := parseQualifiedName(args[0])
-        if err != nil {
-            whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[0], err)
-            errMsg := fmt.Sprintf("Failed to parse qualified name: %s\n", args[0])
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-                whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
-            return werr
+            if err != nil {
+                whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[0], err)
+                errMsg := fmt.Sprintf("Failed to parse qualified name: %s\n", args[0])
+                werr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+                    whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                return werr
+            }
         }
 
         currentNamespace := client.Config.Namespace
