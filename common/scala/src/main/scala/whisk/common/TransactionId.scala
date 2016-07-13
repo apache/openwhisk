@@ -48,7 +48,7 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
         val now = Instant.now(Clock.systemUTC())
         Option(token) filter { _.toString.trim.nonEmpty } map { _ =>
             val delta = now.toEpochMilli - meta.start.toEpochMilli
-            LogMarker(now, delta, token.toString.trim)
+            LogMarker(now, delta, token)
         }
     }
 }
@@ -60,7 +60,7 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
  *           negative for system operation and zero when originator is not known
  * @param start the timestamp when the request processing commenced
  */
-protected case class TransactionMetadata(val id: Long, val start: Instant)
+protected case class TransactionMetadata(val id: Long, val start: Instant, val timeDeltas: scala.collection.mutable.Map[LogMarkerToken, LogMarker] = scala.collection.mutable.Map())
 
 object TransactionId {
     val unknown = TransactionId(0)
