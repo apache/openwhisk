@@ -26,6 +26,9 @@ consul:
     http: 8500
     dns: 8600
 
+redis:
+  port: 6379
+
 kafka:
   port: 9092
   ras:

@@ -5,6 +5,8 @@
 
 - include: consul.yml
 
+- include: redis.yml
+
 - include: kafka.yml
 
 - include: controller.yml

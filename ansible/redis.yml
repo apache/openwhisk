@@ -1,0 +1,6 @@
+---
+# This playbook deploys redis.  
+
+- hosts: redis
+  roles:
+  - redis
