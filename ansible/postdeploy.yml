@@ -6,4 +6,9 @@
 - hosts: ansible
   tasks:
     - include: tasks/installCatalog.yml
-      when: mode == "deploy"
+      when: (mode == "deploy" and catalog_source == "openwhisk")
+
+- hosts: ansible
+  tasks:
+    - include: tasks/installOpenwhiskCatalog.yml
+      when: (mode == "deploy" and catalog_source == "openwhisk-catalog")

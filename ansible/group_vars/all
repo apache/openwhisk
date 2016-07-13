@@ -1,5 +1,6 @@
 mode: deploy
 prompt_user: true
+catalog_source: "openwhisk"
 
 openwhisk_home: "{{ lookup('env', 'OPENWHISK_HOME')|default(playbook_dir + '/..', true) }}"
 
