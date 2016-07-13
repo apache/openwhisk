@@ -23,12 +23,11 @@ import (
     "io/ioutil"
     "os"
     "os/exec"
-    "regexp"
+    "path/filepath"
     "strings"
 
     "../../go-whisk/whisk"
 
-    "github.com/fatih/color"
     "github.com/spf13/cobra"
     "encoding/json"
 )
@@ -42,38 +41,6 @@ var actionCmd = &cobra.Command{
     Short: "work with actions",
 }
 
-/*
-usage: wsk action update [-h] [-u AUTH] [--docker] [--copy] [--sequence]
-                     [--lib LIB] [--shared [{yes,no}]]
-                     [-a ANNOTATION ANNOTATION] [-p PARAM PARAM]
-                     [-t TIMEOUT] [-m MEMORY]
-                     name [artifact]
-
-positional arguments:
-name                  the name of the action
-artifact              artifact (e.g., file name) containing action
-                    definition
-
-optional arguments:
--h, --help            show this help message and exit
--u AUTH, --auth AUTH  authorization key
---docker              treat artifact as docker image path on dockerhub
---copy                treat artifact as the name of an existing action
---sequence            treat artifact as comma separated sequence of actions
-                    to invoke
---lib LIB             add library to artifact (must be a gzipped tar file)
---shared [{yes,no}]   shared action (default: private)
--a ANNOTATION ANNOTATION, --annotation ANNOTATION ANNOTATION
-                    annotations
--p PARAM PARAM, --param PARAM PARAM
-                    default parameters
--t TIMEOUT, --timeout TIMEOUT
-                    the timeout limit in milliseconds when the action will
-                    be terminated
--m MEMORY, --memory MEMORY
-                    the memory limit in MB of the container that runs the
-                    action
-*/
 var actionCreateCmd = &cobra.Command{
     Use:   "create <name string> <artifact string>",
     Short: "create a new action",
@@ -81,6 +48,21 @@ var actionCreateCmd = &cobra.Command{
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
+
+        if len(args) < 2 {
+            whisk.Debug(whisk.DbgError, "Action create command must have at least two arguments\n")
+            errMsg := fmt.Sprintf("Invalid argument(s). An action name and artifact are required.")
+            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+                whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            return whiskErr
+        } else if len(args) > 2 {
+            whisk.Debug(whisk.DbgError, "Action create command must not have more than two arguments\n")
+            errMsg := fmt.Sprintf("Invalid argument(s): %s.", strings.Join(args[2:], ", "))
+            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+                whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            return whiskErr
+        }
+
         action, sharedSet, err := parseAction(cmd, args)
         if err != nil {
             whisk.Debug(whisk.DbgError, "parseAction(%s, %s) error: %s\n", cmd, args, err)
@@ -99,43 +81,11 @@ var actionCreateCmd = &cobra.Command{
             return whiskErr
         }
 
-        fmt.Printf("%s created action %s\n", color.GreenString("ok:"), boldString(action.Name))
+        fmt.Printf("ok: created action %s\n", action.Name)
         return nil
     },
 }
 
-/*
-usage: wsk action update [-h] [-u AUTH] [--docker] [--copy] [--sequence]
-[--lib LIB] [--shared [{yes,no}]]
-[-a ANNOTATION ANNOTATION] [-p PARAM PARAM]
-[-t TIMEOUT] [-m MEMORY]
-name [artifact]
-
-positional arguments:
-name                  the name of the action
-artifact              artifact (e.g., file name) containing action
-definition
-
-optional arguments:
--h, --help            show this help message and exit
--u AUTH, --auth AUTH  authorization key
---docker              treat artifact as docker image path on dockerhub
---copy                treat artifact as the name of an existing action
---sequence            treat artifact as comma separated sequence of actions
-to invoke
---lib LIB             add library to artifact (must be a gzipped tar file)
---shared [{yes,no}]   shared action (default: private)
--a ANNOTATION ANNOTATION, --annotation ANNOTATION ANNOTATION
-annotations
--p PARAM PARAM, --param PARAM PARAM
-default parameters
--t TIMEOUT, --timeout TIMEOUT
-the timeout limit in milliseconds when the action will
-be terminated
--m MEMORY, --memory MEMORY
-the memory limit in MB of the container that runs the
-action
-*/
 var actionUpdateCmd = &cobra.Command{
     Use:   "update <name string> <artifact string>",
     Short: "update an existing action",
@@ -143,6 +93,21 @@ var actionUpdateCmd = &cobra.Command{
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
+
+        if len(args) < 1 {
+            whisk.Debug(whisk.DbgError, "Action update command must have at least one argument\n")
+            errMsg := fmt.Sprintf("Invalid argument(s). An action name is required.")
+            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+                whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            return whiskErr
+        } else if len(args) > 2 {
+            whisk.Debug(whisk.DbgError, "Action update command must not have more than two arguments\n")
+            errMsg := fmt.Sprintf("Invalid argument(s): %s.", strings.Join(args[2:], ", "))
+            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+                whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            return whiskErr
+        }
+
         action, sharedSet, err := parseAction(cmd, args)
         if err != nil {
             whisk.Debug(whisk.DbgError, "parseAction(%s, %s) error: %s\n", cmd, args, err)
@@ -161,7 +126,7 @@ var actionUpdateCmd = &cobra.Command{
             return whiskErr
         }
 
-        fmt.Printf("%s updated action %s\n", color.GreenString("ok:"), boldString(action.Name))
+        fmt.Printf("ok: updated action %s\n", action.Name)
         return nil
     },
 }
@@ -174,13 +139,18 @@ var actionInvokeCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        //var payloadArg string
 
-        if len(args) != 1 {
-            whisk.Debug(whisk.DbgError, "Invalid number of arguments %d (expected 1 argument); args: %#v\n", len(args), args)
-            errMsg := fmt.Sprintf("Invalid argument list.  The action name is the only expected argument")
-            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG,
-                whisk.DISPLAY_USAGE)
+        if len(args) < 1 {
+            whisk.Debug(whisk.DbgError, "Action invoke command must have at least one argument\n")
+            errMsg := fmt.Sprintf("Invalid argument(s). An action name is required.")
+            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+                whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            return whiskErr
+        } else if len(args) > 1 {
+            whisk.Debug(whisk.DbgError, "Action invoke command must not have more than one argument\n")
+            errMsg := fmt.Sprintf("Invalid argument(s): %s.", strings.Join(args[1:], ", "))
+            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+                whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             return whiskErr
         }
 
@@ -237,12 +207,10 @@ var actionInvokeCmd = &cobra.Command{
         if flags.common.blocking && flags.action.result {
             printJsonNoColor(activation.Response.Result, outputStream)
         } else if flags.common.blocking {
-            fmt.Printf("%s invoked /%s/%s with id %s\n", color.GreenString("ok:"), boldString(qName.namespace), boldString(qName.entityName),
-                boldString(activation.ActivationID))
+            fmt.Printf("ok: invoked /%s/%s with id %s\n", qName.namespace, qName.entityName, activation.ActivationID)
             printJsonNoColor(activation, outputStream)
         } else {
-            fmt.Printf("%s invoked /%s/%s with id %s\n", color.GreenString("ok:"), boldString(qName.namespace), boldString(qName.entityName),
-                boldString(activation.ActivationID))
+            fmt.Printf("ok: invoked /%s/%s with id %s\n", qName.namespace, qName.entityName, activation.ActivationID)
         }
 
         return err
@@ -258,10 +226,16 @@ var actionGetCmd = &cobra.Command{
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
 
-        if len(args) != 1 {
-            whisk.Debug(whisk.DbgError, "Invalid number of arguments %d (expected 1 argument); args: %#v\n", len(args), args)
-            errMsg := fmt.Sprintf("Invalid number of arguments (%d) provided; the action name is the only expected argument", len(args))
-            whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+        if len(args) < 1 {
+            whisk.Debug(whisk.DbgError, "Action get command must have at least one argument\n")
+            errMsg := fmt.Sprintf("Invalid argument(s). An action name is required.")
+            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+                whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            return whiskErr
+        } else if len(args) > 1 {
+            whisk.Debug(whisk.DbgError, "Action get command must not have more than one argument\n")
+            errMsg := fmt.Sprintf("Invalid argument(s): %s.", strings.Join(args[1:], ", "))
+            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             return whiskErr
         }
@@ -287,10 +261,9 @@ var actionGetCmd = &cobra.Command{
 
         // print out response
         if flags.common.summary {
-            fmt.Printf("%s /%s/%s\n", boldString("action"), action.Namespace, action.Name)
+            fmt.Printf("action /%s/%s\n", action.Namespace, action.Name)
         } else {
-            fmt.Printf("%s got action %s\n", color.GreenString("ok:"), boldString(qName.entityName))
-            //printJSON(action)
+            fmt.Printf("ok: got action %s\n", qName.entityName)
             printJsonNoColor(action)
         }
 
@@ -305,6 +278,21 @@ var actionDeleteCmd = &cobra.Command{
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
+
+        if len(args) < 1 {
+            whisk.Debug(whisk.DbgError, "Action delete command must have at least one argument\n")
+            errMsg := fmt.Sprintf("Invalid argument(s). An action name is required.")
+            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+                whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            return whiskErr
+        } else if len(args) > 1 {
+            whisk.Debug(whisk.DbgError, "Action delete command must not have more than one argument\n")
+            errMsg := fmt.Sprintf("Invalid argument(s): %s.", strings.Join(args[1:], ", "))
+            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+                whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            return whiskErr
+        }
+
         qName, err := parseQualifiedName(args[0])
         if err != nil {
             whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[0], err)
@@ -324,15 +312,14 @@ var actionDeleteCmd = &cobra.Command{
             return whiskErr
         }
 
-        // print out response
-        fmt.Printf("%s deleted action %s\n", color.GreenString("ok:"), boldString(qName.entityName))
+        fmt.Printf("ok: deleted action %s\n", qName.entityName)
 
         return nil
     },
 }
 
 var actionListCmd = &cobra.Command{
-    Use:   "list <namespace string>",
+    Use:   "list [namespace string]",
     Short: "list all actions",
     SilenceUsage:   true,
     SilenceErrors:  true,
@@ -359,10 +346,12 @@ var actionListCmd = &cobra.Command{
                 return whiskErr
             }
             client.Namespace = qName.namespace
-
-            if pkg := qName.packageName; len(pkg) > 0 {
-                // todo :: scope call to package
-            }
+        } else if len(args) > 1 {
+            whisk.Debug(whisk.DbgError, "Action list command must not have more than one argument\n")
+            errMsg := fmt.Sprintf("Invalid argument(s): %s.", strings.Join(args[1:], ", "))
+            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+                whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            return whiskErr
         }
 
         options := &whisk.ActionListOptions{
@@ -438,27 +427,11 @@ func findMainJarClass(jarFile string) (string, error) {
     return "", whiskErr
 }
 
-/*
-usage: wsk action update [-h] [-u AUTH] [--docker] [--copy] [--sequence]
-[--lib LIB] [--shared [{yes,no}]]
-[-a ANNOTATION ANNOTATION] [-p PARAM PARAM]
-[-t TIMEOUT] [-m MEMORY]
-name [artifact]
-*/
 func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error) {
     var err error
     var shared, sharedSet bool
     var artifact string
     var limits *whisk.Limits
-
-    whisk.Debug(whisk.DbgInfo, "Parsing action arguments: %s\n", args)
-    if len(args) < 1 {
-        whisk.Debug(whisk.DbgError, "Action command must have at least one argument\n")
-        errMsg := fmt.Sprintf("Invalid number of arguments (%d) provided; the action name is the only expected argument", len(args))
-        whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
-            whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-        return nil, sharedSet, whiskErr
-    }
 
     qName := qualifiedName{}
     qName, err = parseQualifiedName(args[0])
@@ -598,12 +571,15 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
         client.Config.Namespace = currentNamespace
 
     } else if artifact != "" {
-        stat, err := os.Stat(artifact)
+        ext := filepath.Ext(artifact)
+
+        _, err := os.Stat(artifact)
         if err != nil {
             whisk.Debug(whisk.DbgError, "os.Stat(%s) error: %s\n", artifact, err)
             errMsg := fmt.Sprintf("File '%s' is not a valid file or it does not exist: %s", artifact, err)
             whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_USAGE,
                 whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+
             return nil, sharedSet, whiskErr
         }
 
@@ -626,15 +602,25 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
             action.Exec.Kind = "swift:3"
         } else if flags.action.kind == "nodejs:6" || flags.action.kind == "nodejs:6.0" || flags.action.kind == "nodejs:6.0.0" {
             action.Exec.Kind = "nodejs:6"
+        } else if flags.action.kind == "nodejs:default" {
+            action.Exec.Kind = "nodejs:default"
         } else if flags.action.kind == "nodejs" {
             action.Exec.Kind = "nodejs"
-        } else if matched, _ := regexp.MatchString(".swift$", stat.Name()); matched {
+        } else if flags.action.kind == "swift" {
             action.Exec.Kind = "swift"
-        } else if matched, _ := regexp.MatchString(".js", stat.Name()); matched {
-            action.Exec.Kind = "nodejs:default"
-        } else if matched, _ := regexp.MatchString(".py", stat.Name()); matched {
+        } else if len(flags.action.kind) > 0 {
+            whisk.Debug(whisk.DbgError, "--kind argument '%s' is not supported\n", flags.action.kind)
+            errMsg := fmt.Sprintf("'%s' is not a supported action runtime", flags.action.kind)
+            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG,
+                whisk.DISPLAY_USAGE)
+            return nil, sharedSet, whiskErr
+        } else if ext == ".swift" {
+            action.Exec.Kind = "swift"
+        } else if ext == ".js" {
+            action.Exec.Kind = "nodejs:6"
+        } else if ext == ".py" {
             action.Exec.Kind = "python"
-        } else if matched, _ := regexp.MatchString(".jar", stat.Name()); matched {
+        } else if ext == ".jar" {
             action.Exec.Code = ""
             action.Exec.Kind = "java"
             action.Exec.Jar = base64.StdEncoding.EncodeToString([]byte(string(file)))
@@ -644,8 +630,8 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
                 return nil, sharedSet, err
             }
         } else {
-            whisk.Debug(whisk.DbgError, "--kind argument '%s' is invalid\n", flags.action.kind)
-            errMsg := fmt.Sprintf("'%s' is not a supported action runtime", flags.action.kind)
+            whisk.Debug(whisk.DbgError, "Action runtime exention '%s' is not supported\n", ext)
+            errMsg := fmt.Sprintf("'%s' is not a supported action runtime", ext)
             whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG,
                 whisk.DISPLAY_USAGE)
             return nil, sharedSet, whiskErr

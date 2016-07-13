@@ -183,7 +183,7 @@ public class CLIActionTests {
         } else {
             assertTrue("Expect a cli error exit code", rr.exitCode == 1);
             assertTrue("Expect a cli usage message", rr.stderr.contains("Run 'wsk --help' for usage."));
-            assertTrue("Expect a cli error message", rr.stderr.contains("error: Invalid argument list."));
+            assertTrue("Expect a cli error message", rr.stderr.contains("error: Invalid argument(s): " + payload));
         }
     }
 
