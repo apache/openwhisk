@@ -270,15 +270,15 @@ class Invoker(
         pool.getAction(action, auth) match {
             case Some((con, initResultOpt)) => Future {
                 val params = con.mergeParams(payload)
-                val timeoutMillis = action.limits.timeout.millis
+                val timeout = action.limits.timeout.duration
                 initResultOpt match {
-                    case None => (false, con.run(params, msg.meta, auth.compact, timeoutMillis,
+                    case None => (false, con.run(params, msg.meta, auth.compact, timeout,
                         action.fullyQualifiedName, msg.activationId.toString)) // cached
                     case Some((start, end, Some((200, _)))) => { // successful init
                         // TODO:  @perryibm update comment if this is still necessary else remove
                         Thread.sleep(if (con.isBlackbox) BlackBoxSlack else RegularSlack)
                         tran.initInterval = Some(start, end)
-                        (false, con.run(params, msg.meta, auth.compact, timeoutMillis,
+                        (false, con.run(params, msg.meta, auth.compact, timeout,
                             action.fullyQualifiedName, msg.activationId.toString))
                     }
                     case _ => (true, initResultOpt.get) //  unsuccessful initialization

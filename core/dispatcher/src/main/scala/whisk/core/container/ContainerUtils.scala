@@ -51,7 +51,7 @@ trait ContainerUtils extends Logging {
      */
     def bringup(name: Option[String], image: String, network: String, env: Map[String, String], args: Array[String], limits: ActionLimits, policy: Option[String])(implicit transid: TransactionId): (ContainerId, ContainerIP) = {
         val id = makeContainer(name, image, network, env, args, limits, policy)
-        val host = if (id.isDefined) getContainerHost(name) else None
+        val host = id.flatMap(_ => getContainerHostAndPort(name))
         (id, host)
     }
 
@@ -155,7 +155,7 @@ trait ContainerUtils extends Logging {
 
     }
 
-    def getContainerHost(container: ContainerName)(implicit transid: TransactionId): ContainerIP = {
+    def getContainerHostAndPort(container: ContainerName)(implicit transid: TransactionId): ContainerIP = {
         container map { name =>
             runDockerCmd("inspect", "--format", "'{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'", name) map {
                 output => appendPort(output.substring(1, output.length - 1))

@@ -46,12 +46,12 @@ class Container(
     val name = containerName.getOrElse("anon")
     val dockerhost = pool.dockerhost
 
-    val (containerId, containerIP) = bringup(containerName, image, network, env, args, limits, policy)
+    val (containerId, containerHostAndPort) = bringup(containerName, image, network, env, args, limits, policy)
 
     def details: String = {
         val name = containerName getOrElse "??"
         val id = containerId getOrElse "??"
-        val ip = containerIP getOrElse "??"
+        val ip = containerHostAndPort getOrElse "??"
         s"container [$name] [$id] [$ip]"
     }
 
