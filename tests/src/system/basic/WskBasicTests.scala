@@ -210,6 +210,18 @@ class WskBasicTests
             wsk.action.delete(name, expectedExitCode = CONFLICT)
     }
 
+    it should "reject delete of an action without an action name" in {
+        val stderr = wsk.cli(Seq("action", "delete"), expectedExitCode = ERROR_EXIT).stderr
+        stderr should include("error: Invalid argument(s). An action name is required.")
+        stderr should include("Run 'wsk --help' for usage.")
+    }
+
+    it should "reject delete of an action with an invalid argument" in {
+        val stderr = wsk.cli(Seq("action", "delete", "actionName", "invalidArg"), expectedExitCode = ERROR_EXIT).stderr
+        stderr should include("error: Invalid argument(s): invalidArg")
+        stderr should include("Run 'wsk --help' for usage.")
+    }
+
     it should "reject creating entities with invalid names" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val names = Seq(
@@ -252,6 +264,18 @@ class WskBasicTests
         }
     }
 
+    it should "reject get of an action without an action name" in {
+        val stderr = wsk.cli(Seq("action", "get"), expectedExitCode = ERROR_EXIT).stderr
+        stderr should include("error: Invalid argument(s). An action name is required.")
+        stderr should include("Run 'wsk --help' for usage.")
+    }
+
+    it should "reject get of an action with an invalid argument" in {
+        val stderr = wsk.cli(Seq("action", "get", "actionName", "invalidArg"), expectedExitCode = ERROR_EXIT).stderr
+        stderr should include("error: Invalid argument(s): invalidArg")
+        stderr should include("Run 'wsk --help' for usage.")
+    }
+
     it should "reject update action in shared package not owned by authkey" in {
         wsk.action.create("/whisk.system/util/cat", None,
             update = true, shared = Some(true), expectedExitCode = FORBIDDEN)
@@ -292,6 +316,12 @@ class WskBasicTests
         val result = wsk.action.list(Some("/whisk.system/util")).stdout
         result should include regex ("""/whisk.system/util/head\s+shared""")
         result should include regex ("""/whisk.system/util/date\s+shared""")
+    }
+
+    it should "reject list of an action with an invalid argument" in {
+        val stderr = wsk.cli(Seq("action", "list", "actionName", "invalidArg"), expectedExitCode = ERROR_EXIT).stderr
+        stderr should include("error: Invalid argument(s): invalidArg")
+        stderr should include("Run 'wsk --help' for usage.")
     }
 
     it should "create, update, get and list a package" in withAssetCleaner(wskprops) {
@@ -433,10 +463,42 @@ class WskBasicTests
             stderr should include regex ("""The requested resource does not exist. \(code \d+\)""")
     }
 
+    it should "reject create of an action without an action name" in {
+        val stderr = wsk.cli(Seq("action", "create"), expectedExitCode = ERROR_EXIT).stderr
+        stderr should include("error: Invalid argument(s). An action name and artifact are required.")
+        stderr should include("Run 'wsk --help' for usage.")
+    }
+
+    it should "reject create of an action without an artifact" in {
+        val stderr = wsk.cli(Seq("action", "create", "someAction"), expectedExitCode = ERROR_EXIT).stderr
+        stderr should include("error: Invalid argument(s). An action name and artifact are required.")
+        stderr should include("Run 'wsk --help' for usage.")
+    }
+
+    it should "reject create of an action with an invalid argument" in {
+        val stderr = wsk.cli(Seq("action", "create", "actionName", "artifactName", "invalidArg"),
+            expectedExitCode = ERROR_EXIT).stderr
+        stderr should include("error: Invalid argument(s): invalidArg")
+        stderr should include("Run 'wsk --help' for usage.")
+    }
+
     it should "reject create with missing file" in {
         wsk.action.create("missingFile", Some("notfound"),
             expectedExitCode = MISUSE_EXIT).
             stderr should include("not a valid file")
+    }
+
+    it should "reject update of an action without an action name" in {
+        val stderr = wsk.cli(Seq("action", "update"), expectedExitCode = ERROR_EXIT).stderr
+        stderr should include("error: Invalid argument(s). An action name is required.")
+        stderr should include("Run 'wsk --help' for usage.")
+    }
+
+    it should "reject update of an action with an invalid argument" in {
+        val stderr = wsk.cli(Seq("action", "update", "actionName", "artifactName", "invalidArg"),
+            expectedExitCode = ERROR_EXIT).stderr
+        stderr should include("error: Invalid argument(s): invalidArg")
+        stderr should include("Run 'wsk --help' for usage.")
     }
 
     it should "reject action update when specified file is missing" in withAssetCleaner(wskprops) {
@@ -512,6 +574,18 @@ class WskBasicTests
             }
             wsk.action.invoke(name, Map("payload" -> "one two three".toJson), blocking = true, result = true)
                 .stdout should include regex (""""count": 3""")
+    }
+
+    it should "reject invoke of an action without an action name" in {
+        val stderr = wsk.cli(Seq("action", "invoke"), expectedExitCode = ERROR_EXIT).stderr
+        stderr should include("error: Invalid argument(s). An action name is required.")
+        stderr should include("Run 'wsk --help' for usage.")
+    }
+
+    it should "reject invoke of an action with an invalid argument" in {
+        val stderr = wsk.cli(Seq("action", "invoke", "actionName", "invalidArg"), expectedExitCode = ERROR_EXIT).stderr
+        stderr should include("error: Invalid argument(s): invalidArg")
+        stderr should include("Run 'wsk --help' for usage.")
     }
 
     behavior of "Wsk Trigger CLI"
