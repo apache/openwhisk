@@ -24,7 +24,7 @@
   action: shell echo ruok | nc -w 3 {{ inventory_hostname }} {{ zookeeper.port }}
   register: result
   until: (result.rc == 0) and (result.stdout == 'imok')
-  retries: 12
+  retries: 36
   delay: 5
 
 - name: "pull the {{ docker_image_tag }} image of kafka"
@@ -51,5 +51,5 @@
     url: "http://{{ inventory_hostname }}:{{ kafka.ras.port }}/ready"
   register: result
   until: (result.status == 200) and (result.json.msg == 'yes')
-  retries: 12
+  retries: 36
   delay: 5
