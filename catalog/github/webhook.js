@@ -53,12 +53,29 @@ function main(params) {
 
     request(options, function(error, response, body) {
       if (error) {
-        whisk.error();
+        whisk.error({
+          response: response,
+          error: error,
+          body: body
+        });
+      } else {
+        console.log("Status code: " + response.statusCode);
+
+        if(response.statusCode >= 400) {
+          console.log("Response from Github: " + body);
+          whisk.error({
+            statusCode: response.statusCode,
+            response: body
+          });
+        } else {
+          whisk.done({response: body});
+        }
       }
-      console.log("Status code: " + response.statusCode);
-      whisk.done({response: body});
     });
+
     return whisk.async();
   }
+
+  // some lifecycleEvent for which there is nothing to do here
   return whisk.done();
 }
