@@ -31,10 +31,10 @@ import org.scalatest.junit.JUnitRunner
 import akka.actor.ActorSystem
 import akka.actor.PoisonPill
 
+import common.WskActorSystem
+
 @RunWith(classOf[JUnitRunner])
-class SchedulerTests extends FlatSpec with Matchers {
-    implicit val system = ActorSystem()
-    implicit val ec = system.dispatcher
+class SchedulerTests extends FlatSpec with Matchers with WskActorSystem {
 
     val timeBetweenCalls = 50 milliseconds
     val callsToProduce = 5
@@ -132,7 +132,7 @@ class SchedulerTests extends FlatSpec with Matchers {
 
         val scheduled = Scheduler.scheduleWaitAtMost(timeBetweenCalls) { () =>
             calls += Instant.now
-            akka.pattern.after(computationTime, system.scheduler)(Future.successful(true))
+            akka.pattern.after(computationTime, actorSystem.scheduler)(Future.successful(true))
         }
 
         waitForCalls(interval = timeBetweenCalls)
@@ -151,7 +151,7 @@ class SchedulerTests extends FlatSpec with Matchers {
 
         val scheduled = Scheduler.scheduleWaitAtMost(timeBetweenCalls) { () =>
             calls += Instant.now
-            akka.pattern.after(computationTime, system.scheduler)(Future.successful(true))
+            akka.pattern.after(computationTime, actorSystem.scheduler)(Future.successful(true))
         }
 
         waitForCalls(interval = timeBetweenCalls)

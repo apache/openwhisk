@@ -32,11 +32,10 @@ import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.consulServer
 import whisk.utils.ExecutionContextFactory
 
-@RunWith(classOf[JUnitRunner])
-class ConsulClientTests extends FlatSpec with ScalaFutures with Matchers {
+import common.WskActorSystem
 
-    implicit val system = ActorSystem()
-    implicit val ec = system.dispatcher
+@RunWith(classOf[JUnitRunner])
+class ConsulClientTests extends FlatSpec with ScalaFutures with Matchers with WskActorSystem {
 
     implicit val testConfig = PatienceConfig(5 seconds)
 

@@ -38,18 +38,18 @@ import whisk.core.entity._
 import spray.json.JsObject
 import spray.json.DefaultJsonProtocol
 
+import common.WskActorSystem
+
 /**
  *  Tests to ensure our database records conform to the intended schema
  */
 @RunWith(classOf[JUnitRunner])
 class ConformanceTests extends FlatSpec
     with Matchers
-    with BeforeAndAfterAll
     with ScalaFutures
     with DefaultJsonProtocol
-    with TransactionCounter {
-
-    implicit val actorSystem = ActorSystem()
+    with TransactionCounter
+    with WskActorSystem {
 
     implicit val defaultPatience =
         PatienceConfig(timeout = Span(1, Minutes), interval = Span(1, Seconds))
@@ -71,17 +71,6 @@ class ConformanceTests extends FlatSpec
 
     val authstore: ArtifactStore[WhiskAuth] = WhiskAuthStore.datastore(config)
     authstore.setVerbosity(Verbosity.Loud)
-
-    override def afterAll() {
-        println("Shutting down store connections")
-        datastore.shutdown()
-        authstore.shutdown()
-        println("Shutting down HTTP connections")
-        Await.result(akka.http.scaladsl.Http().shutdownAllConnectionPools(), Duration.Inf)
-        println("Shutting down actor system")
-        actorSystem.terminate()
-        Await.result(actorSystem.whenTerminated, Duration.Inf)
-    }
 
     /**
      * Helper functions: if d represents a document from the database,

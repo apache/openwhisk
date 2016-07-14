@@ -61,10 +61,13 @@ import spray.http.StatusCodes.OK
 import spray.http.Uri
 import spray.http.Uri.Path
 
+import common.WskActorSystem
+
 @RunWith(classOf[JUnitRunner])
 class HeadersTests extends FlatSpec
     with Matchers
-    with ScalaFutures {
+    with ScalaFutures
+    with WskActorSystem {
 
     behavior of "Headers at general API"
 
@@ -74,9 +77,6 @@ class HeadersTests extends FlatSpec
     val allMethods = Some(Set(DELETE.name, GET.name, POST.name, PUT.name))
     val allowOrigin = `Access-Control-Allow-Origin`(AllOrigins)
     val allowHeaders = `Access-Control-Allow-Headers`("Authorization", "Content-Type")
-
-    implicit val system = ActorSystem()
-    implicit val ec = system.dispatcher
 
     val url = Uri(s"http://${WhiskProperties.getControllerHost}:${WhiskProperties.getControllerPort}")
     val pipeline: HttpRequest => Future[HttpResponse] = (

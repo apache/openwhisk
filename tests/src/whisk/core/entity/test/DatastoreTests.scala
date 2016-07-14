@@ -20,7 +20,6 @@ import java.time.Instant
 
 import scala.Vector
 import scala.concurrent.Await
-import scala.concurrent.duration.Duration
 
 import akka.actor.ActorSystem
 
@@ -37,14 +36,14 @@ import whisk.core.database.NoDocumentException
 import whisk.core.database.test.DbUtils
 import whisk.core.entity._
 
+import common.WskActorSystem
+
 @RunWith(classOf[JUnitRunner])
 class DatastoreTests extends FlatSpec
     with BeforeAndAfter
     with BeforeAndAfterAll
+    with WskActorSystem
     with DbUtils {
-
-    implicit val actorSystem      = ActorSystem()
-    implicit val executionContext = actorSystem.dispatcher
 
     val namespace = Namespace("test namespace")
     val config = new WhiskConfig(WhiskEntityStore.requiredProperties)
@@ -57,11 +56,7 @@ class DatastoreTests extends FlatSpec
         println("Shutting down store connections")
         datastore.shutdown()
         authstore.shutdown()
-        println("Shutting down HTTP connections")
-        Await.result(akka.http.scaladsl.Http().shutdownAllConnectionPools(), Duration.Inf)
-        println("Shutting down actor system")
-        actorSystem.terminate()
-        Await.result(actorSystem.whenTerminated, Duration.Inf)
+        super.afterAll()
     }
 
     @volatile var counter = 0

@@ -47,22 +47,15 @@ import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
 
+import common.WskActorSystem
+
 @RunWith(classOf[JUnitRunner])
 class CouchDbRestClientTests extends FlatSpec
     with Matchers
-    with BeforeAndAfterAll
-    with ScalaFutures {
-
-    implicit val actorSystem = ActorSystem()
-    implicit val executionContext = actorSystem.dispatcher
+    with ScalaFutures
+    with WskActorSystem {
 
     override implicit val patienceConfig = PatienceConfig(timeout = 10.seconds, interval = 0.5.seconds)
-
-    override def afterAll() {
-        Await.ready(akka.http.scaladsl.Http().shutdownAllConnectionPools(), Duration.Inf)
-        actorSystem.terminate()
-        Await.result(actorSystem.whenTerminated, Duration.Inf)
-    }
 
     val config = new WhiskConfig(Map(
         dbProvider -> null,

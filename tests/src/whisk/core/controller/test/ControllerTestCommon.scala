@@ -72,7 +72,7 @@ protected trait ControllerTestCommon
     override val actorRefFactory = null
     implicit val routeTestTimeout = RouteTestTimeout(90 seconds)
 
-    implicit val actorSystem = ActorSystem("controllertests")
+    implicit val actorSystem = system // defined in ScalatestRouteTest
     val executionContext = actorSystem.dispatcher
 
     val whiskConfig = new WhiskConfig(WhiskActionsApi.requiredProperties)

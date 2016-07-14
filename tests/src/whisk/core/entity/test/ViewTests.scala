@@ -19,7 +19,6 @@ package whisk.core.entity.test
 import java.time.Clock
 import java.time.Instant
 import scala.concurrent.Await
-import scala.concurrent.duration.Duration
 import scala.util.Try
 import akka.actor.ActorSystem
 import org.junit.runner.RunWith
@@ -60,15 +59,15 @@ import java.util.Date
 import org.scalatest.BeforeAndAfterAll
 import scala.language.postfixOps
 
+import common.WskActorSystem
+
 @RunWith(classOf[JUnitRunner])
 class ViewTests extends FlatSpec
     with BeforeAndAfter
     with BeforeAndAfterAll
     with Matchers
-    with DbUtils {
-
-    implicit val actorSystem      = ActorSystem()
-    implicit val executionContext = actorSystem.dispatcher
+    with DbUtils
+    with WskActorSystem {
 
     def aname = MakeName.next("viewtests")
 
@@ -97,11 +96,7 @@ class ViewTests extends FlatSpec
     override def afterAll() {
         println("Shutting down store connections")
         datastore.shutdown()
-        println("Shutting down HTTP connections")
-        Await.result(akka.http.scaladsl.Http().shutdownAllConnectionPools(), Duration.Inf)
-        println("Shutting down actor system")
-        actorSystem.terminate()
-        Await.result(actorSystem.whenTerminated, Duration.Inf)
+        super.afterAll()
     }
 
     behavior of "Datastore View"

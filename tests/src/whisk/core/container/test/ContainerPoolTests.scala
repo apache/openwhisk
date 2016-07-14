@@ -51,6 +51,8 @@ import whisk.core.entity.WhiskEntityStore
 import whisk.utils.ExecutionContextFactory
 import scala.language.postfixOps
 
+import common.WskActorSystem
+
 /**
  * Unit tests for ContainerPool and, by association, Container and WhiskContainer.
  *
@@ -59,12 +61,10 @@ import scala.language.postfixOps
 class ContainerPoolTests extends FlatSpec
     with BeforeAndAfter
     with BeforeAndAfterAll
+    with WskActorSystem
     {
 
-    implicit val actorSystem = ActorSystem()
-
     implicit val transid = TransactionId.testing
-    implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
 
     val config = new WhiskConfig(
         Map(selfDockerEndpoint -> "localhost",
@@ -82,11 +82,7 @@ class ContainerPoolTests extends FlatSpec
     override def afterAll() {
         println("Shutting down store connections")
         datastore.shutdown()
-        println("Shutting down HTTP connections")
-        Await.result(akka.http.scaladsl.Http().shutdownAllConnectionPools(), Duration.Inf)
-        println("Shutting down actor system")
-        actorSystem.terminate()
-        Await.result(actorSystem.whenTerminated, Duration.Inf)
+        super.afterAll()
     }
 
     /**
