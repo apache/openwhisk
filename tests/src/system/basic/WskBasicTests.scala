@@ -292,7 +292,7 @@ class WskBasicTests
 
     it should "reject delete of action that does not exist" in {
         wsk.action.sanitize("deleteFantasy").
-            stderr should include regex ("""error: The requested resource does not exist. \(code \d+\)""")
+            stderr should include regex ("""The requested resource does not exist. \(code \d+\)""")
     }
 
     it should "reject create with missing file" in {
