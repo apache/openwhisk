@@ -54,6 +54,9 @@ var propertyCmd = &cobra.Command{
     Short: "work with whisk properties",
 }
 
+//
+// Set one or more openwhisk property values
+//
 var propertySetCmd = &cobra.Command{
     Use:            "set",
     Short:          "set property",
@@ -61,14 +64,15 @@ var propertySetCmd = &cobra.Command{
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
-        var okMsg string
+        var okMsg string = ""
+        var werr *whisk.WskError = nil
 
         // get current props
         props, err := readProps(Properties.PropsFile)
         if err != nil {
             whisk.Debug(whisk.DbgError, "readProps(%s) failed: %s\n", Properties.PropsFile, err)
             errStr := fmt.Sprintf("Unable to set the property value: %s", err)
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            werr = whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
 
@@ -76,17 +80,25 @@ var propertySetCmd = &cobra.Command{
 
         if auth := flags.global.auth; len(auth) > 0 {
             props["AUTH"] = auth
-            okMsg = fmt.Sprint("ok: whisk auth set")
+            client.Config.AuthToken = auth
+            okMsg += fmt.Sprint("ok: whisk auth set\n")
         }
 
         if apiHost := flags.property.apihostSet; len(apiHost) > 0 {
             props["APIHOST"] = apiHost
-            okMsg = fmt.Sprintf("ok: whisk API host set to '%s'", apiHost)
+            var apiHostBaseUrl = fmt.Sprintf("https://%s/api/", apiHost)
+            client.Config.BaseURL, err = url.Parse(apiHostBaseUrl)
+            if err != nil {
+                // Not aborting now.  Subsequent commands will result in error
+                whisk.Debug(whisk.DbgError, "url.Parse(%s) error: %s", apiHostBaseUrl, err)
+            }
+            okMsg += fmt.Sprintf("ok: whisk API host set to '%s'\n", apiHost)
         }
 
         if apiVersion := flags.property.apiversionSet; len(apiVersion) > 0 {
             props["APIVERSION"] = apiVersion
-            okMsg = fmt.Sprintf("ok: whisk API version set to '%s'", apiVersion)
+            client.Config.Version = apiVersion
+            okMsg += fmt.Sprintf("ok: whisk API version set to '%s'\n", apiVersion)
         }
 
         if namespace := flags.property.namespaceSet; len(namespace) > 0 {
@@ -94,39 +106,38 @@ var propertySetCmd = &cobra.Command{
             if err != nil {
                 whisk.Debug(whisk.DbgError, "client.Namespaces.List() failed: %s\n", err)
                 errStr := fmt.Sprintf("Authenticated user does not have namespace '%s'; set command failed: %s", namespace, err)
-                werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
-                return werr
-            }
-
-            whisk.Debug(whisk.DbgInfo, "Validating namespace '%s' is in user namespace list %#v\n", namespace, namespaces)
-            var validNamespace bool
-            for _, ns := range namespaces {
-                if ns.Name == namespace {
-                    whisk.Debug(whisk.DbgInfo, "Namespace '%s' is valid\n", namespace)
-                    validNamespace = true
+                werr = whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            } else {
+                whisk.Debug(whisk.DbgInfo, "Validating namespace '%s' is in user namespace list %#v\n", namespace, namespaces)
+                var validNamespace bool
+                for _, ns := range namespaces {
+                    if ns.Name == namespace {
+                        whisk.Debug(whisk.DbgInfo, "Namespace '%s' is valid\n", namespace)
+                        validNamespace = true
+                    }
+                }
+                if !validNamespace {
+                    whisk.Debug(whisk.DbgError, "Namespace '%s' is not in the list of entitled namespaces\n", namespace)
+                    errStr := fmt.Sprintf("Namespace '%s' is not in the list of entitled namespaces", namespace)
+                    werr = whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                } else {
+                    props["NAMESPACE"] = namespace
+                    okMsg += fmt.Sprintf("ok: whisk namespace set to '%s'\n", namespace)
                 }
             }
-
-            if !validNamespace {
-                whisk.Debug(whisk.DbgError, "Namespace '%s' is invalid\n", namespace)
-                errStr := fmt.Sprintf("Invalid namespace %s", namespace)
-                werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
-                return werr
-            }
-
-            props["NAMESPACE"] = namespace
-            okMsg = fmt.Sprintf("ok: whisk namespace set to '%s'", namespace)
         }
 
         err = writeProps(Properties.PropsFile, props)
         if err != nil {
             whisk.Debug(whisk.DbgError, "writeProps(%s, %#v) failed: %s\n", Properties.PropsFile, props, err)
-            errStr := fmt.Sprintf("Unable to set the property value: %s", err)
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
-            return werr
+            errStr := fmt.Sprintf("Unable to set the property value(s): %s", err)
+            werr = whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         }
 
-        fmt.Println(okMsg)
+        fmt.Print(okMsg)
+        if (werr != nil) {
+            return werr
+        }
         return nil
     },
 }
@@ -137,7 +148,7 @@ var propertyUnsetCmd = &cobra.Command{
     SilenceUsage:   true,
     SilenceErrors:  true,
     RunE: func(cmd *cobra.Command, args []string) error {
-        var okMsg string
+        var okMsg string = ""
         props, err := readProps(Properties.PropsFile)
         if err != nil {
             whisk.Debug(whisk.DbgError, "readProps(%s) failed: %s\n", Properties.PropsFile, err)
@@ -150,41 +161,41 @@ var propertyUnsetCmd = &cobra.Command{
 
         if flags.property.auth {
             delete(props, "AUTH")
-            okMsg = fmt.Sprint("ok: whisk auth deleted")
+            okMsg += fmt.Sprint("ok: whisk auth unset")
             if len(DefaultAuth) > 0 {
                 okMsg += fmt.Sprintf("; the default value of '%s' will be used.\n", DefaultAuth)
             } else {
-                okMsg += fmt.Sprint("; no default value will be used.")
+                okMsg += fmt.Sprint("; no default value will be used.\n")
             }
         }
 
         if flags.property.namespace {
             delete(props, "NAMESPACE")
-            okMsg = fmt.Sprint("ok: whisk namespace deleted")
+            okMsg += fmt.Sprint("ok: whisk namespace unset")
             if len(DefaultNamespace) > 0 {
                 okMsg += fmt.Sprintf("; the default value of '%s' will be used.\n", DefaultNamespace)
             } else {
-                okMsg += fmt.Sprint("; there is no default value that can be used.")
+                okMsg += fmt.Sprint("; there is no default value that can be used.\n")
             }
         }
 
         if flags.property.apihost {
             delete(props, "APIHOST")
-            okMsg = fmt.Sprint("whisk API host deleted")
+            okMsg += fmt.Sprint("ok: whisk API host unset")
             if len(DefaultAPIHost) > 0 {
                 okMsg += fmt.Sprintf("; the default value of '%s' will be used.\n", DefaultAPIHost)
             } else {
-                okMsg += fmt.Sprint("; there is no default value that can be used.")
+                okMsg += fmt.Sprint("; there is no default value that can be used.\n")
             }
         }
 
         if flags.property.apiversion {
             delete(props, "APIVERSION")
-            okMsg = fmt.Sprint("ok: whisk API version deleted")
+            okMsg += fmt.Sprint("ok: whisk API version unset")
             if len(DefaultAPIVersion) > 0 {
                 okMsg += fmt.Sprintf("; the default value of '%s' will be used.\n", DefaultAPIVersion)
             } else {
-                okMsg += fmt.Sprint("; there is no default value that can be used.")
+                okMsg += fmt.Sprint("; there is no default value that can be used.\n")
             }
         }
 
@@ -196,7 +207,7 @@ var propertyUnsetCmd = &cobra.Command{
             return werr
         }
 
-        fmt.Println(okMsg)
+        fmt.Print(okMsg)
         if err = loadProperties(); err != nil {
             whisk.Debug(whisk.DbgError, "loadProperties() failed: %s\n", err)
         }

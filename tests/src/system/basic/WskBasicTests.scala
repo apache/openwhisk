@@ -106,6 +106,31 @@ class WskBasicTests
         wskprops.delete()
     }
 
+    it should "set multiple property values with single command" in {
+        val tmpwskprops = File.createTempFile("wskprops", ".tmp")
+        val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
+        val stdout = wsk.cli(Seq("property", "set", "--auth", "testKey", "--apihost", "openwhisk.ng.bluemix.net", "--apiversion", "v1"), env = env).stdout
+        stdout should include regex ("ok: whisk auth set")
+        stdout should include regex ("ok: whisk API host set")
+        stdout should include regex ("ok: whisk API version set")
+        val fileContent = FileUtils.readFileToString(tmpwskprops)
+        fileContent should include("AUTH=testKey")
+        fileContent should include("APIHOST=openwhisk.ng.bluemix.net")
+        fileContent should include("APIVERSION=v1")
+        tmpwskprops.delete()
+    }
+
+    it should "delete multiple property values with single command" in {
+        val tmpwskprops = File.createTempFile("wskprops", ".tmp")
+        val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
+        val stdout = wsk.cli(Seq("property", "unset", "--auth", "--apihost", "--apiversion", "--namespace"), env = env).stdout
+        stdout should include regex ("ok: whisk auth unset")
+        stdout should include regex ("ok: whisk API host unset")
+        stdout should include regex ("ok: whisk API version unset")
+        stdout should include regex ("ok: whisk namespace unset")
+        tmpwskprops.delete()
+    }
+
     it should "reject creating duplicate entity" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "testDuplicateCreate"
