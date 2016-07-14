@@ -20,12 +20,19 @@ The following are verified to work on Ubuntu 14.04.3 LTS. You may need `sudo` or
 Follow instructions [tools/db/README.md](../db/README.md) on how to configure a datastore for OpenWhisk.
 
 ## Build
-cd <home_openwhisk>
-gradle distDocker
+
+  ```
+  cd <home_openwhisk>
+  gradle distDocker
+  ```
 
 ## Deploy
-cd <home_openwhisk>
-cd ansible
+
+  ```
+  cd <home_openwhisk>
+  cd ansible
+  ```
+
 Follow the instructions in [ansible/README.md](../../ansible/README.md) to deploy and teardown
 
 Once deployed, several Docker containers will be running in your linux machine.
