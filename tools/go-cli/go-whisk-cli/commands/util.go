@@ -421,15 +421,16 @@ func printPackageSummary(p *whisk.Package) {
 func logoText() string {
 
     logo := `
+        ____      ___                   _    _ _     _     _
+       /\   \    / _ \ _ __   ___ _ __ | |  | | |__ (_)___| | __
+  /\  /__\   \  | | | | '_ \ / _ \ '_ \| |  | | '_ \| / __| |/ /
+ /  \____ \  /  | |_| | |_) |  __/ | | | |/\| | | | | \__ \   <
+ \   \  /  \/    \___/| .__/ \___|_| |_|__/\__|_| |_|_|___/_|\_\
+  \___\/ tm           |_|
+`
 
-__          ___     _     _
-\ \        / / |   (_)   | |
- \ \  /\  / /| |__  _ ___| | __
-  \ \/  \/ / | '_ \| / __| |/ /
-   \  /\  /  | | | | \__ \   <
-    \/  \/   |_| |_|_|___/_|\_\
-
-                        `
+    // Cobra will trim that string again. Inserting a zero-width space to save the logo.
+    logo = "\u200B        " + strings.TrimSpace(logo);
 
     return logo
 }
