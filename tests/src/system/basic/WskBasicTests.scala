@@ -552,4 +552,5 @@ class WskBasicTests
         wsk.namespace.get(expectedExitCode = SUCCESS_EXIT)(WskProps()).
             stdout should include("default")
     }
+
 }

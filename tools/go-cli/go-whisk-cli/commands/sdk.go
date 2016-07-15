@@ -49,9 +49,10 @@ var sdkMap map[string]*sdkInfo
 const SDK_DOCKER_COMPONENT_NAME string = "docker"
 const SDK_IOS_COMPONENT_NAME string = "ios"
 const SDK_SWIFT_COMPONENT_NAME string = "swift"
+const BASH_AUTOCOMPLETE_FILENAME string = "wsk_cli_bash_completion.sh"
 
 var sdkInstallCmd = &cobra.Command{
-    Use:   "install <component string:{docker,swift,iOS}>",
+    Use:   "install <component string:{docker,swift,iOS,bashauto}>",
     Short: "install artifacts",
     SilenceUsage:   true,
     SilenceErrors:  true,
@@ -60,7 +61,7 @@ var sdkInstallCmd = &cobra.Command{
         var err error
         if len(args) != 1 {
             whisk.Debug(whisk.DbgError, "Invalid number of arguments: %d\n", len(args))
-            errStr := fmt.Sprintf("The SDK component argument is invalid.  One component (docker, swift, or ios) must be specified")
+            errStr := fmt.Sprintf("The SDK component argument is missing. One component (docker, swift, ios or bashauto) must be specified")
             werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             return werr
         }
@@ -72,9 +73,20 @@ var sdkInstallCmd = &cobra.Command{
             err = swiftInstall()
         case "ios":
             err = iOSInstall()
+        case "bashauto":
+            err = WskCmd.GenBashCompletionFile(BASH_AUTOCOMPLETE_FILENAME)
+            if (err != nil) {
+                whisk.Debug(whisk.DbgError, "GenBashCompletionFile('%s`) error: \n", BASH_AUTOCOMPLETE_FILENAME, err)
+                errStr := fmt.Sprintf("Unable to generate '%s': %s", BASH_AUTOCOMPLETE_FILENAME, err)
+                werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                return werr
+            }
+            fmt.Printf("The bash auto-completion script (%s) is installed in the curent directory.\n" +
+                       "To enable command line completion of wsk commands, " +
+                       "source the auto completion script into your bash environment\n", BASH_AUTOCOMPLETE_FILENAME)
         default:
             whisk.Debug(whisk.DbgError, "Invalid component argument '%s'\n", component)
-            errStr := fmt.Sprintf("The SDK component argument '%s' is invalid.  Valid components are docker, swift, and ios", component)
+            errStr := fmt.Sprintf("The SDK component argument '%s' is invalid. Valid components are docker, swift, ios and bashauto", component)
             err = whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
         }
 

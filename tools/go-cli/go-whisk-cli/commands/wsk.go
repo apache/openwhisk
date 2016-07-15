@@ -16,35 +16,37 @@
 
 package commands
 
-import "github.com/spf13/cobra"
+import (
+    "github.com/spf13/cobra"
+)
 
 // WskCmd defines the entry point for the cli.
 var WskCmd = &cobra.Command{
-        Use:              "wsk",
-        Short:            "Whisk cloud computing command line interface.",
-        Long:             logoText(),
-        SilenceUsage:     true,
-        PersistentPreRunE:parseConfigFlags,
+    Use:              "wsk",
+    Short:            "Whisk cloud computing command line interface.",
+    Long:             logoText(),
+    SilenceUsage:     true,
+    PersistentPreRunE:parseConfigFlags,
 }
 
 func init() {
 
-        WskCmd.AddCommand(
-                actionCmd,
-                activationCmd,
-                packageCmd,
-                ruleCmd,
-                triggerCmd,
-                sdkCmd,
-                propertyCmd,
-                namespaceCmd,
-                listCmd,
-        )
+    WskCmd.AddCommand(
+        actionCmd,
+        activationCmd,
+        packageCmd,
+        ruleCmd,
+        triggerCmd,
+        sdkCmd,
+        propertyCmd,
+        namespaceCmd,
+        listCmd,
+    )
 
-        WskCmd.PersistentFlags().BoolVarP(&flags.global.verbose, "verbose", "v", false, "verbose output")
-        WskCmd.PersistentFlags().BoolVarP(&flags.global.debug, "debug", "d", false, "debug level output")
-        WskCmd.PersistentFlags().StringVarP(&flags.global.auth, "auth", "u", "", "authorization key")
-        WskCmd.PersistentFlags().StringVar(&flags.global.apihost, "apihost", "", "whisk API host")
-        WskCmd.PersistentFlags().StringVar(&flags.global.apiversion, "apiversion", "", "whisk API version")
-        WskCmd.PersistentFlags().BoolVarP(&flags.global.insecure, "insecure", "i", false, "bypass certificate checking")
+    WskCmd.PersistentFlags().BoolVarP(&flags.global.verbose, "verbose", "v", false, "verbose output")
+    WskCmd.PersistentFlags().BoolVarP(&flags.global.debug, "debug", "d", false, "debug level output")
+    WskCmd.PersistentFlags().StringVarP(&flags.global.auth, "auth", "u", "", "authorization key")
+    WskCmd.PersistentFlags().StringVar(&flags.global.apihost, "apihost", "", "whisk API host")
+    WskCmd.PersistentFlags().StringVar(&flags.global.apiversion, "apiversion", "", "whisk API version")
+    WskCmd.PersistentFlags().BoolVarP(&flags.global.insecure, "insecure", "i", false, "bypass certificate checking")
 }

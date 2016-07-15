@@ -23,6 +23,7 @@ import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
 import common.TestHelpers
+import common.TestUtils.SUCCESS_EXIT
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
@@ -73,6 +74,16 @@ class WskSdkTests
     it should "preview swift sdk" in {
         wsk.cli(wskprops.overrides ++ Seq("sdk", "install", "swift")).
             stdout should include("Swift SDK coming soon.")
+    }
+
+    it should "install the bash auto-completion bash script" in {
+        val scriptfilename = "wsk_cli_bash_completion.sh"
+        val stdout = wsk.cli(Seq("sdk", "install", "bashauto"), expectedExitCode = SUCCESS_EXIT).stdout
+        stdout should include("is installed in the curent directory")
+        val scriptfile = new File(scriptfilename)
+        val fileContent = FileUtils.readFileToString(scriptfile)
+        fileContent should include("bash completion for wsk")
+        scriptfile.delete()
     }
 
 }
