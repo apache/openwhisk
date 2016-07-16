@@ -47,6 +47,7 @@ import whisk.core.dispatcher.Dispatcher
 import whisk.core.entity.ActivationId
 import whisk.core.entity.Subject
 import whisk.utils.retry
+import java.util.concurrent.atomic.AtomicInteger
 
 @RunWith(classOf[JUnitRunner])
 class DispatcherTests extends FlatSpec with Matchers with BeforeAndAfter with BeforeAndAfterAll {
@@ -81,8 +82,9 @@ class DispatcherTests extends FlatSpec with Matchers with BeforeAndAfter with Be
         setVerbosity(Verbosity.Loud)
         override def doit(topic: String, msg: Message, matches: Seq[Match])(implicit transid: TransactionId): Future[Any] = {
             info(this, s"received: ${msg.content.get.compactPrint}")
-            dosomething(msg)
-            Future.successful {}
+            Future.successful {
+                dosomething(msg)
+            }
         }
     }
 
@@ -90,8 +92,8 @@ class DispatcherTests extends FlatSpec with Matchers with BeforeAndAfter with Be
         val maxdepth = 8
         val half = maxdepth / 2
         val connector = new TestConnector("test connector", maxdepth / 2, true)
-        @volatile var messagesProcessed = 0
-        val handler = new TestRule({ msg => messagesProcessed += 1 })
+        val messagesProcessed = new AtomicInteger()
+        val handler = new TestRule({ msg => messagesProcessed.incrementAndGet() })
         val dispatcher = new Dispatcher(Verbosity.Debug, connector, 100 milliseconds, maxdepth, actorSystem)
         dispatcher.addHandler(handler, true)
         dispatcher.start()
@@ -114,14 +116,14 @@ class DispatcherTests extends FlatSpec with Matchers with BeforeAndAfter with Be
 
                 withClue("messages processed") {
                     retry({
-                        messagesProcessed should be >= half
-                    }, 10, Some(100 milliseconds))
+                        messagesProcessed.get should be(half + 1)
+                    }, 20, Some(100 milliseconds))
                 }
             }
 
             withClue("confirming dispatcher is in overflow state") {
                 val logs = stream.toString()
-                logs should include regex (s"waiting for activation pipeline to drain: $messagesProcessed > $half")
+                logs should include regex (s"waiting for activation pipeline to drain: ${half + 1} > $half")
             }
 
             withClue("send more messages and confirm none are drained") {
@@ -138,7 +140,7 @@ class DispatcherTests extends FlatSpec with Matchers with BeforeAndAfter with Be
                     retry({
                         val logs = stream.toString()
                         logs should include regex (s"dropping fill request until feed is drained")
-                        logs should not include regex(s"waiting for activation pipeline to drain: $messagesProcessed > $half")
+                        logs should not include regex(s"waiting for activation pipeline to drain: ${messagesProcessed.get} > $half")
                     }, 10, Some(100 milliseconds))
                 }
             }
@@ -151,7 +153,7 @@ class DispatcherTests extends FlatSpec with Matchers with BeforeAndAfter with Be
                 // wait until additional message is drained
                 retry({
                     withClue("additional messages processed") {
-                        messagesProcessed shouldBe half + 2
+                        messagesProcessed.get shouldBe half + 2
                     }
                 }, 10, Some(100 milliseconds))
             }
