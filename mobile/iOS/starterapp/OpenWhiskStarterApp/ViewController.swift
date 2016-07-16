@@ -77,7 +77,7 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
         whiskButton.invokeAction(parameters: MyActionParameters, actionCallback: { reply, error in
             if let error = error {
                 print("Oh no! \(error)")
-                if case let WhiskError.HTTPError(description, statusCode) = error {
+                if case let WhiskError.HTTPError(description, statusCode, _) = error {
                     print("HttpError: \(description) statusCode:\(statusCode)")
                 }
             } else if let reply = reply {
