@@ -61,7 +61,7 @@ def run():
     result = None
     try:
         exec(flask.g, namespace)
-        exec("param = " + json.dumps(value), namespace)
+        namespace["param"] = value
         exec("fun = main(param)", namespace)
         result = namespace['fun']
     except Exception:
