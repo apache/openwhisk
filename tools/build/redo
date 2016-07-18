@@ -231,6 +231,10 @@ Components = [
                   modes = 'clean',
                   gradle = True),
 
+    makeComponent('teardown',
+                  'teardown all deployed containers',
+                  yaml = 'teardown.yml'),
+
     makeComponent('consul',
                   'build/deploy consul (includes registrator)',
                   modes = 'clean',
