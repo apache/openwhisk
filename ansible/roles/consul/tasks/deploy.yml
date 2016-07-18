@@ -78,5 +78,5 @@
     log_driver: syslog
     volumes:
       - "{{ whisk_logs_dir }}/registrator:/logs"
-      - "/var/run/docker.sock:/tmp/docker.sock"
+      - "{{ docker_sock | default('/var/run/docker.sock') }}:/tmp/docker.sock"
     command: "-ip {{ ansible_host | default(inventory_hostname) }} -resync 2 consul://{{ groups['consul_servers'] | first }}:{{ consul.port.http }}"
