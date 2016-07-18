@@ -303,7 +303,7 @@ func parseWhiskErrorResponse(resp *http.Response, data []byte, v interface{}) (*
         errMsg := fmt.Sprintf("The following application error was received: %s",
             *whiskErrorResponse.Response.Result.Error)
         whiskErr := MakeWskError(errors.New(errMsg), resp.StatusCode - 256, NO_DISPLAY_MSG, NO_DISPLAY_USAGE,
-            NO_MSG_DISPLAYED, NO_DISPLAY_PREFIX, APPLICATION_ERR)
+            NO_MSG_DISPLAYED, APPLICATION_ERR)
         return parseSuccessResponse(resp, data, v), whiskErr
     } else {
         Debug(DbgError, "HTTP response with unexpected body failed due to contents parsing error: '%v'\n", err)

@@ -30,8 +30,6 @@ const NO_DISPLAY_MSG    bool = false
 const DISPLAY_USAGE     bool = true
 const NO_DISPLAY_USAGE  bool = false
 const NO_MSG_DISPLAYED  bool = false
-const DISPLAY_PREFIX    bool = true
-const NO_DISPLAY_PREFIX bool = false
 const APPLICATION_ERR   bool = true
 
 type WskError struct {
@@ -40,7 +38,6 @@ type WskError struct {
     DisplayMsg          bool    // When true, the error message should be displayed to console
     MsgDisplayed        bool    // When true, the error message has already been displayed, don't display it again
     DisplayUsage        bool    // When true, the CLI usage should be displayed before exiting
-    DisplayPrefix       bool    // When true, the error message will be prefixed with "error: "
     ApplicationError    bool    // When true, the error is a result of an application failure
 }
 
@@ -52,12 +49,7 @@ Parameters:
     err     - WskError object used to display an error message from
  */
 func (whiskError WskError) Error() string {
-
-    if whiskError.DisplayPrefix {
-        return fmt.Sprintf("error: %s", whiskError.RootErr.Error())
-    } else {
-        return fmt.Sprintf(whiskError.RootErr.Error())
-    }
+    return fmt.Sprintf(whiskError.RootErr.Error())
 }
 
 /*
@@ -77,15 +69,13 @@ func MakeWskError (err error, exitCode int, flags ...bool ) (resWhiskError *WskE
         DisplayMsg: false,
         DisplayUsage: false,
         MsgDisplayed: false,
-        DisplayPrefix: true,
         ApplicationError: false,
     }
 
     if len(flags) > 0 { resWhiskError.DisplayMsg = flags[0] }
     if len(flags) > 1 { resWhiskError.DisplayUsage = flags[1] }
     if len(flags) > 2 { resWhiskError.MsgDisplayed = flags[2] }
-    if len(flags) > 3 { resWhiskError.DisplayPrefix = flags[3] }
-    if len(flags) > 4 { resWhiskError.ApplicationError = flags[4] }
+    if len(flags) > 3 { resWhiskError.ApplicationError = flags[3] }
 
     return resWhiskError
 }
@@ -95,11 +85,11 @@ Instantiate a WskError structure
 Parameters:
     error       - RootErr. object implementing the error interface
     WskError    - WskError being wrappered.  It's exitcode will be used as this WskError's exitcode.  Ignored if nil
-    int         - ExitCode.  Used if error object is nil or if the error object is not a WskError
-    bool        - DisplayMsg.  If true, the error message should be displayed on the console
-    bool        - DisplayUsage.  If true, the command usage syntax/help should be displayed on the console
-    bool        - MsgDisplayed.  If true, the error message has been displayed on the console
-    bool        - DisplayPrefix.  If true, the error message will be prefixed with "error: "
+    int         - ExitCode. Used if error object is nil or if the error object is not a WskError
+    bool        - DisplayMsg. If true, the error message should be displayed on the console
+    bool        - DisplayUsage. If true, the command usage syntax/help should be displayed on the console
+    bool        - MsgDisplayed. If true, the error message has been displayed on the console
+    bool        - ApplicationError. If true, the error is a result of an application error
 */
 func MakeWskErrorFromWskError (baseError error, whiskError error, exitCode int, flags ...bool) (resWhiskError *WskError) {
 
@@ -129,7 +119,7 @@ and DisplayPrefix.
 Parameters:
     whiskError  - WskError to examine.
     flags       - Boolean values that may override the WskError object's values for DisplayMsg, DisplayUsage,
-                    MsgDisplayed, and DisplayPrefix.
+                    MsgDisplayed, and ApplicationError.
  */
 func getWhiskErrorProperties(whiskError *WskError, flags ...bool) (int, []bool) {
     if len(flags) > 0 {
@@ -150,14 +140,9 @@ func getWhiskErrorProperties(whiskError *WskError, flags ...bool) (int, []bool) 
         flags = append(flags, whiskError.MsgDisplayed)
     }
 
-    if len(flags) > 3 {
-        flags[3] = whiskError.DisplayPrefix || flags[3]
-    } else {
-        flags = append(flags, whiskError.DisplayPrefix)
-    }
 
-    if len(flags) > 4 {
-        flags[4] = whiskError.ApplicationError || flags[4]
+    if len(flags) > 3 {
+        flags[3] = whiskError.ApplicationError || flags[3]
     } else {
         flags = append(flags, whiskError.ApplicationError)
     }
