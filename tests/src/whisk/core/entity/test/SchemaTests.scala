@@ -19,6 +19,7 @@ package whisk.core.entity.test
 import scala.Vector
 import scala.language.postfixOps
 import scala.language.reflectiveCalls
+import scala.util.Try
 
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfter
@@ -356,5 +357,23 @@ class SchemaTests extends FlatSpec with BeforeAndAfter {
     it should "parse activation id as uuid" in {
         val id = "213174381920559471141441e1111111"
         assert(ActivationId.unapply(id).isDefined)
+    }
+
+    it should "not parse invalid activation id" in {
+        val id = "213174381920559471141441e111111z"
+        assert(ActivationId.unapply(id).isEmpty)
+        assert(Try { ActivationId.serdes.read(JsString(id)) }.failed.get.getMessage.contains("malformed"))
+    }
+
+    it should "not parse activation id if longer than uuid" in {
+        val id = "213174381920559471141441e1111111abc"
+        assert(ActivationId.unapply(id).isEmpty)
+        assert(Try { ActivationId.serdes.read(JsString(id)) }.failed.get.getMessage.contains("too long"))
+    }
+
+    it should "not parse activation id if shorter than uuid" in {
+        val id = "213174381920559471141441e1"
+        assert(ActivationId.unapply(id).isEmpty)
+        assert(Try { ActivationId.serdes.read(JsString(id)) }.failed.get.getMessage.contains("too short"))
     }
 }

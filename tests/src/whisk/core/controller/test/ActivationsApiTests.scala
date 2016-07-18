@@ -258,13 +258,35 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
     }
 
     //// GET /activations/id/bogus
-    it should "reject request to invalid activation resource" in {
+    it should "reject request to get invalid activation resource" in {
         implicit val tid = transid()
         val activation = WhiskActivation(namespace, aname, creds.subject, ActivationId(), start = Instant.now, end = Instant.now)
         put(entityStore, activation)
 
         Get(s"$collectionPath/${activation.activationId()}/bogus") ~> sealRoute(routes(creds)) ~> check {
             status should be(NotFound)
+        }
+    }
+
+    it should "reject get requests with invalid activation ids" in {
+        implicit val tid = transid()
+        val activationId = ActivationId().toString
+        val tooshort = activationId.substring(0, 31)
+        val toolong = activationId + "xxx"
+        val malformed = tooshort + "z"
+
+        Get(s"$collectionPath/$tooshort") ~> sealRoute(routes(creds)) ~> check {
+            status should be(BadRequest)
+            responseAs[String] should include("too short")
+        }
+
+        Get(s"$collectionPath/$toolong") ~> sealRoute(routes(creds)) ~> check {
+            status should be(BadRequest)
+            responseAs[String] should include("too long")
+        }
+
+        Get(s"$collectionPath/$malformed") ~> sealRoute(routes(creds)) ~> check {
+            status should be(BadRequest)
         }
     }
 

@@ -18,16 +18,19 @@ package whisk.core.entity
 
 import java.math.BigInteger
 
+import scala.language.postfixOps
+import scala.util.Failure
+import scala.util.Success
 import scala.util.Try
 
 import spray.json.DefaultJsonProtocol.StringJsonFormat
+import spray.json.DeserializationException
 import spray.json.JsObject
 import spray.json.JsString
 import spray.json.JsValue
 import spray.json.RootJsonFormat
 import spray.json.deserializationError
 import spray.json.pimpAny
-import scala.language.postfixOps
 
 /**
  * An activation id, is a unique id assigned to activations (invoke action or fire trigger).
@@ -88,13 +91,23 @@ protected[core] object ActivationId extends ArgNormalizer[ActivationId] {
         def read(value: JsValue) = Try {
             val JsString(s) = value
             if (!s.contains("-")) {
-                val lb = new BigInteger(s.substring(0, 16), 16)
-                val up = new BigInteger(s.substring(16, 32), 16)
-                val uuid = new java.util.UUID(lb.longValue(), up.longValue())
-                ActivationId(uuid)
+                if (s.length == 32) {
+                    val lb = new BigInteger(s.substring(0, 16), 16)
+                    val up = new BigInteger(s.substring(16, 32), 16)
+                    val uuid = new java.util.UUID(lb.longValue(), up.longValue())
+                    ActivationId(uuid)
+                } else if (s.length > 32) {
+                    deserializationError("activation id is malformed (too long)")
+                } else {
+                    deserializationError("activation id is malformed (too short)")
+                }
             } else {
                 ActivationId(java.util.UUID.fromString(s))
             }
-        } getOrElse deserializationError("activation id is malformed")
+        } match {
+            case Success(a)                                 => a
+            case Failure(DeserializationException(t, _, _)) => deserializationError(t)
+            case Failure(t)                                 => deserializationError("activation id is malformed")
+        }
     }
 }

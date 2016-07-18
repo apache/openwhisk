@@ -49,8 +49,6 @@ public class WskCli {
 
     private Map<String, String> env = null;
 
-    private Boolean usePythonCLI = false;
-
     public static enum Item {
         Package("package"), Trigger("trigger"), Action("action"), Rule("rule"), Activation("activation");
 
@@ -92,7 +90,6 @@ public class WskCli {
 
         this.subject = subject;
         this.authKey = authKey;
-        this.usePythonCLI = usePythonCLI;
         this.binaryPath = new File(cliPath);
     }
 

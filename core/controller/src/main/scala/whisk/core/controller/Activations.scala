@@ -28,6 +28,7 @@ import spray.httpx.unmarshalling.Deserializer
 import spray.httpx.unmarshalling.MalformedContent
 import spray.json.DefaultJsonProtocol.listFormat
 import spray.json.DefaultJsonProtocol.RootJsObjectFormat
+import spray.json.DeserializationException
 import spray.json.JsObject
 import spray.json.JsString
 import spray.json.pimpAny
@@ -81,7 +82,11 @@ trait WhiskActivationsApi
 
     /** Validated entity name as an ActivationId from the matched path segment. */
     protected override def entityname(n: String) = {
-        validate(Try { ActivationId(n) } isSuccess, "invalid activation id") & extract(_ => n)
+        val activationId = Try { ActivationId(n) }
+        validate(activationId.isSuccess, activationId match {
+            case Failure(DeserializationException(t, _, _)) => t
+            case _ => "invalid activation id"
+        }) & extract(_ => n)
     }
 
     /**
