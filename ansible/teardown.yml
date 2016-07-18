@@ -1,0 +1,17 @@
+---
+# This playbook cleans all docker containers
+
+- hosts: all:!ansible
+  tasks:
+    - name: wait for user confirmation
+      pause: 
+        prompt: > 
+                About to clean ALL docker containers.
+                Are you sure? (press CTRL-C)
+      when: prompt_user
+
+    - name: kill all docker containers
+      shell: "{{ item }}"
+      with_items:
+      - "RUNNING=$(docker ps -aq); if [ -n \"$RUNNING\" ]; then docker unpause $RUNNING > /dev/null; docker kill $RUNNING > /dev/null; docker rm -f -v $(docker ps -aq); fi"
+      - "DANGLING=$(docker images -q -f dangling=true); if [ -n \"$DANGLING\" ]; then docker rmi -f $DANGLING; fi"
