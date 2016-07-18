@@ -18,16 +18,20 @@ package whisk.core.entity
 
 import java.math.BigInteger
 
+import scala.language.postfixOps
+import scala.util.Failure
+import scala.util.Success
 import scala.util.Try
 
 import spray.json.DefaultJsonProtocol.StringJsonFormat
+import spray.json.DeserializationException
+import spray.json.JsNumber
 import spray.json.JsObject
 import spray.json.JsString
 import spray.json.JsValue
 import spray.json.RootJsonFormat
 import spray.json.deserializationError
 import spray.json.pimpAny
-import scala.language.postfixOps
 
 /**
  * An activation id, is a unique id assigned to activations (invoke action or fire trigger).
@@ -86,15 +90,44 @@ protected[core] object ActivationId extends ArgNormalizer[ActivationId] {
         def write(d: ActivationId) = JsString(d.toString)
 
         def read(value: JsValue) = Try {
-            val JsString(s) = value
-            if (!s.contains("-")) {
+            value match {
+                case JsString(s) => stringToActivationId(s)
+                case JsNumber(n) => bigIntToActivationId(n.toBigInt)
+                case _           => deserializationError("activation id is malformed")
+            }
+        } match {
+            case Success(a)                                 => a
+            case Failure(DeserializationException(t, _, _)) => deserializationError(t)
+            case Failure(t)                                 => deserializationError("activation id is malformed")
+        }
+    }
+
+    private def bigIntToActivationId(n: BigInt): ActivationId = {
+        // print the bigint using base 10 then convert to base 16
+        val bn = new BigInteger(n.bigInteger.toString(10), 16)
+        // mask out the upper 16 ints
+        val lb = bn.and(new BigInteger("f" * 16, 16))
+        // drop the lower 16 ints
+        val up = bn.shiftRight(16)
+        val uuid = new java.util.UUID(lb.longValue, up.longValue)
+        ActivationId(uuid)
+    }
+
+    private def stringToActivationId(s: String): ActivationId = {
+        if (!s.contains("-")) {
+            if (s.length == 32) {
                 val lb = new BigInteger(s.substring(0, 16), 16)
                 val up = new BigInteger(s.substring(16, 32), 16)
-                val uuid = new java.util.UUID(lb.longValue(), up.longValue())
+                val uuid = new java.util.UUID(lb.longValue, up.longValue)
                 ActivationId(uuid)
+            } else if (s.length > 32) {
+                deserializationError("activation id is malformed (too long)")
             } else {
-                ActivationId(java.util.UUID.fromString(s))
+                deserializationError("activation id is malformed (too short)")
             }
-        } getOrElse deserializationError("activation id is malformed")
+        } else {
+            ActivationId(java.util.UUID.fromString(s))
+        }
+
     }
 }
