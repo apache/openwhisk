@@ -248,6 +248,16 @@ class WskBasicTests
             wsk.pkg.list().stdout should include(name)
     }
 
+    it should "create, and list a package with a long name" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            assetHelper.withCleaner(wsk.pkg, name) {
+                (pkg, _) =>
+                    pkg.create(name)
+            }
+            wsk.pkg.list().stdout should include(name + " private")
+    }
+
     it should "create a package binding" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "bindPackage"
@@ -307,6 +317,17 @@ class WskBasicTests
             stdout should include regex (""""publish": true""")
             stdout should include regex (""""version": "0.0.2"""")
             wsk.action.list().stdout should include(name)
+    }
+
+    it should "create, and list an action with a long name" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            val file = Some(TestUtils.getCatalogFilename("samples/hello.js"))
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) =>
+                    action.create(name, file)
+            }
+            wsk.action.list().stdout should include(name + " private")
     }
 
     it should "get an action" in {
@@ -428,6 +449,16 @@ class WskBasicTests
             wsk.trigger.list().stdout should include(name)
     }
 
+    it should "create, and list a trigger with a long name" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            assetHelper.withCleaner(wsk.trigger, name) {
+                (trigger, _) =>
+                    trigger.create(name)
+            }
+            wsk.trigger.list().stdout should include(name + " private")
+    }
+
     it should "not create a trigger when feed fails to initialize" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             assetHelper.withCleaner(wsk.trigger, "badfeed", confirmDelete = false) {
@@ -471,6 +502,24 @@ class WskBasicTests
             stdout should include(actionName)
             stdout should include regex (""""version": "0.0.2"""")
             wsk.rule.list().stdout should include(ruleName)
+    }
+
+    it should "create, and list a rule with a long name" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val ruleName = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            val triggerName = "listRulesTrigger"
+            val actionName = "listRulesAction";
+            assetHelper.withCleaner(wsk.trigger, triggerName) {
+                (trigger, name) => trigger.create(name)
+            }
+            assetHelper.withCleaner(wsk.action, actionName) {
+                (action, name) => action.create(name, defaultAction)
+            }
+            assetHelper.withCleaner(wsk.rule, ruleName) {
+                (rule, name) =>
+                    rule.create(name, trigger = triggerName, action = actionName)
+            }
+            wsk.rule.list().stdout should include(ruleName + " private")
     }
 
     behavior of "Wsk Namespace CLI"

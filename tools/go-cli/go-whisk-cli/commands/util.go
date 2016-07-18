@@ -332,7 +332,7 @@ func printActionList(actions []whisk.Action) {
         if action.Publish {
             publishState = "shared"
         }
-        fmt.Printf("%-70s%s\n", fmt.Sprintf("/%s/%s", action.Namespace, action.Name), publishState)
+        fmt.Printf("%-70s %s\n", fmt.Sprintf("/%s/%s", action.Namespace, action.Name), publishState)
     }
 }
 
@@ -343,7 +343,7 @@ func printTriggerList(triggers []whisk.TriggerFromServer) {
         if trigger.Publish {
             publishState = "shared"
         }
-        fmt.Printf("%-70s%s\n", fmt.Sprintf("/%s/%s", trigger.Namespace, trigger.Name), publishState)
+        fmt.Printf("%-70s %s\n", fmt.Sprintf("/%s/%s", trigger.Namespace, trigger.Name), publishState)
     }
 }
 
@@ -354,7 +354,7 @@ func printPackageList(packages []whisk.Package) {
         if xPackage.Publish {
             publishState = "shared"
         }
-        fmt.Printf("%-70s%s\n", fmt.Sprintf("/%s/%s", xPackage.Namespace, xPackage.Name), publishState)
+        fmt.Printf("%-70s %s\n", fmt.Sprintf("/%s/%s", xPackage.Namespace, xPackage.Name), publishState)
     }
 }
 
@@ -365,7 +365,7 @@ func printRuleList(rules []whisk.Rule) {
         if rule.Publish {
             publishState = "shared"
         }
-        fmt.Printf("%-70s%s\n", fmt.Sprintf("/%s/%s", rule.Namespace, rule.Name), publishState)
+        fmt.Printf("%-70s %s\n", fmt.Sprintf("/%s/%s", rule.Namespace, rule.Name), publishState)
     }
 }
 
