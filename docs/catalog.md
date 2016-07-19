@@ -315,6 +315,7 @@ The package includes the following actions.
 | `/whisk.system/watson/languageId` | action | payload, username, password | Identify language |
 | `/whisk.system/watson/speechToText` | action | payload, content_type, encoding, username, password, continuous, inactivity_timeout, interim_results, keywords, keywords_threshold, max_alternatives, model, timestamps, watson-token, word_alternatives_threshold, word_confidence, X-Watson-Learning-Opt-Out | Convert audio into text |
 | `/whisk.system/watson/textToSpeech` | action | payload, voice, accept, encoding, username, password | Convert text into audio |
+| `/whisk.system/watson/dialog` | action | username, password, dialogname, tempfile, inputs | conversation between virtual agents and users |
 
 While not required, it's suggested that you create a package binding with the `username` and `password` values. This way you don't need to specify these credentials every time you invoke the actions in the package.
 
@@ -450,7 +451,40 @@ Here is an example of creating a package binding and converting speech to text.
     "data": "Hello Watson"
   }
   ```
-  
+
+
+### Dialog between virtual agents and users
+
+The `/whisk.system/watson/dialog` action creates dialog and conversation between virtual agents and users. The parameters are as follows:
+
+- `username`: The Watson API username.
+- `password`: The Watson API password.
+- `dialogname`: The name of the dialog to create.
+- `tempfile`: The template file that used to create the dialog.
+- `inputs`: The input from user.
+
+Here is an example of creating a dialog between a virtual agent and a user.
+
+1. Create a package binding with your Watson credentials.
+
+  ```
+  $ wsk package bind /whisk.system/watson myWatson -p username 'MY_WATSON_USERNAME' -p password 'MY_WATSON_PASSWORD'
+  ```
+
+2. Invoke the 'dialog' action in your package to create the dialog.
+
+  ```
+  $ wsk action invoke myWatson/dialog --blocking --result --param dialogname 'My talk' --param inputs 'Hello, Watson'  --param tempfile  pizza.xml
+  ```
+  ```
+  {
+    "conversationId":1234,
+    "clientId":2345,
+    "confidence":1,
+    "response":"hello, what can I help"
+  }
+  ```
+
   
 ## Using the Slack package
 

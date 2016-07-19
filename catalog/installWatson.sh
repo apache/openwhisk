@@ -140,6 +140,19 @@ install "$CATALOG_HOME/watson/textToSpeech.js" \
     -a sampleInput '{"payload":"Hello, world.", "encoding":"base64", "accept":"audio/wav", "username":"XXX", "password":"XXX" }' \
     -a sampleOutput '{"payload":"<base64 encoding of a .wav file>", "encoding":"base64", "content_type":"audio/wav"}'
 
+install "$CATALOG_HOME/watson/dialog.js" \
+    watson/dialog \
+    -a description 'conversations between virtual agents and users' \
+    -a parameters '[
+        {"name":"username", "required":true, "bindTime":true, "description":"the Watson service username"},
+        {"name":"password", "required":true, "type":"password", "bindTime":true, "description":"The Watson service password"},
+        {"name":"dialogname", "required":false, "description":"The dialog name to be created"},
+        {"name":"tempfile", "required":true, "description":"The template file to create the dialog"},
+        {"name":"inputs", "required":true, "description":"The input from user"}]' \
+    -a sampleInput '{"username":"XXX", "password":"XXX", "tempfile":"pizza.xml", "inputs":"Hello"}'\
+    -a sampleOutput '{"conversationId":1234, "clientId":2345, "confidence":1, "response":"hello, what can I help"}'
+
+
 waitForAll
 
 echo Watson package ERRORS = $ERRORS

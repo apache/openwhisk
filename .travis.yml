@@ -23,6 +23,8 @@ install: true
 
 before_install:
   - ./tools/travis/setup.sh
+  - openssl aes-256-cbc -K $encrypted_8e41ad03f2a1_key -iv $encrypted_8e41ad03f2a1_iv
+     -in vcap_services.json.enc -out tests/credentials/vcap_services.json -d
 
 script:
   - ./tools/travis/build.sh
