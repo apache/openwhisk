@@ -110,7 +110,7 @@ An activation record contains the following fields:
 
 ### Function prototype
 
-OpenWhisk JavaScript actions run in a Node.js runtime, currently version 0.12.9.
+OpenWhisk JavaScript actions run in a Node.js runtime, currently version 6.2.0.
 
 Actions written in JavaScript must be confined to a single file. The file can contain multiple functions but by convention a function called `main` must exist and is the one called when the action is invoked. For example, the following is an example of an action with multiple functions.
 
@@ -133,7 +133,7 @@ It is common for JavaScript functions to continue execution in a callback functi
 A JavaScript action's activation is **synchronous** if the main function exits under one of the following conditions:
 
 - The main function exits without executing a ```return``` statement.
-- The main function exits by executing a ```return``` statement that returns any value *except* ```whisk.async()```.
+- The main function exits by executing a ```return``` statement that returns any value *except* a Promise.
 
 Here are two examples of synchronous actions.
 
@@ -157,37 +157,50 @@ function main(params) {
 }
 ```
 
-A JavaScript action's activation is **asynchronous** if the main function exits by calling ```return whisk.async();```.  In this case the system assumes that the action is still running, until the action executes one of the following:
-- ```return whisk.done();```
-- ```return whisk.error();```
+A JavaScript action's activation is **asynchronous** if the main function exits by returning a Promise.  In this case the system assumes that the action is still running, until the Promise has been fulfilled or rejected.
+Start by instantiating a new Promise object and passing it a callback function. The callback takes two arguments, resolve and reject, which are both functions. All your asynchronous code goes inside that callback. 
 
-Here is an example of an action that executes asynchronously.
+Here is an example on how to fulfill a Promise by calling the resolve function.
 
 ```
-function main() {
-    setTimeout(function() {
-        return whisk.done({done: true});
-    }, 100);
-    return whisk.async();
-}
+function main(args) {
+     return new Promise(function(resolve, reject) {
+       setTimeout(function() {
+         resolve({ done: true });
+       }, 100);
+    })
+ }
 ```
 
-It is possible for an action is synchronous on some inputs and asynchronous on others. Here is an example.
+Here is an example on how to reject a Promise by calling the reject function.
+
+```
+function main(args) {
+     return new Promise(function(resolve, reject) {
+       setTimeout(function() {
+         reject({ done: true });
+       }, 100);
+    })
+ }
+```
+
+It is possible an action is synchronous on some inputs and asynchronous on others. Here is an example.
 
 ```
   function main(params) {
       if (params.payload) {
-         setTimeout(function() {
-            return whisk.done({done: true});
-         }, 100);
-         return whisk.async();  // asynchronous activation
+         // asynchronous activation
+         return new Promise(function(resolve, reject) { 
+                setTimeout(function() {
+                  resolve({ done: true });
+                }, 100);
+             })
       }  else {
-         return whisk.done();   // synchronous activation
+         // synchronous activation
+         return {done: true};
       }
   }
 ```
-
-- In this case, the `main` function should return `whisk.async()`. When the activation result is available, the `whisk.done()` function should be called with the result passed as a JSON object. This is referred to as an *asynchronous* activation.
 
 Note that regardless of whether an activation is synchronous or asynchronous, the invocation of the action can be blocking or non-blocking.
 
@@ -224,48 +237,91 @@ The signature for `next` is `function(error, activation)`, where:
 
 The `whisk.getAuthKey()` function returns the authorization key under which the action is running. Usually, you do not need to invoke this function directly, because it is used implicitly by the `whisk.invoke()` and `whisk.trigger()` functions.
 
-### Runtime environment
+### Node.js runtime environments
 
-JavaScript actions are executed in a Node.js version 0.12.14 environment with the following packages available to be used by the action:
+JavaScript actions are executed by default in a Node.js version 6.2.0 environment.  The 6.2.0 environment will also be used for an action if the `--kind` flag is explicitly specified with a value of 'nodejs:6' when creating/updating the action.
+The following packages are available to be used in the Node.js 6.2.0 environment:
 
-- apn
-- async
-- body-parser
-- btoa
-- cheerio
-- cloudant
-- commander
-- consul
-- cookie-parser
-- cradle
-- errorhandler
-- express
-- express-session
-- gm
-- jade
-- log4js
-- merge
-- moment
-- mustache
-- nano
-- node-uuid
-- oauth2-server
-- process
-- request
-- rimraf
-- semver
-- serve-favicon
-- socket.io
-- socket.io-client
-- superagent
-- swagger-tools
-- tmp
-- watson-developer-cloud
-- when
-- ws
-- xml2js
-- xmlhttprequest
-- yauzl
+- apn v1.7.5
+- async v1.5.2
+- body-parser v1.15.1
+- btoa v1.1.2
+- cheerio v0.20.0
+- cloudant v1.4.1
+- commander v2.9.0
+- consul v0.25.0
+- cookie-parser v1.4.2
+- cradle v0.7.1
+- errorhandler v1.4.3
+- express v4.13.4
+- express-session v1.12.1
+- gm v1.22.0
+- log4js v0.6.36
+- merge v1.2.0
+- moment v2.13.0
+- mustache v2.2.1
+- nano v6.2.0
+- node-uuid v1.4.7
+- oauth2-server v2.4.1
+- process v0.11.3
+- pug v2.0.0
+- request v2.72.0
+- rimraf v2.5.2
+- semver v5.1.0
+- serve-favicon v2.3.0
+- socket.io v1.4.6
+- socket.io-client v1.4.6
+- superagent v1.8.3
+- swagger-tools v0.10.1
+- tmp v0.0.28
+- watson-developer-cloud v1.8.0
+- when v3.7.7
+- ws v1.1.0
+- xml2js v0.4.16
+- xmlhttprequest v1.8.0
+- yauzl v2.4.2
+
+The Node.js version 0.12.14 environment will be used for an action if the `--kind` flag is explicitly specified with a value of 'nodejs' when creating/updating the action.
+The following packages are available to be used in the Node.js 0.12.14 environment:
+
+- apn v1.7.4
+- async v1.5.2
+- body-parser v1.12.0
+- btoa v1.1.2
+- cheerio v0.20.0
+- cloudant v1.4.1
+- commander v2.7.0
+- consul v0.18.1
+- cookie-parser v1.3.4
+- cradle v0.6.7
+- errorhandler v1.3.5
+- express v4.12.2
+- express-session v1.11.1
+- gm v1.20.0
+- jade v1.9.2
+- log4js v0.6.25
+- merge v1.2.0
+- moment v2.8.1
+- mustache v2.1.3
+- nano v5.10.0
+- node-uuid v1.4.2
+- oauth2-server v2.4.0
+- process v0.11.0
+- request v2.60.0
+- rimraf v2.5.1
+- semver v4.3.6
+- serve-favicon v2.2.0
+- socket.io v1.3.5
+- socket.io-client v1.3.5
+- superagent v1.3.0
+- swagger-tools v0.8.7
+- tmp v0.0.28
+- watson-developer-cloud v1.4.1
+- when v3.7.3
+- ws v1.1.0
+- xml2js v0.4.15
+- xmlhttprequest v1.7.0
+- yauzl v2.3.1
 
 
 ## Docker actions

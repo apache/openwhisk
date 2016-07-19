@@ -18,7 +18,7 @@ The following sections guide you through working with actions in JavaScript. Beg
 Review the following steps and examples to create your first JavaScript action.
 
 1. Create a JavaScript file with the following content. For this example, the file name is 'hello.js'.
-  
+
   ```
   function main() {
       return {payload: 'Hello world'};
@@ -37,7 +37,7 @@ Review the following steps and examples to create your first JavaScript action.
   ```
 
 3. List the actions you have created:
-  
+
   ```
   $ wsk action list
   ```
@@ -104,7 +104,7 @@ Review the following steps and examples to create your first JavaScript action.
 Parameters can be passed to the action when it is invoked.
 
 1. Use parameters in the action. For example, update the 'hello.js' file with the following content:
-  
+
   ```
   function main(params) {
       return {payload:  'Hello, ' + params.name + ' from ' + params.place};
@@ -114,7 +114,7 @@ Parameters can be passed to the action when it is invoked.
   The input parameters are passed as a JSON object parameter to the `main` function. Notice how the `name` and `place` parameters are retrieved from the `params` object in this example.
 
 2. Update the `hello` action and invoke the action, while passing it `name` and `place` parameter values. See the following example:
-  
+
   ```
   $ wsk action update hello hello.js
   ```
@@ -134,7 +134,7 @@ Parameters can be passed to the action when it is invoked.
 Actions can be invoked with multiple named parameters. Recall that the `hello` action from the previous example expects two parameters: the *name* of a person, and the *place* where they're from.
 
 Rather than pass all the parameters to an action every time, you can bind certain parameters. The following example binds the *place* parameter so that the action defaults to the place "Vermont":
- 
+
 1. Update the action using the `--param` option to bind parameter values.
 
   ```
@@ -167,22 +167,27 @@ Rather than pass all the parameters to an action every time, you can bind certai
 
 ### Creating asynchronous actions
 
-JavaScript functions that continue execution in a callback function might need to return the activation result after the `main` function has returned. You can accomplish this using the `whisk.async()` and `whisk.done()` functions in your action.
+JavaScript functions that run asynchronously may need to return the activation result after the `main` function has returned. You can accomplish this by returning a Promise in your action.
 
 1. Save the following content in a file called `asyncAction.js`.
 
   ```
-  function main() {
-      setTimeout(function() {
-          return whisk.done({done: true});
-      }, 20000);
-      return whisk.async();
-  }
+  function main(args) {
+       return new Promise(function(resolve, reject) {
+         setTimeout(function() {
+           resolve({ done: true });
+         }, 2000);
+      })
+   }
   ```
 
-  Notice that the `main` function returns immediately, and the `whisk.async()` return value indicates that this activation should continue running.
+  Notice that the `main` function returns a Promise, which indicates that the activation hasn't completed yet, but is expected to in the future.
 
-  The `setTimeout()` JavaScript function in this case waits for twenty seconds before calling the callback function, where the call to `whisk.done()` indicates that the activation is complete.
+  The `setTimeout()` JavaScript function in this case waits for twenty seconds before calling the callback function.  This represents the asynchronous code and goes inside the Promise's callback function.
+
+  The Promise's callback takes two arguments, resolve and reject, which are both functions.  The call to `resolve()` fulfills the Promise and indicates that the activation has completed normally.
+
+  A call to `reject()` can be used to reject the Promise and signal that the activation has completed abnormally.
 
 2. Run the following commands to create the action and invoke it:
 
@@ -229,31 +234,36 @@ JavaScript functions that continue execution in a callback function might need t
 
 The examples so far have been self-contained JavaScript functions. You can also create an action that calls an external API.
 
-This example invokes a Yahoo Weather service to get the current conditions at a specific location. 
+This example invokes a Yahoo Weather service to get the current conditions at a specific location.
 
 1. Save the following content in a file called `weather.js`.
   ```
     var request = require('request');
-    
+
     function main(params) {
         var location = params.location || 'Vermont';
         var url = 'https://query.yahooapis.com/v1/public/yql?q=select item.condition from weather.forecast where woeid in (select woeid from geo.places(1) where text="' + location + '")&format=json';
-    
-        request.get(url, function(error, response, body) {
-            var condition = JSON.parse(body).query.results.channel.item.condition;
-            var text = condition.text;
-            var temperature = condition.temp;
-            var output = 'It is ' + temperature + ' degrees in ' + location + ' and ' + text;
-            whisk.done({msg: output});
+
+        return new Promise(function(resolve, reject) {
+            request.get(url, function(error, response, body) {
+                if (error) {
+                    reject(error);    
+                }
+                else {
+                    var condition = JSON.parse(body).query.results.channel.item.condition;
+                    var text = condition.text;
+                    var temperature = condition.temp;
+                    var output = 'It is ' + temperature + ' degrees in ' + location + ' and ' + text;
+                    resolve({msg: output});
+                }
+            });
         });
-    
-        return whisk.async();
     }
   ```
 
   Note that the action in the example uses the JavaScript `request` library to make an HTTP request to the Yahoo Weather API, and extracts fields from the JSON result. The [References](./reference.md#runtime-environment) detail the Node.js packages that you can use in your actions.
-  
-  This example also shows the need for asynchronous actions. The action returns `whisk.async()` to indicate that the result of this action is not available yet when the function returns. Instead, the result is available in the `request` callback after the HTTP call completes, and is passed as an argument to the `whisk.done()` function.
+
+  This example also shows the need for asynchronous actions. The action returns a Promise to indicate that the result of this action is not available yet when the function returns. Instead, the result is available in the `request` callback after the HTTP call completes, and is passed as an argument to the `resolve()` function.
 
 2. Run the following commands to create the action and invoke it:
   ```
@@ -275,7 +285,7 @@ You can create an action that chains together a sequence of actions.
 Several utility actions are provided in a package called `/whisk.system/util` that you can use to create your first sequence. You can learn more about packages in the [Packages](./packages.md) section.
 
 1. Display the actions in the `/whisk.system/util` package.
-  
+
   ```
   $ wsk package get --summary /whisk.system/util
   ```
@@ -291,7 +301,7 @@ Several utility actions are provided in a package called `/whisk.system/util` th
   You will be using the `split` and `sort` actions in this example.
 
 2. Create an action sequence so that the result of one action is passed as an argument to the next action.
-  
+
   ```
   $ wsk action create myAction --sequence /whisk.system/util/split,/whisk.system/util/sort
   ```
@@ -307,7 +317,7 @@ Several utility actions are provided in a package called `/whisk.system/util` th
   ```
 
 4. Invoke the action:
-  
+
   ```
   $ wsk action invoke --blocking --result myAction --param payload "$(cat haiku.txt)"
   ```
@@ -510,7 +520,7 @@ For the instructions that follow, assume that the user ID is "janesmith" and the
   ```
   ```
   #include <stdio.h>
-  
+
   int main(int argc, char *argv[]) {
       printf("{ \"msg\": \"Hello from arbitrary C program!\", \"args\": %s, \"argc\": %d }",
              (argc == 1) ? "undefined" : argv[1]);
