@@ -3,13 +3,6 @@
 
 - hosts: all:!ansible
   tasks:
-    - name: wait for user confirmation
-      pause: 
-        prompt: > 
-                About to clean ALL docker containers.
-                Are you sure? (press CTRL-C)
-      when: prompt_user
-
     - name: kill all docker containers
       shell: "{{ item }}"
       with_items:
