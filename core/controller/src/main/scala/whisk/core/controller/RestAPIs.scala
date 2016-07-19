@@ -47,7 +47,6 @@ import whisk.core.entity.{ ActivationId, Subject, WhiskActivation, WhiskActivati
 import whisk.core.entity.types.{ ActivationStore, AuthStore, EntityStore }
 import whisk.core.controller.WhiskServices.LoadBalancerReq
 
-
 /**
  * Abstract class which provides basic Directives which are used to construct route structures
  * which are common to all versions of the Rest API.
@@ -208,6 +207,7 @@ protected[controller] class RestAPIVersion_v1(
             override val consulServer: String,
             override val executionContext: ExecutionContext)
         extends WhiskActionsApi with WhiskServices {
+        override val whiskConfig = config
         setVerbosity(verbosity)
     }
 
@@ -224,6 +224,7 @@ protected[controller] class RestAPIVersion_v1(
             override val consulServer: String,
             override val executionContext: ExecutionContext)
         extends WhiskTriggersApi with WhiskServices {
+        override val whiskConfig = config
         setVerbosity(verbosity)
     }
 
@@ -239,6 +240,7 @@ protected[controller] class RestAPIVersion_v1(
             override val consulServer: String,
             override val executionContext: ExecutionContext)
         extends WhiskRulesApi with WhiskServices {
+        override val whiskConfig = config
         setVerbosity(verbosity)
     }
 
@@ -264,6 +266,7 @@ protected[controller] class RestAPIVersion_v1(
             override val consulServer: String,
             override val executionContext: ExecutionContext)
         extends WhiskPackagesApi with WhiskServices {
+        override val whiskConfig = config
         setVerbosity(verbosity)
     }
 

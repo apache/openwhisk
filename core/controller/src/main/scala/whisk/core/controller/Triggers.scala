@@ -96,8 +96,6 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
     /** Path to Triggers REST API */
     protected val triggersPath = "triggers"
 
-    val whiskConfig = new WhiskConfig(Map(WhiskConfig.servicePort -> "8080"))
-
     /**
      * Creates or updates trigger if it already exists. The PUT content is deserialized into a WhiskTriggerPut
      * which is a subset of WhiskTrigger (it eschews the namespace and entity name since the former is derived

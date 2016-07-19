@@ -30,6 +30,8 @@ import spray.json.deserializationError
 import spray.json.pimpAny
 import scala.language.postfixOps
 import scala.language.reflectiveCalls
+import whisk.core.entity.size.SizeInt
+import whisk.core.entity.size.SizeString
 
 /**
  * Parameters is a key-value map from parameter names to parameter values. The value of a
@@ -41,6 +43,16 @@ import scala.language.reflectiveCalls
 protected[core] class Parameters protected[entity] (
     private val params: Map[ParameterName, ParameterValue])
     extends AnyVal {
+
+    /**
+     * Calculates the size in Bytes of the Parameters-instance.
+     *
+     * @return Size of instance as ByteSize
+     */
+    def size = params.map {
+        case (name, value) =>
+            name.size + value.size
+    }.foldLeft(0 B)(_ + _)
 
     protected[entity] def ++(p: (ParameterName, ParameterValue)) = {
         Option(p) map { p => new Parameters(params + (p._1 -> p._2)) } getOrElse this
@@ -91,6 +103,11 @@ protected[core] class Parameters protected[entity] (
  */
 protected[entity] class ParameterName protected[entity] (val name: String) extends AnyVal {
     protected[entity] def apply() = name
+
+    /**
+     * The size of the ParameterName entity as ByteSize.
+     */
+    def size = name sizeInBytes
 }
 
 /**
@@ -107,12 +124,18 @@ protected[entity] class ParameterName protected[entity] (val name: String) exten
  */
 protected[entity] class ParameterValue protected[entity] (private val value: JsValue) extends AnyVal {
     protected[core] def apply() = Option(value) getOrElse JsNull
+
+    /**
+     * The size of the ParameterValue entity as ByteSize.
+     */
+    def size = value.toString.sizeInBytes
 }
 
 protected[core] object Parameters extends ArgNormalizer[Parameters] {
 
     /** Name of parameter that indicates if action is a feed. */
     protected[core] val Feed = "feed"
+    protected[core] val sizeLimit = 1 MB
 
     protected[core] def apply(): Parameters = new Parameters(Map())
 

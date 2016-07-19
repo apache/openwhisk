@@ -16,16 +16,23 @@
 
 package whisk.core.entity
 
-import scala.util.Try
-import spray.json.JsValue
-import spray.json.JsObject
-import spray.json.JsBoolean
-import spray.json.JsString
-import spray.json.JsNumber
-import spray.json.RootJsonFormat
-import spray.json.DeserializationException
-import java.time.Instant
 import java.time.Clock
+import java.time.Instant
+
+import scala.language.postfixOps
+import scala.Stream
+import scala.util.Try
+
+import spray.json.DefaultJsonProtocol
+import spray.json.DeserializationException
+import spray.json.JsBoolean
+import spray.json.JsNumber
+import spray.json.JsObject
+import spray.json.JsString
+import spray.json.JsValue
+import spray.json.RootJsonFormat
+import whisk.core.WhiskConfig
+import whisk.core.entity.size.SizeInt
 
 /**
  * An abstract superclass that encapsulates properties common to all whisk entities (actions, rules, triggers).
@@ -62,12 +69,11 @@ abstract class WhiskEntity protected[entity] (en: EntityName) extends WhiskDocum
     /**
      * Returns a JSON object with the fields specific to this abstract class.
      */
-    protected def entityDocumentRecord : JsObject = JsObject(
+    protected def entityDocumentRecord: JsObject = JsObject(
         "name" -> JsString(name.toString),
-        "updated" -> JsNumber(updated.toEpochMilli())
-    )
+        "updated" -> JsNumber(updated.toEpochMilli()))
 
-    override def toDocumentRecord : JsObject = {
+    override def toDocumentRecord: JsObject = {
         val extraFields = entityDocumentRecord.fields
         val base = super.toDocumentRecord
 
@@ -137,8 +143,7 @@ object WhiskEntityJsonFormat extends RootJsonFormat[WhiskEntity] {
         WhiskActivation.serdes.read,
         WhiskRule.serdes.read,
         WhiskTrigger.serdes.read,
-        WhiskPackage.serdes.read
-    )
+        WhiskPackage.serdes.read)
 
     // Not necessarily the smartest way to go about this. In theory, whenever
     // a more precise type is known, this method shouldn't be used.
@@ -151,11 +156,39 @@ object WhiskEntityJsonFormat extends RootJsonFormat[WhiskEntity] {
     }
 
     override def write(we: WhiskEntity): JsValue = we match {
-        case a: WhiskAction => WhiskAction.serdes.write(a)
+        case a: WhiskAction     => WhiskAction.serdes.write(a)
         case a: WhiskActivation => WhiskActivation.serdes.write(a)
-        case p: WhiskPackage => WhiskPackage.serdes.write(p)
-        case r: WhiskRule => WhiskRule.serdes.write(r)
-        case t: WhiskTrigger => WhiskTrigger.serdes.write(t)
+        case p: WhiskPackage    => WhiskPackage.serdes.write(p)
+        case r: WhiskRule       => WhiskRule.serdes.write(r)
+        case t: WhiskTrigger    => WhiskTrigger.serdes.write(t)
     }
 }
 
+/**
+ * Trait for the objects we want to size. The size will be defined as ByteSize.
+ */
+trait ByteSizeable {
+    /**
+     * Method to calculate the size of the object.
+     * The size of the object is defined as the sum of sizes of all parameters, that is stored in the object.
+     *
+     * @return the size of the object as ByteSize
+     */
+    def size: ByteSize
+}
+
+object LimitedWhiskEntityPut extends DefaultJsonProtocol {
+    implicit val serdes = jsonFormat3(LimitedWhiskEntityPut.apply)
+}
+
+case class LimitedWhiskEntityPut(
+    exec: Option[Exec] = None,
+    parameters: Option[Parameters] = None,
+    annotations: Option[Parameters] = None) {
+
+    def isWithinSizeLimits: Boolean = {
+        exec.map(_.size).getOrElse(0 B) <= Exec.sizeLimit &&
+            parameters.map(_.size).getOrElse(0 B) <= Parameters.sizeLimit &&
+            annotations.map(_.size).getOrElse(0 B) <= Parameters.sizeLimit
+    }
+}

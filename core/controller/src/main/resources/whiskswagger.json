@@ -293,6 +293,9 @@
                     "409": {
                         "$ref": "#/responses/Conflict"
                     },
+                    "413": {
+                        "$ref": "#/responses/RequestEntityTooLarge"
+                    },
                     "500": {
                         "$ref": "#/responses/ServerError"
                     }
@@ -587,6 +590,9 @@
                     "409": {
                         "$ref": "#/responses/Conflict"
                     },
+                    "413": {
+                        "$ref": "#/responses/RequestEntityTooLarge"
+                    },
                     "500": {
                         "$ref": "#/responses/ServerError"
                     }
@@ -850,6 +856,9 @@
                     },
                     "409": {
                         "$ref": "#/responses/Conflict"
+                    },
+                    "413": {
+                        "$ref": "#/responses/RequestEntityTooLarge"
                     },
                     "500": {
                         "$ref": "#/responses/ServerError"
@@ -1119,6 +1128,9 @@
                     },
                     "409": {
                         "$ref": "#/responses/Conflict"
+                    },
+                    "413": {
+                        "$ref": "#/responses/RequestEntityTooLarge"
                     },
                     "500": {
                         "$ref": "#/responses/ServerError"
@@ -2096,10 +2108,16 @@
             "description": "Accepted activation request",
             "schema": {
                 "$ref": "#/definitions/ItemId"
-            }            
+            }
         },
         "AcceptedRuleStateChange": {
             "description": "Rule has been enabled or disabled"
+        },
+        "RequestEntityTooLarge": {
+            "description": "Request entity too large",
+            "schema": {
+                "$ref": "#/definitions/ErrorMessage"
+            }
         }
     }
 }

@@ -18,12 +18,15 @@ package whisk.core.controller.test
 
 import java.time.Instant
 
+import scala.language.postfixOps
+
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
 import spray.http.StatusCodes.BadRequest
 import spray.http.StatusCodes.NotFound
 import spray.http.StatusCodes.OK
+import spray.http.StatusCodes.RequestEntityTooLarge
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
 import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
 import spray.json.DefaultJsonProtocol.listFormat
@@ -32,6 +35,7 @@ import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json.JsObject
 import spray.json.JsString
 import spray.json.pimpAny
+import spray.json.pimpString
 import whisk.core.controller.WhiskTriggersApi
 import whisk.core.entity.ActivationId
 import whisk.core.entity.AuthKey
@@ -69,6 +73,8 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     val namespace = Namespace(creds.subject())
     val collectionPath = s"/${Namespace.DEFAULT}/${collection.path}"
     def aname = MakeName.next("triggers_tests")
+    val entityTooBigRejectionMessage = "request entity too large"
+    val parametersLimit = Parameters.sizeLimit
 
     //// GET /triggers
     it should "list triggers by default namespace" in {
@@ -166,6 +172,47 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
         val content = WhiskTriggerPut(annotations = Some(trigger.annotations))
         Put(s"$collectionPath/${trigger.name}", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
+        }
+    }
+
+    it should "reject create with parameters which are too big" in {
+        implicit val tid = transid()
+        val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (parametersLimit.toBytes / 2 / 20 + Math.pow(10, 9) + 2) toLong)
+        val parameters = keys map { key =>
+            Parameters(key.toString, "a" * 10)
+        } reduce (_ ++ _)
+        val content = s"""{"parameters":$parameters}""".parseJson.asJsObject
+        Put(s"$collectionPath/${aname}", content) ~> sealRoute(routes(creds)) ~> check {
+            status should be(RequestEntityTooLarge)
+            response.entity.toString should include(entityTooBigRejectionMessage)
+        }
+    }
+
+    it should "reject create with annotations which are too big" in {
+        implicit val tid = transid()
+        val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (parametersLimit.toBytes / 2 / 20 + Math.pow(10, 9) + 2) toLong)
+        val parameters = keys map { key =>
+            Parameters(key.toString, "a" * 10)
+        } reduce (_ ++ _)
+        val content = s"""{"annotations":$parameters}""".parseJson.asJsObject
+        Put(s"$collectionPath/${aname}", content) ~> sealRoute(routes(creds)) ~> check {
+            status should be(RequestEntityTooLarge)
+            response.entity.toString should include(entityTooBigRejectionMessage)
+        }
+    }
+
+    it should "reject update with parameters which are too big" in {
+        implicit val tid = transid()
+        val trigger = WhiskTrigger(namespace, aname)
+        val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (parametersLimit.toBytes / 2 / 20 + Math.pow(10, 9) + 2) toLong)
+        val parameters = keys map { key =>
+            Parameters(key.toString, "a" * 10)
+        } reduce (_ ++ _)
+        val content = s"""{"parameters":$parameters}""".parseJson.asJsObject
+        put(entityStore, trigger)
+        Put(s"$collectionPath/${trigger.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
+            status should be(RequestEntityTooLarge)
+            response.entity.toString should include(entityTooBigRejectionMessage)
         }
     }
 

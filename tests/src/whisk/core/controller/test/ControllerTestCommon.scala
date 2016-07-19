@@ -75,13 +75,13 @@ protected trait ControllerTestCommon
     implicit val actorSystem = ActorSystem("controllertests")
     val executionContext = actorSystem.dispatcher
 
-    val config = new WhiskConfig(WhiskActionsApi.requiredProperties)
-    assert(config.isValid)
+    val whiskConfig = new WhiskConfig(WhiskActionsApi.requiredProperties)
+    assert(whiskConfig.isValid)
 
-    val entityStore = WhiskEntityStore.datastore(config)
-    val activationStore = WhiskActivationStore.datastore(config)
-    val authStore = WhiskAuthStore.datastore(config)
-    val entitlementService: EntitlementService = new LocalEntitlementService(config)
+    val entityStore = WhiskEntityStore.datastore(whiskConfig)
+    val activationStore = WhiskActivationStore.datastore(whiskConfig)
+    val authStore = WhiskAuthStore.datastore(whiskConfig)
+    val entitlementService: EntitlementService = new LocalEntitlementService(whiskConfig)
 
     val activationId = ActivationId() // need a static activation id to test activations api
     val performLoadBalancerRequest = (lbr: WhiskServices.LoadBalancerReq) => Future {

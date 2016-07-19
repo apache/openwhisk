@@ -23,6 +23,7 @@ import spray.http.StatusCodes.BadRequest
 import spray.http.StatusCodes.Conflict
 import spray.http.StatusCodes.OK
 import spray.http.StatusCodes.NotFound
+import spray.http.StatusCodes.RequestEntityTooLarge
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
 import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
 import spray.json.DefaultJsonProtocol.listFormat
@@ -84,6 +85,8 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
     val collectionPath = s"/${Namespace.DEFAULT}/${collection.path}"
     val activeStatus = s"""{"status":"${Status.ACTIVE}"}""".parseJson.asJsObject
     val inactiveStatus = s"""{"status":"${Status.INACTIVE}"}""".parseJson.asJsObject
+    val entityTooBigRejectionMessage = "request entity too large"
+    val parametersLimit = Parameters.sizeLimit
 
     //// GET /rules
     it should "list rules by default namespace" in {
@@ -263,6 +266,48 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
             t.rules.get(ruleNameQualified) shouldBe ReducedRule(actionNameQualified, Status.INACTIVE)
             val response = responseAs[WhiskRuleResponse]
             response should be(rule.withStatus(Status.INACTIVE))
+        }
+    }
+
+    it should "reject create rule with annotations which are too big" in {
+        implicit val tid = transid()
+        val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (Parameters.sizeLimit.toBytes / 2 / 20 + Math.pow(10, 9) + 2) toLong)
+        val parameters = keys map { key =>
+            Parameters(key.toString, "a" * 10)
+        } reduce (_ ++ _)
+        val trigger = WhiskTrigger(namespace, aname)
+        val action = WhiskAction(namespace, aname, Exec.js("??"))
+        val content = s"""{"trigger":"${trigger.name}","action":"${action.name}","annotations":$parameters}""".parseJson.asJsObject
+        put(entityStore, trigger, false)
+        put(entityStore, action)
+        Put(s"$collectionPath/${aname}", content) ~> sealRoute(routes(creds)) ~> check {
+            val t = get(entityStore, trigger.docid.asDocInfo, WhiskTrigger)
+            deleteTrigger(t.docid)
+
+            status should be(RequestEntityTooLarge)
+            response.entity.toString should include(entityTooBigRejectionMessage)
+        }
+    }
+
+    it should "reject update rule with annotations which are too big" in {
+        implicit val tid = transid()
+        val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (Parameters.sizeLimit.toBytes / 2 / 20 + Math.pow(10, 9) + 2) toLong)
+        val parameters = keys map { key =>
+            Parameters(key.toString, "a" * 10)
+        } reduce (_ ++ _)
+        val trigger = WhiskTrigger(namespace, aname)
+        val action = WhiskAction(namespace, aname, Exec.js("??"))
+        val rule = WhiskRule(namespace, aname, trigger.name, action.name)
+        val content = s"""{"trigger":"${trigger.name}","action":"${action.name}","annotations":$parameters}""".parseJson.asJsObject
+        put(entityStore, trigger, false)
+        put(entityStore, action)
+        put(entityStore, rule)
+        Put(s"$collectionPath/${rule.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
+            val t = get(entityStore, trigger.docid.asDocInfo, WhiskTrigger)
+            deleteTrigger(t.docid)
+
+            status should be(RequestEntityTooLarge)
+            response.entity.toString should include(entityTooBigRejectionMessage)
         }
     }
 
