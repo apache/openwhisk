@@ -47,7 +47,7 @@ type RuleListOptions struct {
 
 func (s *RuleService) List(options *RuleListOptions) ([]Rule, *http.Response, error) {
     route := "rules"
-    route, err := addRouteOptions(route, options)
+    routeUrl, err := addRouteOptions(route, options)
     if err != nil {
         Debug(DbgError, "addRouteOptions(%s, %#v) error: '%s'\n", route, options, err)
         errStr := fmt.Sprintf("Unable to append options %#v to URL route '%s': %s", options, route, err)
@@ -55,7 +55,7 @@ func (s *RuleService) List(options *RuleListOptions) ([]Rule, *http.Response, er
         return nil, nil, werr
     }
 
-    req, err := s.client.NewRequest("GET", route, nil)
+    req, err := s.client.NewRequestUrl("GET", routeUrl, nil)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s); error: '%s'\n", route, err)
         errStr := fmt.Sprintf("Unable to create HTTP request for GET '%s': %s", route, err)
@@ -76,7 +76,10 @@ func (s *RuleService) List(options *RuleListOptions) ([]Rule, *http.Response, er
 }
 
 func (s *RuleService) Insert(rule *Rule, overwrite bool) (*Rule, *http.Response, error) {
-    route := fmt.Sprintf("rules/%s?overwrite=%t", strings.Replace(url.QueryEscape(rule.Name), "+", " ", -1), overwrite)
+    // Encode resource name as a path (with no query params) before inserting it into the URI
+    // This way any '?' chars in the name won't be treated as the beginning of the query params
+    rule.Name = (&url.URL{Path: rule.Name}).String()
+    route := fmt.Sprintf("rules/%s?overwrite=%t", rule.Name, overwrite)
 
     req, err := s.client.NewRequest("PUT", route, rule)
     if err != nil {
@@ -99,7 +102,10 @@ func (s *RuleService) Insert(rule *Rule, overwrite bool) (*Rule, *http.Response,
 }
 
 func (s *RuleService) Get(ruleName string) (*Rule, *http.Response, error) {
-    route := fmt.Sprintf("rules/%s", strings.Replace(url.QueryEscape(ruleName), "+", " ", -1))
+    // Encode resource name as a path (with no query params) before inserting it into the URI
+    // This way any '?' chars in the name won't be treated as the beginning of the query params
+    ruleName = (&url.URL{Path: ruleName}).String()
+    route := fmt.Sprintf("rules/%s", ruleName)
 
     req, err := s.client.NewRequest("GET", route, nil)
     if err != nil {
@@ -122,7 +128,10 @@ func (s *RuleService) Get(ruleName string) (*Rule, *http.Response, error) {
 }
 
 func (s *RuleService) Delete(ruleName string) (*http.Response, error) {
-    route := fmt.Sprintf("rules/%s", strings.Replace(url.QueryEscape(ruleName), "+", " ", -1))
+    // Encode resource name as a path (with no query params) before inserting it into the URI
+    // This way any '?' chars in the name won't be treated as the beginning of the query params
+    ruleName = (&url.URL{Path: ruleName}).String()
+    route := fmt.Sprintf("rules/%s", ruleName)
 
     req, err := s.client.NewRequest("DELETE", route, nil)
     if err != nil {
@@ -151,12 +160,14 @@ func (s *RuleService) SetState(ruleName string, state string) (*Rule, *http.Resp
         return nil, nil, werr
     }
 
-    //MWD route := fmt.Sprintf("rules/%s?state=%s", ruleName, state)
-    route := fmt.Sprintf("rules/%s", strings.Replace(url.QueryEscape(ruleName), "+", " ", -1))
+    // Encode resource name as a path (with no query params) before inserting it into the URI
+    // This way any '?' chars in the name won't be treated as the beginning of the query params
+    ruleName = (&url.URL{Path: ruleName}).String()
+    route := fmt.Sprintf("rules/%s", ruleName)
 
     ruleState := &Rule{ Status: state }
 
-    req, err := s.client.NewRequest("POST", route, ruleState /*nil*/)
+    req, err := s.client.NewRequest("POST", route, ruleState)
     if err != nil {
         Debug(DbgError, "http.NewRequest(POST, %s); error: '%s'\n", route, err)
         errStr := fmt.Sprintf("Unable to create HTTP request for POST '%s': %s", route, err)

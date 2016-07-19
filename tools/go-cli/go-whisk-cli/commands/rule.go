@@ -295,7 +295,7 @@ var ruleUpdateCmd = &cobra.Command{
             Publish: shared,
         }
 
-        rule, _, err = client.Rules.Insert(rule, true)
+        _, _, err = client.Rules.Insert(rule, true)
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Rules.Insert(%#v) failed: %s\n", rule, err)
             errStr := fmt.Sprintf("Unable to update rule '%s': %s", rule.Name, err)

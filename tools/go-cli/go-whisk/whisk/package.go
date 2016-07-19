@@ -23,7 +23,6 @@ import (
     "errors"
     "reflect"
     "encoding/json"
-    "strings"
 )
 
 type PackageService struct {
@@ -143,7 +142,7 @@ type PackageListOptions struct {
 
 func (s *PackageService) List(options *PackageListOptions) ([]Package, *http.Response, error) {
     route := fmt.Sprintf("packages")
-    route, err := addRouteOptions(route, options)
+    routeUrl, err := addRouteOptions(route, options)
     if err != nil {
         Debug(DbgError, "addRouteOptions(%s, %#v) error: '%s'\n", route, options, err)
         errStr := fmt.Sprintf("Unable to build request URL: %s", err)
@@ -151,7 +150,7 @@ func (s *PackageService) List(options *PackageListOptions) ([]Package, *http.Res
         return nil, nil, werr
     }
 
-    req, err := s.client.NewRequest("GET", route, nil)
+    req, err := s.client.NewRequestUrl("GET", routeUrl, nil)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s); error: '%s'\n", route, err)
         errStr := fmt.Sprintf("Unable to create GET HTTP request for '%s': %s", route, err)
@@ -173,7 +172,10 @@ func (s *PackageService) List(options *PackageListOptions) ([]Package, *http.Res
 }
 
 func (s *PackageService) Get(packageName string) (*Package, *http.Response, error) {
-    route := fmt.Sprintf("packages/%s", strings.Replace(url.QueryEscape(packageName), "+", " ", -1))
+    // Encode resource name as a path (with no query params) before inserting it into the URI
+    // This way any '?' chars in the name won't be treated as the beginning of the query params
+    packageName = (&url.URL{Path: packageName}).String()
+    route := fmt.Sprintf("packages/%s", packageName)
 
     req, err := s.client.NewRequest("GET", route, nil)
     if err != nil {
@@ -197,8 +199,10 @@ func (s *PackageService) Get(packageName string) (*Package, *http.Response, erro
 }
 
 func (s *PackageService) Insert(x_package PackageInterface, overwrite bool) (*Package, *http.Response, error) {
-    route := fmt.Sprintf("packages/%s?overwrite=%t",
-        strings.Replace(url.QueryEscape(x_package.GetName()), "+", " ", -1), overwrite)
+    // Encode resource name as a path (with no query params) before inserting it into the URI
+    // This way any '?' chars in the name won't be treated as the beginning of the query params
+    packageName := (&url.URL{Path: x_package.GetName()}).String()
+    route := fmt.Sprintf("packages/%s?overwrite=%t", packageName, overwrite)
 
     req, err := s.client.NewRequest("PUT", route, x_package)
     if err != nil {
@@ -221,7 +225,10 @@ func (s *PackageService) Insert(x_package PackageInterface, overwrite bool) (*Pa
 }
 
 func (s *PackageService) Delete(packageName string) (*http.Response, error) {
-    route := fmt.Sprintf("packages/%s", strings.Replace(url.QueryEscape(packageName), "+", " ", -1))
+    // Encode resource name as a path (with no query params) before inserting it into the URI
+    // This way any '?' chars in the name won't be treated as the beginning of the query params
+    packageName = (&url.URL{Path: packageName}).String()
+    route := fmt.Sprintf("packages/%s", packageName)
 
     req, err := s.client.NewRequest("DELETE", route, nil)
     if err != nil {

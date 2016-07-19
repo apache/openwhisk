@@ -19,11 +19,10 @@ package whisk
 import (
     "fmt"
     "net/http"
-    "net/url"
     "errors"
-    "strings"
     "reflect"
     "encoding/json"
+    "net/url"
 )
 
 type ActionService struct {
@@ -116,13 +115,15 @@ func (s *ActionService) List(packageName string, options *ActionListOptions) ([]
     var actions []Action
 
     if (len(packageName) > 0) {
-        packageName = strings.Replace(url.QueryEscape(packageName), "+", " ", -1)
+        // Encode resource name as a path (with no query params) before inserting it into the URI
+        // This way any '?' chars in the name won't be treated as the beginning of the query params
+        packageName = (&url.URL{Path:  packageName}).String()
         route = fmt.Sprintf("actions/%s/", packageName)
     } else {
         route = fmt.Sprintf("actions")
     }
 
-    route, err := addRouteOptions(route, options)
+    routeUrl, err := addRouteOptions(route, options)
     if err != nil {
         Debug(DbgError, "addRouteOptions(%s, %#v) error: '%s'\n", route, options, err)
         errMsg := fmt.Sprintf("Unable to add route options: %s", options)
@@ -132,10 +133,10 @@ func (s *ActionService) List(packageName string, options *ActionListOptions) ([]
     }
     Debug(DbgError, "Action list route with options: %s\n", route)
 
-    req, err := s.client.NewRequest("GET", route, nil)
+    req, err := s.client.NewRequestUrl("GET", routeUrl, nil)
     if err != nil {
-        Debug(DbgError, "http.NewRequest(GET, %s, nil) error: '%s'\n", route, err)
-        errMsg := fmt.Sprintf("Unable to create HTTP request for GET '%s': %s", route, err)
+        Debug(DbgError, "http.NewRequest(GET, %s, nil) error: '%s'\n", routeUrl, err)
+        errMsg := fmt.Sprintf("Unable to create HTTP request for GET '%s': %s", routeUrl, err)
         whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
@@ -156,7 +157,9 @@ func (s *ActionService) List(packageName string, options *ActionListOptions) ([]
 func (s *ActionService) Insert(action *Action, sharedSet bool, overwrite bool) (*Action, *http.Response, error) {
     var sentAction interface{}
 
-    action.Name = strings.Replace(url.QueryEscape(action.Name), "+", " ", -1)
+    // Encode resource name as a path (with no query params) before inserting it into the URI
+    // This way any '?' chars in the name won't be treated as the beginning of the query params
+    action.Name = (&url.URL{Path:  action.Name}).String()
     route := fmt.Sprintf("actions/%s?overwrite=%t", action.Name, overwrite)
 
     if sharedSet {
@@ -200,8 +203,9 @@ func (s *ActionService) Insert(action *Action, sharedSet bool, overwrite bool) (
 }
 
 func (s *ActionService) Get(actionName string) (*Action, *http.Response, error) {
-
-    actionName = strings.Replace(url.QueryEscape(actionName), "+", " ", -1)
+    // Encode resource name as a path (with no query params) before inserting it into the URI
+    // This way any '?' chars in the name won't be treated as the beginning of the query params
+    actionName = (&url.URL{Path: actionName}).String()
     route := fmt.Sprintf("actions/%s", actionName)
 
     req, err := s.client.NewRequest("GET", route, nil)
@@ -227,8 +231,9 @@ func (s *ActionService) Get(actionName string) (*Action, *http.Response, error) 
 }
 
 func (s *ActionService) Delete(actionName string) (*http.Response, error) {
-
-    actionName = strings.Replace(url.QueryEscape(actionName), "+", " ", -1)
+    // Encode resource name as a path (with no query params) before inserting it into the URI
+    // This way any '?' chars in the name won't be treated as the beginning of the query params
+    actionName = (&url.URL{Path: actionName}).String()
     route := fmt.Sprintf("actions/%s", actionName)
     Debug(DbgInfo, "HTTP route: %s\n", route)
 
@@ -255,8 +260,9 @@ func (s *ActionService) Delete(actionName string) (*http.Response, error) {
 }
 
 func (s *ActionService) Invoke(actionName string, payload *json.RawMessage, blocking bool) (*Activation, *http.Response, error) {
-
-    actionName = strings.Replace(url.QueryEscape(actionName), "+", " ", -1)
+    // Encode resource name as a path (with no query params) before inserting it into the URI
+    // This way any '?' chars in the name won't be treated as the beginning of the query params
+    actionName = (&url.URL{Path: actionName}).String()
     route := fmt.Sprintf("actions/%s?blocking=%t", actionName, blocking)
     Debug(DbgInfo, "HTTP route: %s\n", route)
 

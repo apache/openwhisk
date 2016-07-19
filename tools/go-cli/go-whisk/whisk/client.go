@@ -371,3 +371,67 @@ func (r ErrorResponse) Error() string {
 func IsHttpRespSuccess(r *http.Response) bool {
     return r.StatusCode >= 200 && r.StatusCode <= 299
 }
+
+//
+// Create a HTTP request object using URL stored in url.URL object
+// Arguments:
+//   method         - HTTP verb (i.e. "GET", "PUT", etc)
+//   urlRelResource - *url.URL structure representing the relative resource URL, including query params
+//   body           - optional. Object whose contents will be JSON encoded and placed in HTTP request body
+func (c *Client) NewRequestUrl(method string, urlRelResource *url.URL, body interface{}) (*http.Request, error) {
+    var urlVerNamespaceStr string
+    if c.Config.Namespace != "" {
+        // Encode path parts before inserting them into the URI so that any '?' is correctly encoded
+        // as part of the path and not the start of the query params
+        verPathEncoded := (&url.URL{Path: c.Config.Version}).String()
+        verNamespaceEncoded := (&url.URL{Path: c.Config.Namespace}).String()
+        urlVerNamespaceStr = fmt.Sprintf("%s/namespaces/%s/", verPathEncoded, verNamespaceEncoded)
+    } else {
+        urlVerNamespaceStr = fmt.Sprintf("%s/namespaces/", c.Config.Version)
+    }
+    urlVerNamespace, err := url.Parse(urlVerNamespaceStr)
+    if err != nil {
+        Debug(DbgError, "url.Parse(%s) error: %s\n", urlVerNamespaceStr, err)
+        errStr := fmt.Sprintf("Invalid request URL '%s': %s", urlVerNamespaceStr, err)
+        werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        return nil, werr
+    }
+
+    // URL construction order is important so that parts of the path are not lost
+    // 1. Combine absolute Base URL path with the relative namepace path.  The creates an absolute URL
+    // 2. Combine the Base+Namespace absolute URL with the relative resource path (including query params)
+    u := c.BaseURL.ResolveReference(urlVerNamespace)
+    u = u.ResolveReference(urlRelResource)
+
+    var buf io.ReadWriter
+    if body != nil {
+        buf = new(bytes.Buffer)
+        err := json.NewEncoder(buf).Encode(body)
+        if err != nil {
+            Debug(DbgError, "json.Encode(%#v) error: %s\n", body, err)
+            errStr := fmt.Sprintf("Error encoding request body: %s", err)
+            werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+            return nil, werr
+        }
+    }
+    req, err := http.NewRequest(method, u.String(), buf)
+    if err != nil {
+        Debug(DbgError, "http.NewRequest(%v, %s, buf) error: %s\n", method, u.String(), err)
+        errStr := fmt.Sprintf("Error initializing request: %s", err)
+        werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        return nil, werr
+    }
+    if req.Body != nil {
+        req.Header.Add("Content-Type", "application/json")
+    }
+
+    err = c.addAuthHeader(req, AuthRequired)
+    if err != nil {
+        Debug(DbgError, "addAuthHeader() error: %s\n", err)
+        errStr := fmt.Sprintf("Unable to add the HTTP authentication header: %s", err)
+        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        return nil, werr
+    }
+
+    return req, nil
+}

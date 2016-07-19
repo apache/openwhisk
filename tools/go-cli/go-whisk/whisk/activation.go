@@ -20,6 +20,7 @@ import (
     "fmt"
     "net/http"
     "errors"
+    "net/url"
 )
 
 type ActivationService struct {
@@ -70,7 +71,7 @@ func (s *ActivationService) List(options *ActivationListOptions) ([]Activation, 
     // TODO :: for some reason /activations only works with "_" as namespace
     s.client.Namespace = "_"
     route := "activations"
-    route, err := addRouteOptions(route, options)
+    routeUrl, err := addRouteOptions(route, options)
     if err != nil {
         Debug(DbgError, "addRouteOptions(%s, %#v) error: '%s'\n", route, options, err)
         errStr := fmt.Sprintf("Unable to append options %#v to URL route '%s': %s", options, route, err)
@@ -78,7 +79,7 @@ func (s *ActivationService) List(options *ActivationListOptions) ([]Activation, 
         return nil, nil, werr
     }
 
-    req, err := s.client.NewRequest("GET", route, nil)
+    req, err := s.client.NewRequestUrl("GET", routeUrl, nil)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s) error: '%s'\n", route, err)
         errStr := fmt.Sprintf("Unable to create HTTP request for GET '%s': %s", route, err)
@@ -105,6 +106,9 @@ func (s *ActivationService) Get(activationID string) (*Activation, *http.Respons
     // TODO :: for some reason /activations/:id only works with "_" as namespace
     s.client.Namespace = "_"
 
+    // Encode resource name as a path (with no query params) before inserting it into the URI
+    // This way any '?' chars in the name won't be treated as the beginning of the query params
+    activationID = (&url.URL{Path: activationID}).String()
     route := fmt.Sprintf("activations/%s", activationID)
 
     req, err := s.client.NewRequest("GET", route, nil)
@@ -133,6 +137,9 @@ func (s *ActivationService) Get(activationID string) (*Activation, *http.Respons
 func (s *ActivationService) Logs(activationID string) (*Activation, *http.Response, error) {
     // TODO :: for some reason /activations/:id/logs only works with "_" as namespace
     s.client.Namespace = "_"
+    // Encode resource name as a path (with no query params) before inserting it into the URI
+    // This way any '?' chars in the name won't be treated as the beginning of the query params
+    activationID = (&url.URL{Path: activationID}).String()
     route := fmt.Sprintf("activations/%s/logs", activationID)
 
     req, err := s.client.NewRequest("GET", route, nil)
@@ -160,6 +167,9 @@ func (s *ActivationService) Logs(activationID string) (*Activation, *http.Respon
 func (s *ActivationService) Result(activationID string) (*Response, *http.Response, error) {
     // TODO :: for some reason /activations only works with "_" as namespace
     s.client.Namespace = "_"
+    // Encode resource name as a path (with no query params) before inserting it into the URI
+    // This way any '?' chars in the name won't be treated as the beginning of the query params
+    activationID = (&url.URL{Path: activationID}).String()
     route := fmt.Sprintf("activations/%s/result", activationID)
 
     req, err := s.client.NewRequest("GET", route, nil)

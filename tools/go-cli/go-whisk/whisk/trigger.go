@@ -21,7 +21,6 @@ import (
     "net/http"
     "errors"
     "encoding/json"
-    "strings"
     "net/url"
 )
 
@@ -59,7 +58,7 @@ type TriggerListOptions struct {
 
 func (s *TriggerService) List(options *TriggerListOptions) ([]TriggerFromServer, *http.Response, error) {
     route := "triggers"
-    route, err := addRouteOptions(route, options)
+    routeUrl, err := addRouteOptions(route, options)
     if err != nil {
         Debug(DbgError, "addRouteOptions(%s, %#v) error: '%s'\n", route, options, err)
         errStr := fmt.Sprintf("Unable to append options %#v to URL route '%s': %s", options, route, err)
@@ -67,7 +66,7 @@ func (s *TriggerService) List(options *TriggerListOptions) ([]TriggerFromServer,
         return nil, nil, werr
     }
 
-    req, err := s.client.NewRequest("GET", route, nil)
+    req, err := s.client.NewRequestUrl("GET", routeUrl, nil)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s); error: '%s'\n", route, err)
         errStr := fmt.Sprintf("Unable to create HTTP request for GET '%s': %s", route, err)
@@ -89,13 +88,23 @@ func (s *TriggerService) List(options *TriggerListOptions) ([]TriggerFromServer,
 }
 
 func (s *TriggerService) Insert(trigger *Trigger, overwrite bool) (*TriggerFromServer, *http.Response, error) {
-    route := fmt.Sprintf("triggers/%s?overwrite=%t", strings.Replace(url.QueryEscape(trigger.Name), "+", " ", -1),
-        overwrite)
+    // Encode resource name as a path (with no query params) before inserting it into the URI
+    // This way any '?' chars in the name won't be treated as the beginning of the query params
+    trigger.Name = (&url.URL{Path:  trigger.Name}).String()
+    route := fmt.Sprintf("triggers/%s?overwrite=%t", trigger.Name, overwrite)
 
-    req, err := s.client.NewRequest("PUT", route, trigger)
+    routeUrl, err := url.Parse(route)
     if err != nil {
-        Debug(DbgError, "http.NewRequest(PUT, %s); error: '%s'\n", route, err)
-        errStr := fmt.Sprintf("Unable to create HTTP request for PUT '%s': %s", route, err)
+        Debug(DbgError, "url.Parse(%s) error: %s\n", route, err)
+        errStr := fmt.Sprintf("Invalid request URL '%s': %s", route, err)
+        werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        return nil, nil, werr
+    }
+
+    req, err := s.client.NewRequestUrl("PUT", routeUrl, trigger)
+    if err != nil {
+        Debug(DbgError, "http.NewRequest(PUT, %s); error: '%s'\n", routeUrl, err)
+        errStr := fmt.Sprintf("Unable to create HTTP request for PUT '%s': %s", routeUrl, err)
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
@@ -114,7 +123,10 @@ func (s *TriggerService) Insert(trigger *Trigger, overwrite bool) (*TriggerFromS
 }
 
 func (s *TriggerService) Get(triggerName string) (*TriggerFromServer, *http.Response, error) {
-    route := fmt.Sprintf("triggers/%s", strings.Replace(url.QueryEscape(triggerName), "+", " ", -1))
+    // Encode resource name as a path (with no query params) before inserting it into the URI
+    // This way any '?' chars in the name won't be treated as the beginning of the query params
+    triggerName = (&url.URL{Path: triggerName}).String()
+    route := fmt.Sprintf("triggers/%s", triggerName)
 
     req, err := s.client.NewRequest("GET", route, nil)
     if err != nil {
@@ -138,7 +150,10 @@ func (s *TriggerService) Get(triggerName string) (*TriggerFromServer, *http.Resp
 }
 
 func (s *TriggerService) Delete(triggerName string) (*TriggerFromServer, *http.Response, error) {
-    route := fmt.Sprintf("triggers/%s", strings.Replace(url.QueryEscape(triggerName), "+", " ", -1))
+    // Encode resource name as a path (with no query params) before inserting it into the URI
+    // This way any '?' chars in the name won't be treated as the beginning of the query params
+    triggerName = (&url.URL{Path: triggerName}).String()
+    route := fmt.Sprintf("triggers/%s", triggerName)
 
     req, err := s.client.NewRequest("DELETE", route, nil)
     if err != nil {
@@ -161,7 +176,10 @@ func (s *TriggerService) Delete(triggerName string) (*TriggerFromServer, *http.R
 }
 
 func (s *TriggerService) Fire(triggerName string, payload *json.RawMessage) (*TriggerFromServer, *http.Response, error) {
-    route := fmt.Sprintf("triggers/%s", strings.Replace(url.QueryEscape(triggerName), "+", " ", -1))
+    // Encode resource name as a path (with no query params) before inserting it into the URI
+    // This way any '?' chars in the name won't be treated as the beginning of the query params
+    triggerName = (&url.URL{Path: triggerName}).String()
+    route := fmt.Sprintf("triggers/%s", triggerName)
 
     req, err := s.client.NewRequest("POST", route, payload)
     if err != nil {

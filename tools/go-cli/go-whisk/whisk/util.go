@@ -28,19 +28,19 @@ import (
 
 // addOptions adds the parameters in opt as URL query parameters to s.  opt
 // must be a struct whose fields may contain "url" tags.
-func addRouteOptions(route string, options interface{}) (string, error) {
-    v := reflect.ValueOf(options)
-    if v.Kind() == reflect.Ptr && v.IsNil() {
-        return route, nil
-    }
-
+func addRouteOptions(route string, options interface{}) (*url.URL, error) {
     Debug(DbgInfo, "Adding options %+v to route '%s'\n", options, route)
     u, err := url.Parse(route)
     if err != nil {
         Debug(DbgError,"url.Parse(%s) error: %s\n", route, err)
         errStr := fmt.Sprintf("Unable to parse URL '%s': %s", route, err)
         werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
-        return route, werr
+        return nil, werr
+    }
+
+    v := reflect.ValueOf(options)
+    if v.Kind() == reflect.Ptr && v.IsNil() {
+        return u, nil
     }
 
     qs, err := query.Values(options)
@@ -48,12 +48,12 @@ func addRouteOptions(route string, options interface{}) (string, error) {
         Debug(DbgError,"query.Values(%#v) error: %s\n", options, err)
         errStr := fmt.Sprintf("Unable to process URL query options '%#v': %s", options, err)
         werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
-        return route, werr
+        return nil, werr
     }
 
     u.RawQuery = qs.Encode()
     Debug(DbgInfo,"Returning route options '%s' from input struct %+v\n", u.String(), options)
-    return u.String(), nil
+    return u, nil
 }
 
 func printJSON(v interface{}) {
