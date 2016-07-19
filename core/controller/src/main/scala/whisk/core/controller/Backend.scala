@@ -87,8 +87,7 @@ object WhiskServices extends LoadbalancerRequest {
      * and returns the HTTP response from the load balancer as a future
      */
     def makeLoadBalancerComponent(config: WhiskConfig, timeout: Timeout = 10 seconds)(
-        implicit as: ActorSystem):
-        (LoadBalancerReq => Future[LoadBalancerResponse], () => JsObject, (ActivationId, TransactionId) => Future[WhiskActivation]) = {
+        implicit as: ActorSystem): (LoadBalancerReq => Future[LoadBalancerResponse], () => JsObject, (ActivationId, TransactionId) => Future[WhiskActivation]) = {
         val loadBalancer = new LoadBalancerService(config, Verbosity.Loud)
         val requestTaker = (lbr: LoadBalancerReq) => { loadBalancer.doPublish(lbr._1, lbr._2)(lbr._3) }
         (requestTaker, loadBalancer.getInvokerHealth, loadBalancer.queryActivationResponse)
@@ -100,6 +99,9 @@ object WhiskServices extends LoadbalancerRequest {
  * A trait which defines a few services which a whisk microservice may rely on.
  */
 trait WhiskServices {
+    /** Whisk configuration object. */
+    protected val whiskConfig: WhiskConfig
+
     /** An entitlement service to check access rights. */
     protected val entitlementService: EntitlementService
 

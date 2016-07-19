@@ -16,6 +16,8 @@
 
 package system.basic
 
+import java.io.File
+
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
@@ -23,13 +25,19 @@ import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
 import common.TestHelpers
+import common.TestUtils
+import common.TestUtils.REQUEST_ENTITY_TOO_LARGE
 import common.WhiskProperties
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
+import spray.json.DefaultJsonProtocol._
 import spray.json.pimpAny
-import spray.json.DefaultJsonProtocol.LongJsonFormat
-import common.TestUtils
+import whisk.core.WhiskConfig
+import whisk.core.entity.ByteSize
+import java.io.PrintWriter
+import java.nio.file.Files
+import whisk.core.entity.Exec
 
 @RunWith(classOf[JUnitRunner])
 class ActionTests
@@ -41,6 +49,9 @@ class ActionTests
 
     val defaultDosAction = TestUtils.getTestActionFilename("timeout.js")
     val allowedActionDuration = 10 seconds
+
+    val testActionsDir = WhiskProperties.getFileRelativeToWhiskHome("tests/dat/actions")
+    val actionCodeLimit = Exec.sizeLimit
 
     behavior of "Actions CLI"
 
@@ -77,5 +88,26 @@ class ActionTests
                 _.fields("response").asJsObject.fields("result").toString should include(
                     """[OK] message terminated successfully""")
             }
+    }
+
+    /**
+     * Test an action that does not exceed the allowed execution timeout of an action.
+     */
+    it should "fail on creating an action with exec which is too big" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "TestActionCausingExecTooBig"
+
+            val actionCode = new File(s"$testActionsDir${File.separator}$name.js")
+            actionCode.createNewFile()
+            val pw = new PrintWriter(actionCode)
+            pw.write("a" * ((actionCodeLimit.toBytes / 2) + 1).toInt)
+            pw.close
+
+            assetHelper.withCleaner(wsk.action, name, confirmDelete = false) {
+                (action, _) =>
+                    action.create(name, Some(actionCode.getAbsolutePath), expectedExitCode = REQUEST_ENTITY_TOO_LARGE)
+            }
+
+            actionCode.delete
     }
 }

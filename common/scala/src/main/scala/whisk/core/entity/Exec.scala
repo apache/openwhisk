@@ -18,6 +18,8 @@ package whisk.core.entity
 
 import java.util.Base64
 
+import scala.language.postfixOps
+
 import spray.json.DefaultJsonProtocol
 import spray.json.DeserializationException
 import spray.json.JsArray
@@ -26,6 +28,8 @@ import spray.json.JsString
 import spray.json.JsValue
 import spray.json.RootJsonFormat
 import whisk.core.entity.ArgNormalizer.trim
+import whisk.core.entity.size.SizeInt
+import whisk.core.entity.size.SizeString
 
 /**
  * Exec encodes the executable details of an action. For black
@@ -43,7 +47,7 @@ import whisk.core.entity.ArgNormalizer.trim
  *         jar   : a base64-encoded JAR file when kind is "java",
  *         name  : a fully-qualified class name when kind is "java" }
  */
-sealed abstract class Exec(val kind: String) {
+sealed abstract class Exec(val kind: String) extends ByteSizeable {
     def image: String
 
     override def toString = Exec.serdes.write(this).compactPrint
@@ -51,32 +55,41 @@ sealed abstract class Exec(val kind: String) {
 
 protected[core] case class NodeJSExec(code: String, init: Option[String]) extends Exec(Exec.NODEJS) {
     val image = "whisk/nodejsaction"
+    def size = (code sizeInBytes) + init.map(_.sizeInBytes).getOrElse(0 B)
 }
 
 protected[core] case class NodeJS6Exec(code: String, init: Option[String]) extends Exec(Exec.NODEJS6) {
     val image = "whisk/nodejs6action"
+    def size = (code sizeInBytes) + init.map(_.sizeInBytes).getOrElse(0 B)
 }
 
 protected[core] case class PythonExec(code: String) extends Exec(Exec.PYTHON) {
     val image = "whisk/pythonaction"
+    def size = code sizeInBytes
 }
 
 protected[core] case class SwiftExec(code: String) extends Exec(Exec.SWIFT) {
     val image = "whisk/swiftaction"
+    def size = code sizeInBytes
 }
 
 protected[core] case class Swift3Exec(code: String) extends Exec(Exec.SWIFT3) {
     val image = "whisk/swift3action"
+    def size = code sizeInBytes
 }
 
 protected[core] case class JavaExec(jar: String, main: String) extends Exec(Exec.JAVA) {
     val image = "whisk/javaaction"
+    def size = (jar sizeInBytes) + (main sizeInBytes)
 }
 
-protected[core] case class BlackBoxExec(image: String) extends Exec(Exec.BLACKBOX)
+protected[core] case class BlackBoxExec(image: String) extends Exec(Exec.BLACKBOX) {
+    def size = image sizeInBytes
+}
 
 protected[core] case class SequenceExec(code: String, components: Vector[String]) extends Exec(Exec.SEQUENCE) {
     val image = "whisk/nodejsaction"
+    def size = components.map(_ sizeInBytes).reduce(_ + _)
 }
 
 protected[core] object Exec
@@ -87,15 +100,16 @@ protected[core] object Exec
     private lazy val b64decoder = Base64.getDecoder()
 
     // The possible values of the JSON 'kind' field.
-    protected[core] val NODEJS   = "nodejs"
-    protected[core] val NODEJS6  = "nodejs:6"
-    protected[core] val PYTHON   = "python"
-    protected[core] val SWIFT    = "swift"
-    protected[core] val SWIFT3   = "swift:3"
-    protected[core] val JAVA     = "java"
+    protected[core] val NODEJS = "nodejs"
+    protected[core] val NODEJS6 = "nodejs:6"
+    protected[core] val PYTHON = "python"
+    protected[core] val SWIFT = "swift"
+    protected[core] val SWIFT3 = "swift:3"
+    protected[core] val JAVA = "java"
     protected[core] val BLACKBOX = "blackbox"
     protected[core] val SEQUENCE = "sequence"
     protected[core] val runtimes = Set(NODEJS, NODEJS6, PYTHON, SWIFT, SWIFT3, JAVA, BLACKBOX, SEQUENCE)
+    val sizeLimit = 48 MB
 
     protected[core] def js(code: String, init: String = null): Exec = NodeJSExec(trim(code), Option(init).map(_.trim))
     protected[core] def js6(code: String, init: String = null): Exec = NodeJS6Exec(trim(code), Option(init).map(_.trim))

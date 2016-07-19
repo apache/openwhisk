@@ -16,6 +16,8 @@
 
 package whisk.core.controller.test
 
+import scala.language.postfixOps
+
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import org.junit.runner.RunWith
@@ -28,6 +30,7 @@ import spray.http.StatusCodes.InternalServerError
 import spray.http.StatusCodes.MethodNotAllowed
 import spray.http.StatusCodes.NotFound
 import spray.http.StatusCodes.OK
+import spray.http.StatusCodes.RequestEntityTooLarge
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
 import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
 import spray.json.DefaultJsonProtocol.RootJsObjectFormat
@@ -50,6 +53,7 @@ import whisk.core.entity.MemoryLimit
 import whisk.core.entity.Namespace
 import whisk.core.entity.Parameters
 import whisk.core.entity.SemVer
+import whisk.core.entity.size.SizeInt
 import whisk.core.entity.Subject
 import whisk.core.entity.TimeLimit
 import whisk.core.entity.WhiskAction
@@ -85,6 +89,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val collectionPath = s"/${Namespace.DEFAULT}/${collection.path}"
     def aname = MakeName.next("action_tests")
     setVerbosity(Verbosity.Loud)
+    val entityTooBigRejectionMessage = "request entity too large"
+    val actionLimit = Exec.sizeLimit
+    val parametersLimit = Parameters.sizeLimit
 
     //// GET /actions
     it should "list actions by default namespace" in {
@@ -234,6 +241,55 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         Put(s"$collectionPath/xxx", content) ~> sealRoute(routes(creds)) ~> check {
             val response = responseAs[String]
             status should be(BadRequest)
+        }
+    }
+
+    it should "reject create with exec which is too big" in {
+        implicit val tid = transid()
+        val code = "a" * ((actionLimit.toBytes / 2L).toInt + 1)
+        val content = s"""{"exec":{"kind":"python","code":"$code"}}""".stripMargin.parseJson.asJsObject
+        Put(s"$collectionPath/${aname}", content) ~> sealRoute(routes(creds)) ~> check {
+            status should be(RequestEntityTooLarge)
+            response.entity.toString should include(entityTooBigRejectionMessage)
+        }
+    }
+
+    it should "reject update with exec which is too big" in {
+        implicit val tid = transid()
+        val oldCode = "function main()"
+        val code = "a" * ((actionLimit.toBytes / 2L).toInt + 1)
+        val action = WhiskAction(namespace, aname, Exec.js("??"))
+        val content = s"""{"exec":{"kind":"python","code":"$code"}}""".stripMargin.parseJson.asJsObject
+        put(entityStore, action)
+        Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
+            status should be(RequestEntityTooLarge)
+            response.entity.toString should include(entityTooBigRejectionMessage)
+        }
+    }
+
+    it should "reject create with parameters which are too big" in {
+        implicit val tid = transid()
+        val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (parametersLimit.toBytes / 2 / 20 + Math.pow(10, 9) + 2) toLong)
+        val parameters = keys map { key =>
+            Parameters(key.toString, "a" * 10)
+        } reduce (_ ++ _)
+        val content = s"""{"exec":{"kind":"nodejs","code":"??"},"parameters":$parameters}""".stripMargin.parseJson.asJsObject
+        Put(s"$collectionPath/${aname}", content) ~> sealRoute(routes(creds)) ~> check {
+            status should be(RequestEntityTooLarge)
+            response.entity.toString should include(entityTooBigRejectionMessage)
+        }
+    }
+
+    it should "reject create with annotations which are too big" in {
+        implicit val tid = transid()
+        val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (parametersLimit.toBytes / 2 / 20 + Math.pow(10, 9) + 2) toLong)
+        val parameters = keys map { key =>
+            Parameters(key.toString, "a" * 10)
+        } reduce (_ ++ _)
+        val content = s"""{"exec":{"kind":"nodejs","code":"??"},"annotations":$parameters}""".stripMargin.parseJson.asJsObject
+        Put(s"$collectionPath/${aname}", content) ~> sealRoute(routes(creds)) ~> check {
+            status should be(RequestEntityTooLarge)
+            response.entity.toString should include(entityTooBigRejectionMessage)
         }
     }
 

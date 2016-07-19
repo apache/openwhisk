@@ -17,15 +17,20 @@
 package whisk.core.controller
 
 import scala.concurrent.Future
+import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
+
+import shapeless.HNil
 import spray.http.StatusCodes.InternalServerError
-import spray.routing.ConjunctionMagnet.fromDirective
-import spray.routing.Directive.pimpApply
+import spray.http.StatusCodes.RequestEntityTooLarge
+import spray.httpx.SprayJsonSupport._
+import spray.json.DefaultJsonProtocol._
+import spray.routing.Directive0
 import spray.routing.Directives
 import spray.routing.RequestContext
-import spray.routing.directives.OnCompleteFutureMagnet.apply
+import spray.routing.Route
 import whisk.common.TransactionId
 import whisk.core.entitlement.Privilege
 import whisk.core.entitlement.Privilege.ACTIVATE
@@ -34,19 +39,24 @@ import whisk.core.entitlement.Privilege.PUT
 import whisk.core.entitlement.Privilege.READ
 import whisk.core.entitlement.Resource
 import whisk.core.entity.EntityName
+import whisk.core.entity.LimitedWhiskEntityPut
 import whisk.core.entity.Namespace
 import whisk.core.entity.Parameters
-import whisk.core.entity.Subject
-import whisk.http.ErrorResponse.terminate
-import scala.language.postfixOps
 import whisk.core.entity.WhiskAuth
-import whisk.core.entity.Subject
+import whisk.http.ErrorResponse.terminate
+
+protected[controller] trait ValidateEntitySize extends Directives {
+    protected def validateSize(check: ⇒ Boolean)(implicit tid: TransactionId) = new Directive0 {
+        def happly(f: HNil ⇒ Route) = if (check) f(HNil) else terminate(RequestEntityTooLarge, "request entity too large")
+    }
+}
 
 /** A trait implementing the basic operations on WhiskEntities in support of the various APIs. */
 trait WhiskCollectionAPI
     extends Directives
     with AuthenticatedRouteProvider
     with AuthorizedRouteProvider
+    with ValidateEntitySize
     with ReadOps
     with WriteOps {
 
@@ -75,8 +85,13 @@ trait WhiskCollectionAPI
     protected override def dispatchOp(user: WhiskAuth, op: Privilege, resource: Resource)(implicit transid: TransactionId) = {
         resource.entity match {
             case Some(EntityName(name)) => op match {
-                case READ     => fetch(resource.namespace, name, resource.env)
-                case PUT      => create(resource.namespace, name)
+                case READ => fetch(resource.namespace, name, resource.env)
+                case PUT =>
+                    entity(as[LimitedWhiskEntityPut]) { e =>
+                        validateSize(e.isWithinSizeLimits)(transid) {
+                            create(resource.namespace, name)
+                        }
+                    }
                 case ACTIVATE => activate(user, resource.namespace, name, resource.env)
                 case DELETE   => remove(resource.namespace, name)
                 case _        => reject

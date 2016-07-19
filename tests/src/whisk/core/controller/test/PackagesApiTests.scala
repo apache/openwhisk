@@ -17,6 +17,7 @@
 package whisk.core.controller.test
 
 import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
 import org.junit.runner.RunWith
 import scala.concurrent.Future
 import org.scalatest.junit.JUnitRunner
@@ -26,6 +27,7 @@ import spray.http.StatusCodes.MethodNotAllowed
 import spray.http.StatusCodes.Conflict
 import spray.http.StatusCodes.NotFound
 import spray.http.StatusCodes.OK
+import spray.http.StatusCodes.RequestEntityTooLarge
 import spray.http.StatusCodes.RequestTimeout
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
 import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
@@ -89,6 +91,8 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     val namespace = Namespace(creds.subject())
     val collectionPath = s"/${Namespace.DEFAULT}/${collection.path}"
     def aname = MakeName.next("packages_tests")
+    val entityTooBigRejectionMessage = "request entity too large"
+    val parametersLimit = Parameters.sizeLimit
 
     private def bindingAnnotation(binding: Binding) = {
         Parameters(WhiskPackage.bindingFieldName, Binding.serdes.write(binding))
@@ -388,7 +392,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
         val content = WhiskPackagePut(binding)
         Put(s"$collectionPath/$aname", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
-            responseAs[ErrorResponse].error should include ("binding references a package that does not exist")
+            responseAs[ErrorResponse].error should include("binding references a package that does not exist")
         }
     }
 
@@ -400,7 +404,48 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
         put(entityStore, reference)
         Put(s"$collectionPath/$aname", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
-            responseAs[ErrorResponse].error should include ("cannot bind to another package binding")
+            responseAs[ErrorResponse].error should include("cannot bind to another package binding")
+        }
+    }
+
+    it should "reject create package reference when annotations are too big" in {
+        implicit val tid = transid()
+        val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (parametersLimit.toBytes / 2 / 20 + Math.pow(10, 9) + 2) toLong)
+        val parameters = keys map { key =>
+            Parameters(key.toString, "a" * 10)
+        } reduce (_ ++ _)
+        val content = s"""{"annotations":$parameters}""".parseJson.asJsObject
+        Put(s"$collectionPath/${aname}", content) ~> sealRoute(routes(creds)) ~> check {
+            status should be(RequestEntityTooLarge)
+            response.entity.toString should include(entityTooBigRejectionMessage)
+        }
+    }
+
+    it should "reject create package reference when parameters are too big" in {
+        implicit val tid = transid()
+        val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (parametersLimit.toBytes / 2 / 20 + Math.pow(10, 9) + 2) toLong)
+        val parameters = keys map { key =>
+            Parameters(key.toString, "a" * 10)
+        } reduce (_ ++ _)
+        val content = s"""{"parameters":$parameters}""".parseJson.asJsObject
+        Put(s"$collectionPath/${aname}", content) ~> sealRoute(routes(creds)) ~> check {
+            status should be(RequestEntityTooLarge)
+            response.entity.toString should include(entityTooBigRejectionMessage)
+        }
+    }
+
+    it should "reject update package reference when parameters are too big" in {
+        implicit val tid = transid()
+        val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (parametersLimit.toBytes / 2 / 20 + Math.pow(10, 9) + 2) toLong)
+        val parameters = keys map { key =>
+            Parameters(key.toString, "a" * 10)
+        } reduce (_ ++ _)
+        val provider = WhiskPackage(namespace, aname)
+        val content = s"""{"parameters":$parameters}""".parseJson.asJsObject
+        put(entityStore, provider)
+        Put(s"$collectionPath/${aname}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
+            status should be(RequestEntityTooLarge)
+            response.entity.toString should include(entityTooBigRejectionMessage)
         }
     }
 
