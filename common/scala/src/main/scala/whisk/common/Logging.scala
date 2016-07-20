@@ -22,6 +22,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.atomic.AtomicInteger
+import java.time.Duration
 
 object Verbosity extends Enumeration {
     type Level = Value
@@ -72,7 +73,25 @@ trait Logging {
         val now = mark map { _.now } getOrElse Instant.now(Clock.systemUTC)
         val time = Logging.timeFormat.format(now)
         val name = if (from.isInstanceOf[String]) from else Logging.getCleanSimpleClassName(from.getClass)
-        val msg = mark map { m => s"[marker:${m.token}:${m.delta}] $message" } getOrElse message
+        val msg = mark map { m =>
+
+            val timediff = m.token match {
+                case LogMarkerToken(_, _, LoggingMarkers.start) => {
+                    id.meta.timeDeltas += (m.token -> m)
+                    None
+                }
+                case LogMarkerToken(_, _, state) if (LoggingMarkers.end.contains(state)) => {
+                    val startToken = LogMarkerToken(m.token.component, m.token.action, LoggingMarkers.start)
+                    id.meta.timeDeltas.get(startToken) map { startMarker =>
+                        Duration.between(startMarker.now, m.now).toMillis
+                    }
+                }
+                case _ => None
+            }
+
+            val markerParts = Seq("marker", m.token, m.delta) ++ timediff
+            s"[${markerParts.mkString(":")}] $message"
+        } getOrElse message
 
         if (componentName != "") {
             outputStream.println(s"[$time] [$category] [$id] [$componentName] [$name] $msg")
@@ -91,7 +110,7 @@ trait Logging {
  * typically for a TransactionId, the elapsed time in milliseconds and a string containing
  * the given marker token.
  */
-protected case class LogMarker(now: Instant, delta: Long, token: String)
+protected case class LogMarker(now: Instant, delta: Long, token: LogMarkerToken)
 
 private object Logging {
     /**
@@ -113,9 +132,12 @@ case class LogMarkerToken(component: String, action: String, state: String) {
 }
 
 object LoggingMarkers {
-    private val start = "start"
+    val start = "start"
     private val finish = "finish"
     private val error = "error"
+    private val reject = "reject"
+    private val count = "count"
+    val end = Seq(finish, error, reject)
 
     private val controller = "controller"
     private val loadbalancer = "loadbalancer"
@@ -125,7 +147,7 @@ object LoggingMarkers {
     private val activation = "activation"
     val CONTROLLER_ACTIVATION_START = LogMarkerToken(controller, activation, start)
     val CONTROLLER_ACTIVATION_DONE = LogMarkerToken(controller, activation, finish)
-    val CONTROLLER_ACTIVATION_REJECTED = LogMarkerToken(controller, activation, "reject")
+    val CONTROLLER_ACTIVATION_REJECTED = LogMarkerToken(controller, activation, reject)
     val CONTROLLER_ACTIVATION_FAILED = LogMarkerToken(controller, activation, error)
 
     private val blockingActivation = "blockingActivation"
@@ -162,7 +184,7 @@ object LoggingMarkers {
     val CONTROLLER_FIRE_TRIGGER_DONE = LogMarkerToken(controller, fireTrigger, finish)
     val CONTROLLER_FIRE_TRIGGER_ERROR = LogMarkerToken(controller, fireTrigger, error)
 
-    val LOADBALANCER_POST_KAFKA = LogMarkerToken(loadbalancer, "postToKafka", start)
+    val LOADBALANCER_POST_KAFKA = LogMarkerToken(loadbalancer, "postToKafka", count)
 
     private val fetchAction = "fetchAction"
     val INVOKER_FETCH_ACTION_START = LogMarkerToken(invoker, fetchAction, start)
@@ -178,7 +200,7 @@ object LoggingMarkers {
     val INVOKER_GET_CONTAINER_START = LogMarkerToken(invoker, getContainer, start)
     val INVOKER_GET_CONTAINER_DONE = LogMarkerToken(invoker, getContainer, finish)
 
-    val INVOKER_CONTAINER_INIT = LogMarkerToken(invoker, "initContainer", start)
+    val INVOKER_CONTAINER_INIT = LogMarkerToken(invoker, "initContainer", count)
 
     private val activationRun = "activationRun"
     val INVOKER_ACTIVATION_RUN_START = LogMarkerToken(invoker, activationRun, start)
@@ -192,8 +214,8 @@ object LoggingMarkers {
     val INVOKER_RECORD_ACTIVATION_START = LogMarkerToken(invoker, recordActivation, start)
     val INVOKER_RECORD_ACTIVATION_DONE = LogMarkerToken(invoker, recordActivation, finish)
 
-    val DATABASE_CACHE_HIT = LogMarkerToken(database, "cacheHit", start)
-    val DATABASE_CACHE_MISS = LogMarkerToken(database, "cacheMiss", start)
+    val DATABASE_CACHE_HIT = LogMarkerToken(database, "cacheHit", count)
+    val DATABASE_CACHE_MISS = LogMarkerToken(database, "cacheMiss", count)
 
     private val saveDocument = "saveDocument"
     val DATABASE_SAVE_START = LogMarkerToken(database, saveDocument, start)
