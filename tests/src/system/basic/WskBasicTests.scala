@@ -90,9 +90,38 @@ class WskBasicTests
         stdout should include regex ("""(?i)whisk API version\s+v1""")
     }
 
+    it should "validate default property values" in {
+        val tmpwskprops = File.createTempFile("wskprops", ".tmp")
+        val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
+        try {
+            wsk.cli(Seq("property", "unset", "--auth", "--apihost", "--apiversion", "--namespace"), env = env)
+            var stdout = wsk.cli(Seq("property", "get", "--auth"), env = env).stdout
+            stdout should include regex ("""(?i)whisk auth\s*$""")      // default = empty string
+            stdout = wsk.cli(Seq("property", "get", "--apihost"), env = env).stdout
+            stdout should include regex ("""(?i)whisk API host\s*$""")  // default = empty string
+            stdout = wsk.cli(Seq("property", "get", "--namespace"), env = env).stdout
+            stdout should include regex ("""(?i)whisk namespace\s*_$""")// default = _
+        }
+        finally {
+            tmpwskprops.delete()
+        }
+    }
+
     it should "show api build version" in {
-        val stdout = wsk.cli(wskprops.overrides ++ Seq("property", "get", "--apibuild")).stdout
-        stdout should include regex ("""(?i)whisk API build\s+201.*""")
+        //val wskpropsBackup = TestUtils.backupWskProps()
+        val tmpwskprops = File.createTempFile("wskprops", ".tmp")
+        val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
+        wsk.cli(wskprops.overrides ++ Seq("property", "set"), env = env )
+        val stdout = wsk.cli(Seq("property", "get", "--apibuild", "-i"), env = env).stdout
+        try {
+            stdout should include regex ("""(?i)whisk API build\s+201.*""")
+        }
+        finally {
+            tmpwskprops.delete()
+            //TestUtils.restoreWskProps(wskpropsBackup)
+            //wskpropsBackup.delete()
+        }
+
     }
 
     it should "fail to show api build when setting apihost to bogus value" in {
@@ -110,42 +139,62 @@ class WskBasicTests
     }
 
     it should "show api build number" in {
-        val stdout = wsk.cli(wskprops.overrides ++ Seq("property", "get", "--apibuildno")).stdout
-        stdout should include regex ("""(?i)whisk API build.*\s+.*""")
+        val tmpwskprops = File.createTempFile("wskprops", ".tmp")
+        val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
+        wsk.cli(wskprops.overrides ++ Seq("property", "set"), env = env)
+        val stdout = wsk.cli(Seq("property", "get", "--apibuildno", "-i"), env = env).stdout
+        try {
+            stdout should include regex ("""(?i)whisk API build.*\s+.*""")
+        }
+        finally {
+            tmpwskprops.delete()
+        }
     }
 
     it should "set auth in property file" in {
-        val wskprops = File.createTempFile("wskprops", ".tmp")
-        val env = Map("WSK_CONFIG_FILE" -> wskprops.getAbsolutePath())
+        val tmpwskprops = File.createTempFile("wskprops", ".tmp")
+        val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
         wsk.cli(Seq("property", "set", "--auth", "testKey"), env = env)
-        val fileContent = FileUtils.readFileToString(wskprops)
-        fileContent should include("AUTH=testKey")
-        wskprops.delete()
+        try {
+            val fileContent = FileUtils.readFileToString(tmpwskprops)
+            fileContent should include("AUTH=testKey")
+        }
+        finally {
+            tmpwskprops.delete()
+        }
     }
 
     it should "set multiple property values with single command" in {
         val tmpwskprops = File.createTempFile("wskprops", ".tmp")
         val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
         val stdout = wsk.cli(Seq("property", "set", "--auth", "testKey", "--apihost", "openwhisk.ng.bluemix.net", "--apiversion", "v1"), env = env).stdout
-        stdout should include regex ("ok: whisk auth set")
-        stdout should include regex ("ok: whisk API host set")
-        stdout should include regex ("ok: whisk API version set")
-        val fileContent = FileUtils.readFileToString(tmpwskprops)
-        fileContent should include("AUTH=testKey")
-        fileContent should include("APIHOST=openwhisk.ng.bluemix.net")
-        fileContent should include("APIVERSION=v1")
-        tmpwskprops.delete()
+        try {
+            stdout should include regex ("ok: whisk auth set")
+            stdout should include regex ("ok: whisk API host set")
+            stdout should include regex ("ok: whisk API version set")
+            val fileContent = FileUtils.readFileToString(tmpwskprops)
+            fileContent should include("AUTH=testKey")
+            fileContent should include("APIHOST=openwhisk.ng.bluemix.net")
+            fileContent should include("APIVERSION=v1")
+        }
+        finally {
+            tmpwskprops.delete()
+        }
     }
 
     it should "delete multiple property values with single command" in {
         val tmpwskprops = File.createTempFile("wskprops", ".tmp")
         val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
         val stdout = wsk.cli(Seq("property", "unset", "--auth", "--apihost", "--apiversion", "--namespace"), env = env).stdout
-        stdout should include regex ("ok: whisk auth unset")
-        stdout should include regex ("ok: whisk API host unset")
-        stdout should include regex ("ok: whisk API version unset")
-        stdout should include regex ("ok: whisk namespace unset")
-        tmpwskprops.delete()
+        try {
+            stdout should include regex ("ok: whisk auth unset")
+            stdout should include regex ("ok: whisk API host unset")
+            stdout should include regex ("ok: whisk API version unset")
+            stdout should include regex ("ok: whisk namespace unset")
+        }
+        finally {
+            tmpwskprops.delete()
+        }
     }
 
     it should "reject creating duplicate entity" in withAssetCleaner(wskprops) {
@@ -226,12 +275,17 @@ class WskBasicTests
     }
 
     it should "reject authenticated command when no auth key is given" in {
-        // override wsk props file in case it exists
-        val wskprops = File.createTempFile("wskprops", ".tmp")
-        val env = Map("WSK_CONFIG_FILE" -> wskprops.getAbsolutePath())
+        val tmpwskprops = File.createTempFile("wskprops", ".tmp")
+        val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
+        wsk.cli(Seq("property", "unset", "--auth"), env = env)
         val stderr = wsk.cli(Seq("list"), env = env, expectedExitCode = MISUSE_EXIT).stderr
-        stderr should include regex (s"usage[:.]") // Python CLI: "usage:", Go CLI: "usage."
-        stderr should include("--auth is required")
+        try {
+            stderr should include regex (s"usage[:.]") // Python CLI: "usage:", Go CLI: "usage."
+            stderr should include("--auth is required")
+        }
+        finally {
+            tmpwskprops.delete()
+        }
     }
 
     behavior of "Wsk Package CLI"
