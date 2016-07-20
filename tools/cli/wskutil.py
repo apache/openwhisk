@@ -306,7 +306,15 @@ def getQName(qname, namespace = None):
         namespace = namespace if namespace else resolveNamespace({})
         return '%s%s%s%s' % (delimiter, namespace, delimiter, qname)
 
-def apiBase(props):
+def hostBase(props):
     host = props['apihost']
+    url = urlparse(host)
+    if url.scheme is '':
+        return 'https://%s' % host
+    else:
+        return host
+
+def apiBase(props):
+    host = hostBase(props)
     version = props['apiversion']
     return '%s/api/%s' % (host, version)

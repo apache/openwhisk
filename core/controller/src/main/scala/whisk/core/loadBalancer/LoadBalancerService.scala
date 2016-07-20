@@ -41,7 +41,6 @@ import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.consulServer
 import whisk.core.WhiskConfig.kafkaHost
 import whisk.core.WhiskConfig.kafkaPartitions
-import whisk.core.WhiskConfig.servicePort
 import whisk.core.connector.ActivationMessage
 import whisk.core.connector.CompletionMessage
 import whisk.core.entity.ActivationId
@@ -154,13 +153,11 @@ class LoadBalancerService(config: WhiskConfig, verbosity: Verbosity.Level)(
 }
 
 object LoadBalancerService {
-    def requiredProperties =
-        Map(servicePort -> null) ++
-            kafkaHost ++
-            consulServer ++
-            Map(kafkaPartitions -> null) ++
-            InvokerHealth.requiredProperties ++
-            ActivationThrottle.requiredProperties
+    def requiredProperties = Map(kafkaPartitions -> null) ++
+        kafkaHost ++
+        consulServer ++
+        InvokerHealth.requiredProperties ++
+        ActivationThrottle.requiredProperties
 }
 
 private case class ActiveAckTimeout(activationId: ActivationId) extends TimeoutException

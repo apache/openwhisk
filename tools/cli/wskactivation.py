@@ -131,7 +131,7 @@ class Activation(Item):
     def result(self, args, props):
         fqid = getQName(args.id, '_') # kludge: use default namespace unless explicitly specified
         namespace, aid = parseQName(fqid, props)
-        url = 'https://%(apibase)s/namespaces/%(namespace)s/activations/%(id)s/result' % {
+        url = '%(apibase)s/namespaces/%(namespace)s/activations/%(id)s/result' % {
            'apibase': apiBase(props),
            'namespace': urllib.quote(namespace),
            'id': aid
@@ -151,7 +151,7 @@ class Activation(Item):
     def logs(self, args, props):
         fqid = getQName(args.id, '_') # kludge: use default namespace unless explicitly specified
         namespace, aid = parseQName(fqid, props)
-        url = 'https://%(apibase)s/namespaces/%(namespace)s/activations/%(id)s/logs' % {
+        url = '%(apibase)s/namespaces/%(namespace)s/activations/%(id)s/logs' % {
            'apibase': apiBase(props),
            'namespace': urllib.quote(namespace),
            'id': aid
@@ -182,7 +182,7 @@ class Activation(Item):
     # return the result of a 'wsk activation list' call, an HTTPResponse
     def listCmd(self, args, props):
         namespace, pname = parseQName(args.name, props)
-        url = 'https://%(apibase)s/namespaces/%(namespace)s/activations?docs=%(full)s&skip=%(skip)s&limit=%(limit)s&%(filter)s' % {
+        url = '%(apibase)s/namespaces/%(namespace)s/activations?docs=%(full)s&skip=%(skip)s&limit=%(limit)s&%(filter)s' % {
             'apibase': apiBase(props),
             'namespace': urllib.quote(namespace),
             'collection': self.collection,

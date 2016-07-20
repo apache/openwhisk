@@ -90,7 +90,7 @@ class Rule(Item):
         namespace, pname = parseQName(args.name, props)
         desc = 'active' if enable else 'inactive'
         status = json.dumps({ 'status': desc })
-        url = 'https://%(apibase)s/namespaces/%(namespace)s/rules/%(name)s' % {
+        url = '%(apibase)s/namespaces/%(namespace)s/rules/%(name)s' % {
             'apibase': apiBase(props),
             'namespace': urllib.quote(namespace),
             'name': self.getSafeName(pname)
@@ -112,7 +112,7 @@ class Rule(Item):
 
     def getState(self, args, props):
         namespace, pname = parseQName(args.name, props)
-        url = 'https://%(apibase)s/namespaces/%(namespace)s/rules/%(name)s' % {
+        url = '%(apibase)s/namespaces/%(namespace)s/rules/%(name)s' % {
             'apibase': apiBase(props),
             'namespace': urllib.quote(namespace),
             'name': self.getSafeName(pname)

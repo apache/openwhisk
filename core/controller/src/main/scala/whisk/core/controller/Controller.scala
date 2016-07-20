@@ -55,7 +55,7 @@ class Controller(
     with Actor {
 
     // each akka Actor has an implicit context
-    override def actorRefFactory : ActorContext = context
+    override def actorRefFactory: ActorContext = context
 
     /**
      * A Route in spray is technically a function taking a RequestContext as a parameter.
@@ -64,7 +64,7 @@ class Controller(
      * tree structure.
      * @see http://spray.io/documentation/1.2.3/spray-routing/key-concepts/routes/#composing-routes
      */
-    override def routes(implicit transid: TransactionId) : Route = {
+    override def routes(implicit transid: TransactionId): Route = {
         // handleRejections wraps the inner Route with a logical error-handler for
         // unmatched paths
         handleRejections(customRejectionHandler) {
@@ -88,13 +88,9 @@ object Controller {
     // requiredProperties is a Map whose keys define properties that must be bound to
     // a value, and whose values are default values.   A null value in the Map means there is
     // no default value specified, so it must appear in the properties file
-    def requiredProperties =
-        Map(WhiskConfig.servicePort -> 8080.toString) ++
-            RestAPIVersion_v1.requiredProperties ++
-            consulServer ++
-            kafkaHost ++
-            Map(kafkaPartitions -> null) ++
-            LoadBalancerService.requiredProperties
+    def requiredProperties = Map(WhiskConfig.servicePort -> 8080.toString) ++
+        RestAPIVersion_v1.requiredProperties ++
+        LoadBalancerService.requiredProperties
 
     // akka-style factory to create a Controller object
     private class ServiceBuilder(config: WhiskConfig, instance: Int) extends Creator[Controller] {
@@ -109,10 +105,9 @@ object Controller {
         // second argument.  (TODO .. seems fragile)
         val instance = if (args.length > 0) args(1).toInt else 0
 
-        val system = ActorSystem("controller-actor-system")
-
         if (config.isValid) {
             val port = config.servicePort.toInt
+            val system = ActorSystem("controller-actor-system")
             BasicHttpService.startService(system, "controller", "0.0.0.0", port, new ServiceBuilder(config, instance))
         }
     }

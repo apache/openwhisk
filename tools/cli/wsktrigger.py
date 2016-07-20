@@ -82,7 +82,7 @@ class Trigger(Item):
 
     def fire(self, args, props):
         namespace, pname = parseQName(args.name, props)
-        url = 'https://%(apibase)s/namespaces/%(namespace)s/triggers/%(name)s' % {
+        url = '%(apibase)s/namespaces/%(namespace)s/triggers/%(name)s' % {
             'apibase': apiBase(props),
             'namespace': urllib.quote(namespace),
             'name': self.getSafeName(pname)

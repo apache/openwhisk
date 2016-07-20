@@ -23,6 +23,12 @@ import org.apache.commons.io.FileUtils
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
+import spray.json.DefaultJsonProtocol.JsValueFormat
+import spray.json.DefaultJsonProtocol.LongJsonFormat
+import spray.json.DefaultJsonProtocol.StringJsonFormat
+import spray.json.DefaultJsonProtocol.mapFormat
+import spray.json.pimpAny
+
 import common.TestHelpers
 import common.TestUtils
 import common.TestUtils.ANY_ERROR_EXIT
@@ -36,15 +42,12 @@ import common.TestUtils.SUCCESS_EXIT
 import common.TestUtils.TIMEOUT
 import common.TestUtils.UNAUTHORIZED
 import common.TestUtils.ERROR_EXIT
+import common.WhiskProperties
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
-import spray.json.DefaultJsonProtocol.JsValueFormat
-import spray.json.DefaultJsonProtocol.LongJsonFormat
-import spray.json.DefaultJsonProtocol.StringJsonFormat
-import spray.json.DefaultJsonProtocol.mapFormat
-import spray.json.pimpAny
 import whisk.core.entity.WhiskPackage
+
 
 @RunWith(classOf[JUnitRunner])
 class WskBasicTests
@@ -89,6 +92,20 @@ class WskBasicTests
 
     it should "show api build version" in {
         val stdout = wsk.cli(wskprops.overrides ++ Seq("property", "get", "--apibuild")).stdout
+        stdout should include regex ("""(?i)whisk API build\s+201.*""")
+    }
+
+    it should "fail to show api build when setting apihost to bogus value" in {
+        val wsk = new Wsk(usePythonCLI = true)
+        val stdout = wsk.cli(Seq("--apihost", "xxxx.yyyy", "property", "get", "--apibuild"), expectedExitCode = ANY_ERROR_EXIT).stdout
+        stdout should not include regex("""(?i)whisk API build\s+201.*""")
+        stdout should include regex ("Cannot determine API build")
+    }
+
+    it should "show api build using http apihost" in {
+        val wsk = new Wsk(usePythonCLI = true)
+        val apihost = s"http://${WhiskProperties.getControllerHost}:${WhiskProperties.getControllerPort}"
+        val stdout = wsk.cli(Seq("--apihost", apihost, "property", "get", "--apibuild")).stdout
         stdout should include regex ("""(?i)whisk API build\s+201.*""")
     }
 
@@ -397,9 +414,9 @@ class WskBasicTests
     }
 
     /**
-      * Tests creating an nodejs action that throws a whisk.error() response. The error message thrown by the
-      * whisk.error() should be returned.
-      */
+     * Tests creating an nodejs action that throws a whisk.error() response. The error message thrown by the
+     * whisk.error() should be returned.
+     */
     it should "create and invoke a blocking action resulting in a whisk.error response" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "whiskError"
@@ -408,7 +425,7 @@ class WskBasicTests
             }
 
             wsk.action.invoke(name, blocking = true, expectedExitCode = 246)
-              .stderr should include regex (""""error": "This error thrown on purpose by the action."""")
+                .stderr should include regex (""""error": "This error thrown on purpose by the action."""")
     }
 
     it should "invoke a blocking action and get only the result" in withAssetCleaner(wskprops) {
