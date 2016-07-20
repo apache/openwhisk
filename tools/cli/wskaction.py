@@ -132,7 +132,7 @@ class Action(Item):
     # invokes the action and returns HTTP response
     def doInvoke(self, args, props):
         namespace, pname = parseQName(args.name, props)
-        url = 'https://%(apibase)s/namespaces/%(namespace)s/actions/%(name)s?blocking=%(blocking)s&result=%(result)s' % {
+        url = '%(apibase)s/namespaces/%(namespace)s/actions/%(name)s?blocking=%(blocking)s&result=%(result)s' % {
             'apibase': apiBase(props),
             'namespace': urllib.quote(namespace),
             'name': self.getSafeName(pname),

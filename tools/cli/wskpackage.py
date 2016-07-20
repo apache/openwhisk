@@ -77,7 +77,7 @@ class Package(Item):
 
     def bind(self, args, props):
         namespace, pname = parseQName(args.name, props)
-        url = 'https://%(apibase)s/namespaces/%(namespace)s/packages/%(name)s' % {
+        url = '%(apibase)s/namespaces/%(namespace)s/packages/%(name)s' % {
             'apibase': apiBase(props),
             'namespace': urllib.quote(namespace),
             'name': self.getSafeName(pname)
@@ -106,7 +106,7 @@ class Package(Item):
 
     def refresh(self, args, props):
         namespace, _ = parseQName(args.name, props)
-        url = 'https://%(apibase)s/namespaces/%(namespace)s/packages/refresh' % {
+        url = '%(apibase)s/namespaces/%(namespace)s/packages/refresh' % {
             'apibase': apiBase(props),
             'namespace': urllib.quote(namespace)
         }

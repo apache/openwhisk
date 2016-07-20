@@ -47,7 +47,7 @@ class Namespace:
             return self.listEntitiesInNamespace(args, props)
 
     def listNamespaces(self, args, props):
-        url = 'https://%(apibase)s/namespaces' % { 'apibase': apiBase(props) }
+        url = '%(apibase)s/namespaces' % { 'apibase': apiBase(props) }
         res = request('GET', url, auth=args.auth, verbose=args.verbose)
 
         if res.status == httplib.OK:
@@ -61,7 +61,7 @@ class Namespace:
 
     def listEntitiesInNamespace(self, args, props):
         namespace, _ = parseQName(args.name, props)
-        url = 'https://%(apibase)s/namespaces/%(namespace)s' % { 'apibase': apiBase(props), 'namespace': urllib.quote(namespace) }
+        url = '%(apibase)s/namespaces/%(namespace)s' % { 'apibase': apiBase(props), 'namespace': urllib.quote(namespace) }
         res = request('GET', url, auth=args.auth, verbose=args.verbose)
 
         if res.status == httplib.OK:

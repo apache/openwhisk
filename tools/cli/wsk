@@ -161,7 +161,7 @@ def propCmd(args, props, userprops, propsLocation):
         if args.namespace:
             if args.apihost is not None:
                 props['apihost'] = args.apihost
-            url = 'https://%(apibase)s/namespaces/' % { 'apibase': apiBase(props) }
+            url = '%(apibase)s/namespaces/' % { 'apibase': apiBase(props) }
             if args.auth:
                 auth = args.auth
             else:
@@ -221,26 +221,26 @@ def propCmd(args, props, userprops, propsLocation):
             print 'whisk CLI version\t%s' % props['clibuild']
         if args.all or args.apibuild:
             if props['apihost'] is not None:
-                url = 'https://%(apibase)s' % { 'apibase' : apiBase(props) }
+                url = '%(apibase)s' % { 'apibase' : apiBase(props) }
                 res = request('GET', url, verbose=args.verbose)
                 if res.status == httplib.OK:
                     result = json.loads(res.read())
                     print 'whisk API build\t\t%s' % result['build']
                 else:
-                    print 'whisk API build\t\tCannot determine API build:',
-                    return responseError(res, prefix=None)
+                    print 'whisk API build\t\tCannot determine API build',
+                    return responseError(res, prefix = None)
             else:
                 print 'whisk API build\t\tNone',
         if args.all or args.apibuildno:
             if props['apihost'] is not None:
-                url = 'https://%(apibase)s' % { 'apibase' : apiBase(props) }
+                url = '%(apibase)s' % { 'apibase' : apiBase(props) }
                 res = request('GET', url, verbose=args.verbose)
                 if res.status == httplib.OK:
                     result = json.loads(res.read())
                     print 'whisk API buildno\t%s' % result['buildno']
                 else:
-                    print 'whisk API build\t\tCannot determine API buildno:',
-                    return responseError(res, prefix=None)
+                    print 'whisk API build\t\tCannot determine API buildno',
+                    return responseError(res, prefix = None)
             else:
                 print 'whisk API buildno\t\tNone',
         return 0

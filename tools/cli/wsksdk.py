@@ -17,7 +17,7 @@
 import os
 import subprocess
 import httplib
-from wskutil import request
+from wskutil import hostBase, request
 
 #
 # 'wsk sdk' CLI
@@ -61,7 +61,7 @@ class Sdk:
         if os.path.exists(blackboxDir):
             print('The path ' + blackboxDir + ' already exists.  Please delete it and retry.')
             return -1
-        url = 'https://%s/%s' % (props['apihost'], tarFile)
+        url = '%s/%s' % (hostBase(props), tarFile)
         try:
             res = request('GET', url)
             if res.status == httplib.OK:
@@ -83,14 +83,14 @@ class Sdk:
         if os.path.exists(zipFile):
             print('The path ' + zipFile + ' already exists.  Please delete it and retry.')
             return -1
-        url = 'https://%s/%s' % (props['apihost'], zipFile)
+        url = '%s/%s' % (hostBase(props), zipFile)
         try:
             res = request('GET', url)
             if res.status == httplib.OK:
                 with open(zipFile, 'wb') as f:
                     f.write(res.read())
 
-        except IOError as e:
+        except IOError:
             print('Download of OpenWhisk iOS starter app failed.')
             return -1
         print('\nDownloaded OpenWhisk iOS starter app. Unzip ' + zipFile + ' and open the project in Xcode.')

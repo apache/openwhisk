@@ -108,7 +108,7 @@ object Config extends Logging {
 
         consulString match {
             case Some(consul) => {
-                info("config", s"reading properties from consul at $consul")
+                info(this, s"reading properties from consul at $consul")
                 val kvStore = new ConsulKV(consul)
 
                 val whiskProps = kvStore.getRecurse(ConsulKV.WhiskProps.whiskProps)
@@ -126,7 +126,7 @@ object Config extends Logging {
                     }
                 }
             }
-            case _ => info("config", "no consul server defined.")
+            case _ => info(this, "no consul server defined")
         }
     }
 
@@ -139,7 +139,7 @@ object Config extends Logging {
             val envp = p.replace('.', '_').toUpperCase
             val envv = sys.env.get(envp)
             if (envv.isDefined) {
-                info("config", s"environment set value for $p")
+                info(this, s"environment set value for $p")
                 properties += p -> envv.get
             }
         }
@@ -151,16 +151,16 @@ object Config extends Logging {
      */
     def readPropertiesFromFile(properties: Settings, file: File) = {
         if (file != null && file.exists) {
-            info("config", s"reading properties from file $file")
+            info(this, s"reading properties from file $file")
             for (line <- Source.fromFile(file).getLines if line.trim != "") {
                 val parts = line.split('=')
                 if (parts.length >= 1) {
                     val p = parts(0).trim
                     val v = if (parts.length == 2) parts(1).trim else ""
                     properties += p -> v
-                    info("config", s"properties file set value for $p")
+                    info(this, s"properties file set value for $p")
                 } else {
-                    warn("config", s"ignoring properties $line")
+                    warn(this, s"ignoring properties $line")
                 }
             }
         }
@@ -177,7 +177,7 @@ object Config extends Logging {
             required.keys.map { p =>
                 val v = properties(p)
                 if (v == null) {
-                    error("config", s"required property $p still not set")
+                    error(this, s"required property $p still not set")
                     false
                 } else true
             }.reduce((x: Boolean, y: Boolean) => x & y)

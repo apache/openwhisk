@@ -154,7 +154,7 @@ class Item:
         namespace, pname = parseQName(args.name, props)
         if pname:
             pname = ('/%s' % pname) if pname.endswith('/') else '/%s/' % pname
-        url = 'https://%(apibase)s/namespaces/%(namespace)s/%(collection)s%(package)s?skip=%(skip)s&limit=%(limit)s%(public)s' % {
+        url = '%(apibase)s/namespaces/%(namespace)s/%(collection)s%(package)s?skip=%(skip)s&limit=%(limit)s%(public)s' % {
             'apibase': apiBase(props),
             'namespace': urllib.quote(namespace),
             'collection': self.collection,
@@ -178,7 +178,7 @@ class Item:
     # returns the HTTP response for saving an item.
     def httpPut(self, args, props, update, payload):
         namespace, pname = parseQName(args.name, props)
-        url = 'https://%(apibase)s/namespaces/%(namespace)s/%(collection)s/%(name)s%(update)s' % {
+        url = '%(apibase)s/namespaces/%(namespace)s/%(collection)s/%(name)s%(update)s' % {
             'apibase': apiBase(props),
             'namespace': urllib.quote(namespace),
             'collection': self.collection,
@@ -202,7 +202,7 @@ class Item:
         if pname is None or pname.strip() == '':
             print 'error: entity name missing, did you mean to list collection'
             sys.exit(2)
-        url = 'https://%(apibase)s/namespaces/%(namespace)s/%(collection)s/%(name)s' % {
+        url = '%(apibase)s/namespaces/%(namespace)s/%(collection)s/%(name)s' % {
             'apibase': apiBase(props),
             'namespace': urllib.quote(namespace),
             'collection': self.collection,
@@ -218,7 +218,7 @@ class Item:
             return code
 
         namespace, pname = parseQName(args.name, props)
-        url = 'https://%(apibase)s/namespaces/%(namespace)s/%(collection)s/%(name)s' % {
+        url = '%(apibase)s/namespaces/%(namespace)s/%(collection)s/%(name)s' % {
             'apibase': apiBase(props),
             'namespace': urllib.quote(namespace),
             'collection': self.collection,
