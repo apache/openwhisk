@@ -246,7 +246,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     it should "reject create with exec which is too big" in {
         implicit val tid = transid()
-        val code = "a" * (actionLimit.toBytes / 2L).toInt + 1
+        val code = "a" * ((actionLimit.toBytes / 2L).toInt + 1)
         val content = s"""{"exec":{"kind":"python","code":"$code"}}""".stripMargin.parseJson.asJsObject
         Put(s"$collectionPath/${aname}", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(RequestEntityTooLarge)
@@ -257,7 +257,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     it should "reject update with exec which is too big" in {
         implicit val tid = transid()
         val oldCode = "function main()"
-        val code = "a" * (actionLimit.toBytes / 2L).toInt + 1
+        val code = "a" * ((actionLimit.toBytes / 2L).toInt + 1)
         val action = WhiskAction(namespace, aname, Exec.js("??"))
         val content = s"""{"exec":{"kind":"python","code":"$code"}}""".stripMargin.parseJson.asJsObject
         put(entityStore, action)

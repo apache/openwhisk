@@ -95,7 +95,7 @@ class ActionTests
      */
     it should "fail on creating an action with exec which is too big" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val name = "TestActionCausingParamsTooBig"
+            val name = "TestActionCausingExecTooBig"
 
             val actionCode = new File(s"$testActionsDir${File.separator}$name.js")
             actionCode.createNewFile()

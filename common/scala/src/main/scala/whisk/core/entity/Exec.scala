@@ -89,7 +89,7 @@ protected[core] case class BlackBoxExec(image: String) extends Exec(Exec.BLACKBO
 
 protected[core] case class SequenceExec(code: String, components: Vector[String]) extends Exec(Exec.SEQUENCE) {
     val image = "whisk/nodejsaction"
-    def size = (code sizeInBytes) + components.map(_ sizeInBytes).reduce(_ + _)
+    def size = components.map(_ sizeInBytes).reduce(_ + _)
 }
 
 protected[core] object Exec
