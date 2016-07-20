@@ -784,7 +784,7 @@ sealed trait RunWskCmd {
             showCmd: Boolean = false): RunResult = {
         val args = baseCommand
         if (verbose) args += "--verbose"
-        if (showCmd) println(params.mkString(" "))
+        if (showCmd) println(args +" "+ params.mkString(" "))
         val rr = TestUtils.runCmd(DONTCARE_EXIT, workingDir, TestUtils.logger, sys.env ++ env, args ++ params: _*)
         rr.validateExitCode(expectedExitCode)
         rr

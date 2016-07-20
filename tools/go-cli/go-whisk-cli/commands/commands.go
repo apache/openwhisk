@@ -147,6 +147,7 @@ func parseArgs(args []string) ([]string, []string, []string, error) {
 func Execute() error {
     var err error
 
+    whisk.Debug(whisk.DbgInfo, "wsk args: %#v\n", os.Args)
     os.Args, flags.common.param, flags.common.annotation, err = parseArgs(os.Args)
 
     if err != nil {

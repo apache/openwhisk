@@ -21,6 +21,10 @@ import static org.junit.Assert.assertTrue;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.FileSystems;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
@@ -28,6 +32,7 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.Collections;
+import java.util.UUID;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonArray;
@@ -325,5 +330,47 @@ public class TestUtils {
         RunResult rr = new RunResult(exitCode, new String(bl.getStdout()), new String(bl.getStderr()));
         rr.validateExitCode(expectedExitCode);
         return rr;
+    }
+
+    /**
+     * WARNING: Consider using the WSK_CONFIG_FILE environment variable in
+     *          tests that will be manipulating the CLI property values.
+     *          Use this method only after determining WSK_CONFIG_FILE will
+     *          not work for the test case.
+     */
+    public static File backupWskProps() throws IOException {
+        String homedir = System.getProperty("user.home");
+        Path wskpropsPath = FileSystems.getDefault().getPath(homedir, ".wskprops");
+        String tempfileName =  UUID.randomUUID().toString()+".wskprops";
+        Path tempfilePath = FileSystems.getDefault().getPath(homedir, tempfileName);
+        try {
+            Files.copy(wskpropsPath, tempfilePath, StandardCopyOption.REPLACE_EXISTING );
+        }
+        catch (IOException e) {
+            throw e;
+        }
+        return tempfilePath.toFile();
+    }
+
+    /**
+     * WARNING: Consider using the WSK_CONFIG_FILE environment variable in
+     *          tests that will be manipulating the CLI property values.
+     *          Use this method only after determining WSK_CONFIG_FILE will
+     *          not work for the test case.
+     */
+    public static void restoreWskProps(File backupWskProps) throws IOException {
+        String homedir = System.getProperty("user.home");
+        Path wskpropsPath = FileSystems.getDefault().getPath(homedir, ".wskprops");
+        try {
+            Files.copy(backupWskProps.toPath(), wskpropsPath, StandardCopyOption.REPLACE_EXISTING );
+        }
+        catch (IOException e) {
+            throw e;
+        }
+    }
+
+    public static File getWskPropsFile() {
+        String homedir = System.getProperty("user.home");
+        return new File(homedir + File.separator + ".wskprops");
     }
 }

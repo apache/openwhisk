@@ -42,7 +42,7 @@ var Properties struct {
 }
 
 const DefaultAuth       string = ""
-const DefaultAPIHost    string = "openwhisk.ng.bluemix.net"
+const DefaultAPIHost    string = ""
 const DefaultAPIVersion string = "v1"
 const DefaultAPIBuild   string = ""
 const DefaultAPIBuildNo string = ""
@@ -227,7 +227,7 @@ var propertyGetCmd = &cobra.Command{
         if !(flags.property.all || flags.property.auth ||
              flags.property.apiversion || flags.property.cliversion ||
              flags.property.namespace || flags.property.apibuild ||
-             flags.property.apibuildno) {
+             flags.property.apihost || flags.property.apibuildno) {
             flags.property.all = true
         }
 
