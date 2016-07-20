@@ -191,7 +191,7 @@ var triggerCreateCmd = &cobra.Command{
 
 
             feedParams = append(feedParams, "authKey")
-            feedParams = append(feedParams, flags.global.auth)  // MWD ?? only from CLI arg
+            feedParams = append(feedParams, client.Config.AuthToken)
 
             //parameters = whisk.Parameters{}
             parameters = nil
@@ -481,7 +481,7 @@ var triggerDeleteCmd = &cobra.Command{
             feedParams = append(feedParams, fullTriggerName)
 
             feedParams = append(feedParams, "authKey")
-            feedParams = append(feedParams, flags.global.auth)  // MWD ?? only from CLI arg
+            feedParams = append(feedParams, client.Config.AuthToken)
 
             err = deleteFeed(qName.entityName, fullFeedName, feedParams)
             if err != nil {
