@@ -301,7 +301,7 @@ class Invoker(
                     producer.send("completed", completeMsg) map { status =>
                         info(this, s"posted completion of activation ${msg.activationId}")
                     }
-                    val contents = getContainerLogs(con, action.limits.logs.getOrElse(LogLimit()))
+                    val contents = getContainerLogs(con, action.limits.logs)
                     // Force delete the container instead of just pausing it iff the initialization failed or the container
                     // failed otherwise. An example of a ContainerError is the timeout of an action in which case the
                     // container is to be removed to prevent leaking

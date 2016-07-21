@@ -22,6 +22,8 @@ import spray.json.JsNumber
 import spray.json.JsValue
 import spray.json.RootJsonFormat
 import spray.json.deserializationError
+import scala.util.Success
+import scala.util.Failure
 
 /**
  * LogLimit encapsulates allowed amount of logs written by an action.
@@ -29,6 +31,9 @@ import spray.json.deserializationError
  * It is a value type (hence == is .equals, immutable and cannot be assigned null).
  * The constructor is private so that argument requirements are checked and normalized
  * before creating a new instance.
+ *
+ * FIXME: Int because of JSON deserializer vs. <code>ByteSize</code> and compatibility
+ * with <code>MemoryLimit</code>
  *
  * @param megabytes the memory limit in megabytes for the action
  */
@@ -43,15 +48,15 @@ protected[core] object LogLimit extends ArgNormalizer[LogLimit] {
     protected[core] def apply(): LogLimit = new LogLimit(STD_LOGSIZE)
 
     /**
-     * Creates LogLimit for limit. Only the default limit is allowed currently
+     * Creates LogLimit for limit. Only the default limit is allowed currently.
      *
      * @param megabytes the limit in megabytes, must be within permissible range
      * @return LogLimit with limit set
      * @throws IllegalArgumentException if limit does not conform to requirements
      */
     @throws[IllegalArgumentException]
-    protected[core] def apply(megabytes: Int): LogLimit = {
-        require(megabytes == STD_LOGSIZE, "only standard log limit allowed")
+    private def apply(megabytes: Int): LogLimit = {
+        require(megabytes == STD_LOGSIZE, s"only standard log limit of '$STD_LOGSIZE' (megabytes) allowed")
         new LogLimit(megabytes);
     }
 
@@ -62,6 +67,10 @@ protected[core] object LogLimit extends ArgNormalizer[LogLimit] {
             val JsNumber(mb) = value
             require(mb.isWhole(), "log limit must be whole number")
             LogLimit(mb.intValue)
-        } getOrElse deserializationError("log limit malformed")
+        } match {
+            case Success(limit)                       => limit
+            case Failure(e: IllegalArgumentException) => deserializationError(e.getMessage, e)
+            case Failure(e: Throwable)                => deserializationError("log limit malformed", e)
+        }
     }
 }

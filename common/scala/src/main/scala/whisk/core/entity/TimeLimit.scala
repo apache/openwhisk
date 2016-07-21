@@ -26,6 +26,8 @@ import spray.json.JsNumber
 import spray.json.RootJsonFormat
 import scala.util.Try
 import scala.language.postfixOps
+import scala.util.Failure
+import scala.util.Success
 
 /**
  * TimeLimit encapsulates a duration for an action. The duration must be within a
@@ -87,6 +89,10 @@ protected[core] object TimeLimit extends ArgNormalizer[TimeLimit] {
             val JsNumber(ms) = value
             require(ms.isWhole, "time limit must be whole number")
             TimeLimit(ms.intValue)
-        } getOrElse deserializationError("time limit malformed")
+        } match {
+            case Success(limit)                       => limit
+            case Failure(e: IllegalArgumentException) => deserializationError(e.getMessage, e)
+            case Failure(e: Throwable)                => deserializationError("time limit malformed", e)
+        }
     }
 }

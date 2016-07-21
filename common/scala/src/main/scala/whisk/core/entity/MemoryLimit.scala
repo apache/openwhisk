@@ -22,6 +22,8 @@ import spray.json.JsNumber
 import spray.json.JsValue
 import spray.json.RootJsonFormat
 import spray.json.deserializationError
+import scala.util.Failure
+import scala.util.Success
 
 /**
  * MemoyLimit encapsulates allowed memory for an action. The limit must be within a
@@ -66,6 +68,10 @@ protected[core] object MemoryLimit extends ArgNormalizer[MemoryLimit] {
             val JsNumber(mb) = value
             require(mb.isWhole(), "memory limit must be whole number")
             MemoryLimit(mb.intValue)
-        } getOrElse deserializationError("memory limit malformed")
+        } match {
+            case Success(limit)                       => limit
+            case Failure(e: IllegalArgumentException) => deserializationError(e.getMessage, e)
+            case Failure(e: Throwable)                => deserializationError("memory limit malformed", e)
+        }
     }
 }

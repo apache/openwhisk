@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package system.basic
+package limits
 
 import java.io.File
 
@@ -47,9 +47,7 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 
 @RunWith(classOf[JUnitRunner])
-class ActionTests
-    extends TestHelpers
-    with WskTestHelpers {
+class ActionLimitsTests extends TestHelpers with WskTestHelpers {
 
     implicit val wskprops = WskProps()
     val wsk = new Wsk()
@@ -60,7 +58,7 @@ class ActionTests
     val testActionsDir = WhiskProperties.getFileRelativeToWhiskHome("tests/dat/actions")
     val actionCodeLimit = Exec.sizeLimit
 
-    behavior of "Actions CLI"
+    behavior of "Action limits"
 
     /**
      * Test a long running action that exceeds the maximum execution time allowed for action
@@ -115,7 +113,7 @@ class ActionTests
                 val lines = response.fields("logs").convertTo[List[String]]
                 lines.last should be("Logs have been truncated because they exceeded the limit of 10 megabytes")
                 // dropping 39 characters (timestamp + streamname)
-                lines.dropRight(1).map(_.drop(39)).mkString.sizeInBytes should be < allowedSize
+                lines.dropRight(1).map(_.drop(39)).mkString.sizeInBytes should be <= allowedSize
             }
     }
 
@@ -129,6 +127,9 @@ class ActionTests
 
             val run = wsk.action.invoke(name)
             withActivation(wsk.activation, run) { response =>
+                val logs = response.fields("logs").convertTo[List[String]]
+                logs.size shouldBe 1
+                logs.head should include("0123456789abcdef")
                 response.fields("response").asJsObject.fields("result").toString should include(s""""msg":1""")
                 response.fields("response").asJsObject.fields("status").toString should include("success")
             }

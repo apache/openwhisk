@@ -49,7 +49,7 @@ protected[entity] abstract class Limits {
  * @param logs the limit for logs written by the container being written to the database.
  *     <code>Option</code> for database schema migration
  */
-protected[core] case class ActionLimits protected[core] (timeout: TimeLimit, memory: MemoryLimit, logs: Option[LogLimit] = Some(LogLimit())) extends Limits {
+protected[core] case class ActionLimits protected[core] (timeout: TimeLimit, memory: MemoryLimit, logs: LogLimit = LogLimit()) extends Limits {
     override protected[entity] def toJson = ActionLimits.serdes.write(this)
 }
 
@@ -71,10 +71,13 @@ protected[core] object ActionLimits
         val helper = jsonFormat3(ActionLimits.apply)
 
         def read(value: JsValue) = {
-            val inter = helper.read(value)
-            inter.copy(logs = Some(inter.logs.getOrElse(LogLimit())))
+            val obj = Try { value.asJsObject.convertTo[Map[String, JsValue]] }.getOrElse(deserializationError("no valid json object passed"))
+            val time = TimeLimit.serdes.read(obj.get("timeout").getOrElse(deserializationError("'timeout' is missing")))
+            val memory = MemoryLimit.serdes.read(obj.get("memory").getOrElse(deserializationError("'memory' is missing")))
+            val logs = obj.get("logs").map { LogLimit.serdes.read(_) }.getOrElse(LogLimit())
+            ActionLimits(time, memory, logs)
         }
-        def write(a: ActionLimits) = helper.write(a.copy(logs = Some(a.logs.getOrElse(LogLimit()))))
+        def write(a: ActionLimits) = helper.write(a)
     }
 }
 

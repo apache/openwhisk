@@ -50,9 +50,10 @@ import whisk.core.entity.SemVer
 import whisk.core.entity.TimeLimit
 import whisk.core.entity.LogLimit
 import whisk.core.entity.UUID
+import org.scalatest.Matchers
 
 @RunWith(classOf[JUnitRunner])
-class SchemaTests extends FlatSpec with BeforeAndAfter {
+class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
 
     behavior of "AuthKey"
 
@@ -346,6 +347,19 @@ class SchemaTests extends FlatSpec with BeforeAndAfter {
                 ActionLimits.serdes.read(p)
             }
         }
+    }
+
+    it should "pass the correct error message through" in {
+        val floatNumber = JsNumber(2.5)
+
+        val logException = the[DeserializationException] thrownBy LogLimit.serdes.read(floatNumber)
+        logException.getMessage should include("log limit must be whole number")
+
+        val timeException = the[DeserializationException] thrownBy TimeLimit.serdes.read(floatNumber)
+        timeException.getMessage should include("time limit must be whole number")
+
+        val memoryException = the[DeserializationException] thrownBy MemoryLimit.serdes.read(floatNumber)
+        memoryException.getMessage should include("memory limit must be whole number")
     }
 
     it should "reject bad limit values" in {
