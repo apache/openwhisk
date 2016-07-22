@@ -167,22 +167,27 @@ Rather than pass all the parameters to an action every time, you can bind certai
 
 ### Creating asynchronous actions
 
-JavaScript functions that continue execution in a callback function might need to return the activation result after the `main` function has returned. You can accomplish this using the `whisk.async()` and `whisk.done()` functions in your action.
+JavaScript functions that continue execution in a callback function might need to return the activation result after the `main` function has returned. You can accomplish this by returning a Promise in your action.
 
 1. Save the following content in a file called `asyncAction.js`.
 
   ```
-  function main() {
-      setTimeout(function() {
-          return whisk.done({done: true});
-      }, 20000);
-      return whisk.async();
-  }
+  function main(args) {
+       return new Promise(function(resolve, reject) {
+         setTimeout(function() {
+           resolve({ done: true });
+         }, 2000);
+      })
+   }
   ```
 
-  Notice that the `main` function returns immediately, and the `whisk.async()` return value indicates that this activation should continue running.
+  Notice that the `main` function returns a Promise, which indicates that the activation hasn't completed yet, but is expected to in the future.
 
-  The `setTimeout()` JavaScript function in this case waits for twenty seconds before calling the callback function, where the call to `whisk.done()` indicates that the activation is complete.
+  The `setTimeout()` JavaScript function in this case waits for twenty seconds before calling the callback function.  This represents the asynchronous code and goes inside the Promise's callback function. 
+  
+  The Promise's callback takes two arguments, resolve and reject, which are both functions.  The call to `resolve()` fulfills the Promise and indicates that the activation has completed normally.
+  
+  A call to `reject()` can be used to reject the Promise and signal that the activation has completed abnormally.
 
 2. Run the following commands to create the action and invoke it:
 
@@ -239,21 +244,26 @@ This example invokes a Yahoo Weather service to get the current conditions at a 
         var location = params.location || 'Vermont';
         var url = 'https://query.yahooapis.com/v1/public/yql?q=select item.condition from weather.forecast where woeid in (select woeid from geo.places(1) where text="' + location + '")&format=json';
     
-        request.get(url, function(error, response, body) {
-            var condition = JSON.parse(body).query.results.channel.item.condition;
-            var text = condition.text;
-            var temperature = condition.temp;
-            var output = 'It is ' + temperature + ' degrees in ' + location + ' and ' + text;
-            whisk.done({msg: output});
+        return new Promise(function(resolve, reject) {
+            request.get(url, function(error, response, body) {
+                if (error) {
+                    reject(error);    
+                } 
+                else {
+                    var condition = JSON.parse(body).query.results.channel.item.condition;
+                    var text = condition.text;
+                    var temperature = condition.temp;
+                    var output = 'It is ' + temperature + ' degrees in ' + location + ' and ' + text;
+                    resolve({msg: output});
+                }
+            });
         });
-    
-        return whisk.async();
     }
   ```
 
   Note that the action in the example uses the JavaScript `request` library to make an HTTP request to the Yahoo Weather API, and extracts fields from the JSON result. The [References](./reference.md#runtime-environment) detail the Node.js packages that you can use in your actions.
   
-  This example also shows the need for asynchronous actions. The action returns `whisk.async()` to indicate that the result of this action is not available yet when the function returns. Instead, the result is available in the `request` callback after the HTTP call completes, and is passed as an argument to the `whisk.done()` function.
+  This example also shows the need for asynchronous actions. The action returns a Promise to indicate that the result of this action is not available yet when the function returns. Instead, the result is available in the `request` callback after the HTTP call completes, and is passed as an argument to the `resolve()` function.
 
 2. Run the following commands to create the action and invoke it:
   ```
