@@ -466,7 +466,7 @@ class WskBasicTests
             wsk.trigger.list().stdout should include(name)
     }
 
-    it should "create a trigger using property file" in withAssetCleaner(wskprops) {
+    ignore should "create a trigger using property file" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "listTriggers"
             val tmpProps = File.createTempFile("wskprops", ".tmp")
