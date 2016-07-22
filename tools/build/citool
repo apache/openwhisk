@@ -39,6 +39,7 @@ import argparse
 import httplib
 import re
 import threading
+import json
 from xml.dom import minidom
 from subprocess import Popen, PIPE, STDOUT
 from urlparse import urlparse
@@ -67,7 +68,7 @@ def parseArgs():
     parser.add_argument('-v', '--verbose', help='verbose output', action='store_true')
     parser.add_argument('-i', '--input-file', help='read logs from file rather than CI', action='store_true', dest='ifile')
     parser.add_argument('-o', '--output-file', help='store intermediate buffer to a file (e.g., jenkins console or component logs)', action='store_true', dest='ofile')
-    parser.add_argument('-u', '--url', help='URL for CI build job (default is Travis CI)', default='https://api.travis-ci.org/')
+    parser.add_argument('-u', '--url', help='URL for CI build job (default is Travis CI)', default='https://api.travis-ci.org')
 
     subparser = subparsers.add_parser('monitor', help='report passing or failing tests (only failing tests by default)')
     subparser.add_argument('-a', '--all', help='show all tests suites, passing and failing', action='store_true')
@@ -92,7 +93,7 @@ def request(method, urlString, body = "", headers = {}, auth = None, verbose = F
     if verbose:
         print "%s %s" % (method, urlString)
 
-    conn.request(method.upper(), urlString, body)
+    conn.request(method.upper(), urlString, body, headers = headers)
     res = conn.getresponse()
 
     if verbose:
@@ -113,9 +114,23 @@ def shell(cmd, data=None, verbose=False):
     delta = end - start
     return (delta, out, err)
 
+def getTravisHeaders():
+    return {'User-Agent': 'wsk citool/0.0.1',
+            'Accept': 'application/vnd.travis-ci.2+json'
+    }
+
 def getJobUrl(args):
     if args.build.lower() == 'travis':
-        job = int(args.job) + 1 # travis job is N logs are at N+1
+        # Get build information
+        buildUrl = '%s/builds/%s' % (args.url, args.job)
+        buildRes = request('get', buildUrl, headers = getTravisHeaders(), verbose = args.verbose)
+        body = validateResponse(buildRes)
+        try:
+            body = json.loads(body)
+            job = body['build']['job_ids'][-1]
+        except Exception:
+            print('expected response to contain build and job-ids properties in %s' % body)
+            exit(-1)
         url = '%s/jobs/%s' % (args.url, job)
     else: # assume jenkins
         url = '%s/job/%s/%s' % (args.url, args.build, args.job)
@@ -144,18 +159,12 @@ def monitorOnce(args):
             res = request('get', url, verbose = args.verbose)
             if res.status == httplib.TEMPORARY_REDIRECT:
                 url = res.getheader('location')
-                res = request('get', url, verbose = args.verbose)
+                res = request('get', url, headers = getTravisHeaders(), verbose = args.verbose)
         else: # assume jenkins
             url = '%s/logText/progressiveHtml' % getJobUrl(args)
             res = request('get', url, verbose = args.verbose)
-        body = res.read()
-        if res.status != httplib.OK:
-            if body.startswith('<'):
-                dom = minidom.parseString(body)
-                print(dom.toprettyxml()),
-            else:
-                print(body)
-            exit(res.status)
+
+        body = validateResponse(res)
 
     if args.ofile:
         file = open('%s-console.log' % args.job, 'w')
@@ -167,6 +176,22 @@ def monitorOnce(args):
     elif args.ofile is False:
         print(body)
         return res.status
+
+def validateResponse(res):
+    body = res.read()
+
+    if res.status != httplib.OK:
+        if body.startswith('<'):
+            dom = minidom.parseString(body)
+            print(dom.toprettyxml()),
+        else:
+            print(body)
+        exit(res.status)
+    elif not body:
+        print('build log is empty')
+        exit(-1)
+    else:
+        return body
 
 def grepForFailingTests(args, body):
     cmd = 'grep -E "^\w+\.*.*[&gt;|>] \w*.* FAILED%s"' % ("|PASSED" if args.all else "")
