@@ -22,56 +22,55 @@ import spray.json.JsNumber
 import spray.json.JsValue
 import spray.json.RootJsonFormat
 import spray.json.deserializationError
-import scala.util.Failure
 import scala.util.Success
+import scala.util.Failure
 
 /**
- * MemoyLimit encapsulates allowed memory for an action. The limit must be within a
- * permissible range (currently [128MB, 512MB]).
+ * LogLimit encapsulates allowed amount of logs written by an action.
  *
  * It is a value type (hence == is .equals, immutable and cannot be assigned null).
  * The constructor is private so that argument requirements are checked and normalized
  * before creating a new instance.
  *
+ * FIXME: Int because of JSON deserializer vs. <code>ByteSize</code> and compatibility
+ * with <code>MemoryLimit</code>
+ *
  * @param megabytes the memory limit in megabytes for the action
  */
-protected[entity] class MemoryLimit private (val megabytes: Int) extends AnyVal {
+protected[core] class LogLimit private (val megabytes: Int) extends AnyVal {
     protected[core] def apply() = megabytes
 }
 
-protected[core] object MemoryLimit extends ArgNormalizer[MemoryLimit] {
-    protected[entity] val MIN_MEMORY = 128 // MB
-    protected[entity] val MAX_MEMORY = 512 // MB
-    protected[core] val STD_MEMORY = 256 // MB
+protected[core] object LogLimit extends ArgNormalizer[LogLimit] {
+    protected[core] val STD_LOGSIZE = 10 // MB
 
-    /** Gets TimeLimit with default duration */
-    protected[core] def apply(): MemoryLimit = new MemoryLimit(STD_MEMORY)
+    /** Gets LogLimit with default log limit */
+    protected[core] def apply(): LogLimit = new LogLimit(STD_LOGSIZE)
 
     /**
-     * Creates MemoryLimit for limit, iff limit is within permissible range.
+     * Creates LogLimit for limit. Only the default limit is allowed currently.
      *
      * @param megabytes the limit in megabytes, must be within permissible range
-     * @return MemoryLimit with limit set
+     * @return LogLimit with limit set
      * @throws IllegalArgumentException if limit does not conform to requirements
      */
     @throws[IllegalArgumentException]
-    protected[core] def apply(megabytes: Int): MemoryLimit = {
-        require(megabytes >= MIN_MEMORY, s"memory $megabytes below allowed threshold")
-        require(megabytes <= MAX_MEMORY, s"memory $megabytes exceeds allowed threshold")
-        new MemoryLimit(megabytes);
+    private def apply(megabytes: Int): LogLimit = {
+        require(megabytes == STD_LOGSIZE, s"only standard log limit of '$STD_LOGSIZE' (megabytes) allowed")
+        new LogLimit(megabytes);
     }
 
-    override protected[core] implicit val serdes = new RootJsonFormat[MemoryLimit] {
-        def write(m: MemoryLimit) = JsNumber(m.megabytes)
+    override protected[core] implicit val serdes = new RootJsonFormat[LogLimit] {
+        def write(m: LogLimit) = JsNumber(m.megabytes)
 
         def read(value: JsValue) = Try {
             val JsNumber(mb) = value
-            require(mb.isWhole(), "memory limit must be whole number")
-            MemoryLimit(mb.intValue)
+            require(mb.isWhole(), "log limit must be whole number")
+            LogLimit(mb.intValue)
         } match {
             case Success(limit)                       => limit
             case Failure(e: IllegalArgumentException) => deserializationError(e.getMessage, e)
-            case Failure(e: Throwable)                => deserializationError("memory limit malformed", e)
+            case Failure(e: Throwable)                => deserializationError("log limit malformed", e)
         }
     }
 }

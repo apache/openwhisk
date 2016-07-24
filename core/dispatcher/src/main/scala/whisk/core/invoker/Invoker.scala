@@ -34,6 +34,7 @@ import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.actor.actorRef2Scala
 import akka.japi.Creator
+import spray.json.DefaultJsonProtocol
 import spray.json.DefaultJsonProtocol.IntJsonFormat
 import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json.JsArray
@@ -86,6 +87,7 @@ import whisk.core.entity.DocId
 import whisk.core.entity.DocInfo
 import whisk.core.entity.DocRevision
 import whisk.core.entity.EntityName
+import whisk.core.entity.LogLimit
 import whisk.core.entity.Namespace
 import whisk.core.entity.NodeJS6Exec
 import whisk.core.entity.NodeJSExec
@@ -100,6 +102,9 @@ import whisk.core.entity.WhiskAuth
 import whisk.core.entity.WhiskAuthStore
 import whisk.core.entity.WhiskEntity
 import whisk.core.entity.WhiskEntityStore
+import whisk.core.entity.ActionLimits
+import whisk.core.entity.size.SizeLong
+import whisk.core.entity.size.SizeString
 import whisk.http.BasicHttpService
 import whisk.utils.ExecutionContextFactory
 
@@ -296,7 +301,7 @@ class Invoker(
                     producer.send("completed", completeMsg) map { status =>
                         info(this, s"posted completion of activation ${msg.activationId}")
                     }
-                    val contents = getContainerLogs(con)
+                    val contents = getContainerLogs(con, action.limits.logs)
                     // Force delete the container instead of just pausing it iff the initialization failed or the container
                     // failed otherwise. An example of a ContainerError is the timeout of an action in which case the
                     // container is to be removed to prevent leaking
@@ -332,47 +337,68 @@ class Invoker(
      *
      * Note: Updates the container's log cursor to indicate consumption of log.
      */
-    private def getContainerLogs(con: WhiskContainer, tries: Int = LogRetryCount)(implicit transid: TransactionId): JsArray = {
+    private def getContainerLogs(con: WhiskContainer, limit: LogLimit, tries: Int = LogRetryCount)(implicit transid: TransactionId): JsArray = {
         val size = con.getLogSize(runningInContainer)
         val advanced = size != con.lastLogSize
         if (tries <= 0 || advanced) {
             val rawLogBytes = con.getDockerLogContent(con.lastLogSize, size, runningInContainer)
             val rawLog = new String(rawLogBytes, "UTF-8")
+
             val isNodeJs = con.image == nodejsImageName || con.image == nodejs6ImageName
-            var isSwift = con.image == swiftImageName || con.image == swift3ImageName
-            val (complete, logArray) = processJsonDriverLogContents(rawLog, isNodeJs || isSwift)
-            if (tries > 0 && !complete) {
+            val isSwift = con.image == swiftImageName || con.image == swift3ImageName
+            val (complete, isTruncated, logs) = processJsonDriverLogContents(rawLog, isNodeJs || isSwift, limit)
+
+            if (tries > 0 && !complete && !isTruncated) {
                 info(this, s"log cursor advanced but missing sentinel, trying $tries more times")
                 Thread.sleep(LogRetry)
-                getContainerLogs(con, tries - 1)
+                getContainerLogs(con, limit, tries - 1)
             } else {
                 con.lastLogSize = size
-                logArray
+                val formattedLogs = logs.map(_.toFormattedString)
+
+                val finishedLogs = if (isTruncated) {
+                    formattedLogs ++ Vector(s"Logs have been truncated because they exceeded the limit of ${limit.megabytes} megabytes")
+                } else formattedLogs
+
+                JsArray(finishedLogs.map(_.toJson))
             }
         } else {
             info(this, s"log cursor has not advanced, trying $tries more times")
             Thread.sleep(LogRetry)
-            getContainerLogs(con, tries - 1)
+            getContainerLogs(con, limit, tries - 1)
         }
     }
 
     /**
-     * Given the json driver's raw incremental output of a docker container,
-     * convert it into our own JSON format.  If asked, check for
-     * sentinel markers (which are not included in the output).
+     * Represents a single log line as read from a docker log
      */
-    private def processJsonDriverLogContents(logMsgs: String, requireSentinel: Boolean)(
-        implicit transid: TransactionId): (Boolean, JsArray) = {
+    private case class LogLine(time: String, stream: String, log: String) {
+        def toFormattedString = f"$time%-30s $stream: ${log.trim}"
+    }
+    private object LogLine extends DefaultJsonProtocol {
+        implicit val serdes = jsonFormat3(LogLine.apply)
+    }
+
+    /**
+     * Given the JSON driver's raw output of a docker container, convert it into our own
+     * JSON format. If asked, check for sentinel markers (which are not included in the output).
+     *
+     * Only parses and returns so much logs to fit into the LogLimit passed.
+     *
+     * @param logMsgs raw String read from a JSON log-driver written file
+     * @param requireSentinel determines if the processor should wait for a sentinel to appear
+     * @param limit the limit to apply to the log size
+     *
+     * @return Tuple containing (isComplete, isTruncated, logs)
+     */
+    private def processJsonDriverLogContents(logMsgs: String, requireSentinel: Boolean, limit: LogLimit)(
+        implicit transid: TransactionId): (Boolean, Boolean, Vector[LogLine]) = {
 
         if (logMsgs.nonEmpty) {
-            val records: Vector[(String, String, String)] = logMsgs.split("\n").toVector flatMap {
+            val records = logMsgs.split("\n").toStream flatMap {
                 line =>
-                    Try { line.parseJson.asJsObject } match {
-                        case Success(t) =>
-                            t.getFields("time", "stream", "log") match {
-                                case Seq(JsString(t), JsString(s), JsString(l)) => Some(t, s, l.trim)
-                                case _ => None
-                            }
+                    Try { line.parseJson.convertTo[LogLine] } match {
+                        case Success(t) => Some(t)
                         case Failure(t) =>
                             // Drop lines that did not parse to JSON objects.
                             // However, should not happen since we are using the json log driver.
@@ -380,23 +406,25 @@ class Invoker(
                             None
                     }
             }
-            if (requireSentinel) {
-                val (sentinels, regulars) = records.partition(_._3 == LOG_ACTIVATION_SENTINEL)
-                val hasOut = sentinels.exists(_._2 == "stdout")
-                val hasErr = sentinels.exists(_._2 == "stderr")
-                (hasOut && hasErr, JsArray(regulars map formatLog))
+
+            val cumulativeSizes = records.scanLeft(0.bytes) { (acc, current) => acc + current.log.sizeInBytes }.tail
+            val truncatedLogs = records.zip(cumulativeSizes).takeWhile(_._2 < limit().megabytes).map(_._1).toVector
+            val isTruncated = truncatedLogs.size < records.size
+
+            if (isTruncated) {
+                (true, true, truncatedLogs)
+            } else if (requireSentinel) {
+                val (sentinels, regulars) = truncatedLogs.partition(_.log.trim == LOG_ACTIVATION_SENTINEL)
+                val hasOut = sentinels.exists(_.stream == "stdout")
+                val hasErr = sentinels.exists(_.stream == "stderr")
+                (hasOut && hasErr, false, regulars)
             } else {
-                (true, JsArray(records map formatLog))
+                (true, false, truncatedLogs)
             }
         } else {
             warn(this, s"log message is empty")
-            (!requireSentinel, JsArray())
+            (!requireSentinel, false, Vector())
         }
-    }
-
-    private def formatLog(time_stream_msg: (String, String, String)) = {
-        val (time, stream, msg) = time_stream_msg
-        f"$time%-30s $stream: ${msg.trim}".toJson
     }
 
     private def processResponseContent(isBlackbox: Boolean, response: Option[(Int, String)])(

@@ -26,10 +26,12 @@ import spray.json.JsNumber
 import spray.json.RootJsonFormat
 import scala.util.Try
 import scala.language.postfixOps
+import scala.util.Failure
+import scala.util.Success
 
 /**
  * TimeLimit encapsulates a duration for an action. The duration must be within a
- * permissible range (currently [100 msecs, 1 minute]).
+ * permissible range (currently [100 msecs, 5 minutes]).
  *
  * It is a value type (hence == is .equals, immutable and cannot be assigned null).
  * The constructor is private so that argument requirements are checked and normalized
@@ -87,6 +89,10 @@ protected[core] object TimeLimit extends ArgNormalizer[TimeLimit] {
             val JsNumber(ms) = value
             require(ms.isWhole, "time limit must be whole number")
             TimeLimit(ms.intValue)
-        } getOrElse deserializationError("time limit malformed")
+        } match {
+            case Success(limit)                       => limit
+            case Failure(e: IllegalArgumentException) => deserializationError(e.getMessage, e)
+            case Failure(e: Throwable)                => deserializationError("time limit malformed", e)
+        }
     }
 }
