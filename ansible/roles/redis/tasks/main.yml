@@ -1,0 +1,8 @@
+---
+# This role will install redis on a machine.
+
+- include: deploy.yml
+  when: mode == "deploy"
+
+- include: clean.yml
+  when: mode == "clean"

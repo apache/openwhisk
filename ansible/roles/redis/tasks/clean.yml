@@ -1,0 +1,9 @@
+---
+# Remove redis container
+
+- name: remove redis
+  docker:
+    name: redis
+    image: redis
+    state: absent
+  ignore_errors: True
