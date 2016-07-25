@@ -35,8 +35,16 @@ def init():
 
     message = payload.get("value", {})
     if "code" in message:
-        # store the code
-        flask.g = message["code"]
+        # store the compiled code
+        try:
+            flask.g = compile(message["code"], filename = 'action', mode = 'exec')
+        except Exception:
+            flask.g = None
+            traceback.print_exc(file = sys.stderr, limit = 0)
+            sys.stderr.flush()
+            response = flask.jsonify({"error": "The action failed to compile. See logs for details." })
+            response.status_code = 502
+            return response
         return ('OK', 200)
     else:
         flask.abort(403)
@@ -56,12 +64,18 @@ def run():
     if not isinstance(value, dict):
         flask.abort(403)
 
+    if flask.g is None:
+        # no code to execute
+        response = flask.jsonify({"error": "No code to execute (compilation failed). See logs for details." })
+        response.status_code = 502
+        return response
+
     # initialize the namespace for the execution
     namespace = {}
     result = None
     try:
+        namespace['param'] = value
         exec(flask.g, namespace)
-        namespace["param"] = value
         exec("fun = main(param)", namespace)
         result = namespace['fun']
     except Exception:
@@ -73,7 +87,7 @@ def run():
         response.status_code = 200
         return response
     else:
-        response = flask.jsonify({ "error": "the action did not return a dictionary", "action_output": result })
+        response = flask.jsonify({"error": "The action did not return a dictionary and returned this instead '%s'." % result })
         response.status_code = 502
         return response
 

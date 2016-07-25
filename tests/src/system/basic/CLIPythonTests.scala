@@ -39,20 +39,21 @@ import spray.json.PimpedAny
 import common.TestHelpers
 import common.WskTestHelpers
 import common.WskProps
+import common.JsHelpers
 
 @RunWith(classOf[JUnitRunner])
 class CLIPythonTests
     extends TestHelpers
     with WskTestHelpers
+    with JsHelpers
     with Matchers {
 
     implicit val wskprops = WskProps()
-    var usePythonCLI = false
-    val wsk = new Wsk(usePythonCLI)
+    val wsk = new Wsk(usePythonCLI = false)
 
     behavior of "Native Python Action"
 
-    it should "invoke a blocking action and get the result" in withAssetCleaner(wskprops) {
+    it should "invoke an action and get the result" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "basicInvoke"
             assetHelper.withCleaner(wsk.action, name) {
@@ -61,6 +62,20 @@ class CLIPythonTests
 
             withActivation(wsk.activation, wsk.action.invoke(name, Map("name" -> "Prince".toJson))) {
                 _.fields("response").toString should include("Prince")
+            }
+    }
+
+    it should "invoke an invalid action and get error back" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "basicInvoke"
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("malformed.py")))
+            }
+
+            withActivation(wsk.activation, wsk.action.invoke(name)) {
+                activation =>
+                    activation.getFieldPath("response", "result", "error") shouldBe Some(JsString("The action failed to compile. See logs for details."))
+                    activation.fields("logs").toString should { not include ("pythonaction.py") and not include ("flask") }
             }
     }
 }
