@@ -102,7 +102,7 @@ class WskBasicTests
         stdout should include regex ("Cannot determine API build")
     }
 
-    it should "show api build using http apihost" in {
+    ignore should "show api build using http apihost" in {
         val wsk = new Wsk(usePythonCLI = true)
         val apihost = s"http://${WhiskProperties.getControllerHost}:${WhiskProperties.getControllerPort}"
         val stdout = wsk.cli(Seq("--apihost", apihost, "property", "get", "--apibuild")).stdout
