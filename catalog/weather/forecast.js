@@ -5,7 +5,8 @@ var request = require('request');
  *
  * Must specify one of zipCode or latitude/longitude.
  *
- * @param apiKey The Weather service API account key.
+ * @param username The Weather service API account username.
+ * @param username The Weather service API account password.
  * @param latitude Latitude of coordinate to get forecast.
  * @param longitude Longitude of coordinate to get forecast.
  * @param zipCode ZIP code of desired forecast.
@@ -13,7 +14,8 @@ var request = require('request');
  */
 function main(params) {
     console.log('input params:', params);
-    var apiKey = params.apiKey;
+    var username = params.username;
+    var password = params.password;
     var lat = params.latitude || '0';
     var lon = params.longitude ||  '0';
     var language = params.language || 'en-US';
@@ -40,7 +42,7 @@ function main(params) {
     }
 
     // Construct url.
-    var url = 'https://' + apiKey + '@twcservice.mybluemix.net/api/weather/v2' + timeURL + '?units=' + units + '&geocode=' + lat + '%2C' + lon + '&language=' + language;
+    var url = 'https://' + username + ":" + password + '@twcservice.mybluemix.net/api/weather/v2' + timeURL + '?units=' + units + '&geocode=' + lat + '%2C' + lon + '&language=' + language;
     console.log('url:', url);
     request({url:url, timeout: 30000}, function (error, response, body) {
         if (!error && response.statusCode === 200) {

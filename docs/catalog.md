@@ -243,22 +243,23 @@ Each generated event will include as parameters the properties specified in the 
 
 ## Using the Weather package
 
-The `/whisk.system/weather` package offers a convenient way to call the IBM Weather Insights API.
+The `/whisk.system/weather` package offers a convenient way to call the Weather Company Data for IBM Bluemix API.
 
 The package includes the following action.
 
 | Entity | Type | Parameters | Description |
 | --- | --- | --- | --- |
-| `/whisk.system/weather` | package | apiKey | Services from IBM Weather Insights API  |
+| `/whisk.system/weather` | package | apiKey | Services from the Weather Company Data for IBM Bluemix API  |
 | `/whisk.system/weather/forecast` | action | apiKey, latitude, longitude, timePeriod | forecast for specified time period|
 
-While not required, it's suggested that you create a package binding with the `apiKey` value. This way you don't need to specify the key every time you invoke the actions in the package.
+While not required, it's suggested that you create a package binding with the `username` and `password` values. This way you don't need to specify the key every time you invoke the actions in the package.
 
 ### Getting a weather forecast for a location
 
 The `/whisk.system/weather/forecast` action returns a weather forecast for a location by calling an API from The Weather Company. The parameters are as follows:
 
-- `apiKey`: An API key for The Weather Company that is entitled to invoke the forecast API.
+- `username`: Username for The Weather Company Data for IBM Bluemix that is entitled to invoke the forecast API.
+- `password`: Password for The Weather Company Data for IBM Bluemix that is entitled to invoke the forecast API.
 - `latitude`: The latitude coordinate of the location.
 - `longitude`: The longitude coordinate of the location.
 - `timeperiod`: Time period for the forecast. Valid options are '10day' - (default) Returns a daily 10-day forecast , '24hour' - Returns an hourly 2-day forecast, , 'current' - Returns the current weather conditions, 'timeseries' - Returns both the current observations and up to 24 hours of past observations, from the current date and time. 
