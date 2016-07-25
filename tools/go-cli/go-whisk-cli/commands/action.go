@@ -171,9 +171,9 @@ var actionInvokeCmd = &cobra.Command{
     if len(flags.common.param) > 0 {
       whisk.Debug(whisk.DbgInfo, "Parsing parameters: %#v\n", flags.common.param)
 
-      parameters, err := parseParameters(flags.common.param)
+      parameters, err := getJSONFromArguments(flags.common.param, false)
       if err != nil {
-        whisk.Debug(whisk.DbgError, "parseParameters(%#v) failed: %s\n", flags.common.param, err)
+        whisk.Debug(whisk.DbgError, "getJSONFromArguments(%#v, false) failed: %s\n", flags.common.param, err)
         errMsg := fmt.Sprintf("Invalid parameter argument '%#v': %s", flags.common.param, err)
         whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
           whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
@@ -462,25 +462,25 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
     sharedSet = false
   }
 
-  whisk.Debug(whisk.DbgInfo, "Parsing parameters: %#v\n", flags.common.param)
-  parameters, err := parseParametersArray(flags.common.param)
-  if err != nil {
-    whisk.Debug(whisk.DbgError, "parseParametersArray(%#v) failed: %s\n", flags.common.param, err)
-    errMsg := fmt.Sprintf("Invalid parameter argument '%#v': %s", flags.common.param, err)
-    whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-      whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-    return nil, sharedSet, whiskErr
-  }
+    whisk.Debug(whisk.DbgInfo, "Parsing parameters: %#v\n", flags.common.param)
+    parameters, err := getJSONFromArguments(flags.common.param, true)
+    if err != nil {
+        whisk.Debug(whisk.DbgError, "getJSONFromArguments(%#v, true) failed: %s\n", flags.common.param, err)
+        errMsg := fmt.Sprintf("Invalid parameter argument '%#v': %s", flags.common.param, err)
+        whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+            whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+        return nil, sharedSet, whiskErr
+    }
 
-  whisk.Debug(whisk.DbgInfo, "Parsing annotations: %#v\n", flags.common.annotation)
-  annotations, err := parseAnnotations(flags.common.annotation)
-  if err != nil {
-    whisk.Debug(whisk.DbgError, "parseAnnotations(%#v) failed: %s\n", flags.common.annotation, err)
-    errMsg := fmt.Sprintf("Invalid annotation argument '%#v': %s", flags.common.annotation, err)
-    whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-      whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-    return nil, sharedSet, whiskErr
-  }
+    whisk.Debug(whisk.DbgInfo, "Parsing annotations: %#v\n", flags.common.annotation)
+    annotations, err := getJSONFromArguments(flags.common.annotation, true)
+    if err != nil {
+        whisk.Debug(whisk.DbgError, "getJSONFromArguments(%#v, true) failed: %s\n", flags.common.annotation, err)
+        errMsg := fmt.Sprintf("Invalid annotation argument '%#v': %s", flags.common.annotation, err)
+        whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+            whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+        return nil, sharedSet, whiskErr
+    }
 
   // Only include the memory and timeout limit if set
   if flags.action.memory > -1 || flags.action.timeout > -1 || flags.action.logsize > -1 {

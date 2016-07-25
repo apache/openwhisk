@@ -21,7 +21,6 @@ import (
     "net/http"
     "net/url"
     "errors"
-    "reflect"
     "encoding/json"
 )
 
@@ -35,12 +34,12 @@ type PackageInterface interface {
 
 // Use this struct to create/update a package/binding with the Publish setting
 type SentPackagePublish struct {
-    Namespace string `json:"-"`
-    Name      string `json:"-"`
-    Version   string `json:"version,omitempty"`
-    Publish   bool   `json:"publish"`
-    Annotations 	 `json:"annotations,omitempty"`
-    Parameters  	 *json.RawMessage `json:"parameters,omitempty"`
+    Namespace   string              `json:"-"`
+    Name        string              `json:"-"`
+    Version     string              `json:"version,omitempty"`
+    Publish     bool                `json:"publish"`
+    Annotations *json.RawMessage    `json:"annotations,omitempty"`
+    Parameters  *json.RawMessage    `json:"parameters,omitempty"`
 }
 func (p *SentPackagePublish) GetName() string {
     return p.Name
@@ -48,12 +47,12 @@ func (p *SentPackagePublish) GetName() string {
 
 // Use this struct to update a package/binding with no change to the Publish setting
 type SentPackageNoPublish struct {
-    Namespace string `json:"-"`
-    Name      string `json:"-"`
-    Version   string `json:"version,omitempty"`
-    Publish   bool   `json:"publish,omitempty"`
-    Annotations 	 `json:"annotations,omitempty"`
-    Parameters  	 *json.RawMessage `json:"parameters,omitempty"`
+    Namespace   string              `json:"-"`
+    Name        string              `json:"-"`
+    Version     string              `json:"version,omitempty"`
+    Publish     bool                `json:"publish,omitempty"`
+    Annotations *json.RawMessage    `json:"annotations,omitempty"`
+    Parameters  *json.RawMessage    `json:"parameters,omitempty"`
 }
 func (p *SentPackageNoPublish) GetName() string {
     return p.Name
@@ -62,57 +61,30 @@ func (p *SentPackageNoPublish) GetName() string {
 // Use this struct to represent the package/binding sent from the Whisk server
 // Binding is a bool ???MWD20160602 now seeing Binding as a struct???
 type Package struct {
-    Namespace string    `json:"namespace,omitempty"`
-    Name      string    `json:"name,omitempty"`
-    Version   string    `json:"version,omitempty"`
-    Publish   bool      `json:"publish"`
-    Annotations 	    `json:"annotations,omitempty"`
-    Parameters  	    *json.RawMessage `json:"parameters,omitempty"`
-    Binding             `json:"binding,omitempty"`
-    Actions  []Action   `json:"actions,omitempty"`
-    Feeds    []Action   `json:"feeds,omitempty"`
+    Namespace   string              `json:"namespace,omitempty"`
+    Name        string              `json:"name,omitempty"`
+    Version     string              `json:"version,omitempty"`
+    Publish     bool                `json:"publish"`
+    Annotations *json.RawMessage    `json:"annotations,omitempty"`
+    Parameters  *json.RawMessage    `json:"parameters,omitempty"`
+    Binding                         `json:"binding,omitempty"`
+    Actions     []Action            `json:"actions,omitempty"`
+    Feeds       []Action            `json:"feeds,omitempty"`
 }
 func (p *Package) GetName() string {
     return p.Name
 }
 
-func (p *Package) GetAnnotationKeyValue(key string) string {
-    var val string = ""
-
-    Debug(DbgInfo, "Looking for annotation with key of '%s'\n", key)
-    if p.Annotations != nil {
-        for i,_ := range p.Annotations {
-            Debug(DbgInfo, "Examining annotation %+v\n", p.Annotations[i])
-            annotation := p.Annotations[i]
-            if k, ok := annotation["key"].(string); ok {
-                if k == key {
-                    if val, ok := annotation["value"].(string); ok {
-                        Debug(DbgInfo, "annotation[%s] = '%s'\n", key, val)
-                        if val != "" {
-                            return val
-                        }
-                    } else {
-                        Debug(DbgWarn, "Annotation 'value' is not a string type: %s", reflect.TypeOf(annotation["value"]).String())
-                    }
-                }
-            } else {
-                Debug(DbgWarn, "Annotation 'key' is not a string type: %s", reflect.TypeOf(annotation["key"]).String())
-            }
-        }
-    }
-    return val
-}
-
 // Use this struct when creating a binding
 // Publish is NOT optional; Binding is a namespace/name object, not a bool
 type BindingPackage struct {
-    Namespace string `json:"-"`
-    Name      string `json:"-"`
-    Version   string `json:"version,omitempty"`
-    Publish   bool   `json:"publish"`
-    Annotations 	 `json:"annotations,omitempty"`
-    Parameters  	 *json.RawMessage `json:"parameters,omitempty"`
-    Binding          `json:"binding"`
+    Namespace   string              `json:"-"`
+    Name        string              `json:"-"`
+    Version     string              `json:"version,omitempty"`
+    Publish     bool                `json:"publish"`
+    Annotations *json.RawMessage    `json:"annotations,omitempty"`
+    Parameters  *json.RawMessage    `json:"parameters,omitempty"`
+    Binding                         `json:"binding"`
 }
 func (p *BindingPackage) GetName() string {
     return p.Name

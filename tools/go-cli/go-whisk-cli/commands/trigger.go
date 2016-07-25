@@ -71,9 +71,9 @@ var triggerFireCmd = &cobra.Command{
         var payload *json.RawMessage
 
         if len(flags.common.param) > 0 {
-            parameters, err := parseParameters(flags.common.param)
+            parameters, err := getJSONFromArguments(flags.common.param, false)
             if err != nil {
-                whisk.Debug(whisk.DbgError, "parseParameters(%#v) failed: %s\n", flags.common.param, err)
+                whisk.Debug(whisk.DbgError, "getJSONFromArguments(%#v, false) failed: %s\n", flags.common.param, err)
                 errStr := fmt.Sprintf("Invalid parameter argument '%#v': %s", flags.common.param, err)
                 werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
                 return werr
@@ -154,10 +154,10 @@ var triggerCreateCmd = &cobra.Command{
         // The 1 or more --param arguments have all been combined into a single []string
         // e.g.   --p arg1,arg2 --p arg3,arg4   ->  [arg1, arg2, arg3, arg4]
         whisk.Debug(whisk.DbgInfo, "Parsing parameters: %#v\n", flags.common.param)
-        parameters, err := parseParametersArray(flags.common.param)
+        parameters, err := getJSONFromArguments(flags.common.param, true)
 
         if err != nil {
-            whisk.Debug(whisk.DbgError, "parseParametersArray(%#v) failed: %s\n", flags.common.param, err)
+            whisk.Debug(whisk.DbgError, "getJSONFromArguments(%#v, true) failed: %s\n", flags.common.param, err)
             errStr := fmt.Sprintf("Invalid parameter argument '%#v': %s", flags.common.param, err)
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             return werr
@@ -196,25 +196,26 @@ var triggerCreateCmd = &cobra.Command{
             feedParams = append(feedParams, "authKey")
             feedParams = append(feedParams, client.Config.AuthToken)
 
-            //parameters = whisk.Parameters{}
             parameters = nil
             whisk.Debug(whisk.DbgInfo, "Trigger feed action parameters: %#v\n", feedParams)
         }
 
-        whisk.Debug(whisk.DbgInfo, "Parsing annotations: %#v\n", flags.common.annotation)
-        annotations, err := parseAnnotations(flags.common.annotation)
+        var annotations *json.RawMessage
+        if feedArgPassed {
+            feedAnnotations := []string{"feed", flags.common.feed}
+            feedAnnotations = append(feedAnnotations, flags.common.annotation...)
+            whisk.Debug(whisk.DbgInfo, "Parsing trigger feed annotations: %#v\n", feedAnnotations)
+            annotations, err = getJSONFromArguments(feedAnnotations, true)
+        } else {
+            whisk.Debug(whisk.DbgInfo, "Parsing annotations: %#v\n", flags.common.annotation)
+            annotations, err = getJSONFromArguments(flags.common.annotation, true)
+        }
+
         if err != nil {
-            whisk.Debug(whisk.DbgError, "parseAnnotations(%#v) failed: %s\n", flags.common.annotation, err)
+            whisk.Debug(whisk.DbgError, "getJSONFromArguments(%#v, true) failed: %s\n", flags.common.annotation, err)
             errStr := fmt.Sprintf("Invalid annotations argument value '%#v': %s", flags.common.annotation, err)
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             return werr
-        }
-        if feedArgPassed {
-            feedAnnotation := make(map[string]interface{}, 0)
-            feedAnnotation["key"] = "feed"
-            feedAnnotation["value"] = flags.common.feed
-            annotations = append(annotations, feedAnnotation)
-            whisk.Debug(whisk.DbgInfo, "Trigger feed annotations: %#v\n", annotations)
         }
 
         whisk.Debug(whisk.DbgInfo, "Trigger shared: %s\n", flags.common.shared)
@@ -305,20 +306,20 @@ var triggerUpdateCmd = &cobra.Command{
         // e.g.   --p arg1,arg2 --p arg3,arg4   ->  [arg1, arg2, arg3, arg4]
 
         whisk.Debug(whisk.DbgInfo, "Parsing parameters: %#v\n", flags.common.param)
-        parameters, err := parseParametersArray(flags.common.param)
+        parameters, err := getJSONFromArguments(flags.common.param, true)
 
         if err != nil {
-            whisk.Debug(whisk.DbgError, "parseParametersArray(%#v) failed: %s\n", flags.common.param, err)
+            whisk.Debug(whisk.DbgError, "getJSONFromArguments(%#v, true) failed: %s\n", flags.common.param, err)
             errStr := fmt.Sprintf("Invalid parameter argument '%#v': %s", flags.common.param, err)
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             return werr
         }
 
         whisk.Debug(whisk.DbgInfo, "Parsing annotations: %#v\n", flags.common.annotation)
-        annotations, err := parseAnnotations(flags.common.annotation)
+        annotations, err := getJSONFromArguments(flags.common.annotation, true)
 
         if err != nil {
-            whisk.Debug(whisk.DbgError, "parseAnnotations(%#v) failed: %s\n", flags.common.annotation, err)
+            whisk.Debug(whisk.DbgError, "getJSONFromArguments(%#v, true) failed: %s\n", flags.common.annotation, err)
             errStr := fmt.Sprintf("Invalid annotations argument value '%#v': %s", flags.common.annotation, err)
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             return werr
@@ -458,40 +459,27 @@ var triggerDeleteCmd = &cobra.Command{
 
         // Get full feed name from trigger delete request as it is needed to delete the feed
         if retTrigger != nil && retTrigger.Annotations != nil {
-            for i := 0; i < len(retTrigger.Annotations); i++ {
+            fullFeedName = getValueFromAnnotations(retTrigger.Annotations, "feed")
 
-                switch key := retTrigger.Annotations[i]["key"].(type) {
-                    case string: {
-                        if key == "feed" {
-                            switch value := retTrigger.Annotations[i]["value"].(type) {
-                                case string: {
-                                    fullFeedName = value
-                                }
-                            }
-                        }
-                    }
+            if len(fullFeedName) > 0 {
+                feedParams = append(feedParams, "lifecycleEvent")
+                feedParams = append(feedParams, "DELETE")
+
+                fullTriggerName := fmt.Sprintf("/%s/%s", qName.namespace, qName.entityName)
+                feedParams = append(feedParams, "triggerName")
+                feedParams = append(feedParams, fullTriggerName)
+
+                feedParams = append(feedParams, "authKey")
+                feedParams = append(feedParams, client.Config.AuthToken)
+
+                err = deleteFeed(qName.entityName, fullFeedName, feedParams)
+                if err != nil {
+                    whisk.Debug(whisk.DbgError, "deleteFeed(%s, %s, %+v) failed: %s\n", qName.entityName, flags.common.feed, feedParams, err)
+                    errStr := fmt.Sprintf("Unable to delete trigger '%s': %s", qName.entityName, err)
+                    werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+
+                    return werr
                 }
-            }
-        }
-
-        if len(fullFeedName) > 0 {
-            feedParams = append(feedParams, "lifecycleEvent")
-            feedParams = append(feedParams, "DELETE")
-
-            fullTriggerName := fmt.Sprintf("/%s/%s", qName.namespace, qName.entityName)
-            feedParams = append(feedParams, "triggerName")
-            feedParams = append(feedParams, fullTriggerName)
-
-            feedParams = append(feedParams, "authKey")
-            feedParams = append(feedParams, client.Config.AuthToken)
-
-            err = deleteFeed(qName.entityName, fullFeedName, feedParams)
-            if err != nil {
-                whisk.Debug(whisk.DbgError, "deleteFeed(%s, %s, %+v) failed: %s\n", qName.entityName, flags.common.feed, feedParams, err)
-                errStr := fmt.Sprintf("Unable to delete trigger '%s': %s", qName.entityName, err)
-                werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
-
-                return werr
             }
         }
 
@@ -526,10 +514,6 @@ var triggerListCmd = &cobra.Command{
             }
             client.Namespace = ns
             whisk.Debug(whisk.DbgInfo, "Using namespace '%s' from argument '%s''\n", ns, args[0])
-
-            if pkg := qName.packageName; len(pkg) > 0 {
-                // todo :: scope call to package
-            }
         }
 
         options := &whisk.TriggerListOptions{

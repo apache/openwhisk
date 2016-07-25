@@ -30,6 +30,7 @@ import common.TestUtils
 import common.TestUtils.ANY_ERROR_EXIT
 import common.TestUtils.BAD_REQUEST
 import common.TestUtils.CONFLICT
+import common.TestUtils.ERROR_EXIT
 import common.TestUtils.FORBIDDEN
 import common.TestUtils.NOTALLOWED
 import common.TestUtils.NOT_FOUND
@@ -39,6 +40,7 @@ import common.TestUtils.UNAUTHORIZED
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
+import spray.json._
 import spray.json.DefaultJsonProtocol._
 import spray.json.JsObject
 import spray.json.pimpAny
@@ -332,6 +334,7 @@ class WskBasicTests
             }
     }
 
+
     behavior of "Wsk Rule CLI"
 
     it should "create rule, get rule, update rule and list rule" in withAssetCleaner(wskprops) {
@@ -372,5 +375,4 @@ class WskBasicTests
         wsk.namespace.get(expectedExitCode = SUCCESS_EXIT)(WskProps()).
             stdout should include("default")
     }
-
 }

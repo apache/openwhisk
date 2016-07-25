@@ -124,9 +124,9 @@ func parseArgs(args []string) ([]string, []string, []string, error) {
                 annotArgs = append(annotArgs, "")
                 args = append(args[:i], args[i + 2:]...)
             } else {
-                whisk.Debug(whisk.DbgError, "Parameter arguments must be a key value pair; args: %s", args)
+                whisk.Debug(whisk.DbgError, "Annotation arguments must be a key value pair; args: %s", args)
 
-                errMsg = fmt.Sprintf("Parameter arguments must be a key value pair: %s", args)
+                errMsg = fmt.Sprintf("Annotation arguments must be a key value pair: %s", args)
                 whiskErr = whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG,
                     whisk.DISPLAY_USAGE)
 

@@ -83,10 +83,10 @@ var packageBindCmd = &cobra.Command{
     // e.g.   --p arg1,arg2 --p arg3,arg4   ->  [arg1, arg2, arg3, arg4]
 
     whisk.Debug(whisk.DbgInfo, "Parsing parameters: %#v\n", flags.common.param)
-    parameters, err := parseParametersArray(flags.common.param)
+    parameters, err := getJSONFromArguments(flags.common.param, true)
 
     if err != nil {
-      whisk.Debug(whisk.DbgError, "parseParametersArray(%#v) failed: %s\n", flags.common.param, err)
+      whisk.Debug(whisk.DbgError, "getJSONFromArguments(%#v, true) failed: %s\n", flags.common.param, err)
       errStr := fmt.Sprintf("Invalid parameter argument '%#v': %s", flags.common.param, err)
       werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
       return werr
@@ -96,10 +96,10 @@ var packageBindCmd = &cobra.Command{
     // The 1 or more --annotation arguments have all been combined into a single []string
     // e.g.   --a arg1,arg2 --a arg3,arg4   ->  [arg1, arg2, arg3, arg4]
     whisk.Debug(whisk.DbgInfo, "Parsing annotations: %#v\n", flags.common.annotation)
-    annotations, err := parseAnnotations(flags.common.annotation)
+    annotations, err := getJSONFromArguments(flags.common.annotation, true)
 
     if err != nil {
-      whisk.Debug(whisk.DbgError, "parseAnnotations(%#v) failed: %s\n", flags.common.annotation, err)
+      whisk.Debug(whisk.DbgError, "getJSONFromArguments(%#v, true) failed: %s\n", flags.common.annotation, err)
       errStr := fmt.Sprintf("Invalid annotation argument '%#v': %s", flags.common.annotation, err)
       werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
       return werr
@@ -175,20 +175,20 @@ var packageCreateCmd = &cobra.Command{
     }
 
     whisk.Debug(whisk.DbgInfo, "Parsing parameters: %#v\n", flags.common.param)
-    parameters, err := parseParametersArray(flags.common.param)
+    parameters, err := getJSONFromArguments(flags.common.param, true)
 
     if err != nil {
-      whisk.Debug(whisk.DbgError, "parseParametersArray(%#v) failed: %s\n", flags.common.param, err)
+      whisk.Debug(whisk.DbgError, "getJSONFromArguments(%#v, true) failed: %s\n", flags.common.param, err)
       errStr := fmt.Sprintf("Invalid parameter argument '%#v': %s", flags.common.param, err)
       werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
       return werr
     }
 
     whisk.Debug(whisk.DbgInfo, "Parsing annotations: %#v\n", flags.common.annotation)
-    annotations, err := parseAnnotations(flags.common.annotation)
+    annotations, err := getJSONFromArguments(flags.common.annotation, true)
 
     if err != nil {
-      whisk.Debug(whisk.DbgError, "parseAnnotations(%#v) failed: %s\n", flags.common.annotation, err)
+      whisk.Debug(whisk.DbgError, "getJSONFromArguments(%#v, true) failed: %s\n", flags.common.annotation, err)
       errStr := fmt.Sprintf("Invalid annotation argument '%#v': %s", flags.common.annotation, err)
       werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
       return werr
@@ -271,19 +271,19 @@ var packageUpdateCmd = &cobra.Command{
     }
 
     whisk.Debug(whisk.DbgInfo, "Parsing parameters: %#v\n", flags.common.param)
-    parameters, err := parseParametersArray(flags.common.param)
+    parameters, err := getJSONFromArguments(flags.common.param, true)
 
     if err != nil {
-      whisk.Debug(whisk.DbgError, "parseParametersArray(%#v) failed: %s\n", flags.common.param, err)
+      whisk.Debug(whisk.DbgError, "getJSONFromArguments(%#v, true) failed: %s\n", flags.common.param, err)
       errStr := fmt.Sprintf("Invalid parameter argument '%#v': %s", flags.common.param, err)
       werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
       return werr
     }
 
     whisk.Debug(whisk.DbgInfo, "Parsing annotations: %#v\n", flags.common.annotation)
-    annotations, err := parseAnnotations(flags.common.annotation)
+    annotations, err := getJSONFromArguments(flags.common.annotation, true)
     if err != nil {
-      whisk.Debug(whisk.DbgError, "parseAnnotations(%#v) failed: %s\n", flags.common.annotation, err)
+      whisk.Debug(whisk.DbgError, "getJSONFromArguments(%#v, true) failed: %s\n", flags.common.annotation, err)
       errStr := fmt.Sprintf("Invalid annotation argument '%#v': %s", flags.common.annotation, err)
       werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
       return werr

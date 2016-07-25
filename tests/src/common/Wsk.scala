@@ -601,8 +601,7 @@ class WskActivation(override val usePythonCLI: Boolean = false)
                 Try {
                     // strip first line and convert the rest to JsObject
                     assert(stdout.startsWith("ok: got activation"))
-                    val firstNewline = stdout.indexOf("\n")
-                    stdout.substring(firstNewline + 1).parseJson.asJsObject
+                    parseJsonString(stdout)
                 } map {
                     Right(_)
                 } getOrElse Left(s"cannot parse activation from '$stdout'")
@@ -788,6 +787,14 @@ sealed trait RunWskCmd {
         val rr = TestUtils.runCmd(DONTCARE_EXIT, workingDir, TestUtils.logger, sys.env ++ env, args ++ params: _*)
         rr.validateExitCode(expectedExitCode)
         rr
+    }
+
+    /*
+     * Utility function to return a JSON object from the CLI output that returns
+     * an optional a status line following by the JSON data
+     */
+    def parseJsonString(jsonStr: String): JsObject = {
+        jsonStr.substring(jsonStr.indexOf("\n") + 1).parseJson.asJsObject  // Skip optional status line before parsing
     }
 }
 

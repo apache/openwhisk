@@ -202,6 +202,7 @@ func (c *Client) Do(req *http.Request, v interface{}) (*http.Response, error) {
         if req.Body != nil {
             fmt.Println("Req Body")
             fmt.Println(req.Body)
+            Debug(DbgInfo, "Req Body (ASCII quoted string):\n%+q", req.Body)
         }
     }
 
@@ -225,6 +226,7 @@ func (c *Client) Do(req *http.Request, v interface{}) (*http.Response, error) {
     }
     Verbose("Response body size is %d bytes\n", len(data))
     Verbose("Response body received:\n%s\n", string(data))
+    Debug(DbgInfo, "Response body received (ASCII quoted string):\n%+q", string(data))
 
     // With the HTTP response status code and the HTTP body contents,
     // the possible response scenarios are:
