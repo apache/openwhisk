@@ -74,7 +74,7 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
     /**
       * Test the Swift "cat" action using Swift 3
       */
-    it should "concatenate an array of strings using the swift cat action" in withAssetCleaner(wskprops) {
+    ignore should "concatenate an array of strings using the swift cat action" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
 
@@ -132,7 +132,7 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
     /**
       * Test the Swift "split" action using Swift 3
       */
-    it should "split a string into an array of strings using the swift split action" in withAssetCleaner(wskprops) {
+    ignore should "split a string into an array of strings using the swift split action" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
 
@@ -189,7 +189,7 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
     /**
       * Test the Swift "head" action using Swift 3
       */
-    it should "extract first n elements of an array of strings using the swift head action" in withAssetCleaner(wskprops) {
+    ignore should "extract first n elements of an array of strings using the swift head action" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
 
@@ -246,7 +246,7 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
     /**
       * Test the Swift "sort" action using Swift 3
       */
-    it should "sort an array of strings using the swift sort action" in withAssetCleaner(wskprops) {
+    ignore should "sort an array of strings using the swift sort action" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
 
@@ -303,7 +303,7 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
     /**
       * Test the Swift "wordCount" action using Swift 3
       */
-    it should "count the number of words in a string using the swift word count action" in withAssetCleaner(wskprops) {
+    ignore should "count the number of words in a string using the swift word count action" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
 

@@ -30,7 +30,7 @@ class Swift3ActionContainerTests extends SwiftActionContainerTests {
 
     behavior of "whisk/swift3action"
 
-    it should "properly use KituraNet and Dispatch" in {
+    ignore should "properly use KituraNet and Dispatch" in {
         val (out, err) = withSwiftContainer() { c =>
             val code = """
                 | import KituraNet
@@ -103,7 +103,7 @@ class Swift3ActionContainerTests extends SwiftActionContainerTests {
         err.trim shouldBe empty
     }
 
-    it should "make Watson SDKs available to action authors" in {
+    ignore should "make Watson SDKs available to action authors" in {
         val (out, err) = withSwiftContainer() { c =>
             val code = """
                 | import RestKit

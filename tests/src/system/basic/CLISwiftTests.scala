@@ -72,8 +72,10 @@ class CLISwiftTests
 
     /**
      * Test the Swift 3 example
+     *
+     * It is ignored because Swift3 is experimental. The test is failed sometimes and breaks the CI pipeline. This was agreed.
      */
-    it should "invoke a swift:3 action" in withAssetCleaner(wskprops) {
+    ignore should "invoke a swift:3 action" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "helloSwift3"
             assetHelper.withCleaner(wsk.action, name) {
