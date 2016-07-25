@@ -135,14 +135,7 @@ A JavaScript action's activation is **synchronous** if the main function exits u
 - The main function exits without executing a ```return``` statement.
 - The main function exits by executing a ```return``` statement that returns any value *except* a Promise.
 
-Here are two examples of synchronous actions.
-
-```
-// a synchronous action
-function main() {
-  return {payload: 'Hello, World!'};
-}
-```
+Here is an example of a synchronous action.
 
 ```
 // an action in which each path results in a synchronous activation
@@ -150,7 +143,7 @@ function main(params) {
   if (params.payload == 0) {
      return;
   } else if (params.payload == 1) {
-     return whisk.done();    // indicates normal completion
+     return {payload: 'Hello, World!'};
   } else if (params.payload == 2) {
     return whisk.error();   // indicates abnormal completion
   }
