@@ -20,7 +20,6 @@ import (
     "fmt"
     "net/http"
     "errors"
-    "reflect"
     "encoding/json"
     "net/url"
 )
@@ -30,65 +29,38 @@ type ActionService struct {
 }
 
 type Action struct {
-    Namespace   string      `json:"namespace,omitempty"`
-    Name        string      `json:"name,omitempty"`
-    Version     string      `json:"version,omitempty"`
-    Publish     bool        `json:"publish"`
-    Exec        *Exec       `json:"exec,omitempty"`
-    Annotations             `json:"annotations,omitempty"`
-    Parameters  *json.RawMessage `json:"parameters,omitempty"`   // Can be either []KeyValue or []KeyValues (action seq)
-    Limits      *Limits     `json:"limits,omitempty"`
-}
-
-func (p *Action) GetAnnotationKeyValue(key string) string {
-    var val string = ""
-
-    Debug(DbgInfo, "Looking for annotation with key of '%s'\n", key)
-    if p.Annotations != nil {
-        for i,_ := range p.Annotations {
-            Debug(DbgInfo, "Examining annotation %+v\n", p.Annotations[i])
-            annotation := p.Annotations[i]
-            if k, ok := annotation["key"].(string); ok {
-                if k == key {
-                    if val, ok := annotation["value"].(string); ok {
-                        Debug(DbgInfo, "annotation[%s] = '%s'\n", key, val)
-                        if val != "" {
-                            return val
-                        }
-                    } else {
-                        Debug(DbgWarn, "Annotation 'value' is not a string type: %s", reflect.TypeOf(annotation["value"]).String())
-                    }
-                }
-            } else {
-                Debug(DbgWarn, "Annotation 'key' is not a string type: %s", reflect.TypeOf(annotation["key"]).String())
-            }
-        }
-    }
-    return val
+    Namespace   string              `json:"namespace,omitempty"`
+    Name        string              `json:"name,omitempty"`
+    Version     string              `json:"version,omitempty"`
+    Publish     bool                `json:"publish"`
+    Exec        *Exec               `json:"exec,omitempty"`
+    Annotations *json.RawMessage    `json:"annotations,omitempty"`
+    Parameters  *json.RawMessage    `json:"parameters,omitempty"`
+    Limits      *Limits             `json:"limits,omitempty"`
 }
 
 type SentActionPublish struct {
-    Namespace   string      `json:"-"`
-    Version     string      `json:"-"`
-    Publish     bool        `json:"publish"`
-    Parameters  *json.RawMessage `json:"parameters,omitempty"`
-    Exec        *Exec       `json:"exec,omitempty"`
-    Annotations             `json:"annotations,omitempty"`
-    Limits      *Limits     `json:"limits,omitempty"`
-    Error       string      `json:"error,omitempty"`
-    Code        int         `json:"code,omitempty"`
+    Namespace   string              `json:"-"`
+    Version     string              `json:"-"`
+    Publish     bool                `json:"publish"`
+    Parameters  *json.RawMessage    `json:"parameters,omitempty"`
+    Exec        *Exec               `json:"exec,omitempty"`
+    Annotations *json.RawMessage    `json:"annotations,omitempty"`
+    Limits      *Limits             `json:"limits,omitempty"`
+    Error       string              `json:"error,omitempty"`
+    Code        int                 `json:"code,omitempty"`
 }
 
 type SentActionNoPublish struct {
-    Namespace   string      `json:"-"`
-    Version     string      `json:"-"`
-    Publish     bool        `json:"publish,omitempty"`
-    Parameters  *json.RawMessage `json:"parameters,omitempty"`
-    Exec        *Exec       `json:"exec,omitempty"`
-    Annotations             `json:"annotations,omitempty"`
-    Limits      *Limits     `json:"limits,omitempty"`
-    Error       string      `json:"error,omitempty"`
-    Code        int         `json:"code,omitempty"`
+    Namespace   string              `json:"-"`
+    Version     string              `json:"-"`
+    Publish     bool                `json:"publish,omitempty"`
+    Parameters  *json.RawMessage    `json:"parameters,omitempty"`
+    Exec        *Exec               `json:"exec,omitempty"`
+    Annotations *json.RawMessage    `json:"annotations,omitempty"`
+    Limits      *Limits             `json:"limits,omitempty"`
+    Error       string              `json:"error,omitempty"`
+    Code        int                 `json:"code,omitempty"`
 }
 
 type Exec struct {

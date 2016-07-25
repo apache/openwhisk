@@ -29,25 +29,25 @@ type TriggerService struct {
 }
 
 type Trigger struct {
-    Namespace string `json:"namespace,omitempty"`
-    Name      string `json:"-"`
-    Version   string `json:"version,omitempty"`
-    Publish   bool   `json:"publish,omitempty"`
-    ActivationId string `json:"activationId,omitempty"`
-    Annotations `json:"annotations,omitempty"`
-    Parameters  *json.RawMessage `json:"parameters,omitempty"`
-    //Limits      `json:"limits,omitempty"`
+    Namespace string                `json:"namespace,omitempty"`
+    Name      string                `json:"-"`
+    Version   string                `json:"version,omitempty"`
+    Publish   bool                  `json:"publish,omitempty"`
+    ActivationId string             `json:"activationId,omitempty"`
+    Annotations *json.RawMessage    `json:"annotations,omitempty"`
+    Parameters  *json.RawMessage    `json:"parameters,omitempty"`
+    //Limits                        `json:"limits,omitempty"`
 }
 
 type TriggerFromServer struct {
-    Namespace string `json:"namespace"`
-    Name      string `json:"name"`
-    Version   string `json:"version"`
-    Publish   bool   `json:"publish"`
-    ActivationId string `json:"activationId,omitempty"`
-    Annotations `json:"annotations"`
-    Parameters  *json.RawMessage `json:"parameters"`
-    Limits      `json:"limits"`
+    Namespace string                `json:"namespace"`
+    Name      string                `json:"name"`
+    Version   string                `json:"version"`
+    Publish   bool                  `json:"publish"`
+    ActivationId string             `json:"activationId,omitempty"`
+    Annotations *json.RawMessage    `json:"annotations"`
+    Parameters  *json.RawMessage    `json:"parameters"`
+    Limits                          `json:"limits"`
 }
 
 type TriggerListOptions struct {
