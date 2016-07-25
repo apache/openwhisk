@@ -56,11 +56,34 @@ class PythonActionContainerTests extends FlatSpec
             """.stripMargin
 
             val (initCode, _) = c.init(initPayload(code))
-
             initCode should be(200)
 
             val argss = List(
                 JsObject("user" -> JsString("Lulu")),
+                JsObject("user" -> JsString("Momo")))
+
+            for (args <- argss) {
+                val (runCode, out) = c.run(runPayload(args))
+                println(out)
+                runCode should be(200)
+                out should be(Some(args))
+            }
+        }
+        err.trim shouldBe empty
+    }
+
+    it should "support valid json" in {
+        val (out, err) = withPythonContainer { c =>
+            val code = """
+                |def main(dict):
+                |    return dict
+            """.stripMargin
+
+            val (initCode, _) = c.init(initPayload(code))
+            initCode should be(200)
+
+            val argss = List(
+                JsObject("user" -> JsNull),
                 JsObject("user" -> JsString("Momo")))
 
             for (args <- argss) {
@@ -101,14 +124,13 @@ class PythonActionContainerTests extends FlatSpec
               | 20 GOTO 10
             """.stripMargin
 
-            val (initCode, _) = c.init(initPayload(code))
-            // init code does not check anything about the code, so it should return 200
-            initCode should be(200)
+            val (initCode, res) = c.init(initPayload(code))
+            // init checks whether compilation was successful, so return 502
+            initCode should be(502)
 
             val (runCode, runRes) = c.run(runPayload(JsObject("basic" -> JsString("forever"))))
             runCode should be(502)
         }
-        err.toLowerCase should include("error")
     }
 
 
@@ -134,8 +156,8 @@ class PythonActionContainerTests extends FlatSpec
     it should "enforce that the user returns an object" in {
         withPythonContainer { c =>
             val code = """
-                | def main(args):
-                |     return "rebel, rebel"
+                |def main(args):
+                |    return "rebel, rebel"
             """.stripMargin
 
             val (initCode, _) = c.init(initPayload(code))
