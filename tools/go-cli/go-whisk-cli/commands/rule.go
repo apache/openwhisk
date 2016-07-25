@@ -73,7 +73,7 @@ var ruleEnableCmd = &cobra.Command{
             return werr
         }
 
-        fmt.Printf("%s enabled rule %s\n", color.GreenString("ok:"), boldString(ruleName))
+        fmt.Fprintf(color.Output, "%s enabled rule %s\n", color.GreenString("ok:"), boldString(ruleName))
         return nil
     },
 }
@@ -119,7 +119,7 @@ var ruleDisableCmd = &cobra.Command{
             return werr
         }
 
-        fmt.Printf("%s disabled rule %s\n", color.GreenString("ok:"), boldString(ruleName))
+        fmt.Fprintf(color.Output, "%s disabled rule %s\n", color.GreenString("ok:"), boldString(ruleName))
         return nil
     },
 }
@@ -164,7 +164,8 @@ var ruleStatusCmd = &cobra.Command{
             return werr
         }
 
-        fmt.Printf("%s rule %s is %s\n", color.GreenString("ok:"), boldString(ruleName), boldString(rule.Status))
+        fmt.Fprintf(color.Output, "%s rule %s is %s\n", color.GreenString("ok:"), boldString(ruleName),
+            boldString(rule.Status))
         return nil
     },
 }
@@ -241,7 +242,7 @@ var ruleCreateCmd = &cobra.Command{
         }
         whisk.Debug(whisk.DbgInfo, "Enabled rule:\n%+v\n", retRule)
 
-        fmt.Printf("%s created rule %s\n", color.GreenString("ok:"), boldString(ruleName))
+        fmt.Fprintf(color.Output, "%s created rule %s\n", color.GreenString("ok:"), boldString(ruleName))
         return nil
     },
 }
@@ -303,7 +304,7 @@ var ruleUpdateCmd = &cobra.Command{
             return werr
         }
 
-        fmt.Printf("%s updated rule %s\n", color.GreenString("ok:"), boldString(ruleName))
+        fmt.Fprintf(color.Output, "%s updated rule %s\n", color.GreenString("ok:"), boldString(ruleName))
         return nil
     },
 }
@@ -348,8 +349,7 @@ var ruleGetCmd = &cobra.Command{
             return werr
         }
 
-        fmt.Printf("%s got rule %s\n", color.GreenString("ok:"), boldString(ruleName))
-        //printJSON(rule)
+        fmt.Fprintf(color.Output, "%s got rule %s\n", color.GreenString("ok:"), boldString(ruleName))
         printJsonNoColor(rule)
 
         return nil
@@ -406,7 +406,7 @@ var ruleDeleteCmd = &cobra.Command{
             return werr
         }
 
-        fmt.Printf("%s deleted rule %s\n", color.GreenString("ok:"), boldString(ruleName))
+        fmt.Fprintf(color.Output, "%s deleted rule %s\n", color.GreenString("ok:"), boldString(ruleName))
         return nil
     },
 }

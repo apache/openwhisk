@@ -24,7 +24,7 @@ import (
 
     "../../go-whisk/whisk"
 
-    //"github.com/fatih/color"
+    "github.com/fatih/color"
     "github.com/spf13/cobra"
 )
 
@@ -154,7 +154,7 @@ var packageBindCmd = &cobra.Command{
             return werr
         }
 
-        fmt.Printf("ok: created binding %s\n", bindingName)
+        fmt.Fprintf(color.Output, "%s created binding %s\n", color.GreenString("ok:"), boldString(bindingName))
         return nil
     },
 }
@@ -243,8 +243,7 @@ var packageCreateCmd = &cobra.Command{
             return werr
         }
 
-        //fmt.Printf("%s created package %s\n", color.GreenString("ok:"), boldString(qName.entityName))
-        fmt.Printf("ok: created package %s\n", qName.entityName)
+        fmt.Fprintf(color.Output, "%s created package %s\n", color.GreenString("ok:"), boldString(qName.entityName))
         return nil
     },
 }
@@ -364,8 +363,7 @@ var packageUpdateCmd = &cobra.Command{
             return werr
         }
 
-        //fmt.Printf("%s updated package %s\n", color.GreenString("ok:"), boldString(qName.entityName))
-        fmt.Printf("ok: updated package %s\n",qName.entityName)
+        fmt.Fprintf(color.Output, "%s updated package %s\n", color.GreenString("ok:"), boldString(qName.entityName))
         return nil
     },
 }
@@ -406,9 +404,7 @@ var packageGetCmd = &cobra.Command{
         if flags.common.summary {
             printSummary(xPackage)
         } else {
-            //fmt.Printf("%s got package %s\n", color.GreenString("ok:"), boldString(qName.entityName))
-            //printJSON(xPackage)
-            fmt.Printf("ok: got package %s\n", qName.entityName)
+            fmt.Fprintf(color.Output, "%s got package %s\n", color.GreenString("ok:"), boldString(qName.entityName))
             printJsonNoColor(xPackage)
         }
 
@@ -449,8 +445,7 @@ var packageDeleteCmd = &cobra.Command{
             return werr
         }
 
-        //fmt.Printf("%s deleted package %s\n", color.GreenString("ok:"), boldString(qName.entityName))
-        fmt.Printf("ok: deleted package %s\n", qName.entityName)
+        fmt.Fprintf(color.Output, "%s deleted package %s\n", color.GreenString("ok:"), boldString(qName.entityName))
         return nil
     },
 }
