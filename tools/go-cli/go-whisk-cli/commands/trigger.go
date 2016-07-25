@@ -25,6 +25,7 @@ import (
     "../../go-whisk/whisk"
 
     "github.com/spf13/cobra"
+    "github.com/fatih/color"
 )
 
 // triggerCmd represents the trigger command
@@ -107,7 +108,9 @@ var triggerFireCmd = &cobra.Command{
             return werr
         }
 
-        fmt.Printf("ok: triggered %s with id %s\n", qName.entityName, trigResp.ActivationId )
+        fmt.Fprintf(color.Output, "%s triggered /%s/%s with id %s\n", color.GreenString("ok:"),
+            boldString(qName.namespace), boldString(qName.entityName),
+            boldString(trigResp.ActivationId))
         return nil
     },
 }
@@ -259,7 +262,7 @@ var triggerCreateCmd = &cobra.Command{
             }
         }
 
-        fmt.Println("ok: created trigger")
+        fmt.Fprintf(color.Output, "%s created trigger %s\n", color.GreenString("ok:"), boldString(trigger.Name))
         return nil
     },
 }
@@ -357,8 +360,7 @@ var triggerUpdateCmd = &cobra.Command{
             return werr
         }
 
-        fmt.Println("ok: updated trigger")
-        //MWD printJSON(retTrigger) // color does appear correctly on vagrant VM
+        fmt.Fprintf(color.Output, "%s updated trigger %s\n", color.GreenString("ok:"), boldString(trigger.Name))
         printJsonNoColor(retTrigger)
         return nil
     },
@@ -403,8 +405,8 @@ var triggerGetCmd = &cobra.Command{
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
-        fmt.Printf("ok: got trigger %s\n", qName.entityName)
-        //MWD printJSON(retTrigger) // color does appear correctly on vagrant VM
+
+        fmt.Fprintf(color.Output, "%s got trigger %s\n", color.GreenString("ok:"), boldString(qName.entityName))
         printJsonNoColor(retTrigger)
         return nil
     },
@@ -493,7 +495,7 @@ var triggerDeleteCmd = &cobra.Command{
             }
         }
 
-        fmt.Printf("ok: deleted trigger %s\n", qName.entityName)
+        fmt.Fprintf(color.Output, "%s deleted trigger %s\n", color.GreenString("ok:"), boldString(qName.entityName))
         return nil
     },
 }

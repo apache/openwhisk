@@ -26,7 +26,7 @@ import (
 
     "../../go-whisk/whisk"
 
-    //"github.com/fatih/color"
+    "github.com/fatih/color"
     "github.com/spf13/cobra"
 )
 
@@ -68,11 +68,8 @@ var activationListCmd = &cobra.Command{
                 werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
                 return werr
             }
-            client.Namespace = ns
 
-            if pkg := qName.packageName; len(pkg) > 0 {
-                // todo :: scope call to package
-            }
+            client.Namespace = ns
         }
 
         options := &whisk.ActivationListOptions{
@@ -128,8 +125,7 @@ var activationGetCmd = &cobra.Command{
             fmt.Printf("activation result for /%s/%s (%s at %s)\n", activation.Namespace, activation.Name, activation.Response.Status, time.Unix(activation.End/1000, 0))
             printJsonNoColor(activation.Response.Result)
         } else {
-            //fmt.Printf("%s got activation %s\n", color.GreenString("ok:"), boldString(id))  - MWD Does not work on Windows
-            fmt.Printf("ok: got activation %s\n", id)
+            fmt.Fprintf(color.Output, "%s got activation %s\n", color.GreenString("ok:"), boldString(id))
             printJsonNoColor(activation)
         }
 
@@ -188,8 +184,6 @@ var activationResultCmd = &cobra.Command{
             return werr
         }
 
-        //fmt.Printf("%s got activation %s result\n", color.GreenString("ok:"), boldString(id))  - MWD Does not work on Windows
-        //fmt.Printf("ok: got activation %s result\n", id)
         printJsonNoColor(result.Result)
         return nil
     },
