@@ -509,13 +509,19 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
     if flags.action.memory > -1 || flags.action.timeout > -1 || flags.action.logsize > -1 {
         limits = new(whisk.Limits)
         if flags.action.memory > -1 {
-            limits.Memory = flags.action.memory
+            limits.Memory = &flags.action.memory
+        } else {
+            limits.Memory = nil
         }
         if flags.action.timeout > -1 {
-            limits.Timeout = flags.action.timeout
+            limits.Timeout = &flags.action.timeout
+        } else {
+            limits.Timeout = nil
         }
         if flags.action.logsize > -1 {
-            limits.Logsize = flags.action.logsize
+            limits.Logsize = &flags.action.logsize
+        } else {
+            limits.Logsize = nil
         }
         whisk.Debug(whisk.DbgInfo, "Action limits: %+v\n", limits)
     }
