@@ -24,7 +24,8 @@ import java.io.File
 import scala.util.Try
 import scala.language.postfixOps
 import whisk.common.LogMarkerToken
-import whisk.common.LogMarkerToken
+import whisk.common.LoggingMarkers
+import akka.event.Logging.ErrorLevel
 
 /**
  * Information from docker ps.
@@ -69,7 +70,7 @@ trait ContainerUtils extends Logging {
         val consulServiceIgnore = Array("-e", "SERVICE_IGNORE=true")
         val fileHandleLimit = Array("--ulimit", "nofile=64:64")
         val processLimit = Array("--ulimit", "nproc=512:512")
-        val securityOpts = policy map { p => Array("--security-opt", s"apparmor:${p}" ) } getOrElse(Array.empty[String])
+        val securityOpts = policy map { p => Array("--security-opt", s"apparmor:${p}") } getOrElse (Array.empty[String])
         val containerNetwork = Array("--net", network)
         val cmd = Array("run") ++ makeEnvVars(env) ++ consulServiceIgnore ++ nameOption ++ memoryArg ++
             capabilityArg ++ fileHandleLimit ++ processLimit ++ securityOpts ++ containerNetwork ++ Array("-d", image) ++ args
@@ -184,7 +185,6 @@ trait ContainerUtils extends Logging {
         new java.io.File(s"""${dockerContainerDir(mounted)}/$containerId/$containerId-json.log""").getCanonicalFile()
     }
 
-
     private def parsePsOutput(line: String) = {
         val tokens = line.split("\\s+")
         ContainerState(tokens(0), tokens(1), tokens(tokens.length - 1))
@@ -198,7 +198,6 @@ trait ContainerUtils extends Logging {
     protected type DockerOutput = ContainerUtils.DockerOutput
 }
 
-
 object ContainerUtils extends Logging {
 
     protected type DockerOutput = Option[String]
@@ -207,22 +206,24 @@ object ContainerUtils extends Logging {
      * Synchronously runs the given docker command returning stdout if successful.
      */
     def runDockerCmd(dockerhost: String, skipLogError: Boolean, args: Seq[String])(implicit transid: TransactionId): DockerOutput = {
+        val start = transid.starting(this, LoggingMarkers.INVOKER_DOCKER_CMD(args(0)))
         getDockerCmd(dockerhost) map { _ ++ args } map {
-            info(this, s"runDockerCmd: transid = $transid", LogMarkerToken("invoker", s"docker.${args(0)}", "start"))
             SimpleExec.syncRunCmd(_)(transid)
         } map {
             case (stdout, stderr, exitCode) =>
-                info(this, "", LogMarkerToken("invoker", s"docker.${args(0)}", "finish"))
                 if (exitCode == 0) {
+                    transid.finished(this, start)
                     Some(stdout.trim)
                 } else {
                     if (!skipLogError) {
-                        error(this, s"stdout:\n$stdout\nstderr:\n$stderr", LogMarkerToken("invoker", s"docker.${args(0)}", "error"))
+                        transid.failed(this, start, s"stdout:\n$stdout\nstderr:\n$stderr", ErrorLevel)
+                    } else {
+                        transid.failed(this, start)
                     }
                     None
                 }
         } getOrElse {
-            error(this, "docker executable not found", LogMarkerToken("invoker", s"docker.${args(0)}", "error"))
+            transid.failed(this, start, "docker executable not found", ErrorLevel)
             None
         }
     }
@@ -237,7 +238,6 @@ object ContainerUtils extends Logging {
             dockerLoc map { f => Array[String](f.toString, "--host", s"tcp://$dockerhost") }
         }
     }
-
 
     /**
      * Pulls container images.

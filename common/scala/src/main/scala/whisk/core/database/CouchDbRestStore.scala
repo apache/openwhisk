@@ -33,6 +33,8 @@ import spray.json.RootJsonFormat
 import spray.json.DefaultJsonProtocol
 import spray.json.JsValue
 import whisk.common.LoggingMarkers
+import akka.event.Logging.LogLevel
+import akka.event.Logging.ErrorLevel
 
 /**
  * Basic client to put and delete artifacts in a data store.
@@ -70,14 +72,11 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
 
         val docinfoStr = s"id: $id, rev: ${rev.getOrElse("null")}"
 
-        info(this, s"[PUT] '$dbName' saving document: '${docinfoStr}'", LoggingMarkers.DATABASE_SAVE_START)
+        val start = transid.starting(this, LoggingMarkers.DATABASE_SAVE, s"[PUT] '$dbName' saving document: '${docinfoStr}'")
 
         val request: CouchDbRestClient => Future[Either[StatusCode, JsObject]] = rev match {
-            case Some(r) =>
-                client => client.putDoc(id, r, asJson)
-
-            case None =>
-                client => client.putDoc(id, asJson)
+            case Some(r) => client => client.putDoc(id, r, asJson)
+            case None => client => client.putDoc(id, asJson)
         }
 
         reportFailure({
@@ -85,56 +84,58 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
                 eitherResponse <- request(client)
             ) yield eitherResponse match {
                 case Right(response) =>
-                    info(this, s"[PUT] '$dbName' completed document: '${docinfoStr}', response: '$response'", LoggingMarkers.DATABASE_SAVE_DONE)
+                    transid.finished(this, start, s"[PUT] '$dbName' completed document: '${docinfoStr}', response: '$response'")
                     val id = response.fields("id").convertTo[String]
                     val rev = response.fields("rev").convertTo[String]
                     DocInfo ! (id, rev)
 
                 case Left(StatusCodes.Conflict) =>
-                    info(this, s"[PUT] '$dbName', document: '${docinfoStr}'; conflict.", LoggingMarkers.DATABASE_SAVE_DONE)
+                    transid.finished(this, start, s"[PUT] '$dbName', document: '${docinfoStr}'; conflict.")
                     // For compatibility.
                     throw DocumentConflictException("conflict on 'put'")
 
                 case Left(code) =>
-                    error(this, s"[PUT] '$dbName' failed to put document: '${docinfoStr}'; http status: '${code}'", LoggingMarkers.DATABASE_SAVE_ERROR)
+                    transid.failed(this, start, s"[PUT] '$dbName' failed to put document: '${docinfoStr}'; http status: '${code}'", ErrorLevel)
                     throw new Exception("Unexpected http response code: " + code)
             }
         },
-            failure => error(this, s"[PUT] '$dbName' internal error, failure: '${failure.getMessage}'", LoggingMarkers.DATABASE_SAVE_ERROR))
+            failure => transid.failed(this, start, s"[PUT] '$dbName' internal error, failure: '${failure.getMessage}'", ErrorLevel))
     }
 
     override protected[database] def del(doc: DocInfo)(implicit transid: TransactionId): Future[Boolean] = {
         require(doc != null && doc.rev() != null, "doc revision required for delete")
-        info(this, s"[DEL] '$dbName' deleting document: '$doc'", LoggingMarkers.DATABASE_DELETE_START)
+
+        val start = transid.starting(this, LoggingMarkers.DATABASE_DELETE, s"[DEL] '$dbName' deleting document: '$doc'")
 
         reportFailure({
             for (
                 eitherResponse <- client.deleteDoc(doc.id.id, doc.rev.rev)
             ) yield eitherResponse match {
                 case Right(response) =>
-                    info(this, s"[DEL] '$dbName' completed document: '$doc', response: $response", LoggingMarkers.DATABASE_DELETE_DONE)
+                    transid.finished(this, start, s"[DEL] '$dbName' completed document: '$doc', response: $response")
                     response.fields("ok").convertTo[Boolean]
 
                 case Left(StatusCodes.NotFound) =>
-                    info(this, s"[DEL] '$dbName', document: '${doc}'; not found.", LoggingMarkers.DATABASE_DELETE_DONE)
+                    transid.finished(this, start, s"[DEL] '$dbName', document: '${doc}'; not found.")
                     // for compatibility
                     throw NoDocumentException("not found on 'delete'")
 
                 case Left(code) =>
-                    error(this, s"[DEL] '$dbName' failed to delete document: '${doc}'; http status: '${code}'", LoggingMarkers.DATABASE_DELETE_ERROR)
+                    transid.failed(this, start, s"[DEL] '$dbName' failed to delete document: '${doc}'; http status: '${code}'", ErrorLevel)
                     throw new Exception("Unexpected http response code: " + code)
             }
         },
-            failure => error(this, s"[DEL] '$dbName' internal error, doc: '$doc', failure: '${failure.getMessage}'", LoggingMarkers.DATABASE_DELETE_ERROR))
+            failure => transid.failed(this, start, s"[DEL] '$dbName' internal error, doc: '$doc', failure: '${failure.getMessage}'", ErrorLevel))
     }
 
     override protected[database] def get[A <: DocumentAbstraction](doc: DocInfo)(
         implicit transid: TransactionId,
         ma: Manifest[A]): Future[A] = {
 
+        val start = transid.starting(this, LoggingMarkers.DATABASE_GET, s"[GET] '$dbName' finding document: '$doc'")
+
         reportFailure({
             require(doc != null, "doc undefined")
-            info(this, s"[GET] '$dbName' finding document: '$doc'", LoggingMarkers.DATABASE_GET_START)
             val request: CouchDbRestClient => Future[Either[StatusCode, JsObject]] = if (doc.rev.rev != null) {
                 client => client.getDoc(doc.id.id, doc.rev.rev)
             } else {
@@ -145,7 +146,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
                 eitherResponse <- request(client)
             ) yield eitherResponse match {
                 case Right(response) =>
-                    info(this, s"[GET] '$dbName' completed: found document '$doc'", LoggingMarkers.DATABASE_GET_DONE)
+                    transid.finished(this, start, s"[GET] '$dbName' completed: found document '$doc'")
                     val asFormat = jsonFormat.read(response)
                     // For backwards compatibility, we should fail with IllegalArgumentException
                     // if the retrieved type doesn't match the expected type. The following does
@@ -162,16 +163,16 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
                     deserialized
 
                 case Left(StatusCodes.NotFound) =>
-                    info(this, s"[GET] '$dbName', document: '${doc}'; not found.", LoggingMarkers.DATABASE_GET_DONE)
+                    transid.finished(this, start, s"[GET] '$dbName', document: '${doc}'; not found.")
                     // for compatibility
                     throw NoDocumentException("not found on 'get'")
 
                 case Left(code) =>
-                    error(this, s"[GET] '$dbName' failed to get document: '${doc}'; http status: '${code}'", LoggingMarkers.DATABASE_GET_ERROR)
+                    transid.finished(this, start, s"[GET] '$dbName' failed to get document: '${doc}'; http status: '${code}'", ErrorLevel)
                     throw new Exception("Unexpected http response code: " + code)
             }
         },
-            failure => error(this, s"[GET] '$dbName' internal error, doc: '$doc', failure: '${failure.getMessage}'", LoggingMarkers.DATABASE_GET_ERROR))
+            failure => transid.failed(this, start, s"[GET] '$dbName' internal error, doc: '$doc', failure: '${failure.getMessage}'", ErrorLevel))
     }
 
     override protected[core] def query(table: String, startKey: List[Any], endKey: List[Any], skip: Int, limit: Int, includeDocs: Boolean, descending: Boolean, reduce: Boolean)(
@@ -188,7 +189,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
 
         val parts = table.split("/")
 
-        info(this, s"[QUERY] '$dbName' searching '$table ${startKey}:${endKey}'", LoggingMarkers.DATABASE_QUERY_START)
+        val start = transid.starting(this, LoggingMarkers.DATABASE_QUERY, s"[QUERY] '$dbName' searching '$table ${startKey}:${endKey}'")
 
         reportFailure({
             for (
@@ -215,14 +216,15 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
                         rows
                     }
 
-                    info(this, s"[QUERY] '$dbName' completed: matched ${out.size}", LoggingMarkers.DATABASE_QUERY_DONE)
+                    transid.finished(this, start, s"[QUERY] '$dbName' completed: matched ${out.size}")
                     out
 
                 case Left(code) =>
+                    transid.failed(this, start, s"Unexpected http response code: $code", ErrorLevel)
                     throw new Exception("Unexpected http response code: " + code)
             }
         },
-            failure => error(this, s"[QUERY] '$dbName' internal error, failure: '${failure.getMessage}'", LoggingMarkers.DATABASE_QUERY_ERROR))
+            failure => transid.failed(this, start, s"[QUERY] '$dbName' internal error, failure: '${failure.getMessage}'", ErrorLevel))
     }
 
     override def shutdown(): Unit = {

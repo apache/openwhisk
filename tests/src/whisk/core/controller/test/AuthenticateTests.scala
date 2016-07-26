@@ -71,27 +71,31 @@ class AuthenticateTests extends ControllerTestCommon with Authenticate {
     it should "authorize a known user from cache" in {
         val creds = createTempCredentials(transid())._1
         val pass = UserPass(creds.uuid(), creds.key())
+        val tid = transid
 
         // first query will be served from datastore
         val stream = new ByteArrayOutputStream
         val printstream = new PrintStream(stream)
         val savedstream = authStore.outputStream
+
+        tid.outputStream = printstream
         authStore.outputStream = printstream
         try {
-            val user = Await.result(validateCredentials(Some(pass))(transid()), dbOpTimeout)
+            val user = Await.result(validateCredentials(Some(pass))(tid), dbOpTimeout)
             user.get should be(creds)
+            //            tid.outputStream.toString should include regex (s"serving from datastore: ${creds.uuid()}")
             stream.toString should include regex (s"serving from datastore: ${creds.uuid()}")
             stream.reset()
 
             // repeat query, should be served from cache
-            val cachedUser = Await.result(validateCredentials(Some(pass))(transid()), dbOpTimeout)
+            val cachedUser = Await.result(validateCredentials(Some(pass))(tid), dbOpTimeout)
             cachedUser.get should be(creds)
             stream.toString should include regex (s"serving from cache: ${creds.uuid()}")
             stream.reset()
 
             // revoke key and invalidate cache
             val newCreds = {
-                implicit val tid = transid()
+                implicit val transid = tid
                 val newCreds = creds.revoke
                 val prevRecord = get(authStore, DocId(creds.subject()).asDocInfo, WhiskAuth, false)
                 Await.result(WhiskAuth.put(authStore, newCreds.revision[WhiskAuth](prevRecord.docinfo.rev)), dbOpTimeout)
@@ -103,7 +107,7 @@ class AuthenticateTests extends ControllerTestCommon with Authenticate {
 
             // repeat query, should be served from cache correctly
             val newPass = UserPass(newCreds.uuid(), newCreds.key())
-            val refetchedUser = Await.result(validateCredentials(Some(newPass))(transid()), dbOpTimeout)
+            val refetchedUser = Await.result(validateCredentials(Some(newPass))(tid), dbOpTimeout)
             stream.toString should include regex (s"serving from cache: ${creds.uuid()}")
             refetchedUser.isDefined should be(true)
             refetchedUser.get should be(newCreds)

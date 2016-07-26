@@ -27,10 +27,11 @@ import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.ListBuffer
 import scala.annotation.tailrec
 import akka.actor.ActorSystem
+import akka.event.Logging.LogLevel
+import akka.event.Logging.InfoLevel
 import whisk.common.Counter
 import whisk.common.LoggingMarkers._
 import whisk.common.TransactionId
-import whisk.common.Verbosity
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.dockerImageTag
 import whisk.core.WhiskConfig.invokerContainerNetwork
@@ -62,7 +63,7 @@ import whisk.core.entity.NodeJS6Exec
 class ContainerPool(
     config: WhiskConfig,
     invokerInstance: Integer = 0,
-    verbosity: Verbosity.Level = Verbosity.Loud,
+    verbosity: LogLevel = InfoLevel,
     standalone: Boolean = false)(implicit actorSystem: ActorSystem)
     extends ContainerUtils {
 
@@ -77,7 +78,7 @@ class ContainerPool(
     /**
      * Sets verbosity of this and owned objects.
      */
-    override def setVerbosity(level: Verbosity.Level) = {
+    override def setVerbosity(level: LogLevel) = {
         super.setVerbosity(level)
         datastore.setVerbosity(level)
         authStore.setVerbosity(level)
@@ -143,15 +144,15 @@ class ContainerPool(
      */
     def getAction(action: WhiskAction, auth: WhiskAuth)(implicit transid: TransactionId): Option[(WhiskContainer, Option[RunResult])] =
         if (shuttingDown) {
-            info(this, s"Shutting down: Not getting container for ${action.fullyQualifiedName} with ${auth.uuid}", INVOKER_GET_CONTAINER_START)
+            info(this, s"Shutting down: Not getting container for ${action.fullyQualifiedName} with ${auth.uuid}")
             None
         } else {
-            info(this, s"Getting container for ${action.fullyQualifiedName} with ${auth.uuid}", INVOKER_GET_CONTAINER_START)
+            info(this, s"Getting container for ${action.fullyQualifiedName} with ${auth.uuid}")
             val key = makeKey(action, auth)
             getImpl(key, { () => makeWhiskContainer(action, auth) }) map {
                 case (c, initResult) =>
                     val cacheMsg = if (!initResult.isDefined) "(Cache Hit)" else "(Cache Miss)"
-                    info(this, s"ContainerPool.getAction obtained container ${c.id} ${cacheMsg}", INVOKER_GET_CONTAINER_DONE)
+                    info(this, s"ContainerPool.getAction obtained container ${c.id} ${cacheMsg}")
                     (c.asInstanceOf[WhiskContainer], initResult)
             }
         }
@@ -461,12 +462,6 @@ class ContainerPool(
         val key = makeKey(action, auth)
         val warmedContainer = if (limits.memory == defaultMemoryLimit && imageName == nodeImageName) getWarmNodejsContainer(key) else None
         val containerName = makeContainerName(action)
-        warmedContainer match {
-            case Some(_) => {
-                info(this, "", LogMarkerToken("invoker", s"${action.exec.kind}.warmContainer", "start"))
-            }
-            case None => info(this, "", LogMarkerToken("invoker", s"${action.exec.kind}.coldContainer", "start"))
-        }
         val con = warmedContainer getOrElse makeGeneralContainer(key, containerName, imageName, limits)
         initWhiskContainer(action, con)
     }

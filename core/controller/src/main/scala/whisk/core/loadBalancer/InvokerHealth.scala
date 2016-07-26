@@ -36,11 +36,11 @@ import whisk.common.ConsulKV.LoadBalancerKeys
 import whisk.common.ConsulKVReporter
 import whisk.common.DateUtil
 import whisk.common.Logging
-import whisk.common.Verbosity
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.consulServer
 import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.common.Scheduler
+import akka.event.Logging.InfoLevel
 
 object InvokerHealth {
     val requiredProperties = consulServer
@@ -60,7 +60,7 @@ class InvokerHealth(
     private implicit val executionContext = system.dispatcher
 
     setComponentName("LoadBalancer");
-    setVerbosity(Verbosity.Loud);
+    setVerbosity(InfoLevel);
 
     private val activationCountBeforeNextInvoker = 10
 

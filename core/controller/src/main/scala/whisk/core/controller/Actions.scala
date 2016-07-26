@@ -92,6 +92,7 @@ import whisk.core.entity.Subject
 import whisk.core.entity.WhiskEntityQueries
 import whisk.http.ErrorResponse
 import whisk.http.ErrorResponse.{ terminate }
+import whisk.common.StartMarker
 
 /**
  * A singleton object which defines the properties that must be present in a configuration
@@ -247,15 +248,15 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                 val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
                 getEntity(WhiskAction, entityStore, docid, Some {
                     action: WhiskAction =>
+                        val start = transid.starting(this, if (blocking) LoggingMarkers.CONTROLLER_BLOCKING_ACTIVATION else LoggingMarkers.CONTROLLER_ACTIVATION)
                         val postToLoadBalancer = postInvokeRequest(user.subject, action, env, payload, blocking)
                         onComplete(postToLoadBalancer) {
                             case Success((activationId, None)) =>
                                 // non-blocking invoke or blocking invoke which got queued instead
-                                info(this, "", CONTROLLER_ACTIVATION_DONE)
                                 complete(Accepted, activationId.toJsObject)
                             case Success((activationId, Some(activation))) =>
                                 // blocking invoke with an activation result
-                                info(this, "", CONTROLLER_BLOCKING_ACTIVATION_DONE)
+                                transid.finished(this, start)
                                 val response = if (result) activation.resultAsJson else activation.toExtendedJson
 
                                 if (activation.response.isSuccess) {
@@ -447,7 +448,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         val args = { env map { _ ++ action.parameters } getOrElse action.parameters } merge payload
         val message = Message(transid, s"/actions/invoke/${action.namespace}/${action.name}/${action.rev}", user, ActivationId(), args)
 
-        info(this, s"[POST] action activation id: ${message.activationId}", if (blocking) LoggingMarkers.CONTROLLER_BLOCKING_ACTIVATION_START else LoggingMarkers.CONTROLLER_ACTIVATION_START)
+        info(this, s"[POST] action activation id: ${message.activationId}")
         performLoadBalancerRequest(INVOKER, message, transid) map {
             (action.limits.timeout(), _)
         } flatMap {
@@ -458,10 +459,10 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                     case None =>
                         if (response.error.getOrElse("??").equals("too many concurrent activations")) {
                             // DoS throttle
-                            warn(this, s"[POST] action activation rejected: ${response.error.getOrElse("??")}", CONTROLLER_ACTIVATION_REJECTED)
+                            warn(this, s"[POST] action activation rejected: ${response.error.getOrElse("??")}")
                             Future failed new TooManyActivationException("too many concurrent activations")
                         } else {
-                            error(this, s"[POST] action activation failed: ${response.error.getOrElse("??")}", CONTROLLER_ACTIVATION_FAILED)
+                            error(this, s"[POST] action activation failed: ${response.error.getOrElse("??")}")
                             Future failed new IllegalStateException(s"activation failed with error: ${response.error.getOrElse("??")}")
                         }
                 }
@@ -477,8 +478,16 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                         (activationId, _)
                     } withTimeout (timeout, new BlockingInvokeTimeout(activationId))
                     response onFailure { case t => promise.tryFailure(t) } // short circuits polling on result
+                    // Time of the blocking activation in Controller.
+                    // We use the start time of the tid instead of a startMarker to avoid passing the start marker around.
+                    transid.finished(this, StartMarker(transid.meta.start, LoggingMarkers.CONTROLLER_BLOCKING_ACTIVATION))
                     response // will either complete with activation or fail with timeout
-                } else Future { (activationId, None) }
+                } else Future {
+                    // Time of the activation in Controller.
+                    // We use the start time of the tid instead of a startMarker to avoid passing the start marker around.
+                    transid.finished(this, StartMarker(transid.meta.start, LoggingMarkers.CONTROLLER_ACTIVATION))
+                    (activationId, None)
+                }
         }
     }
 
