@@ -116,7 +116,7 @@ install "$CATALOG_HOME/watson/speechToText.js" \
 install "$CATALOG_HOME/watson/translate.js" \
     watson/translate \
     -a description 'Translate text' \
-    -a parameters '[ {"name":"translateFrom", "required":false}, {"name":"translateTo", "required":false}, {"name":"translateParam", "required":false}, {"name":"username", "required":true, "bindTime":true}, {"name":"password", "required":true, "type":"password", "bindTime":true} ]' \
+    -a parameters '[ {"name":"translateFrom", "required":false}, {"name":"translateTo", "required":false}, {"name":"payload", "required":false}, {"name":"username", "required":true, "bindTime":true}, {"name":"password", "required":true, "type":"password", "bindTime":true} ]' \
     -a sampleInput '{"translateFrom":"en", "translateTo":"fr", "payload":"Hello", "username":"XXX", "password":"XXX"}' \
     -a sampleOutput '{"payload":"Bonjour"}'
 
@@ -137,8 +137,8 @@ install "$CATALOG_HOME/watson/textToSpeech.js" \
         {"name":"voice", "required":false, "description":"The voice to be used for synthesis"},
         {"name":"accept", "required":false, "description":"The requested MIME type of the audio"},
         {"name":"encoding", "required":false, "description":"The encoding of the speech binary data"}]' \
-    -a sampleInput '{"payload":"Hello, world.", "encoding":"base64", "accept":"audio/wav", "username":"XXX", "password":"XXX" }' \
-    -a sampleOutput '{"payload":"<base64 encoding of a .wav file>", "encoding":"base64", "content_type":"audio/wav"}'
+    -a sampleInput '{"payload":"Hello, world.", "encoding":"base64", "accept":"audio/wav", "voice":"en-US_MichaelVoice", "username":"XXX", "password":"XXX" }' \
+    -a sampleOutput '{"payload":"<base64 encoding of a .wav file>", "encoding":"base64", "mimetype":"audio/wav"}'
 
 waitForAll
 
