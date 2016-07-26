@@ -364,12 +364,13 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
     }
 
     it should "reject bad limit values" in {
-        intercept[IllegalArgumentException] {
-            ActionLimits(TimeLimit(TimeLimit.MIN_DURATION.toMillis.toInt - 1), MemoryLimit(MemoryLimit.MIN_MEMORY - 1))
-        }
-        intercept[IllegalArgumentException] {
-            ActionLimits(TimeLimit(TimeLimit.MAX_DURATION.toMillis.toInt + 1), MemoryLimit(MemoryLimit.MAX_MEMORY + 1))
-        }
+        an[IllegalArgumentException] should be thrownBy ActionLimits(TimeLimit(TimeLimit.MIN_DURATION.toMillis.toInt - 1), MemoryLimit(), LogLimit())
+        an[IllegalArgumentException] should be thrownBy ActionLimits(TimeLimit(), MemoryLimit(MemoryLimit.MIN_MEMORY - 1), LogLimit())
+        an[IllegalArgumentException] should be thrownBy ActionLimits(TimeLimit(), MemoryLimit(), LogLimit(LogLimit.MIN_LOGSIZE - 1))
+
+        an[IllegalArgumentException] should be thrownBy ActionLimits(TimeLimit(TimeLimit.MAX_DURATION.toMillis.toInt + 1), MemoryLimit(), LogLimit())
+        an[IllegalArgumentException] should be thrownBy ActionLimits(TimeLimit(), MemoryLimit(MemoryLimit.MAX_MEMORY + 1), LogLimit())
+        an[IllegalArgumentException] should be thrownBy ActionLimits(TimeLimit(), MemoryLimit(), LogLimit(LogLimit.MAX_LOGSIZE + 1))
     }
 
     it should "parse activation id as uuid" in {

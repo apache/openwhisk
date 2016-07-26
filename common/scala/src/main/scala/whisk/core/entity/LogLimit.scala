@@ -42,6 +42,8 @@ protected[core] class LogLimit private (val megabytes: Int) extends AnyVal {
 }
 
 protected[core] object LogLimit extends ArgNormalizer[LogLimit] {
+    protected[entity] val MAX_LOGSIZE = 10 // MB
+    protected[entity] val MIN_LOGSIZE = 0 // MB
     protected[core] val STD_LOGSIZE = 10 // MB
 
     /** Gets LogLimit with default log limit */
@@ -55,8 +57,9 @@ protected[core] object LogLimit extends ArgNormalizer[LogLimit] {
      * @throws IllegalArgumentException if limit does not conform to requirements
      */
     @throws[IllegalArgumentException]
-    private def apply(megabytes: Int): LogLimit = {
-        require(megabytes == STD_LOGSIZE, s"only standard log limit of '$STD_LOGSIZE' (megabytes) allowed")
+    protected[core] def apply(megabytes: Int): LogLimit = {
+        require(megabytes >= MIN_LOGSIZE, s"log size $megabytes (megabytes) below allowed threshold of $MIN_LOGSIZE (megabytes)")
+        require(megabytes <= MAX_LOGSIZE, s"log size $megabytes (megabytes) exceeds allowed threshold of $MAX_LOGSIZE (megabytes)")
         new LogLimit(megabytes);
     }
 

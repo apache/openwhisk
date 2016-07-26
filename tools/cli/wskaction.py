@@ -48,6 +48,7 @@ class Action(Item):
         subcmd.add_argument('-p', '--param', help='default parameters', nargs=2, action='append')
         subcmd.add_argument('-t', '--timeout', help='the timeout limit in milliseconds when the action will be terminated', type=int)
         subcmd.add_argument('-m', '--memory', help='the memory limit in MB of the container that runs the action', type=int)
+        subcmd.add_argument('-l', '--logsize', help='the logsize limit in MB of the container that runs the action', type=int)
 
         subcmd = parser.add_parser('update', help='update an existing action')
         subcmd.add_argument('--kind', help='the kind of the action runtime (example: swift:3)', type=str)
@@ -63,6 +64,7 @@ class Action(Item):
         subcmd.add_argument('-p', '--param', help='default parameters', nargs=2, action='append')
         subcmd.add_argument('-t', '--timeout', help='the timeout limit in milliseconds when the action will be terminated', type=int)
         subcmd.add_argument('-m', '--memory', help='the memory limit in MB of the container that runs the action', type=int)
+        subcmd.add_argument('-l', '--logsize', help='the logsize limit in MB of the container that runs the action', type=int)
 
         subcmd = parser.add_parser('invoke', help='invoke action')
         subcmd.add_argument('name', help='the name of the action to invoke')
@@ -95,7 +97,7 @@ class Action(Item):
             if args.param:
                 payload['parameters'] = getParams(args)
             # API will accept limits == {} as limits not specified on an update
-            if args.timeout or args.memory:
+            if not args.timeout is None or not args.memory is None or not args.logsize is None:
                 payload['limits'] = self.getLimits(args)
             if validExe:
                 payload['exec'] = exe
@@ -149,10 +151,12 @@ class Action(Item):
     # creates { timeout: msecs, memory: megabytes } action timeout/memory limits
     def getLimits(self, args):
         limits = {}
-        if args.timeout:
+        if not args.timeout is None:
             limits['timeout'] = args.timeout
-        if args.memory :
+        if not args.memory is None:
             limits['memory'] = args.memory
+        if not args.logsize is None:
+            limits['logs'] = args.logsize
         return limits
 
     # creates one of:

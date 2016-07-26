@@ -62,8 +62,8 @@ protected[core] object TimeLimit extends ArgNormalizer[TimeLimit] {
      */
     @throws[IllegalArgumentException]
     protected[core] def apply(duration: Int): TimeLimit = {
-        require(duration >= MIN_DURATION.toMillis.toInt, s"duration $duration below allowed threshold")
-        require(duration <= MAX_DURATION.toMillis.toInt, s"duration $duration exceeds allowed threshold")
+        require(duration >= MIN_DURATION.toMillis.toInt, s"duration $duration (milliseconds) below allowed threshold of $MIN_DURATION (milliseconds)")
+        require(duration <= MAX_DURATION.toMillis.toInt, s"duration $duration (milliseconds) exceeds allowed threshold of $MAX_DURATION (milliseconds)")
         new TimeLimit(Duration(duration, MILLISECONDS))
     }
 

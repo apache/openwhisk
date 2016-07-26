@@ -23,11 +23,10 @@ import org.apache.commons.io.FileUtils
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
-import spray.json.DefaultJsonProtocol.JsValueFormat
-import spray.json.DefaultJsonProtocol.LongJsonFormat
-import spray.json.DefaultJsonProtocol.StringJsonFormat
-import spray.json.DefaultJsonProtocol.mapFormat
+import spray.json.DefaultJsonProtocol._
 import spray.json.pimpAny
+import spray.json.pimpString
+import spray.json.JsObject
 
 import common.TestHelpers
 import common.TestUtils
@@ -47,7 +46,10 @@ import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
 import whisk.core.entity.WhiskPackage
-
+import whisk.core.entity.ByteSize
+import whisk.core.entity.size.SizeInt
+import scala.concurrent.duration.Duration
+import scala.concurrent.duration.DurationInt
 
 @RunWith(classOf[JUnitRunner])
 class WskBasicTests
@@ -345,6 +347,36 @@ class WskBasicTests
                     action.create(name, file)
             }
             wsk.action.list().stdout should include(name + " private")
+    }
+
+    it should "create an action with different permutations of limits" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val file = Some(TestUtils.getCatalogFilename("samples/hello.js"))
+
+            def testLimit(timeout: Option[Duration] = None, memory: Option[Int] = None, logs: Option[ByteSize] = None) = {
+                println(s"Passing timeout = $timeout, memory = $memory, logs = $logs")
+
+                // Limits to assert, standard values if CLI omits certain values
+                val limits = JsObject(
+                    "timeout" -> timeout.map(_.toMillis).getOrElse(60000L).toJson,
+                    "memory" -> memory.getOrElse(256).toJson,
+                    "logs" -> logs.map(_.toMB).getOrElse(10L).toJson)
+
+                val name = "ActionLimitTests" + Instant.now.toEpochMilli
+                assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+                    action.create(name, file, logsize = logs, memory = memory, timeout = timeout)
+                }
+
+                val JsObject(parsedAction) = wsk.action.get(name).stdout.split("\n").tail.mkString.parseJson.asJsObject
+                parsedAction("limits") shouldBe limits
+            }
+
+            // Assert for every permutation that the values are set correctly
+            for {
+                time <- Seq(None, Some(100.milliseconds), Some(2.minutes), Some(5.minutes))
+                mem <- Seq(None, Some(128), Some(256), Some(512))
+                log <- Seq(None, Some(0.MB), Some(5.MB), Some(10.MB))
+            } testLimit(time, mem, log)
     }
 
     it should "get an action" in {

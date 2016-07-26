@@ -41,6 +41,7 @@ import spray.json.JsValue
 import spray.json.pimpString
 import whisk.utils.retry
 import java.time.Instant
+import whisk.core.entity.ByteSize
 
 /**
  * Provide Scala bindings for the whisk CLI.
@@ -67,7 +68,6 @@ import java.time.Instant
  * It also sets the apihost and apiversion explicitly to avoid ambiguity with
  * a local property file if it exists.
  */
-
 
 case class WskProps(
     authKey: String = WhiskProperties.readAuthKey(WhiskProperties.getAuthFileForTesting),
@@ -226,6 +226,7 @@ class WskAction(override val usePythonCLI: Boolean = false)
         annotations: Map[String, JsValue] = Map(),
         timeout: Option[Duration] = None,
         memory: Option[Int] = None,
+        logsize: Option[ByteSize] = None,
         shared: Option[Boolean] = None,
         update: Boolean = false,
         expectedExitCode: Int = SUCCESS_EXIT)(
@@ -242,6 +243,7 @@ class WskAction(override val usePythonCLI: Boolean = false)
             { annotations flatMap { p => Seq("-a", p._1, p._2.compactPrint) } } ++
             { timeout map { t => Seq("-t", t.toMillis.toString) } getOrElse Seq() } ++
             { memory map { m => Seq("-m", m.toString) } getOrElse Seq() } ++
+            { logsize map { l => Seq("-l", l.toMB.toString) } getOrElse Seq() } ++
             { shared map { s => Seq("--shared", if (s) "yes" else "no") } getOrElse Seq() }
         cli(wp.overrides ++ params, expectedExitCode)
     }

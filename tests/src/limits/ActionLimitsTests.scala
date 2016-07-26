@@ -98,20 +98,20 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
 
     it should "succeed but truncate logs, if log size exceeds its limit" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
+            val allowedSize = 0 megabytes
             val name = "TestActionCausingExceededLogs"
             assetHelper.withCleaner(wsk.action, name, confirmDelete = true) {
                 val actionName = TestUtils.getTestActionFilename("dosLogs.js")
-                (action, _) => action.create(name, Some(actionName))
+                (action, _) => action.create(name, Some(actionName), logsize = Some(allowedSize))
             }
 
-            val allowedSize = 10 megabytes
-            val writing = allowedSize + 2.megabytes
+            val writing = allowedSize + 1.megabytes
             val characters = writing.toBytes / 2 // a character takes 2 bytes
 
             val run = wsk.action.invoke(name, Map("payload" -> characters.toJson))
             withActivation(wsk.activation, run) { response =>
                 val lines = response.fields("logs").convertTo[List[String]]
-                lines.last should be("Logs have been truncated because they exceeded the limit of 10 megabytes")
+                lines.last should be(s"Logs have been truncated because they exceeded the limit of ${allowedSize.toMB} megabytes")
                 // dropping 39 characters (timestamp + streamname)
                 lines.dropRight(1).map(_.drop(39)).mkString.sizeInBytes should be <= allowedSize
             }

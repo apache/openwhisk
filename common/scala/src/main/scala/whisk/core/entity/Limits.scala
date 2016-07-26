@@ -68,9 +68,6 @@ protected[core] object ActionLimits
     /** Creates a ActionLimits instance with default duration, memory and log limits. */
     protected[core] def apply(): ActionLimits = ActionLimits(TimeLimit(), MemoryLimit(), LogLimit())
 
-    /** Creates a ActionLimits instance with given duration and memory and default log limit. */
-    protected[core] def apply(timeout: TimeLimit, memory: MemoryLimit): ActionLimits = ActionLimits(timeout, memory, LogLimit())
-
     override protected[core] implicit val serdes = new RootJsonFormat[ActionLimits] {
         val helper = jsonFormat3(ActionLimits.apply)
 

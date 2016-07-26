@@ -50,6 +50,7 @@ import whisk.core.entity.ActivationLogs
 import whisk.core.entity.AuthKey
 import whisk.core.entity.Exec
 import whisk.core.entity.MemoryLimit
+import whisk.core.entity.LogLimit
 import whisk.core.entity.Namespace
 import whisk.core.entity.Parameters
 import whisk.core.entity.SemVer
@@ -457,7 +458,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     it should "put should accept request with limits property" in {
         implicit val tid = transid()
         val action = WhiskAction(namespace, aname, Exec.js("??"), Parameters("x", "b"))
-        val content = WhiskActionPut(Some(action.exec), Some(action.parameters), Some(ActionLimitsOption(Some(action.limits.timeout), Some(action.limits.memory))))
+        val content = WhiskActionPut(Some(action.exec), Some(action.parameters), Some(ActionLimitsOption(Some(action.limits.timeout), Some(action.limits.memory), Some(action.limits.logs))))
         Put(s"$collectionPath/${action.name}", content) ~> sealRoute(routes(creds)) ~> check {
             deleteAction(action.docid)
             status should be(OK)
@@ -468,7 +469,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     it should "put and then get action from cache" in {
         val action = WhiskAction(namespace, aname, Exec.js("??"), Parameters("x", "b"))
-        val content = WhiskActionPut(Some(action.exec), Some(action.parameters), Some(ActionLimitsOption(Some(action.limits.timeout), Some(action.limits.memory))))
+        val content = WhiskActionPut(Some(action.exec), Some(action.parameters), Some(ActionLimitsOption(Some(action.limits.timeout), Some(action.limits.memory), Some(action.limits.logs))))
         val name = action.name
 
         val stream = new ByteArrayOutputStream
@@ -590,7 +591,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     it should "invoke an action, blocking with timeout" in {
         implicit val tid = transid()
-        val action = WhiskAction(namespace, aname, Exec.js("??"), limits = ActionLimits(TimeLimit(1000), MemoryLimit()))
+        val action = WhiskAction(namespace, aname, Exec.js("??"), limits = ActionLimits(TimeLimit(1000), MemoryLimit(), LogLimit()))
         put(entityStore, action)
         Post(s"$collectionPath/${action.name}?blocking=true") ~> sealRoute(routes(creds)) ~> check {
             status should be(Accepted)
