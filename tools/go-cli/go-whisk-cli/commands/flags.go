@@ -72,6 +72,7 @@ var flags struct {
         sequence    bool
         timeout     int
         memory      int
+        logsize     int
         result      bool
         xPackage    string
         kind        string

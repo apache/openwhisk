@@ -38,6 +38,7 @@ import whisk.core.WhiskConfig.invokerContainerPolicy
 import whisk.core.WhiskConfig.selfDockerEndpoint
 import whisk.core.entity.ActionLimits
 import whisk.core.entity.MemoryLimit
+import whisk.core.entity.LogLimit
 import whisk.core.entity.TimeLimit
 import whisk.core.entity.NodeJSExec
 import whisk.core.entity.WhiskAction
@@ -409,7 +410,7 @@ class ContainerPool(
 
     private def makeWarmNodejsContainer()(implicit transid: TransactionId): WhiskContainer = {
         val imageName = WhiskAction.containerImageName(nodejsExec, config.dockerRegistry, config.dockerImageTag)
-        val limits = ActionLimits(TimeLimit(), defaultMemoryLimit)
+        val limits = ActionLimits(TimeLimit(), defaultMemoryLimit, LogLimit())
         val containerName = makeContainerName("warmJsContainer")
         val con = makeGeneralContainer(warmNodejsKey, containerName, imageName, limits)
         this.synchronized {

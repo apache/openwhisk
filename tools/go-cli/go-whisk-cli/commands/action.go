@@ -506,13 +506,16 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
     }
 
     // Only include the memory and timeout limit if set
-    if flags.action.memory > 0 || flags.action.timeout > 0 {
+    if flags.action.memory > -1 || flags.action.timeout > -1 || flags.action.logsize > -1 {
         limits = new(whisk.Limits)
-        if flags.action.memory > 0 {
+        if flags.action.memory > -1 {
             limits.Memory = flags.action.memory
         }
-        if flags.action.timeout > 0 {
+        if flags.action.timeout > -1 {
             limits.Timeout = flags.action.timeout
+        }
+        if flags.action.logsize > -1 {
+            limits.Logsize = flags.action.logsize
         }
         whisk.Debug(whisk.DbgInfo, "Action limits: %+v\n", limits)
     }
@@ -677,8 +680,9 @@ func init() {
     actionCreateCmd.Flags().StringVar(&flags.action.kind, "kind", "", "the kind of the action runtime (example: swift:3, nodejs:6)")
     actionCreateCmd.Flags().StringVar(&flags.action.shared, "shared", "", "shared action (default: private)")
     actionCreateCmd.Flags().StringVar(&flags.action.xPackage, "package", "", "package")
-    actionCreateCmd.Flags().IntVarP(&flags.action.timeout, "timeout", "t", 0, "the timeout limit in miliseconds when the action will be terminated")
-    actionCreateCmd.Flags().IntVarP(&flags.action.memory, "memory", "m", 0, "the memory limit in MB of the container that runs the action")
+    actionCreateCmd.Flags().IntVarP(&flags.action.timeout, "timeout", "t", -1, "the timeout limit in miliseconds when the action will be terminated")
+    actionCreateCmd.Flags().IntVarP(&flags.action.memory, "memory", "m", -1, "the memory limit in MB of the container that runs the action")
+    actionCreateCmd.Flags().IntVarP(&flags.action.logsize, "logsize", "l", -1, "the logsize limit in MB of the container that runs the action")
     actionCreateCmd.Flags().StringSliceVarP(&flags.common.annotation, "annotation", "a", []string{}, "annotations")
     actionCreateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, "default parameters")
 
@@ -688,8 +692,9 @@ func init() {
     actionUpdateCmd.Flags().StringVar(&flags.action.kind, "kind", "", "the kind of the action runtime (example: swift:3, nodejs:6)")
     actionUpdateCmd.Flags().StringVar(&flags.action.shared, "shared", "", "shared action (default: private)")
     actionUpdateCmd.Flags().StringVar(&flags.action.xPackage, "package", "", "package")
-    actionUpdateCmd.Flags().IntVarP(&flags.action.timeout, "timeout", "t", 0, "the timeout limit in miliseconds when the action will be terminated")
-    actionUpdateCmd.Flags().IntVarP(&flags.action.memory, "memory", "m", 0, "the memory limit in MB of the container that runs the action")
+    actionUpdateCmd.Flags().IntVarP(&flags.action.timeout, "timeout", "t", -1, "the timeout limit in miliseconds when the action will be terminated")
+    actionUpdateCmd.Flags().IntVarP(&flags.action.memory, "memory", "m", -1, "the memory limit in MB of the container that runs the action")
+    actionUpdateCmd.Flags().IntVarP(&flags.action.logsize, "logsize", "l", -1, "the logsize limit in MB of the container that runs the action")
     actionUpdateCmd.Flags().StringSliceVarP(&flags.common.annotation, "annotation", "a", []string{}, "annotations")
     actionUpdateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, "default parameters")
 

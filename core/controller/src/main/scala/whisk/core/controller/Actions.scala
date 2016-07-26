@@ -69,6 +69,7 @@ import whisk.core.entity.Namespace
 import whisk.core.entity.{ Parameters, ParameterName, ParameterValue }
 import whisk.core.entity.SemVer
 import whisk.core.entity.TimeLimit
+import whisk.core.entity.LogLimit
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskActionPut
 import whisk.core.entity.WhiskActivation
@@ -355,7 +356,8 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
             val limits = content.limits map { l =>
                 ActionLimits(
                     l.timeout getOrElse TimeLimit(),
-                    l.memory getOrElse MemoryLimit())
+                    l.memory getOrElse MemoryLimit(),
+                    l.logs getOrElse LogLimit())
             } getOrElse ActionLimits()
 
             // This is temporary while we are making sequencing directly supported in the controller.
@@ -382,7 +384,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
     /** Updates a WhiskAction from PUT content, merging old action where necessary. */
     private def update(content: WhiskActionPut)(action: WhiskAction) = Future successful {
         val limits = content.limits map { l =>
-            ActionLimits(l.timeout getOrElse action.limits.timeout, l.memory getOrElse action.limits.memory)
+            ActionLimits(l.timeout getOrElse action.limits.timeout, l.memory getOrElse action.limits.memory, l.logs getOrElse action.limits.logs)
         } getOrElse action.limits
 
         // This is temporary while we are making sequencing directly supported in the controller.

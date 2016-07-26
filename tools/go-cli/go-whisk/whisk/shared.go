@@ -38,4 +38,5 @@ type Parameters *json.RawMessage
 type Limits struct {
     Timeout int `json:"timeout,omitempty"`
     Memory  int `json:"memory,omitempty"`
+    Logsize int `json:"logs"`
 }
