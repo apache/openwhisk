@@ -406,6 +406,7 @@ OpenWhisk has a few system limits, including how much memory an action uses and 
 | ----- | ----------- | ------------ | -----| ------- |
 | timeout | a container is not allowed to run longer than N milliseconds | per action |  milliseconds | 60000 |
 | memory | a container is not allowed to allocate more than N MB of memory | per action | MB | 256 |
+| logs | a container is not allowed to write mor than N MB to stdout | per action | MB | 10 |
 | concurrent | it's not allowed to have more than N concurrent activations per namespace | per namespace | number | 100 |
 | minuteRate | a user cannot invoke more than this many actions per minute | per user | number | 120 |
 | hourRate | a user cannot invoke more than this many actions per hour | per user | number | 3600 |
@@ -419,6 +420,11 @@ OpenWhisk has a few system limits, including how much memory an action uses and 
 * The memory limit M is in the range from [128MB..512MB] and is set per action in MB.
 * A user can change the limit when creating the action.
 * A container cannot have more memory allocated than the limit.
+
+### Per action logs (MB) (Default: 10MB)
+* The log limit M is in the range from [0MB..10MB] and is set per action in MB.
+* A user can change the limit when creating the action.
+* If a container writes more logs than the limit, the activation will contain the logs until that limit and truncated afterwards. The last logline will contain warning.
 
 ### Per action artifact (MB) (Fixed: 1MB)
 * The maximum code size for the action is 1MB.
