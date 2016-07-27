@@ -84,6 +84,7 @@ class WhiskConfig(
     val mainDockerEndpoint = this(WhiskConfig.mainDockerEndpoint)
     val routerDockerEndpoint = this(WhiskConfig.routerDockerEndpoint)
     val elkDockerEndpoint = this(WhiskConfig.elkDockerEndpoint)
+    val catalogDockerEndpoint = this(WhiskConfig.catalogDockerEndpoint)
 }
 
 object WhiskConfig {
@@ -158,6 +159,7 @@ object WhiskConfig {
     val mainDockerEndpoint = "main.docker.endpoint"
     val routerDockerEndpoint = "router.docker.endpoint"
     val elkDockerEndpoint = "elk.docker.endpoint"
+    val catalogDockerEndpoint = "catalog.docker.endpoint"
 
     private val controllerHostName = "controller.host"
     private val elkHostName = "elk.host"
