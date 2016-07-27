@@ -16,14 +16,16 @@
 
 package whisk.core.entity
 
+import scala.language.postfixOps
+import scala.util.Failure
+import scala.util.Success
 import scala.util.Try
 
 import spray.json.JsNumber
 import spray.json.JsValue
 import spray.json.RootJsonFormat
 import spray.json.deserializationError
-import scala.util.Success
-import scala.util.Failure
+import whisk.core.entity.size.SizeInt
 
 /**
  * LogLimit encapsulates allowed amount of logs written by an action.
@@ -42,12 +44,12 @@ protected[core] class LogLimit private (val megabytes: Int) extends AnyVal {
 }
 
 protected[core] object LogLimit extends ArgNormalizer[LogLimit] {
-    protected[entity] val MAX_LOGSIZE = 10 // MB
-    protected[entity] val MIN_LOGSIZE = 0 // MB
-    protected[core] val STD_LOGSIZE = 10 // MB
+    protected[core] val MIN_LOGSIZE = 0 MB
+    protected[core] val MAX_LOGSIZE = 10 MB
+    protected[core] val STD_LOGSIZE = 10 MB
 
     /** Gets LogLimit with default log limit */
-    protected[core] def apply(): LogLimit = new LogLimit(STD_LOGSIZE)
+    protected[core] def apply(): LogLimit = LogLimit(STD_LOGSIZE)
 
     /**
      * Creates LogLimit for limit. Only the default limit is allowed currently.
@@ -57,10 +59,10 @@ protected[core] object LogLimit extends ArgNormalizer[LogLimit] {
      * @throws IllegalArgumentException if limit does not conform to requirements
      */
     @throws[IllegalArgumentException]
-    protected[core] def apply(megabytes: Int): LogLimit = {
-        require(megabytes >= MIN_LOGSIZE, s"log size $megabytes (megabytes) below allowed threshold of $MIN_LOGSIZE (megabytes)")
-        require(megabytes <= MAX_LOGSIZE, s"log size $megabytes (megabytes) exceeds allowed threshold of $MAX_LOGSIZE (megabytes)")
-        new LogLimit(megabytes);
+    protected[core] def apply(megabytes: ByteSize): LogLimit = {
+        require(megabytes >= MIN_LOGSIZE, s"log size $megabytes below allowed threshold of $MIN_LOGSIZE")
+        require(megabytes <= MAX_LOGSIZE, s"log size $megabytes exceeds allowed threshold of $MAX_LOGSIZE")
+        new LogLimit(megabytes.toMB.toInt);
     }
 
     override protected[core] implicit val serdes = new RootJsonFormat[LogLimit] {
@@ -69,7 +71,7 @@ protected[core] object LogLimit extends ArgNormalizer[LogLimit] {
         def read(value: JsValue) = Try {
             val JsNumber(mb) = value
             require(mb.isWhole(), "log limit must be whole number")
-            LogLimit(mb.intValue)
+            LogLimit(mb.intValue MB)
         } match {
             case Success(limit)                       => limit
             case Failure(e: IllegalArgumentException) => deserializationError(e.getMessage, e)

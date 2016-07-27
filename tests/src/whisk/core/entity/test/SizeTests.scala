@@ -31,7 +31,7 @@ class SizeTests extends FlatSpec with Matchers {
     behavior of "Size Entity"
 
     // Comparing
-    it should "1 Byte smaller than 1 kB smaller than 1 mB" in {
+    it should "1 Byte smaller than 1 KB smaller than 1 MB" in {
         val oneByte = 1 B
         val oneKB = 1 KB
         val oneMB = 1 MB
@@ -40,7 +40,7 @@ class SizeTests extends FlatSpec with Matchers {
         oneKB < oneMB should be(true)
     }
 
-    it should "3 Bytes smaller than 2 kB smaller than 1 mB" in {
+    it should "3 Bytes smaller than 2 KB smaller than 1 MB" in {
         val myBytes = 3 B
         val myKBs = 2 KB
         val myMBs = 1 MB
@@ -49,7 +49,7 @@ class SizeTests extends FlatSpec with Matchers {
         myKBs < myMBs should be(true)
     }
 
-    it should "1 mB greaten than 1 kB greater than 1 Byte" in {
+    it should "1 MB greater than 1 KB greater than 1 Byte" in {
         val oneByte = 1 B
         val oneKB = 1 KB
         val oneMB = 1 MB
@@ -58,7 +58,7 @@ class SizeTests extends FlatSpec with Matchers {
         oneKB > oneByte should be(true)
     }
 
-    it should "1 mB == 1024 kB == 1048576 B" in {
+    it should "1 MB == 1024 KB == 1048576 B" in {
         val myBytes = 1048576 B
         val myKBs = 1024 KB
         val myMBs = 1 MB
@@ -68,12 +68,27 @@ class SizeTests extends FlatSpec with Matchers {
     }
 
     // Addition
-    it should "1 Byte + 1 kB = 1025 Bytes" in {
-        (1 B) + (1 KB) should be(1025 B)
+    it should "1 Byte + 1 KB = 1025 Bytes" in {
+        1.B + 1.KB should be(1025 B)
     }
 
-    it should "1 mB + 1 mB = 2 mB" in {
-        ((1 MB) + (1 MB)).toBytes should be((2 MB).toBytes)
+    it should "1 MB + 1 MB = 2 MB" in {
+        (1.MB + 1.MB).toBytes should be(2.MB.toBytes)
+    }
+
+    // Subtraction
+    it should "1 KB - 1B = 1023 Bytes" in {
+        1.KB - 1.B should be(1023 B)
+    }
+
+    it should "1 MB - 1 MB = 0 MB" in {
+        1.MB - 1.MB should be(0 B)
+    }
+
+    it should "throw an exception if subtraction leads to a negative size" in {
+        an[IllegalArgumentException] should be thrownBy {
+            0.B - 1.B
+        }
     }
 
     // Conversions
@@ -85,19 +100,19 @@ class SizeTests extends FlatSpec with Matchers {
         (1048576 B).toMB should be(1)
     }
 
-    it should "1 kB to B = 1024" in {
+    it should "1 KB to B = 1024" in {
         (1 KB).toBytes should be(1024)
     }
 
-    it should "1024 kB to mB = 1" in {
+    it should "1024 KB to MB = 1" in {
         (1024 KB).toMB should be(1)
     }
 
-    it should "1 mB to B = 1048576" in {
+    it should "1 MB to B = 1048576" in {
         (1 MB).toBytes should be(1048576)
     }
 
-    it should "1 mB to kB = 1024" in {
+    it should "1 MB to KB = 1024" in {
         (1 MB).toKB should be(1024)
     }
 

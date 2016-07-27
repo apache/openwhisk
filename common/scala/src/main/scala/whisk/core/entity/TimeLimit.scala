@@ -20,14 +20,15 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.duration.MILLISECONDS
-import spray.json.deserializationError
-import spray.json.JsValue
-import spray.json.JsNumber
-import spray.json.RootJsonFormat
-import scala.util.Try
 import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
+import scala.util.Try
+
+import spray.json.JsNumber
+import spray.json.JsValue
+import spray.json.RootJsonFormat
+import spray.json.deserializationError
 
 /**
  * TimeLimit encapsulates a duration for an action. The duration must be within a
@@ -46,12 +47,12 @@ protected[entity] class TimeLimit private (val duration: FiniteDuration) extends
 }
 
 protected[core] object TimeLimit extends ArgNormalizer[TimeLimit] {
-    protected[entity] val MIN_DURATION = 100 milliseconds
-    protected[entity] val MAX_DURATION = 5 minutes
-    protected[entity] val STD_DURATION = 1 minute
+    protected[core] val MIN_DURATION = 100 milliseconds
+    protected[core] val MAX_DURATION = 5 minutes
+    protected[core] val STD_DURATION = 1 minute
 
     /** Gets TimeLimit with default duration */
-    protected[core] def apply(): TimeLimit = new TimeLimit(STD_DURATION)
+    protected[core] def apply(): TimeLimit = TimeLimit(STD_DURATION)
 
     /**
      * Creates TimeLimit for duration, iff duration is within permissible range.
@@ -61,24 +62,10 @@ protected[core] object TimeLimit extends ArgNormalizer[TimeLimit] {
      * @throws IllegalArgumentException if duration does not conform to requirements
      */
     @throws[IllegalArgumentException]
-    protected[core] def apply(duration: Int): TimeLimit = {
-        require(duration >= MIN_DURATION.toMillis.toInt, s"duration $duration (milliseconds) below allowed threshold of $MIN_DURATION (milliseconds)")
-        require(duration <= MAX_DURATION.toMillis.toInt, s"duration $duration (milliseconds) exceeds allowed threshold of $MAX_DURATION (milliseconds)")
-        new TimeLimit(Duration(duration, MILLISECONDS))
-    }
-
-    /**
-     * Creates TimeLimit for duration, iff duration is within permissible range.
-     *
-     * @param duration the duration in milliseconds, must be within permissible range
-     * @return TimeLimit with duration set
-     * @throws IllegalArgumentException if duration does not conform to requirements
-     */
-    @throws[IllegalArgumentException]
-    protected[entity] def apply(duration: FiniteDuration): TimeLimit = {
+    protected[core] def apply(duration: FiniteDuration): TimeLimit = {
         require(duration != null, s"duration undefined")
-        require(duration >= MIN_DURATION, s"duration $duration below allowed threshold")
-        require(duration <= MAX_DURATION, s"duration $duration exceeds allowed threshold")
+        require(duration >= MIN_DURATION, s"duration ${duration.toMillis} milliseconds below allowed threshold of ${MIN_DURATION.toMillis} milliseconds")
+        require(duration <= MAX_DURATION, s"duration ${duration.toMillis} milliseconds exceeds allowed threshold of ${MAX_DURATION.toMillis} milliseconds")
         new TimeLimit(duration)
     }
 
@@ -88,7 +75,7 @@ protected[core] object TimeLimit extends ArgNormalizer[TimeLimit] {
         def read(value: JsValue) = Try {
             val JsNumber(ms) = value
             require(ms.isWhole, "time limit must be whole number")
-            TimeLimit(ms.intValue)
+            TimeLimit(Duration(ms.intValue, MILLISECONDS))
         } match {
             case Success(limit)                       => limit
             case Failure(e: IllegalArgumentException) => deserializationError(e.getMessage, e)

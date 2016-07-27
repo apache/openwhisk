@@ -16,14 +16,16 @@
 
 package whisk.core.entity
 
+import scala.language.postfixOps
+import scala.util.Failure
+import scala.util.Success
 import scala.util.Try
 
 import spray.json.JsNumber
 import spray.json.JsValue
 import spray.json.RootJsonFormat
 import spray.json.deserializationError
-import scala.util.Failure
-import scala.util.Success
+import whisk.core.entity.size.SizeInt
 
 /**
  * MemoyLimit encapsulates allowed memory for an action. The limit must be within a
@@ -40,12 +42,12 @@ protected[entity] class MemoryLimit private (val megabytes: Int) extends AnyVal 
 }
 
 protected[core] object MemoryLimit extends ArgNormalizer[MemoryLimit] {
-    protected[entity] val MIN_MEMORY = 128 // MB
-    protected[entity] val MAX_MEMORY = 512 // MB
-    protected[core] val STD_MEMORY = 256 // MB
+    protected[core] val MIN_MEMORY = 128 MB
+    protected[core] val MAX_MEMORY = 512 MB
+    protected[core] val STD_MEMORY = 256 MB
 
     /** Gets TimeLimit with default duration */
-    protected[core] def apply(): MemoryLimit = new MemoryLimit(STD_MEMORY)
+    protected[core] def apply(): MemoryLimit = MemoryLimit(STD_MEMORY)
 
     /**
      * Creates MemoryLimit for limit, iff limit is within permissible range.
@@ -55,10 +57,10 @@ protected[core] object MemoryLimit extends ArgNormalizer[MemoryLimit] {
      * @throws IllegalArgumentException if limit does not conform to requirements
      */
     @throws[IllegalArgumentException]
-    protected[core] def apply(megabytes: Int): MemoryLimit = {
-        require(megabytes >= MIN_MEMORY, s"memory $megabytes (megabytes) below allowed threshold of $MIN_MEMORY (megabytes)")
-        require(megabytes <= MAX_MEMORY, s"memory $megabytes (megabytes) exceeds allowed threshold of $MAX_MEMORY (megabytes)")
-        new MemoryLimit(megabytes);
+    protected[core] def apply(megabytes: ByteSize): MemoryLimit = {
+        require(megabytes >= MIN_MEMORY, s"memory $megabytes below allowed threshold of $MIN_MEMORY")
+        require(megabytes <= MAX_MEMORY, s"memory $megabytes exceeds allowed threshold of $MAX_MEMORY")
+        new MemoryLimit(megabytes.toMB.toInt);
     }
 
     override protected[core] implicit val serdes = new RootJsonFormat[MemoryLimit] {
@@ -67,7 +69,7 @@ protected[core] object MemoryLimit extends ArgNormalizer[MemoryLimit] {
         def read(value: JsValue) = Try {
             val JsNumber(mb) = value
             require(mb.isWhole(), "memory limit must be whole number")
-            MemoryLimit(mb.intValue)
+            MemoryLimit(mb.intValue MB)
         } match {
             case Success(limit)                       => limit
             case Failure(e: IllegalArgumentException) => deserializationError(e.getMessage, e)

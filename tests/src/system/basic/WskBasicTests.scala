@@ -19,14 +19,11 @@ package system.basic
 import java.io.File
 import java.time.Instant
 
-import org.apache.commons.io.FileUtils
+import scala.concurrent.duration.Duration
+import scala.concurrent.duration.DurationInt
+
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-
-import spray.json.DefaultJsonProtocol._
-import spray.json.pimpAny
-import spray.json.pimpString
-import spray.json.JsObject
 
 import common.TestHelpers
 import common.TestUtils
@@ -34,22 +31,20 @@ import common.TestUtils.ANY_ERROR_EXIT
 import common.TestUtils.BAD_REQUEST
 import common.TestUtils.CONFLICT
 import common.TestUtils.FORBIDDEN
-import common.TestUtils.MISUSE_EXIT
 import common.TestUtils.NOTALLOWED
 import common.TestUtils.NOT_FOUND
 import common.TestUtils.SUCCESS_EXIT
 import common.TestUtils.TIMEOUT
 import common.TestUtils.UNAUTHORIZED
-import common.TestUtils.ERROR_EXIT
-import common.WhiskProperties
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
+import spray.json.DefaultJsonProtocol._
+import spray.json.JsObject
+import spray.json.pimpAny
+import spray.json.pimpString
 import whisk.core.entity.WhiskPackage
-import whisk.core.entity.ByteSize
 import whisk.core.entity.size.SizeInt
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.DurationInt
 
 @RunWith(classOf[JUnitRunner])
 class WskBasicTests
@@ -66,128 +61,13 @@ class WskBasicTests
         Wsk.exists(wsk.usePythonCLI)
     }
 
-    it should "show help and usage info" in {
-        val stdout = wsk.cli(Seq("-h")).stdout
-
-        if (wsk.usePythonCLI) {
-            stdout should include("usage:")
-            stdout should include("optional arguments")
-            stdout should include("available commands")
-            stdout should include("-help")
-        } else {
-            stdout should include regex ("""(?i)Usage:""")
-            stdout should include regex ("""(?i)Flags""")
-            stdout should include regex ("""(?i)Available commands""")
-            stdout should include regex ("""(?i)--help""")
-        }
-    }
-
-    it should "show cli build version" in {
-        val stdout = wsk.cli(Seq("property", "get", "--cliversion")).stdout
-        stdout should include regex ("""(?i)whisk CLI version\s+201.*""")
-    }
-
-    it should "show api version" in {
-        val stdout = wsk.cli(Seq("property", "get", "--apiversion")).stdout
-        stdout should include regex ("""(?i)whisk API version\s+v1""")
-    }
-
-    it should "validate default property values" in {
-        val tmpwskprops = File.createTempFile("wskprops", ".tmp")
-        val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
-        try {
-            wsk.cli(Seq("property", "unset", "--auth", "--apihost", "--apiversion", "--namespace"), env = env)
-            wsk.cli(Seq("property", "get", "--auth"), env = env).
-                stdout should include regex ("""(?i)whisk auth\s*$""") // default = empty string
-            wsk.cli(Seq("property", "get", "--apihost"), env = env).
-                stdout should include regex ("""(?i)whisk API host\s*$""") // default = empty string
-            wsk.cli(Seq("property", "get", "--namespace"), env = env).
-                stdout should include regex ("""(?i)whisk namespace\s*_$""") // default = _
-        } finally {
-            tmpwskprops.delete()
-        }
-    }
-
-    it should "show api build version" in {
-        val tmpwskprops = File.createTempFile("wskprops", ".tmp")
-        val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
-        wsk.cli(wskprops.overrides ++ Seq("property", "set"), env = env)
-        val stdout = wsk.cli(Seq("property", "get", "--apibuild", "-i"), env = env).stdout
-        try {
-            stdout should include regex ("""(?i)whisk API build\s+201.*""")
-        } finally {
-            tmpwskprops.delete()
-        }
-
-    }
-
-    it should "fail to show api build when setting apihost to bogus value" in {
+    it should "show api build details" in {
         val wsk = new Wsk(usePythonCLI = true)
-        val stdout = wsk.cli(Seq("--apihost", "xxxx.yyyy", "property", "get", "--apibuild"), expectedExitCode = ANY_ERROR_EXIT).stdout
-        stdout should not include regex("""(?i)whisk API build\s+201.*""")
-        stdout should include regex ("Cannot determine API build")
-    }
-
-    ignore should "show api build using http apihost" in {
-        val wsk = new Wsk(usePythonCLI = true)
-        val apihost = s"http://${WhiskProperties.getControllerHost}:${WhiskProperties.getControllerPort}"
-        val stdout = wsk.cli(Seq("--apihost", apihost, "property", "get", "--apibuild")).stdout
-        stdout should include regex ("""(?i)whisk API build\s+201.*""")
-    }
-
-    it should "show api build number" in {
-        val tmpwskprops = File.createTempFile("wskprops", ".tmp")
-        val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
-        wsk.cli(wskprops.overrides ++ Seq("property", "set"), env = env)
-        val stdout = wsk.cli(Seq("property", "get", "--apibuildno", "-i"), env = env).stdout
-        try {
-            stdout should include regex ("""(?i)whisk API build.*\s+.*""")
-        } finally {
-            tmpwskprops.delete()
-        }
-    }
-
-    it should "set auth in property file" in {
-        val tmpwskprops = File.createTempFile("wskprops", ".tmp")
-        val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
-        wsk.cli(Seq("property", "set", "--auth", "testKey"), env = env)
-        try {
-            val fileContent = FileUtils.readFileToString(tmpwskprops)
-            fileContent should include("AUTH=testKey")
-        } finally {
-            tmpwskprops.delete()
-        }
-    }
-
-    it should "set multiple property values with single command" in {
-        val tmpwskprops = File.createTempFile("wskprops", ".tmp")
-        val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
-        val stdout = wsk.cli(Seq("property", "set", "--auth", "testKey", "--apihost", "openwhisk.ng.bluemix.net", "--apiversion", "v1"), env = env).stdout
-        try {
-            stdout should include regex ("ok: whisk auth set")
-            stdout should include regex ("ok: whisk API host set")
-            stdout should include regex ("ok: whisk API version set")
-            val fileContent = FileUtils.readFileToString(tmpwskprops)
-            fileContent should include("AUTH=testKey")
-            fileContent should include("APIHOST=openwhisk.ng.bluemix.net")
-            fileContent should include("APIVERSION=v1")
-        } finally {
-            tmpwskprops.delete()
-        }
-    }
-
-    it should "delete multiple property values with single command" in {
-        val tmpwskprops = File.createTempFile("wskprops", ".tmp")
-        val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
-        val stdout = wsk.cli(Seq("property", "unset", "--auth", "--apihost", "--apiversion", "--namespace"), env = env).stdout
-        try {
-            stdout should include regex ("ok: whisk auth unset")
-            stdout should include regex ("ok: whisk API host unset")
-            stdout should include regex ("ok: whisk API version unset")
-            stdout should include regex ("ok: whisk namespace unset")
-        } finally {
-            tmpwskprops.delete()
-        }
+        val rr = wsk.cli(wskprops.overrides ++ Seq("property", "get", "--apibuild", "--apibuildno"))
+        rr.stderr should not include ("https:///api/v1: http: no Host in request URL")
+        rr.stdout should not include regex("Cannot determine API build")
+        rr.stdout should include regex ("""(?i)whisk API build\s+201.*""")
+        rr.stdout should include regex ("""(?i)whisk API build number\s+.*""")
     }
 
     it should "reject creating duplicate entity" in withAssetCleaner(wskprops) {
@@ -208,36 +88,6 @@ class WskBasicTests
                 (trigger, _) => trigger.create(name)
             }
             wsk.action.delete(name, expectedExitCode = CONFLICT)
-    }
-
-    it should "reject delete of an action without an action name" in {
-        val stderr = wsk.cli(Seq("action", "delete"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s). An action name is required.")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject delete of an action with an invalid argument" in {
-        val stderr = wsk.cli(Seq("action", "delete", "actionName", "invalidArg"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s): invalidArg")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject creating entities with invalid names" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val names = Seq(
-                ("", NOTALLOWED),
-                (" ", BAD_REQUEST),
-                ("hi+there", BAD_REQUEST),
-                ("$hola", BAD_REQUEST),
-                ("dora?", BAD_REQUEST),
-                ("|dora|dora?", BAD_REQUEST))
-
-            names foreach {
-                case (name, ec) =>
-                    assetHelper.withCleaner(wsk.action, name, confirmDelete = false) {
-                        (action, _) => action.create(name, defaultAction, expectedExitCode = ec)
-                    }
-            }
     }
 
     it should "reject unauthenticated access" in {
@@ -264,44 +114,9 @@ class WskBasicTests
         }
     }
 
-    it should "reject get of an action without an action name" in {
-        val stderr = wsk.cli(Seq("action", "get"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s). An action name is required.")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject get of an action with an invalid argument" in {
-        val stderr = wsk.cli(Seq("action", "get", "actionName", "invalidArg"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s): invalidArg")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
     it should "reject update action in shared package not owned by authkey" in {
         wsk.action.create("/whisk.system/util/cat", None,
             update = true, shared = Some(true), expectedExitCode = FORBIDDEN)
-    }
-
-    it should "reject bad command" in {
-        if (wsk.usePythonCLI) {
-            wsk.cli(Seq("bogus"), expectedExitCode = MISUSE_EXIT).
-                stderr should include("usage:")
-        } else {
-            val result = wsk.cli(Seq("bogus"), expectedExitCode = ERROR_EXIT)
-            result.stderr should include regex ("""(?i)Run 'wsk --help' for usage""")
-        }
-    }
-
-    it should "reject authenticated command when no auth key is given" in {
-        val tmpwskprops = File.createTempFile("wskprops", ".tmp")
-        val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
-        wsk.cli(Seq("property", "unset", "--auth"), env = env)
-        val stderr = wsk.cli(Seq("list"), env = env, expectedExitCode = MISUSE_EXIT).stderr
-        try {
-            stderr should include regex (s"usage[:.]") // Python CLI: "usage:", Go CLI: "usage."
-            stderr should include("--auth is required")
-        } finally {
-            tmpwskprops.delete()
-        }
     }
 
     behavior of "Wsk Package CLI"
@@ -316,12 +131,6 @@ class WskBasicTests
         val result = wsk.action.list(Some("/whisk.system/util")).stdout
         result should include regex ("""/whisk.system/util/head\s+shared""")
         result should include regex ("""/whisk.system/util/date\s+shared""")
-    }
-
-    it should "reject list of an action with an invalid argument" in {
-        val stderr = wsk.cli(Seq("action", "list", "actionName", "invalidArg"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s): invalidArg")
-        stderr should include("Run 'wsk --help' for usage.")
     }
 
     it should "create, update, get and list a package" in withAssetCleaner(wskprops) {
@@ -341,16 +150,6 @@ class WskBasicTests
             wsk.pkg.list().stdout should include(name)
     }
 
-    it should "create, and list a package with a long name" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val name = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-            assetHelper.withCleaner(wsk.pkg, name) {
-                (pkg, _) =>
-                    pkg.create(name)
-            }
-            wsk.pkg.list().stdout should include(name + " private")
-    }
-
     it should "create a package binding" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "bindPackage"
@@ -365,87 +164,6 @@ class WskBasicTests
             stdout should include regex (""""value": "A"""")
             stdout should include regex (s""""key": "${WhiskPackage.bindingFieldName}"""")
             stdout should not include regex(""""key": "xxx"""")
-    }
-
-    it should "reject create of a package without a package name" in {
-        val stderr = wsk.cli(Seq("package", "create"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s). A package name is required.")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject create of a package with an invalid argument" in {
-        val stderr = wsk.cli(Seq("package", "create", "packageName", "invalidArg"),
-            expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s): invalidArg")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject update of a package without a package name" in {
-        val stderr = wsk.cli(Seq("package", "update"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s). A package name is required.")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject update of a package with an invalid argument" in {
-        val stderr = wsk.cli(Seq("package", "update", "packageName", "invalidArg"),
-            expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s): invalidArg")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject get of a package without a package name" in {
-        val stderr = wsk.cli(Seq("package", "get"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s). A package name is required.")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject get of a package with an invalid argument" in {
-        val stderr = wsk.cli(Seq("package", "get", "packageName", "invalidArg"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s): invalidArg")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject bind of a package without a package name" in {
-        val stderr = wsk.cli(Seq("package", "bind"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s). A package name and binding name are required.")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject bind of a package without a binding name" in {
-        val stderr = wsk.cli(Seq("package", "bind", "somePackage"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s). A package name and binding name are required.")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject bind of a package with an invalid argument" in {
-        val stderr = wsk.cli(Seq("package", "bind", "packageName", "bindingName", "invalidArg"),
-            expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s): invalidArg")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject list of a package with an invalid argument" in {
-        val stderr = wsk.cli(Seq("package", "list", "namespace", "invalidArg"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s): invalidArg")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject delete of a package without a package name" in {
-        val stderr = wsk.cli(Seq("package", "delete"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s). A package name is required.")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject delete of a package with an invalid argument" in {
-        val stderr = wsk.cli(Seq("package", "delete", "namespace", "invalidArg"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s): invalidArg")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject refresh of a package with an invalid argument" in {
-        val stderr = wsk.cli(Seq("package", "refresh", "namespace", "invalidArg"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s): invalidArg")
-        stderr should include("Run 'wsk --help' for usage.")
     }
 
     behavior of "Wsk Action CLI"
@@ -493,47 +211,6 @@ class WskBasicTests
             wsk.action.list().stdout should include(name)
     }
 
-    it should "create, and list an action with a long name" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val name = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-            val file = Some(TestUtils.getCatalogFilename("samples/hello.js"))
-            assetHelper.withCleaner(wsk.action, name) {
-                (action, _) =>
-                    action.create(name, file)
-            }
-            wsk.action.list().stdout should include(name + " private")
-    }
-
-    it should "create an action with different permutations of limits" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val file = Some(TestUtils.getCatalogFilename("samples/hello.js"))
-
-            def testLimit(timeout: Option[Duration] = None, memory: Option[Int] = None, logs: Option[ByteSize] = None) = {
-                println(s"Passing timeout = $timeout, memory = $memory, logs = $logs")
-
-                // Limits to assert, standard values if CLI omits certain values
-                val limits = JsObject(
-                    "timeout" -> timeout.map(_.toMillis).getOrElse(60000L).toJson,
-                    "memory" -> memory.getOrElse(256).toJson,
-                    "logs" -> logs.map(_.toMB).getOrElse(10L).toJson)
-
-                val name = "ActionLimitTests" + Instant.now.toEpochMilli
-                assetHelper.withCleaner(wsk.action, name) { (action, _) =>
-                    action.create(name, file, logsize = logs, memory = memory, timeout = timeout)
-                }
-
-                val JsObject(parsedAction) = wsk.action.get(name).stdout.split("\n").tail.mkString.parseJson.asJsObject
-                parsedAction("limits") shouldBe limits
-            }
-
-            // Assert for every permutation that the values are set correctly
-            for {
-                time <- Seq(None, Some(100.milliseconds), Some(2.minutes), Some(5.minutes))
-                mem <- Seq(None, Some(128), Some(256), Some(512))
-                log <- Seq(None, Some(0.MB), Some(5.MB), Some(10.MB))
-            } testLimit(time, mem, log)
-    }
-
     it should "get an action" in {
         wsk.action.get("/whisk.system/samples/wordCount").
             stdout should include("words")
@@ -544,60 +221,12 @@ class WskBasicTests
             stderr should include regex ("""The requested resource does not exist. \(code \d+\)""")
     }
 
-    it should "reject create of an action without an action name" in {
-        val stderr = wsk.cli(Seq("action", "create"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s). An action name and artifact are required.")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject create of an action without an artifact" in {
-        val stderr = wsk.cli(Seq("action", "create", "someAction"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s). An action name and artifact are required.")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject create of an action with an invalid argument" in {
-        val stderr = wsk.cli(Seq("action", "create", "actionName", "artifactName", "invalidArg"),
-            expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s): invalidArg")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject create with missing file" in {
-        wsk.action.create("missingFile", Some("notfound"),
-            expectedExitCode = MISUSE_EXIT).
-            stderr should include("not a valid file")
-    }
-
-    it should "reject update of an action without an action name" in {
-        val stderr = wsk.cli(Seq("action", "update"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s). An action name is required.")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject update of an action with an invalid argument" in {
-        val stderr = wsk.cli(Seq("action", "update", "actionName", "artifactName", "invalidArg"),
-            expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s): invalidArg")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject action update when specified file is missing" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            // Create dummy action to update
-            val name = "updateMissingFile"
-            val file = Some(TestUtils.getCatalogFilename("samples/hello.js"))
-            assetHelper.withCleaner(wsk.action, name) { (action, name) => action.create(name, file) }
-            // Update it with a missing file
-            wsk.action.create("updateMissingFile", Some("notfound"), update = true, expectedExitCode = MISUSE_EXIT)
-    }
-
-    ignore should "create, and invoke an action that utilizes a docker container" in withAssetCleaner(wskprops) {
+    it should "create, and invoke an action that utilizes a docker container" in withAssetCleaner(wskprops) {
         val name = "dockerContainer"
         (wp, assetHelper) =>
             assetHelper.withCleaner(wsk.action, name) {
                 // this docker image will be need to be pulled from dockerhub and hence has to be published there first
-                (action, _) => action.create(name, Some("whisk/dockerskeleton"), kind = Some("docker"))
+                (action, _) => action.create(name, Some("openwhisk/example"), kind = Some("docker"))
             }
 
             val args = Map("payload" -> "test".toJson)
@@ -657,18 +286,6 @@ class WskBasicTests
                 .stdout should include regex (""""count": 3""")
     }
 
-    it should "reject invoke of an action without an action name" in {
-        val stderr = wsk.cli(Seq("action", "invoke"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s). An action name is required.")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject invoke of an action with an invalid argument" in {
-        val stderr = wsk.cli(Seq("action", "invoke", "actionName", "invalidArg"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s): invalidArg")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
     behavior of "Wsk Trigger CLI"
 
     it should "create, update, get, fire and list trigger" in withAssetCleaner(wskprops) {
@@ -695,29 +312,6 @@ class WskBasicTests
             }
 
             wsk.trigger.list().stdout should include(name)
-    }
-
-    ignore should "create a trigger using property file" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val name = "listTriggers"
-            val tmpProps = File.createTempFile("wskprops", ".tmp")
-            val env = Map("WSK_CONFIG_FILE" -> tmpProps.getAbsolutePath())
-            wsk.cli(Seq("property", "set", "--auth", wp.authKey) ++ wskprops.overrides, env = env)
-            assetHelper.withCleaner(wsk.trigger, name) {
-                (trigger, _) =>
-                    wsk.cli(Seq("-i", "trigger", "create", name), env = env)
-            }
-            tmpProps.delete()
-    }
-
-    it should "create, and list a trigger with a long name" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val name = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-            assetHelper.withCleaner(wsk.trigger, name) {
-                (trigger, _) =>
-                    trigger.create(name)
-            }
-            wsk.trigger.list().stdout should include(name + " private")
     }
 
     it should "not create a trigger when feed fails to initialize" in withAssetCleaner(wskprops) {
@@ -763,24 +357,6 @@ class WskBasicTests
             stdout should include(actionName)
             stdout should include regex (""""version": "0.0.2"""")
             wsk.rule.list().stdout should include(ruleName)
-    }
-
-    it should "create, and list a rule with a long name" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val ruleName = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-            val triggerName = "listRulesTrigger"
-            val actionName = "listRulesAction";
-            assetHelper.withCleaner(wsk.trigger, triggerName) {
-                (trigger, name) => trigger.create(name)
-            }
-            assetHelper.withCleaner(wsk.action, actionName) {
-                (action, name) => action.create(name, defaultAction)
-            }
-            assetHelper.withCleaner(wsk.rule, ruleName) {
-                (rule, name) =>
-                    rule.create(name, trigger = triggerName, action = actionName)
-            }
-            wsk.rule.list().stdout should include(ruleName + " private")
     }
 
     behavior of "Wsk Namespace CLI"
