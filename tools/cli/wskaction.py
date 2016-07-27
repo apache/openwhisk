@@ -97,8 +97,7 @@ class Action(Item):
             if args.param:
                 payload['parameters'] = getParams(args)
             # API will accept limits == {} as limits not specified on an update
-            print args.logsize
-            if args.timeout or args.memory or not args.logsize is None:
+            if not args.timeout is None or not args.memory is None or not args.logsize is None:
                 payload['limits'] = self.getLimits(args)
             if validExe:
                 payload['exec'] = exe
@@ -152,9 +151,9 @@ class Action(Item):
     # creates { timeout: msecs, memory: megabytes } action timeout/memory limits
     def getLimits(self, args):
         limits = {}
-        if args.timeout:
+        if not args.timeout is None:
             limits['timeout'] = args.timeout
-        if args.memory :
+        if not args.memory is None:
             limits['memory'] = args.memory
         if not args.logsize is None:
             limits['logs'] = args.logsize

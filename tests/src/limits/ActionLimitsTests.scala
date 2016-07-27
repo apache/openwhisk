@@ -102,7 +102,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
             val name = "TestActionCausingExceededLogs"
             assetHelper.withCleaner(wsk.action, name, confirmDelete = true) {
                 val actionName = TestUtils.getTestActionFilename("dosLogs.js")
-                (action, _) => action.create(name, Some(actionName), logsize = Some(allowedSize.toMB.toInt))
+                (action, _) => action.create(name, Some(actionName), logsize = Some(allowedSize))
             }
 
             val writing = allowedSize + 1.megabytes
