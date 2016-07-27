@@ -360,7 +360,12 @@ class ContainerPool(
     private def makeContainerName(action: WhiskAction): String =
         makeContainerName(action.fullyQualifiedName)
 
+    /* dockerLock is used to serialize all docker operations except pull
+       dockerPullLock is used to serialize all pull operations
+       However, a non-pull operation can run concurrently with a pull operation.
+    */
     val dockerLock = new Object()
+    val dockerPullLock = new Object()
 
     /* A background thread that
      *   1. Kills leftover action containers on startup
@@ -400,10 +405,19 @@ class ContainerPool(
     }
 
     /*
-     * All docker operations from the pool must pass through here.
+     * All docker operations from the pool must pass through here.  (except for pull)
      */
     private def runDockerOp[T](dockerOp: => T): T = {
         dockerLock.synchronized {
+            dockerOp
+        }
+    }
+
+    /*
+     * All pull operations from the pool must pass through here.
+     */
+    private def runDockerPull[T](dockerOp: => T): T = {
+        dockerPullLock.synchronized {
             dockerOp
         }
     }
@@ -459,7 +473,12 @@ class ContainerPool(
         val env = getContainerEnvironment()
         val pull = !imageName.contains("whisk/")
         // This will start up the container
-        runDockerOp { new WhiskContainer(transid, this, key, containerName, imageName, network, policy, pull, env, limits) }
+        if (pull) runDockerPull {
+            ContainerUtils.pullImage(dockerhost, imageName)
+        }
+        runDockerOp {
+            new WhiskContainer(transid, this, key, containerName, imageName, network, policy, env, limits)
+        }
     }
 
     // We send the payload here but eventually must also handle morphing a pre-allocated container into the right state.
@@ -476,7 +495,7 @@ class ContainerPool(
     private def makeContainer(imageName: String, args: Array[String])(implicit transid: TransactionId): ContainerResult = {
         val con = runDockerOp {
             new Container(transid, this, makeKey(imageName, args), None, imageName,
-                config.invokerContainerNetwork, config.invokerContainerPolicy, false, ActionLimits(), Map(), args)
+                config.invokerContainerNetwork, config.invokerContainerPolicy, ActionLimits(), Map(), args)
         }
         con.setVerbosity(getVerbosity())
         Success(con, None)

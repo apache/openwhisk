@@ -57,10 +57,7 @@ trait ContainerUtils extends Logging {
     /**
      * Pulls container images.
      */
-    def pullImage(image: String)(implicit transid: TransactionId): DockerOutput = {
-        val cmd = Array("pull", image)
-        runDockerCmd(cmd: _*)
-    }
+    def pullImage(image: String)(implicit transid: TransactionId): DockerOutput = ContainerUtils.pullImage(dockerhost, image)
 
     /*
      * TODO: The file handle and process limits should be moved to some global limits config.
@@ -165,15 +162,51 @@ trait ContainerUtils extends Logging {
         } getOrElse None
     }
 
-    def runDockerCmd(args: String*)(implicit transid: TransactionId): DockerOutput = {
-        // Logging at the SimpleExec level so all commands are captured.
-        runDockerCmd(false, args)
-    }
+    def runDockerCmd(args: String*)(implicit transid: TransactionId): DockerOutput = runDockerCmd(false, args)
 
     /**
      * Synchronously runs the given docker command returning stdout if successful.
      */
-    def runDockerCmd(skipLogError: Boolean, args: Seq[String])(implicit transid: TransactionId): DockerOutput = {
+    def runDockerCmd(skipLogError: Boolean, args: Seq[String])(implicit transid: TransactionId): DockerOutput =
+        ContainerUtils.runDockerCmd(dockerhost, skipLogError, args)(transid)
+
+    // If running outside a container, then logs files are in docker's own
+    // /var/lib/docker/containers.  If running inside a container, is mounted at /containers.
+    // Root access is needed when running outside the container.
+    private def dockerContainerDir(mounted: Boolean) = {
+        if (mounted) "/containers" else "/var/lib/docker/containers"
+    }
+
+    /**
+     * Gets the filename of the docker logs of other containers that is mapped back into the invoker.
+     */
+    private def getDockerLogFile(containerId: String, mounted: Boolean) = {
+        new java.io.File(s"""${dockerContainerDir(mounted)}/$containerId/$containerId-json.log""").getCanonicalFile()
+    }
+
+
+    private def parsePsOutput(line: String) = {
+        val tokens = line.split("\\s+")
+        ContainerState(tokens(0), tokens(1), tokens(tokens.length - 1))
+    }
+
+    protected def appendPort(host: String) = s"$host:8080"
+
+    protected type ContainerName = Option[String]
+    protected type ContainerId = Option[String]
+    protected type ContainerIP = Option[String]
+    protected type DockerOutput = ContainerUtils.DockerOutput
+}
+
+
+object ContainerUtils extends Logging {
+
+    protected type DockerOutput = Option[String]
+
+    /**
+     * Synchronously runs the given docker command returning stdout if successful.
+     */
+    def runDockerCmd(dockerhost: String, skipLogError: Boolean, args: Seq[String])(implicit transid: TransactionId): DockerOutput = {
         getDockerCmd(dockerhost) map { _ ++ args } map {
             info(this, s"runDockerCmd: transid = $transid", LogMarkerToken("invoker", s"docker.${args(0)}", "start"))
             SimpleExec.syncRunCmd(_)(transid)
@@ -194,21 +227,9 @@ trait ContainerUtils extends Logging {
         }
     }
 
-    // If running outside a container, then logs files are in docker's own
-    // /var/lib/docker/containers.  If running inside a container, is mounted at /containers.
-    // Root access is needed when running outside the container.
-    private def dockerContainerDir(mounted: Boolean) = {
-        if (mounted) "/containers" else "/var/lib/docker/containers"
-    }
+    private def file(path: String) = Try { new File(path) } filter { _.exists } toOption
 
-    /**
-     * Gets the filename of the docker logs of other containers that is mapped back into the invoker.
-     */
-    private def getDockerLogFile(containerId: String, mounted: Boolean) = {
-        new java.io.File(s"""${dockerContainerDir(mounted)}/$containerId/$containerId-json.log""").getCanonicalFile()
-    }
-
-    private def getDockerCmd(dockerhost: String) = {
+    def getDockerCmd(dockerhost: String) = {
         val dockerLoc = file("/usr/bin/docker") orElse file("/usr/local/bin/docker")
         if (dockerhost == "localhost") {
             dockerLoc map { f => Array[String](f.toString) }
@@ -217,17 +238,13 @@ trait ContainerUtils extends Logging {
         }
     }
 
-    private def file(path: String) = Try { new File(path) } filter { _.exists } toOption
 
-    private def parsePsOutput(line: String) = {
-        val tokens = line.split("\\s+")
-        ContainerState(tokens(0), tokens(1), tokens(tokens.length - 1))
+    /**
+     * Pulls container images.
+     */
+    def pullImage(dockerhost: String, image: String)(implicit transid: TransactionId): DockerOutput = {
+        val cmd = Array("pull", image)
+        runDockerCmd(dockerhost, false, cmd)
     }
 
-    protected def appendPort(host: String) = s"$host:8080"
-
-    protected type DockerOutput = Option[String]
-    protected type ContainerName = Option[String]
-    protected type ContainerId = Option[String]
-    protected type ContainerIP = Option[String]
 }

@@ -34,7 +34,6 @@ class Container(
     val image: String,
     network: String,
     policy: Option[String],
-    pull: Boolean = false,
     val limits: ActionLimits = ActionLimits(),
     env: Map[String, String] = Map(),
     args: Array[String] = Array())
@@ -47,8 +46,6 @@ class Container(
     val id = Container.idCounter.next()
     val name = containerName.getOrElse("anon")
     val dockerhost = pool.dockerhost
-
-    if (pull) pullImage(image)
 
     val (containerId, containerIP) = bringup(containerName, image, network, env, args, limits, policy)
 
