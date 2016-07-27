@@ -110,7 +110,7 @@ $script_end = <<SCRIPT
   set -x
   export ANSIBLE_REMOTE_TEMP=/home/vagrant/openwhisk/ansible/tmp
   cd /home/vagrant/openwhisk
-  su vagrant -c 'gradle distDocker --parallel' 
+  su vagrant -c './gradlew distDocker --parallel' 
   cd ansible
   su vagrant -c 'ansible-playbook -i environments/local wipe.yml'
   su vagrant -c 'ansible-playbook -i environments/local openwhisk.yml'

@@ -37,10 +37,6 @@ echo "*** installing docker"
 install "$SCRIPTDIR" docker.sh
 
 
-echo "*** installing gradle"
-install "$SCRIPTDIR" gradle.sh
-
-
 echo "*** installing ansible"
 install "$SCRIPTDIR" ansible.sh
 

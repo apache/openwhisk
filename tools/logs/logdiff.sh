@@ -4,11 +4,11 @@
 # Makes two logfiles comparable by replacing all ever-changing data like activation ids, timestamps etc.
 # Usually used in this way:
 #
-# 1. Run first test, e.g. gradle tests:test
+# 1. Run first test, e.g. ./gradlew tests:test
 # 2. Copy out logs using wskadmin db get whisks --docs --view whisks/activations > db-activations-first.log
 # 3. Make some code changes
 # 4. Re-deploy new code (clean, build, deploy)
-# 5. Run second test, e.g. gradle tests:test
+# 5. Run second test, e.g. ./gradlew tests:test
 # 6. Copy out logs using wskadmin db get whisks --docs --view whisks/activations > db-activations-second.log
 # 7. logdiff.sh db-activations-first.log > db-activations-first-normalized.log
 # 8. logdiff.sh db-activations-second.log > db-activations-second-normalized.log
