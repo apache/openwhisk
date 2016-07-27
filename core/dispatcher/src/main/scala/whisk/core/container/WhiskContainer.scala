@@ -40,11 +40,10 @@ class WhiskContainer(
     image: String,
     network: String,
     policy: Option[String],
-    pull: Boolean,
     env: Map[String, String],
     limits: ActionLimits,
     args: Array[String] = Array())
-    extends Container(originalId, pool, key, Some(containerName), image, network, policy, pull, limits, env, args) {
+    extends Container(originalId, pool, key, Some(containerName), image, network, policy, limits, env, args) {
 
     var boundParams = JsObject() // Mutable to support pre-alloc containers
     var lastLogSize = 0L

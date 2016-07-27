@@ -48,7 +48,7 @@ import whisk.core.entity.WhiskEntityStore
 import whisk.common.LoggingMarkers
 import whisk.common.LogMarkerToken
 
-/*
+/**
  * A thread-safe container pool that internalizes container creation/teardown and allows users
  * to check out a container.
  *
@@ -73,8 +73,8 @@ class ContainerPool(
     // Eventually, we will have a more sophisticated warmup strategy that does multiple sizes
     private val defaultMemoryLimit = MemoryLimit(MemoryLimit.STD_MEMORY)
 
-    /*
-     * Set verbosity of this and owned objects.
+    /**
+     * Sets verbosity of this and owned objects.
      */
     override def setVerbosity(level: Verbosity.Level) = {
         super.setVerbosity(level)
@@ -82,19 +82,23 @@ class ContainerPool(
         authStore.setVerbosity(level)
     }
 
-    /*
-     * Enable/disable GC.  If disabled, overrides other flags/methods.
+    /**
+     * Enables GC.
      */
     def enableGC() = gcOn = true
+
+    /**
+     * Disables GC. If disabled, overrides other flags/methods.
+     */
     def disableGC() = gcOn = false
 
-    /*
-     * Perform a GC immediately of all idle containers, blocking the caller until completed.
+    /**
+     * Performs a GC immediately of all idle containers, blocking the caller until completed.
      */
     def forceGC()(implicit transid: TransactionId) = removeAllIdle({ containerInfo => true })
 
     /*
-     * Getter/Setter for various GC paramters.
+     * Getter/Setter for various GC parameters.
      */
     def gcThreshold: Double = _gcThreshold // seconds
     def maxIdle: Int = _maxIdle // container count
@@ -122,16 +126,16 @@ class ContainerPool(
     private val startingCounter = new Counter()
     private var shuttingDown = false
 
-    /*
-     * Convenience method to list _ALL_ containers at this docker point with "docker ps -a --no-trunc".
+    /**
+     * Lists ALL containers at this docker point with "docker ps -a --no-trunc".
      * This could include containers not in this pool at all.
      */
     def listAll()(implicit transid: TransactionId): Array[ContainerState] = listContainers(true)
 
     type RunResult = ContainerPool.RunResult
 
-    /*
-     * Retrieve (possibly create) a container based on the subject and versioned action.
+    /**
+     * Retrieves (possibly create) a container based on the subject and versioned action.
      * A flag is included to indicate whether initialization succeeded.
      * The invariant of returning the container back to the pool holds regardless of whether init succeeded or not.
      * In case of failure to start a container, None is returned.
@@ -157,10 +161,9 @@ class ContainerPool(
         getImpl(key, { () => makeContainer(imageName, args) }) map { _._1 }
     }
 
-    /*
-     * Try to get/create a container via the thunk by delegating to getOrMake.
+    /**
+     * Tries to get/create a container via the thunk by delegating to getOrMake.
      * This method will apply retry so that the caller is blocked until retry succeeds.
-     *
      */
     @tailrec
     final def getImpl(key: String, conMaker: () => ContainerResult)(implicit transid: TransactionId): Option[(Container, Option[RunResult])] = {
@@ -183,8 +186,8 @@ class ContainerPool(
         }
     }
 
-    /*
-     * Try to get or create a container, returning None if there are too many
+    /**
+     * Tries to get or create a container, returning None if there are too many
      * active containers.
      *
      * The multiple synchronization block, and the use of startingCounter,
@@ -230,8 +233,8 @@ class ContainerPool(
         }
     }
 
-    /*
-     * Obtain a pre-existing container from the pool - transitioning it to Active state but without docker unpausing.
+    /**
+     * Obtains a pre-existing container from the pool - and putting it to Active state but without docker unpausing.
      * If we are over capacity, signal Busy.
      * If it does not exist ready to do, indicate a miss.
      */
@@ -252,8 +255,8 @@ class ContainerPool(
         }
     }
 
-    /*
-     * Move a container from one bucket (i.e. key) to a different one.
+    /**
+     * Moves a container from one bucket (i.e. key) to a different one.
      * This operation is performed when we specialize a pre-warmed container to an action.
      * ContainerMap does not need to be updated as the Container <-> ContainerInfo relationship does not change.
      */
@@ -270,8 +273,8 @@ class ContainerPool(
         }
     }
 
-    /*
-     * Return the container to the pool or delete altogether.
+    /**
+     * Returns the container to the pool or delete altogether.
      * This call can be slow but not while locking data structure so it does not interfere with other activations.
      */
     def putBack(container: Container, delete: Boolean = false)(implicit transid: TransactionId): Unit = {
@@ -307,7 +310,7 @@ class ContainerPool(
         val Idle, Active = Value
     }
 
-    /*
+    /**
      * Wraps a Container to allow a ContainerPool-specific information.
      */
     class ContainerInfo(k: String, con: Container) {
@@ -360,7 +363,16 @@ class ContainerPool(
     private def makeContainerName(action: WhiskAction): String =
         makeContainerName(action.fullyQualifiedName)
 
+    /**
+     * dockerLock is used to serialize all docker operations except pull.
+     * However, a non-pull operation can run concurrently with a pull operation.
+     */
     val dockerLock = new Object()
+
+    /**
+     * dockerPullLock is used to serialize all pull operations.
+     */
+    val dockerPullLock = new Object()
 
     /* A background thread that
      *   1. Kills leftover action containers on startup
@@ -389,8 +401,8 @@ class ContainerPool(
         }
     }
 
-    /*
-     * Graceful termination by shutting down containers upon SIGTERM.
+    /**
+     * Gracefully terminates by shutting down containers upon SIGTERM.
      * If one desires to kill the invoker without this, send it SIGKILL.
      */
     private def shutdown() = {
@@ -399,11 +411,20 @@ class ContainerPool(
         killStragglers(listAll())
     }
 
-    /*
-     * All docker operations from the pool must pass through here.
+    /**
+     * All docker operations from the pool must pass through here (except for pull).
      */
     private def runDockerOp[T](dockerOp: => T): T = {
         dockerLock.synchronized {
+            dockerOp
+        }
+    }
+
+    /**
+     * All pull operations from the pool must pass through here.
+     */
+    private def runDockerPull[T](dockerOp: => T): T = {
+        dockerPullLock.synchronized {
             dockerOp
         }
     }
@@ -459,7 +480,12 @@ class ContainerPool(
         val env = getContainerEnvironment()
         val pull = !imageName.contains("whisk/")
         // This will start up the container
-        runDockerOp { new WhiskContainer(transid, this, key, containerName, imageName, network, policy, pull, env, limits) }
+        if (pull) runDockerPull {
+            ContainerUtils.pullImage(dockerhost, imageName)
+        }
+        runDockerOp {
+            new WhiskContainer(transid, this, key, containerName, imageName, network, policy, env, limits)
+        }
     }
 
     // We send the payload here but eventually must also handle morphing a pre-allocated container into the right state.
@@ -476,16 +502,15 @@ class ContainerPool(
     private def makeContainer(imageName: String, args: Array[String])(implicit transid: TransactionId): ContainerResult = {
         val con = runDockerOp {
             new Container(transid, this, makeKey(imageName, args), None, imageName,
-                config.invokerContainerNetwork, config.invokerContainerPolicy, false, ActionLimits(), Map(), args)
+                config.invokerContainerNetwork, config.invokerContainerPolicy, ActionLimits(), Map(), args)
         }
         con.setVerbosity(getVerbosity())
         Success(con, None)
     }
 
-    /*
+    /**
+     * Adds the container into the data structure in an Idle state.
      * The caller must have synchronized to maintain data structure atomicity.
-     *
-     * Add the container into the data structure in an Idle state.
      */
     private def introduceContainer(key: String, container: Container)(implicit transid: TransactionId): ContainerInfo = {
         val ci = new ContainerInfo(key, container)
@@ -530,8 +555,8 @@ class ContainerPool(
     }
     timer.scheduleAtFixedRate(gcTask, 0, gcFreqMilli)
 
-    /*
-     * Remove all idle containers older than the threshold.
+    /**
+     * Removes all idle containers older than the threshold.
      */
     private def performGC()(implicit transid: TransactionId) = {
         val expiration = System.currentTimeMillis() - (gcThreshold * 1000.0).toLong
@@ -539,8 +564,8 @@ class ContainerPool(
         dumpState("performGC")
     }
 
-    /*
-     * Collect all containers that are in the idle state and pass the predicate.
+    /**
+     * Collects all containers that are in the idle state and pass the predicate.
      * gcSync is used to prevent multiple GC's.
      */
     private def removeAllIdle(pred: ContainerInfo => Boolean)(implicit transid: TransactionId) = {
@@ -587,8 +612,8 @@ class ContainerPool(
     private var _logDir = "/logs"
     private val actionContainerPrefix = "wsk"
 
-    /*
-     * Actually delete the containers.
+    /**
+     * Actually deletes the containers.
      */
     private def teardownContainer(container: Container)(implicit transid: TransactionId) = {
         val size = container.getLogSize(!standalone)
@@ -599,8 +624,8 @@ class ContainerPool(
         runDockerOp { container.remove() }
     }
 
-    /*
-     * Remove all containers with the actionContainerPrefix to kill leftover action containers.
+    /**
+     * Removes all containers with the actionContainerPrefix to kill leftover action containers.
      * This is needed for startup and shutdown.
      * Concurrent access from clients must be prevented.
      */
@@ -616,8 +641,8 @@ class ContainerPool(
         info(this, s"Leftover container removal completed")
     }
 
-    /*
-     * Get the size of the mounted file associated with this whisk container.
+    /**
+     * Gets the size of the mounted file associated with this whisk container.
      */
     def getLogSize(con: Container, mounted: Boolean)(implicit transid: TransactionId): Long = {
         con.containerId map { id => getDockerLogSize(id, mounted) } getOrElse 0
