@@ -120,7 +120,7 @@ ansible-playbook -i environments/<environment> prereq.yml
 
 ```
 cd <openwhisk_home>
-gradle distDocker
+./gradlew distDocker
 cd ansible
 ansible-playbook -i environments/<environment> couchdb.yml
 ansible-playbook -i environments/<environment> initdb.yml
@@ -139,7 +139,7 @@ data that include actions and activations are lost.
 
 ```
 cd <openwhisk_home>
-gradle distDocker
+./gradlew distDocker
 cd ansible
 ansible-playbook -i environments/<environment> initdb.yml
 ansible-playbook -i environments/<environment> wipe.yml

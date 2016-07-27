@@ -97,7 +97,7 @@ cd /your/path/to/openwhisk
 
 # Build
 cd <home_openwhisk>
-gradle distDocker
+./gradlew distDocker
 
 # Deploy
 Follow instructions in [ansible/README.md](../../ansible/README.md)

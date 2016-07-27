@@ -65,7 +65,7 @@ For the Python CLI you can configure autocomplete by adding `eval "$(register-py
 The Go CLI is available in `../../bin/go-cli` there are multiple binaries base on OS and Architecture (i.e. `../../bin/go-cli/mac/amd64/wsk`).
 When using the Go CLI, use the argument `-i` to be able to connect insecurely to OpenWhisk for development purpose only.
 
-Cal the binary directly or setup your environment variable PATH to include the location of the binary that corresponds to your environment.
+Call the binary directly or setup your environment variable PATH to include the location of the binary that corresponds to your environment.
 
 From your _host_, configure `wsk` to use your Vagrant-hosted OpenWhisk deployment and run the "echo" action again to test.
 The following commands assume that you have `wsk` setup correctly in your PATH.
@@ -96,7 +96,8 @@ wsk action invoke /whisk.system/samples/echo -p message hello --blocking --resul
 ### Running tests
 ```
 vagrant ssh
-gradle tests:test
+cd openwhisk
+./gradlew tests:test
 ```
 
 ### Build
@@ -104,7 +105,7 @@ Use gradle to build docker images from inside the VM, this is done automatically
 ```
 vagrant ssh
 cd openwhisk
-gradle distDocker
+./gradlew distDocker
 ```
 
 ### Safe Re-deploy (after VM restart)
@@ -137,7 +138,7 @@ ansible-playbook -i environments/local initdb.yml
 ansible-playbook -i environments/local wipe.yml
 # build/deploy system
 cd ..
-gradle distDocker
+./gradlew distDocker
 cd ansible
 ansible-playbook -i environments/local openwhisk.yml -e mode=clean
 ansible-playbook -i environments/local openwhisk.yml
@@ -145,7 +146,7 @@ ansible-playbook -i environments/local openwhisk.yml
 ansible-playbook -i environments/local postdeploy.yml
 ```
 
-**Tip** Do not restart the VM using Virtual Box, and always use `vagrant` from the command line: `vagrant up` to start the VM and `vagrant reload` to restart it. This allows the `$HOME/openwhisk` folder to be available inside the VM.
+**Tip** Do not restart the VM using Virtual Box tools, and always use `vagrant` from the command line: `vagrant up` to start the VM and `vagrant reload` to restart it. This allows the `$HOME/openwhisk` folder to be available inside the VM.
 
 **Tip** If you have problems with data stores check that `ansible/db_local.ini`.
 
