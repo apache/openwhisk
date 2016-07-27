@@ -237,12 +237,12 @@ def propCmd(args, props, userprops, propsLocation):
                 res = request('GET', url, verbose=args.verbose)
                 if res.status == httplib.OK:
                     result = json.loads(res.read())
-                    print 'whisk API buildno\t%s' % result['buildno']
+                    print 'whisk API build number\t%s' % result['buildno']
                 else:
                     print 'whisk API build\t\tCannot determine API buildno',
                     return responseError(res, prefix = None)
             else:
-                print 'whisk API buildno\t\tNone',
+                print 'whisk API build number\t\tNone',
         return 0
     return 2
 

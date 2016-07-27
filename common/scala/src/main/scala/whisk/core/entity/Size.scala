@@ -55,7 +55,21 @@ case class ByteSize(size: Long, unit: SizeUnits.Unit) extends Ordered[ByteSize] 
         ByteSize(commonSize, commonUnit)
     }
 
+    def -(other: ByteSize): ByteSize = {
+        val commonUnit = SizeUnits.BYTE
+        val commonSize = toBytes - other.toBytes
+        ByteSize(commonSize, commonUnit)
+    }
+
     def compare(other: ByteSize) = toBytes compare other.toBytes
+
+    override def toString = {
+        unit match {
+            case SizeUnits.BYTE => s"$size B"
+            case SizeUnits.KB   => s"$size KB"
+            case SizeUnits.MB   => s"$size MB"
+        }
+    }
 }
 
 object ByteSize {

@@ -17,6 +17,7 @@
 package whisk.core.controller.test
 
 import scala.language.postfixOps
+import scala.concurrent.duration.DurationInt
 
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
@@ -591,7 +592,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     it should "invoke an action, blocking with timeout" in {
         implicit val tid = transid()
-        val action = WhiskAction(namespace, aname, Exec.js("??"), limits = ActionLimits(TimeLimit(1000), MemoryLimit(), LogLimit()))
+        val action = WhiskAction(namespace, aname, Exec.js("??"), limits = ActionLimits(TimeLimit(1 second), MemoryLimit(), LogLimit()))
         put(entityStore, action)
         Post(s"$collectionPath/${action.name}?blocking=true") ~> sealRoute(routes(creds)) ~> check {
             status should be(Accepted)

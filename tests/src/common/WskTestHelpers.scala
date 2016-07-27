@@ -68,10 +68,8 @@ trait WskTestHelpers extends Matchers {
             val deletedAll = assetsToDeleteAfterTest.reverse map {
                 case ((cli, n, delete)) => n -> Try {
                     if (delete) {
-                        println(s"deleting $n")
                         cli.delete(n)(wskprops)
                     } else {
-                        println(s"sanitizing $n")
                         cli.sanitize(n)(wskprops)
                     }
                 }

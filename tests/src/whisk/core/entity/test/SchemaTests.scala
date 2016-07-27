@@ -16,7 +16,9 @@
 
 package whisk.core.entity.test
 
+import scala.BigInt
 import scala.Vector
+import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.language.reflectiveCalls
 import scala.util.Try
@@ -24,6 +26,7 @@ import scala.util.Try
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfter
 import org.scalatest.FlatSpec
+import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 
 import spray.json.DefaultJsonProtocol._
@@ -36,6 +39,7 @@ import spray.json.JsString
 import spray.json.JsValue
 import spray.json.pimpAny
 import spray.json.pimpString
+
 import whisk.core.entity.ActionLimits
 import whisk.core.entity.ActivationId
 import whisk.core.entity.AuthKey
@@ -43,15 +47,15 @@ import whisk.core.entity.DocId
 import whisk.core.entity.DocInfo
 import whisk.core.entity.EntityName
 import whisk.core.entity.Exec
+import whisk.core.entity.LogLimit
 import whisk.core.entity.MemoryLimit
 import whisk.core.entity.Namespace
 import whisk.core.entity.Parameters
 import whisk.core.entity.Secret
 import whisk.core.entity.SemVer
 import whisk.core.entity.TimeLimit
-import whisk.core.entity.LogLimit
 import whisk.core.entity.UUID
-import org.scalatest.Matchers
+import whisk.core.entity.size.SizeInt
 
 @RunWith(classOf[JUnitRunner])
 class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
@@ -317,9 +321,9 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
 
     it should "properly deserialize JSON" in {
         val json = Seq[JsValue](
-            JsObject("timeout" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson, "memory" -> MemoryLimit.STD_MEMORY.toJson, "logs" -> LogLimit.STD_LOGSIZE.toJson),
-            JsObject("timeout" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson, "memory" -> MemoryLimit.STD_MEMORY.toJson, "logs" -> LogLimit.STD_LOGSIZE.toJson, "foo" -> "bar".toJson),
-            JsObject("timeout" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson, "memory" -> MemoryLimit.STD_MEMORY.toJson))
+            JsObject("timeout" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson, "memory" -> MemoryLimit.STD_MEMORY.toMB.toInt.toJson, "logs" -> LogLimit.STD_LOGSIZE.toMB.toInt.toJson),
+            JsObject("timeout" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson, "memory" -> MemoryLimit.STD_MEMORY.toMB.toInt.toJson, "logs" -> LogLimit.STD_LOGSIZE.toMB.toInt.toJson, "foo" -> "bar".toJson),
+            JsObject("timeout" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson, "memory" -> MemoryLimit.STD_MEMORY.toMB.toInt.toJson))
         val limits = json.map(ActionLimits.serdes.read)
         assert(limits(0) == ActionLimits())
         assert(limits(1) == ActionLimits())
@@ -335,13 +339,13 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
             JsObject(),
             JsNull,
             JsObject("timeout" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson),
-            JsObject("memory" -> MemoryLimit.STD_MEMORY.toJson),
-            JsObject("logs" -> (LogLimit.STD_LOGSIZE + 1).toJson),
-            JsObject("TIMEOUT" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson, "MEMORY" -> MemoryLimit.STD_MEMORY.toJson),
-            JsObject("timeout" -> (TimeLimit.STD_DURATION.toMillis.toDouble + .01).toJson, "memory" -> (MemoryLimit.STD_MEMORY.toDouble + .01).toJson),
+            JsObject("memory" -> MemoryLimit.STD_MEMORY.toMB.toInt.toJson),
+            JsObject("logs" -> (LogLimit.STD_LOGSIZE.toMB.toInt + 1).toJson),
+            JsObject("TIMEOUT" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson, "MEMORY" -> MemoryLimit.STD_MEMORY.toMB.toInt.toJson),
+            JsObject("timeout" -> (TimeLimit.STD_DURATION.toMillis.toDouble + .01).toJson, "memory" -> (MemoryLimit.STD_MEMORY.toMB.toDouble + .01).toJson),
             JsObject("timeout" -> null, "memory" -> null),
             JsObject("timeout" -> JsNull, "memory" -> JsNull),
-            JsObject("timeout" -> TimeLimit.STD_DURATION.toMillis.toString.toJson, "memory" -> MemoryLimit.STD_MEMORY.toString.toJson))
+            JsObject("timeout" -> TimeLimit.STD_DURATION.toMillis.toString.toJson, "memory" -> MemoryLimit.STD_MEMORY.toMB.toInt.toString.toJson))
 
         limits.foreach { p =>
             val thrown = intercept[DeserializationException] {
@@ -351,26 +355,35 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
     }
 
     it should "pass the correct error message through" in {
-        val floatNumber = JsNumber(2.5)
+        val serdes = Seq(TimeLimit.serdes, MemoryLimit.serdes, LogLimit.serdes)
 
-        val logException = the[DeserializationException] thrownBy LogLimit.serdes.read(floatNumber)
-        logException.getMessage should include("log limit must be whole number")
+        serdes foreach { s =>
+            withClue(s"serializer $s") {
+                if (s != LogLimit.serdes) {
+                    val lb = the[DeserializationException] thrownBy s.read(JsNumber(0))
+                    lb.getMessage should include("below allowed threshold")
+                } else {
+                    val lb = the[DeserializationException] thrownBy s.read(JsNumber(-1))
+                    lb.getMessage should include("a negative size of an object is not allowed")
+                }
 
-        val timeException = the[DeserializationException] thrownBy TimeLimit.serdes.read(floatNumber)
-        timeException.getMessage should include("time limit must be whole number")
+                val ub = the[DeserializationException] thrownBy s.read(JsNumber(Int.MaxValue))
+                ub.getMessage should include("exceeds allowed threshold")
 
-        val memoryException = the[DeserializationException] thrownBy MemoryLimit.serdes.read(floatNumber)
-        memoryException.getMessage should include("memory limit must be whole number")
+                val int = the[DeserializationException] thrownBy s.read(JsNumber(2.5))
+                int.getMessage should include("limit must be whole number")
+            }
+        }
     }
 
     it should "reject bad limit values" in {
-        an[IllegalArgumentException] should be thrownBy ActionLimits(TimeLimit(TimeLimit.MIN_DURATION.toMillis.toInt - 1), MemoryLimit(), LogLimit())
-        an[IllegalArgumentException] should be thrownBy ActionLimits(TimeLimit(), MemoryLimit(MemoryLimit.MIN_MEMORY - 1), LogLimit())
-        an[IllegalArgumentException] should be thrownBy ActionLimits(TimeLimit(), MemoryLimit(), LogLimit(LogLimit.MIN_LOGSIZE - 1))
+        an[IllegalArgumentException] should be thrownBy ActionLimits(TimeLimit(TimeLimit.MIN_DURATION - 1.millisecond), MemoryLimit(), LogLimit())
+        an[IllegalArgumentException] should be thrownBy ActionLimits(TimeLimit(), MemoryLimit(MemoryLimit.MIN_MEMORY - 1.B), LogLimit())
+        an[IllegalArgumentException] should be thrownBy ActionLimits(TimeLimit(), MemoryLimit(), LogLimit(LogLimit.MIN_LOGSIZE - 1.B))
 
-        an[IllegalArgumentException] should be thrownBy ActionLimits(TimeLimit(TimeLimit.MAX_DURATION.toMillis.toInt + 1), MemoryLimit(), LogLimit())
-        an[IllegalArgumentException] should be thrownBy ActionLimits(TimeLimit(), MemoryLimit(MemoryLimit.MAX_MEMORY + 1), LogLimit())
-        an[IllegalArgumentException] should be thrownBy ActionLimits(TimeLimit(), MemoryLimit(), LogLimit(LogLimit.MAX_LOGSIZE + 1))
+        an[IllegalArgumentException] should be thrownBy ActionLimits(TimeLimit(TimeLimit.MAX_DURATION + 1.millisecond), MemoryLimit(), LogLimit())
+        an[IllegalArgumentException] should be thrownBy ActionLimits(TimeLimit(), MemoryLimit(MemoryLimit.MAX_MEMORY + 1.B), LogLimit())
+        an[IllegalArgumentException] should be thrownBy ActionLimits(TimeLimit(), MemoryLimit(), LogLimit(LogLimit.MAX_LOGSIZE + 1.B))
     }
 
     it should "parse activation id as uuid" in {

@@ -225,7 +225,7 @@ class WskAction(override val usePythonCLI: Boolean = false)
         parameters: Map[String, JsValue] = Map(),
         annotations: Map[String, JsValue] = Map(),
         timeout: Option[Duration] = None,
-        memory: Option[Int] = None,
+        memory: Option[ByteSize] = None,
         logsize: Option[ByteSize] = None,
         shared: Option[Boolean] = None,
         update: Boolean = false,
@@ -242,7 +242,7 @@ class WskAction(override val usePythonCLI: Boolean = false)
             { parameters flatMap { p => Seq("-p", p._1, p._2.compactPrint) } } ++
             { annotations flatMap { p => Seq("-a", p._1, p._2.compactPrint) } } ++
             { timeout map { t => Seq("-t", t.toMillis.toString) } getOrElse Seq() } ++
-            { memory map { m => Seq("-m", m.toString) } getOrElse Seq() } ++
+            { memory map { m => Seq("-m", m.toMB.toString) } getOrElse Seq() } ++
             { logsize map { l => Seq("-l", l.toMB.toString) } getOrElse Seq() } ++
             { shared map { s => Seq("--shared", if (s) "yes" else "no") } getOrElse Seq() }
         cli(wp.overrides ++ params, expectedExitCode)
@@ -373,7 +373,7 @@ class WskRule(override val usePythonCLI: Boolean = false)
         name: String,
         expectedExitCode: Int = SUCCESS_EXIT)(
             implicit wp: WskProps): RunResult = {
-        val disable = Try { disableRule(name, 30 seconds) }
+        val disable = Try { disableRule(name, 30 seconds, expectedExitCode) }
         if (expectedExitCode != DONTCARE_EXIT)
             disable.get // throws exception
         super.delete(name, expectedExitCode)
