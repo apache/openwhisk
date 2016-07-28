@@ -151,7 +151,7 @@ function main(params) {
 ```
 
 A JavaScript action's activation is **asynchronous** if the main function exits by returning a Promise.  In this case the system assumes that the action is still running, until the Promise has been fulfilled or rejected.
-Start by instantiating a new Promise object and passing it a callback function. The callback takes two arguments, resolve and reject, which are both functions. All your asynchronous code goes inside that callback. 
+Start by instantiating a new Promise object and passing it a callback function. The callback takes two arguments, resolve and reject, which are both functions. All your asynchronous code goes inside that callback.
 
 Here is an example on how to fulfill a Promise by calling the resolve function.
 
@@ -183,7 +183,7 @@ It is possible an action is synchronous on some inputs and asynchronous on other
   function main(params) {
       if (params.payload) {
          // asynchronous activation
-         return new Promise(function(resolve, reject) { 
+         return new Promise(function(resolve, reject) {
                 setTimeout(function() {
                   resolve({ done: true });
                 }, 100);
@@ -408,6 +408,8 @@ OpenWhisk has a few system limits, including how much memory an action uses and 
 | concurrent | it's not allowed to have more than N concurrent activations per namespace | per namespace | number | 100 |
 | minuteRate | a user cannot invoke more than this many actions per minute | per user | number | 120 |
 | hourRate | a user cannot invoke more than this many actions per hour | per user | number | 3600 |
+| codeSize | the maximum size of the actioncode | not configurable, limit per action | MB | 48 |
+| parameters | the maximum size of the paramters that can be attached | not configurable, limit per action/package/trigger | MB | 1 |
 
 ### Per action timeout (ms) (Default: 60s)
 * The timeout limit N is in the range [100ms..300000ms] and is set per action in milliseconds.
@@ -424,8 +426,8 @@ OpenWhisk has a few system limits, including how much memory an action uses and 
 * A user can change the limit when creating or updating the action.
 * Logs that exceed the set limit are truncated and a warning is added as the last output of the activation to indicate that the activation exceeded the set log limit.
 
-### Per action artifact (MB) (Fixed: 1MB)
-* The maximum code size for the action is 1MB.
+### Per action artifact (MB) (Fixed: 48MB)
+* The maximum code size for the action is 48MB.
 * It is recommended for a JavaScript action to use a tool to concatenate all source code including dependencies into a single bundled file.
 
 ### Per activation payload size (MB) (Fixed: 1MB)
@@ -440,6 +442,11 @@ OpenWhisk has a few system limits, including how much memory an action uses and 
 * The rate limit N is set to 120/3600 and limits the number of action invocations in one minute/hour windows.
 * A user cannot change this limit when creating the action.
 * A CLI call that exceeds this limit receives an error code corresponding to TOO_MANY_REQUESTS.
+
+### Size of the parameters (Fixed: 1MB)
+* The size limit for the parameters on creating or updating of an action/package/trigger is 1MB.
+* The limit cannot be changed by the user.
+* An entity with too big parameters will be rejected on trying to create or update it.
 
 ### Per Docker action open files ulimit (Fixed: 64:64)
 * The maximum number of open file is 64 (this applies to both hard and soft limits).
