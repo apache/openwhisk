@@ -333,6 +333,12 @@ public class TestUtils {
         return rr;
     }
 
+    /*
+     * WARNING: Consider using the WSK_CONFIG_FILE environment variable in
+     *          tests that will be manipulating the CLI property values.
+     *          Use this method only after determining WSK_CONFIG_FILE will
+     *          not work for the test case.
+     */
     public static File backupWskProps() throws IOException {
         String homedir = System.getProperty("user.home");
         Path wskpropsPath = FileSystems.getDefault().getPath(homedir, ".wskprops");
@@ -347,6 +353,12 @@ public class TestUtils {
         return tempfilePath.toFile();
     }
 
+    /*
+     * WARNING: Consider using the WSK_CONFIG_FILE environment variable in
+     *          tests that will be manipulating the CLI property values.
+     *          Use this method only after determining WSK_CONFIG_FILE will
+     *          not work for the test case.
+     */
     public static void restoreWskProps(File backupWskProps) throws IOException {
         String homedir = System.getProperty("user.home");
         Path wskpropsPath = FileSystems.getDefault().getPath(homedir, ".wskprops");
