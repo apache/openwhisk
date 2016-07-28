@@ -72,6 +72,8 @@ class WhiskConfig(
 
     val invokerContainerNetwork = this(WhiskConfig.invokerContainerNetwork)
     val invokerContainerPolicy = if (this(WhiskConfig.invokerContainerPolicy) == "") None else Some(this(WhiskConfig.invokerContainerPolicy))
+    val invokerNumCore = this(WhiskConfig.invokerNumCore)
+    val invokerCoreShare = this(WhiskConfig.invokerCoreShare)
 
     val controllerHost = this(WhiskConfig.controllerHostName) + ":" + this(WhiskConfig.controllerHostPort)
     val edgeHost = this(WhiskConfig.edgeHostName) + ":" + this(WhiskConfig.edgeHostApiPort)

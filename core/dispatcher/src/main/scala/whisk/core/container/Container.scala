@@ -34,6 +34,7 @@ class Container(
     containerName: Option[String],
     val image: String,
     network: String,
+    cpuShare: Int,
     policy: Option[String],
     val limits: ActionLimits = ActionLimits(),
     env: Map[String, String] = Map(),
@@ -48,7 +49,7 @@ class Container(
     val name = containerName.getOrElse("anon")
     val dockerhost = pool.dockerhost
 
-    val (containerId, containerHostAndPort) = bringup(containerName, image, network, env, args, limits, policy)
+    val (containerId, containerHostAndPort) = bringup(containerName, image, network, cpuShare, env, args, limits, policy)
 
     def details: String = {
         val name = containerName getOrElse "??"

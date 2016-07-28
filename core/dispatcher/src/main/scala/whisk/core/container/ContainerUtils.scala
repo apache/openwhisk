@@ -49,8 +49,8 @@ trait ContainerUtils extends Logging {
      * @param image the docker image to run
      * @return container id and container host
      */
-    def bringup(name: Option[String], image: String, network: String, env: Map[String, String], args: Array[String], limits: ActionLimits, policy: Option[String])(implicit transid: TransactionId): (ContainerId, ContainerIP) = {
-        val id = makeContainer(name, image, network, env, args, limits, policy)
+    def bringup(name: Option[String], image: String, network: String, cpuShare:Int, env: Map[String, String], args: Array[String], limits: ActionLimits, policy: Option[String])(implicit transid: TransactionId): (ContainerId, ContainerIP) = {
+        val id = makeContainer(name, image, network, cpuShare, env, args, limits, policy)
         val host = id.flatMap(_ => getContainerHostAndPort(name))
         (id, host)
     }
@@ -63,8 +63,9 @@ trait ContainerUtils extends Logging {
     /*
      * TODO: The file handle and process limits should be moved to some global limits config.
      */
-    def makeContainer(name: Option[String], image: String, network: String, env: Map[String, String], args: Array[String], limits: ActionLimits, policy: Option[String])(implicit transid: TransactionId): ContainerId = {
+    def makeContainer(name: Option[String], image: String, network: String, cpuShare: Int, env: Map[String, String], args: Array[String], limits: ActionLimits, policy: Option[String])(implicit transid: TransactionId): ContainerId = {
         val nameOption = name.map(n => Array("--name", n)).getOrElse(Array.empty[String])
+        val cpuArg = Array("-c", cpuShare.toString)
         val memoryArg = Array("-m", s"${limits.memory()}m")
         val capabilityArg = Array("--cap-drop", "NET_RAW", "--cap-drop", "NET_ADMIN")
         val consulServiceIgnore = Array("-e", "SERVICE_IGNORE=true")
@@ -72,7 +73,7 @@ trait ContainerUtils extends Logging {
         val processLimit = Array("--ulimit", "nproc=512:512")
         val securityOpts = policy map { p => Array("--security-opt", s"apparmor:${p}") } getOrElse (Array.empty[String])
         val containerNetwork = Array("--net", network)
-        val cmd = Array("run") ++ makeEnvVars(env) ++ consulServiceIgnore ++ nameOption ++ memoryArg ++
+        val cmd = Array("run") ++ makeEnvVars(env) ++ consulServiceIgnore ++ nameOption ++ cpuArg ++ memoryArg ++
             capabilityArg ++ fileHandleLimit ++ processLimit ++ securityOpts ++ containerNetwork ++ Array("-d", image) ++ args
         runDockerCmd(cmd: _*)
     }

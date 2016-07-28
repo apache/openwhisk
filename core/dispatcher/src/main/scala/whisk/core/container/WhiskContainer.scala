@@ -54,12 +54,13 @@ class WhiskContainer(
     containerName: String,
     image: String,
     network: String,
+    cpuShare: Int,
     policy: Option[String],
     env: Map[String, String],
     limits: ActionLimits,
     args: Array[String] = Array(),
     val isBlackbox: Boolean)
-    extends Container(originalId, pool, key, Some(containerName), image, network, policy, limits, env, args) {
+    extends Container(originalId, pool, key, Some(containerName), image, network, cpuShare, policy, limits, env, args) {
 
     var boundParams = JsObject() // Mutable to support pre-alloc containers
     var lastLogSize = 0L

@@ -602,7 +602,7 @@ object InvokerService {
 
             val topic = s"invoke${instance}"
             val groupid = "invokers"
-            val maxdepth = ContainerPool.defaultMaxActive
+            val maxdepth = ContainerPool.getDefaultMaxActive(config)
             val consumer = new KafkaConsumerConnector(config.kafkaHost, groupid, topic, maxdepth)
             val dispatcher = new Dispatcher(verbosity, consumer, 500 milliseconds, 2 * maxdepth, system)
 
