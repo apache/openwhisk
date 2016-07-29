@@ -41,6 +41,7 @@ def exceptional_paths():
         "bin/wskadmin",
         "bin/wskdev",
         "bin/go-cli/wsk",
+        "tests/build/reports",
         "tests/src/com/google/code/tempusfugit/concurrency/ParallelRunner.java"
     ]
 
