@@ -17,8 +17,17 @@
 package whisk.core
 
 import whisk.common.Config
+import whisk.common.Config.Settings
 import java.io.File
 import whisk.common.Crypt
+import whisk.common.ConsulKV
+import spray.json.JsObject
+import spray.json.JsArray
+import spray.json.JsString
+import spray.json.JsNumber
+import spray.json.JsBoolean
+import scala.io.Source
+import whisk.common.Logging
 
 /**
  * A set of properties which might be needed to run a whisk microservice implemented
@@ -31,8 +40,24 @@ import whisk.common.Crypt
  */
 
 class WhiskConfig(
-    requiredProperties: Map[String, String])
-    extends Config(requiredProperties, WhiskConfig.whiskPropertiesFile) {
+    requiredProperties: Map[String, String],
+    propertiesFile: File = null)
+    extends Config(requiredProperties) {
+
+    private val (settings, valid) = getProperties
+
+    /**
+     * Loads the properties as specified above.
+     *
+     * @return a pair which is the Map defining the properties, and a boolean indicating whether validation succeeded.
+     */
+    override protected def getProperties: (Map[String, String], Boolean) = {
+        val properties = scala.collection.mutable.Map[String, String]() ++= requiredProperties
+        Config.readPropertiesFromEnvironment(properties)
+        WhiskConfig.readPropertiesFromFile(properties, Option(propertiesFile) getOrElse (WhiskConfig.whiskPropertiesFile))
+        WhiskConfig.readPropertiesFromConsul(properties)
+        (properties.toMap, Config.validateProperties(requiredProperties, properties))
+    }
 
     val logsDir = this(WhiskConfig.logsDir)
     val servicePort = this(WhiskConfig.servicePort)
@@ -48,18 +73,13 @@ class WhiskConfig(
 
     val controllerHost = this(WhiskConfig.controllerHostName) + ":" + this(WhiskConfig.controllerHostPort)
     val edgeHost = this(WhiskConfig.edgeHostName) + ":" + this(WhiskConfig.edgeHostApiPort)
-    val elkHost = this(WhiskConfig.elkHostName) + ":" + this(WhiskConfig.elkHostPort)
     val kafkaHost = this(WhiskConfig.kafkaHostName) + ":" + this(WhiskConfig.kafkaHostPort)
-    val kafkaPartitions = this(WhiskConfig.kafkaPartitions)
     val loadbalancerHost = this(WhiskConfig.loadbalancerHostName) + ":" + this(WhiskConfig.loadbalancerHostPort)
-    val messagehubtriggerHost = this(WhiskConfig.messagehubtriggerHostName) + ":" + this(WhiskConfig.messagehubtriggerHostPort)
 
     val edgeHostName = this(WhiskConfig.edgeHostName)
 
-    val monitorHost = this(WhiskConfig.monitorHostName) + ":" + this(WhiskConfig.monitorHostPort)
     val zookeeperHost = this(WhiskConfig.zookeeperHostName) + ":" + this(WhiskConfig.zookeeperHostPort)
     val consulServer = this(WhiskConfig.consulServerHost) + ":" + this(WhiskConfig.consulPort)
-    val consulServices = this(WhiskConfig.consulServiceList)
     val invokerHosts = this(WhiskConfig.invokerHostsList)
 
     val dbProvider = this(WhiskConfig.dbProvider)
@@ -71,9 +91,7 @@ class WhiskConfig(
     val dbWhisk = this(WhiskConfig.dbWhisk)
     val dbAuths = this(WhiskConfig.dbAuths)
     val dbActivations = this(WhiskConfig.dbActivations)
-    val dbCipher = this(WhiskConfig.dbCipher)
     val dbPrefix = this(WhiskConfig.dbPrefix)
-    val authKey = this(WhiskConfig.authKey)
 
     val entitlementHost = this(WhiskConfig.entitlementHostName) + ":" + this(WhiskConfig.entitlementHostPort)
     val routerHost = this(WhiskConfig.routerHost)
@@ -82,12 +100,9 @@ class WhiskConfig(
     val edgeDockerEndpoint = this(WhiskConfig.edgeDockerEndpoint)
     val kafkaDockerEndpoint = this(WhiskConfig.kafkaDockerEndpoint)
     val mainDockerEndpoint = this(WhiskConfig.mainDockerEndpoint)
-    val routerDockerEndpoint = this(WhiskConfig.routerDockerEndpoint)
-    val elkDockerEndpoint = this(WhiskConfig.elkDockerEndpoint)
-    val catalogDockerEndpoint = this(WhiskConfig.catalogDockerEndpoint)
 }
 
-object WhiskConfig {
+object WhiskConfig extends Logging {
 
     private def whiskPropertiesFile: File = {
         def propfile(dir: String, recurse: Boolean = false): File =
@@ -109,6 +124,62 @@ object WhiskConfig {
         }
     }
 
+    /**
+     * Reads a Map of key-value pairs from the Consul service -- store them in the
+     * mutable properties object.
+     */
+    def readPropertiesFromConsul(properties: Settings) = {
+        //try to get consulServer prop
+        val consulString = for {
+            server <- properties.get("consulserver.host")
+            port <- properties.get("consul.host.port4")
+        } yield server + ":" + port
+
+        consulString match {
+            case Some(consul) => {
+                info(this, s"reading properties from consul at $consul")
+                val kvStore = new ConsulKV(consul)
+
+                val whiskProps = kvStore.getRecurse(ConsulKV.WhiskProps.whiskProps)
+                properties.keys foreach { p =>
+                    val kvp = ConsulKV.WhiskProps.whiskProps + "/" + p.replace('.', '_').toUpperCase
+                    whiskProps.get(kvp) foreach {
+                        _ match {
+                            case JsString(v)  => properties += p -> v
+                            case JsNumber(i)  => properties += p -> i.toString
+                            case JsBoolean(b) => properties += p -> b.toString
+                            case j: JsArray   => properties += p -> j.compactPrint
+                            case j: JsObject  => properties += p -> j.compactPrint
+                            case _            => warn(this, s"consul did not set value for $p")
+                        }
+                    }
+                }
+            }
+            case _ => info(this, "no consul server defined")
+        }
+    }
+
+    /**
+     * Reads a Map of key-value pairs from the environment (sys.env) -- store them in the
+     * mutable properties object.
+     */
+    def readPropertiesFromFile(properties: Settings, file: File) = {
+        if (file != null && file.exists) {
+            info(this, s"reading properties from file $file")
+            for (line <- Source.fromFile(file).getLines if line.trim != "") {
+                val parts = line.split('=')
+                if (parts.length >= 1) {
+                    val p = parts(0).trim
+                    val v = if (parts.length == 2) parts(1).trim else ""
+                    properties += p -> v
+                    info(this, s"properties file set value for $p")
+                } else {
+                    warn(this, s"ignoring properties $line")
+                }
+            }
+        }
+    }
+
     def asEnvVar(key: String): String =
         if (key != null)
             key.replace('.', '_').toUpperCase
@@ -121,7 +192,6 @@ object WhiskConfig {
 
     val dockerEndpoint = "main.docker.endpoint"
     val selfDockerEndpoint = "self.docker.endpoint"
-    val kafkaPartitions = "kafka.numpartitions"
 
     val dbProvider = "db.provider"
     val dbProtocol = "db.protocol"
@@ -133,9 +203,6 @@ object WhiskConfig {
     val dbAuths = "db.whisk.auths"
     val dbPrefix = "db.prefix"
     val dbActivations = dbWhisk // map to the same db for now
-
-    val dbCipher = "datastore.key"
-    val authKey = "auth.key"
 
     // these are not private because they are needed
     // in the invoker (they are part of the environment
@@ -157,46 +224,31 @@ object WhiskConfig {
     val edgeDockerEndpoint = "edge.docker.endpoint"
     val kafkaDockerEndpoint = "kafka.docker.endpoint"
     val mainDockerEndpoint = "main.docker.endpoint"
-    val routerDockerEndpoint = "router.docker.endpoint"
-    val elkDockerEndpoint = "elk.docker.endpoint"
-    val catalogDockerEndpoint = "catalog.docker.endpoint"
 
     private val controllerHostName = "controller.host"
-    private val elkHostName = "elk.host"
-    private val kafkaHostName = "kafka.host"
-    private val loadbalancerHostName = "loadbalancer.host"
-    private val messagehubtriggerHostName = "messagehubtrigger.host"
-    private val monitorHostName = "monitor.host"
+    val kafkaHostName = "kafka.host"
+    val loadbalancerHostName = "loadbalancer.host"
     private val zookeeperHostName = "zookeeper.host"
 
     private val controllerHostPort = "controller.host.port"
     private val edgeHostApiPort = "edge.host.apiport"
-    private val elkHostPort = "elk.host.port"
-    private val kafkaHostPort = "kafka.host.port"
+    val kafkaHostPort = "kafka.host.port"
     private val loadbalancerHostPort = "loadbalancer.host.port"
-    private val messagehubtriggerHostPort = "messagehubtrigger.host.port"
-    private val monitorHostPort = "monitor.host.port"
     private val zookeeperHostPort = "zookeeper.host.port"
 
-    private val consulServerHost = "consulserver.host"
-    private val consulPort = "consul.host.port4"
-    private val consulServiceList = "consul.servicelist"
-    private val invokerHostsList = "invoker.hosts"
+    val consulServerHost = "consulserver.host"
+    val consulPort = "consul.host.port4"
+    val invokerHostsList = "invoker.hosts"
 
     private val entitlementHostName = "entitlement.host"
     private val entitlementHostPort = "entitlement.host.port"
 
     val edgeHost = Map(edgeHostName -> null, edgeHostApiPort -> null)
     val consulServer = Map(consulServerHost -> null, consulPort -> null)
-    val consulServices = Map(consulServiceList -> null)
     val invokerHosts = Map(invokerHostsList -> null)
-    val elkHost = Map(elkHostName -> null, elkHostPort -> null)
     val kafkaHost = Map(kafkaHostName -> null, kafkaHostPort -> null)
     val controllerHost = Map(controllerHostName -> null, controllerHostPort -> null)
     val loadbalancerHost = Map(loadbalancerHostName -> null, loadbalancerHostPort -> null)
-    val messagehubtriggerHost = Map(messagehubtriggerHostName -> null, messagehubtriggerHostPort -> null)
-    val monitorHost = Map(monitorHostName -> null, monitorHostPort -> null)
-    val zookeeperHost = Map(zookeeperHostName -> null, zookeeperHostPort -> null)
 
     // use empty string as default for entitlement host as this is an optional service
     // and the way to prevent the configuration checker from failing is to provide a value;

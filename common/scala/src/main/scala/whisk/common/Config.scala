@@ -50,9 +50,7 @@ import spray.json.JsString
  *
  * @param propertiesFile a file which defines the properties
  */
-class Config(
-    requiredProperties: Map[String, String],
-    propertiesFile: File = null) {
+class Config(requiredProperties: Map[String, String]) {
 
     def isValid: Boolean = valid
 
@@ -68,6 +66,15 @@ class Config(
         case _: Throwable => ""
     }
 
+    /**
+     * Returns the value of a given key.
+     *
+     * @param key the property that has to be returned.
+     */
+    def getProperty(key: String): String = {
+        this(key)
+    }
+
     /*
      * Converts the set of property to a string for debugging.
      */
@@ -78,58 +85,19 @@ class Config(
      *
      * @return a pair which is the Map defining the properties, and a boolean indicating whether validation succeeded.
      */
-    private def getProperties: (Map[String, String], Boolean) = {
+    protected def getProperties: (Map[String, String], Boolean) = {
         val properties = scala.collection.mutable.Map[String, String]() ++= requiredProperties
         Config.readPropertiesFromEnvironment(properties)
-        Config.readPropertiesFromFile(properties, propertiesFile)
-        Config.readPropertiesFromConsul(properties)
         (properties.toMap, Config.validateProperties(requiredProperties, properties))
     }
 
     private val (settings, valid) = getProperties
-
 }
 
 /**
  * Singleton object which provides global methods to manage configuration.
  */
 object Config extends Logging {
-
-    /**
-     * Reads a Map of key-value pairs from the Consul service -- store them in the
-     * mutable properties object.
-     */
-    def readPropertiesFromConsul(properties: Settings) = {
-        //try to get consulServer prop
-        val consulString = for {
-            server <- properties.get("consulserver.host")
-            port <- properties.get("consul.host.port4")
-        } yield server + ":" + port
-
-        consulString match {
-            case Some(consul) => {
-                info(this, s"reading properties from consul at $consul")
-                val kvStore = new ConsulKV(consul)
-
-                val whiskProps = kvStore.getRecurse(ConsulKV.WhiskProps.whiskProps)
-                properties.keys foreach { p =>
-                    val kvp = ConsulKV.WhiskProps.whiskProps + "/" + p.replace('.', '_').toUpperCase
-                    whiskProps.get(kvp) foreach {
-                        _ match {
-                            case JsString(v)  => properties += p -> v
-                            case JsNumber(i)  => properties += p -> i.toString
-                            case JsBoolean(b) => properties += p -> b.toString
-                            case j: JsArray   => properties += p -> j.compactPrint
-                            case j: JsObject  => properties += p -> j.compactPrint
-                            case _            => warn(this, s"consul did not set value for $p")
-                        }
-                    }
-                }
-            }
-            case _ => info(this, "no consul server defined")
-        }
-    }
-
     /**
      * Reads a Map of key-value pairs from the environment (sys.env) -- store them in the
      * mutable properties object.
@@ -146,43 +114,18 @@ object Config extends Logging {
     }
 
     /**
-     * Reads a Map of key-value pairs from the environment (sys.env) -- store them in the
-     * mutable properties object.
-     */
-    def readPropertiesFromFile(properties: Settings, file: File) = {
-        if (file != null && file.exists) {
-            info(this, s"reading properties from file $file")
-            for (line <- Source.fromFile(file).getLines if line.trim != "") {
-                val parts = line.split('=')
-                if (parts.length >= 1) {
-                    val p = parts(0).trim
-                    val v = if (parts.length == 2) parts(1).trim else ""
-                    properties += p -> v
-                    info(this, s"properties file set value for $p")
-                } else {
-                    warn(this, s"ignoring properties $line")
-                }
-            }
-        }
-    }
-
-    /**
      * Checks that the properties object defines all the required properties.
      *
      * @param required a key-value map where the keys are required properties
      * @param properties a set of properties to check
      */
     def validateProperties(required: Map[String, String], properties: Settings): Boolean = {
-        if (required.nonEmpty) {
-            required.keys.map { p =>
-                val v = properties(p)
-                if (v == null) {
-                    error(this, s"required property $p still not set")
-                    false
-                } else true
-            }.reduce((x: Boolean, y: Boolean) => x & y)
-        } else { true }
+        required.keys.forall { key =>
+            val value = properties(key)
+            if (value == null) error(this, s"required property $key still not set")
+            value != null
+        }
     }
 
-    private type Settings = scala.collection.mutable.Map[String, String]
+    type Settings = scala.collection.mutable.Map[String, String]
 }
