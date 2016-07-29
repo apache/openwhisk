@@ -15,50 +15,40 @@
  */
 
 package whisk.common
-import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig.consulServer
-import whisk.core.WhiskConfig.consulServices
-import whisk.core.WhiskConfig.invokerHosts
 
 object ConsulServiceHealth extends App {
 
-    def checkHealth(consulServer: String) = {
-        val requiredProperties = consulServices ++ invokerHosts
-        val config = new WhiskConfig(requiredProperties)
+    def checkHealth(consulServer: String, consulServices: String) = {
         val consul = new ConsulServiceCheck(consulServer)
 
-        if (config.isValid) {
-            // retrieve set of services to check and invoker0 to the list which exists in all deployments
-            // TODO: add invokers specific to a deployment
-            val servicesToCheck = config.consulServices.split(",").toSet + "invoker0"
-            val passing = consul.getAllPassing()
-            val critical = consul.getAllCritical()
-            val warning = consul.getAllWarning()
-            val nonpassing = servicesToCheck -- passing
-            val notfound = nonpassing -- critical -- warning
-            // check that all known services are passing
-            if (nonpassing.isEmpty) {
-                println("All passing")
-            }
-            if (!critical.isEmpty) {
-                print("Critical: ")
-                critical.foreach(service => print(service + " "))
-                println
-            }
-            if (!warning.isEmpty) {
-                print("Warning: ")
-                warning.foreach(service => print(service + " "))
-                println
-            }
-            if (!notfound.isEmpty) {
-                print("Unknown: ")
-                notfound.foreach(service => print(service + " "))
-                println
-            }
-        } else {
-            println("No valid config")
+        // retrieve set of services to check and invoker0 to the list which exists in all deployments
+        // TODO: add invokers specific to a deployment
+        val servicesToCheck = consulServices.split(",").toSet + "invoker0"
+        val passing = consul.getAllPassing()
+        val critical = consul.getAllCritical()
+        val warning = consul.getAllWarning()
+        val nonpassing = servicesToCheck -- passing
+        val notfound = nonpassing -- critical -- warning
+        // check that all known services are passing
+        if (nonpassing.isEmpty) {
+            println("All passing")
+        }
+        if (critical.nonEmpty) {
+            print("Critical: ")
+            critical.foreach(service => print(service + " "))
+            println
+        }
+        if (warning.nonEmpty) {
+            print("Warning: ")
+            warning.foreach(service => print(service + " "))
+            println
+        }
+        if (notfound.nonEmpty) {
+            print("Unknown: ")
+            notfound.foreach(service => print(service + " "))
+            println
         }
     }
 
-    checkHealth(args(0))
+    checkHealth(args(0), args(1))
 }
