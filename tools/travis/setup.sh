@@ -13,4 +13,10 @@ sudo service docker restart
 # Python stuff
 sudo apt-get -y install python-pip
 pip install --user jsonschema
-pip install --user ansible
+
+# Ansible stuff
+sudo apt-get install -y software-properties-common
+sudo apt-add-repository -y ppa:ansible/ansible2.1
+sudo apt-get update
+sudo apt-get install -y ansible=2.1.0.0-1*
+
