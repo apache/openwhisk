@@ -39,6 +39,7 @@ import argparse
 import httplib
 import re
 import threading
+import json
 from xml.dom import minidom
 from subprocess import Popen, PIPE, STDOUT
 from urlparse import urlparse
@@ -92,7 +93,7 @@ def request(method, urlString, body = "", headers = {}, auth = None, verbose = F
     if verbose:
         print "%s %s" % (method, urlString)
 
-    conn.request(method.upper(), urlString, body)
+    conn.request(method.upper(), urlString, body, headers = headers)
     res = conn.getresponse()
 
     if verbose:
@@ -115,8 +116,13 @@ def shell(cmd, data=None, verbose=False):
 
 def getJobUrl(args):
     if args.build.lower() == 'travis':
-        job = int(args.job) + 1 # travis job is N logs are at N+1
-        url = '%s/jobs/%s' % (args.url, job)
+        # Get build information
+        buildUrl = '%s/builds/%s' % (args.url, args.job)
+        buildRes = request('get', buildUrl, headers = {'accept': 'application/vnd.travis-ci.2+json'}, verbose = args.verbose)
+        body = json.loads(buildRes.read())
+        logId = body['jobs'][-1]['log_id']
+
+        url = '%s/logs/%s' % (args.url, logId)
     else: # assume jenkins
         url = '%s/job/%s/%s' % (args.url, args.build, args.job)
     return url
@@ -140,7 +146,7 @@ def monitorOnce(args):
         file.close()
     else:
         if args.build.lower() == 'travis':
-            url = '%s/log.txt' % getJobUrl(args)
+            url = getJobUrl(args)
             res = request('get', url, verbose = args.verbose)
             if res.status == httplib.TEMPORARY_REDIRECT:
                 url = res.getheader('location')
