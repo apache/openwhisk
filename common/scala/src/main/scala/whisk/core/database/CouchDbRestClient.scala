@@ -142,6 +142,10 @@ class CouchDbRestClient protected(system: ActorSystem, protocol: String, host: S
         }
     }
 
+    // http://docs.couchdb.org/en/1.6.1/api/server/common.html#get--
+    def instanceInfo() : Future[Either[StatusCode,JsObject]] =
+        request(mkRequest(HttpMethods.GET, Uri./))
+
     // http://docs.couchdb.org/en/1.6.1/api/document/common.html#put--db-docid
     def putDoc(id: String, doc: JsObject) : Future[Either[StatusCode,JsObject]] =
         request(mkRequest(HttpMethods.PUT, uri(db, id), body=Some(doc)))
