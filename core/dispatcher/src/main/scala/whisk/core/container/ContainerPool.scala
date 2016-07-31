@@ -47,6 +47,7 @@ import whisk.core.entity.WhiskAuthStore
 import whisk.core.entity.WhiskEntityStore
 import whisk.common.LoggingMarkers
 import whisk.common.LogMarkerToken
+import whisk.core.entity.NodeJS6Exec
 
 /**
  * A thread-safe container pool that internalizes container creation/teardown and allows users
@@ -334,11 +335,11 @@ class ContainerPool(
     // These are containers that are already removed from the data structure waiting to be docker-removed
     private val toBeRemoved = new ConcurrentLinkedQueue[ContainerInfo]()
 
-    // Note that the prefix seprates the name space of this from regular keys.
+    // Note that the prefix separates the name space of this from regular keys.
     // TODO: Generalize across language by storing image name when we generalize to other languages
     //       Better heuristic for # of containers to keep warm - make sensitive to idle capacity
     private val warmNodejsKey = "warm.nodejs"
-    private val nodejsExec = NodeJSExec("", None)
+    private val nodejsExec = NodeJS6Exec("", None)
     private val WARM_NODEJS_CONTAINERS = 2
 
     private def makeKey(action: WhiskAction, auth: WhiskAuth) = {
