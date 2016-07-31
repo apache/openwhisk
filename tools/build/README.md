@@ -67,3 +67,12 @@ The logs are saved to `./B-build.log` and can be reprocessed using `citool` with
 ```
 citool -i -b B cat -s -g "tid_124" whisk/logs N
 ```
+
+## Troubleshooting
+
+If you encounter an error `ImportError: No module named pkg_resources` while running `redo`, try the workaround below
+or see [these instructions](https://pypi.python.org/pypi/setuptools/0.9.8#installation-instructions) for upgrading `setuptools`.
+
+```
+pip install --upgrade setuptools
+```
