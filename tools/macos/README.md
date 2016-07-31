@@ -31,6 +31,8 @@ brew cask install java
 brew install scala
 # install gradle
 brew install gradle
+# install ansible
+sudo -H pip install ansible==2.0.2.0
 # the following is required for running tests
 sudo -H pip install jsonschema' | bash
 ```
