@@ -7,10 +7,13 @@ One way to develop or deploy OpenWhisk on a Mac is to use [docker-machine](https
 The following are required to build and deploy OpenWhisk from a Mac host:
 
 - [Oracle VM VirtualBox](https://www.virtualbox.org/wiki/Downloads)
-- [Docker 1.9.1+](https://docs.docker.com/engine/installation/mac/) (including `docker-machine`)
+- [Docker 1.9.1](https://docs.docker.com/engine/installation/mac/) (including `docker-machine`)
 - [Java 8](http://www.oracle.com/technetwork/java/javase/downloads/index.html)
 - [Scala 2.11](http://scala-lang.org/download/)
-- [Gradle](https://docs.gradle.org/current/userguide/installation.html)
+- [Ansible 2.0.2.0](http://docs.ansible.com/ansible/intro_installation.html)
+
+**Tip** Versions of Docker and Ansible are lower than the latest released versions, the versions used in OpenWhisk are pinned to have stability during continues integration and deployment.
+
 
 [Homebrew](http://brew.sh/) is an easy way to install all of these and prepare your Mac to build and deploy OpenWhik. The following shell command is provided for your convenience to install `brew` with [Cask](https://github.com/caskroom/homebrew-cask) and bootstraps these to complete the setup. Copy the entire section below and paste it into your terminal to run it.
 
@@ -29,8 +32,8 @@ brew install docker-machine
 # install java 8, scala
 brew cask install java
 brew install scala
-# install gradle
-brew install gradle
+# install ansible
+sudo -H pip install ansible==2.0.2.0
 # the following is required for running tests
 sudo -H pip install jsonschema' | bash
 ```
@@ -97,9 +100,10 @@ cd /your/path/to/openwhisk
 
 # Build
 ```
-cd openwhisk/ansible
+cd /your/path/to/openwhisk
 ./gradlew distDocker
 ```
+**Tip** Using `gradlew` handles the installation of the correct version of gradle to use.
 
 # Deploy
 Follow instructions in [ansible/README.md](../../ansible/README.md)
