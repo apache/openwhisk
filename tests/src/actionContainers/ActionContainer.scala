@@ -88,6 +88,7 @@ object ActionContainer {
 
     def withContainer(imageName: String, environment: Map[String, String] = Map.empty)(
         code: ActionContainer => Unit): (String, String) = {
+        throw new Exception("panic!")
         val rand = { val r = Random.nextInt; if (r < 0) -r else r }
         val name = imageName.toLowerCase.replaceAll("""[^a-z]""", "") + rand
         val envArgs = environment.toSeq.map {
