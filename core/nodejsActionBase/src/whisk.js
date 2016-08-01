@@ -103,31 +103,22 @@ function Whisk(apihost, logger) {
         // { activationId }.
         //
         // Project the appropriate value based on invoke mode and HTTP statusCode
-        // where success is 200, and anything else is a failure.
-        post(packet, logger, function(error, response, body) {
-            logger && logger.info('[whisk]', '[invoke]', 'response body', body);
+        // where success is 200 or 202, and anything else is a failure.
+        var acceptStatusCode = function(statusCode) {
+          return (statusCode === 200 || statusCode === 202);
+        };
+        return post(packet, logger, acceptStatusCode)
+          .then(function (runResult) {
+              logger && logger.info('[whisk]', '[invoke]', runResult.error, runResult.activation);
 
-            var activation = undefined;
-
-            error = error || undefined;
-            response = response || {};
-            body = body || {};
-
-            if (response.statusCode == 200 || response.statusCode == 202) {
-                activation = {
-                   activationId: body.activationId, // id always present
-                   result: (body.response || {}).result // may not exist if non-blocking
-                };
-            } else if (!error) {
-                // activation failed, set error to API host error response.
-                error = body.error + ' (' + body.errorCode + ')';
-            }
-
-            if (next) {
-                logger && logger.info('[whisk]', '[invoke]', 'next', error, activation);
-                next(error, activation);
-            }
-        });
+              if (next) {
+                  next(runResult.error, runResult.activation);
+              } else if (!runResult.error) {
+                  return runResult.activation;
+              } else {
+                  return Promise.reject(runResult);
+              }
+          });
     }
 
     /**
@@ -159,27 +150,21 @@ function Whisk(apihost, logger) {
         //
         // Project the appropriate value based on HTTP statusCode
         // where success is 200, and anything else is a failure.
-        post(packet, logger, function(error, response, body) {
-            logger && logger.info('[whisk]', '[trigger]', 'response body', body);
+        var acceptStatusCode = function(statusCode) {
+          return statusCode === 200;
+        };
+        return post(packet, logger, acceptStatusCode)
+          .then(function (runResult) {
+              logger && logger.info('[whisk]', '[trigger]', runResult.error, runResult.activation);
 
-            var activation = undefined;
-
-            error = error || undefined;
-            response = response || {};
-            body = body || {};
-
-            if (response.statusCode == 200) {
-                activation = { activation: body.activationId }; // id always present
-            } else if (!error) {
-                // activation failed, set error to API host error response.
-                error = body.error + ' (' + body.errorCode + ')';
-            }
-
-            if (next) {
-                logger && logger.info('[whisk]', '[trigger]', 'next', error, activation);
-                next(error, activation);
-            }
-        });
+              if (next) {
+                  next(runResult.error, runResult.activation);
+              } else if (!runResult.error) {
+                  return runResult.activation;
+              } else {
+                  return Promise.reject(runResult);
+              }
+          });
     }
 
     /**
@@ -246,9 +231,16 @@ function Whisk(apihost, logger) {
  * @param   packet.auth The basicauth credentials (optional).
  * @param   packet.parameters The POST body as JSON object (optional).
  * @param logger Logging object.
- * @param next An optional callback for POST response as a function(error, response, body).
+ * @return A promise for an object describing the result with fields error and activation
+ *             Error is a truthy iff invoke failed, usually a string describing error.
+ *             Activation, if defined, is an object { result: JSON object, activationId: String }
+ *             where result is undefined if the post did not include a result.
+ *             Activation may be defined when error is not a falsey depending on invoke failure mode.
+ *             Because this object describes both error and success, THIS PROMISE IS NEVER REJECTED
+ *             The reason for this oddity is because all uses of this function (trigger and invoke)
+ *             must still honor a legacy callback.
  */
-function post(packet, logger, next) {
+function post(packet, logger, acceptStatusCode) {
     logger && logger.info('[whisk]', 'POST to url', packet.url);
     logger && logger.info('[whisk]', 'send parameters', packet.parameters);
 
@@ -262,11 +254,35 @@ function post(packet, logger, next) {
         json: packet.parameters,
     };
 
-    request.post(options, function(error, response, body) {
-        logger && logger.info('[whisk]', 'post status:', response ? response.statusCode : undefined);
-        // print the error to console.error to help post-mortem debugging
-        // and inform the user if for example they neglected to check for error
-        error  && console.log('Warning: whisk activation request failed with the following error', error);
-        if (next) next(error, response, body);
+    return new Promise(function(resolve, reject) {
+      request.post(options, function(error, response, body) {
+          logger && logger.info('[whisk]', 'post status:', response ? response.statusCode : undefined);
+          // print the error to console.error to help post-mortem debugging
+          // and inform the user if for example they neglected to check for error
+          error  && console.log('Warning: whisk activation request failed with the following error', error);
+
+          logger && logger.info('[whisk]', 'response body', body);
+
+          var activation = undefined;
+
+          error = error || undefined;
+          response = response || {};
+          body = body || {};
+
+          if (acceptStatusCode(response.statusCode)) {
+              activation = {
+                 activationId: body.activationId, // id always present
+                 result: (body.response || {}).result // may not exist
+              };
+          } else if (!error) {
+              // activation failed, set error to API host error response.
+              error = body.error + ' (' + body.errorCode + ')';
+          }
+
+          resolve({
+            error: error,
+            activation: activation
+          });
+      });
     });
 }
