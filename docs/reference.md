@@ -196,17 +196,46 @@ The `whisk.invoke()` function invokes another action. It takes as an argument a 
 
 - *name*: The fully qualified name of the action to invoke,
 - *parameters*: A JSON object that represents the input to the invoked action. If omitted, defaults to an empty object.
-- *apiKey*: The authorization key with which to invoke the action. Defaults to `whisk.getAuthKey()`. 
+- *apiKey*: The authorization key with which to invoke the action. Defaults to `whisk.getAuthKey()`.
 - *blocking*: Whether the action should be invoked in blocking or non-blocking mode. Defaults to `false`, indicating a non-blocking invocation.
-- *next*: An optional callback function to be executed when the invocation completes.
+- *next*: An optional callback function to be executed when the invocation completes. If next is not supplied, `whisk.invoke()` returns a promise.
 
-The signature for `next` is `function(error, activation)`, where:
+  The signature for `next` is `function(error, activation)`, where:
 
-- `error` is `false` if the invocation succeeded, and a *truthy* value (a value that translates to true when evaluated in a Boolean context) if it failed, usually a string that describes the error.
-- On errors, `activation` might be undefined, depending on the failure mode.
-- When defined, `activation` is a dictionary with the following fields:
-  - *activationId*: The activation ID:
-  - *result*: If the action was invoked in blocking mode: The action result as a JSON object, else `undefined`.
+  - `error` is `false` if the invocation succeeded, and a *truthy* value (a value that translates to true when evaluated in a Boolean context) if it failed, usually a string that describes the error.
+  - On errors, `activation` might be undefined, depending on the failure mode.
+  - When defined, `activation` is a dictionary with the following fields:
+    - *activationId*: The activation ID:
+    - *result*: If the action was invoked in blocking mode: The action result as a JSON object, else `undefined`.
+
+  If `next` is not provided, then `whisk.invoke()` returns a promise.
+  - If the invocation fails, the promise will reject with an object describing the failed invocation. It will potentially have two fields:
+    - *error*: An object describing the error - usually a string.
+    - *activation*: An optional dictionary that may or may not be present depending on the nature of the invocation failure. If present, it will have the following fields:
+      - *activationId*: The activation ID:
+      - *result*: If the action was invoked in blocking mode: The action result as a JSON object, else `undefined`.
+  - If the invocation succeeds, the promise will resolve with a dictionary describing the activation with fields *activationId* and *result* as described above.
+
+  Below is an example of a blocking invocation that utilizes the returned promise:
+  ```javascript
+  whisk.invoke({
+    name: 'myAction',
+    blocking: true
+  })
+  .then(function (activation) {
+      // activation completed successfully, activation contains the result
+      console.log('Activation ' + activation.activationId + ' completed successfully and here is the result ' + activation.result);
+  })
+  .catch(function (reason) {
+      console.log('An error has occured ' + reason.error);
+
+      if(reason.activation) {
+        console.log('Please check activation ' + reason.activation.activationId + ' for details.');
+      } else {
+        console.log('Failed to create activation.');
+      }
+  });
+  ```
 
 The `whisk.trigger()` function fires a trigger. It takes as an argument a JSON object with the following parameters:
 
@@ -215,11 +244,15 @@ The `whisk.trigger()` function fires a trigger. It takes as an argument a JSON o
 - *apiKey*: The authorization key with which to fire the trigger. Defaults to `whisk.getAuthKey()`.
 - *next*: An optional callback to be executed when the firing completes.
 
-The signature for `next` is `function(error, activation)`, where:
+  The signature for `next` is `function(error, activation)`, where:
 
-- `error` is `false` if the firing succeeded, and a *truthy* value  if it failed, usually a string that describes the error.
-- On errors, `activation` might be undefined, depending on the failure mode.
-- When defined, `activation` is a dictionary with an `activationId` field that contains the activation ID.
+  - `error` is `false` if the firing succeeded, and a *truthy* value  if it failed, usually a string that describes the error.
+  - On errors, `activation` might be undefined, depending on the failure mode.
+  - When defined, `activation` is a dictionary with an `activationId` field that contains the activation ID.
+
+  If `next` is not provided, then `whisk.trigger()` returns a promise.
+  - If the trigger fails, the promise will reject with an object describing the error.
+  - If the trigger succeeds, the promise will resolve with a dictionary with an `activationId` field containing the activation ID.
 
 The `whisk.getAuthKey()` function returns the authorization key under which the action is running. Usually, you do not need to invoke this function directly because it is used implicitly by the `whisk.invoke()` and `whisk.trigger()` functions.
 
