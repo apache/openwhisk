@@ -52,8 +52,9 @@ const SDK_SWIFT_COMPONENT_NAME string = "swift"
 const BASH_AUTOCOMPLETE_FILENAME string = "wsk_cli_bash_completion.sh"
 
 var sdkInstallCmd = &cobra.Command{
-    Use:   "install <component string:{docker,swift,iOS,bashauto}>",
-    Short: "install artifacts",
+    Use:   "install COMPONENT",
+    Short: "install SDK artifacts",
+    Long: "install SDK artifacts, where valid COMPONENT values are docker, swift, iOS, and bashauto",
     SilenceUsage:   true,
     SilenceErrors:  true,
     PreRunE: setupClientConfig,

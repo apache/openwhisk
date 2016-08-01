@@ -295,10 +295,10 @@ func init() {
     propertyGetCmd.Flags().BoolVar(&flags.property.namespace, "namespace", false, "whisk namespace")
     propertyGetCmd.Flags().BoolVar(&flags.property.all, "all", false, "all properties")
 
-    propertySetCmd.Flags().StringVarP(&flags.global.auth, "auth", "u", "", "authorization key")
-    propertySetCmd.Flags().StringVar(&flags.property.apihostSet, "apihost", "", "whisk API host")
-    propertySetCmd.Flags().StringVar(&flags.property.apiversionSet, "apiversion", "", "whisk API version")
-    propertySetCmd.Flags().StringVar(&flags.property.namespaceSet, "namespace", "", "whisk namespace")
+    propertySetCmd.Flags().StringVarP(&flags.global.auth, "auth", "u", "", "authorization `KEY`")
+    propertySetCmd.Flags().StringVar(&flags.property.apihostSet, "apihost", "", "whisk API `HOST`")
+    propertySetCmd.Flags().StringVar(&flags.property.apiversionSet, "apiversion", "", "whisk API `VERSION`")
+    propertySetCmd.Flags().StringVar(&flags.property.namespaceSet, "namespace", "", "whisk `NAMESPACE`")
 
     propertyUnsetCmd.Flags().BoolVar(&flags.property.auth, "auth", false, "authorization key")
     propertyUnsetCmd.Flags().BoolVar(&flags.property.apihost, "apihost", false, "whisk API host")

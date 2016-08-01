@@ -50,8 +50,8 @@ func init() {
 
     WskCmd.PersistentFlags().BoolVarP(&flags.global.verbose, "verbose", "v", false, "verbose output")
     WskCmd.PersistentFlags().BoolVarP(&flags.global.debug, "debug", "d", false, "debug level output")
-    WskCmd.PersistentFlags().StringVarP(&flags.global.auth, "auth", "u", "", "authorization key")
-    WskCmd.PersistentFlags().StringVar(&flags.global.apihost, "apihost", "", "whisk API host")
-    WskCmd.PersistentFlags().StringVar(&flags.global.apiversion, "apiversion", "", "whisk API version")
+    WskCmd.PersistentFlags().StringVarP(&flags.global.auth, "auth", "u", "", "authorization `KEY`")
+    WskCmd.PersistentFlags().StringVar(&flags.global.apihost, "apihost", "", "whisk API `HOST`")
+    WskCmd.PersistentFlags().StringVar(&flags.global.apiversion, "apiversion", "", "whisk API `VERSION`")
     WskCmd.PersistentFlags().BoolVarP(&flags.global.insecure, "insecure", "i", false, "bypass certificate checking")
 }

@@ -42,7 +42,7 @@ var activationCmd = &cobra.Command{
 }
 
 var activationListCmd = &cobra.Command{
-    Use:   "list <namespace string>",
+    Use:   "list [NAMESPACE]",
     Short: "list activations",
     SilenceUsage:   true,
     SilenceErrors:  true,
@@ -100,7 +100,7 @@ var activationListCmd = &cobra.Command{
 }
 
 var activationGetCmd = &cobra.Command{
-    Use:   "get <id string>",
+    Use:   "get ACTIVATION_ID",
     Short: "get activation",
     SilenceUsage:   true,
     SilenceErrors:  true,
@@ -134,7 +134,7 @@ var activationGetCmd = &cobra.Command{
 }
 
 var activationLogsCmd = &cobra.Command{
-    Use:   "logs",
+    Use:   "logs ACTIVATION_ID",
     Short: "get the logs of an activation",
     SilenceUsage:   true,
     SilenceErrors:  true,
@@ -162,7 +162,7 @@ var activationLogsCmd = &cobra.Command{
 }
 
 var activationResultCmd = &cobra.Command{
-    Use:   "result",
+    Use:   "result ACTIVATION_ID",
     Short: "get the result of an activation",
     SilenceUsage:   true,
     SilenceErrors:  true,
@@ -190,7 +190,7 @@ var activationResultCmd = &cobra.Command{
 }
 
 var activationPollCmd = &cobra.Command{
-    Use:   "poll <namespace string>",
+    Use:   "poll [NAMESPACE]",
     Short: "poll continuously for log messages from currently running actions",
     SilenceUsage:   true,
     SilenceErrors:  true,
@@ -288,7 +288,6 @@ var activationPollCmd = &cobra.Command{
                     continue
                 } else {
                     fmt.Printf("\nActivation: %s (%s)\n", activation.Name, activation.ActivationID)
-                    //MWD printJSON(activation.Logs)
                     printJsonNoColor(activation.Logs)
                     reported[activation.ActivationID] = true
                 }
@@ -301,19 +300,19 @@ var activationPollCmd = &cobra.Command{
 
 func init() {
 
-    activationListCmd.Flags().IntVarP(&flags.common.skip, "skip", "s", 0, "skip this many entitites from the head of the collection")
-    activationListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, "only return this many entities from the collection")
-    activationListCmd.Flags().BoolVarP(&flags.common.full, "full", "f", false, "include full entity description")
-    activationListCmd.Flags().Int64Var(&flags.activation.upto, "upto", 0, "return activations with timestamps earlier than UPTO; measured in miliseconds since Th, 01, Jan 1970")
-    activationListCmd.Flags().Int64Var(&flags.activation.since, "since", 0, "return activations with timestamps earlier than UPTO; measured in miliseconds since Th, 01, Jan 1970")
+    activationListCmd.Flags().IntVarP(&flags.common.skip, "skip", "s", 0, "exclude the first `SKIP` number of activations from the result")
+    activationListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, "only return `LIMIT` number of activations from the collection")
+    activationListCmd.Flags().BoolVarP(&flags.common.full, "full", "f", false, "include full activation description")
+    activationListCmd.Flags().Int64Var(&flags.activation.upto, "upto", 0, "return activations with timestamps earlier than `UPTO`; measured in miliseconds since Th, 01, Jan 1970")
+    activationListCmd.Flags().Int64Var(&flags.activation.since, "since", 0, "return activations with timestamps later than `SINCE`; measured in miliseconds since Th, 01, Jan 1970")
 
-    activationGetCmd.Flags().BoolVarP(&flags.common.summary, "summary", "s", false, "summarize entity details")
+    activationGetCmd.Flags().BoolVarP(&flags.common.summary, "summary", "s", false, "summarize activation details")
 
-    activationPollCmd.Flags().IntVarP(&flags.activation.exit, "exit", "e", 0, "exit after this many seconds")
-    activationPollCmd.Flags().IntVar(&flags.activation.sinceSeconds, "since-seconds", 0, "start polling for activations this many seconds ago")
-    activationPollCmd.Flags().IntVar(&flags.activation.sinceMinutes, "since-minutes", 0, "start polling for activations this many minutes ago")
-    activationPollCmd.Flags().IntVar(&flags.activation.sinceHours, "since-hours", 0, "start polling for activations this many hours ago")
-    activationPollCmd.Flags().IntVar(&flags.activation.sinceDays, "since-days", 0, "start polling for activations this many days ago")
+    activationPollCmd.Flags().IntVarP(&flags.activation.exit, "exit", "e", 0, "stop polling after `SECONDS` seconds")
+    activationPollCmd.Flags().IntVar(&flags.activation.sinceSeconds, "since-seconds", 0, "start polling for activations `SECONDS` seconds ago")
+    activationPollCmd.Flags().IntVar(&flags.activation.sinceMinutes, "since-minutes", 0, "start polling for activations `MINUTES` minutes ago")
+    activationPollCmd.Flags().IntVar(&flags.activation.sinceHours, "since-hours", 0, "start polling for activations `HOURS` hours ago")
+    activationPollCmd.Flags().IntVar(&flags.activation.sinceDays, "since-days", 0, "start polling for activations `DAYS` days ago")
 
     activationCmd.AddCommand(
         activationListCmd,

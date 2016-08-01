@@ -44,7 +44,7 @@ var actionCmd = &cobra.Command{
 }
 
 var actionCreateCmd = &cobra.Command{
-  Use:           "create <name string> <artifact string>",
+  Use:           "create ACTION_NAME ACTION",
   Short:         "create a new action",
   SilenceUsage:  true,
   SilenceErrors: true,
@@ -89,7 +89,7 @@ var actionCreateCmd = &cobra.Command{
 }
 
 var actionUpdateCmd = &cobra.Command{
-  Use:           "update <name string> <artifact string>",
+  Use:           "update ACTION_NAME [ACTION]",
   Short:         "update an existing action",
   SilenceUsage:  true,
   SilenceErrors: true,
@@ -134,7 +134,7 @@ var actionUpdateCmd = &cobra.Command{
 }
 
 var actionInvokeCmd = &cobra.Command{
-  Use:           "invoke <name string>",
+  Use:           "invoke ACTION_NAME",
   Short:         "invoke action",
   SilenceUsage:  true,
   SilenceErrors: true,
@@ -224,7 +224,7 @@ var actionInvokeCmd = &cobra.Command{
 }
 
 var actionGetCmd = &cobra.Command{
-  Use:           "get <name string>",
+  Use:           "get ACTION_NAME",
   Short:         "get action",
   SilenceUsage:  true,
   SilenceErrors: true,
@@ -277,7 +277,7 @@ var actionGetCmd = &cobra.Command{
 }
 
 var actionDeleteCmd = &cobra.Command{
-  Use:           "delete <name string>",
+  Use:           "delete ACTION_NAME",
   Short:         "delete action",
   SilenceUsage:  true,
   SilenceErrors: true,
@@ -323,7 +323,7 @@ var actionDeleteCmd = &cobra.Command{
 }
 
 var actionListCmd = &cobra.Command{
-  Use:           "list [namespace string]",
+  Use:           "list [NAMESPACE]",
   Short:         "list all actions",
   SilenceUsage:  true,
   SilenceErrors: true,
@@ -662,39 +662,37 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
 ///////////
 
 func init() {
-  actionCreateCmd.Flags().BoolVar(&flags.action.docker, "docker", false, "treat artifact as docker image path on dockerhub")
-  actionCreateCmd.Flags().BoolVar(&flags.action.copy, "copy", false, "treat artifact as the name of an existing action")
-  actionCreateCmd.Flags().BoolVar(&flags.action.sequence, "sequence", false, "treat artifact as comma separated sequence of actions to invoke")
-  actionCreateCmd.Flags().StringVar(&flags.action.kind, "kind", "", "the kind of the action runtime (example: swift:3, nodejs:6)")
-  actionCreateCmd.Flags().StringVar(&flags.action.shared, "shared", "", "shared action (default: private)")
-  actionCreateCmd.Flags().StringVar(&flags.action.xPackage, "package", "", "package")
-  actionCreateCmd.Flags().IntVarP(&flags.action.timeout, "timeout", "t", -1, "the timeout limit in milliseconds when the action will be terminated")
-  actionCreateCmd.Flags().IntVarP(&flags.action.memory, "memory", "m", -1, "the memory limit in MB of the container that runs the action")
-  actionCreateCmd.Flags().IntVarP(&flags.action.logsize, "logsize", "l", -1, "the logsize limit in MB of the container that runs the action")
-  actionCreateCmd.Flags().StringSliceVarP(&flags.common.annotation, "annotation", "a", []string{}, "annotations")
-  actionCreateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, "default parameters")
+  actionCreateCmd.Flags().BoolVar(&flags.action.docker, "docker", false, "treat ACTION as docker image path on dockerhub")
+  actionCreateCmd.Flags().BoolVar(&flags.action.copy, "copy", false, "treat ACTION as the name of an existing action")
+  actionCreateCmd.Flags().BoolVar(&flags.action.sequence, "sequence", false, "treat ACTION as comma separated sequence of actions to invoke")
+  actionCreateCmd.Flags().StringVar(&flags.action.kind, "kind", "", "the `KIND` of the action runtime (example: swift:3, nodejs:6)")
+  actionCreateCmd.Flags().StringVar(&flags.action.shared, "shared", "no", "action visibility `SCOPE`; yes = shared, no = private")
+  actionCreateCmd.Flags().IntVarP(&flags.action.timeout, "timeout", "t", -1, "the timeout `LIMIT` in milliseconds when the action will be terminated")
+  actionCreateCmd.Flags().IntVarP(&flags.action.memory, "memory", "m", -1, "the memory `LIMIT` in MB of the container that runs the action")
+  actionCreateCmd.Flags().IntVarP(&flags.action.logsize, "logsize", "l", -1, "the logsize `LIMIT` in MB of the container that runs the action (default 10MB)")
+  actionCreateCmd.Flags().StringSliceVarP(&flags.common.annotation, "annotation", "a", nil, "annotation values in `KEY VALUE` format")
+  actionCreateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", nil, "default action parameter values in `KEY VALUE` format")
 
-  actionUpdateCmd.Flags().BoolVar(&flags.action.docker, "docker", false, "treat artifact as docker image path on dockerhub")
-  actionUpdateCmd.Flags().BoolVar(&flags.action.copy, "copy", false, "treat artifact as the name of an existing action")
-  actionUpdateCmd.Flags().BoolVar(&flags.action.sequence, "sequence", false, "treat artifact as comma separated sequence of actions to invoke")
-  actionUpdateCmd.Flags().StringVar(&flags.action.kind, "kind", "", "the kind of the action runtime (example: swift:3, nodejs:6)")
-  actionUpdateCmd.Flags().StringVar(&flags.action.shared, "shared", "", "shared action (default: private)")
-  actionUpdateCmd.Flags().StringVar(&flags.action.xPackage, "package", "", "package")
-  actionUpdateCmd.Flags().IntVarP(&flags.action.timeout, "timeout", "t", -1, "the timeout limit in milliseconds when the action will be terminated")
-  actionUpdateCmd.Flags().IntVarP(&flags.action.memory, "memory", "m", -1, "the memory limit in MB of the container that runs the action")
-  actionUpdateCmd.Flags().IntVarP(&flags.action.logsize, "logsize", "l", -1, "the logsize limit in MB of the container that runs the action")
-  actionUpdateCmd.Flags().StringSliceVarP(&flags.common.annotation, "annotation", "a", []string{}, "annotations")
-  actionUpdateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, "default parameters")
+  actionUpdateCmd.Flags().BoolVar(&flags.action.docker, "docker", false, "treat ACTION as docker image path on dockerhub")
+  actionUpdateCmd.Flags().BoolVar(&flags.action.copy, "copy", false, "treat ACTION as the name of an existing action")
+  actionUpdateCmd.Flags().BoolVar(&flags.action.sequence, "sequence", false, "treat ACTION as comma separated sequence of actions to invoke")
+  actionUpdateCmd.Flags().StringVar(&flags.action.kind, "kind", "", "the `KIND` of the action runtime (example: swift:3, nodejs:6)")
+  actionUpdateCmd.Flags().StringVar(&flags.action.shared, "shared", "", "action visibility `SCOPE`; yes = shared, no = private")
+  actionUpdateCmd.Flags().IntVarP(&flags.action.timeout, "timeout", "t", -1, "the timeout `LIMIT` in milliseconds when the action will be terminated")
+  actionUpdateCmd.Flags().IntVarP(&flags.action.memory, "memory", "m", -1, "the memory `LIMIT` in MB of the container that runs the action")
+  actionUpdateCmd.Flags().IntVarP(&flags.action.logsize, "logsize", "l", -1, "the logsize `LIMIT` in MB of the container that runs the action (default 10MB)")
+  actionUpdateCmd.Flags().StringSliceVarP(&flags.common.annotation, "annotation", "a", []string{}, "annotation values in `KEY VALUE` format")
+  actionUpdateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, "default action parameter values in `KEY VALUE` format")
 
-  actionInvokeCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, "parameters")
+  actionInvokeCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, "action parameter values in `KEY VALUE` format")
   actionInvokeCmd.Flags().BoolVarP(&flags.common.blocking, "blocking", "b", false, "blocking invoke")
   actionInvokeCmd.Flags().BoolVarP(&flags.action.result, "result", "r", false, "show only activation result if a blocking activation (unless there is a failure)")
 
   actionGetCmd.Flags().BoolVarP(&flags.common.summary, "summary", "s", false, "summarize entity details")
 
-  actionListCmd.Flags().IntVarP(&flags.common.skip, "skip", "s", 0, "skip this many entitites from the head of the collection")
-  actionListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, "only return this many entities from the collection")
-  actionListCmd.Flags().BoolVar(&flags.common.full, "full", false, "include full entity description")
+  actionListCmd.Flags().IntVarP(&flags.common.skip, "skip", "s", 0, "exclude the first `SKIP` number of actions from the result")
+  actionListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, "only return `LIMIT` number of actions from the collection")
+  actionListCmd.Flags().BoolVar(&flags.common.full, "full", false, "include full action description")
 
   actionCmd.AddCommand(
     actionCreateCmd,
