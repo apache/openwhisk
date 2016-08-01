@@ -52,6 +52,15 @@ $script_common = <<SCRIPT
   sudo apt-get update
   sudo apt-get install git -y
   sudo apt-get install htop
+  
+  # Configure swapfile
+  echo 'swapfile not found. Adding swapfile.'
+  fallocate -l 8000M /swapfile
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+  echo '/swapfile none swap defaults 0 0' >> /etc/fstab
+
   cd /home/vagrant/openwhisk
   cd tools/ubuntu-setup
   su vagrant -c 'source all.sh'
