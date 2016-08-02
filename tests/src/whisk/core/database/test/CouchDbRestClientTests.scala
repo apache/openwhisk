@@ -86,13 +86,13 @@ class CouchDbRestClientTests extends FlatSpec
 
     behavior of "CouchDbRestClient"
 
-    it should "successfully access the DB instance info" in {
+    ignore /*it*/ should "successfully access the DB instance info" in {
         assume(config.dbProvider == "Cloudant" || config.dbProvider == "CouchDB")
         val f = client.instanceInfo()
         whenReady(f) { e => checkResponse(e) }
     }
 
-    it should "successfully access the DB despite transient connection failures" in {
+    ignore /*it*/ should "successfully access the DB despite transient connection failures" in {
         // sprays the client with requests, makes sure they are all answered
         // despite temporary connection failure.
         val numRequests = 30
