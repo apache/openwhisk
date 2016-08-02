@@ -117,7 +117,7 @@ class InvokerHealth(
         JsObject(health toMap)
     }
 
-    private val maximumAllowedDelay = 5 seconds
+    private val maximumAllowedDelay = 20 seconds
     def isFresh(lastDate: String) = {
         val lastDateMilli = DateUtil.parseToMilli(lastDate)
         val now = System.currentTimeMillis() // We fetch this repeatedly in case KV fetch is slow
