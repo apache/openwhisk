@@ -7,5 +7,5 @@ eclipse {
 }
 
 ext.dockerImageName = 'whisk/nodejsaction'
-apply from: '../../docker.gradle'
+apply from: '../../gradle/docker.gradle'
 distDocker.dependsOn ':core:nodejsActionBase:distDocker'
