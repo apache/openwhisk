@@ -33,6 +33,8 @@ import scala.util.matching.Regex.Match
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.actor.actorRef2Scala
+import akka.event.Logging.InfoLevel
+import akka.event.Logging.LogLevel
 import akka.japi.Creator
 import spray.json.DefaultJsonProtocol
 import spray.json.DefaultJsonProtocol.IntJsonFormat
@@ -60,7 +62,6 @@ import whisk.common.LoggingMarkers.INVOKER_RECORD_ACTIVATION_DONE
 import whisk.common.LoggingMarkers.INVOKER_RECORD_ACTIVATION_START
 import whisk.common.SimpleExec
 import whisk.common.TransactionId
-import whisk.common.Verbosity
 import whisk.connector.kafka.KafkaConsumerConnector
 import whisk.connector.kafka.KafkaProducerConnector
 import whisk.core.WhiskConfig
@@ -120,7 +121,7 @@ class Invoker(
     config: WhiskConfig,
     instance: Int,
     activationFeed: ActorRef,
-    verbosity: Verbosity.Level = Verbosity.Loud,
+    verbosity: LogLevel = InfoLevel,
     runningInContainer: Boolean = true)(implicit actorSystem: ActorSystem)
     extends DispatchRule("invoker", "/actions/invoke", s"""(.+)/(.+)/(.+),(.+)/(.+)""") {
 
@@ -129,7 +130,7 @@ class Invoker(
     /** This generates completion messages back to the controller */
     val producer = new KafkaProducerConnector(config.kafkaHost, executionContext)
 
-    override def setVerbosity(level: Verbosity.Level) = {
+    override def setVerbosity(level: LogLevel) = {
         super.setVerbosity(level)
         pool.setVerbosity(level)
         entityStore.setVerbosity(level)
@@ -599,7 +600,7 @@ object InvokerService {
 
         if (config.isValid) {
             val instance = if (args.length > 0) args(1).toInt else 0
-            val verbosity = Verbosity.Loud
+            val verbosity = InfoLevel
 
             SimpleExec.setVerbosity(verbosity)
 

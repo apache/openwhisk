@@ -30,7 +30,6 @@ import akka.actor.ActorSystem
 import whisk.common.Counter
 import whisk.common.LoggingMarkers._
 import whisk.common.TransactionId
-import whisk.common.Verbosity
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.dockerImageTag
 import whisk.core.WhiskConfig.invokerContainerNetwork
@@ -48,6 +47,8 @@ import whisk.core.entity.WhiskEntityStore
 import whisk.common.LoggingMarkers
 import whisk.common.LogMarkerToken
 import whisk.core.entity.NodeJS6Exec
+import akka.event.Logging.LogLevel
+import akka.event.Logging.InfoLevel
 
 /**
  * A thread-safe container pool that internalizes container creation/teardown and allows users
@@ -62,7 +63,7 @@ import whisk.core.entity.NodeJS6Exec
 class ContainerPool(
     config: WhiskConfig,
     invokerInstance: Integer = 0,
-    verbosity: Verbosity.Level = Verbosity.Loud,
+    verbosity: LogLevel = InfoLevel,
     standalone: Boolean = false)(implicit actorSystem: ActorSystem)
     extends ContainerUtils {
 
@@ -77,7 +78,7 @@ class ContainerPool(
     /**
      * Sets verbosity of this and owned objects.
      */
-    override def setVerbosity(level: Verbosity.Level) = {
+    override def setVerbosity(level: LogLevel) = {
         super.setVerbosity(level)
         datastore.setVerbosity(level)
         authStore.setVerbosity(level)

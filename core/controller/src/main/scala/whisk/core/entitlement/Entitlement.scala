@@ -37,12 +37,12 @@ import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.Scheduler
 import whisk.common.TransactionId
-import whisk.common.Verbosity
 import whisk.core.WhiskConfig
 import whisk.core.entity.Namespace
 import whisk.core.entity.Parameters
 import whisk.core.entity.Subject
 import whisk.http.ErrorResponse
+import akka.event.Logging.LogLevel
 
 package object types {
     type Entitlements = TrieMap[(Subject, String), Set[Privilege]]
@@ -102,7 +102,7 @@ protected[core] abstract class EntitlementService(config: WhiskConfig)(
         }
     }
 
-    override def setVerbosity(level: Verbosity.Level) = {
+    override def setVerbosity(level: LogLevel) = {
         super.setVerbosity(level)
         invokeRateThrottler.setVerbosity(level)
         triggerRateThrottler.setVerbosity(level)

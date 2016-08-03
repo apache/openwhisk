@@ -23,7 +23,6 @@ import akka.actor.ActorSystem
 import akka.japi.Creator
 import spray.routing.Directive.pimpApply
 import whisk.common.TransactionId
-import whisk.common.Verbosity
 import whisk.core.loadBalancer.LoadBalancerService
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.{ consulServer, kafkaHost, kafkaPartitions }
@@ -31,6 +30,8 @@ import whisk.http.BasicHttpService
 import whisk.http.BasicRasService
 import spray.routing.Route
 import akka.actor.ActorContext
+import akka.event.Logging.InfoLevel
+import akka.event.Logging.LogLevel
 
 /**
  * The Controller is the service that provides the REST API for OpenWhisk.
@@ -50,7 +51,7 @@ import akka.actor.ActorContext
 class Controller(
     config: WhiskConfig,
     instance: Int,
-    verbosity: Verbosity.Level)
+    loglevel: LogLevel)
     extends BasicRasService
     with Actor {
 
@@ -72,11 +73,11 @@ class Controller(
         }
     }
 
-    setVerbosity(verbosity)
+    setVerbosity(loglevel)
     info(this, s"starting controller instance ${instance}")
 
     /** The REST APIs. */
-    private val apiv1 = new RestAPIVersion_v1(config, verbosity, context.system)
+    private val apiv1 = new RestAPIVersion_v1(config, loglevel, context.system)
 
 }
 
@@ -94,7 +95,7 @@ object Controller {
 
     // akka-style factory to create a Controller object
     private class ServiceBuilder(config: WhiskConfig, instance: Int) extends Creator[Controller] {
-        def create = new Controller(config, instance, Verbosity.Loud)
+        def create = new Controller(config, instance, InfoLevel)
     }
 
     def main(args: Array[String]): Unit = {

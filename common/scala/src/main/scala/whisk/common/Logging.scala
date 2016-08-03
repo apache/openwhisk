@@ -22,11 +22,8 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.atomic.AtomicInteger
-
-object Verbosity extends Enumeration {
-    type Level = Value
-    val Quiet, Loud, Debug = Value
-}
+import akka.event.Logging.LogLevel
+import akka.event.Logging.{ DebugLevel, InfoLevel, WarningLevel, ErrorLevel }
 
 /**
  * A logging facility in which output is one line and fields are bracketed.
@@ -38,7 +35,7 @@ trait Logging {
      */
     var outputStream: PrintStream = Console.out
 
-    def setVerbosity(level: Verbosity.Level) =
+    def setVerbosity(level: LogLevel) =
         this.level = level
 
     def getVerbosity() = level
@@ -48,40 +45,49 @@ trait Logging {
 
     def debug(from: AnyRef, message: String, marker: LogMarkerToken = null)(implicit id: TransactionId = TransactionId.unknown) = {
         val mark = id.mark(marker)
-        if (level == Verbosity.Debug || mark.isDefined)
-            emit("DEBUG", id, from, message, mark)
+        if (level >= DebugLevel || mark.isDefined)
+            emit(DebugLevel, id, from, message, mark)
     }
 
     def info(from: AnyRef, message: String, marker: LogMarkerToken = null)(implicit id: TransactionId = TransactionId.unknown) = {
         val mark = id.mark(marker)
-        if (level != Verbosity.Quiet || mark.isDefined)
-            emit("INFO", id, from, message, mark)
+        if (level >= InfoLevel || mark.isDefined)
+            emit(InfoLevel, id, from, message, mark)
     }
 
     def warn(from: AnyRef, message: String, marker: LogMarkerToken = null)(implicit id: TransactionId = TransactionId.unknown) = {
         val mark = id.mark(marker)
-        if (level != Verbosity.Quiet || mark.isDefined)
-            emit("WARN", id, from, message, mark)
+        if (level >= WarningLevel || mark.isDefined)
+            emit(WarningLevel, id, from, message, mark)
     }
 
     def error(from: AnyRef, message: String, marker: LogMarkerToken = null)(implicit id: TransactionId = TransactionId.unknown) = {
-        emit("ERROR", id, from, message, id.mark(marker))
+        if (level >= ErrorLevel) {
+            emit(ErrorLevel, id, from, message, id.mark(marker))
+        }
     }
 
-    def emit(category: AnyRef, id: TransactionId, from: AnyRef, message: String, mark: Option[LogMarker] = None) = {
+    def emit(loglevel: LogLevel, id: TransactionId, from: AnyRef, message: String, mark: Option[LogMarker] = None) = {
         val now = mark map { _.now } getOrElse Instant.now(Clock.systemUTC)
         val time = Logging.timeFormat.format(now)
         val name = if (from.isInstanceOf[String]) from else Logging.getCleanSimpleClassName(from.getClass)
         val msg = mark map { m => s"[marker:${m.token}:${m.delta}] $message" } getOrElse message
 
+        val level = loglevel match {
+            case DebugLevel   => "DEBUG"
+            case InfoLevel    => "INFO"
+            case WarningLevel => "WARN"
+            case ErrorLevel   => "ERROR"
+        }
+
         if (componentName != "") {
-            outputStream.println(s"[$time] [$category] [$id] [$componentName] [$name] $msg")
+            outputStream.println(s"[$time] [$level] [$id] [$componentName] [$name] $msg")
         } else {
-            outputStream.println(s"[$time] [$category] [$id] [$name] $msg")
+            outputStream.println(s"[$time] [$level] [$id] [$name] $msg")
         }
     }
 
-    private var level = Verbosity.Quiet
+    private var level = InfoLevel
     private var componentName = "";
     private var sequence = new AtomicInteger()
 }

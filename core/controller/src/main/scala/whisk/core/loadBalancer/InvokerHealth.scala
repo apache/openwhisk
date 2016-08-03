@@ -24,6 +24,7 @@ import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
 import akka.actor.ActorSystem
+import akka.event.Logging.InfoLevel
 import spray.json.DefaultJsonProtocol.IntJsonFormat
 import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json.JsObject
@@ -36,7 +37,6 @@ import whisk.common.ConsulKV.LoadBalancerKeys
 import whisk.common.ConsulKVReporter
 import whisk.common.DateUtil
 import whisk.common.Logging
-import whisk.common.Verbosity
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.consulServer
 import whisk.core.connector.{ ActivationMessage => Message }
@@ -60,7 +60,7 @@ class InvokerHealth(
     private implicit val executionContext = system.dispatcher
 
     setComponentName("LoadBalancer");
-    setVerbosity(Verbosity.Loud);
+    setVerbosity(InfoLevel);
 
     private val activationCountBeforeNextInvoker = 10
 

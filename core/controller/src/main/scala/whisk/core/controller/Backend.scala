@@ -22,6 +22,7 @@ import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 
 import akka.actor.ActorSystem
+import akka.event.Logging.InfoLevel
 import akka.util.Timeout
 import akka.util.Timeout.durationToTimeout
 import spray.http.HttpRequest
@@ -40,7 +41,6 @@ import spray.json.pimpString
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
 import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
 import whisk.common.TransactionId
-import whisk.common.Verbosity
 import whisk.core.connector.LoadBalancerResponse
 import whisk.core.connector.LoadbalancerRequest
 import whisk.core.connector.Message
@@ -88,7 +88,7 @@ object WhiskServices extends LoadbalancerRequest {
      */
     def makeLoadBalancerComponent(config: WhiskConfig, timeout: Timeout = 10 seconds)(
         implicit as: ActorSystem): (LoadBalancerReq => Future[LoadBalancerResponse], () => JsObject, (ActivationId, TransactionId) => Future[WhiskActivation]) = {
-        val loadBalancer = new LoadBalancerService(config, Verbosity.Loud)
+        val loadBalancer = new LoadBalancerService(config, InfoLevel)
         val requestTaker = (lbr: LoadBalancerReq) => { loadBalancer.doPublish(lbr._1, lbr._2)(lbr._3) }
         (requestTaker, loadBalancer.getInvokerHealth, loadBalancer.queryActivationResponse)
     }

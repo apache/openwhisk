@@ -26,7 +26,6 @@ import spray.http.HttpMethods.POST
 import spray.http.HttpMethods.PUT
 import whisk.common.Logging
 import whisk.common.TransactionId
-import whisk.common.Verbosity
 import whisk.core.entity.Subject
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskActivation
@@ -35,6 +34,7 @@ import whisk.core.entity.WhiskPackage
 import whisk.core.entity.WhiskRule
 import whisk.core.entity.WhiskTrigger
 import whisk.core.entity.types.EntityStore
+import akka.event.Logging.LogLevel
 
 /**
  * A collection encapsulates the name of a collection and implicit rights when subject
@@ -110,7 +110,7 @@ protected[core] object Collection {
 
     protected[core] def apply(name: String) = collections.get(name).get
 
-    protected[core] def initialize(entityStore: EntityStore, verbosity: Verbosity.Level) = {
+    protected[core] def initialize(entityStore: EntityStore, verbosity: LogLevel) = {
         register(new Collection(ACTIONS))
         register(new Collection(TRIGGERS))
         register(new Collection(RULES))
