@@ -17,27 +17,23 @@
 package whisk.core.dispatcher.test
 
 import java.io.PrintStream
-import java.util.Calendar
+import java.util.concurrent.atomic.AtomicInteger
 
-import scala.concurrent.Await
 import scala.concurrent.Future
-import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.util.matching.Regex.Match
 
 import org.junit.runner.RunWith
-import org.scalatest.BeforeAndAfter
-import org.scalatest.BeforeAndAfterAll
 import org.scalatest.Finders
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 
-import akka.actor.ActorSystem
 import akka.actor.actorRef2Scala
+import common.WskActorSystem
+import spray.json.JsNumber
 import spray.json.JsObject
-import spray.json.JsString
 import whisk.common.TransactionId
 import whisk.common.Verbosity
 import whisk.core.connector.{ ActivationMessage => Message }
@@ -47,18 +43,10 @@ import whisk.core.dispatcher.Dispatcher
 import whisk.core.entity.ActivationId
 import whisk.core.entity.Subject
 import whisk.utils.retry
-import java.util.concurrent.atomic.AtomicInteger
 
 @RunWith(classOf[JUnitRunner])
-class DispatcherTests extends FlatSpec with Matchers with BeforeAndAfter with BeforeAndAfterAll {
+class DispatcherTests extends FlatSpec with Matchers with WskActorSystem {
     implicit val transid = TransactionId.testing
-    implicit val actorSystem = ActorSystem("dispatchertests")
-
-    override def afterAll() {
-        println("Shutting down actor system")
-        actorSystem.terminate()
-        Await.result(actorSystem.whenTerminated, Duration.Inf)
-    }
 
     behavior of "Dispatcher"
 
@@ -72,8 +60,7 @@ class DispatcherTests extends FlatSpec with Matchers with BeforeAndAfter with Be
     }
 
     def sendMessage(connector: TestConnector, count: Int) = {
-        val now = Calendar.getInstance().getTime().toString
-        val content = JsObject("payload" -> JsString(now))
+        val content = JsObject("payload" -> JsNumber(count))
         val msg = Message(TransactionId.testing, s"/test/$count", Subject(), ActivationId(), Some(content))
         connector.send(msg)
     }
@@ -81,7 +68,7 @@ class DispatcherTests extends FlatSpec with Matchers with BeforeAndAfter with Be
     class TestRule(dosomething: Message => Any) extends DispatchRule("test message handler", "/test", ".+") {
         setVerbosity(Verbosity.Loud)
         override def doit(topic: String, msg: Message, matches: Seq[Match])(implicit transid: TransactionId): Future[Any] = {
-            info(this, s"received: ${msg.content.get.compactPrint}")
+            debug(this, s"received: ${msg.content.get.compactPrint}")
             Future.successful {
                 dosomething(msg)
             }
@@ -99,26 +86,37 @@ class DispatcherTests extends FlatSpec with Matchers with BeforeAndAfter with Be
         dispatcher.start()
 
         implicit val stream = new java.io.ByteArrayOutputStream
+        dispatcher.outputStream = new PrintStream(stream)
+
         try {
-            dispatcher.outputStream = new PrintStream(stream)
-            Console.withOut(stream) {
-                for (i <- 0 until half + 1) {
-                    sendMessage(connector, i)
-                }
-
-                // wait until all messages are received at which point the
-                // dispatcher cannot drain anymore messages
-                withClue("the queue should be empty since all messages are drained") {
+            withClue("commit exception must be caught") {
+                connector.throwCommitException = true
+                Console.withErr(stream) {
                     retry({
-                        connector.occupancy shouldBe 0
+                        val logs = stream.toString()
+                        logs should include regex (s"exception while pulling new records: commit failed")
                     }, 10, Some(100 milliseconds))
-                }
 
-                withClue("messages processed") {
-                    retry({
-                        messagesProcessed.get should be(half + 1)
-                    }, 20, Some(100 milliseconds))
+                    connector.throwCommitException = false
                 }
+            }
+
+            for (i <- 0 until half + 1) {
+                sendMessage(connector, i + 1)
+            }
+
+            // wait until all messages are received at which point the
+            // dispatcher cannot drain anymore messages
+            withClue("the queue should be empty since all messages are drained") {
+                retry({
+                    connector.occupancy shouldBe 0
+                }, 10, Some(100 milliseconds))
+            }
+
+            withClue("messages processed") {
+                retry({
+                    messagesProcessed.get should be(half + 1)
+                }, 20, Some(100 milliseconds))
             }
 
             withClue("confirming dispatcher is in overflow state") {
@@ -126,14 +124,11 @@ class DispatcherTests extends FlatSpec with Matchers with BeforeAndAfter with Be
                 logs should include regex (s"waiting for activation pipeline to drain: ${half + 1} > $half")
             }
 
-            withClue("send more messages and confirm none are drained") {
-                sendMessage(connector, half + 2)
-                retry({
-                    connector.occupancy shouldBe 1
-                }, 10, Some(100 milliseconds))
-            }
+            // send one message and check later that it remains in the connector
+            // at this point, total messages sent = half + 2
+            sendMessage(connector, half + 2)
 
-            withClue("confirming dispatcher did not consume additional messages when in overflow state") {
+            withClue("confirming dispatcher will not consume additional messages when in overflow state") {
                 stream.reset()
                 Console.withOut(stream) {
                     dispatcher.activationFeed ! ActivationFeed.FillQueueWithMessages
@@ -143,6 +138,10 @@ class DispatcherTests extends FlatSpec with Matchers with BeforeAndAfter with Be
                         logs should not include regex(s"waiting for activation pipeline to drain: ${messagesProcessed.get} > $half")
                     }, 10, Some(100 milliseconds))
                 }
+            }
+
+            withClue("expecting message to still be in the queue") {
+                connector.occupancy shouldBe 1
             }
 
             // unblock the pipeline by draining 1 activations and check
@@ -158,7 +157,7 @@ class DispatcherTests extends FlatSpec with Matchers with BeforeAndAfter with Be
                 }, 10, Some(100 milliseconds))
             }
 
-            withClue("confirm dispatcher is trying to fill the pipeline") {
+            withClue("confirm dispatcher tried to fill the pipeline") {
                 val logs = stream.toString()
                 logs should include regex (s"filling activation pipeline: $half <= $half")
             }

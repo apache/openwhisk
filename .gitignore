@@ -42,6 +42,6 @@ node_modules
 
 # Ansible
 ansible/environments/mac/hosts
-ansible/db_local.ini
+ansible/db_local.ini*
 ansible/tmp/*
 

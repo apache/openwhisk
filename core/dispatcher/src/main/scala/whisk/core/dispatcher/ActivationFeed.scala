@@ -20,6 +20,8 @@ import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
 import scala.util.Try
 
+import org.apache.kafka.clients.consumer.CommitFailedException
+
 import akka.actor.Actor
 import akka.actor.actorRef2Scala
 import whisk.common.Logging
@@ -74,16 +76,28 @@ protected class ActivationFeed(
         case FillQueueWithMessages =>
             if (pipelineOccupancy <= pipelineFillThreshold) {
                 Try {
-                    val messages = consumer.peek(longpollDuration) // grab next batch of messages
-                    val count = messages.size
-                    messages foreach {
-                        case (topic, partition, offset, bytes) =>
-                            logging.info(this, s"processing $topic[$partition][$offset ($count)]")(TransactionId.dispatcher)
-                            pipelineOccupancy += 1
-                            handler(topic, bytes)
-                    }
+                    // Grab next batch of messages and commit offsets immediately
+                    // essentially marking the activation as having satisfied "at most once"
+                    // semantics (this is the point at which the activation is considered started).
+                    // If the commit fails, then messages peeked are peeked again on the next poll.
+                    // While the commit is synchronous and will block until it completes, at steady
+                    // state with enough buffering (i.e., maxPipelineDepth > maxPeek), the latency
+                    // of the commit should be masked.
+                    val records = consumer.peek(longpollDuration)
+                    consumer.commit()
+                    (records, records.size)
+                } map {
+                    case (records, count) =>
+                        records foreach {
+                            case (topic, partition, offset, bytes) =>
+                                logging.info(this, s"processing $topic[$partition][$offset ($count)]")(TransactionId.dispatcher)
+                                pipelineOccupancy += 1
+                                handler(topic, bytes)
+                        }
+                } recover {
+                    case e: CommitFailedException => logging.error(this, s"failed to commit consumer offet: ${e.getMessage}")
+                    case e: Throwable             => logging.error(this, s"exception while pulling new records: ${e.getMessage}")
                 }
-                consumer.commit()
                 fill()
             } else logging.debug(this, "dropping fill request until feed is drained")
 

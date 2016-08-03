@@ -51,7 +51,11 @@ class TestConnector(
     }
 
     override def commit() = {
-        // nothing to do
+        if (throwCommitException) {
+            throw new Exception("commit failed")
+        } else {
+            // nothing to do
+        }
     }
 
     override def onMessage(process: (String, Int, Long, Array[Byte]) => Unit): Unit = {
@@ -91,6 +95,7 @@ class TestConnector(
         val counter = new Counter()
     }
 
+    protected[test] var throwCommitException = false
     private val queue = new LinkedBlockingQueue[Message]()
     @volatile private var closed = false
     private var offset = -1L
