@@ -3,7 +3,7 @@ apply plugin: 'application'
 apply plugin: 'eclipse'
 
 ext.dockerImageName = 'whisk/dispatcher'
-apply from: '../../docker.gradle'
+apply from: '../../gradle/docker.gradle'
 distDocker.dependsOn ':common:scala:distDocker', 'distTar'
 
 repositories {

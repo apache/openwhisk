@@ -17,13 +17,13 @@ cd openwhisk/tools/vagrant
 **Important** We advise that you use this method for development of OpenWhisk.
 Please note that no data will persist between two creations of the container, 
 data will persist after re-deploying or restaring VM.
-For more information on data store configurations see [tools/db/README.md](../../db/README.md).
+For more information on data store configurations see [tools/db/README.md](../db/README.md).
 ```
 # Configure with couchdb docker container running inside the VM
 ./hello
 ```
 
-Follow instructions [tools/db/README.md](../../db/README.md) on how to configure a data store for OpenWhisk.
+Follow instructions [tools/db/README.md](../db/README.md) on how to configure a data store for OpenWhisk.
 
 #### Option 2: Create VM using Cloudant DB
 ```
@@ -49,7 +49,7 @@ If there are any build failures, it might be due to network timeouts, to recover
 process to build and deploy in [ansible/README.md](../../ansible/README.md)
 
 **Tip:** By default, each `docker` command will timeout after 840 seconds (14 minutes). If you're on a really slow connection,
-this might be too short. You can modify the timeout value in [docker.gradle](../../../docker.gradle#L22) as needed.
+this might be too short. You can modify the timeout value in [docker.gradle](../../../gradle/docker.gradle#L22) as needed.
 
 ### Using CLI from outside the VM
 You can use the CLI from the host machine as well as from inside the virtual machine.

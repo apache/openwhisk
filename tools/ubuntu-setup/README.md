@@ -34,7 +34,9 @@ Once deployed, several Docker containers will be running in your linux machine.
 You can check that containers are running by using the docker cli with the command  `docker ps`.
 
 ### Configure the CLI
-Follow instructions in [Configure CLI](../../README.md#configure-cli)
+Follow instructions in [Configure CLI](../../docs/README.md#setting-up-the-openwhisk-cli). The API host
+should be `172.17.0.1` or more formally, the IP of the `edge` host from the
+[ansible environment file](../../ansible/environments/local/hosts).
 
 ### Use the wsk CLI
 ```

@@ -7,7 +7,7 @@ eclipse {
 }
 
 ext.dockerImageName = 'whisk/cli'
-apply from: '../../docker.gradle'
+apply from: '../../gradle/docker.gradle'
 
 task clean(type: Delete) {
     delete 'build'

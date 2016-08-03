@@ -1,2 +1,2 @@
 ext.dockerImageName = 'whisk/javaaction'
-apply from: '../../docker.gradle'
+apply from: '../../gradle/docker.gradle'

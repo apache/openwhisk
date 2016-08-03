@@ -7,4 +7,4 @@ eclipse {
 }
 
 ext.dockerImageName = 'whisk/dockerskeleton'
-apply from: '../../docker.gradle'
+apply from: '../../gradle/docker.gradle'
