@@ -41,7 +41,6 @@ import spray.json.DefaultJsonProtocol.mapFormat
 import spray.json.JsObject
 import spray.json.pimpAny
 import spray.json.pimpString
-import whisk.common.Verbosity
 import whisk.core.controller.WhiskActionsApi
 import whisk.core.entity.ActionLimits
 import whisk.core.entity.ActionLimitsOption
@@ -66,6 +65,7 @@ import java.time.Instant
 import whisk.core.entity.SequenceExec
 import whisk.core.entity.Pipecode
 import whisk.core.entity.NodeJSExec
+import akka.event.Logging.InfoLevel
 
 /**
  * Tests Actions API.
@@ -89,7 +89,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val namespace = Namespace(creds.subject())
     val collectionPath = s"/${Namespace.DEFAULT}/${collection.path}"
     def aname = MakeName.next("action_tests")
-    setVerbosity(Verbosity.Loud)
+    setVerbosity(InfoLevel)
     val entityTooBigRejectionMessage = "request entity too large"
     val actionLimit = Exec.sizeLimit
     val parametersLimit = Parameters.sizeLimit
@@ -471,14 +471,16 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         val action = WhiskAction(namespace, aname, Exec.js("??"), Parameters("x", "b"))
         val content = WhiskActionPut(Some(action.exec), Some(action.parameters), Some(ActionLimitsOption(Some(action.limits.timeout), Some(action.limits.memory), Some(action.limits.logs))))
         val name = action.name
+        val tid = transid
 
         val stream = new ByteArrayOutputStream
         val printstream = new PrintStream(stream)
         val savedstream = authStore.outputStream
         entityStore.outputStream = printstream
+        tid.outputStream = printstream
         try {
             // first request invalidates any previous entries and caches new result
-            Put(s"$collectionPath/$name", content) ~> sealRoute(routes(creds)(transid())) ~> check {
+            Put(s"$collectionPath/$name", content) ~> sealRoute(routes(creds)(tid)) ~> check {
                 status should be(OK)
                 val response = responseAs[WhiskAction]
                 response should be(action)
@@ -487,7 +489,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             stream.reset()
 
             // second request should fetch from cache
-            Get(s"$collectionPath/$name") ~> sealRoute(routes(creds)(transid())) ~> check {
+            Get(s"$collectionPath/$name") ~> sealRoute(routes(creds)(tid)) ~> check {
                 status should be(OK)
                 val response = responseAs[WhiskAction]
                 response should be(action)
@@ -497,7 +499,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             stream.reset()
 
             // delete should invalidate cache
-            Delete(s"$collectionPath/$name") ~> sealRoute(routes(creds)(transid())) ~> check {
+            Delete(s"$collectionPath/$name") ~> sealRoute(routes(creds)(tid)) ~> check {
                 status should be(OK)
                 val response = responseAs[WhiskAction]
                 response should be(action)

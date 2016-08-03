@@ -28,6 +28,7 @@ import whisk.common.TransactionId
 import whisk.core.entity.ActionLimits
 import scala.util.Try
 import whisk.core.entity.ActivationResponse
+import whisk.common.LoggingMarkers
 
 /**
  * Reifies a whisk container - one that respects the whisk container API.
@@ -77,7 +78,7 @@ class WhiskContainer(
     def init(args: JsObject)(implicit transid: TransactionId): RunResult = {
         // this shouldn't be needed but leave it for now
         if (isBlackbox) Thread.sleep(3000)
-        info(this, s"sending initialization to ${this.details}", INVOKER_CONTAINER_INIT)
+        info(this, s"sending initialization to ${this.details}")
         // when invoking /init, don't wait longer than the timeout configured for this action
         val timeout = Math.min(initTimeoutMilli, limits.timeout.duration.toMillis).toInt
         val result = sendPayload("/init", JsObject("value" -> args), timeout) // This will retry.
@@ -92,9 +93,11 @@ class WhiskContainer(
      * @return triple of start time, end time, response for user action.
      */
     def run(args: JsObject, meta: JsObject, authKey: String, timeout: Int, actionName: String, activationId: String)(implicit transid: TransactionId): RunResult = {
-        info("Invoker", s"sending arguments to $actionName $details", INVOKER_ACTIVATION_RUN_START)
+        val startMarker = transid.starting("Invoker", LoggingMarkers.INVOKER_ACTIVATION_RUN, s"sending arguments to $actionName $details")
         val result = sendPayload("/run", JsObject(meta.fields + ("value" -> args) + ("authKey" -> JsString(authKey))), timeout)
-        info("Invoker", s"finished running activation id: $activationId", INVOKER_ACTIVATION_RUN_DONE)
+        // Use start and end time of the activation
+        val (startActivation, endActivation, _) = result
+        transid.finished("Invoker", startMarker.copy(startActivation), s"finished running activation id: $activationId", endTime = endActivation)
         result
     }
 

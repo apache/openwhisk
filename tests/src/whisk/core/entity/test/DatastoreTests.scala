@@ -22,6 +22,7 @@ import scala.Vector
 import scala.concurrent.Await
 
 import akka.actor.ActorSystem
+import akka.event.Logging.InfoLevel
 
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfter
@@ -29,7 +30,6 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
 
-import whisk.common.Verbosity
 import whisk.core.WhiskConfig
 import whisk.core.database.DocumentConflictException
 import whisk.core.database.NoDocumentException
@@ -49,8 +49,8 @@ class DatastoreTests extends FlatSpec
     val config = new WhiskConfig(WhiskEntityStore.requiredProperties)
     val datastore = WhiskEntityStore.datastore(config)
     val authstore = WhiskAuthStore.datastore(config)
-    datastore.setVerbosity(Verbosity.Loud)
-    authstore.setVerbosity(Verbosity.Loud)
+    datastore.setVerbosity(InfoLevel)
+    authstore.setVerbosity(InfoLevel)
 
     override def afterAll() {
         println("Shutting down store connections")
@@ -160,7 +160,6 @@ class DatastoreTests extends FlatSpec
             putGetCheck(datastore, entity, WhiskActivation)
         }
     }
-
 
     it should "reject action with null arguments" in {
         val name = EntityName("bad action")

@@ -21,6 +21,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
 import akka.actor.ActorSystem
+import akka.event.Logging.InfoLevel
 
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfter
@@ -29,7 +30,6 @@ import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
 
 import whisk.common.TransactionId
-import whisk.common.Verbosity
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.dockerEndpoint
 import whisk.core.WhiskConfig.edgeHostName
@@ -61,8 +61,7 @@ import common.WskActorSystem
 class ContainerPoolTests extends FlatSpec
     with BeforeAndAfter
     with BeforeAndAfterAll
-    with WskActorSystem
-    {
+    with WskActorSystem {
 
     implicit val transid = TransactionId.testing
 
@@ -74,7 +73,7 @@ class ContainerPoolTests extends FlatSpec
             ++ WhiskAuthStore.requiredProperties)
     assert(config.isValid)
 
-    val pool = new ContainerPool(config, 0, Verbosity.Loud, true)
+    val pool = new ContainerPool(config, 0, InfoLevel, true)
     pool.logDir = "/tmp"
 
     val datastore = WhiskEntityStore.datastore(config)
@@ -223,7 +222,6 @@ class ContainerPoolTests extends FlatSpec
         } // for
     }
 
-
     private val defaultNamespace = Namespace("container pool test")
     private val defaultAuth = WhiskAuth(Subject(), AuthKey()) // XXXXXX test this with a real uuid/key
 
@@ -255,6 +253,5 @@ class ContainerPoolTests extends FlatSpec
         assert(con.getLogs().contains("ASDFGH"));
         pool.putBack(con)
     }
-
 
 }

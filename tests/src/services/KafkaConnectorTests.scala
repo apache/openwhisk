@@ -31,7 +31,6 @@ import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 
 import whisk.common.TransactionId
-import whisk.common.Verbosity
 import whisk.connector.kafka.KafkaConsumerConnector
 import whisk.connector.kafka.KafkaProducerConnector
 import whisk.core.WhiskConfig
@@ -77,6 +76,7 @@ class KafkaConnectorTests extends FlatSpec with Matchers with BeforeAndAfterAll 
         }
     }
 
+<<<<<<< f2cc16452ec33171b8dfc76dbd5252a5a52bbc23
     it should "send and receive a kafka message even after session timeout" in {
         for (i <- 0 until 4) {
             val message = new Message { override val serialize = Calendar.getInstance().getTime().toString }
@@ -96,6 +96,31 @@ class KafkaConnectorTests extends FlatSpec with Matchers with BeforeAndAfterAll 
                 received.size should be >= i + 1
             } else {
                 received.size should be(1)
+=======
+        val config = new WhiskConfig(WhiskConfig.kafkaHost)
+        assert(config.isValid)
+
+        val groupid = "kafkatest"
+        val topic = "Dinosaurs"
+        val producer = new KafkaProducerConnector(config.kafkaHost, ec)
+        val consumer = new KafkaConsumerConnector(config.kafkaHost, groupid, topic)
+
+        producer.setVerbosity(DebugLevel)
+        consumer.setVerbosity(DebugLevel)
+
+        try {
+            for (i <- 0 until 5) {
+                val message = new Message { override val serialize = Calendar.getInstance().getTime().toString }
+                val start = java.lang.System.currentTimeMillis
+                val sent = Await.result(producer.send(topic, message), 10 seconds)
+                val received = consumer.peek(10 seconds).map { case (_, _, _, msg) => new String(msg, "utf-8") }
+                val end = java.lang.System.currentTimeMillis
+                val elapsed = end - start
+                println(s"Took $elapsed msec: $received\n\n")
+                received.size should be >= 1
+                received.last should be(message.serialize)
+                consumer.commit()
+>>>>>>> Create Transaction based logging
             }
             received.last should be(message.serialize)
 
