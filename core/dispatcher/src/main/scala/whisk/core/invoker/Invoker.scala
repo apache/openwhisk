@@ -41,6 +41,7 @@ import spray.json.JsArray
 import spray.json.JsNumber
 import spray.json.JsObject
 import spray.json.JsString
+import spray.json.JsValue
 import spray.json.pimpAny
 import spray.json.pimpString
 import whisk.common.ConsulClient
@@ -547,9 +548,9 @@ class Invoker(
         InvokerKeys.hostname(instance),
         InvokerKeys.start(instance),
         InvokerKeys.status(instance),
-        { () =>
-            getUserActivationCounts() ++
-                Map(InvokerKeys.activationCount(instance) -> activationCounter.cur.toJson)
+        { index =>
+            (if (index % 5 == 0) getUserActivationCounts() else Map[String,JsValue]()) ++
+            Map(InvokerKeys.activationCount(instance) -> activationCounter.cur.toJson)
         })
 
     // This is used for the getContainer endpoint used in perfContainer testing it is not real state

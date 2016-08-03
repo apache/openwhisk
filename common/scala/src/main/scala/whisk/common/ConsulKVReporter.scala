@@ -47,10 +47,11 @@ class ConsulKVReporter(
     hostKey: String,
     startKey: String,
     statusKey: String,
-    updater: () => Map[String, JsValue])(
+    updater: Int => Map[String, JsValue])(
         implicit val system: ActorSystem) {
 
     implicit val executionContext = system.dispatcher
+    private var count = 0
 
     system.scheduler.scheduleOnce(initialDelay) {
         val (selfHostname, stderr, exitCode) = SimpleExec.syncRunCmd(Array("hostname", "-f"))(TransactionId.unknown)
@@ -59,10 +60,10 @@ class ConsulKVReporter(
 
         Scheduler.scheduleWaitAtLeast(interval) { () =>
             val statusPut = kv.put(statusKey, DateUtil.getTimeString.toJson.compactPrint)
-            val updatePuts = updater() map {
+            val updatePuts = updater(count) map {
                 case (k, v) => kv.put(k, v.compactPrint)
             }
-
+            count = count + 1
             val allPuts = updatePuts.toSeq :+ statusPut
             Future.sequence(allPuts)
         }

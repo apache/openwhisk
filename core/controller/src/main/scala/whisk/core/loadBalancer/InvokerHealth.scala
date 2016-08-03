@@ -129,7 +129,7 @@ class InvokerHealth(
         LoadBalancerKeys.hostnameKey,
         LoadBalancerKeys.startKey,
         LoadBalancerKeys.statusKey,
-        { () =>
+        { index =>
             Map(LoadBalancerKeys.invokerHealth -> getInvokerHealthJson(),
                 LoadBalancerKeys.activationCountKey -> getKafkaPostCount().toJson)
         })
