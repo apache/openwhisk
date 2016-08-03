@@ -32,8 +32,8 @@ class CloudantRestClient protected(system: ActorSystem, protocol: String, host: 
     extends CouchDbRestClient(system,protocol,host,port,username,password,db) {
 
     // https://cloudant.com/blog/cloudant-query-grows-up-to-handle-ad-hoc-queries/#.VvllCD-0z2C
-    def simpleQuery(doc: String) : Future[Either[StatusCode,JsObject]] = {
-        request(mkRequest(HttpMethods.POST, uri(db, "_find"), body=Some(JsString(doc))))
+    def simpleQuery(doc: JsObject) : Future[Either[StatusCode,JsObject]] = {
+        request(mkRequest(HttpMethods.POST, uri(db, "_find"), body=Some(doc)))
     }
 }
 
