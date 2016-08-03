@@ -23,6 +23,7 @@ import org.apache.commons.io.FileUtils
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
+import spray.json._
 import spray.json.DefaultJsonProtocol._
 import spray.json.pimpAny
 import spray.json.pimpString
@@ -367,6 +368,86 @@ class WskBasicTests
             stdout should not include regex(""""key": "xxx"""")
     }
 
+    it should "create, and get a package to verify annotation parsing" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "packageAnnotations"
+
+            assetHelper.withCleaner(wsk.pkg, name) {
+                (pkg, _) =>
+                    pkg.create(name, annotations = getValidJSONTestArgInput)
+            }
+
+            val stdout = wsk.pkg.get(name).stdout
+            assert(stdout.startsWith(s"ok: got package $name\n"))
+
+            val resJSON = stdout.substring(stdout.indexOf("\n") + 1).parseJson.asJsObject
+            assert(resJSON.fields("annotations") == getValidJSONTestArgOutput)
+    }
+
+    it should "create, and get a package to verify parameter parsing" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "packageParameters"
+
+            assetHelper.withCleaner(wsk.pkg, name) {
+                (pkg, _) =>
+                    pkg.create(name, parameters = getValidJSONTestArgInput)
+            }
+
+            val stdout = wsk.pkg.get(name).stdout
+            assert(stdout.startsWith(s"ok: got package $name\n"))
+
+            val resJSON = stdout.substring(stdout.indexOf("\n") + 1).parseJson.asJsObject
+            assert(resJSON.fields("parameters") == getValidJSONTestArgOutput)
+    }
+
+    it should "not create a package when -a is specified without arguments" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val stderr = wsk.cli(wskprops.overrides ++ Seq("package", "create", "packageName", "--auth", wp.authKey,
+                "-a"), expectedExitCode = ERROR_EXIT).stderr
+            stderr should include("Annotation arguments must be a key value pair")
+    }
+
+    it should "not create a package when -p is specified without arguments" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val stderr = wsk.cli(wskprops.overrides ++ Seq("package", "create", "packageName", "--auth", wp.authKey,
+                "-p"), expectedExitCode = ERROR_EXIT).stderr
+            stderr should include("Parameter arguments must be a key value pair")
+    }
+
+    it should "create a package with the proper parameter escapes" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "packageName"
+            assetHelper.withCleaner(wsk.pkg, name) {
+                (pkg, _) =>
+                    wsk.cli(wskprops.overrides ++ Seq("package", "create", wsk.pkg.fqn(name), "--auth", wp.authKey) ++
+                      getEscapedJSONTestArgInput()
+                    )
+            }
+
+            val stdout = wsk.pkg.get(name).stdout
+            assert(stdout.startsWith(s"ok: got package $name\n"))
+
+            val resJSON = stdout.substring(stdout.indexOf("\n") + 1).parseJson.asJsObject
+            assert(resJSON.fields("parameters") == getEscapedJSONTestArgOutput)
+    }
+
+    it should "create an package with the proper annotation escapes" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "packageName"
+            assetHelper.withCleaner(wsk.pkg, name) {
+                (pkg, _) =>
+                    wsk.cli(wskprops.overrides ++ Seq("package", "create", wsk.pkg.fqn(name), "--auth", wp.authKey) ++
+                      getEscapedJSONTestArgInput(false)
+                    )
+            }
+
+            val stdout = wsk.pkg.get(name).stdout
+            assert(stdout.startsWith(s"ok: got package $name\n"))
+
+            val resJSON = stdout.substring(stdout.indexOf("\n") + 1).parseJson.asJsObject
+            assert(resJSON.fields("annotations") == getEscapedJSONTestArgOutput)
+    }
+
     behavior of "Wsk Action CLI"
 
     it should "create the same action twice with different cases" in withAssetCleaner(wskprops) {
@@ -511,22 +592,88 @@ class WskBasicTests
             wsk.action.create("updateMissingFile", Some("notfound"), update = true, expectedExitCode = MISUSE_EXIT)
     }
 
-    ignore should "create, and invoke an action that utilizes a docker container" in withAssetCleaner(wskprops) {
-        val name = "dockerContainer"
+    it should "create, and get an action to verify annotation parsing" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
+            val name = "actionAnnotations"
+
+            val file = Some(TestUtils.getCatalogFilename("samples/hello.js"))
             assetHelper.withCleaner(wsk.action, name) {
-                // this docker image will be need to be pulled from dockerhub and hence has to be published there first
-                (action, _) => action.create(name, Some("whisk/dockerskeleton"), kind = Some("docker"))
+                (action, _) =>
+                    action.create(name, file, annotations = getValidJSONTestArgInput)
             }
 
-            val args = Map("payload" -> "test".toJson)
-            val run = wsk.action.invoke(name, args)
-            withActivation(wsk.activation, run) {
-                activation =>
-                    val result = activation.fields("response").asJsObject.fields("result").asJsObject
-                    result.fields("args") shouldBe args.toJson
-                    result.fields("msg") shouldBe "Hello from arbitrary C program!".toJson
+            val stdout = wsk.action.get(name).stdout
+            assert(stdout.startsWith(s"ok: got action $name\n"))
+
+            val resJSON = stdout.substring(stdout.indexOf("\n") + 1).parseJson.asJsObject
+            assert(resJSON.fields("annotations") == getValidJSONTestArgOutput)
+    }
+
+    it should "create, and get an action to verify parameter parsing" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "actionParameters"
+
+            val file = Some(TestUtils.getCatalogFilename("samples/hello.js"))
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) =>
+                    action.create(name, file, parameters = getValidJSONTestArgInput)
             }
+
+            val stdout = wsk.action.get(name).stdout
+            assert(stdout.startsWith(s"ok: got action $name\n"))
+
+            val resJSON = stdout.substring(stdout.indexOf("\n") + 1).parseJson.asJsObject
+            assert(resJSON.fields("parameters") == getValidJSONTestArgOutput)
+    }
+
+    it should "not create an action when -a is specified without arguments" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val stderr = wsk.cli(wskprops.overrides ++ Seq("action", "create", "actionName", "--auth", wp.authKey,
+                "-a"), expectedExitCode = ERROR_EXIT).stderr
+            stderr should include("Annotation arguments must be a key value pair")
+    }
+
+    it should "not create an action when -p is specified without arguments" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val stderr = wsk.cli(wskprops.overrides ++ Seq("action", "create", "actionName", "--auth", wp.authKey,
+                "-p"), expectedExitCode = ERROR_EXIT).stderr
+            stderr should include("Parameter arguments must be a key value pair")
+    }
+
+    it should "create an action with the proper parameter escapes" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "actionName"
+            val file = TestUtils.getCatalogFilename("samples/hello.js")
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) =>
+                    wsk.cli(wskprops.overrides ++ Seq("action", "create", wsk.action.fqn(name), file, "--auth", wp.authKey) ++
+                      getEscapedJSONTestArgInput()
+                    )
+            }
+
+            val stdout = wsk.action.get(name).stdout
+            assert(stdout.startsWith(s"ok: got action $name\n"))
+
+            val resJSON = stdout.substring(stdout.indexOf("\n") + 1).parseJson.asJsObject
+            assert(resJSON.fields("parameters") == getEscapedJSONTestArgOutput)
+    }
+
+    it should "create an action with the proper annotation escapes" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "actionName"
+            val file = TestUtils.getCatalogFilename("samples/hello.js")
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) =>
+                    wsk.cli(wskprops.overrides ++ Seq("action", "create", wsk.action.fqn(name), file, "--auth", wp.authKey) ++
+                      getEscapedJSONTestArgInput(false)
+                    )
+            }
+
+            val stdout = wsk.action.get(name).stdout
+            assert(stdout.startsWith(s"ok: got action $name\n"))
+
+            val resJSON = stdout.substring(stdout.indexOf("\n") + 1).parseJson.asJsObject
+            assert(resJSON.fields("annotations") == getEscapedJSONTestArgOutput)
     }
 
     /**
@@ -657,6 +804,86 @@ class WskBasicTests
             }
     }
 
+    it should "create, and get a trigger to verify annotation parsing" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "triggerAnnotations"
+
+            assetHelper.withCleaner(wsk.trigger, name) {
+                (trigger, _) =>
+                    trigger.create(name, annotations = getValidJSONTestArgInput)
+            }
+
+            val stdout = wsk.trigger.get(name).stdout
+            assert(stdout.startsWith(s"ok: got trigger $name\n"))
+
+            val resJSON = stdout.substring(stdout.indexOf("\n") + 1).parseJson.asJsObject
+            assert(resJSON.fields("annotations") == getValidJSONTestArgOutput)
+    }
+
+    it should "create, and get a trigger to verify parameter parsing" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "triggerParameters"
+
+            assetHelper.withCleaner(wsk.trigger, name) {
+                (trigger, _) =>
+                    trigger.create(name, parameters = getValidJSONTestArgInput)
+            }
+
+            val stdout = wsk.trigger.get(name).stdout
+            assert(stdout.startsWith(s"ok: got trigger $name\n"))
+
+            val resJSON = stdout.substring(stdout.indexOf("\n") + 1).parseJson.asJsObject
+            assert(resJSON.fields("parameters") == getValidJSONTestArgOutput)
+    }
+
+    it should "not create a trigger when -a is specified without arguments" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val stderr = wsk.cli(wskprops.overrides ++ Seq("trigger", "create", "triggerName", "--auth", wp.authKey,
+                "-a"), expectedExitCode = ERROR_EXIT).stderr
+            stderr should include("Annotation arguments must be a key value pair")
+    }
+
+    it should "not create a trigger when -p is specified without arguments" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val stderr = wsk.cli(wskprops.overrides ++ Seq("trigger", "create", "triggerName", "--auth", wp.authKey,
+                "-p"), expectedExitCode = ERROR_EXIT).stderr
+            stderr should include("Parameter arguments must be a key value pair")
+    }
+
+    it should "create a trigger with the proper parameter escapes" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "triggerName"
+            assetHelper.withCleaner(wsk.trigger, name) {
+                (trigger, _) =>
+                    wsk.cli(wskprops.overrides ++ Seq("trigger", "create", wsk.trigger.fqn(name), "--auth", wp.authKey) ++
+                      getEscapedJSONTestArgInput()
+                    )
+            }
+
+            val stdout = wsk.trigger.get(name).stdout
+            assert(stdout.startsWith(s"ok: got trigger $name\n"))
+
+            val resJSON = stdout.substring(stdout.indexOf("\n") + 1).parseJson.asJsObject
+            assert(resJSON.fields("parameters") == getEscapedJSONTestArgOutput)
+    }
+
+    it should "create a trigger with the proper annotation escapes" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "triggerName"
+            assetHelper.withCleaner(wsk.trigger, name) {
+                (trigger, _) =>
+                    wsk.cli(wskprops.overrides ++ Seq("trigger", "create", wsk.trigger.fqn(name), "--auth", wp.authKey) ++
+                      getEscapedJSONTestArgInput(false)
+                    )
+            }
+
+            val stdout = wsk.trigger.get(name).stdout
+            assert(stdout.startsWith(s"ok: got trigger $name\n"))
+
+            val resJSON = stdout.substring(stdout.indexOf("\n") + 1).parseJson.asJsObject
+            assert(resJSON.fields("annotations") == getEscapedJSONTestArgOutput)
+    }
+
     behavior of "Wsk Rule CLI"
 
     it should "create rule, get rule, update rule and list rule" in withAssetCleaner(wskprops) {
@@ -716,4 +943,129 @@ class WskBasicTests
             stdout should include("default")
     }
 
+    def getEscapedJSONTestArgInput(parameters: Boolean = true) = Seq(
+        if (parameters) "-p" else "-a",
+        "\"key\"with\\escapes",
+        "{\"invalid\": \"J\"S\"ON\"}",          // Cannot put qoutes inside JSON
+        if (parameters) "-p" else "-a",
+        "another\"escape\"",
+        "{\"valid\": \"\\nJ\\rO\\tS\\bN\\f\"}",   // Can escape \n, \r, \t, \b, \f
+        if (parameters) "-p" else "-a",
+        "escape\\again",
+        "{\"invalid\": \"JS\\ON\"}"             // Cannot escape anything besides \n, \r, \t, \b, \f
+    )
+
+    def getEscapedJSONTestArgOutput() = JsArray(
+        JsObject(
+            "key" -> JsString("\"key\"with\\escapes"),
+            "value" -> JsString("{\"invalid\": \"J\"S\"ON\"}")
+        ),
+        JsObject(
+            "key" -> JsString("another\"escape\""),
+            "value" -> JsObject(
+                "valid" -> JsString("\nJ\rO\tS\bN\f")
+            )
+        ),
+        JsObject(
+            "key" -> JsString("escape\\again"),
+            "value" -> JsString("{\"invalid\": \"JS\\ON\"}")
+        )
+    )
+
+    def getValidJSONTestArgOutput() = JsArray(
+        JsObject(
+            "key" -> JsString("number"),
+            "value" -> JsNumber(8)
+        ),
+        JsObject(
+            "key" -> JsString("objArr"),
+            "value" -> JsArray(
+                JsObject(
+                    "name" -> JsString("someName"),
+                    "required" -> JsBoolean(true)
+                ),
+                JsObject(
+                    "name" -> JsString("events"),
+                    "count" -> JsNumber(10)
+                )
+            )
+        ),
+        JsObject(
+            "key" -> JsString("strArr"),
+            "value" -> JsArray(
+                JsString("44"),
+                JsString("55")
+            )
+        ),
+        JsObject(
+            "key" -> JsString("string"),
+            "value" -> JsString("This is a string")
+        ),
+        JsObject(
+            "key" -> JsString("numArr"),
+            "value" -> JsArray(
+                JsNumber(44),
+                JsNumber(55)
+            )
+        ),
+        JsObject(
+            "key" -> JsString("object"),
+            "value" -> JsObject(
+                "objString" -> JsString("aString"),
+                "objStrNum" -> JsString("123"),
+                "objNum" -> JsNumber(300),
+                "objBool" -> JsBoolean(false),
+                "objNumArr" -> JsArray(
+                    JsNumber(1),
+                    JsNumber(2)
+                ),
+                "objStrArr" -> JsArray(
+                    JsString("1"),
+                    JsString("2")
+                )
+            )
+        ),
+        JsObject(
+            "key" -> JsString("strNum"),
+            "value" -> JsString("9")
+        )
+    )
+
+    def getValidJSONTestArgInput() = Map(
+        "string" -> JsString("This is a string"),
+        "strNum" -> JsString("9"),
+        "number" -> JsNumber(8),
+        "numArr" -> JsArray(
+            JsNumber(44),
+            JsNumber(55)
+        ),
+        "strArr" -> JsArray(
+            JsString("44"),
+            JsString("55")
+        ),
+        "objArr" -> JsArray(
+            JsObject(
+                "name" -> JsString("someName"),
+                "required" -> JsBoolean(true)
+            ),
+            JsObject(
+                "name" -> JsString("events"),
+                "count" -> JsNumber(10)
+            )
+        ),
+        "object" -> JsObject(
+            "objString" -> JsString("aString"),
+            "objStrNum" -> JsString("123"),
+            "objNum" -> JsNumber(300),
+            "objBool" -> JsBoolean(false),
+            "objNumArr" -> JsArray(
+                JsNumber(1),
+                JsNumber(2)
+            ),
+            "objStrArr" -> JsArray(
+                JsString("1"),
+                JsString("2")
+            )
+        )
+    )
 }
