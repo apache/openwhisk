@@ -27,7 +27,6 @@ import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 import spray.json.JsObject
-import whisk.common.Verbosity
 import whisk.core.WhiskConfig
 import whisk.core.database.test.DbUtils
 import whisk.core.entity.ActionLimits
@@ -58,6 +57,7 @@ import whisk.core.entity.WhiskTrigger
 import java.util.Date
 import org.scalatest.BeforeAndAfterAll
 import scala.language.postfixOps
+import akka.event.Logging.InfoLevel
 
 import common.WskActorSystem
 
@@ -87,7 +87,7 @@ class ViewTests extends FlatSpec
 
     val config = new WhiskConfig(WhiskEntityStore.requiredProperties)
     val datastore = WhiskEntityStore.datastore(config)
-    datastore.setVerbosity(Verbosity.Loud)
+    datastore.setVerbosity(InfoLevel)
 
     after {
         cleanup()

@@ -20,6 +20,11 @@ import java.time.Clock
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 
+import scala.concurrent.duration.Duration
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.MILLISECONDS
+import scala.language.postfixOps
 import spray.json.JsObject
 import spray.json.JsString
 import whisk.common.HttpUtils
@@ -28,6 +33,8 @@ import whisk.common.TransactionId
 import whisk.core.entity.ActionLimits
 import scala.util.Try
 import whisk.core.entity.ActivationResponse
+import whisk.common.LoggingMarkers
+import whisk.common.PrintStreamEmitter
 
 /**
  * Reifies a whisk container - one that respects the whisk container API.
@@ -47,7 +54,8 @@ class WhiskContainer(
 
     var boundParams = JsObject() // Mutable to support pre-alloc containers
     var lastLogSize = 0L
-    val initTimeoutMilli = 60000
+    private val initTimeoutMilli = 60 seconds
+    private implicit val emitter: PrintStreamEmitter = this
 
     /**
      * Start time, End time, Some(response) from container consisting of status code and payload
@@ -77,10 +85,10 @@ class WhiskContainer(
     def init(args: JsObject)(implicit transid: TransactionId): RunResult = {
         // this shouldn't be needed but leave it for now
         if (isBlackbox) Thread.sleep(3000)
-        info(this, s"sending initialization to ${this.details}", INVOKER_CONTAINER_INIT)
+        info(this, s"sending initialization to ${this.details}")
         // when invoking /init, don't wait longer than the timeout configured for this action
-        val timeout = Math.min(initTimeoutMilli, limits.timeout.duration.toMillis).toInt
-        val result = sendPayload("/init", JsObject("value" -> args), timeout) // This will retry.
+        val timeout = initTimeoutMilli min limits.timeout.duration
+        val result = sendPayload("/init", JsObject("value" -> args), timeout.toMillis.toInt) // This will retry.
         info(this, s"initialization result: ${result}")
         result
     }
@@ -92,9 +100,11 @@ class WhiskContainer(
      * @return triple of start time, end time, response for user action.
      */
     def run(args: JsObject, meta: JsObject, authKey: String, timeout: Int, actionName: String, activationId: String)(implicit transid: TransactionId): RunResult = {
-        info("Invoker", s"sending arguments to $actionName $details", INVOKER_ACTIVATION_RUN_START)
+        val startMarker = transid.started("Invoker", LoggingMarkers.INVOKER_ACTIVATION_RUN, s"sending arguments to $actionName $details")
         val result = sendPayload("/run", JsObject(meta.fields + ("value" -> args) + ("authKey" -> JsString(authKey))), timeout)
-        info("Invoker", s"finished running activation id: $activationId", INVOKER_ACTIVATION_RUN_DONE)
+        // Use start and end time of the activation
+        val (startActivation, endActivation, _) = result
+        transid.finished("Invoker", startMarker.copy(startActivation), s"finished running activation id: $activationId", endTime = endActivation)
         result
     }
 

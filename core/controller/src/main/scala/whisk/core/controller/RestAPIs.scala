@@ -35,8 +35,7 @@ import spray.json.pimpAny
 import spray.routing.Directive.pimpApply
 import spray.routing.Directives
 import spray.routing.Route
-import whisk.common.{ TransactionId, Verbosity }
-import whisk.common.Verbosity.Level
+import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.whiskVersionDate
 import whisk.core.WhiskConfig.whiskVersionBuildno
@@ -46,6 +45,7 @@ import whisk.core.entitlement.{ Collection, EntitlementService, Privilege, Resou
 import whisk.core.entity.{ ActivationId, Subject, WhiskActivation, WhiskActivationStore, WhiskAuthStore, WhiskEntityStore }
 import whisk.core.entity.types.{ ActivationStore, AuthStore, EntityStore }
 import whisk.core.controller.WhiskServices.LoadBalancerReq
+import akka.event.Logging.LogLevel
 
 /**
  * Abstract class which provides basic Directives which are used to construct route structures
@@ -116,7 +116,7 @@ protected[controller] trait RespondWithHeaders extends Directives {
  */
 protected[controller] class RestAPIVersion_v1(
     config: WhiskConfig,
-    verbosity: Verbosity.Level,
+    verbosity: LogLevel,
     implicit val actorSystem: ActorSystem)
     extends RestAPIVersion("v1", config(whiskVersionDate), config(whiskVersionBuildno))
     with Authenticate
@@ -186,7 +186,7 @@ protected[controller] class RestAPIVersion_v1(
     class NamespacesApi(
         val apipath: String,
         val apiversion: String,
-        val verbosity: Level)(
+        val verbosity: LogLevel)(
             implicit override val entityStore: EntityStore,
             override val entitlementService: EntitlementService,
             override val executionContext: ExecutionContext)
@@ -197,7 +197,7 @@ protected[controller] class RestAPIVersion_v1(
     class ActionsApi(
         val apipath: String,
         val apiversion: String,
-        val verbosity: Level)(
+        val verbosity: LogLevel)(
             implicit override val actorSystem: ActorSystem,
             override val entityStore: EntityStore,
             override val activationStore: ActivationStore,
@@ -214,7 +214,7 @@ protected[controller] class RestAPIVersion_v1(
     class TriggersApi(
         val apipath: String,
         val apiversion: String,
-        val verbosity: Level)(
+        val verbosity: LogLevel)(
             implicit override val actorSystem: ActorSystem,
             implicit override val entityStore: EntityStore,
             override val entitlementService: EntitlementService,
@@ -231,7 +231,7 @@ protected[controller] class RestAPIVersion_v1(
     class RulesApi(
         val apipath: String,
         val apiversion: String,
-        val verbosity: Level)(
+        val verbosity: LogLevel)(
             implicit override val actorSystem: ActorSystem,
             override val entityStore: EntityStore,
             override val entitlementService: EntitlementService,
@@ -247,7 +247,7 @@ protected[controller] class RestAPIVersion_v1(
     class ActivationsApi(
         val apipath: String,
         val apiversion: String,
-        val verbosity: Level)(
+        val verbosity: LogLevel)(
             implicit override val activationStore: ActivationStore,
             override val entitlementService: EntitlementService,
             override val executionContext: ExecutionContext)
@@ -258,7 +258,7 @@ protected[controller] class RestAPIVersion_v1(
     class PackagesApi(
         val apipath: String,
         val apiversion: String,
-        val verbosity: Level)(
+        val verbosity: LogLevel)(
             implicit override val entityStore: EntityStore,
             override val entitlementService: EntitlementService,
             override val performLoadBalancerRequest: LoadBalancerReq => Future[LoadBalancerResponse],

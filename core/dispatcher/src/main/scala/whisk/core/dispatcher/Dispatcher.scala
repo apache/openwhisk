@@ -30,10 +30,10 @@ import akka.actor.actorRef2Scala
 import whisk.common.Counter
 import whisk.common.Logging
 import whisk.common.TransactionId
-import whisk.common.Verbosity
 import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.core.connector.MessageConsumer
 import whisk.core.invoker.InvokerService
+import akka.event.Logging.LogLevel
 
 object Dispatcher extends Logging {
     def main(args: Array[String]): Unit = {
@@ -60,7 +60,7 @@ object Dispatcher extends Logging {
  */
 @throws[IllegalArgumentException]
 class Dispatcher(
-    verbosity: Verbosity.Level,
+    verbosity: LogLevel,
     consumer: MessageConsumer,
     pollDuration: FiniteDuration,
     maxPipelineDepth: Int,
