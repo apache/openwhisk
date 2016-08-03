@@ -25,6 +25,7 @@ import akka.actor.actorRef2Scala
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.connector.MessageConsumer
+import org.apache.kafka.clients.consumer.CommitFailedException
 
 object ActivationFeed {
     sealed class ActivationNotification
@@ -83,7 +84,12 @@ protected class ActivationFeed(
                             handler(topic, bytes)
                     }
                 }
-                consumer.commit()
+                Try {
+                    consumer.commit()
+                } recover {
+                    case e: CommitFailedException => logging.warn(this, s"Error on committing to Kafka ${e.getMessage}")
+                    case e: Throwable             => logging.error(this, s"Unexpected error on committing to Kafka: ${e.getMessage}")
+                }
                 fill()
             } else logging.debug(this, "dropping fill request until feed is drained")
 
