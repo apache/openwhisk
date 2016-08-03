@@ -53,15 +53,19 @@ class WskActionSequenceTests
 
     it should "invoke a blocking action and get only the result" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val pkgname = "my package"
-            val name = "sequence action"
 
-            assetHelper.withCleaner(wsk.pkg, pkgname) {
-                (pkg, _) => pkg.bind("/whisk.system/util", pkgname)
+            val actions = Seq("split", "sort", "head", "cat")
+            val filesMap = actions.map { a => a -> TestUtils.getTestActionFilename(s"${a}.js") } toMap
+
+            for ((actionName,file) <- filesMap) {
+                assetHelper.withCleaner(wsk.action, actionName) { (action, _) =>
+                    action.create(name = actionName, artifact = Some(file))
+                }
             }
 
+            val name = "sequence action"
             assetHelper.withCleaner(wsk.action, name) {
-                val sequence = Seq("split", "sort", "head", "cat") map { a => s"$pkgname/$a" } mkString (",")
+                val sequence = actions.mkString(",")
                 (action, _) => action.create(name, Some(sequence), kind = Some("sequence"), timeout = Some(allowedActionDuration))
             }
 
@@ -78,8 +82,8 @@ class WskActionSequenceTests
             }
 
             // update action sequence
-            val newSequence = Seq("split", "sort") map { a => s"$pkgname/$a" } mkString (",")
-            wsk.action.create(name, Some(newSequence), kind = Some("sequence"), timeout = Some(allowedActionDuration), update = true)
+            val newSequence = Seq("split", "sort")
+            wsk.action.create(name, Some(newSequence.mkString(",")), kind = Some("sequence"), timeout = Some(allowedActionDuration), update = true)
             val secondrun = wsk.action.invoke(name, Map("payload" -> args.mkString("\n").toJson))
             withActivation(wsk.activation, secondrun, totalWait = allowedActionDuration) {
                 activation =>
