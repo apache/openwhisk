@@ -144,15 +144,15 @@ class ContainerPool(
      */
     def getAction(action: WhiskAction, auth: WhiskAuth)(implicit transid: TransactionId): Option[(WhiskContainer, Option[RunResult])] =
         if (shuttingDown) {
-            info(this, s"Shutting down: Not getting container for ${action.fullyQualifiedName} with ${auth.uuid}", INVOKER_GET_CONTAINER_START)
+            info(this, s"Shutting down: Not getting container for ${action.fullyQualifiedName} with ${auth.uuid}")
             None
         } else {
-            info(this, s"Getting container for ${action.fullyQualifiedName} with ${auth.uuid}", INVOKER_GET_CONTAINER_START)
+            info(this, s"Getting container for ${action.fullyQualifiedName} with ${auth.uuid}")
             val key = makeKey(action, auth)
             getImpl(key, { () => makeWhiskContainer(action, auth) }) map {
                 case (c, initResult) =>
                     val cacheMsg = if (!initResult.isDefined) "(Cache Hit)" else "(Cache Miss)"
-                    info(this, s"ContainerPool.getAction obtained container ${c.id} ${cacheMsg}", INVOKER_GET_CONTAINER_DONE)
+                    info(this, s"ContainerPool.getAction obtained container ${c.id} ${cacheMsg}")
                     (c.asInstanceOf[WhiskContainer], initResult)
             }
         }
@@ -462,12 +462,6 @@ class ContainerPool(
         val key = makeKey(action, auth)
         val warmedContainer = if (limits.memory == defaultMemoryLimit && imageName == nodeImageName) getWarmNodejsContainer(key) else None
         val containerName = makeContainerName(action)
-        warmedContainer match {
-            case Some(_) => {
-                info(this, "", LogMarkerToken("invoker", s"${action.exec.kind}.warmContainer", "start"))
-            }
-            case None => info(this, "", LogMarkerToken("invoker", s"${action.exec.kind}.coldContainer", "start"))
-        }
         val con = warmedContainer getOrElse makeGeneralContainer(key, containerName, imageName, limits)
         initWhiskContainer(action, con)
     }

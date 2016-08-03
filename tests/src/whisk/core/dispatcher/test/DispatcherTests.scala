@@ -101,7 +101,7 @@ class DispatcherTests extends FlatSpec with Matchers with WskActorSystem {
                 }
             }
 
-            for (i <- 0 until half + 1) {
+            for (i <- 0 to half) {
                 sendMessage(connector, i + 1)
             }
 

@@ -49,10 +49,10 @@ trait InMemoryCache[W] {
         if (fromCache) {
             implicit val ec = datastore.executionContext
             cache.get(key) map { v =>
-                logger.info(this, s"[GET] serving from cache: $key", LoggingMarkers.DATABASE_CACHE_HIT)
+                transid.mark(this, LoggingMarkers.DATABASE_CACHE_HIT, s"[GET] serving from cache: $key")(logger)
                 v
             } getOrElse {
-                logger.info(this, s"[GET] serving from datastore: $key", LoggingMarkers.DATABASE_CACHE_MISS)
+                transid.mark(this, LoggingMarkers.DATABASE_CACHE_MISS, s"[GET] serving from datastore: $key")(logger)
                 future flatMap {
                     // cache result of future iff it was successful
                     cache(key)(_)
