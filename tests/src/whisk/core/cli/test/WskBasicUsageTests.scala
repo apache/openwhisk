@@ -36,6 +36,8 @@ import common.TestUtils.ERROR_EXIT
 import common.TestUtils.MISUSE_EXIT
 import common.TestUtils.NOTALLOWED
 import common.TestUtils.SUCCESS_EXIT
+import common.TestUtils.FORBIDDEN
+import common.TestUtils.NOT_FOUND
 import common.WhiskProperties
 import common.Wsk
 import common.WskProps
@@ -311,13 +313,11 @@ class WskBasicCliUsageTests
     it should "not create an action when -a is specified without arguments" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "actionName"
-            var stderr = ""
             assetHelper.withCleaner(wsk.action, name, confirmDelete = false) {
                 (action, _) =>
                     val runresult = wsk.cli(wskprops.overrides ++ Seq("action", "create", name, "--auth", wp.authKey,
                         "-a"), expectedExitCode = ERROR_EXIT)
-                    stderr = runresult.stderr
-                    stderr should include("Annotation arguments must be a key value pair")
+                    runresult.stderr should include("Annotation arguments must be a key value pair")
                     runresult
             }
     }
@@ -325,15 +325,11 @@ class WskBasicCliUsageTests
     it should "not create an action when -p is specified without arguments" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "actionName"
-            var stderr = ""
             assetHelper.withCleaner(wsk.action, name, confirmDelete = false) {
                 (action, _) =>
                     val runresult = wsk.cli(wskprops.overrides ++ Seq("action", "create", name, "--auth", wp.authKey,
                         "-p"), expectedExitCode = ERROR_EXIT)
-                    stderr = runresult.stderr
-                    //val stderr = wsk.cli(wskprops.overrides ++ Seq("action", "create", name, "--auth", wp.authKey,
-                    //    "-p"), expectedExitCode = ERROR_EXIT).stderr
-                    stderr should include("Parameter arguments must be a key value pair")
+                    runresult.stderr should include("Parameter arguments must be a key value pair")
                     runresult
             }
     }
@@ -488,13 +484,11 @@ class WskBasicCliUsageTests
     it should "not create a package when -a is specified without arguments" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "packageName"
-            var stderr = ""
             assetHelper.withCleaner(wsk.pkg, name, confirmDelete = false) {
                 (pkg, _) =>
                     val runresult = wsk.cli(wskprops.overrides ++ Seq("package", "create", name, "--auth", wp.authKey,
                         "-a"), expectedExitCode = ERROR_EXIT)
-                    stderr = runresult.stderr
-                    stderr should include("Annotation arguments must be a key value pair")
+                    runresult.stderr should include("Annotation arguments must be a key value pair")
                     runresult
             }
     }
@@ -502,13 +496,11 @@ class WskBasicCliUsageTests
     it should "not create a package when -p is specified without arguments" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "packageName"
-            var stderr = ""
             assetHelper.withCleaner(wsk.pkg, name, confirmDelete = false) {
                 (pkg, _) =>
                     val runresult = wsk.cli(wskprops.overrides ++ Seq("package", "create", name, "--auth", wp.authKey,
                         "-p"), expectedExitCode = ERROR_EXIT)
-                    stderr = runresult.stderr
-                    stderr should include("Parameter arguments must be a key value pair")
+                    runresult.stderr should include("Parameter arguments must be a key value pair")
                     runresult
             }
     }
@@ -577,16 +569,27 @@ class WskBasicCliUsageTests
             wsk.parseJsonString(stdout).fields("parameters") shouldBe getValidJSONTestArgOutput
     }
 
+    it should "display a trigger summary when --summary flag is used with 'wsk trigger get'" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val triggerName = "mySummaryTrigger"
+            assetHelper.withCleaner(wsk.trigger, triggerName, confirmDelete = false) {
+                (trigger, name) => trigger.create(name)
+            }
+
+            // Summary namespace should match one of the allowable namespaces (typically 'guest')
+            val ns_regex_list = wsk.namespace.list().stdout.trim.replace('\n', '|')
+            val stdout = wsk.trigger.get(triggerName, summary = true).stdout
+            stdout should include regex (s"(?i)trigger\\s+/${ns_regex_list}/${triggerName}")
+    }
+
     it should "not create a trigger when -a is specified without arguments" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "triggerName"
-            var stderr = ""
             assetHelper.withCleaner(wsk.trigger, name, confirmDelete = false) {
                 (trigger, _) =>
                     val runresult = wsk.cli(wskprops.overrides ++ Seq("trigger", "create", name, "--auth", wp.authKey,
                         "-a"), expectedExitCode = ERROR_EXIT)
-                    stderr = runresult.stderr
-                    stderr should include("Annotation arguments must be a key value pair")
+                    runresult.stderr should include("Annotation arguments must be a key value pair")
                     runresult
             }
     }
@@ -594,13 +597,11 @@ class WskBasicCliUsageTests
     it should "not create a trigger when -p is specified without arguments" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "triggerName"
-            var stderr = ""
             assetHelper.withCleaner(wsk.trigger, name, confirmDelete = false) {
                 (trigger, _) =>
                     val runresult = wsk.cli(wskprops.overrides ++ Seq("trigger", "create", name, "--auth", wp.authKey,
                         "-p"), expectedExitCode = ERROR_EXIT)
-                    stderr = runresult.stderr
-                    stderr should include("Parameter arguments must be a key value pair")
+                    runresult.stderr should include("Parameter arguments must be a key value pair")
                     runresult
             }
     }
@@ -635,6 +636,20 @@ class WskBasicCliUsageTests
             assert(stdout.startsWith(s"ok: got trigger $name\n"))
 
             wsk.parseJsonString(stdout).fields("annotations") shouldBe getEscapedJSONTestArgOutput
+    }
+
+    it should "not create a trigger when feed fails to initialize" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            assetHelper.withCleaner(wsk.trigger, "badfeed", confirmDelete = false) {
+                (trigger, name) =>
+                    trigger.create(name, feed = Some(s"bogus"), expectedExitCode = ANY_ERROR_EXIT).
+                        exitCode should equal(NOT_FOUND)
+                    trigger.get(name, expectedExitCode = NOT_FOUND)
+
+                    trigger.create(name, feed = Some(s"bogus/feed"), expectedExitCode = ANY_ERROR_EXIT).
+                        exitCode should { equal(FORBIDDEN) or equal(NOT_FOUND) } // response differs in the presence of entitlement service
+                    trigger.get(name, expectedExitCode = NOT_FOUND)
+            }
     }
 
     behavior of "Wsk entity list formatting"
