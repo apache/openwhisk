@@ -99,7 +99,7 @@ var actionCreateCmd = &cobra.Command{
             return whiskErr
         }
 
-        fmt.Printf("%s created action %s\n", color.GreenString("ok:"), boldString(action.Name))
+        fmt.Fprintf(color.Output, "%s created action %s\n", color.GreenString("ok:"), boldString(action.Name))
         return nil
     },
 }
@@ -161,7 +161,7 @@ var actionUpdateCmd = &cobra.Command{
             return whiskErr
         }
 
-        fmt.Printf("%s updated action %s\n", color.GreenString("ok:"), boldString(action.Name))
+        fmt.Fprintf(color.Output, "%s updated action %s\n", color.GreenString("ok:"), boldString(action.Name))
         return nil
     },
 }
@@ -237,11 +237,13 @@ var actionInvokeCmd = &cobra.Command{
         if flags.common.blocking && flags.action.result {
             printJsonNoColor(activation.Response.Result, outputStream)
         } else if flags.common.blocking {
-            fmt.Printf("%s invoked /%s/%s with id %s\n", color.GreenString("ok:"), boldString(qName.namespace), boldString(qName.entityName),
+            fmt.Fprintf(color.Output, "%s invoked /%s/%s with id %s\n", color.GreenString("ok:"),
+                boldString(qName.namespace), boldString(qName.entityName),
                 boldString(activation.ActivationID))
             printJsonNoColor(activation, outputStream)
         } else {
-            fmt.Printf("%s invoked /%s/%s with id %s\n", color.GreenString("ok:"), boldString(qName.namespace), boldString(qName.entityName),
+            fmt.Fprintf(color.Output, "%s invoked /%s/%s with id %s\n", color.GreenString("ok:"),
+                boldString(qName.namespace), boldString(qName.entityName),
                 boldString(activation.ActivationID))
         }
 
@@ -285,12 +287,10 @@ var actionGetCmd = &cobra.Command{
             return whiskErr
         }
 
-        // print out response
         if flags.common.summary {
-            fmt.Printf("%s /%s/%s\n", boldString("action"), action.Namespace, action.Name)
+            fmt.Fprintf(color.Output, "%s /%s/%s\n", boldString("action"), action.Namespace, action.Name)
         } else {
-            fmt.Printf("%s got action %s\n", color.GreenString("ok:"), boldString(qName.entityName))
-            //printJSON(action)
+            fmt.Fprintf(color.Output, "%s got action %s\n", color.GreenString("ok:"), boldString(qName.entityName))
             printJsonNoColor(action)
         }
 
@@ -324,9 +324,7 @@ var actionDeleteCmd = &cobra.Command{
             return whiskErr
         }
 
-        // print out response
-        fmt.Printf("%s deleted action %s\n", color.GreenString("ok:"), boldString(qName.entityName))
-
+        fmt.Fprintf(color.Output, "%s deleted action %s\n", color.GreenString("ok:"), boldString(qName.entityName))
         return nil
     },
 }
@@ -358,11 +356,8 @@ var actionListCmd = &cobra.Command{
                     whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return whiskErr
             }
-            client.Namespace = qName.namespace
 
-            if pkg := qName.packageName; len(pkg) > 0 {
-                // todo :: scope call to package
-            }
+            client.Namespace = qName.namespace
         }
 
         options := &whisk.ActionListOptions{

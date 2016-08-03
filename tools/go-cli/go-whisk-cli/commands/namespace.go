@@ -83,14 +83,14 @@ var namespaceGetCmd = &cobra.Command{
             return werr
         }
 
-        //fmt.Printf("Entities in namespace: %s\n", boldString(namespace.Name))  // Did not work on Windows; so replaced with following two lines
         fmt.Printf("Entities in namespace: ")
 
         if (qName.namespace != "_") {
-            color.New(color.Bold).Printf("%s\n", namespace.Name)
+            fmt.Fprintf(color.Output, "%s\n", boldString(namespace.Name))
         } else {
-            color.New(color.Bold).Printf("default\n")
+            fmt.Fprintf(color.Output, "%s\n", boldString("default"))
         }
+
 
         printList(namespace.Contents.Packages)
         printList(namespace.Contents.Actions)

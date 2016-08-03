@@ -29,7 +29,12 @@ var WskCmd = &cobra.Command{
     PersistentPreRunE:parseConfigFlags,
 }
 
+
+
+
 func init() {
+    WskCmd.SetHelpTemplate(`{{with or .Long .Short }}{{.}}
+{{end}}{{if or .Runnable .HasSubCommands}}{{.UsageString}}{{end}}`)
 
     WskCmd.AddCommand(
         actionCmd,

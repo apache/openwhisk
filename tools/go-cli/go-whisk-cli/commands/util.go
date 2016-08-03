@@ -273,7 +273,6 @@ func parseAnnotations(args []string) (whisk.Annotations, error) {
 }
 
 var boldString = color.New(color.Bold).SprintFunc()
-var boldPrintf = color.New(color.Bold).PrintfFunc()
 
 func printList(collection interface{}) {
     switch collection := collection.(type) {
@@ -326,7 +325,7 @@ func printSummary(collection interface{}) {
 }
 
 func printActionList(actions []whisk.Action) {
-    boldPrintf("actions\n")
+    fmt.Fprintf(color.Output, "%s\n", boldString("actions"))
     for _, action := range actions {
         publishState := "private"
         if action.Publish {
@@ -337,7 +336,7 @@ func printActionList(actions []whisk.Action) {
 }
 
 func printTriggerList(triggers []whisk.TriggerFromServer) {
-    boldPrintf("triggers\n")
+    fmt.Fprintf(color.Output, "%s\n", boldString("triggers"))
     for _, trigger := range triggers {
         publishState := "private"
         if trigger.Publish {
@@ -348,7 +347,7 @@ func printTriggerList(triggers []whisk.TriggerFromServer) {
 }
 
 func printPackageList(packages []whisk.Package) {
-    boldPrintf("packages\n")
+    fmt.Fprintf(color.Output, "%s\n", boldString("packages"))
     for _, xPackage := range packages {
         publishState := "private"
         if xPackage.Publish {
@@ -359,7 +358,7 @@ func printPackageList(packages []whisk.Package) {
 }
 
 func printRuleList(rules []whisk.Rule) {
-    boldPrintf("rules\n")
+    fmt.Fprintf(color.Output, "%s\n", boldString("rules"))
     for _, rule := range rules {
         publishState := "private"
         if rule.Publish {
@@ -370,21 +369,21 @@ func printRuleList(rules []whisk.Rule) {
 }
 
 func printNamespaceList(namespaces []whisk.Namespace) {
-    boldPrintf("namespaces\n")
+    fmt.Fprintf(color.Output, "%s\n", boldString("namespaces"))
     for _, namespace := range namespaces {
         fmt.Printf("%s\n", namespace.Name)
     }
 }
 
 func printActivationList(activations []whisk.Activation) {
-    boldPrintf("activations\n")
+    fmt.Fprintf(color.Output, "%s\n", boldString("activations"))
     for _, activation := range activations {
         fmt.Printf("%s%20s\n", activation.ActivationID, activation.Name)
     }
 }
 
 func printFullActivationList(activations []whisk.Activation) {
-    boldPrintf("activations\n")
+    fmt.Fprintf(color.Output, "%s\n", boldString("activations"))
     for _, activation := range activations {
         printJsonNoColor(activation)
     }
@@ -419,7 +418,6 @@ func printPackageSummary(p *whisk.Package) {
 }
 
 func logoText() string {
-
     logo := `
         ____      ___                   _    _ _     _     _
        /\   \    / _ \ _ __   ___ _ __ | |  | | |__ (_)___| | __
@@ -428,9 +426,6 @@ func logoText() string {
  \   \  /  \/    \___/| .__/ \___|_| |_|__/\__|_| |_|_|___/_|\_\
   \___\/ tm           |_|
 `
-
-    // Cobra will trim that string again. Inserting a zero-width space to save the logo.
-    logo = "\u200B        " + strings.TrimSpace(logo);
 
     return logo
 }
