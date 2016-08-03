@@ -74,14 +74,13 @@ class LoadBalancerService(config: WhiskConfig, verbosity: Verbosity.Level)(
     // this must happen after the overrides
     setVerbosity(verbosity)
 
-    private var count = 0
     private val overloadThreshold = 5000 // this is the total across all invokers.  Disable by setting to -1.
     private val kv = new ConsulClient(config.consulServer)
     private val reporter = new ConsulKVReporter(kv, 3 seconds, 2 seconds,
         LoadBalancerKeys.hostnameKey,
         LoadBalancerKeys.startKey,
         LoadBalancerKeys.statusKey,
-        { () =>
+        { count =>
             val issuedCounts = getIssueCountByInvoker()
             val issuedCount = issuedCounts.foldLeft(0)(_ + _._2)
             val health = invokerHealth.getInvokerHealth()
@@ -90,7 +89,6 @@ class LoadBalancerService(config: WhiskConfig, verbosity: Verbosity.Level)(
             val completedCount = completedCounts.foldLeft(0)(_ + _)
             val inFlight = issuedCount - completedCount
             val overload = JsBoolean(overloadThreshold > 0 && inFlight >= overloadThreshold)
-            count = count + 1
             if (count % 10 == 0) {
                 warn(this, s"In flight: $issuedCount - $completedCount = $inFlight $overload")
                 info(this, s"Issued counts: [${issuedCounts.mkString(", ")}]")
