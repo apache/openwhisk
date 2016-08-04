@@ -33,6 +33,8 @@ zookeeper:
 
 invoker:
   port: 12001
+  numcore: 2
+  coreshare: 2
 
 nginx:
   port:

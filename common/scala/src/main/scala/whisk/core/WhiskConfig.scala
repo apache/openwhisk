@@ -216,6 +216,8 @@ object WhiskConfig extends Logging {
 
     val invokerContainerNetwork = "invoker.container.network"
     val invokerContainerPolicy = "invoker.container.policy"
+    val invokerNumCore = "invoker.numcore"
+    val invokerCoreShare = "invoker.coreshare"
 
     val routerHost = "router.host"
     val cliApiHost = "cli.api.host"
