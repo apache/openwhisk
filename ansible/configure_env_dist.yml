@@ -1,0 +1,18 @@
+---
+#- include: prereq_build.yml
+
+- include: couchdb.yml
+
+- include: initdb.yml
+
+- include: wipe.yml
+
+- include: openwhisk.yml
+
+- include: postdeploy.yml
+
+- name: Test whisk endpoints
+  hosts: ansible
+  tasks:
+    - shell: ../bin/wsk  property set --auth $(cat files/auth.whisk.system) --apihost {{ groups['edge'] | first }}
+    - shell: ../bin/wsk -v action invoke /whisk.system/samples/echo -p message hello --blocking --result 

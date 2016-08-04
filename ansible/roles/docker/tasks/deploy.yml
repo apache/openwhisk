@@ -1,0 +1,44 @@
+---
+# This role will install Docker using apt.
+
+- name: add docker repo
+  apt_repository:
+    repo: deb https://apt.dockerproject.org/repo ubuntu-trusty main
+    update_cache: yes
+    state: present
+  become: true
+
+- name: install docker
+  apt:
+    name: "docker-engine={{ docker.version }}"
+    state: present
+    force: yes
+  become: true
+
+- name: configure docker
+  template:
+    src: docker.j2
+    dest: "/etc/default/docker"
+  become: true
+
+- name: add docker.user user to docker group
+  user:
+    name: "{{docker.user}}"
+    groups: docker
+    append: true
+  become: true
+  when: "'open' in deployment and docker.user"
+
+- name: add ssh user to docker group
+  user:
+    name: "{{ansible_user|default(lookup('env', 'USER')) }}"
+    groups: docker
+    append: true
+  become: true
+  when: "'open' in deployment"
+
+- name: restart docker service
+  service:
+    name: docker
+    state: restarted
+  become: true

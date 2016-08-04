@@ -1,0 +1,43 @@
+---
+#- name: install prereqs on all nodes
+#  include: prereq_build.yml
+
+- name: build and push images to registry
+  # hosts: ansible
+  hosts: registry
+  tasks:
+    - name: Cloning/Updating Git Repository
+      git: repo="https://github.com/openwhisk/openwhisk" 
+           dest="~/openwhisk"
+           recursive=no
+
+    # install gradle TODO, gradle/java should be installed in prereq, doesn't seem to be included so far
+    # Gradle
+    - shell: sudo add-apt-repository ppa:cwchien/gradle -y
+    - shell: sudo apt-get update -y
+    - shell: sudo apt-get install gradle -y
+
+    # Java
+    - shell: sudo add-apt-repository ppa:openjdk-r/ppa -y
+    - shell: sudo apt-get update -y
+    - shell: sudo apt-get install zip openjdk-8-jdk -y
+    - shell: sudo dpkg --purge --force-depends ca-certificates-java
+    - shell: sudo apt-get install ca-certificates-java
+    - shell: echo "export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/" >> /etc/environment
+      become: true
+    - shell: . /etc/environment
+
+    # TODO, should build on the registry vm instead of the ansible vm. pushing from local is very slow
+    - name: build images
+      shell: chdir=~/openwhisk gradle {{item}}:distDocker {{item}}:pushImage -PdockerRegistry={{docker_registry | replace('/', '')}}
+      with_items: gradle_tasks
+      # with_items: "{{tasks.stdout_lines}}"
+
+    # - name: get image names
+    #   shell: "docker images | grep {{docker_registry}} | awk '{print $1}'"
+    #   register: images
+
+    ## this should be done as part of the gradle task TODO
+    # - name: push images
+    #   shell: "docker push {{item}}"
+    #   with_items: "{{images.stdout_lines}}"

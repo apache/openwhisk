@@ -1,0 +1,10 @@
+---
+# This role will prepare target VMs with the right kernel and other system settings. This should only be run on ubuntu targets.
+# In deploy mode it will patch the system with the right kernel.
+# In clean mode it will do nothing atm.
+
+- include: deploy.yml
+  when: mode == "deploy"
+
+- include: clean.yml
+  when: mode == "clean"

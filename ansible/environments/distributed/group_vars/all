@@ -1,0 +1,91 @@
+---
+db_provider: CouchDB
+db_port: 5984
+db_protocol: http
+db_username: couch_user
+db_password: couch_password
+db_host: "{{ groups['db'] | first }}"
+db_auth: "subjects"
+db_prefix: "{{ ansible_user_id }}_{{ ansible_hostname|lower }}_"
+
+whisk_version_name: local
+nginx_conf_dir: /tmp/nginx
+consul_conf_dir: /tmp/consul
+whisk_logs_dir: /tmp/wsklogs
+cli_conf_dir: /tmp/cli
+go_cli_conf_dir: /tmp/go-cli
+go_cli_nginx_dir: "{{ nginx_conf_dir }}/cli/go/download"
+registry_conf_dir: /tmp/registry
+registry_storage_dir: "/"
+#docker_registry: "whisk-registry:5000/"
+docker_registry: "{{ groups['registry'] | first }}:5000/"
+docker_dns: ""
+
+registry:
+  version: 2.3.1
+  port: 5000
+  gencert: true
+  ssl: false
+  recycle:
+    threshold: 80
+    keeptags: 5
+
+gradle_tasks:
+  - "common:scala"
+  - "core:controller"
+  - "core:dispatcher"
+  - "core:javaAction"
+  - "core:nodejs6Action"
+  - "core:nodejsActionBase"
+  - "core:nodejsAction"
+  - "core:pythonAction"
+  - "core:swift3Action"
+  - "core:swiftAction"
+  - "sdk:docker"
+  - "services:consul"
+  - "services:kafka"
+  - "services:zookeeper"
+  - "tools:cli"
+  - "tools:go-cli"
+
+rc_file:
+#net_name: "{{ lookup('env','OS_NET_NAME') }}"
+net_id: "{{ lookup('env','OS_NET_ID') }}"
+image: "{{ lookup('env','OS_IMAGE') }}"
+flavor: "{{ lookup('env','OS_FLAVOR') }}"
+auth:
+  auth_url: "{{ lookup('env','OS_AUTH_URL') }}"
+  username: "{{ lookup('env','OS_USERNAME') }}"
+  password: "{{ lookup('env','OS_PASSWORD') }}"
+  project_name: "{{ lookup('env','OS_PROJECT_NAME') }}"
+key_name: "{{ lookup('env','OS_KEY_NAME') }}"
+security_groups: "{{ lookup('env','OS_SECURITY_GROUPS') }}"
+
+instances:
+  - name: registry
+    num_instances: 1
+    flavor:
+
+  - name: edge
+    num_instances: 1
+    flavor:
+
+  - name: controllers
+    num_instances: 1
+    flavor:
+
+  - name: kafka
+    num_instances: 1
+    flavor:
+
+  - name: consul_servers
+    num_instances: 1
+    flavor:
+
+  - name: invokers
+    num_instances: 2
+    flavor:
+
+  - name: db
+    num_instances: 1
+    flavor:
