@@ -1,0 +1,12 @@
+---
+# Remove registry and volumes.
+
+- name: remove registry and  volumes
+  shell: "docker rm -fv whisk_docker_registry"
+  ignore_errors: True
+
+- name: remove cron job for registry recycle
+  file:
+    path: "/etc/cron.daily/recycle-registry.py"
+    state: absent
+  become: true

@@ -1,0 +1,37 @@
+---
+# provision_env.yml
+- name: create instances and hosts file
+  hosts: ansible
+  tasks:
+    #- name: Load rc file if provided
+    #  shell: . rc_file
+
+    # TODO, not sure if this is necessary
+    - include_vars: environments/distributed/group_vars/all
+
+    - name: add header to hosts file
+      copy: 
+        content: "; the first parameter in a host is the inventory_hostname which has to be\n; either an ip\n; or a resolvable hostname\n\n; used for local actions only\nansible ansible_connection=local\n"
+        dest: "{{inventory_dir}}/hosts"
+
+    - name: Create instances
+      include: boot_instances_dist.yml instance={{item}}
+      with_items: instances
+
+    - include_vars: environments/distributed/group_vars/all
+
+    - meta: refresh_inventory
+
+- name: append registry url to hosts file
+  hosts: all:!ansible
+  tasks:
+    - lineinfile: line="{{ groups['registry'] | first }} whisk-registry" dest=/etc/hosts
+      become: true
+
+- name: Install git on registry
+  hosts: registry
+  tasks:
+    - apt: update_cache=yes
+      become: true
+    - package: name=git
+      become: true

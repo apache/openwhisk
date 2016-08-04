@@ -1,0 +1,5 @@
+---
+# Do nothing.
+
+- name: do nothing
+  command: "true"

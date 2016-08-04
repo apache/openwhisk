@@ -1,0 +1,25 @@
+---
+# Add docker user to the target host. 
+# Set -e ansible_ssh_pass=xxx -e ansible_become_pass=xxx -e ansible_user=yyy when executing this playbook.
+# Also you need to have sshpass installed. 
+# (apt-get for ubuntu, for mac: brew install https://raw.githubusercontent.com/kadwanev/bigboybrew/master/Library/Formula/sshpass.rb)
+
+- name: add {{docker.user}} group
+  group: name={{docker.user}}
+  become: true
+
+- name: add {{docker.user}} user
+  user: name={{docker.user}} shell=/bin/bash generate_ssh_key=yes group={{docker.user}} groups=sudo append=yes
+  become: true
+
+- name: remove user passwd
+  shell: passwd --delete {{docker.user}}
+  become: true
+
+- name: make {{docker.user}} sudoer
+  shell: echo "{{docker.user}} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/{{docker.user}}
+  become: true
+
+- name: add {{docker.user}} ssh key to authorized_keys
+  authorized_key: user={{docker.user}} key="{{ lookup('file', '{{ creds_home }}/ssh/id_rsa_{{docker.user}}.pub') }}"
+  become: true

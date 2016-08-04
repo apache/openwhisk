@@ -1,0 +1,9 @@
+---
+# Remove docker
+
+- name: install docker
+  apt:
+    name: docker-engine
+    state: absent
+    force: yes
+  become: true

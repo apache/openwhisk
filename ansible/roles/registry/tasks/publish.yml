@@ -1,0 +1,26 @@
+---
+# Publish certificate to all hosts. Also add registry to /etc/hosts if no fqdn provided.
+
+- name: "make registry dir in /etc/docker/certs.d/"
+  file:
+    path: "/etc/docker/certs.d/{{ groups['registry']|first }}:{{ registry.port }}"
+    state: directory
+
+- name: "copy cert to registry dir"
+  copy: 
+    src: "files/whisk_docker_registry.crt"
+    dest: "/etc/docker/certs.d/{{ groups['registry']|first }}:{{ registry.port }}"
+
+- name: "remove old entry from /etc/hosts if needed"
+  lineinfile: 
+    dest: /etc/hosts
+    regexp: "{{ groups['registry']|first }}" 
+    state: absent
+  when: hostvars[groups['registry']|first]['ansible_host'] is defined
+
+- name: "add registry to /etc/hosts if needed"
+  lineinfile: 
+    dest: /etc/hosts 
+    line: "{{ hostvars[groups['registry']|first]['ansible_host'] }}  {{ groups['registry']|first }}"
+    state: present
+  when: hostvars[groups['registry']|first]['ansible_host'] is defined

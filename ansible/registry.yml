@@ -1,0 +1,20 @@
+---
+# This playbook deploys a docker registry using a self-signed cert.  
+
+# Generate cert if needed. Not used currently.
+- hosts: ansible
+  tasks:
+  - include: roles/registry/tasks/gencert.yml
+    when: mode == "deploy" and registry.gencert == true
+
+# Deploy registry
+- hosts: registry
+  roles:
+  - registry
+
+# publish cert on all hosts
+- hosts: all:!ansible
+  become: true
+  tasks:
+  - include: roles/registry/tasks/publish.yml
+    when: mode == "deploy" and registry.gencert

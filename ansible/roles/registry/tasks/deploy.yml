@@ -1,0 +1,64 @@
+---
+# This role will install a docker registry. If the registry existed, it will try to recycle its images.
+
+- name: "pull the {{ registry.version }} image of registry"
+  shell: "docker pull registry:{{ registry.version }}"
+
+- name: "create {{ registry_conf_dir }} on registry {{ inventory_hostname }}"
+  file:
+    path: "{{ registry_conf_dir }}/certs"
+    state: directory
+  when: registry.gencert
+
+- name: "copy cert to registry"
+  copy: 
+    src: "files/whisk_docker_registry.crt"
+    dest: "{{ registry_conf_dir }}/certs"
+  when: registry.gencert
+
+- name: "copy key to registry"
+  copy: 
+    src: "files/whisk_docker_registry.key"
+    dest: "{{ registry_conf_dir }}/certs"
+  when: registry.gencert
+
+- name: (re)start registry with ssl enabled
+  docker:
+    name: whisk_docker_registry
+    image: "registry:{{ registry.version }}"
+    state: started
+    restart_policy: "{{ docker.restart.policy }}"
+    hostname: registry
+    env:
+      "REGISTRY_HTTP_TLS_CERTIFICATE": "/certs/whisk_docker_registry.crt"
+      "REGISTRY_HTTP_TLS_KEY": "/certs/whisk_docker_registry.key"
+    ports:
+      - "{{ registry.port }}:5000"
+    volumes:
+      - "{{ registry_conf_dir }}/certs:/certs"
+  when: registry.gencert
+
+- name: (re)start registry with insecure ssl
+  docker:
+    name: whisk_docker_registry
+    image: "registry:{{ registry.version }}"
+    state: started
+    restart_policy: "{{ docker.restart.policy }}"
+    hostname: registry
+    ports:
+      - "{{ registry.port }}:5000"
+  when: not registry.gencert
+
+- name: wait until registry in this host is up and running
+  wait_for:
+    delay: 2
+    host: "{{ ansible_host|default('inventory_hostname') }}"
+    port: "{{ registry.port }}"
+    timeout: 60
+
+- name: make cron job for registry recycle
+  template:
+    src: recycle-registry.py.j2
+    dest: "/etc/cron.daily/recycle-registry"
+    mode: 0755
+  become: true
