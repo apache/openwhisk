@@ -13,18 +13,12 @@ Login to your bootsrapper VM. Your local machine can act as bootstrapper as well
 
 Install prereqs for ansible
 ```
-sudo apt-get -y install python-pip python-setuptools python-dev libssl-dev
+sudo apt-get -y install python-setuptools python-dev libssl-dev
 ```
 
 Install Ansible and cloud module packages:
 ```
-sudo pip install ansible==2.0.2.0 markupsafe shade pitz positional appdirs monotonic rfc3986 jsonschema
-```
-
-Setup configuration files
-```
-cd openwhisk/ansible
-./setup_whisk_config_files.sh
+sudo pip install shade pytz positional appdirs monotonic rfc3986
 ```
 
 #### Distributed Deployment using OpenStack as IaaS 
@@ -57,13 +51,13 @@ export OS_PROJECT_ID=a9e6a61ab914455cb4329592d5733325
 export OS_USER_DOMAIN_NAME="domain"
 ```
 
-Make two changes to the ansible/group_vars/all configuration file
 - Set a value for the default ssh user in the defaults section of the ansible.cfg file
 ```
 [defaults]
 remote_user = ubuntu
 ```
-- Change the "deployment" value from "prod" to "open"
+
+- Change the "deployment" value in the ansible/group_vars/alli config file from "prod" to "open"
 
 Then, run the following to boot instances and generate the hosts file
 ```
@@ -94,10 +88,23 @@ ansible-playbook -i environments/distributed registry.yml
 
 Build and distribute whisk docker images
 ```
-ansible-playbook -i environments/distributed build_images_dist.yml
+cd ../
+gradlew distDocker -PdockerHost=<registry_vm_ip>:4243 -PdockerRegistry=<registry_vm_ip>:5000
+```
+Now run the following steps shared from a [single VM](README.md) deployment. 
+
+Deploy couchdb and configure whisk deployment
+```
+cd ansible
+ansible-playbook -i environments/<environment> couchdb.yml
+ansible-playbook -i environments/<environment> initdb.yml
+ansible-playbook -i environments/<environment> wipe.yml
+ansible-playbook -i environments/<environment> openwhisk.yml
+ansible-playbook -i environments/<environment> postdeploy.yml
 ```
 
-Configure and test whisk deployment.
+Set credentials and test whisk endpoint using cli
 ```
-ansible-playbook -i environments/distributed configure_env_dist.yml
+../bin/wsk  property set --auth $(cat files/auth.whisk.system) --apihost <edge_url>
+../bin/wsk -v action invoke /whisk.system/samples/echo -p message hello --blocking --result
 ```

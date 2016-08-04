@@ -24,29 +24,10 @@ docker_dns: ""
 registry:
   version: 2.3.1
   port: 5000
-  gencert: true
-  ssl: false
+  gencert: false
   recycle:
     threshold: 80
     keeptags: 5
-
-gradle_tasks:
-  - "common:scala"
-  - "core:controller"
-  - "core:dispatcher"
-  - "core:javaAction"
-  - "core:nodejs6Action"
-  - "core:nodejsActionBase"
-  - "core:nodejsAction"
-  - "core:pythonAction"
-  - "core:swift3Action"
-  - "core:swiftAction"
-  - "sdk:docker"
-  - "services:consul"
-  - "services:kafka"
-  - "services:zookeeper"
-  - "tools:cli"
-  - "tools:go-cli"
 
 rc_file:
 #net_name: "{{ lookup('env','OS_NET_NAME') }}"

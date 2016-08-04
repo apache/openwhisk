@@ -4,11 +4,11 @@
 # Also you need to have sshpass installed. 
 # (apt-get for ubuntu, for mac: brew install https://raw.githubusercontent.com/kadwanev/bigboybrew/master/Library/Formula/sshpass.rb)
 
-- name: add cusina group
+- name: add {{docker.user}} group
   group: name={{docker.user}}
   become: true
 
-- name: add cusina user
+- name: add {{docker.user}} user
   user: name={{docker.user}} shell=/bin/bash generate_ssh_key=yes group={{docker.user}} groups=sudo append=yes
   become: true
 

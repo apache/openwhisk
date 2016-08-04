@@ -8,16 +8,19 @@
   file:
     path: "{{ registry_conf_dir }}/certs"
     state: directory
+  when: registry.gencert
 
 - name: "copy cert to registry"
   copy: 
     src: "files/whisk_docker_registry.crt"
     dest: "{{ registry_conf_dir }}/certs"
+  when: registry.gencert
 
 - name: "copy key to registry"
   copy: 
     src: "files/whisk_docker_registry.key"
     dest: "{{ registry_conf_dir }}/certs"
+  when: registry.gencert
 
 - name: (re)start registry with ssl enabled
   docker:
@@ -33,7 +36,7 @@
       - "{{ registry.port }}:5000"
     volumes:
       - "{{ registry_conf_dir }}/certs:/certs"
-  when: registry.ssl
+  when: registry.gencert
 
 - name: (re)start registry with insecure ssl
   docker:
@@ -44,7 +47,7 @@
     hostname: registry
     ports:
       - "{{ registry.port }}:5000"
-  when: not registry.ssl
+  when: not registry.gencert
 
 - name: wait until registry in this host is up and running
   wait_for:

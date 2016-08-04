@@ -21,21 +21,12 @@
     dest: "/etc/default/docker"
   become: true
 
-- name: add docker.user user to docker group
+- name: add user to docker group
   user:
-    name: "{{docker.user}}"
+    name: "{{docker.user|default(ansible_user)}}"
     groups: docker
     append: true
   become: true
-  when: "'open' in deployment and docker.user"
-
-- name: add ssh user to docker group
-  user:
-    name: "{{ansible_user|default(lookup('env', 'USER')) }}"
-    groups: docker
-    append: true
-  become: true
-  when: "'open' in deployment"
 
 - name: restart docker service
   service:

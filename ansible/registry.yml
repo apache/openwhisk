@@ -17,4 +17,4 @@
   become: true
   tasks:
   - include: roles/registry/tasks/publish.yml
-    when: mode == "deploy"
+    when: mode == "deploy" and registry.gencert

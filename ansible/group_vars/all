@@ -3,7 +3,7 @@ prompt_user: true
 
 openwhisk_home: "{{ lookup('env', 'OPENWHISK_HOME')|default(playbook_dir + '/..', true) }}"
 
-# Use this parameter to determine if user is deploying bluewhisk or openwhisk
+# Use this parameter to determine whether whisk is being deployed in production
 deployment: prod
 
 whisk:
@@ -102,13 +102,3 @@ catalog_repos:
     version: "HEAD"
     repo_update: "yes"
 
-linux:
-  version: 3.19.0-25
-
-docker_image_tag: latest
-docker:
-  version: 1.9.1-0~trusty
-  storagedriver: overlay
-  port: 4243
-  restart:
-    policy: always
