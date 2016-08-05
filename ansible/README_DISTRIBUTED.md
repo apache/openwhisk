@@ -75,7 +75,7 @@ Deploy registry
 ansible-playbook -i environments/distributed registry.yml
 ```
 
-Build and distribute whisk docker images
+Build and distribute OpenWhisk docker images
 ```
 cd ../
 gradlew distDocker -PdockerHost=<registry_vm_ip>:4243 -PdockerRegistry=<registry_vm_ip>:5000
