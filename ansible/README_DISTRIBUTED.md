@@ -61,7 +61,7 @@ Then, run the following to boot instances and generate the respective hosts file
 ansible-playbook -i environments/distributed provision_env_dist.yml
 ```
 
-Ensure that the ansible vm can authenticate to the openwhisk VMs via SSH using the following command. If using a private key that is not in the default ~/.ssh folder, either add the parameter "--keyfile=/path/to/file.pem" to each ansible playbook command, or add "private_key_file=/path/to/file.pem" to ansible.cfg in the OpenWhisk ansible subdirectory.
+Ensure that the ansible vm can authenticate to the OpenWhisk VMs via SSH using the following command. If using a private key that is not in the default ~/.ssh folder, either add the parameter "--keyfile=/path/to/file.pem" to each ansible playbook command, or add "private_key_file=/path/to/file.pem" to ansible.cfg in the OpenWhisk ansible subdirectory.
 
 ```
 ansible all -i environments/distributed -m ping
@@ -85,7 +85,7 @@ gradlew distDocker -PdockerHost=<registry_vm_ip>:4243 -PdockerRegistry=<registry
 ```
 Now run the following steps. These are equivalent to a [single VM](README.md) deployment. 
 
-Deploy couchdb and configure whisk deployment
+Deploy couchdb and configure OpenWhisk deployment
 ```
 cd ansible
 ansible-playbook -i environments/<environment> couchdb.yml
