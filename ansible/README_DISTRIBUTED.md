@@ -16,7 +16,7 @@ Install prereqs for Ansible Cloud Module packages
 sudo apt-get -y install python-setuptools python-dev libssl-dev
 ```
 
-Install Ansible Cloud Module packages:
+Install Ansible Cloud Module packages and associated dependencies
 ```
 sudo pip install shade pytz positional appdirs monotonic rfc3986
 ```
