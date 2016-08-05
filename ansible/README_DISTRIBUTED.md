@@ -10,16 +10,13 @@ In all instructions, replace `<openwhisk_home>` with the base directory of your 
 
 Login to your bootstrapper VM. Your local machine can act as the bootstrapping machine as well, if it can connect to the VMs deployed in your IaaS.
 
+#### Distributed Deployment using OpenStack as IaaS
+
 This installs modules and packages to be able to manage cloud instances via ansible.
 
 ```
 sudo apt-get -y install python-setuptools python-dev libssl-dev
 sudo pip install shade pytz positional appdirs monotonic rfc3986
-```
-
-#### Distributed Deployment using OpenStack as IaaS 
-
-```
 sudo apt-get install python-novaclient
 sudo pip install six --upgrade
 ```
