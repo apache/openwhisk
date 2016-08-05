@@ -46,6 +46,7 @@ export OS_AUTH_URL=https://OpenStack_URL:5000/v3
 export OS_PROJECT_ID=a9e6a61ab914455cb4329592d5733325
 export OS_USER_DOMAIN_NAME="domain"
 ```
+#### Setup and provision OpenWhisk component VMs
 
 - Set a value for the default ssh user in the defaults section of the ansible.cfg file
 ```
