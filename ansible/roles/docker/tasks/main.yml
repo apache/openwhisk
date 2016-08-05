@@ -1,0 +1,10 @@
+---
+# This role will install docker on target VMs. This should only be run on ubuntu targets.
+# In deploy mode it will install docker using apt.
+# In clean mode it will uninstall docker.
+
+- include: deploy.yml
+  when: mode == "deploy"
+
+- include: clean.yml
+  when: mode == "clean"

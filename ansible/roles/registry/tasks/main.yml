@@ -1,0 +1,11 @@
+---
+# This role will install a docker registry using self-signed certs.
+# In deploy mode it will deploy the registry. If it pre-exists, it will be recycled. 
+# Recycling means retaining the last few images of all repos and importing them into the new instance.
+# In clean mode it will remove the registry, deleting all images.
+
+- include: deploy.yml
+  when: mode == "deploy"
+
+- include: clean.yml
+  when: mode == "clean"

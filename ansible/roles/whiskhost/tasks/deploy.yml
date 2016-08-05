@@ -1,0 +1,7 @@
+---
+# Add user and patch kernel
+
+- include: addUser.yml
+  when: "'prod' in deployment"
+
+- include: patchKernel.yml

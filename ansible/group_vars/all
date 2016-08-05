@@ -3,15 +3,12 @@ prompt_user: true
 
 openwhisk_home: "{{ lookup('env', 'OPENWHISK_HOME')|default(playbook_dir + '/..', true) }}"
 
+# Use this parameter to determine whether whisk is being deployed in production
+deployment: prod
+
 whisk:
   version:
     date: "{{ansible_date_time.iso8601}}"
-
-docker_image_tag: latest
-docker:
-  port: 4243
-  restart:
-    policy: always
 
 # port means outer port
 controller:
@@ -48,6 +45,18 @@ db:
   authkeys:
   - guest
   - whisk.system
+
+linux:
+  version: 3.19.0-25
+
+docker_image_tag: latest
+docker:
+  user:
+  version: 1.9.1-0~trusty
+  storagedriver: overlay
+  port: 4243
+  restart:
+    policy: always
 
 # The default value for catalog_source is empty, meaning that
 # openwhisk will not install the catalog from the catalog repositories.
@@ -92,3 +101,4 @@ catalog_repos:
     location: "{{ openwhisk_home }}/../openwhisk-catalog"
     version: "HEAD"
     repo_update: "yes"
+

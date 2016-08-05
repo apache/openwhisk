@@ -1,0 +1,20 @@
+---
+# This playbook prepares all target hosts for Openwhisk installation.
+# It will create the docker user and establish ssh keys.
+# It will install all necessary packages to run Openwhisk playbooks. 
+# In addition it will also install docker on the target hosts 
+
+# If the docker user and ansible ssh user differ, use the following
+# Set -e ansible_ssh_pass=xxx -e ansible_become_pass=xxx -e ansible_user=yyy when executing this playbook.
+# xxx == passwd of a user that can become root or root passwd
+# yyy == user that can become root or root itself
+# Note that the user and passwd needs to be the same on all systems.
+# Also you need to have sshpass installed. 
+# (apt-get for ubuntu, for mac: brew install https://raw.githubusercontent.com/kadwanev/bigboybrew/master/Library/Formula/sshpass.rb)
+
+
+- hosts: all:!ansible
+  roles:
+  - whiskhost
+  - docker
+  - prereq

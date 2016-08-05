@@ -1,0 +1,40 @@
+# boot_instances.yml
+---
+
+- include_vars: environments/distributed/group_vars/all
+
+- set_fact:
+    name: "{{instance.name}}"
+
+- name: launch an instance
+  os_server:
+    validate_certs: False
+    name: "{{name}}-{{item}}"
+    state: present
+    auth: "{{auth}}"
+    nics:
+      - net-id: "{{net_id}}"
+      #- net-name: "{{net_name}}"
+    image: "{{image}}"
+    flavor: "{{flavor}}"
+    key_name: "{{key_name}}"
+    security_groups: "{{security_groups}}"
+    auto_ip: no
+  register: instance_info
+  with_sequence: count={{instance.num_instances}}
+
+- shell: "grep -e {{name}} {{inventory_dir}}/hosts"
+  ignore_errors: True
+  register: hosts_file
+
+- shell: "echo [{{name}}] >> {{inventory_dir}}/hosts"
+  when: "{{hosts_file.rc}} != 0"
+
+  # - add_host: ansible_ssh_host={{ item.server.private_v4 }} groups={{name}}
+  # with_items: instance_info.results
+
+# - lineinfile: insertafter="[{{name}}]" line="{{instance_info.results[0].server.private_v4}}" dest="{{inventory_dir}}/hosts"
+#- lineinfile: insertafter="^{{name}}" line="{{item.server.private_v4}}" dest="{{inventory_dir}}/hosts"
+
+- lineinfile: insertafter="^{{name}}" line="{{item.server.networks.itervalues().next()[0]}}" dest="{{inventory_dir}}/hosts"
+  with_items: instance_info.results
