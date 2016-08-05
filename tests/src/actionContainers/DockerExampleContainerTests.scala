@@ -24,8 +24,10 @@ import spray.json.JsNumber
 import spray.json.JsObject
 import spray.json.JsString
 
+import common.WskActorSystem
+
 @RunWith(classOf[JUnitRunner])
-class DockerExampleContainerTests extends ActionProxyContainerTestUtils {
+class DockerExampleContainerTests extends ActionProxyContainerTestUtils with WskActorSystem {
 
     def withPythonContainer(code: ActionContainer => Unit) = withContainer("openwhisk/example")(code)
 

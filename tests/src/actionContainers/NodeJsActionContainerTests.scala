@@ -19,10 +19,11 @@ import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
 import ActionContainer.withContainer
+import common.WskActorSystem
 import spray.json._
 
 @RunWith(classOf[JUnitRunner])
-class NodeJsActionContainerTests extends BasicActionRunnerTests {
+class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSystem {
 
     lazy val nodejsContainerImageName = "whisk/nodejsaction"
 

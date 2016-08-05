@@ -26,8 +26,10 @@ import spray.json.JsObject
 import spray.json.JsString
 import spray.json.JsArray
 
+import common.WskActorSystem
+
 @RunWith(classOf[JUnitRunner])
-class ActionProxyContainerTests extends BasicActionRunnerTests {
+class ActionProxyContainerTests extends BasicActionRunnerTests with WskActorSystem {
 
     override def withActionContainer(env: Map[String, String] = Map.empty)(code: ActionContainer => Unit) = {
         withContainer("openwhisk/dockerskeleton", env)(code)

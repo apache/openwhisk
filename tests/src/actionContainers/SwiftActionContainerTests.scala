@@ -23,8 +23,10 @@ import ActionContainer.withContainer
 import spray.json.JsObject
 import spray.json.JsString
 
+import common.WskActorSystem
+
 @RunWith(classOf[JUnitRunner])
-class SwiftActionContainerTests extends BasicActionRunnerTests {
+class SwiftActionContainerTests extends BasicActionRunnerTests with WskActorSystem {
 
     // note: "out" will likely not be empty in some swift build as the compiler
     // prints status messages and there doesn't seem to be a way to quiet them

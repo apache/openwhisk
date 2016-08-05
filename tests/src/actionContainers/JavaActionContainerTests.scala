@@ -23,11 +23,12 @@ import org.scalatest.junit.JUnitRunner
 import spray.json._
 
 import ActionContainer.withContainer
+import common.WskActorSystem
 
 import collection.JavaConverters._
 
 @RunWith(classOf[JUnitRunner])
-class JavaActionContainerTests extends FlatSpec with Matchers {
+class JavaActionContainerTests extends FlatSpec with Matchers with WskActorSystem {
 
     // Helpers specific to javaaction
     def withJavaContainer(code: ActionContainer => Unit) = withContainer("whisk/javaaction")(code)
