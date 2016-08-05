@@ -1,7 +1,11 @@
 
 # Getting started with OpenWhisk
 
-OpenWhisk is a distributed, event-driven compute service. OpenWhisk executes application logic in response to events or direct invocations from web or mobile apps over HTTP. Events can be provided from Bluemix services like Cloudant, and from external sources. Developers can focus on writing application logic, and creating actions that are executed on demand. The rate of executing actions always matches the event rate, resulting in inherent scaling and resiliency, and optimal utilization. You pay for only what you use and you don't have to manage a server. You can also get the [source code](https://github.com/openwhisk/openwhisk) and run the system yourself.
+OpenWhisk is a distributed, event-driven compute service. 
+OpenWhisk runs application logic in response to events or direct invocations from web or mobile apps over HTTP.
+Events can be provided from Bluemix services like Cloudant and from external sources. Developers can focus on writing application logic, and creating actions that are executed on demand.
+The rate of executing actions always matches the event rate, resulting in inherent scaling and resiliency and optimal utilization. You pay for only what you use and you don't have to manage a server.
+You can also get the [source code](https://github.com/openwhisk/openwhisk) and run the system yourself.
 
 For more details about how OpenWhisk works, see [System overview](./about.md).
 
@@ -60,11 +64,12 @@ After you have configured your environment, you can begin using the OpenWhisk CL
 
 ## Using OpenWhisk from an iOS app
 
-You can use OpenWhisk from your iOS mobile app or Apple Watch by using the OpenWhisk iOS SDK. For more details refer to the [iOS documentation](./mobile_sdk.md).
+You can use OpenWhisk from your iOS mobile app or Apple Watch by using the OpenWhisk iOS SDK. For more details, refer to the [iOS documentation](./mobile_sdk.md).
 
 ## Using REST APIs with OpenWhisk
 
-After your OpenWhisk environment is enabled, you can use OpenWhisk with your web apps or mobile apps with REST API calls. For more details on the APIs for actions, activations, packages, rules, and triggers, see the [OpenWhisk API documentation](http://petstore.swagger.io/?url=https://raw.githubusercontent.com/openwhisk/openwhisk/master/core/controller/src/main/resources/whiskswagger.json).
+After your OpenWhisk environment is enabled, you can use OpenWhisk with your web apps or mobile apps with REST API calls.
+For more details about the APIs for actions, activations, packages, rules, and triggers, see the [OpenWhisk API documentation](http://petstore.swagger.io/?url=https://raw.githubusercontent.com/openwhisk/openwhisk/master/core/controller/src/main/resources/whiskswagger.json).
 
 ## OpenWhisk Hello World example
 To get started with OpenWhisk, try the following JavaScript code example.

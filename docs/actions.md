@@ -10,7 +10,7 @@ Actions can be composed of calls to other actions or a defined sequence of actio
 
 ## Creating and invoking JavaScript actions
 
-The following sections guide you through working with actions in JavaScript. Beginning with the creation and invocation of a simple action, you will move on to adding parameters to an action and invoking that action with parameters, setting default parameters and invoking them, creating asynchronous actions, and finally working with action sequences.
+The following sections guide you through working with actions in JavaScript. You begin with the creation and invocation of a simple action. Then, you move on to adding parameters to an action and invoking that action with parameters. Next is setting default parameters and invoking them. Then, you create asynchronous actions and, finally, work with action sequences.
 
 
 ### Creating and invoking a simple JavaScript action
@@ -18,7 +18,7 @@ The following sections guide you through working with actions in JavaScript. Beg
 Review the following steps and examples to create your first JavaScript action.
 
 1. Create a JavaScript file with the following content. For this example, the file name is 'hello.js'.
-
+  
   ```
   function main() {
       return {payload: 'Hello world'};
@@ -36,8 +36,8 @@ Review the following steps and examples to create your first JavaScript action.
   ok: created action hello
   ```
 
-3. List the actions you have created:
-
+3. List the actions that you have created:
+  
   ```
   $ wsk action list
   ```
@@ -104,7 +104,7 @@ Review the following steps and examples to create your first JavaScript action.
 Parameters can be passed to the action when it is invoked.
 
 1. Use parameters in the action. For example, update the 'hello.js' file with the following content:
-
+  
   ```
   function main(params) {
       return {payload:  'Hello, ' + params.name + ' from ' + params.place};
@@ -114,7 +114,7 @@ Parameters can be passed to the action when it is invoked.
   The input parameters are passed as a JSON object parameter to the `main` function. Notice how the `name` and `place` parameters are retrieved from the `params` object in this example.
 
 2. Update the `hello` action and invoke the action, while passing it `name` and `place` parameter values. See the following example:
-
+  
   ```
   $ wsk action update hello hello.js
   ```
@@ -134,14 +134,14 @@ Parameters can be passed to the action when it is invoked.
 Actions can be invoked with multiple named parameters. Recall that the `hello` action from the previous example expects two parameters: the *name* of a person, and the *place* where they're from.
 
 Rather than pass all the parameters to an action every time, you can bind certain parameters. The following example binds the *place* parameter so that the action defaults to the place "Vermont":
-
-1. Update the action using the `--param` option to bind parameter values.
+ 
+1. Update the action by using the `--param` option to bind parameter values.
 
   ```
   $ wsk action update hello --param place 'Vermont'
   ```
 
-2. Invoke the action, only passing the `name` parameter this time.
+2. Invoke the action, passing only the `name` parameter this time.
 
   ```
   $ wsk action invoke --blocking --result hello --param name 'Bernie'
@@ -152,9 +152,9 @@ Rather than pass all the parameters to an action every time, you can bind certai
   }
   ```
 
-  Note that you did not need to specify the place parameter when invoking the action. Bound parameters can still be overwritten by specifying the parameter value at invocation time.
+  Notice that you did not need to specify the place parameter when you invoked the action. Bound parameters can still be overwritten by specifying the parameter value at invocation time.
 
-3. Invoke the action, passing both `name` and `place` values. The latter overwrites the value bound to the action.
+3. Invoke the action, passing both `name` and `place` values. The latter overwrites the value that is bound to the action.
 
   ```
   $ wsk action invoke --blocking --result hello --param name 'Bernie' --param place 'Washington, DC'
@@ -227,14 +227,14 @@ JavaScript functions that run asynchronously may need to return the activation r
   }
   ```
 
-  Comparing the `start` and `end` timestamps in the activation record, you can see that this activation took slightly over twenty seconds to complete.
+  Comparing the `start` and `end` time stamps in the activation record, you can see that this activation took slightly over twenty seconds to complete.
 
 
 ### Using actions to call an external API
 
 The examples so far have been self-contained JavaScript functions. You can also create an action that calls an external API.
 
-This example invokes a Yahoo Weather service to get the current conditions at a specific location.
+This example invokes a Yahoo Weather service to get the current conditions at a specific location. 
 
 1. Save the following content in a file called `weather.js`.
   ```
@@ -285,7 +285,7 @@ You can create an action that chains together a sequence of actions.
 Several utility actions are provided in a package called `/whisk.system/util` that you can use to create your first sequence. You can learn more about packages in the [Packages](./packages.md) section.
 
 1. Display the actions in the `/whisk.system/util` package.
-
+  
   ```
   $ wsk package get --summary /whisk.system/util
   ```
@@ -301,7 +301,7 @@ Several utility actions are provided in a package called `/whisk.system/util` th
   You will be using the `split` and `sort` actions in this example.
 
 2. Create an action sequence so that the result of one action is passed as an argument to the next action.
-
+  
   ```
   $ wsk action create myAction --sequence /whisk.system/util/split,/whisk.system/util/sort
   ```
@@ -317,7 +317,7 @@ Several utility actions are provided in a package called `/whisk.system/util` th
   ```
 
 4. Invoke the action:
-
+  
   ```
   $ wsk action invoke --blocking --result myAction --param payload "$(cat haiku.txt)"
   ```
@@ -334,7 +334,7 @@ Several utility actions are provided in a package called `/whisk.system/util` th
 
   In the result, you see that the lines are sorted.
 
-**Note**: For more information on invoking action sequences with multiple named parameters, see [Setting default parameters](./actions.md#setting-default-parameters)
+**Note**: For more information about invoking action sequences with multiple named parameters, see [Setting default parameters](./actions.md#setting-default-parameters)
 
 
 ## Creating Python actions
@@ -343,7 +343,7 @@ The process of creating Python actions is similar to that of JavaScript actions.
 
 ### Creating and invoking an action
 
-An action is simply a top-level Python function, which means it is necessary to have a method named `main`. For example, create a file called
+An action is simply a top-level Python function, which means it is necessary to have a method that is named `main`. For example, create a file called
 `hello.py` with the following content:
 
 ```
@@ -363,7 +363,7 @@ follows:
 $ wsk action create helloPython hello.py
 ```
 
-When using the command line and a `.py` source file, you do not need to
+When you use the command line and a `.py` source file, you do not need to
 specify that you are creating a Python action (as opposed to a JavaScript action);
 the tool determines that from the file extension.
 
@@ -399,7 +399,7 @@ follows:
 $ wsk action create helloSwift hello.swift
 ```
 
-When using the command line and a `.swift` source file, you do not need to
+When you use the command line and a `.swift` source file, you do not need to
 specify that you are creating a Swift action (as opposed to a JavaScript action);
 the tool determines that from the file extension.
 
@@ -426,7 +426,7 @@ In order to compile, test and archive Java files, you must have a [JDK 8](http:/
 
 ### Creating and invoking an action
 
-A Java action is a Java program with a method called `main` that has the exact signature below:
+A Java action is a Java program with a method called `main` that has the exact signature as follows:
 ```
 public static com.google.gson.JsonObject main(com.google.gson.JsonObject);
 ```
@@ -435,39 +435,34 @@ For example, create a Java file called `Hello.java` with the following content:
 
 ```
 import com.google.gson.JsonObject;
-
 public class Hello {
-
     public static JsonObject main(JsonObject args) {
-
         String name = "stranger";
         if (args.has("name"))
             name = args.getAsJsonPrimitive("name").getAsString();
-
         JsonObject response = new JsonObject();
         response.addProperty("greeting", "Hello " + name + "!");
         return response;
-
     }
 }
 ```
 
-Then compile `Hello.java` into a jar file `hello.jar` as follows:
+Then, compile `Hello.java` into a JAR file `hello.jar` as follows:
 ```
 $ javac Hello.java
 $ jar cvf hello.jar Hello.class
-
 ```
-Note that [google-gson](https://github.com/google/gson) must exist in your Java CLASSPATH when compiling the Java file.
 
-You can create a OpenWhisk action called `helloJava` from this jar file as
+**Note:** [google-gson](https://github.com/google/gson) must exist in your Java CLASSPATH when compiling the Java file.
+
+You can create a OpenWhisk action called `helloJava` from this JAR file as
 follows:
 
 ```
 $ wsk action create helloJava hello.jar
 ```
 
-When using the command line and a `.jar` source file, you do not need to
+When you use the command line and a `.jar` source file, you do not need to
 specify that you are creating a Java action;
 the tool determines that from the file extension.
 
@@ -483,7 +478,7 @@ $ wsk action invoke --blocking --result helloJava --param name World
   }
 ```
 
-Note that if the jar file has more than one class with a main method matching required signature, the CLI tool will use the first one reported by `jar -tf`.
+**Note:** If the JAR file has more than one class with a main method matching required signature, the CLI tool uses the first one reported by `jar -tf`.
 
 ## Creating Docker actions
 
@@ -520,7 +515,7 @@ For the instructions that follow, assume that the user ID is "janesmith" and the
   ```
   ```
   #include <stdio.h>
-
+  
   int main(int argc, char *argv[]) {
       printf("{ \"msg\": \"Hello from arbitrary C program!\", \"args\": %s, \"argc\": %d }",
              (argc == 1) ? "undefined" : argv[1]);
@@ -541,7 +536,7 @@ For the instructions that follow, assume that the user ID is "janesmith" and the
   $ ./buildAndPush.sh janesmith/blackboxdemo
   ```
 
-  Note that part of the example.c file is compiled as part of the Docker image build process, so you do not need C compiled on your machine.
+  Notice that part of the example.c file is compiled as part of the Docker image build process, so you do not need C compiled on your machine.
 
 4. To create an action from a Docker image rather than a supplied JavaScript file, add `--docker` and replace the JavaScript file name with the Docker image name.
 
