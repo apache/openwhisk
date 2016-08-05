@@ -20,6 +20,8 @@ The bootstrapper machine could be your laptop, or it ideally is a Ubuntu 14.04 V
   (cd tools/ubuntu-setup && source all.sh)
   ```
 
+If you are deploying a distributed OpenWhisk across multiple VMs, follow the instructions in [ansible/README_DISTRIBUTED.md](../../ansible/README_DISTRIBUTED.md) to move further
+
 ### Select one type of data store when creating vm
 Follow instructions [tools/db/README.md](../db/README.md) on how to configure a data store for OpenWhisk.
 
@@ -33,9 +35,6 @@ Follow instructions [tools/db/README.md](../db/README.md) on how to configure a 
 ## Deploy
 
 If you want to deploy OpenWhisk locally in a single VM using Ansible, follow the instructions in [ansible/README.md](../../ansible/README.md) to deploy and teardown. 
-
-If you want to deploy a distributed OpenWhisk across multiple VMs, follow the instructions in [ansible/README_DISTRIBUTED.md](../../ansible/README_DISTRIBUTED.md) to deploy and teardown. 
-
 
 Once deployed, several Docker containers will be running in your deployment.
 You can check that containers are running by using the docker cli with the command  `docker ps`.

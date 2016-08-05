@@ -11,12 +11,12 @@ In all instructions, replace `<openwhisk_home>` with the base directory of your 
 
 Login to your bootsrapper VM. Your local machine can act as bootstrapper as well, if it can connect to other VMs.
 
-Install prereqs for ansible
+Install prereqs for Ansible Clous Module packages
 ```
 sudo apt-get -y install python-setuptools python-dev libssl-dev
 ```
 
-Install Ansible and cloud module packages:
+Install Ansible Cloud Module packages:
 ```
 sudo pip install shade pytz positional appdirs monotonic rfc3986
 ```
