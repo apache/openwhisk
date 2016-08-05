@@ -8,7 +8,7 @@ By default, if you omit the `-i` parameter in ansible commands, the `local` envi
 
 In all instructions, replace `<openwhisk_home>` with the base directory of your OpenWhisk source tree. e.g. `openwhisk`
 
-Login to your bootsrapper VM. Your local machine can act as the bootstrapping machine as well, if it can connect to the VMs deployed in your IaaS.
+Login to your bootstrapper VM. Your local machine can act as the bootstrapping machine as well, if it can connect to the VMs deployed in your IaaS.
 
 This installs modules and packages to be able to manage cloud instances via ansible.
 
