@@ -12,7 +12,6 @@ include 'core:javaAction'
 
 include 'services:consul'
 include 'services:kafka'
-include 'services:registrator'
 include 'services:zookeeper'
 
 include 'tools:cli'
