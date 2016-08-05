@@ -58,7 +58,7 @@ Then, run the following to boot instances and generate the respective hosts file
 ansible-playbook -i environments/distributed provision_env_dist.yml
 ```
 
-Ensure that the ansible vm can authenticate to the OpenWhisk VMs via SSH using the following command. If using a private key that is not in the default ~/.ssh folder, either add the parameter "--keyfile=/path/to/file.pem" to each ansible playbook command, or add "private_key_file=/path/to/file.pem" to ansible.cfg in the OpenWhisk ansible subdirectory.
+Ensure that the ansible VM can authenticate to the OpenWhisk VMs via SSH using the following command. If using a private key that is not in the default ~/.ssh folder, either add the parameter "--keyfile=/path/to/file.pem" to each ansible playbook command, or add "private_key_file=/path/to/file.pem" to ansible.cfg in the OpenWhisk ansible subdirectory.
 
 ```
 ansible all -i environments/distributed -m ping
