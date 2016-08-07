@@ -26,7 +26,7 @@ cd $ROOTDIR/ansible
 
 $ANSIBLE_CMD wipe.yml
 $ANSIBLE_CMD openwhisk.yml
-$ANSIBLE_CMD postdeploy.yml
+$ANSIBLE_CMD postdeploy.yml -e catalog_source=catalog-repos
 
 cd $ROOTDIR
 cat whisk.properties
