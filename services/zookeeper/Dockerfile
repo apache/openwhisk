@@ -1,4 +1,4 @@
-FROM whisk/scala
+FROM scala
 
 RUN wget --no-verbose -O - http://apache.mirrors.pair.com/zookeeper/zookeeper-3.4.6/zookeeper-3.4.6.tar.gz | tar -xzf - -C /opt \
     && mv /opt/zookeeper-3.4.6 /opt/zookeeper \

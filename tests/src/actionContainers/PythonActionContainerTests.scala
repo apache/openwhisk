@@ -28,10 +28,10 @@ import common.WskActorSystem
 class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSystem {
 
     override def withActionContainer(env: Map[String, String] = Map.empty)(code: ActionContainer => Unit) = {
-        withContainer("whisk/pythonaction", env)(code)
+        withContainer("pythonaction", env)(code)
     }
 
-    behavior of "whisk/pythonaction"
+    behavior of "pythonaction"
 
     testNotReturningJson(
         """

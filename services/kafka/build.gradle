@@ -1,3 +1,3 @@
-ext.dockerImageName = 'whisk/kafka'
+ext.dockerImageName = 'kafka'
 apply from: '../../gradle/docker.gradle'
 distDocker.dependsOn ':common:scala:distDocker'

@@ -1,4 +1,4 @@
-FROM whisk/scala
+FROM scala
 
 # Uncomment to fetch latest version of docker instead: RUN wget -qO- https://get.docker.com | sh
 # Install docker 1.9.0

@@ -1,4 +1,4 @@
-ext.dockerImageName = "whisk/go-cli"
+ext.dockerImageName = "go-cli"
 ext.dockerContainerName = "go-cli"
 apply from: '../../gradle/docker.gradle'
 
@@ -9,7 +9,7 @@ task removeBinary(type: Delete) {
 
 task distBinary(dependsOn: [removeBinary, distDocker]) << {
     run(dockerBinary + ["rm", "-f", dockerContainerName], true)
-    run(dockerBinary + ["run", "--name", dockerContainerName, dockerRegistry + dockerImageName + ":" + dockerImageTag])
+    run(dockerBinary + ["run", "--name", dockerContainerName, dockerTaggedImageName])
 
     // Copy all Go binaries from Docker into openwhisk/bin/go-cli folder
     run(dockerBinary + ["cp", dockerContainerName +
@@ -33,9 +33,7 @@ task copyCLIShortcut(type: Copy, dependsOn: [distBinary, dumpOSInfo]) {
 
     from from_path_wsk
     into to_path_dir
- }
-
-
+}
 
 pushImage.finalizedBy copyCLIShortcut
 

@@ -1,4 +1,4 @@
-FROM whisk/scala
+FROM scala
 
 ENV DEBIAN_FRONTEND noninteractive
 

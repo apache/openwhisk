@@ -25,7 +25,7 @@ import spray.json.JsObject
 @RunWith(classOf[JUnitRunner])
 class NodeJs6ActionContainerTests extends NodeJsActionContainerTests {
 
-    override lazy val nodejsContainerImageName = "whisk/nodejs6action"
+    override lazy val nodejsContainerImageName = "nodejs6action"
 
     behavior of nodejsContainerImageName
 
