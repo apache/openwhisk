@@ -472,7 +472,6 @@ public class WskCli {
         String result = cli(expectedCode, "rule", "create", "--auth", authKey, name, trigger, action).stdout;
         if (expectedCode == SUCCESS_EXIT) {
             assertTrue(result, result.contains("ok: created rule"));
-            enableRule(name, 30);
         }
     }
 

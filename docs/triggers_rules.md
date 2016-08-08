@@ -104,9 +104,14 @@ As an example, create a rule that calls the hello action whenever a location upd
   $ wsk action update hello hello.js
   ```
 
-3. Create and enable the rule. The three parameters are the name of the rule, the trigger, and the action.
+3. Create the rule. Note that the rule will be enabled upon creation, meaning that it will be immediately available to respond to activations of your trigger. The three parameters are the name of the rule, the trigger, and the action.
   ```
-  $ wsk rule create --enable myRule locationUpdate hello
+  $ wsk rule create myRule locationUpdate hello
+  ```
+
+At any time, you can choose to disable a rule.
+  ```
+  $ wsk rule disable myRule
   ```
 
 4. Fire the locationUpdate trigger. Each time that you fire an event, the hello action is called with the event parameters.

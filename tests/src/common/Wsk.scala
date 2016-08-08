@@ -346,19 +346,13 @@ class WskRule(override val usePythonCLI: Boolean = false)
         annotations: Map[String, JsValue] = Map(),
         shared: Option[Boolean] = None,
         update: Boolean = false,
-        enable: Boolean = false,
         expectedExitCode: Int = SUCCESS_EXIT)(
             implicit wp: WskProps): RunResult = {
         val params = Seq(noun, if (!update) "create" else "update", "--auth", wp.authKey, fqn(name), (trigger), (action)) ++
             { annotations flatMap { p => Seq("-a", p._1, p._2.compactPrint) } } ++
-            { if (enable) Seq("--enable") else Seq() } ++
             { shared map { s => Seq("--shared", if (s) "yes" else "no") } getOrElse Seq() }
         val result = cli(wp.overrides ++ params, expectedExitCode)
-        assert(result.stdout.contains("ok:"), result)
-        if (enable) {
-            val b = waitfor(() => checkRuleState(name, active = true), totalWait = 30 seconds)
-            assert(b)
-        }
+        if (expectedExitCode == SUCCESS_EXIT) assert(result.stdout.contains("ok:"), result)
         result
     }
 

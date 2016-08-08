@@ -351,8 +351,17 @@ class WskBasicTests
             assetHelper.withCleaner(wsk.rule, ruleName) {
                 (rule, name) =>
                     rule.create(name, trigger = triggerName, action = actionName)
-                    rule.create(name, trigger = triggerName, action = actionName, update = true)
             }
+
+            // to validate that the rule was created enabled, we do an update and expect CONFLICT
+            // (because rule updates against enabled rules must fail)
+            wsk.rule.create(ruleName, trigger = triggerName, action = actionName, update = true, expectedExitCode = CONFLICT)
+
+            // now, we disable the rule, so that we can perform the actual update
+            wsk.rule.disableRule(ruleName, 30 seconds);
+
+            // finally, we perform the update, and expect success this time
+            wsk.rule.create(ruleName, trigger = triggerName, action = actionName, update = true)
 
             val stdout = wsk.rule.get(ruleName).stdout
             stdout should include(ruleName)
