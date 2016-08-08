@@ -348,6 +348,14 @@ class WskBasicTests
             assetHelper.withCleaner(wsk.rule, ruleName) {
                 (rule, name) =>
                     rule.create(name, trigger = triggerName, action = actionName)
+
+                    // to validate that the rule was created enabled, we do an update and expect CONFLICT
+                    rule.create(name, trigger = triggerName, action = actionName, update = true, expectedExitCode = CONFLICT)
+
+                    // now, we disable the rule, so that we can perform the actual update
+                    rule.disableRule(name, 30 seconds);
+
+                    // finally, we perform the update, and expect success this time
                     rule.create(name, trigger = triggerName, action = actionName, update = true)
             }
 

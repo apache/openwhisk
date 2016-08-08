@@ -109,7 +109,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
                 val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
                 putEntity(WhiskRule, entityStore, docid, overwrite, update(content) _, () => { create(content, namespace, name) },
                     postProcess = Some { rule: WhiskRule =>
-                        completeAsRuleResponse(rule, Status.INACTIVE)
+                        completeAsRuleResponse(rule, Status.ACTIVE)
                     })
             }
         }
@@ -287,7 +287,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
                         content.publish getOrElse false,
                         content.annotations getOrElse Parameters())
 
-                    val triggerLink = ReducedRule(Namespace(actionName), Status.INACTIVE)
+                    val triggerLink = ReducedRule(Namespace(actionName), Status.ACTIVE)
                     val saveRule = WhiskTrigger.put(entityStore, trigger.addRule(Namespace(ruleName), triggerLink)) onComplete {
                         case Success(_) => predicate.success(rule)
                         case Failure(t) => predicate.failure(t)

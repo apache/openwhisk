@@ -354,7 +354,7 @@ class WskRule(override val usePythonCLI: Boolean = false)
             { if (enable) Seq("--enable") else Seq() } ++
             { shared map { s => Seq("--shared", if (s) "yes" else "no") } getOrElse Seq() }
         val result = cli(wp.overrides ++ params, expectedExitCode)
-        assert(result.stdout.contains("ok:"), result)
+        if (expectedExitCode == SUCCESS_EXIT) assert(result.stdout.contains("ok:"), result)
         if (enable) {
             val b = waitfor(() => checkRuleState(name, active = true), totalWait = 30 seconds)
             assert(b)
