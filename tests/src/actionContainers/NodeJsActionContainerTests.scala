@@ -25,7 +25,7 @@ import spray.json._
 @RunWith(classOf[JUnitRunner])
 class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSystem {
 
-    lazy val nodejsContainerImageName = "whisk/nodejsaction"
+    lazy val nodejsContainerImageName = "nodejsaction"
 
     override def withActionContainer(env: Map[String, String] = Map.empty)(code: ActionContainer => Unit) = {
         withContainer(nodejsContainerImageName, env)(code)

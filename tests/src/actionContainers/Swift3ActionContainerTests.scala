@@ -26,7 +26,7 @@ import spray.json.JsString
 class Swift3ActionContainerTests extends SwiftActionContainerTests {
 
     override val enforceEmptyOutputStream = false
-    override lazy val swiftContainerImageName = "whisk/swift3action"
+    override lazy val swiftContainerImageName = "swift3action"
 
     ignore should "properly use KituraNet and Dispatch" in {
         val (out, err) = withActionContainer() { c =>

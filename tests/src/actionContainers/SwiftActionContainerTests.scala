@@ -31,7 +31,7 @@ class SwiftActionContainerTests extends BasicActionRunnerTests with WskActorSyst
     // note: "out" will likely not be empty in some swift build as the compiler
     // prints status messages and there doesn't seem to be a way to quiet them
     val enforceEmptyOutputStream = true
-    lazy val swiftContainerImageName = "whisk/swiftaction"
+    lazy val swiftContainerImageName = "swiftaction"
 
     // Helpers specific to swiftaction
     override def withActionContainer(env: Map[String, String] = Map.empty)(code: ActionContainer => Unit) = {

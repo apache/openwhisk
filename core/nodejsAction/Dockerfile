@@ -1,4 +1,4 @@
-FROM whisk/nodejsactionbase
+FROM nodejsactionbase
 
 # based on https://github.com/nodejs/docker-node
 ENV NODE_VERSION 0.12.14

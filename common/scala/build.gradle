@@ -1,7 +1,7 @@
 apply plugin: 'scala'
 apply plugin: 'eclipse'
 
-ext.dockerImageName = 'whisk/scala'
+ext.dockerImageName = 'scala'
 apply from: '../../gradle/docker.gradle'
 
 repositories {

@@ -6,9 +6,11 @@
  * is automatically tagged and pushed if a tag and/or a registry is given.
  *
  * Parameters that can be set on project level:
- * - dockerImageName (required): The name of the image to build (e.g. whisk/controller)
+ * - dockerImageName (required): The name of the image to build (e.g. controller)
  * - dockerRegistry (optional): The registry to push to
  * - dockerImageTag (optional, default 'latest'): The tag for the image
+ * - dockerImagePrefix (optional, default 'whisk'): The prefix for the image,
+ *       'controller' becomes 'whisk/controller' per default
  * - dockerTimeout (optional, default 840): Timeout for docker operations in seconds
  * - dockerRetries (optional, default 3): How many times to retry docker operations
  * - dockerBinary (optional, default 'docker'): The binary to execute docker commands
@@ -20,11 +22,13 @@
 ext {
     dockerRegistry = project.hasProperty('dockerRegistry') ? dockerRegistry + '/' : ''
     dockerImageTag = project.hasProperty('dockerImageTag') ? dockerImageTag : 'latest'
+    dockerImagePrefix = project.hasProperty('dockerImagePrefix') ? dockerImagePrefix : 'whisk'
     dockerTimeout = project.hasProperty('dockerTimeout') ? dockerTimeout.toInteger() : 840
     dockerRetries = project.hasProperty('dockerRetries') ? dockerRetries.toInteger() : 3
     dockerBinary = project.hasProperty('dockerBinary') ? [dockerBinary] : ['docker']
     dockerBuildArg = ['build']
 }
+ext.dockerTaggedImageName = dockerRegistry + dockerImagePrefix + '/' + dockerImageName + ':' + dockerImageTag
 
 if(project.hasProperty('dockerHost')) {
     dockerBinary += ['--host', project.dockerHost]
@@ -35,16 +39,15 @@ if(project.hasProperty('dockerBuildArgs')) {
 }
 
 task distDocker << {
-    def cmd
-    cmd = dockerBinary + dockerBuildArg + ['-t', dockerImageName, project.buildscript.sourceFile.getParentFile().getAbsolutePath()]
+    def cmd = dockerBinary + dockerBuildArg + ['-t', dockerImageName, project.buildscript.sourceFile.getParentFile().getAbsolutePath()]
     retry(cmd, dockerRetries, dockerTimeout)
 }
 task tagImage << {
-    def cmd = dockerBinary + ['tag', '-f', dockerImageName, dockerRegistry + dockerImageName + ':' + dockerImageTag]
+    def cmd = dockerBinary + ['tag', '-f', dockerImageName, dockerTaggedImageName]
     retry(cmd, dockerRetries, dockerTimeout)
 }
 task pushImage << {
-    def cmd = dockerBinary + ['push', dockerRegistry + dockerImageName + ':' + dockerImageTag]
+    def cmd = dockerBinary + ['push', dockerTaggedImageName]
     retry(cmd, dockerRetries, dockerTimeout)
 }
 pushImage.dependsOn tagImage

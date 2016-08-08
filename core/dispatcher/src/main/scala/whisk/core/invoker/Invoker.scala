@@ -60,6 +60,7 @@ import whisk.connector.kafka.KafkaProducerConnector
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.consulServer
 import whisk.core.WhiskConfig.dockerRegistry
+import whisk.core.WhiskConfig.dockerImagePrefix
 import whisk.core.WhiskConfig.edgeHost
 import whisk.core.WhiskConfig.kafkaHost
 import whisk.core.WhiskConfig.logsDir
@@ -551,7 +552,8 @@ object Invoker {
     def requiredProperties = Map(
         servicePort -> 8080.toString(),
         logsDir -> null,
-        dockerRegistry -> null) ++
+        dockerRegistry -> null,
+        dockerImagePrefix -> null) ++
         WhiskAuthStore.requiredProperties ++
         WhiskEntityStore.requiredProperties ++
         WhiskActivationStore.requiredProperties ++

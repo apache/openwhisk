@@ -178,10 +178,10 @@ class ContainerPool(
      */
     @tailrec
     final def getImpl(position: Int, key: String, conMaker: () => ContainerResult)(implicit transid: TransactionId): Option[(Container, Option[RunResult])] = {
-        val positionInLine = position - completedPosition.cur  // this will be 1 if at the front of the line
+        val positionInLine = position - completedPosition.cur // this will be 1 if at the front of the line
         val available = slack()
-        if (positionInLine > available) {  // e.g. if there is 1 available, then I wait if I am second in line (positionInLine = 2)
-            Thread.sleep(50)               // TODO: replace with wait/notify but tricky to get right because of desire for maximal concurrency
+        if (positionInLine > available) { // e.g. if there is 1 available, then I wait if I am second in line (positionInLine = 2)
+            Thread.sleep(50) // TODO: replace with wait/notify but tricky to get right because of desire for maximal concurrency
         } else getOrMake(key, conMaker) match {
             case Success(con, initResult) =>
                 info(this, s"Obtained container ${con.containerId.getOrElse("unknown")}")
@@ -190,7 +190,7 @@ class ContainerPool(
                 error(this, s"Error starting container: $str")
                 return None
             case Busy() =>
-                // This will not cause a busy loop because only those that could be productive will get a chance
+            // This will not cause a busy loop because only those that could be productive will get a chance
         }
         getImpl(position, key, conMaker)
     }
@@ -451,7 +451,7 @@ class ContainerPool(
     }
 
     private def makeWarmNodejsContainer()(implicit transid: TransactionId): WhiskContainer = {
-        val imageName = WhiskAction.containerImageName(nodejsExec, config.dockerRegistry, config.dockerImageTag)
+        val imageName = WhiskAction.containerImageName(nodejsExec, config.dockerRegistry, config.dockerImagePrefix, config.dockerImageTag)
         val limits = ActionLimits(TimeLimit(), defaultMemoryLimit, LogLimit())
         val containerName = makeContainerName("warmJsContainer")
         val con = makeGeneralContainer(warmNodejsKey, containerName, imageName, limits)
@@ -477,7 +477,7 @@ class ContainerPool(
     private def makeWhiskContainer(action: WhiskAction, auth: WhiskAuth)(implicit transid: TransactionId): ContainerResult = {
         val imageName = getDockerImageName(action)
         val limits = action.limits
-        val nodeImageName = WhiskAction.containerImageName(nodejsExec, config.dockerRegistry, config.dockerImageTag)
+        val nodeImageName = WhiskAction.containerImageName(nodejsExec, config.dockerRegistry, config.dockerImagePrefix, config.dockerImageTag)
         val key = makeKey(action, auth)
         val warmedContainer = if (limits.memory == defaultMemoryLimit && imageName == nodeImageName) getWarmNodejsContainer(key) else None
         val containerName = makeContainerName(action)
@@ -493,13 +493,13 @@ class ContainerPool(
         val network = config.invokerContainerNetwork
         val policy = config.invokerContainerPolicy
         val env = getContainerEnvironment()
-        val pull = !imageName.contains("whisk/")
+        val pull = !imageName.contains(config.dockerImagePrefix + "/")
         // This will start up the container
         if (pull) runDockerPull {
             ContainerUtils.pullImage(dockerhost, imageName)
         }
         runDockerOp {
-            new WhiskContainer(transid, this, key, containerName, imageName, network, policy, env, limits)
+            new WhiskContainer(transid, this, key, containerName, imageName, network, policy, env, limits, isBlackbox = pull)
         }
     }
 
@@ -543,7 +543,7 @@ class ContainerPool(
     }
 
     private def getDockerImageName(action: WhiskAction): String = {
-        val imageName = action.containerImageName(config.dockerRegistry, config.dockerImageTag)
+        val imageName = action.containerImageName(config.dockerRegistry, config.dockerImagePrefix, config.dockerImageTag)
         info(this, s"Using image ${imageName}")
         imageName
     }

@@ -2,7 +2,7 @@
 # 
 # Runs on Oracle Java 8 and a Ubuntu 14.04
 #
-FROM whisk/scala
+FROM scala
 
 # kludge for https://github.com/docker/docker/issues/14203
 ENV DOCKER_FIX '                                             '

@@ -1,3 +1,5 @@
-ext.dockerImageName = 'openwhisk/example'
+ext.dockerImagePrefix = 'openwhisk'
+ext.dockerImageName = 'example'
+
 apply from: '../../gradle/docker.gradle'
 distDocker.dependsOn ':core:actionProxy:distDocker'

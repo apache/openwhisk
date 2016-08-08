@@ -6,7 +6,8 @@ eclipse {
     }
 }
 
-ext.dockerImageName = 'whisk/cli'
+ext.dockerImageName = 'cli'
+ext.dockerContainerName = 'cli'
 apply from: '../../gradle/docker.gradle'
 
 task clean(type: Delete) {
@@ -36,18 +37,18 @@ task establishStructure(type: Copy) {
 distDocker.dependsOn(establishStructure)
 
 task distTar(dependsOn: [removeDistribution, distDocker]) << {
-    run("docker rm -f cli", true) // Ignore error as this is a cleanup measure
-    run("docker run --name cli whisk/cli")
-    run("docker cp cli:/cli/dist/ \"${buildDir}/distributions/\"")
-    run("docker rm -f cli")
+    run(dockerBinary + ["rm", "-f", dockerContainerName], true)
+    run(dockerBinary + ["run", "--name", dockerContainerName, dockerTaggedImageName])
+    run(dockerBinary + ["cp", dockerContainerName + ":/cli/dist/", "${buildDir}/distributions/"])
+    run(dockerBinary + ["rm", "-f", dockerContainerName])
 }
 pushImage.finalizedBy(distTar)
 
 def run(cmd, ignoreError = false) {
-    println("Executing '${cmd}'")
+    println("Executing '${cmd.join(" ")}'")
     def proc = cmd.execute()
     proc.waitFor()
     if(!ignoreError && proc.exitValue() != 0) {
-        println("Command '${cmd}' failed with exitCode ${proc.exitValue()}")
+        println("Command '${cmd.join(" ")}' failed with exitCode ${proc.exitValue()}")
     }
 }

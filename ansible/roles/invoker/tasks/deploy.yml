@@ -3,13 +3,13 @@
 
 - set_fact:
      imagesToPull:
-      - 'whisk/dispatcher'
-      - 'whisk/nodejsaction'
-      - 'whisk/nodejs6action'
-      - 'whisk/pythonaction'
-      - 'whisk/swiftaction'
-      - 'whisk/swift3action'
-      - 'whisk/javaaction'
+      - '{{ docker_image_prefix }}/dispatcher'
+      - '{{ docker_image_prefix }}/nodejsaction'
+      - '{{ docker_image_prefix }}/nodejs6action'
+      - '{{ docker_image_prefix }}/pythonaction'
+      - '{{ docker_image_prefix }}/swiftaction'
+      - '{{ docker_image_prefix }}/swift3action'
+      - '{{ docker_image_prefix }}/javaaction'
 
 - name: "pull action images with tag {{docker_image_tag}}"
   shell: "docker pull {{docker_registry}}{{item}}:{{docker_image_tag}}"
@@ -19,7 +19,7 @@
 - name: (re)start invoker
   docker:
     name: "invoker{{play_hosts.index(inventory_hostname)}}"
-    image: "{{docker_registry}}whisk/dispatcher:{{docker_image_tag}}"
+    image: "{{docker_registry}}{{ docker_image_prefix }}/dispatcher:{{docker_image_tag}}"
     state: reloaded
     restart_policy: "{{docker.restart.policy}}"
     hostname: "invoker{{play_hosts.index(inventory_hostname)}}"
