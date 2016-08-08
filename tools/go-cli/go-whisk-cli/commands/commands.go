@@ -30,6 +30,11 @@ import (
 var client *whisk.Client
 
 func setupClientConfig(cmd *cobra.Command, args []string) (error){
+    if(Properties.APIHost == "") {
+        errStr := "Cannot perform operation because an API host is not set"
+        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+        return werr
+    }
     var apiHostBaseUrl = fmt.Sprintf("https://%s/api/", Properties.APIHost)
 
     baseURL, err := url.Parse(apiHostBaseUrl)
