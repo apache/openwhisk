@@ -77,7 +77,7 @@ trait PrintStreamEmitter {
 
         val logMessage = Seq(message).filter(_.trim.nonEmpty)
 
-        val parts = Seq(s"[$time]", s"[$level]", s"[$id]") ++ component ++ Seq(s"[$name]") ++ marker ++ Seq(logMessage)
+        val parts = Seq(s"[$time]", s"[$level]", s"[$id]") ++ component ++ Seq(s"[$name]") ++ logMessage ++ marker
         outputStream.println(parts.mkString(" "))
     }
 }
