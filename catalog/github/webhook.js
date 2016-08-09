@@ -27,12 +27,11 @@ function main(params) {
     }
   }
 
-  var endpoint = 'openwhisk.ng.bluemix.net';
   var lifecycleEvent = params.lifecycleEvent;
   var triggerName = params.triggerName.split("/");
 
     // URL of the whisk system. The calls of github will go here.
-  var whiskCallbackUrl = 'https://' + whisk.getAuthKey() + "@" + endpoint + '/api/v1/namespaces/' + encodeURIComponent(triggerName[1]) + '/triggers/' + encodeURIComponent(triggerName[2]);
+  var whiskCallbackUrl = 'https://' + whisk.getAuthKey() + "@" + params.endpoint + '/api/v1/namespaces/' + encodeURIComponent(triggerName[1]) + '/triggers/' + encodeURIComponent(triggerName[2]);
 
     // The URL to create the webhook on Github
   var registrationEndpoint = 'https://api.github.com/repos/' + (organization ? organization : username) + '/' + repository + '/hooks';
@@ -87,6 +86,61 @@ function main(params) {
       }
     });
 
+    return whisk.async();
+  } else if(lifecycleEvent === 'DELETE') {
+    //list all the existing webhooks first.
+    var options = {
+        method: 'GET',
+        url: registrationEndpoint,
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': authorizationHeader,
+            'User-Agent': 'whisk'
+        }
+    }
+
+    request(options, function(error, response, body){
+      if (error){
+        whisk.error({
+          response: response,
+          error:error,
+          body:body
+        });
+      } else {
+        for(i=0; i<body.length;i++){
+            if (body[i].config.url == decodeURIComponent(whiskCallbackUrl)) {
+                var options = {
+                    method: 'DELETE',
+                    url: body[i].url,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': authorizationHeader,
+                        'User-Agent': 'whisk'
+                    }
+                }
+
+                request(options, function(error, response, body) {
+                    if (error) {
+                        whisk.error({
+                          response: response,
+                          error:error,
+                          body:body
+                        });
+                    } else {
+                        console.log("Status code: " + response.statusCode);
+                        if(response.statusCode >= 400) {
+                            console.log("Response from Github: " + body);
+                            whisk.error({
+                                statusCode: response.statusCode,
+                                response: body
+                            });
+                        }
+                    }
+                });
+            }
+        }
+      }
+    });
     return whisk.async();
   }
 
