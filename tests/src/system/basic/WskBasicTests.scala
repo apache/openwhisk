@@ -349,7 +349,7 @@ class WskBasicTests
                 (rule, name) =>
                     rule.create(name, trigger = triggerName, action = actionName)
             }
-            
+
             // to validate that the rule was created enabled, we do an update and expect CONFLICT
             // (because rule updates against enabled rules must fail)
             wsk.rule.create(ruleName, trigger = triggerName, action = actionName, update = true, expectedExitCode = CONFLICT)
