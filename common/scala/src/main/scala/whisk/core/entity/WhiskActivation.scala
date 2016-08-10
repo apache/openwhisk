@@ -57,7 +57,7 @@ import whisk.core.database.DocumentFactory
 case class WhiskActivation(
     namespace: Namespace,
     override val name: EntityName,
-    subject: Subject,
+    subject: Subject,        // the user running the activation
     activationId: ActivationId,
     start: Instant,
     end: Instant,

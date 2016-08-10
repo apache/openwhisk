@@ -109,8 +109,9 @@ protected[core] object Collection {
 
     protected[core] def apply(name: String) = collections.get(name).get
 
+
     protected[core] def initialize(entityStore: EntityStore, verbosity: LogLevel) = {
-        register(new Collection(ACTIONS))
+        register(new ActionCollection(entityStore))
         register(new Collection(TRIGGERS))
         register(new Collection(RULES))
         register(new PackageCollection(entityStore))

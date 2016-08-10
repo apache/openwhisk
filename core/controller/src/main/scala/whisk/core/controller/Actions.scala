@@ -16,6 +16,9 @@
 
 package whisk.core.controller
 
+import java.time.Clock
+import java.time.Instant
+
 import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.TimeoutException
@@ -32,6 +35,7 @@ import spray.http.HttpMethods.PUT
 import spray.http.StatusCodes.BadGateway
 import spray.http.StatusCodes.BadRequest
 import spray.http.StatusCodes.InternalServerError
+import spray.http.StatusCodes.NotFound
 import spray.http.StatusCodes.OK
 import spray.http.StatusCodes.Accepted
 import spray.http.StatusCodes.TooManyRequests
@@ -46,6 +50,8 @@ import whisk.common.StartMarker
 import whisk.common.TransactionId
 import whisk.core.database.NoDocumentException
 import whisk.core.entity.ActionLimits
+import whisk.core.entity.ActivationLogs
+import whisk.core.entity.ActivationResponse
 import whisk.core.entity.ActivationId
 import whisk.core.entity.DocId
 import whisk.core.entity.DocInfo
@@ -78,6 +84,7 @@ import whisk.http.ErrorResponse.terminate
 import whisk.common.PrintStreamEmitter
 import org.apache.kafka.common.errors.RecordTooLargeException
 import whisk.utils.ExecutionContextFactory.FutureExtensions
+import whisk.http.ErrorResponse
 
 /**
  * A singleton object which defines the properties that must be present in a configuration
@@ -87,12 +94,15 @@ object WhiskActionsApi {
     def requiredProperties = WhiskServices.requiredProperties ++
         WhiskEntityStore.requiredProperties ++
         WhiskActivationStore.requiredProperties
+
+    val sequenceHackFlag = false   // a temporary flag that disables the old hack that runs sequences using Pipe.js
 }
 
 /** A trait implementing the actions API. */
 trait WhiskActionsApi extends WhiskCollectionAPI {
     services: WhiskServices =>
 
+    // special collection to deal with potential sequences
     protected override val collection = Collection(Collection.ACTIONS)
 
     /** An actor system for timed based futures. */
@@ -157,7 +167,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                         val packageDocId = DocId(WhiskEntity.qualifiedName(ns, EntityName(outername)))
                         val packageResource = Resource(ns, Collection(Collection.PACKAGES), Some(outername))
                         m match {
-                            case GET | POST =>
+                            case GET =>
                                 // need to merge package with action, hence authorize subject for package
                                 // access (if binding, then subject must be authorized for both the binding
                                 // and the referenced package)
@@ -165,13 +175,23 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                                 // NOTE: it is an error if either the package or the action does not exist,
                                 // the former manifests as unauthorized and the latter as not found
                                 //
-                                // a GET (READ) and POST (ACTIVATE) resolve to a READ right on the package;
-                                // it may be desirable to separate these but currently the PACKAGES collection
-                                // does not allow ACTIVATE since it does not make sense to activate a package
-                                // but rather an action in the package
+                                // it used to be that a GET (READ) and POST (ACTIVATE) resolve to
+                                // a READ right on the package before sequences were introduced as first class
                                 authorizeAndContinue(Privilege.READ, user.subject, packageResource, next = () => {
                                     getEntity(WhiskPackage, entityStore, packageDocId, Some {
                                         mergeActionWithPackageAndDispatch(m, user, EntityName(innername)) _
+                                    })
+                                })
+                            case POST =>
+                                // this is an activate on an action that contains a package
+                                // two sets of rights need to be checked:
+                                // read rights for the package and activate rights for the action
+                                authorizeAndContinue(Privilege.READ, user.subject, packageResource, next = () => { // package
+                                    val actionResource = Resource(ns, Collection(Collection.ACTIONS), Some(innername))
+                                    authorizeAndContinue(Privilege.ACTIVATE, user.subject, actionResource, next = () => { // action
+                                        getEntity(WhiskPackage, entityStore, packageDocId, Some {
+                                            mergeActionWithPackageAndDispatch(m, user, EntityName(innername)) _
+                                        })
                                     })
                                 })
                             case PUT | DELETE =>
@@ -236,7 +256,13 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                 getEntity(WhiskAction, entityStore, docid, Some {
                     action: WhiskAction =>
                         transid.started(this, if (blocking) LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING else LoggingMarkers.CONTROLLER_ACTIVATION)
-                        val postToLoadBalancer = postInvokeRequest(user.subject, action, env, payload, blocking)
+                        // check whether activating a sequence
+                        val postToLoadBalancer = {
+                            action.exec match {
+                                case SequenceExec(_, components) => invokeSequence(user.subject, action, env, payload, blocking, components)
+                                case _ => postInvokeRequest(user.subject, action, env, payload, blocking)
+                            }
+                        }
                         onComplete(postToLoadBalancer) {
                             case Success((activationId, None)) =>
                                 // non-blocking invoke or blocking invoke which got queued instead
@@ -268,6 +294,22 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                             case Failure(t: RecordTooLargeException) =>
                                 info(this, s"[POST] action payload was too large")
                                 terminate(RequestEntityTooLarge)
+                            case Failure(SequenceIntermediateActionError(component)) =>
+                                // an action within a sequence produced a json with a field 'error'
+                                info(this, s"[POST] sequence execution intermediate action error for $component")
+                                terminate(BadGateway,
+                                          Some(ErrorResponse(s"sequence execution intermediate action error for $component",
+                                                        transid)))
+                            case Failure(SequenceComponentRetrieveException(component)) =>
+                                // retrieving the action entity for one of the actions failed
+                                info(this, s"[POST] sequence action retrieve entity failed for $component")
+                                terminate(NotFound,
+                                          Some(ErrorResponse(s"sequence action retrieve entity failed for $component", transid)))
+                            case Failure(SequenceActionTimeout(component)) =>
+                                info(this, s"[POST] sequence action timeout for $component")
+                                terminate(BadGateway,
+                                          Some(ErrorResponse(s"sequence action timeout for $component",
+                                                        transid)))
                             case Failure(t: Throwable) =>
                                 error(this, s"[POST] action activation failed: ${t.getMessage}")
                                 terminate(InternalServerError, t.getMessage)
@@ -352,10 +394,12 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
             // This is temporary while we are making sequencing directly supported in the controller.
             // The parameter override allows this to work with Pipecode.code. Any parameters other
             // than the action sequence itself are discarded and have no effect.
-            val parameters = exec match {
-                case seq: SequenceExec => Parameters("_actions", JsArray(seq.components map { JsString(_) }))
-                case _                 => content.parameters getOrElse Parameters()
-            }
+            val parameters = if (WhiskActionsApi.sequenceHackFlag) {
+                                exec match {
+                                    case seq: SequenceExec => Parameters("_actions", JsArray(seq.components map { JsString(_) }))
+                                    case _                 => content.parameters getOrElse Parameters()
+                                }
+                            } else content.parameters getOrElse Parameters()
 
             WhiskAction(
                 namespace,
@@ -385,20 +429,23 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         // If updating an action but not specifying a new exec type, then preserve the previous parameters if the
         // existing type of the action is a sequence (regardless of what parameters may be defined in the content)
         // otherwise, parameters are inferred from the content or previous values.
-        val parameters = content.exec map {
-            case seq: SequenceExec => Parameters("_actions", JsArray(seq.components map { JsString(_) }))
-            case _ => content.parameters getOrElse {
-                action.exec match {
-                    case seq: SequenceExec => Parameters()
-                    case _                 => action.parameters
-                }
-            }
-        } getOrElse {
-            action.exec match {
-                case seq: SequenceExec => action.parameters // discard content.parameters
-                case _                 => content.parameters getOrElse action.parameters
-            }
-        }
+        // TODO: fix sequence
+        val parameters = if (WhiskActionsApi.sequenceHackFlag) {
+                            content.exec map {
+                                    case seq: SequenceExec => Parameters("_actions", JsArray(seq.components map { JsString(_) }))
+                                    case _ => content.parameters getOrElse {
+                                        action.exec match {
+                                            case seq: SequenceExec => Parameters()
+                                            case _                 => action.parameters
+                                        }
+                                    }
+                                } getOrElse {
+                                    action.exec match {
+                                        case seq: SequenceExec => action.parameters // discard content.parameters
+                                        case _                 => content.parameters getOrElse action.parameters
+                                    }
+                                }
+                         } else content.parameters getOrElse action.parameters
 
         WhiskAction(
             action.namespace,
@@ -482,6 +529,226 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                     (activationId, None)
                 }
         }
+    }
+
+
+    /**
+     * Executes a sequence by invoking in a blocking function each of its components.
+     *
+     * @param subject the subject invoking the action
+     * @param docid the action document id
+     * @param env the merged parameters from the package/reference if any
+     * @param payload the dynamic arguments for the activation
+     * @param blocking true iff this is a blocking invoke
+     * @param components the actions in the sequence
+     * @param transid a transaction id for logging
+     * @return a promise that completes with (ActivationId, Some(WhiskActivation)) if blocking else (ActivationId, None)
+     */
+    private def invokeSequence(
+        user: Subject,
+        action: WhiskAction,
+        env: Option[Parameters],
+        payload: Option[JsObject],
+        blocking: Boolean,
+        components: Seq[String])(
+            implicit transid: TransactionId): Future[(ActivationId, Option[WhiskActivation])] = {
+        val promise = Promise[(ActivationId, Option[WhiskActivation])]
+        invokeSequenceComponents(promise, action, user, env, payload, components)
+        return promise.future
+    }
+
+    /**
+     * Invoke one component action from a sequence iff the payload does not contain a field 'error'.
+     * The component action can be a sequence or an atomic action.
+     * @param action the action to be invoked
+     * @param user the user on behalf the action is executing
+     * @param env
+     * @param payload the payload for the executing action
+     * @param activationId the id of the activation that executed previously in the sequence
+     * @return the activation id and the result of the action
+     */
+    private def invokeOneComponent(
+            action: WhiskAction,
+            user: Subject,
+            env: Option[Parameters],
+            payload: Option[JsObject],
+            activationId: Option[ActivationId])(
+                    implicit transid: TransactionId): Future[(Option[ActivationId], Option[JsObject])] = {
+        // check if there is any payload; if payload is None wait for the result of the previous activation
+        val paramsFuture: Future[Option[JsObject]] = if (payload == None) {
+            if (activationId == None) {
+                // this should never happen: the first action in a sequence with no payload
+                Future failed { new RuntimeException("Error: trying to execute a sequence with no payload")}
+            }
+            val activationIdVal = activationId.get
+            // wait for result for previous activation
+            val docid = DocId(WhiskEntity.qualifiedName(user.namespace, activationIdVal))
+            val timeout = action.limits.timeout() + blockingInvokeGrace
+            val promise = Promise[Option[WhiskActivation]]
+            info(this, s"Sequence execution: action activation will block on result up to $timeout")
+            pollLocalForResult(docid.asDocInfo, activationIdVal, promise)
+            val result =  promise.future withTimeout (timeout, new BlockingInvokeTimeout(activationIdVal))
+            result map {
+                wskActivation => {
+                    wskActivation flatMap {act => act.response.result map {_.asJsObject}}
+                }
+            }
+        } else Future successful {payload}
+
+        paramsFuture flatMap {
+            params =>
+                if (params == None)
+                    Future failed { new RuntimeException("Error: previous action in sequence produced no result")}
+                // if the payload contains error, don't execute anything, return nothing
+                if (params.get.getFields("error").size > 0)
+                    Future failed SequenceIntermediateActionError(action.name.toString)
+                (action.exec match {
+                    case SequenceExec(_, components) =>
+                        // invoke of a sequence
+                        info(this, s"sequence invoking an enclosing sequence $action")
+                        invokeSequence(user, action, env, params, true, components)
+                    case _ =>
+                        // this is a simple invoke --- blocking
+                        info(this, s"sequence invoking an enclosing atomic action $action")
+                        postInvokeRequest(user, action, env, params, true)
+                }) map {res => (Some(res._1), res._2 flatMap {_.response.result map {_.asJsObject}})}
+        }
+    }
+
+    private def invokeSequenceComponents(
+            promise: Promise[(ActivationId, Option[WhiskActivation])],
+            seqAction: WhiskAction,
+            user: Subject,
+            env: Option[Parameters],
+            payload: Option[JsObject],
+            components: Seq[String])(
+                implicit transid: TransactionId) = {
+        // create new activation id that corresponds to the sequence
+        val seqActivationId = ActivationId()
+        // TODO: shall I replace (start, end) with (start-of-first-activation, end-of-last-activation)?
+        val start = Instant.now(Clock.systemUTC())
+        // first retrieve the information/entities on all actions
+        // do not wait to successfully retrieve all the actions before starting the execution
+        // start execution of the first action while potentially still retrieving entities
+        // Note: the execution starts even if one of the futures retrieving an entity may fail
+        val futureActions = components map { c => WhiskAction.get(entityStore, DocInfo(c)) }
+        // "fold" the wskActions to execute them in blocking fashion
+        // the params are the payload/params and the list of the previous activation ids
+        val init = Future successful {(payload, Seq.empty[Option[ActivationId]])}
+        // use scanLeft instead of foldLeft as I need the intermediate results in case of failure
+        val seqRes = futureActions.scanLeft(init) {
+            (futurePair, futureWskAction)  =>
+                  for(
+                      wskAction <- futureWskAction;
+                      pair <- futurePair;
+                      (params, seq0) = pair;
+                      activationId = if (seq0.isEmpty) None else seq0.last;
+                      result <- invokeOneComponent(wskAction, user, env, params, activationId);
+                      seq = seq0 :+ result._1
+                  ) yield (result._2, seq)
+        }
+        // check if the last one is successful, that means everything worked great
+        val futureRes = Future.sequence(seqRes)
+        futureRes onComplete {
+            case Success(seq) =>
+                // all went well, get the last result (remember this was the seq produced by a scanLeft)
+                val result = seq.last._1.get
+                val ids = seq.last._2 map {_.get}
+                storeSequenceResults(user, seqAction, seqActivationId, ids, result, start, Instant.now(Clock.systemUTC()))
+            case Failure(SequenceIntermediateActionError(component)) =>
+                val component = storeIntermediateResults(user, seqAction, components, seqActivationId, seqRes, start) getOrElse seqAction.name.name
+                info(this, s"The execution of a sequence failed with an error for action $component")
+                promise.failure(SequenceIntermediateActionError(component))
+            case Failure(x) if x.isInstanceOf[NoDocumentException] |
+                               x.isInstanceOf[IllegalArgumentException] =>
+                // retrieve document failure
+                val component = storeIntermediateResults(user, seqAction, components, seqActivationId, seqRes, start)
+                info(this, s"Sequence error while retrieving action entity for component $component")
+                promise.failure(SequenceComponentRetrieveException(component.toString))
+            case Failure(BlockingInvokeTimeout(_)) =>
+                // one of the actions took too long to execute
+                val component = storeIntermediateResults(user, seqAction, components, seqActivationId, seqRes, start)
+                info(this, s"Sequence error action took too long to execute $component")
+                promise.failure(SequenceActionTimeout(component.toString))
+            case Failure(x: Throwable) =>
+                // who knows what happened...
+                info(this, s"Error while executing sequence $seqAction")
+                promise.failure(x)
+        }
+    }
+
+    /**
+     * store intermediate results (result, logs) for a sequence that failed execution
+     * @param user the user who run the activation/action
+     * @param action the sequence action
+     * @param components the components that form the sequence
+     * @param activationId the activation id for the sequence
+     * @param seq a sequence with the results of the (partial) execution of the sequence
+     * @param start the start timestamp for this activation
+     * @return the component for which the failure happened
+     */
+    def storeIntermediateResults(
+            user: Subject,
+            action: WhiskAction,
+            components: Seq[String],
+            activationId: ActivationId,
+            seq: Seq[Future[(Option[JsObject], Seq[Option[ActivationId]])]],
+            start: Instant)(
+                implicit transid: TransactionId): Option[String] = {
+        // the end could make it tighter: TODO where to move this?
+        val end = Instant.now(Clock.systemUTC())
+        // find the activation that failed
+        val index = seq.indexWhere(_.isInstanceOf[Future[Any]])
+        if (index == -1) {
+            // nothing to store really
+            storeSequenceResults(user, action, activationId, Seq.empty[ActivationId], JsObject.empty, start, end)
+            None
+        }
+        // the result of the execution is just the previous entry
+        // this future should be Successful (the last successful future before the first failed one)
+        val result = seq(index - 1)
+        // store the sequence results
+        result onSuccess {
+            case tuple =>
+                val result = tuple._1.get
+                val ids = tuple._2 map {_.get}
+                storeSequenceResults(user, action, activationId, ids, result, start, end)
+        }
+        // return the component that failed
+        Some(components(index))
+    }
+
+    /**
+     * store the activation of a sequence
+     */
+    def storeSequenceResults(
+            user: Subject,
+            action: WhiskAction,
+            activationId: ActivationId,
+            ids: Seq[ActivationId],
+            result: JsObject,
+            start: Instant,
+            end: Instant,
+            error: Boolean = false,
+            errorRes: Option[ActivationResponse] = None)(
+                implicit transid: TransactionId) = {
+        // compose logs
+        val logs = ActivationLogs((ids map { _.toString}).toVector)
+        // create the whisk activation
+        val activation = WhiskActivation(
+                action.namespace,
+                action.name,
+                user,
+                activationId,
+                start,
+                end,
+                None, // how do I populate the cause???
+                if (error) errorRes getOrElse ActivationResponse.whiskError("Sequence error") else ActivationResponse.success(Some(result)),
+                logs,
+                action.version,
+                action.publish,
+                action.parameters ++ Parameters("kind", "sequence"));
+        WhiskActivation.put(activationStore, activation)
     }
 
     /**
@@ -601,5 +868,13 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
     private val blockingInvokeGrace = 5 seconds
 }
 
+// exceptions that can arise in Futures dealing with action invocation
 private case class BlockingInvokeTimeout(activationId: ActivationId) extends TimeoutException
 protected[controller] case class TooManyActivationException(subject: String) extends Exception
+// exceptions that can arise when dealing with the execution of a sequence
+// retrieving one of the actions within a sequence fails
+private case class SequenceComponentRetrieveException(component: String) extends Exception
+// the execution of an action within a sequence leads to producing a dictionary that contains an "error" field
+private case class SequenceIntermediateActionError(component: String) extends Exception
+// the execution of an action within a sequence took too long
+private case class SequenceActionTimeout(component: String) extends Exception
