@@ -11,7 +11,7 @@ tools/build/scanCode.py .
 
 cd $ROOTDIR/ansible
 
-ANSIBLE_CMD="ansible-playbook -i environments/travis"
+ANSIBLE_CMD="ansible-playbook -i environments/local"
 
 $ANSIBLE_CMD setup.yml
 $ANSIBLE_CMD prereq.yml
