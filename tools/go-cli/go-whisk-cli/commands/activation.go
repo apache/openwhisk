@@ -123,10 +123,10 @@ var activationGetCmd = &cobra.Command{
 
         if flags.common.summary {
             fmt.Printf("activation result for /%s/%s (%s at %s)\n", activation.Namespace, activation.Name, activation.Response.Status, time.Unix(activation.End/1000, 0))
-            printJsonNoColor(activation.Response.Result)
+            printJSON(activation.Response.Result)
         } else {
             fmt.Fprintf(color.Output, "%s got activation %s\n", color.GreenString("ok:"), boldString(id))
-            printJsonNoColor(activation)
+            printJSON(activation)
         }
 
         return nil
@@ -184,7 +184,7 @@ var activationResultCmd = &cobra.Command{
             return werr
         }
 
-        printJsonNoColor(result.Result)
+        printJSON(result.Result)
         return nil
     },
 }
@@ -288,7 +288,7 @@ var activationPollCmd = &cobra.Command{
                     continue
                 } else {
                     fmt.Printf("\nActivation: %s (%s)\n", activation.Name, activation.ActivationID)
-                    printJsonNoColor(activation.Logs)
+                    printJSON(activation.Logs)
                     reported[activation.ActivationID] = true
                 }
             }

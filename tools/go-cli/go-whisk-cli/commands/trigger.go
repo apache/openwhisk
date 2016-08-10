@@ -362,7 +362,7 @@ var triggerUpdateCmd = &cobra.Command{
         }
 
         fmt.Fprintf(color.Output, "%s updated trigger %s\n", color.GreenString("ok:"), boldString(trigger.Name))
-        printJsonNoColor(retTrigger)
+        printJSON(retTrigger)
         return nil
     },
 }
@@ -407,8 +407,13 @@ var triggerGetCmd = &cobra.Command{
             return werr
         }
 
-        fmt.Fprintf(color.Output, "%s got trigger %s\n", color.GreenString("ok:"), boldString(qName.entityName))
-        printJsonNoColor(retTrigger)
+        if (flags.trigger.summary) {
+            fmt.Fprintf(color.Output, "trigger /%s/%s\n", retTrigger.Namespace, retTrigger.Name)
+        } else {
+            fmt.Fprintf(color.Output, "%s got trigger %s\n", color.GreenString("ok:"), boldString(qName.entityName))
+            printJSON(retTrigger)
+        }
+
         return nil
     },
 }
@@ -593,6 +598,8 @@ func init() {
     triggerUpdateCmd.Flags().StringSliceVarP(&flags.common.annotation, "annotation", "a", []string{}, "annotation values in `KEY VALUE` format")
     triggerUpdateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, "default parameter values in `KEY VALUE` format")
     triggerUpdateCmd.Flags().StringVar(&flags.common.shared, "shared", "", "trigger visibility `SCOPE`; yes = shared, no = private")
+
+    triggerGetCmd.Flags().BoolVarP(&flags.trigger.summary, "summary", "s", false, "summarize trigger details")
 
     triggerFireCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, "parameter values in `KEY VALUE` format")
 

@@ -149,9 +149,13 @@ trait ListOrGetFromCollection extends FullyQualifiedNames {
      */
     def get(
         name: String,
-        expectedExitCode: Int = SUCCESS_EXIT)(
+        expectedExitCode: Int = SUCCESS_EXIT,
+        summary: Boolean = false)(
             implicit wp: WskProps): RunResult = {
-        cli(wp.overrides ++ Seq(noun, "get", "--auth", wp.authKey, fqn(name)), expectedExitCode)
+        val params = Seq(noun, "get", "--auth", wp.authKey) ++
+          Seq(fqn(name)) ++
+          { if (summary) Seq("--summary") else Seq() }
+        cli(wp.overrides ++ params, expectedExitCode)
     }
 }
 

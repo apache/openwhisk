@@ -89,14 +89,16 @@ var flags struct {
         exit            int
     }
 
-    xPackage struct {
-        serviceGUID string
-    }
-
     // rule
     rule struct {
         enable  bool
         disable bool
+        summary bool
+    }
+
+    // trigger
+    trigger struct {
+        summary bool
     }
 }
 
