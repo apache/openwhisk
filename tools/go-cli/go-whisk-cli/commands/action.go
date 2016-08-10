@@ -32,6 +32,7 @@ import (
 
   "github.com/fatih/color"
   "github.com/spf13/cobra"
+  "github.com/mattn/go-colorable"
 )
 
 //////////////
@@ -188,7 +189,7 @@ var actionInvokeCmd = &cobra.Command{
       payload = (*json.RawMessage)(&data)
     }
 
-    outputStream := os.Stdout
+    outputStream := color.Output
 
     activation, _, err := client.Actions.Invoke(qName.entityName, payload, flags.common.blocking)
     if err != nil {
@@ -202,17 +203,17 @@ var actionInvokeCmd = &cobra.Command{
           whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return whiskErr
       } else {
-        outputStream = os.Stderr
+        outputStream = colorable.NewColorableStderr()
       }
     }
 
     if flags.common.blocking && flags.action.result {
-      printJsonNoColor(activation.Response.Result, outputStream)
+      printJSON(activation.Response.Result, outputStream)
     } else if flags.common.blocking {
       fmt.Fprintf(color.Output, "%s invoked /%s/%s with id %s\n", color.GreenString("ok:"),
         boldString(qName.namespace), boldString(qName.entityName),
         boldString(activation.ActivationID))
-      printJsonNoColor(activation, outputStream)
+      printJSON(activation, outputStream)
     } else {
       fmt.Fprintf(color.Output, "%s invoked /%s/%s with id %s\n", color.GreenString("ok:"),
         boldString(qName.namespace), boldString(qName.entityName),
@@ -269,7 +270,7 @@ var actionGetCmd = &cobra.Command{
       fmt.Fprintf(color.Output, "%s /%s/%s\n", boldString("action"), action.Namespace, action.Name)
     } else {
       fmt.Fprintf(color.Output, "%s got action %s\n", color.GreenString("ok:"), boldString(qName.entityName))
-      printJsonNoColor(action)
+      printJSON(action)
     }
 
     return nil
@@ -692,7 +693,6 @@ func init() {
 
   actionListCmd.Flags().IntVarP(&flags.common.skip, "skip", "s", 0, "exclude the first `SKIP` number of actions from the result")
   actionListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, "only return `LIMIT` number of actions from the collection")
-  actionListCmd.Flags().BoolVar(&flags.common.full, "full", false, "include full action description")
 
   actionCmd.AddCommand(
     actionCreateCmd,

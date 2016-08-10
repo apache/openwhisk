@@ -334,6 +334,17 @@ class WskBasicTests
             }
     }
 
+    it should "display a trigger summary when --summary flag is used with 'wsk trigger get'" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val triggerName = "mySummaryTrigger"
+            assetHelper.withCleaner(wsk.trigger, triggerName, confirmDelete = false) {
+                (trigger, name) => trigger.create(name)
+            }
+            // Summary namespace should match one of the allowable namespaces (typically 'guest')
+            val ns_regex_list = wsk.namespace.list().stdout.trim.replace('\n', '|')
+            val stdout = wsk.trigger.get(triggerName, summary = true).stdout
+            stdout should include regex (s"(?i)trigger\\s+/${ns_regex_list}/${triggerName}")
+    }
 
     behavior of "Wsk Rule CLI"
 
@@ -369,6 +380,26 @@ class WskBasicTests
             stdout should include(actionName)
             stdout should include regex (""""version": "0.0.2"""")
             wsk.rule.list().stdout should include(ruleName)
+    }
+
+    it should "display a rule summary when --summary flag is used with 'wsk rule get'" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val ruleName = "mySummaryRule"
+            val triggerName = "summaryRuleTrigger"
+            val actionName = "summaryRuleAction";
+            assetHelper.withCleaner(wsk.trigger, triggerName) {
+                (trigger, name) => trigger.create(name)
+            }
+            assetHelper.withCleaner(wsk.action, actionName) {
+                (action, name) => action.create(name, defaultAction)
+            }
+            assetHelper.withCleaner(wsk.rule, ruleName, confirmDelete = false) {
+                (rule, name) => rule.create(name, trigger = triggerName, action = actionName)
+            }
+            // Summary namespace should match one of the allowable namespaces (typically 'guest')
+            val ns_regex_list = wsk.namespace.list().stdout.trim.replace('\n', '|')
+            val stdout = wsk.rule.get(ruleName, summary = true).stdout
+            stdout should include regex (s"(?i)rule\\s+/${ns_regex_list}/${ruleName}")
     }
 
     behavior of "Wsk Namespace CLI"

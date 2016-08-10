@@ -22,6 +22,7 @@ import (
     "net/url"
     "reflect"
 
+    "github.com/fatih/color"
     "github.com/google/go-querystring/query"
     "github.com/hokaccha/go-prettyjson"
 )
@@ -58,5 +59,5 @@ func addRouteOptions(route string, options interface{}) (*url.URL, error) {
 
 func printJSON(v interface{}) {
     output, _ := prettyjson.Marshal(v)
-    fmt.Println(string(output))
+    fmt.Fprintf(color.Output, string(output))
 }

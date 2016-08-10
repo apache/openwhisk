@@ -366,7 +366,7 @@ var packageGetCmd = &cobra.Command{
       printSummary(xPackage)
     } else {
       fmt.Fprintf(color.Output, "%s got package %s\n", color.GreenString("ok:"), boldString(qName.entityName))
-      printJsonNoColor(xPackage)
+      printJSON(xPackage)
     }
 
     return nil
@@ -466,7 +466,6 @@ var packageListCmd = &cobra.Command{
       Skip:   flags.common.skip,
       Limit:  flags.common.limit,
       Public: shared,
-      Docs:   flags.common.full,
     }
 
     packages, _, err := client.Packages.List(options)
@@ -572,12 +571,10 @@ func init() {
 
   packageCreateCmd.Flags().StringSliceVarP(&flags.common.annotation, "annotation", "a", []string{}, "annotation values in `KEY VALUE` format")
   packageCreateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, "default parameter values in `KEY VALUE` format")
-  packageCreateCmd.Flags().StringVarP(&flags.xPackage.serviceGUID, "service_guid", "s", "", "a unique identifier of the service")
   packageCreateCmd.Flags().StringVar(&flags.common.shared, "shared", "", "package visibility `SCOPE`; yes = shared, no = private")
 
   packageUpdateCmd.Flags().StringSliceVarP(&flags.common.annotation, "annotation", "a", []string{}, "annotation values in `KEY VALUE` format")
   packageUpdateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, "default parameter values in `KEY VALUE` format")
-  packageUpdateCmd.Flags().StringVarP(&flags.xPackage.serviceGUID, "service_guid", "s", "", "a unique identifier of the service")
   packageUpdateCmd.Flags().StringVar(&flags.common.shared, "shared", "", "package visibility `SCOPE`; yes = shared, no = private")
 
   packageGetCmd.Flags().BoolVarP(&flags.common.summary, "summary", "s", false, "summarize entity details")
@@ -588,7 +585,6 @@ func init() {
   packageListCmd.Flags().StringVar(&flags.common.shared, "shared", "", "include publicly shared entities in the result")
   packageListCmd.Flags().IntVarP(&flags.common.skip, "skip", "s", 0, "exclude the first `SKIP` number of packages from the result")
   packageListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, "only return `LIMIT` number of packages from the collection")
-  packageListCmd.Flags().BoolVar(&flags.common.full, "full", false, "include full package description")
 
   packageCmd.AddCommand(
     packageBindCmd,

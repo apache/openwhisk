@@ -349,8 +349,12 @@ var ruleGetCmd = &cobra.Command{
             return werr
         }
 
-        fmt.Fprintf(color.Output, "%s got rule %s\n", color.GreenString("ok:"), boldString(ruleName))
-        printJsonNoColor(rule)
+        if (flags.rule.summary) {
+            fmt.Fprintf(color.Output, "rule /%s/%s\n", rule.Namespace, rule.Name)
+        } else {
+            fmt.Fprintf(color.Output, "%s got rule %s\n", color.GreenString("ok:"), boldString(ruleName))
+            printJSON(rule)
+        }
 
         return nil
     },
@@ -467,6 +471,8 @@ func init() {
     ruleUpdateCmd.Flags().StringVar(&flags.common.shared, "shared", "", "rule visibility `SCOPE`; yes = shared, no = private")
 
     ruleDeleteCmd.Flags().BoolVar(&flags.rule.disable, "disable", false, "automatically disable rule before deleting it")
+
+    ruleGetCmd.Flags().BoolVarP(&flags.rule.summary, "summary", "s", false, "summarize rule details")
 
     ruleListCmd.Flags().IntVarP(&flags.common.skip, "skip", "s", 0, "exclude the first `SKIP` number of rules from the result")
     ruleListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, "only return `LIMIT` number of rules from the collection")

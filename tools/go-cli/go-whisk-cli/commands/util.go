@@ -343,7 +343,7 @@ func printActivationList(activations []whisk.Activation) {
 func printFullActivationList(activations []whisk.Activation) {
     fmt.Fprintf(color.Output, "%s\n", boldString("activations"))
     for _, activation := range activations {
-        printJsonNoColor(activation)
+        printJSON(activation)
     }
 }
 
@@ -438,9 +438,14 @@ func logoText() string {
     return logo
 }
 
-func printJSON(v interface{}) {
+func printJSON(v interface{}, stream ...io.Writer) {
     output, _ := prettyjson.Marshal(v)
-    fmt.Println(string(output))
+
+    if len(stream) > 0 {
+        fmt.Fprintf(stream[0], string(output))
+    } else {
+        fmt.Fprintf(color.Output, string(output))
+    }
 }
 
 // Same as printJSON, but with coloring disabled.
