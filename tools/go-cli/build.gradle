@@ -18,7 +18,7 @@ task distBinary(dependsOn: [removeBinary, distDocker]) << {
     run(dockerBinary + ["rm", "-f", dockerContainerName])
 }
 
-task dumpOSInfo {
+task dumpOSInfo << {
     println "os.name = "+getOsName()
     println "os.arch = "+getOsArch()
     println "go.name = "+mapOsNameToGoName(getOsName())
