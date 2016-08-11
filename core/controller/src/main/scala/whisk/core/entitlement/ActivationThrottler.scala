@@ -14,24 +14,20 @@
  * limitations under the License.
  */
 
-package whisk.core.loadBalancer;
+package whisk.core.entitlement
 
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
-import scala.language.postfixOps
 
 import akka.actor.ActorSystem
 import spray.json.DefaultJsonProtocol._
-import spray.json.JsObject
-import spray.json.pimpAny
 import spray.json.pimpString
 import whisk.common.ConsulClient
 import whisk.common.ConsulKV.InvokerKeys
 import whisk.common.ConsulKV.LoadBalancerKeys
-import whisk.common.Counter
 import whisk.common.Logging
 import whisk.common.Scheduler
-import whisk.core.WhiskConfig
+import whisk.core.entity.Subject
 
 /**
  * Determines user limits and activation counts as seen by the invoker and the loadbalancer
@@ -41,13 +37,10 @@ import whisk.core.WhiskConfig
  *
  * @param config containing the config information needed (consulServer)
  */
-class ActivationThrottle(config: WhiskConfig)(
+class ActivationThrottler(consulServer: String, concurrencyLimit: Int)(
     implicit val system: ActorSystem) extends Logging {
 
     implicit private val executionContext = system.dispatcher
-
-    val DEFAULT_NAMESPACE_CONCURRENCY_LIMITS_KEY = "whiskprops/DEFAULT_NAMESPACE_CONCURRENCY_LIMITS"
-    val DEFAULT_LIMIT = 100L
 
     /**
      * holds the values of the last run of the scheduler below to be gettable by outside
@@ -55,36 +48,14 @@ class ActivationThrottle(config: WhiskConfig)(
      * the number of concurrent invocations it has in the system
      */
     private var userActivationCounter = Map.empty[String, Long]
-    private var userActivationLimits = Map.empty[String, Long]
 
-    private val healthCheckInterval = 2 seconds
-    private val consul = new ConsulClient(config.consulServer)
-
-    /**
-     * Returns the activation count for a specific namespace
-     *
-     * @param ns the namespace to get the activation count for
-     * @returns activation count for the given namespace, defaults to 0
-     */
-    def countForNamespace(ns: String) = userActivationCounter.getOrElse(ns, 0L)
+    private val healthCheckInterval = 2.seconds
+    private val consul = new ConsulClient(consulServer)
 
     /**
-     * Returns the limit for a specific namespace
-     *
-     * @param ns the namespace to get the limits for
-     * @returns limit of concurrent activations for the given namespace
+     * Checks whether the operation should be allowed to proceed.
      */
-    def limitForNamespace(ns: String) = userActivationLimits.getOrElse(ns, DEFAULT_LIMIT)
-
-    /**
-     * Returns the concurrency limits for all namespaces
-     *
-     * @returns a map where each namespace maps to the concurrency limit set for it
-     */
-    private def getConcurrencyLimits(): Future[Map[String, Long]] =
-        consul.kv.get(DEFAULT_NAMESPACE_CONCURRENCY_LIMITS_KEY) map { limits =>
-            limits.parseJson.convertTo[Map[String, Long]]
-        }
+    def check(subject: Subject): Boolean = userActivationCounter.getOrElse(subject(), 0L) < concurrencyLimit
 
     /**
      * Returns the per-namespace activation count as seen by the loadbalancer
@@ -113,52 +84,22 @@ class ActivationThrottle(config: WhiskConfig)(
 
             // merge all maps and sum values with identical keys
             activationCountPerInvoker.foldLeft(Map[String, Long]()) { (a, b) =>
-                (a.keySet ++ b.keySet) map { k =>
+                (a.keySet ++ b.keySet).map { k =>
                     (k, a.getOrElse(k, 0L) + b.getOrElse(k, 0L))
-                } toMap
+                }.toMap
             }
         }
 
     Scheduler.scheduleWaitAtLeast(healthCheckInterval) { () =>
         for {
-            concurrencyLimits <- getConcurrencyLimits
             loadbalancerActivationCount <- getLoadBalancerActivationCount
             invokerActivationCount <- getInvokerActivationCount
         } yield {
-            userActivationLimits = concurrencyLimits
             userActivationCounter = invokerActivationCount map {
                 case (subject, invokerCount) =>
                     val loadbalancerCount = loadbalancerActivationCount(subject)
                     subject -> (loadbalancerCount - invokerCount)
             }
-
-            userActivationCounter foreach {
-                case (user, count) => info(this, s"activation count of user ${user} is ${count}")
-            }
-        }
-    }
-}
-
-/**
- * Isolate here the concrete representation of load-balancer generated user action count information.
- */
-object ActivationThrottle {
-    val requiredProperties = WhiskConfig.consulServer
-
-    /**
-     * Convert user activation counters into a map of JsObjects to be written into consul kv
-     *
-     * @param userActivationCounter the counters for each user's activations
-     * @returns a map where the key represents the final nested key structure for consul and a JsObject
-     *     containing the activation counts for each user
-     */
-    def encodeLoadBalancerUserActivation(userActivationCounter: Map[String, Counter]): Map[String, JsObject] = {
-        userActivationCounter mapValues {
-            _.cur
-        } groupBy {
-            case (key, _) => LoadBalancerKeys.userActivationCountKey + "/" + key.substring(0, 1)
-        } mapValues { map =>
-            map.toJson.asJsObject
         }
     }
 }

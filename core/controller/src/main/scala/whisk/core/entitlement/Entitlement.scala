@@ -68,6 +68,12 @@ protected[core] case class Resource(
 }
 
 protected[core] object EntitlementService {
+    val requiredProperties = WhiskConfig.consulServer ++ Map(
+        WhiskConfig.actionInvokePerMinuteLimit -> null,
+        WhiskConfig.actionInvokePerHourLimit -> null,
+        WhiskConfig.triggerFirePerMinuteLimit -> null,
+        WhiskConfig.actionInvokeConcurrentLimit -> null,
+        WhiskConfig.triggerFirePerHourLimit -> null)
     /**
      * The default list of namespaces for a subject.
      */
@@ -83,8 +89,9 @@ protected[core] abstract class EntitlementService(config: WhiskConfig)(
     private implicit val executionContext = actorSystem.dispatcher
 
     private var loadbalancerOverload: Option[Boolean] = None
-    private val invokeRateThrottler = new RateThrottler(config, 120, 3600)
-    private val triggerRateThrottler = new RateThrottler(config, 60, 720)
+    private val invokeRateThrottler = new RateThrottler(config.actionInvokePerMinuteLimit.toInt, config.actionInvokePerHourLimit.toInt)
+    private val triggerRateThrottler = new RateThrottler(config.triggerFirePerMinuteLimit.toInt, config.triggerFirePerHourLimit.toInt)
+    private val concurrentInvokeThrottler = new ActivationThrottler(config.consulServer, config.actionInvokeConcurrentLimit.toInt)
 
     /** query the KV store this often */
     private val overloadCheckPeriod = 10.seconds
@@ -163,6 +170,8 @@ protected[core] abstract class EntitlementService(config: WhiskConfig)(
     protected[core] def check(subject: Subject, right: Privilege, resource: Resource)(implicit transid: TransactionId): Future[Boolean] = {
         checkSystemOverload(subject, right, resource) orElse {
             checkUserThrottle(subject, right, resource)
+        } orElse {
+            checkConcurrentUserThrottle(subject, right, resource)
         } getOrElse {
             val promise = Promise[Boolean]
 
@@ -223,6 +232,18 @@ protected[core] abstract class EntitlementService(config: WhiskConfig)(
 
         if (right == Privilege.ACTIVATE && userThrottled) {
             Some { Future failed ThrottleRejectRequest(TooManyRequests, Some(ErrorResponse("Too many requests from user", transid))) }
+        } else None
+    }
+
+    /** Limits activations if subject exceeds limit of concurrent invocations */
+    protected def checkConcurrentUserThrottle(subject: Subject, right: Privilege, resource: Resource)(implicit transid: TransactionId) = {
+        def userThrottled = {
+            val isInvocation = resource.collection.path == Collection.ACTIONS
+            (isInvocation && !concurrentInvokeThrottler.check(subject))
+        }
+
+        if (right == Privilege.ACTIVATE && userThrottled) {
+            Some { Future failed ThrottleRejectRequest(TooManyRequests, Some(ErrorResponse("The user has sent too many requests in a given amount of time.", transid))) }
         } else None
     }
 }
