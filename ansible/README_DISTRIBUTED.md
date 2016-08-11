@@ -51,7 +51,7 @@ export OS_USER_DOMAIN_NAME="domain"
 remote_user = ubuntu
 ```
 
-- Change the "deployment" value in the `ansible/group_vars/all` config file from "prod" to "open", then run the following to boot instances and generate the respective hosts file.
+- Run the following playbook to boot instances and generate the respective hosts file.
 ```
 ansible-playbook -i environments/distributed provision_env_dist.yml
 ```
