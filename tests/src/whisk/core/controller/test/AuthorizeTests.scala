@@ -43,7 +43,6 @@ import whisk.core.entity.Subject
 import spray.routing.authentication.UserPass
 import scala.concurrent.Await
 import whisk.core.entity.Secret
-import whisk.common.Verbosity
 import whisk.core.entity.UUID
 import whisk.core.entity.Namespace
 import whisk.core.entitlement.Collection._

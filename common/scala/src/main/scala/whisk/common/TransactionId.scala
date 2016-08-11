@@ -27,31 +27,96 @@ import spray.json.JsArray
 import spray.json.JsNumber
 import spray.json.JsValue
 import spray.json.RootJsonFormat
+import java.time.Duration
+import akka.event.Logging.LogLevel
+import akka.event.Logging.{ InfoLevel, WarningLevel }
 
 /**
  * A transaction id for tracking operations in the system that are specific to a request.
- * An instance of TransactionId is implicitly received by all logging methods. This is a
- * value type so that the type system ensures it is never null. The actual metadata is stored
- * indirectly in the referenced meta object.
+ * An instance of TransactionId is implicitly received by all logging methods. The actual
+ * metadata is stored indirectly in the referenced meta object.
  */
 case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
     def apply() = meta.id
     override def toString = if (meta.id > 0) s"#tid_${meta.id}" else (if (meta.id < 0) s"#sid_${-meta.id}" else "??")
 
     /**
-     * Computes elapsed milliseconds since start of transaction if given token is defined.
+     * Method to count events.
      *
-     * @param token the marker name
-     * @return Some LogMarker iff token is defined and None otherwise
+     * @param from Reference, where the method was called from.
+     * @param marker A LogMarkerToken. They are defined in <code>LoggingMarkers</code>.
+     * @param message An additional message that is written into the log, together with the other information.
+     * @param logLevel The Loglevel, the message should have. Default is <code>InfoLevel</code>.
      */
-    def mark(token: LogMarkerToken): Option[LogMarker] = {
-        val now = Instant.now(Clock.systemUTC())
-        Option(token) filter { _.toString.trim.nonEmpty } map { _ =>
-            val delta = now.toEpochMilli - meta.start.toEpochMilli
-            LogMarker(now, delta, token.toString.trim)
-        }
+    def mark(from: AnyRef, marker: LogMarkerToken, message: String = "", logLevel: LogLevel = InfoLevel)(implicit emitter: PrintStreamEmitter) = {
+        emitter.emit(logLevel, this, from, message, Some(LogMarker(marker, deltaToStart)))
     }
+
+    /**
+     * Method to start taking time of an action in the code. It returns a <code>StartMarker</code> which has to be
+     * passed into the <code>finished</code>-method.
+     *
+     * @param from Reference, where the method was called from.
+     * @param marker A LogMarkerToken. They are defined in <code>LoggingMarkers</code>.
+     * @param message An additional message that is written into the log, together with the other information.
+     * @param logLevel The Loglevel, the message should have. Default is <code>InfoLevel</code>.
+     *
+     * @return startMarker that has to be passed to the finished or failed method to calculate the time difference.
+     */
+    def started(from: AnyRef, marker: LogMarkerToken, message: String = "", logLevel: LogLevel = InfoLevel)(implicit emitter: PrintStreamEmitter): StartMarker = {
+        emitter.emit(logLevel, this, from, message, Some(LogMarker(marker, deltaToStart)))
+
+        StartMarker(Instant.now, marker)
+    }
+
+    /**
+     * Method to stop taking time of an action in the code. The time the method used will be written into a log message.
+     *
+     * @param from Reference, where the method was called from.
+     * @param startMarker <code>StartMarker</code> returned by a <code>starting</code> method.
+     * @param message An additional message that is written into the log, together with the other information.
+     * @param logLevel The Loglevel, the message should have. Default is <code>InfoLevel</code>.
+     * @param endTime Manually set the timestamp of the end. By default it is NOW.
+     */
+    def finished(from: AnyRef, startMarker: StartMarker, message: String = "", logLevel: LogLevel = InfoLevel, endTime: Instant = Instant.now(Clock.systemUTC))(implicit emitter: PrintStreamEmitter) = {
+        val endMarker = LogMarkerToken(startMarker.startMarker.component, startMarker.startMarker.action, LoggingMarkers.finish)
+        emitter.emit(logLevel, this, from, message, Some(LogMarker(endMarker, deltaToStart, Some(deltaToMarker(startMarker, endTime)))))
+    }
+
+    /**
+     * Method to stop taking time of an action in the code that failed. The time the method used will be written into a log message.
+     *
+     * @param from Reference, where the method was called from.
+     * @param startMarker <code>StartMarker</code> returned by a <code>starting</code> method.
+     * @param message An additional message that is written into the log, together with the other information.
+     * @param logLevel The <code>LogLevel</code> the message should have. Default is <code>WarningLevel</code>.
+     */
+    def failed(from: AnyRef, startMarker: StartMarker, message: String = "", logLevel: LogLevel = WarningLevel)(implicit emitter: PrintStreamEmitter) = {
+        val endMarker = LogMarkerToken(startMarker.startMarker.component, startMarker.startMarker.action, LoggingMarkers.error)
+        emitter.emit(logLevel, this, from, message, Some(LogMarker(endMarker, deltaToStart, Some(deltaToMarker(startMarker)))))
+    }
+
+    /**
+     * Calculate the time between now and the beginning of the transaction.
+     */
+    def deltaToStart = Duration.between(meta.start, Instant.now(Clock.systemUTC)).toMillis
+
+    /**
+     * Calculate the time between now and the startMarker that was returned by <code>starting</code>
+     *
+     * @param startMarker <code>StartMarker</code> returned by a <code>starting</code> method.
+     * @param endTime Manually set the endtime. By default it is NOW.
+     */
+    def deltaToMarker(startMarker: StartMarker, endTime: Instant = Instant.now(Clock.systemUTC)) = Duration.between(startMarker.start, endTime).toMillis
 }
+
+/**
+ * The StartMarker which includes the <code>LogMarkerToken</code> and the start-time.
+ *
+ * @param start the time when the startMarker was set
+ * @param startMarker the LogMarkerToken which defines the start event
+ */
+case class StartMarker(val start: Instant, startMarker: LogMarkerToken)
 
 /**
  * The transaction metadata encapsulates important properties about a transaction.

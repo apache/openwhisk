@@ -30,8 +30,8 @@ import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 
+import akka.event.Logging.DebugLevel
 import whisk.common.TransactionId
-import whisk.common.Verbosity
 import whisk.connector.kafka.KafkaConsumerConnector
 import whisk.connector.kafka.KafkaProducerConnector
 import whisk.core.WhiskConfig
@@ -52,8 +52,8 @@ class KafkaConnectorTests extends FlatSpec with Matchers with BeforeAndAfterAll 
     val producer = new KafkaProducerConnector(config.kafkaHost, ec)
     val consumer = new KafkaConsumerConnector(config.kafkaHost, groupid, topic, sessionTimeout = sessionTimeout)
 
-    producer.setVerbosity(Verbosity.Debug)
-    consumer.setVerbosity(Verbosity.Debug)
+    producer.setVerbosity(DebugLevel)
+    consumer.setVerbosity(DebugLevel)
 
     override def afterAll() {
         producer.close()

@@ -22,15 +22,15 @@ import scala.concurrent.duration.Duration
 
 import scala.util.Try
 
+import akka.event.Logging.InfoLevel
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
-import org.scalatest.time.{Minutes, Seconds, Span}
+import org.scalatest.time.{ Minutes, Seconds, Span }
 import whisk.common.TransactionCounter
-import whisk.common.Verbosity
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig._
 import whisk.core.database.ArtifactStore
@@ -67,10 +67,10 @@ class ConformanceTests extends FlatSpec
     assert(config.isValid)
 
     val datastore: ArtifactStore[WhiskEntity] = WhiskEntityStore.datastore(config)
-    datastore.setVerbosity(Verbosity.Loud)
+    datastore.setVerbosity(InfoLevel)
 
     val authstore: ArtifactStore[WhiskAuth] = WhiskAuthStore.datastore(config)
-    authstore.setVerbosity(Verbosity.Loud)
+    authstore.setVerbosity(InfoLevel)
 
     /**
      * Helper functions: if d represents a document from the database,
@@ -80,20 +80,20 @@ class ConformanceTests extends FlatSpec
     def isAction(m: JsObject) = m.fields.isDefinedAt("exec")
     def isRule(m: JsObject) = m.fields.isDefinedAt("trigger")
     def isTrigger(m: JsObject) = !isAction(m) && m.fields.isDefinedAt("parameters") && !m.fields.isDefinedAt("binding")
-    def isPackage(m: JsObject) =  m.fields.isDefinedAt("binding")
+    def isPackage(m: JsObject) = m.fields.isDefinedAt("binding")
     def isActivation(m: JsObject) = m.fields.isDefinedAt("activationId")
 
     /**
      * Check that all records in the database each have the required fields
      */
-    def checkDatabaseFields[U,K](store: ArtifactStore[U], viewName: String, filter: JsObject=>Boolean, requiredFields: Set[String]) = {
+    def checkDatabaseFields[U, K](store: ArtifactStore[U], viewName: String, filter: JsObject => Boolean, requiredFields: Set[String]) = {
         implicit val tid = transid()
 
         val futureDocs = store.query(viewName, Nil, Nil, 0, 0, true, false, false)
 
         whenReady(futureDocs) { docs =>
-            for(doc <- docs if !isDesignDoc(doc) && filter(doc)) {
-                for(field <- requiredFields) {
+            for (doc <- docs if !isDesignDoc(doc) && filter(doc)) {
+                for (field <- requiredFields) {
                     assert(doc.fields.isDefinedAt(field), s"did not find field '$field' in database record $doc")
                 }
             }

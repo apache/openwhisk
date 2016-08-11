@@ -31,11 +31,11 @@ import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 
 import akka.actor.actorRef2Scala
+import akka.event.Logging.{ InfoLevel, DebugLevel }
 import common.WskActorSystem
 import spray.json.JsNumber
 import spray.json.JsObject
 import whisk.common.TransactionId
-import whisk.common.Verbosity
 import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.core.dispatcher.ActivationFeed
 import whisk.core.dispatcher.DispatchRule
@@ -66,7 +66,7 @@ class DispatcherTests extends FlatSpec with Matchers with WskActorSystem {
     }
 
     class TestRule(dosomething: Message => Any) extends DispatchRule("test message handler", "/test", ".+") {
-        setVerbosity(Verbosity.Loud)
+        setVerbosity(InfoLevel)
         override def doit(topic: String, msg: Message, matches: Seq[Match])(implicit transid: TransactionId): Future[Any] = {
             debug(this, s"received: ${msg.content.get.compactPrint}")
             Future.successful {
@@ -81,7 +81,7 @@ class DispatcherTests extends FlatSpec with Matchers with WskActorSystem {
         val connector = new TestConnector("test connector", maxdepth / 2, true)
         val messagesProcessed = new AtomicInteger()
         val handler = new TestRule({ msg => messagesProcessed.incrementAndGet() })
-        val dispatcher = new Dispatcher(Verbosity.Debug, connector, 100 milliseconds, maxdepth, actorSystem)
+        val dispatcher = new Dispatcher(DebugLevel, connector, 100 milliseconds, maxdepth, actorSystem)
         dispatcher.addHandler(handler, true)
         dispatcher.start()
 
@@ -101,7 +101,7 @@ class DispatcherTests extends FlatSpec with Matchers with WskActorSystem {
                 }
             }
 
-            for (i <- 0 until half + 1) {
+            for (i <- 0 to half) {
                 sendMessage(connector, i + 1)
             }
 
