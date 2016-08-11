@@ -72,7 +72,7 @@ public class TestUtils {
 
 
     static {
-        logger.setLevel(Level.WARNING);
+        logger.setLevel(Level.INFO);
         System.out.println("JUnit version is: " + Version.id());
     }
 
@@ -328,6 +328,9 @@ public class TestUtils {
 
         int exitCode = bl.launch(timeoutMilli);
         RunResult rr = new RunResult(exitCode, new String(bl.getStdout()), new String(bl.getStderr()));
+        if (logger != null) {
+            logger.info("RunResult: " + rr);
+        }
         rr.validateExitCode(expectedExitCode);
         return rr;
     }
