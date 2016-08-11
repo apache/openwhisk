@@ -1,4 +1,11 @@
 openwhisk.home={{ openwhisk_home }}
+
+python.27=python
+use.cli.download=false
+nginx.conf.dir={{ nginx_conf_dir }}
+testing.auth={{ openwhisk_home }}/ansible/files/auth.guest
+vcap.services.file=
+
 whisk.logs.dir={{ whisk_logs_dir }}
 whisk.version.name={{ whisk_version_name }}
 whisk.version.date={{ whisk.version.date }}
@@ -6,6 +13,13 @@ whisk.version.buildno={{ docker_image_tag }}
 whisk.ssl.cert={{ openwhisk_home }}/ansible/roles/nginx/files/openwhisk-cert.pem
 whisk.ssl.key={{ openwhisk_home }}/ansible/roles/nginx/files/openwhisk-key.pem
 whisk.ssl.challenge=openwhisk
+
+limits.actions.invokes.perMinute={{ limits.actions.invokes.perMinute }}
+limits.actions.invokes.perHour={{ limits.actions.invokes.perHour }}
+limits.actions.invokes.concurrent={{ limits.actions.invokes.concurrent }}
+limits.triggers.fires.perMinute={{ limits.triggers.fires.perMinute }}
+limits.triggers.fires.perHour={{ limits.triggers.fires.perHour }}
+
 consulserver.host={{ groups["consul_servers"]|first }}
 controller.host={{ groups["controllers"]|first }}
 edge.host={{ groups["edge"]|first }}
@@ -18,23 +32,7 @@ router.host={{ groups["edge"]|first }}
 cli.api.host={{ cli_api_host | default(groups['edge'] | first) }}
 zookeeper.host={{ groups["kafka"]|first }}
 invoker.hosts={{ groups["invokers"] | join(",") }}
-invoker.container.network=bridge
-invoker.container.policy={{ invoker_container_policy_name | default()}}
-invoker.numcore={{ invoker.numcore }}
-invoker.coreshare={{ invoker.coreshare }}
-consulserver.docker.endpoint={{ groups["consul_servers"]|first }}:{{ docker.port }}
-edge.docker.endpoint={{ groups["edge"]|first }}:{{ docker.port }}
-kafka.docker.endpoint={{ groups["kafka"]|first }}:{{ docker.port }}
-main.docker.endpoint={{ groups["controllers"]|first }}:{{ docker.port }}
-docker.registry={{ docker_registry }}
-#use.docker.registry=false
-docker.port={{ docker.port }}
-docker.timezone.mount=
-docker.image.tag={{ docker_image_tag }}
-docker.tls.cmd=
-docker.addHost.cmd=
-docker.dns.cmd={{ docker_dns }}
-docker.restart.opts={{ docker.restart.policy }}
+
 edge.host.uiport=443
 edge.host.apiport=443
 {% if groups['entitlement_servers'] is defined %}
@@ -48,6 +46,27 @@ loadbalancer.host.port={{ controller.port }}
 consul.host.port4={{ consul.port.http }}
 consul.host.port5={{ consul.port.server }}
 invoker.hosts.baseport={{ invoker.port }}
+
+invoker.container.network=bridge
+invoker.container.policy={{ invoker_container_policy_name | default()}}
+invoker.numcore={{ invoker.numcore }}
+invoker.coreshare={{ invoker.coreshare }}
+
+consulserver.docker.endpoint={{ groups["consul_servers"]|first }}:{{ docker.port }}
+edge.docker.endpoint={{ groups["edge"]|first }}:{{ docker.port }}
+kafka.docker.endpoint={{ groups["kafka"]|first }}:{{ docker.port }}
+main.docker.endpoint={{ groups["controllers"]|first }}:{{ docker.port }}
+
+docker.registry={{ docker_registry }}
+#use.docker.registry=false
+docker.port={{ docker.port }}
+docker.timezone.mount=
+docker.image.tag={{ docker_image_tag }}
+docker.tls.cmd=
+docker.addHost.cmd=
+docker.dns.cmd={{ docker_dns }}
+docker.restart.opts={{ docker.restart.policy }}
+
 db.provider={{ db_provider }}
 db.protocol={{ db_protocol }}
 db.host={{ db_host }}
@@ -57,8 +76,3 @@ db.password={{ db_password }}
 db.prefix={{ db_prefix }}
 db.whisk.actions={{ db_prefix }}whisks
 db.whisk.auths={{ db_auth }}
-python.27=python
-use.cli.download=false
-nginx.conf.dir={{ nginx_conf_dir }}
-testing.auth={{ openwhisk_home }}/ansible/files/auth.guest
-vcap.services.file=

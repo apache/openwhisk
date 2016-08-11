@@ -18,7 +18,6 @@ package whisk.core.entitlement
 
 import scala.collection.concurrent.TrieMap
 
-import whisk.core.WhiskConfig
 import whisk.core.entity.Subject
 import whisk.common.TransactionId
 import whisk.common.Logging
@@ -29,8 +28,7 @@ import akka.event.Logging.InfoLevel
  *
  * For now, we throttle only at a 1-minute granularity.
  */
-class RateThrottler(config: WhiskConfig,
-                    maxPerMinute: Int,
+class RateThrottler(maxPerMinute: Int,
                     maxPerHour: Int) extends Logging {
 
     // Parameters

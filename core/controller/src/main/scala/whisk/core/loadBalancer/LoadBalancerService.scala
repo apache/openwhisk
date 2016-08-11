@@ -59,12 +59,10 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
     def getInvokerHealth(): JsObject = invokerHealth.getInvokerHealthJson()
 
     override def getInvoker(message: ActivationMessage): Option[Int] = invokerHealth.getInvoker(message)
-    override def activationThrottle = _activationThrottle
 
     override val producer = new KafkaProducerConnector(config.kafkaHost, executionContext)
 
     private val invokerHealth = new InvokerHealth(config, resetIssueCountByInvoker, () => producer.sentCount())
-    private val _activationThrottle = new ActivationThrottle(config)
 
     // map stores the promise which either completes if an active response is received or
     // after the set timeout expires
@@ -152,8 +150,7 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
 object LoadBalancerService {
     def requiredProperties = kafkaHost ++
         consulServer ++
-        InvokerHealth.requiredProperties ++
-        ActivationThrottle.requiredProperties
+        InvokerHealth.requiredProperties
 }
 
 private case class ActiveAckTimeout(activationId: ActivationId) extends TimeoutException
