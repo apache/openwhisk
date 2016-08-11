@@ -1,10 +1,6 @@
 mode: deploy
 prompt_user: true
-
 openwhisk_home: "{{ lookup('env', 'OPENWHISK_HOME')|default(playbook_dir + '/..', true) }}"
-
-# Use this parameter to determine the type of OpenWhisk deploy (e.g., development, production)
-deployment: prod
 
 whisk:
   version:
@@ -51,7 +47,7 @@ linux:
 
 docker_image_tag: latest
 docker:
-  user:
+  #user:
   version: 1.9.1-0~trusty
   storagedriver: overlay
   port: 4243
