@@ -654,7 +654,15 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                 // all went well, get the last result (remember this was the seq produced by a scanLeft)
                 val result = seq.last._1.get
                 val ids = seq.last._2 map {_.get}
-                storeSequenceResults(user, seqAction, seqActivationId, ids, result, start, Instant.now(Clock.systemUTC()))
+                val pair = storeSequenceResults(user, seqAction, seqActivationId, ids, result, start, Instant.now(Clock.systemUTC()))
+                // complete the promise
+                val futureDoc = pair._2
+                val activation = pair._1
+                futureDoc onComplete {
+                    case Success(_) => promise.success((seqActivationId, Some(activation)))
+                    case Failure(_) => promise.failure(new RuntimeException("Sequence error: storing activation failed"))
+                }
+
             case Failure(SequenceIntermediateActionError(component)) =>
                 val component = storeIntermediateResults(user, seqAction, components, seqActivationId, seqRes, start) getOrElse seqAction.name.name
                 info(this, s"The execution of a sequence failed with an error for action $component")
@@ -663,12 +671,14 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                                x.isInstanceOf[IllegalArgumentException] =>
                 // retrieve document failure
                 val component = storeIntermediateResults(user, seqAction, components, seqActivationId, seqRes, start)
+                // storing intermediate results could fail --- propagate that instead?
                 info(this, s"Sequence error while retrieving action entity for component $component")
                 promise.failure(SequenceComponentRetrieveException(component.toString))
             case Failure(BlockingInvokeTimeout(_)) =>
                 // one of the actions took too long to execute
                 val component = storeIntermediateResults(user, seqAction, components, seqActivationId, seqRes, start)
                 info(this, s"Sequence error action took too long to execute $component")
+                // storing intermediate results could fail --- propagate that instead?
                 promise.failure(SequenceActionTimeout(component.toString))
             case Failure(x: Throwable) =>
                 // who knows what happened...
@@ -731,7 +741,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
             end: Instant,
             error: Boolean = false,
             errorRes: Option[ActivationResponse] = None)(
-                implicit transid: TransactionId) = {
+                implicit transid: TransactionId): (WhiskActivation, Future[DocInfo]) = {
         // compose logs
         val logs = ActivationLogs((ids map { _.toString}).toVector)
         // create the whisk activation
@@ -748,7 +758,8 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                 action.version,
                 action.publish,
                 action.parameters ++ Parameters("kind", "sequence"));
-        WhiskActivation.put(activationStore, activation)
+        val docInfo = WhiskActivation.put(activationStore, activation)
+        (activation, docInfo)
     }
 
     /**
