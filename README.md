@@ -47,7 +47,7 @@ allow you to configure OpenWhisk to use a persistent data store via Cloudant or 
 These steps were tested on Mac OS X El Capitan, Ubuntu 14.04.3 LTS and Windows using Vagrant.
 
 * [Vagrant on Mac, Windows PC, or GNU/Linux](tools/vagrant/README.md)
-* [OpenWhisk on Ubuntu natively](tools/ubuntu-setup/README.md)
+* [OpenWhisk on Ubuntu Server(s) natively](tools/ubuntu-setup/README.md)
 
 ### Learn concepts and commands
 
