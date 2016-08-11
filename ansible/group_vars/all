@@ -3,9 +3,6 @@ prompt_user: true
 
 openwhisk_home: "{{ lookup('env', 'OPENWHISK_HOME')|default(playbook_dir + '/..', true) }}"
 
-# Use this parameter to determine the type of OpenWhisk deploy (e.g., development, production)
-deployment: prod
-
 whisk:
   version:
     date: "{{ansible_date_time.iso8601}}"
