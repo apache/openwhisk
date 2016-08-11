@@ -25,21 +25,19 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.time.Span.convertDurationToSpan
 
-import whisk.common.ConsulClient
-import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig.consulServer
-
-import common.WskActorSystem
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import akka.http.scaladsl.marshalling._
+import akka.http.scaladsl.model._
+import akka.http.scaladsl.unmarshalling._
 import akka.stream.ActorMaterializer
-
+import common.WskActorSystem
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.marshalling._
-import akka.http.scaladsl.unmarshalling._
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import whisk.common.ConsulClient
 import whisk.common.ConsulService
+import whisk.core.WhiskConfig
+import whisk.core.WhiskConfig.consulServer
 
 @RunWith(classOf[JUnitRunner])
 class ConsulClientTests extends FlatSpec with ScalaFutures with Matchers with WskActorSystem {
@@ -111,12 +109,12 @@ class ConsulClientTests extends FlatSpec with ScalaFutures with Matchers with Ws
         noException should be thrownBy consul.kv.del(key).futureValue
 
         // Asserts that the entry is gone
-        an[Exception] should be thrownBy consul.kv.get(key).futureValue
+        consul.kv.get(key).failed.futureValue shouldBe a[NoSuchElementException]
     }
 
     it should "return an Exception if a non-existent key is queried" in {
         val key = "no_such_key"
-        an[Exception] should be thrownBy consul.kv.get(key).futureValue
+        consul.kv.get(key).failed.futureValue shouldBe a[NoSuchElementException]
     }
 
     it should "be able to retrieve many keys recursively and checking against stored values" in {
