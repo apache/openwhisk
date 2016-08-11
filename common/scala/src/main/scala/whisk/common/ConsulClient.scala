@@ -22,13 +22,14 @@ import org.apache.commons.codec.binary.Base64
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling._
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.stream.ActorMaterializer
 
 import java.util.NoSuchElementException
 
+import akka.stream.scaladsl._
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import scala.util.Try
@@ -89,7 +90,12 @@ class ConsulKeyValueApi(base: Uri)(implicit val actorSystem: ActorSystem, val ma
             )
         )
         r.flatMap { response =>
-            Unmarshal(response.entity).to[List[ConsulEntry]]
+            if (response.status == StatusCodes.OK) {
+                Unmarshal(response.entity).to[List[ConsulEntry]]
+            } else {
+                response.entity.dataBytes.runWith(Sink.ignore)
+                Future.failed(new NoSuchElementException())
+            }
         } map { _.head.decodedValue.getOrElse(throw new NoSuchElementException()) }
     }
 

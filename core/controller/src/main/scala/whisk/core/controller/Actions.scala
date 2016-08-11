@@ -34,7 +34,6 @@ import spray.http.StatusCodes.BadRequest
 import spray.http.StatusCodes.InternalServerError
 import spray.http.StatusCodes.OK
 import spray.http.StatusCodes.Accepted
-import spray.http.StatusCodes.TooManyRequests
 import spray.http.StatusCodes.RequestEntityTooLarge
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
 import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
@@ -262,9 +261,6 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                             case Failure(t: BlockingInvokeTimeout) =>
                                 info(this, s"[POST] action activation waiting period expired")
                                 complete(Accepted, t.activationId.toJsObject)
-                            case Failure(t: TooManyActivationException) =>
-                                info(this, s"[POST] max activation limit has exceeded")
-                                terminate(TooManyRequests)
                             case Failure(t: RecordTooLargeException) =>
                                 info(this, s"[POST] action payload was too large")
                                 terminate(RequestEntityTooLarge)
@@ -444,15 +440,10 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                 response.id match {
                     case Some(activationId) =>
                         Future successful (duration, activationId)
-                    case None =>
-                        if (response.error.getOrElse("??").equals("too many concurrent activations")) {
-                            // DoS throttle
-                            warn(this, s"[POST] action activation rejected: ${response.error.getOrElse("??")}")
-                            Future failed new TooManyActivationException("too many concurrent activations")
-                        } else {
-                            error(this, s"[POST] action activation failed: ${response.error.getOrElse("??")}")
-                            Future failed new IllegalStateException(s"activation failed with error: ${response.error.getOrElse("??")}")
-                        }
+                    case None => {
+                        error(this, s"[POST] action activation failed: ${response.error.getOrElse("??")}")
+                        Future failed new IllegalStateException(s"activation failed with error: ${response.error.getOrElse("??")}")
+                    }
                 }
         } flatMap {
             case (duration, activationId) =>
@@ -602,4 +593,3 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
 }
 
 private case class BlockingInvokeTimeout(activationId: ActivationId) extends TimeoutException
-protected[controller] case class TooManyActivationException(subject: String) extends Exception
