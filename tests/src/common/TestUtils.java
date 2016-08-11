@@ -328,7 +328,9 @@ public class TestUtils {
 
         int exitCode = bl.launch(timeoutMilli);
         RunResult rr = new RunResult(exitCode, new String(bl.getStdout()), new String(bl.getStderr()));
-        logger.info("RunResult: " + rr);
+        if (logger != null) {
+            logger.info("RunResult: " + rr);
+        }
         rr.validateExitCode(expectedExitCode);
         return rr;
     }
