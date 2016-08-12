@@ -54,7 +54,7 @@ var namespaceListCmd = &cobra.Command{
 }
 
 var namespaceGetCmd = &cobra.Command{
-    Use:   "get <namespace string>",
+    Use:   "get [NAMESPACE]",
     Short: "get triggers, actions, and rules in the registry for a namespace",
     SilenceUsage:   true,
     SilenceErrors:  true,
@@ -101,10 +101,9 @@ var namespaceGetCmd = &cobra.Command{
     },
 }
 
-// listCmd ("wsk list") is a shortcut for "wsk namespace get _"
 var listCmd = &cobra.Command{
-    Use:   "list <namespace string>",
-    Short: "list triggers, actions, and rules in the registry for a namespace",
+    Use:   "list",
+    Short: "list available namespaces",
     SilenceUsage:   true,
     SilenceErrors:  true,
     PreRunE: setupClientConfig,

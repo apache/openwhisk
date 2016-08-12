@@ -48,20 +48,8 @@ import whisk.common.ConsulClient
 import whisk.common.ConsulKV.InvokerKeys
 import whisk.common.ConsulKVReporter
 import whisk.common.Counter
-import whisk.common.LoggingMarkers.INVOKER_ACTIVATION_DONE
-import whisk.common.LoggingMarkers.INVOKER_ACTIVATION_ERROR
-import whisk.common.LoggingMarkers.INVOKER_ACTIVATION_START
-import whisk.common.LoggingMarkers.INVOKER_FETCH_ACTION_DONE
-import whisk.common.LoggingMarkers.INVOKER_FETCH_ACTION_FAILED
-import whisk.common.LoggingMarkers.INVOKER_FETCH_ACTION_START
-import whisk.common.LoggingMarkers.INVOKER_FETCH_AUTH_DONE
-import whisk.common.LoggingMarkers.INVOKER_FETCH_AUTH_FAILED
-import whisk.common.LoggingMarkers.INVOKER_FETCH_AUTH_START
-import whisk.common.LoggingMarkers.INVOKER_RECORD_ACTIVATION_DONE
-import whisk.common.LoggingMarkers.INVOKER_RECORD_ACTIVATION_START
 import whisk.common.SimpleExec
 import whisk.common.TransactionId
-import whisk.common.Verbosity
 import whisk.connector.kafka.KafkaConsumerConnector
 import whisk.connector.kafka.KafkaProducerConnector
 import whisk.core.WhiskConfig
@@ -108,6 +96,10 @@ import whisk.core.entity.size.SizeLong
 import whisk.core.entity.size.SizeString
 import whisk.http.BasicHttpService
 import whisk.utils.ExecutionContextFactory
+import whisk.common.LoggingMarkers
+import akka.event.Logging.LogLevel
+import akka.event.Logging.InfoLevel
+import whisk.common.PrintStreamEmitter
 
 /**
  * A kafka message handler that invokes actions as directed by message on topic "/actions/invoke".
@@ -121,16 +113,17 @@ class Invoker(
     config: WhiskConfig,
     instance: Int,
     activationFeed: ActorRef,
-    verbosity: Verbosity.Level = Verbosity.Loud,
+    verbosity: LogLevel = InfoLevel,
     runningInContainer: Boolean = true)(implicit actorSystem: ActorSystem)
     extends DispatchRule("invoker", "/actions/invoke", s"""(.+)/(.+)/(.+),(.+)/(.+)""") {
 
-    implicit private val executionContext: ExecutionContext = actorSystem.dispatcher
+    private implicit val executionContext: ExecutionContext = actorSystem.dispatcher
+    private implicit val emitter: PrintStreamEmitter = this
 
     /** This generates completion messages back to the controller */
     val producer = new KafkaProducerConnector(config.kafkaHost, executionContext)
 
-    override def setVerbosity(level: Verbosity.Level) = {
+    override def setVerbosity(level: LogLevel) = {
         super.setVerbosity(level)
         pool.setVerbosity(level)
         entityStore.setVerbosity(level)
@@ -159,6 +152,7 @@ class Invoker(
      * @param matches contains the regex matches
      */
     override def doit(topic: String, msg: Message, matches: Seq[Match])(implicit transid: TransactionId): Future[DocInfo] = {
+        val start = transid.started(this, LoggingMarkers.INVOKER_ACTIVATION)
         Future {
             // conformance checks can terminate the future if a variance is detected
             require(matches != null && matches.size >= 1, "matches undefined")
@@ -173,7 +167,12 @@ class Invoker(
             val version = if (regex.groupCount == 4) DocRevision(regex.group(4)) else DocRevision()
             val action = DocId(WhiskEntity.qualifiedName(nanespace, name)).asDocInfo(version)
             action
-        } flatMap { fetchFromStoreAndInvoke(_, msg) }
+        } flatMap {
+            fetchFromStoreAndInvoke(_, msg) map { docInfo =>
+                transid.finished(this, start)
+                docInfo
+            }
+        }
     }
 
     /**
@@ -189,37 +188,32 @@ class Invoker(
         // caching is enabled since actions have revision id and an updated
         // action will not hit in the cache due to change in the revision id;
         // if the doc revision is missing, then bypass cache
-        info(this, "", INVOKER_FETCH_ACTION_START)
         val actionFuture = WhiskAction.get(entityStore, action, action.rev != DocRevision())
         actionFuture onFailure {
-            case t => error(this, s"failed to fetch action ${action.id}: ${t.getMessage}", INVOKER_FETCH_ACTION_FAILED)
+            case t => error(this, s"failed to fetch action ${action.id}: ${t.getMessage}")
         }
 
-        info(this, "", INVOKER_FETCH_AUTH_START)
         // keys are immutable, cache them
         val authFuture = WhiskAuth.get(authStore, subject, true)
         authFuture onFailure {
-            case t => error(this, s"failed to fetch auth key for $subject: ${t.getMessage}", INVOKER_FETCH_AUTH_FAILED)
+            case t => error(this, s"failed to fetch auth key for $subject: ${t.getMessage}")
         }
 
         // when records are fetched, invoke action
         val activationDocFuture = actionFuture flatMap { theAction =>
             // assume this future is done here
-            info(this, "", INVOKER_FETCH_ACTION_DONE)
             authFuture flatMap { theAuth =>
                 // assume this future is done here
-                info(this, "", INVOKER_FETCH_AUTH_DONE)
-                info(this, "", INVOKER_ACTIVATION_START)
                 invokeAction(theAction, theAuth, payload, tran)
             }
         }
 
         activationDocFuture onComplete {
             case Success(activationDoc) =>
-                info(this, s"recorded activation '$activationDoc'", INVOKER_ACTIVATION_DONE)
+                info(this, s"recorded activation '$activationDoc'")
                 activationDoc
             case Failure(t) =>
-                info(this, s"failed to invoke action ${action.id} due to ${t.getMessage}", INVOKER_ACTIVATION_ERROR)
+                info(this, s"failed to invoke action ${action.id} due to ${t.getMessage}")
                 completeTransactionWithError(action, tran, s"failed to invoke action ${action.id}: ${t.getMessage}")
         }
 
@@ -261,9 +255,8 @@ class Invoker(
                     // completed only once, there is only one completion message sent to the feed as a result.
                     activationFeed ! releaseResource
                     // Since there is no active action taken for completion from the invoker, writing activation record is it.
-                    info(this, "recording the activation result to the data store", INVOKER_RECORD_ACTIVATION_START)
+                    info(this, "recording the activation result to the data store")
                     val result = WhiskActivation.put(activationStore, activation)
-                    info(this, "finished recording the activation result", INVOKER_RECORD_ACTIVATION_DONE)
                     tran.result = Some(result)
                     result
                 }
@@ -600,7 +593,7 @@ object InvokerService {
 
         if (config.isValid) {
             val instance = if (args.length > 0) args(1).toInt else 0
-            val verbosity = Verbosity.Loud
+            val verbosity = InfoLevel
 
             SimpleExec.setVerbosity(verbosity)
 

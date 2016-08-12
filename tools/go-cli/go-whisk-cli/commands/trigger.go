@@ -35,7 +35,7 @@ var triggerCmd = &cobra.Command{
 }
 
 var triggerFireCmd = &cobra.Command{
-    Use:   "fire <name string> <payload string>",
+    Use:   "fire TRIGGER_NAME [PAYLOAD]",
     Short: "fire trigger event",
     SilenceUsage:   true,
     SilenceErrors:  true,
@@ -116,7 +116,7 @@ var triggerFireCmd = &cobra.Command{
 }
 
 var triggerCreateCmd = &cobra.Command{
-    Use:   "create",
+    Use:   "create TRIGGER_NAME",
     Short: "create new trigger",
     SilenceUsage:   true,
     SilenceErrors:  true,
@@ -269,7 +269,7 @@ var triggerCreateCmd = &cobra.Command{
 }
 
 var triggerUpdateCmd = &cobra.Command{
-    Use:   "update",
+    Use:   "update TRIGGER_NAME",
     Short: "update existing trigger",
     SilenceUsage:   true,
     SilenceErrors:  true,
@@ -368,7 +368,7 @@ var triggerUpdateCmd = &cobra.Command{
 }
 
 var triggerGetCmd = &cobra.Command{
-    Use:   "get <name string>",
+    Use:   "get TRIGGER_NAME",
     Short: "get trigger",
     SilenceUsage:   true,
     SilenceErrors:  true,
@@ -414,7 +414,7 @@ var triggerGetCmd = &cobra.Command{
 }
 
 var triggerDeleteCmd = &cobra.Command{
-    Use:   "delete <name string>",
+    Use:   "delete TRIGGER_NAME",
     Short: "delete trigger",
     SilenceUsage:   true,
     SilenceErrors:  true,
@@ -489,7 +489,7 @@ var triggerDeleteCmd = &cobra.Command{
 }
 
 var triggerListCmd = &cobra.Command{
-    Use:   "list <namespace string>",
+    Use:   "list [NAMESPACE]",
     Short: "list all triggers",
     SilenceUsage:   true,
     SilenceErrors:  true,
@@ -585,19 +585,19 @@ func deleteTrigger (triggerName string) error {
 
 func init() {
 
-    triggerCreateCmd.Flags().StringSliceVarP(&flags.common.annotation, "annotation", "a", []string{}, "annotations")
-    triggerCreateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, "default parameters")
-    triggerCreateCmd.Flags().StringVar(&flags.common.shared, "shared", "no", "shared action [yes|no]")
+    triggerCreateCmd.Flags().StringSliceVarP(&flags.common.annotation, "annotation", "a", []string{}, "annotation values in `KEY VALUE` format")
+    triggerCreateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, "default parameter values in `KEY VALUE` format")
+    triggerCreateCmd.Flags().StringVar(&flags.common.shared, "shared", "no", "trigger visibility `SCOPE`; yes = shared, no = private")
     triggerCreateCmd.Flags().StringVarP(&flags.common.feed, "feed", "f", "", "trigger feed")
 
-    triggerUpdateCmd.Flags().StringSliceVarP(&flags.common.annotation, "annotation", "a", []string{}, "annotations")
-    triggerUpdateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, "default parameters")
-    triggerUpdateCmd.Flags().StringVar(&flags.common.shared, "shared", "", "shared action (yes = shared, no[default] = private)")
+    triggerUpdateCmd.Flags().StringSliceVarP(&flags.common.annotation, "annotation", "a", []string{}, "annotation values in `KEY VALUE` format")
+    triggerUpdateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, "default parameter values in `KEY VALUE` format")
+    triggerUpdateCmd.Flags().StringVar(&flags.common.shared, "shared", "", "trigger visibility `SCOPE`; yes = shared, no = private")
 
-    triggerFireCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, "default parameters")
+    triggerFireCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, "parameter values in `KEY VALUE` format")
 
-    triggerListCmd.Flags().IntVarP(&flags.common.skip, "skip", "s", 0, "skip this many entities from the head of the collection")
-    triggerListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, "only return this many entities from the collection")
+    triggerListCmd.Flags().IntVarP(&flags.common.skip, "skip", "s", 0, "exclude the first `SKIP` number of triggers from the result")
+    triggerListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, "only return `LIMIT` number of triggers from the collection")
 
     triggerCmd.AddCommand(
         triggerFireCmd,

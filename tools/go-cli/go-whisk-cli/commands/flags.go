@@ -74,7 +74,6 @@ var flags struct {
         memory      int
         logsize     int
         result      bool
-        xPackage    string
         kind        string
     }
 

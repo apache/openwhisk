@@ -34,7 +34,7 @@ var packageCmd = &cobra.Command{
 }
 
 var packageBindCmd = &cobra.Command{
-  Use:           "bind <package string> <name string>",
+  Use:           "bind PACKAGE_NAME BOUND_PACKAGE_NAME",
   Short:         "bind parameters to a package",
   SilenceUsage:  true,
   SilenceErrors: true,
@@ -131,7 +131,7 @@ var packageBindCmd = &cobra.Command{
 }
 
 var packageCreateCmd = &cobra.Command{
-  Use:           "create <name string>",
+  Use:           "create PACKAGE_NAME",
   Short:         "create a new package",
   SilenceUsage:  true,
   SilenceErrors: true,
@@ -227,7 +227,7 @@ var packageCreateCmd = &cobra.Command{
 }
 
 var packageUpdateCmd = &cobra.Command{
-  Use:           "update <name string>",
+  Use:           "update PACKAGE_NAME",
   Short:         "update an existing package",
   SilenceUsage:  true,
   SilenceErrors: true,
@@ -322,7 +322,7 @@ var packageUpdateCmd = &cobra.Command{
 }
 
 var packageGetCmd = &cobra.Command{
-  Use:           "get <name string>",
+  Use:           "get PACKAGE_NAME",
   Short:         "get package",
   SilenceUsage:  true,
   SilenceErrors: true,
@@ -374,7 +374,7 @@ var packageGetCmd = &cobra.Command{
 }
 
 var packageDeleteCmd = &cobra.Command{
-  Use:           "delete <name string>",
+  Use:           "delete PACKAGE_NAME",
   Short:         "delete package",
   SilenceUsage:  true,
   SilenceErrors: true,
@@ -420,7 +420,7 @@ var packageDeleteCmd = &cobra.Command{
 }
 
 var packageListCmd = &cobra.Command{
-  Use:           "list [namespace string]",
+  Use:           "list [NAMESPACE]",
   Short:         "list all packages",
   SilenceUsage:  true,
   SilenceErrors: true,
@@ -483,7 +483,7 @@ var packageListCmd = &cobra.Command{
 }
 
 var packageRefreshCmd = &cobra.Command{
-  Use:           "refresh [namespace string]",
+  Use:           "refresh [NAMESPACE]",
   Short:         "refresh package bindings",
   SilenceUsage:  true,
   SilenceErrors: true,
@@ -570,25 +570,25 @@ var packageRefreshCmd = &cobra.Command{
 
 func init() {
 
-  packageCreateCmd.Flags().StringSliceVarP(&flags.common.annotation, "annotation", "a", []string{}, "annotations")
-  packageCreateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, "default parameters")
+  packageCreateCmd.Flags().StringSliceVarP(&flags.common.annotation, "annotation", "a", []string{}, "annotation values in `KEY VALUE` format")
+  packageCreateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, "default parameter values in `KEY VALUE` format")
   packageCreateCmd.Flags().StringVarP(&flags.xPackage.serviceGUID, "service_guid", "s", "", "a unique identifier of the service")
-  packageCreateCmd.Flags().StringVar(&flags.common.shared, "shared", "", "shared action (default: private)")
+  packageCreateCmd.Flags().StringVar(&flags.common.shared, "shared", "", "package visibility `SCOPE`; yes = shared, no = private")
 
-  packageUpdateCmd.Flags().StringSliceVarP(&flags.common.annotation, "annotation", "a", []string{}, "annotations")
-  packageUpdateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, "default parameters")
+  packageUpdateCmd.Flags().StringSliceVarP(&flags.common.annotation, "annotation", "a", []string{}, "annotation values in `KEY VALUE` format")
+  packageUpdateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, "default parameter values in `KEY VALUE` format")
   packageUpdateCmd.Flags().StringVarP(&flags.xPackage.serviceGUID, "service_guid", "s", "", "a unique identifier of the service")
-  packageUpdateCmd.Flags().StringVar(&flags.common.shared, "shared", "", "shared action (default: private)")
+  packageUpdateCmd.Flags().StringVar(&flags.common.shared, "shared", "", "package visibility `SCOPE`; yes = shared, no = private")
 
   packageGetCmd.Flags().BoolVarP(&flags.common.summary, "summary", "s", false, "summarize entity details")
 
-  packageBindCmd.Flags().StringSliceVarP(&flags.common.annotation, "annotation", "a", []string{}, "annotations")
-  packageBindCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, "default parameters")
+  packageBindCmd.Flags().StringSliceVarP(&flags.common.annotation, "annotation", "a", []string{}, "annotation values in `KEY VALUE` format")
+  packageBindCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, "default parameter values in `KEY VALUE` format")
 
   packageListCmd.Flags().StringVar(&flags.common.shared, "shared", "", "include publicly shared entities in the result")
-  packageListCmd.Flags().IntVarP(&flags.common.skip, "skip", "s", 0, "skip this many entities from the head of the collection")
-  packageListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, "only return this many entities from the collection")
-  packageListCmd.Flags().BoolVar(&flags.common.full, "full", false, "include full entity description")
+  packageListCmd.Flags().IntVarP(&flags.common.skip, "skip", "s", 0, "exclude the first `SKIP` number of packages from the result")
+  packageListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, "only return `LIMIT` number of packages from the collection")
+  packageListCmd.Flags().BoolVar(&flags.common.full, "full", false, "include full package description")
 
   packageCmd.AddCommand(
     packageBindCmd,

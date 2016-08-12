@@ -27,13 +27,13 @@ import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 
 import akka.actor.ActorSystem
+import akka.event.Logging.InfoLevel
 import spray.http.BasicHttpCredentials
 import spray.routing.HttpService
 import spray.testkit.ScalatestRouteTest
 import whisk.common.Logging
 import whisk.common.TransactionCounter
 import whisk.common.TransactionId
-import whisk.common.Verbosity
 import whisk.core.WhiskConfig
 import whisk.core.connector.LoadBalancerResponse
 import whisk.core.controller.WhiskActionsApi
@@ -149,12 +149,12 @@ protected trait ControllerTestCommon
         }
     }
 
-    setVerbosity(Verbosity.Loud)
-    Collection.initialize(entityStore, Verbosity.Loud)
-    entityStore.setVerbosity(Verbosity.Loud)
-    activationStore.setVerbosity(Verbosity.Loud)
-    authStore.setVerbosity(Verbosity.Loud)
-    entitlementService.setVerbosity(Verbosity.Loud)
+    setVerbosity(InfoLevel)
+    Collection.initialize(entityStore, InfoLevel)
+    entityStore.setVerbosity(InfoLevel)
+    activationStore.setVerbosity(InfoLevel)
+    authStore.setVerbosity(InfoLevel)
+    entitlementService.setVerbosity(InfoLevel)
 
     val ACTIONS = Collection(Collection.ACTIONS)
     val TRIGGERS = Collection(Collection.TRIGGERS)

@@ -138,7 +138,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                     trigger: WhiskTrigger =>
                         val args = trigger.parameters.merge(payload)
                         val triggerActivationId = ActivationId()
-                        info(this, s"[POST] trigger activation id: ${triggerActivationId}", LoggingMarkers.CONTROLLER_FIRE_TRIGGER_START)
+                        info(this, s"[POST] trigger activation id: ${triggerActivationId}")
 
                         val triggerActivation = WhiskActivation(
                             namespace = user.subject.namespace, // all activations should end up in the one space regardless trigger.namespace,
@@ -188,10 +188,9 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
 
                         onComplete(saveTriggerActivation) {
                             case Success(activationId) =>
-                                info(this, "", LoggingMarkers.CONTROLLER_FIRE_TRIGGER_DONE)
                                 complete(OK, activationId.toJsObject)
                             case Failure(t: Throwable) =>
-                                error(this, s"[POST] storing trigger activation failed: ${t.getMessage}", LoggingMarkers.CONTROLLER_FIRE_TRIGGER_ERROR)
+                                error(this, s"[POST] storing trigger activation failed: ${t.getMessage}")
                                 terminate(InternalServerError, t.getMessage)
                         }
                 })

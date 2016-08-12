@@ -18,11 +18,11 @@ package whisk.core.entitlement
 
 import scala.collection.concurrent.TrieMap
 
-import whisk.common.Verbosity
 import whisk.core.WhiskConfig
 import whisk.core.entity.Subject
 import whisk.common.TransactionId
 import whisk.common.Logging
+import akka.event.Logging.InfoLevel
 
 /**
  * A class tracking the rate of invocation (or any operation) by subject (any key really).
@@ -41,7 +41,7 @@ class RateThrottler(config: WhiskConfig,
 
     // Track the activation rate of one subject at multiple time-granularity.
     class RateInfo extends Logging {
-        setVerbosity(Verbosity.Loud)
+        setVerbosity(InfoLevel)
         var lastMin = getCurrentMinute
         var lastMinCount = 0
         var lastHour = getCurrentHour
@@ -84,5 +84,3 @@ class RateThrottler(config: WhiskConfig,
         }
     }
 }
-
-

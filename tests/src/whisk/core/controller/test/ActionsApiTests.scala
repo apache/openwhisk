@@ -42,7 +42,6 @@ import spray.json.DefaultJsonProtocol.mapFormat
 import spray.json.JsObject
 import spray.json.pimpAny
 import spray.json.pimpString
-import whisk.common.Verbosity
 import whisk.core.controller.WhiskActionsApi
 import whisk.core.entity.ActionLimits
 import whisk.core.entity.ActionLimitsOption
@@ -67,6 +66,7 @@ import java.time.Instant
 import whisk.core.entity.SequenceExec
 import whisk.core.entity.Pipecode
 import whisk.core.entity.NodeJSExec
+import akka.event.Logging.InfoLevel
 
 /**
  * Tests Actions API.
@@ -90,7 +90,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val namespace = Namespace(creds.subject())
     val collectionPath = s"/${Namespace.DEFAULT}/${collection.path}"
     def aname = MakeName.next("action_tests")
-    setVerbosity(Verbosity.Loud)
+    setVerbosity(InfoLevel)
     val entityTooBigRejectionMessage = "request entity too large"
     val actionLimit = Exec.sizeLimit
     val parametersLimit = Parameters.sizeLimit

@@ -33,7 +33,7 @@ var ruleCmd = &cobra.Command{
 }
 
 var ruleEnableCmd = &cobra.Command{
-    Use:   "enable <name string>",
+    Use:   "enable RULE_NAME",
     Short: "enable rule",
     SilenceUsage:   true,
     SilenceErrors:  true,
@@ -79,7 +79,7 @@ var ruleEnableCmd = &cobra.Command{
 }
 
 var ruleDisableCmd = &cobra.Command{
-    Use:   "disable <name string>",
+    Use:   "disable RULE_NAME",
     Short: "disable rule",
     SilenceUsage:   true,
     SilenceErrors:  true,
@@ -125,7 +125,7 @@ var ruleDisableCmd = &cobra.Command{
 }
 
 var ruleStatusCmd = &cobra.Command{
-    Use:   "status <name string>",
+    Use:   "status RULE_NAME",
     Short: "get rule status",
     SilenceUsage:   true,
     SilenceErrors:  true,
@@ -171,7 +171,7 @@ var ruleStatusCmd = &cobra.Command{
 }
 
 var ruleCreateCmd = &cobra.Command{
-    Use:   "create <name string> <trigger string> <action string>",
+    Use:   "create RULE_NAME TRIGGER_NAME ACTION_NAME",
     Short: "create new rule",
     SilenceUsage:   true,
     SilenceErrors:  true,
@@ -248,7 +248,7 @@ var ruleCreateCmd = &cobra.Command{
 }
 
 var ruleUpdateCmd = &cobra.Command{
-    Use:   "update <name string> <trigger string> <action string>",
+    Use:   "update RULE_NAME TRIGGER_NAME ACTION_NAME",
     Short: "update existing rule",
     SilenceUsage:   true,
     SilenceErrors:  true,
@@ -310,7 +310,7 @@ var ruleUpdateCmd = &cobra.Command{
 }
 
 var ruleGetCmd = &cobra.Command{
-    Use:   "get <name string>",
+    Use:   "get RULE_NAME",
     Short: "get rule",
     SilenceUsage:   true,
     SilenceErrors:  true,
@@ -357,7 +357,7 @@ var ruleGetCmd = &cobra.Command{
 }
 
 var ruleDeleteCmd = &cobra.Command{
-    Use:   "delete <name string>",
+    Use:   "delete RULE_NAME",
     Short: "delete rule",
     SilenceUsage:   true,
     SilenceErrors:  true,
@@ -412,7 +412,7 @@ var ruleDeleteCmd = &cobra.Command{
 }
 
 var ruleListCmd = &cobra.Command{
-    Use:   "list <namespace string>",
+    Use:   "list [NAMESPACE]",
     Short: "list all rules",
     SilenceUsage:   true,
     SilenceErrors:  true,
@@ -461,15 +461,15 @@ var ruleListCmd = &cobra.Command{
 
 func init() {
 
-    ruleCreateCmd.Flags().StringVar(&flags.common.shared, "shared", "", "shared action (yes = shared, no[default] = private)")
-    ruleCreateCmd.Flags().BoolVar(&flags.rule.enable, "enable", false, "autmatically enable rule after creating it")
+    ruleCreateCmd.Flags().StringVar(&flags.common.shared, "shared", "", "rule visibility `SCOPE`; yes = shared, no = private")
+    ruleCreateCmd.Flags().BoolVar(&flags.rule.enable, "enable", false, "automatically enable rule after creating it")
 
-    ruleUpdateCmd.Flags().StringVar(&flags.common.shared, "shared", "", "shared action (yes = shared, no[default] = private)")
+    ruleUpdateCmd.Flags().StringVar(&flags.common.shared, "shared", "", "rule visibility `SCOPE`; yes = shared, no = private")
 
-    ruleDeleteCmd.Flags().BoolVar(&flags.rule.disable, "disable", false, "autmatically disable rule before deleting it")
+    ruleDeleteCmd.Flags().BoolVar(&flags.rule.disable, "disable", false, "automatically disable rule before deleting it")
 
-    ruleListCmd.Flags().IntVarP(&flags.common.skip, "skip", "s", 0, "skip this many entities from the head of the collection")
-    ruleListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, "only return this many entities from the collection")
+    ruleListCmd.Flags().IntVarP(&flags.common.skip, "skip", "s", 0, "exclude the first `SKIP` number of rules from the result")
+    ruleListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, "only return `LIMIT` number of rules from the collection")
 
     ruleCmd.AddCommand(
         ruleCreateCmd,

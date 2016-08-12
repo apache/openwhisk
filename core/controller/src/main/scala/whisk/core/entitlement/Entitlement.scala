@@ -37,12 +37,12 @@ import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.Scheduler
 import whisk.common.TransactionId
-import whisk.common.Verbosity
 import whisk.core.WhiskConfig
 import whisk.core.entity.Namespace
 import whisk.core.entity.Parameters
 import whisk.core.entity.Subject
 import whisk.http.ErrorResponse
+import akka.event.Logging.LogLevel
 
 package object types {
     type Entitlements = TrieMap[(Subject, String), Set[Privilege]]
@@ -102,7 +102,7 @@ protected[core] abstract class EntitlementService(config: WhiskConfig)(
         }
     }
 
-    override def setVerbosity(level: Verbosity.Level) = {
+    override def setVerbosity(level: LogLevel) = {
         super.setVerbosity(level)
         invokeRateThrottler.setVerbosity(level)
         triggerRateThrottler.setVerbosity(level)
@@ -172,7 +172,7 @@ protected[core] abstract class EntitlementService(config: WhiskConfig)(
             // accepted for the time being however because there exists no external mechanism to create
             // explicit grants
             val grant = if (right != REJECT) {
-                info(this, s"checking user '$subject' has privilege '$right' for '$resource'", LoggingMarkers.CONTROLLER_CHECK_ENTITLEMENT_START)
+                info(this, s"checking user '$subject' has privilege '$right' for '$resource'")
                 // check the default namespace first, bypassing additional checks if permitted
                 val defaultNamespaces = EntitlementService.defaultNamespaces(subject)
                 resource.collection.implicitRights(defaultNamespaces, right, resource) flatMap {
@@ -192,10 +192,10 @@ protected[core] abstract class EntitlementService(config: WhiskConfig)(
 
             grant onComplete {
                 case Success(r) =>
-                    info(this, if (r) "authorized" else "not authorized", LoggingMarkers.CONTROLLER_CHECK_ENTITLEMENT_DONE)
+                    info(this, if (r) "authorized" else "not authorized")
                     promise success r
                 case Failure(t) =>
-                    error(this, s"failed while checking entitlement: ${t.getMessage}", LoggingMarkers.CONTROLLER_CHECK_ENTITLEMENT_ERROR)
+                    error(this, s"failed while checking entitlement: ${t.getMessage}")
                     promise success false
             }
 

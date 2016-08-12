@@ -34,7 +34,6 @@ import whisk.common.ConsulKV.LoadBalancerKeys
 import whisk.common.ConsulKVReporter
 import whisk.common.Logging
 import whisk.common.TransactionId
-import whisk.common.Verbosity
 import whisk.connector.kafka.KafkaConsumerConnector
 import whisk.connector.kafka.KafkaProducerConnector
 import whisk.core.WhiskConfig
@@ -46,8 +45,9 @@ import whisk.core.connector.CompletionMessage
 import whisk.core.entity.ActivationId
 import whisk.core.entity.WhiskActivation
 import whisk.utils.ExecutionContextFactory.PromiseExtensions
+import akka.event.Logging.LogLevel
 
-class LoadBalancerService(config: WhiskConfig, verbosity: Verbosity.Level)(
+class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
     implicit val actorSystem: ActorSystem)
     extends LoadBalancerToKafka
     with Logging {
