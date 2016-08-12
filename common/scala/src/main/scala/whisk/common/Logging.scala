@@ -29,18 +29,46 @@ import akka.event.Logging.{ DebugLevel, InfoLevel, WarningLevel, ErrorLevel }
  * A logging facility in which output is one line and fields are bracketed.
  */
 trait Logging extends PrintStreamEmitter {
+    /**
+     * Sets the loglevel for this implementor to log on. See
+     * {@link akka.event.Logging.LogLevel} for details.
+     */
     def setVerbosity(level: LogLevel) = this.level = level
     def getVerbosity() = level
 
+    /**
+     * Prints a message on DEBUG level
+     *
+     * @param from Reference, where the method was called from.
+     * @param message Message to write to the log
+     */
     def debug(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) =
         if (level >= DebugLevel) emit(DebugLevel, id, from, message)
 
+    /**
+     * Prints a message on INFO level
+     *
+     * @param from Reference, where the method was called from.
+     * @param message Message to write to the log
+     */
     def info(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) =
         if (level >= InfoLevel) emit(InfoLevel, id, from, message)
 
+    /**
+     * Prints a message on WARN level
+     *
+     * @param from Reference, where the method was called from.
+     * @param message Message to write to the log
+     */
     def warn(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) =
         if (level >= WarningLevel) emit(WarningLevel, id, from, message)
 
+    /**
+     * Prints a message on ERROR level
+     *
+     * @param from Reference, where the method was called from.
+     * @param message Message to write to the log
+     */
     def error(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) =
         if (level >= ErrorLevel) emit(ErrorLevel, id, from, message)
 
@@ -60,6 +88,15 @@ trait PrintStreamEmitter {
     private var componentName = "";
     def setComponentName(comp: String) = componentName = comp
 
+    /**
+     * Prints a message to the output stream
+     *
+     * @param loglevel The level to log on
+     * @param id <code>TransactionId</code> to include in the log
+     * @param from Reference, where the method was called from.
+     * @param message Message to write to the log
+     * @param marker A LogMarkerToken. They are defined in <code>LoggingMarkers</code>.
+     */
     def emit(loglevel: LogLevel, id: TransactionId, from: AnyRef, message: String, marker: Option[LogMarker] = None) = {
         val now = Instant.now(Clock.systemUTC)
         val time = Emitter.timeFormat.format(now)
@@ -119,6 +156,7 @@ case class LogMarkerToken(component: String, action: String, state: String) {
 }
 
 object LoggingMarkers {
+
     val start = "start"
     val finish = "finish"
     val error = "error"
