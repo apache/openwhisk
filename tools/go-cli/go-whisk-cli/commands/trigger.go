@@ -42,16 +42,12 @@ var triggerFireCmd = &cobra.Command{
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
-
         var err error
         var payloadArg string
-        if len(args) < 1 || len(args) > 2 {
-            whisk.Debug(whisk.DbgError, "Invalid number of arguments %d (expected 1 or 2); args: %#v\n", len(args), args)
-            errStr := fmt.Sprintf(
-                wski18n.T("Invalid number of arguments ({{.argnum}}) provided; 1 or 2 arguments are expected",
-                    map[string]interface{}{"argnum": len(args)}))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
+
+        if whiskErr := checkArgs(args, 1, 2, "Trigger fire",
+                wski18n.T("A trigger name is required. A payload is optional.")); whiskErr != nil {
+            return whiskErr
         }
 
         qName, err := parseQualifiedName(args[0])
@@ -136,18 +132,13 @@ var triggerCreateCmd = &cobra.Command{
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
-
         var err error
         var feedArgPassed bool = (flags.common.feed != "")
         var feedParams []string
 
-        if len(args) != 1 {
-            whisk.Debug(whisk.DbgError, "Invalid number of arguments %d; args: %#v\n", len(args), args)
-            errStr := fmt.Sprintf(
-                wski18n.T("Invalid number of arguments ({{.argnum}}) provided; exactly one argument is expected",
-                    map[string]interface{}{"argnum": len(args)}))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
+        if whiskErr := checkArgs(args, 1, 1, "Trigger create",
+                wski18n.T("A trigger name is required.")); whiskErr != nil {
+            return whiskErr
         }
 
         qName, err := parseQualifiedName(args[0])
@@ -309,15 +300,11 @@ var triggerUpdateCmd = &cobra.Command{
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
-
         var err error
-        if len(args) != 1 {
-            whisk.Debug(whisk.DbgError, "Invalid number of arguments %d; args: %#v\n", len(args), args)
-            errStr := fmt.Sprintf(
-                wski18n.T("Invalid number of arguments ({{.argnum}}) provided; exactly one argument is expected",
-                    map[string]interface{}{"argnum": len(args)}))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
+
+        if whiskErr := checkArgs(args, 1, 1, "Trigger update",
+                wski18n.T("A trigger name is required.")); whiskErr != nil {
+            return whiskErr
         }
 
         qName, err := parseQualifiedName(args[0])
@@ -424,13 +411,9 @@ var triggerGetCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        if len(args) != 1 {
-            whisk.Debug(whisk.DbgError, "Invalid number of arguments %d; args: %#v\n", len(args), args)
-            errStr := fmt.Sprintf(
-                wski18n.T("Invalid number of arguments ({{.argnum}}) provided; exactly one argument is expected",
-                    map[string]interface{}{"argnum": len(args)}))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
+
+        if whiskErr := checkArgs(args, 1, 1, "Trigger get", wski18n.T("A trigger name is required.")); whiskErr != nil {
+            return whiskErr
         }
 
         qName, err := parseQualifiedName(args[0])
@@ -490,13 +473,9 @@ var triggerDeleteCmd = &cobra.Command{
         var retTrigger *whisk.TriggerFromServer
         var fullFeedName string
 
-        if len(args) != 1 {
-            whisk.Debug(whisk.DbgError, "Invalid number of arguments %d; args: %#v\n", len(args), args)
-            errStr := fmt.Sprintf(
-                wski18n.T("Invalid number of arguments ({{.argnum}}) provided; exactly one argument is expected",
-                    map[string]interface{}{"argnum": len(args)}))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
+        if whiskErr := checkArgs(args, 1, 1, "Trigger delete",
+                wski18n.T("A trigger name is required.")); whiskErr != nil {
+            return whiskErr
         }
 
         qName, err := parseQualifiedName(args[0])
@@ -593,13 +572,9 @@ var triggerListCmd = &cobra.Command{
             }
             client.Namespace = ns
             whisk.Debug(whisk.DbgInfo, "Using namespace '%s' from argument '%s''\n", ns, args[0])
-        } else if len(args) > 1 {
-            whisk.Debug(whisk.DbgError, "Invalid number of arguments: %d\n", len(args))
-            errStr := fmt.Sprintf(
-                wski18n.T("Invalid number of arguments ({{.argnum}}) provided; at most one argument is expected",
-                    map[string]interface{}{"argnum": len(args)}))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
+        } else if whiskErr := checkArgs(args, 0, 1, "Trigger list",
+                wski18n.T("An optional namespace is the only valid argument.")); whiskErr != nil {
+            return whiskErr
         }
 
         options := &whisk.TriggerListOptions{
@@ -678,7 +653,6 @@ func deleteTrigger (triggerName string) error {
 }
 
 func init() {
-
     triggerCreateCmd.Flags().StringSliceVarP(&flags.common.annotation, "annotation", "a", []string{}, wski18n.T("annotation values in `KEY VALUE` format"))
     triggerCreateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, wski18n.T("default parameter values in `KEY VALUE` format"))
     triggerCreateCmd.Flags().StringVar(&flags.common.shared, "shared", "no", wski18n.T("trigger visibility `SCOPE`; yes = shared, no = private"))

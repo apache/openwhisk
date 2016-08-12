@@ -52,20 +52,8 @@ var actionCreateCmd = &cobra.Command{
   PreRunE:       setupClientConfig,
   RunE: func(cmd *cobra.Command, args []string) error {
 
-    if len(args) < 2 {
-      whisk.Debug(whisk.DbgError, "Action create command must have at least two arguments\n")
-      errMsg := fmt.Sprintf(
-        wski18n.T("Invalid argument(s). An action name and artifact are required."))
-      whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
-        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-      return whiskErr
-    } else if len(args) > 2 {
-      whisk.Debug(whisk.DbgError, "Action create command must not have more than two arguments\n")
-      errMsg := fmt.Sprintf(
-        wski18n.T("Invalid argument(s): {{.args}}",
-          map[string]interface{}{"args": strings.Join(args[2:], ", ")}))
-      whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
-        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+    if whiskErr := checkArgs(args, 2, 2, "Action create",
+            wski18n.T("An action name and action are required.")); whiskErr != nil {
       return whiskErr
     }
 
@@ -106,20 +94,8 @@ var actionUpdateCmd = &cobra.Command{
   PreRunE:       setupClientConfig,
   RunE: func(cmd *cobra.Command, args []string) error {
 
-    if len(args) < 1 {
-      whisk.Debug(whisk.DbgError, "Action update command must have at least one argument\n")
-      errMsg := fmt.Sprintf(
-        wski18n.T("Invalid argument(s). An action name is required."))
-      whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
-        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-      return whiskErr
-    } else if len(args) > 2 {
-      whisk.Debug(whisk.DbgError, "Action update command must not have more than two arguments\n")
-      errMsg := fmt.Sprintf(
-        wski18n.T("Invalid argument(s): {{.args}}",
-          map[string]interface{}{"args": strings.Join(args[1:], ", ")}))
-      whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
-        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+    if whiskErr := checkArgs(args, 1, 2, "Action update",
+        wski18n.T("An action name is required. An action is optional.")); whiskErr != nil {
       return whiskErr
     }
 
@@ -161,20 +137,7 @@ var actionInvokeCmd = &cobra.Command{
   RunE: func(cmd *cobra.Command, args []string) error {
     var err error
 
-    if len(args) < 1 {
-      whisk.Debug(whisk.DbgError, "Action invoke command must have at least one argument\n")
-      errMsg := fmt.Sprintf(
-        wski18n.T("Invalid argument(s). An action name is required."))
-      whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
-        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-      return whiskErr
-    } else if len(args) > 1 {
-      whisk.Debug(whisk.DbgError, "Action invoke command must not have more than one argument\n")
-      errMsg := fmt.Sprintf(
-        wski18n.T("Invalid argument(s): {{.args}}",
-          map[string]interface{}{"args": strings.Join(args[1:], ", ")}))
-      whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
-        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+    if whiskErr := checkArgs(args, 1, 1, "Action invoke", wski18n.T("An action name is required.")); whiskErr != nil {
       return whiskErr
     }
 
@@ -268,20 +231,7 @@ var actionGetCmd = &cobra.Command{
   RunE: func(cmd *cobra.Command, args []string) error {
     var err error
 
-    if len(args) < 1 {
-      whisk.Debug(whisk.DbgError, "Action get command must have one argument\n")
-      errMsg := fmt.Sprintf(
-        wski18n.T("Invalid argument(s). An action name is required."))
-      whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
-        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-      return whiskErr
-    } else if len(args) > 1 {
-      whisk.Debug(whisk.DbgError, "Action get command cannot have more than one argument\n")
-      errMsg := fmt.Sprintf(
-        wski18n.T("Invalid argument(s): {{.args}}",
-          map[string]interface{}{"args": strings.Join(args[1:], ", ")}))
-      whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
-        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+    if whiskErr := checkArgs(args, 1, 1, "Action get", wski18n.T("An action name is required.")); whiskErr != nil {
       return whiskErr
     }
 
@@ -329,19 +279,7 @@ var actionDeleteCmd = &cobra.Command{
   PreRunE:       setupClientConfig,
   RunE: func(cmd *cobra.Command, args []string) error {
 
-    if len(args) < 1 {
-      whisk.Debug(whisk.DbgError, "Action delete command must have one argument\n")
-      errMsg := fmt.Sprintf(wski18n.T("Invalid argument(s). An action name is required."))
-      whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
-        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-      return whiskErr
-    } else if len(args) > 1 {
-      whisk.Debug(whisk.DbgError, "Action delete command cannot have more than one argument\n")
-      errMsg := fmt.Sprintf(
-        wski18n.T("Invalid argument(s): {{.args}}",
-          map[string]interface{}{"args": strings.Join(args[1:], ", ")}))
-      whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
-        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+    if whiskErr := checkArgs(args, 1, 1, "Action delete", wski18n.T("An action name is required.")); whiskErr != nil {
       return whiskErr
     }
 
@@ -406,13 +344,8 @@ var actionListCmd = &cobra.Command{
         return whiskErr
       }
       client.Namespace = qName.namespace
-    } else if len(args) > 1 {
-      whisk.Debug(whisk.DbgError, "Action list command must not have more than one argument\n")
-      errMsg := fmt.Sprintf(
-        wski18n.T("Invalid argument(s): {{.args}}",
-          map[string]interface{}{"args": strings.Join(args[1:], ", ")}))
-      whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
-        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+    } else if whiskErr := checkArgs(args, 0, 1, "Action list",
+        wski18n.T("An optional namespace is the only valid argument.")); whiskErr != nil {
       return whiskErr
     }
 

@@ -104,14 +104,6 @@
     "translation": "bind parameters to a package"
   },
   {
-    "id": "Invalid argument(s). A package name and binding name are required.",
-    "translation": "Invalid argument(s). A package name and binding name are required."
-  },
-  {
-    "id": "Invalid argument(s): {{.args}}",
-    "translation": "Invalid argument(s): {{.args}}"
-  },
-  {
     "id": "Invalid parameter argument '{{.param}}': {{.err}}",
     "translation": "Invalid parameter argument '{{.param}}': {{.err}}"
   },
@@ -130,10 +122,6 @@
   {
     "id": "create a new package",
     "translation": "create a new package"
-  },
-  {
-    "id": "Invalid argument(s). A package name is required.",
-    "translation": "Invalid argument(s). A package name is required."
   },
   {
     "id": "Package creation failed: {{.err}}",
@@ -413,10 +401,6 @@
     "translation": "enable rule"
   },
   {
-    "id": "Invalid number of arguments ({{.argnum}}) provided; exactly one argument is expected",
-    "translation": "Invalid number of arguments ({{.argnum}}) provided; exactly one argument is expected"
-  },
-  {
     "id": "Unable to enable rule '{{.name}}': {{.err}}",
     "translation": "Unable to enable rule '{{.name}}': {{.err}}"
   },
@@ -451,10 +435,6 @@
   {
     "id": "create new rule",
     "translation": "create new rule"
-  },
-  {
-    "id": "Invalid number of arguments ({{.argnum}}) provided; exactly three arguments are expected",
-    "translation": "Invalid number of arguments ({{.argnum}}) provided; exactly three arguments are expected"
   },
   {
     "id": "Unable to create rule '{{.name}}': {{.err}}",
@@ -511,10 +491,6 @@
   {
     "id": "Namespace '{{.name}}' is invalid: {{.err}}\n",
     "translation": "Namespace '{{.name}}' is invalid: {{.err}}\n"
-  },
-  {
-    "id": "Invalid number of arguments ({{.argnum}}) provided; at most one argument is expected",
-    "translation": "Invalid number of arguments ({{.argnum}}) provided; at most one argument is expected"
   },
   {
     "id": "Unable to obtain list of rules: {{.err}}",
@@ -616,10 +592,6 @@
   {
     "id": "fire trigger event",
     "translation": "fire trigger event"
-  },
-  {
-    "id": "Invalid number of arguments ({{.argnum}}) provided; 1 or 2 arguments are expected",
-    "translation": "Invalid number of arguments ({{.argnum}}) provided; 1 or 2 arguments are expected"
   },
   {
     "id": "Unable to fire trigger '{{.name}}': {{.err}}",
@@ -804,10 +776,6 @@
     "translation": "create a new action"
   },
   {
-    "id": "Invalid argument(s). An action name and artifact are required.",
-    "translation": "Invalid argument(s). An action name and artifact are required."
-  },
-  {
     "id": "Unable to parse action command arguments: {{.err}}",
     "translation": "Unable to parse action command arguments: {{.err}}"
   },
@@ -822,10 +790,6 @@
   {
     "id": "update an existing action",
     "translation": "update an existing action"
-  },
-  {
-    "id": "Invalid argument(s). An action name is required.",
-    "translation": "Invalid argument(s). An action name is required."
   },
   {
     "id": "Unable to update action: {{.err}}",
@@ -1074,5 +1038,73 @@
   {
     "id": "The annotation arguments are invalid: {{.err}}",
     "translation": "The annotation arguments are invalid: {{.err}}"
+  },
+  {
+    "id": "An action name and action are required.",
+    "translation": "An action name and action are required."
+  },
+  {
+    "id": "An action name is required.",
+    "translation": "An action name is required."
+  },
+  {
+    "id": "An action name is required. An action is optional.",
+    "translation": "An action name is required. An action is optional."
+  },
+  {
+    "id": "An activation ID is required.",
+    "translation": "An activation ID is required."
+  },
+  {
+    "id": "A package name and binding name are required.",
+    "translation": "A package name and binding name are required."
+  },
+  {
+    "id": "A package name is required.",
+    "translation": "A package name is required."
+  },
+  {
+    "id": "A rule name is required.",
+    "translation": "A rule name is required."
+  },
+  {
+    "id": "A rule, trigger and action name are required.",
+    "translation": "A rule, trigger and action name are required."
+  },
+  {
+    "id": "A trigger name is required.",
+    "translation": "A trigger name is required."
+  },
+  {
+    "id": "A trigger name is required. A payload is optional.",
+    "translation": "A trigger name is required. A payload is optional."
+  },
+  {
+    "id": "An optional namespace is the only valid argument.",
+    "translation": "An optional namespace is the only valid argument."
+  },
+  {
+    "id": "Invalid argument(s). {{.required}}",
+    "translation": "Invalid argument(s). {{.required}}"
+  },
+  {
+    "id": "Invalid argument(s): {{.args}}. {{.required}}",
+    "translation": "Invalid argument(s): {{.args}}. {{.required}}"
+  },
+  {
+    "id": "exactly",
+    "translation": "exactly"
+  },
+  {
+    "id": "at least",
+    "translation": "at least"
+  },
+  {
+    "id": "no more than",
+    "translation": "no more than"
+  },
+  {
+    "id": "No arguments are required.",
+    "translation": "No arguments are required."
   }
 ]

@@ -208,18 +208,6 @@ class WskBasicUsageTests
 
     behavior of "Wsk actions"
 
-    it should "reject delete of an action without an action name" in {
-        val stderr = wsk.cli(Seq("action", "delete"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s). An action name is required.")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject delete of an action with an invalid argument" in {
-        val stderr = wsk.cli(Seq("action", "delete", "actionName", "invalidArg"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s): invalidArg")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
     it should "reject creating entities with invalid names" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val names = Seq(
@@ -238,18 +226,6 @@ class WskBasicUsageTests
             }
     }
 
-    it should "reject get of an action without an action name" in {
-        val stderr = wsk.cli(Seq("action", "get"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s). An action name is required.")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject get of an action with an invalid argument" in {
-        val stderr = wsk.cli(Seq("action", "get", "actionName", "invalidArg"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s): invalidArg")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
     it should "reject create with missing file" in {
         wsk.action.create("missingFile", Some("notfound"),
             expectedExitCode = MISUSE_EXIT).
@@ -264,24 +240,6 @@ class WskBasicUsageTests
             assetHelper.withCleaner(wsk.action, name) { (action, name) => action.create(name, file) }
             // Update it with a missing file
             wsk.action.create("updateMissingFile", Some("notfound"), update = true, expectedExitCode = MISUSE_EXIT)
-    }
-
-    it should "reject list of an action with an invalid argument" in {
-        val stderr = wsk.cli(Seq("action", "list", "actionName", "invalidArg"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s): invalidArg")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject invoke of an action without an action name" in {
-        val stderr = wsk.cli(Seq("action", "invoke"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s). An action name is required.")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject invoke of an action with an invalid argument" in {
-        val stderr = wsk.cli(Seq("action", "invoke", "actionName", "invalidArg"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s): invalidArg")
-        stderr should include("Run 'wsk --help' for usage.")
     }
 
     it should "create, and get an action to verify annotation parsing" in withAssetCleaner(wskprops) {
@@ -398,87 +356,6 @@ class WskBasicUsageTests
     }
 
     behavior of "Wsk packages"
-
-    it should "reject create of a package without a package name" in {
-        val stderr = wsk.cli(Seq("package", "create"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s). A package name is required.")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject create of a package with an invalid argument" in {
-        val stderr = wsk.cli(Seq("package", "create", "packageName", "invalidArg"),
-            expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s): invalidArg")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject update of a package without a package name" in {
-        val stderr = wsk.cli(Seq("package", "update"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s). A package name is required.")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject update of a package with an invalid argument" in {
-        val stderr = wsk.cli(Seq("package", "update", "packageName", "invalidArg"),
-            expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s): invalidArg")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject get of a package without a package name" in {
-        val stderr = wsk.cli(Seq("package", "get"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s). A package name is required.")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject get of a package with an invalid argument" in {
-        val stderr = wsk.cli(Seq("package", "get", "packageName", "invalidArg"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s): invalidArg")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject bind of a package without a package name" in {
-        val stderr = wsk.cli(Seq("package", "bind"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s). A package name and binding name are required.")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject bind of a package without a binding name" in {
-        val stderr = wsk.cli(Seq("package", "bind", "somePackage"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s). A package name and binding name are required.")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject bind of a package with an invalid argument" in {
-        val stderr = wsk.cli(Seq("package", "bind", "packageName", "bindingName", "invalidArg"),
-            expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s): invalidArg")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject list of a package with an invalid argument" in {
-        val stderr = wsk.cli(Seq("package", "list", "namespace", "invalidArg"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s): invalidArg")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject delete of a package without a package name" in {
-        val stderr = wsk.cli(Seq("package", "delete"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s). A package name is required.")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject delete of a package with an invalid argument" in {
-        val stderr = wsk.cli(Seq("package", "delete", "namespace", "invalidArg"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s): invalidArg")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
-
-    it should "reject refresh of a package with an invalid argument" in {
-        val stderr = wsk.cli(Seq("package", "refresh", "namespace", "invalidArg"), expectedExitCode = ERROR_EXIT).stderr
-        stderr should include("error: Invalid argument(s): invalidArg")
-        stderr should include("Run 'wsk --help' for usage.")
-    }
 
     it should "create, and get a package to verify annotation parsing" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
@@ -730,6 +607,110 @@ class WskBasicUsageTests
             (Seq("trigger", "update", "triggerName", "-a", "key"), invalidAnnotMsg),
             (Seq("trigger", "fire", "triggerName", "-a"), invalidAnnotMsg),
             (Seq("trigger", "fire", "triggerName", "-a", "key"), invalidAnnotMsg)
+        )
+
+        invalidArgs foreach {
+            case (cmd, err) =>
+                val stderr = wsk.cli(cmd, expectedExitCode = ERROR_EXIT).stderr
+                stderr should include(err)
+                stderr should include("Run 'wsk --help' for usage.")
+        }
+    }
+
+    behavior of "Wsk invalid argument handling"
+
+    it should "reject commands that are executed with invalid arguments" in {
+        val invalidArgsMsg = "error: Invalid argument(s)"
+        val tooFewArgsMsg = invalidArgsMsg + "."
+        val tooManyArgsMsg = invalidArgsMsg + ": "
+        val actionNameActionReqMsg = "An action name and action are required."
+        val actionNameReqMsg = "An action name is required."
+        val actionOptMsg = "An action is optional."
+        val packageNameReqMsg = "A package name is required."
+        val packageNameBindingReqMsg = "A package name and binding name are required."
+        val ruleNameReqMsg = "A rule name is required."
+        val ruleTriggerActionReqMsg = "A rule, trigger and action name are required."
+        val activationIdReq = "An activation ID is required."
+        val triggerNameReqMsg = "A trigger name is required."
+        val optNamespaceMsg = "An optional namespace is the only valid argument."
+        val optPayloadMsg = "A payload is optional."
+        val noArgsReqMsg = "No arguments are required."
+        val invalidArg = "invalidArg"
+        val invalidArgs = Seq(
+            (Seq("action", "create"), s"${tooFewArgsMsg} ${actionNameActionReqMsg}"),
+            (Seq("action", "create", "someAction"), s"${tooFewArgsMsg} ${actionNameActionReqMsg}"),
+            (Seq("action", "create", "actionName", "artifactName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
+            (Seq("action", "update"), s"${tooFewArgsMsg} ${actionNameReqMsg} ${actionOptMsg}"),
+            (Seq("action", "update", "actionName", "artifactName", invalidArg),
+              s"${tooManyArgsMsg}${invalidArg}. ${actionNameReqMsg} ${actionOptMsg}"),
+            (Seq("action", "delete"), s"${tooFewArgsMsg} ${actionNameReqMsg}"),
+            (Seq("action", "delete", "actionName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
+            (Seq("action", "get"), s"${tooFewArgsMsg} ${actionNameReqMsg}"),
+            (Seq("action", "get", "actionName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
+            (Seq("action", "list", "namespace", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"),
+            (Seq("action", "invoke"), s"${tooFewArgsMsg} ${actionNameReqMsg}"),
+            (Seq("action", "invoke", "actionName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
+            (Seq("activation", "list", "namespace", invalidArg),
+              s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"),
+            (Seq("activation", "get"), s"${tooFewArgsMsg} ${activationIdReq}"),
+            (Seq("activation", "get", "activationID", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
+            (Seq("activation", "logs"), s"${tooFewArgsMsg} ${activationIdReq}"),
+            (Seq("activation", "logs", "activationID", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
+            (Seq("activation", "result"), s"${tooFewArgsMsg} ${activationIdReq}"),
+            (Seq("activation", "result", "activationID", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
+            (Seq("activation", "poll", "activationID", invalidArg),
+              s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"),
+            (Seq("namespace", "list", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${noArgsReqMsg}"),
+            (Seq("namespace", "get", "namespace", invalidArg),
+              s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"),
+            (Seq("package", "create"), s"${tooFewArgsMsg} ${packageNameReqMsg}"),
+            (Seq("package", "create", "packageName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
+            (Seq("package", "update"), s"${tooFewArgsMsg} ${packageNameReqMsg}"),
+            (Seq("package", "update", "packageName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
+            (Seq("package", "get"), s"${tooFewArgsMsg} ${packageNameReqMsg}"),
+            (Seq("package", "get", "packageName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
+            (Seq("package", "bind"), s"${tooFewArgsMsg} ${packageNameBindingReqMsg}"),
+            (Seq("package", "bind", "packageName"), s"${tooFewArgsMsg} ${packageNameBindingReqMsg}"),
+            (Seq("package", "bind", "packageName", "bindingName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
+            (Seq("package", "list", "namespace", invalidArg),
+              s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"),
+            (Seq("package", "delete"), s"${tooFewArgsMsg} ${packageNameReqMsg}"),
+            (Seq("package", "delete", "namespace", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
+            (Seq("package", "refresh", "namespace", invalidArg),
+              s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"),
+            (Seq("rule", "enable"), s"${tooFewArgsMsg} ${ruleNameReqMsg}"),
+            (Seq("rule", "enable", "ruleName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
+            (Seq("rule", "disable"), s"${tooFewArgsMsg} ${ruleNameReqMsg}"),
+            (Seq("rule", "disable", "ruleName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
+            (Seq("rule", "status"), s"${tooFewArgsMsg} ${ruleNameReqMsg}"),
+            (Seq("rule", "status", "ruleName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
+            (Seq("rule", "create"), s"${tooFewArgsMsg} ${ruleTriggerActionReqMsg}"),
+            (Seq("rule", "create", "ruleName"), s"${tooFewArgsMsg} ${ruleTriggerActionReqMsg}"),
+            (Seq("rule", "create", "ruleName", "triggerName"), s"${tooFewArgsMsg} ${ruleTriggerActionReqMsg}"),
+            (Seq("rule", "create", "ruleName", "triggerName", "actionName", invalidArg),
+              s"${tooManyArgsMsg}${invalidArg}."),
+            (Seq("rule", "update"), s"${tooFewArgsMsg} ${ruleTriggerActionReqMsg}"),
+            (Seq("rule", "update", "ruleName"), s"${tooFewArgsMsg} ${ruleTriggerActionReqMsg}"),
+            (Seq("rule", "update", "ruleName", "triggerName"), s"${tooFewArgsMsg} ${ruleTriggerActionReqMsg}"),
+            (Seq("rule", "update", "ruleName", "triggerName", "actionName", invalidArg),
+              s"${tooManyArgsMsg}${invalidArg}."),
+            (Seq("rule", "get"), s"${tooFewArgsMsg} ${ruleNameReqMsg}"),
+            (Seq("rule", "get", "ruleName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
+            (Seq("rule", "delete"), s"${tooFewArgsMsg} ${ruleNameReqMsg}"),
+            (Seq("rule", "delete", "ruleName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
+            (Seq("rule", "list", "namespace", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"),
+            (Seq("trigger", "fire"), s"${tooFewArgsMsg} ${triggerNameReqMsg} ${optPayloadMsg}"),
+            (Seq("trigger", "fire", "triggerName", "triggerPayload", invalidArg),
+              s"${tooManyArgsMsg}${invalidArg}. ${triggerNameReqMsg} ${optPayloadMsg}"),
+            (Seq("trigger", "create"), s"${tooFewArgsMsg} ${triggerNameReqMsg}"),
+            (Seq("trigger", "create", "triggerName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
+            (Seq("trigger", "update"), s"${tooFewArgsMsg} ${triggerNameReqMsg}"),
+            (Seq("trigger", "update", "triggerName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
+            (Seq("trigger", "get"), s"${tooFewArgsMsg} ${triggerNameReqMsg}"),
+            (Seq("trigger", "get", "triggerName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
+            (Seq("trigger", "delete"), s"${tooFewArgsMsg} ${triggerNameReqMsg}"),
+            (Seq("trigger", "delete", "triggerName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
+            (Seq("trigger", "list", "namespace", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}")
         )
 
         invalidArgs foreach {

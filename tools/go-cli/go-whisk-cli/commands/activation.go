@@ -75,6 +75,9 @@ var activationListCmd = &cobra.Command{
             }
 
             client.Namespace = ns
+        } else if whiskErr := checkArgs(args, 0, 1, "Activation list",
+                wski18n.T("An optional namespace is the only valid argument.")); whiskErr != nil {
+            return whiskErr
         }
 
         options := &whisk.ActivationListOptions{
@@ -113,14 +116,12 @@ var activationGetCmd = &cobra.Command{
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
-        if len(args) != 1 {
-            whisk.Debug(whisk.DbgError, "Invalid number of arguments: %d\n", len(args))
-            errStr := fmt.Sprintf(
-                wski18n.T("Invalid number of arguments ({{.argnum}}) provided; exactly one argument is expected",
-                    map[string]interface{}{"argnum": len(args)}))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
+
+        if whiskErr := checkArgs(args, 1, 1, "Activation get",
+                wski18n.T("An activation ID is required.")); whiskErr != nil {
+            return whiskErr
         }
+
         id := args[0]
         activation, _, err := client.Activations.Get(id)
         if err != nil {
@@ -159,13 +160,10 @@ var activationLogsCmd = &cobra.Command{
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
-        if len(args) != 1 {
-            whisk.Debug(whisk.DbgError, "Invalid number of arguments: %d\n", len(args))
-            errStr := fmt.Sprintf(
-                wski18n.T("Invalid number of arguments ({{.argnum}}) provided; exactly one argument is expected",
-                    map[string]interface{}{"argnum": len(args)}))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
+
+        if whiskErr := checkArgs(args, 1, 1, "Activation logs",
+                wski18n.T("An activation ID is required.")); whiskErr != nil {
+            return whiskErr
         }
 
         id := args[0]
@@ -191,13 +189,10 @@ var activationResultCmd = &cobra.Command{
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
-        if len(args) != 1 {
-            whisk.Debug(whisk.DbgError, "Invalid number of arguments: %d\n", len(args))
-            errStr := fmt.Sprintf(
-                wski18n.T("Invalid number of arguments ({{.argnum}}) provided; exactly one argument is expected",
-                    map[string]interface{}{"argnum": len(args)}))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
+
+        if whiskErr := checkArgs(args, 1, 1, "Activation result",
+                wski18n.T("An activation ID is required.")); whiskErr != nil {
+            return whiskErr
         }
 
         id := args[0]
@@ -226,9 +221,11 @@ var activationPollCmd = &cobra.Command{
         var name string
         var pollSince int64 // Represents an instant in time (in milliseconds since Jan 1 1970)
 
-        // The activation item filter is optional
         if len(args) == 1 {
             name = args[0]
+        } else if whiskErr := checkArgs(args, 0, 1, "Activation poll",
+                wski18n.T("An optional namespace is the only valid argument.")); whiskErr != nil {
+            return whiskErr
         }
 
         c := make(chan os.Signal, 1)
@@ -328,7 +325,6 @@ var activationPollCmd = &cobra.Command{
 }
 
 func init() {
-
     activationListCmd.Flags().IntVarP(&flags.common.skip, "skip", "s", 0, wski18n.T("exclude the first `SKIP` number of activations from the result"))
     activationListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, wski18n.T("only return `LIMIT` number of activations from the collection"))
     activationListCmd.Flags().BoolVarP(&flags.common.full, "full", "f", false, wski18n.T("include full activation description"))

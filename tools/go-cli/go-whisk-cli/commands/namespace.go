@@ -42,6 +42,10 @@ var namespaceListCmd = &cobra.Command{
     RunE: func(cmd *cobra.Command, args []string) error {
         // add "TYPE" --> public / private
 
+        if whiskErr := checkArgs(args, 0, 0, "Namespace list", wski18n.T("No arguments are required.")); whiskErr != nil {
+            return whiskErr
+        }
+
         namespaces, _, err := client.Namespaces.List()
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Namespaces.List() error: %s\n", err)
@@ -66,8 +70,13 @@ var namespaceGetCmd = &cobra.Command{
         var qName qualifiedName
         var err error
 
+        if whiskErr := checkArgs(args, 0, 1, "Namespace get",
+                wski18n.T("An optional namespace is the only valid argument.")); whiskErr != nil {
+            return whiskErr
+        }
+
         // Namespace argument is optional; defaults to configured property namespace
-        if (len(args) == 1) {
+        if len(args) == 1 {
             qName, err = parseQualifiedName(args[0])
             if err != nil {
                 whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[0], err)
