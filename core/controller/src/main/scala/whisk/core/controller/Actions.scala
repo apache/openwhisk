@@ -41,6 +41,7 @@ import spray.http.StatusCodes.NotFound
 import spray.http.StatusCodes.OK
 import spray.http.StatusCodes.Accepted
 import spray.http.StatusCodes.TooManyRequests
+import spray.http.StatusCodes.RequestEntityTooLarge
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
 import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
 import spray.json.DefaultJsonProtocol.StringJsonFormat
@@ -94,6 +95,7 @@ import whisk.core.entity.WhiskEntityQueries
 import whisk.http.ErrorResponse
 import whisk.http.ErrorResponse.{ terminate }
 import whisk.common.PrintStreamEmitter
+import org.apache.kafka.common.errors.RecordTooLargeException
 
 /**
  * A singleton object which defines the properties that must be present in a configuration
@@ -281,6 +283,9 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                             case Failure(t: TooManyActivationException) =>
                                 info(this, s"[POST] max activation limit has exceeded")
                                 terminate(TooManyRequests)
+                            case Failure(t: RecordTooLargeException) =>
+                                info(this, s"[POST] action payload was too large")
+                                terminate(RequestEntityTooLarge)
                             case Failure(t: Throwable) =>
                                 error(this, s"[POST] action activation failed: ${t.getMessage}")
                                 terminate(InternalServerError, t.getMessage)
