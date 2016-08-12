@@ -21,9 +21,21 @@ function main(params) {
     console.log("Payload param is " + params.payload);
 
     var WebSocket = require('ws');
+
+    var connectionEstablished = false;
     var ws = new WebSocket(uri);
 
+    var connectionTimeout = 30 * 1000; // 30 seconds
+
+    setTimeout(function() {
+        if (!connectionEstablished) {
+            whisk.error('Did not establish websocket connection to ' + uri + ' in a timely manner.');
+        }
+    }, connectionTimeout);
+
     ws.on('open', function() {
+        connectionEstablished = true;
+
         console.log("Sending payload: " + payload);
         ws.send(payload, function(error) {
             if (error) {
