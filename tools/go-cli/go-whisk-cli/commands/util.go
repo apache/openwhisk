@@ -726,3 +726,33 @@ func unpackTar(inpath string) error {
     return nil
 }
 
+func checkArgs(args []string, minimumArgNumber int, maximumArgNumber int, commandName string,
+    requiredArgMsg string) (*whisk.WskError) {
+        exactlyOrAtLeast := wski18n.T("exactly")
+        exactlyOrNoMoreThan := wski18n.T("exactly")
+
+    if (minimumArgNumber != maximumArgNumber) {
+        exactlyOrAtLeast = wski18n.T("at least")
+        exactlyOrNoMoreThan = wski18n.T("no more than")
+    }
+
+    if len(args) < minimumArgNumber {
+        whisk.Debug(whisk.DbgError, fmt.Sprintf("%s command must have %s %d argument(s)\n", commandName,
+            exactlyOrAtLeast, minimumArgNumber))
+        errMsg := wski18n.T("Invalid argument(s). {{.required}}", map[string]interface{}{"required": requiredArgMsg})
+        whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+            whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+        return whiskErr
+    } else if len(args) > maximumArgNumber {
+        whisk.Debug(whisk.DbgError, fmt.Sprintf("%s command must have %s %d argument(s)\n", commandName,
+            exactlyOrNoMoreThan, maximumArgNumber))
+        errMsg := wski18n.T("Invalid argument(s): {{.args}}. {{.required}}",
+            map[string]interface{}{"args": strings.Join(args[maximumArgNumber:], ", "), "required": requiredArgMsg})
+        whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+            whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+        return whiskErr
+    } else {
+        return nil
+    }
+}
+

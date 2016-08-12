@@ -20,8 +20,8 @@ import (
     "fmt"
     "os"
     "reflect"
-
     goi18n "github.com/nicksnyder/go-i18n/i18n"
+    "github.com/fatih/color"
 
     "../go-whisk/whisk"
     "./commands"
@@ -81,13 +81,12 @@ func main() {
 
         // If the err msg should be displayed to the console and it has not already been
         // displayed, display it now.
-        var errMsgPrefix string = T("error: ")
-        if (exitCode == 0) {
-            errMsgPrefix = ""
+        if displayMsg && !msgDisplayed && exitCode != 0 {
+            fmt.Fprintf(os.Stderr, "%s%s\n", color.RedString(T("error: ")), err)
+        } else if displayMsg && !msgDisplayed && exitCode == 0 {
+            fmt.Fprintf(os.Stderr, "%s\n", err)
         }
-        if displayMsg && !msgDisplayed {
-            fmt.Fprintf(os.Stderr, "%s%s\n", errMsgPrefix, err)
-        }
+
 
         // Displays usage
         if displayUsage {

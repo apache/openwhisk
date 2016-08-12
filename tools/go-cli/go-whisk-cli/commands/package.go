@@ -20,7 +20,6 @@ import (
   "errors"
   "fmt"
   "net/http"
-  "strings"
 
   "../../go-whisk/whisk"
   "../wski18n"
@@ -43,20 +42,8 @@ var packageBindCmd = &cobra.Command{
   RunE: func(cmd *cobra.Command, args []string) error {
     var err error
 
-    if len(args) < 2 {
-      whisk.Debug(whisk.DbgError, "Package bind command must have at least one argument\n")
-      errMsg := fmt.Sprintf(
-        wski18n.T("Invalid argument(s). A package name and binding name are required."))
-      whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
-        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-      return whiskErr
-    } else if len(args) > 2 {
-      whisk.Debug(whisk.DbgError, "Package bind command must not have more than two arguments\n")
-      errMsg := fmt.Sprintf(
-        wski18n.T("Invalid argument(s): {{.args}}",
-          map[string]interface{}{"args": strings.Join(args[2:], ", ")}))
-      whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
-        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+    if whiskErr := checkArgs(args, 2, 2, "Package bind",
+            wski18n.T("A package name and binding name are required.")); whiskErr != nil {
       return whiskErr
     }
 
@@ -154,19 +141,7 @@ var packageCreateCmd = &cobra.Command{
     var err error
     var shared, sharedSet bool
 
-    if len(args) < 1 {
-      whisk.Debug(whisk.DbgError, "Package create command must have at least one argument\n")
-      errMsg := fmt.Sprintf(
-        wski18n.T("Invalid argument(s). A package name is required."))
-      whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
-        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-      return whiskErr
-    } else if len(args) > 1 {
-      whisk.Debug(whisk.DbgError, "Package create command must not have more than one argument\n")
-      errMsg := fmt.Sprintf(
-        wski18n.T("Invalid argument(s): {{.args}}", map[string]interface{}{"args": strings.Join(args[1:], ", ")}))
-      whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
-        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+    if whiskErr := checkArgs(args, 1, 1, "Package create", wski18n.T("A package name is required.")); whiskErr != nil {
       return whiskErr
     }
 
@@ -260,18 +235,7 @@ var packageUpdateCmd = &cobra.Command{
     var err error
     var shared, sharedSet bool
 
-    if len(args) < 1 {
-      whisk.Debug(whisk.DbgError, "Package update command must have at least one argument\n")
-      errMsg := fmt.Sprintf(wski18n.T("Invalid argument(s). A package name is required."))
-      whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
-        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-      return whiskErr
-    } else if len(args) > 1 {
-      whisk.Debug(whisk.DbgError, "Package update command must not have more than one argument\n")
-      errMsg := fmt.Sprintf(
-        wski18n.T("Invalid argument(s): {{.args}}", map[string]interface{}{"args": strings.Join(args[1:], ", ")}))
-      whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
-        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+    if whiskErr := checkArgs(args, 1, 1, "Package update", wski18n.T("A package name is required.")); whiskErr != nil {
       return whiskErr
     }
 
@@ -363,18 +327,7 @@ var packageGetCmd = &cobra.Command{
   RunE: func(cmd *cobra.Command, args []string) error {
     var err error
 
-    if len(args) < 1 {
-      whisk.Debug(whisk.DbgError, "Package get command must have at least one argument\n")
-      errMsg := fmt.Sprintf(wski18n.T("Invalid argument(s). A package name is required."))
-      whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
-        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-      return whiskErr
-    } else if len(args) > 1 {
-      whisk.Debug(whisk.DbgError, "Package update command must not have more than one argument\n")
-      errMsg := fmt.Sprintf(
-        wski18n.T("Invalid argument(s): {{.args}}", map[string]interface{}{"args": strings.Join(args[1:], ", ")}))
-      whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
-        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+    if whiskErr := checkArgs(args, 1, 1, "Package get", wski18n.T("A package name is required.")); whiskErr != nil {
       return whiskErr
     }
 
@@ -421,20 +374,7 @@ var packageDeleteCmd = &cobra.Command{
   RunE: func(cmd *cobra.Command, args []string) error {
     var err error
 
-    if len(args) < 1 {
-      whisk.Debug(whisk.DbgError, "Package delete command must have at least one argument\n")
-      errMsg := fmt.Sprintf(
-        wski18n.T("Invalid argument(s). A package name is required."))
-      whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
-        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-      return whiskErr
-    } else if len(args) > 1 {
-      whisk.Debug(whisk.DbgError, "Package delete command must not have more than one argument\n")
-      errMsg := fmt.Sprintf(
-        wski18n.T("Invalid argument(s): {{.args}}",
-          map[string]interface{}{"args": strings.Join(args[1:], ", ")}))
-      whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
-        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+    if whiskErr := checkArgs(args, 1, 1, "Package delete", wski18n.T("A package name is required.")); whiskErr != nil {
       return whiskErr
     }
 
@@ -498,13 +438,8 @@ var packageListCmd = &cobra.Command{
       }
 
       client.Namespace = ns
-    } else if len(args) > 1 {
-      whisk.Debug(whisk.DbgError, "Package list command must not have more than one argument\n")
-      errMsg := fmt.Sprintf(
-        wski18n.T("Invalid argument(s): {{.args}}",
-          map[string]interface{}{"args": strings.Join(args[1:], ", ")}))
-      whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
-        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+    } else if whiskErr := checkArgs(args, 0, 1, "Package list",
+        wski18n.T("An optional namespace is the only valid argument.")); whiskErr != nil {
       return whiskErr
     }
 
@@ -544,13 +479,8 @@ var packageRefreshCmd = &cobra.Command{
     var err error
     var qName qualifiedName
 
-    if len(args) > 1 {
-      whisk.Debug(whisk.DbgError, "Package refresh command must not have more than one argument\n")
-      errMsg := fmt.Sprintf(
-        wski18n.T("Invalid argument(s): {{.args}}",
-          map[string]interface{}{"args": strings.Join(args[1:], ", ")}))
-      whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG,
-        whisk.DISPLAY_USAGE)
+    if whiskErr := checkArgs(args, 0, 1, "Package refresh",
+        wski18n.T("An optional namespace is the only valid argument.")); whiskErr != nil {
       return whiskErr
     } else {
       if len(args) == 0 {
@@ -630,7 +560,6 @@ var packageRefreshCmd = &cobra.Command{
 }
 
 func init() {
-
   packageCreateCmd.Flags().StringSliceVarP(&flags.common.annotation, "annotation", "a", []string{}, wski18n.T("annotation values in `KEY VALUE` format"))
   packageCreateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, wski18n.T("default parameter values in `KEY VALUE` format"))
   packageCreateCmd.Flags().StringVar(&flags.common.shared, "shared", "", wski18n.T("package visibility `SCOPE`; yes = shared, no = private"))

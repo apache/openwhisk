@@ -40,15 +40,10 @@ var ruleEnableCmd = &cobra.Command{
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
-
         var err error
-        if len(args) != 1 {
-            whisk.Debug(whisk.DbgError, "Invalid number of arguments: %d\n", len(args))
-            errStr := fmt.Sprintf(
-                wski18n.T("Invalid number of arguments ({{.argnum}}) provided; exactly one argument is expected",
-                    map[string]interface{}{"argnum": len(args)}))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
+
+        if whiskErr := checkArgs(args, 1, 1, "Rule enable", wski18n.T("A rule name is required.")); whiskErr != nil {
+            return whiskErr
         }
 
         qName, err := parseQualifiedName(args[0])
@@ -95,15 +90,10 @@ var ruleDisableCmd = &cobra.Command{
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
-
         var err error
-        if len(args) != 1 {
-            whisk.Debug(whisk.DbgError, "Invalid number of arguments: %d\n", len(args))
-            errStr := fmt.Sprintf(
-                wski18n.T("Invalid number of arguments ({{.argnum}}) provided; exactly one argument is expected",
-                    map[string]interface{}{"argnum": len(args)}))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
+
+        if whiskErr := checkArgs(args, 1, 1, "Rule disable", wski18n.T("A rule name is required.")); whiskErr != nil {
+            return whiskErr
         }
 
         qName, err := parseQualifiedName(args[0])
@@ -151,13 +141,9 @@ var ruleStatusCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        if len(args) != 1 {
-            whisk.Debug(whisk.DbgError, "Invalid number of arguments: %d\n", len(args))
-            errStr := fmt.Sprintf(
-                wski18n.T("Invalid number of arguments ({{.argnum}}) provided; exactly one argument is expected",
-                    map[string]interface{}{"argnum": len(args)}))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
+
+        if whiskErr := checkArgs(args, 1, 1, "Rule status", wski18n.T("A rule name is required.")); whiskErr != nil {
+            return whiskErr
         }
 
         qName, err := parseQualifiedName(args[0])
@@ -207,13 +193,9 @@ var ruleCreateCmd = &cobra.Command{
         var err error
         var shared bool
 
-        if len(args) != 3 {
-            whisk.Debug(whisk.DbgError, "Invalid number of arguments: %d\n", len(args))
-            errStr := fmt.Sprintf(
-                wski18n.T("Invalid number of arguments ({{.argnum}}) provided; exactly three arguments are expected",
-                    map[string]interface{}{"argnum": len(args)}))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
+        if whiskErr := checkArgs(args, 3, 3, "Rule create",
+                wski18n.T("A rule, trigger and action name are required.")); whiskErr != nil {
+            return whiskErr
         }
 
         if (flags.common.shared == "yes") {
@@ -295,13 +277,9 @@ var ruleUpdateCmd = &cobra.Command{
         var err error
         var shared bool
 
-        if len(args) != 3 {
-            whisk.Debug(whisk.DbgError, "Invalid number of arguments: %d\n", len(args))
-            errStr := fmt.Sprintf(
-                wski18n.T("Invalid number of arguments ({{.argnum}}) provided; exactly three arguments are expected",
-                    map[string]interface{}{"argnum": len(args)}))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
+        if whiskErr := checkArgs(args, 3, 3, "Rule update",
+                wski18n.T("A rule, trigger and action name are required.")); whiskErr != nil {
+            return whiskErr
         }
 
         qName, err := parseQualifiedName(args[0])
@@ -364,13 +342,9 @@ var ruleGetCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        if len(args) != 1 {
-            whisk.Debug(whisk.DbgError, "Invalid number of arguments: %d\n", len(args))
-            errStr := fmt.Sprintf(
-                wski18n.T("Invalid number of arguments ({{.argnum}}) provided; exactly one argument is expected",
-                    map[string]interface{}{"argnum": len(args)}))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
+
+        if whiskErr := checkArgs(args, 1, 1, "Rule get", wski18n.T("A rule name is required.")); whiskErr != nil {
+            return whiskErr
         }
 
         qName, err := parseQualifiedName(args[0])
@@ -424,13 +398,9 @@ var ruleDeleteCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        if len(args) != 1 {
-            whisk.Debug(whisk.DbgError, "Invalid number of arguments: %d\n", len(args))
-            errStr := fmt.Sprintf(
-                wski18n.T("Invalid number of arguments ({{.argnum}}) provided; exactly one argument is expected",
-                    map[string]interface{}{"argnum": len(args)}))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
+
+        if whiskErr := checkArgs(args, 1, 1, "Rule delete", wski18n.T("A rule name is required.")); whiskErr != nil {
+            return whiskErr
         }
 
         qName, err := parseQualifiedName(args[0])
@@ -491,6 +461,7 @@ var ruleListCmd = &cobra.Command{
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         qName := qualifiedName{}
+
         if len(args) == 1 {
             qName, err = parseQualifiedName(args[0])
             if err != nil {
@@ -510,17 +481,9 @@ var ruleListCmd = &cobra.Command{
                 return werr
             }
             client.Namespace = ns
-
-            if pkg := qName.packageName; len(pkg) > 0 {
-                // todo :: scope call to package
-            }
-        } else if len(args) > 1 {
-            whisk.Debug(whisk.DbgError, "Invalid number of arguments: %d\n", len(args))
-            errStr := fmt.Sprintf(
-                wski18n.T("Invalid number of arguments ({{.argnum}}) provided; at most one argument is expected",
-                    map[string]interface{}{"argnum": len(args)}))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
+        } else if whiskErr := checkArgs(args, 0, 1, "Rule list",
+                wski18n.T("An optional namespace is the only valid argument.")); whiskErr != nil {
+            return whiskErr
         }
 
         ruleListOptions := &whisk.RuleListOptions{
@@ -543,7 +506,6 @@ var ruleListCmd = &cobra.Command{
 }
 
 func init() {
-
     ruleCreateCmd.Flags().StringVar(&flags.common.shared, "shared", "", wski18n.T("rule visibility `SCOPE`; yes = shared, no = private"))
     ruleCreateCmd.Flags().BoolVar(&flags.rule.enable, "enable", false, wski18n.T("automatically enable rule after creating it"))
 
