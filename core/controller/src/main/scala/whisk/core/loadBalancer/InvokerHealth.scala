@@ -59,7 +59,6 @@ class InvokerHealth(
 
     private implicit val executionContext = system.dispatcher
 
-    setComponentName("LoadBalancer");
     setVerbosity(InfoLevel);
 
     private val activationCountBeforeNextInvoker = 10

@@ -85,9 +85,6 @@ trait PrintStreamEmitter {
      */
     var outputStream: PrintStream = Console.out
 
-    private var componentName = "";
-    def setComponentName(comp: String) = componentName = comp
-
     /**
      * Prints a message to the output stream
      *
@@ -102,8 +99,6 @@ trait PrintStreamEmitter {
         val time = Emitter.timeFormat.format(now)
         val name = if (from.isInstanceOf[String]) from else Logging.getCleanSimpleClassName(from.getClass)
 
-        val component = Option(componentName).filter(_.trim.nonEmpty).map("[" + _ + "]")
-
         val level = loglevel match {
             case DebugLevel   => "DEBUG"
             case InfoLevel    => "INFO"
@@ -113,7 +108,7 @@ trait PrintStreamEmitter {
 
         val logMessage = Seq(message).filter(_.trim.nonEmpty)
 
-        val parts = Seq(s"[$time]", s"[$level]", s"[$id]") ++ component ++ Seq(s"[$name]") ++ logMessage ++ marker
+        val parts = Seq(s"[$time]", s"[$level]", s"[$id]") ++ Seq(s"[$name]") ++ logMessage ++ marker
         outputStream.println(parts.mkString(" "))
     }
 }
