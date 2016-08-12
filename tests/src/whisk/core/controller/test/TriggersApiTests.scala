@@ -24,6 +24,7 @@ import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
 import spray.http.StatusCodes.BadRequest
+import spray.http.StatusCodes.Conflict
 import spray.http.StatusCodes.NotFound
 import spray.http.StatusCodes.OK
 import spray.http.StatusCodes.RequestEntityTooLarge
@@ -50,6 +51,7 @@ import whisk.core.entity.WhiskTrigger
 import whisk.core.entity.WhiskTriggerPut
 import whisk.core.entity.ReducedRule
 import whisk.core.entity.test.OldWhiskTrigger
+import whisk.core.entity.WhiskRule
 
 /**
  * Tests Trigger API.
@@ -117,6 +119,15 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
             status should be(OK)
             val response = responseAs[WhiskTrigger]
             response should be(trigger.withoutRules)
+        }
+    }
+
+    it should "report Conflict if the name was of a different type" in {
+        implicit val tid = transid()
+        val rule = WhiskRule(namespace, aname, aname, aname)
+        put(entityStore, rule)
+        Get(s"/$namespace/${collection.path}/${rule.name}") ~> sealRoute(routes(creds)) ~> check {
+            status should be(Conflict)
         }
     }
 

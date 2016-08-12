@@ -173,6 +173,15 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         }
     }
 
+    it should "report Conflict if the name was of a different type" in {
+        implicit val tid = transid()
+        val trigger = WhiskTrigger(namespace, aname)
+        put(entityStore, trigger)
+        Get(s"/$namespace/${collection.path}/${trigger.name}") ~> sealRoute(routes(creds)) ~> check {
+            status should be(Conflict)
+        }
+    }
+
     // DEL /rules/name
     it should "reject delete rule in state active" in {
         implicit val tid = transid()

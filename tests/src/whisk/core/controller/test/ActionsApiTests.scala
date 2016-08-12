@@ -67,6 +67,7 @@ import whisk.core.entity.SequenceExec
 import whisk.core.entity.Pipecode
 import whisk.core.entity.NodeJSExec
 import akka.event.Logging.InfoLevel
+import whisk.core.entity.WhiskTrigger
 
 /**
  * Tests Actions API.
@@ -188,6 +189,15 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         implicit val tid = transid()
         Get(s"$collectionPath/xyz") ~> sealRoute(routes(creds)) ~> check {
             status should be(NotFound)
+        }
+    }
+
+    it should "report Conflict if the name was of a different type" in {
+        implicit val tid = transid()
+        val trigger = WhiskTrigger(namespace, aname)
+        put(entityStore, trigger)
+        Get(s"/$namespace/${collection.path}/${trigger.name}") ~> sealRoute(routes(creds)) ~> check {
+            status should be(Conflict)
         }
     }
 

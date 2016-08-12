@@ -35,6 +35,7 @@ import spray.json.JsValue
 import whisk.common.LoggingMarkers
 import akka.event.Logging.LogLevel
 import akka.event.Logging.ErrorLevel
+import akka.event.Logging.InfoLevel
 import whisk.common.PrintStreamEmitter
 
 /**
@@ -151,10 +152,9 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
                 case Right(response) =>
                     transid.finished(this, start, s"[GET] '$dbName' completed: found document '$doc'")
                     val asFormat = jsonFormat.read(response)
-                    // For backwards compatibility, we should fail with IllegalArgumentException
-                    // if the retrieved type doesn't match the expected type. The following does
-                    // just that.
-                    require(asFormat.getClass == ma.runtimeClass, s"document type ${asFormat.getClass} did not match expected type ${ma.runtimeClass}.")
+                    if (asFormat.getClass != ma.runtimeClass) {
+                        throw DocumentTypeMismatchException(s"document type ${asFormat.getClass} did not match expected type ${ma.runtimeClass}.")
+                    }
 
                     val deserialized = asFormat.asInstanceOf[A]
 
@@ -171,11 +171,12 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
                     throw NoDocumentException("not found on 'get'")
 
                 case Left(code) =>
-                    transid.finished(this, start, s"[GET] '$dbName' failed to get document: '${doc}'; http status: '${code}'", ErrorLevel)
+                    transid.finished(this, start, s"[GET] '$dbName' failed to get document: '${doc}'; http status: '${code}'")
                     throw new Exception("Unexpected http response code: " + code)
             }
         },
-            failure => transid.failed(this, start, s"[GET] '$dbName' internal error, doc: '$doc', failure: '${failure.getMessage}'", ErrorLevel))
+            failure => transid.failed(this, start, s"[GET] '$dbName' internal error, doc: '$doc', failure: '${failure.getMessage}'", ErrorLevel)
+        )
     }
 
     override protected[core] def query(table: String, startKey: List[Any], endKey: List[Any], skip: Int, limit: Int, includeDocs: Boolean, descending: Boolean, reduce: Boolean)(

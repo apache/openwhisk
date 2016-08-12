@@ -57,6 +57,7 @@ import whisk.http.ErrorResponse
 import whisk.http.ErrorResponse.{ terminate }
 import spray.http.StatusCodes
 import spray.json.JsBoolean
+import whisk.core.database.DocumentTypeMismatchException
 
 protected sealed trait Messages {
     /** Standard message for reporting resource conflicts */
@@ -174,8 +175,8 @@ trait ReadOps extends Directives with Messages with Logging {
             case Failure(t: NoDocumentException) =>
                 info(this, s"[GET] entity does not exist")
                 terminate(NotFound)
-            case Failure(t: IllegalArgumentException) =>
-                error(this, s"[GET] entity conformance check failed: ${t.getMessage}")
+            case Failure(t: DocumentTypeMismatchException) =>
+                info(this, s"[GET] entity conformance check failed: ${t.getMessage}")
                 terminate(Conflict, conformanceMessage)
             case Failure(t: Throwable) =>
                 error(this, s"[GET] entity failed: ${t.getMessage}")
@@ -211,7 +212,7 @@ trait ReadOps extends Directives with Messages with Logging {
             case Failure(t: NoDocumentException) =>
                 info(this, s"[PROJECT] entity does not exist")
                 terminate(NotFound)
-            case Failure(t: IllegalArgumentException) =>
+            case Failure(t: DocumentTypeMismatchException) =>
                 info(this, s"[PROJECT] entity conformance check failed: ${t.getMessage}")
                 terminate(Conflict, conformanceMessage)
             case Failure(t: Throwable) =>
@@ -299,7 +300,7 @@ trait WriteOps extends Directives with Messages with Logging {
             case Failure(RejectRequest(code, message)) =>
                 info(this, s"[PUT] entity rejected with code $code: $message")
                 terminate(code, message)
-            case Failure(t: IllegalArgumentException) =>
+            case Failure(t: DocumentTypeMismatchException) =>
                 info(this, s"[PUT] entity conformance check failed: ${t.getMessage}")
                 terminate(Conflict, conformanceMessage)
             case Failure(t: Throwable) =>
@@ -355,7 +356,7 @@ trait WriteOps extends Directives with Messages with Logging {
             case Failure(RejectRequest(code, message)) =>
                 info(this, s"[DEL] entity rejected with code $code: $message")
                 terminate(code, message)
-            case Failure(t: IllegalArgumentException) =>
+            case Failure(t: DocumentTypeMismatchException) =>
                 info(this, s"[DEL] entity conformance check failed: ${t.getMessage}")
                 terminate(Conflict, conformanceMessage)
             case Failure(t: Throwable) =>
