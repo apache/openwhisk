@@ -31,6 +31,7 @@ import whisk.core.entity.types.EntityStore
 import scala.concurrent.Promise
 import whisk.core.entity.WhiskEntity
 import whisk.core.entity.EntityName
+import whisk.core.database.NoDocumentException
 
 class PackageCollection(entityStore: EntityStore) extends Collection(Collection.PACKAGES) {
 
@@ -107,6 +108,9 @@ class PackageCollection(entityStore: EntityStore) extends Collection(Collection.
                     promise.success(false)
                 }
         } onFailure {
+            case t: NoDocumentException =>
+                info(this, s"the package does not exist")
+                promise.success(false)
             case t =>
                 error(this, s"entitlement check on package failed: ${t.getMessage}")
                 promise.success(false)
