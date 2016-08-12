@@ -31,7 +31,6 @@ import spray.json.JsObject
 import spray.json.JsString
 import spray.json.JsValue
 import spray.json.RootJsonFormat
-import whisk.core.WhiskConfig
 import whisk.core.entity.size.SizeInt
 
 /**

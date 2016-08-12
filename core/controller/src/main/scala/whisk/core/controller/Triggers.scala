@@ -28,11 +28,9 @@ import akka.actor.ActorSystem
 import spray.client.pipelining._
 import spray.http.BasicHttpCredentials
 import spray.http.HttpRequest
-import spray.http.HttpResponse
 import spray.http.StatusCodes.BadRequest
 import spray.http.StatusCodes.InternalServerError
 import spray.http.StatusCodes.OK
-import spray.http.StatusCodes.TooManyRequests
 import spray.http.Uri
 import spray.http.Uri.Path
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
@@ -45,9 +43,7 @@ import spray.routing.Directive.pimpApply
 import spray.routing.directives.OnCompleteFutureMagnet.apply
 import spray.routing.directives.ParamDefMagnet.apply
 import spray.routing.RequestContext
-import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
-import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.core.entitlement.Collection
 import whisk.core.entity.ActivationId
 import whisk.core.entity.ActivationResponse
@@ -67,7 +63,6 @@ import whisk.core.entity.WhiskTriggerPut
 import whisk.core.entity.types.ActivationStore
 import whisk.core.entity.types.EntityStore
 import whisk.http.ErrorResponse.terminate
-import whisk.core.WhiskConfig
 import spray.httpx.UnsuccessfulResponseException
 import spray.http.StatusCodes
 

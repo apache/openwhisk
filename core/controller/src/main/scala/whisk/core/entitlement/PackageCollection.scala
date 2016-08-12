@@ -18,14 +18,8 @@ package whisk.core.entitlement
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
-import spray.http.HttpMethod
-import spray.http.HttpMethods.DELETE
-import spray.http.HttpMethods.GET
-import spray.http.HttpMethods.POST
-import spray.http.HttpMethods.PUT
 import whisk.common.TransactionId
 import whisk.core.entity.DocId
-import whisk.core.entity.Subject
 import whisk.core.entity.WhiskPackage
 import whisk.core.entity.types.EntityStore
 import scala.concurrent.Promise

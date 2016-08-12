@@ -25,8 +25,6 @@ import spray.json._
 
 import ActionContainer.withContainer
 
-import scala.util.Random
-
 @RunWith(classOf[JUnitRunner])
 class PythonActionContainerTests extends FlatSpec
     with Matchers
@@ -130,7 +128,6 @@ class PythonActionContainerTests extends FlatSpec
             runCode should be(502)
         }
     }
-
 
     it should "support application errors" in {
         withPythonContainer { c =>

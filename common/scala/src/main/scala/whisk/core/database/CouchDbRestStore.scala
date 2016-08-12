@@ -19,23 +19,17 @@ package whisk.core.database
 import scala.concurrent.Future
 import scala.concurrent.Await
 import scala.concurrent.duration._
-import scala.util.{ Try, Success, Failure }
 import spray.json.JsObject
 import akka.http.scaladsl.model.{ StatusCode, StatusCodes }
-import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.entity.WhiskDocument
 import whisk.core.entity.DocRevision
 import whisk.core.entity.DocInfo
-import whisk.utils.ExecutionContextFactory
 import akka.actor.ActorSystem
 import spray.json.RootJsonFormat
 import spray.json.DefaultJsonProtocol
-import spray.json.JsValue
 import whisk.common.LoggingMarkers
-import akka.event.Logging.LogLevel
 import akka.event.Logging.ErrorLevel
-import akka.event.Logging.InfoLevel
 import whisk.common.PrintStreamEmitter
 
 /**

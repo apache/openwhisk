@@ -17,7 +17,6 @@ package common
 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 
 import akka.actor.ActorSystem

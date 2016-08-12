@@ -19,7 +19,6 @@ package whisk.core
 import whisk.common.Config
 import whisk.common.Config.Settings
 import java.io.File
-import whisk.common.Crypt
 import whisk.common.ConsulKV
 import spray.json.JsObject
 import spray.json.JsArray

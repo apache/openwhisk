@@ -16,57 +16,35 @@
 
 package whisk.core.controller.test
 
-import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import org.junit.runner.RunWith
-import scala.concurrent.Future
 import org.scalatest.junit.JUnitRunner
 import spray.http.StatusCodes.BadRequest
 import spray.http.StatusCodes.Forbidden
-import spray.http.StatusCodes.MethodNotAllowed
 import spray.http.StatusCodes.Conflict
 import spray.http.StatusCodes.NotFound
 import spray.http.StatusCodes.OK
 import spray.http.StatusCodes.RequestEntityTooLarge
-import spray.http.StatusCodes.RequestTimeout
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
 import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
 import spray.json.DefaultJsonProtocol.RootJsObjectFormat
 import spray.json.DefaultJsonProtocol.listFormat
 import spray.json.DefaultJsonProtocol.RootJsObjectFormat
-import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json.JsObject
-import spray.json.pimpAny
 import spray.json.pimpString
-import whisk.core.controller.WhiskActionsApi
-import whisk.core.entity.ActionLimits
-import whisk.core.entity.ActionLimitsOption
-import whisk.core.entity.ActivationId
-import whisk.core.entity.EntityName
 import whisk.core.entity.Exec
 import whisk.core.entity.Namespace
 import whisk.core.entity.Parameters
-import whisk.core.entity.SemVer
 import whisk.core.entity.WhiskAction
-import whisk.core.entity.WhiskActionPut
-import whisk.core.entity.WhiskActivation
 import whisk.core.entity.AuthKey
 import whisk.core.entity.WhiskAuth
 import whisk.core.entity.Subject
-import whisk.core.entity.MemoryLimit
-import whisk.core.entity.TimeLimit
 import whisk.core.entity.WhiskPackage
 import whisk.core.entity.Binding
-import whisk.core.entitlement.Resource
-import whisk.core.entitlement.Collection._
-import whisk.core.entitlement.Privilege._
-import scala.concurrent.Await
 import whisk.core.controller.WhiskPackagesApi
 import whisk.core.entity.WhiskPackagePut
-import whisk.core.entity.WhiskEntity
 import whisk.http.ErrorResponse
 import whisk.core.entity.WhiskPackageWithActions
-import whisk.core.entity.WhiskPackageAction
 import spray.json.JsArray
 
 /**

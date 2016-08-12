@@ -21,7 +21,6 @@ import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.concurrent.atomic.AtomicInteger
 import akka.event.Logging.LogLevel
 import akka.event.Logging.{ DebugLevel, InfoLevel, WarningLevel, ErrorLevel }
 
@@ -161,7 +160,6 @@ object LoggingMarkers {
     val count = "count"
 
     private val controller = "controller"
-    private val loadbalancer = "loadbalancer"
     private val invoker = "invoker"
     private val database = "database"
     private val activation = "activation"

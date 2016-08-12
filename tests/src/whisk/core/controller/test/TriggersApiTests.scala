@@ -49,7 +49,6 @@ import whisk.core.entity.WhiskAuth
 import whisk.core.entity.WhiskEntity
 import whisk.core.entity.WhiskTrigger
 import whisk.core.entity.WhiskTriggerPut
-import whisk.core.entity.ReducedRule
 import whisk.core.entity.test.OldWhiskTrigger
 import whisk.core.entity.WhiskRule
 

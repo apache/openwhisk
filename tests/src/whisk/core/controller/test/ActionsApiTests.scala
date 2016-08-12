@@ -38,7 +38,6 @@ import spray.json.DefaultJsonProtocol.RootJsObjectFormat
 import spray.json.DefaultJsonProtocol.listFormat
 import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json.DefaultJsonProtocol.vectorFormat
-import spray.json.DefaultJsonProtocol.mapFormat
 import spray.json.JsObject
 import spray.json.pimpAny
 import spray.json.pimpString
@@ -46,26 +45,21 @@ import whisk.core.controller.WhiskActionsApi
 import whisk.core.entity.ActionLimits
 import whisk.core.entity.ActionLimitsOption
 import whisk.core.entity.ActivationResponse
-import whisk.core.entity.ActivationLogs
 import whisk.core.entity.AuthKey
 import whisk.core.entity.Exec
 import whisk.core.entity.MemoryLimit
 import whisk.core.entity.LogLimit
 import whisk.core.entity.Namespace
 import whisk.core.entity.Parameters
-import whisk.core.entity.SemVer
-import whisk.core.entity.size.SizeInt
 import whisk.core.entity.Subject
 import whisk.core.entity.TimeLimit
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskActionPut
 import whisk.core.entity.WhiskActivation
 import whisk.core.entity.WhiskAuth
-import whisk.core.entity.WhiskEntity
 import java.time.Instant
 import whisk.core.entity.SequenceExec
 import whisk.core.entity.Pipecode
-import whisk.core.entity.NodeJSExec
 import akka.event.Logging.InfoLevel
 import whisk.core.entity.WhiskTrigger
 

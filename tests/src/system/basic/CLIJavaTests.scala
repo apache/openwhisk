@@ -26,7 +26,6 @@ import common.WskProps
 import common.Wsk
 
 import org.junit.runner.RunWith
-import org.scalatest.Finders
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 

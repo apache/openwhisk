@@ -28,7 +28,6 @@ import whisk.core.entitlement.Collection
 import whisk.core.entitlement.Privilege
 import whisk.core.entitlement.Privilege.READ
 import whisk.core.entitlement.Resource
-import whisk.core.entity.DocId
 import whisk.core.entity.Namespace
 import whisk.core.entity.Subject
 import whisk.core.entity.WhiskAuth

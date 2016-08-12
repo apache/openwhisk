@@ -18,7 +18,6 @@ package whisk.core.controller
 
 import scala.concurrent.Future
 import scala.concurrent.Promise
-import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 

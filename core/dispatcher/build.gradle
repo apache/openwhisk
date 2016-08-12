@@ -11,8 +11,12 @@ repositories {
 }
 
 dependencies {
-    compile 'org.scala-lang:scala-library:2.11.8'
+    compile "org.scala-lang:scala-library:${gradle.scala.version}"
     compile project(':common:scala')
+}
+
+tasks.withType(ScalaCompile) {
+    scalaCompileOptions.additionalParameters = gradle.scala.compileFlags
 }
 
 mainClassName = "whisk.core.dispatcher.Dispatcher"

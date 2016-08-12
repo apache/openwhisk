@@ -20,10 +20,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Success
-import spray.http.HttpRequest
-import spray.http.StatusCode
 import spray.http.StatusCodes.ClientError
-import spray.http.StatusCodes.BadRequest
 import spray.http.StatusCodes.Conflict
 import spray.http.StatusCodes.InternalServerError
 import spray.http.StatusCodes.NotFound
@@ -35,9 +32,6 @@ import spray.json.RootJsonFormat
 import spray.httpx.SprayJsonSupport._
 import spray.json.DefaultJsonProtocol._
 import spray.routing.RequestContext
-import spray.routing.directives.AuthMagnet.fromContextAuthenticator
-import spray.routing.directives.OnCompleteFutureMagnet.apply
-import spray.routing.directives.OnSuccessFutureMagnet.apply
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.controller.PostProcess.PostProcessEntity
@@ -46,16 +40,11 @@ import whisk.core.database.DocumentFactory
 import whisk.core.database.NoDocumentException
 import whisk.core.database.DocumentConflictException
 import whisk.core.entity.DocId
-import whisk.core.entity.EntityName
-import whisk.core.entity.Namespace
 import whisk.core.entity.WhiskDocument
-import whisk.core.connector.LoadBalancerResponse
-import spray.routing.RejectionHandler
 import spray.routing.Directives
 import whisk.core.entity.WhiskEntity
 import whisk.http.ErrorResponse
-import whisk.http.ErrorResponse.{ terminate }
-import spray.http.StatusCodes
+import whisk.http.ErrorResponse.terminate
 import spray.json.JsBoolean
 import whisk.core.database.DocumentTypeMismatchException
 

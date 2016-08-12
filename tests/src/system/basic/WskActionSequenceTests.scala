@@ -22,7 +22,6 @@ import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
 import org.junit.runner.RunWith
-import org.scalatest.Finders
 import org.scalatest.junit.JUnitRunner
 
 import common.JsHelpers
@@ -34,8 +33,6 @@ import common.WskTestHelpers
 import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json.DefaultJsonProtocol.arrayFormat
 import spray.json.DefaultJsonProtocol.IntJsonFormat
-import spray.json.JsArray
-import spray.json.JsString
 import spray.json.pimpAny
 
 @RunWith(classOf[JUnitRunner])

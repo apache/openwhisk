@@ -91,7 +91,6 @@ import whisk.core.entity.WhiskAuth
 import whisk.core.entity.WhiskAuthStore
 import whisk.core.entity.WhiskEntity
 import whisk.core.entity.WhiskEntityStore
-import whisk.core.entity.ActionLimits
 import whisk.core.entity.size.SizeLong
 import whisk.core.entity.size.SizeString
 import whisk.http.BasicHttpService

@@ -17,10 +17,6 @@
 package whisk.core.container.test
 
 import scala.concurrent.Future
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
-
-import akka.actor.ActorSystem
 
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfter
@@ -36,19 +32,15 @@ import whisk.core.WhiskConfig.edgeHostName
 import whisk.core.WhiskConfig.selfDockerEndpoint
 import whisk.core.container.Container
 import whisk.core.container.ContainerPool
-import whisk.core.entity.ActionLimits
 import whisk.core.entity.AuthKey
 import whisk.core.entity.EntityName
 import whisk.core.entity.Exec
 import whisk.core.entity.Namespace
-import whisk.core.entity.Parameters
-import whisk.core.entity.SemVer
 import whisk.core.entity.Subject
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskAuth
 import whisk.core.entity.WhiskAuthStore
 import whisk.core.entity.WhiskEntityStore
-import whisk.utils.ExecutionContextFactory
 import scala.language.postfixOps
 
 import common.WskActorSystem

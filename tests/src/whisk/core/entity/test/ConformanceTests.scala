@@ -16,15 +16,10 @@
 
 package whisk.core.entity.test
 
-import akka.actor.ActorSystem
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
-
 import scala.util.Try
 
 import akka.event.Logging.InfoLevel
 import org.junit.runner.RunWith
-import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.concurrent.ScalaFutures

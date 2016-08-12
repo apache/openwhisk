@@ -16,7 +16,6 @@
 
 package whisk.core.container
 
-import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.time.Instant
@@ -28,7 +27,6 @@ import scala.collection.mutable.ListBuffer
 import scala.annotation.tailrec
 import akka.actor.ActorSystem
 import whisk.common.Counter
-import whisk.common.LoggingMarkers._
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.dockerImageTag
@@ -39,13 +37,10 @@ import whisk.core.entity.ActionLimits
 import whisk.core.entity.MemoryLimit
 import whisk.core.entity.LogLimit
 import whisk.core.entity.TimeLimit
-import whisk.core.entity.NodeJSExec
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskAuth
 import whisk.core.entity.WhiskAuthStore
 import whisk.core.entity.WhiskEntityStore
-import whisk.common.LoggingMarkers
-import whisk.common.LogMarkerToken
 import whisk.core.entity.NodeJS6Exec
 import akka.event.Logging.LogLevel
 import akka.event.Logging.InfoLevel

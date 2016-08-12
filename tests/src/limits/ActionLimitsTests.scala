@@ -33,13 +33,9 @@ import common.WskProps
 import common.WskTestHelpers
 import spray.json.DefaultJsonProtocol._
 import spray.json.pimpAny
-import whisk.core.WhiskConfig
-import whisk.core.entity.ByteSize
 import java.io.PrintWriter
-import java.nio.file.Files
 import whisk.core.entity.Exec
 import spray.json.DefaultJsonProtocol.LongJsonFormat
-import spray.json.DefaultJsonProtocol.IntJsonFormat
 import common.TestUtils
 import whisk.core.entity.size.SizeInt
 import whisk.core.entity.size.SizeString

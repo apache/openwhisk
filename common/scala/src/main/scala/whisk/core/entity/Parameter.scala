@@ -29,7 +29,6 @@ import spray.json.RootJsonFormat
 import spray.json.deserializationError
 import spray.json.pimpAny
 import scala.language.postfixOps
-import scala.language.reflectiveCalls
 import whisk.core.entity.size.SizeInt
 import whisk.core.entity.size.SizeString
 

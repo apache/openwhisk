@@ -22,8 +22,6 @@ import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 import spray.json._
 
-import com.google.gson.JsonObject
-
 import ActionContainer.withContainer
 
 import collection.JavaConverters._
@@ -238,9 +236,6 @@ object JarBuilder {
     import java.util.Base64;
 
     import javax.tools.ToolProvider
-    import javax.tools.JavaFileManager
-    import javax.tools.StandardJavaFileManager
-    import javax.tools.ForwardingJavaFileManager
 
     def mkBase64Jar(sources: Seq[(Seq[String],String)]) : String = {
         // Note that this pipeline doesn't delete any of the temporary files.

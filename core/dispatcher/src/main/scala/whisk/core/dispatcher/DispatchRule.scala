@@ -18,11 +18,9 @@ package whisk.core.dispatcher
 
 import scala.concurrent.Future
 import scala.util.matching.Regex.Match
-import spray.json.JsObject
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.dispatcher.Matcher.makeRegexForPaths
-import spray.json.JsObject
 import whisk.core.connector.{ ActivationMessage => Message }
 
 /**

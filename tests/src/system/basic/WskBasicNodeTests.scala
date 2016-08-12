@@ -83,7 +83,7 @@ class WskBasicNodeTests
     }
 
     it should "Ensure that whisk.invoke() returns a promise" in withAssetCleaner(wskprops) {
-        val expectedDuration = 3 seconds
+        val expectedDuration = 3.seconds
 
         (wp, assetHelper) =>
             val asyncName = "ThreeSecondRule"
@@ -131,7 +131,7 @@ class WskBasicNodeTests
     }
 
     it should "Ensure that whisk.invoke() still uses a callback when provided one" in withAssetCleaner(wskprops) {
-        val expectedDuration = 3 seconds
+        val expectedDuration = 3.seconds
 
         (wp, assetHelper) =>
             val asyncName = "ThreeSecondRule"

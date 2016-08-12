@@ -16,7 +16,6 @@
 
 package whisk.core.container
 
-import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.selfDockerEndpoint
 import whisk.core.WhiskConfig.invokerContainerNetwork
 import whisk.core.entity.ActionLimits
@@ -112,7 +111,6 @@ class Container(
             containerId map { id => pool.getDockerLogContent(id, start, end, mounted) } getOrElse Array()
         }
     }
-
 
 }
 

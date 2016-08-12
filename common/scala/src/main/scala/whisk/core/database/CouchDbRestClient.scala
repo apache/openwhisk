@@ -19,7 +19,7 @@ package whisk.core.database
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
-import scala.util.{ Try, Success, Failure }
+import scala.util.{ Success, Failure }
 import scala.concurrent.Future
 import scala.concurrent.Promise
 

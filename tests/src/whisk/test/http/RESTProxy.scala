@@ -16,14 +16,11 @@
 package whisk.test.http
 
 import scala.concurrent.Await
-import scala.concurrent.Future
-import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 
 import akka.actor.Actor
 import akka.actor.ActorLogging
-import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers._

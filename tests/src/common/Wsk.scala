@@ -17,12 +17,9 @@
 package common
 
 import java.io.File
-import java.util.regex.Pattern
 
 import scala.Left
 import scala.Right
-import scala.annotation.elidable
-import scala.annotation.elidable.ASSERTION
 import scala.collection.JavaConversions.mapAsJavaMap
 import scala.collection.mutable.Buffer
 import scala.concurrent.duration.Duration

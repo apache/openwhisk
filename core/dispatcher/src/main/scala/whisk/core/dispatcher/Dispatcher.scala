@@ -19,7 +19,6 @@ package whisk.core.dispatcher
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
-import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 import scala.util.matching.Regex.Match

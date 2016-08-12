@@ -16,19 +16,10 @@
 
 package whisk.common
 
-import java.io.BufferedWriter
-import java.io.File
-import java.io.FileWriter
-
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
-
-import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig.dbPassword
-import whisk.core.WhiskConfig.dbUsername
-import whisk.core.WhiskConfig.dbWhisk
 
 @RunWith(classOf[JUnitRunner])
 class CryptTests extends FlatSpec with Matchers {

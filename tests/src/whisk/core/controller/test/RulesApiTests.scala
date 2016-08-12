@@ -18,7 +18,6 @@ package whisk.core.controller.test
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-import spray.http.StatusCodes.Accepted
 import spray.http.StatusCodes.BadRequest
 import spray.http.StatusCodes.Conflict
 import spray.http.StatusCodes.OK
@@ -29,20 +28,15 @@ import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
 import spray.json.DefaultJsonProtocol.listFormat
 import spray.json.DefaultJsonProtocol.RootJsObjectFormat
 import spray.json.DefaultJsonProtocol.listFormat
-import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json.JsObject
-import spray.json.pimpAny
 import spray.json.pimpString
 import whisk.core.controller.WhiskRulesApi
-import whisk.core.entity.ActionLimits
-import whisk.core.entity.DocId
 import whisk.core.entity.EntityName
 import whisk.core.entity.Exec
 import whisk.core.entity.Namespace
 import whisk.core.entity.Parameters
 import whisk.core.entity.SemVer
 import whisk.core.entity.Status
-import whisk.core.entity.TriggerLimits
 import whisk.core.entity.AuthKey
 import whisk.core.entity.WhiskAuth
 import whisk.core.entity.Subject
@@ -52,9 +46,6 @@ import whisk.core.entity.WhiskRule
 import whisk.core.entity.WhiskRulePut
 import whisk.core.entity.WhiskTrigger
 import whisk.http.ErrorResponse
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.DurationInt
-import scala.concurrent.duration.SECONDS
 import scala.language.postfixOps
 import whisk.core.entity.WhiskRuleResponse
 import whisk.core.entity.ReducedRule

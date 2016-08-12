@@ -69,10 +69,6 @@ object WhiskAuth extends DocumentFactory[WhiskAuth] {
 
     private val viewName = "subjects/uuids"
 
-    private def apply(s: Subject, u: UUID, k: Secret): WhiskAuth = {
-        WhiskAuth(s, AuthKey(u, k))
-    }
-
     implicit val serdes = new RootJsonFormat[WhiskAuth] {
         def write(w: WhiskAuth) = w.toJson
 
@@ -89,7 +85,6 @@ object WhiskAuth extends DocumentFactory[WhiskAuth] {
 
     def get(datastore: ArtifactStore[WhiskAuth], subject: Subject, fromCache: Boolean)(
         implicit transid: TransactionId): Future[WhiskAuth] = {
-        implicit val logger: Logging = datastore
         super.get(datastore, DocInfo(subject()), fromCache)
     }
 

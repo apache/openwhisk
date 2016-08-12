@@ -22,3 +22,8 @@ include 'sdk:docker'
 include 'tests'
 
 rootProject.name = 'openwhisk'
+
+gradle.ext.scala = [
+    version: '2.11.8',
+    compileFlags: ['-feature', '-unchecked', '-deprecation', '-Xfatal-warnings', '-Ywarn-unused-import']
+]

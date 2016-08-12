@@ -19,7 +19,6 @@ package services
 import org.junit.Assert.assertTrue
 
 import java.io.File
-import java.io.IOException
 
 import org.junit.Rule
 import org.junit.Test
@@ -27,7 +26,6 @@ import org.junit.rules.TestRule
 
 import com.jayway.restassured.RestAssured
 
-import common.Pair
 import common.TestUtils
 import common.WhiskProperties
 

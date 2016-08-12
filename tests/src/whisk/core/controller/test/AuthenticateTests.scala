@@ -22,7 +22,6 @@ import java.io.PrintStream
 import scala.concurrent.Await
 
 import org.junit.runner.RunWith
-import org.scalatest.Finders
 import org.scalatest.junit.JUnitRunner
 
 import spray.http.BasicHttpCredentials
@@ -32,7 +31,6 @@ import spray.routing.Directive.pimpApply
 import spray.routing.authentication.UserPass
 import spray.routing.directives.AuthMagnet.fromContextAuthenticator
 import whisk.common.TransactionCounter
-import whisk.core.WhiskConfig
 import whisk.core.controller.Authenticate
 import whisk.core.controller.AuthenticatedRoute
 import whisk.core.entity.AuthKey
@@ -41,7 +39,6 @@ import whisk.core.entity.Secret
 import whisk.core.entity.Subject
 import whisk.core.entity.UUID
 import whisk.core.entity.WhiskAuth
-import whisk.core.entity.WhiskAuthStore
 import whisk.http.BasicHttpService
 
 /**

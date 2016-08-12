@@ -16,10 +16,8 @@
 
 package system.basic
 
-import java.io.File
 import java.time.Instant
 
-import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 
 import org.junit.runner.RunWith
@@ -28,11 +26,8 @@ import org.scalatest.junit.JUnitRunner
 import common.TestHelpers
 import common.TestUtils
 import common.TestUtils.ANY_ERROR_EXIT
-import common.TestUtils.BAD_REQUEST
 import common.TestUtils.CONFLICT
-import common.TestUtils.ERROR_EXIT
 import common.TestUtils.FORBIDDEN
-import common.TestUtils.NOTALLOWED
 import common.TestUtils.NOT_FOUND
 import common.TestUtils.SUCCESS_EXIT
 import common.TestUtils.TIMEOUT
@@ -42,11 +37,8 @@ import common.WskProps
 import common.WskTestHelpers
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import spray.json.JsObject
 import spray.json.pimpAny
-import spray.json.pimpString
 import whisk.core.entity.WhiskPackage
-import whisk.core.entity.size.SizeInt
 
 @RunWith(classOf[JUnitRunner])
 class WskBasicTests
@@ -369,7 +361,7 @@ class WskBasicTests
             wsk.rule.create(ruleName, trigger = triggerName, action = actionName, update = true, expectedExitCode = CONFLICT)
 
             // now, we disable the rule, so that we can perform the actual update
-            wsk.rule.disableRule(ruleName, 30 seconds);
+            wsk.rule.disableRule(ruleName, 30.seconds);
 
             // finally, we perform the update, and expect success this time
             wsk.rule.create(ruleName, trigger = triggerName, action = actionName, update = true)

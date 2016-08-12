@@ -48,7 +48,6 @@ import org.apache.http.ssl.TrustStrategy
 import org.apache.http.util.EntityUtils
 
 import spray.json.JsValue
-import javax.net.ssl.SSLSocketFactory
 
 /**
  * Http Client.

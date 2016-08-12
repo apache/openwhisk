@@ -34,7 +34,6 @@ import spray.json.pimpString
 import whisk.common.ConsulClient
 import whisk.common.ConsulKV.LoadBalancerKeys
 import whisk.common.Logging
-import whisk.common.LoggingMarkers
 import whisk.common.Scheduler
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig

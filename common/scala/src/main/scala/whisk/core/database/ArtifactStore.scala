@@ -18,7 +18,6 @@ package whisk.core.database
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
-import scala.util.Try
 
 import spray.json.JsObject
 import whisk.common.Logging

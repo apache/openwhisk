@@ -16,13 +16,11 @@
 
 package whisk.core.entity
 
-import java.util.Date
 import scala.concurrent.Future
 import scala.util.Try
 import akka.actor.ActorSystem
 import spray.json.JsObject
 import spray.json.JsString
-import spray.json.JsValue
 import spray.json.RootJsonFormat
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
@@ -245,10 +243,8 @@ object WhiskEntityQueries {
         upto: Option[Instant] = None,
         convert: Option[JsObject => Try[T]])(
             implicit transid: TransactionId): Future[Either[List[JsObject], List[T]]] = {
-        implicit val ec = db.executionContext
         val startKey = List(since map { _.toEpochMilli } getOrElse 0)
         val endKey = List(upto map { _.toEpochMilli } getOrElse TOP, TOP)
-        val includeDocs = convert.isDefined
         query(db, viewname(collection, true), startKey, endKey, skip, limit, reduce, convert)
     }
 
@@ -262,10 +258,8 @@ object WhiskEntityQueries {
         upto: Option[Instant] = None,
         convert: Option[JsObject => Try[T]])(
             implicit transid: TransactionId): Future[Either[List[JsObject], List[T]]] = {
-        implicit val ec = db.executionContext
         val startKey = List(namespace.toString, since map { _.toEpochMilli } getOrElse 0)
         val endKey = List(namespace.toString, upto map { _.toEpochMilli } getOrElse TOP, TOP)
-        val includeDocs = convert.isDefined
         query(db, viewname(collection), startKey, endKey, skip, limit, reduce = false, convert)
     }
 
@@ -280,10 +274,8 @@ object WhiskEntityQueries {
         upto: Option[Instant] = None,
         convert: Option[JsObject => Try[T]])(
             implicit transid: TransactionId): Future[Either[List[JsObject], List[T]]] = {
-        implicit val ec = db.executionContext
         val startKey = List(namespace.addpath(name).toString, since map { _.toEpochMilli } getOrElse 0)
         val endKey = List(namespace.addpath(name).toString, upto map { _.toEpochMilli } getOrElse TOP, TOP)
-        val includeDocs = convert.isDefined
         query(db, viewname(collection), startKey, endKey, skip, limit, reduce = false, convert)
     }
 
@@ -333,7 +325,6 @@ trait WhiskEntityQueries[T] {
         since: Option[Instant] = None,
         upto: Option[Instant] = None)(
             implicit transid: TransactionId) = {
-        implicit val ec = db.executionContext
         val convert = if (docs) Some((o: JsObject) => Try { serdes.read(o) }) else None
         WhiskEntityQueries.listCollectionInAnyNamespace(db, collectionName, skip, limit, reduce, since, upto, convert)
     }
@@ -347,7 +338,6 @@ trait WhiskEntityQueries[T] {
         since: Option[Instant] = None,
         upto: Option[Instant] = None)(
             implicit transid: TransactionId) = {
-        implicit val ec = db.executionContext
         val convert = if (docs) Some((o: JsObject) => Try { serdes.read(o) }) else None
         WhiskEntityQueries.listCollectionInNamespace(db, collectionName, namespace, skip, limit, since, upto, convert)
     }
@@ -362,7 +352,6 @@ trait WhiskEntityQueries[T] {
         since: Option[Instant] = None,
         upto: Option[Instant] = None)(
             implicit transid: TransactionId) = {
-        implicit val ec = db.executionContext
         val convert = if (docs) Some((o: JsObject) => Try { serdes.read(o) }) else None
         WhiskEntityQueries.listCollectionByName(db, collectionName, namespace, name, skip, limit, since, upto, convert)
     }

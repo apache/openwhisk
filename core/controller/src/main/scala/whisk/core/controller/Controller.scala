@@ -16,8 +16,6 @@
 
 package whisk.core.controller
 
-import scala.concurrent.ExecutionContext
-
 import akka.actor.Actor
 import akka.actor.ActorSystem
 import akka.japi.Creator
@@ -25,7 +23,6 @@ import spray.routing.Directive.pimpApply
 import whisk.common.TransactionId
 import whisk.core.loadBalancer.LoadBalancerService
 import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig.{ consulServer, kafkaHost }
 import whisk.http.BasicHttpService
 import whisk.http.BasicRasService
 import spray.routing.Route

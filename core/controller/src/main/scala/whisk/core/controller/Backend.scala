@@ -16,7 +16,6 @@
 
 package whisk.core.controller
 
-import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
@@ -25,27 +24,11 @@ import akka.actor.ActorSystem
 import akka.event.Logging.InfoLevel
 import akka.util.Timeout
 import akka.util.Timeout.durationToTimeout
-import spray.http.HttpRequest
-import spray.client.pipelining.Post
-import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
-import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
-import spray.json.DefaultJsonProtocol.StringJsonFormat
-import spray.json.DefaultJsonProtocol.RootJsObjectFormat
-import spray.json.DefaultJsonProtocol.mapFormat
-import spray.json.DefaultJsonProtocol.JsValueFormat
-import spray.json.RootJsonFormat
-import spray.json.JsString
 import spray.json.JsObject
-import spray.json.pimpAny
-import spray.json.pimpString
-import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
-import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
 import whisk.common.TransactionId
 import whisk.core.connector.LoadBalancerResponse
 import whisk.core.connector.LoadbalancerRequest
-import whisk.core.connector.Message
 import whisk.core.connector.ActivationMessage
-import whisk.core.connector.ActivationMessage.{ publish, INVOKER }
 import whisk.core.WhiskConfig
 import whisk.core.entitlement.EntitlementService
 import whisk.core.entitlement.LocalEntitlementService

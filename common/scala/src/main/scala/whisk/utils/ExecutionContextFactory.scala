@@ -16,17 +16,12 @@
 
 package whisk.utils
 
-import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.Executors
-import java.util.concurrent.ThreadPoolExecutor
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
-import scala.language.postfixOps
 
 import akka.actor.ActorSystem
 import akka.pattern.{ after => expire }

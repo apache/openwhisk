@@ -16,17 +16,6 @@
 
 package whisk.common
 
-import java.io.File
-
-import scala.collection.Map
-import scala.io.Source
-
-import spray.json.JsArray
-import spray.json.JsBoolean
-import spray.json.JsNumber
-import spray.json.JsObject
-import spray.json.JsString
-
 /**
  * A set of properties which define a configuration.
  *

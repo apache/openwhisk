@@ -26,11 +26,9 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.time.Span.convertDurationToSpan
 
-import akka.actor.ActorSystem
 import whisk.common.ConsulClient
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.consulServer
-import whisk.utils.ExecutionContextFactory
 
 import common.WskActorSystem
 

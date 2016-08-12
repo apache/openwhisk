@@ -16,10 +16,6 @@
 
 package whisk.common
 
-import java.io.BufferedWriter
-import java.io.File
-import java.io.FileWriter
-
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers

@@ -17,8 +17,6 @@
 package whisk.core.entity
 
 import scala.util.Try
-import javax.crypto.KeyGenerator
-import java.util.Base64
 import spray.json.JsValue
 import spray.json.RootJsonFormat
 import spray.json.JsString

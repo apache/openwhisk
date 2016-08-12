@@ -26,7 +26,6 @@ import spray.http.HttpMethods.POST
 import spray.http.HttpMethods.PUT
 import whisk.common.Logging
 import whisk.common.TransactionId
-import whisk.core.entity.Subject
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskActivation
 import whisk.core.entity.WhiskEntityStore

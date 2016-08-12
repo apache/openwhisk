@@ -18,7 +18,6 @@ package whisk.common
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try

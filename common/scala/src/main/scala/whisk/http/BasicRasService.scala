@@ -20,10 +20,8 @@ import akka.actor.Actor
 import akka.actor.ActorSystem
 import akka.event.Logging
 import akka.japi.Creator
-import spray.http.MediaTypes.`application/json`
 import whisk.common.TransactionId
 import spray.httpx.SprayJsonSupport._
-import spray.json.DefaultJsonProtocol._
 
 /**
  * This trait extends the BasicHttpService with a standard "ping" endpoint which

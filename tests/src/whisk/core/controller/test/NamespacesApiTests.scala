@@ -25,7 +25,6 @@ import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
 import spray.json.DefaultJsonProtocol.RootJsObjectFormat
 import spray.json.DefaultJsonProtocol.listFormat
 import spray.json.JsObject
-import spray.json.pimpAny
 import whisk.core.controller.WhiskNamespacesApi
 import whisk.core.entity.AuthKey
 import whisk.core.entity.Namespace

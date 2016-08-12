@@ -16,8 +16,6 @@
 
 package whisk.core.database.test
 
-import scala.annotation.elidable
-import scala.annotation.elidable.ASSERTION
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
@@ -42,7 +40,6 @@ import whisk.core.entity.WhiskDocument
 import whisk.core.entity.DocId
 import java.util.concurrent.TimeoutException
 import whisk.common.TransactionCounter
-import whisk.utils.ExecutionContextFactory
 import scala.language.postfixOps
 
 trait DbUtils extends TransactionCounter {

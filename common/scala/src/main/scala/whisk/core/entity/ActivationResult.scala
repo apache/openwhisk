@@ -16,11 +16,8 @@
 
 package whisk.core.entity
 
-import scala.util.Try
-
 import spray.json.DefaultJsonProtocol
 import spray.json.JsBoolean
-import spray.json.JsNull
 import spray.json.JsValue
 import spray.json.JsObject
 import spray.json.JsString
@@ -66,8 +63,6 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
             case 3 => "whisk internal error"
         }
     }
-
-    private def isSuccess(code: Int) = (code == Success)
 
     private def error(code: Int, errorValue: JsValue) = {
         require(code == ApplicationError || code == ContainerError || code == WhiskError)

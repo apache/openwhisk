@@ -16,16 +16,10 @@
 
 package whisk.core.entity
 
-import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
-import spray.json.DefaultJsonProtocol.StringJsonFormat
-import spray.json.JsObject
-import spray.json.JsString
 import spray.json.JsValue
 import spray.json.RootJsonFormat
 import spray.json.deserializationError
-import spray.json.pimpAny
-import spray.json.serializationError
 import spray.json.DefaultJsonProtocol
 
 /**

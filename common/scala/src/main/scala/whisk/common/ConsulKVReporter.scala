@@ -16,11 +16,7 @@
 
 package whisk.common
 
-import scala.annotation.implicitNotFound
-import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
-import scala.language.postfixOps
 
 import akka.actor.ActorSystem
 
@@ -54,7 +50,7 @@ class ConsulKVReporter(
     private var count = 0
 
     system.scheduler.scheduleOnce(initialDelay) {
-        val (selfHostname, stderr, exitCode) = SimpleExec.syncRunCmd(Array("hostname", "-f"))(TransactionId.unknown)
+        val (selfHostname, _, _) = SimpleExec.syncRunCmd(Array("hostname", "-f"))(TransactionId.unknown)
         kv.put(hostKey, selfHostname.toJson.compactPrint)
         kv.put(startKey, DateUtil.getTimeString.toJson.compactPrint)
 

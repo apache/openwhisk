@@ -20,7 +20,6 @@ import scala.collection.concurrent.TrieMap
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
-import scala.util.Success
 import scala.util.Try
 
 import akka.actor.ActorSystem

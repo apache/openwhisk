@@ -16,38 +16,27 @@
 
 package whisk.core.database.test
 
-import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.Promise
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.DurationDouble
+import scala.concurrent.duration.DurationInt
 import scala.util._
 
-import akka.actor.ActorRef
-import akka.actor.ActorSystem
-import akka.actor.Props
-import akka.http.scaladsl.model._
-
-import spray.json._
-import spray.json.DefaultJsonProtocol._
-
-import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig._
-import whisk.core.database.CouchDbRestClient
-
-import whisk.test.http.RESTProxy
-
 import org.junit.runner.RunWith
-import org.scalatest.BeforeAndAfter
-import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
 
+import akka.actor.Props
+import akka.http.scaladsl.model._
 import common.WskActorSystem
+import spray.json._
+import whisk.core.WhiskConfig
+import whisk.core.WhiskConfig._
+import whisk.core.database.CouchDbRestClient
+import whisk.test.http.RESTProxy
 
 @RunWith(classOf[JUnitRunner])
 class CouchDbRestClientTests extends FlatSpec

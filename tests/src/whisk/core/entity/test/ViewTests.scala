@@ -20,7 +20,6 @@ import java.time.Clock
 import java.time.Instant
 import scala.concurrent.Await
 import scala.util.Try
-import akka.actor.ActorSystem
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfter
 import org.scalatest.FlatSpec
@@ -29,18 +28,13 @@ import org.scalatest.junit.JUnitRunner
 import spray.json.JsObject
 import whisk.core.WhiskConfig
 import whisk.core.database.test.DbUtils
-import whisk.core.entity.ActionLimits
 import whisk.core.entity.ActivationId
 import whisk.core.entity.AuthKey
 import whisk.core.entity.Binding
 import whisk.core.entity.EntityName
 import whisk.core.entity.Exec
 import whisk.core.entity.Namespace
-import whisk.core.entity.Parameters
-import whisk.core.entity.SemVer
-import whisk.core.entity.Status
 import whisk.core.entity.Subject
-import whisk.core.entity.TriggerLimits
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskActivation
 import whisk.core.entity.WhiskAuth
@@ -54,7 +48,6 @@ import whisk.core.entity.WhiskEntityStore
 import whisk.core.entity.WhiskPackage
 import whisk.core.entity.WhiskRule
 import whisk.core.entity.WhiskTrigger
-import java.util.Date
 import org.scalatest.BeforeAndAfterAll
 import scala.language.postfixOps
 import akka.event.Logging.InfoLevel

@@ -23,10 +23,7 @@ import whisk.core.entity.DocInfo
 import scala.util.Failure
 import scala.util.Success
 import whisk.common.Logging
-import scala.concurrent.Promise
 import whisk.core.entity.DocRevision
-import whisk.core.entity.DocRevision
-import scala.language.implicitConversions
 
 import spray.json.JsObject
 

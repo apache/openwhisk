@@ -17,17 +17,14 @@
 package whisk.core.controller
 
 import akka.actor.ActorSystem
-import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
-import scala.util.{ Success, Failure }
 import spray.http.AllOrigins
 import spray.http.HttpHeaders.`Access-Control-Allow-Origin`
 import spray.http.HttpHeaders.`Access-Control-Allow-Headers`
 import spray.http.StatusCodes.OK
 import spray.http.StatusCodes.PermanentRedirect
-import spray.http.HttpRequest
-import spray.http.StatusCodes.{ OK, InternalServerError, PermanentRedirect }
+import spray.http.StatusCodes.{ OK, PermanentRedirect }
 import spray.httpx.SprayJsonSupport._
 import spray.json.DefaultJsonProtocol._
 import spray.json.JsObject
@@ -40,10 +37,9 @@ import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.whiskVersionDate
 import whisk.core.WhiskConfig.whiskVersionBuildno
 import whisk.core.connector.LoadBalancerResponse
-import whisk.core.connector.{ ActivationMessage => Message }
-import whisk.core.entitlement.{ Collection, EntitlementService, Privilege, Resource }
-import whisk.core.entity.{ ActivationId, Subject, WhiskActivation, WhiskActivationStore, WhiskAuthStore, WhiskEntityStore }
-import whisk.core.entity.types.{ ActivationStore, AuthStore, EntityStore }
+import whisk.core.entitlement.{ Collection, EntitlementService }
+import whisk.core.entity.{ ActivationId, WhiskActivation, WhiskActivationStore, WhiskAuthStore, WhiskEntityStore }
+import whisk.core.entity.types.{ ActivationStore, EntityStore }
 import whisk.core.controller.WhiskServices.LoadBalancerReq
 import akka.event.Logging.LogLevel
 

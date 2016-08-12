@@ -21,14 +21,12 @@ import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
 import org.junit.runner.RunWith
-import org.scalatest.Finders
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.time.Span.convertDurationToSpan
 
-import akka.actor.ActorSystem
 import common.WhiskProperties
 import spray.client.pipelining.Get
 import spray.client.pipelining.Options
@@ -37,23 +35,16 @@ import spray.client.pipelining.WithTransformation
 import spray.client.pipelining.WithTransformerConcatenation
 import spray.client.pipelining.addCredentials
 import spray.client.pipelining.sendReceive
-import spray.client.pipelining.sendReceive$default$3
 import spray.client.pipelining.unmarshal
 import spray.http.AllOrigins
 import spray.http.BasicHttpCredentials
 import spray.http.HttpHeader
 import spray.http.HttpHeaders.`Access-Control-Allow-Headers`
 import spray.http.HttpHeaders.`Access-Control-Allow-Origin`
-import spray.http.HttpMethod
-import spray.http.HttpMethods.CONNECT
 import spray.http.HttpMethods.DELETE
 import spray.http.HttpMethods.GET
-import spray.http.HttpMethods.HEAD
-import spray.http.HttpMethods.OPTIONS
-import spray.http.HttpMethods.PATCH
 import spray.http.HttpMethods.POST
 import spray.http.HttpMethods.PUT
-import spray.http.HttpMethods.TRACE
 import spray.http.HttpRequest
 import spray.http.HttpResponse
 import spray.http.StatusCodes.Accepted

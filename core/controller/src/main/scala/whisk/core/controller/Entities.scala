@@ -26,7 +26,6 @@ import shapeless.HNil
 import spray.http.StatusCodes.InternalServerError
 import spray.http.StatusCodes.RequestEntityTooLarge
 import spray.httpx.SprayJsonSupport._
-import spray.json.DefaultJsonProtocol._
 import spray.routing.Directive0
 import spray.routing.Directives
 import spray.routing.RequestContext

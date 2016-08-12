@@ -20,8 +20,6 @@ import spray.json.JsString
 import spray.json.pimpString
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.consulServer
-import org.apache.jute.compiler.JString
-import spray.json.JsNull
 import scala.util.Try
 import spray.json.JsArray
 import spray.json.JsObject

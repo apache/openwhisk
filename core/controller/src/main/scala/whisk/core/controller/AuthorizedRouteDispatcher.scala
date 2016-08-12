@@ -18,19 +18,11 @@ package whisk.core.controller
 
 import scala.concurrent.ExecutionContext
 import scala.util.Try
-import spray.http.HttpRequest
 import spray.routing.RequestContext
-import spray.http.StatusCodes.Forbidden
 import spray.http.StatusCodes.InternalServerError
-import spray.routing.directives.AuthMagnet.fromContextAuthenticator
-import spray.routing.directives.OnCompleteFutureMagnet.apply
-import spray.routing.directives.OnSuccessFutureMagnet.apply
-import spray.routing.RejectionHandler
 import spray.routing.Directives
 import spray.routing.Directive1
 import spray.http.HttpMethod
-import spray.http.HttpMethods.{ GET, PUT, POST, DELETE }
-import spray.routing.Route
 import whisk.common.TransactionId
 import whisk.core.entity.Namespace
 import whisk.core.entity.Subject
@@ -43,8 +35,7 @@ import whisk.core.entitlement.ThrottleRejectRequest
 import whisk.common.Logging
 import scala.util.Failure
 import scala.util.Success
-import whisk.http.ErrorResponse.{ terminate }
-import whisk.http.ErrorResponse
+import whisk.http.ErrorResponse.terminate
 import scala.language.postfixOps
 
 /** A trait for routes that require entitlement checks. */

@@ -25,7 +25,6 @@ import scala.language.postfixOps
 import scala.util.matching.Regex.Match
 
 import org.junit.runner.RunWith
-import org.scalatest.Finders
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner

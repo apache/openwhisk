@@ -20,14 +20,10 @@ import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration.DurationInt
-import scala.collection.concurrent.TrieMap
-import scala.language.postfixOps
-import scala.util.Try
 import scala.util.Failure
 import scala.util.Success
-import java.util.concurrent.atomic.AtomicReference
+import scala.language.postfixOps
 import akka.actor.ActorSystem
-import spray.client.pipelining.Post
 import spray.http.HttpMethod
 import spray.http.HttpMethods.DELETE
 import spray.http.HttpMethods.GET
@@ -36,39 +32,28 @@ import spray.http.HttpMethods.PUT
 import spray.http.StatusCodes.BadGateway
 import spray.http.StatusCodes.BadRequest
 import spray.http.StatusCodes.InternalServerError
-import spray.http.StatusCodes.MethodNotAllowed
-import spray.http.StatusCodes.NotFound
 import spray.http.StatusCodes.OK
 import spray.http.StatusCodes.Accepted
 import spray.http.StatusCodes.TooManyRequests
 import spray.http.StatusCodes.RequestEntityTooLarge
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
 import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
-import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json.DefaultJsonProtocol.RootJsObjectFormat
-import spray.json.DefaultJsonProtocol.mapFormat
-import spray.json.DefaultJsonProtocol.JsValueFormat
-import spray.json.RootJsonFormat
 import spray.json.{ JsArray, JsObject, JsString }
-import spray.json.pimpString
-import spray.json.pimpAny
 import spray.routing.RequestContext
 import whisk.common.LoggingMarkers
-import whisk.common.LoggingMarkers._
 import whisk.common.StartMarker
 import whisk.common.TransactionId
-import whisk.core.WhiskConfig
 import whisk.core.database.NoDocumentException
 import whisk.core.entity.ActionLimits
 import whisk.core.entity.ActivationId
-import whisk.core.entity.ActivationResponse
 import whisk.core.entity.DocId
 import whisk.core.entity.DocInfo
 import whisk.core.entity.EntityName
-import whisk.core.entity.{ Exec, SequenceExec }
+import whisk.core.entity.SequenceExec
 import whisk.core.entity.MemoryLimit
 import whisk.core.entity.Namespace
-import whisk.core.entity.{ Parameters, ParameterName, ParameterValue }
+import whisk.core.entity.Parameters
 import whisk.core.entity.SemVer
 import whisk.core.entity.TimeLimit
 import whisk.core.entity.LogLimit
@@ -80,22 +65,19 @@ import whisk.core.entity.WhiskEntity
 import whisk.core.entity.WhiskEntityStore
 import whisk.core.entity.types.ActivationStore
 import whisk.core.entity.types.EntityStore
-import whisk.utils.ExecutionContextFactory.FutureExtensions
 import whisk.core.entitlement.Collection
 import whisk.core.entitlement.Privilege
 import whisk.core.entity.WhiskAuth
-import whisk.core.connector.LoadBalancerResponse
 import whisk.core.connector.{ ActivationMessage => Message }
-import whisk.core.connector.ActivationMessage.{ publish, INVOKER }
+import whisk.core.connector.ActivationMessage.INVOKER
 import whisk.core.entitlement.Resource
 import whisk.core.entity.WhiskPackage
 import whisk.core.entity.Binding
 import whisk.core.entity.Subject
-import whisk.core.entity.WhiskEntityQueries
-import whisk.http.ErrorResponse
-import whisk.http.ErrorResponse.{ terminate }
+import whisk.http.ErrorResponse.terminate
 import whisk.common.PrintStreamEmitter
 import org.apache.kafka.common.errors.RecordTooLargeException
+import whisk.utils.ExecutionContextFactory.FutureExtensions
 
 /**
  * A singleton object which defines the properties that must be present in a configuration

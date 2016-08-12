@@ -26,7 +26,6 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 
-import akka.actor.ActorSystem
 import akka.event.Logging.InfoLevel
 import spray.http.BasicHttpCredentials
 import spray.routing.HttpService

@@ -36,7 +36,6 @@ import common.WhiskProperties
 import spray.json.JsObject
 import spray.json.JsValue
 import spray.json.pimpString
-import whisk.common.HttpUtils
 
 /**
  * For testing convenience, this interface abstracts away the REST calls to a

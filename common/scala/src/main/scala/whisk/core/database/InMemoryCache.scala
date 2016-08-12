@@ -19,7 +19,6 @@ package whisk.core.database
 import scala.concurrent.Future
 import spray.caching.Cache
 import spray.caching.LruCache
-import spray.caching.ValueMagnet.fromFuture
 import whisk.common.Logging
 import whisk.common.TransactionId
 import scala.concurrent.ExecutionContext

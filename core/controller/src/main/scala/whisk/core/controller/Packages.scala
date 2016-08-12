@@ -41,7 +41,6 @@ import whisk.core.entity.EntityName
 import whisk.core.entity.Namespace
 import whisk.core.entity.Parameters
 import whisk.core.entity.SemVer
-import whisk.core.entity.Subject
 import whisk.core.entity.types.EntityStore
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskEntity

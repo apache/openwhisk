@@ -20,15 +20,11 @@ import java.time.Clock
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 
-import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.duration.MILLISECONDS
 import scala.language.postfixOps
 import spray.json.JsObject
 import spray.json.JsString
 import whisk.common.HttpUtils
-import whisk.common.LoggingMarkers._
 import whisk.common.TransactionId
 import whisk.core.entity.ActionLimits
 import scala.util.Try

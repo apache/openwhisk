@@ -16,21 +16,16 @@
 
 package whisk.common
 
-import scala.annotation.implicitNotFound
 import scala.concurrent.Future
-import scala.language.postfixOps
 
 import org.apache.commons.codec.binary.Base64
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.headers._
-import akka.http.scaladsl.marshalling._
 import akka.http.scaladsl.unmarshalling._
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl._
 
 import java.util.NoSuchElementException
 

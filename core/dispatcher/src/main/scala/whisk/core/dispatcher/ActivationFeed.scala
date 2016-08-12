@@ -17,7 +17,6 @@
 package whisk.core.dispatcher
 
 import scala.concurrent.duration.FiniteDuration
-import scala.language.postfixOps
 import scala.util.Try
 
 import org.apache.kafka.clients.consumer.CommitFailedException

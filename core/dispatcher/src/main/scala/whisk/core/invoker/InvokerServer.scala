@@ -20,7 +20,6 @@ import akka.actor.Actor
 import spray.http.StatusCodes.OK
 import spray.http.StatusCodes.NotFound
 import spray.http.StatusCodes.InternalServerError
-import spray.httpx.marshalling._
 import spray.httpx.SprayJsonSupport._
 import spray.json.DefaultJsonProtocol._
 import spray.json._
@@ -30,7 +29,6 @@ import spray.routing.Directive.pimpApply
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.connector.{ ActivationMessage => Message }
-import whisk.core.dispatcher.Dispatcher
 import whisk.core.entity.ActivationId
 import whisk.core.entity.DocId
 import whisk.core.entity.Subject

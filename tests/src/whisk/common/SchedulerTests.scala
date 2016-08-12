@@ -28,7 +28,6 @@ import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 
-import akka.actor.ActorSystem
 import akka.actor.PoisonPill
 
 import common.WskActorSystem
@@ -103,7 +102,6 @@ class SchedulerTests extends FlatSpec with Matchers with WskActorSystem {
         val scheduled = Scheduler.scheduleWaitAtLeast(timeBetweenCalls) { () =>
             callCount += 1
             throw new Exception
-            Future successful true
         }
 
         waitForCalls()

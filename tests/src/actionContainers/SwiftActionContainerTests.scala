@@ -25,7 +25,6 @@ import spray.json._
 
 import ActionContainer.withContainer
 
-import scala.util.Random
 import common.WhiskProperties
 
 @RunWith(classOf[JUnitRunner])

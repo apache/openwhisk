@@ -16,26 +16,14 @@
 
 package system.basic;
 
-import java.io.File
-import scala.collection.mutable.ListBuffer
-import org.apache.commons.io.FileUtils
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
 import org.scalatest.Matchers
-import org.scalatest.ParallelTestExecution
-import org.scalatest.TestData
 import org.scalatest.junit.JUnitRunner
-import common.DeleteFromCollection
-import common.RunWskAdminCmd
-import common.RunWskCmd
 import common.TestUtils
-import common.TestUtils._
 import common.Wsk
-import common.WskAction
 import common.WskProps
 import spray.json._
 import spray.json.DefaultJsonProtocol.StringJsonFormat
-import spray.json.PimpedAny
 import common.TestHelpers
 import common.WskTestHelpers
 import common.WskProps

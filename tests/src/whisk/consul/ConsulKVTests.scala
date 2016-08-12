@@ -28,7 +28,6 @@ import spray.json.JsNumber
 import spray.json.JsString
 import spray.json.JsNull
 import spray.json.JsValue
-import scala.language.postfixOps
 
 @RunWith(classOf[JUnitRunner])
 class ConsulKVTests extends FlatSpec with Matchers {

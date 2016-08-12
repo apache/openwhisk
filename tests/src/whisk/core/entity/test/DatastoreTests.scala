@@ -21,8 +21,6 @@ import java.time.Instant
 import scala.Vector
 import scala.concurrent.Await
 
-import akka.actor.ActorSystem
-
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfter
 import org.scalatest.BeforeAndAfterAll

@@ -24,7 +24,6 @@ import java.io.File
 import scala.util.Try
 import scala.language.postfixOps
 import whisk.common.LoggingMarkers
-import whisk.common.LogMarkerToken
 import akka.event.Logging.ErrorLevel
 import whisk.common.PrintStreamEmitter
 
