@@ -106,7 +106,10 @@ trait PrintStreamEmitter {
             case ErrorLevel   => "ERROR"
         }
 
-        val logMessage = Seq(message).filter(_.trim.nonEmpty)
+        val logMessage = Seq(message).collect {
+            case msg if msg.nonEmpty =>
+                msg.split('\n').map(_.trim).mkString(" ")
+        }
 
         val parts = Seq(s"[$time]", s"[$level]", s"[$id]") ++ Seq(s"[$name]") ++ logMessage ++ marker
         outputStream.println(parts.mkString(" "))
