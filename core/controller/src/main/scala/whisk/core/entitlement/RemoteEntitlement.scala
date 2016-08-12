@@ -18,11 +18,10 @@ package whisk.core.entitlement
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.Future
-import scala.concurrent.Promise
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
-import scala.util.Failure
 import scala.util.Success
+import scala.util.Try
 
 import akka.actor.ActorSystem
 import spray.client.pipelining.Get
@@ -35,17 +34,21 @@ import spray.http.FormData
 import spray.http.HttpRequest
 import spray.http.HttpResponse
 import spray.http.StatusCodes.OK
+import spray.http.StatusCodes.Unauthorized
 import spray.http.Uri
 import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
+import spray.httpx.UnsuccessfulResponseException
+import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.entity.Subject
+import whisk.core.controller.RejectRequest
 
 protected[core] class RemoteEntitlementService(
     private val config: WhiskConfig,
     private val timeout: FiniteDuration = 5 seconds)(
-    private implicit val actorSystem: ActorSystem)
+        private implicit val actorSystem: ActorSystem)
     extends EntitlementService(config) {
 
     private implicit val executionContext = actorSystem.dispatcher
@@ -63,7 +66,8 @@ protected[core] class RemoteEntitlementService(
             addHeader("X-Transaction-Id", transid.toString())
             ~> sendReceive
             ~> unmarshal[Set[String]])
-        pipeline(Get(url))
+
+        request(pipeline(Get(url)))
     }
 
     protected[core] override def grant(subject: Subject, right: Privilege, resource: Resource)(implicit transid: TransactionId): Future[Boolean] = {
@@ -76,21 +80,11 @@ protected[core] class RemoteEntitlementService(
             "collection" -> resource.collection.toString,
             "namespace" -> resource.namespace.toString))
 
-        val promise = Promise[Boolean]
         val pipeline: HttpRequest => Future[HttpResponse] = (
             addHeader("X-Transaction-Id", transid.toString())
             ~> sendReceive)
-        pipeline(Post(url, form)) onComplete {
-            case Success(response) =>
-                response.status match {
-                    case OK => promise.success(true)
-                    case _  => promise.success(false)
-                }
-            case Failure(t) =>
-                error(this, s"failed while granting rights: ${t.getMessage}")
-                promise.success(false)
-        }
-        promise.future
+
+        request(pipeline(Post(url, form))) map { _.status == OK } recover { case _ => false }
     }
 
     protected[core] override def revoke(subject: Subject, right: Privilege, resource: Resource)(implicit transid: TransactionId): Future[Boolean] = {
@@ -103,21 +97,11 @@ protected[core] class RemoteEntitlementService(
             "collection" -> resource.collection.toString,
             "namespace" -> resource.namespace.toString))
 
-        val promise = Promise[Boolean]
         val pipeline: HttpRequest => Future[HttpResponse] = (
             addHeader("X-Transaction-Id", transid.toString())
             ~> sendReceive)
-        pipeline(Post(url, form)) onComplete {
-            case Success(response) =>
-                response.status match {
-                    case OK => promise.success(true)
-                    case _  => promise.success(false)
-                }
-            case Failure(t) =>
-                error(this, s"failed while revoking rights: ${t.getMessage}")
-                promise.success(false)
-        }
-        promise.future
+
+        request(pipeline(Post(url, form))) map { _.status == OK } recover { case _ => false }
     }
 
     protected override def entitled(subject: Subject, right: Privilege, resource: Resource)(implicit transid: TransactionId): Future[Boolean] = {
@@ -130,20 +114,28 @@ protected[core] class RemoteEntitlementService(
             "collection" -> resource.collection.toString,
             "namespace" -> resource.namespace.toString)
 
-        val promise = Promise[Boolean]
         val pipeline: HttpRequest => Future[HttpResponse] = (
             addHeader("X-Transaction-Id", transid.toString())
             ~> sendReceive)
-        pipeline(Get(url)) onComplete {
-            case Success(response) =>
-                response.status match {
-                    case OK => promise.success(true)
-                    case _  => promise.success(false)
-                }
-            case Failure(t) =>
-                error(this, s"failed while checking entitlement: ${t.getMessage}")
-                promise.success(false)
-        }
-        promise.future
+
+        request(pipeline(Get(url))) map { _.status == OK } recover { case _ => false }
     }
+
+    /** Error response as sent by the remote entitlement service */
+    private case class ErrorResponse(error: String)
+    private object ErrorResponse extends DefaultJsonProtocol {
+        implicit val serdes = jsonFormat1(ErrorResponse.apply)
+    }
+
+    private def request[A](initial: Future[A])(implicit transid: TransactionId): Future[A] =
+        initial recover {
+            case usr: UnsuccessfulResponseException if usr.response.status == Unauthorized =>
+                info(this, s"authentication deemed invalid by the entitlement service, response: ${usr.getMessage}")
+                val error = Try {
+                    usr.response.entity.asString.parseJson.convertTo[ErrorResponse].error
+                }.toOption
+
+                val message = Seq("Authentication invalid at entitlement service") ++ error
+                throw RejectRequest(Unauthorized, message.mkString(": "))
+        }
 }

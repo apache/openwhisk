@@ -122,6 +122,7 @@ trait WhiskNamespacesApi
      *
      * Responses are one of (Code, Message)
      * - 200 [ Namespaces (as String) ] as JSON
+     * - 401 Unauthorized
      * - 500 Internal Server Error
      */
     private def getNamespaces(user: Subject)(implicit transid: TransactionId) = {
@@ -129,6 +130,9 @@ trait WhiskNamespacesApi
             case Success(namespaces) =>
                 info(this, s"[GET] namespaces success: $namespaces")
                 complete(OK, namespaces)
+            case Failure(r: RejectRequest) =>
+                info(this, s"[GET] namespaces failed: ${r.message}")
+                terminate(r.code, r.message)
             case Failure(t) =>
                 error(this, s"[GET] namespaces failed: ${t.getMessage}")
                 terminate(InternalServerError, t.getMessage)

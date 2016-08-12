@@ -85,8 +85,8 @@ trait BasicAuthorizedRouteProvider extends Directives with Logging {
         next: () => RequestContext => Unit)(
             implicit transid: TransactionId): RequestContext => Unit = {
         onComplete(entitlementService.check(user, right, resource)) {
-            case Success(entitment) =>
-                authorize(entitment) {
+            case Success(entitlement) =>
+                authorize(entitlement) {
                     next()
                 }
             case Failure(r: RejectRequest) =>

@@ -71,13 +71,13 @@ protected sealed trait Messages {
 }
 
 /** An exception to throw inside a Predicate future. */
-protected[controller] case class RejectRequest(code: ClientError, message: Option[ErrorResponse]) extends Throwable
+protected[core] case class RejectRequest(code: ClientError, message: Option[ErrorResponse]) extends Throwable
 
-protected[controller] object RejectRequest {
-    protected[controller] def apply(code: ClientError, m: String)(implicit transid: TransactionId): RejectRequest = {
+protected[core] object RejectRequest {
+    protected[core] def apply(code: ClientError, m: String)(implicit transid: TransactionId): RejectRequest = {
         RejectRequest(code, Some(ErrorResponse(m, transid)))
     }
-    protected[controller] def apply(code: ClientError, t: Throwable)(implicit transid: TransactionId): RejectRequest = {
+    protected[core] def apply(code: ClientError, t: Throwable)(implicit transid: TransactionId): RejectRequest = {
         val reason = t.getMessage
         RejectRequest(code, if (reason != null) reason else "Rejected")
     }

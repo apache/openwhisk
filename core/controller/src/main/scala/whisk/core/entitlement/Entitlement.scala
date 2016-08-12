@@ -43,6 +43,7 @@ import whisk.core.entity.Parameters
 import whisk.core.entity.Subject
 import whisk.http.ErrorResponse
 import akka.event.Logging.LogLevel
+import whisk.core.controller.RejectRequest
 
 package object types {
     type Entitlements = TrieMap[(Subject, String), Set[Privilege]]
@@ -194,6 +195,8 @@ protected[core] abstract class EntitlementService(config: WhiskConfig)(
                 case Success(r) =>
                     info(this, if (r) "authorized" else "not authorized")
                     promise success r
+                case Failure(r: RejectRequest) =>
+                    promise failure r
                 case Failure(t) =>
                     error(this, s"failed while checking entitlement: ${t.getMessage}")
                     promise success false

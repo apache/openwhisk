@@ -113,6 +113,9 @@ trait WhiskCollectionAPI
                         case Success(excludePrivate) =>
                             info(this, s"[LIST] exclude private entities: required == $excludePrivate")
                             list(resource.namespace, excludePrivate)
+                        case Failure(r: RejectRequest) =>
+                            info(this, s"[LIST] namespaces lookup failed: ${r.message}")
+                            terminate(r.code, r.message)
                         case Failure(t) =>
                             error(this, s"[LIST] namespaces lookup failed: ${t.getMessage}")
                             terminate(InternalServerError, t.getMessage)
