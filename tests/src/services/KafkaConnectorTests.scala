@@ -37,6 +37,9 @@ import whisk.core.WhiskConfig
 import whisk.core.connector.Message
 import whisk.utils.ExecutionContextFactory
 import common.WskActorSystem
+import scala.concurrent.duration.FiniteDuration
+import java.io.PrintStream
+import java.io.ByteArrayOutputStream
 
 @RunWith(classOf[JUnitRunner])
 class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem with BeforeAndAfterAll {
@@ -50,7 +53,7 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
     val topic = "Dinosaurs"
     val sessionTimeout = 10 seconds
     val producer = new KafkaProducerConnector(config.kafkaHost, ec)
-    val consumer = new KafkaConsumerConnector(config.kafkaHost, groupid, topic, sessionTimeout = sessionTimeout)
+    val consumer = new TestKafkaConsumerConnector(config.kafkaHost, groupid, topic, sessionTimeout = sessionTimeout)
 
     producer.setVerbosity(DebugLevel)
     consumer.setVerbosity(DebugLevel)
@@ -109,4 +112,44 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
         }
     }
 
+    it should "catch a failing commit" in {
+        val stream = new ByteArrayOutputStream
+        val printstream = new PrintStream(stream)
+        consumer.outputStream = printstream
+
+        val message = new Message { override val serialize = Calendar.getInstance().getTime().toString }
+        val sent = Await.result(producer.send(topic, message), 10 seconds)
+        consumer.throwCommitException = true
+        consumer.onMessage((topic, partition, offset, bytes) => {
+            println("message recieved")
+        })
+        // The messages are collected in another Thread. Give it some time to receive the message.
+        Thread.sleep(5000)
+        consumer.throwCommitException = false
+        // Give the background-thread some time to get the message and commit that it is collected.
+        Thread.sleep(5000)
+
+        stream.toString should include("exception while pulling new records: commit failed")
+
+        printstream.close()
+        stream.close()
+    }
+
+}
+
+class TestKafkaConsumerConnector(
+    kafkahost: String,
+    groupid: String,
+    topic: String,
+    sessionTimeout: FiniteDuration) extends KafkaConsumerConnector(kafkahost, groupid, topic, sessionTimeout = sessionTimeout) {
+
+    override def commit() = {
+        if (throwCommitException) {
+            throw new Exception("commit failed")
+        } else {
+            super.commit()
+        }
+    }
+
+    var throwCommitException = false
 }
