@@ -21,30 +21,28 @@ function main(params) {
     var language = params.language || 'en-US';
     var units = params.units || 'm';
     var timePeriod = params.timePeriod || '10day';
-    var timeURL ='/forecast/daily/10day';
+    var url = 'https://twcservice.mybluemix.net/api/weather/v1/geocode/' + lat + '/' + lon;
+    var qs = {language: language, units: units};
 
     switch(timePeriod) {
-        case '10day':
-            timeURL = '/forecast/daily/10day';
-            break;
-   	    case '24hour':
-            timeURL = '/forecast/hourly/24hour';
+        case '48hour':
+            url += '/forecast/hourly/48hour.json';
             break;
         case 'current':
-            timeURL = '/observations/current';
+            url += '/observations.json';
             break;
         case 'timeseries':
-            timeURL = '/observations/timeseries/24hour';
+            url += '/observations/timeseries.json';
+            qs.hours = '23';
             break;
+        case '10day':
         default:
-            timeURL = '/forecast/daily/10day';
+            url += '/forecast/daily/10day.json';
             break;
     }
 
-    // Construct url.
-    var url = 'https://' + username + ":" + password + '@twcservice.mybluemix.net/api/weather/v2' + timeURL + '?units=' + units + '&geocode=' + lat + '%2C' + lon + '&language=' + language;
     console.log('url:', url);
-    request({url:url, timeout: 30000}, function (error, response, body) {
+    request({url:url, qs: qs, auth: {username: username, password: password}, timeout: 30000}, function (error, response, body) {
         if (!error && response.statusCode === 200) {
             var j = JSON.parse(body);
             whisk.done(j);

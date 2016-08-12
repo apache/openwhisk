@@ -262,7 +262,7 @@ The `/whisk.system/weather/forecast` action returns a weather forecast for a loc
 - `password`: Password for The Weather Company Data for IBM Bluemix that is entitled to invoke the forecast API.
 - `latitude`: The latitude coordinate of the location.
 - `longitude`: The longitude coordinate of the location.
-- `timeperiod`: Time period for the forecast. Valid options are '10day' - (default) Returns a daily 10-day forecast , '24hour' - Returns an hourly 2-day forecast, , 'current' - Returns the current weather conditions, 'timeseries' - Returns both the current observations and up to 24 hours of past observations, from the current date and time. 
+- `timeperiod`: Time period for the forecast. Valid options are '10day' - (default) Returns a daily 10-day forecast , '48hour' - Returns an hourly 2-day forecast, , 'current' - Returns the current weather conditions, 'timeseries' - Returns both the current observations and up to 24 hours of past observations, from the current date and time. 
 
 
 The following is an example of creating a package binding and then getting a 10-day forecast.
@@ -270,7 +270,7 @@ The following is an example of creating a package binding and then getting a 10-
 1. Create a package binding with your API key.
 
   ```
-  $ wsk package bind /whisk.system/weather myWeather --param apiKey 'MY_WEATHER_API'
+  $ wsk package bind /whisk.system/weather myWeather --param username 'MY_USERNAME' --param password 'MY_PASSWORD'
   ```
 
 2. Invoke the `forecast` action in your package binding to get the weather forecast.
