@@ -27,6 +27,7 @@ import spray.http.StatusCodes.BadRequest
 import spray.http.StatusCodes.Conflict
 import spray.http.StatusCodes.InternalServerError
 import spray.http.StatusCodes.OK
+import spray.http.StatusCodes.NotFound
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
 import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
 import spray.httpx.marshalling.ToResponseMarshallable.isMarshallable
@@ -169,6 +170,9 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
                             case IgnoredRuleActivation(ok) =>
                                 info(this, s"[POST] rule update ignored")
                                 if (ok) complete(OK) else terminate(Conflict)
+                            case _: NoDocumentException =>
+                                info(this, s"[POST] the trigger attached to the rule doesn't exist")
+                                terminate(NotFound, "Only rules with existing triggers can be activated")
                             case _: Throwable =>
                                 error(this, s"[POST] rule update failed: ${t.getMessage}")
                                 terminate(InternalServerError, t.getMessage)

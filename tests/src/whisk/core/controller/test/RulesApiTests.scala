@@ -572,6 +572,18 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         }
     }
 
+    it should "reject rule activation, if the trigger is absent" in {
+        implicit val tid = transid()
+        val ruleName = aname
+        val ruleNameQualified = Namespace(WhiskEntity.qualifiedName(namespace, ruleName))
+        val triggerName = aname
+        val rule = WhiskRule(namespace, ruleName, triggerName, EntityName("an action"))
+        put(entityStore, rule)
+        Post(s"$collectionPath/${rule.name}", activeStatus) ~> sealRoute(routes(creds)) ~> check {
+            status should be(NotFound)
+        }
+    }
+
     it should "deactivate rule" in {
         implicit val tid = transid()
         val ruleName = aname
