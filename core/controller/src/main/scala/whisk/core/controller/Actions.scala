@@ -478,10 +478,13 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                     val response = promise.future map {
                         (activationId, _)
                     } withTimeout (timeout, new BlockingInvokeTimeout(activationId))
-                    response onFailure { case t => promise.tryFailure(t) } // short circuits polling on result
-                    // Duration of the blocking activation in Controller.
-                    // We use the start time of the tid instead of a startMarker to avoid passing the start marker around.
-                    transid.finished(this, StartMarker(transid.meta.start, LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING))
+                    response onComplete {
+                        case Success(_) =>
+                            // Duration of the blocking activation in Controller.
+                            // We use the start time of the tid instead of a startMarker to avoid passing the start marker around.
+                            transid.finished(this, StartMarker(transid.meta.start, LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING))
+                        case Failure(t) => promise.tryFailure(t) // short circuits polling on result
+                    }
                     response // will either complete with activation or fail with timeout
                 } else Future {
                     // Duration of the non-blocking activation in Controller.
