@@ -47,7 +47,8 @@ linux:
 
 docker_image_tag: latest
 docker:
-  #user:
+  #user: The user to install docker for. Defaults to the ansible user if not set. This will be the user who is able to run 
+  #docker commands on a machine setup with prereq_build.yml
   version: 1.9.1-0~trusty
   storagedriver: overlay
   port: 4243
