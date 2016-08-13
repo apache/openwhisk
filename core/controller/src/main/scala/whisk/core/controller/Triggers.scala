@@ -68,6 +68,8 @@ import whisk.core.entity.types.ActivationStore
 import whisk.core.entity.types.EntityStore
 import whisk.http.ErrorResponse.terminate
 import whisk.core.WhiskConfig
+import spray.httpx.UnsuccessfulResponseException
+import spray.http.StatusCodes
 
 /**
  * A singleton object which defines the properties that must be present in a configuration
@@ -180,8 +182,12 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
 
                                     val actionPath = Path("/api/v1") / "namespaces" / rule.action.root.toString / "actions" / rule.action.last.toString
                                     pipeline(Post(url.withPath(actionPath), args)) onComplete {
-                                        case Success(o) => info(this, s"successfully invoked ${rule.action} -> ${o.fields("activationId")}")
-                                        case Failure(t) => warn(this, s"action ${rule.action} could not be invoked due to ${t.getMessage}")
+                                        case Success(o) =>
+                                            info(this, s"successfully invoked ${rule.action} -> ${o.fields("activationId")}")
+                                        case Failure(usr: UnsuccessfulResponseException) if usr.response.status == StatusCodes.NotFound =>
+                                            info(this, s"action ${rule.action} could not be found")
+                                        case Failure(t) =>
+                                            warn(this, s"action ${rule.action} could not be invoked due to ${t.getMessage}")
                                     }
                             }
                         }
