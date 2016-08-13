@@ -124,6 +124,10 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
                     // for compatibility
                     throw NoDocumentException("not found on 'delete'")
 
+                case Left(StatusCodes.Conflict) =>
+                    transid.finished(this, start, s"[DEL] '$dbName', document: '${doc}'; conflict.")
+                    throw DocumentConflictException("conflict on 'delete'")
+
                 case Left(code) =>
                     transid.failed(this, start, s"[DEL] '$dbName' failed to delete document: '${doc}'; http status: '${code}'", ErrorLevel)
                     throw new Exception("Unexpected http response code: " + code)
