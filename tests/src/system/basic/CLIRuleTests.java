@@ -72,10 +72,11 @@ public class CLIRuleTests {
             wsk.createAction("A_121", TestUtils.getCatalogFilename("samples/wc.js"));
             wsk.createTrigger("T_121");
             wsk.createRule("R_121", "T_121", "A_121");
+            long beforeTrigger = System.currentTimeMillis();
             wsk.trigger("T_121", "bob 121");
 
             String expected = "The message 'bob 121' has";
-            List<String> activationIds = wsk.waitForActivations("A_121", 1, DELAY);
+            List<String> activationIds = wsk.waitForActivations("A_121", 1, beforeTrigger, DELAY);
             assertTrue("Not enough activation ids found", activationIds != null);
             // the most recent id
             String activationId = activationIds.get(0);
@@ -100,10 +101,11 @@ public class CLIRuleTests {
             wsk.createAction("A_121s A_121s", TestUtils.getCatalogFilename("samples/wc.js"));
             wsk.createTrigger("T_121s");
             wsk.createRule("R_121s", "T_121s", "A_121s A_121s");
+            long beforeTrigger = System.currentTimeMillis();
             wsk.trigger("T_121s", "bob 121");
 
             String expected = "The message 'bob 121' has";
-            List<String> activationIds = wsk.waitForActivations("A_121s A_121s", 1, DELAY);
+            List<String> activationIds = wsk.waitForActivations("A_121s A_121s", 1, beforeTrigger, DELAY);
             assertTrue("Not enough activation ids found", activationIds != null);
             // the most recent id
             String activationId = activationIds.get(0);
@@ -133,14 +135,15 @@ public class CLIRuleTests {
             wsk.createRule("R1_221", "T1_221", "A_221");
             wsk.createRule("R2_221", "T2_221", "A_221");
 
+            long beforeTrigger = System.currentTimeMillis();
             wsk.trigger("T2_221", "i'll be back");
             wsk.trigger("T1_221", "terminator");
 
             String expected1 = "The message 'terminator' has";
-            assertTrue("Expected message not found: " + expected1, wsk.logsForActionContain("A_221", expected1, DELAY));
+            assertTrue("Expected message not found: " + expected1, wsk.logsForActionContain("A_221", expected1, beforeTrigger, DELAY));
 
             String expected2 = "The message 'i'll be back' has";
-            assertTrue("Expected message not found: " + expected1, wsk.logsForActionContain("A_221", expected2, DELAY));
+            assertTrue("Expected message not found: " + expected1, wsk.logsForActionContain("A_221", expected2, beforeTrigger, DELAY));
 
         } finally {
             wsk.delete(Action, "A_221");
@@ -169,13 +172,14 @@ public class CLIRuleTests {
             wsk.createRule("R1_122", "T1_122", "A1_122");
             wsk.createRule("R2_122", "T1_122", "A2_122");
 
+            long beforeTrigger = System.currentTimeMillis();
             wsk.trigger("T1_122", "put a fork in it");
 
             String expected1 = "The message 'put a fork in it' has";
-            assertTrue("Expected message not found: " + expected1, wsk.logsForActionContain("A1_122", expected1, DELAY));
+            assertTrue("Expected message not found: " + expected1, wsk.logsForActionContain("A1_122", expected1, beforeTrigger, DELAY));
 
             String expected2 = "hello put a fork in it";
-            assertTrue("Expected message not found: " + expected2, wsk.logsForActionContain("A2_122", expected2, DELAY));
+            assertTrue("Expected message not found: " + expected2, wsk.logsForActionContain("A2_122", expected2, beforeTrigger, DELAY));
 
         } finally {
             wsk.delete(Action, "A1_122");
@@ -217,19 +221,20 @@ public class CLIRuleTests {
             System.out.format("rule2to2: %.1f seconds to create actions and rules\n", (endMilli - startMilli) / 1000.0);
             startMilli = endMilli;
 
+            long beforeTrigger = System.currentTimeMillis();
             wsk.trigger("T1_222", "XXX");
             wsk.trigger("T2_222", "YYY");
             endMilli = System.currentTimeMillis();
             System.out.format("rule2to2: %.1f seconds to trigger\n", (endMilli - startMilli) / 1000.0);
             startMilli = endMilli;
 
-            List<String> activations = wsk.waitForActivations("A1_222", 2, DELAY);
+            List<String> activations = wsk.waitForActivations("A1_222", 2, beforeTrigger, DELAY);
             assertTrue("Not enough activation ids found", activations != null);
 
             String expected1 = "The message 'XXX' has";
-            assertTrue("Expected message not found: " + expected1, wsk.logsForActionContain("A1_222", expected1, DELAY));
+            assertTrue("Expected message not found: " + expected1, wsk.logsForActionContain("A1_222", expected1, beforeTrigger, DELAY));
             String expected2 = "The message 'YYY' has";
-            assertTrue("Expected message not found: " + expected2, wsk.logsForActionContain("A1_222", expected2, DELAY));
+            assertTrue("Expected message not found: " + expected2, wsk.logsForActionContain("A1_222", expected2, beforeTrigger, DELAY));
             endMilli = System.currentTimeMillis();
             System.out.format("rule2to2: %.1f seconds for first check\n", (endMilli - startMilli) / 1000.0);
 
@@ -237,8 +242,8 @@ public class CLIRuleTests {
 
             expected1 = "hello XXX";
             expected2 = "hello YYY";
-            assertTrue("Expected message not found: " + expected1, wsk.logsForActionContain("A2_222", expected1, DELAY));
-            assertTrue("Expected message not found: " + expected2, wsk.logsForActionContain("A2_222", expected2, DELAY));
+            assertTrue("Expected message not found: " + expected1, wsk.logsForActionContain("A2_222", expected1, beforeTrigger, DELAY));
+            assertTrue("Expected message not found: " + expected2, wsk.logsForActionContain("A2_222", expected2, beforeTrigger, DELAY));
             endMilli = System.currentTimeMillis();
             System.out.format("rule2to2: %.1f seconds for second check\n", (endMilli - startMilli) / 1000.0);
 
@@ -284,7 +289,7 @@ public class CLIRuleTests {
             startMilli = endMilli;
 
             // retrieve activation ids; wait for at least one
-            List<String> activations = wsk.waitForActivations("A_321", 1, NEGATIVE_DELAY);
+            List<String> activations = wsk.waitForActivations("A_321", 1, startMilli, NEGATIVE_DELAY);
             assertTrue("Unexpected activation id found: ", activations == null || activations.size() == 0);
             endMilli = System.currentTimeMillis();
             System.out.format("ruleDisable: %.1f seconds to get activation\n", (endMilli - startMilli) / 1000.0);
@@ -316,9 +321,10 @@ public class CLIRuleTests {
             wsk.delete(Rule, "R_421");
             wsk.createTrigger("T_422");
             wsk.createRule("R_421", "T_422", "A_421");
+            long beforeTrigger = System.currentTimeMillis();
             wsk.trigger("T_422", "david");
 
-            List<String> activations = wsk.waitForActivations("A_421", 1, NEGATIVE_DELAY);
+            List<String> activations = wsk.waitForActivations("A_421", 1, beforeTrigger, NEGATIVE_DELAY);
             if (activations == null || activations.size() == 0) {
                 assertFalse("Did not find any activations for A_421", true);
                 return;
@@ -352,9 +358,10 @@ public class CLIRuleTests {
             wsk.trigger("T_621", "batman");
 
             wsk.enableRule("R_621", RULE_DELAY);
+            long beforeTrigger = System.currentTimeMillis();
             wsk.trigger("T_621", "bruce wayne");
 
-            List<String> activations = wsk.waitForActivations("A_621", 1, DELAY);
+            List<String> activations = wsk.waitForActivations("A_621", 1, beforeTrigger, DELAY);
             assertTrue("Not enough activation ids found", activations != null);
 
             String activationId = activations.get(0);

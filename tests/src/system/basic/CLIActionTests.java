@@ -455,9 +455,10 @@ public class CLIActionTests {
             wsk.sanitize(Action, action);
             wsk.createAction(action, TestUtils.getTestActionFilename("ping.js"));
             String hostToPing = "google.com";
+            long startInvoke = System.currentTimeMillis();
             String activationId = wsk.invoke(action, TestUtils.makeParameter("payload", hostToPing));
             String expected = "ping: icmp open socket: Operation not permitted";
-            wsk.activationsContain(action, activationId, DEFAULT_WAIT);
+            wsk.activationsContain(action, activationId, startInvoke, DEFAULT_WAIT);
             String result = wsk.getResult(activationId).stdout.trim();
             assertTrue("Expected result of " + activationId + " to be '" + expected + "' non-empty but is '" + result + "'", result.contains(expected));
         } finally {
