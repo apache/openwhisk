@@ -599,10 +599,12 @@ public class WskCli {
      *
      * @param name
      *            name of the action.
+     * @param since
+     *            since parameter for cli. Only activations after this timestamp will be returned.
      * @return the activation ids
      */
-    public List<String> getActivations(String name) throws IOException {
-        return getActivations(name, 0);
+    public List<String> getActivations(String name, long since) throws IOException {
+        return getActivations(name, since, 0);
     }
 
     /**
@@ -611,13 +613,15 @@ public class WskCli {
      *
      * @param name
      *            name of the action.
+     * @param since
+     *            since parameter for cli. Only activations after this timestamp will be returned.
      * @param lastN
      *            how many activation ids to fetch
      * @return the activation ids
      */
-    public List<String> getActivations(String name, int lastN) throws IOException {
+    public List<String> getActivations(String name, long since, int lastN) throws IOException {
         String canonicalName = name;
-        String result = cli(SUCCESS_EXIT, "activation", "list", canonicalName, "--limit", "" + lastN, "--auth", authKey).stdout;
+        String result = cli(SUCCESS_EXIT, "activation", "list", canonicalName, "--limit", "" + lastN, "--since", String.valueOf(since), "--auth", authKey).stdout;
         String[] lines = result.split("\n");
         List<String> activations = new ArrayList<String>();
         for (int i = 1; i < lines.length; i++) {
@@ -635,13 +639,15 @@ public class WskCli {
      *            the name of the action.
      * @param expecte
      *            dthe expected activation id
+     * @param since
+     *            since parameter for cli. Only activations after this timestamp will be returned.
      * @param totalWait
      *            wait up until this many seconds for the id to appear.
      * @return true if found, false otherwise
      */
-    public boolean activationsContain(String name, String expected, int totalWait) throws IOException {
+    public boolean activationsContain(String name, String expected, long since, int totalWait) throws IOException {
         Boolean b = TestUtils.waitfor(() -> {
-            List<String> ids = getActivations(name, 0);
+            List<String> ids = getActivations(name, since, 0);
             for (String id : ids) {
                 if (id.contains(expected))
                     return true;
@@ -658,12 +664,14 @@ public class WskCli {
      *            name of the action.
      * @param expected
      *            how many activation ids are expected?
+     * @param since
+     *            since parameter for cli. Only activations after this timestamp will be returned.
      * @param totalWait
      *            wait up until this many seconds for the expected ids to appear
      */
-    public List<String> waitForActivations(String name, int expected, int totalWait) throws IOException {
+    public List<String> waitForActivations(String name, int expected, long since, int totalWait) throws IOException {
         return TestUtils.waitfor(() -> {
-            List<String> activations = getActivations(name, 0);
+            List<String> activations = getActivations(name, since, 0);
             return (activations.size() >= expected) ? activations : null;
         } , 0, 1, totalWait);
     }
@@ -756,13 +764,15 @@ public class WskCli {
      *            name of the action.
      * @param w
      *            the string to search for
+     * @param since
+     *            since parameter for cli. Only activations after this timestamp will be returned.
      * @param totalWait
      *            wait up to the this many seconds for the string to appear
      * @return the the first activation log if there is match; otherwise null
      * @throws IOException
      */
-    public String firstLogsForActionContainGet(String action, String regex, int totalWait) throws IOException {
-        return matchLogsForActionContain(action, regex, 1, 1, totalWait);
+    public String firstLogsForActionContainGet(String action, String regex, long since, int totalWait) throws IOException {
+        return matchLogsForActionContain(action, regex, since, 1, 1, totalWait);
     }
 
     /**
@@ -773,6 +783,8 @@ public class WskCli {
      *            name of the action.
      * @param w
      *            the string to search for
+     * @param since
+     *            since parameter for cli. Only activations after this timestamp will be returned.
      * @param initialWait
      *            wait this many seconds before checking lobs
      * @param pollPeriod
@@ -782,10 +794,10 @@ public class WskCli {
      * @return
      * @throws IOException
      */
-    private String matchLogsForActionContain(String action, String sRegex, int initialWait, int pollPeriod, int totalWait) throws IOException {
+    private String matchLogsForActionContain(String action, String sRegex, long since, int initialWait, int pollPeriod, int totalWait) throws IOException {
         Pattern p = Pattern.compile(sRegex, Pattern.DOTALL);
         String l = TestUtils.waitfor(() -> {
-            List<String> activationIds = getActivations(action);
+            List<String> activationIds = getActivations(action, since);
             for (String id : activationIds) {
                 RunResult result = getLogsForActivation(id);
                 if (result.exitCode == SUCCESS_EXIT) {
@@ -799,9 +811,9 @@ public class WskCli {
         return l;
     }
 
-    public List<String> getLogsForAction(String action) throws IOException {
+    public List<String> getLogsForAction(String action, long since) throws IOException {
         List<String> result = new ArrayList<String>();
-        List<String> activationIds = getActivations(action);
+        List<String> activationIds = getActivations(action, since);
         for (String id : activationIds) {
             RunResult res = getLogsForActivation(id);
             if (res.exitCode == SUCCESS_EXIT) {
@@ -818,6 +830,8 @@ public class WskCli {
      *            name of the action.
      * @param w
      *            the string to search for
+     * @param since
+     *            since parameter for cli. Only activations after this timestamp will be returned.
      * @param initialWait
      *            wait this many seconds before checking lobs
      * @param pollPeriod
@@ -827,8 +841,8 @@ public class WskCli {
      * @return
      * @throws IOException
      */
-    private boolean logsForActionContain(String action, String sRegex, int initialWait, int pollPeriod, int totalWait) throws IOException {
-        return matchLogsForActionContain(action, sRegex, initialWait, pollPeriod, totalWait) != null;
+    private boolean logsForActionContain(String action, String sRegex, long since, int initialWait, int pollPeriod, int totalWait) throws IOException {
+        return matchLogsForActionContain(action, sRegex, since, initialWait, pollPeriod, totalWait) != null;
     }
 
     /**
@@ -838,14 +852,16 @@ public class WskCli {
      *            name of the action.
      * @param w
      *            the string to search for
+     * @param since
+     *            since parameter for cli. Only activations after this timestamp will be returned.
      * @param totalWait
      *            wait up to the this many seconds for the string to appear
      * @return
      * @throws IOException
      */
-    public boolean logsForActionContain(String action, String w, int totalWait) throws IOException {
+    public boolean logsForActionContain(String action, String w, long since, int totalWait) throws IOException {
         String regex = ".*" + w + ".*";
-        return logsForActionContain(action, regex, 1, 1, totalWait);
+        return logsForActionContain(action, regex, since, 1, 1, totalWait);
     }
 
     /**
