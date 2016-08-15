@@ -79,6 +79,7 @@ public class CLIRuleTests {
             assertTrue("Not enough activation ids found", activationIds != null);
             // the most recent id
             String activationId = activationIds.get(0);
+            System.out.println("The activationId for the Test ruleRecreate is:" + activationId);
             assertTrue("Expected message not found: " + expected, wsk.logsForActivationContain(activationId, expected, DELAY));
         } finally {
         	wsk.delete(Rule, "R_121");
@@ -107,6 +108,7 @@ public class CLIRuleTests {
             assertTrue("Not enough activation ids found", activationIds != null);
             // the most recent id
             String activationId = activationIds.get(0);
+            System.out.println("The activationId for the Test ruleRecreate is:" + activationId);
             assertTrue("Expected message not found: " + expected, wsk.logsForActivationContain(activationId, expected, DELAY));
         } finally {
             wsk.delete(Rule, "R_121s");
@@ -324,6 +326,7 @@ public class CLIRuleTests {
                 return;
             }
             String activationId = activations.get(0);
+            System.out.println("The activationId for the Test ruleRecreate is:" + activationId);
             String expected = "The message 'david' has";
             assertTrue("Expected message found: " + expected, wsk.logsForActivationContain(activationId, expected, DELAY));
         } finally {
