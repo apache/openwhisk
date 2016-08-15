@@ -742,6 +742,7 @@ public class WskCli {
             } else
                 return null;
         } , initialWait, pollPeriod, totalWait);
+        System.out.println("Log for activation " + activationId + " is: " + log);
         if (log != null) {
             Matcher m = p.matcher(log);
             return m.find() ? log : null;
