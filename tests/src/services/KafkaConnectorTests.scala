@@ -38,8 +38,11 @@ import whisk.core.connector.Message
 import whisk.utils.ExecutionContextFactory
 import common.WskActorSystem
 import scala.concurrent.duration.FiniteDuration
+import whisk.utils.retry
 import java.io.PrintStream
 import java.io.ByteArrayOutputStream
+import org.apache.commons.lang3.StringUtils
+import scala.concurrent.duration.FiniteDuration
 
 @RunWith(classOf[JUnitRunner])
 class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem with BeforeAndAfterAll {
@@ -116,23 +119,28 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
         val stream = new ByteArrayOutputStream
         val printstream = new PrintStream(stream)
         consumer.outputStream = printstream
+        val messageReceived = "message recieved"
+        try {
+            val message = new Message { override val serialize = Calendar.getInstance().getTime().toString }
+            val sent = Await.result(producer.send(topic, message), 10 seconds)
+            consumer.throwCommitException = true
+            consumer.onMessage((topic, partition, offset, bytes) => {
+                printstream.println(messageReceived)
+            })
 
-        val message = new Message { override val serialize = Calendar.getInstance().getTime().toString }
-        val sent = Await.result(producer.send(topic, message), 10 seconds)
-        consumer.throwCommitException = true
-        consumer.onMessage((topic, partition, offset, bytes) => {
-            println("message recieved")
-        })
-        // The messages are collected in another Thread. Give it some time to receive the message.
-        Thread.sleep(5000)
-        consumer.throwCommitException = false
-        // Give the background-thread some time to get the message and commit that it is collected.
-        Thread.sleep(5000)
+            retry(stream.toString should include("exception while pulling new records: commit failed"), 50, Some(100 millisecond))
+            consumer.throwCommitException = false
 
-        stream.toString should include("exception while pulling new records: commit failed")
+            // Give the background-thread some time to get the message and commit that it is collected.
+            retry(stream.toString should include(messageReceived), 20, Some(500 millisecond))
 
-        printstream.close()
-        stream.close()
+            // Wait a few seconds and ensure that the message is not processed twice
+            Thread.sleep(5000)
+            StringUtils.countMatches(stream.toString, messageReceived) should be(1)
+        } finally {
+            printstream.close()
+            stream.close()
+        }
     }
 
 }
