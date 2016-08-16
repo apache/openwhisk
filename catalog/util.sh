@@ -15,7 +15,7 @@ if [ ! -f "$WHISKPROPS_FILE" ]; then
 fi
 EDGE_HOST=`fgrep edge.host= "$WHISKPROPS_FILE" | cut -d'=' -f2`
 
-USE_PYTHON_CLI=true
+USE_PYTHON_CLI=false
 
 function createPackage() {
     PACKAGE_NAME=$1

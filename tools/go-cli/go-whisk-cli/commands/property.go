@@ -133,9 +133,10 @@ var propertySetCmd = &cobra.Command{
             whisk.Debug(whisk.DbgError, "writeProps(%s, %#v) failed: %s\n", Properties.PropsFile, props, err)
             errStr := fmt.Sprintf("Unable to set the property value(s): %s", err)
             werr = whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+        } else {
+            fmt.Fprintf(color.Output, okMsg)
         }
 
-        fmt.Fprintf(color.Output, okMsg)
         if (werr != nil) {
             return werr
         }
@@ -319,8 +320,10 @@ func setDefaultProperties() {
 }
 
 func getPropertiesFilePath() (propsFilePath string, werr error) {
+    var envExists bool
+
     // Environment variable overrides the default properties file path
-    if propsFilePath = os.Getenv("WSK_CONFIG_FILE"); len(propsFilePath) > 0 {
+    if propsFilePath, envExists = os.LookupEnv("WSK_CONFIG_FILE"); envExists == true || propsFilePath != "" {
         whisk.Debug(whisk.DbgInfo, "Using properties file '%s' from WSK_CONFIG_FILE environment variable\n", propsFilePath)
         return propsFilePath, nil
     } else {
