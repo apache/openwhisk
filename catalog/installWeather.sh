@@ -14,7 +14,7 @@ echo Installing Weather package.
 createPackage weather \
     -p bluemixServiceName "weatherinsights"
     -a description "Services from the Weather Company Data for IBM Bluemix" \
-    -a parameters '[ "name":"username", "required":false,"bindTime":true}, {"name":"password", "required":false, "type":"password","bindTime":true}]'
+    -a parameters '[ {"name":"username", "required":false, "bindTime":true}, {"name":"password", "required":false, "type":"password", "bindTime":true}]'
 
 waitForAll
 
