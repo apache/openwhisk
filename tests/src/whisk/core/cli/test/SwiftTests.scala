@@ -14,15 +14,13 @@
  * limitations under the License.
  */
 
-package system.basic
+package whisk.core.cli.test
 
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
-
 import org.junit.runner.RunWith
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
-
 import common.TestHelpers
 import common.TestUtils
 import common.Wsk
@@ -32,7 +30,7 @@ import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json.pimpAny
 
 @RunWith(classOf[JUnitRunner])
-class CLISwiftTests
+class SwiftTests
     extends TestHelpers
     with WskTestHelpers
     with Matchers {
