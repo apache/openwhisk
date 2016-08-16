@@ -37,7 +37,7 @@ class Package(Item):
         subcmd.add_argument('-p', '--param', help='default parameters', nargs=2, action='append')
         subcmd.add_argument('--shared', nargs='?', const='yes', choices=['yes', 'no'], help='shared action (default: private)')
 
-        subcmd = parser.add_parser('update', help='create a new package')
+        subcmd = parser.add_parser('update', help='update an existing package')
         subcmd.add_argument('name', help='the name of the package')
         addAuthenticatedCommand(subcmd, props)
         subcmd.add_argument('-a', '--annotation', help='annotations', nargs=2, action='append')
