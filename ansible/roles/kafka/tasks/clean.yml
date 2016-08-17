@@ -8,9 +8,21 @@
     state: absent
   ignore_errors: True
 
+- name: unregister kafka with consul
+  consul:
+    service_name: kafka
+    state: absent
+  ignore_errors: True
+
 - name: remove zookeeper
   docker_container:
     name: zookeeper
     image: "{{ docker_registry }}{{ docker_image_prefix }}/zookeeper:{{ docker_image_tag }}"
+    state: absent
+  ignore_errors: True
+
+- name: unregister zookeeper with consul
+  consul:
+    service_name: zookeeper
     state: absent
   ignore_errors: True

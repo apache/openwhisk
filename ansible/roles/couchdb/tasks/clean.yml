@@ -7,3 +7,9 @@
     image: couchdb
     state: absent
   ignore_errors: True
+
+- name: unregister CouchDB with consul
+  consul:
+    service_name: couchdb
+    state: absent
+  ignore_errors: True

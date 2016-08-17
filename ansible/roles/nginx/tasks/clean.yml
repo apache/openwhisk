@@ -19,3 +19,9 @@
     path: "{{ whisk_logs_dir }}/nginx"
     state: absent
   become: true
+
+- name: unregister nginx with consul
+  consul:
+    service_name: nginx
+    state: absent
+  ignore_errors: True

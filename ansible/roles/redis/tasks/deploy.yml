@@ -20,3 +20,10 @@
   until: (result.rc == 0) and (result.stdout == '+PONG')
   retries: 12
   delay: 5
+
+- name: register redis with consul
+  consul:
+    service_name: redis
+    service_port: "{{ redis.port }}"
+    service_address: "{{ inventory_hostname }}"
+    host: "{{ groups['consul_servers'] | first }}"

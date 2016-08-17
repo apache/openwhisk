@@ -6,3 +6,9 @@
     name: redis
     state: absent
   ignore_errors: True
+
+- name: unregister redis with consul
+  consul:
+    service_name: redis
+    state: absent
+  ignore_errors: True
