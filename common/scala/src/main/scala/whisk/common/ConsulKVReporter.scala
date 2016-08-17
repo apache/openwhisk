@@ -37,7 +37,7 @@ import scala.concurrent.Future
  * @param updater the function to call to update arbitrary values in consul
  */
 class ConsulKVReporter(
-    kv: ConsulClient,
+    consul: ConsulClient,
     initialDelay: FiniteDuration,
     interval: FiniteDuration,
     hostKey: String,
@@ -51,13 +51,13 @@ class ConsulKVReporter(
 
     system.scheduler.scheduleOnce(initialDelay) {
         val (selfHostname, _, _) = SimpleExec.syncRunCmd(Array("hostname", "-f"))(TransactionId.unknown)
-        kv.put(hostKey, selfHostname.toJson.compactPrint)
-        kv.put(startKey, DateUtil.getTimeString.toJson.compactPrint)
+        consul.kv.put(hostKey, selfHostname.toJson.compactPrint)
+        consul.kv.put(startKey, DateUtil.getTimeString.toJson.compactPrint)
 
         Scheduler.scheduleWaitAtLeast(interval) { () =>
-            val statusPut = kv.put(statusKey, DateUtil.getTimeString.toJson.compactPrint)
+            val statusPut = consul.kv.put(statusKey, DateUtil.getTimeString.toJson.compactPrint)
             val updatePuts = updater(count) map {
-                case (k, v) => kv.put(k, v.compactPrint)
+                case (k, v) => consul.kv.put(k, v.compactPrint)
             }
             count = count + 1
             val allPuts = updatePuts.toSeq :+ statusPut

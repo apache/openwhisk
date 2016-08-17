@@ -123,8 +123,8 @@ class InvokerHealth(
         (now - lastDateMilli) <= maximumAllowedDelay.toMillis
     }
 
-    private val kv = new ConsulClient(config.consulServer)
-    private val reporter = new ConsulKVReporter(kv, 3 seconds, 2 seconds,
+    private val consul = new ConsulClient(config.consulServer)
+    private val reporter = new ConsulKVReporter(consul, 3 seconds, 2 seconds,
         LoadBalancerKeys.hostnameKey,
         LoadBalancerKeys.startKey,
         LoadBalancerKeys.statusKey,
@@ -137,7 +137,7 @@ class InvokerHealth(
     private val healthCheckInterval = 2 seconds
 
     Scheduler.scheduleWaitAtLeast(healthCheckInterval) { () =>
-        kv.getRecurse(InvokerKeys.allInvokers) map { invokerInfo =>
+        consul.kv.getRecurse(InvokerKeys.allInvokers) map { invokerInfo =>
             // keys are like invokers/invokerN/count
             val flattened = ConsulClient.dropKeyLevel(invokerInfo)
             val nested = ConsulClient.toNestedMap(flattened)

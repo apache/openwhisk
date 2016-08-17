@@ -89,10 +89,10 @@ protected[core] abstract class EntitlementService(config: WhiskConfig)(
     /** query the KV store this often */
     private val overloadCheckPeriod = 10.seconds
 
-    private val kvClient = new ConsulClient(config.consulServer)
+    private val consul = new ConsulClient(config.consulServer)
 
     Scheduler.scheduleWaitAtLeast(overloadCheckPeriod) { () =>
-        kvClient.get(LoadBalancerKeys.overloadKey).map { isOverloaded =>
+        consul.kv.get(LoadBalancerKeys.overloadKey).map { isOverloaded =>
             Try(isOverloaded.parseJson.convertTo[Boolean]) foreach { v =>
                 if (loadbalancerOverload != Some(v)) {
                     loadbalancerOverload = Some(v)

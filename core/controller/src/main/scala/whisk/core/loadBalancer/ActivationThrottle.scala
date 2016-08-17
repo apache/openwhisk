@@ -58,7 +58,7 @@ class ActivationThrottle(config: WhiskConfig)(
     private var userActivationLimits = Map.empty[String, Long]
 
     private val healthCheckInterval = 2 seconds
-    private val kvStore = new ConsulClient(config.consulServer)
+    private val consul = new ConsulClient(config.consulServer)
 
     /**
      * Returns the activation count for a specific namespace
@@ -82,7 +82,7 @@ class ActivationThrottle(config: WhiskConfig)(
      * @returns a map where each namespace maps to the concurrency limit set for it
      */
     private def getConcurrencyLimits(): Future[Map[String, Long]] =
-        kvStore.get(DEFAULT_NAMESPACE_CONCURRENCY_LIMITS_KEY) map { limits =>
+        consul.kv.get(DEFAULT_NAMESPACE_CONCURRENCY_LIMITS_KEY) map { limits =>
             limits.parseJson.convertTo[Map[String, Long]]
         }
 
@@ -93,7 +93,7 @@ class ActivationThrottle(config: WhiskConfig)(
      *     by the loadbalancer
      */
     private def getLoadBalancerActivationCount(): Future[Map[String, Long]] =
-        kvStore.getRecurse(LoadBalancerKeys.userActivationCountKey) map {
+        consul.kv.getRecurse(LoadBalancerKeys.userActivationCountKey) map {
             _ map {
                 case (_, users) => users.parseJson.convertTo[Map[String, Long]]
             } reduce { _ ++ _ } // keys are unique in every sub map, no adding necessary
@@ -106,7 +106,7 @@ class ActivationThrottle(config: WhiskConfig)(
      *     by all the invokers combined
      */
     private def getInvokerActivationCount(): Future[Map[String, Long]] =
-        kvStore.getRecurse(InvokerKeys.allInvokersData) map { rawMaps =>
+        consul.kv.getRecurse(InvokerKeys.allInvokersData) map { rawMaps =>
             val activationCountPerInvoker = rawMaps map {
                 case (_, users) => users.parseJson.convertTo[Map[String, Long]]
             }
