@@ -30,9 +30,11 @@ import common.TestUtils
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
+import spray.json.DefaultJsonProtocol.IntJsonFormat
 import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json.DefaultJsonProtocol.arrayFormat
-import spray.json.DefaultJsonProtocol.IntJsonFormat
+import spray.json.JsArray
+import spray.json.JsString
 import spray.json.pimpAny
 
 @RunWith(classOf[JUnitRunner])
@@ -86,4 +88,24 @@ class WskActionSequenceTests
                     })
             }
     }
+
+    it should "create, and get an action sequence" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "actionSeq"
+            val artifacts = "/whisk.system/watson/speechToText,/whisk.system/watson/translate"
+            val kindValue = JsString("sequence")
+            val compValue = JsArray(
+                JsString("/whisk.system/watson/speechToText"),
+                JsString("/whisk.system/watson/translate"))
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some(artifacts), kind = Some("sequence"))
+            }
+
+            val stdout = wsk.action.get(name).stdout
+            assert(stdout.startsWith(s"ok: got action $name\n"))
+            wsk.parseJsonString(stdout).fields("exec").asJsObject.fields("components") shouldBe compValue
+            wsk.parseJsonString(stdout).fields("exec").asJsObject.fields("kind") shouldBe kindValue
+    }
+
 }
