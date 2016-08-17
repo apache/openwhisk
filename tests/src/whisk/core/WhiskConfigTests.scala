@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package whisk.common
+package whisk.core
 
 import java.io.BufferedWriter
 import java.io.File
@@ -26,15 +26,29 @@ import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
-class ConfigTests extends FlatSpec with Matchers {
+class WhiskConfigTests extends FlatSpec with Matchers {
 
-    "Config" should "gets default value" in {
-        val config = new Config(Map("a" -> "A"))
+    it should "be valid when a prop file is provided defining required props" in {
+        val file = File.createTempFile("cxt", ".txt")
+        file.deleteOnExit()
+
+        val bw = new BufferedWriter(new FileWriter(file))
+        bw.write("a=A")
+        bw.close()
+
+        val config = new WhiskConfig(Map("a" -> null), file)
         assert(config.isValid && config("a") == "A")
     }
 
-    it should "not be valid when environment and prop file is not provided" in {
-        val config = new Config(Map("a" -> null))
-        assert(!config.isValid && config("a") == null)
+    it should "not be valid when a prop file is provided but does not define required props" in {
+        val file = File.createTempFile("cxt", ".txt")
+        file.deleteOnExit()
+
+        val bw = new BufferedWriter(new FileWriter(file))
+        bw.write("a=A")
+        bw.close()
+
+        val config = new WhiskConfig(Map("a" -> null, "b" -> null), file)
+        assert(!config.isValid && config("b") == null)
     }
 }

@@ -9,6 +9,9 @@ whisk.ssl.challenge=openwhisk
 consulserver.host={{ groups["consul_servers"]|first }}
 controller.host={{ groups["controllers"]|first }}
 edge.host={{ groups["edge"]|first }}
+{% if groups['entitlement_servers'] is defined %}
+entitlement.host={{ groups["entitlement_servers"] | first }}
+{% endif %}
 kafka.host={{ groups["kafka"]|first }}
 loadbalancer.host={{ groups["controllers"]|first }}
 router.host={{ groups["edge"]|first }}
@@ -32,6 +35,9 @@ docker.dns.cmd={{ docker_dns }}
 docker.restart.opts={{ docker.restart.policy }}
 edge.host.uiport=443
 edge.host.apiport=443
+{% if groups['entitlement_servers'] is defined %}
+entitlement.host.port={{ entitlement.port | default }}
+{% endif %}
 zookeeper.host.port={{ zookeeper.port }}
 kafka.host.port={{ kafka.port }}
 kafkaras.host.port={{ kafka.ras.port }}

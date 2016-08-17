@@ -25,7 +25,7 @@ import spray.routing.Directive.pimpApply
 import whisk.common.TransactionId
 import whisk.core.loadBalancer.LoadBalancerService
 import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig.{ consulServer, kafkaHost, kafkaPartitions }
+import whisk.core.WhiskConfig.{ consulServer, kafkaHost }
 import whisk.http.BasicHttpService
 import whisk.http.BasicRasService
 import spray.routing.Route

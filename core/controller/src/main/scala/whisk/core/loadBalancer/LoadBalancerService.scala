@@ -39,7 +39,6 @@ import whisk.connector.kafka.KafkaProducerConnector
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.consulServer
 import whisk.core.WhiskConfig.kafkaHost
-import whisk.core.WhiskConfig.kafkaPartitions
 import whisk.core.connector.ActivationMessage
 import whisk.core.connector.CompletionMessage
 import whisk.core.entity.ActivationId
@@ -151,8 +150,7 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
 }
 
 object LoadBalancerService {
-    def requiredProperties = Map(kafkaPartitions -> null) ++
-        kafkaHost ++
+    def requiredProperties = kafkaHost ++
         consulServer ++
         InvokerHealth.requiredProperties ++
         ActivationThrottle.requiredProperties
