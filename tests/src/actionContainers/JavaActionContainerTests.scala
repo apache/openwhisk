@@ -35,13 +35,13 @@ class JavaActionContainerTests extends FlatSpec with Matchers {
         "value" -> JsObject(
             "name" -> JsString("dummyAction"),
             "main" -> JsString(mainClass),
-            "jar"  -> JsString(jar64)))
+            "jar" -> JsString(jar64)))
     def runPayload(args: JsValue) = JsObject("value" -> args)
 
     behavior of "whisk/javaaction"
 
     it should "support valid flows" in {
-        val (out,err) = withJavaContainer { c =>
+        val (out, err) = withJavaContainer { c =>
             val jar = JarBuilder.mkBase64Jar(
                 Seq("example", "HelloWhisk.java") -> """
                     | package example;
@@ -56,8 +56,7 @@ class JavaActionContainerTests extends FlatSpec with Matchers {
                     |         return response;
                     |     }
                     | }
-                """.stripMargin.trim
-            )
+                """.stripMargin.trim)
 
             val (initCode, _) = c.init(initPayload("example.HelloWhisk", jar))
             initCode should be(200)
@@ -79,15 +78,15 @@ class JavaActionContainerTests extends FlatSpec with Matchers {
         val (out, err) = withJavaContainer { c =>
             // This is valid zip file containing a single file, but not a valid
             // jar file.
-            val brokenJar =
+            val brokenJar = (
                 "UEsDBAoAAAAAAPxYbkhT4iFbCgAAAAoAAAANABwAbm90YWNsYXNzZmlsZVV" +
                 "UCQADzNPmVszT5lZ1eAsAAQT1AQAABAAAAABzYXVjaXNzb24KUEsBAh4DCg" +
                 "AAAAAA/FhuSFPiIVsKAAAACgAAAA0AGAAAAAAAAQAAAKSBAAAAAG5vdGFjb" +
                 "GFzc2ZpbGVVVAUAA8zT5lZ1eAsAAQT1AQAABAAAAABQSwUGAAAAAAEAAQBT" +
-                "AAAAUQAAAAAA"
+                "AAAAUQAAAAAA")
 
             val (initCode, _) = c.init(initPayload("example.Broken", brokenJar))
-            initCode should not be(200)
+            initCode should not be (200)
         }
 
         // Somewhere, the logs should contain an exception.
@@ -96,7 +95,7 @@ class JavaActionContainerTests extends FlatSpec with Matchers {
     }
 
     it should "return some error on action error" in {
-        val (out,err) = withJavaContainer { c =>
+        val (out, err) = withJavaContainer { c =>
             val jar = JarBuilder.mkBase64Jar(
                 Seq("example", "HelloWhisk.java") -> """
                     | package example;
@@ -108,14 +107,13 @@ class JavaActionContainerTests extends FlatSpec with Matchers {
                     |         throw new Exception("noooooooo");
                     |     }
                     | }
-                """.stripMargin.trim
-            )
+                """.stripMargin.trim)
 
             val (initCode, _) = c.init(initPayload("example.HelloWhisk", jar))
             initCode should be(200)
 
             val (runCode, runRes) = c.run(runPayload(JsObject()))
-            runCode should not be(200)
+            runCode should not be (200)
 
             runRes shouldBe defined
             runRes.get.fields.get("error") shouldBe defined
@@ -126,7 +124,7 @@ class JavaActionContainerTests extends FlatSpec with Matchers {
     }
 
     it should "support application errors" in {
-        val (out,err) = withJavaContainer { c =>
+        val (out, err) = withJavaContainer { c =>
             val jar = JarBuilder.mkBase64Jar(
                 Seq("example", "Error.java") -> """
                     | package example;
@@ -140,8 +138,7 @@ class JavaActionContainerTests extends FlatSpec with Matchers {
                     |         return error;
                     |     }
                     | }
-                """.stripMargin.trim
-            )
+                """.stripMargin.trim)
 
             val (initCode, _) = c.init(initPayload("example.Error", jar))
             initCode should be(200)
@@ -171,14 +168,13 @@ class JavaActionContainerTests extends FlatSpec with Matchers {
                     |         return new JsonObject();
                     |     }
                     | }
-                """.stripMargin.trim
-            )
+                """.stripMargin.trim)
 
             val (initCode, _) = c.init(initPayload("example.Quitter", jar))
             initCode should be(200)
 
             val (runCode, runRes) = c.run(runPayload(JsObject()))
-            runCode should not be(200)
+            runCode should not be (200)
 
             runRes shouldBe defined
             runRes.get.fields.get("error") shouldBe defined
@@ -197,22 +193,83 @@ class JavaActionContainerTests extends FlatSpec with Matchers {
                     | import com.google.gson.*;
                     |
                     | public class Nuller {
-                    |     public static JsonObject main(JsonObject main) {
+                    |     public static JsonObject main(JsonObject args) {
                     |         return null;
                     |     }
                     | }
-                """.stripMargin.trim
-            )
+                """.stripMargin.trim)
 
             val (initCode, _) = c.init(initPayload("example.Nuller", jar))
             initCode should be(200)
 
             val (runCode, runRes) = c.run(runPayload(JsObject()))
-            runCode should not be(200)
+            runCode should not be (200)
 
             runRes shouldBe defined
             runRes.get.fields.get("error") shouldBe defined
         }
+    }
+
+    val dynamicLoadingJar = JarBuilder.mkBase64Jar(
+        Seq(
+            Seq("example", "EntryPoint.java") -> """
+                | package example;
+                |
+                | import com.google.gson.*;
+                | import java.lang.reflect.*;
+                |
+                | public class EntryPoint {
+                |     private final static String CLASS_NAME = "example.DynamicClass";
+                |     public static JsonObject main(JsonObject args) throws Exception {
+                |         String cl = args.getAsJsonPrimitive("classLoader").getAsString();
+                |
+                |         Class d = null;
+                |         if("local".equals(cl)) {
+                |             d = Class.forName(CLASS_NAME);
+                |         } else if("thread".equals(cl)) {
+                |             d = Thread.currentThread().getContextClassLoader().loadClass(CLASS_NAME);
+                |         }
+                |
+                |         Object o = d.newInstance();
+                |         Method m = o.getClass().getMethod("getMessage");
+                |         String msg = (String)m.invoke(o);
+                |
+                |         JsonObject response = new JsonObject();
+                |         response.addProperty("message", msg);
+                |         return response;
+                |     }
+                | }
+                |""".stripMargin.trim,
+            Seq("example", "DynamicClass.java") -> """
+                | package example;
+                |
+                | public class DynamicClass {
+                |     public String getMessage() {
+                |         return "dynamic!";
+                |     }
+                | }
+                |""".stripMargin.trim))
+
+    def classLoaderTest(param: String) = {
+        val (out, err) = withJavaContainer { c =>
+            val (initCode, _) = c.init(initPayload("example.EntryPoint", dynamicLoadingJar))
+            initCode should be(200)
+
+            val (runCode, runRes) = c.run(runPayload(JsObject("classLoader" -> JsString(param))))
+            runCode should be(200)
+
+            runRes shouldBe defined
+            runRes.get.fields.get("message") shouldBe Some(JsString("dynamic!"))
+        }
+        (out ++ err).trim shouldBe empty
+    }
+
+    it should "support loading classes from the current classloader" in {
+        classLoaderTest("local")
+    }
+
+    it should "support loading classes from the Thread classloader" in {
+        classLoaderTest("thread")
     }
 }
 
@@ -233,32 +290,32 @@ object JarBuilder {
     import java.nio.file.FileSystems
     import java.nio.file.attribute.BasicFileAttributes
     import java.nio.charset.StandardCharsets
-    import java.util.Base64;
+    import java.util.Base64
 
     import javax.tools.ToolProvider
 
-    def mkBase64Jar(sources: Seq[(Seq[String],String)]) : String = {
+    def mkBase64Jar(sources: Seq[(Seq[String], String)]): String = {
         // Note that this pipeline doesn't delete any of the temporary files.
-        val binDir  = compile(sources)
+        val binDir = compile(sources)
         val jarPath = makeJar(binDir)
-        val base64  = toBase64(jarPath)
+        val base64 = toBase64(jarPath)
         base64
     }
 
-    def mkBase64Jar(source: (Seq[String],String)) : String = {
+    def mkBase64Jar(source: (Seq[String], String)): String = {
         mkBase64Jar(Seq(source))
     }
 
-    private def compile(sources: Seq[(Seq[String],String)]) : Path = {
+    private def compile(sources: Seq[(Seq[String], String)]): Path = {
         require(!sources.isEmpty)
 
         // A temporary directory for the source files.
         val srcDir = Files.createTempDirectory("src").toAbsolutePath()
 
         // The absolute paths of the source file
-        val srcAbsPaths = for((sourceName, sourceContent) <- sources) yield {
+        val srcAbsPaths = for ((sourceName, sourceContent) <- sources) yield {
             // The relative path of the source file
-            val srcRelPath = Paths.get(sourceName.head, sourceName.tail : _*)
+            val srcRelPath = Paths.get(sourceName.head, sourceName.tail: _*)
             // The absolute path of the source file
             val srcAbsPath = srcDir.resolve(srcRelPath)
             // Create parent directories if needed.
@@ -282,8 +339,7 @@ object JarBuilder {
         // Setting the options
         val compOptions = Seq(
             "-d", binDir.toAbsolutePath().toString(),
-            "-classpath", buildClassPath()
-        )
+            "-classpath", buildClassPath())
         val compTask = compiler.getTask(null, fileManager, null, compOptions.asJava, null, compUnit)
 
         // ...and off we go.
@@ -292,7 +348,7 @@ object JarBuilder {
         binDir
     }
 
-    private def buildClassPath() : String = {
+    private def buildClassPath(): String = {
         val bcp = System.getProperty("java.class.path")
 
         val list = this.getClass().getClassLoader() match {
@@ -306,7 +362,7 @@ object JarBuilder {
         list.mkString(System.getProperty("path.separator"))
     }
 
-    private def makeJar(binDir: Path) : Path = {
+    private def makeJar(binDir: Path): Path = {
         // Any temporary file name for the jar.
         val jarPath = Files.createTempFile("output", ".jar").toAbsolutePath()
         val jarUri = new URI("jar:" + jarPath.toUri().getScheme(), jarPath.toAbsolutePath().toString(), null)
@@ -326,7 +382,7 @@ object JarBuilder {
                 val jarRelPath = fs.getPath(relPath.toString())
 
                 // Creating the directory structure if it doesn't exist.
-                if(!Files.exists(jarRelPath.getParent())) {
+                if (!Files.exists(jarRelPath.getParent())) {
                     Files.createDirectories(jarRelPath.getParent())
                 }
 
@@ -342,7 +398,7 @@ object JarBuilder {
         jarPath
     }
 
-    private def toBase64(path: Path) : String = {
+    private def toBase64(path: Path): String = {
         val encoder = Base64.getEncoder()
         new String(encoder.encode(Files.readAllBytes(path)), StandardCharsets.UTF_8)
     }

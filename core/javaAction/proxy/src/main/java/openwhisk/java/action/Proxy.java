@@ -111,6 +111,7 @@ public class Proxy {
                 return;
             }
 
+            ClassLoader cl = Thread.currentThread().getContextClassLoader();
             SecurityManager sm = System.getSecurityManager();
 
             try {
@@ -119,8 +120,13 @@ public class Proxy {
                 JsonElement ie = parser.parse(new BufferedReader(new InputStreamReader(is, "UTF-8")));
                 JsonObject inputObject = ie.getAsJsonObject().getAsJsonObject("value");
 
+                Thread.currentThread().setContextClassLoader(loader);
                 System.setSecurityManager(new WhiskSecurityManager());
+
+                // User code starts running here.
                 JsonObject output = loader.invokeMain(inputObject);
+                // User code finished running here.
+
                 if(output == null) {
                     throw new NullPointerException("The action returned null");
                 }
@@ -139,6 +145,7 @@ public class Proxy {
                 Proxy.writeError(t, "An error has occurred (see logs for details): " + e);
             } finally {
                 System.setSecurityManager(sm);
+                Thread.currentThread().setContextClassLoader(cl);
             }
         }
     }
