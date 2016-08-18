@@ -41,7 +41,7 @@ task distTar(dependsOn: [removeDistribution, distDocker]) << {
     run("docker cp cli:/cli/dist/ \"${buildDir}/distributions/\"")
     run("docker rm -f cli")
 }
-distDocker.finalizedBy(distTar)
+pushImage.finalizedBy(distTar)
 
 def run(cmd, ignoreError = false) {
     println("Executing '${cmd}'")

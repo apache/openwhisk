@@ -37,7 +37,7 @@ task copyCLIShortcut(type: Copy, dependsOn: [distBinary, dumpOSInfo]) {
 
 
 
-distDocker.finalizedBy copyCLIShortcut
+pushImage.finalizedBy copyCLIShortcut
 
 // Returns the Go CLI docker build args
 def getDockerBuildArgs() {
