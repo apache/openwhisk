@@ -13,15 +13,15 @@ You can install the mobile SDK by using CocoaPods, Carthage, or from the source 
 The OpenWhisk SDK for mobile is available for public distribution through CocoaPods. Assuming CocoaPods is installed, put the following lines into a file called 'Podfile' inside the starter app project directory. 
 
 ```
-source 'https://github.com/openwhisk/openwhisk-podspecs.git'
+install! 'cocoapods', :deterministic_uuids => false
 use_frameworks!
+
 target 'MyApp' do
-     platform :ios, '9.0'
-     pod 'OpenWhisk'
+     pod 'OpenWhisk', :git => 'https://github.com/openwhisk/openwhisk-client-swift.git', :tag => '0.1.7'
 end
-target 'MyApp WatchKit Extension' do
-     platform :watchos, '2.0'
-     pod 'OpenWhisk-Watch'
+
+target 'MyApp WatchKit Extension' do 
+     pod 'OpenWhisk', :git => 'https://github.com/openwhisk/openwhisk-client-swift.git', :tag => '0.1.7'
 end
 ```
 
@@ -30,7 +30,7 @@ From the command line, type `pod install`. This command installs the SDK for an 
 ### Installing by using Carthage
 Create a file in your app's project directory and name it 'Cartfile'. Put the following line in the file:
 ```
-github "openwhisk/openwhisk-client-swift.git" ~> 0.1.0 # Or latest version
+github "openwhisk/openwhisk-client-swift.git" ~> 0.1.7 # Or latest version
 ```
 
 From the command line, type `carthage update --platform ios`. Carthage downloads and builds the SDK, creates a directory called Carthage in your app's project directory, and puts an OpenWhisk.framework file inside Carthage/build/iOS.
@@ -89,7 +89,7 @@ To invoke a remote action, you can call `invokeAction` with the action name. You
 
 For example:
 
-```
+```swift
 // In this example, we are invoking an action to print a message to the OpenWhisk Console
 var params = Dictionary<String, String>()
 params["payload"] = "Hi from mobile"
@@ -113,7 +113,7 @@ In the previous example, you invoke the `helloConsole` action by using the defau
 
 To fire a remote trigger, you can call the `fireTrigger` method. Pass in parameters as required by using a dictionary.
 
-```
+```swift
 // In this example we are firing a trigger when our location has changed by a certain amount
 var locationParams = Dictionary<String, String>()
 locationParams["payload"] = "{\"lat\":41.27093, \"lon\":-73.77763}"
@@ -136,7 +136,7 @@ In the previous example, you are firing a trigger that is called `locationChange
 
 If the action returns a result, set hasResult to true in the invokeAction call. The result of the action is returned in the reply dictionary, for example:
 
-```
+```swift
 do {
     try whisk.invokeAction(name: "actionWithResult", package: "mypackage", namespace: "mynamespace", parameters: params, hasResult: true, callback: {(reply, error) -> Void in
         if let error = error {
@@ -154,7 +154,7 @@ do {
 
 By default, the SDK returns only the activation ID and any result that is produced by the invoked action. To get metadata of the entire response object, which includes the HTTP response status code, use the following setting:
 
-```
+```swift
 whisk.verboseReplies = true
 ```
 
@@ -162,7 +162,7 @@ whisk.verboseReplies = true
 
 You can configure the SDK to work with different installations of OpenWhisk by using the baseURL parameter. For instance:
 
-```
+```swift
 whisk.baseURL = "http://localhost:8080"
 ```
 
@@ -170,7 +170,7 @@ In this example, you use an installation that is running at localhost:8080. If y
 
 You can pass in a custom NSURLSession in case you require special network handling. For example, you might have your own OpenWhisk installation that uses self-signed certificates:
 
-```
+```swift
 // create a network delegate that trusts everything
 class NetworkUtilsDelegate: NSObject, NSURLSessionDelegate {
     func URLSession(session: NSURLSession, didReceiveChallenge challenge: NSURLAuthenticationChallenge, completionHandler: (NSURLSessionAuthChallengeDisposition, NSURLCredential?) -> Void) {
@@ -198,7 +198,7 @@ All other combinations issue a WhiskError.QualifiedName error. Therefore, when y
 
 For convenience, the SDK includes a `WhiskButton`, which extends the `UIButton` to allow it to invoke actions.  To use the `WhiskButton`, follow this example:
 
-```
+```swift
 var whiskButton = WhiskButton(frame: CGRectMake(0,0,20,20))
 whiskButton.setupWhiskAction("helloConsole", package: "mypackage", namespace: "_", credentials: credentialsConfiguration!, hasResult: false, parameters: nil, urlSession: nil)
 let myParams = ["name":"value"]

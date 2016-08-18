@@ -1,8 +1,7 @@
-source 'https://github.com/openwhisk/openwhisk-podspecs.git'
-
+install! 'cocoapods', :deterministic_uuids => false
 use_frameworks!
 
 target 'OpenWhiskStarterApp' do
      platform :ios, '9.0'
-     pod 'OpenWhisk'
+     pod 'OpenWhisk', :git => 'https://github.com/openwhisk/openwhisk-client-swift.git', :tag => '0.1.7'
 end
