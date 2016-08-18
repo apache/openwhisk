@@ -36,9 +36,10 @@ import whisk.connector.kafka.KafkaProducerConnector
 import whisk.core.WhiskConfig
 import whisk.core.connector.Message
 import whisk.utils.ExecutionContextFactory
+import common.WskActorSystem
 
 @RunWith(classOf[JUnitRunner])
-class KafkaConnectorTests extends FlatSpec with Matchers with BeforeAndAfterAll {
+class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem with BeforeAndAfterAll {
     implicit val transid = TransactionId.testing
     implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
 
@@ -57,6 +58,7 @@ class KafkaConnectorTests extends FlatSpec with Matchers with BeforeAndAfterAll 
     override def afterAll() {
         producer.close()
         consumer.close()
+        super.afterAll()
     }
 
     behavior of "Kafka connector"

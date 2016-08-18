@@ -24,9 +24,10 @@ import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
+import common.WskActorSystem
 
 @RunWith(classOf[JUnitRunner])
-class WhiskConfigTests extends FlatSpec with Matchers {
+class WhiskConfigTests extends FlatSpec with Matchers with WskActorSystem {
 
     it should "be valid when a prop file is provided defining required props" in {
         val file = File.createTempFile("cxt", ".txt")

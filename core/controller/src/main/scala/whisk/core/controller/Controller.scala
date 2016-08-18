@@ -96,6 +96,8 @@ object Controller {
     }
 
     def main(args: Array[String]): Unit = {
+        implicit val system = ActorSystem("controller-actor-system")
+
         // extract configuration data from the environment
         val config = new WhiskConfig(requiredProperties)
 
@@ -105,7 +107,6 @@ object Controller {
 
         if (config.isValid) {
             val port = config.servicePort.toInt
-            val system = ActorSystem("controller-actor-system")
             BasicHttpService.startService(system, "controller", "0.0.0.0", port, new ServiceBuilder(config, instance))
         }
     }

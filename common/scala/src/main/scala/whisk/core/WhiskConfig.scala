@@ -16,16 +16,18 @@
 
 package whisk.core
 
+import java.io.File
+
+import scala.concurrent.Await
+import scala.concurrent.duration._
+import scala.io.Source
+
+import akka.actor.ActorSystem
+
 import whisk.common.Config
 import whisk.common.Config.Settings
-import java.io.File
+import whisk.common.ConsulClient
 import whisk.common.ConsulKV
-import spray.json.JsObject
-import spray.json.JsArray
-import spray.json.JsString
-import spray.json.JsNumber
-import spray.json.JsBoolean
-import scala.io.Source
 import whisk.common.Logging
 
 /**
@@ -40,7 +42,7 @@ import whisk.common.Logging
 
 class WhiskConfig(
     requiredProperties: Map[String, String],
-    propertiesFile: File = null)
+    propertiesFile: File = null)(implicit val system: ActorSystem)
     extends Config(requiredProperties) {
 
     private val (settings, valid) = getProperties
@@ -127,7 +129,7 @@ object WhiskConfig extends Logging {
      * Reads a Map of key-value pairs from the Consul service -- store them in the
      * mutable properties object.
      */
-    def readPropertiesFromConsul(properties: Settings) = {
+    def readPropertiesFromConsul(properties: Settings)(implicit system: ActorSystem) = {
         //try to get consulServer prop
         val consulString = for {
             server <- properties.get("consulserver.host")
@@ -135,23 +137,14 @@ object WhiskConfig extends Logging {
         } yield server + ":" + port
 
         consulString match {
-            case Some(consul) => {
-                info(this, s"reading properties from consul at $consul")
-                val kvStore = new ConsulKV(consul)
+            case Some(consulServer) => {
+                info(this, s"reading properties from consul at $consulServer")
+                val consul = new ConsulClient(consulServer)
 
-                val whiskProps = kvStore.getRecurse(ConsulKV.WhiskProps.whiskProps)
+                val whiskProps = Await.result(consul.kv.getRecurse(ConsulKV.WhiskProps.whiskProps), 1.minute)
                 properties.keys foreach { p =>
                     val kvp = ConsulKV.WhiskProps.whiskProps + "/" + p.replace('.', '_').toUpperCase
-                    whiskProps.get(kvp) foreach {
-                        _ match {
-                            case JsString(v)  => properties += p -> v
-                            case JsNumber(i)  => properties += p -> i.toString
-                            case JsBoolean(b) => properties += p -> b.toString
-                            case j: JsArray   => properties += p -> j.compactPrint
-                            case j: JsObject  => properties += p -> j.compactPrint
-                            case _            => warn(this, s"consul did not set value for $p")
-                        }
-                    }
+                    whiskProps.get(kvp) foreach { properties += p -> _ }
                 }
             }
             case _ => info(this, "no consul server defined")

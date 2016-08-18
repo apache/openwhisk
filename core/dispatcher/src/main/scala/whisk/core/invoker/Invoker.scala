@@ -541,8 +541,8 @@ class Invoker(
         InvokerKeys.start(instance),
         InvokerKeys.status(instance),
         { index =>
-            (if (index % 5 == 0) getUserActivationCounts() else Map[String,JsValue]()) ++
-            Map(InvokerKeys.activationCount(instance) -> activationCounter.cur.toJson)
+            (if (index % 5 == 0) getUserActivationCounts() else Map[String, JsValue]()) ++
+                Map(InvokerKeys.activationCount(instance) -> activationCounter.cur.toJson)
         })
 
     // This is used for the getContainer endpoint used in perfContainer testing it is not real state
@@ -587,6 +587,11 @@ object InvokerService {
     }
 
     def main(args: Array[String]): Unit = {
+        implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
+        implicit val system: ActorSystem = ActorSystem(
+            name = "invoker-actor-system",
+            defaultExecutionContext = Some(ec))
+
         // load values for the required properties from the environment
         val config = new WhiskConfig(requiredProperties)
 
@@ -595,11 +600,6 @@ object InvokerService {
             val verbosity = InfoLevel
 
             SimpleExec.setVerbosity(verbosity)
-
-            implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
-            implicit val system = ActorSystem(
-                name = "invoker-actor-system",
-                defaultExecutionContext = Some(ec))
 
             val topic = s"invoke${instance}"
             val groupid = "invokers"

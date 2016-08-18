@@ -16,15 +16,19 @@
 
 package whisk.common
 
+import scala.concurrent.Await
+import scala.concurrent.duration._
+
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
+
+import common.WskActorSystem
 import whisk.core.WhiskConfig
-import spray.json.JsString
 
 @RunWith(classOf[JUnitRunner])
-class CommonTests extends FlatSpec with Matchers {
+class CommonTests extends FlatSpec with Matchers with WskActorSystem {
 
     "WhiskConfig" should "get required property" in {
         val config = new WhiskConfig(WhiskConfig.edgeHost)
@@ -40,16 +44,16 @@ class CommonTests extends FlatSpec with Matchers {
 
     it should "read properties from consulserver" in {
         val tester = new WhiskConfig(WhiskConfig.consulServer);
-        val consul = new ConsulKV(tester.consulServer)
+        val consul = new ConsulClient(tester.consulServer)
 
         val key = "whiskprops/CONSUL_TEST_CASE"
-        consul.put(key, JsString("thiswastested"))
+        Await.result(consul.kv.put(key, "thiswastested"), 10.seconds)
 
         val config = new WhiskConfig(Map("consul.test.case" -> null))
 
         assert(config.isValid)
         assert(config("consul.test.case").equals("thiswastested"))
 
-        consul.delete(key)
+        consul.kv.del(key)
     }
 }
