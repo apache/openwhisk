@@ -698,20 +698,21 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         // start execution of the first action while potentially still retrieving entities
         // Note: the execution starts even if one of the futures retrieving an entity may fail
         // first components need to be resolved given any package bindings and the parms need to be merged
-        //val resolvedComponents = components map { c => resolveComponent(c,
-        val futureActions = components map { c => WhiskAction.get(entityStore, DocInfo(c)) }
+        val resolvedFutureActions = components map { resolveComponent(_) }
         // "fold" the wskActions to execute them in blocking fashion
         // the params are the payload/params and the list of the previous activation ids
         val init = Future successful {(payload, Seq.empty[Option[ActivationId]])}
-        // use scanLeft instead of foldLeft as I need the intermediate results in case of failure
-        val seqRes = futureActions.scanLeft(init) {
-            (futurePair, futureWskAction)  =>
+        // use scanLeft instead of foldLeft as we need the intermediate results in case of failure
+        val seqRes = resolvedFutureActions.scanLeft(init) {
+            (futurePair, futureWskActionPair)  =>
                   for(
-                      wskAction <- futureWskAction;
+                      (wskAction, mergedParameters) <- futureWskActionPair;
                       pair <- futurePair;
                       (params, seq0) = pair;
                       activationId = if (seq0.isEmpty) None else seq0.last;
-                      result <- invokeOneComponent(wskAction, user, env, params, activationId);
+                      envParams = env getOrElse Parameters();
+                      mergedEnv = mergedParameters ++ envParams;
+                      result <- invokeOneComponent(wskAction, user, Some(mergedEnv), params, activationId);
                       seq = seq0 :+ result._1
                   ) yield (result._2, seq)
         }
