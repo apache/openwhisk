@@ -184,16 +184,15 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                                 })
                             case POST =>
                                 // this is an activate on an action that contains a package
-                                // two sets of rights need to be checked:
-                                // read rights for the package and activate rights for the action
-                                authorizeAndContinue(Privilege.READ, user.subject, packageResource, next = () => { // package
-                                    // the action resource needs to include the package in the namespace
-                                    val actionNamespace = ns.addpath(EntityName(outername))
-                                    val actionResource = Resource(actionNamespace, Collection(Collection.ACTIONS), Some(innername))
-                                    authorizeAndContinue(Privilege.ACTIVATE, user.subject, actionResource, next = () => { // action
-                                        getEntity(WhiskPackage, entityStore, packageDocId, Some {
-                                            mergeActionWithPackageAndDispatch(m, user, EntityName(innername)) _
-                                        })
+                                // check activate rights for the action
+                                // (it will resolve the action and check rights on all intermediate package bindings if any)
+                                // the action resource needs to include the package in the namespace
+                                // NOTE: the authorize fully resolves the package bindings; so does mergeAction... (combine?)
+                                val actionNamespace = ns.addpath(EntityName(outername))
+                                val actionResource = Resource(actionNamespace, Collection(Collection.ACTIONS), Some(innername))
+                                authorizeAndContinue(Privilege.ACTIVATE, user.subject, actionResource, next = () => { // action
+                                    getEntity(WhiskPackage, entityStore, packageDocId, Some {
+                                        mergeActionWithPackageAndDispatch(m, user, EntityName(innername)) _
                                     })
                                 })
                             case PUT | DELETE =>

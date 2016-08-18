@@ -55,29 +55,8 @@ protected[core] class ActionCollection(entityStore: EntityStore) extends Collect
             super.implicitRights(namespaces, right, resource)
         } else resource.entity map {
             action =>
-                // need to check whether the action is a simple action or a sequence
-                // retrieve info on action
-                val docid = DocId(WhiskEntity.qualifiedName(resource.namespace, EntityName(action)))
-                WhiskAction.get(entityStore, docid.asDocInfo).toTryFuture flatMap {
-                    case Success(wskaction) =>
-                        wskaction.exec match {
-                            case SequenceExec(_, components) =>
-                                info(this, s"Checking right '$right' for a sequence '${resource}' with components '${components}'")
-                                val rights = components map {
-                                    actionName => checkComponentActionRights(namespaces, right, actionName)
-                                }
-                                // collapse all futures in a sequence
-                                val result = Future.sequence(rights)
-                                // collapse all booleans in one
-                                result map { seq => seq.forall(_ == true) }
-                            case _ => // this is not a sequence, defer to super
-                                    info(this, s"Check rights for a simple action ${resource}")
-                                    super.implicitRights(namespaces, right, resource)
-                        }
-                    case Failure(_) =>
-                        info(this, s"Action not found, calling implicit rights ${resource}")
-                        super.implicitRights(namespaces, right, resource)
-                    }
+                // resolve the action based on the package bindings and check the rights
+                resolveActionAndCheckRights(namespaces, right, resource.namespace, EntityName(action))
         } getOrElse {
             // this means there is no entity, it shouldn't get here
             // in any case, defer to super class
@@ -86,28 +65,14 @@ protected[core] class ActionCollection(entityStore: EntityStore) extends Collect
         }
     }
 
-    private def checkComponentActionRights(namespaces: Set[String], right: Privilege, action: String)(
-            implicit ec: ExecutionContext, transid: TransactionId): Future[Boolean] = {
-        // use class Namespace to figure out package
-        // action is a fully qualified name; split it into the namespace and action name
-        val lastIndex = action.lastIndexOf(Namespace.PATHSEP)
-        val actionName = action.drop(lastIndex + 1)
-        val namespaceParts = action.dropRight(action.size - lastIndex)
-        // components are fully qualified, may contain _ for default namespace; drop it if it exists
-        val namespace = Namespace(namespaceParts)
-        info(this, s"fully qualified name $namespace and $actionName")
-        checkActionRights(namespaces, right, namespace, EntityName(action))
-    }
-
     /**
      * resolve the action based on the package binding (if any) and check its rights
      */
-    private def checkActionRights(namespaces: Set[String], right: Privilege, namespace: Namespace, action: EntityName)(
+    private def resolveActionAndCheckRights(namespaces: Set[String], right: Privilege, namespace: Namespace, action: EntityName)(
             implicit ec: ExecutionContext, transid: TransactionId): Future[Boolean] = {
-        if (namespace.isDefaultPackage) { // default package
+        if (namespace.isDefaultPackage) { // default package, resolved already
             // check rights for the action as a resource
-            val actionResource = Resource(namespace, Collection(Collection.ACTIONS), Some(action.name))
-            actionResource.collection.implicitRights(namespaces, right, actionResource)
+            checkResolvedPackageActionRights(namespaces, right, namespace, action)
         }
         else {
             // package exists, check read rights for package as a resource
@@ -128,7 +93,7 @@ protected[core] class ActionCollection(entityStore: EntityStore) extends Collect
                             case wp =>
                                 val binding = wp.binding.get
                                 // use the binding instead, including the package name
-                                checkActionRights(namespaces, right, Namespace(binding.toString), action)
+                                resolveActionAndCheckRights(namespaces, right, Namespace(binding.toString), action)
                         }
                     } else Future successful {false}
             }
@@ -165,5 +130,18 @@ protected[core] class ActionCollection(entityStore: EntityStore) extends Collect
                 info(this, s"Action not found, calling implicit rights")
                 super.implicitRights(namespaces, right, actionResource)
             }
+    }
+
+    private def checkComponentActionRights(namespaces: Set[String], right: Privilege, action: String)(
+            implicit ec: ExecutionContext, transid: TransactionId): Future[Boolean] = {
+        // use class Namespace to figure out package
+        // action is a fully qualified name; split it into the namespace and action name
+        val lastIndex = action.lastIndexOf(Namespace.PATHSEP)
+        val actionName = action.drop(lastIndex + 1)
+        val namespaceParts = action.dropRight(action.size - lastIndex)
+        // components are fully qualified, may contain _ for default namespace; drop it if it exists
+        val namespace = Namespace(namespaceParts)
+        info(this, s"fully qualified name $namespace and $actionName")
+        resolveActionAndCheckRights(namespaces, right, namespace, EntityName(action))
     }
 }
