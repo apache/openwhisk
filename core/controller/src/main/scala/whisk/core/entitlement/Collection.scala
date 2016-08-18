@@ -82,6 +82,7 @@ protected[core] case class Collection protected (
         implicit ec: ExecutionContext, transid: TransactionId): Future[Boolean] = Future.successful {
         // if the resource root namespace is in any of the allowed namespaces
         // then this is an owner of the resource
+        info(this, s"Collection implicit rights for resource $resource")
         val self = namespaces.contains(resource.namespace.root())
 
         resource.entity map {

@@ -72,11 +72,12 @@ protected[core] class ActionCollection(entityStore: EntityStore) extends Collect
             implicit ec: ExecutionContext, transid: TransactionId): Future[Boolean] = {
         if (namespace.isDefaultPackage) { // default package, resolved already
             // check rights for the action as a resource
-            checkResolvedPackageActionRights(namespaces, right, namespace, action)
-        }
-        else {
+            info(this, "Checking right $right for an action in default package")
+            checkResolvedActionRights(namespaces, right, namespace, action)
+        } else {
             // NOTE: checking rights for a package resolves the package fully; this is repeated for resolving the action below
             // package exists, check read rights for package as a resource
+            info(this, s"Checking right $right for a package $namespace")
             val packageResource = Resource(namespace.root, Collection(Collection.PACKAGES), Some(namespace.last.name))
             // irrespective of right, one needs READ right on the package
             val packageRight = packageResource.collection.implicitRights(namespaces, Privilege.READ, packageResource)
@@ -87,7 +88,7 @@ protected[core] class ActionCollection(entityStore: EntityStore) extends Collect
                         // first check if the package has a binding
                         getResolvedNamespace(namespace) flatMap {
                             resolvedNamespace =>
-                                checkResolvedPackageActionRights(namespaces, right, resolvedNamespace, action)
+                                checkResolvedActionRights(namespaces, right, resolvedNamespace, action)
                         }
                     } else Future successful {false}
             }
@@ -114,7 +115,7 @@ protected[core] class ActionCollection(entityStore: EntityStore) extends Collect
     /**
      * checks the rights for an action given its fully resolved package binding
      */
-    private def checkResolvedPackageActionRights(namespaces: Set[String], right: Privilege, namespace: Namespace, action: EntityName)(
+    private def checkResolvedActionRights(namespaces: Set[String], right: Privilege, namespace: Namespace, action: EntityName)(
             implicit ec: ExecutionContext, transid: TransactionId): Future[Boolean] = {
         // need to check whether the action is a simple action or a sequence
         // retrieve info on action
@@ -134,8 +135,12 @@ protected[core] class ActionCollection(entityStore: EntityStore) extends Collect
                         // collapse all booleans in one
                         result map { seq => seq.forall(_ == true) }
                     case _ => // this is not a sequence, defer to super
-                            info(this, s"Check rights for a simple action $namespace $action")
-                            super.implicitRights(namespaces, right, actionResource)
+                            info(this, s"Check right $right for a simple action $namespace $action $actionResource")
+                            info(this, s"wskaction $wskaction")
+                            //super.implicitRights(namespaces, right, actionResource)
+                            // this is a simple action for which all the intermediate package bindings (if any) were checked for READ rights
+                            // grant permission ---- TODO: double-check with RR
+                            Future successful { true }
                 }
             case Failure(_) =>
                 info(this, s"Action not found, calling implicit rights")
@@ -153,6 +158,6 @@ protected[core] class ActionCollection(entityStore: EntityStore) extends Collect
         // components are fully qualified, may contain _ for default namespace; drop it if it exists
         val namespace = Namespace(namespaceParts)
         info(this, s"fully qualified name $namespace and $actionName")
-        resolveActionAndCheckRights(namespaces, right, namespace, EntityName(action))
+        resolveActionAndCheckRights(namespaces, right, namespace, EntityName(actionName))
     }
 }

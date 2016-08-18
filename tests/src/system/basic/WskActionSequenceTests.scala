@@ -57,6 +57,15 @@ class WskActionSequenceTests
                 (action, _) => action.create(helloName, Some(TestUtils.getCatalogFilename("samples/hello.py")))
             }
 
+            val now = new Date()
+            // call hello without a sequence
+            val runHello = wsk.action.invoke(helloName, Map("name" -> now.toString.toJson))
+            withActivation(wsk.activation, runHello, totalWait = allowedActionDuration) {
+                activation =>
+                    println(activation.getFieldPath("response", "result", "greeting"))
+                    activation.getFieldPath("response", "result", "greeting") shouldBe defined
+                    activation.getFieldPath("response", "result", "greeting").get.toString should include ("Hello " + now + "!")
+            }
             val echoName = "echo_js"
             assetHelper.withCleaner(wsk.action, echoName) {
                 (action, _) => action.create(echoName, Some(TestUtils.getCatalogFilename("samples/echo.js")))
@@ -68,7 +77,6 @@ class WskActionSequenceTests
                 (action, _) => action.create(seqName, Some(sequence), kind = Some("sequence"), timeout = Some(allowedActionDuration))
             }
 
-            val now = new Date()
             val run = wsk.action.invoke(seqName, Map("name" -> now.toString.toJson))
             withActivation(wsk.activation, run, totalWait = allowedActionDuration) {
                 activation =>
@@ -95,19 +103,28 @@ class WskActionSequenceTests
                 (action, _) => action.create(name, Some(sequence), kind = Some("sequence"), timeout = Some(allowedActionDuration))
             }
 
-            val now = "it is now " + new Date()
-            val args = Array("what time is it?", now)
-            // invoke cat
-            println("INVOKING DATE")
-            val runCat = wsk.action.invoke(pkgname +"/date")
-            withActivation(wsk.activation, runCat, totalWait = allowedActionDuration) {
+            // invoke date
+            println("INVOKING DATE WITHOUT BINDING")
+            val runDate = wsk.action.invoke("/whisk.system/util/date")
+            withActivation(wsk.activation, runDate, totalWait = allowedActionDuration) {
                 activation =>
                     //activation.getFieldPath("response", "result", "payload") shouldBe defined
                     //activation.getFieldPath("response", "result", "length") should not be defined
                     println("date result" + activation.getFieldPath("response", "result"))
             }
 
+            // invoke date
+            println("INVOKING DATE WITH BIDING")
+            val runDateBinding = wsk.action.invoke(pkgname +"/date")
+            withActivation(wsk.activation, runDateBinding, totalWait = allowedActionDuration) {
+                activation =>
+                    //activation.getFieldPath("response", "result", "payload") shouldBe defined
+                    //activation.getFieldPath("response", "result", "length") should not be defined
+                    println("date result" + activation.getFieldPath("response", "result"))
+            }
 
+            val now = "it is now " + new Date()
+            val args = Array("what time is it?", now)
             val run = wsk.action.invoke(name, Map("payload" -> args.mkString("\n").toJson))
             withActivation(wsk.activation, run, totalWait = allowedActionDuration) {
                 activation =>
