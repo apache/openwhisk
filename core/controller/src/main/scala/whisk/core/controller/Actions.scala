@@ -434,22 +434,21 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
             implicit transid: TransactionId): Future[(ActivationId, Option[WhiskActivation])] = {
         // merge package parameters with action (action parameters supersede), then merge in payload
         val args = { env map { _ ++ action.parameters } getOrElse action.parameters } merge payload
-        val message = Message(transid, s"/actions/invoke/${action.namespace}/${action.name}/${action.rev}", user, ActivationId(), args)
 
-        info(this, s"[POST] action activation id: ${message.activationId}")
-
-        val promise = Promise[Option[WhiskActivation]]
+        val promise = Promise[WhiskActivation]
         val duration = action.limits.timeout()
         val timeout = duration + blockingInvokeGrace
-        if (blocking) {
-            val docid = DocId(WhiskEntity.qualifiedName(user.namespace, message.activationId))
+        val activationId = if (blocking) {
             info(this, s"[POST] action activation will block on result up to $timeout ($duration + $blockingInvokeGrace grace)")
             // Start listening for finished activations before sending the action to invoker
             // This avoids, that the invoker is faster with the finished message than the controller knows that it has to listen to it.
             // If the post of LB to Kafka fails, the activationId will be deleted after 30 seconds from the map, the controller waits for.
             // Letting the promise fail on a failure on posting to Kafka is not necessary, because nothing will done with it afterwards.
-            pollLocalForResult(docid.asDocInfo, message.activationId, promise)
-        }
+            pollLocalForResult(user.namespace, ActivationId(), promise)
+        } else ActivationId()
+
+        val message = Message(transid, s"/actions/invoke/${action.namespace}/${action.name}/${action.rev}", user, activationId, args)
+        info(this, s"[POST] action activation id: ${message.activationId}")
 
         performLoadBalancerRequest(INVOKER, message, transid) flatMap { response =>
             response.id match {
@@ -467,8 +466,8 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
             }
         } flatMap { activationId =>
             if (blocking) {
-                val response = promise.future map {
-                    (activationId, _)
+                val response = promise.future map { activation =>
+                    (activationId, Some(activation))
                 } withTimeout (timeout, new BlockingInvokeTimeout(activationId))
                 response onComplete {
                     case Success(_) =>
@@ -496,20 +495,29 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      * a database operation to obtain the canonical answer.
      */
     private def pollLocalForResult(
-        docid: DocInfo,
+        namespace: Namespace,
         activationId: ActivationId,
-        promise: Promise[Option[WhiskActivation]])(
-            implicit transid: TransactionId): Unit = {
-        queryActivationResponse(activationId, transid) map {
-            activation => promise.trySuccess { Some(activation) }
-        } onFailure {
+        promise: Promise[WhiskActivation])(
+            implicit transid: TransactionId): ActivationId = {
+
+        val activeAckPromise = Promise[WhiskActivation]
+        val activationIdToSearch = queryActivationResponse(activationId, transid, activeAckPromise)
+
+        activeAckPromise.future map { activation =>
+            promise.trySuccess { activation }
+            activation.activationId
+        } recover {
             case t: TimeoutException =>
                 info(this, s"[POST] switching to poll db, active ack expired")
-                pollDbForResult(docid, activationId, promise)
+                val docid = DocId(WhiskEntity.qualifiedName(namespace, activationIdToSearch)).asDocInfo
+                pollDbForResult(docid, activationIdToSearch, promise)
             case t: Throwable =>
                 error(this, s"[POST] switching to poll db, active ack exception: ${t.getMessage}")
-                pollDbForResult(docid, activationId, promise)
+                val docid = DocId(WhiskEntity.qualifiedName(namespace, activationIdToSearch)).asDocInfo
+                pollDbForResult(docid, activationIdToSearch, promise)
         }
+
+        activationIdToSearch
     }
 
     /**
@@ -521,11 +529,11 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
     private def pollDbForResult(
         docid: DocInfo,
         activationId: ActivationId,
-        promise: Promise[Option[WhiskActivation]])(
+        promise: Promise[WhiskActivation])(
             implicit transid: TransactionId): Unit = {
         if (!promise.isCompleted) {
             WhiskActivation.get(activationStore, docid) map {
-                activation => promise.trySuccess { Some(activation) } // activation may have logs, do not strip them
+                activation => promise.trySuccess { activation } // activation may have logs, do not strip them
             } onFailure {
                 case e: NoDocumentException =>
                     Thread.sleep(500)

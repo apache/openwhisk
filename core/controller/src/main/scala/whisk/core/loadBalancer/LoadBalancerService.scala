@@ -18,7 +18,6 @@ package whisk.core.loadBalancer
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration.DurationInt
@@ -27,6 +26,7 @@ import scala.util.Failure
 import scala.util.Success
 
 import akka.actor.ActorSystem
+import akka.event.Logging.LogLevel
 import spray.json.JsBoolean
 import spray.json.JsObject
 import whisk.common.ConsulClient
@@ -44,7 +44,6 @@ import whisk.core.connector.CompletionMessage
 import whisk.core.entity.ActivationId
 import whisk.core.entity.WhiskActivation
 import whisk.utils.ExecutionContextFactory.PromiseExtensions
-import akka.event.Logging.LogLevel
 
 class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
     implicit val actorSystem: ActorSystem)
@@ -121,11 +120,10 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
      * Instead of sleep/poll, the promise is filled in when the completion messages arrives.
      * If for some reason, there is no ack, promise eventually times out and the promise is removed.
      */
-    def queryActivationResponse(activationId: ActivationId, transid: TransactionId): Future[WhiskActivation] = {
+    def queryActivationResponse(activationId: ActivationId, transid: TransactionId, promise: Promise[WhiskActivation]): ActivationId = {
         implicit val tid = transid
         // either create a new promise or reuse a previous one for this activation if it exists
         queryMap.getOrElseUpdate(activationId, {
-            val promise = Promise[WhiskActivation]
             // store the promise to complete on success, and the timed future that completes
             // with the TimeoutException after alloted time has elapsed
             promise after (30 seconds, {
@@ -134,7 +132,11 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
                     if (failedit) info(this, "active response timed out")
                 }
             })
-        }).future
+        }).future.map { activation =>
+            promise.success(activation)
+        }
+
+        activationId
     }
 
     val consumer = new KafkaConsumerConnector(config.kafkaHost, "completions", "completed")

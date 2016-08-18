@@ -608,6 +608,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     it should "invoke an action, blocking" in {
         implicit val tid = transid()
         val action = WhiskAction(namespace, aname, Exec.js("??"))
+        activationIdForBlockingRequests = Some(activationId)
         val activation = WhiskActivation(action.namespace, action.name, creds.subject, activationId,
             start = Instant.now,
             end = Instant.now,
@@ -627,12 +628,14 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             response should be(activation.resultAsJson)
         }
 
+        activationIdForBlockingRequests = None
         deleteActivation(activation.docid)
     }
 
     it should "invoke a blocking action and return error response when activation fails" in {
         implicit val tid = transid()
         val action = WhiskAction(namespace, aname, Exec.js("??"))
+        activationIdForBlockingRequests = Some(activationId)
         val activation = WhiskActivation(action.namespace, action.name, creds.subject, activationId,
             start = Instant.now,
             end = Instant.now,
@@ -645,6 +648,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             response should be(activation.toExtendedJson)
         }
 
+        activationIdForBlockingRequests = None
         deleteActivation(activation.docid)
     }
 }

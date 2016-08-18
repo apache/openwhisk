@@ -36,6 +36,7 @@ import whisk.core.entitlement.RemoteEntitlementService
 import whisk.core.entity.{ ActivationId, WhiskActivation }
 import whisk.core.loadBalancer.LoadBalancerService
 import scala.language.postfixOps
+import scala.concurrent.Promise
 
 object WhiskServices extends LoadbalancerRequest {
 
@@ -70,7 +71,7 @@ object WhiskServices extends LoadbalancerRequest {
      * and returns the HTTP response from the load balancer as a future
      */
     def makeLoadBalancerComponent(config: WhiskConfig, timeout: Timeout = 10 seconds)(
-        implicit as: ActorSystem): (LoadBalancerReq => Future[LoadBalancerResponse], () => JsObject, (ActivationId, TransactionId) => Future[WhiskActivation]) = {
+        implicit as: ActorSystem): (LoadBalancerReq => Future[LoadBalancerResponse], () => JsObject, (ActivationId, TransactionId, Promise[WhiskActivation]) => ActivationId) = {
         val loadBalancer = new LoadBalancerService(config, InfoLevel)
         val requestTaker = (lbr: LoadBalancerReq) => { loadBalancer.doPublish(lbr._1, lbr._2)(lbr._3) }
         (requestTaker, loadBalancer.getInvokerHealth, loadBalancer.queryActivationResponse)
@@ -92,7 +93,7 @@ trait WhiskServices {
     protected val performLoadBalancerRequest: WhiskServices.LoadBalancerReq => Future[LoadBalancerResponse]
 
     /** Ask load balancer (instead of db) for activation response */
-    protected val queryActivationResponse: (ActivationId, TransactionId) => Future[WhiskActivation]
+    protected val queryActivationResponse: (ActivationId, TransactionId, Promise[WhiskActivation]) => ActivationId
 
     /** The hostname of the consul server */
     protected val consulServer: String
