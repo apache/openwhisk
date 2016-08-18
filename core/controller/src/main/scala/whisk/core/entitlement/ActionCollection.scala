@@ -101,14 +101,15 @@ protected[core] class ActionCollection(entityStore: EntityStore) extends Collect
     private def getResolvedNamespace(namespace: Namespace)(
             implicit ec: ExecutionContext, transid: TransactionId): Future[Namespace] = {
         val docid = DocId(WhiskEntity.qualifiedName(namespace.root, namespace.last))
-        WhiskPackage.get(entityStore, docid.asDocInfo) map {
+        WhiskPackage.get(entityStore, docid.asDocInfo) flatMap {
             case wp if wp.binding.isEmpty =>
                 // empty binding => finally got to the actual namespace to check
-                namespace
+                Future successful { namespace }
             case wp =>
                 val binding = wp.binding.get
                 // use the binding instead, including the package name (use whole binding, not only namespace)
-                Namespace(binding.toString)
+                // resolve the binding (for recursive binding)
+                getResolvedNamespace(Namespace(binding.toString))
         }
     }
 

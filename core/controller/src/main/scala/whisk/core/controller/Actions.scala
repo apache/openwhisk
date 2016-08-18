@@ -626,7 +626,58 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                         // this is a simple invoke --- blocking
                         info(this, s"sequence invoking an enclosing atomic action $action")
                         postInvokeRequest(user, action, env, params, true)
-                }) map {res => (Some(res._1), res._2 flatMap {_.response.result map {_.asJsObject}})}
+                        }) map {res => (Some(res._1), res._2 flatMap {_.response.result map {_.asJsObject}})}
+        }
+    }
+
+    private def resolveComponent(component: String)(
+                implicit transid: TransactionId) : Future[(WhiskAction, Parameters)]= {
+        // component is a fully qualified name; split it into the namespace and action name
+        val lastIndex = component.lastIndexOf(Namespace.PATHSEP)
+        val actionName = component.drop(lastIndex + 1)
+        val namespaceParts = component.dropRight(component.size - lastIndex)
+        // components are fully qualified, may contain _ for default namespace; drop it if it exists
+        val namespace = Namespace(namespaceParts)
+        info(this, s"Resolve component $namespace and $actionName")
+        // get the corresponding package
+        val docid = DocId(WhiskEntity.qualifiedName(namespace.root, namespace.last))
+        val wp = WhiskPackage.get(entityStore, docid.asDocInfo)
+        // return the action name the package and the parameters
+        mergeComponentActionWithPackage(wp, Parameters()) flatMap {
+            case (wp, params) =>
+                // return the fully resolved action (namespace + package) and parameters
+                val actionId = DocId(WhiskEntity.qualifiedName(wp.namespace.addpath(wp.name), EntityName(actionName)))
+                val actionFuture = WhiskAction.get(entityStore, actionId.asDocInfo)
+                actionFuture map {
+                    (_, params)
+                }
+        }
+    }
+
+    /**
+     * resolve a component action traversing all package bindings available
+     * also merge parameters along the way
+     * returns the resolved package and the merged parameters
+     */
+    private def mergeComponentActionWithPackage(wpFuture: Future[WhiskPackage], parameters: Parameters) (
+        implicit transid: TransactionId): Future[(WhiskPackage, Parameters)] = {
+        wpFuture flatMap { wp =>
+                wp.binding map {
+                    case Binding(ns, n) =>
+                        val docid = DocId(WhiskEntity.qualifiedName(ns, n))
+                        info(this, s"fetching package '$docid' for reference")
+                        // already checked that subject is authorized for package and binding;
+                        // continue to merge
+                        val wpNext = WhiskPackage.get(entityStore, docid.asDocInfo)
+                        // TODO: double-check with RR what to do about the parameters of wp???
+                        mergeComponentActionWithPackage(wpNext, parameters ++ wp.parameters)
+                } getOrElse {
+                    // no binding, the action is fully resolved
+                    // TODO: check with RR --- pararameters
+                    val params = parameters ++ wp.parameters
+                    info(this, s"merged package parameters and rebased component action to package '$wp'")
+                    Future successful { (wp , params) }
+                }
         }
     }
 
@@ -646,6 +697,8 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         // do not wait to successfully retrieve all the actions before starting the execution
         // start execution of the first action while potentially still retrieving entities
         // Note: the execution starts even if one of the futures retrieving an entity may fail
+        // first components need to be resolved given any package bindings and the parms need to be merged
+        //val resolvedComponents = components map { c => resolveComponent(c,
         val futureActions = components map { c => WhiskAction.get(entityStore, DocInfo(c)) }
         // "fold" the wskActions to execute them in blocking fashion
         // the params are the payload/params and the list of the previous activation ids
@@ -900,7 +953,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
             val ns = wp.namespace.addpath(wp.name) // the package namespace
             val resource = Resource(ns, collection, Some { action() }, Some { params })
             val right = collection.determineRight(method, resource.entity)
-            info(this, s"merged package parameters and rebased action to '$ns")
+            info(this, s"merged package parameters and rebased action to '$ns'")
             dispatchOp(user, right, resource)
         }
     }
