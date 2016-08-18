@@ -22,7 +22,6 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.duration.FiniteDuration
-import scala.language.postfixOps
 import scala.util.Try
 
 
