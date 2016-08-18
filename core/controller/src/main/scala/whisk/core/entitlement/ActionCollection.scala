@@ -88,11 +88,10 @@ protected[core] class ActionCollection(entityStore: EntityStore) extends Collect
                         WhiskPackage.get(entityStore, docid.asDocInfo) flatMap {
                             case wp if wp.binding.isEmpty =>
                                 // empty binding => finally got to the actual namespace to check
-                                val actionResource = Resource(namespace, Collection(Collection.ACTIONS), Some(action.name))
-                                actionResource.collection.implicitRights(namespaces, right, actionResource)
+                                checkResolvedPackageActionRights(namespaces, right, namespace, action)
                             case wp =>
                                 val binding = wp.binding.get
-                                // use the binding instead, including the package name
+                                // use the binding instead, including the package name (use whole binding, not only namespace)
                                 resolveActionAndCheckRights(namespaces, right, Namespace(binding.toString), action)
                         }
                     } else Future successful {false}
