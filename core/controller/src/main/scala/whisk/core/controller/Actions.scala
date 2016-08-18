@@ -235,7 +235,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
             entity(as[WhiskActionPut]) { content =>
                 info(this, s"NAMESPACE $namespace")
                 val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
-                putEntity(WhiskAction, entityStore, docid, overwrite, update(content)_, () => { make(content, namespace, name) })
+                putEntity(WhiskAction, entityStore, docid, overwrite, update(content, namespace)_, () => { make(content, namespace, name) })
             }
         }
     }
@@ -404,7 +404,6 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                                 }
                             } else content.parameters getOrElse Parameters()
             // This is temporary, while transitioning to new seq implementation: fix the names of the components
-
             val fixedExec = if (WhiskActionsApi.sequenceHackFlag) exec
                             else exec match {
                                 case seq: SequenceExec =>
@@ -428,7 +427,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
     }
 
     /** Updates a WhiskAction from PUT content, merging old action where necessary. */
-    private def update(content: WhiskActionPut)(action: WhiskAction) = Future successful {
+    private def update(content: WhiskActionPut, namespace: Namespace)(action: WhiskAction) = Future successful {
         val limits = content.limits map { l =>
             ActionLimits(l.timeout getOrElse action.limits.timeout, l.memory getOrElse action.limits.memory, l.logs getOrElse action.limits.logs)
         } getOrElse action.limits
@@ -459,11 +458,20 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                                     }
                                 }
                          } else content.parameters getOrElse action.parameters
-
+        // This is temporary, while transitioning to new seq implementation: fix the names of the components
+        val fixedExec = if (WhiskActionsApi.sequenceHackFlag) (content.exec getOrElse action.exec)
+                        else content.exec map {
+                            case seq: SequenceExec =>
+                                // super hack for now; FIXME!!!!
+                                val components = seq.components map { _.replace("/_", namespace.root.namespace) }
+                                info(this, s"COMPONENTS $components")
+                                new SequenceExec(seq.code, components)
+                            case exec => exec
+                        } getOrElse action.exec
         WhiskAction(
             action.namespace,
             action.name,
-            content.exec getOrElse action.exec,
+            fixedExec,
             parameters,
             limits,
             content.version getOrElse action.version.upPatch,
@@ -636,21 +644,30 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         val lastIndex = component.lastIndexOf(Namespace.PATHSEP)
         val actionName = component.drop(lastIndex + 1)
         val namespaceParts = component.dropRight(component.size - lastIndex)
-        // components are fully qualified, may contain _ for default namespace; drop it if it exists
+        // components are fully qualified
         val namespace = Namespace(namespaceParts)
         info(this, s"Resolve component $namespace and $actionName")
-        // get the corresponding package
-        val docid = DocId(WhiskEntity.qualifiedName(namespace.root, namespace.last))
-        val wp = WhiskPackage.get(entityStore, docid.asDocInfo)
-        // return the action name the package and the parameters
-        mergeComponentActionWithPackage(wp, Parameters()) flatMap {
-            case (wp, params) =>
-                // return the fully resolved action (namespace + package) and parameters
-                val actionId = DocId(WhiskEntity.qualifiedName(wp.namespace.addpath(wp.name), EntityName(actionName)))
-                val actionFuture = WhiskAction.get(entityStore, actionId.asDocInfo)
-                actionFuture map {
-                    (_, params)
-                }
+        // get the corresponding package, if it exists
+        if (namespace.isDefaultPackage) {
+            // default package, fully qualified action, get it, and no merged parameters
+            val actionDoc = DocInfo(component)
+            WhiskAction.get(entityStore, actionDoc) map {
+                (_, Parameters())
+            }
+        } else {
+            // it has a package, solve it
+            val docid = DocId(WhiskEntity.qualifiedName(namespace.root, namespace.last))
+            val wp = WhiskPackage.get(entityStore, docid.asDocInfo)
+            // return the action name the package and the parameters
+            mergeComponentActionWithPackage(wp, Parameters()) flatMap {
+                case (wp, params) =>
+                    // return the fully resolved action (namespace + package) and parameters
+                    val actionId = DocId(WhiskEntity.qualifiedName(wp.namespace.addpath(wp.name), EntityName(actionName)))
+                    val actionFuture = WhiskAction.get(entityStore, actionId.asDocInfo)
+                    actionFuture map {
+                        (_, params)
+                    }
+            }
         }
     }
 
