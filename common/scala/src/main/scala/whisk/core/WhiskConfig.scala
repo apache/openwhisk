@@ -28,6 +28,8 @@ import spray.json.JsBoolean
 import scala.io.Source
 import whisk.common.Logging
 
+
+
 /**
  * A set of properties which might be needed to run a whisk microservice implemented
  * in scala.

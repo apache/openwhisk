@@ -28,11 +28,16 @@ import whisk.core.entity.DocId
 import whisk.core.entity.SequenceExec
 import whisk.core.entity.Subject
 import whisk.core.entity.WhiskAction
+import whisk.core.entity.WhiskPackage
 import whisk.core.entity.types.EntityStore
 import scala.concurrent.Promise
+import scala.util.{Failure, Success, Try}
 import whisk.core.entity.WhiskEntity
 import whisk.core.entity.EntityName
 import whisk.core.entity.Namespace
+
+// for toTryFuture method
+import whisk.utils.ExecutionContextFactory.FutureExtensions
 
 protected[core] class ActionCollection(entityStore: EntityStore) extends Collection(Collection.ACTIONS) {
 
@@ -44,15 +49,20 @@ protected[core] class ActionCollection(entityStore: EntityStore) extends Collect
      */
     protected[core] override def implicitRights(namespaces: Set[String], right: Privilege, resource: Resource)(
         implicit ec: ExecutionContext, transid: TransactionId): Future[Boolean] = {
-        resource.entity map {
+        // super hack fix this
+        //return Future successful {true}
+        if (right != Privilege.ACTIVATE) {
+            super.implicitRights(namespaces, right, resource)
+        } else resource.entity map {
             action =>
                 // need to check whether the action is a simple action or a sequence
                 // retrieve info on action
-                val docid = DocId(WhiskEntity.qualifiedName(resource.namespace.root, EntityName(action)))
-                (WhiskAction.get(entityStore, docid.asDocInfo) flatMap {
-                    wskaction =>
+                val docid = DocId(WhiskEntity.qualifiedName(resource.namespace, EntityName(action)))
+                WhiskAction.get(entityStore, docid.asDocInfo).toTryFuture flatMap {
+                    case Success(wskaction) =>
                         wskaction.exec match {
                             case SequenceExec(_, components) =>
+                                info(this, s"Checking right '$right' for a sequence '${resource}' with components '${components}'")
                                 val rights = components map {
                                     actionName => checkComponentActionRights(namespaces, right, actionName)
                                 }
@@ -60,34 +70,100 @@ protected[core] class ActionCollection(entityStore: EntityStore) extends Collect
                                 val result = Future.sequence(rights)
                                 // collapse all booleans in one
                                 result map { seq => seq.forall(_ == true) }
-                                case _ => // this is not a sequence, defer to super
-                                super.implicitRights(namespaces, right, resource)
+                            case _ => // this is not a sequence, defer to super
+                                    info(this, s"Check rights for a simple action ${resource}")
+                                    super.implicitRights(namespaces, right, resource)
                         }
-                })
+                    case Failure(_) =>
+                        info(this, s"Action not found, calling implicit rights ${resource}")
+                        super.implicitRights(namespaces, right, resource)
+                    }
         } getOrElse {
             // this means there is no entity, it shouldn't get here
             // in any case, defer to super class
+            info(this, "Entity is none, deferring to implicit rights")
             super.implicitRights(namespaces, right, resource)
         }
     }
 
     private def checkComponentActionRights(namespaces: Set[String], right: Privilege, action: String)(
-        implicit ec: ExecutionContext, transid: TransactionId): Future[Boolean] = {
+            implicit ec: ExecutionContext, transid: TransactionId): Future[Boolean] = {
         // use class Namespace to figure out package
-        val fullyQualifiedName = Namespace(action)
-        if (fullyQualifiedName.root == Namespace.DEFAULT) { // default package
+        // action is a fully qualified name; split it into the namespace and action name
+        val lastIndex = action.lastIndexOf(Namespace.PATHSEP)
+        val actionName = action.drop(lastIndex + 1)
+        val namespaceParts = action.dropRight(action.size - lastIndex)
+        // components are fully qualified, may contain _ for default namespace; drop it if it exists
+        val namespace = Namespace(namespaceParts)
+        info(this, s"fully qualified name $namespace and $actionName")
+        checkActionRights(namespaces, right, namespace, EntityName(action))
+    }
+
+    /**
+     * resolve the action based on the package binding (if any) and check its rights
+     */
+    private def checkActionRights(namespaces: Set[String], right: Privilege, namespace: Namespace, action: EntityName)(
+            implicit ec: ExecutionContext, transid: TransactionId): Future[Boolean] = {
+        if (namespace.isDefaultPackage) { // default package
             // check rights for the action as a resource
-            val actionResource = Resource(fullyQualifiedName.root, Collection(Collection.ACTIONS), Some(fullyQualifiedName.last.toString))
+            val actionResource = Resource(namespace, Collection(Collection.ACTIONS), Some(action.name))
             actionResource.collection.implicitRights(namespaces, right, actionResource)
         }
         else {
             // package exists, check read rights for package as a resource
-            val packageResource = Resource(fullyQualifiedName.root, Collection(Collection.PACKAGES), Some(fullyQualifiedName.root.toString))
+            val packageResource = Resource(namespace.root, Collection(Collection.PACKAGES), Some(namespace.last.name))
             // irrespective of right, one needs READ right on the package
-            packageResource.collection.implicitRights(namespaces, Privilege.READ, packageResource)
-            // check rights for the action itself
-            val actionResource = Resource(fullyQualifiedName.root, Collection(Collection.ACTIONS), Some(fullyQualifiedName.last.toString))
-            actionResource.collection.implicitRights(namespaces, right, actionResource)
+            val packageRight = packageResource.collection.implicitRights(namespaces, Privilege.READ, packageResource)
+            packageRight flatMap {
+                pkgRight =>
+                    if (pkgRight) {
+                        // check rights for the action itself
+                        // first check if the package has a binding
+                        val docid = DocId(WhiskEntity.qualifiedName(namespace.root, namespace.last))
+                        WhiskPackage.get(entityStore, docid.asDocInfo) flatMap {
+                            case wp if wp.binding.isEmpty =>
+                                // empty binding => finally got to the actual namespace to check
+                                val actionResource = Resource(namespace, Collection(Collection.ACTIONS), Some(action.name))
+                                actionResource.collection.implicitRights(namespaces, right, actionResource)
+                            case wp =>
+                                val binding = wp.binding.get
+                                // use the binding instead, including the package name
+                                checkActionRights(namespaces, right, Namespace(binding.toString), action)
+                        }
+                    } else Future successful {false}
+            }
         }
+    }
+
+    /**
+     * checks the rights for an action given its fully resolved package binding
+     */
+    private def checkResolvedPackageActionRights(namespaces: Set[String], right: Privilege, namespace: Namespace, action: EntityName)(
+            implicit ec: ExecutionContext, transid: TransactionId): Future[Boolean] = {
+        // need to check whether the action is a simple action or a sequence
+        // retrieve info on action
+        info(this, s"Checking right $right for a resolved action $namespace $action")
+        val docid = DocId(WhiskEntity.qualifiedName(namespace, action))
+        val actionResource = Resource(namespace, Collection(Collection.ACTIONS), Some(action.name))
+        WhiskAction.get(entityStore, docid.asDocInfo).toTryFuture flatMap {
+            case Success(wskaction) =>
+                wskaction.exec match {
+                    case SequenceExec(_, components) =>
+                        info(this, s"Checking right '$right' for a sequence $namespace $action' with components '${components}'")
+                        val rights = components map {
+                            actionName => checkComponentActionRights(namespaces, right, actionName)
+                        }
+                        // collapse all futures in a sequence
+                        val result = Future.sequence(rights)
+                        // collapse all booleans in one
+                        result map { seq => seq.forall(_ == true) }
+                    case _ => // this is not a sequence, defer to super
+                            info(this, s"Check rights for a simple action $namespace $action")
+                            super.implicitRights(namespaces, right, actionResource)
+                }
+            case Failure(_) =>
+                info(this, s"Action not found, calling implicit rights")
+                super.implicitRights(namespaces, right, actionResource)
+            }
     }
 }

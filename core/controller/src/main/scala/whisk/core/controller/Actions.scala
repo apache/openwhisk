@@ -187,7 +187,9 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                                 // two sets of rights need to be checked:
                                 // read rights for the package and activate rights for the action
                                 authorizeAndContinue(Privilege.READ, user.subject, packageResource, next = () => { // package
-                                    val actionResource = Resource(ns, Collection(Collection.ACTIONS), Some(innername))
+                                    // the action resource needs to include the package in the namespace
+                                    val actionNamespace = ns.addpath(EntityName(outername))
+                                    val actionResource = Resource(actionNamespace, Collection(Collection.ACTIONS), Some(innername))
                                     authorizeAndContinue(Privilege.ACTIVATE, user.subject, actionResource, next = () => { // action
                                         getEntity(WhiskPackage, entityStore, packageDocId, Some {
                                             mergeActionWithPackageAndDispatch(m, user, EntityName(innername)) _
@@ -232,6 +234,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
     override def create(namespace: Namespace, name: EntityName)(implicit transid: TransactionId) = {
         parameter('overwrite ? false) { overwrite =>
             entity(as[WhiskActionPut]) { content =>
+                info(this, s"NAMESPACE $namespace")
                 val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
                 putEntity(WhiskAction, entityStore, docid, overwrite, update(content)_, () => { make(content, namespace, name) })
             }
@@ -391,6 +394,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                     l.logs getOrElse LogLimit())
             } getOrElse ActionLimits()
 
+            info(this, s"namespace $namespace name $name")
             // This is temporary while we are making sequencing directly supported in the controller.
             // The parameter override allows this to work with Pipecode.code. Any parameters other
             // than the action sequence itself are discarded and have no effect.
@@ -400,11 +404,21 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                                     case _                 => content.parameters getOrElse Parameters()
                                 }
                             } else content.parameters getOrElse Parameters()
+            // This is temporary, while transitioning to new seq implementation: fix the names of the components
 
+            val fixedExec = if (WhiskActionsApi.sequenceHackFlag) exec
+                            else exec match {
+                                case seq: SequenceExec =>
+                                    // super hack for now; FIXME!!!!
+                                    val components = seq.components map { _.replace("/_", namespace.root.namespace) }
+                                    info(this, s"COMPONENTS $components")
+                                    new SequenceExec(seq.code, components)
+                                case _ => exec
+                            }
             WhiskAction(
                 namespace,
                 name,
-                exec,
+                fixedExec,
                 parameters,
                 limits,
                 content.version getOrElse SemVer(),
@@ -553,6 +567,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         components: Seq[String])(
             implicit transid: TransactionId): Future[(ActivationId, Option[WhiskActivation])] = {
         val promise = Promise[(ActivationId, Option[WhiskActivation])]
+        info(this, s"Invoking sequence for action ${action.name}")
         invokeSequenceComponents(promise, action, user, env, payload, components)
         return promise.future
     }
@@ -575,6 +590,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
             activationId: Option[ActivationId])(
                     implicit transid: TransactionId): Future[(Option[ActivationId], Option[JsObject])] = {
         // check if there is any payload; if payload is None wait for the result of the previous activation
+        info(this, s"Invoking sequence component ${action.name}")
         val paramsFuture: Future[Option[JsObject]] = if (payload == None) {
             if (activationId == None) {
                 // this should never happen: the first action in a sequence with no payload
@@ -647,7 +663,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                       seq = seq0 :+ result._1
                   ) yield (result._2, seq)
         }
-        // check if the last one is successful, that means everything worked great
+        // check all futures were successful
         val futureRes = Future.sequence(seqRes)
         futureRes onComplete {
             case Success(seq) =>
@@ -707,25 +723,40 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                 implicit transid: TransactionId): Option[String] = {
         // the end could make it tighter: TODO where to move this?
         val end = Instant.now(Clock.systemUTC())
-        // find the activation that failed
-        val index = seq.indexWhere(_.isInstanceOf[Future[Any]])
-        if (index == -1) {
-            // nothing to store really
-            storeSequenceResults(user, action, activationId, Seq.empty[ActivationId], JsObject.empty, start, end)
-            None
+        // find the last activation that succeeded
+        info(this, s"partial results: $seq")
+        // check for the first completed Future that is a Failure
+        val index = seq.indexWhere( {
+            // check for the first failure
+            _.value match {
+                case Some(Failure(_)) => true
+                case _ => false
+            }
+        })
+        index match {
+            case 0 =>
+                // this shouldn't happen; the first result in the scanLeft is the initial parameter
+                error(this, "Storing intermediate results found unsuccesful initial parameter")
+                None
+            case -1 =>
+                // it should always find a failed one, this is an error
+                error(this, "Storing intermediate results for a sequence did not find a failed activation")
+                None
+            case idx =>
+                // the execution of activation idx-1 failed
+                // the result of the execution is just the previous entry
+                // this future should be done and Successful (the last successful future before the first failed one)
+                val result = seq(idx - 1)
+                // store the sequence results
+                result onSuccess {
+                    case tuple =>
+                        val result = tuple._1.get
+                        val ids = tuple._2 map {_.get}
+                        storeSequenceResults(user, action, activationId, ids, result, start, end)
+                }
+                // return the component that failed
+                Some(components(idx - 1))
         }
-        // the result of the execution is just the previous entry
-        // this future should be Successful (the last successful future before the first failed one)
-        val result = seq(index - 1)
-        // store the sequence results
-        result onSuccess {
-            case tuple =>
-                val result = tuple._1.get
-                val ids = tuple._2 map {_.get}
-                storeSequenceResults(user, action, activationId, ids, result, start, end)
-        }
-        // return the component that failed
-        Some(components(index))
     }
 
     /**
