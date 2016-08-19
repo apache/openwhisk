@@ -18,7 +18,6 @@ package whisk.core.controller.test
 
 import scala.concurrent.Await
 import scala.concurrent.Future
-import scala.concurrent.Promise
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
@@ -92,9 +91,8 @@ protected trait ControllerTestCommon
      */
     var activationIdForBlockingRequests: Option[ActivationId] = None
     def activationId = activationIdForBlockingRequests.getOrElse(ActivationId()) // need a static activation id to test activations api
-    val queryActivationResponse = (wrongActivationId: ActivationId, transid: TransactionId, promise: Promise[WhiskActivation]) => {
-        promise.failure(new Exception)
-        activationId
+    val queryActivationResponse = (wrongActivationId: ActivationId, transid: TransactionId) => {
+        (activationId, Future.failed(new Exception))
     }
     val consulServer = "???"
 
