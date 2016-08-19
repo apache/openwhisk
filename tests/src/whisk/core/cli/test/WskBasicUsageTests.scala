@@ -309,30 +309,6 @@ class WskBasicCliUsageTests
             wsk.parseJsonString(stdout).fields("parameters") shouldBe getValidJSONTestArgOutput
     }
 
-    it should "not create an action when -a is specified without arguments" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val name = "actionName"
-            assetHelper.withCleaner(wsk.action, name, confirmDelete = false) {
-                (action, _) =>
-                    val runresult = wsk.cli(wskprops.overrides ++ Seq("action", "create", name, "--auth", wp.authKey,
-                        "-a"), expectedExitCode = ERROR_EXIT)
-                    runresult.stderr should include("Annotation arguments must be a key value pair")
-                    runresult
-            }
-    }
-
-    it should "not create an action when -p is specified without arguments" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val name = "actionName"
-            assetHelper.withCleaner(wsk.action, name, confirmDelete = false) {
-                (action, _) =>
-                    val runresult = wsk.cli(wskprops.overrides ++ Seq("action", "create", name, "--auth", wp.authKey,
-                        "-p"), expectedExitCode = ERROR_EXIT)
-                    runresult.stderr should include("Parameter arguments must be a key value pair")
-                    runresult
-            }
-    }
-
     it should "create an action with the proper parameter escapes" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "actionName"
@@ -480,30 +456,6 @@ class WskBasicCliUsageTests
             wsk.parseJsonString(stdout).fields("parameters") shouldBe getValidJSONTestArgOutput
     }
 
-    it should "not create a package when -a is specified without arguments" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val name = "packageName"
-            assetHelper.withCleaner(wsk.pkg, name, confirmDelete = false) {
-                (pkg, _) =>
-                    val runresult = wsk.cli(wskprops.overrides ++ Seq("package", "create", name, "--auth", wp.authKey,
-                        "-a"), expectedExitCode = ERROR_EXIT)
-                    runresult.stderr should include("Annotation arguments must be a key value pair")
-                    runresult
-            }
-    }
-
-    it should "not create a package when -p is specified without arguments" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val name = "packageName"
-            assetHelper.withCleaner(wsk.pkg, name, confirmDelete = false) {
-                (pkg, _) =>
-                    val runresult = wsk.cli(wskprops.overrides ++ Seq("package", "create", name, "--auth", wp.authKey,
-                        "-p"), expectedExitCode = ERROR_EXIT)
-                    runresult.stderr should include("Parameter arguments must be a key value pair")
-                    runresult
-            }
-    }
-
     it should "create a package with the proper parameter escapes" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "packageName"
@@ -579,30 +531,6 @@ class WskBasicCliUsageTests
             val ns_regex_list = wsk.namespace.list().stdout.trim.replace('\n', '|')
             val stdout = wsk.trigger.get(triggerName, summary = true).stdout
             stdout should include regex (s"(?i)trigger\\s+/${ns_regex_list}/${triggerName}")
-    }
-
-    it should "not create a trigger when -a is specified without arguments" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val name = "triggerName"
-            assetHelper.withCleaner(wsk.trigger, name, confirmDelete = false) {
-                (trigger, _) =>
-                    val runresult = wsk.cli(wskprops.overrides ++ Seq("trigger", "create", name, "--auth", wp.authKey,
-                        "-a"), expectedExitCode = ERROR_EXIT)
-                    runresult.stderr should include("Annotation arguments must be a key value pair")
-                    runresult
-            }
-    }
-
-    it should "not create a trigger when -p is specified without arguments" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val name = "triggerName"
-            assetHelper.withCleaner(wsk.trigger, name, confirmDelete = false) {
-                (trigger, _) =>
-                    val runresult = wsk.cli(wskprops.overrides ++ Seq("trigger", "create", name, "--auth", wp.authKey,
-                        "-p"), expectedExitCode = ERROR_EXIT)
-                    runresult.stderr should include("Parameter arguments must be a key value pair")
-                    runresult
-            }
     }
 
     it should "create a trigger with the proper parameter escapes" in withAssetCleaner(wskprops) {
@@ -708,6 +636,58 @@ class WskBasicCliUsageTests
             retry({
                 wsk.rule.list().stdout should include(s"$ruleName private")
             }, 5, Some(1 second))
+    }
+
+    behavior of "Wsk params and annotations"
+
+    it should "reject commands that are executed with params or annot that are not key/value pairs" in {
+        val invalidParamMsg = "Arguments for '-p' must be a key/value pair"
+        val invalidAnnotMsg = "Arguments for '-a' must be a key/value pair"
+        val invalidArgs = Seq(
+            (Seq("action", "create", "actionName", "-p"), invalidParamMsg),
+            (Seq("action", "create", "actionName", "-p", "key"), invalidParamMsg),
+            (Seq("action", "update", "actionName", "-p"), invalidParamMsg),
+            (Seq("action", "update", "actionName", "-p", "key"), invalidParamMsg),
+            (Seq("action", "invoke", "actionName", "-p"), invalidParamMsg),
+            (Seq("action", "invoke", "actionName", "-p", "key"), invalidParamMsg),
+            (Seq("action", "create", "actionName", "-a"), invalidAnnotMsg),
+            (Seq("action", "create", "actionName", "-a", "key"), invalidAnnotMsg),
+            (Seq("action", "update", "actionName", "-a"), invalidAnnotMsg),
+            (Seq("action", "update", "actionName", "-a", "key"), invalidAnnotMsg),
+            (Seq("action", "invoke", "actionName", "-a"), invalidAnnotMsg),
+            (Seq("action", "invoke", "actionName", "-a", "key"), invalidAnnotMsg),
+            (Seq("package", "create", "packageName", "-p"), invalidParamMsg),
+            (Seq("package", "create", "packageName", "-p", "key"), invalidParamMsg),
+            (Seq("package", "update", "packageName", "-p"), invalidParamMsg),
+            (Seq("package", "update", "packageName", "-p", "key"), invalidParamMsg),
+            (Seq("package", "bind", "packageName", "boundPackageName", "-p"), invalidParamMsg),
+            (Seq("package", "bind", "packageName", "boundPackageName", "-p", "key"), invalidParamMsg),
+            (Seq("package", "create", "packageName", "-a"), invalidAnnotMsg),
+            (Seq("package", "create", "packageName", "-a", "key"), invalidAnnotMsg),
+            (Seq("package", "update", "packageName", "-a"), invalidAnnotMsg),
+            (Seq("package", "update", "packageName", "-a", "key"), invalidAnnotMsg),
+            (Seq("package", "bind", "packageName", "boundPackageName", "-a"), invalidAnnotMsg),
+            (Seq("package", "bind", "packageName", "boundPackageName", "-a", "key"), invalidAnnotMsg),
+            (Seq("trigger", "create", "triggerName", "-p"), invalidParamMsg),
+            (Seq("trigger", "create", "triggerName", "-p", "key"), invalidParamMsg),
+            (Seq("trigger", "update", "triggerName", "-p"), invalidParamMsg),
+            (Seq("trigger", "update", "triggerName", "-p", "key"), invalidParamMsg),
+            (Seq("trigger", "fire", "triggerName", "-p"), invalidParamMsg),
+            (Seq("trigger", "fire", "triggerName", "-p", "key"), invalidParamMsg),
+            (Seq("trigger", "create", "triggerName", "-a"), invalidAnnotMsg),
+            (Seq("trigger", "create", "triggerName", "-a", "key"), invalidAnnotMsg),
+            (Seq("trigger", "update", "triggerName", "-a"), invalidAnnotMsg),
+            (Seq("trigger", "update", "triggerName", "-a", "key"), invalidAnnotMsg),
+            (Seq("trigger", "fire", "triggerName", "-a"), invalidAnnotMsg),
+            (Seq("trigger", "fire", "triggerName", "-a", "key"), invalidAnnotMsg)
+        )
+
+        invalidArgs foreach {
+            case (cmd, err) =>
+              val stderr = wsk.cli(cmd, expectedExitCode = ERROR_EXIT).stderr
+              stderr should include(err)
+              stderr should include("Run 'wsk --help' for usage.")
+        }
     }
 
     behavior of "Wsk action parameters"
