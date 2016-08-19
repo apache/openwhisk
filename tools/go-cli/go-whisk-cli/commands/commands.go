@@ -87,56 +87,48 @@ func init() {
     }
 }
 
+func getKeyValueArgs(args []string, argIndex int, parsedArgs []string) ([]string, []string, error) {
+    var whiskErr error
+
+    if len(args) - 1 >= argIndex + 2 {
+        parsedArgs = append(parsedArgs, args[argIndex + 1])
+        parsedArgs = append(parsedArgs, args[argIndex + 2])
+        args = append(args[:argIndex], args[argIndex + 3:]...)
+    } else {
+        whisk.Debug(whisk.DbgError, "Arguments for '%s' must be a key/value pair; args: %s", args[argIndex], args)
+        errMsg := wski18n.T("Arguments for '{{.arg}}' must be a key/value pair",
+            map[string]interface{}{"arg": args[argIndex]})
+        whiskErr = whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG,
+            whisk.DISPLAY_USAGE)
+    }
+
+    return parsedArgs, args, whiskErr
+}
+
 func parseArgs(args []string) ([]string, []string, []string, error) {
     var paramArgs []string
     var annotArgs []string
     var whiskErr error
-    var errMsg string
-    var parsingParam bool
-    var parsingAnnot bool
 
     i := 0
 
     for i < len(args) {
-
-        if !parsingAnnot && args[i] == "-p" || args[i] == "--param" {
-            parsingParam = true
-
-            if len(args) - 1 >= i + 2 {
-                parsingParam = false
-                paramArgs = append(paramArgs, args[i + 1])
-                paramArgs = append(paramArgs, args[i + 2])
-                args = append(args[:i], args[i + 3:]...)
-            } else if len(args) - 1 >= i + 1 {
-                parsingParam = false
-                paramArgs = append(paramArgs, args[i + 1])
-                paramArgs = append(paramArgs, "")
-                args = append(args[:i], args[i + 2:]...)
-            } else {
-                whisk.Debug(whisk.DbgError, "Parameter arguments must be a key value pair; args: %s", args[i:])
-                errMsg = fmt.Sprintf(
-                    wski18n.T("Parameter arguments must be a key value pair: {{.args}}", map[string]interface{}{"args":args[i:]}))
+        if args[i] == "-p" || args[i] == "--param" {
+            paramArgs, args, whiskErr = getKeyValueArgs(args, i, paramArgs)
+            if whiskErr != nil {
+                whisk.Debug(whisk.DbgError, "getKeyValueArgs(%#v, %d) failed: %s\n", args, i, whiskErr)
+                errMsg := wski18n.T("The parameter arguments are invalid: {{.err}}",
+                    map[string]interface{}{"err": whiskErr})
                 whiskErr = whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG,
                     whisk.DISPLAY_USAGE)
                 return nil, nil, nil, whiskErr
             }
-        } else if !parsingParam && args[i] == "-a" || args[i] == "--annotation"{
-            parsingAnnot = true
-
-            if len(args) - 1 >= i + 2 {
-                parsingAnnot = false
-                annotArgs = append(annotArgs, args[i + 1])
-                annotArgs = append(annotArgs, args[i + 2])
-                args = append(args[:i], args[i + 3:]...)
-            } else if len(args) - 1 >= i + 1 {
-                parsingAnnot = false
-                annotArgs = append(annotArgs, args[i + 1])
-                annotArgs = append(annotArgs, "")
-                args = append(args[:i], args[i + 2:]...)
-            } else {
-                whisk.Debug(whisk.DbgError, "Annotation arguments must be a key value pair; args: %s", args[i:])
-                errMsg = fmt.Sprintf(
-                    wski18n.T("Annotation arguments must be a key value pair: {{.args}}", map[string]interface{}{"args":args[i:]}))
+        } else if args[i] == "-a" || args[i] == "--annotation"{
+            annotArgs, args, whiskErr = getKeyValueArgs(args, i, annotArgs)
+            if whiskErr != nil {
+                whisk.Debug(whisk.DbgError, "getKeyValueArgs(%#v, %d) failed: %s\n", args, i, whiskErr)
+                errMsg := wski18n.T("The annotation arguments are invalid: {{.err}}",
+                    map[string]interface{}{"err": whiskErr})
                 whiskErr = whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG,
                     whisk.DISPLAY_USAGE)
                 return nil, nil, nil, whiskErr
@@ -146,9 +138,9 @@ func parseArgs(args []string) ([]string, []string, []string, error) {
         }
     }
 
-    whisk.Debug(whisk.DbgInfo, "Found param args %s.\n", paramArgs)
-    whisk.Debug(whisk.DbgInfo, "Found annotations args %s.\n", annotArgs)
-    whisk.Debug(whisk.DbgInfo, "Arguments with param args removed %s.\n", args)
+    whisk.Debug(whisk.DbgInfo, "Found param args '%s'.\n", paramArgs)
+    whisk.Debug(whisk.DbgInfo, "Found annotations args '%s'.\n", annotArgs)
+    whisk.Debug(whisk.DbgInfo, "Arguments with param args removed '%s'.\n", args)
 
     return args, paramArgs, annotArgs, nil
 }

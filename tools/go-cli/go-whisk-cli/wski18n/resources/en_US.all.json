@@ -1062,5 +1062,17 @@
   {
     "id": "start polling for activations `DAYS` days ago",
     "translation": "start polling for activations `DAYS` days ago"
+  },
+  {
+    "id": "Arguments for '{{.arg}}' must be a key/value pair",
+    "translation": "Arguments for '{{.arg}}' must be a key/value pair"
+  },
+  {
+    "id": "The parameter arguments are invalid: {{.err}}",
+    "translation": "The parameter arguments are invalid: {{.err}}"
+  },
+  {
+    "id": "The annotation arguments are invalid: {{.err}}",
+    "translation": "The annotation arguments are invalid: {{.err}}"
   }
 ]
