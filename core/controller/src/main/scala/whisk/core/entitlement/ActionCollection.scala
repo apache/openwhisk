@@ -53,6 +53,7 @@ protected[core] class ActionCollection(entityStore: EntityStore) extends Collect
         } getOrElse {
             // this means there is no entity, it shouldn't get here
             // in any case, defer to super class
+            // TODO: reject this (test with POST on /actions & /actions/ /actions/package
             info(this, "Entity is none, deferring to implicit rights")
             super.implicitRights(namespaces, right, resource)
         }
@@ -66,11 +67,12 @@ protected[core] class ActionCollection(entityStore: EntityStore) extends Collect
         if (namespace.isDefaultPackage) { // default package, resolved already
             // check rights for the action as a resource
             info(this, "Checking right $right for an action in default package")
-            checkResolvedActionRights(namespaces, right, namespace, action)
+            checkResolvedActionRights(namespaces, right, namespace, action, true) // true for default package
         } else {
             // NOTE: checking rights for a package resolves the package fully; this is repeated for resolving the action below
             // package exists, check read rights for package as a resource
             info(this, s"Checking right $right for a package $namespace")
+            // NOTE: move this in Actions API
             val packageResource = Resource(namespace.root, Collection(Collection.PACKAGES), Some(namespace.last.name))
             // irrespective of right, one needs READ right on the package
             val packageRight = packageResource.collection.implicitRights(namespaces, Privilege.READ, packageResource)
@@ -102,6 +104,7 @@ protected[core] class ActionCollection(entityStore: EntityStore) extends Collect
                 val binding = wp.binding.get
                 // use the binding instead, including the package name (use whole binding, not only namespace)
                 // resolve the binding (for recursive binding)
+                // the binding contains the name of the package
                 getResolvedNamespace(Namespace(binding.toString))
         }
     }
@@ -109,7 +112,7 @@ protected[core] class ActionCollection(entityStore: EntityStore) extends Collect
     /**
      * checks the rights for an action given its fully resolved package binding
      */
-    private def checkResolvedActionRights(namespaces: Set[String], right: Privilege, namespace: Namespace, action: EntityName)(
+    private def checkResolvedActionRights(namespaces: Set[String], right: Privilege, namespace: Namespace, action: EntityName, defaultPackage :Boolean = false)(
             implicit ec: ExecutionContext, transid: TransactionId): Future[Boolean] = {
         // need to check whether the action is a simple action or a sequence
         // retrieve info on action
@@ -131,12 +134,17 @@ protected[core] class ActionCollection(entityStore: EntityStore) extends Collect
                     case _ => // this is not a sequence, defer to super
                             info(this, s"Check right $right for a simple action $namespace $action $actionResource")
                             info(this, s"wskaction $wskaction")
-                            //super.implicitRights(namespaces, right, actionResource)
-                            // this is a simple action for which all the intermediate package bindings (if any) were checked for READ rights
-                            // grant permission ---- TODO: double-check with RR
-                            Future successful { true }
+                            if (defaultPackage) {
+                                super.implicitRights(namespaces, right, actionResource)
+                            } else {
+                                // I already checked the package READ rights, I'm entinteled to do whatever I want with the action
+                                // this is a simple action for which all the intermediate package bindings (if any) were checked for READ rights
+                                // grant permission ---- TODO: double-check with RR
+                                Future.successful(true)
+                            }
                 }
             case Failure(_) =>
+                // NOTE: need to reject here ===> REJECT! (Document not found)
                 info(this, s"Action not found, calling implicit rights")
                 super.implicitRights(namespaces, right, actionResource)
             }

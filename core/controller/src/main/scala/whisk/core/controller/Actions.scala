@@ -575,8 +575,9 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
             implicit transid: TransactionId): Future[(ActivationId, Option[WhiskActivation])] = {
         val promise = Promise[(ActivationId, Option[WhiskActivation])]
         info(this, s"Invoking sequence for action ${action.name}")
+        // TODO: refactor this to not use a promise, just return the Future
         invokeSequenceComponents(promise, action, user, env, payload, components)
-        return promise.future
+        promise.future
     }
 
     /**
@@ -638,6 +639,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         }
     }
 
+    // TODO: fix this === use inherit and just return Future[WhiskAction]
     private def resolveComponent(component: String)(
                 implicit transid: TransactionId) : Future[(WhiskAction, Parameters)]= {
         // component is a fully qualified name; split it into the namespace and action name
@@ -651,8 +653,8 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         if (namespace.isDefaultPackage) {
             // default package, fully qualified action, get it, and no merged parameters
             val actionDoc = DocInfo(component)
-            WhiskAction.get(entityStore, actionDoc) map {
-                (_, Parameters())
+            WhiskAction.get(entityStore, actionDoc) map { action =>
+                (action, action.parameters)
             }
         } else {
             // it has a package, solve it
@@ -664,8 +666,8 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                     // return the fully resolved action (namespace + package) and parameters
                     val actionId = DocId(WhiskEntity.qualifiedName(wp.namespace.addpath(wp.name), EntityName(actionName)))
                     val actionFuture = WhiskAction.get(entityStore, actionId.asDocInfo)
-                    actionFuture map {
-                        (_, params)
+                    actionFuture map { action =>
+                        (action, params ++ action.parameters)
                     }
             }
         }
@@ -709,17 +711,21 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         // create new activation id that corresponds to the sequence
         val seqActivationId = ActivationId()
         // TODO: shall I replace (start, end) with (start-of-first-activation, end-of-last-activation)?
+        // NOTE: make start and end 0 for a sequence
         val start = Instant.now(Clock.systemUTC())
         // first retrieve the information/entities on all actions
         // do not wait to successfully retrieve all the actions before starting the execution
         // start execution of the first action while potentially still retrieving entities
         // Note: the execution starts even if one of the futures retrieving an entity may fail
-        // first components need to be resolved given any package bindings and the parms need to be merged
+        // first components need to be resolved given any package bindings and the params need to be merged
         val resolvedFutureActions = components map { resolveComponent(_) }
         // "fold" the wskActions to execute them in blocking fashion
         // the params are the payload/params and the list of the previous activation ids
-        val init = Future successful {(payload, Seq.empty[Option[ActivationId]])}
+        // TODO get rid of the sequence
+        val init = Future successful {(payload, Seq.empty[Option[ActivationId]])}  // None
         // use scanLeft instead of foldLeft as we need the intermediate results in case of failure
+        // envParams are the parameters for the package that the sequence is in === TODO: throw them away
+        //val envParams = env getOrElse Parameters()
         val seqRes = resolvedFutureActions.scanLeft(init) {
             (futurePair, futureWskActionPair)  =>
                   for(
@@ -727,11 +733,10 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                       pair <- futurePair;
                       (params, seq0) = pair;
                       activationId = if (seq0.isEmpty) None else seq0.last;
-                      envParams = env getOrElse Parameters();
-                      mergedEnv = mergedParameters ++ envParams;
-                      result <- invokeOneComponent(wskAction, user, Some(mergedEnv), params, activationId);
+                      // note envParams are coming from the Sequence and they are thrown away; only mergedParameters are sent to the action
+                      result <- invokeOneComponent(wskAction, user, Some(mergedParameters), params, activationId);
                       seq = seq0 :+ result._1
-                  ) yield (result._2, seq)
+                  ) yield (result._2, seq)  // yield result
         }
         // check all futures were successful
         val futureRes = Future.sequence(seqRes)
@@ -746,9 +751,8 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                 val activation = pair._1
                 futureDoc onComplete {
                     case Success(_) => promise.success((seqActivationId, Some(activation)))
-                    case Failure(_) => promise.failure(new RuntimeException("Sequence error: storing activation failed"))
+                    case Failure(t) => promise.failure(t)
                 }
-
             case Failure(SequenceIntermediateActionError(component)) =>
                 val component = storeIntermediateResults(user, seqAction, components, seqActivationId, seqRes, start) getOrElse seqAction.name.name
                 info(this, s"The execution of a sequence failed with an error for action $component")
