@@ -64,12 +64,13 @@ type SentActionNoPublish struct {
 }
 
 type Exec struct {
-    Kind  string `json:"kind,omitempty"`
-    Code  string `json:"code"`
-    Image string `json:"image,omitempty"`
-    Init  string `json:"init,omitempty"`
-    Jar   string `json:"jar,omitempty"`
-    Main  string `json:"main,omitempty"`
+    Kind        string      `json:"kind,omitempty"`
+    Code        string      `json:"code"`
+    Image       string      `json:"image,omitempty"`
+    Init        string      `json:"init,omitempty"`
+    Jar         string      `json:"jar,omitempty"`
+    Main        string      `json:"main,omitempty"`
+    Components  []string    `json:"components,omitempty"`    // List of fully qualified actions
 }
 
 type ActionListOptions struct {

@@ -528,53 +528,9 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
     client.Namespace = qName.namespace
     action.Exec = existingAction.Exec
   } else if flags.action.sequence {
-    currentNamespace := client.Config.Namespace
-    client.Config.Namespace = "whisk.system"
-
-    pipeAction, _, err := client.Actions.Get("system/pipe")
-    if err != nil {
-      whisk.Debug(whisk.DbgError, "client.Actions.Get(%s) error: %s\n", "system/pipe", err)
-      errMsg := fmt.Sprintf("Unable to obtain the '%s' action needed for action sequencing: %s", "system/pipe", err)
-      whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-      return nil, sharedSet, whiskErr
-    }
-
-    if len(artifact) > 0 {
-      actionList := "[{\"key\": \"_actions\", \"value\": ["
-      actions := strings.Split(artifact, ",")
-
-      for i := 0; i < len(actions); i++ {
-        actionQName := qualifiedName{}
-        actionQName, err = parseQualifiedName(actions[i])
-        if err != nil {
-          whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", actions[i], err)
-          errMsg := fmt.Sprintf("'%s' is not a valid qualified name: %s", actions[i], err)
-          whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-            whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-          return nil, sharedSet, whiskErr
-        }
-
-        actionList = actionList + "\"/" + actionQName.namespace + "/" + actionQName.entityName + "\""
-        if i < len(actions)-1 {
-          actionList = actionList + ", "
-        }
-      }
-
-      actionList = actionList + "]}]"
-      data := []byte(actionList)
-      action.Parameters = (*json.RawMessage)(&data)
-    } else {
-      whisk.Debug(whisk.DbgError, "--sequence specified, but no sequence of actions was provided\n")
-      errMsg := fmt.Sprintf("Comma separated action sequence is missing")
-      whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-      return nil, sharedSet, whiskErr
-    }
-
-    action.Exec = pipeAction.Exec
-    client.Config.Namespace = currentNamespace
-
+    action.Exec = new(whisk.Exec)
+    action.Exec.Kind = "sequence"
+    action.Exec.Components = csvToQualifiedActions(artifact)
   } else if artifact != "" {
     ext := filepath.Ext(artifact)
 
@@ -597,10 +553,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
       return nil, sharedSet, whiskErr
     }
 
-    if action.Exec == nil {
-      action.Exec = new(whisk.Exec)
-    }
-
+    action.Exec = new(whisk.Exec)
     action.Exec.Code = string(file)
 
     if flags.action.kind == "swift:3" || flags.action.kind == "swift:3.0" || flags.action.kind == "swift:3.0.0" {

@@ -53,22 +53,19 @@ func (qName qualifiedName) String() string {
     return strings.Join(output, "")
 }
 
-//
-// Parse a (possibly fully qualified) resource name into
-// namespace and name components. If the given qualified
-// name isNone, then this is a default qualified name
-// and it is resolved from properties. If the namespace
-// is missing from the qualified name, the namespace is also
-// resolved from the property file.
-//
-// Return a qualifiedName struct
-//
-// Examples:
-//      foo => qName {namespace: "_", entityName: foo}
-//      pkg/foo => qName {namespace: "_", entityName: pkg/foo}
-//      /ns/foo => qName {namespace: ns, entityName: foo}
-//      /ns/pkg/foo => qName {namespace: ns, entityName: pkg/foo}
-//
+/*
+Parse a (possibly fully qualified) resource name into namespace and name components. If the given qualified name isNone,
+then this is a default qualified name and it is resolved from properties. If the namespace is missing from the qualified
+name, the namespace is also resolved from the property file.
+
+Return a qualifiedName struct
+
+Examples:
+      foo => qName {namespace: "_", entityName: foo}
+      pkg/foo => qName {namespace: "_", entityName: pkg/foo}
+      /ns/foo => qName {namespace: ns, entityName: foo}
+      /ns/pkg/foo => qName {namespace: ns, entityName: pkg/foo}
+*/
 func parseQualifiedName(name string) (qName qualifiedName, err error) {
 
     // If name has a preceding delimiter (/), it contains a namespace. Otherwise the name does not specify a namespace,
@@ -92,10 +89,43 @@ func parseQualifiedName(name string) (qName qualifiedName, err error) {
         }
     }
 
-    whisk.Debug(whisk.DbgInfo, "Package entityName: %s\n", qName.entityName)
-    whisk.Debug(whisk.DbgInfo, "Package namespace: %s\n", qName.namespace)
+    whisk.Debug(whisk.DbgInfo, "Qualified entityName: %s\n", qName.entityName)
+    whisk.Debug(whisk.DbgInfo, "Qaulified namespace: %s\n", qName.namespace)
 
     return qName, err
+}
+
+/*
+Return a fully qualified name given a (possibly fully qualified) resource name and optional namespace.
+
+Examples:
+      (foo, None) => /_/foo
+      (pkg/foo, None) => /_/pkg/foo
+      (foo, ns) => /ns/foo
+      (/ns/pkg/foo, None) => /ns/pkg/foo
+      (/ns/pkg/foo, otherns) => /ns/pkg/foo
+*/
+func getQualifiedName(name string, namespace string) (qualifiedName string) {
+    if len(name) > 0 && name[0] == '/' {
+        return name
+    } else if len(namespace) > 0 && namespace[0] == '/' {
+        return fmt.Sprintf("%s/%s", namespace, name)
+    } else {
+        if len(namespace) == 0 {
+            namespace = Properties.Namespace
+        }
+        return fmt.Sprintf("/%s/%s", namespace, name)
+    }
+}
+
+func csvToQualifiedActions(artifacts string) ([]string) {
+    var res []string
+    actions := strings.Split(artifacts, ",")
+    for i := 0; i < len(actions); i++ {
+        res = append(res, getQualifiedName(actions[i], Properties.Namespace))
+    }
+
+    return res
 }
 
 func isValidJSON(data string) (isValid bool, err error) {
