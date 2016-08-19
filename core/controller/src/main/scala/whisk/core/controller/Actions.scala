@@ -78,6 +78,7 @@ import whisk.http.ErrorResponse.terminate
 import whisk.common.PrintStreamEmitter
 import org.apache.kafka.common.errors.RecordTooLargeException
 import whisk.utils.ExecutionContextFactory.FutureExtensions
+import scala.concurrent.duration.FiniteDuration
 
 /**
  * A singleton object which defines the properties that must be present in a configuration
@@ -434,53 +435,57 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
             implicit transid: TransactionId): Future[(ActivationId, Option[WhiskActivation])] = {
         // merge package parameters with action (action parameters supersede), then merge in payload
         val args = { env map { _ ++ action.parameters } getOrElse action.parameters } merge payload
-        val message = Message(transid, s"/actions/invoke/${action.namespace}/${action.name}/${action.rev}", user, ActivationId(), args)
 
+        val duration = action.limits.timeout()
+        val (activationId, blockingCallback) = if (blocking) {
+            val timeout = duration + blockingInvokeGrace
+            info(this, s"[POST] action activation will block on result up to $timeout ($duration + $blockingInvokeGrace grace)")
+            // Create the active ack listener eaerly to avoid a race between establishing the listener and the invoker
+            // actually sending an active ack for this action. This prevents an active ack response for the activation
+            // being dropped because the listener is not yet active (this can happen if the response is faster coming back
+            // to the controller than the future callbacks getting a chance to run) and forcing the db polling fall back to kick in.
+            val (aid, callback) = waitForActivationResponse(user.namespace, ActivationId(), timeout)
+            (aid, Some(callback))
+        } else (ActivationId(), None)
+
+        val message = Message(transid, s"/actions/invoke/${action.namespace}/${action.name}/${action.rev}", user, activationId, args)
         info(this, s"[POST] action activation id: ${message.activationId}")
-        performLoadBalancerRequest(INVOKER, message, transid) map {
-            (action.limits.timeout(), _)
-        } flatMap {
-            case (duration, response) =>
-                response.id match {
-                    case Some(activationId) =>
-                        Future successful (duration, activationId)
-                    case None =>
-                        if (response.error.getOrElse("??").equals("too many concurrent activations")) {
-                            // DoS throttle
-                            warn(this, s"[POST] action activation rejected: ${response.error.getOrElse("??")}")
-                            Future failed new TooManyActivationException("too many concurrent activations")
-                        } else {
-                            error(this, s"[POST] action activation failed: ${response.error.getOrElse("??")}")
-                            Future failed new IllegalStateException(s"activation failed with error: ${response.error.getOrElse("??")}")
-                        }
-                }
-        } flatMap {
-            case (duration, activationId) =>
-                if (blocking) {
-                    val docid = DocId(WhiskEntity.qualifiedName(user.namespace, activationId))
-                    val timeout = duration + blockingInvokeGrace
-                    val promise = Promise[Option[WhiskActivation]]
-                    info(this, s"[POST] action activation will block on result up to $timeout ($duration + $blockingInvokeGrace grace)")
-                    pollLocalForResult(docid.asDocInfo, activationId, promise)
-                    val response = promise.future map {
-                        (activationId, _)
-                    } withTimeout (timeout, new BlockingInvokeTimeout(activationId))
-                    response onComplete {
-                        case Success(_) =>
-                            // Duration of the blocking activation in Controller.
-                            // We use the start time of the tid instead of a startMarker to avoid passing the start marker around.
-                            transid.finished(this, StartMarker(transid.meta.start, LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING))
-                        case Failure(t) =>
-                            // short circuits polling on result
-                            promise.tryFailure(t)
+
+        performLoadBalancerRequest(INVOKER, message, transid) flatMap { response =>
+            response.id match {
+                case Some(activationId) =>
+                    Future successful activationId
+                case None =>
+                    if (response.error.getOrElse("??").equals("too many concurrent activations")) {
+                        // DoS throttle
+                        warn(this, s"[POST] action activation rejected: ${response.error.getOrElse("??")}")
+                        Future failed new TooManyActivationException("too many concurrent activations")
+                    } else {
+                        error(this, s"[POST] action activation failed: ${response.error.getOrElse("??")}")
+                        Future failed new IllegalStateException(s"activation failed with error: ${response.error.getOrElse("??")}")
                     }
-                    response // will either complete with activation or fail with timeout
-                } else Future {
-                    // Duration of the non-blocking activation in Controller.
-                    // We use the start time of the tid instead of a startMarker to avoid passing the start marker around.
-                    transid.finished(this, StartMarker(transid.meta.start, LoggingMarkers.CONTROLLER_ACTIVATION))
-                    (activationId, None)
+            }
+        } flatMap { activationId =>
+            blockingCallback match {
+                case Some(callback) => {
+                    // Blocking invocation
+                    callback map { activation =>
+                        // Duration of the blocking activation in Controller.
+                        // We use the start time of the tid instead of a startMarker to avoid passing the start marker around.
+                        transid.finished(this, StartMarker(transid.meta.start, LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING))
+                        (activationId, Some(activation))
+                    } // will either complete with activation or fail with timeout
                 }
+                case None => {
+                    // Non-blocking invocation
+                    Future {
+                        // Duration of the non-blocking activation in Controller.
+                        // We use the start time of the tid instead of a startMarker to avoid passing the start marker around.
+                        transid.finished(this, StartMarker(transid.meta.start, LoggingMarkers.CONTROLLER_ACTIVATION))
+                        (activationId, None)
+                    }
+                }
+            }
         }
     }
 
@@ -490,21 +495,35 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      * If this mechanism fails to produce an answer quickly, the future will fail and we back off into using
      * a database operation to obtain the canonical answer.
      */
-    private def pollLocalForResult(
-        docid: DocInfo,
+    private def waitForActivationResponse(
+        namespace: Namespace,
         activationId: ActivationId,
-        promise: Promise[Option[WhiskActivation]])(
-            implicit transid: TransactionId): Unit = {
-        queryActivationResponse(activationId, transid) map {
-            activation => promise.trySuccess { Some(activation) }
-        } onFailure {
+        timeout: FiniteDuration)(
+            implicit transid: TransactionId): (ActivationId, Future[WhiskActivation]) = {
+
+        val (activationIdToSearch, activeCallback) = queryActivationResponse(activationId, transid)
+
+        val promise = Promise[WhiskActivation]
+        activeCallback map { activation =>
+            // Callback successful
+            promise.trySuccess { activation }
+            activation.activationId
+        } recover {
+            // Callback not successful => manual polling from DB
             case t: TimeoutException =>
                 info(this, s"[POST] switching to poll db, active ack expired")
-                pollDbForResult(docid, activationId, promise)
+                val docid = DocId(WhiskEntity.qualifiedName(namespace, activationIdToSearch)).asDocInfo
+                pollDbForResult(docid, activationIdToSearch, promise)
             case t: Throwable =>
                 error(this, s"[POST] switching to poll db, active ack exception: ${t.getMessage}")
-                pollDbForResult(docid, activationId, promise)
+                val docid = DocId(WhiskEntity.qualifiedName(namespace, activationIdToSearch)).asDocInfo
+                pollDbForResult(docid, activationIdToSearch, promise)
         }
+
+        // Abort waiting/polling for activationresult after timeout
+        val response = promise.future.withTimeout(timeout, new BlockingInvokeTimeout(activationId))
+
+        (activationIdToSearch, response)
     }
 
     /**
@@ -516,11 +535,11 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
     private def pollDbForResult(
         docid: DocInfo,
         activationId: ActivationId,
-        promise: Promise[Option[WhiskActivation]])(
+        promise: Promise[WhiskActivation])(
             implicit transid: TransactionId): Unit = {
         if (!promise.isCompleted) {
             WhiskActivation.get(activationStore, docid) map {
-                activation => promise.trySuccess { Some(activation) } // activation may have logs, do not strip them
+                activation => promise.trySuccess { activation } // activation may have logs, do not strip them
             } onFailure {
                 case e: NoDocumentException =>
                     Thread.sleep(500)

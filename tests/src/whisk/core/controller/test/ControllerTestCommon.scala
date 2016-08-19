@@ -82,12 +82,17 @@ protected trait ControllerTestCommon
     val authStore = WhiskAuthStore.datastore(whiskConfig)
     val entitlementService: EntitlementService = new LocalEntitlementService(whiskConfig)
 
-    val activationId = ActivationId() // need a static activation id to test activations api
     val performLoadBalancerRequest = (lbr: WhiskServices.LoadBalancerReq) => Future {
-        LoadBalancerResponse.id(activationId)
+        LoadBalancerResponse.id(lbr._2.activationId)
     }
-    val queryActivationResponse = (activationId: ActivationId, transid: TransactionId) => Future.failed {
-        new IllegalArgumentException("Unit test does not need fast path")
+    /**
+     * Activation Id to wait for activation of blocking invoke.
+     * Has to be set to <code>None</code> after the test to avoid duplicate usage.
+     */
+    var activationIdForBlockingRequests: Option[ActivationId] = None
+    def activationId = activationIdForBlockingRequests.getOrElse(ActivationId()) // need a static activation id to test activations api
+    val queryActivationResponse = (wrongActivationId: ActivationId, transid: TransactionId) => {
+        (activationId, Future.failed(new Exception))
     }
     val consulServer = "???"
 

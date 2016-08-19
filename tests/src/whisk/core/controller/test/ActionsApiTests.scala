@@ -595,44 +595,74 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     }
 
     it should "invoke an action, blocking with timeout" in {
-        implicit val tid = transid()
-        val action = WhiskAction(namespace, aname, Exec.js("??"), limits = ActionLimits(TimeLimit(1 second), MemoryLimit(), LogLimit()))
-        put(entityStore, action)
-        Post(s"$collectionPath/${action.name}?blocking=true") ~> sealRoute(routes(creds)) ~> check {
-            status should be(Accepted)
-            val response = responseAs[JsObject]
-            response.fields("activationId") should not be None
+        val stream = new ByteArrayOutputStream
+        val printstream = new PrintStream(stream)
+        val savedstream = this.outputStream
+        this.outputStream = printstream
+
+        try {
+            implicit val tid = transid()
+            val action = WhiskAction(namespace, aname, Exec.js("??"), limits = ActionLimits(TimeLimit(1 second), MemoryLimit(), LogLimit()))
+            put(entityStore, action)
+            Post(s"$collectionPath/${action.name}?blocking=true") ~> sealRoute(routes(creds)) ~> check {
+                status should be(Accepted)
+                val response = responseAs[JsObject]
+                response.fields("activationId") should not be None
+
+                // Check that Controller stops polling for result after timeout
+                stream.toString should include("action activation waiting period expired")
+            }
+        } finally {
+            this.outputStream = savedstream
+            stream.close()
+            printstream.close()
         }
     }
 
     it should "invoke an action, blocking" in {
-        implicit val tid = transid()
-        val action = WhiskAction(namespace, aname, Exec.js("??"))
-        val activation = WhiskActivation(action.namespace, action.name, creds.subject, activationId,
-            start = Instant.now,
-            end = Instant.now,
-            response = ActivationResponse.success(Some(JsObject("test" -> "yes".toJson))))
-        put(entityStore, action)
-        put(activationStore, activation)
-        Post(s"$collectionPath/${action.name}?blocking=true") ~> sealRoute(routes(creds)) ~> check {
-            status should be(OK)
-            val response = responseAs[JsObject]
-            response should be(activation.toExtendedJson)
-        }
+        val stream = new ByteArrayOutputStream
+        val printstream = new PrintStream(stream)
+        val savedstream = this.outputStream
+        this.outputStream = printstream
 
-        // repeat invoke, get only result back
-        Post(s"$collectionPath/${action.name}?blocking=true&result=true") ~> sealRoute(routes(creds)) ~> check {
-            status should be(OK)
-            val response = responseAs[JsObject]
-            response should be(activation.resultAsJson)
-        }
+        try {
+            implicit val tid = transid()
+            val action = WhiskAction(namespace, aname, Exec.js("??"))
+            activationIdForBlockingRequests = Some(activationId)
+            val activation = WhiskActivation(action.namespace, action.name, creds.subject, activationId,
+                start = Instant.now,
+                end = Instant.now,
+                response = ActivationResponse.success(Some(JsObject("test" -> "yes".toJson))))
+            put(entityStore, action)
+            put(activationStore, activation)
+            Post(s"$collectionPath/${action.name}?blocking=true") ~> sealRoute(routes(creds)) ~> check {
+                status should be(OK)
+                val response = responseAs[JsObject]
+                response should be(activation.toExtendedJson)
+            }
 
-        deleteActivation(activation.docid)
+            // repeat invoke, get only result back
+            Post(s"$collectionPath/${action.name}?blocking=true&result=true") ~> sealRoute(routes(creds)) ~> check {
+                status should be(OK)
+                val response = responseAs[JsObject]
+                response should be(activation.resultAsJson)
+            }
+            deleteActivation(activation.docid)
+
+            // Check if the fallback for manual polling works
+            stream.toString should include("switching to poll db, active ack")
+        } finally {
+            activationIdForBlockingRequests = None
+            this.outputStream = savedstream
+            stream.close()
+            printstream.close()
+        }
     }
 
     it should "invoke a blocking action and return error response when activation fails" in {
         implicit val tid = transid()
         val action = WhiskAction(namespace, aname, Exec.js("??"))
+        activationIdForBlockingRequests = Some(activationId)
         val activation = WhiskActivation(action.namespace, action.name, creds.subject, activationId,
             start = Instant.now,
             end = Instant.now,
@@ -645,6 +675,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             response should be(activation.toExtendedJson)
         }
 
+        activationIdForBlockingRequests = None
         deleteActivation(activation.docid)
     }
 }
