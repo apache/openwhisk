@@ -31,8 +31,6 @@ import scala.concurrent.Future
  * @param kv instance of the ConsulClient to use
  * @param initialDelay time to wait before starting the reporting initially
  * @param interval time between two reports being send
- * @param hostKey the key for the host adress of the component
- * @param startKey the key for the startup timestamp of the component
  * @param statusKey the key for the freshness timestamp of the component
  * @param updater the function to call to update arbitrary values in consul
  */
@@ -40,8 +38,6 @@ class ConsulKVReporter(
     consul: ConsulClient,
     initialDelay: FiniteDuration,
     interval: FiniteDuration,
-    hostKey: String,
-    startKey: String,
     statusKey: String,
     updater: Int => Map[String, JsValue])(
         implicit val system: ActorSystem) {
@@ -50,10 +46,6 @@ class ConsulKVReporter(
     private var count = 0
 
     system.scheduler.scheduleOnce(initialDelay) {
-        val (selfHostname, _, _) = SimpleExec.syncRunCmd(Array("hostname", "-f"))(TransactionId.unknown)
-        consul.kv.put(hostKey, selfHostname.toJson.compactPrint)
-        consul.kv.put(startKey, DateUtil.getTimeString.toJson.compactPrint)
-
         Scheduler.scheduleWaitAtLeast(interval) { () =>
             val statusPut = consul.kv.put(statusKey, DateUtil.getTimeString.toJson.compactPrint)
             val updatePuts = updater(count) map {

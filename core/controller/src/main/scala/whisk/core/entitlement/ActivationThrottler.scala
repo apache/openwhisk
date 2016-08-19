@@ -37,7 +37,7 @@ import whisk.core.entity.Subject
  *
  * @param config containing the config information needed (consulServer)
  */
-class ActivationThrottler(consulServer: String, concurrencyLimit: Int)(
+class ActivationThrottler(consulServer: String, concurrencyLimit: Int, overloadLimit: Int)(
     implicit val system: ActorSystem) extends Logging {
 
     implicit private val executionContext = system.dispatcher
@@ -56,6 +56,11 @@ class ActivationThrottler(consulServer: String, concurrencyLimit: Int)(
      * Checks whether the operation should be allowed to proceed.
      */
     def check(subject: Subject): Boolean = userActivationCounter.getOrElse(subject(), 0L) < concurrencyLimit
+
+    /**
+     * Checks whether the system is overloaded
+     */
+    def isOverloaded: Boolean = userActivationCounter.values.sum > overloadLimit
 
     /**
      * Returns the per-namespace activation count as seen by the loadbalancer

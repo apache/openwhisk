@@ -27,8 +27,6 @@ import scala.util.Failure
 import scala.util.Success
 
 import akka.actor.ActorSystem
-import spray.json.JsBoolean
-import spray.json.JsObject
 import whisk.common.ConsulClient
 import whisk.common.ConsulKV.LoadBalancerKeys
 import whisk.common.ConsulKVReporter
@@ -56,13 +54,14 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
     /**
      * The two public methods are getInvokerHealth and the inherited doPublish methods.
      */
-    def getInvokerHealth(): JsObject = invokerHealth.getInvokerHealthJson()
+    def getInvokerHealth() = invokerHealth.getInvokerHealthJson()
 
     override def getInvoker(message: ActivationMessage): Option[Int] = invokerHealth.getInvoker(message)
 
     override val producer = new KafkaProducerConnector(config.kafkaHost, executionContext)
+    private val consul = new ConsulClient(config.consulServer)
 
-    private val invokerHealth = new InvokerHealth(config, resetIssueCountByInvoker, () => producer.sentCount())
+    private val invokerHealth = new InvokerHealth(consul)
 
     // map stores the promise which either completes if an active response is received or
     // after the set timeout expires
@@ -72,30 +71,10 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
     setVerbosity(verbosity)
 
     private val overloadThreshold = 5000 // this is the total across all invokers.  Disable by setting to -1.
-    private val kv = new ConsulClient(config.consulServer)
-    private val reporter = new ConsulKVReporter(kv, 3 seconds, 2 seconds,
-        LoadBalancerKeys.hostnameKey,
-        LoadBalancerKeys.startKey,
+    private val reporter = new ConsulKVReporter(consul, 3 seconds, 2 seconds,
         LoadBalancerKeys.statusKey,
-        { count =>
-            val issuedCounts = getIssueCountByInvoker()
-            val issuedCount = issuedCounts.foldLeft(0)(_ + _._2)
-            val health = invokerHealth.getInvokerHealth()
-            val invokerCounts = invokerHealth.getInvokerActivationCounts()
-            val completedCounts = invokerCounts map { indexCount => indexCount._2 }
-            val completedCount = completedCounts.foldLeft(0)(_ + _)
-            val inFlight = issuedCount - completedCount
-            val overload = JsBoolean(overloadThreshold > 0 && inFlight >= overloadThreshold)
-            if (count % 10 == 0) {
-                warn(this, s"In flight: $issuedCount - $completedCount = $inFlight $overload")
-                info(this, s"Issued counts: [${issuedCounts.mkString(", ")}]")
-                info(this, s"Completion counts: [${invokerCounts.mkString(", ")}]")
-                info(this, s"Invoker health: [${health.mkString(", ")}]")
-            }
-            Map(LoadBalancerKeys.overloadKey -> overload,
-                LoadBalancerKeys.invokerHealth -> getInvokerHealth()) ++
-                getUserActivationCounts()
-        })
+        { _ => getUserActivationCounts() }
+    )
 
     /**
      * Tries to fill in the result slot (i.e., complete the promise) when a completion message arrives.
@@ -148,9 +127,7 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
 }
 
 object LoadBalancerService {
-    def requiredProperties = kafkaHost ++
-        consulServer ++
-        InvokerHealth.requiredProperties
+    def requiredProperties = kafkaHost ++ consulServer
 }
 
 private case class ActiveAckTimeout(activationId: ActivationId) extends TimeoutException

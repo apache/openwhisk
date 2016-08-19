@@ -35,7 +35,6 @@ import akka.actor.ActorSystem
 import akka.actor.actorRef2Scala
 import akka.japi.Creator
 import spray.json.DefaultJsonProtocol
-import spray.json.DefaultJsonProtocol.IntJsonFormat
 import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json.JsArray
 import spray.json.JsNumber
@@ -537,13 +536,9 @@ class Invoker(
      */
     private val kv = new ConsulClient(config.consulServer)
     private val reporter = new ConsulKVReporter(kv, 3 seconds, 2 seconds,
-        InvokerKeys.hostname(instance),
-        InvokerKeys.start(instance),
         InvokerKeys.status(instance),
-        { index =>
-            (if (index % 5 == 0) getUserActivationCounts() else Map[String, JsValue]()) ++
-                Map(InvokerKeys.activationCount(instance) -> activationCounter.cur.toJson)
-        })
+        { index => (if (index % 5 == 0) getUserActivationCounts() else Map.empty[String, JsValue]) }
+    )
 
     // This is used for the getContainer endpoint used in perfContainer testing it is not real state
     private val activationIdMap = new TrieMap[ActivationId, String]

@@ -17,45 +17,29 @@
 package whisk.core.loadBalancer
 
 import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.atomic.AtomicReference
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration.DurationInt
-import scala.language.postfixOps
 
 import akka.actor.ActorSystem
 import akka.event.Logging.InfoLevel
-import spray.json.DefaultJsonProtocol.IntJsonFormat
-import spray.json.DefaultJsonProtocol.StringJsonFormat
-import spray.json.JsObject
-import spray.json.JsString
-import spray.json.pimpAny
-import spray.json.pimpString
+import spray.json._
+import spray.json.DefaultJsonProtocol._
 import whisk.common.ConsulClient
 import whisk.common.ConsulKV.InvokerKeys
-import whisk.common.ConsulKV.LoadBalancerKeys
-import whisk.common.ConsulKVReporter
 import whisk.common.DateUtil
 import whisk.common.Logging
-import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig.consulServer
-import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.common.Scheduler
-
-object InvokerHealth {
-    val requiredProperties = consulServer
-}
+import whisk.core.connector.{ ActivationMessage => Message }
+import whisk.core.entity.Subject
 
 /**
  * Monitors the health of the invokers. The number of invokers is dynamic, and preferably a power of 2.
  *
  * We are starting to put real load-balancer logic in here too.  Should probably be moved out at some point.
  */
-class InvokerHealth(
-    config: WhiskConfig,
-    instanceChange: Array[Int] => Unit,
-    getKafkaPostCount: () => Int)(
-        implicit val system: ActorSystem) extends Logging {
+class InvokerHealth(consul: ConsulClient)(
+    implicit val system: ActorSystem) extends Logging {
 
     private implicit val executionContext = system.dispatcher
 
@@ -65,7 +49,7 @@ class InvokerHealth(
 
     def getInvoker(msg: Message): Option[Int] = {
         val (hash, count) = hashAndCountSubjectAction(msg)
-        val numInv = numInvokers // dynamic
+        val numInv = invokers.length
         if (numInv > 0) {
             val globalCount = msgCount.getAndIncrement()
             val hashCount = math.abs(hash + count / activationCountBeforeNextInvoker)
@@ -82,9 +66,9 @@ class InvokerHealth(
      * these are moved to some common place (like a subclass of Message?)
      */
     def hashAndCountSubjectAction(msg: Message): (Int, Int) = {
-        val subject = msg.subject().toString()
+        val subject = msg.subject
         val path = msg.path
-        val hash = subject.hashCode() ^ path.hashCode()
+        val hash = subject().hashCode() ^ path.hashCode()
         val key = (subject, path)
         val count = activationCountMap.get(key) match {
             case Some(counter) => counter.getAndIncrement()
@@ -97,44 +81,20 @@ class InvokerHealth(
         return (hash, count)
     }
 
-    def getInvokerIndices(): Array[Int] = {
-        curStatus.get() map { _.index }
-    }
-
-    def getInvokerActivationCounts(): Array[(Int, Int)] = {
-        curStatus.get() map { status => (status.index, status.activationCount) }
-    }
-
-    private def getHealth(statuses: Array[Status]): Array[(Int, Boolean)] = {
-        statuses map { status => (status.index, status.status) }
-    }
-
-    def getInvokerHealth(): Array[(Int, Boolean)] = getHealth(curStatus.get())
-
     def getInvokerHealthJson(): JsObject = {
-        val health = getInvokerHealth().map { case (index, isUp) => s"invoker${index}" -> (if (isUp) "up" else "down").toJson }
-        JsObject(health toMap)
+        val health = invokers.map { status => s"invoker${status.index}" -> (if (status.status) "up" else "down").toJson }
+        JsObject(health.toMap)
     }
 
-    private val maximumAllowedDelay = 20 seconds
+    private val maximumAllowedDelay = 20.seconds
     def isFresh(lastDate: String) = {
         val lastDateMilli = DateUtil.parseToMilli(lastDate)
         val now = System.currentTimeMillis() // We fetch this repeatedly in case KV fetch is slow
         (now - lastDateMilli) <= maximumAllowedDelay.toMillis
     }
 
-    private val consul = new ConsulClient(config.consulServer)
-    private val reporter = new ConsulKVReporter(consul, 3 seconds, 2 seconds,
-        LoadBalancerKeys.hostnameKey,
-        LoadBalancerKeys.startKey,
-        LoadBalancerKeys.statusKey,
-        { index =>
-            Map(LoadBalancerKeys.invokerHealth -> getInvokerHealthJson(),
-                LoadBalancerKeys.activationCountKey -> getKafkaPostCount().toJson)
-        })
-
     /** query the KV store this often */
-    private val healthCheckInterval = 2 seconds
+    private val healthCheckInterval = 2.seconds
 
     Scheduler.scheduleWaitAtLeast(healthCheckInterval) { () =>
         consul.kv.getRecurse(InvokerKeys.allInvokers) map { invokerInfo =>
@@ -143,32 +103,19 @@ class InvokerHealth(
             val nested = ConsulClient.toNestedMap(flattened)
 
             // Get the new status (some entries may correspond to new instances)
-            val statusMap = nested map {
+            val newStatus = nested.map {
                 case (key, inner) =>
                     val index = InvokerKeys.extractInvokerIndex(key)
-                    val JsString(startDate) = inner(InvokerKeys.startKey).parseJson
                     val JsString(lastDate) = inner(InvokerKeys.statusKey).parseJson
-                    (index, Status(index, startDate, lastDate, isFresh(lastDate), inner(InvokerKeys.activationCountKey).toInt))
-            }
-            val newStatus = statusMap.values.toArray.sortBy(_.index)
+                    Status(index, isFresh(lastDate))
+            }.toList.sortBy(_.index)
 
             // Warning is issued only if up/down is changed
-            if (getInvokerHealth().deep != getHealth(newStatus).deep) {
-                warn(this, s"InvokerHealth status change: ${newStatus.deep.mkString(" ")}")
+            if (invokers != newStatus) {
+                warn(this, s"InvokerHealth status change: ${newStatus.mkString(" ")}")
             }
 
-            // Existing entries that have become stale require recording and a warning
-            val stale = curStatus.get().filter {
-                case Status(index, startDate, _, _, _) =>
-                    statusMap.get(index).map(startDate != _.startDate) getOrElse false
-            }
-            if (!stale.isEmpty) {
-                oldStatus.set(oldStatus.get() ++ stale)
-                warn(this, s"Stale invoker status has changed: ${oldStatus.get().deep.mkString(" ")}")
-                instanceChange(stale.map(_.index))
-            }
-
-            curStatus.set(newStatus)
+            invokers = newStatus
         }
     }
 
@@ -177,40 +124,31 @@ class InvokerHealth(
      */
     private def getNext(current: Int, remain: Int): Option[Int] = {
         if (remain > 0) {
-            val choice = curStatus.get()(current)
-            choice.status match {
-                case true  => Some(choice.index)
-                case false => getNext(nextInvoker(current), remain - 1)
-            }
+            val choice = invokers(current)
+            if (choice.status) Some(choice.index)
+            else getNext(pickInvoker(current + 1), remain - 1)
         } else {
             error(this, s"all invokers down")
             None
         }
     }
 
-    private def pickInvoker(msgCount: Int): Int = {
-        val numInv = numInvokers
-        if (numInv > 0) msgCount % numInv else 0
-    }
-
-    private def nextInvoker(i: Int): Int = {
-        val numInv = numInvokers
-        if (numInv > 0) (i + 1) % numInv else 0
-    }
-
-    private def numInvokers = curStatus.get().length
+    /**
+     * Picks the invoker at index {@code i}, rotating the list
+     * of invokers if {@code i > invokers.length}
+     */
+    private def pickInvoker(i: Int) = i % invokers.length
 
     /*
      * Invoker indices are 0-based.
-     * curStatus maintains the status of the curent instance at a particular index while oldStatus
+     * curStatus maintains the status of the current instance at a particular index while oldStatus
      * tracks instances (potentially many per index) that are not longer fresh (invoker was restarted).
      */
-    private case class Status(index: Int, startDate: String, lastDate: String, status: Boolean, activationCount: Int) {
-        override def toString = s"index: $index, healthy: $status, activations: $activationCount, start: $startDate, last: $lastDate"
+    private case class Status(index: Int, status: Boolean) {
+        override def toString = s"index: $index, healthy: $status"
     }
-    private lazy val curStatus = new AtomicReference(Array(): Array[Status])
-    private lazy val oldStatus = new AtomicReference(Array(): Array[Status])
+    private var invokers = List.empty[Status]
 
     private val msgCount = new AtomicInteger(0)
-    private val activationCountMap = TrieMap[(String, String), AtomicInteger]()
+    private val activationCountMap = TrieMap[(Subject, String), AtomicInteger]()
 }

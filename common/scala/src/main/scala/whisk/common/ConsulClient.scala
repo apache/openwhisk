@@ -32,7 +32,6 @@ import java.util.NoSuchElementException
 import akka.stream.scaladsl._
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import scala.util.Try
 
 /**
  * Client to access Consul's <a href="https://www.consul.io/docs/agent/http.html">
@@ -272,17 +271,6 @@ object ConsulKV {
         def instancePath(instance: Int) = s"${allInvokers}/${invokerKeyPrefix}${instance}"
         def instanceDataPath(instance: Int) = s"${allInvokersData}/${invokerKeyPrefix}${instance}"
 
-        // Invokers store the hostname they are running on here.
-        def hostname(instance: Int) = s"${instancePath(instance)}/hostname"
-
-        // Invokers store when they start here.
-        val startKey = "start"
-        def start(instance: Int) = s"${instancePath(instance)}/$startKey"
-
-        // Invokers store how many activations they have processed here.
-        val activationCountKey = "activationCount"
-        def activationCount(instance: Int) = s"${instancePath(instance)}/$activationCountKey"
-
         // Invokers store how many activations they have processed per user here.
         private val userActivationCountKey = "userActivationCount"
         def userActivationCount(instance: Int) = s"${instanceDataPath(instance)}/${userActivationCountKey}"
@@ -293,30 +281,12 @@ object ConsulKV {
 
         // Extract index from just the element of the path such as "invoker5"
         def extractInvokerIndex(key: String): Int = key.substring(invokerKeyPrefix.length).toInt
-
-        // Get the invoker index given a key somewhere in that invoker's KV sub-hierarchy
-        def getInvokerIndexFromAny(key: String): Option[Int] = {
-            val prefix = s"${allInvokers}/${invokerKeyPrefix}"
-            if (key.startsWith(prefix)) {
-                val middle = key.substring(prefix.length)
-                val slashIndex = middle.indexOf("/")
-                if (slashIndex > 0) {
-                    Try { middle.substring(0, slashIndex).toInt }.toOption
-                } else None
-            } else None
-        }
-
     }
 
     // All load balancer written information under here.
     object LoadBalancerKeys {
         val component = "loadBalancer"
-        val hostnameKey = s"${component}/hostname"
-        val startKey = s"${component}/start"
         val statusKey = s"${component}/status"
-        val activationCountKey = s"${component}/activationCount"
-        val overloadKey = s"${component}/overload"
-        val invokerHealth = s"${component}/invokerHealth"
         val userActivationCountKey = s"${component}/userActivationCount"
     }
 

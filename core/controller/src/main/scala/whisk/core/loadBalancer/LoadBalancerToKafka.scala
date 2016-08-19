@@ -59,7 +59,7 @@ trait LoadBalancerToKafka extends Logging {
                 info(this, s"posting topic '$topic' with activation id '${msg.activationId}'")
                 producer.send(topic, msg) map { status =>
                     if (component == Message.INVOKER) {
-                        val counter = updateActivationCount(subject, invokerIndex)
+                        val counter = updateActivationCount(subject)
                         info(this, s"user has ${counter} activations posted. Posted to ${status.topic()}[${status.partition()}][${status.offset()}]")
                     }
                     LoadBalancerResponse.id(msg.activationId)
@@ -81,42 +81,21 @@ trait LoadBalancerToKafka extends Logging {
         } else Some(-1, component)
     }
 
-    private def updateActivationCount(user: String, invokerIndex: Int): Int = {
-        invokerActivationCounter get invokerIndex match {
-            case Some(counter) => counter.next()
-            case None =>
-                invokerActivationCounter(invokerIndex) = new Counter()
-                invokerActivationCounter(invokerIndex).next
-        }
-        userActivationCounter get user match {
-            case Some(counter) => counter.next()
-            case None =>
-                userActivationCounter(user) = new Counter()
-                userActivationCounter(user).next
-        }
-    }
-
-    def resetIssueCountByInvoker(invokerIndices: Array[Int]) = {
-        invokerIndices.foreach {
-            invokerActivationCounter(_) = new Counter()
-        }
-    }
-
-    // Make a new immutable map so caller cannot mess up the state
-    def getIssueCountByInvoker(): Map[Int, Int] = {
-        invokerActivationCounter.foldLeft(Map[Int, Int]()) {
-            case (map, (index, counter)) => map ++ Map(index -> counter.cur)
-        }
-    }
+    /**
+     * Updates the activation count for the user by one. Creating
+     * a new counter iff the user doesn't exist yet in the map.
+     */
+    private def updateActivationCount(user: String): Int =
+        userActivationCounter.getOrElseUpdate(user, new Counter()).next()
 
     /**
      * Convert user activation counters into a map of JsObjects to be written into consul kv
      *
      * @param userActivationCounter the counters for each user's activations
-     * @returns a map where the key represents the final nested key structure for consul and a JsObject
+     * @return a map where the key represents the final nested key structure for consul and a JsObject
      *     containing the activation counts for each user
      */
-    protected def getUserActivationCounts(): Map[String, JsObject] = {
+    protected def getUserActivationCounts(): Map[String, JsObject] =
         userActivationCounter.toMap mapValues {
             _.cur
         } groupBy {
@@ -124,10 +103,8 @@ trait LoadBalancerToKafka extends Logging {
         } mapValues { map =>
             map.toJson.asJsObject
         }
-    }
 
     // A count of how many activations have been posted to Kafka based on invoker index or user/subject.
-    private val invokerActivationCounter = new TrieMap[Int, Counter]
     private val userActivationCounter = new TrieMap[String, Counter]
     private val idError = LoadBalancerResponse.error("no invokers available")
 

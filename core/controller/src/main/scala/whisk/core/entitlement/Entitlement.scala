@@ -23,18 +23,13 @@ import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
-import scala.util.Try
 
 import Privilege.REJECT
 import akka.actor.ActorSystem
 import spray.http.StatusCodes.ClientError
 import spray.http.StatusCodes.TooManyRequests
-import spray.json.DefaultJsonProtocol.BooleanJsonFormat
-import spray.json.pimpString
 import whisk.common.ConsulClient
-import whisk.common.ConsulKV.LoadBalancerKeys
 import whisk.common.Logging
-import whisk.common.Scheduler
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.entity.Namespace
@@ -88,26 +83,14 @@ protected[core] abstract class EntitlementService(config: WhiskConfig)(
 
     private implicit val executionContext = actorSystem.dispatcher
 
-    private var loadbalancerOverload: Option[Boolean] = None
     private val invokeRateThrottler = new RateThrottler(config.actionInvokePerMinuteLimit.toInt, config.actionInvokePerHourLimit.toInt)
     private val triggerRateThrottler = new RateThrottler(config.triggerFirePerMinuteLimit.toInt, config.triggerFirePerHourLimit.toInt)
-    private val concurrentInvokeThrottler = new ActivationThrottler(config.consulServer, config.actionInvokeConcurrentLimit.toInt)
+    private val concurrentInvokeThrottler = new ActivationThrottler(config.consulServer, config.actionInvokeConcurrentLimit.toInt, 5000)
 
     /** query the KV store this often */
     private val overloadCheckPeriod = 10.seconds
 
     private val consul = new ConsulClient(config.consulServer)
-
-    Scheduler.scheduleWaitAtLeast(overloadCheckPeriod) { () =>
-        consul.kv.get(LoadBalancerKeys.overloadKey).map { isOverloaded =>
-            Try(isOverloaded.parseJson.convertTo[Boolean]) foreach { v =>
-                if (loadbalancerOverload != Some(v)) {
-                    loadbalancerOverload = Some(v)
-                    info(this, s"EntitlementService: loadbalancerOverload = ${v}")
-                }
-            }
-        }
-    }
 
     override def setVerbosity(level: LogLevel) = {
         super.setVerbosity(level)
@@ -216,7 +199,7 @@ protected[core] abstract class EntitlementService(config: WhiskConfig)(
 
     /** Limits activations if the load balancer is overloaded. */
     protected def checkSystemOverload(subject: Subject, right: Privilege, resource: Resource)(implicit transid: TransactionId) = {
-        val systemOverload = right == Privilege.ACTIVATE && loadbalancerOverload.getOrElse(false)
+        val systemOverload = right == Privilege.ACTIVATE && concurrentInvokeThrottler.isOverloaded
         if (systemOverload) {
             Some { Future failed ThrottleRejectRequest(TooManyRequests, Some(ErrorResponse("System is overloaded", transid))) }
         } else None
