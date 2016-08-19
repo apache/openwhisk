@@ -43,6 +43,12 @@ protected[core] class Namespace private (val path: Seq[String]) extends AnyVal {
     def toJson = JsString(namespace)
     def apply() = namespace
     override def toString = namespace
+    /**
+     * if path has less than two items, assume default package
+     */
+    def isDefaultPackage: Boolean = {
+        path.size < 2
+    }
 }
 
 protected[core] object Namespace {

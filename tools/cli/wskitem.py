@@ -178,6 +178,10 @@ class Item:
     # returns the HTTP response for saving an item.
     def httpPut(self, args, props, update, payload):
         namespace, pname = parseQName(args.name, props)
+        print("namespace " + namespace)
+        print("pname " + pname)
+        print(self.getSafeName(pname))
+
         url = '%(apibase)s/namespaces/%(namespace)s/%(collection)s/%(name)s%(update)s' % {
             'apibase': apiBase(props),
             'namespace': urllib.quote(namespace),
@@ -185,6 +189,9 @@ class Item:
             'name': self.getSafeName(pname),
             'update': '?overwrite=true' if update else ''
         }
+
+        print("url " + url)
+        print("payload " + payload)
 
         headers= {
             'Content-Type': 'application/json'

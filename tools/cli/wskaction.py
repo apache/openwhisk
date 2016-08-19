@@ -84,6 +84,8 @@ class Action(Item):
     def csvToQualifiedActions(self, props, csv):
         ns = props['namespace']
         actions = self.csvToList(csv)
+        print(actions)
+        print(ns)
         return [ getQName(a, ns) for a in actions ]
 
     def create(self, args, props, update):
@@ -101,6 +103,7 @@ class Action(Item):
                 payload['limits'] = self.getLimits(args)
             if validExe:
                 payload['exec'] = exe
+                print("EXEC " + exe['kind'])
             if args.shared:
                 self.addPublish(payload, args)
             return self.put(args, props, update, json.dumps(payload))

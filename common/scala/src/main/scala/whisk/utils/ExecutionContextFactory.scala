@@ -22,6 +22,8 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.duration.FiniteDuration
+import scala.util.Try
+
 
 import akka.actor.ActorSystem
 import akka.pattern.{ after => expire }
@@ -32,6 +34,18 @@ object ExecutionContextFactory {
         def withTimeout(timeout: FiniteDuration, msg: => Throwable)(implicit system: ActorSystem): Future[T] = {
             implicit val ec = system.dispatcher
             Future firstCompletedOf Seq(f, expire(timeout, system.scheduler)(Future.failed(msg)))
+        }
+
+        /**
+         * method that converts a future into a successful future that holds the result of the initial future
+         * inside of a Try
+         */
+        def toTryFuture(implicit context: ExecutionContext) : Future[Try[T]] = {
+            val p = Promise[Try[T]]
+            f.onComplete {
+                t => p.trySuccess(t)
+            }
+            p.future
         }
     }
 

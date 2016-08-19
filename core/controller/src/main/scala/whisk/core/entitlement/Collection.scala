@@ -82,6 +82,7 @@ protected[core] case class Collection protected (
         implicit ec: ExecutionContext, transid: TransactionId): Future[Boolean] = Future.successful {
         // if the resource root namespace is in any of the allowed namespaces
         // then this is an owner of the resource
+        info(this, s"Collection implicit rights for resource $resource")
         val self = namespaces.contains(resource.namespace.root())
 
         resource.entity map {
@@ -109,8 +110,9 @@ protected[core] object Collection {
 
     protected[core] def apply(name: String) = collections.get(name).get
 
+
     protected[core] def initialize(entityStore: EntityStore, verbosity: LogLevel) = {
-        register(new Collection(ACTIONS))
+        register(new ActionCollection(entityStore))
         register(new Collection(TRIGGERS))
         register(new Collection(RULES))
         register(new PackageCollection(entityStore))
