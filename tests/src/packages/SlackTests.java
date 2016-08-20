@@ -52,12 +52,10 @@ public class SlackTests {
     String expectedChannel = "channel: '" + channel + "'";
     String expectedUsername = "username: '" + username + "'";
     String expectedText = "text: '" + text + "'";
-    String expectedIcon = "icon_emoji: undefined";
 
     assertTrue("Expected message not found: " + expectedChannel, wsk.logsForActivationContain(activationId, expectedChannel, DEFAULT_WAIT));
     assertTrue("Expected message not found: " + expectedUsername, wsk.logsForActivationContain(activationId, expectedUsername, DEFAULT_WAIT));
     assertTrue("Expected message not found: " + expectedText, wsk.logsForActivationContain(activationId, expectedText, DEFAULT_WAIT));
-    assertTrue("Expected message not found: " + expectedIcon, wsk.logsForActivationContain(activationId, expectedIcon, DEFAULT_WAIT));
     assertTrue("Expected message not found: " + url, wsk.logsForActivationContain(activationId, url, DEFAULT_WAIT));
   }
 

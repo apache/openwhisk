@@ -14,22 +14,43 @@ function main(params) {
   var body = {
     channel: params.channel,
     username: params.username || 'Simple Message Bot',
-    text: params.text,
-    icon_emoji: params.icon_emoji
+    text: params.text
   };
+
+  if (params.icon_emoji) {
+    // guard against sending icon_emoji: undefined
+    body.icon_emoji = params.icon_emoji;
+  }
+
+  if (params.token) {
+    //
+    // this allows us to support /api/chat.postMessage
+    // e.g. users can pass params.url = https://slack.com/api/chat.postMessage
+    //                 and params.token = <their auth token>
+    //
+    body.token = params.token;
+  } else {
+    //
+    // the webhook api expects a nested payload
+    //
+    // notice that we need to stringify; this is due to limitations
+    // of the formData npm: it does not handle nested objects
+    //
+    console.log(body);
+    console.log("to: " + params.url);
+
+    body = {
+      payload: JSON.stringify(body)
+    };
+  }
 
   if (params.attachments) {
     body.attachments = params.attachments;
   }
 
-  console.log(body);
-  console.log("to: " + params.url);
-
   request.post({
     url: params.url,
-    formData: {
-      payload: JSON.stringify(body)
-    }
+    formData: body
   }, function(err, res, body) {
     if (err) {
       console.log('error: ', err, body);
