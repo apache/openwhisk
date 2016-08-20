@@ -58,7 +58,8 @@ class WhiskContainer(
     policy: Option[String],
     env: Map[String, String],
     limits: ActionLimits,
-    args: Array[String] = Array())
+    args: Array[String] = Array(),
+    val isBlackbox: Boolean)
     extends Container(originalId, pool, key, Some(containerName), image, network, policy, limits, env, args) {
 
     var boundParams = JsObject() // Mutable to support pre-alloc containers
@@ -71,14 +72,6 @@ class WhiskContainer(
      * If there is no response or an exception, then None.
      */
     type RunResult = (Instant, Instant, Option[(Int, String)])
-
-    /**
-     * This predicate works for registry and non-registry use.
-     * When a registry is not used (local deploy), the image is typically "whisk/foo"
-     * With a registry in place, it becomes "hostname:port/whisk/foo"
-     * In either case, the scheme only has one slash which is preceded by non-numeric characters.
-     */
-    def isBlackbox = !image.contains("whisk/")
 
     /**
      * Merges previously bound parameters with arguments form payload.

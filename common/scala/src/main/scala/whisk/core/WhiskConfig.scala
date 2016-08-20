@@ -67,6 +67,7 @@ class WhiskConfig(
     val selfDockerEndpoint = this(WhiskConfig.selfDockerEndpoint)
     val dockerPort = this(WhiskConfig.dockerPort)
 
+    val dockerImagePrefix = this(WhiskConfig.dockerImagePrefix)
     val dockerImageTag = this(WhiskConfig.dockerImageTag)
 
     val invokerContainerNetwork = this(WhiskConfig.invokerContainerNetwork)
@@ -211,6 +212,7 @@ object WhiskConfig extends Logging {
 
     val whiskVersion = Map(whiskVersionDate -> null, whiskVersionBuildno -> null)
 
+    val dockerImagePrefix = "docker.image.prefix"
     val dockerImageTag = "docker.image.tag"
 
     val invokerContainerNetwork = "invoker.container.network"

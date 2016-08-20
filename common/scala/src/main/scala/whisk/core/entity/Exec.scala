@@ -103,18 +103,18 @@ protected[core] object Exec
     private lazy val b64decoder = Base64.getDecoder()
 
     // The possible values of the JSON 'kind' field.
-    protected[core] val NODEJS   = "nodejs"
-    protected[core] val NODEJS6  = "nodejs:6"
-    protected[core] val PYTHON   = "python"
-    protected[core] val SWIFT    = "swift"
-    protected[core] val SWIFT3   = "swift:3"
-    protected[core] val JAVA     = "java"
+    protected[core] val NODEJS = "nodejs"
+    protected[core] val NODEJS6 = "nodejs:6"
+    protected[core] val PYTHON = "python"
+    protected[core] val SWIFT = "swift"
+    protected[core] val SWIFT3 = "swift:3"
+    protected[core] val JAVA = "java"
     protected[core] val BLACKBOX = "blackbox"
     protected[core] val SEQUENCE = "sequence"
     protected[core] val runtimes = Set(NODEJS, NODEJS6, PYTHON, SWIFT, SWIFT3, JAVA, BLACKBOX, SEQUENCE)
 
     // Constructs standard image name for action
-    protected[core] def imagename(name: String, prefix: String = "whisk") = s"$prefix/${name}action".replace(":", "")
+    protected[core] def imagename(name: String) = s"${name}action".replace(":", "")
 
     val sizeLimit = 48 MB
 
