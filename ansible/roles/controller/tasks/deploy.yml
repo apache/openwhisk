@@ -2,13 +2,13 @@
 # This role will install Controller in group 'controllers' in the environment inventory
 
 - name: "pull the {{ docker_image_tag }} image of controller"
-  shell: "docker pull {{ docker_registry }}whisk/controller:{{ docker_image_tag }}"
+  shell: "docker pull {{ docker_registry }}{{ docker_image_prefix }}/controller:{{ docker_image_tag }}"
   when: docker_registry != ""
 
 - name: (re)start controller
   docker:
     name: controller
-    image: "{{ docker_registry }}whisk/controller:{{ docker_image_tag }}"
+    image: "{{ docker_registry }}{{ docker_image_prefix }}/controller:{{ docker_image_tag }}"
     state: reloaded
     restart_policy: "{{ docker.restart.policy }}"
     hostname: controller

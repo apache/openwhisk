@@ -4,7 +4,7 @@
 - name: remove controller
   docker:
     name: controller
-    image: "{{ docker_registry }}whisk/controller:{{ docker_image_tag }}"
+    image: "{{ docker_registry }}{{ docker_image_prefix }}/controller:{{ docker_image_tag }}"
     state: absent
   ignore_errors: True
 

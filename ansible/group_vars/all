@@ -62,6 +62,7 @@ db:
 linux:
   version: 3.19.0-25
 
+docker_image_prefix: whisk
 docker_image_tag: latest
 docker:
   user:
