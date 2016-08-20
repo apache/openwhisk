@@ -36,6 +36,9 @@ function main(params) {
     // notice that we need to stringify; this is due to limitations
     // of the formData npm: it does not handle nested objects
     //
+    console.log(body);
+    console.log("to: " + params.url);
+
     body = {
       payload: JSON.stringify(body)
     };
@@ -44,9 +47,6 @@ function main(params) {
   if (params.attachments) {
     body.attachments = params.attachments;
   }
-
-  console.log(body);
-  console.log("to: " + params.url);
 
   request.post({
     url: params.url,
