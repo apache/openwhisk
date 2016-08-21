@@ -488,7 +488,7 @@ Your code is compiled into an executable binary and embedded into a Docker image
 
 As a prerequisite, you must have a Docker Hub account.  To set up a free Docker ID and account, go to [Docker Hub](https://hub.docker.com).
 
-For the instructions that follow, assume that the user ID is "janesmith" and the password is "janes_password".  Assuming that the CLI has already been set up, three steps are required to set up a custom binary for use by OpenWhisk.  After that, the uploaded Docker image can be used as an action.
+For the instructions that follow, assume that the Docker user ID is `janesmith` and the password is `janes_password`.  Assuming that the CLI is already set up, three steps are required to set up a custom binary for use by OpenWhisk.  After that, the uploaded Docker image can be used as an action.
 
 1. Download the Docker skeleton. You can download it by using the CLI as follows:
 
@@ -503,7 +503,7 @@ For the instructions that follow, assume that the user ID is "janesmith" and the
   $ ls dockerSkeleton/
   ```
   ```
-  Dockerfile      README.md       buildAndPush.sh client          server
+  Dockerfile      README.md       buildAndPush.sh example.c
   ```
 
   The skeleton is a Docker container template where you can inject your code in the form of custom binaries.
@@ -511,18 +511,25 @@ For the instructions that follow, assume that the user ID is "janesmith" and the
 2. Set up your custom binary in the blackbox skeleton. The skeleton already includes a C program that you can use.
 
   ```
-  $ cat ./dockerSkeleton/client/example.c
+  $ cat dockerSkeleton/example.c
   ```
   ```
   #include <stdio.h>
-  
+
   int main(int argc, char *argv[]) {
-      printf("{ \"msg\": \"Hello from arbitrary C program!\", \"args\": %s, \"argc\": %d }",
+      printf("This is an example log message from an arbitrary C program!\n");
+      printf("{ \"msg\": \"Hello from arbitrary C program!\", \"args\": %s }",
              (argc == 1) ? "undefined" : argv[1]);
   }
   ```
 
-  You can modify this file as needed.
+  You can modify this file as needed, or, add additional code and dependencies to the Docker image.
+  In case of the latter, you may need to tweak the `Dockerfile` as necessary to build your executable.
+  The binary must be located inside the container at `/action/exec`.
+
+  The executable receives a single argument from the command line. It is a string serialization of the JSON
+  object representing the arguments to the action. The program may log to `stdout` or `stderr`.
+  By convention, the last line of output _must_ be a stringified JSON object which represents the result of the action.
 
 3. Build the Docker image and upload it using a supplied script. You must first run `docker login` to authenticate, and then run the script with a chosen image name.
 
@@ -537,12 +544,17 @@ For the instructions that follow, assume that the user ID is "janesmith" and the
   ```
 
   Notice that part of the example.c file is compiled as part of the Docker image build process, so you do not need C compiled on your machine.
+  In fact, unless you are compiling the binary on a compatible host machine, it may not run inside the container since formats will not match.
 
-4. To create an action from a Docker image rather than a supplied JavaScript file, add `--docker` and replace the JavaScript file name with the Docker image name.
+Your Docker container may now be used as an OpenWhisk action.
 
   ```
   $ wsk action create --docker example janesmith/blackboxdemo
   ```
+
+Notice the use of `--docker` when creating an action. Currently all Docker images are assumed to be hosted on Docker Hub.
+The action may be invoked as any other OpenWhisk action.
+
   ```
   $ wsk action invoke --blocking --result example --param payload Rey
   ```
@@ -555,7 +567,7 @@ For the instructions that follow, assume that the user ID is "janesmith" and the
   }
   ```
 
-5. To update a Docker action, run `buildAndPush.sh` to refresh the image on Docker Hub, then you have to run `wsk action update` to make the system to fetch the new image. New invocations will start using the new image and not a warm image with the old code.
+If you update the Docker image, run `buildAndPush.sh` to refresh the image on Docker Hub, then run `wsk action update` to make the system to fetch the new image. New invocations will start using the new image and not a warm image with the old code.
 
   ```
   $ ./buildAndPush.sh janesmith/blackboxdemo
