@@ -280,6 +280,11 @@ Components = [
                   yaml = False,
                   gradle = 'core:nodejs6Action'),
 
+    makeComponent('actionproxy',
+                  'build action proxy container',
+                  yaml = False,
+                  gradle = 'core:actionProxy'),
+
     makeComponent('pythonaction',
                   'build python action container',
                   yaml = False,

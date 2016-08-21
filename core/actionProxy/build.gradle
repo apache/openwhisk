@@ -1,0 +1,2 @@
+ext.dockerImageName = 'openwhisk/dockerskeleton'
+apply from: '../../gradle/docker.gradle'
