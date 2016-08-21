@@ -25,13 +25,11 @@ import spray.json.JsString
 @RunWith(classOf[JUnitRunner])
 class Swift3ActionContainerTests extends SwiftActionContainerTests {
 
-    override val checkStdOutEmpty = false
-    override val swiftContainerImageName = "whisk/swift3action"
-
-    behavior of "whisk/swift3action"
+    override val enforceEmptyOutputStream = false
+    override lazy val swiftContainerImageName = "whisk/swift3action"
 
     ignore should "properly use KituraNet and Dispatch" in {
-        val (out, err) = withSwiftContainer() { c =>
+        val (out, err) = withActionContainer() { c =>
             val code = """
                 | import KituraNet
                 | import Foundation
@@ -98,13 +96,15 @@ class Swift3ActionContainerTests extends SwiftActionContainerTests {
         // in catch block an error has occurred, get docker logs and print
         // throw
 
-
-        if (checkStdOutEmpty) out.trim shouldBe empty
-        err.trim shouldBe empty
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe empty
+                e shouldBe empty
+        })
     }
 
     ignore should "make Watson SDKs available to action authors" in {
-        val (out, err) = withSwiftContainer() { c =>
+        val (out, err) = withActionContainer() { c =>
             val code = """
                 | import RestKit
                 | import InsightsForWeather
@@ -123,7 +123,10 @@ class Swift3ActionContainerTests extends SwiftActionContainerTests {
             runCode should be(200)
         }
 
-        if (checkStdOutEmpty) out.trim shouldBe empty
-        err.trim shouldBe empty
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe empty
+                e shouldBe empty
+        })
     }
 }

@@ -32,10 +32,15 @@ import scala.sys.process.stringToProcess
 import scala.util.Random
 import scala.util.Try
 
+import org.scalatest.FlatSpec
+import org.scalatest.Matchers
+
 import common.WhiskProperties
 import spray.json.JsObject
+import spray.json.JsString
 import spray.json.JsValue
 import spray.json.pimpString
+import org.apache.commons.lang3.StringUtils
 
 /**
  * For testing convenience, this interface abstracts away the REST calls to a
@@ -44,6 +49,29 @@ import spray.json.pimpString
 trait ActionContainer {
     def init(value: JsValue): (Int, Option[JsObject])
     def run(value: JsValue): (Int, Option[JsObject])
+}
+
+trait ActionProxyContainerTestUtils extends FlatSpec with Matchers {
+    import ActionContainer.{ filterSentinel, sentinel }
+
+    def initPayload(code: String) = JsObject("value" -> JsObject("code" -> JsString(code)))
+    def runPayload(args: JsValue, other: Option[JsObject] = None) = {
+        JsObject(Map("value" -> args) ++ (other map { _.fields } getOrElse Map()))
+    }
+
+    def checkStreams(out: String, err: String, additionalCheck: (String, String) => Unit, sentinelCount: Int = 1) = {
+        withClue("expected number of stdout sentinels") {
+            sentinelCount shouldBe StringUtils.countMatches(out, sentinel)
+        }
+        withClue("expected number of stderr sentinels") {
+            sentinelCount shouldBe StringUtils.countMatches(err, sentinel)
+        }
+
+        val (o, e) = (filterSentinel(out), filterSentinel(err))
+        o should not include (sentinel)
+        e should not include (sentinel)
+        additionalCheck(o, e)
+    }
 }
 
 object ActionContainer {
@@ -84,6 +112,10 @@ object ActionContainer {
     private def awaitDocker(cmd: String, t: Duration): (Int, String, String) = {
         Await.result(proc(docker(cmd)), t)
     }
+
+    // Filters out the sentinel markers inserted by the container (see relevant private code in Invoker.scala)
+    val sentinel = "XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX"
+    def filterSentinel(str: String) = str.replaceAll(sentinel, "").trim
 
     def withContainer(imageName: String, environment: Map[String, String] = Map.empty)(
         code: ActionContainer => Unit): (String, String) = {

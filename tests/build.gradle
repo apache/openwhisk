@@ -24,17 +24,19 @@ test {
         showStandardStreams = true
         exceptionFormat = 'full'
     }
-    outputs.upToDateWhen { false } // force tests to run everytime
+    outputs.upToDateWhen { false } // force tests to run every time
 }
 
 // Add all images needed for local testing here
 test.dependsOn([
     ':core:nodejsAction:distDocker',
     ':core:nodejs6Action:distDocker',
+    ':core:actionProxy:distDocker',
     ':core:pythonAction:distDocker',
     ':core:javaAction:distDocker',
     ':core:swiftAction:distDocker',
-    ':core:swift3Action:distDocker'
+    ':core:swift3Action:distDocker',
+    ':sdk:docker:distDocker'
 ])
 
 dependencies {

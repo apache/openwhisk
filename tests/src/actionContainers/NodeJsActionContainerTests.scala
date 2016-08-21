@@ -13,64 +13,49 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package actionContainers
 
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 
 import ActionContainer.withContainer
 import spray.json._
 
-
 @RunWith(classOf[JUnitRunner])
-class NodeJsActionContainerTests extends FlatSpec with Matchers {
+class NodeJsActionContainerTests extends BasicActionRunnerTests {
 
-    val nodejsContainerImageName = "whisk/nodejsaction"
+    lazy val nodejsContainerImageName = "whisk/nodejsaction"
 
-    // Helpers specific to nodejsaction
-    def withNodeJsContainer(code: ActionContainer => Unit) = withContainer(nodejsContainerImageName)(code)
-    def initPayload(code: String) = JsObject(
+    override def withActionContainer(env: Map[String, String] = Map.empty)(code: ActionContainer => Unit) = {
+        withContainer(nodejsContainerImageName, env)(code)
+    }
+
+    def withNodeJsContainer(code: ActionContainer => Unit) = withActionContainer()(code)
+
+    override def initPayload(code: String) = JsObject(
         "value" -> JsObject(
             "name" -> JsString("dummyAction"),
             "code" -> JsString(code),
             "main" -> JsString("main")))
-    def runPayload(args: JsValue) = JsObject("value" -> args)
 
-    // Filters out the sentinel markers inserted by the container (see relevant private code in Invoker.scala)
-    val sentinel = "XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX"
-    def filtered(str: String) = str.replaceAll(sentinel, "")
+    behavior of nodejsContainerImageName
 
-    behavior of "whisk/nodejsaction"
+    testNotReturningJson(
+        """
+        |function main(args) {
+        |    return "not a json object"
+        |}
+        """.stripMargin)
 
-    it should "support valid flows" in {
-        val (out, err) = withNodeJsContainer { c =>
-            val code = """
-                | function main(args) {
-                |     return args;
-                | }
-            """.stripMargin
-
-            val (initCode, _) = c.init(initPayload(code))
-
-            initCode should be(200)
-
-            val argss = List(
-                JsObject("greeting" -> JsString("hi!")),
-                JsObject("numbers" -> JsArray(JsNumber(42), JsNumber(1))))
-
-            for (args <- argss) {
-                val (runCode, out) = c.run(runPayload(args))
-                runCode should be(200)
-                out should be(Some(args))
-            }
-        }
-
-        filtered(out).trim shouldBe empty
-        filtered(err).trim shouldBe empty
-    }
+    testEcho(Seq {
+        ("node", """
+          |function main(args) {
+          |    console.log('hello stdout')
+          |    console.error('hello stderr')
+          |    return args
+          |}
+          """.stripMargin)
+    })
 
     it should "fail to initialize with bad code" in {
         val (out, err) = withNodeJsContainer { c =>
@@ -85,9 +70,11 @@ class NodeJsActionContainerTests extends FlatSpec with Matchers {
         }
 
         // Somewhere, the logs should mention an error occurred.
-        val combined = filtered(out) + err
-        combined.toLowerCase should include("error")
-        combined.toLowerCase should include("syntax")
+        checkStreams(out, err, {
+            case (o, e) =>
+                (o + e).toLowerCase should include("error")
+                (o + e).toLowerCase should include("syntax")
+        })
     }
 
     it should "fail to initialize with no code" in {
@@ -141,26 +128,6 @@ class NodeJsActionContainerTests extends FlatSpec with Matchers {
         }
     }
 
-    it should "enforce that the user returns an object" in {
-        withNodeJsContainer { c =>
-            val code = """
-                | function main(args) {
-                |     return "rebel, rebel";
-                | }
-            """.stripMargin
-
-            val (initCode, _) = c.init(initPayload(code))
-            initCode should be(200)
-
-            val (runCode, runRes) = c.run(runPayload(JsObject()))
-
-            runCode should be(502)
-            runRes.get.fields.get("error") shouldBe defined
-            // We'd like the error message to mention the broken type.
-            runRes.get.fields("error").toString should include("string")
-        }
-    }
-
     it should "not warn when using whisk.done" in {
         val (out, err) = withNodeJsContainer { c =>
             val code = """
@@ -176,8 +143,11 @@ class NodeJsActionContainerTests extends FlatSpec with Matchers {
             runRes should be(Some(JsObject("happy" -> JsString("penguins"))))
         }
 
-        filtered(out).trim shouldBe empty
-        filtered(err).trim shouldBe empty
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe empty
+                e shouldBe empty
+        })
     }
 
     it should "not warn when returning whisk.done" in {
@@ -195,8 +165,11 @@ class NodeJsActionContainerTests extends FlatSpec with Matchers {
             runRes should be(Some(JsObject("happy" -> JsString("penguins"))))
         }
 
-        filtered(out).trim shouldBe empty
-        filtered(err).trim shouldBe empty
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe empty
+                e shouldBe empty
+        })
     }
 
     it should "warn when using whisk.done twice" in {
@@ -217,8 +190,11 @@ class NodeJsActionContainerTests extends FlatSpec with Matchers {
             runRes should be(Some(JsObject()))
         }
 
-        val combined = filtered(out) + err
-        combined.toLowerCase should include("more than once")
+        checkStreams(out, err, {
+            case (o, e) =>
+                o should include("more than once")
+                e shouldBe empty
+        })
     }
 
     it should "support the documentation examples (1)" in {
@@ -252,8 +228,11 @@ class NodeJsActionContainerTests extends FlatSpec with Matchers {
             r3.get.fields.get("error") shouldBe defined
         }
 
-        filtered(out).trim shouldBe empty
-        filtered(err).trim shouldBe empty
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe empty
+                e shouldBe empty
+        }, 3)
     }
 
     it should "support the documentation examples (2)" in {
@@ -274,8 +253,11 @@ class NodeJsActionContainerTests extends FlatSpec with Matchers {
             runRes should be(Some(JsObject("done" -> JsBoolean(true))))
         }
 
-        filtered(out).trim shouldBe empty
-        filtered(err).trim shouldBe empty
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe empty
+                e shouldBe empty
+        })
     }
 
     it should "support the documentation examples (3)" in {
@@ -305,8 +287,11 @@ class NodeJsActionContainerTests extends FlatSpec with Matchers {
             r2 should be(Some(JsObject("done" -> JsBoolean(true))))
         }
 
-        filtered(out).trim shouldBe empty
-        filtered(err).trim shouldBe empty
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe empty
+                e shouldBe empty
+        }, 2)
     }
 
     it should "error when requiring a non-existent package" in {
@@ -326,11 +311,13 @@ class NodeJsActionContainerTests extends FlatSpec with Matchers {
 
             val (runCode, out) = c.run(runPayload(JsObject()))
 
-            runCode should not be(200)
+            runCode should not be (200)
         }
 
-        filtered(out).trim shouldBe empty
-        filtered(err).trim shouldBe empty
+        // Somewhere, the logs should mention an error occurred.
+        checkStreams(out, err, {
+            case (o, e) => (o + e) should include("MODULE_NOT_FOUND")
+        })
     }
 
     it should "have ws and socket.io-client packages available" in {
@@ -354,13 +341,16 @@ class NodeJsActionContainerTests extends FlatSpec with Matchers {
             runCode should be(200)
         }
 
-        filtered(out).trim shouldBe empty
-        filtered(err).trim shouldBe empty
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe empty
+                e shouldBe empty
+        })
     }
 
     it should "support resolved promises" in {
         val (out, err) = withNodeJsContainer { c =>
-        val code = """
+            val code = """
             | function main(args) {
             |     return new Promise(function(resolve, reject) {
             |       setTimeout(function() {
@@ -370,20 +360,23 @@ class NodeJsActionContainerTests extends FlatSpec with Matchers {
             | }
             """.stripMargin
 
-        c.init(initPayload(code))._1 should be(200)
+            c.init(initPayload(code))._1 should be(200)
 
-        val (runCode, runRes) = c.run(runPayload(JsObject()))
-        runCode should be(200)
-        runRes should be(Some(JsObject("done" -> JsBoolean(true))))
+            val (runCode, runRes) = c.run(runPayload(JsObject()))
+            runCode should be(200)
+            runRes should be(Some(JsObject("done" -> JsBoolean(true))))
         }
 
-        filtered(out).trim shouldBe empty
-        filtered(err).trim shouldBe empty
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe empty
+                e shouldBe empty
+        })
     }
 
     it should "support rejected promises" in {
         val (out, err) = withNodeJsContainer { c =>
-        val code = """
+            val code = """
             | function main(args) {
             |     return new Promise(function(resolve, reject) {
             |       setTimeout(function() {
@@ -393,15 +386,18 @@ class NodeJsActionContainerTests extends FlatSpec with Matchers {
             | }
             """.stripMargin
 
-        c.init(initPayload(code))._1 should be(200)
+            c.init(initPayload(code))._1 should be(200)
 
-        val (runCode, runRes) = c.run(runPayload(JsObject()))
+            val (runCode, runRes) = c.run(runPayload(JsObject()))
 
-        runCode should be(200)
-        runRes.get.fields.get("error") shouldBe defined
+            runCode should be(200)
+            runRes.get.fields.get("error") shouldBe defined
         }
 
-        filtered(out).trim shouldBe empty
-        filtered(err).trim shouldBe empty
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe empty
+                e shouldBe empty
+        })
     }
 }

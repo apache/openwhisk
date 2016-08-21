@@ -17,83 +17,47 @@
 package actionContainers
 
 import org.junit.runner.RunWith
-import org.scalatest.BeforeAndAfter
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
-import spray.json._
 
 import ActionContainer.withContainer
+import spray.json.JsObject
+import spray.json.JsString
 
 @RunWith(classOf[JUnitRunner])
-class PythonActionContainerTests extends FlatSpec
-    with Matchers
-    with BeforeAndAfter {
+class PythonActionContainerTests extends BasicActionRunnerTests {
 
-    // Helpers specific to pythonaction
-    def withPythonContainer(code: ActionContainer => Unit) = withContainer("whisk/pythonaction")(code)
-    def initPayload(code: String) = JsObject(
-        "value" -> JsObject(
-            "name" -> JsString("somePythonAction"),
-            "code" -> JsString(code)))
-    def runPayload(args: JsValue) = JsObject("value" -> args)
+    override def withActionContainer(env: Map[String, String] = Map.empty)(code: ActionContainer => Unit) = {
+        withContainer("whisk/pythonaction", env)(code)
+    }
 
     behavior of "whisk/pythonaction"
 
-    it should "support valid flows" in {
-        val (out, err) = withPythonContainer { c =>
-            val code = """
-                |def main(dict):
-                |    if 'user' in dict:
-                |        print("hello " + dict['user'] + "!")
-                |        return {"user" : dict['user']}
-                |    else:
-                |        print("hello world!")
-                |        return {"user" : "world"}
-                |
-            """.stripMargin
+    testNotReturningJson(
+        """
+        |def main(args):
+        |    return "not a json object"
+        """.stripMargin, checkResultInLogs = false)
 
-            val (initCode, _) = c.init(initPayload(code))
-            initCode should be(200)
+    testEcho(Seq {
+        ("python", """
+          |import sys
+          |def main(dict):
+          |    print 'hello stdout'
+          |    print >> sys.stderr, 'hello stderr'
+          |    return dict
+          """.stripMargin)
+    })
 
-            val argss = List(
-                JsObject("user" -> JsString("Lulu")),
-                JsObject("user" -> JsString("Momo")))
+    testEnv(Seq {
+        ("python", """
+         |import os
+         |def main(dict):
+         |    return { "auth": os.environ['AUTH_KEY'], "edge": os.environ['EDGE_HOST'] }
+         """.stripMargin.trim)
+    })
 
-            for (args <- argss) {
-                val (runCode, out) = c.run(runPayload(args))
-                runCode should be(200)
-                out should be(Some(args))
-            }
-        }
-        err.trim shouldBe empty
-    }
-
-    it should "support valid json" in {
-        val (out, err) = withPythonContainer { c =>
-            val code = """
-                |def main(dict):
-                |    return dict
-            """.stripMargin
-
-            val (initCode, _) = c.init(initPayload(code))
-            initCode should be(200)
-
-            val argss = List(
-                JsObject("user" -> JsNull),
-                JsObject("user" -> JsString("Momo")))
-
-            for (args <- argss) {
-                val (runCode, out) = c.run(runPayload(args))
-                runCode should be(200)
-                out should be(Some(args))
-            }
-        }
-        err.trim shouldBe empty
-    }
-
-    it should "return some error on action error" in {
-        withPythonContainer { c =>
+    it should "return on action error when action fails" in {
+        val (out, err) = withActionContainer() { c =>
             val code = """
                 |def div(x, y):
                 |    return x/y
@@ -111,10 +75,16 @@ class PythonActionContainerTests extends FlatSpec
             runRes shouldBe defined
             runRes.get.fields.get("error") shouldBe defined
         }
+
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe empty
+                e should include("Traceback")
+        })
     }
 
     it should "log compilation errors" in {
-        val (_, err) = withPythonContainer { c =>
+        val (out, err) = withActionContainer() { c =>
             val code = """
               | 10 PRINT "Hello!"
               | 20 GOTO 10
@@ -127,10 +97,16 @@ class PythonActionContainerTests extends FlatSpec
             val (runCode, runRes) = c.run(runPayload(JsObject("basic" -> JsString("forever"))))
             runCode should be(502)
         }
+
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe empty
+                e should include("Traceback")
+        })
     }
 
     it should "support application errors" in {
-        withPythonContainer { c =>
+        val (out, err) = withActionContainer() { c =>
             val code = """
                 |def main(args):
                 |    return { "error": "sorry" }
@@ -143,23 +119,13 @@ class PythonActionContainerTests extends FlatSpec
             runCode should be(200) // action writer returning an error is OK
 
             runRes shouldBe defined
-            runRes.get.fields.get("error") shouldBe defined
+            runRes should be(Some(JsObject("error" -> JsString("sorry"))))
         }
-    }
 
-    it should "enforce that the user returns an object" in {
-        withPythonContainer { c =>
-            val code = """
-                |def main(args):
-                |    return "rebel, rebel"
-            """.stripMargin
-
-            val (initCode, _) = c.init(initPayload(code))
-            initCode should be(200) // This could change if the action wrapper has strong type checks for `main`.
-
-            val (runCode, runRes) = c.run(runPayload(JsObject()))
-            runCode should be(502)
-            runRes.get.fields.get("error") shouldBe defined
-        }
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe empty
+                e shouldBe empty
+        })
     }
 }

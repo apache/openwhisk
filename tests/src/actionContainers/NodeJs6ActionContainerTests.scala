@@ -18,14 +18,16 @@ package actionContainers
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-import spray.json.{JsBoolean, JsObject}
+
+import spray.json.JsBoolean
+import spray.json.JsObject
 
 @RunWith(classOf[JUnitRunner])
 class NodeJs6ActionContainerTests extends NodeJsActionContainerTests {
 
-    override val nodejsContainerImageName = "whisk/nodejs6action"
+    override lazy val nodejsContainerImageName = "whisk/nodejs6action"
 
-    behavior of "whisk/nodejs6action"
+    behavior of nodejsContainerImageName
 
     it should "support default function parameters" in {
         val (out, err) = withNodeJsContainer { c =>
@@ -45,8 +47,11 @@ class NodeJs6ActionContainerTests extends NodeJsActionContainerTests {
 
         }
 
-        filtered(out).trim shouldBe empty
-        filtered(err).trim shouldBe empty
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe empty
+                e shouldBe empty
+        })
     }
 
 }

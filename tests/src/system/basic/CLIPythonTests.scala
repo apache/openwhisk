@@ -28,6 +28,7 @@ import common.TestHelpers
 import common.WskTestHelpers
 import common.WskProps
 import common.JsHelpers
+import common.WhiskProperties
 
 @RunWith(classOf[JUnitRunner])
 class CLIPythonTests
@@ -53,6 +54,22 @@ class CLIPythonTests
             }
     }
 
+    it should "invoke an action and confirm expected environment is defined" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "stdenv"
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("stdenv.py")))
+            }
+
+            withActivation(wsk.activation, wsk.action.invoke(name)) {
+                activation =>
+                    val result = activation.fields("response").asJsObject.fields("result").asJsObject
+                    result.fields.get("error") shouldBe empty
+                    result.fields.get("auth") shouldBe Some(JsString(WhiskProperties.readAuthKey(WhiskProperties.getAuthFileForTesting)))
+                    result.fields.get("edge").toString should include(WhiskProperties.getEdgeHost)
+            }
+    }
+
     it should "invoke an invalid action and get error back" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "basicInvoke"
@@ -62,7 +79,7 @@ class CLIPythonTests
 
             withActivation(wsk.activation, wsk.action.invoke(name)) {
                 activation =>
-                    activation.getFieldPath("response", "result", "error") shouldBe Some(JsString("The action failed to compile. See logs for details."))
+                    activation.getFieldPath("response", "result", "error") shouldBe Some(JsString("The action failed to generate or locate a binary. See logs for details."))
                     activation.fields("logs").toString should { not include ("pythonaction.py") and not include ("flask") }
             }
     }
