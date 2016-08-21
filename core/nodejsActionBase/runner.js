@@ -36,19 +36,13 @@ function NodeActionRunner(message, whisk) {
         return;
     }
 
-    var hrStart;
     var callback = { };
 
     function closeAndReturn(result) {
-        var hrEnd = process.hrtime();
 
         if (typeof callback.closedConnection === 'undefined') {
             callback.closedConnection = true;
-            callback.next({
-                result  : result,
-                duration: duration(hrStart, hrEnd),
-                memusage: util.inspect(process.memoryUsage())
-            });
+            callback.next(result);
         } else {
             // There is no 'else': we can't close the connection more than once
             // (which is what callback.next eventually does). We should warn the
@@ -65,8 +59,6 @@ function NodeActionRunner(message, whisk) {
         callback.done = undefined;
         callback.closedConnection = undefined;
         callback.next = next;
-
-        hrStart = process.hrtime(); // sec and nanosec
 
         var result = this.userScriptMain(args);
 

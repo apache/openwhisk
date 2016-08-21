@@ -41,7 +41,6 @@ function NodeActionService(config, logger) {
         server = app.listen(app.get('port'), function() {
             var host = server.address().address;
             var port = server.address().port;
-            logger.info('[start] listening at http://%s:%s', host, port);
         });
     }
 
@@ -55,7 +54,6 @@ function NodeActionService(config, logger) {
             try {
                 var body = req.body || {};
                 var message = body.value || {};
-                logger.info('[initCode]', body);
 
                 if (message.main && message.code && typeof message.main === 'string' && typeof message.code === 'string') {
                     if (!message.lib) {
@@ -70,14 +68,13 @@ function NodeActionService(config, logger) {
                         }
                     } else {
                         setStatus(Status.ready);
-                        res.status(500).json({ error: "Library and code dependencies not yet supported." });
+                        res.status(500).json({ error: 'Library and code dependencies not yet supported.' });
                     }
                 } else {
                     setStatus(Status.ready);
-                    res.status(500).json({ error: "Missing main/no code to execute." });
+                    res.status(500).json({ error: 'Missing main/no code to execute.' });
                 }
             } catch (e) {
-                logger.error('[initCode]', 'exception', e);
                 shutdown(res, 500, { error: 'Internal system error: ' + String(e) });
             }
         } else res.status(502).send({ error: 'Internal system error: system not ready.' });
@@ -94,12 +91,13 @@ function NodeActionService(config, logger) {
                 if (result) {
                     // it is an error if the value is defined but not of type object
                     if (typeof result !== 'object') {
-                        res.status(502).json({ error: 'result must be of type object but has type ' + typeof result });
+                        console.error('Result must be of type object but has type "' + typeof result + '":', result);
+                        res.status(502).json({ error: 'The action did not return a dictionary.' });
                     } else {
                         res.status(200).json(result);
                     }
                 } else {
-                    res.status(500).json({ error: "An error has occurred: " + errMsg });
+                    res.status(500).json({ error: 'An error has occurred: ' + errMsg });
                 }
             });
         } else if (status === Status.starting || status === Status.running) {
@@ -129,10 +127,9 @@ function NodeActionService(config, logger) {
         userScript = new NodeActionRunner(message, context);
         if (typeof userScript.userScriptMain === 'function') {
             setStatus(Status.ready);
-            logger.info('[doInit]', 'initCode initialized:', userScript.userScriptName);
             return true;
         } else {
-            logger.error('[doInit]', 'initCode failed to initialize');
+            writeMarkers();
             setStatus(Status.stopped);
             return false;
         }
@@ -140,25 +137,24 @@ function NodeActionService(config, logger) {
 
     function doRun(req, next) {
         try {
-            logger.info('[doRun]', 'invoking with args', req.body)
             var ids = (req.body || {}).meta;
             var args = (req.body || {}).value;
             var authKey = (req.body || {}).authKey;
             userScript.whisk.setAuthKey(authKey)
             userScript.run(args, function(response) {
-                console.log('XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX')
-                console.error('XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX')
-                logger.info('[doRun]', 'response is', response.result);
-                logger.info('[usage]', userScript.userScriptName,
-                            ': activationId = ', (ids || {}).activationId,
-                            '  Duration = ', response.duration+'ms',
-                            '  MemUsage = ', response.memusage);
-                next(response.result, undefined);
+                writeMarkers();
+                next(response, undefined);
             });
         } catch (e) {
-            logger.error('[doRun]', 'runCode exception', e);
+            console.error(e);
+            writeMarkers();
             next(false, e);
         }
+    }
+
+    function writeMarkers() {
+        console.log('XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX');
+        console.error('XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX');
     }
 }
 

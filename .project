@@ -16,7 +16,7 @@
 	</natures>
 	<filteredResources>
 		<filter>
-			<id>1466620298174</id>
+			<id>1470885991026</id>
 			<name></name>
 			<type>30</type>
 			<matcher>
@@ -29,10 +29,6 @@
 					<matcher>
 						<id>org.eclipse.ui.ide.multiFilter</id>
 						<arguments>1.0-projectRelativePath-matches-false-false-tests</arguments>
-					</matcher>
-					<matcher>
-						<id>org.eclipse.ui.ide.multiFilter</id>
-						<arguments>1.0-projectRelativePath-matches-false-true-core/nodejsAction</arguments>
 					</matcher>
 					<matcher>
 						<id>org.eclipse.ui.ide.multiFilter</id>
@@ -54,7 +50,7 @@
 			</matcher>
 		</filter>
 		<filter>
-			<id>1466620298175</id>
+			<id>1470885991027</id>
 			<name></name>
 			<type>10</type>
 			<matcher>

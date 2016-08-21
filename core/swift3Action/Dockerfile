@@ -1,19 +1,11 @@
-# This Dockerfile is partially based on:
-#   https://github.com/swiftdocker/docker-swift/
-FROM buildpack-deps:trusty
+# Dockerfile for swift actions, overrides and extends ActionRunner from actionProxy
+# This Dockerfile is partially based on: https://github.com/swiftdocker/docker-swift/
+FROM openwhisk/dockerskeleton
 
 ENV DEBIAN_FRONTEND noninteractive
 
-# Upgrade and install Python dependencies
-RUN apt-get -y purge && \
-    apt-get -y update && \
-    apt-get -y install --fix-missing python2.7 python-distribute python-pip
-
-# Install Python proxy support
-RUN apt-get -y install --fix-missing python2.7-dev python-gevent python-flask
-
 # Upgrade and install Swift dependencies
-RUN apt-get -y install build-essential wget clang libedit-dev libicu52 libxml2-dev
+RUN apt-get -y install --fix-missing build-essential wget clang libedit-dev libicu52 libxml2-dev
 
  # Kitura dependencies
 RUN apt-get -y install autoconf libtool libkqueue-dev libkqueue0 libdispatch-dev libdispatch0 libcurl4-openssl-dev libbsd-dev
@@ -39,21 +31,17 @@ RUN SWIFT_ARCHIVE_NAME=swift-$SWIFT_VERSION-$SWIFT_PLATFORM && \
 RUN git clone -b experimental/foundation https://github.com/apple/swift-corelibs-libdispatch.git
 RUN cd swift-corelibs-libdispatch && git submodule init && git submodule update && sh ./autogen.sh && ./configure --with-swift-toolchain=/usr --prefix=/usr && make && make install
 
-# Copy the Flask proxy. Following the pattern in nodejsAction.
-ADD . /swift3Action
-
-RUN cd /swift3Action; rm -rf .project .settings build.xml Dockerfile
-
-# Where the script will live.
-#RUN mkdir -p /swift3Action
-#RUN touch /swift3Action/action.swift
+# Copy the Flask proxy.
+RUN mkdir -p /swift3Action
+ADD epilogue.swift /swift3Action
+ADD swift3runner.py /swift3Action
+ADD spm-build /swift3Action/spm-build
 
 # Build kitura net
-RUN mkdir -p /swift3Action
 RUN touch /swift3Action/spm-build/main.swift
 RUN cd /swift3Action/spm-build; swift build -Xcc -fblocks
 RUN rm /swift3Action/spm-build/.build/debug/Action
 
 ENV FLASK_PROXY_PORT 8080
 
-CMD ["/bin/bash", "-c", "cd swift3Action && python -u proxy.py"]
+CMD ["/bin/bash", "-c", "cd swift3Action && python -u swift3runner.py"]
