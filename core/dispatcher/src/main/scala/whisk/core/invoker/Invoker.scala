@@ -19,6 +19,7 @@ package whisk.core.invoker
 import java.time.Clock
 import java.time.Instant
 
+import scala.Vector
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
@@ -33,6 +34,8 @@ import scala.util.matching.Regex.Match
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.actor.actorRef2Scala
+import akka.event.Logging.InfoLevel
+import akka.event.Logging.LogLevel
 import akka.japi.Creator
 import spray.json.DefaultJsonProtocol
 import spray.json.DefaultJsonProtocol.IntJsonFormat
@@ -48,6 +51,8 @@ import whisk.common.ConsulClient
 import whisk.common.ConsulKV.InvokerKeys
 import whisk.common.ConsulKVReporter
 import whisk.common.Counter
+import whisk.common.LoggingMarkers
+import whisk.common.PrintStreamEmitter
 import whisk.common.SimpleExec
 import whisk.common.TransactionId
 import whisk.connector.kafka.KafkaConsumerConnector
@@ -78,12 +83,8 @@ import whisk.core.entity.DocRevision
 import whisk.core.entity.EntityName
 import whisk.core.entity.LogLimit
 import whisk.core.entity.Namespace
-import whisk.core.entity.NodeJS6Exec
-import whisk.core.entity.NodeJSExec
 import whisk.core.entity.SemVer
 import whisk.core.entity.Subject
-import whisk.core.entity.Swift3Exec
-import whisk.core.entity.SwiftExec
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskActivation
 import whisk.core.entity.WhiskActivationStore
@@ -95,10 +96,6 @@ import whisk.core.entity.size.SizeLong
 import whisk.core.entity.size.SizeString
 import whisk.http.BasicHttpService
 import whisk.utils.ExecutionContextFactory
-import whisk.common.LoggingMarkers
-import akka.event.Logging.LogLevel
-import akka.event.Logging.InfoLevel
-import whisk.common.PrintStreamEmitter
 
 /**
  * A kafka message handler that invokes actions as directed by message on topic "/actions/invoke".
@@ -294,7 +291,7 @@ class Invoker(
                     producer.send("completed", completeMsg) map { status =>
                         info(this, s"posted completion of activation ${msg.activationId}")
                     }
-                    val contents = getContainerLogs(con, action.limits.logs)
+                    val contents = getContainerLogs(con, action.exec.sentinelledLogs, action.limits.logs)
                     // Force delete the container instead of just pausing it iff the initialization failed or the container
                     // failed otherwise. An example of a ContainerError is the timeout of an action in which case the
                     // container is to be removed to prevent leaking
@@ -317,10 +314,6 @@ class Invoker(
     private val LogRetryCount = 15
     private val LogRetry = 100 // millis
     private val LOG_ACTIVATION_SENTINEL = "XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX"
-    private val nodejsImageName = WhiskAction.containerImageName(NodeJSExec("", None), config.dockerRegistry, config.dockerImageTag)
-    private val nodejs6ImageName = WhiskAction.containerImageName(NodeJS6Exec("", None), config.dockerRegistry, config.dockerImageTag)
-    private val swiftImageName = WhiskAction.containerImageName(SwiftExec(""), config.dockerRegistry, config.dockerImageTag)
-    private val swift3ImageName = WhiskAction.containerImageName(Swift3Exec(""), config.dockerRegistry, config.dockerImageTag)
 
     /**
      * Waits for log cursor to advance. This will retry up to tries times
@@ -330,21 +323,19 @@ class Invoker(
      *
      * Note: Updates the container's log cursor to indicate consumption of log.
      */
-    private def getContainerLogs(con: WhiskContainer, limit: LogLimit, tries: Int = LogRetryCount)(implicit transid: TransactionId): JsArray = {
+    private def getContainerLogs(con: WhiskContainer, sentinelled: Boolean, limit: LogLimit, tries: Int = LogRetryCount)(implicit transid: TransactionId): JsArray = {
         val size = con.getLogSize(runningInContainer)
         val advanced = size != con.lastLogSize
         if (tries <= 0 || advanced) {
             val rawLogBytes = con.getDockerLogContent(con.lastLogSize, size, runningInContainer)
             val rawLog = new String(rawLogBytes, "UTF-8")
 
-            val isNodeJs = con.image == nodejsImageName || con.image == nodejs6ImageName
-            val isSwift = con.image == swiftImageName || con.image == swift3ImageName
-            val (complete, isTruncated, logs) = processJsonDriverLogContents(rawLog, isNodeJs || isSwift, limit)
+            val (complete, isTruncated, logs) = processJsonDriverLogContents(rawLog, sentinelled, limit)
 
             if (tries > 0 && !complete && !isTruncated) {
                 info(this, s"log cursor advanced but missing sentinel, trying $tries more times")
                 Thread.sleep(LogRetry)
-                getContainerLogs(con, limit, tries - 1)
+                getContainerLogs(con, sentinelled, limit, tries - 1)
             } else {
                 con.lastLogSize = size
                 val formattedLogs = logs.map(_.toFormattedString)
@@ -358,7 +349,7 @@ class Invoker(
         } else {
             info(this, s"log cursor has not advanced, trying $tries more times")
             Thread.sleep(LogRetry)
-            getContainerLogs(con, limit, tries - 1)
+            getContainerLogs(con, sentinelled, limit, tries - 1)
         }
     }
 
