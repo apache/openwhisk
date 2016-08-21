@@ -13,7 +13,15 @@
   register: tmpdir
 
 - name: copy docker sdk to dockerSkeleton in scratch space
-  local_action: copy src="{{ openwhisk_home }}/sdk/docker/" dest="{{ tmpdir.stdout }}/dockerSkeleton/"
+  local_action: copy src="{{ openwhisk_home }}/sdk/docker/{{ item }}" dest="{{ tmpdir.stdout }}/dockerSkeleton/"
+  with_items:
+    - buildAndPush.sh
+    - Dockerfile
+    - example.c
+    - README.md
+
+- name: fix file permissions
+  local_action: file path="{{ tmpdir.stdout }}/dockerSkeleton/buildAndPush.sh" mode=0755
 
 - name: build blackbox container artifact
   local_action: shell "tar" "--exclude=build.gradle" "-czf" "{{ tmpdir.stdout }}/blackbox-0.1.0.tar.gz" "dockerSkeleton" chdir="{{ tmpdir.stdout }}"

@@ -12,17 +12,23 @@ The script `buildAndPush.sh` is provided for your convenience. The following com
 runs the included example Docker action container using OpenWhisk.
 
 ```
-# install ./dockerSkeleton with example
-> wsk sdk install docker
+# install dockerSkeleton with example
+wsk sdk install docker
+
 # change working directory
-> cd dockerSkeleton
+cd dockerSkeleton
+
 # build/push, argument is your docker hub user name and a valid docker image name
-> ./buildAndPush <dockerhub username>/whiskexample
+./buildAndPush <dockerhub username>/whiskexample
+
 # create docker action
-> wsk action create dockerSkeletonExample --docker <dockerhub username>/whiskExample
+wsk action create dockerSkeletonExample --docker <dockerhub username>/whiskExample
+
 # invoke created action
-> wsk action invoke dockerSkeletonExample --blocking
+wsk action invoke dockerSkeletonExample --blocking
 ```
 
-The binary to execute must be located in the `client` folder. The name of the binary
-(or shell script as in the standard bundle) must be `action`.
+The executable file must be located in the `/action` folder.
+The name of the executable must be `/action/exec` and can be any file with executable permissions.
+The sample docker action runs `example.c` by copying and building the source inside the container
+as `/action/exec` (see `Dockerfile` lines 8-9).
