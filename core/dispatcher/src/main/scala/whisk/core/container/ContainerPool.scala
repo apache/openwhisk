@@ -155,7 +155,7 @@ class ContainerPool(
                 getImpl(nextPosition.next(), key, { () => makeWhiskContainer(action, auth) }) map {
                     case (c, initResult) =>
                         val cacheMsg = if (!initResult.isDefined) "(Cache Hit)" else "(Cache Miss)"
-                        info(this, s"ContainerPool.getAction obtained container ${c.id} ${cacheMsg}")
+                        info(this, s"getAction obtained container ${c.id} ${cacheMsg}")
                         (c.asInstanceOf[WhiskContainer], initResult)
                 }
             } finally {
@@ -299,7 +299,7 @@ class ContainerPool(
      * This call can be slow but not while locking data structure so it does not interfere with other activations.
      */
     def putBack(container: Container, delete: Boolean = false)(implicit transid: TransactionId): Unit = {
-        info(this, s"ContainerPool.putBack returning container ${container.id}  delete = $delete")
+        info(this, s"putBack returning container ${container.id}  delete = $delete")
         if (!delete) // Docker operation outside sync block. Don't pause if we are deleting.
             runDockerOp { container.pause() }
         val toBeDeleted = this.synchronized { // Return container to pool logically and then optionally delete
@@ -455,10 +455,12 @@ class ContainerPool(
         val limits = ActionLimits(TimeLimit(), defaultMemoryLimit, LogLimit())
         val containerName = makeContainerName("warmJsContainer")
         val con = makeGeneralContainer(warmNodejsKey, containerName, imageName, limits)
-        this.synchronized {
-            introduceContainer(warmNodejsKey, con)
-        }
-        info(this, s"ContainerPool: started warm nodejs container")
+        if (con.containerId.isDefined) {
+            this.synchronized {
+                introduceContainer(warmNodejsKey, con)
+            }
+            info(this, "Started warm nodejs container")
+        } else error(this, "Error starting warm container")
         con
     }
 
@@ -588,7 +590,7 @@ class ContainerPool(
             val idleInfo = this.synchronized {
                 val idle = containerMap filter { case (container, ci) => ci.isIdle() && pred(ci) }
                 idle.keys foreach { con =>
-                    info(this, s"ContainerPool.removeAllIdle removing container ${con.id}")
+                    info(this, s"removeAllIdle removing container ${con.id}")
                 }
                 containerMap --= idle.keys
                 keyMap foreach { case (key, ciList) => ciList --= idle.values }
@@ -615,7 +617,7 @@ class ContainerPool(
                 List()
             else {
                 val oldestConInfo = idle.minBy(_._2.lastUsed)._2
-                info(this, s"ContainerPool.removeOldestIdle removing container ${oldestConInfo.container.id}")
+                info(this, s"removeOldestIdle removing container ${oldestConInfo.container.id}")
                 removeContainerInfo(oldestConInfo)
                 List(oldestConInfo)
             }
