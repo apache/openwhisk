@@ -6,8 +6,8 @@
  *
  * The input to the action is received as an argument from the command line.
  * Actions may log to stdout or stderr.
- * By convention, the last line of output must be a stringified JSON object 
- * which represents the result of the action. 
+ * By convention, the last line of output must be a stringified JSON object
+ * which represents the result of the action.
  */
 
 int main(int argc, char *argv[]) {
