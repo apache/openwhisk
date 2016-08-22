@@ -16,13 +16,28 @@
 
 package whisk.core.entity
 
+import scala.concurrent.Future
+import scala.util.{ Try, Success, Failure }
+
+import akka.http.scaladsl.model.ContentType
+import akka.http.scaladsl.model.MediaTypes
+
 import spray.json.DefaultJsonProtocol
 import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json.JsObject
 import spray.json.JsString
 import spray.json.pimpAny
 
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.nio.charset.StandardCharsets
+import java.util.Base64
+
+import whisk.common.Logging
+import whisk.common.TransactionId
+import whisk.core.database.ArtifactStore
 import whisk.core.database.DocumentFactory
+import whisk.core.entity.Attachments._
 
 /**
  * ActionLimitsOption mirrors ActionLimits but makes both the timeout and memory
@@ -161,6 +176,70 @@ object WhiskAction
 
     override val cacheEnabled = true
     override def cacheKeys(w: WhiskAction) = Set(w.docid.asDocInfo, w.docinfo)
+
+    private val jarAttachmentName = "jarfile"
+    private val jarContentType = ContentType.Binary(MediaTypes.`application/java-archive`)
+
+    // Overriden to store Java `exec` fields as attachments.
+    override def put[A >: WhiskAction](db: ArtifactStore[A], doc: WhiskAction)(
+        implicit transid: TransactionId): Future[DocInfo] = {
+
+        Try {
+            require(db != null, "db undefined")
+            require(doc != null, "doc undefined")
+        } map { _ =>
+            doc.exec match {
+                case JavaExec(Inline(jar), main) =>
+                    implicit val logger = db: Logging
+                    implicit val ec = db.executionContext
+
+                    val newDoc = doc.copy(exec = JavaExec(Attached(jarAttachmentName, jarContentType), main))
+                    newDoc.revision(doc.rev)
+
+                    val stream = new ByteArrayInputStream(Base64.getDecoder().decode(jar))
+
+                    for (
+                        i1 <- super.put(db, newDoc);
+                        i2 <- attach[A](db, i1, "jarfile", jarContentType, stream)
+                    ) yield i2
+
+                case _ =>
+                    super.put(db, doc)
+            }
+        } match {
+            case Success(f) => f
+            case Failure(f) => Future.failed(f)
+        }
+    }
+
+    // Overriden to retrieve attached Java `exec` fields.
+    override def get[A >: WhiskAction](db: ArtifactStore[A], doc: DocInfo, fromCache: Boolean)(
+        implicit transid: TransactionId, mw: Manifest[WhiskAction]): Future[WhiskAction] = {
+
+        implicit val ec = db.executionContext
+
+        val fa = super.get(db, doc, fromCache)
+
+        fa.flatMap { action =>
+            action.exec match {
+                case JavaExec(Attached(n, t), m) =>
+                    val boas = new ByteArrayOutputStream()
+                    val b64s = Base64.getEncoder().wrap(boas)
+
+                    getAttachment[A](db, action.docinfo, jarAttachmentName, b64s).map { _ =>
+                        b64s.close()
+                        val encoded = new String(boas.toByteArray(), StandardCharsets.UTF_8)
+                        val newAction = action.copy(exec = JavaExec(Inline(encoded), m))
+                        newAction.revision(action.rev)
+                        newAction
+                    }
+
+                case _ =>
+                    Future.successful(action)
+            }
+        }
+
+    }
 }
 
 object ActionLimitsOption extends DefaultJsonProtocol {
