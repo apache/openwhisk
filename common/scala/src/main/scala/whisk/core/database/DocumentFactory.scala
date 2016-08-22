@@ -18,12 +18,20 @@ package whisk.core.database
 
 import scala.concurrent.Future
 import scala.util.Try
-import whisk.common.TransactionId
-import whisk.core.entity.DocInfo
 import scala.util.Failure
 import scala.util.Success
+
+import akka.http.scaladsl.model.ContentType
+import akka.stream.scaladsl.StreamConverters
+import akka.stream.IOResult
+
+import java.io.InputStream
+import java.io.OutputStream
+
 import whisk.common.Logging
 import whisk.core.entity.DocRevision
+import whisk.common.TransactionId
+import whisk.core.entity.DocInfo
 
 import spray.json.JsObject
 
@@ -172,7 +180,7 @@ trait DocumentFactory[W] extends InMemoryCache[W] {
             require(db != null, "db undefined")
             require(doc != null, "doc undefined")
         } map { _ =>
-            implicit val logger = db: Logging
+            implicit val logger: Logging = db
             // invalidate two keys: just the id, and id:rev
             cacheInvalidate(Set(doc, doc.id.asDocInfo))
             db.del(doc)

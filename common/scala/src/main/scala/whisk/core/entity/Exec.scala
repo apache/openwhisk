@@ -22,12 +22,14 @@ import scala.language.postfixOps
 
 import spray.json.DefaultJsonProtocol
 import spray.json.DeserializationException
+import spray.json.JsonFormat
 import spray.json.JsArray
 import spray.json.JsObject
 import spray.json.JsString
 import spray.json.JsValue
 import spray.json.RootJsonFormat
 import whisk.core.entity.ArgNormalizer.trim
+import whisk.core.entity.Attachments._
 import whisk.core.entity.size.SizeInt
 import whisk.core.entity.size.SizeString
 
@@ -79,10 +81,11 @@ protected[core] case class Swift3Exec(code: String) extends Exec(Exec.SWIFT3) {
     def size = code sizeInBytes
 }
 
-protected[core] case class JavaExec(jar: String, main: String) extends Exec(Exec.JAVA) {
+protected[core] case class JavaExec(jar: Attachment[String], main: String) extends Exec(Exec.JAVA) {
     val image = Exec.imagename(Exec.JAVA)
     override val sentinelledLogs = false
-    def size = (jar sizeInBytes) + (main sizeInBytes)
+    // FIXME attachments are free, really?
+    def size = jar.fold(_.sizeInBytes, 0.bytes) + main.sizeInBytes
 }
 
 protected[core] case class BlackBoxExec(image: String) extends Exec(Exec.BLACKBOX) {
@@ -123,8 +126,10 @@ protected[core] object Exec
     protected[core] def bb(image: String): Exec = BlackBoxExec(trim(image))
     protected[core] def swift(code: String): Exec = SwiftExec(trim(code))
     protected[core] def swift3(code: String): Exec = Swift3Exec(trim(code))
-    protected[core] def java(jar: String, main: String): Exec = JavaExec(trim(jar), trim(main))
+    protected[core] def java(jar: String, main: String): Exec = JavaExec(Inline(trim(jar)), trim(main))
     protected[core] def sequence(components: Vector[String]): Exec = SequenceExec(Pipecode.code, components)
+
+    private def attFmt[T: JsonFormat] = Attachments.serdes[T]
 
     override protected[core] implicit val serdes = new RootJsonFormat[Exec] {
         override def write(e: Exec) = e match {
@@ -136,7 +141,7 @@ protected[core] object Exec
             case PythonExec(code)              => JsObject("kind" -> JsString(Exec.PYTHON), "code" -> JsString(code))
             case SwiftExec(code)               => JsObject("kind" -> JsString(Exec.SWIFT), "code" -> JsString(code))
             case Swift3Exec(code)              => JsObject("kind" -> JsString(Exec.SWIFT3), "code" -> JsString(code))
-            case JavaExec(jar, main)           => JsObject("kind" -> JsString(Exec.JAVA), "jar" -> JsString(jar), "main" -> JsString(main))
+            case JavaExec(jar, main)           => JsObject("kind" -> JsString(Exec.JAVA), "jar" -> attFmt[String].write(jar), "main" -> JsString(main))
             case BlackBoxExec(image)           => JsObject("kind" -> JsString(Exec.BLACKBOX), "image" -> JsString(image))
         }
 
@@ -213,9 +218,10 @@ protected[core] object Exec
                     Swift3Exec(code)
 
                 case Exec.JAVA =>
-                    val jar: String = obj.getFields("jar") match {
-                        case Seq(JsString(j)) => j //if Try(b64decoder.decode(j)).isSuccess => j
-                        case _                => throw new DeserializationException(s"'jar' must be a valid base64 string in 'exec' for '${Exec.JAVA}' actions")
+                    val jar: Attachment[String] = obj.fields.get("jar").map { f =>
+                        attFmt[String].read(f)
+                    } getOrElse {
+                        throw new DeserializationException(s"'jar' must be a valid base64 string in 'exec' for '${Exec.JAVA}' actions")
                     }
                     val main: String = obj.getFields("main") match {
                         case Seq(JsString(m)) => m
