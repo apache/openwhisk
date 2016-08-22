@@ -7,6 +7,10 @@
 	],
 	"Deps": [
 		{
+			"ImportPath": "github.com/cloudfoundry/jibber_jabber",
+			"Rev": "bcc4c8345a21301bf47c032ff42dd1aae2fe3027"
+		},
+		{
 			"ImportPath": "github.com/fatih/color",
 			"Comment": "v0.1-19-g87d4004",
 			"Rev": "87d4004f2ab62d0d255e0a38f1680aa534549fe3"
@@ -37,6 +41,26 @@
 			"Rev": "1111e456ffea841564ac0fa5f69c26ef44dafec9"
 		},
 		{
+			"ImportPath": "github.com/nicksnyder/go-i18n/i18n",
+			"Comment": "v1.4.0",
+			"Rev": "37e5c2de3e03e4b82693e3fcb4a6aa2cc4eb07e3"
+		},
+		{
+			"ImportPath": "github.com/nicksnyder/go-i18n/i18n/bundle",
+			"Comment": "v1.4.0",
+			"Rev": "37e5c2de3e03e4b82693e3fcb4a6aa2cc4eb07e3"
+		},
+		{
+			"ImportPath": "github.com/nicksnyder/go-i18n/i18n/language",
+			"Comment": "v1.4.0",
+			"Rev": "37e5c2de3e03e4b82693e3fcb4a6aa2cc4eb07e3"
+		},
+		{
+			"ImportPath": "github.com/nicksnyder/go-i18n/i18n/translation",
+			"Comment": "v1.4.0",
+			"Rev": "37e5c2de3e03e4b82693e3fcb4a6aa2cc4eb07e3"
+		},
+		{
 			"ImportPath": "github.com/spf13/cobra",
 			"Rev": "1238ba19d24b0b9ceee2094e1cb31947d45c3e86"
 		},
@@ -47,6 +71,10 @@
 		{
 			"ImportPath": "golang.org/x/sys/unix",
 			"Rev": "7f918dd405547ecb864d14a8ecbbfe205b5f930f"
+		},
+		{
+			"ImportPath": "gopkg.in/yaml.v2",
+			"Rev": "e4d366fc3c7938e2958e662b4258c7a89e1f0e3e"
 		}
 	]
 }

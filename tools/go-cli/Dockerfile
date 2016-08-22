@@ -4,16 +4,24 @@ FROM golang:1.6
 RUN apt-get -y update && \
     apt-get -y install zip
 
-# Download and install the godep tool
-RUN echo "Installing the godep tool"
 ENV GOPATH=/
+
+# Download and install tools
+RUN echo "Installing the godep tool"
 RUN go get github.com/tools/godep
+
+RUN echo "Installing the go-bindata tool"
+RUN go get github.com/jteeuwen/go-bindata/...
 
 ADD . /src/github.com/
 
 # Load all of the dependencies from the previously generated/saved godep generated godeps.json file
 RUN echo "Restoring Go dependencies"
 RUN cd /src/github.com/go-whisk-cli && /bin/godep restore -v
+
+# Collect all translated strings into single .go module
+RUN echo "Generating i18n Go module"
+RUN cd /src/github.com/go-whisk-cli && /bin/go-bindata -pkg wski18n -o wski18n/i18n_resources.go wski18n/resources
 
 # Generate a Go package dependency list
 # NOTE: Currently, the 'go list' command will not work against the current Go CLI non-standard file structure

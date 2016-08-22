@@ -17,13 +17,15 @@
 package commands
 
 import (
+    "errors"
     "fmt"
     "net/http"
     "net/url"
     "os"
 
     "../../go-whisk/whisk"
-    "errors"
+    "../wski18n"
+
     "github.com/spf13/cobra"
 )
 
@@ -31,16 +33,24 @@ var client *whisk.Client
 
 func setupClientConfig(cmd *cobra.Command, args []string) (error){
     var apiHostBaseUrl = fmt.Sprintf("https://%s/api/", Properties.APIHost)
-
     baseURL, err := url.Parse(apiHostBaseUrl)
 
-    if err != nil {
+    // Don't display the 'invalid apihost' error if this CLI invocation is setting that value
+    isApiHostPropSetCmd := cmd.Parent().Name() == "property" && cmd.Name() == "set" && len(flags.property.apihostSet) > 0
+    if err != nil && !isApiHostPropSetCmd {
         whisk.Debug(whisk.DbgError, "url.Parse(%s) error: %s\n", apiHostBaseUrl, err)
-        errMsg := fmt.Sprintf("Invalid apiHost value '%s' : %s", Properties.APIHost, err)
-        whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+        errMsg := fmt.Sprintf(
+            wski18n.T("error: The configured API host property value '{{.apihost}}' is invalid : {{.err}}",
+                map[string]interface{}{"apihost": Properties.APIHost, "err": err}))
+        fmt.Fprintln(os.Stderr, errMsg)
+        errMsg = fmt.Sprintf(
+            wski18n.T("A default API host value of 'localhost' will be used"))
+        fmt.Fprintln(os.Stderr, errMsg)
+        errMsg = fmt.Sprintf(
+            wski18n.T("Run 'wsk property set --apihost HOST' to set a valid API host value"))
+        fmt.Fprintln(os.Stderr, errMsg)
 
-        return whiskErr
+        baseURL, _ = url.Parse("https://localhost/api/")
     }
 
     clientConfig := &whisk.Config{
@@ -56,7 +66,8 @@ func setupClientConfig(cmd *cobra.Command, args []string) (error){
 
     if err != nil {
         whisk.Debug(whisk.DbgError, "whisk.NewClient(%#v, %#v) error: %s\n", http.DefaultClient, clientConfig, err)
-        errMsg := fmt.Sprintf("Unable to initialize server connection: %s", err)
+        errMsg := fmt.Sprintf(
+            wski18n.T("Unable to initialize server connection: {{.err}}", map[string]interface{}{"err": err}))
         whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
         whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
         return whiskErr
@@ -102,12 +113,11 @@ func parseArgs(args []string) ([]string, []string, []string, error) {
                 paramArgs = append(paramArgs, "")
                 args = append(args[:i], args[i + 2:]...)
             } else {
-                whisk.Debug(whisk.DbgError, "Parameter arguments must be a key value pair; args: %s", args)
-
-                errMsg = fmt.Sprintf("Parameter arguments must be a key value pair: %s", args)
+                whisk.Debug(whisk.DbgError, "Parameter arguments must be a key value pair; args: %s", args[i:])
+                errMsg = fmt.Sprintf(
+                    wski18n.T("Parameter arguments must be a key value pair: {{.args}}", map[string]interface{}{"args":args[i:]}))
                 whiskErr = whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG,
                     whisk.DISPLAY_USAGE)
-
                 return nil, nil, nil, whiskErr
             }
         } else if !parsingParam && args[i] == "-a" || args[i] == "--annotation"{
@@ -124,12 +134,11 @@ func parseArgs(args []string) ([]string, []string, []string, error) {
                 annotArgs = append(annotArgs, "")
                 args = append(args[:i], args[i + 2:]...)
             } else {
-                whisk.Debug(whisk.DbgError, "Annotation arguments must be a key value pair; args: %s", args)
-
-                errMsg = fmt.Sprintf("Annotation arguments must be a key value pair: %s", args)
+                whisk.Debug(whisk.DbgError, "Annotation arguments must be a key value pair; args: %s", args[i:])
+                errMsg = fmt.Sprintf(
+                    wski18n.T("Annotation arguments must be a key value pair: {{.args}}", map[string]interface{}{"args":args[i:]}))
                 whiskErr = whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG,
                     whisk.DISPLAY_USAGE)
-
                 return nil, nil, nil, whiskErr
             }
         } else {
@@ -152,7 +161,8 @@ func Execute() error {
 
     if err != nil {
         whisk.Debug(whisk.DbgError, "parseParams(%s) failed: %s\n", os.Args, err)
-        errMsg := fmt.Sprintf("Failed to parse arguments: %s", err)
+        errMsg := fmt.Sprintf(
+            wski18n.T("Failed to parse arguments: {{.err}}", map[string]interface{}{"err":err}))
         whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
             whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
         return whiskErr
