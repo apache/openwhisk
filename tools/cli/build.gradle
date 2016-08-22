@@ -1,4 +1,5 @@
 apply plugin: 'eclipse'
+
 eclipse {
     project {
         natures 'org.python.pydev.pythonNature'
@@ -36,18 +37,20 @@ task establishStructure(type: Copy) {
 distDocker.dependsOn(establishStructure)
 
 task distTar(dependsOn: [removeDistribution, distDocker]) << {
-    run("docker rm -f cli", true) // Ignore error as this is a cleanup measure
-    run("docker run --name cli whisk/cli")
-    run("docker cp cli:/cli/dist/ \"${buildDir}/distributions/\"")
-    run("docker rm -f cli")
+    run(dockerBinary + ["rm", "-f", "cli"], true) // Ignore error as this is a cleanup measure
+    run(dockerBinary + ["run", "--name", "cli", dockerRegistry + "whisk/cli:" + dockerImageTag])
+    run(dockerBinary + ["cp", "cli:/cli/dist/", "${buildDir}/distributions"])
+    run(dockerBinary + ["rm", "-f", "cli"])
 }
+
 pushImage.finalizedBy(distTar)
 
 def run(cmd, ignoreError = false) {
-    println("Executing '${cmd}'")
+    println("Executing '${cmd.join(" ")}'")
     def proc = cmd.execute()
     proc.waitFor()
     if(!ignoreError && proc.exitValue() != 0) {
-        println("Command '${cmd}' failed with exitCode ${proc.exitValue()}")
+        println("Command '${cmd.join(" ")}' failed with exitCode ${proc.exitValue()}")
     }
 }
+
