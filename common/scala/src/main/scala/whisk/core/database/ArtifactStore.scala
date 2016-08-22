@@ -19,6 +19,10 @@ package whisk.core.database
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
 
+import akka.http.scaladsl.model._
+import akka.stream.scaladsl._
+import akka.util.ByteString
+
 import spray.json.JsObject
 import whisk.common.Logging
 import whisk.common.TransactionId
@@ -81,6 +85,18 @@ trait ArtifactStore[DocumentAbstraction] extends Logging {
     protected[core] def query(table: String, startKey: List[Any], endKey: List[Any], skip: Int, limit: Int, includeDocs: Boolean, descending: Boolean, reduce: Boolean)(
         implicit transid: TransactionId): Future[List[JsObject]]
 
+    /**
+     * Attaches a "file" of type `contentType` to an existing document. The revision for the document must be set.
+     */
+    protected[core] def attach(doc: DocInfo, name: String, contentType: ContentType, docStream: Source[ByteString, _])(
+        implicit transid: TransactionId): Future[DocInfo]
+
+    /**
+     * Retrieves a saved attachment, streaming it into the provided Sink.
+     */
+    protected[core] def readAttachment[T](doc: DocInfo, name: String, sink: Sink[ByteString, Future[T]])(
+        implicit transid: TransactionId): Future[(ContentType, T)]
+
     /** Shut it down. After this invocation, every other call is invalid. */
-    def shutdown() : Unit
+    def shutdown(): Unit
 }

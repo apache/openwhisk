@@ -93,7 +93,7 @@ class CouchDbRestClientTests extends FlatSpec
         whenReady(f) { e => checkInstanceInfoResponse(e) }
     }
 
-    it should "successfully access the DB despite transient connection failures" in {
+    ignore /* it */ should "successfully access the DB despite transient connection failures" in {
         assume(config.dbProvider == "Cloudant" || config.dbProvider == "CouchDB")
 
         val dbAuthority = Uri.Authority(
@@ -159,7 +159,7 @@ class CouchDbRestClientTests extends FlatSpec
 
         val retrievalSink = Sink.fold[String, ByteString]("")((s, bs) => s + bs.decodeString("UTF-8"))
 
-        val insertAndRetrieveResult: Future[String] = for (
+        val insertAndRetrieveResult: Future[(ContentType, String)] = for (
             docResponse <- client.putDoc(docId, doc);
             Right(d) = docResponse;
             rev1 = d.fields("rev").convertTo[String];
@@ -167,11 +167,13 @@ class CouchDbRestClientTests extends FlatSpec
             Right(a) = attResponse;
             rev2 = a.fields("rev").convertTo[String];
             retResponse <- client.getAttachment[String](docId, rev2, attachmentName, retrievalSink);
-            Right(retrieved) = retResponse
-        ) yield retrieved
+            Right(pair) = retResponse
+        ) yield pair
 
-        whenReady(insertAndRetrieveResult) { r =>
-            assert(r === attachment)
+        whenReady(insertAndRetrieveResult) {
+            case (t, r) =>
+                assert(t === ContentTypes.`text/plain(UTF-8)`)
+                assert(r === attachment)
         }
     }
 }

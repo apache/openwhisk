@@ -181,4 +181,6 @@ object LoggingMarkers {
     val DATABASE_DELETE = LogMarkerToken(database, "deleteDocument", start)
     val DATABASE_GET = LogMarkerToken(database, "getDocument", start)
     val DATABASE_QUERY = LogMarkerToken(database, "queryView", start)
+    val DATABASE_ATT_GET = LogMarkerToken(database, "getDocumentAttachment", start)
+    val DATABASE_ATT_SAVE = LogMarkerToken(database, "saveDocumentAttachment", start)
 }
