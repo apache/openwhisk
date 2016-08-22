@@ -149,6 +149,23 @@ trait DocumentFactory[W] extends InMemoryCache[W] {
         }
     }
 
+    def attach[Wsuper >: W](db: ArtifactStore[Wsuper], doc: DocInfo, attachmentName: String, contentType: ContentType, bytes: InputStream)(
+        implicit transid: TransactionId): Future[DocInfo] = {
+
+        Try {
+            require(db != null, "db undefined")
+            require(doc != null, "doc undefined")
+        } map { _ =>
+            implicit val logger: Logging = db
+            cacheInvalidate(Set(doc, doc.id.asDocInfo))
+            val src = StreamConverters.fromInputStream(() => bytes)
+            db.attach(doc, attachmentName, contentType, src)
+        } match {
+            case Success(f) => f
+            case Failure(t) => Future.failed(t)
+        }
+    }
+
     def del[Wsuper >: W](db: ArtifactStore[Wsuper], doc: DocInfo)(
         implicit transid: TransactionId): Future[Boolean] = {
         Try {
@@ -189,6 +206,30 @@ trait DocumentFactory[W] extends InMemoryCache[W] {
         } map {
             implicit val logger = db: Logging
             _ => cacheLookup(db, doc, db.get[W](doc), fromCache)
+        } match {
+            case Success(f) => f
+            case Failure(t) => Future.failed(t)
+        }
+    }
+
+    def getAttachment[Wsuper >: W](db: ArtifactStore[Wsuper], doc: DocInfo, attachmentName: String, outputStream: OutputStream)(
+        implicit transid: TransactionId): Future[Unit] = {
+
+        implicit val ec = db.executionContext
+
+        Try {
+            require(db != null, "db defined")
+            require(doc != null, "doc undefined")
+        } map { _ =>
+            val sink = StreamConverters.fromOutputStream(() => outputStream)
+            db.readAttachment[IOResult](doc, attachmentName, sink).map {
+                case (_, r) =>
+                    if (!r.wasSuccessful) {
+                        // FIXME...
+                        // Figure out whether OutputStreams are even a decent model.
+                    }
+                    ()
+            }
         } match {
             case Success(f) => f
             case Failure(t) => Future.failed(t)

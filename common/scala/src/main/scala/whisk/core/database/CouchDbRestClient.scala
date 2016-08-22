@@ -227,12 +227,12 @@ class CouchDbRestClient(protocol: String, host: String, port: Int, username: Str
 
     // Retrieves and streams an attachment into a Sink, producing a result of type T.
     // http://docs.couchdb.org/en/1.6.1/api/document/attachments.html#get--db-docid-attname
-    def getAttachment[T](id: String, rev: String, attName: String, sink: Sink[ByteString, Future[T]]): Future[Either[StatusCode, T]] = {
+    def getAttachment[T](id: String, rev: String, attName: String, sink: Sink[ByteString, Future[T]]): Future[Either[StatusCode, (ContentType, T)]] = {
         val request = mkRequest(HttpMethods.GET, uri(db, id, attName), forRev = Some(rev))
 
         request0(request) flatMap { response =>
             if (response.status.isSuccess()) {
-                response.entity.withoutSizeLimit().dataBytes.runWith(sink).map(Right(_))
+                response.entity.withoutSizeLimit().dataBytes.runWith(sink).map(r => Right(response.entity.contentType, r))
             } else {
                 response.entity.withoutSizeLimit().dataBytes.runWith(Sink.ignore).map(_ => Left(response.status))
             }

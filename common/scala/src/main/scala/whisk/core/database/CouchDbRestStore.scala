@@ -16,21 +16,24 @@
 
 package whisk.core.database
 
-import scala.concurrent.Future
 import scala.concurrent.Await
+import scala.concurrent.Future
 import scala.concurrent.duration._
-import spray.json.JsObject
-import akka.http.scaladsl.model.{ StatusCode, StatusCodes }
+
+import akka.actor.ActorSystem
+import akka.event.Logging.ErrorLevel
+import akka.http.scaladsl.model._
+import akka.stream.scaladsl._
+import akka.util.ByteString
+
+import spray.json._
+
+import whisk.common.LoggingMarkers
+import whisk.common.PrintStreamEmitter
 import whisk.common.TransactionId
-import whisk.core.entity.WhiskDocument
 import whisk.core.entity.DocRevision
 import whisk.core.entity.DocInfo
-import akka.actor.ActorSystem
-import spray.json.RootJsonFormat
-import spray.json.DefaultJsonProtocol
-import whisk.common.LoggingMarkers
-import akka.event.Logging.ErrorLevel
-import whisk.common.PrintStreamEmitter
+import whisk.core.entity.WhiskDocument
 
 /**
  * Basic client to put and delete artifacts in a data store.
@@ -60,7 +63,6 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
     private val client: CouchDbRestClient = new CouchDbRestClient(dbProtocol, dbHost, dbPort.toInt, dbUsername, dbPassword, dbName)
 
     override protected[database] def put(d: DocumentAbstraction)(implicit transid: TransactionId): Future[DocInfo] = {
-        // Uses Spray-JSON only.
         val asJson = d.toDocumentRecord
 
         val id: String = asJson.fields("_id").convertTo[String].trim
@@ -76,10 +78,8 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
             case None => client => client.putDoc(id, asJson)
         }
 
-        reportFailure({
-            for (
-                eitherResponse <- request(client)
-            ) yield eitherResponse match {
+        val f = request(client).map { e =>
+            e match {
                 case Right(response) =>
                     transid.finished(this, start, s"[PUT] '$dbName' completed document: '${docinfoStr}', response: '$response'")
                     val id = response.fields("id").convertTo[String]
@@ -95,8 +95,9 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
                     transid.failed(this, start, s"[PUT] '$dbName' failed to put document: '${docinfoStr}'; http status: '${code}'", ErrorLevel)
                     throw new Exception("Unexpected http response code: " + code)
             }
-        },
-            failure => transid.failed(this, start, s"[PUT] '$dbName' internal error, failure: '${failure.getMessage}'", ErrorLevel))
+        }
+
+        reportFailure(f, failure => transid.failed(this, start, s"[PUT] '$dbName' internal error, failure: '${failure.getMessage}'", ErrorLevel))
     }
 
     override protected[database] def del(doc: DocInfo)(implicit transid: TransactionId): Future[Boolean] = {
@@ -104,10 +105,8 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
 
         val start = transid.started(this, LoggingMarkers.DATABASE_DELETE, s"[DEL] '$dbName' deleting document: '$doc'")
 
-        reportFailure({
-            for (
-                eitherResponse <- client.deleteDoc(doc.id.id, doc.rev.rev)
-            ) yield eitherResponse match {
+        val f = client.deleteDoc(doc.id.id, doc.rev.rev).map { e =>
+            e match {
                 case Right(response) =>
                     transid.finished(this, start, s"[DEL] '$dbName' completed document: '$doc', response: $response")
                     response.fields("ok").convertTo[Boolean]
@@ -125,8 +124,9 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
                     transid.failed(this, start, s"[DEL] '$dbName' failed to delete document: '${doc}'; http status: '${code}'", ErrorLevel)
                     throw new Exception("Unexpected http response code: " + code)
             }
-        },
-            failure => transid.failed(this, start, s"[DEL] '$dbName' internal error, doc: '$doc', failure: '${failure.getMessage}'", ErrorLevel))
+        }
+
+        reportFailure(f, failure => transid.failed(this, start, s"[DEL] '$dbName' internal error, doc: '$doc', failure: '${failure.getMessage}'", ErrorLevel))
     }
 
     override protected[database] def get[A <: DocumentAbstraction](doc: DocInfo)(
@@ -135,17 +135,15 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
 
         val start = transid.started(this, LoggingMarkers.DATABASE_GET, s"[GET] '$dbName' finding document: '$doc'")
 
-        reportFailure({
-            require(doc != null, "doc undefined")
-            val request: CouchDbRestClient => Future[Either[StatusCode, JsObject]] = if (doc.rev.rev != null) {
-                client => client.getDoc(doc.id.id, doc.rev.rev)
-            } else {
-                client => client.getDoc(doc.id.id)
-            }
+        require(doc != null, "doc undefined")
+        val request: CouchDbRestClient => Future[Either[StatusCode, JsObject]] = if (doc.rev.rev != null) {
+            client => client.getDoc(doc.id.id, doc.rev.rev)
+        } else {
+            client => client.getDoc(doc.id.id)
+        }
 
-            for (
-                eitherResponse <- request(client)
-            ) yield eitherResponse match {
+        val f = request(client).map { e =>
+            e match {
                 case Right(response) =>
                     transid.finished(this, start, s"[GET] '$dbName' completed: found document '$doc'")
                     val asFormat = jsonFormat.read(response)
@@ -171,8 +169,9 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
                     transid.finished(this, start, s"[GET] '$dbName' failed to get document: '${doc}'; http status: '${code}'")
                     throw new Exception("Unexpected http response code: " + code)
             }
-        },
-            failure => transid.failed(this, start, s"[GET] '$dbName' internal error, doc: '$doc', failure: '${failure.getMessage}'", ErrorLevel))
+        }
+
+        reportFailure(f, failure => transid.failed(this, start, s"[GET] '$dbName' internal error, doc: '$doc', failure: '${failure.getMessage}'", ErrorLevel))
     }
 
     override protected[core] def query(table: String, startKey: List[Any], endKey: List[Any], skip: Int, limit: Int, includeDocs: Boolean, descending: Boolean, reduce: Boolean)(
@@ -191,40 +190,96 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
 
         val start = transid.started(this, LoggingMarkers.DATABASE_QUERY, s"[QUERY] '$dbName' searching '$table ${startKey}:${endKey}'")
 
-        reportFailure({
-            for (
-                eitherResponse <- client.executeView(parts(0), parts(1))(
-                    startKey = realStartKey,
-                    endKey = realEndKey,
-                    skip = Some(skip),
-                    limit = Some(limit),
-                    includeDocs = includeDocs,
-                    descending = descending,
-                    reduce = reduce)
-            ) yield eitherResponse match {
+        val f = for (
+            eitherResponse <- client.executeView(parts(0), parts(1))(
+                startKey = realStartKey,
+                endKey = realEndKey,
+                skip = Some(skip),
+                limit = Some(limit),
+                includeDocs = includeDocs,
+                descending = descending,
+                reduce = reduce)
+        ) yield eitherResponse match {
+            case Right(response) =>
+                val rows = response.fields("rows").convertTo[List[JsObject]]
+
+                val out = if (includeDocs) {
+                    rows.map(_.fields("doc").asJsObject)
+                } else if (reduce && !rows.isEmpty) {
+                    assert(rows.length == 1, s"result of reduced view contains more than one value: '$rows'")
+                    rows.head.fields("value").convertTo[List[JsObject]]
+                } else if (reduce) {
+                    List(JsObject())
+                } else {
+                    rows
+                }
+
+                transid.finished(this, start, s"[QUERY] '$dbName' completed: matched ${out.size}")
+                out
+
+            case Left(code) =>
+                transid.failed(this, start, s"Unexpected http response code: $code", ErrorLevel)
+                throw new Exception("Unexpected http response code: " + code)
+        }
+
+        reportFailure(f, failure => transid.failed(this, start, s"[QUERY] '$dbName' internal error, failure: '${failure.getMessage}'", ErrorLevel))
+    }
+
+    override protected[core] def attach(doc: DocInfo, name: String, contentType: ContentType, docStream: Source[ByteString, _])(
+        implicit transid: TransactionId): Future[DocInfo] = {
+
+        val start = transid.started(this, LoggingMarkers.DATABASE_ATT_SAVE, s"[ATT_PUT] '$dbName' uploading attachment '$name' of document '$doc'")
+
+        require(doc != null, "doc undefined")
+        require(doc.rev.rev != null, "doc revision must be specified")
+
+        val f = client.putAttachment(doc.id.id, doc.rev.rev, name, contentType, docStream).map { e =>
+            e match {
                 case Right(response) =>
-                    val rows = response.fields("rows").convertTo[List[JsObject]]
+                    transid.finished(this, start, s"[ATT_PUT] '$dbName' completed uploading attachment '$name' of document '$doc'")
+                    val id = response.fields("id").convertTo[String]
+                    val rev = response.fields("rev").convertTo[String]
+                    DocInfo ! (id, rev)
 
-                    val out = if (includeDocs) {
-                        rows.map(_.fields("doc").asJsObject)
-                    } else if (reduce && !rows.isEmpty) {
-                        assert(rows.length == 1, s"result of reduced view contains more than one value: '$rows'")
-                        rows.head.fields("value").convertTo[List[JsObject]]
-                    } else if (reduce) {
-                        List(JsObject())
-                    } else {
-                        rows
-                    }
-
-                    transid.finished(this, start, s"[QUERY] '$dbName' completed: matched ${out.size}")
-                    out
+                case Left(StatusCodes.NotFound) =>
+                    transid.finished(this, start, s"[ATT_PUT] '$dbName' uploading attachment '$name' of document '$doc'; not found")
+                    throw NoDocumentException("Not found on 'readAttachment'.")
 
                 case Left(code) =>
-                    transid.failed(this, start, s"Unexpected http response code: $code", ErrorLevel)
+                    transid.failed(this, start, s"[ATT_PUT] '$dbName' failed to upload attachment '$name' of document '$doc'; http status '$code'")
                     throw new Exception("Unexpected http response code: " + code)
             }
-        },
-            failure => transid.failed(this, start, s"[QUERY] '$dbName' internal error, failure: '${failure.getMessage}'", ErrorLevel))
+        }
+
+        reportFailure(f, failure => transid.failed(this, start, s"[ATT_PUT] '$dbName' internal error, name: '$name', doc: '$doc', failure: '${failure.getMessage}'", ErrorLevel))
+    }
+
+    override protected[core] def readAttachment[T](doc: DocInfo, name: String, sink: Sink[ByteString, Future[T]])(
+        implicit transid: TransactionId): Future[(ContentType, T)] = {
+
+        val start = transid.started(this, LoggingMarkers.DATABASE_ATT_GET, s"[ATT_GET] '$dbName' finding attachment '$name' of document '$doc'")
+
+        require(doc != null, "doc undefined")
+        require(doc.rev.rev != null, "doc revision must be specified")
+
+        val f = client.getAttachment[T](doc.id.id, doc.rev.rev, name, sink)
+        val g = f.map { e =>
+            e match {
+                case Right((contentType, result)) =>
+                    transid.finished(this, start, s"[ATT_GET] '$dbName' completed: found attachment '$name' of document '$doc'")
+                    (contentType, result)
+
+                case Left(StatusCodes.NotFound) =>
+                    transid.finished(this, start, s"[ATT_GET] '$dbName', retrieving attachment '$name' of document '$doc'; not found.")
+                    throw NoDocumentException("Not found on 'readAttachment'.")
+
+                case Left(code) =>
+                    transid.failed(this, start, s"[ATT_GET] '$dbName' failed to get attachment '$name' of document '$doc'; http status: '${code}'")
+                    throw new Exception("Unexpected http response code: " + code)
+            }
+        }
+
+        reportFailure(g, failure => transid.failed(this, start, s"[ATT_GET] '$dbName' internal error, name: '$name', doc: '$doc', failure: '${failure.getMessage}'", ErrorLevel))
     }
 
     override def shutdown(): Unit = {
