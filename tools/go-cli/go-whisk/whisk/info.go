@@ -19,8 +19,8 @@ package whisk
 import (
     "net/http"
     "net/url"
-    "fmt"
     "errors"
+    "../wski18n"
 )
 
 type Info struct {
@@ -40,7 +40,8 @@ func (s *InfoService) Get() (*Info, *http.Response, error) {
     ref, err := url.Parse(s.client.Config.Version)
     if err != nil {
         Debug(DbgError, "url.Parse(%s) error: %s\n", s.client.Config.Version, err)
-        errStr := fmt.Sprintf("Unable to URL parse '%s': %s", s.client.Config.Version, err)
+        errStr := wski18n.T("Unable to URL parse '{{.version}}': {{.err}}",
+            map[string]interface{}{"version": s.client.Config.Version, "err": err})
         werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
@@ -50,7 +51,8 @@ func (s *InfoService) Get() (*Info, *http.Response, error) {
     req, err := http.NewRequest("GET", u.String(), nil)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s) error: %s\n", u.String(), err)
-        errStr := fmt.Sprintf("Unable to create HTTP request for GET '%s': %s", u.String(), err)
+        errStr := wski18n.T("Unable to create HTTP request for GET '{{.url}}': {{.err}}",
+            map[string]interface{}{"url": u.String(), "err": err})
         werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
@@ -60,7 +62,7 @@ func (s *InfoService) Get() (*Info, *http.Response, error) {
     resp, err := s.client.Do(req, &info)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
-        errStr := fmt.Sprintf("Request failure: %s", err)
+        errStr := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
         werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }

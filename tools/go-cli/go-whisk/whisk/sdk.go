@@ -20,6 +20,7 @@ import (
     "fmt"
     "errors"
     "net/http"
+    "../wski18n"
 )
 
 type SdkService struct {
@@ -43,7 +44,8 @@ func (s *SdkService) Install(relFileUrl string) (*http.Response, error) {
     req, err := http.NewRequest("GET", urlStr, nil)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s, nil) error: %s\n", urlStr, err)
-        errStr := fmt.Sprintf("Unable to create HTTP request for GET '%s': %s", urlStr, err)
+        errStr := wski18n.T("Unable to create HTTP request for GET '{{.url}}': {{.err}}",
+            map[string]interface{}{"url": urlStr, "err": err})
         werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, werr
     }
@@ -65,7 +67,7 @@ func (s *SdkService) Install(relFileUrl string) (*http.Response, error) {
     resp, err := s.client.client.Do(req)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
-        errStr := fmt.Sprintf("Request failure: %s", err)
+        errStr := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return resp, werr
     }
