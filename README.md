@@ -62,6 +62,7 @@ interested in:
 - [Browse and use the catalog](docs/catalog.md)
 - [Using the OpenWhisk mobile SDK](docs/mobile_sdk.md)
 - [OpenWhisk system details](docs/reference.md)
+- [Implementing feeds](docs/feeds.md)
 
 
 ### License
