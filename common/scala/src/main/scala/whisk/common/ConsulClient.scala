@@ -308,6 +308,12 @@ object ConsulKV {
 
     }
 
+    // All keys for information written from the controller are here.
+    object ControllerKeys {
+        val component = "controller"
+        val userActivationCountKey = s"${component}/userActivationCount"
+    }
+
     // All load balancer written information under here.
     object LoadBalancerKeys {
         val component = "loadBalancer"
