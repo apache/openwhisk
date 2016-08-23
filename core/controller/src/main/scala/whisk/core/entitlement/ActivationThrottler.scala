@@ -21,8 +21,9 @@ import scala.concurrent.duration.DurationInt
 
 import akka.actor.ActorSystem
 import spray.json.DefaultJsonProtocol._
-import spray.json.pimpString
+import spray.json._
 import whisk.common.ConsulClient
+import whisk.common.ConsulKV.ControllerKeys
 import whisk.common.ConsulKV.InvokerKeys
 import whisk.common.ConsulKV.LoadBalancerKeys
 import whisk.common.Logging
@@ -49,7 +50,7 @@ class ActivationThrottler(consulServer: String, concurrencyLimit: Int)(
      */
     private var userActivationCounter = Map.empty[String, Long]
 
-    private val healthCheckInterval = 2.seconds
+    private val healthCheckInterval = 5.seconds
     private val consul = new ConsulClient(consulServer)
 
     /**
@@ -90,6 +91,19 @@ class ActivationThrottler(consulServer: String, concurrencyLimit: Int)(
             }
         }
 
+    /**
+     * Publish into Consul KV values showing the controller's view
+     * of concurrent activations on a per-user basis.
+     */
+    private def publishUserConcurrentActivation() = {
+        // Any sort of partitioning will be ok for monitoring
+        Future.sequence(userActivationCounter.groupBy(_._1.take(1)).map {
+            case (prefix, items) =>
+                val key = ControllerKeys.userActivationCountKey + "/" + prefix
+                consul.kv.put(key, items.toJson.compactPrint)
+        })
+    }
+
     Scheduler.scheduleWaitAtLeast(healthCheckInterval) { () =>
         for {
             loadbalancerActivationCount <- getLoadBalancerActivationCount
@@ -101,5 +115,7 @@ class ActivationThrottler(consulServer: String, concurrencyLimit: Int)(
                     subject -> (loadbalancerCount - invokerCount)
             }
         }
+        publishUserConcurrentActivation()
     }
+
 }
