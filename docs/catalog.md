@@ -493,6 +493,9 @@ The following is an example of configuring Slack, creating a package binding, an
   $ wsk action invoke mySlack/post --blocking --result --param text 'Hello from OpenWhisk!'
   ```
 
+### Using the Slack token-based API
+
+If you prefer, you may optionally choose to use Slack's token-based API, rather than the webhook API. If you so choose, then pass in a `token` parameter that contains your Slack [access token](https://api.slack.com/tokens). You may then use any of the [Slack API methods](https://api.slack.com/methods) as your `url` parameter. For example, to post a message, you would use a `url` parameter value of [slack.postMessage](https://api.slack.com/methods/chat.postMessage).
 
 ## Using the GitHub package
 
