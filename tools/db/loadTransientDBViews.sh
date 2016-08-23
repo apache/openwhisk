@@ -71,6 +71,9 @@ function view() {
         },
         "activations": {
           "map": "function (doc) {\n  var PATHSEP = \"/\";\n\n  var isPackage = function (doc) {  return (doc.binding !== undefined) };\n  var isAction = function (doc) { return (doc.exec !== undefined) };\n  var isTrigger = function (doc) { return (doc.exec === undefined && doc.binding === undefined && doc.parameters !== undefined) };\n  var isRule = function (doc) {  return (doc.trigger !== undefined) };\n  var isActivation = function (doc) { return (doc.activationId !== undefined) };\n\n  if (isActivation(doc)) try {\n    var date = new Date(doc.start || doc.updated);\n    emit([doc.namespace, date.getTime(), doc.name], {namespace: doc.namespace, name: doc.name, version: doc.version, publish: doc.publish, annotations: doc.annotations, activationId: doc.activationId});\n    emit([doc.namespace+PATHSEP+doc.name, date.getTime()], {namespace: doc.namespace, name: doc.name, version: doc.version, publish: doc.publish, annotations: doc.annotations, activationId: doc.activationId});\n  } catch (e) {}\n}"
+        },
+        "actionActivations": {
+          "map": "function (doc) {\n  var PATHSEP = \"/\";\n\n  var isPackage = function (doc) {  return (doc.binding !== undefined) };\n  var isAction = function (doc) { return (doc.exec !== undefined) };\n  var isTrigger = function (doc) { return (doc.exec === undefined && doc.binding === undefined && doc.parameters !== undefined) };\n  var isRule = function (doc) {  return (doc.trigger !== undefined) };\n  var isActivation = function (doc) { return (doc.activationId !== undefined) };\n\n  if (isActivation(doc) && doc.end && doc.start && doc.actionName && doc.start < doc.end) try {\n    emit([doc.end], doc.actionName);\n  } catch (e) {}\n}"
         }
       },
       "language": "javascript",

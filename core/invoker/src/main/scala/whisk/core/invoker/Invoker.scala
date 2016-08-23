@@ -93,6 +93,7 @@ import whisk.core.entity.size.SizeString
 import whisk.http.BasicHttpService
 import whisk.utils.ExecutionContextFactory
 import whisk.common.Logging
+import whisk.core.entity.ActionLimits
 
 /**
  * A kafka message handler that invokes actions as directed by message on topic "/actions/invoke".
@@ -221,11 +222,11 @@ class Invoker(
         implicit transid: TransactionId): Unit = {
         error(this, errorMsg)
         val msg = tran.msg
-        val name = EntityName(actionDocInfo.id().split(Namespace.PATHSEP)(1))
+        val name = Namespace(actionDocInfo.id())
         val version = SemVer() // TODO: this is wrong, when the semver is passed from controller, fix this
         val response = ActivationResponse.whiskError(errorMsg)
         val interval = computeActivationInterval(tran)
-        val activation = makeWhiskActivation(msg, name, version, response, interval)
+        val activation = makeWhiskActivation(msg, name, version, response, interval, None)
         completeTransaction(tran, activation, FailedActivation(transid))
     }
 
@@ -288,7 +289,7 @@ class Invoker(
 
                     val activationInterval = computeActivationInterval(tran)
                     val activationResponse = getActivationResponse(activationInterval, action.limits.timeout.duration, response, failedInit)
-                    val activationResult = makeWhiskActivation(msg, action.name, action.version, activationResponse, activationInterval)
+                    val activationResult = makeWhiskActivation(msg, Namespace(action.docid.id), action.version, activationResponse, activationInterval, Some(action.limits))
                     val completeMsg = CompletionMessage(transid, activationResult)
 
                     producer.send("completed", completeMsg) map { status =>
@@ -313,7 +314,7 @@ class Invoker(
                     ActivationResponse.whiskError("error starting container to run action")
                 }
                 val interval = computeActivationInterval(tran)
-                val activation = makeWhiskActivation(msg, action.name, action.version, response, interval)
+                val activation = makeWhiskActivation(msg, Namespace(action.docid.id), action.version, response, interval, Some(action.limits))
                 completeTransaction(tran, activation, FailedActivation(transid))
             }
         }
@@ -467,13 +468,14 @@ class Invoker(
      */
     private def makeWhiskActivation(
         msg: Message,
-        actionName: EntityName,
+        actionName: Namespace,
         actionVersion: SemVer,
         activationResponse: ActivationResponse,
-        interval: Interval) = {
+        interval: Interval,
+        limits: Option[ActionLimits]) = {
         WhiskActivation(
             namespace = msg.subject.namespace,
-            name = actionName,
+            name = actionName.last,
             version = actionVersion,
             publish = false,
             subject = msg.subject,
@@ -482,7 +484,9 @@ class Invoker(
             start = interval.start,
             end = interval.end,
             response = activationResponse,
-            logs = ActivationLogs())
+            logs = ActivationLogs(),
+            limits = limits,
+            actionName = Some(actionName))
     }
 
     /**
