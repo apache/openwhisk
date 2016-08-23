@@ -17,7 +17,6 @@
 package whisk.core.controller
 
 import scala.concurrent.Future
-import scala.concurrent.Promise
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration.DurationInt
 import scala.util.Failure
@@ -503,25 +502,17 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
 
         val (activationIdToSearch, activeCallback) = queryActivationResponse(activationId, transid)
 
-        val promise = Promise[WhiskActivation]
-        activeCallback map { activation =>
-            // Callback successful
-            promise.trySuccess { activation }
-            activation.activationId
-        } recover {
+        val response = activeCallback.recoverWith {
             // Callback not successful => manual polling from DB
             case t: TimeoutException =>
                 info(this, s"[POST] switching to poll db, active ack expired")
                 val docid = DocId(WhiskEntity.qualifiedName(namespace, activationIdToSearch)).asDocInfo
-                pollDbForResult(docid, activationIdToSearch, promise)
+                pollDbForResult(docid, activationIdToSearch)
             case t: Throwable =>
                 error(this, s"[POST] switching to poll db, active ack exception: ${t.getMessage}")
                 val docid = DocId(WhiskEntity.qualifiedName(namespace, activationIdToSearch)).asDocInfo
-                pollDbForResult(docid, activationIdToSearch, promise)
-        }
-
-        // Abort waiting/polling for activationresult after timeout
-        val response = promise.future.withTimeout(timeout, new BlockingInvokeTimeout(activationId))
+                pollDbForResult(docid, activationIdToSearch)
+        }.withTimeout(timeout, new BlockingInvokeTimeout(activationId)) // Abort waiting/polling for activationresult after timeout
 
         (activationIdToSearch, response)
     }
@@ -534,23 +525,17 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      */
     private def pollDbForResult(
         docid: DocInfo,
-        activationId: ActivationId,
-        promise: Promise[WhiskActivation])(
-            implicit transid: TransactionId): Unit = {
-        if (!promise.isCompleted) {
-            WhiskActivation.get(activationStore, docid) map {
-                activation => promise.trySuccess { activation } // activation may have logs, do not strip them
-            } onFailure {
-                case e: NoDocumentException =>
-                    Thread.sleep(500)
-                    debug(this, s"[POST] action activation not yet timed out, will poll for result")
-                    pollDbForResult(docid, activationId, promise)
-                case t: Throwable =>
-                    error(this, s"[POST] action activation failed while waiting on result: ${t.getMessage}")
-                    promise.tryFailure(t)
-            }
-        } else {
-            error(this, s"[POST] action activation timed out, terminated polling for result")
+        activationId: ActivationId)(
+            implicit transid: TransactionId): Future[WhiskActivation] = {
+
+        WhiskActivation.get(activationStore, docid) recoverWith {
+            case e: NoDocumentException =>
+                Thread.sleep(500)
+                debug(this, s"[POST] action activation not yet timed out, will poll for result")
+                pollDbForResult(docid, activationId)
+            case t: Throwable =>
+                error(this, s"[POST] action activation failed while waiting on result: ${t.getMessage}")
+                Future failed (t)
         }
     }
 
