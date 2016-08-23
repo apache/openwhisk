@@ -20,7 +20,7 @@ install "$CATALOG_HOME/github/webhook.js" \
     github/webhook \
     -a feed true \
     -a description 'Creates a webhook on GitHub to be notified on selected changes' \
-    -a parameters '[ {"name":"username", "required":true, "bindTime":true, "description": "Your GitHub username"}, {"name":"repository", "required":true, "bindTime":true, "description": "The name of your GitHub repository"}, {"name":"accessToken", "required":true, "bindTime":true, "description": "A webhook or personal token", "doclink": "https://github.com/settings/tokens/new"},{"name":"events", "required":true, "doclink": "https://developer.github.com/webhooks/#events"} ]' \
+    -a parameters '[ {"name":"username", "required":true, "bindTime":true, "description": "Your GitHub username or organization"}, {"name":"repository", "required":true, "bindTime":true, "description": "The name of your GitHub repository"}, {"name":"accessToken", "required":true, "bindTime":true, "description": "A webhook or personal token", "doclink": "https://github.com/settings/tokens/new"},{"name":"events", "required":true, "doclink": "https://developer.github.com/webhooks/#events"} ]' \
     -a sampleInput '{"username":"whisk", "repository":"WhiskRepository", "accessToken":"123ABCXYZ", "events": "push,commit,delete"}'
 
 waitForAll
