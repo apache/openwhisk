@@ -32,10 +32,26 @@ object SimpleExec extends Logging {
     def syncRunCmd(cmd: Seq[String])(implicit transid: TransactionId): (String, String, Int) = {
         info(this, s"Running command: ${cmd.mkString(" ")}")
         val pb = stringSeqToProcess(cmd)
-        var outs = List[String]()
-        var errs = List[String]()
-        val exitCode = pb ! ProcessLogger((str) => outs ::= str, (str) => errs ::= str)
+
+        val outs = new StringBuilder()
+        val errs = new StringBuilder()
+
+        val exitCode = pb ! ProcessLogger(
+            outStr => {
+                outs.append(outStr)
+                outs.append("\n")
+            },
+            errStr => {
+                errs.append(errStr)
+                errs.append("\n")
+            })
+
         info(this, s"Done running command: ${cmd.mkString(" ")}")
-        (outs.reverse.mkString("\n"), errs.reverse.mkString("\n"), exitCode)
+
+        def noLastNewLine(sb: StringBuilder) = {
+            if (sb.isEmpty) "" else sb.substring(0, sb.size - 1)
+        }
+
+        (noLastNewLine(outs), noLastNewLine(errs), exitCode)
     }
 }

@@ -64,7 +64,7 @@ trait ContainerUtils extends Logging {
      * TODO: The file handle and process limits should be moved to some global limits config.
      */
     def makeContainer(name: Option[String], image: String, network: String, env: Map[String, String], args: Array[String], limits: ActionLimits, policy: Option[String])(implicit transid: TransactionId): ContainerId = {
-        val nameOption = if (name isDefined) Array("--name", name.getOrElse("")) else Array.empty[String]
+        val nameOption = name.map(n => Array("--name", n)).getOrElse(Array.empty[String])
         val memoryArg = Array("-m", s"${limits.memory()}m")
         val capabilityArg = Array("--cap-drop", "NET_RAW", "--cap-drop", "NET_ADMIN")
         val consulServiceIgnore = Array("-e", "SERVICE_IGNORE=true")
@@ -80,11 +80,11 @@ trait ContainerUtils extends Logging {
     def killContainer(name: String)(implicit transid: TransactionId): DockerOutput = killContainer(Some(name))
 
     def killContainer(container: ContainerName)(implicit transid: TransactionId): DockerOutput = {
-        container map { name => runDockerCmd("kill", name) } getOrElse None
+        container flatMap { name => runDockerCmd("kill", name) }
     }
 
     def getContainerLogs(container: ContainerName)(implicit transid: TransactionId): DockerOutput = {
-        container map { name => runDockerCmd("logs", name) } getOrElse None
+        container flatMap { name => runDockerCmd("logs", name) }
     }
 
     def pauseContainer(name: String)(implicit transid: TransactionId): DockerOutput = {
@@ -101,7 +101,7 @@ trait ContainerUtils extends Logging {
      * Forcefully removes a container, can be used on a running container but not a paused one.
      */
     def rmContainer(container: ContainerName)(implicit transid: TransactionId): DockerOutput = {
-        container map { name => runDockerCmd("rm", "-f", name) } getOrElse None
+        container flatMap { name => runDockerCmd("rm", "-f", name) }
     }
 
     /*
@@ -191,16 +191,10 @@ trait ContainerUtils extends Logging {
     }
 
     protected def appendPort(host: String) = s"$host:8080"
-
-    protected type ContainerName = Option[String]
-    protected type ContainerId = Option[String]
-    protected type ContainerIP = Option[String]
-    protected type DockerOutput = ContainerUtils.DockerOutput
 }
 
 object ContainerUtils extends Logging {
 
-    protected type DockerOutput = Option[String]
     private implicit val emitter: PrintStreamEmitter = this
 
     /**
@@ -234,9 +228,9 @@ object ContainerUtils extends Logging {
     def getDockerCmd(dockerhost: String) = {
         val dockerLoc = file("/usr/bin/docker") orElse file("/usr/local/bin/docker")
         if (dockerhost == "localhost") {
-            dockerLoc map { f => Array[String](f.toString) }
+            dockerLoc map { f => Array(f.toString) }
         } else {
-            dockerLoc map { f => Array[String](f.toString, "--host", s"tcp://$dockerhost") }
+            dockerLoc map { f => Array(f.toString, "--host", s"tcp://$dockerhost") }
         }
     }
 

@@ -18,12 +18,12 @@ package whisk.core.container
 
 import java.nio.file.Files
 import java.nio.file.Paths
-import java.time.Instant
 import java.util.Timer
 import java.util.TimerTask
 import java.util.concurrent.ConcurrentLinkedQueue
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.ListBuffer
+import scala.concurrent.duration._
 import scala.annotation.tailrec
 import akka.actor.ActorSystem
 import whisk.common.Counter
@@ -83,25 +83,31 @@ class ContainerPool(
     /**
      * Enables GC.
      */
-    def enableGC() = gcOn = true
+    def enableGC(): Unit = {
+        gcOn = true
+    }
 
     /**
      * Disables GC. If disabled, overrides other flags/methods.
      */
-    def disableGC() = gcOn = false
+    def disableGC(): Unit = {
+        gcOn = false
+    }
 
     /**
      * Performs a GC immediately of all idle containers, blocking the caller until completed.
      */
-    def forceGC()(implicit transid: TransactionId) = removeAllIdle({ containerInfo => true })
+    def forceGC()(implicit transid: TransactionId): Unit = {
+        removeAllIdle({ containerInfo => true })
+    }
 
     /*
      * Getter/Setter for various GC parameters.
      */
-    def gcThreshold: Double = _gcThreshold // seconds
+    def gcThreshold: FiniteDuration = _gcThreshold
     def maxIdle: Int = _maxIdle // container count
     def maxActive: Int = _maxActive // container count
-    def gcThreshold_=(value: Double): Unit = _gcThreshold = Math.max(0.0, value)
+    def gcThreshold_=(value: FiniteDuration): Unit = _gcThreshold = (Duration.Zero max value)
     def maxIdle_=(value: Int): Unit = _maxIdle = Math.max(0, value)
     def maxActive_=(value: Int): Unit = _maxActive = Math.max(0, value)
 
@@ -112,7 +118,7 @@ class ContainerPool(
     /*
      * Controls where docker container logs are put.
      */
-    def logDir: String = _logDir // seconds
+    def logDir: String = _logDir
     def logDir_=(value: String): Unit = _logDir = value
 
     /*
@@ -137,8 +143,6 @@ class ContainerPool(
      */
     def listAll()(implicit transid: TransactionId): Array[ContainerState] = listContainers(true)
 
-    type RunResult = ContainerPool.RunResult
-
     /**
      * Retrieves (possibly create) a container based on the subject and versioned action.
      * A flag is included to indicate whether initialization succeeded.
@@ -151,9 +155,9 @@ class ContainerPool(
             None
         } else {
             info(this, s"Getting container for ${action.fullyQualifiedName} with ${auth.uuid}")
-            val key = makeKey(action, auth)
+            val key = ActionContainerId(auth.uuid, action.fullyQualifiedName, action.rev)
             try {
-                getImpl(nextPosition.next(), key, { () => makeWhiskContainer(action, auth) }) map {
+                getImpl(nextPosition.next(), key, () => makeWhiskContainer(action, auth)) map {
                     case (c, initResult) =>
                         val cacheMsg = if (!initResult.isDefined) "(Cache Hit)" else "(Cache Miss)"
                         info(this, s"getAction obtained container ${c.id} ${cacheMsg}")
@@ -169,8 +173,9 @@ class ContainerPool(
      */
     def getByImageName(imageName: String, args: Array[String])(implicit transid: TransactionId): Option[Container] = {
         info(this, s"Getting container for image $imageName with args " + args.mkString(" "))
-        val key = makeKey(imageName, args)
-        getImpl(0, key, { () => makeContainer(imageName, args) }) map { _._1 }
+        // Not a regular key. Doesn't matter in testing.
+        val key = new ActionContainerId(s"instantiated." + imageName + args.mkString("_"))
+        getImpl(0, key, () => makeContainer(key, imageName, args)) map { _._1 }
     }
 
     /**
@@ -178,7 +183,7 @@ class ContainerPool(
      * This method will apply retry so that the caller is blocked until retry succeeds.
      */
     @tailrec
-    final def getImpl(position: Int, key: String, conMaker: () => ContainerResult)(implicit transid: TransactionId): Option[(Container, Option[RunResult])] = {
+    final def getImpl(position: Int, key: ActionContainerId, conMaker: () => FinalContainerResult)(implicit transid: TransactionId): Option[(Container, Option[RunResult])] = {
         val positionInLine = position - completedPosition.cur // this will be 1 if at the front of the line
         val available = slack()
         if (positionInLine > available) { // e.g. if there is 1 available, then I wait if I am second in line (positionInLine = 2)
@@ -190,13 +195,13 @@ class ContainerPool(
             case Error(str) =>
                 error(this, s"Error starting container: $str")
                 return None
-            case Busy() =>
+            case Busy =>
             // This will not cause a busy loop because only those that could be productive will get a chance
         }
         getImpl(position, key, conMaker)
     }
 
-    def getNumberOfIdleContainers(key: String)(implicit transid: TransactionId): Int = {
+    def getNumberOfIdleContainers(key: ActionContainerId)(implicit transid: TransactionId): Int = {
         this.synchronized {
             keyMap.get(key) map { bucket => bucket.count { _.isIdle() } } getOrElse 0
         }
@@ -219,14 +224,14 @@ class ContainerPool(
      *
      * The returned container will be active (not pause).
      */
-    def getOrMake(key: String, conMaker: () => ContainerResult)(implicit transid: TransactionId): ContainerResult = {
+    def getOrMake(key: ActionContainerId, conMaker: () => FinalContainerResult)(implicit transid: TransactionId): FinalContainerResult = {
         retrieve(key) match {
-            case CacheMiss() => {
+            case CacheMiss => {
                 this.synchronized {
                     if (slack() <= 0)
-                        return Busy()
+                        return Busy
                     if (startingCounter.cur >= 1) // Limit concurrent starting of containers
-                        return Busy()
+                        return Busy
                     startingCounter.next()
                 }
                 try {
@@ -239,7 +244,7 @@ class ContainerPool(
                                 res
                             }
                         case res @ Error(_) => return res
-                        case Busy() =>
+                        case Busy =>
                             assert(false)
                             null // conMaker only returns Success or Error
                     }
@@ -251,7 +256,8 @@ class ContainerPool(
                 con.transid = transid
                 runDockerOp { con.unpause() }
                 s
-            case other => other
+            case b @ Busy     => b
+            case e @ Error(_) => e
         }
     }
 
@@ -260,18 +266,21 @@ class ContainerPool(
      * If we are over capacity, signal Busy.
      * If it does not exist ready to do, indicate a miss.
      */
-    def retrieve(key: String)(implicit transid: TransactionId): ContainerResult = {
+    def retrieve(key: ActionContainerId)(implicit transid: TransactionId): ContainerResult = {
         this.synchronized {
-            if (activeCount() + startingCounter.cur >= _maxActive)
-                return Busy()
-            if (!keyMap.contains(key))
-                keyMap += key -> new ListBuffer()
-            val bucket = keyMap.get(key).getOrElse(null)
-            bucket.find({ ci => ci.isIdle() }) match {
-                case None => CacheMiss()
-                case Some(ci) => {
-                    ci.state = State.Active
-                    Success(ci.container, None)
+            if (activeCount() + startingCounter.cur >= _maxActive) {
+                Busy
+            } else {
+                if (!keyMap.contains(key))
+                    keyMap += key -> new ListBuffer()
+
+                val bucket = keyMap(key)
+                bucket.find({ ci => ci.isIdle() }) match {
+                    case None => CacheMiss
+                    case Some(ci) => {
+                        ci.state = State.Active
+                        Success(ci.container, None)
+                    }
                 }
             }
         }
@@ -282,14 +291,15 @@ class ContainerPool(
      * This operation is performed when we specialize a pre-warmed container to an action.
      * ContainerMap does not need to be updated as the Container <-> ContainerInfo relationship does not change.
      */
-    def changeKey(ci: ContainerInfo, oldKey: String, newKey: String)(implicit transid: TransactionId) = {
+    def changeKey(ci: ContainerInfo, oldKey: ActionContainerId, newKey: ActionContainerId)(implicit transid: TransactionId) = {
         this.synchronized {
             assert(ci.state == State.Active)
             assert(keyMap.contains(oldKey))
-            if (!keyMap.contains(newKey))
+            if (!keyMap.contains(newKey)) {
                 keyMap += newKey -> new ListBuffer()
-            val oldBucket = keyMap.get(oldKey).getOrElse(null)
-            val newBucket = keyMap.get(newKey).getOrElse(null)
+            }
+            val oldBucket = keyMap(oldKey)
+            val newBucket = keyMap(newKey)
             oldBucket -= ci
             newBucket += ci
         }
@@ -301,8 +311,12 @@ class ContainerPool(
      */
     def putBack(container: Container, delete: Boolean = false)(implicit transid: TransactionId): Unit = {
         info(this, s"putBack returning container ${container.id}  delete = $delete")
-        if (!delete) // Docker operation outside sync block. Don't pause if we are deleting.
+
+        // Docker operation outside sync block. Don't pause if we are deleting.
+        if (!delete) {
             runDockerOp { container.pause() }
+        }
+
         val toBeDeleted = this.synchronized { // Return container to pool logically and then optionally delete
             // Always put back logically for consistency
             val Some(ci) = containerMap.get(container)
@@ -312,8 +326,9 @@ class ContainerPool(
             val toBeDeleted = if (delete) {
                 removeContainerInfo(ci) // no docker operation here
                 List(ci)
-            } else
+            } else {
                 List()
+            }
             this.notify()
             toBeDeleted
         }
@@ -335,7 +350,7 @@ class ContainerPool(
     /**
      * Wraps a Container to allow a ContainerPool-specific information.
      */
-    class ContainerInfo(k: String, con: Container) {
+    class ContainerInfo(k: ActionContainerId, con: Container) {
         val key = k
         val container = con
         var state = State.Idle
@@ -343,15 +358,8 @@ class ContainerPool(
         def isIdle() = state == State.Idle
     }
 
-    // The result of trying to obtain a container.  Option is too weak to do it.
-    abstract class ContainerResult
-    case class Success(con: Container, initResult: Option[RunResult]) extends ContainerResult
-    case class CacheMiss() extends ContainerResult
-    case class Busy() extends ContainerResult
-    case class Error(string: String) extends ContainerResult
-
     private val containerMap = new TrieMap[Container, ContainerInfo]
-    private val keyMap = new TrieMap[String, ListBuffer[ContainerInfo]]
+    private val keyMap = new TrieMap[ActionContainerId, ListBuffer[ContainerInfo]]
 
     // These are containers that are already removed from the data structure waiting to be docker-removed
     private val toBeRemoved = new ConcurrentLinkedQueue[ContainerInfo]()
@@ -359,20 +367,12 @@ class ContainerPool(
     // Note that the prefix separates the name space of this from regular keys.
     // TODO: Generalize across language by storing image name when we generalize to other languages
     //       Better heuristic for # of containers to keep warm - make sensitive to idle capacity
-    private val warmNodejsKey = "warm.nodejs"
+    private val warmNodejsKey = WarmNodeJsActionContainerId
     private val nodejsExec = NodeJS6Exec("", None)
     private val WARM_NODEJS_CONTAINERS = 2
 
-    private def makeKey(action: WhiskAction, auth: WhiskAuth) = {
-        s"instantiated.${auth.uuid}.${action.fullyQualifiedName}.${action.rev}"
-    }
-
-    private def makeKey(imageName: String, args: Array[String]) = {
-        "instantiated." + imageName + args.mkString("_")
-    }
-
     private def keyMapToString(): String = {
-        keyMap.foldLeft("") { case (acc, (key, ciList)) => acc + s"[$key -> $ciList]  " }
+        keyMap.map(p => s"[${p._1.stringRepr} -> ${p._2}]").mkString("  ")
     }
 
     // Easier to walk containerMap than keyMap
@@ -465,7 +465,7 @@ class ContainerPool(
         con
     }
 
-    private def getWarmNodejsContainer(key: String)(implicit transid: TransactionId): Option[WhiskContainer] =
+    private def getWarmNodejsContainer(key: ActionContainerId)(implicit transid: TransactionId): Option[WhiskContainer] =
         retrieve(warmNodejsKey) match {
             case Success(con, _) =>
                 info(this, s"Obtained a pre-warmed container")
@@ -477,11 +477,11 @@ class ContainerPool(
         }
 
     // Obtain a container (by creation or promotion) and initialize by sending code.
-    private def makeWhiskContainer(action: WhiskAction, auth: WhiskAuth)(implicit transid: TransactionId): ContainerResult = {
+    private def makeWhiskContainer(action: WhiskAction, auth: WhiskAuth)(implicit transid: TransactionId): FinalContainerResult = {
         val imageName = getDockerImageName(action)
         val limits = action.limits
         val nodeImageName = WhiskAction.containerImageName(nodejsExec, config.dockerRegistry, config.dockerImagePrefix, config.dockerImageTag)
-        val key = makeKey(action, auth)
+        val key = ActionContainerId(auth.uuid, action.fullyQualifiedName, action.rev)
         val warmedContainer = if (limits.memory == defaultMemoryLimit && imageName == nodeImageName) getWarmNodejsContainer(key) else None
         val containerName = makeContainerName(action)
         val con = warmedContainer getOrElse makeGeneralContainer(key, containerName, imageName, limits, action.exec.isInstanceOf[BlackBoxExec])
@@ -491,7 +491,7 @@ class ContainerPool(
     // Make a container somewhat generically without introducing into data structure.
     // There is access to global settings (docker registry)
     // and generic settings (image name - static limits) but without access to WhiskAction.
-    private def makeGeneralContainer(key: String, containerName: String,
+    private def makeGeneralContainer(key: ActionContainerId, containerName: String,
                                      imageName: String, limits: ActionLimits, pull: Boolean)(implicit transid: TransactionId): WhiskContainer = {
         val network = config.invokerContainerNetwork
         val policy = config.invokerContainerPolicy
@@ -506,7 +506,7 @@ class ContainerPool(
     }
 
     // We send the payload here but eventually must also handle morphing a pre-allocated container into the right state.
-    private def initWhiskContainer(action: WhiskAction, con: WhiskContainer)(implicit transid: TransactionId): ContainerResult = {
+    private def initWhiskContainer(action: WhiskAction, con: WhiskContainer)(implicit transid: TransactionId): FinalContainerResult = {
         con.boundParams = action.parameters.toJsObject
         if (con.containerId.isDefined) {
             // Then send it the init payload which is code for now
@@ -516,9 +516,12 @@ class ContainerPool(
         } else Error("failed to get id for container")
     }
 
-    private def makeContainer(imageName: String, args: Array[String])(implicit transid: TransactionId): ContainerResult = {
+    /**
+     * Used through testing only. Creates a container running the command in `args`.
+     */
+    private def makeContainer(key: ActionContainerId, imageName: String, args: Array[String])(implicit transid: TransactionId): FinalContainerResult = {
         val con = runDockerOp {
-            new Container(transid, this, makeKey(imageName, args), None, imageName,
+            new Container(transid, this, key, None, imageName,
                 config.invokerContainerNetwork, config.invokerContainerPolicy, ActionLimits(), Map(), args)
         }
         con.setVerbosity(getVerbosity())
@@ -529,7 +532,7 @@ class ContainerPool(
      * Adds the container into the data structure in an Idle state.
      * The caller must have synchronized to maintain data structure atomicity.
      */
-    private def introduceContainer(key: String, container: Container)(implicit transid: TransactionId): ContainerInfo = {
+    private def introduceContainer(key: ActionContainerId, container: Container)(implicit transid: TransactionId): ContainerInfo = {
         val ci = new ContainerInfo(key, container)
         if (keyMap.contains(key))
             keyMap.get(key).getOrElse(null) += ci // will not be null
@@ -555,9 +558,9 @@ class ContainerPool(
     }
 
     private val defaultMaxIdle = 10
-    private val defaultGCThreshold = 600.0 // seconds
+    private val defaultGCThreshold = 600.seconds
 
-    val gcFreqMilli = 1000 // this should not be leaked but a test needs this until GC count is implemented
+    val gcFrequency = 1000.milliseconds // this should not be leaked but a test needs this until GC count is implemented
     private var _maxIdle = defaultMaxIdle
     private var _maxActive = ContainerPool.defaultMaxActive
     private var _gcThreshold = defaultGCThreshold
@@ -570,13 +573,13 @@ class ContainerPool(
             performGC()(TransactionId.invoker)
         }
     }
-    timer.scheduleAtFixedRate(gcTask, 0, gcFreqMilli)
+    timer.scheduleAtFixedRate(gcTask, 0, gcFrequency.toMillis)
 
     /**
      * Removes all idle containers older than the threshold.
      */
     private def performGC()(implicit transid: TransactionId) = {
-        val expiration = System.currentTimeMillis() - (gcThreshold * 1000.0).toLong
+        val expiration = System.currentTimeMillis() - gcThreshold.toMillis
         removeAllIdle({ containerInfo => containerInfo.lastUsed <= expiration })
         dumpState("performGC")
     }
@@ -677,6 +680,5 @@ class ContainerPool(
 
 object ContainerPool {
     def requiredProperties = Map(selfDockerEndpoint -> "localhost") ++ Map(dockerImageTag -> "latest") ++ Map(invokerContainerNetwork -> "bridge") ++ Map(invokerContainerPolicy -> "")
-    type RunResult = (Instant, Instant, Option[(Int, String)])
     val defaultMaxActive = 4
 }

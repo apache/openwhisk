@@ -16,6 +16,8 @@
 
 package whisk.core.container
 
+import scala.annotation.tailrec
+
 import whisk.core.WhiskConfig.selfDockerEndpoint
 import whisk.core.WhiskConfig.invokerContainerNetwork
 import whisk.core.entity.ActionLimits
@@ -28,7 +30,7 @@ import whisk.common.Counter
 class Container(
     originalId: TransactionId,
     pool: ContainerPool,
-    val key: String,
+    val key: ActionContainerId,
     containerName: Option[String],
     val image: String,
     network: String,
@@ -55,20 +57,20 @@ class Container(
         s"container [$name] [$id] [$ip]"
     }
 
-    def pause() {
+    def pause(): Unit = {
         containerId map pauseContainer
     }
 
-    def unpause() {
+    def unpause(): Unit = {
         containerId map unpauseContainer
     }
 
     /**
-     * Returns a prefix of the container id known to be displayed by docker ps.
+     * A prefix of the container id known to be displayed by docker ps.
      */
-    def containerIdPrefix() = {
+    lazy val containerIdPrefix: String = {
         // docker ps contains only a prefix of the id
-        containerId map { id => id.substring(0, math.min(8, id.length)) } getOrElse "anon"
+        containerId map { _.take(8) } getOrElse "anon"
     }
 
     /**
@@ -81,7 +83,8 @@ class Container(
     /**
      * Unpauses and removes a container (it may be running).
      */
-    def remove(tryCount: Int = Container.removeContainerRetryCount)(implicit transid: TransactionId): Unit = {
+    @tailrec
+    final def remove(tryCount: Int = Container.removeContainerRetryCount)(implicit transid: TransactionId): Unit = {
         if (tryCount <= 0) {
             error(this, s"Failed to remove container $containerId")
         } else {

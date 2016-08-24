@@ -26,7 +26,6 @@ import scala.language.postfixOps
 import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 
 import akka.actor.ActorSystem
@@ -51,7 +50,7 @@ import whisk.common.NewHttpUtils
 class WhiskContainer(
     originalId: TransactionId,
     pool: ContainerPool,
-    key: String,
+    key: ActionContainerId,
     containerName: String,
     image: String,
     network: String,
@@ -66,12 +65,6 @@ class WhiskContainer(
     var lastLogSize = 0L
     private val initTimeoutMilli = 60 seconds
     private implicit val emitter: PrintStreamEmitter = this
-
-    /**
-     * Start time, End time, Some(response) from container consisting of status code and payload
-     * If there is no response or an exception, then None.
-     */
-    type RunResult = (Instant, Instant, Option[(Int, String)])
 
     /**
      * Merges previously bound parameters with arguments form payload.
@@ -105,7 +98,7 @@ class WhiskContainer(
         val startMarker = transid.started("Invoker", LoggingMarkers.INVOKER_ACTIVATION_RUN, s"sending arguments to $actionName $details")
         val result = sendPayload("/run", JsObject(meta.fields + ("value" -> args) + ("authKey" -> JsString(authKey))), timeout)
         // Use start and end time of the activation
-        val (startActivation, endActivation, _) = result
+        val RunResult(Interval(startActivation, endActivation), _) = result
         transid.finished("Invoker", startMarker.copy(startActivation), s"finished running activation id: $activationId", endTime = endActivation)
         result
     }
@@ -144,12 +137,14 @@ class WhiskContainer(
                 warn(this, s"Exception while posting to action container ${t.getMessage}")
         }
 
-        Await.ready(f, Duration.Inf) // OK, since there is a built-in timeout.
+        // Should never timeout because the future has a built-in timeout.
+        // Keeping a finite duration for safety.
+        Await.ready(f, timeout * 10)
 
         val end = ContainerCounter.now()
 
         val r = f.value.get.toOption.flatten
-        (start, end, r)
+        RunResult(Interval(start, end), r)
     }
 
     /**
