@@ -204,7 +204,8 @@ def grepForFailingTests(args, body):
 def reportBuildStatus(args, body):
     cmd = 'tail -1'
     (time, output, error) = shell(cmd, body, args.verbose)
-    if output.startswith('Finished: ') or output.startswith('Done.'):
+    output = output.replace('</span>', '').replace('</a>', '')
+    if 'Finished: ' in output or output.startswith('Done.'):
         print output.strip()
         return (0, True)
     else:
