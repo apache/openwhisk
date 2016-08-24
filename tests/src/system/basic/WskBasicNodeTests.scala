@@ -26,7 +26,6 @@ import common.TestUtils
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
-import spray.json.DefaultJsonProtocol.BooleanJsonFormat
 import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json.pimpAny
 import spray.json.pimpString
@@ -35,9 +34,9 @@ import spray.json.JsObject
 
 @RunWith(classOf[JUnitRunner])
 class WskBasicNodeTests
-        extends TestHelpers
-        with WskTestHelpers
-        with JsHelpers {
+    extends TestHelpers
+    with WskTestHelpers
+    with JsHelpers {
 
     implicit val wskprops = WskProps()
     val wsk = new Wsk()
@@ -108,9 +107,10 @@ class WskBasicNodeTests
             val runResolve = wsk.action.invoke(invokeActionName, Map("resolveOrReject" -> "resolve".toJson))
             withActivation(wsk.activation, runResolve) {
                 activation =>
-                    activation.getFieldPath("response", "result", "activationId") shouldBe defined
-                    activation.getFieldPath("response", "result", "error") should not be defined
-                    activation.getFieldPath("response", "result", "result", "message") should be(Some {
+                    val result = activation.response.result.get
+                    result.fields.get("activationId") shouldBe defined
+                    result.fields.get("error") should not be defined
+                    result.getFieldPath("result", "message") should be(Some {
                         "Three second rule!".toJson
                     })
 
@@ -122,8 +122,9 @@ class WskBasicNodeTests
             val runReject = wsk.action.invoke(invokeActionName, Map("resolveOrReject" -> "reject".toJson))
             withActivation(wsk.activation, runReject) {
                 activation =>
-                    activation.getFieldPath("response", "result", "activationId") should not be defined
-                    activation.getFieldPath("response", "result", "error") shouldBe defined
+                    val result = activation.response.result.get
+                    result.fields.get("activationId") should not be defined
+                    result.fields.get("error") shouldBe defined
 
                     val duration = System.currentTimeMillis() - start
                     duration should be >= expectedDuration.toMillis
@@ -155,9 +156,10 @@ class WskBasicNodeTests
             val runResolve = wsk.action.invoke(invokeActionName, Map("resolveOrReject" -> "resolve".toJson))
             withActivation(wsk.activation, runResolve) {
                 activation =>
-                    activation.getFieldPath("response", "result", "activationId") shouldBe defined
-                    activation.getFieldPath("response", "result", "error") should not be defined
-                    activation.getFieldPath("response", "result", "result", "message") should be(Some {
+                    val result = activation.response.result.get
+                    result.fields.get("activationId") shouldBe defined
+                    result.fields.get("error") should not be defined
+                    result.getFieldPath("result", "message") should be(Some {
                         "Three second rule!".toJson
                     })
 
@@ -169,8 +171,9 @@ class WskBasicNodeTests
             val runReject = wsk.action.invoke(invokeActionName, Map("resolveOrReject" -> "reject".toJson))
             withActivation(wsk.activation, runReject) {
                 activation =>
-                    activation.getFieldPath("response", "result", "activationId") should not be defined
-                    activation.getFieldPath("response", "result", "error") shouldBe defined
+                    val result = activation.response.result.get
+                    result.fields.get("activationId") should not be defined
+                    result.fields.get("error") shouldBe defined
 
                     val duration = System.currentTimeMillis() - start
                     duration should be >= expectedDuration.toMillis
@@ -192,8 +195,8 @@ class WskBasicNodeTests
             val runReject = wsk.action.invoke(nameOfActionThatTriggers)
             withActivation(wsk.activation, runReject) {
                 activation =>
-                    activation.getFieldPath("response", "success") shouldBe Some(false.toJson)
-                    activation.getFieldPath("response", "result", "error") shouldBe defined
+                    activation.response.success shouldBe false
+                    activation.response.result.get.fields.get("error") shouldBe defined
             }
 
             val triggerName = "UnitTestTrigger"
@@ -207,8 +210,8 @@ class WskBasicNodeTests
             val runResolve = wsk.action.invoke(nameOfActionThatTriggers)
             withActivation(wsk.activation, runResolve) {
                 activation =>
-                    activation.getFieldPath("response", "success") shouldBe Some(true.toJson)
-                    activation.getFieldPath("response", "result", "activationId") shouldBe defined
+                    activation.response.success shouldBe true
+                    activation.response.result.get.fields.get("activationId") shouldBe defined
             }
     }
 
@@ -227,8 +230,8 @@ class WskBasicNodeTests
             val runReject = wsk.action.invoke(nameOfActionThatTriggers)
             withActivation(wsk.activation, runReject) {
                 activation =>
-                    activation.getFieldPath("response", "success") shouldBe Some(false.toJson)
-                    activation.getFieldPath("response", "result", "error") shouldBe defined
+                    activation.response.success shouldBe false
+                    activation.response.result.get.fields.get("error") shouldBe defined
             }
 
             val triggerName = "UnitTestTrigger"
@@ -242,8 +245,8 @@ class WskBasicNodeTests
             val runResolve = wsk.action.invoke(nameOfActionThatTriggers)
             withActivation(wsk.activation, runResolve) {
                 activation =>
-                    activation.getFieldPath("response", "success") shouldBe Some(true.toJson)
-                    activation.getFieldPath("response", "result", "activationId") shouldBe defined
+                    activation.response.success shouldBe true
+                    activation.response.result.get.fields.get("activationId") shouldBe defined
             }
     }
 

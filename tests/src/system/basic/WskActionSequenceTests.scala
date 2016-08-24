@@ -71,11 +71,10 @@ class WskActionSequenceTests
             val run = wsk.action.invoke(name, Map("payload" -> args.mkString("\n").toJson))
             withActivation(wsk.activation, run, totalWait = allowedActionDuration) {
                 activation =>
-                    activation.getFieldPath("response", "result", "payload") shouldBe defined
-                    activation.getFieldPath("response", "result", "length") should not be defined
-                    activation.getFieldPath("response", "result", "lines") should be(Some {
-                        Array(now).toJson
-                    })
+                    val result = activation.response.result.get
+                    result.fields.get("payload") shouldBe defined
+                    result.fields.get("length") should not be defined
+                    result.fields.get("lines") shouldBe Some(JsArray(Vector(now.toJson)))
             }
 
             // update action sequence
@@ -84,10 +83,9 @@ class WskActionSequenceTests
             val secondrun = wsk.action.invoke(name, Map("payload" -> args.mkString("\n").toJson))
             withActivation(wsk.activation, secondrun, totalWait = allowedActionDuration) {
                 activation =>
-                    activation.getFieldPath("response", "result", "length") should be(Some(2.toJson))
-                    activation.getFieldPath("response", "result", "lines") should be(Some {
-                        args.sortWith(_.compareTo(_) < 0).toArray.toJson
-                    })
+                    val result = activation.response.result.get
+                    result.fields.get("length") shouldBe Some(2.toJson)
+                    result.fields.get("lines") shouldBe Some(args.sortWith(_.compareTo(_) < 0).toArray.toJson)
             }
     }
 

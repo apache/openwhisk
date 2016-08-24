@@ -169,9 +169,9 @@ class WskBasicTests
             val run = wsk.action.invoke(name, args)
             withActivation(wsk.activation, run) {
                 activation =>
-                    val result = activation.fields("response").asJsObject.fields("result").asJsObject
-                    result.fields("args") shouldBe args.toJson
-                    result.fields("msg") shouldBe "Hello from arbitrary C program!".toJson
+                    activation.response.result shouldBe Some(JsObject(
+                        "args" -> args.toJson,
+                        "msg" -> "Hello from arbitrary C program!".toJson))
             }
     }
 
@@ -191,9 +191,9 @@ class WskBasicTests
             val run = wsk.action.invoke(name, Map("payload" -> "whatever".toJson))
             withActivation(wsk.activation, run) {
                 activation =>
-                    activation.fields("response").asJsObject.fields("status") should be("action developer error".toJson)
+                    activation.response.status shouldBe "action developer error"
                     // representing nodejs giving an error when given malformed.js
-                    activation.fields("response").asJsObject.toString should include("ReferenceError")
+                    activation.response.result.get.toString should include("ReferenceError")
             }
     }
 
@@ -243,8 +243,8 @@ class WskBasicTests
             val run = wsk.trigger.fire(name, dynamicParams)
             withActivation(wsk.activation, run) {
                 activation =>
-                    activation.fields("response").asJsObject.fields("result") should be(dynamicParams.toJson)
-                    activation.fields("end") should be(Instant.EPOCH.toEpochMilli.toJson)
+                    activation.response.result shouldBe Some(dynamicParams.toJson)
+                    activation.end shouldBe Instant.EPOCH.toEpochMilli
             }
 
             wsk.trigger.list().stdout should include(name)

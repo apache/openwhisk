@@ -26,7 +26,7 @@ import scala.language.postfixOps
 import org.scalatest.Matchers
 
 import common.TestUtils.RunResult
-import spray.json.JsObject
+import spray.json._
 
 /**
  * Test fixture to ease cleaning of whisk entities created during testing.
@@ -85,9 +85,26 @@ trait WskTestHelpers extends Matchers {
     }
 
     /**
+     * An arbitrary response of a whisk action. Includes the result as a JsObject as the
+     * structure of "result" is not defined.
+     */
+    case class CliActivationResponse(result: Option[JsObject], status: String, success: Boolean)
+    object CliActivationResponse extends DefaultJsonProtocol {
+        implicit val serdes = jsonFormat3(CliActivationResponse.apply)
+    }
+
+    /**
+     * Activation record as it is returned by the CLI.
+     */
+    case class CliActivation(activationId: String, logs: Option[List[String]], response: CliActivationResponse, start: Long, end: Long, cause: Option[String])
+    object CliActivation extends DefaultJsonProtocol {
+        implicit val serdes = jsonFormat6(CliActivation.apply)
+    }
+
+    /**
      * Extracts an activation id from a wsk command producing a RunResult with such an id.
      * If id is found, polls activations until one matching id is found. If found, pass
-     * the activation as a JsObject to the post processor which then check for expected values.
+     * the activation to the post processor which then check for expected values.
      */
     def withActivation(
         wsk: WskActivation,
@@ -95,7 +112,7 @@ trait WskTestHelpers extends Matchers {
         initialWait: Duration = 1 second,
         pollPeriod: Duration = 1 second,
         totalWait: Duration = 30 seconds)(
-            check: JsObject => Unit)(
+            check: CliActivation => Unit)(
                 implicit wskprops: WskProps): Unit = {
         val activationId = wsk.extractActivationId(run)
 
@@ -108,7 +125,7 @@ trait WskTestHelpers extends Matchers {
         if (activation.isLeft) {
             assert(false, s"error waiting for activation $id: ${activation.left.get}")
         } else try {
-            check(activation.right.get)
+            check(activation.right.get.convertTo[CliActivation])
         } catch {
             case error: Throwable =>
                 println(s"check failed for activation $id: ${activation.right.get}")

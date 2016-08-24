@@ -30,16 +30,16 @@ import common.TestHelpers
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
-import spray.json.DefaultJsonProtocol.BooleanJsonFormat
 import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json.pimpAny
+import spray.json.JsObject
 
 @RunWith(classOf[JUnitRunner])
 class WebSocketTests
-        extends TestHelpers
-        with WskTestHelpers
-        with BeforeAndAfterAll
-        with JsHelpers {
+    extends TestHelpers
+    with WskTestHelpers
+    with BeforeAndAfterAll
+    with JsHelpers {
 
     implicit val wskprops = WskProps()
     val wsk = new Wsk(usePythonCLI = false)
@@ -64,8 +64,9 @@ class WebSocketTests
             val run = wsk.action.invoke(websocketSendAction, Map("uri" -> serverURI.toString.toJson, "payload" -> uniquePayload))
             withActivation(wsk.activation, run, 1 second, 1 second, 180 seconds) {
                 activation =>
-                    activation.getFieldPath("response", "success") should be(Some(true.toJson))
-                    activation.getFieldPath("response", "result", "payload") should be(Some(uniquePayload))
+                    activation.response.success shouldBe true
+                    activation.response.result shouldBe Some(JsObject(
+                        "payload" -> uniquePayload))
             }
     }
 
@@ -76,10 +77,10 @@ class WebSocketTests
             val run = wsk.action.invoke(websocketSendAction, Map("uri" -> badURI.toString.toJson, "payload" -> "This is the message to send".toJson))
             withActivation(wsk.activation, run) {
                 activation =>
-                    activation.getFieldPath("response", "success") should be(Some(false.toJson))
+                    activation.response.success shouldBe false
 
                     // the exact error content comes from the ws Node module
-                    activation.fieldPathExists("response", "result", "error") should be(true)
+                    activation.response.result.get.fields.get("error") shouldBe defined
             }
     }
 
@@ -88,9 +89,9 @@ class WebSocketTests
             val run = wsk.action.invoke(websocketSendAction, Map("uri" -> serverURI.toString.toJson))
             withActivation(wsk.activation, run) {
                 activation =>
-                    activation.getFieldPath("response", "success") should be(Some(false.toJson))
-
-                    activation.getFieldPath("response", "result", "error") should be(Some("You must specify a payload parameter.".toJson))
+                    activation.response.success shouldBe false
+                    activation.response.result shouldBe Some(JsObject(
+                        "error" -> "You must specify a payload parameter.".toJson))
             }
     }
 
@@ -99,9 +100,9 @@ class WebSocketTests
             val run = wsk.action.invoke(websocketSendAction, Map("payload" -> "This is the message to send".toJson))
             withActivation(wsk.activation, run) {
                 activation =>
-                    activation.getFieldPath("response", "success") should be(Some(false.toJson))
-
-                    activation.getFieldPath("response", "result", "error") should be(Some("You must specify a uri parameter.".toJson))
+                    activation.response.success shouldBe false
+                    activation.response.result shouldBe Some(JsObject(
+                        "error" -> "You must specify a uri parameter.".toJson))
             }
     }
 }

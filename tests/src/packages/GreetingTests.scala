@@ -21,19 +21,16 @@ import java.io.File
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
-import common.JsHelpers
 import common.TestHelpers
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
-import spray.json.DefaultJsonProtocol.BooleanJsonFormat
-import spray.json.DefaultJsonProtocol.StringJsonFormat
-import spray.json.pimpAny
+import spray.json._
+import spray.json.DefaultJsonProtocol._
 
 @RunWith(classOf[JUnitRunner])
 class GreetingTests extends TestHelpers
-    with WskTestHelpers
-    with JsHelpers {
+    with WskTestHelpers {
 
     implicit val wskprops = WskProps()
     val wsk = new Wsk()
@@ -48,8 +45,8 @@ class GreetingTests extends TestHelpers
             val run = wsk.action.invoke(greetingAction, Map("dummy" -> "dummy".toJson))
             withActivation(wsk.activation, run) {
                 activation =>
-                    activation.getFieldPath("response", "success") should be(Some(true.toJson))
-                    activation.getFieldPath("response", "result", "payload") should be(Some(helloMessage))
+                    activation.response.success shouldBe true
+                    activation.response.result shouldBe Some(JsObject("payload" -> helloMessage.toJson))
             }
     }
 
@@ -59,8 +56,8 @@ class GreetingTests extends TestHelpers
             val run = wsk.action.invoke(greetingAction, Map("name" -> "Mork".toJson))
             withActivation(wsk.activation, run) {
                 activation =>
-                    activation.getFieldPath("response", "success") should be(Some(true.toJson))
-                    activation.getFieldPath("response", "result", "payload") should be(Some(helloStranger))
+                    activation.response.success shouldBe true
+                    activation.response.result shouldBe Some(JsObject("payload" -> helloStranger.toJson))
             }
     }
 
@@ -70,8 +67,8 @@ class GreetingTests extends TestHelpers
             val run = wsk.action.invoke(greetingAction, Map("name" -> "Mork".toJson, "place" -> "Ork".toJson))
             withActivation(wsk.activation, run) {
                 activation =>
-                    activation.getFieldPath("response", "success") should be(Some(true.toJson))
-                    activation.getFieldPath("response", "result", "payload") should be(Some(helloMessage))
+                    activation.response.success shouldBe true
+                    activation.response.result shouldBe Some(JsObject("payload" -> helloMessage.toJson))
             }
     }
 }
