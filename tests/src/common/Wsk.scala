@@ -150,8 +150,8 @@ trait ListOrGetFromCollection extends FullyQualifiedNames {
         summary: Boolean = false)(
             implicit wp: WskProps): RunResult = {
         val params = Seq(noun, "get", "--auth", wp.authKey) ++
-          Seq(fqn(name)) ++
-          { if (summary) Seq("--summary") else Seq() }
+            Seq(fqn(name)) ++
+            { if (summary) Seq("--summary") else Seq() }
         cli(wp.overrides ++ params, expectedExitCode)
     }
 }
@@ -368,7 +368,7 @@ class WskRule(override val usePythonCLI: Boolean = false)
         name: String,
         expectedExitCode: Int = SUCCESS_EXIT)(
             implicit wp: WskProps): RunResult = {
-        val disable = Try { disableRule(name, 30 seconds, expectedExitCode) }
+        val disable = Try { disableRule(name, expectedExitCode) }
         if (expectedExitCode != DONTCARE_EXIT)
             disable.get // throws exception
         super.delete(name, expectedExitCode)
@@ -383,13 +383,10 @@ class WskRule(override val usePythonCLI: Boolean = false)
      */
     def enableRule(
         name: String,
-        timeout: Duration,
         expectedExitCode: Int = SUCCESS_EXIT)(
             implicit wp: WskProps): RunResult = {
         val result = cli(wp.overrides ++ Seq(noun, "enable", "--auth", wp.authKey, fqn(name)), expectedExitCode)
         assert(result.stdout.contains("ok:"), result)
-        val b = waitfor(() => checkRuleState(name, active = true), totalWait = timeout)
-        assert(b)
         result
     }
 
@@ -402,13 +399,10 @@ class WskRule(override val usePythonCLI: Boolean = false)
      */
     def disableRule(
         name: String,
-        timeout: Duration,
         expectedExitCode: Int = SUCCESS_EXIT)(
             implicit wp: WskProps): RunResult = {
         val result = cli(wp.overrides ++ Seq(noun, "disable", "--auth", wp.authKey, fqn(name)), expectedExitCode)
         assert(result.stdout.contains("ok:"), result)
-        val b = waitfor(() => checkRuleState(name, active = false), totalWait = timeout)
-        assert(b)
         result
     }
 
@@ -555,13 +549,14 @@ class WskActivation(override val usePythonCLI: Boolean = false)
         entity: Option[String],
         limit: Option[Int] = None,
         since: Option[Instant] = None,
-        retries: Int = 10)(
+        retries: Int = 10,
+        pollPeriod: Duration = 1.second)(
             implicit wp: WskProps): Seq[String] = {
         Try {
             retry({
                 val result = ids(list(filter = entity, limit = limit, since = since))
                 if (result.length >= N) result else throw PartialResult(result)
-            }, retries, waitBeforeRetry = Some(1 second))
+            }, retries, waitBeforeRetry = Some(pollPeriod))
         } match {
             case Success(ids)                => ids
             case Failure(PartialResult(ids)) => ids
@@ -778,7 +773,7 @@ sealed trait RunWskCmd {
             showCmd: Boolean = false): RunResult = {
         val args = baseCommand
         if (verbose) args += "--verbose"
-        if (showCmd) println(args +" "+ params.mkString(" "))
+        if (showCmd) println(args + " " + params.mkString(" "))
         val rr = TestUtils.runCmd(DONTCARE_EXIT, workingDir, TestUtils.logger, sys.env ++ env, args ++ params: _*)
         rr.validateExitCode(expectedExitCode)
         rr
@@ -789,7 +784,7 @@ sealed trait RunWskCmd {
      * an optional a status line following by the JSON data
      */
     def parseJsonString(jsonStr: String): JsObject = {
-        jsonStr.substring(jsonStr.indexOf("\n") + 1).parseJson.asJsObject  // Skip optional status line before parsing
+        jsonStr.substring(jsonStr.indexOf("\n") + 1).parseJson.asJsObject // Skip optional status line before parsing
     }
 }
 
