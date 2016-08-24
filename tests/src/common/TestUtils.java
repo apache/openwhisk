@@ -24,16 +24,11 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.nio.file.FileSystems;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.text.SimpleDateFormat;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -103,7 +98,7 @@ public class TestUtils {
 
     /**
      * Gets the value of VCAP_SERVICES
-     * 
+     *
      * @return VCAP_SERVICES as a JSON object
      */
     public static JsonObject getVCAPServices() {
@@ -121,7 +116,7 @@ public class TestUtils {
 
     /*
      * Gets a VCAP_SERVICES credentials
-     * 
+     *
      * @return VCAP credentials as a <String, String> map for each <property,
      * value> pair in credentials
      */
@@ -171,7 +166,7 @@ public class TestUtils {
 
     /**
      * Sets the number of concurrent tests to run based on value provided.
-     * 
+     *
      * @throws IllegalStateException
      *             if count < 1
      */
@@ -376,43 +371,5 @@ public class TestUtils {
             builder.append(System.getProperty("line.separator"));
         }
         return builder.toString();
-    }
-
-    /**
-     * WARNING: Consider using the WSK_CONFIG_FILE environment variable in tests
-     * that will be manipulating the CLI property values. Use this method only
-     * after determining WSK_CONFIG_FILE will not work for the test case.
-     */
-    public static File backupWskProps() throws IOException {
-        String homedir = System.getProperty("user.home");
-        Path wskpropsPath = FileSystems.getDefault().getPath(homedir, ".wskprops");
-        String tempfileName = UUID.randomUUID().toString() + ".wskprops";
-        Path tempfilePath = FileSystems.getDefault().getPath(homedir, tempfileName);
-        try {
-            Files.copy(wskpropsPath, tempfilePath, StandardCopyOption.REPLACE_EXISTING);
-        } catch (IOException e) {
-            throw e;
-        }
-        return tempfilePath.toFile();
-    }
-
-    /**
-     * WARNING: Consider using the WSK_CONFIG_FILE environment variable in tests
-     * that will be manipulating the CLI property values. Use this method only
-     * after determining WSK_CONFIG_FILE will not work for the test case.
-     */
-    public static void restoreWskProps(File backupWskProps) throws IOException {
-        String homedir = System.getProperty("user.home");
-        Path wskpropsPath = FileSystems.getDefault().getPath(homedir, ".wskprops");
-        try {
-            Files.copy(backupWskProps.toPath(), wskpropsPath, StandardCopyOption.REPLACE_EXISTING);
-        } catch (IOException e) {
-            throw e;
-        }
-    }
-
-    public static File getWskPropsFile() {
-        String homedir = System.getProperty("user.home");
-        return new File(homedir + File.separator + ".wskprops");
     }
 }
