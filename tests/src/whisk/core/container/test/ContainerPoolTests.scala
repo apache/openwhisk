@@ -17,6 +17,7 @@
 package whisk.core.container.test
 
 import scala.concurrent.Future
+import scala.concurrent.duration._
 
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfter
@@ -104,7 +105,7 @@ class ContainerPoolTests extends FlatSpec
     def ensureClean() = {
         pool.enableGC();
         pool.forceGC();
-        Thread.sleep(2 * pool.gcFreqMilli + 1500) // GC should collect this by now
+        Thread.sleep(2 * pool.gcFrequency.toMillis + 1500L) // GC should collect this by now
         assert(pool.idleCount() == 0);
         assert(pool.activeCount() == 0);
     }
@@ -132,13 +133,13 @@ class ContainerPoolTests extends FlatSpec
         pool.disableGC();
         val startIdleCount = pool.idleCount()
         val container = getEcho("abracadabra")
-        val containerIdPrefix = container.containerIdPrefix();
+        val containerIdPrefix = container.containerIdPrefix
         assert(poolHasContainerIdPrefix(containerIdPrefix)) // container must be around
         pool.putBack(container); // contractually, user must let go of con at this point
         assert(pool.idleCount() == startIdleCount + 1)
         pool.enableGC();
         pool.forceGC(); // force all containers in pool to be freed
-        Thread.sleep(2 * pool.gcFreqMilli + 1500) // GC should collect this by now
+        Thread.sleep(2 * pool.gcFrequency.toMillis + 1500L) // GC should collect this by now
         assert(!poolHasContainerIdPrefix(containerIdPrefix)) // container must be gone by now
         assert(pool.idleCount() == 0)
     }
@@ -148,8 +149,8 @@ class ContainerPoolTests extends FlatSpec
         pool.maxIdle = 1;
         val c1 = getEcho("quasar");
         val c2 = getEcho("pulsar");
-        val p1 = c1.containerIdPrefix();
-        val p2 = c2.containerIdPrefix();
+        val p1 = c1.containerIdPrefix
+        val p2 = c2.containerIdPrefix
         assert(pool.activeCount() == 2);
         assert(pool.idleCount() == 0);
         pool.putBack(c1);
@@ -175,17 +176,17 @@ class ContainerPoolTests extends FlatSpec
 
     it should "also perform automatic GC with a settable threshold, invoke same action afterwards, another GC" in {
         ensureClean();
-        pool.gcThreshold = 2.0;
+        pool.gcThreshold = 2.seconds
         val container = getEcho("hocus pocus")
-        val containerIdPrefix = container.containerIdPrefix();
+        val containerIdPrefix = container.containerIdPrefix
         assert(poolHasContainerIdPrefix(containerIdPrefix)) // container must be around
         pool.putBack(container); // contractually, user must let go of con at this point
         // TODO: replace this with GC count so we don't break abstraction by knowing the GC check freq.  (!= threshold)
-        Thread.sleep(2 * pool.gcFreqMilli + 1500) // GC should collect this by now
+        Thread.sleep(2 * pool.gcFrequency.toMillis + 1500L) // GC should collect this by now
         assert(!poolHasContainerIdPrefix(containerIdPrefix)) // container must be gone by now
         // Do it again now
         val container2 = getEcho("hocus pocus")
-        val containerIdPrefix2 = container2.containerIdPrefix();
+        val containerIdPrefix2 = container2.containerIdPrefix
         assert(poolHasContainerIdPrefix(containerIdPrefix2)) // container must be around
         pool.putBack(container2);
         pool.resetGCThreshold()

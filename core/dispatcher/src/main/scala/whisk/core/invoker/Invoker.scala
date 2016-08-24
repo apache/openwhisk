@@ -68,8 +68,7 @@ import whisk.core.WhiskConfig.servicePort
 import whisk.core.WhiskConfig.whiskVersion
 import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.core.connector.CompletionMessage
-import whisk.core.container.ContainerPool
-import whisk.core.container.WhiskContainer
+import whisk.core.container._
 import whisk.core.dispatcher.ActivationFeed.ActivationNotification
 import whisk.core.dispatcher.ActivationFeed.ContainerReleased
 import whisk.core.dispatcher.ActivationFeed.FailedActivation
@@ -138,8 +137,8 @@ class Invoker(
      */
     case class Transaction(msg: Message) {
         var result: Option[Future[DocInfo]] = None
-        var initInterval: Option[(Instant, Instant)] = None
-        var runInterval: Option[(Instant, Instant)] = None
+        var initInterval: Option[Interval] = None
+        var runInterval: Option[Interval] = None
     }
 
     /**
@@ -262,44 +261,57 @@ class Invoker(
     }
 
     // These are related to initialization
-    private val RegularSlack = 100 // millis
-    private val BlackBoxSlack = 200 // millis
+    private val RegularSlack = 100.milliseconds
+    private val BlackBoxSlack = 200.milliseconds
 
     protected def invokeAction(action: WhiskAction, auth: WhiskAuth, payload: JsObject, tran: Transaction)(
         implicit transid: TransactionId): Future[DocInfo] = {
         val msg = tran.msg
+
         pool.getAction(action, auth) match {
             case Some((con, initResultOpt)) => Future {
                 val params = con.mergeParams(payload)
                 val timeout = action.limits.timeout.duration
+
                 initResultOpt match {
                     case None => (false, con.run(params, msg.meta, auth.compact, timeout,
                         action.fullyQualifiedName, msg.activationId.toString)) // cached
-                    case Some((start, end, Some((200, _)))) => { // successful init
+
+                    case Some(RunResult(interval, Some((200, _)))) => { // successful init
+
                         // TODO:  @perryibm update comment if this is still necessary else remove
-                        Thread.sleep(if (con.isBlackbox) BlackBoxSlack else RegularSlack)
-                        tran.initInterval = Some(start, end)
+                        Thread.sleep((if (con.isBlackbox) BlackBoxSlack else RegularSlack).toMillis)
+
+                        tran.initInterval = Some(interval)
+
                         (false, con.run(params, msg.meta, auth.compact, timeout,
                             action.fullyQualifiedName, msg.activationId.toString))
                     }
                     case _ => (true, initResultOpt.get) //  unsuccessful initialization
                 }
             } flatMap {
-                case (failedInit, (start, end, response)) =>
-                    if (!failedInit) tran.runInterval = Some(start, end)
+                case (failedInit, RunResult(interval, response)) =>
+                    if (!failedInit) tran.runInterval = Some(interval)
+
                     val activationResult = makeWhiskActivation(tran, con.isBlackbox, msg, action, payload, response)
                     val completeMsg = CompletionMessage(transid, activationResult)
+
                     producer.send("completed", completeMsg) map { status =>
                         info(this, s"posted completion of activation ${msg.activationId}")
                     }
+
                     val contents = getContainerLogs(con, action.exec.sentinelledLogs, action.limits.logs)
+
                     // Force delete the container instead of just pausing it iff the initialization failed or the container
                     // failed otherwise. An example of a ContainerError is the timeout of an action in which case the
                     // container is to be removed to prevent leaking
                     val removeContainer = failedInit || response.exists { _._1 == ActivationResponse.ContainerError }
+
                     pool.putBack(con, removeContainer)
+
                     completeTransaction(tran, activationResult withLogs ActivationLogs.serdes.read(contents), ContainerReleased(transid))
             }
+
             case None => { // this corresponds to the container not even starting - not /init failing
                 info(this, s"failed to start or get a container")
                 val response = Some(420, "Error starting container")
@@ -488,16 +500,19 @@ class Invoker(
     private def makeWhiskActivation(transaction: Transaction, isBlackbox: Boolean, msg: Message, actionName: EntityName,
                                     actionVersion: SemVer, payload: JsObject, response: Option[(Int, String)], timeout: Duration = Duration.Inf)(
                                         implicit transid: TransactionId): WhiskActivation = {
-        val interval = (transaction.initInterval, transaction.runInterval) match {
+
+        // We reconstruct a plausible interval based on the time spent in the various operations.
+        // The goal is for the interval to have a duration corresponding to the sum of all durations
+        // and an endtime corresponding to the latest endtime.
+        val interval: Interval = (transaction.initInterval, transaction.runInterval) match {
             case (None, Some(run))  => run
             case (Some(init), None) => init
-            case (None, None)       => (Instant.now(Clock.systemUTC()), Instant.now(Clock.systemUTC()))
-            case (Some(init), Some(run)) =>
-                val durMilli = init._2.toEpochMilli() - init._1.toEpochMilli()
-                (run._1.minusMillis(durMilli), run._2)
+            case (None, None)       => Interval(Instant.now(Clock.systemUTC()), Instant.now(Clock.systemUTC()))
+            case (Some(init), Some(Interval(runStart, runEnd))) =>
+                Interval(runStart.minusMillis(init.duration.toMillis), runEnd)
         }
-        val duration = Duration.fromNanos(java.time.Duration.between(interval._1, interval._2).toNanos)
-        val activationResponse = if (duration >= timeout) {
+
+        val activationResponse = if (interval.duration >= timeout) {
             ActivationResponse.applicationError(s"action exceeded its time limits of ${timeout.toMillis} milliseconds")
         } else {
             processResponseContent(isBlackbox, response)
@@ -511,8 +526,8 @@ class Invoker(
             subject = msg.subject,
             activationId = msg.activationId,
             cause = msg.cause,
-            start = interval._1,
-            end = interval._2,
+            start = interval.start,
+            end = interval.end,
             response = activationResponse,
             logs = ActivationLogs())
     }
