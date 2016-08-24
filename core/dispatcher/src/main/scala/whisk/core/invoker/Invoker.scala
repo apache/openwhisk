@@ -585,15 +585,6 @@ object InvokerService {
      */
     def requiredProperties = Invoker.requiredProperties
 
-    private class ServiceBuilder(invoker: Invoker)(
-        implicit val ec: ExecutionContext)
-        extends Creator[InvokerServer] {
-        def create = new InvokerServer {
-            override val invokerInstance = invoker
-            override val executionContext = ec
-        }
-    }
-
     def main(args: Array[String]): Unit = {
         implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
         implicit val system: ActorSystem = ActorSystem(
@@ -620,7 +611,9 @@ object InvokerService {
             dispatcher.start()
 
             val port = config.servicePort.toInt
-            BasicHttpService.startService(system, "invoker", "0.0.0.0", port, new ServiceBuilder(invoker))
+            BasicHttpService.startService(system, "invoker", "0.0.0.0", port, new Creator[InvokerServer] {
+                def create = new InvokerServer {}
+            })
         }
     }
 }
