@@ -27,6 +27,7 @@ import org.scalatest.Matchers
 
 import common.TestUtils.RunResult
 import spray.json._
+import java.time.Instant
 
 /**
  * Test fixture to ease cleaning of whisk entities created during testing.
@@ -43,7 +44,7 @@ trait WskTestHelpers extends Matchers {
      * in given collection.
      *
      */
-    private class AssetCleaner(assetsToDeleteAfterTest: Assets, wskprops: WskProps) {
+    class AssetCleaner(assetsToDeleteAfterTest: Assets, wskprops: WskProps) {
         def withCleaner[T <: DeleteFromCollection](cli: T, name: String, confirmDelete: Boolean = true)(
             cmd: (T, String) => RunResult): RunResult = {
             cli.sanitize(name)(wskprops) // sanitize (delete) if asset exists
@@ -129,6 +130,38 @@ trait WskTestHelpers extends Matchers {
         } catch {
             case error: Throwable =>
                 println(s"check failed for activation $id: ${activation.right.get}")
+                throw error
+        }
+    }
+
+    /**
+     * Polls until it finds {@code N} activationIds from an entity. Asserts the count
+     * of the activationIds actually equal {@code N}. Takes a {@code since} parameter
+     * defining the oldest activationId to consider valid.
+     */
+    def withActivationsFromEntity(
+        wsk: WskActivation,
+        entity: String,
+        N: Int = 1,
+        since: Option[Instant] = None,
+        pollPeriod: Duration = 1 second,
+        totalWait: Duration = 30 seconds)(
+            check: Seq[CliActivation] => Unit)(
+                implicit wskprops: WskProps): Unit = {
+
+        val activationIds = wsk.pollFor(N, Some(entity), since = since)
+        withClue(s"did not find $N activations for $entity since $since") {
+            activationIds.length shouldBe N
+        }
+
+        val parsed = activationIds.map { id =>
+            wsk.parseJsonString(wsk.get(id).stdout).convertTo[CliActivation]
+        }
+        try {
+            check(parsed)
+        } catch {
+            case error: Throwable =>
+                println(s"check failed for activations $activationIds: ${parsed}")
                 throw error
         }
     }
