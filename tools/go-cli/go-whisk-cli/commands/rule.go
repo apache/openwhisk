@@ -364,7 +364,7 @@ var ruleGetCmd = &cobra.Command{
         }
 
         if (flags.rule.summary) {
-            fmt.Fprintf(color.Output, "rule /%s/%s\n", rule.Namespace, rule.Name)
+            printRuleSummary(rule)
         } else {
             fmt.Fprintf(color.Output,
                 wski18n.T("{{.ok}} got rule {{.name}}\n",

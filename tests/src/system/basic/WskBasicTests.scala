@@ -112,6 +112,51 @@ class WskBasicTests
             wsk.pkg.list().stdout should include(name)
     }
 
+    it should "create, and get a package summary" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val packageName = "packageName"
+            val actionName = "actionName"
+            val packageAnnots = Map(
+                "description" -> JsString("Package description"),
+                "parameters" -> JsArray(
+                    JsObject(
+                        "name" -> JsString("paramName1"),
+                        "description" -> JsString("Parameter description 1")
+                    ),
+                    JsObject(
+                        "name" -> JsString("paramName2"),
+                        "description" -> JsString("Parameter description 2")
+                    )
+                )
+            )
+            val actionAnnots = Map(
+                "description" -> JsString("Action description"),
+                "parameters" -> JsArray(
+                    JsObject(
+                        "name" -> JsString("paramName1"),
+                        "description" -> JsString("Parameter description 1")
+                    ),
+                    JsObject(
+                        "name" -> JsString("paramName2"),
+                        "description" -> JsString("Parameter description 2")
+                    )
+                )
+            )
+
+            assetHelper.withCleaner(wsk.pkg, packageName) {
+                (pkg, _) =>
+                    pkg.create(packageName, annotations = packageAnnots)
+            }
+
+            wsk.action.create(packageName + "/" + actionName, defaultAction, annotations = actionAnnots)
+            val stdout = wsk.pkg.get(packageName, summary = true).stdout
+            val ns_regex_list = wsk.namespace.list().stdout.trim.replace('\n', '|')
+            wsk.action.delete(packageName + "/" + actionName)
+
+            stdout should include regex(s"(?i)package /${ns_regex_list}/${packageName}: Package description\\s*\\(parameters: paramName1, paramName2\\)")
+            stdout should include regex(s"(?i)action /${ns_regex_list}/${packageName}/${actionName}: Action description\\s*\\(parameters: paramName1, paramName2\\)")
+    }
+
     behavior of "Wsk Action CLI"
 
     it should "create the same action twice with different cases" in withAssetCleaner(wskprops) {
@@ -227,6 +272,35 @@ class WskBasicTests
                 .stdout should include regex (""""count": 3""")
     }
 
+    it should "create, and get an action summary" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "actionName"
+            val annots = Map(
+                "description" -> JsString("Action description"),
+                "parameters" -> JsArray(
+                    JsObject(
+                        "name" -> JsString("paramName1"),
+                        "description" -> JsString("Parameter description 1")
+                    ),
+                    JsObject(
+                        "name" -> JsString("paramName2"),
+                        "description" -> JsString("Parameter description 2")
+                    )
+                )
+            )
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) =>
+                    action.create(name, defaultAction, annotations = annots)
+            }
+
+
+            val stdout = wsk.action.get(name, summary = true).stdout
+            val ns_regex_list = wsk.namespace.list().stdout.trim.replace('\n', '|')
+
+            stdout should include regex (s"(?i)action /${ns_regex_list}/${name}: Action description\\s*\\(parameters: paramName1, paramName2\\)")
+    }
+
     behavior of "Wsk Trigger CLI"
 
     it should "create, update, get, fire and list trigger" in withAssetCleaner(wskprops) {
@@ -253,6 +327,34 @@ class WskBasicTests
             }
 
             wsk.trigger.list().stdout should include(name)
+    }
+
+    it should "create, and get a trigger summary" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "triggerName"
+            val annots = Map(
+                "description" -> JsString("Trigger description"),
+                "parameters" -> JsArray(
+                    JsObject(
+                        "name" -> JsString("paramName1"),
+                        "description" -> JsString("Parameter description 1")
+                    ),
+                    JsObject(
+                        "name" -> JsString("paramName2"),
+                        "description" -> JsString("Parameter description 2")
+                    )
+                )
+            )
+
+            assetHelper.withCleaner(wsk.trigger, name) {
+                (trigger, _) =>
+                    trigger.create(name, annotations = annots)
+            }
+
+            val stdout = wsk.trigger.get(name, summary = true).stdout
+            val ns_regex_list = wsk.namespace.list().stdout.trim.replace('\n', '|')
+
+            stdout should include regex(s"trigger /${ns_regex_list}/${name}: Trigger description\\s*\\(parameters: paramName1, paramName2\\)")
     }
 
     behavior of "Wsk Rule CLI"
@@ -328,7 +430,8 @@ class WskBasicTests
             // Summary namespace should match one of the allowable namespaces (typically 'guest')
             val ns_regex_list = wsk.namespace.list().stdout.trim.replace('\n', '|')
             val stdout = wsk.rule.get(ruleName, summary = true).stdout
-            stdout should include regex (s"(?i)rule\\s+/${ns_regex_list}/${ruleName}")
+
+            stdout should include regex (s"(?i)rule /${ns_regex_list}/${ruleName}\\s*\\(status: active\\)")
     }
 
     behavior of "Wsk Namespace CLI"

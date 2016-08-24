@@ -259,7 +259,7 @@ var actionGetCmd = &cobra.Command{
     }
 
     if flags.common.summary {
-      fmt.Fprintf(color.Output, "%s /%s/%s\n", boldString(wski18n.T("action")), action.Namespace, action.Name)
+      printSummary(action)
     } else {
       fmt.Fprintf(color.Output,
         wski18n.T("{{.ok}} got action {{.name}}\n",

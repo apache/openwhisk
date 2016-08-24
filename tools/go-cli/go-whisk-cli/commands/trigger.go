@@ -447,9 +447,7 @@ var triggerGetCmd = &cobra.Command{
         }
 
         if (flags.trigger.summary) {
-            fmt.Fprintf(color.Output,
-                wski18n.T("trigger /{{.namespace}}/{{.name}}\n",
-                    map[string]interface{}{"namespace": retTrigger.Namespace, "name": retTrigger.Name}))
+            printSummary(retTrigger)
         } else {
             fmt.Fprintf(color.Output,
                 wski18n.T("{{.ok}} got trigger {{.name}}\n",
