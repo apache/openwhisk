@@ -308,9 +308,9 @@ func printFullList(collection interface{}) {
 func printSummary(collection interface{}) {
     switch collection := collection.(type) {
     case *whisk.Action:
-
-    case *whisk.Trigger:
-
+        printActionSummary(collection)
+    case *whisk.TriggerFromServer:
+        printTriggerSummary(collection)
     case *whisk.Package:
         printPackageSummary(collection)
     case *whisk.Rule:
@@ -398,30 +398,55 @@ func printArrayContents(arrStr []string) {
     }
 }
 
-func printPackageSummary(p *whisk.Package) {
-    printEntitySummary(fmt.Sprintf("%7s", "package"), getFullName(p.Namespace, p.Name, ""),
-        getValueFromAnnotations(p.Annotations, "description"))
+func printPackageSummary(pkg *whisk.Package) {
+    printEntitySummary(fmt.Sprintf("%7s", "package"), getFullName(pkg.Namespace, pkg.Name, ""),
+        getValueFromAnnotations(pkg.Annotations, "description"), getParamNamesFromAnnotations(pkg.Annotations))
 
-    if p.Actions != nil {
-        for _, a := range p.Actions {
-            printEntitySummary(fmt.Sprintf("%7s", "action"), getFullName(p.Namespace, p.Name, a.Name),
-                getValueFromAnnotations(a.Annotations, "description"))
+
+    if pkg.Actions != nil {
+        for _, a := range pkg.Actions {
+            printEntitySummary(fmt.Sprintf("%7s", "action"), getFullName(pkg.Namespace, pkg.Name, a.Name),
+                getValueFromAnnotations(a.Annotations, "description"), getParamNamesFromAnnotations(a.Annotations))
         }
     }
 
-    if p.Feeds != nil {
-        for _, f := range p.Feeds {
-            printEntitySummary(fmt.Sprintf("%7s", "feed  "), getFullName(p.Namespace, p.Name, f.Name),
-                getValueFromAnnotations(f.Annotations, "description"))
+    if pkg.Feeds != nil {
+        for _, f := range pkg.Feeds {
+            printEntitySummary(fmt.Sprintf("%7s", "feed  "), getFullName(pkg.Namespace, pkg.Name, f.Name),
+                getValueFromAnnotations(f.Annotations, "description"), getParamNamesFromAnnotations(f.Annotations))
         }
     }
 }
 
-func printEntitySummary(entityType string, fullName string,  description string) {
+func printActionSummary(action *whisk.Action) {
+    printEntitySummary(fmt.Sprintf("%6s", "action"),
+        getFullName(action.Namespace, "", action.Name),
+        getValueFromAnnotations(action.Annotations, "description"),
+        getParamNamesFromAnnotations(action.Annotations))
+}
+
+func printTriggerSummary(trigger *whisk.TriggerFromServer) {
+    printEntitySummary(fmt.Sprintf("%7s", "trigger"),
+        getFullName(trigger.Namespace, "", trigger.Name),
+        getValueFromAnnotations(trigger.Annotations, "description"),
+        getParamNamesFromAnnotations(trigger.Annotations))
+}
+
+func printRuleSummary(rule *whisk.Rule) {
+    fmt.Fprintf(color.Output, "%s %s\n", boldString(fmt.Sprintf("%4s", "rule")),
+        getFullName(rule.Namespace, "", rule.Name))
+    fmt.Fprintf(color.Output, "   (%s: %s)\n", boldString(wski18n.T("status")), rule.Status)
+}
+
+func printEntitySummary(entityType string, fullName string, description string, params string) {
     if len(description) > 0 {
         fmt.Fprintf(color.Output, "%s %s: %s\n", boldString(entityType), fullName, description)
     } else {
         fmt.Fprintf(color.Output, "%s %s\n", boldString(entityType), fullName)
+    }
+
+    if len(params) > 0 {
+        fmt.Fprintf(color.Output, "   (%s: %s)\n", boldString(wski18n.T("parameters")), params)
     }
 }
 
@@ -432,6 +457,8 @@ func getFullName(namespace string, packageName string, entityName string) (strin
         fullName = fmt.Sprintf("/%s/%s/%s", namespace, packageName, entityName)
     } else if len(namespace) > 0 && len(packageName) > 0 {
         fullName = fmt.Sprintf("/%s/%s", namespace, packageName)
+    } else if len(namespace) > 0 && len(entityName) > 0 {
+        fullName = fmt.Sprintf("/%s/%s", namespace, entityName)
     } else if len(namespace) > 0 {
         fullName = fmt.Sprintf("/%s", namespace)
     }
@@ -439,16 +466,55 @@ func getFullName(namespace string, packageName string, entityName string) (strin
     return fullName
 }
 
-type Annotation struct {
+type KeyStringValue struct {
     Key     string
     Value   string
 }
 
-func getValueFromAnnotations(rawJSON *json.RawMessage, key string) (string) {
-    var annotations []Annotation
-    var value string
+type KeyRawValue struct {
+    Key     string
+    Value   *json.RawMessage
+}
 
-    whisk.Debug(whisk.DbgInfo, "Getting value for key '%s' from annotations '%s'", key, string(*rawJSON))
+type Param struct {
+    Name string
+}
+
+func getParamNamesFromAnnotations(rawJSON *json.RawMessage) (string) {
+    var annotations []KeyRawValue
+    var parameters []Param
+    var res []string
+    var paramNames string
+
+    paramNames = getValueFromAnnotations(rawJSON, "parameters")
+
+    if len(paramNames) > 0 {
+        res = append(res, getValueFromAnnotations(rawJSON, "parameters"))
+    }
+
+    json.Unmarshal([]byte(*rawJSON), &annotations)
+
+    for _, annotation := range annotations {
+        if annotation.Key == "parameters" {
+            json.Unmarshal([]byte(*annotation.Value), &parameters)
+
+            for _, param := range parameters {
+                res = append(res, param.Name)
+            }
+        }
+    }
+
+    paramNames = strings.Join(res, ", ")
+
+    whisk.Debug(whisk.DbgInfo, "Got parameter names '%s' from annotations '%s'\n", paramNames,
+        string(*rawJSON))
+
+    return paramNames
+}
+
+func getValueFromAnnotations(rawJSON *json.RawMessage, key string) (string) {
+    var annotations []KeyStringValue
+    var value string
 
     json.Unmarshal([]byte(*rawJSON), &annotations)
 
@@ -459,7 +525,7 @@ func getValueFromAnnotations(rawJSON *json.RawMessage, key string) (string) {
         }
     }
 
-    whisk.Debug(whisk.DbgInfo, "Got value '%s' for key '%s'", value, key)
+    whisk.Debug(whisk.DbgInfo, "Got value '%s' for key '%s' from annotations '%s'\n", value, key, string(*rawJSON))
 
     return value
 }

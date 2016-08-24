@@ -635,10 +635,6 @@
     "translation": "Unable to get trigger '{{.name}}': {{.err}}"
   },
   {
-    "id": "trigger /{{.namespace}}/{{.name}}\n",
-    "translation": "trigger /{{.namespace}}/{{.name}}\n"
-  },
-  {
     "id": "{{.ok}} got trigger {{.name}}\n",
     "translation": "{{.ok}} got trigger {{.name}}\n"
   },
@@ -1102,5 +1098,13 @@
   {
     "id": "No arguments are required.",
     "translation": "No arguments are required."
+  },
+  {
+    "id": "status",
+    "translation": "status"
+  },
+  {
+    "id": "parameters",
+    "translation": "parameters"
   }
 ]
