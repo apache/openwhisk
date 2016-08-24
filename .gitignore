@@ -26,6 +26,7 @@ bin/
 # Gradle
 .gradle
 build/
+!/tools/build/
 
 # Python
 .ipynb_checkpoints/
@@ -44,4 +45,3 @@ node_modules
 ansible/environments/mac/hosts
 ansible/db_local.ini*
 ansible/tmp/*
-
