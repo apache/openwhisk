@@ -68,12 +68,13 @@ protected[core] case class Resource(
 }
 
 protected[core] object EntitlementService {
-    val requiredProperties = WhiskConfig.consulServer ++ Map(
+    val requiredProperties = WhiskConfig.consulServer ++ WhiskConfig.entitlementHost ++ Map(
         WhiskConfig.actionInvokePerMinuteLimit -> null,
         WhiskConfig.actionInvokePerHourLimit -> null,
-        WhiskConfig.triggerFirePerMinuteLimit -> null,
         WhiskConfig.actionInvokeConcurrentLimit -> null,
+        WhiskConfig.triggerFirePerMinuteLimit -> null,
         WhiskConfig.triggerFirePerHourLimit -> null)
+
     /**
      * The default list of namespaces for a subject.
      */
@@ -89,6 +90,7 @@ protected[core] abstract class EntitlementService(config: WhiskConfig)(
     private implicit val executionContext = actorSystem.dispatcher
 
     private var loadbalancerOverload: Option[Boolean] = None
+
     private val invokeRateThrottler = new RateThrottler(config.actionInvokePerMinuteLimit.toInt, config.actionInvokePerHourLimit.toInt)
     private val triggerRateThrottler = new RateThrottler(config.triggerFirePerMinuteLimit.toInt, config.triggerFirePerHourLimit.toInt)
     private val concurrentInvokeThrottler = new ActivationThrottler(config.consulServer, config.actionInvokeConcurrentLimit.toInt)

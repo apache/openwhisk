@@ -40,9 +40,7 @@ object WhiskServices {
 
     type LoadBalancerReq = (String, ActivationMessage, TransactionId)
 
-    def requiredProperties = WhiskConfig.loadbalancerHost ++
-        WhiskConfig.consulServer ++
-        WhiskConfig.entitlementHost
+    def requiredProperties = WhiskConfig.loadbalancerHost ++ WhiskConfig.consulServer ++ EntitlementService.requiredProperties
 
     def consulServer(config: WhiskConfig) = config.consulServer
 
