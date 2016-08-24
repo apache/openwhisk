@@ -45,7 +45,6 @@ import spray.routing.directives.ParamDefMagnet.apply
 import spray.routing.RequestContext
 import whisk.common.TransactionId
 import whisk.core.entitlement.Collection
-import whisk.core.entity.ActivationId
 import whisk.core.entity.ActivationResponse
 import whisk.core.entity.DocId
 import whisk.core.entity.EntityName
@@ -134,7 +133,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                 getEntity(WhiskTrigger, entityStore, docid, Some {
                     trigger: WhiskTrigger =>
                         val args = trigger.parameters.merge(payload)
-                        val triggerActivationId = ActivationId()
+                        val triggerActivationId = activationId.make()
                         info(this, s"[POST] trigger activation id: ${triggerActivationId}")
 
                         val triggerActivation = WhiskActivation(
@@ -166,7 +165,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                                         namespace = user.subject.namespace, // all activations should end up in the one space regardless trigger.namespace,
                                         ruleName.last,
                                         user.subject,
-                                        ActivationId(),
+                                        activationId.make(),
                                         Instant.now(Clock.systemUTC()),
                                         Instant.EPOCH,
                                         cause = Some(triggerActivationId),

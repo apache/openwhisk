@@ -34,7 +34,6 @@ import whisk.common.Logging
 import whisk.common.TransactionCounter
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
-import whisk.core.connector.LoadBalancerResponse
 import whisk.core.controller.WhiskActionsApi
 import whisk.core.controller.WhiskServices
 import whisk.core.database.test.DbUtils
@@ -42,6 +41,7 @@ import whisk.core.entitlement.Collection
 import whisk.core.entitlement.EntitlementService
 import whisk.core.entitlement.LocalEntitlementService
 import whisk.core.entity.ActivationId
+import whisk.core.entity.ActivationId.ActivationIdGenerator
 import whisk.core.entity.AuthKey
 import whisk.core.entity.DocId
 import whisk.core.entity.EntityName
@@ -55,6 +55,7 @@ import whisk.core.entity.WhiskEntityStore
 import whisk.core.entity.WhiskPackage
 import whisk.core.entity.WhiskRule
 import whisk.core.entity.WhiskTrigger
+import scala.concurrent.duration.FiniteDuration
 
 protected trait ControllerTestCommon
     extends FlatSpec
@@ -74,22 +75,35 @@ protected trait ControllerTestCommon
     implicit val actorSystem = system // defined in ScalatestRouteTest
     val executionContext = actorSystem.dispatcher
 
-    val whiskConfig = new WhiskConfig(WhiskActionsApi.requiredProperties)
+    override val whiskConfig = new WhiskConfig(WhiskActionsApi.requiredProperties)
     assert(whiskConfig.isValid)
+
+    override val entitlementService: EntitlementService = new LocalEntitlementService(whiskConfig)
+
+    override val activationId = new ActivationIdGenerator() {
+        // need a static activation id to test activations api
+        private val fixedId = ActivationId()
+        override def make = fixedId
+    }
+
+    override val performLoadBalancerRequest = (lbr: WhiskServices.LoadBalancerReq) => Future.successful {}
+
+    override val queryActivationResponse = (activationId: ActivationId, timeout: FiniteDuration, transid: TransactionId) => {
+        whiskActivationStub map {
+            activation => Future.successful(activation)
+        } getOrElse (Future.failed {
+            new IllegalArgumentException("Unit test does not need fast path")
+        })
+    }
+
+    override val consulServer = "???"
 
     val entityStore = WhiskEntityStore.datastore(whiskConfig)
     val activationStore = WhiskActivationStore.datastore(whiskConfig)
     val authStore = WhiskAuthStore.datastore(whiskConfig)
-    val entitlementService: EntitlementService = new LocalEntitlementService(whiskConfig)
 
-    val activationId = ActivationId() // need a static activation id to test activations api
-    val performLoadBalancerRequest = (lbr: WhiskServices.LoadBalancerReq) => Future {
-        LoadBalancerResponse.id(activationId)
-    }
-    val queryActivationResponse = (activationId: ActivationId, transid: TransactionId) => Future.failed {
-        new IllegalArgumentException("Unit test does not need fast path")
-    }
-    val consulServer = "???"
+    // unit tests that need an activation via active ack/fast path should set this to value expected
+    protected var whiskActivationStub: Option[WhiskActivation] = None
 
     def createTempCredentials(implicit transid: TransactionId) = {
         val auth = WhiskAuth(Subject(), AuthKey())

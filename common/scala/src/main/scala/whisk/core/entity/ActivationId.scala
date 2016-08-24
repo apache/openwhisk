@@ -51,6 +51,10 @@ protected[core] class ActivationId private (private val id: java.util.UUID) exte
 
 protected[core] object ActivationId extends ArgNormalizer[ActivationId] {
 
+    protected[core] trait ActivationIdGenerator {
+        def make(): ActivationId = new ActivationId(java.util.UUID.randomUUID())
+    }
+
     /**
      * Unapply method for convenience of case matching.
      */
@@ -66,7 +70,7 @@ protected[core] object ActivationId extends ArgNormalizer[ActivationId] {
      * @throws IllegalArgumentException is argument is not defined
      */
     @throws[IllegalArgumentException]
-    protected[core] def apply(uuid: java.util.UUID): ActivationId = {
+    private def apply(uuid: java.util.UUID): ActivationId = {
         require(uuid != null, "argument undefined")
         new ActivationId(uuid)
     }

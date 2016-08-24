@@ -27,7 +27,6 @@ import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.connector.kafka.KafkaProducerConnector
 import whisk.core.connector.{ ActivationMessage => Message }
-import whisk.core.connector.LoadBalancerResponse
 import akka.event.Logging.LogLevel
 import whisk.common.ConsulKV.LoadBalancerKeys
 
@@ -52,7 +51,7 @@ trait LoadBalancerToKafka extends Logging {
      * @param transid the transaction id, this may be the tid assigned by the controller and carried by the message or one determined by the load balancer service
      * @return msg to return in HTTP response
      */
-    def doPublish(component: String, msg: Message)(implicit transid: TransactionId): Future[LoadBalancerResponse] = {
+    def doPublish(component: String, msg: Message)(implicit transid: TransactionId): Future[Unit] = {
         getTopic(component, msg) match {
             case Some((invokerIndex, topic)) =>
                 val subject = msg.subject()
@@ -62,9 +61,10 @@ trait LoadBalancerToKafka extends Logging {
                         val counter = updateActivationCount(subject, invokerIndex)
                         info(this, s"user has ${counter} activations posted. Posted to ${status.topic()}[${status.partition()}][${status.offset()}]")
                     }
-                    LoadBalancerResponse.id(msg.activationId)
                 }
-            case None => Future.successful(idError)
+            case None => Future.failed {
+                new LoadBalancerException("no invokers available")
+            }
         }
     }
 
@@ -129,6 +129,6 @@ trait LoadBalancerToKafka extends Logging {
     // A count of how many activations have been posted to Kafka based on invoker index or user/subject.
     private val invokerActivationCounter = new TrieMap[Int, Counter]
     private val userActivationCounter = new TrieMap[String, Counter]
-    private val idError = LoadBalancerResponse.error("no invokers available")
+    private case class LoadBalancerException(msg: String) extends Throwable(msg)
 
 }
