@@ -253,7 +253,7 @@ Components = [
     makeComponent('invoker',
                   'build/deploy invoker',
                   modes = 'clean',
-                  gradle = ':core:dispatcher'),
+                  gradle = ':core:invoker'),
 
     makeComponent('edge',
                   'deploy edge',
