@@ -44,6 +44,7 @@ import whisk.core.entity.WhiskEntityStore
 import whisk.core.entity.NodeJS6Exec
 import akka.event.Logging.LogLevel
 import akka.event.Logging.InfoLevel
+import whisk.core.entity.BlackBoxExec
 
 /**
  * A thread-safe container pool that internalizes container creation/teardown and allows users
@@ -454,7 +455,7 @@ class ContainerPool(
         val imageName = WhiskAction.containerImageName(nodejsExec, config.dockerRegistry, config.dockerImagePrefix, config.dockerImageTag)
         val limits = ActionLimits(TimeLimit(), defaultMemoryLimit, LogLimit())
         val containerName = makeContainerName("warmJsContainer")
-        val con = makeGeneralContainer(warmNodejsKey, containerName, imageName, limits)
+        val con = makeGeneralContainer(warmNodejsKey, containerName, imageName, limits, false)
         if (con.containerId.isDefined) {
             this.synchronized {
                 introduceContainer(warmNodejsKey, con)
@@ -483,7 +484,7 @@ class ContainerPool(
         val key = makeKey(action, auth)
         val warmedContainer = if (limits.memory == defaultMemoryLimit && imageName == nodeImageName) getWarmNodejsContainer(key) else None
         val containerName = makeContainerName(action)
-        val con = warmedContainer getOrElse makeGeneralContainer(key, containerName, imageName, limits)
+        val con = warmedContainer getOrElse makeGeneralContainer(key, containerName, imageName, limits, action.exec.isInstanceOf[BlackBoxExec])
         initWhiskContainer(action, con)
     }
 
@@ -491,11 +492,10 @@ class ContainerPool(
     // There is access to global settings (docker registry)
     // and generic settings (image name - static limits) but without access to WhiskAction.
     private def makeGeneralContainer(key: String, containerName: String,
-                                     imageName: String, limits: ActionLimits)(implicit transid: TransactionId): WhiskContainer = {
+                                     imageName: String, limits: ActionLimits, pull: Boolean)(implicit transid: TransactionId): WhiskContainer = {
         val network = config.invokerContainerNetwork
         val policy = config.invokerContainerPolicy
         val env = getContainerEnvironment()
-        val pull = !imageName.contains(config.dockerImagePrefix + "/")
         // This will start up the container
         if (pull) runDockerPull {
             ContainerUtils.pullImage(dockerhost, imageName)
