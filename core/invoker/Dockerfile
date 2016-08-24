@@ -5,7 +5,7 @@ FROM scala
 RUN wget --no-verbose -O /usr/bin/docker "https://get.docker.com/builds/Linux/x86_64/docker-1.9.0" && \
 chmod +x /usr/bin/docker
 
-COPY build/distributions/dispatcher.tar ./
-RUN tar xf dispatcher.tar
+COPY build/distributions/invoker.tar ./
+RUN tar xf invoker.tar
 
 EXPOSE 8080

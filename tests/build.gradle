@@ -62,7 +62,7 @@ dependencies {
 
     testCompile project(':common:scala')
     testCompile project(':core:controller')
-    testCompile project(':core:dispatcher')
+    testCompile project(':core:invoker')
 }
 
 tasks.withType(ScalaCompile) {
