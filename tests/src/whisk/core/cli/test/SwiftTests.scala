@@ -54,11 +54,11 @@ class SwiftTests
 
             val start = System.currentTimeMillis()
             withActivation(wsk.activation, wsk.action.invoke(name), totalWait = activationPollDuration) {
-                _.fields("response").toString should include("Hello stranger!")
+                _.response.result.get.toString should include("Hello stranger!")
             }
 
             withActivation(wsk.activation, wsk.action.invoke(name, Map("name" -> "Sir".toJson)), totalWait = activationPollDuration) {
-                _.fields("response").toString should include("Hello Sir!")
+                _.response.result.get.toString should include("Hello Sir!")
             }
 
             withClue("Test duration exceeds expectation (ms)") {
@@ -85,8 +85,9 @@ class SwiftTests
 
             withActivation(wsk.activation, wsk.action.invoke(name), totalWait = activationPollDuration) {
                 activation =>
-                    activation.fields("response").toString should include(""""url":"https://httpbin.org/get"""")
-                    activation.fields("response").toString should not include ("Error")
+                    val result = activation.response.result.get
+                    result.toString should include(""""url":"https://httpbin.org/get"""")
+                    result.toString should not include ("Error")
             }
     }
 }

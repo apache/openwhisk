@@ -17,7 +17,6 @@
 package system.basic
 
 import scala.concurrent.duration.DurationInt
-import scala.language.postfixOps
 
 import common.TestHelpers
 import common.TestUtils
@@ -39,8 +38,8 @@ class CLIJavaTests
 
     implicit val wskprops = WskProps()
     val wsk = new Wsk(usePythonCLI = false)
-    val expectedDuration = 120 seconds
-    val activationPollDuration = 60 seconds
+    val expectedDuration = 120.seconds
+    val activationPollDuration = 60.seconds
 
     behavior of "Java Actions"
 
@@ -56,11 +55,11 @@ class CLIJavaTests
 
             val start = System.currentTimeMillis()
             withActivation(wsk.activation, wsk.action.invoke(name), totalWait = activationPollDuration) {
-                _.fields("response").toString should include("Hello stranger!")
+                _.response.result.get.toString should include("Hello stranger!")
             }
 
             withActivation(wsk.activation, wsk.action.invoke(name, Map("name" -> JsString("Sir"))), totalWait = activationPollDuration) {
-                _.fields("response").toString should include("Hello Sir!")
+                _.response.result.get.toString should include("Hello Sir!")
             }
 
             withClue("Test duration exceeds expectation (ms)") {

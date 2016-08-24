@@ -122,7 +122,7 @@ class PackageTests
             val now = new Date().toString()
             val run = wsk.action.invoke(bindActionName, Map("payload" -> now.toJson))
             withActivation(wsk.activation, run, totalWait = LOG_DELAY) {
-                _.fields("logs").toString should include regex (
+                _.logs.get.mkString(" ") should include regex (
                     String.format(".*key0: value0.*key1a: value1a.*key1b: value2b.*key2a: value2a.*payload: %s", now))
             }
     }

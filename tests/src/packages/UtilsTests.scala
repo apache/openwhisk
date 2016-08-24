@@ -34,8 +34,8 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
     behavior of "Util Actions"
 
     /**
-      * Test the Node.js "cat" action
-      */
+     * Test the Node.js "cat" action
+     */
     it should "concatenate an array of strings using the node.js cat action" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
@@ -48,13 +48,13 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
             }
 
             withActivation(wsk.activation, wsk.action.invoke(actionName, Map("lines" -> lines))) {
-                _.fields("response").toString should include(""""payload":"seven\neight\nnine"""")
+                _.response.result.get.toString should include(""""payload":"seven\neight\nnine"""")
             }
     }
 
     /**
-      * Test the "cat" action using Node.js 6
-      */
+     * Test the "cat" action using Node.js 6
+     */
     it should "concatenate an array of strings using the cat action on node.js 6" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
@@ -67,13 +67,13 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
             }
 
             withActivation(wsk.activation, wsk.action.invoke(actionName, Map("lines" -> lines))) {
-                _.fields("response").toString should include(""""payload":"seven\neight\nnine"""")
+                _.response.result.get.toString should include(""""payload":"seven\neight\nnine"""")
             }
     }
 
     /**
-      * Test the Swift "cat" action using Swift 3
-      */
+     * Test the Swift "cat" action using Swift 3
+     */
     ignore should "concatenate an array of strings using the swift cat action" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
@@ -86,14 +86,14 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
             }
 
             withActivation(wsk.activation, wsk.action.invoke(actionName, Map("lines" -> lines))) {
-                _.fields("response").toString should include(""""payload":"seven\neight\nnine\n"""")
+                _.response.result.get.toString should include(""""payload":"seven\neight\nnine\n"""")
             }
 
     }
 
     /**
-      * Test the Node.js "split" action
-      */
+     * Test the Node.js "split" action
+     */
     it should "split a string into an array of strings using the node.js split action" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
@@ -106,13 +106,13 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
             }
 
             withActivation(wsk.activation, wsk.action.invoke(actionName, Map("payload" -> "seven,eight,nine".toJson, "separator" -> ",".toJson))) {
-                _.fields("response").toString should include (""""lines":["seven","eight","nine"]""")
+                _.response.result.get.toString should include(""""lines":["seven","eight","nine"]""")
             }
     }
 
     /**
-      * Test the "split" action using Node.js 6
-      */
+     * Test the "split" action using Node.js 6
+     */
     it should "split a string into an array of strings using the split action on nodejs 6" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
@@ -125,13 +125,13 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
             }
 
             withActivation(wsk.activation, wsk.action.invoke(actionName, Map("payload" -> "seven,eight,nine".toJson, "separator" -> ",".toJson))) {
-                _.fields("response").toString should include (""""lines":["seven","eight","nine"]""")
+                _.response.result.get.toString should include(""""lines":["seven","eight","nine"]""")
             }
     }
 
     /**
-      * Test the Swift "split" action using Swift 3
-      */
+     * Test the Swift "split" action using Swift 3
+     */
     ignore should "split a string into an array of strings using the swift split action" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
@@ -144,13 +144,13 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
             }
 
             withActivation(wsk.activation, wsk.action.invoke(actionName, Map("payload" -> "seven,eight,nine".toJson, "separator" -> ",".toJson))) {
-                _.fields("response").toString should include (""""lines":["seven","eight","nine"]""")
+                _.response.result.get.toString should include(""""lines":["seven","eight","nine"]""")
             }
     }
 
     /**
-      * Test the Node.js "head" action
-      */
+     * Test the Node.js "head" action
+     */
     it should "extract first n elements of an array of strings using the node.js head action" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
@@ -163,13 +163,13 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
             }
 
             withActivation(wsk.activation, wsk.action.invoke(actionName, Map("lines" -> lines, "num" -> JsNumber(2)))) {
-                _.fields("response").toString should include(""""lines":["seven","eight"]""")
+                _.response.result.get.toString should include(""""lines":["seven","eight"]""")
             }
     }
 
     /**
-      * Test the "head" action using Node.js 6
-      */
+     * Test the "head" action using Node.js 6
+     */
     it should "extract first n elements of an array of strings using the head action on nodejs 6" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
@@ -182,13 +182,13 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
             }
 
             withActivation(wsk.activation, wsk.action.invoke(actionName, Map("lines" -> lines, "num" -> JsNumber(2)))) {
-                _.fields("response").toString should include(""""lines":["seven","eight"]""")
+                _.response.result.get.toString should include(""""lines":["seven","eight"]""")
             }
     }
 
     /**
-      * Test the Swift "head" action using Swift 3
-      */
+     * Test the Swift "head" action using Swift 3
+     */
     ignore should "extract first n elements of an array of strings using the swift head action" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
@@ -201,13 +201,13 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
             }
 
             withActivation(wsk.activation, wsk.action.invoke(actionName, Map("lines" -> lines, "num" -> JsNumber(2)))) {
-                _.fields("response").toString should include(""""lines":["seven","eight"]""")
+                _.response.result.get.toString should include(""""lines":["seven","eight"]""")
             }
     }
 
     /**
-      * Test the Node.js "sort" action
-      */
+     * Test the Node.js "sort" action
+     */
     it should "sort an array of strings using the node.js sort action" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
@@ -220,13 +220,13 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
             }
 
             withActivation(wsk.activation, wsk.action.invoke(actionName, Map("lines" -> lines))) {
-                _.fields("response").toString should include(""""lines":["eight","nine","seven"]""")
+                _.response.result.get.toString should include(""""lines":["eight","nine","seven"]""")
             }
     }
 
     /**
-      * Test the "sort" action using Node.js 6
-      */
+     * Test the "sort" action using Node.js 6
+     */
     it should "sort an array of strings using the sort action on nodejs 6" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
@@ -239,13 +239,13 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
             }
 
             withActivation(wsk.activation, wsk.action.invoke(actionName, Map("lines" -> lines))) {
-                _.fields("response").toString should include(""""lines":["eight","nine","seven"]""")
+                _.response.result.get.toString should include(""""lines":["eight","nine","seven"]""")
             }
     }
 
     /**
-      * Test the Swift "sort" action using Swift 3
-      */
+     * Test the Swift "sort" action using Swift 3
+     */
     ignore should "sort an array of strings using the swift sort action" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
@@ -258,13 +258,13 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
             }
 
             withActivation(wsk.activation, wsk.action.invoke(actionName, Map("lines" -> lines))) {
-                _.fields("response").toString should include(""""lines":["eight","nine","seven"]""")
+                _.response.result.get.toString should include(""""lines":["eight","nine","seven"]""")
             }
     }
 
     /**
-      * Test the Node.js "wordCount" action
-      */
+     * Test the Node.js "wordCount" action
+     */
     it should "count the number of words in a string using the node.js word count action" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
@@ -277,13 +277,13 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
             }
 
             withActivation(wsk.activation, wsk.action.invoke(actionName, Map("payload" -> "one two three".toJson))) {
-                _.fields("response").toString should include(""""count":3""")
+                _.response.result.get.toString should include(""""count":3""")
             }
     }
 
     /**
-      * Test the "wordCount" action using Node.js 6
-      */
+     * Test the "wordCount" action using Node.js 6
+     */
     it should "count the number of words in a string using the word count action on nodejs 6" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
@@ -296,13 +296,13 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
             }
 
             withActivation(wsk.activation, wsk.action.invoke(actionName, Map("payload" -> "one two three".toJson))) {
-                _.fields("response").toString should include(""""count":3""")
+                _.response.result.get.toString should include(""""count":3""")
             }
     }
 
     /**
-      * Test the Swift "wordCount" action using Swift 3
-      */
+     * Test the Swift "wordCount" action using Swift 3
+     */
     ignore should "count the number of words in a string using the swift word count action" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
@@ -315,13 +315,13 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
             }
 
             withActivation(wsk.activation, wsk.action.invoke(actionName, Map("payload" -> "one two three".toJson))) {
-                _.fields("response").toString should include(""""count":3""")
+                _.response.result.get.toString should include(""""count":3""")
             }
     }
 
     /**
-      * Test the Node.js "helloPromises" action
-      */
+     * Test the Node.js "helloPromises" action
+     */
     it should "return a hello message as an array of strings using the node.js helloPromises action" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
@@ -334,13 +334,13 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
             }
 
             withActivation(wsk.activation, wsk.action.invoke(actionName, Map("place" -> "Chicago".toJson))) {
-                _.fields("response").toString should include(""""lines":["Hello,","stranger","from","Chicago!"]""")
+                _.response.result.get.toString should include(""""lines":["Hello,","stranger","from","Chicago!"]""")
             }
     }
 
     /**
-      * Test the "helloPromises" action using Node.js 6
-      */
+     * Test the "helloPromises" action using Node.js 6
+     */
     it should "return a hello message as an array of strings using helloPromises action on nodejs 6" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
@@ -353,7 +353,7 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
             }
 
             withActivation(wsk.activation, wsk.action.invoke(actionName, Map("place" -> "Chicago".toJson))) {
-                _.fields("response").toString should include(""""lines":["Hello,","stranger","from","Chicago!"]""")
+                _.response.result.get.toString should include(""""lines":["Hello,","stranger","from","Chicago!"]""")
             }
     }
 

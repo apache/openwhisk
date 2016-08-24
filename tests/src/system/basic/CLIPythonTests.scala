@@ -50,7 +50,7 @@ class CLIPythonTests
             }
 
             withActivation(wsk.activation, wsk.action.invoke(name, Map("name" -> "Prince".toJson))) {
-                _.fields("response").toString should include("Prince")
+                _.response.result.get.toString should include("Prince")
             }
     }
 
@@ -63,7 +63,7 @@ class CLIPythonTests
 
             withActivation(wsk.activation, wsk.action.invoke(name)) {
                 activation =>
-                    val result = activation.fields("response").asJsObject.fields("result").asJsObject
+                    val result = activation.response.result.get
                     result.fields.get("error") shouldBe empty
                     result.fields.get("auth") shouldBe Some(JsString(WhiskProperties.readAuthKey(WhiskProperties.getAuthFileForTesting)))
                     result.fields.get("edge").toString.trim should not be empty
@@ -79,8 +79,8 @@ class CLIPythonTests
 
             withActivation(wsk.activation, wsk.action.invoke(name)) {
                 activation =>
-                    activation.getFieldPath("response", "result", "error") shouldBe Some(JsString("The action failed to generate or locate a binary. See logs for details."))
-                    activation.fields("logs").toString should { not include ("pythonaction.py") and not include ("flask") }
+                    activation.response.result.get.fields.get("error") shouldBe Some(JsString("The action failed to generate or locate a binary. See logs for details."))
+                    activation.logs.get.mkString("\n") should { not include ("pythonaction.py") and not include ("flask") }
             }
     }
 }

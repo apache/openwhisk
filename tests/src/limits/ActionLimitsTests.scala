@@ -69,7 +69,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
 
             val run = wsk.action.invoke(name, Map("payload" -> allowedActionDuration.plus(1 second).toMillis.toJson))
             withActivation(wsk.activation, run) {
-                _.fields("response").asJsObject.fields("result").toString should include(
+                _.response.result.get.toString should include(
                     s""""error":"action exceeded its time limits of ${allowedActionDuration.toMillis} milliseconds"""")
             }
     }
@@ -86,7 +86,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
 
             val run = wsk.action.invoke(name, Map("payload" -> allowedActionDuration.minus(1 second).toMillis.toJson))
             withActivation(wsk.activation, run) {
-                _.fields("response").asJsObject.fields("result").toString should include(
+                _.response.result.get.toString should include(
                     """[OK] message terminated successfully""")
 
             }
@@ -106,7 +106,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
 
             val run = wsk.action.invoke(name, Map("payload" -> characters.toJson))
             withActivation(wsk.activation, run) { response =>
-                val lines = response.fields("logs").convertTo[List[String]]
+                val lines = response.logs.get
                 lines.last should be(s"Logs have been truncated because they exceeded the limit of ${allowedSize.toMB} megabytes")
                 // dropping 39 characters (timestamp + streamname)
                 lines.dropRight(1).map(_.drop(39)).mkString.sizeInBytes should be <= allowedSize
@@ -123,11 +123,13 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
 
             val run = wsk.action.invoke(name)
             withActivation(wsk.activation, run) { response =>
-                val logs = response.fields("logs").convertTo[List[String]]
+                val logs = response.logs.get
                 logs.size shouldBe 1
                 logs.head should include("0123456789abcdef")
-                response.fields("response").asJsObject.fields("result").toString should include(s""""msg":1""")
-                response.fields("response").asJsObject.fields("status").toString should include("success")
+
+                response.response.status shouldBe "success"
+                response.response.result shouldBe Some(JsObject(
+                    "msg" -> 1.toJson))
             }
     }
 

@@ -25,7 +25,6 @@ import common.TestHelpers
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
-import spray.json.DefaultJsonProtocol.BooleanJsonFormat
 import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json.pimpAny
 
@@ -51,8 +50,8 @@ class SlackTests extends TestHelpers
         val run = wsk.action.invoke(slackAction, Map("username" -> username.toJson, "channel" -> channel.toJson, "text" -> text.toJson, "url" -> url.toJson))
         withActivation(wsk.activation, run) {
             activation =>
-                activation.getFieldPath("response", "success") should be(Some(true.toJson))
-                val logs = activation.getFieldPath("logs").toString
+                activation.response.success shouldBe true
+                val logs = activation.logs.get.mkString("\n")
                 logs should include(expectedChannel)
                 logs should include(expectedUsername)
                 logs should include(expectedText)
