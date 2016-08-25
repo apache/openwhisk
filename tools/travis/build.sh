@@ -31,3 +31,9 @@ $ANSIBLE_CMD postdeploy.yml
 cd $ROOTDIR
 cat whisk.properties
 ./gradlew :tests:test
+
+cd $ROOTDIR/ansible
+$ANSIBLE_CMD logs.yml
+
+cd $ROOTDIR
+tools/build/checkLogs.py logs
