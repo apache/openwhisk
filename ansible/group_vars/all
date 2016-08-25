@@ -1,6 +1,7 @@
 mode: deploy
 prompt_user: true
 openwhisk_home: "{{ lookup('env', 'OPENWHISK_HOME')|default(playbook_dir + '/..', true) }}"
+exclude_logs_from: []
 
 whisk:
   version:

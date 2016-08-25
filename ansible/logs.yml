@@ -1,0 +1,37 @@
+---
+# This playbook is used for utilities around logs
+
+- include: properties.yml
+
+- hosts: ansible
+  tasks:
+    - name: remove "logs" folder
+      file: path="{{ openwhisk_home }}/logs" state=absent
+    - name: create "logs" folder
+      file: path="{{ openwhisk_home }}/logs" state=directory
+    - name: dump databases
+      local_action: shell "{{ openwhisk_home }}/bin/wskadmin" db get whisks --docs --view whisks/{{ item }} > "{{ openwhisk_home }}/logs/db-{{ item }}.log"
+      with_items:
+        - activations
+        - actions
+        - triggers
+        - rules
+        - packages
+      when: "'db' not in exclude_logs_from"
+
+- hosts: shared,core,invokers
+  tasks:
+  - name: get all docker containers
+    local_action: shell docker --host tcp://{{inventory_hostname}}:{{docker.port}} ps -a --format="{% raw %}{{.Names}}{% endraw %}"
+    register: container_names
+  - name: get logs from all containers
+    local_action: shell docker --host tcp://{{inventory_hostname}}:{{docker.port}} logs {{ item }} > "{{ openwhisk_home }}/logs/{{ item }}.log"; exit 0
+    with_items: "{{ container_names.stdout_lines | difference('whisk_docker_registry') }}"
+    when: "'docker' not in exclude_logs_from"
+  - name: workaround to make synchronize work
+    set_fact:
+      ansible_ssh_private_key_file: "{{ ansible_ssh_private_key_file }}"
+    when: ansible_ssh_private_key_file is defined
+  - name: fetch logs from all machines
+    synchronize: src="{{ whisk_logs_dir }}/" dest="{{ openwhisk_home }}/logs" mode=pull
+    when: "'machine' not in exclude_logs_from"
