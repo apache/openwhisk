@@ -117,7 +117,7 @@ def pullActionContainerImages(whiskprops, invokerHost, tag):
 
     # a list with the images to be pulled
     imagesToPull = [
-        'whisk/dispatcher',
+        'whisk/invoker',
         'whisk/nodejsaction',
         'whisk/nodejs6action',
         'whisk/pythonaction',
@@ -137,7 +137,7 @@ def pullActionContainerImages(whiskprops, invokerHost, tag):
 
 #
 # Teardown and start up an invoker.
-# Will pull the image whisk/dispatcher first.
+# Will pull the image whisk/invoker first.
 # Will check that it's really up with isAlive.
 #
 # Return 0 on success or the non-zero error code of a failed command.
@@ -157,7 +157,7 @@ def startInvoker(whiskprops,index, invokerHost, tag):
 
     pullActionContainerImages(whiskprops, invokerHost, tag)
 
-    image = dockerRegistry + "whisk/dispatcher" + ":" + tag
+    image = dockerRegistry + "whisk/invoker" + ":" + tag
     invokerName = "invoker" + str(index)
     invokerPort = invokerHostsBaseport + index
     timezone = dockerTimezoneMount.split(' ') if dockerTimezoneMount != '' else []
@@ -176,7 +176,7 @@ def startInvoker(whiskprops,index, invokerHost, tag):
         '-v', '/var/lib/docker/containers/:/containers',
         '-h', invokerName,
         '--name', invokerName,
-        '-d', image, '/dispatcher/bin/dispatcher', 'invoker', str(index)]
+        '-d', image, '/invoker/bin/invoker', 'invoker', str(index)]
 
     print 'Starting', invokerName, '       at', dockerEndpoint,
     (elapsed, rc, output) = runDocker(dockerEndpoint, dockerTlsCmd, runCmd)
