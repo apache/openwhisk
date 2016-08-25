@@ -1,5 +1,5 @@
 # Dockerfile for example whisk docker action
-FROM dockerskeleton
+FROM openwhisk/dockerskeleton
 
 ENV DEBIAN_FRONTEND noninteractive
  

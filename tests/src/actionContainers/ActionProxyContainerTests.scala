@@ -32,7 +32,7 @@ import common.WskActorSystem
 class ActionProxyContainerTests extends BasicActionRunnerTests with WskActorSystem {
 
     override def withActionContainer(env: Map[String, String] = Map.empty)(code: ActionContainer => Unit) = {
-        withContainer("openwhisk/dockerskeleton", env)(code)
+        withContainer("dockerskeleton", env)(code)
     }
 
     val codeNotReturningJson = """

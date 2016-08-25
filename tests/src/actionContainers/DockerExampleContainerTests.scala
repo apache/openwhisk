@@ -29,7 +29,8 @@ import common.WskActorSystem
 @RunWith(classOf[JUnitRunner])
 class DockerExampleContainerTests extends ActionProxyContainerTestUtils with WskActorSystem {
 
-    def withPythonContainer(code: ActionContainer => Unit) = withContainer("openwhisk/example")(code)
+    // "example" is the image build by /sdk/docker
+    def withPythonContainer(code: ActionContainer => Unit) = withContainer("example")(code)
 
     behavior of "openwhisk/example"
 

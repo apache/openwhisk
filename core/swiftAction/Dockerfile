@@ -1,6 +1,6 @@
 # Dockerfile for swift3 actions, overrides and extends ActionRunner from actionProxy
 # This Dockerfile is partially based on: https://github.com/swiftdocker/docker-swift/
-FROM openwhisk/dockerskeleton
+FROM dockerskeleton
 
 ENV DEBIAN_FRONTEND noninteractive
 
