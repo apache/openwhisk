@@ -64,13 +64,13 @@ Invocations of an action are not ordered. If the user invokes an action twice fr
 
 Additionally, there is no guarantee that actions will execute atomically. Two actions can run concurrently and their side effects can be interleaved. OpenWhisk does not ensure any particular concurrent consistency model for side effects. Any concurrency side effects will be implementation-dependent.
 
-### At-most-once semantics
-
-The system supports at-most-once invocation of actions.
+### Action execution guarantees
 
 When an invocation request is received, the system records the request and dispatches an activation.
 
-The system returns an activation ID (in the case of a nonblocking invocation) to confirm that the invocation was received. Notice that even in the absence of this response (perhaps due to a broken network connection), it is possible that the invocation was received.
+The system returns an activation ID (in the case of a nonblocking invocation) to confirm that the invocation was received. 
+Notice that if there's a network failure or other failure which intervenes before you receive an HTTP response, it is possible 
+that OpenWhisk received and processed the request.
 
 The system attempts to invoke the action once, resulting in one of the following four outcomes:
 - *success*: the action invocation completed successfully.
@@ -81,6 +81,10 @@ The outcome is recorded in the `status` field of the activation record, as docum
 
 Every invocation that is successfully received, and that the user might be billed for, will eventually have an activation record.
 
+Note that in the case of *action developer error*, the action may have partially run and generated externally visible
+side effects.   It is the user's responsibility to check whether such side effects actually happened, and issue retry
+logic if desired.   Also note that certain *whisk internal errors* will indicate that an action started running but the
+system failed before the action registered completion.    
 
 ## Activation record
 
