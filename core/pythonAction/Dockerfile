@@ -1,5 +1,5 @@
 # Dockerfile for python actions, overrides and extends ActionRunner from actionProxy
-FROM openwhisk/dockerskeleton
+FROM dockerskeleton
 
 ENV DEBIAN_FRONTEND noninteractive
  
