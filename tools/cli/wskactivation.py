@@ -316,5 +316,5 @@ def printLogs(L, reported):
 #
 def stripTimeStampAndString(line):
     # log line should be formatted to fixed width and stripping
-    # first 38 charecters should do
+    # first 38 characters should do
     return line[39:]
