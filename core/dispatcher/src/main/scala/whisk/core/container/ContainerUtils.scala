@@ -49,7 +49,7 @@ trait ContainerUtils extends Logging {
      * @param image the docker image to run
      * @return container id and container host
      */
-    def bringup(name: Option[String], image: String, network: String, cpuShare:Int, env: Map[String, String], args: Array[String], limits: ActionLimits, policy: Option[String])(implicit transid: TransactionId): (ContainerId, ContainerIP) = {
+    def bringup(name: Option[String], image: String, network: String, cpuShare: Int, env: Map[String, String], args: Array[String], limits: ActionLimits, policy: Option[String])(implicit transid: TransactionId): (ContainerId, Option[ContainerAddr]) = {
         val id = makeContainer(name, image, network, cpuShare, env, args, limits, policy)
         val host = id.flatMap(_ => getContainerHostAndPort(name))
         (id, host)
@@ -155,12 +155,13 @@ trait ContainerUtils extends Logging {
 
     }
 
-    def getContainerHostAndPort(container: ContainerName)(implicit transid: TransactionId): ContainerIP = {
-        container map { name =>
-            runDockerCmd("inspect", "--format", "'{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'", name) map {
-                output => appendPort(output.substring(1, output.length - 1))
-            }
-        } getOrElse None
+    def getContainerHostAndPort(container: ContainerName)(implicit transid: TransactionId): Option[ContainerAddr] = {
+        for (
+            name <- container;
+            output <- runDockerCmd("inspect", "--format", "'{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'", name)
+        ) yield {
+            ContainerAddr(output.substring(1, output.length - 1), 8080)
+        }
     }
 
     def runDockerCmd(args: String*)(implicit transid: TransactionId): DockerOutput = runDockerCmd(false, args)
@@ -189,8 +190,6 @@ trait ContainerUtils extends Logging {
         val tokens = line.split("\\s+")
         ContainerState(tokens(0), tokens(1), tokens(tokens.length - 1))
     }
-
-    protected def appendPort(host: String) = s"$host:8080"
 }
 
 object ContainerUtils extends Logging {
