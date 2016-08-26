@@ -25,7 +25,7 @@ by the proxy service if `verify()` is true. `ActionRunner` subclasses are encour
 if they have additional logic that should cause `run()` to never execute. The `run()` method calls the executable
 via a process and sends the received input parameters (from the invoker) to the action via the command line
 (as a JSON string argument). Additional properties received from the invoker are passed on to the action via
-environment variables as well. To augment the action envrionment, override `env()`.
+environment variables as well. To augment the action environment, override `env()`.
 
 By convention the action executable may log messages to `stdout` and `stderr`. The proxy requires that the last
 line of output to `stdout` is a valid JSON object serialized to string if the action returns a JSON result.
