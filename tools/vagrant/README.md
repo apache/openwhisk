@@ -53,7 +53,7 @@ this might be too short. You can modify the timeout value in [docker.gradle](../
 
 ### Using CLI from outside the VM
 You can use the CLI from the host machine as well as from inside the virtual machine.
-The IP address of the virtual machine accesible from outside is `192.168.33.13`.
+The IP address of the virtual machine accessible from outside is `192.168.33.13`.
 If you start another Vagrant VM take into account that the IP address will conflict, use `vagrant suspend` before starting another VM with the same IP address.
 
 After the Vagrant VM is done deploying OpenWhisk, the `wsk` CLI will be available under `<openwhisk>/bin`
