@@ -303,8 +303,8 @@ func init() {
     activationListCmd.Flags().IntVarP(&flags.common.skip, "skip", "s", 0, "exclude the first `SKIP` number of activations from the result")
     activationListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, "only return `LIMIT` number of activations from the collection")
     activationListCmd.Flags().BoolVarP(&flags.common.full, "full", "f", false, "include full activation description")
-    activationListCmd.Flags().Int64Var(&flags.activation.upto, "upto", 0, "return activations with timestamps earlier than `UPTO`; measured in miliseconds since Th, 01, Jan 1970")
-    activationListCmd.Flags().Int64Var(&flags.activation.since, "since", 0, "return activations with timestamps later than `SINCE`; measured in miliseconds since Th, 01, Jan 1970")
+    activationListCmd.Flags().Int64Var(&flags.activation.upto, "upto", 0, "return activations with timestamps earlier than `UPTO`; measured in milliseconds since Th, 01, Jan 1970")
+    activationListCmd.Flags().Int64Var(&flags.activation.since, "since", 0, "return activations with timestamps later than `SINCE`; measured in milliseconds since Th, 01, Jan 1970")
 
     activationGetCmd.Flags().BoolVarP(&flags.common.summary, "summary", "s", false, "summarize activation details")
 
