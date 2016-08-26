@@ -112,7 +112,7 @@ class WhiskContainer(
      * Tear down the container and retrieve the logs.
      */
     def teardown()(implicit transid: TransactionId): String = {
-        getContainerLogs(Some(containerName)).getOrElse("none")
+        getContainerLogs(Some(containerName)).toOption.getOrElse("none")
     }
 
     /**

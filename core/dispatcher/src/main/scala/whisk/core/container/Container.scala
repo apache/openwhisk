@@ -78,7 +78,7 @@ class Container(
      * Gets logs for container.
      */
     def getLogs()(implicit transid: TransactionId): String = {
-        getContainerLogs(containerId) getOrElse ""
+        getContainerLogs(containerId).toOption getOrElse ""
     }
 
     /**
@@ -95,7 +95,7 @@ class Container(
                 warn(this, s"Retrying to remove container $containerId")
             }
             unpause() // a paused container cannot be removed
-            rmContainer(containerId) match {
+            rmContainer(containerId).toOption match {
                 case None => remove(tryCount - 1)
                 case _    => ()
             }

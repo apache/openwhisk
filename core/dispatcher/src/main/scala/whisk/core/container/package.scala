@@ -87,5 +87,9 @@ package object container {
 
     type ContainerId = Option[String]
 
-    type DockerOutput = Option[String]
+    final class DockerOutput(val toOption: Option[String]) extends AnyVal
+    object DockerOutput {
+        def apply(content: String) = new DockerOutput(Some(content))
+        def unavailable = new DockerOutput(None)
+    }
 }
