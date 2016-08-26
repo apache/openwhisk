@@ -82,7 +82,7 @@ var sdkInstallCmd = &cobra.Command{
                 werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return werr
             }
-            fmt.Printf("The bash auto-completion script (%s) is installed in the curent directory.\n" +
+            fmt.Printf("The bash auto-completion script (%s) is installed in the current directory.\n" +
                        "To enable command line completion of wsk commands, " +
                        "source the auto completion script into your bash environment\n", BASH_AUTOCOMPLETE_FILENAME)
         default:

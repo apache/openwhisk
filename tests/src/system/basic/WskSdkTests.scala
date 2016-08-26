@@ -86,7 +86,7 @@ class WskSdkTests
         var scriptfile = new File(dir.getPath(), scriptfilename)
         try {
             val stdout = wsk.cli(Seq("sdk", "install", "bashauto"), workingDir = dir, expectedExitCode = SUCCESS_EXIT).stdout
-            stdout should include("is installed in the curent directory")
+            stdout should include("is installed in the current directory")
             val fileContent = FileUtils.readFileToString(scriptfile)
             fileContent should include("bash completion for wsk")
         }

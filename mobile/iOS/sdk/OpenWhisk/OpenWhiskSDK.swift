@@ -65,7 +65,7 @@ public class Whisk {
     let AccessKey: String? // Whisk key
     let AccessToken: String? // Whisk token
     let AppKey: String? // application Key (currently not used)
-    let AppSecret: String? // application Secret (curently not used)
+    let AppSecret: String? // application Secret (currently not used)
     
     // api Host for Whisk backend
     public var whiskBaseURL: String?
