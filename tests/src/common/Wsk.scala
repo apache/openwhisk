@@ -539,7 +539,7 @@ class WskActivation(override val usePythonCLI: Boolean = false)
     /**
      * Polls activations list for at least N activations. The activations
      * are optionally filtered for the given entity. Will return as soon as
-     * N activations are found. If after retry budget is exausted, N activations
+     * N activations are found. If after retry budget is exhausted, N activations
      * are still not present, will return a partial result. Hence caller must
      * check length of the result and not assume it is >= N.
      *
