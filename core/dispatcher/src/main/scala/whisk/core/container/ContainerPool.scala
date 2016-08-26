@@ -150,7 +150,7 @@ class ContainerPool(
      * Lists ALL containers at this docker point with "docker ps -a --no-trunc".
      * This could include containers not in this pool at all.
      */
-    def listAll()(implicit transid: TransactionId): Array[ContainerState] = listContainers(true)
+    def listAll()(implicit transid: TransactionId): Seq[ContainerState] = listContainers(true)
 
     /**
      * Retrieves (possibly create) a container based on the subject and versioned action.
@@ -422,7 +422,7 @@ class ContainerPool(
      *   2. Periodically re-populates the container pool with fresh (un-instantiated) nodejs containers.
      *   3. Periodically tears down containers that have logically been removed from the system
      */
-    private def nannyThread(allContainers: Array[ContainerState]) = new Thread {
+    private def nannyThread(allContainers: Seq[ContainerState]) = new Thread {
         override def run {
             implicit val tid = TransactionId.invokerWarmup
             if (!standalone) killStragglers(allContainers)
@@ -695,7 +695,7 @@ class ContainerPool(
      * This is needed for startup and shutdown.
      * Concurrent access from clients must be prevented.
      */
-    private def killStragglers(allContainers: Array[ContainerState])(implicit transid: TransactionId) = {
+    private def killStragglers(allContainers: Seq[ContainerState])(implicit transid: TransactionId) = {
         val candidates = allContainers.filter { case ContainerState(id, image, name) => name.startsWith(actionContainerPrefix) }
         info(this, s"Now removing ${candidates.length} leftover containers")
         candidates foreach {

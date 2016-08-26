@@ -21,6 +21,7 @@ import whisk.common.SimpleExec
 import whisk.common.TransactionId
 import whisk.core.entity.ActionLimits
 import java.io.File
+import java.io.FileNotFoundException
 import scala.util.Try
 import scala.language.postfixOps
 import whisk.common.LoggingMarkers
@@ -75,17 +76,17 @@ trait ContainerUtils extends Logging {
         val containerNetwork = Array("--net", network)
         val cmd = Array("run") ++ makeEnvVars(env) ++ consulServiceIgnore ++ nameOption ++ cpuArg ++ memoryArg ++
             capabilityArg ++ fileHandleLimit ++ processLimit ++ securityOpts ++ containerNetwork ++ Array("-d", image) ++ args
-        runDockerCmd(cmd: _*)
+        runDockerCmd(cmd: _*).toOption
     }
 
     def killContainer(name: String)(implicit transid: TransactionId): DockerOutput = killContainer(Some(name))
 
     def killContainer(container: ContainerName)(implicit transid: TransactionId): DockerOutput = {
-        container flatMap { name => runDockerCmd("kill", name) }
+        container.fold(DockerOutput.unavailable)(name => runDockerCmd("kill", name))
     }
 
     def getContainerLogs(container: ContainerName)(implicit transid: TransactionId): DockerOutput = {
-        container flatMap { name => runDockerCmd("logs", name) }
+        container.fold(DockerOutput.unavailable)(name => runDockerCmd("logs", name))
     }
 
     def pauseContainer(name: String)(implicit transid: TransactionId): DockerOutput = {
@@ -102,19 +103,19 @@ trait ContainerUtils extends Logging {
      * Forcefully removes a container, can be used on a running container but not a paused one.
      */
     def rmContainer(container: ContainerName)(implicit transid: TransactionId): DockerOutput = {
-        container flatMap { name => runDockerCmd("rm", "-f", name) }
+        container.fold(DockerOutput.unavailable)(name => runDockerCmd("rm", "-f", name))
     }
 
     /*
      * List containers (-a if all).
      */
-    def listContainers(all: Boolean)(implicit transid: TransactionId): Array[ContainerState] = {
+    def listContainers(all: Boolean)(implicit transid: TransactionId): Seq[ContainerState] = {
         val tmp = Array("ps", "--no-trunc")
         val cmd = if (all) tmp :+ "-a" else tmp
-        runDockerCmd(cmd: _*) map { output =>
-            val lines = output.split("\n").drop(1) // skip the header
+        runDockerCmd(cmd: _*).toOption map { output =>
+            val lines = output.split("\n").drop(1).toSeq // skip the header
             lines.map(parsePsOutput)
-        } getOrElse Array()
+        } getOrElse Seq()
     }
 
     def getDockerLogSize(containerId: String, mounted: Boolean)(implicit transid: TransactionId): Long = {
@@ -158,10 +159,8 @@ trait ContainerUtils extends Logging {
     def getContainerHostAndPort(container: ContainerName)(implicit transid: TransactionId): Option[ContainerAddr] = {
         for (
             name <- container;
-            output <- runDockerCmd("inspect", "--format", "'{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'", name)
-        ) yield {
-            ContainerAddr(output.substring(1, output.length - 1), 8080)
-        }
+            output <- runDockerCmd("inspect", "--format", "'{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'", name).toOption
+        ) yield ContainerAddr(output.substring(1, output.length - 1), 8080)
     }
 
     def runDockerCmd(args: String*)(implicit transid: TransactionId): DockerOutput = runDockerCmd(false, args)
@@ -201,35 +200,43 @@ object ContainerUtils extends Logging {
      */
     def runDockerCmd(dockerhost: String, skipLogError: Boolean, args: Seq[String])(implicit transid: TransactionId): DockerOutput = {
         val start = transid.started(this, LoggingMarkers.INVOKER_DOCKER_CMD(args(0)))
-        getDockerCmd(dockerhost) map { _ ++ args } map {
-            SimpleExec.syncRunCmd(_)(transid)
-        } map {
-            case (stdout, stderr, exitCode) =>
-                if (exitCode == 0) {
-                    transid.finished(this, start)
-                    Some(stdout.trim)
+
+        try {
+            val fullCmd = getDockerCmd(dockerhost) ++ args
+
+            val (stdout, stderr, exitCode) = SimpleExec.syncRunCmd(fullCmd)
+
+            if (exitCode == 0) {
+                transid.finished(this, start)
+                DockerOutput(stdout.trim)
+            } else {
+                if (!skipLogError) {
+                    transid.failed(this, start, s"stdout:\n$stdout\nstderr:\n$stderr", ErrorLevel)
                 } else {
-                    if (!skipLogError) {
-                        transid.failed(this, start, s"stdout:\n$stdout\nstderr:\n$stderr", ErrorLevel)
-                    } else {
-                        transid.failed(this, start)
-                    }
-                    None
+                    transid.failed(this, start)
                 }
-        } getOrElse {
-            transid.failed(this, start, "docker executable not found", ErrorLevel)
-            None
+                DockerOutput.unavailable
+            }
+        } catch {
+            case t: Throwable =>
+                transid.failed(this, start, "error: " + t.getMessage, ErrorLevel)
+                DockerOutput.unavailable
         }
     }
 
-    private def file(path: String) = Try { new File(path) } filter { _.exists } toOption
+    private def getDockerCmd(dockerhost: String): Seq[String] = {
+        def file(path: String) = Try { new File(path) } filter { _.exists } toOption
 
-    def getDockerCmd(dockerhost: String) = {
         val dockerLoc = file("/usr/bin/docker") orElse file("/usr/local/bin/docker")
+
+        val dockerBin = dockerLoc.map(_.toString).getOrElse {
+            throw new FileNotFoundException("Couldn't locate docker binary.")
+        }
+
         if (dockerhost == "localhost") {
-            dockerLoc map { f => Array(f.toString) }
+            Seq(dockerBin)
         } else {
-            dockerLoc map { f => Array(f.toString, "--host", s"tcp://$dockerhost") }
+            Seq(dockerBin, "--host", s"tcp://$dockerhost")
         }
     }
 
