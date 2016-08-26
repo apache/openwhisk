@@ -31,7 +31,7 @@ import scala.concurrent.Future
  * @param kv instance of the ConsulClient to use
  * @param initialDelay time to wait before starting the reporting initially
  * @param interval time between two reports being send
- * @param hostKey the key for the host adress of the component
+ * @param hostKey the key for the host address of the component
  * @param startKey the key for the startup timestamp of the component
  * @param statusKey the key for the freshness timestamp of the component
  * @param updater the function to call to update arbitrary values in consul
