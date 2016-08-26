@@ -682,7 +682,7 @@ public class WskCli {
     }
 
     /**
-     * Fetch the logs (stodout, stderr) recorded for a particular activation
+     * Fetch the logs (stdout, stderr) recorded for a particular activation
      */
     public RunResult getLogsForActivation(String activationId) throws IOException {
         RunResult result = cli(DONTCARE_EXIT, "activation", "logs", activationId, "--auth", authKey);
