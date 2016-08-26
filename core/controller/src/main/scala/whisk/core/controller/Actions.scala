@@ -373,7 +373,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         } getOrElse action.limits
 
         // This is temporary while we are making sequencing directly supported in the controller.
-        // Actions that are updated with a sequence will have their parameter property overriden.
+        // Actions that are updated with a sequence will have their parameter property overridden.
         // Actions that are updated with non-sequence actions will either set the parameter property according to
         // the content provided, or if that is not defined, and iff the previous version of the action was not a
         // sequence, inherit previous parameters. This is because sequence parameters are special and should not

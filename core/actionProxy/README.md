@@ -15,7 +15,7 @@ and then performs a `build()` to generate an executable. The last step of the in
 `verify()` to confirm the executable has the proper permissions to run the code. The action runner
 is ready to run the action if `verify()` is true.
 
-The default implementations of `epilogue()` and `build()` are no-ops and should be overriden as needed.
+The default implementations of `epilogue()` and `build()` are no-ops and should be overridden as needed.
 The base image contains a stub added which is already executable by construction via `docker build`.
 For language runtimes (e.g., C) that require compiling the source, the extending class should run the
 required source compiler during `build()`.
