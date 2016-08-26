@@ -44,7 +44,7 @@ var namespaceListCmd = &cobra.Command{
         namespaces, _, err := client.Namespaces.List()
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Namespaces.List() error: %s\n", err)
-            errStr := fmt.Sprintf("Unable to obtain list of available namspaces: %s", err)
+            errStr := fmt.Sprintf("Unable to obtain list of available namespaces: %s", err)
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_NETWORK, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
