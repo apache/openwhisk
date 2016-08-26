@@ -588,7 +588,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
         return nil, sharedSet, err
       }
     } else {
-      whisk.Debug(whisk.DbgError, "Action runtime exention '%s' is not supported\n", ext)
+      whisk.Debug(whisk.DbgError, "Action runtime extension '%s' is not supported\n", ext)
       errMsg := fmt.Sprintf("'%s' is not a supported action runtime", ext)
       whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG,
         whisk.DISPLAY_USAGE)
