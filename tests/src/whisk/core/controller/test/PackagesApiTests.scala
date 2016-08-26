@@ -106,7 +106,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
         }
     }
 
-    it should "list all public packages in exclicit namespace excluding bindings" in {
+    it should "list all public packages in explicit namespace excluding bindings" in {
         implicit val tid = transid()
         // create packages and package bindings, set some public and confirm API lists only public packages
         val namespaces = Seq(namespace, Namespace(aname.toString), Namespace(aname.toString))
