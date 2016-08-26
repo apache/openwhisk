@@ -638,7 +638,7 @@ public class WskCli {
      * @param name
      *            the name of the action.
      * @param expected
-     *            dthe expected activation id
+     *            the expected activation id
      * @param since
      *            since parameter for cli. Only activations after this timestamp will be returned.
      * @param totalWait
