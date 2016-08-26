@@ -777,7 +777,7 @@ class WskBasicCliUsageTests
         if (parameters) "-p" else "-a",
         "another\"escape\"",                    // key:   another"escape" (will be converted to JSON string "another\"escape\"")
         "{\"valid\": \"\\nJ\\rO\\tS\\bN\\f\"}", // value: {"valid":"\nJ\rO\tS\bN\f"}  JSON strings can escape: \n, \r, \t, \b, \f
-        // NOTE: When uncommentting these tests, be sure to include the expected response in getEscapedJSONTestArgOutpt()
+        // NOTE: When uncommentting these tests, be sure to include the expected response in getEscapedJSONTestArgOutput()
         //        if (parameters) "-p" else "-a",
         //        "escape\\again",                        // key:   escape\again (will be converted to JSON string "escape\\again")
         //        "{\"valid\": \"JS\\u2312ON\"}",         // value: {"valid":"JS\u2312ON"}   JSON strings can have escaped 4 digit unicode

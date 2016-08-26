@@ -162,7 +162,7 @@ func getJSONFromArguments(args []string, keyValueFormat bool) (*json.RawMessage,
             return nil, whiskErr
         }
 
-        // At this point the key is a JSON string (aleady quoted), and the value is valid JSON
+        // At this point the key is a JSON string (already quoted), and the value is valid JSON
         // as well (quoted if it's a JSON string)
         if keyValueFormat {
             res = res + fmt.Sprintf("{\"key\": %s, \"value\": %s}", key, value)

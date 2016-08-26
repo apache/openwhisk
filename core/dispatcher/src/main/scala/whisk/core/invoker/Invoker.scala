@@ -158,10 +158,10 @@ class Invoker(
             require(msg != null, "message undefined")
 
             val regex = matches(0)
-            val nanespace = Namespace(regex.group(2))
+            val namespace = Namespace(regex.group(2))
             val name = EntityName(regex.group(3))
             val version = if (regex.groupCount == 4) DocRevision(regex.group(4)) else DocRevision()
-            val action = DocId(WhiskEntity.qualifiedName(nanespace, name)).asDocInfo(version)
+            val action = DocId(WhiskEntity.qualifiedName(namespace, name)).asDocInfo(version)
             action
         } flatMap {
             fetchFromStoreAndInvoke(_, msg) map { docInfo =>

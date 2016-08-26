@@ -281,7 +281,7 @@ trait WriteOps extends Directives with Messages with Logging {
                 info(this, s"[PUT] entity success")
                 postProcess map { _(entity) } getOrElse complete(OK, entity)
             case Failure(IdentityPut(a)) =>
-                info(this, s"[PUT] entity exists, not overwriten")
+                info(this, s"[PUT] entity exists, not overwritten")
                 complete(OK, a)
             case Failure(t: DocumentConflictException) =>
                 info(this, s"[PUT] entity conflict: ${t.getMessage}")

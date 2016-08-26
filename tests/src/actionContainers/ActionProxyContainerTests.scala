@@ -161,7 +161,7 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
 
     /**
      * Runs tests for actions which do not return a dictionary and confirms expected error messages.
-     * @param codeNotReturningJson code to exectue, should not return a JSON object
+     * @param codeNotReturningJson code to execute, should not return a JSON object
      * @param checkResultInLogs should be true iff the result of the action is expected to appear in stdout or stderr
      */
     def testNotReturningJson(codeNotReturningJson: String, checkResultInLogs: Boolean = true) = {

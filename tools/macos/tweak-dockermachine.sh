@@ -39,7 +39,7 @@ docker-machine ssh $MACHINE_NAME "sudo /etc/init.d/docker restart"
 # Set routes on host.
 # If you notice the route forwarding is immediately deleted after this script
 # runs (you can check by running 'route monitor') then shut down your networking
-# (turn off wifi and disconnet all networking cables), wait a few secs and try
+# (turn off wifi and disconnect all networking cables), wait a few secs and try
 # again; you should see the route stick and now you can reenable networking.
 echo "Adding route forwarding on your host machine, enter sudo password if/when prompted"
 MACHINE_VM_IP=$(docker-machine ip $MACHINE_NAME)
