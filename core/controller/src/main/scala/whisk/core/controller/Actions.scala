@@ -410,7 +410,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
 
     /**
      * Gets document from datastore to confirm a valid action activation then posts request to loadbalancer.
-     * If the loadblancer accepts the requests with an activation id, then wait for the result of the activation
+     * If the loadbalancer accepts the requests with an activation id, then wait for the result of the activation
      * if this is a blocking invoke, else return the activation id.
      *
      * @param subject the subject invoking the action
