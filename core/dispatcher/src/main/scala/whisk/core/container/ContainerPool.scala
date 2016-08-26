@@ -154,10 +154,11 @@ class ContainerPool(
             info(this, s"Shutting down: Not getting container for ${action.fullyQualifiedName} with ${auth.uuid}")
             None
         } else {
-            info(this, s"Getting container for ${action.fullyQualifiedName} with ${auth.uuid}")
-            val key = ActionContainerId(auth.uuid, action.fullyQualifiedName, action.rev)
             try {
-                getImpl(nextPosition.next(), key, () => makeWhiskContainer(action, auth)) map {
+                val myPos = nextPosition.next()
+                info(this, s"Getting container for ${action.fullyQualifiedName} with ${auth.uuid}.  myPos = $myPos  comp = ${completedPosition.cur}  slack = ${slack()}")
+                val key = ActionContainerId(auth.uuid, action.fullyQualifiedName, action.rev)
+                getImpl(0, myPos, key, () => makeWhiskContainer(action, auth)) map {
                     case (c, initResult) =>
                         val cacheMsg = if (!initResult.isDefined) "(Cache Hit)" else "(Cache Miss)"
                         info(this, s"getAction obtained container ${c.id} ${cacheMsg}")
@@ -175,7 +176,7 @@ class ContainerPool(
         info(this, s"Getting container for image $imageName with args " + args.mkString(" "))
         // Not a regular key. Doesn't matter in testing.
         val key = new ActionContainerId(s"instantiated." + imageName + args.mkString("_"))
-        getImpl(0, key, () => makeContainer(key, imageName, args)) map { _._1 }
+        getImpl(0, 0, key, () => makeContainer(key, imageName, args)) map { _._1 }
     }
 
     /**
@@ -183,11 +184,20 @@ class ContainerPool(
      * This method will apply retry so that the caller is blocked until retry succeeds.
      */
     @tailrec
-    final def getImpl(position: Int, key: ActionContainerId, conMaker: () => FinalContainerResult)(implicit transid: TransactionId): Option[(Container, Option[RunResult])] = {
+    final def getImpl(tryCount: Int, position: Int, key: ActionContainerId, conMaker: () => FinalContainerResult)(implicit transid: TransactionId): Option[(Container, Option[RunResult])] = {
         val positionInLine = position - completedPosition.cur // this will be 1 if at the front of the line
         val available = slack()
         if (positionInLine > available) { // e.g. if there is 1 available, then I wait if I am second in line (positionInLine = 2)
             Thread.sleep(50) // TODO: replace with wait/notify but tricky to get right because of desire for maximal concurrency
+            if (tryCount == 200) {
+                warn(this, s"""getImpl possibly stuck:
+                              | position = $position
+                              | completed = ${completedPosition.cur}")
+                              | slack = $available
+                              | maxActive = ${_maxActive}
+                              | activeCount = ${activeCount()}
+                              | startingCounter = ${startingCounter.cur}""".stripMargin)
+            }
         } else getOrMake(key, conMaker) match {
             case Success(con, initResult) =>
                 info(this, s"Obtained container ${con.containerId.getOrElse("unknown")}")
@@ -198,7 +208,7 @@ class ContainerPool(
             case Busy =>
             // This will not cause a busy loop because only those that could be productive will get a chance
         }
-        getImpl(position, key, conMaker)
+        getImpl(tryCount + 1, position, key, conMaker)
     }
 
     def getNumberOfIdleContainers(key: ActionContainerId)(implicit transid: TransactionId): Int = {
@@ -310,8 +320,7 @@ class ContainerPool(
      * This call can be slow but not while locking data structure so it does not interfere with other activations.
      */
     def putBack(container: Container, delete: Boolean = false)(implicit transid: TransactionId): Unit = {
-        info(this, s"putBack returning container ${container.id}  delete = $delete")
-
+        info(this, s"putBack returning container ${container.id}  delete = $delete   slack = ${slack()}")
         // Docker operation outside sync block. Don't pause if we are deleting.
         if (!delete) {
             runDockerOp { container.pause() }
