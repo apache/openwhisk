@@ -37,7 +37,7 @@ class Rule(Item):
         subcmd = parser.add_parser('delete', help='delete %s' % self.name)
         subcmd.add_argument('name', help='the name of the %s' % self.name)
         addAuthenticatedCommand(subcmd, props)
-        subcmd.add_argument('--disable', help='automatically disable rule defore deleting it', action='store_true', default=False)
+        subcmd.add_argument('--disable', help='automatically disable rule before deleting it', action='store_true', default=False)
 
         subcmd = parser.add_parser('update', help='update an existing rule')
         subcmd.add_argument('name', help='the name of the rule')
