@@ -492,7 +492,7 @@ func writeProps(path string, props map[string]string) error {
     file, err := os.Create(path)
     if err != nil {
         whisk.Debug(whisk.DbgError, "os.Create(%s) failed: %s\n", path, err)
-        errStr := fmt.Sprintf("Whisk properties file write failue: %s", err)
+        errStr := fmt.Sprintf("Whisk properties file write failure: %s", err)
         werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return werr
     }
@@ -505,7 +505,7 @@ func writeProps(path string, props map[string]string) error {
         _, err = fmt.Fprintln(writer, line)
         if err != nil {
             whisk.Debug(whisk.DbgError, "fmt.Fprintln() write to '%s' failed: %s\n", path, err)
-            errStr := fmt.Sprintf("Whisk properties file write failue: %s", err)
+            errStr := fmt.Sprintf("Whisk properties file write failure: %s", err)
             werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
