@@ -79,7 +79,7 @@ object ActionContainer {
     private lazy val dockerBin: String = {
         List("/usr/bin/docker", "/usr/local/bin/docker").find { bin =>
             new File(bin).isFile()
-        }.getOrElse(???) // This fails if the docker binary couln't be located.
+        }.getOrElse(???) // This fails if the docker binary couldn't be located.
     }
 
     private lazy val dockerCmd: String = {
