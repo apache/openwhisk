@@ -256,7 +256,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
             status should be(OK)
             val response = responseAs[WhiskPackageWithActions]
             response should be(reference inherit provider.parameters withActions ())
-            // this is redundant in case the precendence orders on inherit are changed incorrectly
+            // this is redundant in case the precedence orders on inherit are changed incorrectly
             response.wp.parameters should be(Parameters("a", "A") ++ Parameters("b", "b") ++ Parameters("c", "C"))
         }
     }
