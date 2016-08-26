@@ -111,7 +111,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         }
     }
 
-    //// GET /rule/anme
+    //// GET /rule/name
     it should "get rule" in {
         implicit val tid = transid()
         val rule = WhiskRule(namespace, aname, EntityName("bogus trigger"), EntityName("bogus action"))
