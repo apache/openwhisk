@@ -133,6 +133,7 @@ class ThrottleTests
                 (action, _) => action.create(name, defaultAction)
             }
 
+            // invokes per minute * 2 because the current minute could advance which resets the throttle
             val results = untilThrottled(maximumInvokesPerMinute * 2 + 1) { () =>
                 wsk.action.invoke(name, Map("payload" -> "testWord".toJson), expectedExitCode = DONTCARE_EXIT)
             }
@@ -174,12 +175,12 @@ class ThrottleTests
                 (action, _) => action.create(name, timeoutAction)
             }
 
-            val slowInvokes = maximumConcurrentInvokes * 0.4
-            val fastInvokes = maximumConcurrentInvokes * 0.6 + 10
+            val slowInvokes = maximumConcurrentInvokes * 0.6
+            val fastInvokes = maximumConcurrentInvokes * 0.4 + 1
 
             // Keep queue from draining with these
             val slowResults = untilThrottled(slowInvokes.toInt) { () =>
-                wsk.action.invoke(name, Map("payload" -> 10.seconds.toMillis.toJson), expectedExitCode = DONTCARE_EXIT)
+                wsk.action.invoke(name, Map("payload" -> 15.seconds.toMillis.toJson), expectedExitCode = DONTCARE_EXIT)
             }
 
             // Create queue length quickly, drain fast
@@ -187,10 +188,12 @@ class ThrottleTests
                 wsk.action.invoke(name, Map("payload" -> 10.milliseconds.toMillis.toJson), expectedExitCode = DONTCARE_EXIT)
             }
 
-            // Sleep 3 seconds to let the background thread get the newest values
-            Thread.sleep(3.seconds.toMillis)
+            // Sleep 5 seconds to let the background thread get the newest values (refreshes every 2 seconds)
+            Thread.sleep(5.seconds.toMillis)
 
-            val endResults = untilThrottled(10) { () =>
+            // start 1 invoke less than the maximum per minute to avoid getting rate throttled
+            val throttledInvokes = maximumInvokesPerMinute - slowInvokes.toInt - fastInvokes.toInt - 1
+            val endResults = untilThrottled(throttledInvokes) { () =>
                 wsk.action.invoke(name, Map("payload" -> 10.milliseconds.toMillis.toJson), expectedExitCode = DONTCARE_EXIT)
             }
             val afterInvokes = Instant.now
@@ -202,5 +205,4 @@ class ThrottleTests
             val alreadyWaited = durationBetween(afterInvokes, Instant.now)
             settleThrottles(alreadyWaited)
     }
-
 }
