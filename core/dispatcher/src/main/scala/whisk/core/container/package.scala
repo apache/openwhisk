@@ -77,8 +77,15 @@ package object container {
     case object Busy extends FinalContainerResult
     case class Error(string: String) extends FinalContainerResult
 
+    // Note: not using InetAddress here because we don't want to do any lookup
+    // until used for something.
+    case class ContainerAddr(host: String, port: Int) {
+        override def toString() = s"$host:$port"
+    }
+
     type ContainerName = Option[String]
+
     type ContainerId = Option[String]
-    type ContainerIP = Option[String]
+
     type DockerOutput = Option[String]
 }

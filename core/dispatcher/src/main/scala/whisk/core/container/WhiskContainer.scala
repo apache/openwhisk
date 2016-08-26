@@ -154,14 +154,12 @@ class WhiskContainer(
         implicit val materializer = ActorMaterializer()
 
         containerHostAndPort map { hp =>
-            val host = hp.split(":")(0)
-            val port = hp.split(":")(1).toInt
 
-            val flow = Http().outgoingConnection(host, port)
+            val flow = Http().outgoingConnection(hp.host, hp.port)
 
             val uri = Uri(
                 scheme = "http",
-                authority = Uri.Authority(host = Uri.Host(host), port = port),
+                authority = Uri.Authority(host = Uri.Host(hp.host), port = hp.port),
                 path = Uri.Path(endpoint))
 
             for (
