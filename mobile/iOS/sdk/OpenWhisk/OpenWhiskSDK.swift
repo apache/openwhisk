@@ -89,9 +89,9 @@ public class Whisk {
                 
                 let c = url.characters.last
                 
-                let separater =  c == "/" ? "" : "/"
+                let separator =  c == "/" ? "" : "/"
                 
-                whiskBaseURL = url + separater + "api/v1/"
+                whiskBaseURL = url + separator + "api/v1/"
                 
             } else {
                 whiskBaseURL = nil
