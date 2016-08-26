@@ -206,7 +206,7 @@ func sdkInstall(componentName string) error {
             err := unpackGzip(targetFile, "temp.tar")
             if err != nil {
                 whisk.Debug(whisk.DbgError, "unpackGzip(%s,temp.tar) failure: %s\n", targetFile, err)
-                errStr := fmt.Sprintf("Error unGziping file %s: %s", targetFile, err)
+                errStr := fmt.Sprintf("Error unGzipping file %s: %s", targetFile, err)
                 werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return werr
             }
