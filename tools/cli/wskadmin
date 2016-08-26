@@ -211,6 +211,7 @@ def getUserCmd(args, props):
         print 'Failed to get subject (%s)' % res.read().strip()
         return 1
 
+# This should be getSubjectFromDb
 def getSubjecFromDb(args, props):
     protocol = props[DB_PROTOCOL]
     host     = props[DB_HOST]
