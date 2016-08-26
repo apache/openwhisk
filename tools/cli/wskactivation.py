@@ -254,7 +254,7 @@ class Activation(Item):
             return None
 
     #
-    # Fetch all activation reconds since a timestamp
+    # Fetch all activation seconds since a timestamp
     #
     def fetchActivations(self, beginMillis, args, props):
         # fetch all activations starting from SLACK_SECONDS seconds in the past
