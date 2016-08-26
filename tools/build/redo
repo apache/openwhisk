@@ -311,7 +311,7 @@ Components = [
                   gradle = 'sdk:docker'),
 
     makeComponent('zookeeper',
-                  'build zookeepr only (to deploy, use kakfa component)',
+                  'build zookeeper only (to deploy, use kakfa component)',
                   yaml = False,
                   gradle = ':services:zookeeper'),
 
