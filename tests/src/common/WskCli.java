@@ -952,7 +952,7 @@ public class WskCli {
     /**
      * Run a command wsk [params].
      *
-     * @return <stdout,sterr>
+     * @return <stdout,stderr>
      * @throws IOException
      * @throws IllegalArgumentException
      */
@@ -967,7 +967,7 @@ public class WskCli {
      * @param expectedExitCode
      *            if DONTCARE_EXIT then exit code is ignored, else check that
      *            exit code matches expected value
-     * @return <stdout,sterr>
+     * @return <stdout,stderr>
      */
     public RunResult cli(int expectedExitCode, String... params) throws IllegalArgumentException, IOException {
         return cli(false, expectedExitCode, params);
@@ -986,7 +986,7 @@ public class WskCli {
      * @param expectedExitCode
      *            if DONTCARE_EXIT then exit code is ignored, else check that
      *            exit code matches expected value
-     * @return RunResult which contains stdout,sterr, exit code
+     * @return RunResult which contains stdout,stderr, exit code
      */
     public RunResult cli(boolean verbose, int expectedExitCode, File workingDir, String... params) throws IllegalArgumentException, IOException {
         String[] cmd = verbose ? Util.concat(baseCmd, "--verbose") : baseCmd;

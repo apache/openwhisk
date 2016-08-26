@@ -768,7 +768,7 @@ sealed trait RunWskCmd {
     /**
      * Runs a command wsk [params] where the arguments come in as a sequence.
      *
-     * @return RunResult which contains stdout, sterr, exit code
+     * @return RunResult which contains stdout, stderr, exit code
      */
     def cli(params: Seq[String],
             expectedExitCode: Int = SUCCESS_EXIT,
