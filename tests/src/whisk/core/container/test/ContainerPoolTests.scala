@@ -115,7 +115,7 @@ class ContainerPoolTests extends FlatSpec
      */
     def poolHasContainerIdPrefix(containerIdPrefix: String) = {
         val states = pool.listAll()
-        states.foldLeft(false)({ case (acc, s) => acc || s.id.contains(containerIdPrefix) })
+        states.find { _.id.hash.contains(containerIdPrefix) }.isDefined
     }
 
     behavior of "ContainerPool"

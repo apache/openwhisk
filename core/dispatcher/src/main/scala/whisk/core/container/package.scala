@@ -83,9 +83,32 @@ package object container {
         override def toString() = s"$host:$port"
     }
 
-    type ContainerName = Option[String]
+    sealed abstract class ContainerIdentifier(val id: String)
+    class ContainerName(val name: String) extends ContainerIdentifier(name)
+    class ContainerHash(val hash: String) extends ContainerIdentifier(hash)
 
-    type ContainerId = Option[String]
+    object ContainerIdentifier {
+        def fromString(str: String): ContainerIdentifier = {
+            val s = str.trim
+            require(!s.contains("\n"))
+            if (s.matches("^[0-9a-fA-F]+$")) {
+                new ContainerHash(s)
+            } else {
+                new ContainerName(s)
+            }
+        }
+    }
+
+    object ContainerName {
+        def fromString(str: String) = new ContainerName(str)
+    }
+
+    object ContainerHash {
+        def fromString(str: String) = {
+            require(str.matches("^[0-9a-fA-F]+$"))
+            new ContainerHash(str)
+        }
+    }
 
     final class DockerOutput(val toOption: Option[String]) extends AnyVal
     object DockerOutput {
