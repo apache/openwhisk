@@ -59,7 +59,7 @@ If you start another Vagrant VM take into account that the IP address will confl
 After the Vagrant VM is done deploying OpenWhisk, the `wsk` CLI will be available under `<openwhisk>/bin`
 We currently have two types for the `wsk` CLI, Python and Go. 
 
-The Python CLI is avaible in `../../bin/wsk`. 
+The Python CLI is available in `../../bin/wsk`. 
 For the Python CLI you can configure autocomplete by adding `eval "$(register-python-argcomplete wsk)"` in your `~/.bash_profile` or `~/.profile`
 
 The Go CLI is available in `../../bin/go-cli` there are multiple binaries base on OS and Architecture (i.e. `../../bin/go-cli/mac/amd64/wsk`).
