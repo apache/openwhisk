@@ -34,7 +34,7 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
     
     // The action to invoke.
     
-    // Choice: specify commponents
+    // Choice: specify components
     let MyNamespace: String = "whisk.system"
     let MyPackage: String? = "util"
     let MyWhiskAction: String = "date"

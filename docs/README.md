@@ -13,7 +13,7 @@ For more details about how OpenWhisk works, see [System overview](./about.md).
 
 The OpenWhisk command line interface (CLI) requires Python 2.7.
 
-- If you cloned the OpenWhisk respository, you will find the CLI in `openwhisk/bin/wsk`.
+- If you cloned the OpenWhisk repository, you will find the CLI in `openwhisk/bin/wsk`.
 
 - Otherwise, download the CLI from an existing deployment.
 You will need to know the base URL for the deployment you want to use and

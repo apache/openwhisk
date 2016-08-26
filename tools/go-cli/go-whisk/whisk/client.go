@@ -400,7 +400,7 @@ func (c *Client) NewRequestUrl(method string, urlRelResource *url.URL, body inte
     }
 
     // URL construction order is important so that parts of the path are not lost
-    // 1. Combine absolute Base URL path with the relative namepace path.  The creates an absolute URL
+    // 1. Combine absolute Base URL path with the relative namespace path.  The creates an absolute URL
     // 2. Combine the Base+Namespace absolute URL with the relative resource path (including query params)
     u := c.BaseURL.ResolveReference(urlVerNamespace)
     u = u.ResolveReference(urlRelResource)

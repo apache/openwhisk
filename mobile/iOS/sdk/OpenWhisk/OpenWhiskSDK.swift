@@ -65,7 +65,7 @@ public class Whisk {
     let AccessKey: String? // Whisk key
     let AccessToken: String? // Whisk token
     let AppKey: String? // application Key (currently not used)
-    let AppSecret: String? // application Secret (curently not used)
+    let AppSecret: String? // application Secret (currently not used)
     
     // api Host for Whisk backend
     public var whiskBaseURL: String?
@@ -89,9 +89,9 @@ public class Whisk {
                 
                 let c = url.characters.last
                 
-                let separater =  c == "/" ? "" : "/"
+                let separator =  c == "/" ? "" : "/"
                 
-                whiskBaseURL = url + separater + "api/v1/"
+                whiskBaseURL = url + separator + "api/v1/"
                 
             } else {
                 whiskBaseURL = nil

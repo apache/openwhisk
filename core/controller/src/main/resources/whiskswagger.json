@@ -66,8 +66,8 @@
                 "tags": [
                     "Namespaces"
                 ],
-                "description": "Get all entites in a namespace",
-                "summary": "Get all entites in a namespace",
+                "description": "Get all entities in a namespace",
+                "summary": "Get all entities in a namespace",
                 "x-swagger-router-controller": "namespaces",
                 "operationId": "getAllEntitiesInNamespace",
                 "parameters": [
@@ -84,7 +84,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "All entites",
+                        "description": "All entities",
                         "schema": {
                             "type": "object",
                             "required": [

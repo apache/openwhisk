@@ -53,7 +53,7 @@ sys.path.insert(1, healthDir)
 
 isAlive = os.path.join(rootDir, 'tools/health/isAlive')
 
-# After path adjusted, do the reamining imports.
+# After path adjusted, do the remaining imports.
 import wskprop
 from monitorUtil import run
 from dockerUtil import runDocker

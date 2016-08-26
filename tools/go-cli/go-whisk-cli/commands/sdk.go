@@ -82,7 +82,7 @@ var sdkInstallCmd = &cobra.Command{
                 werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return werr
             }
-            fmt.Printf("The bash auto-completion script (%s) is installed in the curent directory.\n" +
+            fmt.Printf("The bash auto-completion script (%s) is installed in the current directory.\n" +
                        "To enable command line completion of wsk commands, " +
                        "source the auto completion script into your bash environment\n", BASH_AUTOCOMPLETE_FILENAME)
         default:
@@ -206,7 +206,7 @@ func sdkInstall(componentName string) error {
             err := unpackGzip(targetFile, "temp.tar")
             if err != nil {
                 whisk.Debug(whisk.DbgError, "unpackGzip(%s,temp.tar) failure: %s\n", targetFile, err)
-                errStr := fmt.Sprintf("Error unGziping file %s: %s", targetFile, err)
+                errStr := fmt.Sprintf("Error unGzipping file %s: %s", targetFile, err)
                 werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return werr
             }
@@ -216,7 +216,7 @@ func sdkInstall(componentName string) error {
             err = unpackTar("temp.tar")
             if err != nil {
                 whisk.Debug(whisk.DbgError, "unpackTar(temp.tar) failure: %s\n", err)
-                errStr := fmt.Sprintf("Error untaring file %s: %s", "temp.tar", err)
+                errStr := fmt.Sprintf("Error untarring file %s: %s", "temp.tar", err)
                 werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return werr
             }

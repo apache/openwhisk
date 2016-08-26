@@ -35,7 +35,7 @@ import whisk.core.entity.size.SizeInt
 
 /**
  * An abstract superclass that encapsulates properties common to all whisk entities (actions, rules, triggers).
- * The class has a private contstructor argument and abstract fields so that case classes that extend this base
+ * The class has a private constructor argument and abstract fields so that case classes that extend this base
  * type can use the default spray JSON ser/des. An abstract entity has the following four properties.
  *
  * @param en the name of the entity, this is part of the primary key for the document

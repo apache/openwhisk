@@ -94,7 +94,7 @@ protected class ActivationFeed(
                                 handler(topic, bytes)
                         }
                 } recover {
-                    case e: CommitFailedException => logging.error(this, s"failed to commit consumer offet: ${e.getMessage}")
+                    case e: CommitFailedException => logging.error(this, s"failed to commit consumer offset: ${e.getMessage}")
                     case e: Throwable             => logging.error(this, s"exception while pulling new records: ${e.getMessage}")
                 }
                 fill()

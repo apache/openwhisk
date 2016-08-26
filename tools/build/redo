@@ -186,7 +186,7 @@ def makeComponent(name,                   # component name, implies playbook def
                   dir = 'ansible',
                   gradle = False,         # gradle buildable iff true
                   tasks = 'distDocker',
-                  steps = None):          # comman separated, runs these steps in sequence, each step is a reference to another component (yaml/gradle not allowed)
+                  steps = None):          # comma separated, runs these steps in sequence, each step is a reference to another component (yaml/gradle not allowed)
     yaml = ('%s.yml' % name) if yaml is True else yaml
     playbook = Playbook(dir, yaml, modes, env) if yaml is not False else None
     gradle = Gradle(tasks, gradle) if gradle is not False else None
@@ -311,7 +311,7 @@ Components = [
                   gradle = 'sdk:docker'),
 
     makeComponent('zookeeper',
-                  'build zookeepr only (to deploy, use kakfa component)',
+                  'build zookeeper only (to deploy, use kakfa component)',
                   yaml = False,
                   gradle = ':services:zookeeper'),
 

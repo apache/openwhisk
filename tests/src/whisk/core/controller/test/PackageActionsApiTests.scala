@@ -130,7 +130,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         }
     }
 
-    it should "reject ambigious list actions in package without trailing slash" in {
+    it should "reject ambiguous list actions in package without trailing slash" in {
         implicit val tid = transid()
         val provider = WhiskPackage(namespace, aname, None)
         put(entityStore, provider)
