@@ -48,6 +48,10 @@ object SimpleExec extends Logging {
 
         info(this, s"Done running command: ${cmd.mkString(" ")}")
 
-        (outs.toString.dropRight(1), errs.toString.dropRight(1), exitCode)
+        def noLastNewLine(sb: StringBuilder) = {
+            if (sb.isEmpty) "" else sb.substring(0, sb.size - 1)
+        }
+
+        (noLastNewLine(outs), noLastNewLine(errs), exitCode)
     }
 }
