@@ -171,10 +171,10 @@ You can use an action to store a document in a Cloudant database called `testdb`
 1. Store a document by using the `write` action in the package binding you created previously. Be sure to replace `/myNamespace/myCloudant` with your package name.
 
   ```
-  $ wsk action invoke /myNamespace/myCoudant/write --blocking --result --param dbname testdb --param doc '{"_id":"heisenberg", "name":"Walter White"}'
+  $ wsk action invoke /myNamespace/myCloudant/write --blocking --result --param dbname testdb --param doc '{"_id":"heisenberg", "name":"Walter White"}'
   ```
   ```
-  ok: invoked /myNamespace/myCoudant/write with id 62bf696b38464fd1bcaff216a68b8287
+  ok: invoked /myNamespace/myCloudant/write with id 62bf696b38464fd1bcaff216a68b8287
   {
     "id": "heisenberg",
     "ok": true,
@@ -194,7 +194,7 @@ You can use an action to fetch a document from a Cloudant database called `testd
 1. Fetch a document by using the `read` action in the package binding that you created previously. Be sure to replace `/myNamespace/myCloudant` with your package name.
 
   ```
-  $ wsk action invoke /myNamespace/myCoudant/read --blocking --result --param dbname testdb --param id heisenberg
+  $ wsk action invoke /myNamespace/myCloudant/read --blocking --result --param dbname testdb --param id heisenberg
   ```
   ```
   {
