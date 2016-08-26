@@ -50,7 +50,7 @@ class WhiskContainer(
     originalId: TransactionId,
     pool: ContainerPool,
     key: ActionContainerId,
-    containerName: String,
+    containerName: ContainerName,
     image: String,
     network: String,
     cpuShare: Int,
@@ -112,7 +112,7 @@ class WhiskContainer(
      * Tear down the container and retrieve the logs.
      */
     def teardown()(implicit transid: TransactionId): String = {
-        getContainerLogs(Some(containerName)).toOption.getOrElse("none")
+        getContainerLogs(containerName).toOption.getOrElse("none")
     }
 
     /**
@@ -190,7 +190,8 @@ protected[container] object ContainerCounter {
 
     def now() = Instant.now(Clock.systemUTC())
 
-    def containerName(containerPrefix: String, containerSuffix: String): String = {
-        s"wsk${containerPrefix}_${ContainerCounter.next()}_${containerSuffix}_${now()}".replaceAll("[^a-zA-Z0-9_]", "")
+    def containerName(containerPrefix: String, containerSuffix: String): ContainerName = {
+        val name = s"wsk${containerPrefix}_${ContainerCounter.next()}_${containerSuffix}_${now()}".replaceAll("[^a-zA-Z0-9_]", "")
+        ContainerName.fromString(name)
     }
 }

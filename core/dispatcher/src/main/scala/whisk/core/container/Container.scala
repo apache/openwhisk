@@ -31,7 +31,7 @@ class Container(
     originalId: TransactionId,
     pool: ContainerPool,
     val key: ActionContainerId,
-    containerName: Option[String],
+    containerName: Option[ContainerName],
     val image: String,
     network: String,
     cpuShare: Int,
@@ -53,25 +53,21 @@ class Container(
 
     def details: String = {
         val name = containerName getOrElse "??"
-        val id = containerId getOrElse "??"
+        val id = containerId.id
         val ip = containerHostAndPort getOrElse "??"
         s"container [$name] [$id] [$ip]"
     }
 
-    def pause(): Unit = {
-        containerId map pauseContainer
-    }
+    def pause(): Unit = pauseContainer(containerId)
 
-    def unpause(): Unit = {
-        containerId map unpauseContainer
-    }
+    def unpause(): Unit = unpauseContainer(containerId)
 
     /**
      * A prefix of the container id known to be displayed by docker ps.
      */
     lazy val containerIdPrefix: String = {
         // docker ps contains only a prefix of the id
-        containerId map { _.take(8) } getOrElse "anon"
+        containerId.id.take(8)
     }
 
     /**
@@ -112,7 +108,7 @@ class Container(
      */
     def getDockerLogContent(start: Long, end: Long, mounted: Boolean)(implicit transid: TransactionId): Array[Byte] = {
         this.synchronized {
-            containerId map { id => pool.getDockerLogContent(id, start, end, mounted) } getOrElse Array()
+            pool.getDockerLogContent(containerId, start, end, mounted)
         }
     }
 

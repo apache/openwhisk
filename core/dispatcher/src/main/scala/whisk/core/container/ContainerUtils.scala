@@ -31,7 +31,7 @@ import whisk.common.PrintStreamEmitter
 /**
  * Information from docker ps.
  */
-case class ContainerState(id: String, image: String, name: String)
+case class ContainerState(id: ContainerHash, image: String, name: ContainerName)
 
 trait ContainerUtils extends Logging {
 
@@ -50,9 +50,9 @@ trait ContainerUtils extends Logging {
      * @param image the docker image to run
      * @return container id and container host
      */
-    def bringup(name: Option[String], image: String, network: String, cpuShare: Int, env: Map[String, String], args: Array[String], limits: ActionLimits, policy: Option[String])(implicit transid: TransactionId): (ContainerId, Option[ContainerAddr]) = {
+    def bringup(name: Option[ContainerName], image: String, network: String, cpuShare: Int, env: Map[String, String], args: Array[String], limits: ActionLimits, policy: Option[String])(implicit transid: TransactionId): (ContainerHash, Option[ContainerAddr]) = {
         val id = makeContainer(name, image, network, cpuShare, env, args, limits, policy)
-        val host = id.flatMap(_ => getContainerHostAndPort(name))
+        val host = getContainerHostAndPort(id)
         (id, host)
     }
 
@@ -64,8 +64,8 @@ trait ContainerUtils extends Logging {
     /*
      * TODO: The file handle and process limits should be moved to some global limits config.
      */
-    def makeContainer(name: Option[String], image: String, network: String, cpuShare: Int, env: Map[String, String], args: Array[String], limits: ActionLimits, policy: Option[String])(implicit transid: TransactionId): ContainerId = {
-        val nameOption = name.map(n => Array("--name", n)).getOrElse(Array.empty[String])
+    def makeContainer(name: Option[ContainerName], image: String, network: String, cpuShare: Int, env: Map[String, String], args: Seq[String], limits: ActionLimits, policy: Option[String])(implicit transid: TransactionId): ContainerHash = {
+        val nameOption = name.map(n => Array("--name", n.name)).getOrElse(Array.empty[String])
         val cpuArg = Array("-c", cpuShare.toString)
         val memoryArg = Array("-m", s"${limits.memory()}m")
         val capabilityArg = Array("--cap-drop", "NET_RAW", "--cap-drop", "NET_ADMIN")
@@ -74,36 +74,38 @@ trait ContainerUtils extends Logging {
         val processLimit = Array("--ulimit", "nproc=512:512")
         val securityOpts = policy map { p => Array("--security-opt", s"apparmor:${p}") } getOrElse (Array.empty[String])
         val containerNetwork = Array("--net", network)
-        val cmd = Array("run") ++ makeEnvVars(env) ++ consulServiceIgnore ++ nameOption ++ cpuArg ++ memoryArg ++
-            capabilityArg ++ fileHandleLimit ++ processLimit ++ securityOpts ++ containerNetwork ++ Array("-d", image) ++ args
-        runDockerCmd(cmd: _*).toOption
+
+        val cmd = Seq("run") ++ makeEnvVars(env) ++ consulServiceIgnore ++ nameOption ++ cpuArg ++ memoryArg ++
+            capabilityArg ++ fileHandleLimit ++ processLimit ++ securityOpts ++ containerNetwork ++ Seq("-d", image) ++ args
+
+        runDockerCmd(cmd: _*).toOption.map { result =>
+            ContainerHash.fromString(result)
+        } getOrElse {
+            throw new Exception("Container hash or name expected in `makeContainer`.")
+        }
     }
 
-    def killContainer(name: String)(implicit transid: TransactionId): DockerOutput = killContainer(Some(name))
-
-    def killContainer(container: ContainerName)(implicit transid: TransactionId): DockerOutput = {
-        container.fold(DockerOutput.unavailable)(name => runDockerCmd("kill", name))
+    def killContainer(container: ContainerIdentifier)(implicit transid: TransactionId): DockerOutput = {
+        runDockerCmd("kill", container.id)
     }
 
-    def getContainerLogs(container: ContainerName)(implicit transid: TransactionId): DockerOutput = {
-        container.fold(DockerOutput.unavailable)(name => runDockerCmd("logs", name))
+    def getContainerLogs(container: ContainerIdentifier)(implicit transid: TransactionId): DockerOutput = {
+        runDockerCmd("logs", container.id)
     }
 
-    def pauseContainer(name: String)(implicit transid: TransactionId): DockerOutput = {
-        runDockerCmd(true, Array("pause", name))
+    def pauseContainer(container: ContainerIdentifier)(implicit transid: TransactionId): DockerOutput = {
+        runDockerCmd(true, Seq("pause", container.id))
     }
 
-    def unpauseContainer(name: String)(implicit transid: TransactionId): DockerOutput = {
-        runDockerCmd(true, Array("unpause", name))
+    def unpauseContainer(container: ContainerIdentifier)(implicit transid: TransactionId): DockerOutput = {
+        runDockerCmd(true, Seq("unpause", container.id))
     }
-
-    def rmContainer(container: String)(implicit transid: TransactionId): DockerOutput = rmContainer(Some(container))
 
     /**
      * Forcefully removes a container, can be used on a running container but not a paused one.
      */
-    def rmContainer(container: ContainerName)(implicit transid: TransactionId): DockerOutput = {
-        container.fold(DockerOutput.unavailable)(name => runDockerCmd("rm", "-f", name))
+    def rmContainer(container: ContainerIdentifier)(implicit transid: TransactionId): DockerOutput = {
+        runDockerCmd("rm", "-f", container.id)
     }
 
     /*
@@ -118,7 +120,7 @@ trait ContainerUtils extends Logging {
         } getOrElse Seq()
     }
 
-    def getDockerLogSize(containerId: String, mounted: Boolean)(implicit transid: TransactionId): Long = {
+    def getDockerLogSize(containerId: ContainerHash, mounted: Boolean)(implicit transid: TransactionId): Long = {
         try {
             getDockerLogFile(containerId, mounted).length
         } catch {
@@ -132,10 +134,10 @@ trait ContainerUtils extends Logging {
      * Reads the contents of the file at the given position.
      * It is assumed that the contents does exist and that region is not changing concurrently.
      */
-    def getDockerLogContent(containerId: String, start: Long, end: Long, mounted: Boolean)(implicit transid: TransactionId): Array[Byte] = {
+    def getDockerLogContent(containerHash: ContainerHash, start: Long, end: Long, mounted: Boolean)(implicit transid: TransactionId): Array[Byte] = {
         var fis: java.io.FileInputStream = null
         try {
-            val file = getDockerLogFile(containerId, mounted)
+            val file = getDockerLogFile(containerHash, mounted)
             fis = new java.io.FileInputStream(file)
             val channel = fis.getChannel().position(start)
             var remain = (end - start).toInt
@@ -148,7 +150,7 @@ trait ContainerUtils extends Logging {
             buffer.array
         } catch {
             case e: Exception =>
-                error(this, s"getDockerLogContent failed on $containerId")
+                error(this, s"getDockerLogContent failed on ${containerHash.hash}: ${e.getClass}: ${e.getMessage}")
                 Array()
         } finally {
             if (fis != null) fis.close()
@@ -156,19 +158,19 @@ trait ContainerUtils extends Logging {
 
     }
 
-    def getContainerHostAndPort(container: ContainerName)(implicit transid: TransactionId): Option[ContainerAddr] = {
-        for (
-            name <- container;
-            output <- runDockerCmd("inspect", "--format", "'{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'", name).toOption
-        ) yield ContainerAddr(output.substring(1, output.length - 1), 8080)
+    def getContainerHostAndPort(container: ContainerIdentifier)(implicit transid: TransactionId): Option[ContainerAddr] = {
+        // FIXME it would be good if this could return ContainerAddr and fail loudly instead.
+        runDockerCmd("inspect", "--format", "'{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'", container.id).toOption.map { output =>
+            ContainerAddr(output.substring(1, output.length - 1), 8080)
+        }
     }
 
-    def runDockerCmd(args: String*)(implicit transid: TransactionId): DockerOutput = runDockerCmd(false, args)
+    private def runDockerCmd(args: String*)(implicit transid: TransactionId): DockerOutput = runDockerCmd(false, args)
 
     /**
      * Synchronously runs the given docker command returning stdout if successful.
      */
-    def runDockerCmd(skipLogError: Boolean, args: Seq[String])(implicit transid: TransactionId): DockerOutput =
+    private def runDockerCmd(skipLogError: Boolean, args: Seq[String])(implicit transid: TransactionId): DockerOutput =
         ContainerUtils.runDockerCmd(dockerhost, skipLogError, args)(transid)
 
     // If running outside a container, then logs files are in docker's own
@@ -181,13 +183,15 @@ trait ContainerUtils extends Logging {
     /**
      * Gets the filename of the docker logs of other containers that is mapped back into the invoker.
      */
-    private def getDockerLogFile(containerId: String, mounted: Boolean) = {
-        new java.io.File(s"""${dockerContainerDir(mounted)}/$containerId/$containerId-json.log""").getCanonicalFile()
+    private def getDockerLogFile(containerId: ContainerHash, mounted: Boolean) = {
+        new java.io.File(s"""${dockerContainerDir(mounted)}/${containerId.hash}/${containerId.hash}-json.log""").getCanonicalFile()
     }
 
-    private def parsePsOutput(line: String) = {
+    private def parsePsOutput(line: String): ContainerState = {
         val tokens = line.split("\\s+")
-        ContainerState(tokens(0), tokens(1), tokens(tokens.length - 1))
+        val hash = ContainerHash.fromString(tokens(0))
+        val name = ContainerName.fromString(tokens.last)
+        ContainerState(hash, tokens(1), name)
     }
 }
 

@@ -212,7 +212,7 @@ class ContainerPool(
             Thread.sleep(50) // TODO: replace with wait/notify but tricky to get right because of desire for maximal concurrency
         } else getOrMake(key, conMaker) match {
             case Success(con, initResult) =>
-                info(this, s"Obtained container ${con.containerId.getOrElse("unknown")}")
+                info(this, s"Obtained container ${con.containerId.id}")
                 return Some(con, initResult)
             case Error(str) =>
                 error(this, s"Error starting container: $str")
@@ -400,10 +400,10 @@ class ContainerPool(
     private def countByState(state: State.Value) = this.synchronized { containerMap.count({ case (_, ci) => ci.state == state }) }
 
     // Sample container name: wsk1_1_joeibmcomhelloWorldDemo_20150901T202701852Z
-    private def makeContainerName(localName: String): String =
+    private def makeContainerName(localName: String): ContainerName =
         ContainerCounter.containerName(invokerInstance.toString(), localName)
 
-    private def makeContainerName(action: WhiskAction): String =
+    private def makeContainerName(action: WhiskAction): ContainerName =
         makeContainerName(action.fullyQualifiedName)
 
     /**
@@ -486,14 +486,15 @@ class ContainerPool(
         val imageName = WhiskAction.containerImageName(nodejsExec, config.dockerRegistry, config.dockerImagePrefix, config.dockerImageTag)
         val limits = ActionLimits(TimeLimit(), defaultMemoryLimit, LogLimit())
         val containerName = makeContainerName("warmJsContainer")
+
         info(this, "Starting warm nodejs container")
+
         val con = makeGeneralContainer(warmNodejsKey, containerName, imageName, limits, false)
-        if (con.containerId.isDefined) {
-            this.synchronized {
-                introduceContainer(warmNodejsKey, con)
-            }
-            info(this, "Started warm nodejs container")
-        } else error(this, "Error starting warm container")
+
+        this.synchronized {
+            introduceContainer(warmNodejsKey, con)
+        }
+        info(this, "Started warm nodejs container")
         con
     }
 
@@ -533,9 +534,10 @@ class ContainerPool(
     // There is access to global settings (docker registry)
     // and generic settings (image name - static limits) but without access to WhiskAction.
     private def makeGeneralContainer(
-        key: ActionContainerId, containerName: String,
+        key: ActionContainerId, containerName: ContainerName,
         imageName: String, limits: ActionLimits, pull: Boolean)(
             implicit transid: TransactionId): WhiskContainer = {
+
         val network = config.invokerContainerNetwork
         val cpuShare = ContainerPool.cpuShare(config)
         val policy = config.invokerContainerPolicy
@@ -555,12 +557,11 @@ class ContainerPool(
     // We send the payload here but eventually must also handle morphing a pre-allocated container into the right state.
     private def initWhiskContainer(action: WhiskAction, con: WhiskContainer)(implicit transid: TransactionId): FinalContainerResult = {
         con.boundParams = action.parameters.toJsObject
-        if (con.containerId.isDefined) {
-            // Then send it the init payload which is code for now
-            val initArg = action.containerInitializer
-            val initResult = con.init(initArg, action.limits.timeout.duration)
-            Success(con, Some(initResult))
-        } else Error("failed to get id for container")
+
+        // Then send it the init payload which is code for now
+        val initArg = action.containerInitializer
+        val initResult = con.init(initArg, action.limits.timeout.duration)
+        Success(con, Some(initResult))
     }
 
     /**
@@ -696,14 +697,17 @@ class ContainerPool(
      * Concurrent access from clients must be prevented.
      */
     private def killStragglers(allContainers: Seq[ContainerState])(implicit transid: TransactionId) = {
-        val candidates = allContainers.filter { case ContainerState(id, image, name) => name.startsWith(actionContainerPrefix) }
-        info(this, s"Now removing ${candidates.length} leftover containers")
-        candidates foreach {
-            case ContainerState(id, image, name) => {
-                unpauseContainer(name)
-                rmContainer(name)
-            }
+        val candidates = allContainers.filter {
+            _.name.name.startsWith(actionContainerPrefix)
         }
+
+        info(this, s"Now removing ${candidates.length} leftover containers")
+
+        candidates foreach { c =>
+            unpauseContainer(c.name)
+            rmContainer(c.name)
+        }
+
         info(this, s"Leftover container removal completed")
     }
 
@@ -711,7 +715,7 @@ class ContainerPool(
      * Gets the size of the mounted file associated with this whisk container.
      */
     def getLogSize(con: Container, mounted: Boolean)(implicit transid: TransactionId): Long = {
-        con.containerId map { id => getDockerLogSize(id, mounted) } getOrElse 0
+        getDockerLogSize(con.containerId, mounted)
     }
 
     nannyThread(listAll()(TransactionId.invokerWarmup)).start
