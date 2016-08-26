@@ -16,7 +16,7 @@ cd openwhisk/tools/vagrant
 #### Option 1: Create VM using ephemeral CouchDB
 **Important** We advise that you use this method for development of OpenWhisk.
 Please note that no data will persist between two creations of the container, 
-data will persist after re-deploying or restaring VM.
+data will persist after re-deploying or restarting VM.
 For more information on data store configurations see [tools/db/README.md](../db/README.md).
 ```
 # Configure with couchdb docker container running inside the VM
