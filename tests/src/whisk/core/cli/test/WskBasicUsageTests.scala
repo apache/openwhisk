@@ -34,10 +34,9 @@ import common.TestUtils.DONTCARE_EXIT
 import common.TestUtils.BAD_REQUEST
 import common.TestUtils.ERROR_EXIT
 import common.TestUtils.MISUSE_EXIT
+import common.TestUtils.NOT_FOUND
 import common.TestUtils.NOTALLOWED
 import common.TestUtils.SUCCESS_EXIT
-import common.TestUtils.FORBIDDEN
-import common.TestUtils.NOT_FOUND
 import common.WhiskProperties
 import common.Wsk
 import common.WskProps
@@ -647,7 +646,7 @@ class WskBasicCliUsageTests
                     trigger.get(name, expectedExitCode = NOT_FOUND)
 
                     trigger.create(name, feed = Some(s"bogus/feed"), expectedExitCode = ANY_ERROR_EXIT).
-                        exitCode should { equal(FORBIDDEN) or equal(NOT_FOUND) } // response differs in the presence of entitlement service
+                        exitCode should equal(NOT_FOUND)
                     trigger.get(name, expectedExitCode = NOT_FOUND)
             }
     }

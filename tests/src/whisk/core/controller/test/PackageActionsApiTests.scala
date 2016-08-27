@@ -326,7 +326,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         val action = WhiskAction(provider.path, aname, Exec.js("??"))
         put(entityStore, action)
         Get(s"$collectionPath/${provider.name}/${action.name}") ~> sealRoute(routes(creds)) ~> check {
-            status should be(Forbidden) // do not leak that package does not exist
+            status should be(NotFound)
         }
     }
 
@@ -350,7 +350,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         put(entityStore, provider)
         put(entityStore, action)
         Get(s"$collectionPath/${binding.name}/${action.name}") ~> sealRoute(routes(auser)) ~> check {
-            status should be(Forbidden) // do not leak that binding does not exist
+            status should be(NotFound)
         }
     }
 
@@ -485,7 +485,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         val content = JsObject("xxx" -> "yyy".toJson)
         put(entityStore, action)
         Post(s"$collectionPath/${provider.name}/${action.name}", content) ~> sealRoute(routes(creds)) ~> check {
-            status should be(Forbidden) // do not leak that package does not exist
+            status should be(NotFound)
         }
     }
 
@@ -496,7 +496,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         val content = JsObject("xxx" -> "yyy".toJson)
         put(entityStore, action)
         Post(s"$collectionPath/${provider.name}/${action.name}", content) ~> sealRoute(routes(creds)) ~> check {
-            status should be(Forbidden) // do not leak that package does not exist
+            status should be(NotFound)
         }
     }
 
