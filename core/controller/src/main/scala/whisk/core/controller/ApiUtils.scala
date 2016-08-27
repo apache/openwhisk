@@ -49,7 +49,7 @@ import spray.json.JsBoolean
 import whisk.core.database.DocumentTypeMismatchException
 
 protected sealed trait Messages {
-    /** Standard message for reporting resource conflicts */
+    /** Standard message for reporting resource conflicts. */
     protected val conflictMessage = "Concurrent modification to resource detected"
 
     /**
@@ -63,9 +63,17 @@ protected sealed trait Messages {
 protected[core] case class RejectRequest(code: ClientError, message: Option[ErrorResponse]) extends Throwable
 
 protected[core] object RejectRequest {
+    /** Creates rejection with default message for status code. */
+    protected[core] def apply(code: ClientError)(implicit transid: TransactionId): RejectRequest = {
+        RejectRequest(code, Some(ErrorResponse.response(code)(transid)))
+    }
+
+    /** Creates rejection with custom message for status code. */
     protected[core] def apply(code: ClientError, m: String)(implicit transid: TransactionId): RejectRequest = {
         RejectRequest(code, Some(ErrorResponse(m, transid)))
     }
+
+    /** Creates rejection with custom message for status code derived from reason for throwable. */
     protected[core] def apply(code: ClientError, t: Throwable)(implicit transid: TransactionId): RejectRequest = {
         val reason = t.getMessage
         RejectRequest(code, if (reason != null) reason else "Rejected")

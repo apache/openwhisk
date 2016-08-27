@@ -16,15 +16,22 @@
 
 package whisk.core.controller.test
 
+import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
+
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
+
 import whisk.core.controller.Authenticate
-import whisk.core.entity.Subject
-import scala.concurrent.Await
+import whisk.core.controller.RejectRequest
+import whisk.core.entitlement.Privilege.ACTIVATE
+import whisk.core.entitlement.Privilege.DELETE
+import whisk.core.entitlement.Privilege.PUT
+import whisk.core.entitlement.Privilege.READ
+import whisk.core.entitlement.Privilege.REJECT
 import whisk.core.entitlement.Resource
-import whisk.core.entitlement.Privilege._
-import scala.language.postfixOps
+import whisk.core.entity.Subject
 
 /**
  * Tests authorization handler which guards resources.
@@ -120,8 +127,10 @@ class AuthorizeTests extends ControllerTestCommon with Authenticate {
         val collections = Seq(PACKAGES)
         val resources = collections map { Resource(someUser.namespace, _, Some("xyz")) }
         resources foreach { r =>
-            // read should fail because the lookup for the package will fail
-            Await.result(entitlementService.check(someUser, READ, r), requestTimeout) should be(false)
+            an[RejectRequest] should be thrownBy {
+                // read should fail because the lookup for the package will fail
+                Await.result(entitlementService.check(someUser, READ, r), requestTimeout)
+            }
             // create/put/delete should be allowed
             Await.result(entitlementService.check(someUser, PUT, r), requestTimeout) should be(true)
             Await.result(entitlementService.check(someUser, DELETE, r), requestTimeout) should be(true)
