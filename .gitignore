@@ -45,3 +45,7 @@ node_modules
 ansible/environments/mac/hosts
 ansible/db_local.ini*
 ansible/tmp/*
+
+# Action proxies copied during build
+core/swiftAction/actionproxy.py
+core/swift3Action/actionproxy.py

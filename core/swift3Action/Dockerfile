@@ -1,15 +1,23 @@
 # Dockerfile for swift actions, overrides and extends ActionRunner from actionProxy
 # This Dockerfile is partially based on: https://github.com/swiftdocker/docker-swift/
-FROM dockerskeleton
+FROM buildpack-deps:trusty
 
 ENV DEBIAN_FRONTEND noninteractive
 
+# Upgrade and install basic Python dependencies
+RUN apt-get -y purge \
+ && apt-get -y update \
+ && apt-get -y install --fix-missing python2.7 python-gevent python-flask \
+\
 # Upgrade and install Swift dependencies
-RUN apt-get -y install --fix-missing build-essential wget clang libedit-dev libicu52 libxml2-dev
+ && apt-get -y install --fix-missing build-essential wget clang libedit-dev libicu52 libxml2-dev \
+\
+# Clean up
+ && apt-get clean
 
- # Kitura dependencies
-RUN apt-get -y install autoconf libtool libkqueue-dev libkqueue0 libdispatch-dev libdispatch0 libcurl4-openssl-dev libbsd-dev
-RUN apt-get clean
+# Kitura dependencies
+RUN apt-get -y install autoconf libtool libkqueue-dev libkqueue0 libdispatch-dev libdispatch0 libcurl4-openssl-dev libbsd-dev \
+ && apt-get clean
 
 # Install Swift keys
 RUN wget --no-verbose -O - https://swift.org/keys/all-keys.asc | gpg --import - && \
@@ -31,7 +39,11 @@ RUN SWIFT_ARCHIVE_NAME=swift-$SWIFT_VERSION-$SWIFT_PLATFORM && \
 RUN git clone -b experimental/foundation https://github.com/apple/swift-corelibs-libdispatch.git
 RUN cd swift-corelibs-libdispatch && git submodule init && git submodule update && sh ./autogen.sh && ./configure --with-swift-toolchain=/usr --prefix=/usr && make && make install
 
-# Copy the Flask proxy.
+# Add the action proxy
+RUN mkdir -p /actionProxy
+ADD actionproxy.py /actionProxy
+
+# Add swift3 action runner
 RUN mkdir -p /swift3Action
 ADD epilogue.swift /swift3Action
 ADD swift3runner.py /swift3Action

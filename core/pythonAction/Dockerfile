@@ -1,8 +1,8 @@
 # Dockerfile for python actions, overrides and extends ActionRunner from actionProxy
 FROM dockerskeleton
 
-ENV DEBIAN_FRONTEND noninteractive
- 
+RUN apk add --no-cache python-dev
+
 ENV FLASK_PROXY_PORT 8080
 
 RUN mkdir -p /pythonAction

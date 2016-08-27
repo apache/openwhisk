@@ -68,7 +68,8 @@ class ActionProxyContainerTests extends BasicActionRunnerTests with WskActorSyst
                 |print $ARGV[0];
             """.stripMargin.trim
 
-        Seq(("bash", bash), ("python", python), ("perl", perl))
+        // excluding perl as it not installed in alpine based image
+        Seq(("bash", bash), ("python", python))
     }
 
     /** Standard code samples, should print 'hello' to stdout and echo the input args. */
@@ -91,7 +92,8 @@ class ActionProxyContainerTests extends BasicActionRunnerTests with WskActorSyst
                 |print "{ \"auth\": \"$a\", \"edge\": \"$e\" }";
             """.stripMargin.trim
 
-        Seq(("bash", bash), ("python", python), ("perl", perl))
+        // excluding perl as it not installed in alpine based image
+        Seq(("bash", bash), ("python", python))
     }
 
     behavior of "openwhisk/dockerskeleton"

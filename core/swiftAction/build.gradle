@@ -1,3 +1,13 @@
 ext.dockerImageName = 'swiftaction'
 apply from: '../../gradle/docker.gradle'
-distDocker.dependsOn ':core:actionProxy:distDocker'
+distDocker.dependsOn 'copyProxy'
+distDocker.finalizedBy('rmProxy')
+
+task copyProxy(type: Copy) {
+    from '../actionProxy/actionproxy.py'
+    into './actionproxy.py'
+}
+
+task rmProxy(type: Delete) {
+    delete 'actionproxy.py'
+}
