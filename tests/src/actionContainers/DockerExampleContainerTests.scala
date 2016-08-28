@@ -16,15 +16,17 @@
 
 package actionContainers
 
+import java.util.concurrent.TimeoutException
+
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
 import ActionContainer.withContainer
+import common.WskActorSystem
 import spray.json.JsNumber
 import spray.json.JsObject
 import spray.json.JsString
-
-import common.WskActorSystem
+import spray.json.JsBoolean
 
 @RunWith(classOf[JUnitRunner])
 class DockerExampleContainerTests extends ActionProxyContainerTestUtils with WskActorSystem {
@@ -82,5 +84,65 @@ class DockerExampleContainerTests extends ActionProxyContainerTestUtils with Wsk
         checkStreams(out, err, {
             case (o, _) => o should include("This is an example log message from an arbitrary C program!")
         }, 2)
+    }
+
+    behavior of "bad containers"
+
+    it should "timeout init with exception" in {
+        val (out, err) = withContainer("badaction") { c =>
+            a[TimeoutException] should be thrownBy {
+                val (code, out) = c.init(initPayload("sleep"))
+                println(code, out)
+            }
+        }
+
+        out should include("sleeping")
+        err shouldBe empty
+    }
+
+    it should "abort init with empty response" in {
+        val (out, err) = withContainer("badaction") { c =>
+            val (code, out) = c.init(initPayload("exit"))
+            code shouldBe 500
+            out shouldBe empty
+        }
+
+        out should include("exit")
+        err shouldBe empty
+    }
+
+    it should "timeout run with exception" in {
+        val (out, err) = withContainer("badaction") { c =>
+            a[TimeoutException] should be thrownBy {
+                val (code, out) = c.run(runPayload(JsObject("sleep" -> JsBoolean(true))))
+                println(code, out)
+            }
+        }
+
+        out should include("sleeping")
+        err shouldBe empty
+    }
+
+    it should "abort run with empty response" in {
+        val (out, err) = withContainer("badaction") { c =>
+            val (code, out) = c.run(runPayload(JsObject("exit" -> JsBoolean(true))))
+            code shouldBe 500
+            out shouldBe empty
+        }
+
+        out should include("exit")
+        err shouldBe empty
+    }
+
+    it should "timeout bad proxy with exception" in {
+        val (out, err) = withContainer("badproxy") { c =>
+            a[TimeoutException] should be thrownBy {
+                val (code, out) = c.init(JsObject())
+                println(code, out)
+            }
+        }
+
+        out shouldBe empty
+        err shouldBe empty
     }
 }

@@ -143,7 +143,6 @@ trait ContainerUtils extends Logging {
                 val read = channel.read(buffer)
                 if (read > 0)
                     remain = read - read.toInt
-                Thread.sleep(50) // TODO What is this for?
             }
             buffer.array
         } catch {

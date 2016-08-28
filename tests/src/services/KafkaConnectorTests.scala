@@ -102,7 +102,7 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
 
             if (i < 2) {
                 Thread.sleep((sessionTimeout + 1.second).toMillis)
-                an[CommitFailedException] should be thrownBy {
+                a[CommitFailedException] should be thrownBy {
                     consumer.commit() // sleep should cause commit to fail
                 }
             } else consumer.commit()

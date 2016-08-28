@@ -79,8 +79,6 @@ class WhiskContainer(
      * Sends initialization payload to container.
      */
     def init(args: JsObject)(implicit system: ActorSystem, transid: TransactionId): RunResult = {
-        // this shouldn't be needed but leave it for now
-        if (isBlackbox) Thread.sleep(3000)
         info(this, s"sending initialization to ${this.details}")
         // when invoking /init, don't wait longer than the timeout configured for this action
         val timeout = initTimeoutMilli min limits.timeout.duration

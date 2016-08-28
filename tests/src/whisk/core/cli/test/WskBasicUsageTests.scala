@@ -41,8 +41,7 @@ import common.WhiskProperties
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
-import spray.json.DefaultJsonProtocol.IntJsonFormat
-import spray.json.DefaultJsonProtocol.LongJsonFormat
+import spray.json.DefaultJsonProtocol._
 import spray.json._
 import spray.json.JsObject
 import spray.json.pimpAny
@@ -341,6 +340,21 @@ class WskBasicCliUsageTests
             assert(stdout.startsWith(s"ok: got action $name\n"))
 
             wsk.parseJsonString(stdout).fields("annotations") shouldBe getEscapedJSONTestArgOutput
+    }
+
+    it should "invoke an action that exits and get appropriate error" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "abort"
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("exit.py")))
+            }
+
+            withActivation(wsk.activation, wsk.action.invoke(name)) {
+                activation =>
+                    val response = activation.fields("response").asJsObject
+                    response.fields("result") shouldBe JsObject("error" -> "the action did not produce a valid JSON response".toJson)
+                    response.fields("status") shouldBe "action developer error".toJson
+            }
     }
 
     behavior of "Wsk packages"

@@ -499,7 +499,7 @@ class ContainerPool(
         val key = ActionContainerId(auth.uuid, action.fullyQualifiedName, action.rev)
         val warmedContainer = if (limits.memory == defaultMemoryLimit && imageName == nodeImageName) getWarmNodejsContainer(key) else None
         val containerName = makeContainerName(action)
-        val con = warmedContainer getOrElse makeGeneralContainer(key, containerName, imageName, limits, action.exec.isInstanceOf[BlackBoxExec])
+        val con = warmedContainer getOrElse makeGeneralContainer(key, containerName, imageName, limits, action.exec.kind == BlackBoxExec)
         initWhiskContainer(action, con)
     }
 
