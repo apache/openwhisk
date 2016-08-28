@@ -16,9 +16,11 @@
 
 package whisk.core.cli.test
 
+import scala.concurrent.duration.DurationInt
+
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
 import org.scalatest.BeforeAndAfterAll
+import org.scalatest.junit.JUnitRunner
 
 import common.RunWskAdminCmd
 import common.TestHelpers
@@ -29,37 +31,76 @@ import common.TestUtils.TIMEOUT
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
-import spray.json.DefaultJsonProtocol._
+import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json.pimpAny
 import whisk.core.entity.Subject
 import whisk.core.entity.WhiskPackage
 
 @RunWith(classOf[JUnitRunner])
-class WskCoreBasicTests
+class WskEntitlementTests
     extends TestHelpers
     with WskTestHelpers
     with BeforeAndAfterAll {
 
-    val originWskProps = WskProps()
     val wsk = new Wsk(usePythonCLI = false)
-
-    val wskadmin = new RunWskAdminCmd {}
-    val otherNamespace = Subject().toString
-    val create = wskadmin.cli(Seq("user", "create", otherNamespace))
-    val otherAuthkey = create.stdout.trim
-    val otherWskProps = WskProps(namespace = otherNamespace, authKey = otherAuthkey)
-    val samplePackage = "samplePackage"
-    val sampleAction = s"$samplePackage/sampleAction"
+    lazy val defaultWskProps = WskProps()
+    lazy val guestWskProps = getAdditionalTestSubject()
 
     override def afterAll() = {
-        withClue(s"failed to delete temporary namespace $otherNamespace") {
-            wskadmin.cli(Seq("user", "delete", otherNamespace)).stdout should include("Subject deleted")
+        disposeAdditionalTestSubject(guestWskProps.namespace)
+    }
+
+    def getAdditionalTestSubject() = {
+        val wskadmin = new RunWskAdminCmd {}
+        val newSubject = Subject().toString
+        WskProps(
+            namespace = newSubject,
+            authKey = wskadmin.cli(Seq("user", "create", newSubject)).stdout.trim)
+    }
+
+    def disposeAdditionalTestSubject(subject: String) = {
+        val wskadmin = new RunWskAdminCmd {}
+        withClue(s"failed to delete temporary subject $subject") {
+            wskadmin.cli(Seq("user", "delete", subject)).stdout should include("Subject deleted")
         }
     }
 
-    behavior of "Wsk CLI"
+    val samplePackage = "samplePackage"
+    val sampleAction = s"$samplePackage/sampleAction"
+    val guestNamespace = guestWskProps.namespace
 
-    it should "reject deleting action in shared package not owned by authkey" in withAssetCleaner(otherWskProps) {
+    behavior of "Wsk Package Entitlement"
+
+    it should "not allow unauthorized subject to operate on private action" in withAssetCleaner(guestWskProps) {
+        (wp, assetHelper) =>
+            val privateAction = "privateAction"
+
+            assetHelper.withCleaner(wsk.action, privateAction) {
+                (action, name) => action.create(name, Some(TestUtils.getTestActionFilename("hello.js")))(wp)
+            }
+
+            val fullyQualifiedActionName = s"/$guestNamespace/$privateAction"
+            wsk.action.get(fullyQualifiedActionName, expectedExitCode = FORBIDDEN)(defaultWskProps).
+                stderr should include("not authorized")
+
+            withAssetCleaner(defaultWskProps) {
+                (wp, assetHelper) =>
+                    assetHelper.withCleaner(wsk.action, fullyQualifiedActionName, confirmDelete = false) {
+                        (action, name) =>
+                            val rr = action.create(name, None, shared = Some(true), update = true, expectedExitCode = FORBIDDEN)(wp)
+                            rr.stderr should include("not authorized")
+                            rr
+                    }
+            }
+
+            wsk.action.delete(fullyQualifiedActionName, expectedExitCode = FORBIDDEN)(defaultWskProps).
+                stderr should include("not authorized")
+
+            wsk.action.invoke(fullyQualifiedActionName, expectedExitCode = FORBIDDEN)(defaultWskProps).
+                stderr should include("not authorized")
+    }
+
+    it should "reject deleting action in shared package not owned by authkey" in withAssetCleaner(guestWskProps) {
         (wp, assetHelper) =>
             assetHelper.withCleaner(wsk.pkg, samplePackage) {
                 (pkg, _) => pkg.create(samplePackage, shared = Some(true))(wp)
@@ -70,21 +111,21 @@ class WskCoreBasicTests
                 (action, _) => action.create(sampleAction, file, shared = Some(true))(wp)
             }
 
-            val fullyQualifiedActionName = s"/$otherNamespace/$sampleAction"
-            wsk.action.get(fullyQualifiedActionName)(originWskProps)
-            wsk.action.delete(fullyQualifiedActionName, expectedExitCode = FORBIDDEN)(originWskProps)
+            val fullyQualifiedActionName = s"/$guestNamespace/$sampleAction"
+            wsk.action.get(fullyQualifiedActionName)(defaultWskProps)
+            wsk.action.delete(fullyQualifiedActionName, expectedExitCode = FORBIDDEN)(defaultWskProps)
     }
 
-    it should "reject create action in shared package not owned by authkey" in withAssetCleaner(otherWskProps) {
+    it should "reject create action in shared package not owned by authkey" in withAssetCleaner(guestWskProps) {
         (wp, assetHelper) =>
             assetHelper.withCleaner(wsk.pkg, samplePackage) {
                 (pkg, name) => pkg.create(name, shared = Some(true))(wp)
             }
 
-            val fullyQualifiedActionName = s"/$otherNamespace/notallowed"
+            val fullyQualifiedActionName = s"/$guestNamespace/notallowed"
             val file = Some(TestUtils.getTestActionFilename("empty.js"))
 
-            withAssetCleaner(originWskProps) {
+            withAssetCleaner(defaultWskProps) {
                 (wp, assetHelper) =>
                     assetHelper.withCleaner(wsk.action, fullyQualifiedActionName, confirmDelete = false) {
                         (action, name) => action.create(name, file, expectedExitCode = FORBIDDEN)(wp)
@@ -92,7 +133,7 @@ class WskCoreBasicTests
             }
     }
 
-    it should "reject update action in shared package not owned by authkey" in withAssetCleaner(otherWskProps) {
+    it should "reject update action in shared package not owned by authkey" in withAssetCleaner(guestWskProps) {
         (wp, assetHelper) =>
             assetHelper.withCleaner(wsk.pkg, samplePackage) {
                 (pkg, _) => pkg.create(samplePackage, shared = Some(true))(wp)
@@ -103,35 +144,35 @@ class WskCoreBasicTests
                 (action, _) => action.create(sampleAction, file, shared = Some(true))(wp)
             }
 
-            val fullyQualifiedActionName = s"/$otherNamespace/$sampleAction"
-            wsk.action.create(fullyQualifiedActionName, None, update = true, expectedExitCode = FORBIDDEN)(originWskProps)
+            val fullyQualifiedActionName = s"/$guestNamespace/$sampleAction"
+            wsk.action.create(fullyQualifiedActionName, None, update = true, expectedExitCode = FORBIDDEN)(defaultWskProps)
     }
 
-    behavior of "Wsk Package CLI"
+    behavior of "Wsk Package Listing"
 
-    it should "list shared packages" in withAssetCleaner(otherWskProps) {
+    it should "list shared packages" in withAssetCleaner(guestWskProps) {
         (wp, assetHelper) =>
             assetHelper.withCleaner(wsk.pkg, samplePackage) {
                 (pkg, _) => pkg.create(samplePackage, shared = Some(true))(wp)
             }
 
-            val fullyQualifiedPackageName = s"/$otherNamespace/$samplePackage"
-            val result = wsk.pkg.list(Some(s"/$otherNamespace"))(originWskProps).stdout
+            val fullyQualifiedPackageName = s"/$guestNamespace/$samplePackage"
+            val result = wsk.pkg.list(Some(s"/$guestNamespace"))(defaultWskProps).stdout
             result should include regex (fullyQualifiedPackageName + """\s+shared""")
     }
 
-    it should "not list private packages" in withAssetCleaner(otherWskProps) {
+    it should "not list private packages" in withAssetCleaner(guestWskProps) {
         (wp, assetHelper) =>
             assetHelper.withCleaner(wsk.pkg, samplePackage) {
                 (pkg, _) => pkg.create(samplePackage)(wp)
             }
 
-            val fullyQualifiedPackageName = s"/$otherNamespace/$samplePackage"
-            val result = wsk.pkg.list(Some(s"/$otherNamespace"))(originWskProps).stdout
+            val fullyQualifiedPackageName = s"/$guestNamespace/$samplePackage"
+            val result = wsk.pkg.list(Some(s"/$guestNamespace"))(defaultWskProps).stdout
             result should not include regex(fullyQualifiedPackageName)
     }
 
-    it should "list shared package actions" in withAssetCleaner(otherWskProps) {
+    it should "list shared package actions" in withAssetCleaner(guestWskProps) {
         (wp, assetHelper) =>
             assetHelper.withCleaner(wsk.pkg, samplePackage) {
                 (pkg, _) => pkg.create(samplePackage, shared = Some(true))(wp)
@@ -142,13 +183,15 @@ class WskCoreBasicTests
                 (action, _) => action.create(sampleAction, file, kind = Some("nodejs"), shared = Some(true))(wp)
             }
 
-            val fullyQualifiedPackageName = s"/$otherNamespace/$samplePackage"
-            val fullyQualifiedActionName = s"/$otherNamespace/$sampleAction"
-            val result = wsk.action.list(Some(fullyQualifiedPackageName))(originWskProps).stdout
+            val fullyQualifiedPackageName = s"/$guestNamespace/$samplePackage"
+            val fullyQualifiedActionName = s"/$guestNamespace/$sampleAction"
+            val result = wsk.action.list(Some(fullyQualifiedPackageName))(defaultWskProps).stdout
             result should include regex (fullyQualifiedActionName + """\s+shared""")
     }
 
-    it should "create a package binding" in withAssetCleaner(otherWskProps) {
+    behavior of "Wsk Package Binding"
+
+    it should "create a package binding" in withAssetCleaner(guestWskProps) {
         (wp, assetHelper) =>
             assetHelper.withCleaner(wsk.pkg, samplePackage) {
                 (pkg, _) => pkg.create(samplePackage, shared = Some(true))(wp)
@@ -156,14 +199,14 @@ class WskCoreBasicTests
 
             val name = "bindPackage"
             val annotations = Map("a" -> "A".toJson, WhiskPackage.bindingFieldName -> "xxx".toJson)
-            val provider = s"/$otherNamespace/$samplePackage"
-            withAssetCleaner(originWskProps) {
+            val provider = s"/$guestNamespace/$samplePackage"
+            withAssetCleaner(defaultWskProps) {
                 (wp, assetHelper) =>
                     assetHelper.withCleaner(wsk.pkg, name) {
                         (pkg, _) => pkg.bind(provider, name, annotations = annotations)(wp)
                     }
 
-                    val stdout = wsk.pkg.get(name)(originWskProps).stdout
+                    val stdout = wsk.pkg.get(name)(defaultWskProps).stdout
                     val annotationString = wsk.parseJsonString(stdout).fields("annotations").toString
                     annotationString should include regex (""""key":"a"""")
                     annotationString should include regex (""""value":"A"""")
@@ -173,31 +216,37 @@ class WskCoreBasicTests
             }
     }
 
-    behavior of "Wsk Action CLI"
+    behavior of "Wsk Package Action"
 
-    it should "get an action from package" in withAssetCleaner(otherWskProps) {
+    it should "get and invoke an action from package" in withAssetCleaner(guestWskProps) {
         (wp, assetHelper) =>
             assetHelper.withCleaner(wsk.pkg, samplePackage) {
                 (pkg, _) => pkg.create(samplePackage, parameters = Map("a" -> "A".toJson), shared = Some(true))(wp)
             }
 
             assetHelper.withCleaner(wsk.action, sampleAction) {
-                val file = Some(TestUtils.getTestActionFilename("empty.js"))
+                val file = Some(TestUtils.getTestActionFilename("hello.js"))
                 (action, _) => action.create(sampleAction, file, shared = Some(true))(wp)
             }
 
-            val fullyQualifiedActionName = s"/$otherNamespace/$sampleAction"
-            val stdout = wsk.action.get(fullyQualifiedActionName)(originWskProps).stdout
+            val fullyQualifiedActionName = s"/$guestNamespace/$sampleAction"
+            val stdout = wsk.action.get(fullyQualifiedActionName)(defaultWskProps).stdout
             stdout should include("name")
             stdout should include("parameters")
             stdout should include("limits")
             stdout should include regex (""""key": "a"""")
             stdout should include regex (""""value": "A"""")
+
+            val run = wsk.action.invoke(fullyQualifiedActionName)(defaultWskProps)
+
+            withActivation(wsk.activation, run)({
+                _.response.success shouldBe true
+            })(defaultWskProps)
     }
 
-    behavior of "Wsk Trigger CLI"
+    behavior of "Wsk Trigger Feed"
 
-    it should "not create a trigger with timeout error when feed fails to initialize" in withAssetCleaner(otherWskProps) {
+    it should "not create a trigger with timeout error when feed fails to initialize" in withAssetCleaner(guestWskProps) {
         (wp, assetHelper) =>
             assetHelper.withCleaner(wsk.pkg, samplePackage) {
                 (pkg, _) => pkg.create(samplePackage, shared = Some(true))(wp)
@@ -209,8 +258,8 @@ class WskCoreBasicTests
                 (action, _) => action.create(sampleFeed, file, kind = Some("nodejs"), shared = Some(true))(wp)
             }
 
-            val fullyQualifiedFeedName = s"/$otherNamespace/$sampleFeed"
-            withAssetCleaner(originWskProps) {
+            val fullyQualifiedFeedName = s"/$guestNamespace/$sampleFeed"
+            withAssetCleaner(defaultWskProps) {
                 (wp, assetHelper) =>
                     assetHelper.withCleaner(wsk.trigger, "badfeed", confirmDelete = false) {
                         (trigger, name) => trigger.create(name, feed = Some(fullyQualifiedFeedName), expectedExitCode = TIMEOUT)(wp)
