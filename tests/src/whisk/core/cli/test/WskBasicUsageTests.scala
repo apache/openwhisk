@@ -65,7 +65,7 @@ class WskBasicUsageTests
 
     implicit val wskprops = WskProps()
     val wsk = new Wsk(usePythonCLI = false)
-    val defaultAction = Some(TestUtils.getCatalogFilename("samples/hello.js"))
+    val defaultAction = Some(TestUtils.getTestActionFilename("hello.js"))
 
     behavior of "Wsk CLI usage"
 
@@ -254,7 +254,7 @@ class WskBasicUsageTests
         (wp, assetHelper) =>
             // Create dummy action to update
             val name = "updateMissingFile"
-            val file = Some(TestUtils.getCatalogFilename("samples/hello.js"))
+            val file = Some(TestUtils.getTestActionFilename("hello.js"))
             assetHelper.withCleaner(wsk.action, name) { (action, name) => action.create(name, file) }
             // Update it with a missing file
             wsk.action.create("updateMissingFile", Some("notfound"), update = true, expectedExitCode = MISUSE_EXIT)
@@ -282,7 +282,7 @@ class WskBasicUsageTests
         (wp, assetHelper) =>
             val name = "actionAnnotations"
 
-            val file = Some(TestUtils.getCatalogFilename("samples/hello.js"))
+            val file = Some(TestUtils.getTestActionFilename("hello.js"))
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) =>
                     action.create(name, file, annotations = getValidJSONTestArgInput)
@@ -298,7 +298,7 @@ class WskBasicUsageTests
         (wp, assetHelper) =>
             val name = "actionParameters"
 
-            val file = Some(TestUtils.getCatalogFilename("samples/hello.js"))
+            val file = Some(TestUtils.getTestActionFilename("hello.js"))
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) =>
                     action.create(name, file, parameters = getValidJSONTestArgInput)
@@ -313,7 +313,7 @@ class WskBasicUsageTests
     it should "create an action with the proper parameter escapes" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "actionName"
-            val file = TestUtils.getCatalogFilename("samples/hello.js")
+            val file = TestUtils.getTestActionFilename("hello.js")
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) =>
                     wsk.cli(wskprops.overrides ++ Seq("action", "create", wsk.action.fqn(name), file, "--auth", wp.authKey) ++
@@ -329,7 +329,7 @@ class WskBasicUsageTests
     it should "create an action with the proper annotation escapes" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "actionName"
-            val file = TestUtils.getCatalogFilename("samples/hello.js")
+            val file = TestUtils.getTestActionFilename("hello.js")
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) =>
                     wsk.cli(wskprops.overrides ++ Seq("action", "create", wsk.action.fqn(name), file, "--auth", wp.authKey) ++
@@ -640,7 +640,7 @@ class WskBasicUsageTests
     it should "create, and list an action with a long name" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "x" * 70
-            val file = Some(TestUtils.getCatalogFilename("samples/hello.js"))
+            val file = Some(TestUtils.getTestActionFilename("hello.js"))
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) =>
                     action.create(name, file)
@@ -738,7 +738,7 @@ class WskBasicUsageTests
 
     it should "create an action with different permutations of limits" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val file = Some(TestUtils.getCatalogFilename("samples/hello.js"))
+            val file = Some(TestUtils.getTestActionFilename("hello.js"))
 
             def testLimit(timeout: Option[Duration] = None, memory: Option[ByteSize] = None, logs: Option[ByteSize] = None, ec: Int = SUCCESS_EXIT) = {
                 // Limits to assert, standard values if CLI omits certain values

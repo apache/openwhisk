@@ -41,6 +41,7 @@ class WskActionTests
 
     val testString = "this is a test"
     val testResult = JsObject("count" -> testString.split(" ").length.toJson)
+    val guestNamespace = wskprops.namespace
 
     behavior of "Whisk actions"
 
@@ -48,7 +49,7 @@ class WskActionTests
         (wp, assetHelper) =>
             val name = "hello Async"
             assetHelper.withCleaner(wsk.action, name) {
-                (action, _) => action.create(name, Some(TestUtils.getCatalogFilename("samples/helloAsync.js")))
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("helloAsync.js")))
             }
 
             val run = wsk.action.invoke(name, Map("payload" -> testString.toJson))
@@ -71,7 +72,7 @@ class WskActionTests
                 (action, _) =>
                     action.create(
                         name,
-                        Some(TestUtils.getCatalogFilename("samples/printParams.js")),
+                        Some(TestUtils.getTestActionFilename("printParams.js")),
                         parameters = params.mapValues(_.toJson))
             }
 
@@ -91,8 +92,21 @@ class WskActionTests
     it should "copy an action and invoke it successfully" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "copied"
+            val packageName = "samples"
+            val actionName = "wordcount"
+            val fullQualifiedName = s"/$guestNamespace/$packageName/$actionName"
+
+            assetHelper.withCleaner(wsk.pkg, packageName) {
+                (pkg, _) => pkg.create(packageName, shared = Some(true))
+            }
+
+            assetHelper.withCleaner(wsk.action, fullQualifiedName) {
+                val file = Some(TestUtils.getTestActionFilename("wc.js"))
+                (action, _) => action.create(fullQualifiedName, file, shared = Some(true))
+            }
+
             assetHelper.withCleaner(wsk.action, name) {
-                (action, _) => action.create(name, Some("/whisk.system/samples/wordCount"), Some("copy"))
+                (action, _) => action.create(name, Some(fullQualifiedName), Some("copy"))
             }
 
             val run = wsk.action.invoke(name, Map("payload" -> testString.toJson))
@@ -108,7 +122,7 @@ class WskActionTests
         (wp, assetHelper) =>
             val name = "recreatedAction"
             assetHelper.withCleaner(wsk.action, name, false) {
-                (action, _) => action.create(name, Some(TestUtils.getCatalogFilename("samples/wc.js")))
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("wc.js")))
             }
 
             val run1 = wsk.action.invoke(name, Map("payload" -> testString.toJson))
@@ -120,7 +134,7 @@ class WskActionTests
 
             wsk.action.delete(name)
             assetHelper.withCleaner(wsk.action, name) {
-                (action, _) => action.create(name, Some(TestUtils.getCatalogFilename("samples/hello.js")))
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("hello.js")))
             }
 
             val run2 = wsk.action.invoke(name, Map("payload" -> testString.toJson))
@@ -161,10 +175,10 @@ class WskActionTests
             val child = "wc"
 
             assetHelper.withCleaner(wsk.action, name) {
-                (action, _) => action.create(name, Some(TestUtils.getCatalogFilename("samples/wcbin.js")))
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("wcbin.js")))
             }
             assetHelper.withCleaner(wsk.action, child) {
-                (action, _) => action.create(child, Some(TestUtils.getCatalogFilename("samples/wc.js")))
+                (action, _) => action.create(child, Some(TestUtils.getTestActionFilename("wc.js")))
             }
 
             val run = wsk.action.invoke(name, Map("payload" -> testString.toJson), blocking = true)
@@ -180,7 +194,7 @@ class WskActionTests
         (wp, assetHelper) =>
             val name = "helloAsync"
             assetHelper.withCleaner(wsk.action, name) {
-                (action, _) => action.create(name, Some(TestUtils.getCatalogFilename("samples/helloAsync.js")))
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("helloAsync.js")))
             }
 
             val run = wsk.action.invoke(name, Map("payload" -> testString.toJson), blocking = true)
@@ -225,12 +239,28 @@ class WskActionTests
             }
     }
 
-    it should "reject an invoke with the wrong parameters set" in {
-        val payload = "bob"
-        val rr = wsk.cli(Seq("action", "invoke", "/whisk.system/samples/helloWorld", payload), expectedExitCode = TestUtils.ANY_ERROR_EXIT)
-        rr.exitCode shouldBe 1
-        rr.stderr should include("Run 'wsk --help' for usage.")
-        rr.stderr should include(s"error: Invalid argument(s): $payload")
+    it should "reject an invoke with the wrong parameters set" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "ping"
+            val samplePackage = "samples"
+            val sampleAction = "helloWorld"
+            val fullActioName = s"/$guestNamespace/$samplePackage/$sampleAction"
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("ping.js")))
+            }
+            assetHelper.withCleaner(wsk.pkg, samplePackage) {
+                (pkg, _) => pkg.create(samplePackage, shared = Some(true))(wp)
+            }
+
+            assetHelper.withCleaner(wsk.action, fullActioName) {
+                val file = Some(TestUtils.getTestActionFilename("empty.js"))
+                (action, _) => action.create(fullActioName, file, shared = Some(true))(wp)
+            }
+            val payload = "bob"
+            val rr = wsk.cli(Seq("action", "invoke", fullActioName, payload), expectedExitCode = TestUtils.ANY_ERROR_EXIT)
+            rr.exitCode shouldBe 1
+            rr.stderr should include("Run 'wsk --help' for usage.")
+            rr.stderr should include(s"error: Invalid argument(s): $payload")
     }
 
     it should "not be able to use 'ping' in an action" in withAssetCleaner(wskprops) {
@@ -253,7 +283,7 @@ class WskActionTests
         (wp, assetHelper) =>
             val name = "utf8Test"
             assetHelper.withCleaner(wsk.action, name) {
-                (action, _) => action.create(name, Some(TestUtils.getCatalogFilename("samples/hello.js")))
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("hello.js")))
             }
 
             val utf8 = "«ταБЬℓσö»: 1<2 & 4+1>³, now 20%€§$ off!"

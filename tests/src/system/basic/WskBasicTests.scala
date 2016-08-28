@@ -214,7 +214,7 @@ class WskBasicTests
         (wp, assetHelper) =>
             val name = "basicInvoke"
             assetHelper.withCleaner(wsk.action, name) {
-                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("wordcount.js")))
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("wc.js")))
             }
             wsk.action.invoke(name, Map("payload" -> "one two three".toJson), blocking = true, result = true)
                 .stdout should include regex (""""count": 3""")

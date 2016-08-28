@@ -45,7 +45,7 @@ class Swift3WhiskObjectTests
     ignore should "allow Swift actions to invoke other actions" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             // use CLI to create action from dat/actions/invokeAction.swift
-            val file = TestUtils.getCatalogFilename("/samples/invoke.swift")
+            val file = TestUtils.getTestActionFilename("invoke.swift")
             val actionName = "invokeAction"
             assetHelper.withCleaner(wsk.action, actionName) {
                 (action, _) => action.create(name = actionName, artifact = Some(file), kind = Some("swift:3"))
@@ -75,7 +75,7 @@ class Swift3WhiskObjectTests
             }
 
             // create an action that fires the trigger
-            val file = TestUtils.getCatalogFilename("/samples/trigger.swift")
+            val file = TestUtils.getTestActionFilename("trigger.swift")
             val actionName = "ActionThatTriggers"
             assetHelper.withCleaner(wsk.action, actionName) {
                 (action, _) => action.create(name = actionName, artifact = Some(file), kind = Some("swift:3"))

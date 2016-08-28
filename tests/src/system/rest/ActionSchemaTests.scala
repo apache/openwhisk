@@ -26,7 +26,11 @@ import org.scalatest.junit.JUnitRunner
 
 import com.jayway.restassured.RestAssured
 
+import common.TestUtils
 import common.WhiskProperties
+import common.Wsk
+import common.WskProps
+import common.WskTestHelpers
 import spray.json.JsArray
 import spray.json.JsObject
 import spray.json.pimpString
@@ -35,61 +39,80 @@ import spray.json.pimpString
  * Basic tests of API calls for actions
  */
 @RunWith(classOf[JUnitRunner])
-class ActionSchemaTests extends FlatSpec with Matchers with RestUtil with JsonSchema {
+class ActionSchemaTests extends FlatSpec with Matchers with RestUtil with JsonSchema with WskTestHelpers {
 
-    it should "respond to GET /actions as documented in swagger" in {
+    implicit val wskprops = WskProps()
+    val wsk = new Wsk(usePythonCLI = false)
+    val guestNamespace = wskprops.namespace
 
-        val auth = WhiskProperties.getBasicAuth;
-        val response = RestAssured.
-            given().
-            config(sslconfig).
-            auth().basic(auth.fst, auth.snd).
-            get(getBaseURL() + "/namespaces/whisk.system/actions/samples/");
-        assert(response.statusCode() == 200);
+    it should "respond to GET /actions as documented in swagger" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val packageName = "samples"
+            assetHelper.withCleaner(wsk.pkg, packageName) {
+                (pkg, _) => pkg.create(packageName, shared = Some(true))
+            }
 
-        val body = Try { response.body().asString().parseJson }
-        val schema = getJsonSchema("EntityBrief").compactPrint
+            val auth = WhiskProperties.getBasicAuth;
+            val response = RestAssured.
+                given().
+                config(sslconfig).
+                auth().basic(auth.fst, auth.snd).
+                get(getBaseURL() + s"/namespaces/$guestNamespace/actions/$packageName/");
+            assert(response.statusCode() == 200);
 
-        body match {
-            case Success(JsArray(actions)) =>
-                // check that each collection result obeys the schema
-                actions.foreach { a =>
-                    val aString = a.compactPrint
-                    assert(check(aString, schema))
-                }
+            val body = Try { response.body().asString().parseJson }
+            val schema = getJsonSchema("EntityBrief").compactPrint
 
-            case Success(_) =>
-                assert(false, "response is not an array of actions")
+            body match {
+                case Success(JsArray(actions)) =>
+                    // check that each collection result obeys the schema
+                    actions.foreach { a =>
+                        val aString = a.compactPrint
+                        assert(check(aString, schema))
+                    }
 
-            case _ =>
-                assert(false, "response failed to parse: " + body)
-        }
+                case Success(_) =>
+                    assert(false, "response is not an array of actions")
+
+                case _ =>
+                    assert(false, "response failed to parse: " + body)
+            }
     }
 
-    it should "respond to GET /actions/samples/wordCount as documented in swagger" in {
+    it should "respond to GET /actions/samples/wordCount as documented in swagger" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val packageName = "samples"
+            val actionName = "wordCount"
+            val fullActionName = s"/$guestNamespace/$packageName/$actionName"
+            assetHelper.withCleaner(wsk.pkg, packageName) {
+                (pkg, _) => pkg.create(packageName, shared = Some(true))
+            }
 
-        val auth = WhiskProperties.getBasicAuth;
-        val response = RestAssured.
-            given().
-            config(sslconfig).
-            auth().basic(auth.fst, auth.snd).
-            get(getBaseURL() + "/namespaces/whisk.system/actions/samples/wordCount");
-        assert(response.statusCode() == 200);
+            assetHelper.withCleaner(wsk.action, fullActionName) {
+                (action, _) => action.create(fullActionName, Some(TestUtils.getTestActionFilename("wc.js")))
+            }
+            val auth = WhiskProperties.getBasicAuth;
+            val response = RestAssured.
+                given().
+                config(sslconfig).
+                auth().basic(auth.fst, auth.snd).
+                get(getBaseURL() + s"/namespaces/$guestNamespace/actions/$packageName/$actionName");
+            assert(response.statusCode() == 200);
 
-        val body = Try { response.body().asString().parseJson }
-        val schema = getJsonSchema("Action").compactPrint
+            val body = Try { response.body().asString().parseJson }
+            val schema = getJsonSchema("Action").compactPrint
 
-        body match {
-            case Success(action: JsObject) =>
-                // check that the action obeys the Action model schema
-                val aString = action.compactPrint
-                assert(check(aString, schema))
+            body match {
+                case Success(action: JsObject) =>
+                    // check that the action obeys the Action model schema
+                    val aString = action.compactPrint
+                    assert(check(aString, schema))
 
-            case Success(_) =>
-                assert(false, "response is not a json object")
+                case Success(_) =>
+                    assert(false, "response is not a json object")
 
-            case _ =>
-                assert(false, "response failed to parse as JSON: " + body)
-        }
+                case _ =>
+                    assert(false, "response failed to parse as JSON: " + body)
+            }
     }
 }

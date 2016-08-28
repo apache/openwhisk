@@ -64,7 +64,8 @@ class WskEntitlementTests
     }
 
     val samplePackage = "samplePackage"
-    val sampleAction = s"$samplePackage/sampleAction"
+    val sampleAction = "sampleAction"
+    val fullSampleActionName = s"$samplePackage/$sampleAction"
     val guestNamespace = guestWskProps.namespace
 
     behavior of "Wsk Package Entitlement"
@@ -104,12 +105,12 @@ class WskEntitlementTests
                 (pkg, _) => pkg.create(samplePackage, shared = Some(true))(wp)
             }
 
-            assetHelper.withCleaner(wsk.action, sampleAction) {
+            assetHelper.withCleaner(wsk.action, fullSampleActionName) {
                 val file = Some(TestUtils.getTestActionFilename("empty.js"))
-                (action, _) => action.create(sampleAction, file, shared = Some(true))(wp)
+                (action, _) => action.create(fullSampleActionName, file, shared = Some(true))(wp)
             }
 
-            val fullyQualifiedActionName = s"/$guestNamespace/$sampleAction"
+            val fullyQualifiedActionName = s"/$guestNamespace/$fullSampleActionName"
             wsk.action.get(fullyQualifiedActionName)(defaultWskProps)
             wsk.action.delete(fullyQualifiedActionName, expectedExitCode = FORBIDDEN)(defaultWskProps)
     }
@@ -137,12 +138,12 @@ class WskEntitlementTests
                 (pkg, _) => pkg.create(samplePackage, shared = Some(true))(wp)
             }
 
-            assetHelper.withCleaner(wsk.action, sampleAction) {
+            assetHelper.withCleaner(wsk.action, fullSampleActionName) {
                 val file = Some(TestUtils.getTestActionFilename("empty.js"))
-                (action, _) => action.create(sampleAction, file, shared = Some(true))(wp)
+                (action, _) => action.create(fullSampleActionName, file, shared = Some(true))(wp)
             }
 
-            val fullyQualifiedActionName = s"/$guestNamespace/$sampleAction"
+            val fullyQualifiedActionName = s"/$guestNamespace/$fullSampleActionName"
             wsk.action.create(fullyQualifiedActionName, None, update = true, expectedExitCode = FORBIDDEN)(defaultWskProps)
     }
 
@@ -176,13 +177,13 @@ class WskEntitlementTests
                 (pkg, _) => pkg.create(samplePackage, shared = Some(true))(wp)
             }
 
-            assetHelper.withCleaner(wsk.action, sampleAction) {
+            assetHelper.withCleaner(wsk.action, fullSampleActionName) {
                 val file = Some(TestUtils.getTestActionFilename("empty.js"))
-                (action, _) => action.create(sampleAction, file, kind = Some("nodejs"), shared = Some(true))(wp)
+                (action, _) => action.create(fullSampleActionName, file, kind = Some("nodejs"), shared = Some(true))(wp)
             }
 
             val fullyQualifiedPackageName = s"/$guestNamespace/$samplePackage"
-            val fullyQualifiedActionName = s"/$guestNamespace/$sampleAction"
+            val fullyQualifiedActionName = s"/$guestNamespace/$fullSampleActionName"
             val result = wsk.action.list(Some(fullyQualifiedPackageName))(defaultWskProps).stdout
             result should include regex (fullyQualifiedActionName + """\s+shared""")
     }
@@ -222,12 +223,12 @@ class WskEntitlementTests
                 (pkg, _) => pkg.create(samplePackage, parameters = Map("a" -> "A".toJson), shared = Some(true))(wp)
             }
 
-            assetHelper.withCleaner(wsk.action, sampleAction) {
+            assetHelper.withCleaner(wsk.action, fullSampleActionName) {
                 val file = Some(TestUtils.getTestActionFilename("hello.js"))
-                (action, _) => action.create(sampleAction, file, shared = Some(true))(wp)
+                (action, _) => action.create(fullSampleActionName, file, shared = Some(true))(wp)
             }
 
-            val fullyQualifiedActionName = s"/$guestNamespace/$sampleAction"
+            val fullyQualifiedActionName = s"/$guestNamespace/$fullSampleActionName"
             val stdout = wsk.action.get(fullyQualifiedActionName)(defaultWskProps).stdout
             stdout should include("name")
             stdout should include("parameters")

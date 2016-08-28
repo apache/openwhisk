@@ -46,7 +46,7 @@ class CLIPythonTests
         (wp, assetHelper) =>
             val name = "basicInvoke"
             assetHelper.withCleaner(wsk.action, name) {
-                (action, _) => action.create(name, Some(TestUtils.getCatalogFilename("samples/hello.py")))
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("hello.py")))
             }
 
             withActivation(wsk.activation, wsk.action.invoke(name, Map("name" -> "Prince".toJson))) {

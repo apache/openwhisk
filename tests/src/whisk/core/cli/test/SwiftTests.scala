@@ -49,7 +49,7 @@ class SwiftTests
         (wp, assetHelper) =>
             val name = "helloSwift"
             assetHelper.withCleaner(wsk.action, name) {
-                (action, _) => action.create(name, Some(TestUtils.getCatalogFilename("samples/hello.swift")))
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("hello.swift")))
             }
 
             val start = System.currentTimeMillis()
@@ -79,7 +79,7 @@ class SwiftTests
                 (action, _) =>
                     action.create(
                         name,
-                        Some(TestUtils.getCatalogFilename("samples/httpGet.swift")),
+                        Some(TestUtils.getTestActionFilename("httpGet.swift")),
                         kind = Some("swift:3"))
             }
 

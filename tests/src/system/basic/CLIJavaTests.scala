@@ -50,7 +50,7 @@ class CLIJavaTests
         (wp, assetHelper) =>
             val name = "helloJava"
             assetHelper.withCleaner(wsk.action, name) {
-                (action, _) => action.create(name, Some(TestUtils.getCatalogFilename("samples/helloJava/build/libs/helloJava.jar")))
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("helloJava.jar")))
             }
 
             val start = System.currentTimeMillis()

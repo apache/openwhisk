@@ -27,7 +27,11 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.time.Span.convertDurationToSpan
 
+import common.TestUtils
 import common.WhiskProperties
+import common.Wsk
+import common.WskProps
+import common.WskTestHelpers
 import spray.client.pipelining.Get
 import spray.client.pipelining.Options
 import spray.client.pipelining.Post
@@ -58,7 +62,8 @@ import common.WskActorSystem
 class HeadersTests extends FlatSpec
     with Matchers
     with ScalaFutures
-    with WskActorSystem {
+    with WskActorSystem
+    with WskTestHelpers {
 
     behavior of "Headers at general API"
 
@@ -77,6 +82,8 @@ class HeadersTests extends FlatSpec
     implicit val config = PatienceConfig(10 seconds, 0 milliseconds)
 
     val basePath = Path("/api/v1")
+    implicit val wskprops = WskProps()
+    val wsk = new Wsk(usePythonCLI = false)
 
     /**
      * Checks, if the required headers are in the list of all headers.
@@ -122,12 +129,23 @@ class HeadersTests extends FlatSpec
         containsHeaders(response.headers, allMethods)
     }
 
-    it should "respond to POST action with headers" in {
-        val path = basePath / "namespaces" / "whisk.system" / "actions" / "samples" / "helloWorld"
-        val response = pipeline(Post(url.withPath(path)) ~> addCredentials(creds)) futureValue
+    it should "respond to POST action with headers" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val packageName = "samples"
+            val actionName = "helloWorld"
+            val fullActionName = s"$packageName/$actionName"
+            assetHelper.withCleaner(wsk.pkg, packageName) {
+                (pkg, _) => pkg.create(packageName, shared = Some(true))
+            }
 
-        response.status shouldBe Accepted
-        containsHeaders(response.headers)
+            assetHelper.withCleaner(wsk.action, fullActionName) {
+                (action, _) => action.create(fullActionName, Some(TestUtils.getTestActionFilename("hello.js")))
+            }
+            val path = basePath / "namespaces" / "_" / "actions" / packageName / actionName
+            val response = pipeline(Post(url.withPath(path)) ~> addCredentials(creds)) futureValue
+
+            response.status shouldBe Accepted
+            containsHeaders(response.headers)
     }
 
     // Activations

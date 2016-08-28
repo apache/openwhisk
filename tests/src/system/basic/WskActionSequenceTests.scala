@@ -46,6 +46,7 @@ class WskActionSequenceTests
     implicit val wskprops = WskProps()
     val wsk = new Wsk(usePythonCLI = false)
     val allowedActionDuration = 120 seconds
+    val guestNamespace = wskprops.namespace
 
     behavior of "Wsk Action Sequence"
 
@@ -92,11 +93,31 @@ class WskActionSequenceTests
     it should "create, and get an action sequence" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "actionSeq"
-            val artifacts = "/whisk.system/watson/speechToText,/whisk.system/watson/translate"
+            val packageName = "samples"
+            val helloName = "hello"
+            val catName = "cat"
+            val fullHelloActionName = s"/$guestNamespace/$packageName/$helloName"
+            val fullCatActionName = s"/$guestNamespace/$packageName/$catName"
+
+            assetHelper.withCleaner(wsk.pkg, packageName) {
+                (pkg, _) => pkg.create(packageName, shared = Some(true))(wp)
+            }
+
+            assetHelper.withCleaner(wsk.action, fullHelloActionName) {
+                val file = Some(TestUtils.getTestActionFilename("hello.js"))
+                (action, _) => action.create(fullHelloActionName, file, shared = Some(true))(wp)
+            }
+
+            assetHelper.withCleaner(wsk.action, fullCatActionName) {
+                val file = Some(TestUtils.getTestActionFilename("cat.js"))
+                (action, _) => action.create(fullCatActionName, file, shared = Some(true))(wp)
+            }
+
+            val artifacts = s"$fullHelloActionName,$fullCatActionName"
             val kindValue = JsString("sequence")
             val compValue = JsArray(
-                JsString("/whisk.system/watson/speechToText"),
-                JsString("/whisk.system/watson/translate"))
+                JsString(fullHelloActionName),
+                JsString(fullCatActionName))
 
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) => action.create(name, Some(artifacts), kind = Some("sequence"))
