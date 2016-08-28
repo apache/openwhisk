@@ -59,8 +59,8 @@ import whisk.connector.kafka.KafkaConsumerConnector
 import whisk.connector.kafka.KafkaProducerConnector
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.consulServer
-import whisk.core.WhiskConfig.dockerRegistry
 import whisk.core.WhiskConfig.dockerImagePrefix
+import whisk.core.WhiskConfig.dockerRegistry
 import whisk.core.WhiskConfig.edgeHost
 import whisk.core.WhiskConfig.kafkaHost
 import whisk.core.WhiskConfig.logsDir
@@ -68,7 +68,10 @@ import whisk.core.WhiskConfig.servicePort
 import whisk.core.WhiskConfig.whiskVersion
 import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.core.connector.CompletionMessage
-import whisk.core.container._
+import whisk.core.container.ContainerPool
+import whisk.core.container.Interval
+import whisk.core.container.RunResult
+import whisk.core.container.WhiskContainer
 import whisk.core.dispatcher.ActivationFeed.ActivationNotification
 import whisk.core.dispatcher.ActivationFeed.ContainerReleased
 import whisk.core.dispatcher.ActivationFeed.FailedActivation
@@ -77,6 +80,7 @@ import whisk.core.dispatcher.Dispatcher
 import whisk.core.entity.ActivationId
 import whisk.core.entity.ActivationLogs
 import whisk.core.entity.ActivationResponse
+import whisk.core.entity.BlackBoxExec
 import whisk.core.entity.DocId
 import whisk.core.entity.DocInfo
 import whisk.core.entity.DocRevision
@@ -217,7 +221,7 @@ class Invoker(
     }
 
     /*
-     * Create a whisk activation out of the errorMsg and finish the transaction.
+     * Creates a whisk activation out of the errorMsg and finish the transaction.
      * Failing with an error can involve multiple futures but the effecting call is completeTransaction which is guarded.
      */
     protected def completeTransactionWithError(actionDocInfo: DocInfo, tran: Transaction, errorMsg: String)(
@@ -226,9 +230,9 @@ class Invoker(
         val msg = tran.msg
         val name = EntityName(actionDocInfo.id().split(Namespace.PATHSEP)(1))
         val version = SemVer() // TODO: this is wrong, when the semver is passed from controller, fix this
-        val payload = msg.content getOrElse JsObject()
-        val response = Some(404, JsObject(ActivationResponse.ERROR_FIELD -> errorMsg.toJson).compactPrint)
-        val activation = makeWhiskActivation(tran, false, msg, name, version, payload, response)
+        val response = ActivationResponse.whiskError(errorMsg)
+        val interval = computeActivationInterval(tran)
+        val activation = makeWhiskActivation(msg, name, version, response, interval)
         completeTransaction(tran, activation, FailedActivation(transid))
     }
 
@@ -260,10 +264,6 @@ class Invoker(
         }
     }
 
-    // These are related to initialization
-    private val RegularSlack = 100.milliseconds
-    private val BlackBoxSlack = 200.milliseconds
-
     protected def invokeAction(action: WhiskAction, auth: WhiskAuth, payload: JsObject, tran: Transaction)(
         implicit transid: TransactionId): Future[DocInfo] = {
         val msg = tran.msg
@@ -278,12 +278,7 @@ class Invoker(
                         action.fullyQualifiedName, msg.activationId.toString)) // cached
 
                     case Some(RunResult(interval, Some((200, _)))) => { // successful init
-
-                        // TODO:  @perryibm update comment if this is still necessary else remove
-                        Thread.sleep((if (con.isBlackbox) BlackBoxSlack else RegularSlack).toMillis)
-
                         tran.initInterval = Some(interval)
-
                         (false, con.run(params, msg.meta, auth.compact, timeout,
                             action.fullyQualifiedName, msg.activationId.toString))
                     }
@@ -293,7 +288,9 @@ class Invoker(
                 case (failedInit, RunResult(interval, response)) =>
                     if (!failedInit) tran.runInterval = Some(interval)
 
-                    val activationResult = makeWhiskActivation(tran, con.isBlackbox, msg, action, payload, response)
+                    val activationInterval = computeActivationInterval(tran)
+                    val activationResponse = getActivationResponse(activationInterval, action.limits.timeout.duration, response, con.isBlackbox)
+                    val activationResult = makeWhiskActivation(msg, action.name, action.version, activationResponse, activationInterval)
                     val completeMsg = CompletionMessage(transid, activationResult)
 
                     producer.send("completed", completeMsg) map { status =>
@@ -314,10 +311,14 @@ class Invoker(
 
             case None => { // this corresponds to the container not even starting - not /init failing
                 info(this, s"failed to start or get a container")
-                val response = Some(420, "Error starting container")
-                val contents = JsArray(JsString("Error starting container"))
-                val activation = makeWhiskActivation(tran, false, msg, action, payload, response)
-                completeTransaction(tran, activation withLogs ActivationLogs.serdes.read(contents), FailedActivation(transid))
+                val response = if (action.exec.kind == BlackBoxExec) {
+                    ActivationResponse.containerError("the container did to start")
+                } else {
+                    ActivationResponse.whiskError("error starting container to run action")
+                }
+                val interval = computeActivationInterval(tran)
+                val activation = makeWhiskActivation(msg, action.name, action.version, response, interval)
+                completeTransaction(tran, activation, FailedActivation(transid))
             }
         }
     }
@@ -457,10 +458,7 @@ class Invoker(
                         ActivationResponse.containerError(s"the action 'result' value is not an object: ${notAnObj.toString}")
 
                     case Failure(t) =>
-                        if (isBlackbox)
-                            warn(this, s"response did not json parse: '$contents' led to $t")
-                        else
-                            error(this, s"response did not json parse: '$contents' led to $t")
+                        (if (isBlackbox) warn _ else error _)(this, s"response did not json parse: '$contents' led to $t")
                         ActivationResponse.containerError("the action did not produce a valid JSON response")
                 }
         } getOrElse ActivationResponse.whiskError("failed to obtain action invocation response")
@@ -491,33 +489,32 @@ class Invoker(
     }
 
     // -------------------------------------------------------------------------------------------------------------
-    private def makeWhiskActivation(transaction: Transaction, isBlackbox: Boolean, msg: Message, action: WhiskAction,
-                                    payload: JsObject, response: Option[(Int, String)])(
-                                        implicit transid: TransactionId): WhiskActivation = {
-        makeWhiskActivation(transaction, isBlackbox, msg, action.name, action.version, payload, response, action.limits.timeout.duration)
-    }
 
-    private def makeWhiskActivation(transaction: Transaction, isBlackbox: Boolean, msg: Message, actionName: EntityName,
-                                    actionVersion: SemVer, payload: JsObject, response: Option[(Int, String)], timeout: Duration = Duration.Inf)(
-                                        implicit transid: TransactionId): WhiskActivation = {
-
-        // We reconstruct a plausible interval based on the time spent in the various operations.
-        // The goal is for the interval to have a duration corresponding to the sum of all durations
-        // and an endtime corresponding to the latest endtime.
-        val interval: Interval = (transaction.initInterval, transaction.runInterval) match {
-            case (None, Some(run))  => run
-            case (Some(init), None) => init
-            case (None, None)       => Interval(Instant.now(Clock.systemUTC()), Instant.now(Clock.systemUTC()))
-            case (Some(init), Some(Interval(runStart, runEnd))) =>
-                Interval(runStart.minusMillis(init.duration.toMillis), runEnd)
-        }
-
-        val activationResponse = if (interval.duration >= timeout) {
+    /**
+     * Interprets the responses from the container and maps it to an appropriate ActivationResponse.
+     */
+    private def getActivationResponse(
+        interval: Interval,
+        timeout: Duration,
+        response: Option[(Int, String)],
+        isBlackbox: Boolean)(
+            implicit transid: TransactionId): ActivationResponse = {
+        if (interval.duration >= timeout) {
             ActivationResponse.applicationError(s"action exceeded its time limits of ${timeout.toMillis} milliseconds")
         } else {
             processResponseContent(isBlackbox, response)
         }
+    }
 
+    /**
+     * Creates a WhiskActivation for the given action, response and duration.
+     */
+    private def makeWhiskActivation(
+        msg: Message,
+        actionName: EntityName,
+        actionVersion: SemVer,
+        activationResponse: ActivationResponse,
+        interval: Interval) = {
         WhiskActivation(
             namespace = msg.subject.namespace,
             name = actionName,
@@ -530,6 +527,24 @@ class Invoker(
             end = interval.end,
             response = activationResponse,
             logs = ActivationLogs())
+    }
+
+    /**
+     * Reconstructs an interval based on the time spent in the various operations.
+     * The goal is for the interval to have a duration corresponding to the sum of all durations
+     * and an endtime corresponding to the latest endtime.
+     *
+     * @param transaction the transaction object containing metadata
+     * @return interval for the transaction with start/end times computed
+     */
+    private def computeActivationInterval(transaction: Transaction): Interval = {
+        (transaction.initInterval, transaction.runInterval) match {
+            case (None, Some(run))  => run
+            case (Some(init), None) => init
+            case (None, None)       => Interval(Instant.now(Clock.systemUTC()), Instant.now(Clock.systemUTC()))
+            case (Some(init), Some(Interval(runStart, runEnd))) =>
+                Interval(runStart.minusMillis(init.duration.toMillis), runEnd)
+        }
     }
 
     private val entityStore = WhiskEntityStore.datastore(config)

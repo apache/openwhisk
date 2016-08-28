@@ -127,7 +127,7 @@ class AuthorizeTests extends ControllerTestCommon with Authenticate {
         val collections = Seq(PACKAGES)
         val resources = collections map { Resource(someUser.namespace, _, Some("xyz")) }
         resources foreach { r =>
-            an[RejectRequest] should be thrownBy {
+            a[RejectRequest] should be thrownBy {
                 // read should fail because the lookup for the package will fail
                 Await.result(entitlementService.check(someUser, READ, r), requestTimeout)
             }
