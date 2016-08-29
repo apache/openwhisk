@@ -87,7 +87,7 @@ trait WhiskServices {
     /** An entitlement service to check access rights. */
     protected val entitlementService: EntitlementService
 
-    /** A generator for new activation id. */
+    /** A generator for new activation ids. */
     protected val activationId: ActivationIdGenerator
 
     /** Synchronously perform a request to the load balancer.  */

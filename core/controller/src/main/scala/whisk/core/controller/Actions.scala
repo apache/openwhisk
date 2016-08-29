@@ -436,7 +436,8 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
 
         val activationResponse = if (blocking) {
             val duration = action.limits.timeout()
-            val timeout = duration + blockingInvokeGrace
+            val timeout = (maxWaitForBlockingActivation min duration) + blockingInvokeGrace
+
             // register active ack handler before posting request to avoid race
             // since response might come back before the listener becomes active;
             // note that the total waiting time may be just shy of the specified timeouts since
@@ -515,6 +516,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         activationId: ActivationId,
         promise: Promise[WhiskActivation])(
             implicit transid: TransactionId): Unit = {
+        // check if promise already completed due to timeout expiration (abort polling if so)
         if (!promise.isCompleted) {
             WhiskActivation.get(activationStore, docid) map {
                 activation => promise.trySuccess(activation) // activation may have logs, do not strip them
@@ -596,6 +598,10 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
 
     /** Grace period after action timeout limit to poll for result. */
     private val blockingInvokeGrace = 5 seconds
+
+    /** Max duration to wait for a blocking activation. */
+    private val maxWaitForBlockingActivation = 60 seconds
+
 }
 
 private case class BlockingInvokeTimeout(activationId: ActivationId) extends TimeoutException
