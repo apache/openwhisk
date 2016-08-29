@@ -527,7 +527,7 @@ class ContainerPool(
         if (con.containerId.isDefined) {
             // Then send it the init payload which is code for now
             val initArg = action.containerInitializer
-            val initResult = con.init(initArg)
+            val initResult = con.init(initArg, action.limits.timeout.duration)
             Success(con, Some(initResult))
         } else Error("failed to get id for container")
     }

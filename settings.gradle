@@ -19,10 +19,10 @@ include 'tools:cli'
 include 'tools:go-cli'
 
 include 'sdk:docker'
-include 'tests:dat:blackbox:badaction'
-include 'tests:dat:blackbox:badproxy'
 
 include 'tests'
+include 'tests:dat:blackbox:badaction'
+include 'tests:dat:blackbox:badproxy'
 
 rootProject.name = 'openwhisk'
 

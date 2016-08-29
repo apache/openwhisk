@@ -37,16 +37,9 @@ import akka.actor.actorRef2Scala
 import akka.event.Logging.InfoLevel
 import akka.event.Logging.LogLevel
 import akka.japi.Creator
-import spray.json.DefaultJsonProtocol
+import spray.json._
 import spray.json.DefaultJsonProtocol.IntJsonFormat
 import spray.json.DefaultJsonProtocol.StringJsonFormat
-import spray.json.JsArray
-import spray.json.JsNumber
-import spray.json.JsObject
-import spray.json.JsString
-import spray.json.JsValue
-import spray.json.pimpAny
-import spray.json.pimpString
 import whisk.common.ConsulClient
 import whisk.common.ConsulKV.InvokerKeys
 import whisk.common.ConsulKVReporter
@@ -100,6 +93,7 @@ import whisk.core.entity.size.SizeLong
 import whisk.core.entity.size.SizeString
 import whisk.http.BasicHttpService
 import whisk.utils.ExecutionContextFactory
+import whisk.common.Logging
 
 /**
  * A kafka message handler that invokes actions as directed by message on topic "/actions/invoke".
@@ -294,7 +288,7 @@ class Invoker(
                     if (!failedInit) tran.runInterval = Some(interval)
 
                     val activationInterval = computeActivationInterval(tran)
-                    val activationResponse = getActivationResponse(activationInterval, action.limits.timeout.duration, response, con.isBlackbox)
+                    val activationResponse = getActivationResponse(activationInterval, action.limits.timeout.duration, response, failedInit)
                     val activationResult = makeWhiskActivation(msg, action.name, action.version, activationResponse, activationInterval)
                     val completeMsg = CompletionMessage(transid, activationResult)
 
@@ -340,25 +334,25 @@ class Invoker(
      *
      * Note: Updates the container's log cursor to indicate consumption of log.
      */
-    private def getContainerLogs(con: WhiskContainer, sentinelled: Boolean, limit: LogLimit, tries: Int = LogRetryCount)(implicit transid: TransactionId): JsArray = {
+    private def getContainerLogs(con: WhiskContainer, sentinelled: Boolean, loglimit: LogLimit, tries: Int = LogRetryCount)(implicit transid: TransactionId): JsArray = {
         val size = con.getLogSize(runningInContainer)
         val advanced = size != con.lastLogSize
         if (tries <= 0 || advanced) {
             val rawLogBytes = con.getDockerLogContent(con.lastLogSize, size, runningInContainer)
             val rawLog = new String(rawLogBytes, "UTF-8")
 
-            val (complete, isTruncated, logs) = processJsonDriverLogContents(rawLog, sentinelled, limit)
+            val (complete, isTruncated, logs) = processJsonDriverLogContents(rawLog, sentinelled, loglimit)
 
             if (tries > 0 && !complete && !isTruncated) {
                 info(this, s"log cursor advanced but missing sentinel, trying $tries more times")
                 Thread.sleep(LogRetry)
-                getContainerLogs(con, sentinelled, limit, tries - 1)
+                getContainerLogs(con, sentinelled, loglimit, tries - 1)
             } else {
                 con.lastLogSize = size
                 val formattedLogs = logs.map(_.toFormattedString)
 
                 val finishedLogs = if (isTruncated) {
-                    formattedLogs ++ Vector(s"Logs have been truncated because they exceeded the limit of ${limit.megabytes} megabytes")
+                    formattedLogs :+ loglimit.truncatedLogMessage
                 } else formattedLogs
 
                 JsArray(finishedLogs.map(_.toJson))
@@ -366,7 +360,7 @@ class Invoker(
         } else {
             info(this, s"log cursor has not advanced, trying $tries more times")
             Thread.sleep(LogRetry)
-            getContainerLogs(con, sentinelled, limit, tries - 1)
+            getContainerLogs(con, sentinelled, loglimit, tries - 1)
         }
     }
 
@@ -428,50 +422,6 @@ class Invoker(
         }
     }
 
-    private def processResponseContent(isBlackbox: Boolean, response: Option[(Int, String)])(
-        implicit transid: TransactionId): ActivationResponse = {
-        response map {
-            case (code, contents) =>
-                debug(this, s"response: '$contents'")
-                val json = Try { contents.parseJson.asJsObject }
-
-                json match {
-                    case Success(result @ JsObject(fields)) =>
-                        // The 'error' field of the object, if it exists.
-                        val errorOpt = fields.get(ActivationResponse.ERROR_FIELD)
-
-                        if (code == 200) {
-                            errorOpt map { error =>
-                                ActivationResponse.applicationError(error)
-                            } getOrElse {
-                                // The happy path.
-                                ActivationResponse.success(Some(result))
-                            }
-                        } else {
-                            // Any non-200 code is treated as a container failure. We still need to check whether
-                            // there was a useful error message in there.
-                            val errorContent = errorOpt getOrElse {
-                                JsString(s"The action invocation failed with the output: ${result.toString}")
-                            }
-                            ActivationResponse.containerError(errorContent)
-                        }
-
-                    case Success(notAnObj) =>
-                        // This should affect only blackbox containers, since our own containers should already test for that.
-                        ActivationResponse.containerError(s"the action 'result' value is not an object: ${notAnObj.toString}")
-
-                    case Failure(t) =>
-                        (if (isBlackbox) warn _ else error _)(this, s"response did not json parse: '$contents' led to $t")
-                        ActivationResponse.containerError("the action did not produce a valid JSON response")
-                }
-        } getOrElse {
-            // this should never happen; it means the container did not respond
-            // to '/init' or '/run' (http transaction timed out) yet the duration
-            // of the activation was not considered to have exceeded the action timeout
-            ActivationResponse.whiskError("action did not produce a response and likely timed out")
-        }
-    }
-
     private def incrementUserActivationCounter(user: Subject): Int = {
         val count = userActivationCounter get user() match {
             case Some(counter) => counter.next()
@@ -505,12 +455,14 @@ class Invoker(
         interval: Interval,
         timeout: Duration,
         response: Option[(Int, String)],
-        isBlackbox: Boolean)(
+        failedInit: Boolean)(
             implicit transid: TransactionId): ActivationResponse = {
         if (interval.duration >= timeout) {
-            ActivationResponse.applicationError(s"action exceeded its time limits of ${timeout.toMillis} milliseconds")
+            ActivationResponse.applicationError(ActivationResponse.timedoutActivation(timeout, failedInit))
+        } else if (!failedInit) {
+            ActivationResponse.processRunResponseContent(response, this: Logging)
         } else {
-            processResponseContent(isBlackbox, response)
+            ActivationResponse.processInitResponseContent(response, this: Logging)
         }
     }
 
