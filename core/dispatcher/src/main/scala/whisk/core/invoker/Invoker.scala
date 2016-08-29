@@ -272,20 +272,25 @@ class Invoker(
             case Some((con, initResultOpt)) => Future {
                 val params = con.mergeParams(payload)
                 val timeout = action.limits.timeout.duration
+                def run() = con.run(params, msg.meta, auth.compact, timeout, action.fullyQualifiedName, msg.activationId.toString)
 
                 initResultOpt match {
-                    case None => (false, con.run(params, msg.meta, auth.compact, timeout,
-                        action.fullyQualifiedName, msg.activationId.toString)) // cached
+                    // cached container
+                    case None => (false, run())
 
-                    case Some(RunResult(interval, Some((200, _)))) => { // successful init
+                    // new container
+                    case Some(RunResult(interval, response)) =>
                         tran.initInterval = Some(interval)
-                        (false, con.run(params, msg.meta, auth.compact, timeout,
-                            action.fullyQualifiedName, msg.activationId.toString))
-                    }
-                    case _ => (true, initResultOpt.get) //  unsuccessful initialization
+                        response match {
+                            // successful init
+                            case Some((200, _)) => (false, run())
+                            // unsuccessful initialization
+                            case _              => (true, initResultOpt.get)
+                        }
                 }
             } flatMap {
                 case (failedInit, RunResult(interval, response)) =>
+                    // it is possible for response to be None if the container timed out
                     if (!failedInit) tran.runInterval = Some(interval)
 
                     val activationInterval = computeActivationInterval(tran)
@@ -302,9 +307,7 @@ class Invoker(
                     // Force delete the container instead of just pausing it iff the initialization failed or the container
                     // failed otherwise. An example of a ContainerError is the timeout of an action in which case the
                     // container is to be removed to prevent leaking
-                    val removeContainer = failedInit || response.exists { _._1 == ActivationResponse.ContainerError }
-
-                    pool.putBack(con, removeContainer)
+                    pool.putBack(con, failedInit)
 
                     completeTransaction(tran, activationResult withLogs ActivationLogs.serdes.read(contents), ContainerReleased(transid))
             }
@@ -461,7 +464,12 @@ class Invoker(
                         (if (isBlackbox) warn _ else error _)(this, s"response did not json parse: '$contents' led to $t")
                         ActivationResponse.containerError("the action did not produce a valid JSON response")
                 }
-        } getOrElse ActivationResponse.whiskError("failed to obtain action invocation response")
+        } getOrElse {
+            // this should never happen; it means the container did not respond
+            // to '/init' or '/run' (http transaction timed out) yet the duration
+            // of the activation was not considered to have exceeded the action timeout
+            ActivationResponse.whiskError("action did not produce a response and likely timed out")
+        }
     }
 
     private def incrementUserActivationCounter(user: Subject): Int = {
