@@ -21,7 +21,6 @@ import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.concurrent.duration.DurationInt
-import scala.language.postfixOps
 
 import scala.concurrent.Await
 import scala.concurrent.Future
@@ -64,7 +63,6 @@ class WhiskContainer(
 
     var boundParams = JsObject() // Mutable to support pre-alloc containers
     var lastLogSize = 0L
-    private val initTimeoutMilli = 60 seconds
     private implicit val emitter: PrintStreamEmitter = this
 
     /**
@@ -81,8 +79,8 @@ class WhiskContainer(
     def init(args: JsObject)(implicit system: ActorSystem, transid: TransactionId): RunResult = {
         info(this, s"sending initialization to ${this.details}")
         // when invoking /init, don't wait longer than the timeout configured for this action
-        val timeout = initTimeoutMilli min limits.timeout.duration
-        val result = sendPayload("/init", JsObject("value" -> args), timeout) // This will retry.
+        val timeout = limits.timeout.duration
+        val result = sendPayload("/init", JsObject("value" -> args), timeout) // this will retry
         info(this, s"initialization result: ${result}")
         result
     }
