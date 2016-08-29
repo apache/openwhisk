@@ -64,29 +64,21 @@ class WskBasicUsageTests
     with WskTestHelpers {
 
     implicit val wskprops = WskProps()
-    val wsk = new Wsk(usePythonCLI = false)
+    val wsk = new Wsk
     val defaultAction = Some(TestUtils.getTestActionFilename("hello.js"))
 
     behavior of "Wsk CLI usage"
 
     it should "confirm wsk exists" in {
-        Wsk.exists(wsk.usePythonCLI)
+        Wsk.exists
     }
 
     it should "show help and usage info" in {
         val stdout = wsk.cli(Seq("-h")).stdout
-
-        if (wsk.usePythonCLI) {
-            stdout should include("usage:")
-            stdout should include("optional arguments")
-            stdout should include("available commands")
-            stdout should include("-help")
-        } else {
-            stdout should include regex ("""(?i)Usage:""")
-            stdout should include regex ("""(?i)Flags""")
-            stdout should include regex ("""(?i)Available commands""")
-            stdout should include regex ("""(?i)--help""")
-        }
+        stdout should include regex ("""(?i)Usage:""")
+        stdout should include regex ("""(?i)Flags""")
+        stdout should include regex ("""(?i)Available commands""")
+        stdout should include regex ("""(?i)--help""")
     }
 
     it should "show help and usage info using the default language" in {
@@ -107,10 +99,10 @@ class WskBasicUsageTests
 
     it should "show api build version using property file" in {
         val tmpwskprops = File.createTempFile("wskprops", ".tmp")
-        val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
-        wsk.cli(wskprops.overrides ++ Seq("property", "set"), env = env)
-        val stdout = wsk.cli(Seq("property", "get", "--apibuild", "-i"), env = env).stdout
         try {
+            val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
+            wsk.cli(Seq("property", "set", "-i") ++ wskprops.overrides, env = env)
+            val stdout = wsk.cli(Seq("property", "get", "--apibuild", "-i"), env = env).stdout
             stdout should include regex ("""(?i)whisk API build\s+201.*""")
         } finally {
             tmpwskprops.delete()
@@ -118,19 +110,31 @@ class WskBasicUsageTests
     }
 
     it should "fail to show api build when setting apihost to bogus value" in {
-        val wsk = new Wsk(usePythonCLI = true)
-        val rr = wsk.cli(Seq("--apihost", "xxxx.yyyy", "property", "get", "--apibuild"), expectedExitCode = ANY_ERROR_EXIT)
-        rr.stdout should { include regex ("Cannot determine API build") or include regex ("Unknown") }
-        rr.stdout should not include regex("""(?i)whisk API build\s+201.*""")
-        rr.stderr should not include ("https:///api/v1: http: no Host in request URL")
+        val tmpwskprops = File.createTempFile("wskprops", ".tmp")
+        try {
+            val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
+            wsk.cli(Seq("property", "set", "-i", "--apihost", "xxxx.yyyy"), env = env)
+            val rr = wsk.cli(Seq("property", "get", "--apibuild", "-i"), env = env, expectedExitCode = ANY_ERROR_EXIT)
+            rr.stdout should include regex ("""whisk API build\s*Unknown""")
+            rr.stderr should include regex ("Unable to obtain API build information")
+        } finally {
+            tmpwskprops.delete()
+        }
     }
 
     it should "show api build using http apihost" in {
-        val wsk = new Wsk(usePythonCLI = true)
-        val apihost = s"http://${WhiskProperties.getControllerHost}:${WhiskProperties.getControllerPort}"
-        val stdout = wsk.cli(Seq("--apihost", apihost, "property", "get", "--apibuild")).stdout
-        stdout should not { include regex ("Cannot determine API build") or include regex ("Unknown") }
-        stdout should include regex ("""(?i)whisk API build\s+201.*""")
+        val tmpwskprops = File.createTempFile("wskprops", ".tmp")
+        try {
+            val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
+            val apihost = s"${WhiskProperties.getControllerHost}"
+            wsk.cli(Seq("property", "set", "--apihost", apihost), env = env)
+            val rr = wsk.cli(Seq("property", "get", "--apibuild", "-i"), env = env)
+            rr.stdout should not include regex ("""whisk API build\s*Unknown""")
+            rr.stderr should not include regex ("Unable to obtain API build information")
+            rr.stdout should include regex ("""(?i)whisk API build\s+201.*""")
+        } finally {
+            tmpwskprops.delete()
+        }
     }
 
     it should "validate default property values" in {
@@ -184,13 +188,8 @@ class WskBasicUsageTests
     }
 
     it should "reject bad command" in {
-        if (wsk.usePythonCLI) {
-            wsk.cli(Seq("bogus"), expectedExitCode = MISUSE_EXIT).
-                stderr should include("usage:")
-        } else {
-            val result = wsk.cli(Seq("bogus"), expectedExitCode = ERROR_EXIT)
-            result.stderr should include regex ("""(?i)Run 'wsk --help' for usage""")
-        }
+        val result = wsk.cli(Seq("bogus"), expectedExitCode = ERROR_EXIT)
+        result.stderr should include regex ("""(?i)Run 'wsk --help' for usage""")
     }
 
     it should "reject authenticated command when no auth key is given" in {

@@ -83,7 +83,7 @@ class HeadersTests extends FlatSpec
 
     val basePath = Path("/api/v1")
     implicit val wskprops = WskProps()
-    val wsk = new Wsk(usePythonCLI = false)
+    val wsk = new Wsk
 
     /**
      * Checks, if the required headers are in the list of all headers.

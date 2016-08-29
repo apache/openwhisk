@@ -51,7 +51,7 @@ class ThrottleTests
     implicit val testConfig = PatienceConfig(5.minutes)
 
     implicit val wskprops = WskProps()
-    val wsk = new Wsk(usePythonCLI = false)
+    val wsk = new Wsk
     val defaultAction = Some(TestUtils.getTestActionFilename("hello.js"))
 
     val throttleWindow = 1.minute

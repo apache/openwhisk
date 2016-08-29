@@ -37,7 +37,7 @@ class WskActionTests
     with JsHelpers {
 
     implicit val wskprops = WskProps()
-    val wsk = new Wsk(usePythonCLI = false)
+    val wsk = new Wsk
 
     val testString = "this is a test"
     val testResult = JsObject("count" -> testString.split(" ").length.toJson)

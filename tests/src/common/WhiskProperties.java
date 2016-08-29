@@ -123,20 +123,6 @@ public class WhiskProperties {
         return getGoCLIDir() + "/wsk";
     }
 
-    /**
-     * The path to the Python CLI directory.
-     */
-    public static String getPythonCLIDir() {
-        return whiskHome + "/bin";
-    }
-
-    /**
-     * The path to the Python CLI executable.
-     */
-    public static String getPythonCLIPath() {
-        return getPythonCLIDir() + "/wsk";
-    }
-
     public static File getFileRelativeToWhiskHome(String name) {
         return new File(whiskHome, name);
     }

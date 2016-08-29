@@ -36,7 +36,7 @@ class SwiftTests
     with Matchers {
 
     implicit val wskprops = WskProps()
-    val wsk = new Wsk(usePythonCLI = false)
+    val wsk = new Wsk
     val expectedDuration = 30 seconds
     val activationPollDuration = 60 seconds
 

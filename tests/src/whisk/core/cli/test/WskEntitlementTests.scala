@@ -40,7 +40,7 @@ class WskEntitlementTests
     with WskTestHelpers
     with BeforeAndAfterAll {
 
-    val wsk = new Wsk(usePythonCLI = false)
+    val wsk = new Wsk
     lazy val defaultWskProps = WskProps()
     lazy val guestWskProps = getAdditionalTestSubject()
 

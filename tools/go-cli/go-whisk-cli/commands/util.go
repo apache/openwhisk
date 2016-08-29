@@ -375,7 +375,7 @@ func printNamespaceList(namespaces []whisk.Namespace) {
 func printActivationList(activations []whisk.Activation) {
     fmt.Fprintf(color.Output, "%s\n", boldString("activations"))
     for _, activation := range activations {
-        fmt.Printf("%s%20s\n", activation.ActivationID, activation.Name)
+        fmt.Printf("%s %20s\n", activation.ActivationID, activation.Name)
     }
 }
 

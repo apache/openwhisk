@@ -74,13 +74,13 @@ case class WskProps(
     def overrides = Seq("-i", "--apihost", apihost, "--apiversion", apiversion)
 }
 
-class Wsk(override val usePythonCLI: Boolean = false) extends RunWskCmd {
-    implicit val action = new WskAction(usePythonCLI)
-    implicit val trigger = new WskTrigger(usePythonCLI)
-    implicit val rule = new WskRule(usePythonCLI)
-    implicit val activation = new WskActivation(usePythonCLI)
-    implicit val pkg = new WskPackage(usePythonCLI)
-    implicit val namespace = new WskNamespace(usePythonCLI)
+class Wsk() extends RunWskCmd {
+    implicit val action = new WskAction
+    implicit val trigger = new WskTrigger
+    implicit val rule = new WskRule
+    implicit val activation = new WskActivation
+    implicit val pkg = new WskPackage
+    implicit val namespace = new WskNamespace
 }
 
 trait FullyQualifiedNames {
@@ -203,14 +203,14 @@ trait HasActivation {
     }
 }
 
-class WskAction(override val usePythonCLI: Boolean = false)
+class WskAction()
     extends RunWskCmd
     with ListOrGetFromCollection
     with DeleteFromCollection
     with HasActivation {
 
     override protected val noun = "action"
-    override def baseCommand = Wsk.baseCommand(usePythonCLI)
+    override def baseCommand = Wsk.baseCommand
 
     /**
      * Creates action. Parameters mirror those available in the CLI.
@@ -271,14 +271,13 @@ class WskAction(override val usePythonCLI: Boolean = false)
     }
 }
 
-class WskTrigger(override val usePythonCLI: Boolean = false)
+class WskTrigger()
     extends RunWskCmd
     with ListOrGetFromCollection
     with DeleteFromCollection
     with HasActivation {
 
     override protected val noun = "trigger"
-    override def baseCommand = Wsk.baseCommand(usePythonCLI)
 
     /**
      * Creates trigger. Parameters mirror those available in the CLI.
@@ -322,14 +321,13 @@ class WskTrigger(override val usePythonCLI: Boolean = false)
     }
 }
 
-class WskRule(override val usePythonCLI: Boolean = false)
+class WskRule()
     extends RunWskCmd
     with ListOrGetFromCollection
     with DeleteFromCollection
     with WaitFor {
 
     override protected val noun = "rule"
-    override def baseCommand = Wsk.baseCommand(usePythonCLI)
 
     /**
      * Creates rule. Parameters mirror those available in the CLI.
@@ -426,13 +424,12 @@ class WskRule(override val usePythonCLI: Boolean = false)
     }
 }
 
-class WskActivation(override val usePythonCLI: Boolean = false)
+class WskActivation()
     extends RunWskCmd
     with HasActivation
     with WaitFor {
 
     protected val noun = "activation"
-    override def baseCommand = Wsk.baseCommand(usePythonCLI)
 
     /**
      * Activation polling console.
@@ -603,12 +600,11 @@ class WskActivation(override val usePythonCLI: Boolean = false)
     private case class PartialResult(ids: Seq[String]) extends Throwable
 }
 
-class WskNamespace(override val usePythonCLI: Boolean = false)
+class WskNamespace()
     extends RunWskCmd
     with FullyQualifiedNames {
 
     protected val noun = "namespace"
-    override def baseCommand = Wsk.baseCommand(usePythonCLI)
 
     /**
      * Lists available namespaces for whisk properties.
@@ -637,12 +633,11 @@ class WskNamespace(override val usePythonCLI: Boolean = false)
     }
 }
 
-class WskPackage(override val usePythonCLI: Boolean = false)
+class WskPackage()
     extends RunWskCmd
     with ListOrGetFromCollection
     with DeleteFromCollection {
     override protected val noun = "package"
-    override def baseCommand = Wsk.baseCommand(usePythonCLI)
 
     /**
      * Creates package. Parameters mirror those available in the CLI.
@@ -721,44 +716,25 @@ object Wsk {
     private val binaryName = "wsk"
 
     /** What is the path to a downloaded CLI? **/
-    private def getDownloadedPythonCLIPath = {
-        s"${System.getProperty("user.home")}${File.separator}.local${File.separator}bin${File.separator}${binaryName}"
-    }
-
-    /** What is the path to a downloaded CLI? **/
     private def getDownloadedGoCLIPath = {
         s"${System.getProperty("user.home")}${File.separator}.local${File.separator}bin${File.separator}go-cli${File.separator}${binaryName}"
     }
 
-    def exists(usePythonCLI: Boolean) = {
-        val cliPath = if (usePythonCLI) {
-            if (WhiskProperties.useCLIDownload) getDownloadedPythonCLIPath else WhiskProperties.getPythonCLIPath
-        } else {
-            if (WhiskProperties.useCLIDownload) getDownloadedGoCLIPath else WhiskProperties.getGoCLIPath
-        }
-
+    def exists() = {
+        val cliPath = if (WhiskProperties.useCLIDownload) getDownloadedGoCLIPath else WhiskProperties.getGoCLIPath
         assert((new File(cliPath)).exists, s"did not find $cliPath")
     }
 
-    def baseCommand(usePythonCLI: Boolean) =
-        if (usePythonCLI) {
-            if (WhiskProperties.useCLIDownload)
-                Buffer(WhiskProperties.python, getDownloadedPythonCLIPath)
-            else
-                Buffer(WhiskProperties.python, WhiskProperties.getPythonCLIPath)
-        } else {
-            if (WhiskProperties.useCLIDownload) Buffer(getDownloadedGoCLIPath) else Buffer(WhiskProperties.getGoCLIPath)
-        }
+    def baseCommand() =
+        if (WhiskProperties.useCLIDownload) Buffer(getDownloadedGoCLIPath) else Buffer(WhiskProperties.getGoCLIPath)
 }
 
 sealed trait RunWskCmd {
 
-    val usePythonCLI: Boolean = false
-
     /**
      * The base command to run.
      */
-    def baseCommand = Wsk.baseCommand(usePythonCLI)
+    def baseCommand = Wsk.baseCommand
 
     /**
      * Runs a command wsk [params] where the arguments come in as a sequence.
