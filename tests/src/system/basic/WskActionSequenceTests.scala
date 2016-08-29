@@ -44,7 +44,7 @@ class WskActionSequenceTests
     with WskTestHelpers {
 
     implicit val wskprops = WskProps()
-    val wsk = new Wsk(usePythonCLI = false)
+    val wsk = new Wsk
     val allowedActionDuration = 120 seconds
     val guestNamespace = wskprops.namespace
 

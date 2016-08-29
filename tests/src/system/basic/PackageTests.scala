@@ -38,13 +38,13 @@ class PackageTests
     with WskTestHelpers {
 
     implicit val wskprops = WskProps()
-    val wsk = new Wsk(usePythonCLI = false)
+    val wsk = new Wsk
     val LOG_DELAY = 80 seconds
 
     behavior of "Wsk Package"
 
     it should "confirm wsk exists" in {
-        Wsk.exists(wsk.usePythonCLI)
+        Wsk.exists
     }
 
     it should "allow creation and deletion of a package" in withAssetCleaner(wskprops) {

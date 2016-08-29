@@ -17,6 +17,7 @@
 package system.basic
 
 import java.time.Instant
+import java.io.File
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
@@ -39,22 +40,28 @@ class WskBasicTests
     with WskTestHelpers {
 
     implicit val wskprops = WskProps()
-    val wsk = new Wsk(usePythonCLI = false)
+    val wsk = new Wsk
     val defaultAction = Some(TestUtils.getTestActionFilename("hello.js"))
 
     behavior of "Wsk CLI"
 
     it should "confirm wsk exists" in {
-        Wsk.exists(wsk.usePythonCLI)
+        Wsk.exists
     }
 
     it should "show api build details" in {
-        val wsk = new Wsk(usePythonCLI = true)
-        val rr = wsk.cli(wskprops.overrides ++ Seq("property", "get", "--apibuild", "--apibuildno"))
-        rr.stderr should not include ("https:///api/v1: http: no Host in request URL")
-        rr.stdout should not include regex("Cannot determine API build")
-        rr.stdout should include regex ("""(?i)whisk API build\s+201.*""")
-        rr.stdout should include regex ("""(?i)whisk API build number\s+.*""")
+        val tmpProps = File.createTempFile("wskprops", ".tmp")
+        try {
+            val env = Map("WSK_CONFIG_FILE" -> tmpProps.getAbsolutePath())
+            wsk.cli(Seq("property", "set", "-i") ++ wskprops.overrides, env = env)
+            val rr = wsk.cli(Seq("property", "get", "--apibuild", "--apibuildno", "-i"), env = env)
+            rr.stderr should not include ("https:///api/v1: http: no Host in request URL")
+            rr.stdout should not include regex("Cannot determine API build")
+            rr.stdout should include regex ("""(?i)whisk API build\s+201.*""")
+            rr.stdout should include regex ("""(?i)whisk API build number\s+.*""")
+        } finally {
+            tmpProps.delete()
+        }
     }
 
     it should "reject creating duplicate entity" in withAssetCleaner(wskprops) {

@@ -37,7 +37,7 @@ class WskSdkTests
     with WskTestHelpers {
 
     implicit val wskprops = WskProps()
-    val wsk = new Wsk(usePythonCLI = false)
+    val wsk = new Wsk
 
     behavior of "Wsk SDK"
 

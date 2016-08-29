@@ -36,10 +36,9 @@ class WskRuleTests
     with WskTestHelpers {
 
     implicit val wskprops = WskProps()
-    val wsk = new Wsk(usePythonCLI = false)
+    val wsk = new Wsk
     val defaultAction = TestUtils.getTestActionFilename("wc.js")
     val secondAction = TestUtils.getTestActionFilename("hello.js")
-
     val testString = "this is a test"
     val testResult = JsObject("count" -> testString.split(" ").length.toJson)
 

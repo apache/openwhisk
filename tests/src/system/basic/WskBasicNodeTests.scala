@@ -39,9 +39,8 @@ class WskBasicNodeTests
     with JsHelpers {
 
     implicit val wskprops = WskProps()
-    val wsk = new Wsk()
+    val wsk = new Wsk
     val defaultAction = Some(TestUtils.getTestActionFilename("hello.js"))
-
     val currentNodeJsDefaultKind = "nodejs:6"
 
     behavior of "NodeJS runtime"
