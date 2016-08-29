@@ -37,8 +37,8 @@ test.dependsOn([
     ':core:swiftAction:distDocker',
     ':core:swift3Action:distDocker',
     ':sdk:docker:distDocker',
-    'tests:dat:blackbox:badaction',
-    'tests:dat:blackbox:badproxy'
+    ':tests:dat:blackbox:badaction:distDocker',
+    ':tests:dat:blackbox:badproxy:distDocker'
 ])
 
 dependencies {

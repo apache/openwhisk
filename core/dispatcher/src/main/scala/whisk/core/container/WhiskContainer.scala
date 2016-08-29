@@ -76,10 +76,9 @@ class WhiskContainer(
     /**
      * Sends initialization payload to container.
      */
-    def init(args: JsObject)(implicit system: ActorSystem, transid: TransactionId): RunResult = {
+    def init(args: JsObject, timeout: FiniteDuration)(implicit system: ActorSystem, transid: TransactionId): RunResult = {
         info(this, s"sending initialization to ${this.details}")
         // when invoking /init, don't wait longer than the timeout configured for this action
-        val timeout = limits.timeout.duration
         val result = sendPayload("/init", JsObject("value" -> args), timeout) // this will retry
         info(this, s"initialization result: ${result}")
         result

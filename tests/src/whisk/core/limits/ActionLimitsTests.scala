@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package limits
+package whisk.core.limits
 
 import java.io.File
 
@@ -41,6 +41,8 @@ import whisk.core.entity.size.SizeInt
 import whisk.core.entity.size.SizeString
 import spray.json._
 import spray.json.DefaultJsonProtocol._
+import whisk.core.entity.ActivationResponse
+import whisk.core.entity.LogLimit
 
 @RunWith(classOf[JUnitRunner])
 class ActionLimitsTests extends TestHelpers with WskTestHelpers {
@@ -69,8 +71,9 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
 
             val run = wsk.action.invoke(name, Map("payload" -> allowedActionDuration.plus(1 second).toMillis.toJson))
             withActivation(wsk.activation, run) {
-                _.response.result.get.toString should include(
-                    s""""error":"action exceeded its time limits of ${allowedActionDuration.toMillis} milliseconds"""")
+                _.response.result.get.fields("error") shouldBe {
+                    ActivationResponse.timedoutActivation(allowedActionDuration, false)
+                }
             }
     }
 
@@ -107,13 +110,13 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
             val run = wsk.action.invoke(name, Map("payload" -> characters.toJson))
             withActivation(wsk.activation, run) { response =>
                 val lines = response.logs.get
-                lines.last should be(s"Logs have been truncated because they exceeded the limit of ${allowedSize.toMB} megabytes")
+                lines.last shouldBe LogLimit(allowedSize).truncatedLogMessage
                 // dropping 39 characters (timestamp + streamname)
                 lines.dropRight(1).map(_.drop(39)).mkString.sizeInBytes should be <= allowedSize
             }
     }
 
-    it should "success with one log line" in withAssetCleaner(wskprops) {
+    it should "succeed with one log line" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "TestActionCausingExceededLogs"
             assetHelper.withCleaner(wsk.action, name, confirmDelete = true) {
@@ -124,7 +127,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
             val run = wsk.action.invoke(name)
             withActivation(wsk.activation, run) { response =>
                 val logs = response.logs.get
-                logs.size shouldBe 1
+                withClue(logs) { logs.size shouldBe 1 }
                 logs.head should include("0123456789abcdef")
 
                 response.response.status shouldBe "success"

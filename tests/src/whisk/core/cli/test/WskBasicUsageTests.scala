@@ -51,13 +51,15 @@ import whisk.core.entity.LogLimit._
 import whisk.core.entity.MemoryLimit._
 import whisk.core.entity.TimeLimit._
 import whisk.core.entity.size.SizeInt
+import whisk.core.entity.ActivationResponse
 import whisk.utils.retry
+import JsonArgsForTests._
 
 /**
  * Tests for basic CLI usage. Some of these tests require a deployed backend.
  */
 @RunWith(classOf[JUnitRunner])
-class WskBasicCliUsageTests
+class WskBasicUsageTests
     extends TestHelpers
     with WskTestHelpers {
 
@@ -315,8 +317,7 @@ class WskBasicCliUsageTests
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) =>
                     wsk.cli(wskprops.overrides ++ Seq("action", "create", wsk.action.fqn(name), file, "--auth", wp.authKey) ++
-                      getEscapedJSONTestArgInput()
-                    )
+                        getEscapedJSONTestArgInput())
             }
 
             val stdout = wsk.action.get(name).stdout
@@ -332,8 +333,7 @@ class WskBasicCliUsageTests
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) =>
                     wsk.cli(wskprops.overrides ++ Seq("action", "create", wsk.action.fqn(name), file, "--auth", wp.authKey) ++
-                      getEscapedJSONTestArgInput(false)
-                    )
+                        getEscapedJSONTestArgInput(false))
             }
 
             val stdout = wsk.action.get(name).stdout
@@ -342,18 +342,52 @@ class WskBasicCliUsageTests
             wsk.parseJsonString(stdout).fields("annotations") shouldBe getEscapedJSONTestArgOutput
     }
 
-    it should "invoke an action that exits and get appropriate error" in withAssetCleaner(wskprops) {
+    it should "invoke an action that exits during init and get appropriate error" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val name = "abort"
+            val name = "abort init"
             assetHelper.withCleaner(wsk.action, name) {
-                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("exit.py")))
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("initexit.js")))
             }
 
             withActivation(wsk.activation, wsk.action.invoke(name)) {
                 activation =>
-                    val response = activation.fields("response").asJsObject
-                    response.fields("result") shouldBe JsObject("error" -> "the action did not produce a valid JSON response".toJson)
-                    response.fields("status") shouldBe "action developer error".toJson
+                    val response = activation.response
+                    response.result.get.fields("error") shouldBe ActivationResponse.abnormalInitialization
+                    response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ContainerError)
+            }
+    }
+
+    it should "invoke an action that hangs during initialization and get appropriate error" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "hang init"
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) =>
+                    action.create(
+                        name,
+                        Some(TestUtils.getTestActionFilename("initforever.js")),
+                        timeout = Some(3 seconds))
+            }
+
+            withActivation(wsk.activation, wsk.action.invoke(name)) {
+                activation =>
+                    val response = activation.response
+                    response.result.get.fields("error") shouldBe ActivationResponse.timedoutActivation(3 seconds, true)
+                    response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ApplicationError)
+            }
+    }
+
+    it should "invoke an action that exits during run and get appropriate error" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "abort run"
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("runexit.js")))
+            }
+
+            withActivation(wsk.activation, wsk.action.invoke(name)) {
+                activation =>
+                    val response = activation.response
+                    response.result.get.fields("error") shouldBe ActivationResponse.abnormalRun
+                    response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ContainerError)
             }
     }
 
@@ -476,8 +510,7 @@ class WskBasicCliUsageTests
             assetHelper.withCleaner(wsk.pkg, name) {
                 (pkg, _) =>
                     wsk.cli(wskprops.overrides ++ Seq("package", "create", wsk.pkg.fqn(name), "--auth", wp.authKey) ++
-                      getEscapedJSONTestArgInput()
-                    )
+                        getEscapedJSONTestArgInput())
             }
 
             val stdout = wsk.pkg.get(name).stdout
@@ -492,8 +525,7 @@ class WskBasicCliUsageTests
             assetHelper.withCleaner(wsk.pkg, name) {
                 (pkg, _) =>
                     wsk.cli(wskprops.overrides ++ Seq("package", "create", wsk.pkg.fqn(name), "--auth", wp.authKey) ++
-                      getEscapedJSONTestArgInput(false)
-                    )
+                        getEscapedJSONTestArgInput(false))
             }
 
             val stdout = wsk.pkg.get(name).stdout
@@ -553,8 +585,7 @@ class WskBasicCliUsageTests
             assetHelper.withCleaner(wsk.trigger, name) {
                 (trigger, _) =>
                     wsk.cli(wskprops.overrides ++ Seq("trigger", "create", wsk.trigger.fqn(name), "--auth", wp.authKey) ++
-                      getEscapedJSONTestArgInput()
-                    )
+                        getEscapedJSONTestArgInput())
             }
 
             val stdout = wsk.trigger.get(name).stdout
@@ -569,8 +600,7 @@ class WskBasicCliUsageTests
             assetHelper.withCleaner(wsk.trigger, name) {
                 (trigger, _) =>
                     wsk.cli(wskprops.overrides ++ Seq("trigger", "create", wsk.trigger.fqn(name), "--auth", wp.authKey) ++
-                      getEscapedJSONTestArgInput(false)
-                    )
+                        getEscapedJSONTestArgInput(false))
             }
 
             val stdout = wsk.trigger.get(name).stdout
@@ -762,150 +792,4 @@ class WskBasicCliUsageTests
             }
             tmpProps.delete()
     }
-
-    def getEscapedJSONTestArgInput(parameters: Boolean = true) = Seq(
-        if (parameters) "-p" else "-a",
-        "\"key\"with\\escapes",                 // key:   key"with\escapes (will be converted to JSON string "key\"with\\escapes")
-        "{\"valid\": \"JSON\"}",                // value: {"valid":"JSON"}
-        if (parameters) "-p" else "-a",
-        "another\"escape\"",                    // key:   another"escape" (will be converted to JSON string "another\"escape\"")
-        "{\"valid\": \"\\nJ\\rO\\tS\\bN\\f\"}", // value: {"valid":"\nJ\rO\tS\bN\f"}  JSON strings can escape: \n, \r, \t, \b, \f
-        // NOTE: When uncommentting these tests, be sure to include the expected response in getEscapedJSONTestArgOutput()
-        //        if (parameters) "-p" else "-a",
-        //        "escape\\again",                        // key:   escape\again (will be converted to JSON string "escape\\again")
-        //        "{\"valid\": \"JS\\u2312ON\"}",         // value: {"valid":"JS\u2312ON"}   JSON strings can have escaped 4 digit unicode
-        //        if (parameters) "-p" else "-a",
-        //        "mykey",                                // key:   mykey  (will be converted to JSON string "key")
-        //        "{\"valid\": \"JS\\/ON\"}",             // value: {"valid":"JS\/ON"}   JSON strings can have escaped \/
-        if (parameters) "-p" else "-a",
-        "key1",                                 // key:   key  (will be converted to JSON string "key")
-        "{\"nonascii\": \"日本語\"}",           // value: {"nonascii":"日本語"}   JSON strings can have non-ascii
-        if (parameters) "-p" else "-a",
-        "key2",                                 // key:   key  (will be converted to JSON string "key")
-        "{\"valid\": \"J\\\\SO\\\"N\"}"         // value: {"valid":"J\\SO\"N"}   JSON strings can have escaped \\ and \"
-    )
-
-    def getEscapedJSONTestArgOutput() = JsArray(
-        JsObject(
-            "key" -> JsString("\"key\"with\\escapes"),
-            "value" -> JsObject(
-                "valid" -> JsString("JSON")
-            )
-        ),
-        JsObject(
-            "key" -> JsString("another\"escape\""),
-            "value" -> JsObject(
-                "valid" -> JsString("\nJ\rO\tS\bN\f")
-            )
-        ),
-        JsObject(
-            "key" -> JsString("key1"),
-            "value" -> JsObject(
-                "nonascii" -> JsString("日本語")
-            )
-        ),
-        JsObject(
-            "key" -> JsString("key2"),
-            "value" -> JsObject(
-                "valid" -> JsString("J\\SO\"N")
-            )
-        )
-    )
-
-    def getValidJSONTestArgOutput() = JsArray(
-        JsObject(
-            "key" -> JsString("number"),
-            "value" -> JsNumber(8)
-        ),
-        JsObject(
-            "key" -> JsString("objArr"),
-            "value" -> JsArray(
-                JsObject(
-                    "name" -> JsString("someName"),
-                    "required" -> JsBoolean(true)
-                ),
-                JsObject(
-                    "name" -> JsString("events"),
-                    "count" -> JsNumber(10)
-                )
-            )
-        ),
-        JsObject(
-            "key" -> JsString("strArr"),
-            "value" -> JsArray(
-                JsString("44"),
-                JsString("55")
-            )
-        ),
-        JsObject(
-            "key" -> JsString("string"),
-            "value" -> JsString("This is a string")
-        ),
-        JsObject(
-            "key" -> JsString("numArr"),
-            "value" -> JsArray(
-                JsNumber(44),
-                JsNumber(55)
-            )
-        ),
-        JsObject(
-            "key" -> JsString("object"),
-            "value" -> JsObject(
-                "objString" -> JsString("aString"),
-                "objStrNum" -> JsString("123"),
-                "objNum" -> JsNumber(300),
-                "objBool" -> JsBoolean(false),
-                "objNumArr" -> JsArray(
-                    JsNumber(1),
-                    JsNumber(2)
-                ),
-                "objStrArr" -> JsArray(
-                    JsString("1"),
-                    JsString("2")
-                )
-            )
-        ),
-        JsObject(
-            "key" -> JsString("strNum"),
-            "value" -> JsString("9")
-        )
-    )
-
-    def getValidJSONTestArgInput() = Map(
-        "string" -> JsString("This is a string"),
-        "strNum" -> JsString("9"),
-        "number" -> JsNumber(8),
-        "numArr" -> JsArray(
-            JsNumber(44),
-            JsNumber(55)
-        ),
-        "strArr" -> JsArray(
-            JsString("44"),
-            JsString("55")
-        ),
-        "objArr" -> JsArray(
-            JsObject(
-                "name" -> JsString("someName"),
-                "required" -> JsBoolean(true)
-            ),
-            JsObject(
-                "name" -> JsString("events"),
-                "count" -> JsNumber(10)
-            )
-        ),
-        "object" -> JsObject(
-            "objString" -> JsString("aString"),
-            "objStrNum" -> JsString("123"),
-            "objNum" -> JsNumber(300),
-            "objBool" -> JsBoolean(false),
-            "objNumArr" -> JsArray(
-                JsNumber(1),
-                JsNumber(2)
-            ),
-            "objStrArr" -> JsArray(
-                JsString("1"),
-                JsString("2")
-            )
-        )
-    )
 }
