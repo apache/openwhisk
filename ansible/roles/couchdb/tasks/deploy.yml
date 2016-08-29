@@ -5,12 +5,21 @@
   fail: msg="The db provider in your {{ inventory_dir }}/group_vars/all is {{ db_provider }}, it has to be CouchDB, pls double check"
   when: db_provider != "CouchDB"
 
+- name: check for persistent disk
+  shell: df -h
+  register: disk_status
+
+- set_fact:
+    volume_dir: "/var/couchdb:/usr/local/var/lib/couchdb"
+  when: "{{'/var/couchdb' in disk_status}}"
+
 - name: (re)start CouchDB
   docker:
     name: couchdb
     image: couchdb
     state: reloaded
     restart_policy: "{{ docker.restart.policy }}"
+    volumes: "{{volume_dir | default([])}}"
     ports:
       - "{{ db_port }}:5984"
 

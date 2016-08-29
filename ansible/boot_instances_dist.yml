@@ -1,10 +1,24 @@
 # boot_instances.yml
 ---
-
 - include_vars: environments/distributed/group_vars/all
 
+# TODO, in "with_instance" loops, the "instance" variable that is passed in gets unset, look up the proper way to do nested loops
 - set_fact:
     name: "{{instance.name}}"
+    volume_env: "OS_WSK_{{instance.name|upper}}_VOLUME"
+
+- name: check for volume ENV / group_vars value
+  set_fact:
+    volume: "{{lookup('env', volume_env) | default(instance.volume, true) | default('')}}"
+
+- name: create volume
+  os_volume:
+    state: present
+    size: "{{volume | int}}"
+    display_name: "{{name}}-{{item}}_volume"
+    wait: yes
+  with_sequence: count={{instance.num_instances}}
+  when: (volume != "")
 
 - name: launch an instance
   os_server:
@@ -20,21 +34,37 @@
     key_name: "{{key_name}}"
     security_groups: "{{security_groups}}"
     auto_ip: no
+    wait: yes
   register: instance_info
   with_sequence: count={{instance.num_instances}}
+
+- name: attach volume to host
+  os_server_volume:
+    server: "{{name}}-{{item}}"
+    state: present
+    volume: "{{name}}-{{item}}_volume"
+  # register: volume_info
+  with_sequence: count={{instance.num_instances}}
+  when: (volume != "")
+
+# - add_host: ansible_ssh_host={{ item.server.private_v4 }} groups={{name}}
+#   with_items: instance_info.results
+
+# - local_action: add_host ansible_ssh_host={{ item.server.private_v4 }} groupname={{name}}
+#   with_items: instance_info.results
 
 - shell: "grep -e {{name}} {{inventory_dir}}/hosts"
   ignore_errors: True
   register: hosts_file
 
+# TODO, should render the hosts file from a template by using the add_host module commented below with a template
 - shell: "echo [{{name}}] >> {{inventory_dir}}/hosts"
   when: "{{hosts_file.rc}} != 0"
 
-  # - add_host: ansible_ssh_host={{ item.server.private_v4 }} groups={{name}}
-  # with_items: instance_info.results
-
-# - lineinfile: insertafter="[{{name}}]" line="{{instance_info.results[0].server.private_v4}}" dest="{{inventory_dir}}/hosts"
-#- lineinfile: insertafter="^{{name}}" line="{{item.server.private_v4}}" dest="{{inventory_dir}}/hosts"
+- lineinfile: insertafter="^{{name}}" line="{{item.server.networks.itervalues().next()[0]}} volume={{item.server.volumes[0].device }}" dest="{{inventory_dir}}/hosts"
+  with_items: instance_info.results
+  when: (volume is defined and volume != "")
 
 - lineinfile: insertafter="^{{name}}" line="{{item.server.networks.itervalues().next()[0]}}" dest="{{inventory_dir}}/hosts"
   with_items: instance_info.results
+  when: (volume is not defined or volume == "")

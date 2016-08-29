@@ -6,11 +6,11 @@
     #- name: Load rc file if provided
     #  shell: . rc_file
 
-    # TODO, not sure if this is necessary
+    # TODO, ensure this is necessary
     - include_vars: environments/distributed/group_vars/all
 
     - name: add header to hosts file
-      copy: 
+      copy:
         content: "; the first parameter in a host is the inventory_hostname which has to be\n; either an ip\n; or a resolvable hostname\n\n; used for local actions only\nansible ansible_connection=local\n"
         dest: "{{inventory_dir}}/hosts"
 
@@ -18,9 +18,40 @@
       include: boot_instances_dist.yml instance={{item}}
       with_items: instances
 
-    - include_vars: environments/distributed/group_vars/all
-
     - meta: refresh_inventory
+
+    - name: refresh vars
+      include_vars: environments/distributed/group_vars/all
+
+# TODO, add support to loop through instances, configure all vms that have cinder disks (kafka, elk, etc). Hardcoding to db for now
+- name: Configure couch db disks
+  hosts: db
+  tasks:
+    - name: Ensure VM is up and running before starting disk configuration
+      wait_for: host={{ansible_default_ipv4.address}} port=22
+    - name: Get list of configured disks
+      shell: df -h
+      register: disks
+    - name: Check to see if volume size has been set in either env var or in environments/distributed/all
+      set_fact:
+        db_volume_env: "{{lookup('env', 'OS_WSK_DB_VOLUME')}}"
+        db_instance: "{{instances | selectattr('name', 'equalto', 'db') | list | first}}"
+    - name: Set boolean flag to determine if volume is to be configured or not. Skip if volume value is not set in both env and group_vars, or if it has already been configured
+      set_fact:
+        configure_volume: "{{((db_volume_env is defined and db_volume_env != '') or (db_instance.volume is defined and db_instance.volume != '')) and ('/var/couchdb' not in disks.stdout) and (volume is defined)}}"
+    - name: Create mount folder
+      shell: mkdir -p /var/couchdb
+      become: true
+      when: configure_volume
+    - name: Partition persistent disk
+      shell: mkfs.ext3 {{volume}} 2>/dev/null
+      become: true
+      when: configure_volume
+    - name: Mount persistent disk
+      shell: mount -t ext3 {{volume}} /var/couchdb
+      # - mount: name=/var/couchdb src=/dev/vdb fstype=ext4 state=present # TODO, mount module not workng as expected
+      become: true
+      when: configure_volume
 
 - name: append registry url to hosts file
   hosts: all:!ansible

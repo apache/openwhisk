@@ -68,3 +68,4 @@ instances:
   - name: db
     num_instances: 1
     flavor:
+    volume:

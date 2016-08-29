@@ -20,7 +20,9 @@ sudo pip install shade pytz positional appdirs monotonic rfc3986
 sudo apt-get install python-novaclient
 sudo pip install six --upgrade
 ```
-If you would like the environment instances and hosts file to be generated and managed by Ansible, set values for the following keys using environment variables. These values can be pulled from the Openstack UI (`https://${openstack_dashboard_url}/project/access_and_security/`) as an [RC](http://docs.openstack.org/user-guide/common/cli-set-environment-variables-using-openstack-rc.html) file.
+If you would like the environment instances and hosts file to be generated and managed by Ansible, set values for the following keys using environment variables. Some of these values can be pulled from the Openstack UI (`https://${openstack_dashboard_url}/project/access_and_security/`) as an [RC](http://docs.openstack.org/user-guide/common/cli-set-environment-variables-using-openstack-rc.html) file.
+
+Please note that OS_WSK_DB_VOLUME is optional. If not specified, local disk will be used instead of persistent disk for CouchDB.
 
 ```
 export OS_FLAVOR=m1.medium
@@ -32,6 +34,7 @@ export OS_USERNAME=abcxyz
 export OS_PASSWORD=*******
 export OS_PROJECT_NAME=OpenWhisk
 export OS_SECURITY_GROUPS=sec_group
+export OS_WSK_DB_VOLUME=15
 
 ## Keystone v2
 export OS_AUTH_URL=https://OpenStack_URL:5000/v2.0
@@ -45,24 +48,29 @@ export OS_USER_DOMAIN_NAME="domain"
 ```
 #### Setup and provision OpenWhisk component VMs
 
-- Set a value for the default ssh user in the defaults section of the `ansible.cfg` file.
+Add the remote_user and private_key_file values to the defaults section of the `ansible.cfg` file. The remote_user value sets the default ssh user. The private_key_file is required when using a private key that is not in the default `~/.ssh` folder
+
 ```
 [defaults]
 remote_user = ubuntu
+private_key_file=/path/to/file.pem
 ```
+
+By default, 2 invokers are created. To adjust this value, simply change the num_instances value in the [environments/distributed/group_vars/all](environments/distributed/group_vars/all:67) file  
 
 - Run the following playbook to boot instances and generate the respective hosts file.
 ```
 ansible-playbook -i environments/distributed provision_env_dist.yml
 ```
 
-Ensure that the Ansible VM can authenticate to the OpenWhisk VMs via SSH using the following command. If using a private key that is not in the default `~/.ssh` folder, either add the parameter "--keyfile=/path/to/file.pem" to each Ansible playbook command, or add "private_key_file=/path/to/file.pem" to `ansible.cfg` in the OpenWhisk Ansible directory.
+Ensure that the Ansible VM can authenticate to the OpenWhisk VMs via SSH using the following command.
 
 ```
 ansible all -i environments/distributed -m ping
 ```
 
-Setup all nodes to be able to host an OpenWhisk deployment.
+Install prerequisites on OpenWhisk nodes.
+
 ```
 ansible-playbook -i environments/distributed prereq_build.yml
 ```
@@ -70,18 +78,21 @@ ansible-playbook -i environments/distributed prereq_build.yml
 #### Build and deploy OpenWhisk
 
 Deploy registry.
+
 ```
 ansible-playbook -i environments/distributed registry.yml
 ```
 
-Build and distribute OpenWhisk docker images.
+Build and distribute OpenWhisk docker images. Must be executed with root privileges
+
 ```
 cd ..
-gradlew distDocker -PdockerHost=<registry_vm_ip>:4243 -PdockerRegistry=<registry_vm_ip>:5000
+./gradlew distDocker -PdockerHost=<registry_vm_ip>:4243 -PdockerRegistry=<registry_vm_ip>:5000
 ```
-Now run the following steps. These are equivalent to a [single VM](README.md) deployment. 
+Now run the following steps. These are equivalent to a [single VM](README.md) deployment.
 
 Deploy CouchDB and configure OpenWhisk deployment.
+
 ```
 cd ansible
 ansible-playbook -i environments/<environment> couchdb.yml
@@ -92,6 +103,7 @@ ansible-playbook -i environments/<environment> postdeploy.yml
 ```
 
 Setup your CLI and verify that OpenWhisk is working.
+
 ```
 ../bin/wsk  property set --auth $(cat files/auth.guest) --apihost <edge_url>
 ../bin/wsk -v action invoke /whisk.system/utils/echo -p message hello --blocking --result
