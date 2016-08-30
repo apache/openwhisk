@@ -52,7 +52,7 @@ class ThrottleTests
 
     implicit val wskprops = WskProps()
     val wsk = new Wsk(usePythonCLI = false)
-    val defaultAction = Some(TestUtils.getCatalogFilename("samples/hello.js"))
+    val defaultAction = Some(TestUtils.getTestActionFilename("hello.js"))
 
     val throttleWindow = 1.minute
     val maximumInvokesPerMinute = WhiskProperties.getProperty("limits.actions.invokes.perMinute").toInt

@@ -35,7 +35,7 @@ import common.TestUtils.BAD_REQUEST
 import common.TestUtils.ERROR_EXIT
 import common.TestUtils.MISUSE_EXIT
 import common.TestUtils.NOT_FOUND
-import common.TestUtils.NOTALLOWED
+import common.TestUtils.NOT_ALLOWED
 import common.TestUtils.SUCCESS_EXIT
 import common.WhiskProperties
 import common.Wsk
@@ -216,7 +216,7 @@ class WskBasicCliUsageTests
     it should "reject creating entities with invalid names" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val names = Seq(
-                ("", NOTALLOWED),
+                ("", NOT_ALLOWED),
                 (" ", BAD_REQUEST),
                 ("hi+there", BAD_REQUEST),
                 ("$hola", BAD_REQUEST),

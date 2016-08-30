@@ -26,7 +26,7 @@ import org.scalatest.junit.JUnitRunner
 
 import common.TestHelpers
 import common.TestUtils
-import common.TestUtils.REQUEST_ENTITY_TOO_LARGE
+import common.TestUtils.TOO_LARGE
 import common.WhiskProperties
 import common.Wsk
 import common.WskProps
@@ -148,7 +148,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
 
             assetHelper.withCleaner(wsk.action, name, confirmDelete = false) {
                 (action, _) =>
-                    action.create(name, Some(actionCode.getAbsolutePath), expectedExitCode = REQUEST_ENTITY_TOO_LARGE)
+                    action.create(name, Some(actionCode.getAbsolutePath), expectedExitCode = TOO_LARGE)
             }
 
             actionCode.delete

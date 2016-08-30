@@ -48,38 +48,39 @@ import junit.runner.Version;
 public class TestUtils {
     protected static final Logger logger = Logger.getLogger("basic");
 
-    public static final int SUCCESS_EXIT = 0;
-    public static final int ERROR_EXIT = 1;
-    public static final int MISUSE_EXIT = 2;
-    public static final int ACCEPTED = 202; // 202
-    public static final int BAD_REQUEST = 144; // 400 - 256 = 144
-    public static final int UNAUTHORIZED = 145; // 401 - 256 = 145
-    public static final int FORBIDDEN = 147; // 403 - 256 = 147
-    public static final int NOT_FOUND = 148; // 404 - 256 = 148
-    public static final int NOTALLOWED = 149; // 405 - 256 = 149
-    public static final int CONFLICT = 153; // 409 - 256 = 153
-    public static final int REQUEST_ENTITY_TOO_LARGE = 157; // 413 - 256 = 157
-    public static final int THROTTLED = 173; // 429 (TOO_MANY_REQUESTS) - 256 =
-                                             // 173
-    public static final int TIMEOUT = 246; // 502 (GATEWAY_TIMEOUT) - 256 = 246
-    public static final int DONTCARE_EXIT = -1; // any value is ok
-    public static final int ANY_ERROR_EXIT = -2; // any non-zero value is ok
+    public static final int SUCCESS_EXIT   = 0;
+    public static final int ERROR_EXIT     = 1;
+    public static final int MISUSE_EXIT    = 2;
+    public static final int DONTCARE_EXIT  = -1;  // any value is ok
+    public static final int ANY_ERROR_EXIT = -2;  // any non-zero value is ok
+
+    public static final int ACCEPTED       = 202; // 202
+    public static final int BAD_REQUEST    = 144; // 400 - 256 = 144
+    public static final int UNAUTHORIZED   = 145; // 401 - 256 = 145
+    public static final int FORBIDDEN      = 147; // 403 - 256 = 147
+    public static final int NOT_FOUND      = 148; // 404 - 256 = 148
+    public static final int NOT_ALLOWED    = 149; // 405 - 256 = 149
+    public static final int CONFLICT       = 153; // 409 - 256 = 153
+    public static final int TOO_LARGE      = 157; // 413 - 256 = 157
+    public static final int THROTTLED      = 173; // 429 (TOO_MANY_REQUESTS) - 256 = 173
+    public static final int TIMEOUT        = 246; // 502 (GATEWAY_TIMEOUT) - 256 = 246
 
     private static final File catalogDir = WhiskProperties.getFileRelativeToWhiskHome("catalog");
     private static final File testActionsDir = WhiskProperties.getFileRelativeToWhiskHome("tests/dat/actions");
     private static final File vcapFile = WhiskProperties.getVCAPServicesFile();
     private static final String envServices = System.getenv("VCAP_SERVICES");
+    private static final String loggerLevel = System.getProperty("LOG_LEVEL", Level.WARNING.toString());
 
     static {
-        logger.setLevel(Level.INFO);
+        logger.setLevel(Level.parse(loggerLevel.trim()));
         System.out.println("JUnit version is: " + Version.id());
     }
 
     /**
      * Gets path to file relative to catalog directory.
      *
-     * @param name
-     *            relative filename
+     * (@)deprecated this method will be removed in future version; use {@link #getTestActionFilename()} instead
+     * @param name relative filename
      */
     public static String getCatalogFilename(String name) {
         return new File(catalogDir, name).toString();
@@ -88,8 +89,7 @@ public class TestUtils {
     /**
      * Gets path to test action file relative to test catalog directory.
      *
-     * @param name
-     *            the filename of the test action
+     * @param name the filename of the test action
      * @return
      */
     public static String getTestActionFilename(String name) {
@@ -97,7 +97,7 @@ public class TestUtils {
     }
 
     /**
-     * Gets the value of VCAP_SERVICES
+     * Gets the value of VCAP_SERVICES.
      *
      * @return VCAP_SERVICES as a JSON object
      */
@@ -114,8 +114,8 @@ public class TestUtils {
         }
     }
 
-    /*
-     * Gets a VCAP_SERVICES credentials
+    /**
+     * Gets a VCAP_SERVICES credentials.
      *
      * @return VCAP credentials as a <String, String> map for each <property,
      * value> pair in credentials
@@ -138,8 +138,8 @@ public class TestUtils {
     }
 
     /**
-     * @return a junit {@link TestWatcher} that prints a message when each test
-     *         starts and ends
+     * Creates a JUnit test watcher. Use with @rule.
+     * @return a junit {@link TestWatcher} that prints a message when each test starts and ends
      */
     public static TestWatcher makeTestWatcher() {
         return new TestWatcher() {
@@ -151,32 +151,6 @@ public class TestUtils {
                 System.out.format("Finished test %s at %s\n\n", description.getMethodName(), getDateTime());
             }
         };
-    }
-
-    /**
-     * Sets the number of concurrent tests to run based on system property if it
-     * is defined.
-     */
-    public static void setForkJoinConcurrency() {
-        int count = WhiskProperties.concurrentTestCount;
-        if (count > 0) {
-            setForkJoinConcurrency(count);
-        }
-    }
-
-    /**
-     * Sets the number of concurrent tests to run based on value provided.
-     *
-     * @throws IllegalStateException
-     *             if count < 1
-     */
-    public static void setForkJoinConcurrency(int count) {
-        if (count > 0) {
-            System.out.format("concurrent test threads %d\n", count);
-            System.setProperty("java.util.concurrent.ForkJoinPool.common.parallelism", Integer.toString(count));
-        } else {
-            throw new IllegalStateException("test thread count must be positive");
-        }
     }
 
     /**
@@ -197,74 +171,12 @@ public class TestUtils {
         return sdf.format(date);
     }
 
-    public static int sleep(int secs) {
-        if (secs > 0)
-            try {
-                Thread.sleep(secs * 1000);
-            } catch (InterruptedException e) {
-            }
-        return secs;
-    }
-
-    public static interface Once<T> {
-        /**
-         * a method that returns a T when some condition is satisfied, and
-         * otherwise returns null.
-         *
-         * The intention is that this will be called until satisfied once, and
-         * then no more.
-         */
-        T once() throws IOException;
-    }
-
     /**
-     * wait up to totalWait seconds for a 'step' to return value.
+     * Encapsulates the result of running a native command, providing:
+     * exitCode the exit code of the process
+     * stdout the messages printed to standard out
+     * stderr the messages printed to standard error
      */
-    public static boolean waitfor(Once<Boolean> step, int totalWait) throws IOException {
-        Boolean result = waitfor(step, 0, 1, totalWait);
-        return result != null && result.booleanValue();
-    }
-
-    /**
-     * wait up to totalWait seconds for a 'step' to return value.
-     */
-    public static <T> T waitfor(Once<T> step, int initialWait, int pollPeriod, int totalWait) throws IOException {
-        // Often tests call this routine immediately after starting work.
-        // Perform an initial wait before hitting the log for the first time.
-        long endTime = System.currentTimeMillis() + totalWait * 1000;
-        sleep(initialWait);
-        while (System.currentTimeMillis() < endTime) {
-            T satisfied = step.once();
-            if (satisfied != null && !(satisfied instanceof Boolean)) {
-                return satisfied;
-            } else if (satisfied != null && (Boolean) satisfied == true) {
-                return satisfied;
-            } else if (System.currentTimeMillis() >= endTime) {
-                // Make sure we are prompt for the no wait case.
-                break;
-            } else {
-                sleep(pollPeriod);
-            }
-        }
-        return null;
-    }
-
-    @SafeVarargs
-    public static Map<String, String> makeParameter(Pair<String, String>... params) {
-        Map<String, String> map = new HashMap<String, String>();
-        if (params != null) {
-            for (Pair<String, String> p : params) {
-                if (p != null && p.fst != null)
-                    map.put(p.fst, p.snd);
-            }
-        }
-        return map;
-    }
-
-    public static Map<String, String> makeParameter(String name, String value) {
-        return makeParameter(Pair.make(name, value));
-    }
-
     public static class RunResult {
         public final int exitCode;
         public final String stdout;
@@ -300,49 +212,36 @@ public class TestUtils {
         }
     }
 
-    public static RunResult runCmd(File dir, String... params) throws IOException {
-        return runCmd(TestUtils.DONTCARE_EXIT, dir, logger, null, params);
-    }
-
-    public static Pair<String, String> runCmd(int expectedExitCode, File dir, String... params) throws IOException {
-        return runCmd(expectedExitCode, dir, logger, null, params).logs();
-    }
-
-    public static Pair<String, String> runQuietly(int expectedExitCode, File dir, String... params) throws IOException {
-        return runCmd(expectedExitCode, dir, null, null, params).logs();
-    }
-
-    /*
-     * Run with no timeout.
+    /**
+     * Runs a command in another process.
+     *
+     * @param expectedExitCode the expected exit code for the process
+     * @param dir the working directory the command runs with
+     * @param params the parameters (including executable) to run
+     * @return RunResult instance
+     * @throws IOException
      */
-    public static RunResult runCmd(int expectedExitCode, File dir, Logger logger, Map<String, String> env, String... params) throws IOException {
-        return runCmd(expectedExitCode, 0, dir, logger, env, params);
+    public static RunResult runCmd(int expectedExitCode, File dir, String... params) throws IOException {
+        return runCmd(expectedExitCode, dir, logger, null, params);
     }
 
     /**
-     * Run a command in another process (exec())
+     * Runs a command in another process.
      *
-     * @param expectedExitCode
-     *            the exit code expected from the command when it exists
-     * @param timeoutMilli
-     *            kill the underlying process after this amount of time (0 if no
-     *            timeout)
-     * @param dir
-     *            the working directory the command runs with
-     * @param logger
-     *            object to manage logging message
-     * @param env
-     *            TODO
-     * @param params
-     *            parameters to pass on the command line to the spawnded command
-     * @return
+     * @param expectedExitCode the exit code expected from the command when it exists
+     * @param dir the working directory the command runs with
+     * @param logger the object to manage logging message
+     * @param env an environment map
+     * @param params the parameters (including executable) to run
+     * @return RunResult instance
      * @throws IOException
      */
-    public static RunResult runCmd(int expectedExitCode, int timeoutMilli, File dir, Logger logger, Map<String, String> env, String... params) throws IOException {
+    public static RunResult runCmd(int expectedExitCode, File dir, Logger logger, Map<String, String> env, String... params) throws IOException {
         ProcessBuilder pb = new ProcessBuilder(params);
         pb.directory(dir);
-        if (env != null)
+        if (env != null) {
             pb.environment().putAll(env);
+        }
         Process p = pb.start();
 
         String stdout = inputStreamToString(p.getInputStream());
@@ -351,7 +250,6 @@ public class TestUtils {
         try {
             p.waitFor();
         } catch (InterruptedException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
         }
         RunResult rr = new RunResult(p.exitValue(), stdout, stderr);
