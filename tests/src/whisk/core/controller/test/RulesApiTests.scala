@@ -51,6 +51,8 @@ import whisk.core.entity.WhiskRuleResponse
 import whisk.core.entity.ReducedRule
 import whisk.core.entity.test.OldWhiskRule
 import whisk.core.entity.test.OldWhiskTrigger
+import whisk.core.entity.WhiskPackage
+import whisk.core.entity.WhiskActionPut
 
 /**
  * Tests Rules API.
@@ -255,6 +257,39 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         val rule = WhiskRule(namespace, ruleName, triggerName, actionName)
         val action = WhiskAction(namespace, actionName, Exec.js("??"))
         val content = WhiskRulePut(Some(trigger.name), Some(action.name))
+        put(entityStore, trigger, false)
+        put(entityStore, action)
+        Put(s"$collectionPath/${rule.name}", content) ~> sealRoute(routes(creds)) ~> check {
+            val t = get(entityStore, trigger.docid.asDocInfo, WhiskTrigger)
+            deleteTrigger(t.docid)
+            deleteRule(rule.docid)
+
+            status should be(OK)
+            t.rules.get(ruleNameQualified) shouldBe ReducedRule(actionNameQualified, Status.ACTIVE)
+            val response = responseAs[WhiskRuleResponse]
+            response should be(rule.withStatus(Status.ACTIVE))
+        }
+    }
+    
+    it should "create rule with an action in a package" in {
+        implicit val tid = transid()
+                
+        val provider = WhiskPackage(namespace, aname)
+        put(entityStore, provider)
+        
+        val actionName = aname
+        val action = WhiskAction(provider.path, actionName, Exec.js("??"))
+        val actionNameQualified = Namespace(WhiskEntity.qualifiedName(namespace, action.name))
+        
+        val triggerName = aname
+        val trigger = WhiskTrigger(namespace, triggerName)
+        
+        val ruleName = aname
+        val ruleNameQualified = Namespace(WhiskEntity.qualifiedName(namespace, ruleName))
+
+        val rule = WhiskRule(namespace, ruleName, triggerName, actionName)
+        val content = WhiskRulePut(Some(trigger.name), Some(action.name))
+        
         put(entityStore, trigger, false)
         put(entityStore, action)
         Put(s"$collectionPath/${rule.name}", content) ~> sealRoute(routes(creds)) ~> check {
