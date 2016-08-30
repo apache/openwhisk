@@ -153,3 +153,10 @@ protected[core] object EntityName {
         } getOrElse deserializationError("entity name malformed")
     }
 }
+
+/**
+ * An EntityQName (qualified name) is a pair of an EntityPath and and EntityName.
+ *
+ * Note: by convention, a "fully qualified name" would additionally include a version
+ */
+protected[core] case class EntityQName(path:EntityPath, name:EntityName)

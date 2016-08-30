@@ -417,7 +417,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
         val validateTrigger = WhiskTrigger.get(entityStore, trigger.asDocInfo) onComplete {
             case Success(trigger) => validTrigger.success(trigger)
             case Failure(t) => t match {
-                case _: NoDocumentException => validTrigger.failure(new NoDocumentException(s"$trigger does not exist"))
+                case _: NoDocumentException => validTrigger.failure(new NoDocumentException(s"trigger $trigger does not exist"))
                 case _                      => validTrigger.failure(t)
             }
         }
@@ -425,7 +425,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
         val validateAction = WhiskAction.get(entityStore, action.asDocInfo) onComplete {
             case Success(action) => validAction.success(action)
             case Failure(t) => t match {
-                case _: NoDocumentException => validAction.failure(new NoDocumentException(s"$action does not exist"))
+                case _: NoDocumentException => validAction.failure(new NoDocumentException(s"action $action does not exist"))
                 case _                      => validAction.failure(t)
             }
         }
