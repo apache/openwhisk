@@ -40,7 +40,7 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
 
-            val file = TestUtils.getCatalogFilename("utils/cat.js")
+            val file = TestUtils.getTestActionFilename("cat.js")
             val actionName = "catNodejs"
 
             assetHelper.withCleaner(wsk.action, actionName) { (action, _) =>
@@ -59,7 +59,7 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
 
-            val file = TestUtils.getCatalogFilename("utils/cat.js")
+            val file = TestUtils.getTestActionFilename("cat.js")
             val actionName = "catNodejs6"
 
             assetHelper.withCleaner(wsk.action, actionName) { (action, _) =>
@@ -98,7 +98,7 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
 
-            val file = TestUtils.getCatalogFilename("utils/split.js")
+            val file = TestUtils.getTestActionFilename("split.js")
             val actionName = "splitNodejs"
 
             assetHelper.withCleaner(wsk.action, actionName) { (action, _) =>
@@ -117,7 +117,7 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
 
-            val file = TestUtils.getCatalogFilename("utils/split.js")
+            val file = TestUtils.getTestActionFilename("split.js")
             val actionName = "splitNodejs6"
 
             assetHelper.withCleaner(wsk.action, actionName) { (action, _) =>
@@ -155,7 +155,7 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
 
-            val file = TestUtils.getCatalogFilename("utils/head.js")
+            val file = TestUtils.getTestActionFilename("head.js")
             val actionName = "headNodejs"
 
             assetHelper.withCleaner(wsk.action, actionName) { (action, _) =>
@@ -174,7 +174,7 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
 
-            val file = TestUtils.getCatalogFilename("utils/head.js")
+            val file = TestUtils.getTestActionFilename("head.js")
             val actionName = "headNodejs6"
 
             assetHelper.withCleaner(wsk.action, actionName) { (action, _) =>
@@ -212,7 +212,7 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
 
-            val file = TestUtils.getCatalogFilename("utils/sort.js")
+            val file = TestUtils.getTestActionFilename("sort.js")
             val actionName = "sortNodejs"
 
             assetHelper.withCleaner(wsk.action, actionName) { (action, _) =>
@@ -231,7 +231,7 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
 
-            val file = TestUtils.getCatalogFilename("utils/sort.js")
+            val file = TestUtils.getTestActionFilename("sort.js")
             val actionName = "sortNodejs6"
 
             assetHelper.withCleaner(wsk.action, actionName) { (action, _) =>
@@ -269,7 +269,7 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
 
-            val file = TestUtils.getCatalogFilename("samples/wc.js")
+            val file = TestUtils.getTestActionFilename("wc.js")
             val actionName = "wcNodejs"
 
             assetHelper.withCleaner(wsk.action, actionName) { (action, _) =>
@@ -288,7 +288,7 @@ class UtilsTests extends TestHelpers with WskTestHelpers with Matchers {
         (wp, assetHelper) =>
             val wsk = new Wsk(usePythonCLI)
 
-            val file = TestUtils.getCatalogFilename("samples/wc.js")
+            val file = TestUtils.getTestActionFilename("wc.js")
             val actionName = "wcNodejs6"
 
             assetHelper.withCleaner(wsk.action, actionName) { (action, _) =>
