@@ -25,7 +25,7 @@ import (
     "../wski18n"
 
     "github.com/fatih/color"
-    prettyjson "github.com/hokaccha/go-prettyjson"
+    //prettyjson "github.com/hokaccha/go-prettyjson"  // See prettyjson comment below
     "archive/tar"
     "io"
     "os"
@@ -478,13 +478,15 @@ func logoText() string {
 }
 
 func printJSON(v interface{}, stream ...io.Writer) {
-    output, _ := prettyjson.Marshal(v)
-
-    if len(stream) > 0 {
-        fmt.Fprintf(stream[0], "%s\n", string(output))
-    } else {
-        fmt.Fprintf(color.Output, "%s\n", string(output))
-    }
+    // Can't use prettyjson util issue  https://github.com/hokaccha/go-prettyjson/issues/1 is fixed
+    //output, _ := prettyjson.Marshal(v)
+    //
+    //if len(stream) > 0 {
+    //    fmt.Fprintf(stream[0], string(output))
+    //} else {
+    //    fmt.Fprintf(color.Output, string(output))
+    //}
+    printJsonNoColor(v, stream...)
 }
 
 // Same as printJSON, but with coloring disabled.
