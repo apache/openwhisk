@@ -477,11 +477,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
 
   action := new(whisk.Action)
 
-  if flags.action.docker {
-    action.Exec = new(whisk.Exec)
-    action.Exec.Image = artifact
-    action.Exec.Kind = "blackbox"
-  } else if flags.action.copy {
+  if flags.action.copy {
     qNameCopy := qualifiedName{}
     qNameCopy, err = parseQualifiedName(args[1])
     if err != nil {
@@ -515,7 +511,9 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
   } else if artifact != "" {
     ext := filepath.Ext(artifact)
     action.Exec = new(whisk.Exec)
-    action.Exec.Code, err = readFile(artifact)
+    if !flags.action.docker || ext == ".zip" {
+      action.Exec.Code, err = readFile(artifact)
+    }
 
     if err != nil {
       whisk.Debug(whisk.DbgError, "readFile(%s) error: %s\n", artifact, err)
@@ -534,6 +532,13 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
       action.Exec.Kind = "nodejs"
     } else if flags.action.kind == "swift" {
       action.Exec.Kind = "swift"
+    } else if flags.action.docker {
+      action.Exec.Kind = "blackbox"
+      if ext != ".zip" {
+        action.Exec.Image = artifact
+      } else {
+        action.Exec.Image = "openwhisk/dockerskeleton"
+      }
     } else if len(flags.action.kind) > 0 {
       whisk.Debug(whisk.DbgError, "--kind argument '%s' is not supported\n", flags.action.kind)
       errMsg := fmt.Sprintf(
@@ -577,7 +582,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
     // For zip-encoded NodeJS action, the code needs to be base64-encoded.
     // We reach this point if the kind has already be determined. Since the extension is not js,
     // this means the kind was specified explicitly.
-    if ext == ".zip" && strings.HasPrefix(action.Exec.Kind, "nodejs") {
+    if ext == ".zip" && (strings.HasPrefix(action.Exec.Kind, "nodejs") || action.Exec.Kind == "blackbox") {
       action.Exec.Code = base64.StdEncoding.EncodeToString([]byte(action.Exec.Code))
     }
   }

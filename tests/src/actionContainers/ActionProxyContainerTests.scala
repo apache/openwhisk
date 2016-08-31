@@ -16,17 +16,22 @@
 
 package actionContainers
 
+import java.io.File
+import java.util.Base64
+
+import org.apache.commons.io.FileUtils
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
 import ActionContainer.withContainer
+import common.TestUtils
+import common.WskActorSystem
+import spray.json.JsArray
 import spray.json.JsNull
 import spray.json.JsNumber
 import spray.json.JsObject
 import spray.json.JsString
-import spray.json.JsArray
-
-import common.WskActorSystem
+import spray.json.JsBoolean
 
 @RunWith(classOf[JUnitRunner])
 class ActionProxyContainerTests extends BasicActionRunnerTests with WskActorSystem {
@@ -148,6 +153,25 @@ class ActionProxyContainerTests extends BasicActionRunnerTests with WskActorSyst
 
         checkStreams(out, err, {
             case (o, _) => o should include("error")
+        })
+    }
+
+    it should "extract and run a compatible zip exec" in {
+        val zip = FileUtils.readFileToByteArray(new File(TestUtils.getTestActionFilename("blackbox.zip")))
+        val contents = Base64.getEncoder.encodeToString(zip)
+
+        val (out, err) = withActionContainer() { c =>
+            val (initCode, err) = c.init(JsObject("value" -> JsObject("code" -> JsString(contents), "binary" -> JsBoolean(true))))
+            initCode should be(200)
+            val (runCode, out) = c.run(JsObject())
+            runCode should be(200)
+            out.get should be(JsObject("msg" -> JsString("hello zip")))
+        }
+
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe "This is an example zip used with the docker skeleton action."
+                e shouldBe empty
         })
     }
 

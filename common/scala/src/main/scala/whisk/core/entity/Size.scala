@@ -100,6 +100,10 @@ object size {
     implicit class SizeString(n: String) extends SizeConversion {
         def sizeIn(unit: SizeUnits.Unit): ByteSize = ByteSize(n.length * 2, unit)
     }
+
+    implicit class SizeOptionString(n: Option[String]) extends SizeConversion {
+        def sizeIn(unit: SizeUnits.Unit): ByteSize = n map { s => ByteSize(s.length * 2, unit) } getOrElse ByteSize(0, unit)
+    }
 }
 
 trait SizeConversion {

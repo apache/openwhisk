@@ -118,6 +118,7 @@ def pullActionContainerImages(whiskprops, invokerHost, tag):
     # a list with the images to be pulled
     imagesToPull = [
         'whisk/invoker',
+        'whisk/dockerskeleton',
         'whisk/nodejsaction',
         'whisk/nodejs6action',
         'whisk/pythonaction',

@@ -122,27 +122,19 @@ class WskBasicTests
                 "parameters" -> JsArray(
                     JsObject(
                         "name" -> JsString("paramName1"),
-                        "description" -> JsString("Parameter description 1")
-                    ),
+                        "description" -> JsString("Parameter description 1")),
                     JsObject(
                         "name" -> JsString("paramName2"),
-                        "description" -> JsString("Parameter description 2")
-                    )
-                )
-            )
+                        "description" -> JsString("Parameter description 2"))))
             val actionAnnots = Map(
                 "description" -> JsString("Action description"),
                 "parameters" -> JsArray(
                     JsObject(
                         "name" -> JsString("paramName1"),
-                        "description" -> JsString("Parameter description 1")
-                    ),
+                        "description" -> JsString("Parameter description 1")),
                     JsObject(
                         "name" -> JsString("paramName2"),
-                        "description" -> JsString("Parameter description 2")
-                    )
-                )
-            )
+                        "description" -> JsString("Parameter description 2"))))
 
             assetHelper.withCleaner(wsk.pkg, packageName) {
                 (pkg, _) =>
@@ -154,8 +146,8 @@ class WskBasicTests
             val ns_regex_list = wsk.namespace.list().stdout.trim.replace('\n', '|')
             wsk.action.delete(packageName + "/" + actionName)
 
-            stdout should include regex(s"(?i)package /${ns_regex_list}/${packageName}: Package description\\s*\\(parameters: paramName1, paramName2\\)")
-            stdout should include regex(s"(?i)action /${ns_regex_list}/${packageName}/${actionName}: Action description\\s*\\(parameters: paramName1, paramName2\\)")
+            stdout should include regex (s"(?i)package /${ns_regex_list}/${packageName}: Package description\\s*\\(parameters: paramName1, paramName2\\)")
+            stdout should include regex (s"(?i)action /${ns_regex_list}/${packageName}/${actionName}: Action description\\s*\\(parameters: paramName1, paramName2\\)")
     }
 
     it should "create a package with a name that contains spaces" in withAssetCleaner(wskprops) {
@@ -164,7 +156,7 @@ class WskBasicTests
 
             val res = assetHelper.withCleaner(wsk.pkg, name) {
                 (pkg, _) =>
-                   pkg.create(name)
+                    pkg.create(name)
             }
 
             res.stdout should include(s"ok: created package $name")
@@ -238,6 +230,26 @@ class WskBasicTests
             }
     }
 
+    it should "create, and invoke an action that utilizes dockerskeleton with native zip" in withAssetCleaner(wskprops) {
+        val name = "dockerContainerWithZip"
+        (wp, assetHelper) =>
+            assetHelper.withCleaner(wsk.action, name) {
+                // this docker image will be need to be pulled from dockerhub and hence has to be published there first
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("blackbox.zip")), kind = Some("docker"))
+            }
+
+            val run = wsk.action.invoke(name, Map())
+            withActivation(wsk.activation, run) {
+                activation =>
+                    activation.response.result shouldBe Some(JsObject(
+                        "msg" -> "hello zip".toJson))
+                    activation.logs shouldBe defined
+                    val logs = activation.logs.get.toString
+                    logs should include("This is an example zip used with the docker skeleton action.")
+                    logs should not include ("XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX")
+            }
+    }
+
     it should "create, and invoke an action using a parameter file" in withAssetCleaner(wskprops) {
         val name = "paramFileAction"
         val file = Some(TestUtils.getTestActionFilename("argCheck.js"))
@@ -249,8 +261,7 @@ class WskBasicTests
             }
 
             val expectedOutput = JsObject(
-                "payload" -> JsString("test")
-            )
+                "payload" -> JsString("test"))
             val run = wsk.action.invoke(name, parameterFile = argInput)
             withActivation(wsk.activation, run) {
                 activation =>
@@ -286,13 +297,16 @@ class WskBasicTests
      */
     it should "create and invoke a blocking action resulting in a whisk.error response" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val name = "whiskError"
-            assetHelper.withCleaner(wsk.action, name) {
-                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("applicationError1.js")))
-            }
+            // one returns whisk.error the other just calls whisk.error
+            val names = Seq("applicationError1", "applicationError2")
+            names foreach { name =>
+                assetHelper.withCleaner(wsk.action, name) {
+                    (action, _) => action.create(name, Some(TestUtils.getTestActionFilename(s"$name.js")))
+                }
 
-            wsk.action.invoke(name, blocking = true, expectedExitCode = 246)
-                .stderr should include regex (""""error": "This error thrown on purpose by the action."""")
+                wsk.action.invoke(name, blocking = true, expectedExitCode = 246)
+                    .stderr should include regex (""""error": "This error thrown on purpose by the action."""")
+            }
     }
 
     it should "create and invoke a blocking action resulting in an error response object" in withAssetCleaner(wskprops) {
@@ -303,7 +317,7 @@ class WskBasicTests
             }
 
             wsk.action.invoke(name, blocking = true, expectedExitCode = 246)
-              .stderr should include regex (""""error": "name '!' contains illegal characters \(code \d+\)"""")
+                .stderr should include regex (""""error": "name '!' contains illegal characters \(code \d+\)"""")
     }
 
     it should "invoke a blocking action and get only the result" in withAssetCleaner(wskprops) {
@@ -324,20 +338,15 @@ class WskBasicTests
                 "parameters" -> JsArray(
                     JsObject(
                         "name" -> JsString("paramName1"),
-                        "description" -> JsString("Parameter description 1")
-                    ),
+                        "description" -> JsString("Parameter description 1")),
                     JsObject(
                         "name" -> JsString("paramName2"),
-                        "description" -> JsString("Parameter description 2")
-                    )
-                )
-            )
+                        "description" -> JsString("Parameter description 2"))))
 
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) =>
                     action.create(name, defaultAction, annotations = annots)
             }
-
 
             val stdout = wsk.action.get(name, summary = true).stdout
             val ns_regex_list = wsk.namespace.list().stdout.trim.replace('\n', '|')
@@ -393,14 +402,10 @@ class WskBasicTests
                 "parameters" -> JsArray(
                     JsObject(
                         "name" -> JsString("paramName1"),
-                        "description" -> JsString("Parameter description 1")
-                    ),
+                        "description" -> JsString("Parameter description 1")),
                     JsObject(
                         "name" -> JsString("paramName2"),
-                        "description" -> JsString("Parameter description 2")
-                    )
-                )
-            )
+                        "description" -> JsString("Parameter description 2"))))
 
             assetHelper.withCleaner(wsk.trigger, name) {
                 (trigger, _) =>
@@ -410,7 +415,7 @@ class WskBasicTests
             val stdout = wsk.trigger.get(name, summary = true).stdout
             val ns_regex_list = wsk.namespace.list().stdout.trim.replace('\n', '|')
 
-            stdout should include regex(s"trigger /${ns_regex_list}/${name}: Trigger description\\s*\\(parameters: paramName1, paramName2\\)")
+            stdout should include regex (s"trigger /${ns_regex_list}/${name}: Trigger description\\s*\\(parameters: paramName1, paramName2\\)")
     }
 
     it should "create a trigger with a name that contains spaces" in withAssetCleaner(wskprops) {
@@ -422,7 +427,7 @@ class WskBasicTests
                     trigger.create(name)
             }
 
-            res.stdout should include regex(s"ok: created trigger $name")
+            res.stdout should include regex (s"ok: created trigger $name")
     }
 
     it should "create, and fire a trigger using a parameter file" in withAssetCleaner(wskprops) {
@@ -437,8 +442,7 @@ class WskBasicTests
             }
 
             val expectedOutput = JsObject(
-                    "payload" -> JsString("test")
-            )
+                "payload" -> JsString("test"))
             val run = wsk.trigger.fire(name, parameterFile = argInput)
             withActivation(wsk.activation, run) {
                 activation =>
@@ -541,6 +545,6 @@ class WskBasicTests
         val namespace = "fakeNamespace"
         val stderr = wsk.namespace.get(Some(s"/${namespace}"), expectedExitCode = FORBIDDEN).stderr
 
-        stderr should include (s"Unable to obtain the list of entities for namespace '${namespace}'")
+        stderr should include(s"Unable to obtain the list of entities for namespace '${namespace}'")
     }
 }

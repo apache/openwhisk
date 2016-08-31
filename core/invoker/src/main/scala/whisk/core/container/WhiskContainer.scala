@@ -63,7 +63,6 @@ class WhiskContainer(
     env: Map[String, String],
     limits: ActionLimits,
     args: Array[String] = Array(),
-    val isBlackbox: Boolean,
     logLevel: LogLevel)
     extends Container(originalId, dockerhost, mounted, key, Some(containerName), image, network, cpuShare, policy, limits, env, args, logLevel) {
 
