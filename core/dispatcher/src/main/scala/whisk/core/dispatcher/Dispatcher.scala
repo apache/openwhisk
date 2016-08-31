@@ -112,17 +112,17 @@ class Dispatcher(
 
         if (matches.nonEmpty) Future {
             val count = counter.next()
-            info(this, s"activeCount = $count while handling ${rule.name}")
+            debug(this, s"activeCount = $count while handling ${rule.name}")
             rule.doit(topic, msg, matches) // returns a future which is flat-mapped to hang onComplete
         } flatMap (identity) onComplete {
-            case Success(a) => info(this, s"activeCount = ${counter.prev()} after handling $rule")
+            case Success(a) => debug(this, s"activeCount = ${counter.prev()} after handling $rule")
             case Failure(t) => error(this, s"activeCount = ${counter.prev()} ${errorMsg(rule, t)}")
         }
     }
 
     private def inform(matchers: TrieMap[String, DispatchRule])(implicit transid: TransactionId) = {
         val names = matchers map { _._2.name } reduce (_ + "," + _)
-        info(this, s"matching message to ${matchers.size} handlers: $names")
+        debug(this, s"matching message to ${matchers.size} handlers: $names")
         matchers
     }
 

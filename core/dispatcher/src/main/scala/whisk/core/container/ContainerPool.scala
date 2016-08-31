@@ -28,6 +28,7 @@ import scala.annotation.tailrec
 import akka.actor.ActorSystem
 import whisk.common.Counter
 import whisk.common.Logging
+import whisk.common.TimingUtil
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.dockerImageTag
@@ -118,7 +119,10 @@ class ContainerPool(
     def maxActive_=(value: Int): Unit = _maxActive = Math.max(0, value)
 
     def resetMaxIdle() = _maxIdle = defaultMaxIdle
-    def resetMaxActive() = _maxActive = ContainerPool.getDefaultMaxActive(config)
+    def resetMaxActive() = {
+        _maxActive = ContainerPool.getDefaultMaxActive(config)
+        info(this, s"maxActive set to ${_maxActive}")
+    }
     def resetGCThreshold() = _gcThreshold = defaultGCThreshold
 
     /*
@@ -162,12 +166,15 @@ class ContainerPool(
         } else {
             try {
                 val myPos = nextPosition.next()
-                info(this, s"Getting container for ${action.fullyQualifiedName} with ${auth.uuid}.  myPos = $myPos  comp = ${completedPosition.cur}  slack = ${slack()}")
+                info(this, s"""Getting container for ${action.fullyQualifiedName} of kind ${action.exec.kind} with ${auth.uuid}:
+                              | myPos = $myPos
+                              | completed = ${completedPosition.cur}
+                              | slack = ${slack()}
+                              | startingCounter = ${startingCounter.cur}""".stripMargin)
                 val key = ActionContainerId(auth.uuid, action.fullyQualifiedName, action.rev)
                 getImpl(0, myPos, key, () => makeWhiskContainer(action, auth)) map {
                     case (c, initResult) =>
                         val cacheMsg = if (!initResult.isDefined) "(Cache Hit)" else "(Cache Miss)"
-                        info(this, s"getAction obtained container ${c.id} ${cacheMsg}")
                         (c.asInstanceOf[WhiskContainer], initResult)
                 }
             } finally {
@@ -193,17 +200,17 @@ class ContainerPool(
     final def getImpl(tryCount: Int, position: Int, key: ActionContainerId, conMaker: () => FinalContainerResult)(implicit transid: TransactionId): Option[(Container, Option[RunResult])] = {
         val positionInLine = position - completedPosition.cur // this will be 1 if at the front of the line
         val available = slack()
+        if (tryCount == 100) {
+            warn(this, s"""getImpl possibly stuck because still in line:
+                          | position = $position
+                          | completed = ${completedPosition.cur}")
+                          | slack = $available
+                          | maxActive = ${_maxActive}
+                          | activeCount = ${activeCount()}
+                          | startingCounter = ${startingCounter.cur}""".stripMargin)
+        }
         if (positionInLine > available) { // e.g. if there is 1 available, then I wait if I am second in line (positionInLine = 2)
             Thread.sleep(50) // TODO: replace with wait/notify but tricky to get right because of desire for maximal concurrency
-            if (tryCount == 200) {
-                warn(this, s"""getImpl possibly stuck:
-                              | position = $position
-                              | completed = ${completedPosition.cur}")
-                              | slack = $available
-                              | maxActive = ${_maxActive}
-                              | activeCount = ${activeCount()}
-                              | startingCounter = ${startingCounter.cur}""".stripMargin)
-            }
         } else getOrMake(key, conMaker) match {
             case Success(con, initResult) =>
                 info(this, s"Obtained container ${con.containerId.getOrElse("unknown")}")
@@ -243,13 +250,7 @@ class ContainerPool(
     def getOrMake(key: ActionContainerId, conMaker: () => FinalContainerResult)(implicit transid: TransactionId): FinalContainerResult = {
         retrieve(key) match {
             case CacheMiss => {
-                this.synchronized {
-                    if (slack() <= 0)
-                        return Busy
-                    if (startingCounter.cur >= 1) // Limit concurrent starting of containers
-                        return Busy
-                    startingCounter.next()
-                }
+                startingCounter.next()
                 try {
                     conMaker() match { /* We make the container outside synchronization */
                         // Unfortunately, variables are not allowed in pattern alternatives even when the types line up.
@@ -452,9 +453,15 @@ class ContainerPool(
      * All docker operations from the pool must pass through here (except for pull).
      */
     private def runDockerOp[T](dockerOp: => T): T = {
-        dockerLock.synchronized {
-            dockerOp
+        val (elapsed, result) = TimingUtil.time {
+            dockerLock.synchronized {
+                dockerOp
+            }
         }
+        if (elapsed > slowDockerThreshold) {
+            warn(this, s"Docker operation took $elapsed")
+        }
+        result
     }
 
     /**
@@ -575,13 +582,15 @@ class ContainerPool(
 
     private val defaultMaxIdle = 10
     private val defaultGCThreshold = 600.seconds
+    private val slowDockerThreshold = 500.millis
 
     val gcFrequency = 1000.milliseconds // this should not be leaked but a test needs this until GC count is implemented
     private var _maxIdle = defaultMaxIdle
-    private var _maxActive = ContainerPool.getDefaultMaxActive(config)
+    private var _maxActive = 0
     private var _gcThreshold = defaultGCThreshold
     private var gcOn = true
     private val gcSync = new Object()
+    resetMaxActive()
 
     private val timer = new Timer()
     private val gcTask = new TimerTask {
