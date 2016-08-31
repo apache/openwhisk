@@ -6,9 +6,10 @@ OpenWhisk provides a mobile SDK for iOS and watchOS 2 devices that enables mobil
 The mobile SDK is written in Swift 2.2 and supports iOS 9 and later releases.
 
 ## Adding the SDK to your app
+
 You can install the mobile SDK by using CocoaPods, Carthage, or from the source directory.
 
-### Installing by using CocoaPods
+### Installing by using CocoaPods 
 
 The OpenWhisk SDK for mobile is available for public distribution through CocoaPods. Assuming CocoaPods is installed, put the following lines into a file called 'Podfile' inside the starter app project directory. 
 
@@ -28,6 +29,7 @@ end
 From the command line, type `pod install`. This command installs the SDK for an iOS app with a watchOS 2 extension.  Use the workspace file CocoaPods creates for your app to open the project in Xcode.
 
 ### Installing by using Carthage
+
 Create a file in your app's project directory and name it 'Cartfile'. Put the following line in the file:
 ```
 github "openwhisk/openwhisk-client-swift.git" ~> 0.1.7 # Or latest version
