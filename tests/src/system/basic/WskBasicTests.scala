@@ -286,13 +286,16 @@ class WskBasicTests
      */
     it should "create and invoke a blocking action resulting in a whisk.error response" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val name = "whiskError"
-            assetHelper.withCleaner(wsk.action, name) {
-                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("applicationError1.js")))
-            }
+            // one returns whisk.error the other just calls whisk.error
+            val names = Seq("applicationError1", "applicationError2")
+            names foreach { name =>
+                assetHelper.withCleaner(wsk.action, name) {
+                    (action, _) => action.create(name, Some(TestUtils.getTestActionFilename(s"$name.js")))
+                }
 
-            wsk.action.invoke(name, blocking = true, expectedExitCode = 246)
-                .stderr should include regex (""""error": "This error thrown on purpose by the action."""")
+                wsk.action.invoke(name, blocking = true, expectedExitCode = 246)
+                    .stderr should include regex (""""error": "This error thrown on purpose by the action."""")
+            }
     }
 
     it should "create and invoke a blocking action resulting in an error response object" in withAssetCleaner(wskprops) {

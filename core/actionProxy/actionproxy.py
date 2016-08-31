@@ -22,6 +22,9 @@ import subprocess
 import codecs
 import flask
 from gevent.wsgi import WSGIServer
+import zipfile
+import io
+import base64
 
 class ActionRunner:
 
@@ -42,11 +45,30 @@ class ActionRunner:
     # @param message is a JSON object, should contain 'code'
     # @return True iff binary exists and is executable
     def init(self, message):
-        if 'code' in message:
-            with codecs.open(self.source, 'w', 'utf-8') as fp:
-                fp.write(str(message['code']))
-                # write source epilogue if any
-                self.epilogue(fp)
+        def prep():
+            if 'code' in message:
+                binary = message['binary'] if 'binary' in message else False
+                if not binary:
+                    with codecs.open(self.source, 'w', 'utf-8') as fp:
+                        fp.write(str(message['code']))
+                        # write source epilogue if any
+                        self.epilogue(fp)
+                    return True
+                else:
+                    try:
+                        bytes = base64.b64decode(message['code'])
+                        bytes = io.BytesIO(bytes)
+                        archive = zipfile.ZipFile(bytes)
+                        archive.extractall(os.path.dirname(self.binary))
+                        archive.close()
+                        return True
+                    except Exception as e:
+                        print('err',str(e))
+                        return False
+            else:
+                return False
+
+        if prep():
             try:
                 # build the source
                 self.build()
