@@ -16,6 +16,8 @@
 
 package whisk.core.entity.test
 
+import java.util.Base64
+
 import scala.BigInt
 import scala.Vector
 import scala.concurrent.duration.DurationInt
@@ -30,16 +32,7 @@ import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 
 import spray.json.DefaultJsonProtocol._
-import spray.json.DeserializationException
-import spray.json.JsArray
-import spray.json.JsNull
-import spray.json.JsNumber
-import spray.json.JsObject
-import spray.json.JsString
-import spray.json.JsValue
-import spray.json.pimpAny
-import spray.json.pimpString
-
+import spray.json._
 import whisk.core.entity.ActionLimits
 import whisk.core.entity.ActivationId
 import whisk.core.entity.AuthKey
@@ -210,24 +203,37 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
 
         val json = Seq[JsObject](
             JsObject("kind" -> "nodejs".toJson, "code" -> "js1".toJson, "binary" -> false.toJson),
-            JsObject("kind" -> "nodejs".toJson, "code" -> "js2".toJson, "binary" -> false.toJson, "init" -> "zipfile2".toJson),
-            JsObject("kind" -> "nodejs".toJson, "code" -> "js3".toJson, "binary" -> false.toJson, "init" -> "zipfile3".toJson, "foo" -> "bar".toJson),
-            JsObject("kind" -> "blackbox".toJson, "image" -> "container1".toJson),
+            JsObject("kind" -> "nodejs".toJson, "code" -> "js2".toJson, "binary" -> false.toJson, "foo" -> "bar".toJson),
             JsObject("kind" -> "swift".toJson, "code" -> "swift1".toJson, "binary" -> false.toJson),
             JsObject("kind" -> "nodejs".toJson, "code" -> b64Body.toJson, "binary" -> true.toJson))
 
         val execs = json.map { e => Exec.serdes.read(e) }
 
         assert(execs(0) == Exec.js("js1") && json(0).compactPrint == Exec.js("js1").toString)
-        assert(execs(1) == Exec.js("js2", "zipfile2") && json(1).compactPrint == Exec.js("js2", "zipfile2").toString)
-        assert(execs(2) == Exec.js("js3", "zipfile3") && json(2).compactPrint != Exec.js("js3", "zipfile3").toString) // ignores unknown properties
-        assert(execs(3) == Exec.bb("container1") && json(3).compactPrint == Exec.bb("container1").toString)
-        assert(execs(4) == Exec.swift("swift1") && json(4).compactPrint == Exec.swift("swift1").toString)
-        assert(execs(5) == Exec.js(b64Body) && json(5).compactPrint == Exec.js(b64Body).toString)
+        assert(execs(1) == Exec.js("js2") && json(1).compactPrint != Exec.js("js2").toString) // ignores unknown properties
+        assert(execs(2) == Exec.swift("swift1") && json(2).compactPrint == Exec.swift("swift1").toString)
+        assert(execs(3) == Exec.js(b64Body) && json(3).compactPrint == Exec.js(b64Body).toString)
+    }
 
+    it should "properly deserialize and reserialize JSON blackbox" in {
+        val b64 = Base64.getEncoder()
+        val contents = b64.encodeToString("tarball".getBytes)
+        val json = Seq[JsObject](
+            JsObject("kind" -> "blackbox".toJson, "image" -> "container1".toJson, "binary" -> false.toJson),
+            JsObject("kind" -> "blackbox".toJson, "image" -> "container1".toJson, "binary" -> true.toJson, "code" -> contents.toJson))
+
+        val execs = json.map { e => Exec.serdes.read(e) }
+
+        assert(execs(0) == Exec.bb("container1") && json(0).compactPrint == Exec.bb("container1").toString)
+        assert(execs(1) == Exec.bb("container1", contents) && json(1).compactPrint == Exec.bb("container1", contents).toString)
+        assert(execs(0) == Exec.serdes.read(JsObject("kind" -> "blackbox".toJson, "image" -> "container1".toJson, "binary" -> false.toJson, "code" -> " ".toJson)))
+        assert(execs(0) == Exec.serdes.read(JsObject("kind" -> "blackbox".toJson, "image" -> "container1".toJson, "binary" -> false.toJson, "code" -> "".toJson)))
     }
 
     it should "reject malformed JSON" in {
+        val b64 = Base64.getEncoder()
+        val contents = b64.encodeToString("tarball".getBytes)
+
         val execs = Seq[JsValue](
             null,
             JsObject(),
@@ -240,13 +246,15 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
             JsObject("kind" -> "swift".toJson, "swiftcode" -> "swift".toJson))
 
         execs.foreach { e =>
-            val thrown = intercept[Throwable] {
-                Exec.serdes.read(e)
-            }
-            thrown match {
-                case _: DeserializationException =>
-                case _: IllegalArgumentException =>
-                case t                           => assert(false, "Unexpected exception:" + t)
+            withClue(if (e != null) e else "null") {
+                val thrown = intercept[Throwable] {
+                    Exec.serdes.read(e)
+                }
+                thrown match {
+                    case _: DeserializationException =>
+                    case _: IllegalArgumentException =>
+                    case t                           => assert(false, "Unexpected exception:" + t)
+                }
             }
         }
     }
@@ -264,10 +272,10 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
     }
 
     it should "serialize to json" in {
-        val execs = Seq(Exec.bb("container"), Exec.js("js"), Exec.js("js", "zipfile"), Exec.swift("swft")).map { _.toString }
-        assert(execs(0) == JsObject("kind" -> "blackbox".toJson, "image" -> "container".toJson).compactPrint)
+        val execs = Seq(Exec.bb("container"), Exec.js("js"), Exec.js("js"), Exec.swift("swft")).map { _.toString }
+        assert(execs(0) == JsObject("kind" -> "blackbox".toJson, "image" -> "container".toJson, "binary" -> false.toJson).compactPrint)
         assert(execs(1) == JsObject("kind" -> "nodejs".toJson, "code" -> "js".toJson, "binary" -> false.toJson).compactPrint)
-        assert(execs(2) == JsObject("kind" -> "nodejs".toJson, "code" -> "js".toJson, "binary" -> false.toJson, "init" -> "zipfile".toJson).compactPrint)
+        assert(execs(2) == JsObject("kind" -> "nodejs".toJson, "code" -> "js".toJson, "binary" -> false.toJson).compactPrint)
         assert(execs(3) == JsObject("kind" -> "swift".toJson, "code" -> "swft".toJson, "binary" -> false.toJson).compactPrint)
     }
 

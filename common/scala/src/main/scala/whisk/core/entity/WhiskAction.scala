@@ -119,20 +119,17 @@ case class WhiskAction(
      * { name, main, code, lib } required to run the action.
      */
     def containerInitializer: JsObject = {
-        def getNodeInitializer(code: String, optInit: Option[String], binary: Boolean) = {
-            val init = JsObject(
+        def getNodeInitializer(code: String, binary: Boolean) = {
+            JsObject(
                 "name" -> name.toJson,
                 "binary" -> JsBoolean(binary),
                 "main" -> JsString("main"),
                 "code" -> JsString(code))
-            optInit map {
-                lib => JsObject(init.fields + "lib" -> lib.toJson)
-            } getOrElse init
         }
 
         exec match {
-            case n: NodeJSAbstractExec          => getNodeInitializer(n.code, n.init, n.binary)
-            case SequenceExec(code, components) => getNodeInitializer(code, None, false)
+            case n: NodeJSAbstractExec          => getNodeInitializer(n.code, n.binary)
+            case SequenceExec(code, components) => getNodeInitializer(code, false)
             case s: SwiftAbstractExec =>
                 JsObject(
                     "name" -> name.toJson,
@@ -146,8 +143,10 @@ case class WhiskAction(
                 JsObject(
                     "name" -> name.toJson,
                     "code" -> code.toJson)
-            case _: BlackBoxExec =>
-                JsObject()
+            case b @ BlackBoxExec(image, code) =>
+                code map {
+                    c => JsObject("code" -> c.toJson, "binary" -> JsBoolean(b.binary))
+                } getOrElse JsObject()
         }
     }
 
@@ -164,14 +163,22 @@ object WhiskAction
 
     def containerImageName(exec: Exec, registry: String, prefix: String, tag: String): String = {
         exec match {
-            case BlackBoxExec(image) => image
-            case _ =>
-                val r = Option(registry).filter(_.nonEmpty).map { reg =>
-                    if (reg.endsWith("/")) reg else reg + "/"
-                }.getOrElse("")
-                val p = Option(prefix).filter(_.nonEmpty).map(_ + "/").getOrElse("")
-                r + p + exec.image + ":" + tag
+            case b @ BlackBoxExec(image, _) =>
+                if (b.pull) {
+                    image
+                } else {
+                    localImageName(registry, prefix, image.split("/")(1), tag)
+                }
+            case _ => localImageName(registry, prefix, exec.image, tag)
         }
+    }
+
+    private def localImageName(registry: String, prefix: String, image: String, tag: String): String = {
+        val r = Option(registry).filter(_.nonEmpty).map { reg =>
+            if (reg.endsWith("/")) reg else reg + "/"
+        }.getOrElse("")
+        val p = Option(prefix).filter(_.nonEmpty).map(_ + "/").getOrElse("")
+        r + p + image + ":" + tag
     }
 
     override val cacheEnabled = true

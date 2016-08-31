@@ -54,7 +54,6 @@ import whisk.core.entity.NodeJS6Exec
 import akka.event.Logging.LogLevel
 import akka.event.Logging.InfoLevel
 import whisk.core.entity.AuthKey
-import whisk.core.entity.Exec
 
 /**
  * A thread-safe container pool that internalizes container creation/teardown and allows users
@@ -406,7 +405,7 @@ class ContainerPool(
     // TODO: Generalize across language by storing image name when we generalize to other languages
     //       Better heuristic for # of containers to keep warm - make sensitive to idle capacity
     private val stemCellNodejsKey = StemCellNodeJsActionContainerId
-    private val nodejsExec = NodeJS6Exec("", None)
+    private val nodejsExec = NodeJS6Exec("")
     private val WARM_NODEJS_CONTAINERS = 2
 
     // This parameter controls how many outstanding un-removed containers there are before
@@ -566,7 +565,7 @@ class ContainerPool(
             try {
                 info(this, s"making new container because none available")
                 startingCounter.next()
-                makeGeneralContainer(key, containerName, imageName, limits, action.exec.kind == Exec.BLACKBOX)
+                makeGeneralContainer(key, containerName, imageName, limits, action.exec.pull)
             } finally {
                 val newCount = startingCounter.prev()
                 info(this, s"finished trying to make container, $newCount more containers to start")
@@ -610,7 +609,7 @@ class ContainerPool(
                 // there could be a container to reuse (from a previous run of the same action, or
                 // from a stem cell container); should revisit this logic
                 new WhiskContainer(transid, this.dockerhost, mounted, key, containerName, imageName,
-                    network, cpuShare, policy, env, limits, isBlackbox = pull, logLevel = this.getVerbosity())
+                    network, cpuShare, policy, env, limits, logLevel = this.getVerbosity())
             }
         }
     }
@@ -630,7 +629,7 @@ class ContainerPool(
         val con = runDockerOp {
             new WhiskContainer(transid, this.dockerhost, mounted, key, makeContainerName("testContainer"), imageName,
                 config.invokerContainerNetwork, ContainerPool.cpuShare(config),
-                config.invokerContainerPolicy, Map(), ActionLimits(), args, false,
+                config.invokerContainerPolicy, Map(), ActionLimits(), args,
                 this.getVerbosity())
         }
         con.setVerbosity(getVerbosity())

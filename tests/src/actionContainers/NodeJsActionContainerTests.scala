@@ -37,7 +37,7 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
 
     def withNodeJsContainer(code: ActionContainer => Unit) = withActionContainer()(code)
 
-    def exec(code: String): NodeJSAbstractExec = NodeJSExec(code, None)
+    def exec(code: String): NodeJSAbstractExec = NodeJSExec(code)
 
     override def initPayload(code: String) = {
         val e = exec(code)
