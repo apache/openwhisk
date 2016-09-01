@@ -279,16 +279,20 @@ class ContainerPool(
      */
     def retrieve(key: ActionContainerId)(implicit transid: TransactionId): ContainerResult = {
         this.synchronized {
-            if (activeCount() + startingCounter.cur >= _maxActive) {
-                Busy
-            } else {
-                val bucket = keyMap.getOrElseUpdate(key, new ListBuffer())
-                bucket.find({ ci => ci.isIdle() }) match {
-                    case None => CacheMiss
-                    case Some(ci) => {
-                        ci.state = State.Active
-                        Success(ci.container, None)
+            // first check if there is a matching container and only if there aren't any
+            // determine if the pool is full or has capacity to accomodate a new container;
+            // this allows any new containers introduced into the pool to be reused if already idle            
+            val bucket = keyMap.getOrElseUpdate(key, new ListBuffer())
+            bucket.find({ ci => ci.isIdle() }) match {
+                case None =>
+                    if (activeCount() + startingCounter.cur >= _maxActive) {
+                        Busy
+                    } else {
+                        CacheMiss
                     }
+                case Some(ci) => {
+                    ci.state = State.Active
+                    Success(ci.container, None)
                 }
             }
         }
@@ -324,7 +328,13 @@ class ContainerPool(
                       | startingCounter = ${startingCounter.cur}""".stripMargin)
         // Docker operation outside sync block. Don't pause if we are deleting.
         if (!delete) {
-            runDockerOp { container.pause() }
+            runDockerOp {
+                // pausing eagerly is pessimal; there could be an action waiting
+                // that will immediately unpause the same container to reuse it;
+                // to skip pausing, will need to inspect the queue of waiting activations
+                // for a matching key
+                container.pause()
+            }
         }
 
         val toBeDeleted = this.synchronized { // Return container to pool logically and then optionally delete
@@ -342,6 +352,7 @@ class ContainerPool(
             this.notify()
             toBeDeleted
         }
+
         toBeDeleted.foreach(toBeRemoved.offer(_))
         // Perform capacity-based GC here.
         if (gcOn) { // Synchronization occurs inside calls in a fine-grained manner.
@@ -419,7 +430,8 @@ class ContainerPool(
                 Thread.sleep(100) // serves to prevent busy looping
                 // create a new stem cell if the number of warm containers is less than the count allowed
                 // as long as there is slack so that any actions that may be waiting to create a container
-                // are not held back
+                // are not held back; Note since this method is not fully synchronized, it is possible to
+                // start this operation while there is slack and end up waiting on the docker lock later
                 if (!standalone && getNumberOfIdleContainers(warmNodejsKey) < WARM_NODEJS_CONTAINERS && slack() > 0) {
                     makeWarmNodejsContainer()(tid)
                 }
@@ -474,6 +486,7 @@ class ContainerPool(
         val imageName = WhiskAction.containerImageName(nodejsExec, config.dockerRegistry, config.dockerImagePrefix, config.dockerImageTag)
         val limits = ActionLimits(TimeLimit(), defaultMemoryLimit, LogLimit())
         val containerName = makeContainerName("warmJsContainer")
+        info(this, "Starting warm nodejs container")
         val con = makeGeneralContainer(warmNodejsKey, containerName, imageName, limits, false)
         if (con.containerId.isDefined) {
             this.synchronized {
@@ -505,10 +518,12 @@ class ContainerPool(
         val containerName = makeContainerName(action)
         val con = warmedContainer getOrElse {
             try {
+                info(this, s"making new container because none available")
                 startingCounter.next()
                 makeGeneralContainer(key, containerName, imageName, limits, action.exec.kind == BlackBoxExec)
             } finally {
-                startingCounter.prev()
+                val newCount = startingCounter.prev()
+                info(this, s"made container, number of remaining containers to start: $newCount")
             }
         }
         initWhiskContainer(action, con)
@@ -530,6 +545,9 @@ class ContainerPool(
             ContainerUtils.pullImage(dockerhost, imageName)
         }
         runDockerOp {
+            // because of the docker lock, by the time the container gets around to be started
+            // there could be a container to reuse (from a previous run of the same action, or
+            // from a stem cell container); should revisit this logic
             new WhiskContainer(transid, this, key, containerName, imageName, network, cpuShare, policy, env, limits, isBlackbox = pull)
         }
     }
