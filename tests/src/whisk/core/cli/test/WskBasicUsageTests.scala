@@ -89,6 +89,12 @@ class WskBasicUsageTests
         }
     }
 
+    it should "show help and usage info using the default language" in {
+        val env = Map("LANG" -> "de_DE")
+        // Call will fail with exit code 2 if language not supported
+        wsk.cli(Seq("-h"), env = env)
+    }
+
     it should "show cli build version" in {
         val stdout = wsk.cli(Seq("property", "get", "--cliversion")).stdout
         stdout should include regex ("""(?i)whisk CLI version\s+201.*""")

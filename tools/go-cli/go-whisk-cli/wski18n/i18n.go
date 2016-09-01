@@ -63,7 +63,8 @@ func CurLocale() string {
 
 func Locale(detector Detector) string {
 
-    sysLocale := normalize(detector.DetectLocale())
+    // Use default locale until strings are translated
+    /*sysLocale := normalize(detector.DetectLocale())
     if isSupported(sysLocale) {
         return sysLocale
     }
@@ -71,7 +72,7 @@ func Locale(detector Detector) string {
     locale := defaultLocaleForLang(detector.DetectLanguage())
     if locale != "" {
         return locale
-    }
+    }*/
 
     return DEFAULT_LOCALE
 }
