@@ -265,6 +265,7 @@ This example invokes a Yahoo Weather service to get the current conditions at a 
 
   This example also shows the need for asynchronous actions. The action returns a Promise to indicate that the result of this action is not available yet when the function returns. Instead, the result is available in the `request` callback after the HTTP call completes, and is passed as an argument to the `resolve()` function.
 
+
 2. Run the following commands to create the action and invoke it:
   ```
   $ wsk action create weather weather.js
@@ -480,6 +481,7 @@ $ wsk action invoke --blocking --result helloJava --param name World
 
 **Note:** If the JAR file has more than one class with a main method matching required signature, the CLI tool uses the first one reported by `jar -tf`.
 
+
 ## Creating Docker actions
 
 With OpenWhisk Docker actions, you can write your actions in any language.
@@ -546,14 +548,15 @@ For the instructions that follow, assume that the Docker user ID is `janesmith` 
   Notice that part of the example.c file is compiled as part of the Docker image build process, so you do not need C compiled on your machine.
   In fact, unless you are compiling the binary on a compatible host machine, it may not run inside the container since formats will not match.
 
-Your Docker container may now be used as an OpenWhisk action.
+  Your Docker container may now be used as an OpenWhisk action.
+
 
   ```
   $ wsk action create --docker example janesmith/blackboxdemo
   ```
 
-Notice the use of `--docker` when creating an action. Currently all Docker images are assumed to be hosted on Docker Hub.
-The action may be invoked as any other OpenWhisk action.
+  Notice the use of `--docker` when creating an action. Currently all Docker images are assumed to be hosted on Docker Hub.
+  The action may be invoked as any other OpenWhisk action.
 
   ```
   $ wsk action invoke --blocking --result example --param payload Rey
@@ -567,8 +570,8 @@ The action may be invoked as any other OpenWhisk action.
   }
   ```
 
-If you update the Docker image, run `buildAndPush.sh` to refresh the image on Docker Hub, then run `wsk action update` to make the system to fetch the new image. New invocations will start using the new image and not a warm image with the old code.
-
+  To update the Docker image, run `buildAndPush.sh` to refresh the image on Docker Hub, then run `wsk action update` to make the system to fetch the new image. New invocations will start using the new image and not a warm image with the old code.
+  
   ```
   $ ./buildAndPush.sh janesmith/blackboxdemo
   ```
@@ -576,7 +579,7 @@ If you update the Docker image, run `buildAndPush.sh` to refresh the image on Do
   $ wsk action update --docker example janesmith/blackboxdemo
   ```
 
-You can find more information about creating Docker actions in the [References](./reference.md#docker-actions) section.
+  You can find more information about creating Docker actions in the [References](./reference.md#docker-actions) section.
 
 
 ## Watching action output

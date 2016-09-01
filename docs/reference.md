@@ -84,7 +84,7 @@ Every invocation that is successfully received, and that the user might be bille
 Note that in the case of *action developer error*, the action may have partially run and generated externally visible
 side effects.   It is the user's responsibility to check whether such side effects actually happened, and issue retry
 logic if desired.   Also note that certain *whisk internal errors* will indicate that an action started running but the
-system failed before the action registered completion.    
+system failed before the action registered completion.
 
 ## Activation record
 
@@ -200,11 +200,11 @@ The `whisk.invoke()` function invokes another action. It takes as an argument a 
 
 - *name*: The fully qualified name of the action to invoke,
 - *parameters*: A JSON object that represents the input to the invoked action. If omitted, defaults to an empty object.
-- *apiKey*: The authorization key with which to invoke the action. Defaults to `whisk.getAuthKey()`.
+- *apiKey*: The authorization key with which to invoke the action. Defaults to `whisk.getAuthKey()`. 
 - *blocking*: Whether the action should be invoked in blocking or non-blocking mode. Defaults to `false`, indicating a non-blocking invocation.
 - *next*: An optional callback function to be executed when the invocation completes. If next is not supplied, `whisk.invoke()` returns a promise.
 
-  The signature for `next` is `function(error, activation)`, where:
+The signature for `next` is `function(error, activation)`, where:
 
   - `error` is `false` if the invocation succeeded, and a *truthy* value (a value that translates to true when evaluated in a Boolean context) if it failed, usually a string that describes the error.
   - On errors, `activation` might be undefined, depending on the failure mode.
@@ -248,11 +248,11 @@ The `whisk.trigger()` function fires a trigger. It takes as an argument a JSON o
 - *apiKey*: The authorization key with which to fire the trigger. Defaults to `whisk.getAuthKey()`.
 - *next*: An optional callback to be executed when the firing completes.
 
-  The signature for `next` is `function(error, activation)`, where:
+The signature for `next` is `function(error, activation)`, where:
 
-  - `error` is `false` if the firing succeeded, and a *truthy* value  if it failed, usually a string that describes the error.
-  - On errors, `activation` might be undefined, depending on the failure mode.
-  - When defined, `activation` is a dictionary with an `activationId` field that contains the activation ID.
+- `error` is `false` if the firing succeeded, and a *truthy* value  if it failed, usually a string that describes the error.
+- On errors, `activation` might be undefined, depending on the failure mode.
+- When defined, `activation` is a dictionary with an `activationId` field that contains the activation ID.
 
   If `next` is not provided, then `whisk.trigger()` returns a promise.
   - If the trigger fails, the promise will reject with an object describing the error.
@@ -418,7 +418,6 @@ $ curl -u USERNAME:PASSWORD https://openwhisk.ng.bluemix.net/api/v1/namespaces/w
   ...
 ]
 ```
-
 The OpenWhisk API supports request-response calls from web clients. OpenWhisk responds to `OPTIONS` requests with Cross-Origin Resource Sharing headers. Currently, all origins are allowed (that is, Access-Control-Allow-Origin is "`*`") and Access-Control-Allow-Headers yield Authorization and Content-Type.
 
 **Attention:** Because OpenWhisk currently supports only one key per account, it is not recommended to use CORS beyond simple experiments. Your key would need to be embedded in client-side code, making it visible to the public. Use with caution.
