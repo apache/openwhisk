@@ -135,7 +135,7 @@ class WhiskContainer(
 
         // Should never timeout because the future has a built-in timeout.
         // Keeping a finite duration for safety.
-        Await.ready(f, timeout * 10)
+        Await.ready(f, timeout + 1.minute)
 
         val end = ContainerCounter.now()
 
