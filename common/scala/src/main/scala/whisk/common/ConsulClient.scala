@@ -86,9 +86,7 @@ class ConsulKeyValueApi(base: Uri)(implicit val actorSystem: ActorSystem, val ma
         val r = Http().singleRequest(
             HttpRequest(
                 method = HttpMethods.GET,
-                uri = uriWithKey(key)
-            )
-        )
+                uri = uriWithKey(key)))
         r.flatMap { response =>
             if (response.status == StatusCodes.OK) {
                 Unmarshal(response.entity).to[List[ConsulEntry]]
@@ -112,9 +110,7 @@ class ConsulKeyValueApi(base: Uri)(implicit val actorSystem: ActorSystem, val ma
             HttpRequest(
                 method = HttpMethods.PUT,
                 uri = uriWithKey(key),
-                entity = value
-            )
-        )
+                entity = value))
         r.flatMap { response =>
             Unmarshal(response).to[Any]
         }
@@ -131,9 +127,7 @@ class ConsulKeyValueApi(base: Uri)(implicit val actorSystem: ActorSystem, val ma
         val r = Http().singleRequest(
             HttpRequest(
                 method = HttpMethods.DELETE,
-                uri = uriWithKey(key)
-            )
-        )
+                uri = uriWithKey(key)))
         r.flatMap { response =>
             Unmarshal(response).to[Any]
         }
@@ -149,11 +143,13 @@ class ConsulKeyValueApi(base: Uri)(implicit val actorSystem: ActorSystem, val ma
         val r = Http().singleRequest(
             HttpRequest(
                 method = HttpMethods.GET,
-                uri = uriWithKey(root).withQuery(Uri.Query("recurse" -> "true"))
-            )
-        )
+                uri = uriWithKey(root).withQuery(Uri.Query("recurse" -> "true"))))
         r.flatMap { response =>
-            Unmarshal(response).to[List[ConsulEntry]]
+            if (response.status != StatusCodes.NotFound) {
+                Unmarshal(response).to[List[ConsulEntry]]
+            } else {
+                Future.failed(new NoSuchElementException())
+            }
         } map { entries =>
             entries.map(e => e.key -> e.decodedValue.getOrElse("")).toMap
         }
@@ -194,9 +190,7 @@ class ConsulHealthApi(base: Uri)(implicit val actorSystem: ActorSystem, val mate
         val r = Http().singleRequest(
             HttpRequest(
                 method = HttpMethods.GET,
-                uri = serviceUri
-            )
-        )
+                uri = serviceUri))
         r.flatMap { response =>
             Unmarshal(response.entity).to[List[ConsulServiceHealthEntry]]
         } map { _.map(_.service) }
@@ -218,9 +212,7 @@ class ConsulCatalogApi(base: Uri)(implicit val actorSystem: ActorSystem, val mat
         val r = Http().singleRequest(
             HttpRequest(
                 method = HttpMethods.GET,
-                uri = base.withPath(Uri.Path(s"/v1/catalog/services"))
-            )
-        )
+                uri = base.withPath(Uri.Path(s"/v1/catalog/services"))))
         r.flatMap { response =>
             Unmarshal(response.entity).to[Map[String, JsValue]]
         } map { _.keys.toSet }
