@@ -70,7 +70,6 @@ import whisk.core.dispatcher.ActivationFeed.ContainerReleased
 import whisk.core.dispatcher.ActivationFeed.FailedActivation
 import whisk.core.dispatcher.DispatchRule
 import whisk.core.dispatcher.Dispatcher
-import whisk.core.entity.ActivationId
 import whisk.core.entity.ActivationLogs
 import whisk.core.entity.ActivationResponse
 import whisk.core.entity.BlackBoxExec
@@ -334,7 +333,8 @@ class Invoker(
      *
      * Note: Updates the container's log cursor to indicate consumption of log.
      */
-    private def getContainerLogs(con: WhiskContainer, sentinelled: Boolean, loglimit: LogLimit, tries: Int = LogRetryCount)(implicit transid: TransactionId): JsArray = {
+    private def getContainerLogs(con: WhiskContainer, sentinelled: Boolean, loglimit: LogLimit, tries: Int = LogRetryCount)(
+        implicit transid: TransactionId): JsArray = {
         val size = con.getLogSize(runningInContainer)
         val advanced = size != con.lastLogSize
         if (tries <= 0 || advanced) {
@@ -422,7 +422,7 @@ class Invoker(
         }
     }
 
-    private def incrementUserActivationCounter(user: Subject): Int = {
+    private def incrementUserActivationCounter(user: Subject)(implicit transid: TransactionId): Int = {
         val count = userActivationCounter get user() match {
             case Some(counter) => counter.next()
             case None =>

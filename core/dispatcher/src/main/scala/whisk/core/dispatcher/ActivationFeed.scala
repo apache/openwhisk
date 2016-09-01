@@ -70,6 +70,7 @@ protected class ActivationFeed(
 
     private val pipelineFillThreshold = maxPipelineDepth - consumer.maxPeek
     private var pipelineOccupancy = 0
+    private implicit val tid = TransactionId.dispatcher
 
     override def receive = {
         case FillQueueWithMessages =>
@@ -89,7 +90,7 @@ protected class ActivationFeed(
                     case (records, count) =>
                         records foreach {
                             case (topic, partition, offset, bytes) =>
-                                logging.info(this, s"processing $topic[$partition][$offset ($count)]")(TransactionId.dispatcher)
+                                logging.info(this, s"processing $topic[$partition][$offset ($count)]")
                                 pipelineOccupancy += 1
                                 handler(topic, bytes)
                         }
@@ -107,10 +108,10 @@ protected class ActivationFeed(
 
     private def fill() = {
         if (pipelineOccupancy <= pipelineFillThreshold) {
-            logging.debug(this, s"filling activation pipeline: $pipelineOccupancy <= $pipelineFillThreshold")(TransactionId.dispatcher)
+            logging.debug(this, s"filling activation pipeline: $pipelineOccupancy <= $pipelineFillThreshold")
             self ! FillQueueWithMessages
         } else {
-            logging.info(this, s"waiting for activation pipeline to drain: $pipelineOccupancy > $pipelineFillThreshold")(TransactionId.dispatcher)
+            logging.info(this, s"waiting for activation pipeline to drain: $pipelineOccupancy > $pipelineFillThreshold")
         }
     }
 }

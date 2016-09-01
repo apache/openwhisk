@@ -50,7 +50,6 @@ import akka.event.Logging.LogLevel
 import akka.event.Logging.InfoLevel
 import whisk.core.entity.BlackBoxExec
 
-
 /**
  * A thread-safe container pool that internalizes container creation/teardown and allows users
  * to check out a container.
@@ -203,7 +202,7 @@ class ContainerPool(
         if (tryCount == 100) {
             warn(this, s"""getImpl possibly stuck because still in line:
                           | position = $position
-                          | completed = ${completedPosition.cur}")
+                          | completed = ${completedPosition.cur}
                           | slack = $available
                           | maxActive = ${_maxActive}
                           | activeCount = ${activeCount()}
@@ -250,23 +249,18 @@ class ContainerPool(
     def getOrMake(key: ActionContainerId, conMaker: () => FinalContainerResult)(implicit transid: TransactionId): FinalContainerResult = {
         retrieve(key) match {
             case CacheMiss => {
-                startingCounter.next()
-                try {
-                    conMaker() match { /* We make the container outside synchronization */
-                        // Unfortunately, variables are not allowed in pattern alternatives even when the types line up.
-                        case res @ Success(con, initResult) =>
-                            this.synchronized {
-                                val ci = introduceContainer(key, con)
-                                ci.state = State.Active
-                                res
-                            }
-                        case res @ Error(_) => return res
-                        case Busy =>
-                            assert(false)
-                            null // conMaker only returns Success or Error
-                    }
-                } finally {
-                    startingCounter.prev()
+                conMaker() match { /* We make the container outside synchronization */
+                    // Unfortunately, variables are not allowed in pattern alternatives even when the types line up.
+                    case res @ Success(con, initResult) =>
+                        this.synchronized {
+                            val ci = introduceContainer(key, con)
+                            ci.state = State.Active
+                            res
+                        }
+                    case res @ Error(_) => res
+                    case Busy =>
+                        assert(false)
+                        null // conMaker only returns Success or Error
                 }
             }
             case s @ Success(con, initResult) =>
@@ -327,7 +321,13 @@ class ContainerPool(
      * This call can be slow but not while locking data structure so it does not interfere with other activations.
      */
     def putBack(container: Container, delete: Boolean = false)(implicit transid: TransactionId): Unit = {
-        info(this, s"putBack returning container ${container.id}  delete = $delete   slack = ${slack()}")
+        info(this, s"""putBack returning container ${container.id}
+                      | delete = $delete
+                      | completed = ${completedPosition.cur}
+                      | slack = ${slack()}
+                      | maxActive = ${_maxActive}
+                      | activeCount = ${activeCount()}
+                      | startingCounter = ${startingCounter.cur}""".stripMargin)
         // Docker operation outside sync block. Don't pause if we are deleting.
         if (!delete) {
             runDockerOp { container.pause() }
@@ -423,7 +423,10 @@ class ContainerPool(
             if (!standalone) killStragglers(allContainers)
             while (true) {
                 Thread.sleep(100) // serves to prevent busy looping
-                if (!standalone && getNumberOfIdleContainers(warmNodejsKey) < WARM_NODEJS_CONTAINERS) {
+                // create a new stem cell if the number of warm containers is less than the count allowed
+                // as long as there is slack so that any actions that may be waiting to create a container
+                // are not held back
+                if (!standalone && getNumberOfIdleContainers(warmNodejsKey) < WARM_NODEJS_CONTAINERS && slack() > 0) {
                     makeWarmNodejsContainer()(tid)
                 }
                 // We grab the size first so we know there has been enough delay for anything we are shutting down
@@ -452,7 +455,7 @@ class ContainerPool(
     /**
      * All docker operations from the pool must pass through here (except for pull).
      */
-    private def runDockerOp[T](dockerOp: => T): T = {
+    private def runDockerOp[T](dockerOp: => T)(implicit transid: TransactionId): T = {
         val (elapsed, result) = TimingUtil.time {
             dockerLock.synchronized {
                 dockerOp
@@ -506,15 +509,24 @@ class ContainerPool(
         val key = ActionContainerId(auth.uuid, action.fullyQualifiedName, action.rev)
         val warmedContainer = if (limits.memory == defaultMemoryLimit && imageName == nodeImageName) getWarmNodejsContainer(key) else None
         val containerName = makeContainerName(action)
-        val con = warmedContainer getOrElse makeGeneralContainer(key, containerName, imageName, limits, action.exec.kind == BlackBoxExec)
+        val con = warmedContainer getOrElse {
+            try {
+                startingCounter.next()
+                makeGeneralContainer(key, containerName, imageName, limits, action.exec.kind == BlackBoxExec)
+            } finally {
+                startingCounter.prev()
+            }
+        }
         initWhiskContainer(action, con)
     }
 
     // Make a container somewhat generically without introducing into data structure.
     // There is access to global settings (docker registry)
     // and generic settings (image name - static limits) but without access to WhiskAction.
-    private def makeGeneralContainer(key: ActionContainerId, containerName: String,
-                                     imageName: String, limits: ActionLimits, pull: Boolean)(implicit transid: TransactionId): WhiskContainer = {
+    private def makeGeneralContainer(
+        key: ActionContainerId, containerName: String,
+        imageName: String, limits: ActionLimits, pull: Boolean)(
+            implicit transid: TransactionId): WhiskContainer = {
         val network = config.invokerContainerNetwork
         val cpuShare = ContainerPool.cpuShare(config)
         val policy = config.invokerContainerPolicy
@@ -570,9 +582,9 @@ class ContainerPool(
         debug(this, s"$prefix: keyMap = ${keyMapToString()}")
     }
 
-    private def getDockerImageName(action: WhiskAction): String = {
+    private def getDockerImageName(action: WhiskAction)(implicit transid: TransactionId): String = {
         val imageName = action.containerImageName(config.dockerRegistry, config.dockerImagePrefix, config.dockerImageTag)
-        info(this, s"Using image ${imageName}")
+        debug(this, s"Using image ${imageName}")
         imageName
     }
 
@@ -704,18 +716,18 @@ class ContainerPool(
 
 }
 
-
 /*
  * These methods are parameterized on the configuration but defined here as an instance of ContainerPool is not
  * always available from other call sites.
  */
 object ContainerPool extends Logging {
-    def requiredProperties = Map(selfDockerEndpoint -> "localhost",
-                                 dockerImageTag -> "latest",
-                                 invokerContainerNetwork -> "bridge",
-                                 invokerNumCore -> "4",
-                                 invokerCoreShare -> "2",
-                                 invokerContainerPolicy -> "")
+    def requiredProperties = Map(
+        selfDockerEndpoint -> "localhost",
+        dockerImageTag -> "latest",
+        invokerContainerNetwork -> "bridge",
+        invokerNumCore -> "4",
+        invokerCoreShare -> "2",
+        invokerContainerPolicy -> "")
 
     /*
      * Extract parameters from whisk config.  In the future, these may not be static but
@@ -729,13 +741,12 @@ object ContainerPool extends Logging {
      */
     def getDefaultMaxActive(config: WhiskConfig) = numCore(config) * shareFactor(config)
 
-
     /* The shareFactor indicates the number of containers that would share a single core, on average.
      * cpuShare is a docker option (-c) whereby a container's CPU access is limited.
      * A value of 1024 is the full share so a strict resource division with a shareFactor of 2 would yield 512.
      * On an idle/underloaded system, a container will still get to use underutilized CPU shares.
      */
-    private val totalShare = 1024.0    // This is a pre-defined value coming from docker and not our hard-coded value.
+    private val totalShare = 1024.0 // This is a pre-defined value coming from docker and not our hard-coded value.
     def cpuShare(config: WhiskConfig) = (totalShare / getDefaultMaxActive(config)).toInt
 
 }

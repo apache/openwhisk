@@ -138,7 +138,6 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
         response map {
             case (code, contents) =>
                 logger.debug(this, s"response: '$contents'")
-                print(code, contents)
                 Try { contents.parseJson.asJsObject } match {
                     case scala.util.Success(result @ JsObject(fields)) =>
                         // If the response is a JSON object container an error field, accept it as the response error.
