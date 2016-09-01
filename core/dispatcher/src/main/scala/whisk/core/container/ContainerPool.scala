@@ -282,10 +282,7 @@ class ContainerPool(
             if (activeCount() + startingCounter.cur >= _maxActive) {
                 Busy
             } else {
-                if (!keyMap.contains(key))
-                    keyMap += key -> new ListBuffer()
-
-                val bucket = keyMap(key)
+                val bucket = keyMap.getOrElseUpdate(key, new ListBuffer())
                 bucket.find({ ci => ci.isIdle() }) match {
                     case None => CacheMiss
                     case Some(ci) => {
@@ -306,11 +303,8 @@ class ContainerPool(
         this.synchronized {
             assert(ci.state == State.Active)
             assert(keyMap.contains(oldKey))
-            if (!keyMap.contains(newKey)) {
-                keyMap += newKey -> new ListBuffer()
-            }
             val oldBucket = keyMap(oldKey)
-            val newBucket = keyMap(newKey)
+            val newBucket = keyMap.getOrElseUpdate(newKey, new ListBuffer())
             oldBucket -= ci
             newBucket += ci
         }
@@ -569,10 +563,7 @@ class ContainerPool(
      */
     private def introduceContainer(key: ActionContainerId, container: Container)(implicit transid: TransactionId): ContainerInfo = {
         val ci = new ContainerInfo(key, container)
-        if (keyMap.contains(key))
-            keyMap.get(key).getOrElse(null) += ci // will not be null
-        else
-            keyMap += key -> ListBuffer(ci)
+        keyMap.getOrElseUpdate(key, ListBuffer()) += ci
         containerMap += container -> ci
         dumpState("introduceContainer")
         ci

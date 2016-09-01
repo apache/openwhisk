@@ -423,14 +423,8 @@ class Invoker(
     }
 
     private def incrementUserActivationCounter(user: Subject)(implicit transid: TransactionId): Int = {
-        val count = userActivationCounter get user() match {
-            case Some(counter) => counter.next()
-            case None =>
-                val counter = new Counter()
-                counter.next()
-                userActivationCounter(user()) = counter
-                counter.cur
-        }
+        val counter = userActivationCounter.getOrElseUpdate(user(), new Counter())
+        val count = counter.next()
         info(this, s"'${user}' has '$count' activations processed")
         count
     }
@@ -526,11 +520,6 @@ class Invoker(
             (if (index % 5 == 0) getUserActivationCounts() else Map[String, JsValue]()) ++
                 Map(InvokerKeys.activationCount(instance) -> activationCounter.cur.toJson)
         })
-
-    // This is used for the getContainer endpoint used in perfContainer testing it is not real state
-    private val activationIdMap = new TrieMap[ActivationId, String]
-    def putContainerName(activationId: ActivationId, containerName: String) = activationIdMap += (activationId -> containerName)
-    def getContainerName(activationId: ActivationId): Option[String] = activationIdMap get activationId
 
     setVerbosity(verbosity)
 }
