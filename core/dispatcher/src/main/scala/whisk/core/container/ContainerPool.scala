@@ -171,7 +171,7 @@ class ContainerPool(
                               | slack = ${slack()}
                               | startingCounter = ${startingCounter.cur}""".stripMargin)
                 val key = ActionContainerId(auth.uuid, action.fullyQualifiedName, action.rev)
-                getImpl(0, myPos, key, () => makeWhiskContainer(action, auth)) map {
+                getImpl(1, myPos, key, () => makeWhiskContainer(action, auth)) map {
                     case (c, initResult) =>
                         val cacheMsg = if (!initResult.isDefined) "(Cache Hit)" else "(Cache Miss)"
                         (c.asInstanceOf[WhiskContainer], initResult)
@@ -188,7 +188,7 @@ class ContainerPool(
         info(this, s"Getting container for image $imageName with args " + args.mkString(" "))
         // Not a regular key. Doesn't matter in testing.
         val key = new ActionContainerId(s"instantiated." + imageName + args.mkString("_"))
-        getImpl(0, 0, key, () => makeContainer(key, imageName, args)) map { _._1 }
+        getImpl(1, 0, key, () => makeContainer(key, imageName, args)) map { _._1 }
     }
 
     /**
@@ -199,7 +199,7 @@ class ContainerPool(
     final def getImpl(tryCount: Int, position: Int, key: ActionContainerId, conMaker: () => FinalContainerResult)(implicit transid: TransactionId): Option[(Container, Option[RunResult])] = {
         val positionInLine = position - completedPosition.cur // this will be 1 if at the front of the line
         val available = slack()
-        if (tryCount == 100) {
+        if (tryCount % 100 == 0) {
             warn(this, s"""getImpl possibly stuck because still in line:
                           | position = $position
                           | completed = ${completedPosition.cur}
@@ -280,8 +280,8 @@ class ContainerPool(
     def retrieve(key: ActionContainerId)(implicit transid: TransactionId): ContainerResult = {
         this.synchronized {
             // first check if there is a matching container and only if there aren't any
-            // determine if the pool is full or has capacity to accomodate a new container;
-            // this allows any new containers introduced into the pool to be reused if already idle            
+            // determine if the pool is full or has capacity to accommodate a new container;
+            // this allows any new containers introduced into the pool to be reused if already idle
             val bucket = keyMap.getOrElseUpdate(key, new ListBuffer())
             bucket.find({ ci => ci.isIdle() }) match {
                 case None =>
