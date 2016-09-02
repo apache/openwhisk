@@ -102,9 +102,12 @@ class InvokerHealth(
         curStatus.get() map { _.index }
     }
 
-    def getInvokerActivationCounts(): Array[(Int, Int)] = {
-        curStatus.get() map { status => (status.index, status.activationCount) }
-    }
+    /**
+     * The current Activation count per Invoker.
+     */
+    def getInvokerActivationCounts(): Map[Int, Int] = curStatus.get().map { status =>
+        status.index -> status.activationCount
+    }.toMap
 
     private def getHealth(statuses: Array[Status]): Array[(Int, Boolean)] = {
         statuses map { status => (status.index, status.status) }
