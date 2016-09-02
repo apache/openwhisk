@@ -28,6 +28,7 @@ import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.duration.DurationInt
 
 import akka.actor.ActorSystem
+import akka.event.Logging.LogLevel
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
@@ -48,7 +49,7 @@ import whisk.common.NewHttpUtils
  */
 class WhiskContainer(
     originalId: TransactionId,
-    pool: ContainerPool,
+    dockerhost: String,
     key: ActionContainerId,
     containerName: ContainerName,
     image: String,
@@ -58,8 +59,9 @@ class WhiskContainer(
     env: Map[String, String],
     limits: ActionLimits,
     args: Array[String] = Array(),
-    val isBlackbox: Boolean)
-    extends Container(originalId, pool, key, Some(containerName), image, network, cpuShare, policy, limits, env, args) {
+    val isBlackbox: Boolean,
+    logLevel: LogLevel)
+    extends Container(originalId, dockerhost, key, Some(containerName), image, network, cpuShare, policy, limits, env, args, logLevel) {
 
     var boundParams = JsObject() // Mutable to support pre-alloc containers
     var lastLogSize = 0L

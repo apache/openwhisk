@@ -550,7 +550,7 @@ class ContainerPool(
             // because of the docker lock, by the time the container gets around to be started
             // there could be a container to reuse (from a previous run of the same action, or
             // from a stem cell container); should revisit this logic
-            new WhiskContainer(transid, this, key, containerName, imageName, network, cpuShare, policy, env, limits, isBlackbox = pull)
+            new WhiskContainer(transid, this.dockerhost, key, containerName, imageName, network, cpuShare, policy, env, limits, isBlackbox = pull, logLevel = this.getVerbosity())
         }
     }
 
@@ -569,8 +569,10 @@ class ContainerPool(
      */
     private def makeContainer(key: ActionContainerId, imageName: String, args: Array[String])(implicit transid: TransactionId): FinalContainerResult = {
         val con = runDockerOp {
-            new Container(transid, this, key, None, imageName,
-                config.invokerContainerNetwork, ContainerPool.cpuShare(config), config.invokerContainerPolicy, ActionLimits(), Map(), args)
+            new Container(transid, this.dockerhost, key, None, imageName,
+                config.invokerContainerNetwork, ContainerPool.cpuShare(config),
+                config.invokerContainerPolicy, ActionLimits(), Map(), args,
+                this.getVerbosity())
         }
         con.setVerbosity(getVerbosity())
         Success(con, None)
@@ -683,8 +685,10 @@ class ContainerPool(
      * Actually deletes the containers.
      */
     private def teardownContainer(container: Container)(implicit transid: TransactionId) = {
-        val size = container.getLogSize(!standalone)
-        val rawLogBytes = container.getDockerLogContent(0, size, !standalone)
+        val size = this.getLogSize(container, !standalone)
+        val rawLogBytes = container.synchronized {
+            this.getDockerLogContent(container.containerId, 0, size, !standalone)
+        }
         val filename = s"${_logDir}/${container.name}.log"
         Files.write(Paths.get(filename), rawLogBytes)
         info(this, s"teardownContainers: wrote docker logs to $filename")

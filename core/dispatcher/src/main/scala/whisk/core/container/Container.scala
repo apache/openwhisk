@@ -18,6 +18,8 @@ package whisk.core.container
 
 import scala.annotation.tailrec
 
+import akka.event.Logging.LogLevel
+
 import whisk.core.WhiskConfig.selfDockerEndpoint
 import whisk.core.WhiskConfig.invokerContainerNetwork
 import whisk.core.entity.ActionLimits
@@ -29,7 +31,7 @@ import whisk.common.Counter
  */
 class Container(
     originalId: TransactionId,
-    pool: ContainerPool,
+    val dockerhost: String,
     val key: ActionContainerId,
     containerName: Option[ContainerName],
     val image: String,
@@ -38,16 +40,16 @@ class Container(
     policy: Option[String],
     val limits: ActionLimits = ActionLimits(),
     env: Map[String, String] = Map(),
-    args: Array[String] = Array())
+    args: Array[String] = Array(),
+    logLevel: LogLevel)
     extends ContainerUtils {
 
-    setVerbosity(pool.getVerbosity())
+    setVerbosity(logLevel)
 
     implicit var transid = originalId
 
     val id = Container.idCounter.next()
     val name = containerName.getOrElse("anon")
-    val dockerhost = pool.dockerhost
 
     val (containerId, containerHostAndPort) = bringup(containerName, image, network, cpuShare, env, args, limits, policy)
 
@@ -97,21 +99,6 @@ class Container(
             }
         }
     }
-
-    /**
-     * Gets the current size of the mounted file associated with this whisk container.
-     */
-    def getLogSize(mounted: Boolean) = pool.getLogSize(this, mounted)
-
-    /**
-     * Gets docker logs.
-     */
-    def getDockerLogContent(start: Long, end: Long, mounted: Boolean)(implicit transid: TransactionId): Array[Byte] = {
-        this.synchronized {
-            pool.getDockerLogContent(containerId, start, end, mounted)
-        }
-    }
-
 }
 
 object Container {

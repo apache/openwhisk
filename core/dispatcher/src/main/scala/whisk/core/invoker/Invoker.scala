@@ -335,10 +335,12 @@ class Invoker(
      */
     private def getContainerLogs(con: WhiskContainer, sentinelled: Boolean, loglimit: LogLimit, tries: Int = LogRetryCount)(
         implicit transid: TransactionId): JsArray = {
-        val size = con.getLogSize(runningInContainer)
+        val size = pool.getLogSize(con, runningInContainer)
         val advanced = size != con.lastLogSize
         if (tries <= 0 || advanced) {
-            val rawLogBytes = con.getDockerLogContent(con.lastLogSize, size, runningInContainer)
+            val rawLogBytes = con.synchronized {
+                pool.getDockerLogContent(con.containerId, con.lastLogSize, size, runningInContainer)
+            }
             val rawLog = new String(rawLogBytes, "UTF-8")
 
             val (complete, isTruncated, logs) = processJsonDriverLogContents(rawLog, sentinelled, loglimit)
