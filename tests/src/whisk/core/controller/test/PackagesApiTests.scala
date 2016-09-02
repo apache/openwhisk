@@ -33,7 +33,7 @@ import spray.json.DefaultJsonProtocol.RootJsObjectFormat
 import spray.json.JsObject
 import spray.json.pimpString
 import whisk.core.entity.Exec
-import whisk.core.entity.Namespace
+import whisk.core.entity.EntityPath
 import whisk.core.entity.Parameters
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.AuthKey
@@ -66,8 +66,8 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     behavior of "Packages API"
 
     val creds = WhiskAuth(Subject(), AuthKey())
-    val namespace = Namespace(creds.subject())
-    val collectionPath = s"/${Namespace.DEFAULT}/${collection.path}"
+    val namespace = EntityPath(creds.subject())
+    val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
     def aname = MakeName.next("packages_tests")
     val entityTooBigRejectionMessage = "request entity too large"
     val parametersLimit = Parameters.sizeLimit
@@ -109,7 +109,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     it should "list all public packages in explicit namespace excluding bindings" in {
         implicit val tid = transid()
         // create packages and package bindings, set some public and confirm API lists only public packages
-        val namespaces = Seq(namespace, Namespace(aname.toString), Namespace(aname.toString))
+        val namespaces = Seq(namespace, EntityPath(aname.toString), EntityPath(aname.toString))
         val providers = Seq(
             WhiskPackage(namespaces(0), aname, None, publish = true),
             WhiskPackage(namespaces(1), aname, None, publish = true),
@@ -148,7 +148,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     ignore should "list all public packages excluding bindings" in {
         implicit val tid = transid()
         // create packages and package bindings, set some public and confirm API lists only public packages
-        val namespaces = Seq(namespace, Namespace(aname.toString), Namespace(aname.toString))
+        val namespaces = Seq(namespace, EntityPath(aname.toString), EntityPath(aname.toString))
         val providers = Seq(
             WhiskPackage(namespaces(0), aname, None, publish = false),
             WhiskPackage(namespaces(1), aname, None, publish = true),
@@ -175,7 +175,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     ignore should "list all public packages including ones with same name but in different namespaces" in {
         implicit val tid = transid()
         // create packages and package bindings, set some public and confirm API lists only public packages
-        val namespaces = Seq(namespace, Namespace(aname.toString), Namespace(aname.toString))
+        val namespaces = Seq(namespace, EntityPath(aname.toString), EntityPath(aname.toString))
         val pkgname = aname
         val providers = Seq(
             WhiskPackage(namespaces(0), pkgname, None, publish = false),
@@ -200,7 +200,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
         Get(s"$collectionPath?public=true") ~> sealRoute(routes(creds)) ~> check {
             implicit val tid = transid()
             // create packages and package bindings, set some public and confirm API lists only public packages
-            val namespaces = Seq(namespace, Namespace(aname.toString), Namespace(aname.toString))
+            val namespaces = Seq(namespace, EntityPath(aname.toString), EntityPath(aname.toString))
             val pkgname = aname
             val providers = Seq(
                 WhiskPackage(namespaces(0), pkgname, None, publish = true),
@@ -350,7 +350,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     it should "create package reference with implicit namespace" in {
         implicit val tid = transid()
         val provider = WhiskPackage(namespace, aname)
-        val reference = WhiskPackage(namespace, aname, Some(Binding(Namespace.DEFAULT, provider.name)))
+        val reference = WhiskPackage(namespace, aname, Some(Binding(EntityPath.DEFAULT, provider.name)))
         val content = WhiskPackagePut(reference.binding)
         put(entityStore, provider)
         Put(s"$collectionPath/${reference.name}", content) ~> sealRoute(routes(creds)) ~> check {

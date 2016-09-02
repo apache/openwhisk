@@ -49,7 +49,7 @@ import whisk.core.entity.size.SizeInt
 @throws[IllegalArgumentException]
 abstract class WhiskEntity protected[entity] (en: EntityName) extends WhiskDocument {
 
-    val namespace: Namespace
+    val namespace: EntityPath
     val name = en
     val version: SemVer
     val publish: Boolean
@@ -104,29 +104,29 @@ object WhiskEntity {
     /**
      * Gets fully qualified name of an entity based on its namespace and entity name.
      */
-    def qualifiedName(namespace: Namespace, name: EntityName) = {
-        s"$namespace${Namespace.PATHSEP}$name"
+    def qualifiedName(namespace: EntityPath, name: EntityName) = {
+        s"$namespace${EntityPath.PATHSEP}$name"
     }
 
     /**
      * Gets fully qualified name of an activation based on its namespace and activation id.
      */
-    def qualifiedName(namespace: Namespace, activationId: ActivationId) = {
-        s"$namespace${Namespace.PATHSEP}$activationId"
+    def qualifiedName(namespace: EntityPath, activationId: ActivationId) = {
+        s"$namespace${EntityPath.PATHSEP}$activationId"
     }
 
     /**
      * Gets fully qualified name of an entity based on its namespace, entity name and version.
      */
-    def fullyQualifiedName(namespace: Namespace, name: EntityName, version: SemVer) = {
-        s"$namespace${Namespace.PATHSEP}${versionedName(name, version)}"
+    def fullyQualifiedName(namespace: EntityPath, name: EntityName, version: SemVer) = {
+        s"$namespace${EntityPath.PATHSEP}${versionedName(name, version)}"
     }
 
     /**
      * Gets versioned name of an entity based on its entity name and version.
      */
     def versionedName(name: EntityName, version: SemVer) = {
-        s"$name${Namespace.PATHSEP}$version"
+        s"$name${EntityPath.PATHSEP}$version"
     }
 }
 

@@ -33,7 +33,7 @@ import whisk.core.entity.AuthKey
 import whisk.core.entity.Binding
 import whisk.core.entity.EntityName
 import whisk.core.entity.Exec
-import whisk.core.entity.Namespace
+import whisk.core.entity.EntityPath
 import whisk.core.entity.Subject
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskActivation
@@ -73,10 +73,10 @@ class ViewTests extends FlatSpec
     }
 
     val creds1 = WhiskAuth(Subject("s12345"), AuthKey())
-    val namespace1 = Namespace(creds1.subject())
+    val namespace1 = EntityPath(creds1.subject())
 
     val creds2 = WhiskAuth(Subject("t12345"), AuthKey())
-    val namespace2 = Namespace(creds2.subject())
+    val namespace2 = EntityPath(creds2.subject())
 
     val config = new WhiskConfig(WhiskEntityStore.requiredProperties)
     val datastore = WhiskEntityStore.datastore(config)
@@ -94,7 +94,7 @@ class ViewTests extends FlatSpec
 
     behavior of "Datastore View"
 
-    def getAllInNamespace(ns: Namespace)(implicit entities: Seq[WhiskEntity]) = {
+    def getAllInNamespace(ns: EntityPath)(implicit entities: Seq[WhiskEntity]) = {
         implicit val tid = transid()
         val result = Await.result(listAllInNamespace(datastore, ns, false), dbOpTimeout).values.toList flatMap { t => t }
         val expected = entities filter { _.namespace.root == ns }
@@ -102,7 +102,7 @@ class ViewTests extends FlatSpec
         expected forall { e => result contains e.summaryAsJson } should be(true)
     }
 
-    def getEntitiesInNamespace(ns: Namespace)(implicit entities: Seq[WhiskEntity]) = {
+    def getEntitiesInNamespace(ns: EntityPath)(implicit entities: Seq[WhiskEntity]) = {
         implicit val tid = transid()
         val map = Await.result(listEntitiesInNamespace(datastore, ns, false), dbOpTimeout)
         val result = map.values.toList flatMap { t => t }
@@ -112,7 +112,7 @@ class ViewTests extends FlatSpec
         expected forall { e => result contains e.summaryAsJson } should be(true)
     }
 
-    def getKindInNamespace(ns: Namespace, kind: String, f: (WhiskEntity) => Boolean)(implicit entities: Seq[WhiskEntity]) = {
+    def getKindInNamespace(ns: EntityPath, kind: String, f: (WhiskEntity) => Boolean)(implicit entities: Seq[WhiskEntity]) = {
         implicit val tid = transid()
         val result = Await.result(listCollectionInNamespace(datastore, kind, ns, 0, 0, convert = None) map { _.left.get map { e => e } }, dbOpTimeout)
         val expected = entities filter { e => f(e) && e.namespace.root == ns }
@@ -128,7 +128,7 @@ class ViewTests extends FlatSpec
         expected forall { e => result contains e.summaryAsJson } should be(true)
     }
 
-    def getKindInNamespaceWithDoc[T](ns: Namespace, kind: String, f: (WhiskEntity) => Boolean, convert: Option[JsObject => Try[T]])(implicit entities: Seq[WhiskEntity]) = {
+    def getKindInNamespaceWithDoc[T](ns: EntityPath, kind: String, f: (WhiskEntity) => Boolean, convert: Option[JsObject => Try[T]])(implicit entities: Seq[WhiskEntity]) = {
         implicit val tid = transid()
         val result = Await.result(listCollectionInNamespace(datastore, kind, ns, 0, 0, convert = convert) map { _.right.get }, dbOpTimeout)
         val expected = entities filter { e => f(e) && e.namespace.root == ns }
@@ -136,7 +136,7 @@ class ViewTests extends FlatSpec
         expected forall { e => result contains e } should be(true)
     }
 
-    def getKindInNamespaceByName(ns: Namespace, kind: String, name: EntityName, f: (WhiskEntity) => Boolean)(implicit entities: Seq[WhiskEntity]) = {
+    def getKindInNamespaceByName(ns: EntityPath, kind: String, name: EntityName, f: (WhiskEntity) => Boolean)(implicit entities: Seq[WhiskEntity]) = {
         implicit val tid = transid()
         val result = Await.result(listCollectionByName(datastore, kind, ns, name, 0, 0, convert = None) map { _.left.get map { e => e } }, dbOpTimeout)
         val expected = entities filter { e => f(e) && e.namespace.root == ns }
@@ -144,7 +144,7 @@ class ViewTests extends FlatSpec
         expected forall { e => result contains e.summaryAsJson } should be(true)
     }
 
-    def getKindInPackage(ns: Namespace, kind: String, f: (WhiskEntity) => Boolean)(implicit entities: Seq[WhiskEntity]) = {
+    def getKindInPackage(ns: EntityPath, kind: String, f: (WhiskEntity) => Boolean)(implicit entities: Seq[WhiskEntity]) = {
         implicit val tid = transid()
         val result = Await.result(listCollectionInNamespace(datastore, kind, ns, 0, 0, convert = None) map { _.left.get map { e => e } }, dbOpTimeout)
         val expected = entities filter { e => f(e) && e.namespace == ns }
@@ -153,7 +153,7 @@ class ViewTests extends FlatSpec
     }
 
     def getKindInNamespaceByNameSortedByDate(
-        ns: Namespace, kind: String, name: EntityName, skip: Int, count: Int, start: Option[Instant], end: Option[Instant], f: (WhiskEntity) => Boolean)(
+        ns: EntityPath, kind: String, name: EntityName, skip: Int, count: Int, start: Option[Instant], end: Option[Instant], f: (WhiskEntity) => Boolean)(
             implicit entities: Seq[WhiskEntity]) = {
         implicit val tid = transid()
         val result = Await.result(listCollectionByName(datastore, kind, ns, name, skip, count, start, end, convert = None) map { _.left.get map { e => e } }, dbOpTimeout)

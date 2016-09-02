@@ -37,7 +37,7 @@ import whisk.common.Logging
 import whisk.common.Scheduler
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
-import whisk.core.entity.Namespace
+import whisk.core.entity.EntityPath
 import whisk.core.entity.Parameters
 import whisk.core.entity.Subject
 import whisk.http.ErrorResponse
@@ -58,12 +58,12 @@ package object types {
  * @param env an optional environment to bind to the resource during an activation
  */
 protected[core] case class Resource(
-    namespace: Namespace,
+    namespace: EntityPath,
     collection: Collection,
     entity: Option[String],
     env: Option[Parameters] = None) {
-    def parent = collection.path + Namespace.PATHSEP + namespace
-    def id = parent + (entity map { Namespace.PATHSEP + _ } getOrElse (""))
+    def parent = collection.path + EntityPath.PATHSEP + namespace
+    def id = parent + (entity map { EntityPath.PATHSEP + _ } getOrElse (""))
     override def toString = id
 }
 

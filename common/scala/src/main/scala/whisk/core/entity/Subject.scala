@@ -24,7 +24,7 @@ import spray.json.deserializationError
 
 protected[core] class Subject private (private val subject: String) extends AnyVal {
     protected[core] def apply() = subject
-    protected[core] def namespace = Namespace(subject)
+    protected[core] def namespace = EntityPath(subject)
     protected[entity] def toJson = JsString(subject)
     override def toString = subject
 }

@@ -49,7 +49,7 @@ import whisk.core.entity.EntityName
 import whisk.core.entity.Exec
 import whisk.core.entity.LogLimit
 import whisk.core.entity.MemoryLimit
-import whisk.core.entity.Namespace
+import whisk.core.entity.EntityPath
 import whisk.core.entity.Parameters
 import whisk.core.entity.Secret
 import whisk.core.entity.SemVer
@@ -111,7 +111,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
         val paths = Seq("/a", "//a", "//a//", "//a//b//c", "//a//b/c//", "a", "a/b", "a/b/", "a@b.c", "a@b.c/", "a@b.c/d", "_a/", "_ _", "a/b/c")
         val expected = Seq("a", "a", "a", "a/b/c", "a/b/c", "a", "a/b", "a/b", "a@b.c", "a@b.c", "a@b.c/d", "_a", "_ _", "a/b/c")
         val spaces = paths.zip(expected).foreach { p =>
-            assert(Namespace(p._1).namespace == p._2)
+            assert(EntityPath(p._1).namespace == p._2)
         }
     }
 
@@ -119,7 +119,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
         val paths = Seq(null, "", " ", "a/ ", "a/b/c ", " xxx", "xxx ", " xxx", "xxx/ ", "/", " /", "/ ", "//", "///", " / / / ", "a/b/ c", "a/ /b", " a/ b")
         paths.foreach { p =>
             val thrown = intercept[IllegalArgumentException] {
-                Namespace(p)
+                EntityPath(p)
             }
         }
     }

@@ -41,7 +41,7 @@ import whisk.core.controller.WhiskTriggersApi
 import whisk.core.entity.ActivationId
 import whisk.core.entity.AuthKey
 import whisk.core.entity.DocId
-import whisk.core.entity.Namespace
+import whisk.core.entity.EntityPath
 import whisk.core.entity.Parameters
 import whisk.core.entity.Subject
 import whisk.core.entity.WhiskActivation
@@ -71,8 +71,8 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     behavior of "Triggers API"
 
     val creds = WhiskAuth(Subject(), AuthKey())
-    val namespace = Namespace(creds.subject())
-    val collectionPath = s"/${Namespace.DEFAULT}/${collection.path}"
+    val namespace = EntityPath(creds.subject())
+    val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
     def aname = MakeName.next("triggers_tests")
     val entityTooBigRejectionMessage = "request entity too large"
     val parametersLimit = Parameters.sizeLimit

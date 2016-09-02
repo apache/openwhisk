@@ -27,7 +27,7 @@ import spray.json.DefaultJsonProtocol.listFormat
 import spray.json.JsObject
 import whisk.core.controller.WhiskNamespacesApi
 import whisk.core.entity.AuthKey
-import whisk.core.entity.Namespace
+import whisk.core.entity.EntityPath
 import whisk.core.entity.Subject
 import whisk.core.entity.WhiskAuth
 import spray.json.JsObject
@@ -54,14 +54,14 @@ class NamespacesApiTests extends ControllerTestCommon with WhiskNamespacesApi {
 
     val collectionPath = s"/${collection.path}"
     val creds = WhiskAuth(Subject(), AuthKey())
-    val namespace = Namespace(creds.subject())
+    val namespace = EntityPath(creds.subject())
 
     it should "list namespaces for subject" in {
         implicit val tid = transid()
         Get(collectionPath) ~> sealRoute(routes(creds)) ~> check {
             status should be(OK)
-            val ns = responseAs[List[Namespace]]
-            ns should be(List(Namespace(creds.subject())))
+            val ns = responseAs[List[EntityPath]]
+            ns should be(List(EntityPath(creds.subject())))
         }
     }
 
@@ -69,8 +69,8 @@ class NamespacesApiTests extends ControllerTestCommon with WhiskNamespacesApi {
         implicit val tid = transid()
         Get(s"$collectionPath/") ~> sealRoute(routes(creds)) ~> check {
             status should be(OK)
-            val ns = responseAs[List[Namespace]]
-            ns should be(List(Namespace(creds.subject())))
+            val ns = responseAs[List[EntityPath]]
+            ns should be(List(EntityPath(creds.subject())))
         }
     }
 

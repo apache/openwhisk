@@ -39,7 +39,7 @@ import whisk.core.entitlement.Privilege.READ
 import whisk.core.entitlement.Resource
 import whisk.core.entity.EntityName
 import whisk.core.entity.LimitedWhiskEntityPut
-import whisk.core.entity.Namespace
+import whisk.core.entity.EntityPath
 import whisk.core.entity.Parameters
 import whisk.core.entity.WhiskAuth
 import whisk.http.ErrorResponse.terminate
@@ -63,19 +63,19 @@ trait WhiskCollectionAPI
     services: WhiskServices =>
 
     /** Creates an entity, or updates an existing one, in namespace. Terminates HTTP request. */
-    protected def create(namespace: Namespace, name: EntityName)(implicit transid: TransactionId): RequestContext => Unit
+    protected def create(namespace: EntityPath, name: EntityName)(implicit transid: TransactionId): RequestContext => Unit
 
     /** Activates entity. Examples include invoking an action, firing a trigger, enabling/disabling a rule. */
-    protected def activate(user: WhiskAuth, namespace: Namespace, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId): RequestContext => Unit
+    protected def activate(user: WhiskAuth, namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId): RequestContext => Unit
 
     /** Removes entity from namespace. Terminates HTTP request. */
-    protected def remove(namespace: Namespace, name: EntityName)(implicit transid: TransactionId): RequestContext => Unit
+    protected def remove(namespace: EntityPath, name: EntityName)(implicit transid: TransactionId): RequestContext => Unit
 
     /** Gets entity from namespace. Terminates HTTP request. */
-    protected def fetch(namespace: Namespace, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId): RequestContext => Unit
+    protected def fetch(namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId): RequestContext => Unit
 
     /** Gets all entities from namespace. If necessary filter only entities that are shared. Terminates HTTP request. */
-    protected def list(namespace: Namespace, excludePrivate: Boolean)(implicit transid: TransactionId): RequestContext => Unit
+    protected def list(namespace: EntityPath, excludePrivate: Boolean)(implicit transid: TransactionId): RequestContext => Unit
 
     /** Indicates if listing entities in collection requires filtering out private entities. */
     protected val listRequiresPrivateEntityFilter = false // currently supported on PACKAGES only

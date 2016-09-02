@@ -38,7 +38,7 @@ import whisk.core.container.ContainerPool
 import whisk.core.entity.AuthKey
 import whisk.core.entity.EntityName
 import whisk.core.entity.Exec
-import whisk.core.entity.Namespace
+import whisk.core.entity.EntityPath
 import whisk.core.entity.Subject
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskAuth
@@ -219,7 +219,7 @@ class ContainerPoolTests extends FlatSpec
         } // for
     }
 
-    private val defaultNamespace = Namespace("container pool test")
+    private val defaultNamespace = EntityPath("container pool test")
     private val defaultAuth = WhiskAuth(Subject(), AuthKey()) // XXXXXX test this with a real uuid/key
 
     /*

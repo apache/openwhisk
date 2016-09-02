@@ -28,7 +28,7 @@ import whisk.core.entitlement.Collection
 import whisk.core.entitlement.Privilege
 import whisk.core.entitlement.Privilege.READ
 import whisk.core.entitlement.Resource
-import whisk.core.entity.Namespace
+import whisk.core.entity.EntityPath
 import whisk.core.entity.Subject
 import whisk.core.entity.WhiskAuth
 import whisk.core.entity.WhiskAction
@@ -48,7 +48,7 @@ object WhiskNamespacesApi {
      * A top level namespace sentinel, that is never a valid user namespace, to grant
      * admin rights to managing this entire collection.
      */
-    protected[controller] val rootNamespace = Namespace(Namespace.PATHSEP)
+    protected[controller] val rootNamespace = EntityPath(EntityPath.PATHSEP)
 }
 
 trait WhiskNamespacesApi
@@ -105,7 +105,7 @@ trait WhiskNamespacesApi
      * - 200 Map [ String (collection name), List[EntitySummary] ] as JSON
      * - 500 Internal Server Error
      */
-    private def getAllInNamespace(namespace: Namespace)(implicit transid: TransactionId) = {
+    private def getAllInNamespace(namespace: EntityPath)(implicit transid: TransactionId) = {
         onComplete(listEntitiesInNamespace(entityStore, namespace, false)) {
             case Success(entities) => {
                 complete(OK, Namespaces.emptyNamespace ++ entities - WhiskActivation.collectionName)

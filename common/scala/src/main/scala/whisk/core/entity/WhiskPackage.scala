@@ -58,7 +58,7 @@ case class WhiskPackagePut(
  */
 @throws[IllegalArgumentException]
 case class WhiskPackage(
-    namespace: Namespace,
+    namespace: EntityPath,
     override val name: EntityName,
     binding: Option[Binding] = None,
     parameters: Parameters = Parameters(),
@@ -168,7 +168,7 @@ object WhiskPackage
  * A package binding holds a reference to the providing package
  * namespace and package name.
  */
-case class Binding(namespace: Namespace, name: EntityName) {
+case class Binding(namespace: EntityPath, name: EntityName) {
     def docid = DocId(WhiskEntity.qualifiedName(namespace, name))
     override def toString = WhiskEntity.qualifiedName(namespace, name)
 
@@ -176,9 +176,9 @@ case class Binding(namespace: Namespace, name: EntityName) {
      * Returns a Binding namespace if it is the default namespace
      * to the given one, otherwise this is an identity.
      */
-    def resolve(ns: Namespace): Binding = {
+    def resolve(ns: EntityPath): Binding = {
         namespace match {
-            case Namespace.DEFAULT => Binding(ns, name)
+            case EntityPath.DEFAULT => Binding(ns, name)
             case _                 => this
         }
     }

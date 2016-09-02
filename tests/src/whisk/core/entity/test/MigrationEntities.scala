@@ -30,7 +30,7 @@ import whisk.core.entity._
  * itself
  */
 case class OldWhiskRule(
-    namespace: Namespace,
+    namespace: EntityPath,
     override val name: EntityName,
     trigger: types.Trigger,
     action: types.Action,
@@ -58,7 +58,7 @@ object OldWhiskRule
  * Old schema of triggers, not containing a map of ReducedRules
  */
 case class OldWhiskTrigger(
-    namespace: Namespace,
+    namespace: EntityPath,
     override val name: EntityName,
     parameters: Parameters = Parameters(),
     limits: TriggerLimits = TriggerLimits(),
