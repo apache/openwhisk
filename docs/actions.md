@@ -48,7 +48,9 @@ Review the following steps and examples to create your first JavaScript action.
 
   You can see the `hello` action you just created.
 
-4. After you create your action, you can run it in the cloud in OpenWhisk with the 'invoke' command. You can invoke actions with a *blocking* invocation or a *non-blocking* invocation by specifying a flag in the command. A blocking invocation waits until the action runs to completion and returns a result. This example uses the blocking parameter, `--blocking`:
+4. After you create your action, you can run it in the cloud in OpenWhisk with the 'invoke' command. You can run actions with a *blocking* invocation (i.e., request/response style) or a *non-blocking* invocation by specifying a flag in the command. A blocking invocation request will _wait_ for the activation result to be available. The wait period is the lesser of 60 seconds or the action's configured [time limit](./reference.md#per-action-timeout-ms-default-60s). The result of the activation is returned if it is available within the wait period. Otherwise, the activation continues processing in the system and an activation ID is returned so that one may check for the result later, as with non-blocking requests (see [here](#watching-action-output) for tips on monitoring activations).
+
+This example uses the blocking parameter, `--blocking`:
 
   ```
   $ wsk action invoke --blocking hello
@@ -66,7 +68,7 @@ Review the following steps and examples to create your first JavaScript action.
 
   The command outputs two important pieces of information:
   * The activation ID (`44794bd6aab74415b4e42a308d880e5b`)
-  * The invocation result
+  * The invocation result if it is available within the expected wait period
 
   The result in this case is the string `Hello world` returned by the JavaScript function. The activation ID can be used to retrieve the logs or result of the invocation at a future time.  
 
