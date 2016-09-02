@@ -25,13 +25,16 @@ import whisk.core.WhiskConfig.invokerContainerNetwork
 import whisk.core.entity.ActionLimits
 import whisk.common.TransactionId
 import whisk.common.Counter
+import whisk.common.Logging
+
+import whisk.core.container.docker.DockerProxy
+import whisk.core.container.docker.ContainerSettings
 
 /**
  * Reifies a docker container.
  */
 class Container(
     originalId: TransactionId,
-    val dockerhost: String,
     val key: ActionContainerId,
     containerName: Option[ContainerName],
     val image: String,
@@ -41,8 +44,7 @@ class Container(
     val limits: ActionLimits = ActionLimits(),
     env: Map[String, String] = Map(),
     args: Array[String] = Array(),
-    logLevel: LogLevel)
-    extends ContainerUtils {
+    logLevel: LogLevel)(implicit docker: DockerProxy) extends Logging {
 
     setVerbosity(logLevel)
 
@@ -51,18 +53,18 @@ class Container(
     val id = Container.idCounter.next()
     val name = containerName.getOrElse("anon")
 
-    val (containerId, containerHostAndPort) = bringup(containerName, image, network, cpuShare, env, args, limits, policy)
-
-    def details: String = {
-        val name = containerName getOrElse "??"
-        val id = containerId.id
-        val ip = containerHostAndPort getOrElse "??"
-        s"container [$name] [$id] [$ip]"
+    val containerId = {
+        val settings = ContainerSettings(network = network, cpuShare = cpuShare, env = env, limits = limits, policy = policy)
+        docker.run(containerName, image, args, settings)
     }
 
-    def pause(): Unit = pauseContainer(containerId)
+    val host = docker.inspectIPAddress(containerId)
 
-    def unpause(): Unit = unpauseContainer(containerId)
+    def details: String = s"container [${containerName.getOrElse("??")}] [${containerId.id}] [$host]"
+
+    def pause(): Unit = docker.pause(containerId)
+
+    def unpause(): Unit = docker.unpause(containerId)
 
     /**
      * A prefix of the container id known to be displayed by docker ps.
@@ -76,7 +78,7 @@ class Container(
      * Gets logs for container.
      */
     def getLogs()(implicit transid: TransactionId): String = {
-        getContainerLogs(containerId).toOption getOrElse ""
+        docker.logs(containerId).toOption getOrElse ""
     }
 
     /**
@@ -93,7 +95,7 @@ class Container(
                 warn(this, s"Retrying to remove container $containerId")
             }
             unpause() // a paused container cannot be removed
-            rmContainer(containerId).toOption match {
+            docker.rm(containerId).toOption match {
                 case None => remove(tryCount - 1)
                 case _    => ()
             }

@@ -35,6 +35,7 @@ import whisk.core.WhiskConfig.invokerSerializeDockerOp
 import whisk.core.WhiskConfig.invokerSerializeDockerPull
 import whisk.core.container.Container
 import whisk.core.container.ContainerPool
+import whisk.core.container.docker.DockerProxy
 import whisk.core.entity.AuthKey
 import whisk.core.entity.EntityName
 import whisk.core.entity.Exec
@@ -67,6 +68,8 @@ class ContainerPoolTests extends FlatSpec
             ++ WhiskEntityStore.requiredProperties
             ++ WhiskAuthStore.requiredProperties)
     assert(config.isValid)
+
+    implicit val docker = new DockerProxy(config.selfDockerEndpoint)
 
     val pool = new ContainerPool(config, 0, InfoLevel, true)
     pool.logDir = "/tmp"
