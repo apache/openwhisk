@@ -16,8 +16,6 @@
 
 package whisk.core.cli.test
 
-import scala.concurrent.duration.DurationInt
-
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.junit.JUnitRunner
