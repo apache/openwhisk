@@ -38,7 +38,7 @@ import whisk.core.entitlement.Collection
 import whisk.core.entity.Binding
 import whisk.core.entity.DocId
 import whisk.core.entity.EntityName
-import whisk.core.entity.Namespace
+import whisk.core.entity.EntityPath
 import whisk.core.entity.Parameters
 import whisk.core.entity.SemVer
 import whisk.core.entity.types.EntityStore
@@ -86,7 +86,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
      * - 409 Conflict
      * - 500 Internal Server Error
      */
-    override def create(namespace: Namespace, name: EntityName)(implicit transid: TransactionId) = {
+    override def create(namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
         parameter('overwrite ? false) { overwrite =>
             entity(as[WhiskPackagePut]) { content =>
                 val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
@@ -102,7 +102,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
      * Responses are one of (Code, Message)
      * - 405 Not Allowed
      */
-    override def activate(user: WhiskAuth, namespace: Namespace, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
+    override def activate(user: WhiskAuth, namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
         error(this, "activate is not permitted on packages")
         reject
     }
@@ -116,7 +116,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
      * - 409 Conflict
      * - 500 Internal Server Error
      */
-    override def remove(namespace: Namespace, name: EntityName)(implicit transid: TransactionId) = {
+    override def remove(namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
         val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
         deleteEntity(WhiskPackage, entityStore, docid, (wp: WhiskPackage) => {
             wp.binding map {
@@ -144,7 +144,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
      * - 404 Not Found
      * - 500 Internal Server Error
      */
-    override def fetch(namespace: Namespace, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
+    override def fetch(namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
         val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
         getEntity(WhiskPackage, entityStore, docid, Some { mergePackageWithBinding() _ })
     }
@@ -156,7 +156,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
      * - 200 [] or [WhiskPackage as JSON]
      * - 500 Internal Server Error
      */
-    def list(namespace: Namespace, excludePrivate: Boolean)(implicit transid: TransactionId) = {
+    def list(namespace: EntityPath, excludePrivate: Boolean)(implicit transid: TransactionId) = {
         // for consistency, all the collections should support the same list API
         // but because supporting docs on actions is difficult, the API does not
         // offer an option to fetch entities with full docs yet; see comment in
@@ -200,7 +200,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
      * Creates a WhiskPackage from PUT content, generating default values where necessary.
      * If this is a binding, confirm the referenced package exists.
      */
-    private def create(content: WhiskPackagePut, namespace: Namespace, name: EntityName)(implicit transid: TransactionId) = {
+    private def create(content: WhiskPackagePut, namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
         content.binding match {
             case Some(binding) =>
                 val promise = Promise[WhiskPackage]

@@ -41,7 +41,7 @@ import whisk.core.entitlement.Collection
 import whisk.core.entity.DocId
 import whisk.core.entity.DocInfo
 import whisk.core.entity.EntityName
-import whisk.core.entity.Namespace
+import whisk.core.entity.EntityPath
 import whisk.core.entity.Parameters
 import whisk.core.entity.ReducedRule
 import whisk.core.entity.SemVer
@@ -103,7 +103,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
      * - 409 Conflict
      * - 500 Internal Server Error
      */
-    override def create(namespace: Namespace, name: EntityName)(implicit transid: TransactionId) = {
+    override def create(namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
         parameter('overwrite ? false) { overwrite =>
             entity(as[WhiskRulePut]) { content =>
                 val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
@@ -127,14 +127,14 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
      * - 409 Conflict
      * - 500 Internal Server Error
      */
-    override def activate(user: WhiskAuth, namespace: Namespace, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
+    override def activate(user: WhiskAuth, namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
         extractStatusRequest { requestedState =>
             val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
 
             getEntity(WhiskRule, entityStore, docid, Some {
                 rule: WhiskRule =>
                     val tid = DocId(WhiskEntity.qualifiedName(namespace, rule.trigger)).asDocInfo
-                    val ruleName = Namespace(WhiskEntity.qualifiedName(rule.namespace, rule.name))
+                    val ruleName = EntityPath(WhiskEntity.qualifiedName(rule.namespace, rule.name))
 
                     val changeStatus = getTrigger(tid) map { trigger =>
                         getStatus(trigger, ruleName)
@@ -150,7 +150,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
                         case (newStatus) =>
                             info(this, s"[POST] attempting to set rule state to: ${newStatus}")
 
-                            val actionName = Namespace(WhiskEntity.qualifiedName(namespace, rule.action))
+                            val actionName = EntityPath(WhiskEntity.qualifiedName(namespace, rule.action))
 
                             WhiskTrigger.get(entityStore, tid) flatMap { trigger =>
                                 val newTrigger = trigger.removeRule(ruleName)
@@ -190,11 +190,11 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
      * - 409 Conflict
      * - 500 Internal Server Error
      */
-    override def remove(namespace: Namespace, name: EntityName)(implicit transid: TransactionId) = {
+    override def remove(namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
         val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
         deleteEntity(WhiskRule, entityStore, docid, (r: WhiskRule) => {
             val tid = DocId(WhiskEntity.qualifiedName(namespace, r.trigger)).asDocInfo
-            val ruleName = Namespace(WhiskEntity.qualifiedName(r.namespace, r.name))
+            val ruleName = EntityPath(WhiskEntity.qualifiedName(r.namespace, r.name))
             getTrigger(tid) map { trigger =>
                 (getStatus(trigger, ruleName), trigger)
             } flatMap {
@@ -220,7 +220,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
      * - 404 Not Found
      * - 500 Internal Server Error
      */
-    override def fetch(namespace: Namespace, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
+    override def fetch(namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
         val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
         getEntity(WhiskRule, entityStore, docid, Some { rule: WhiskRule =>
             val ruleName = WhiskEntity.qualifiedName(namespace, name)
@@ -228,7 +228,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
             val tid = DocId(triggerName).asDocInfo
 
             val getRuleWithStatus = getTrigger(tid) map { trigger =>
-                getStatus(trigger, Namespace(ruleName))
+                getStatus(trigger, EntityPath(ruleName))
             } map { status =>
                 rule.withStatus(status)
             }
@@ -247,7 +247,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
      * - 200 [] or [WhiskRule as JSON]
      * - 500 Internal Server Error
      */
-    override def list(namespace: Namespace, excludePrivate: Boolean)(implicit transid: TransactionId) = {
+    override def list(namespace: EntityPath, excludePrivate: Boolean)(implicit transid: TransactionId) = {
         // for consistency, all the collections should support the same list API
         // but because supporting docs on actions is difficult, the API does not
         // offer an option to fetch entities with full docs yet; see comment in
@@ -268,7 +268,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
     }
 
     /** Creates a WhiskRule from PUT content, generating default values where necessary. */
-    private def create(content: WhiskRulePut, namespace: Namespace, name: EntityName)(implicit transid: TransactionId): Future[WhiskRule] = {
+    private def create(content: WhiskRulePut, namespace: EntityPath, name: EntityName)(implicit transid: TransactionId): Future[WhiskRule] = {
         val predicate = Promise[WhiskRule]
 
         if (content.trigger.isDefined && content.action.isDefined) {
@@ -290,8 +290,8 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
                         content.publish getOrElse false,
                         content.annotations getOrElse Parameters())
 
-                    val triggerLink = ReducedRule(Namespace(actionName), Status.ACTIVE)
-                    val saveRule = WhiskTrigger.put(entityStore, trigger.addRule(Namespace(ruleName), triggerLink)) onComplete {
+                    val triggerLink = ReducedRule(EntityPath(actionName), Status.ACTIVE)
+                    val saveRule = WhiskTrigger.put(entityStore, trigger.addRule(EntityPath(ruleName), triggerLink)) onComplete {
                         case Success(_) => predicate.success(rule)
                         case Failure(t) => predicate.failure(t)
                     }
@@ -311,7 +311,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
         val oldTid = DocId(oldTriggerName).asDocInfo
 
         getTrigger(oldTid) map { trigger =>
-            (getStatus(trigger, Namespace(ruleName)), trigger)
+            (getStatus(trigger, EntityPath(ruleName)), trigger)
         } map {
             case (status, oldTriggerOpt) =>
                 if (status == Status.INACTIVE) {
@@ -340,11 +340,11 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
                                 isDifferentTrigger <- content.trigger.filter(_ => newTriggerName != oldTriggerName)
                                 oldTrigger <- oldTriggerOpt
                             } yield {
-                                WhiskTrigger.put(entityStore, oldTrigger.removeRule(Namespace(ruleName)))
+                                WhiskTrigger.put(entityStore, oldTrigger.removeRule(EntityPath(ruleName)))
                             }
 
-                            val triggerLink = ReducedRule(Namespace(actionName), Status.INACTIVE)
-                            val update = WhiskTrigger.put(entityStore, newTrigger.addRule(Namespace(ruleName), triggerLink))
+                            val triggerLink = ReducedRule(EntityPath(actionName), Status.INACTIVE)
+                            val update = WhiskTrigger.put(entityStore, newTrigger.addRule(EntityPath(ruleName), triggerLink))
 
                             Future.sequence(Seq(deleteOldLink.getOrElse(Future.successful(true)), update)) onComplete {
                                 case Success(_) => predicate.success(r)
@@ -382,7 +382,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
      * @param ruleName Namespace the name of the rule being worked on
      * @return Status of the rule
      */
-    private def getStatus(triggerOpt: Option[WhiskTrigger], ruleName: Namespace)(implicit transid: TransactionId): Status = {
+    private def getStatus(triggerOpt: Option[WhiskTrigger], ruleName: EntityPath)(implicit transid: TransactionId): Status = {
         val statusFromTrigger = for {
             trigger <- triggerOpt
             rules <- trigger.rules

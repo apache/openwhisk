@@ -63,7 +63,7 @@ case class WhiskActionPut(
  */
 @throws[IllegalArgumentException]
 case class WhiskAction(
-    namespace: Namespace,
+    namespace: EntityPath,
     override val name: EntityName,
     exec: Exec,
     parameters: Parameters = Parameters(),

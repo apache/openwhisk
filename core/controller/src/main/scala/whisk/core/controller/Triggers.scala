@@ -48,7 +48,7 @@ import whisk.core.entitlement.Collection
 import whisk.core.entity.ActivationResponse
 import whisk.core.entity.DocId
 import whisk.core.entity.EntityName
-import whisk.core.entity.Namespace
+import whisk.core.entity.EntityPath
 import whisk.core.entity.Parameters
 import whisk.core.entity.SemVer
 import whisk.core.entity.Status
@@ -105,7 +105,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
      * - 409 Conflict
      * - 500 Internal Server Error
      */
-    override def create(namespace: Namespace, name: EntityName)(implicit transid: TransactionId) = {
+    override def create(namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
         parameter('overwrite ? false) { overwrite =>
             entity(as[WhiskTriggerPut]) { content =>
                 val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
@@ -125,7 +125,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
      * - 404 Not Found
      * - 500 Internal Server Error
      */
-    override def activate(user: WhiskAuth, namespace: Namespace, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
+    override def activate(user: WhiskAuth, namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
 
         entity(as[Option[JsObject]]) {
             payload =>
@@ -206,7 +206,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
      * - 409 Conflict
      * - 500 Internal Server Error
      */
-    override def remove(namespace: Namespace, name: EntityName)(implicit transid: TransactionId) = {
+    override def remove(namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
         val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
         deleteEntity(WhiskTrigger, entityStore, docid, (t: WhiskTrigger) => Future successful true, postProcess = Some { trigger =>
             completeAsTriggerResponse(trigger)
@@ -221,7 +221,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
      * - 404 Not Found
      * - 500 Internal Server Error
      */
-    override def fetch(namespace: Namespace, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
+    override def fetch(namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
         val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
         getEntity(WhiskTrigger, entityStore, docid, Some { trigger =>
             completeAsTriggerResponse(trigger)
@@ -235,7 +235,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
      * - 200 [] or [WhiskTrigger as JSON]
      * - 500 Internal Server Error
      */
-    override def list(namespace: Namespace, excludePrivate: Boolean)(implicit transid: TransactionId) = {
+    override def list(namespace: EntityPath, excludePrivate: Boolean)(implicit transid: TransactionId) = {
         // for consistency, all the collections should support the same list API
         // but because supporting docs on actions is difficult, the API does not
         // offer an option to fetch entities with full docs yet; see comment in
@@ -256,7 +256,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
     }
 
     /** Creates a WhiskTrigger from PUT content, generating default values where necessary. */
-    private def create(content: WhiskTriggerPut, namespace: Namespace, name: EntityName)(implicit transid: TransactionId) = {
+    private def create(content: WhiskTriggerPut, namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
         val newTrigger = WhiskTrigger(
             namespace,
             name,
@@ -306,7 +306,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
      */
     private def validateTriggerFeed(trigger: WhiskTrigger)(implicit transid: TransactionId) = {
         trigger.annotations(Parameters.Feed) map {
-            case JsString(f) if (Namespace.validate(f)) =>
+            case JsString(f) if (EntityPath.validate(f)) =>
                 Future successful trigger
             case _ => Future failed {
                 RejectRequest(BadRequest, "Feed name is not valid")

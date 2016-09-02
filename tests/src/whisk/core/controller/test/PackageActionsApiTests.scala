@@ -36,7 +36,7 @@ import spray.json.pimpAny
 import whisk.core.controller.WhiskActionsApi
 import whisk.core.entity.ActionLimits
 import whisk.core.entity.Exec
-import whisk.core.entity.Namespace
+import whisk.core.entity.EntityPath
 import whisk.core.entity.Parameters
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskActionPut
@@ -68,8 +68,8 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     behavior of "Package Actions API"
 
     val creds = WhiskAuth(Subject(), AuthKey())
-    val namespace = Namespace(creds.subject())
-    val collectionPath = s"/${Namespace.DEFAULT}/${collection.path}"
+    val namespace = EntityPath(creds.subject())
+    val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
     def aname = MakeName.next("package_action_tests")
 
     //// GET /actions/package/
@@ -268,7 +268,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         implicit val tid = transid()
         val auser = WhiskAuth(Subject(), AuthKey())
         val provider = WhiskPackage(namespace, aname, None, publish = true)
-        val binding = WhiskPackage(Namespace(auser.subject()), aname, provider.bind, Parameters("b", "B"))
+        val binding = WhiskPackage(EntityPath(auser.subject()), aname, provider.bind, Parameters("b", "B"))
         val action = WhiskAction(provider.path, aname, Exec.js("??"))
         put(entityStore, provider)
         put(entityStore, binding)
@@ -286,7 +286,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         implicit val tid = transid()
         val auser = WhiskAuth(Subject(), AuthKey())
         val provider = WhiskPackage(namespace, aname, None, Parameters("p", "P"), publish = true)
-        val binding = WhiskPackage(Namespace(auser.subject()), aname, provider.bind, Parameters("b", "B"))
+        val binding = WhiskPackage(EntityPath(auser.subject()), aname, provider.bind, Parameters("b", "B"))
         val action = WhiskAction(provider.path, aname, Exec.js("??"), Parameters("a", "A") ++ Parameters("b", "b"))
         put(entityStore, provider)
         put(entityStore, binding)
@@ -306,7 +306,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         implicit val tid = transid()
         val auser = WhiskAuth(Subject(), AuthKey())
         val provider = WhiskPackage(namespace, aname, None, Parameters("p", "P"), publish = false)
-        val binding = WhiskPackage(Namespace(auser.subject()), aname, provider.bind, Parameters("b", "B"))
+        val binding = WhiskPackage(EntityPath(auser.subject()), aname, provider.bind, Parameters("b", "B"))
         val action = WhiskAction(provider.path, aname, Exec.js("??"), Parameters("a", "A"))
         put(entityStore, provider)
         put(entityStore, binding)
@@ -345,7 +345,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         val name = aname
         val auser = WhiskAuth(Subject(), AuthKey())
         val provider = WhiskPackage(namespace, aname, None, Parameters("p", "P"), publish = true)
-        val binding = WhiskPackage(Namespace(auser.subject()), aname, provider.bind, Parameters("b", "B"))
+        val binding = WhiskPackage(EntityPath(auser.subject()), aname, provider.bind, Parameters("b", "B"))
         val action = WhiskAction(provider.path, aname, Exec.js("??"), Parameters("a", "A"))
         put(entityStore, provider)
         put(entityStore, action)
@@ -359,7 +359,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         val name = aname
         val auser = WhiskAuth(Subject(), AuthKey())
         val provider = WhiskPackage(namespace, aname, None, Parameters("p", "P"), publish = true)
-        val binding = WhiskPackage(Namespace(auser.subject()), aname, provider.bind, Parameters("b", "B"))
+        val binding = WhiskPackage(EntityPath(auser.subject()), aname, provider.bind, Parameters("b", "B"))
         val action = WhiskAction(provider.path, aname, Exec.js("??"), Parameters("a", "A"))
         put(entityStore, binding)
         put(entityStore, action)
@@ -373,7 +373,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         val name = aname
         val auser = WhiskAuth(Subject(), AuthKey())
         val provider = WhiskPackage(namespace, aname, None, Parameters("p", "P"), publish = true)
-        val binding = WhiskPackage(Namespace(auser.subject()), aname, provider.bind, Parameters("b", "B"))
+        val binding = WhiskPackage(EntityPath(auser.subject()), aname, provider.bind, Parameters("b", "B"))
         val action = WhiskAction(provider.path, aname, Exec.js("??"), Parameters("a", "A"))
         put(entityStore, provider)
         put(entityStore, binding)
@@ -386,7 +386,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         implicit val tid = transid()
         val auser = WhiskAuth(Subject(), AuthKey())
         val provider = WhiskPackage(namespace, aname, None, Parameters("p", "P"), publish = false)
-        val binding = WhiskPackage(Namespace(auser.subject()), aname, provider.bind, Parameters("b", "B"))
+        val binding = WhiskPackage(EntityPath(auser.subject()), aname, provider.bind, Parameters("b", "B"))
         val action = WhiskAction(provider.path, aname, Exec.js("??"), Parameters("a", "A"))
         put(entityStore, provider)
         put(entityStore, binding)
@@ -430,7 +430,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         implicit val tid = transid()
         val auser = WhiskAuth(Subject(), AuthKey())
         val provider = WhiskPackage(namespace, aname, publish = true)
-        val reference = WhiskPackage(Namespace(auser.subject()), aname, provider.bind)
+        val reference = WhiskPackage(EntityPath(auser.subject()), aname, provider.bind)
         val action = WhiskAction(provider.path, aname, Exec.js("??"))
         val content = JsObject("x" -> "x".toJson, "z" -> "Z".toJson)
         put(entityStore, provider)
@@ -449,7 +449,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         implicit val tid = transid()
         val auser = WhiskAuth(Subject(), AuthKey())
         val provider = WhiskPackage(namespace, aname, publish = false)
-        val reference = WhiskPackage(Namespace(auser.subject()), aname, provider.bind)
+        val reference = WhiskPackage(EntityPath(auser.subject()), aname, provider.bind)
         val action = WhiskAction(provider.path, aname, Exec.js("??"))
         val content = JsObject("x" -> "x".toJson, "z" -> "Z".toJson)
         put(entityStore, provider)
@@ -504,7 +504,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         implicit val tid = transid()
         val auser = WhiskAuth(Subject(), AuthKey())
         val provider = WhiskPackage(namespace, aname, publish = false)
-        val reference = WhiskPackage(Namespace(auser.subject()), aname, provider.bind)
+        val reference = WhiskPackage(EntityPath(auser.subject()), aname, provider.bind)
         val action = WhiskAction(provider.path, aname, Exec.js("??"))
         val content = JsObject("x" -> "x".toJson, "z" -> "Z".toJson)
         put(entityStore, provider)

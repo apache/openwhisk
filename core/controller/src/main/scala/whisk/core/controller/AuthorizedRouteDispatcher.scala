@@ -24,7 +24,7 @@ import spray.routing.Directives
 import spray.routing.Directive1
 import spray.http.HttpMethod
 import whisk.common.TransactionId
-import whisk.core.entity.Namespace
+import whisk.core.entity.EntityPath
 import whisk.core.entity.Subject
 import whisk.core.entity.WhiskAuth
 import whisk.core.entitlement.EntitlementService
@@ -99,14 +99,14 @@ trait BasicAuthorizedRouteProvider extends Directives with Logging {
     /** Extracts namespace for user from the matched path segment. */
     protected def namespace(user: Subject, ns: String) = {
         validate(isNamespace(ns), "namespace contains invalid characters") &
-            extract(_ => Namespace(if (Namespace(ns) == Namespace.DEFAULT) user() else ns))
+            extract(_ => EntityPath(if (EntityPath(ns) == EntityPath.DEFAULT) user() else ns))
     }
 
     /** Extracts the HTTP method which is used to determine privilege for resource. */
     protected val requestMethod = extract(_.request.method)
 
     /** Confirms that a path segment is a valid namespace. Used to reject invalid namespaces. */
-    protected def isNamespace(n: String) = Try { Namespace(n) } isSuccess
+    protected def isNamespace(n: String) = Try { EntityPath(n) } isSuccess
 }
 
 /**
@@ -121,7 +121,7 @@ trait AuthorizedRouteProvider extends BasicAuthorizedRouteProvider {
      * '_/collection-path' matching an implicit namespace, or
      * 'explicit-namespace/collection-path'.
      */
-    protected lazy val collectionPrefix = pathPrefix((Namespace.DEFAULT.toString.r | Segment) / collection.path)
+    protected lazy val collectionPrefix = pathPrefix((EntityPath.DEFAULT.toString.r | Segment) / collection.path)
 
     /** Route directives for API. The methods that are supported on entities. */
     override protected lazy val entityOps = put | get | delete | post
@@ -151,7 +151,7 @@ trait AuthorizedRouteProvider extends BasicAuthorizedRouteProvider {
     /**
      * Handles the inner routes of the collection. This allows customizing nested resources.
      */
-    protected def innerRoutes(user: WhiskAuth, ns: Namespace)(implicit transid: TransactionId) = {
+    protected def innerRoutes(user: WhiskAuth, ns: EntityPath)(implicit transid: TransactionId) = {
         (entityPrefix & entityOps & requestMethod) { (segment, m) =>
             // matched /namespace/collection/entity
             (entityname(segment) & pathEnd) {

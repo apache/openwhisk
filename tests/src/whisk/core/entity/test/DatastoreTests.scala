@@ -43,7 +43,7 @@ class DatastoreTests extends FlatSpec
     with WskActorSystem
     with DbUtils {
 
-    val namespace = Namespace("test namespace")
+    val namespace = EntityPath("test namespace")
     val config = new WhiskConfig(WhiskEntityStore.requiredProperties)
     val datastore = WhiskEntityStore.datastore(config)
     val authstore = WhiskAuthStore.datastore(config)

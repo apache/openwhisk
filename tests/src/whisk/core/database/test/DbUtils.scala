@@ -30,7 +30,7 @@ import whisk.core.database.ArtifactStore
 import whisk.core.database.DocumentFactory
 import whisk.core.database.NoDocumentException
 import whisk.core.entity.DocInfo
-import whisk.core.entity.Namespace
+import whisk.core.entity.EntityPath
 import whisk.core.entity.UUID
 import whisk.core.entity.WhiskAuth
 import whisk.core.entity.WhiskEntityQueries
@@ -79,7 +79,7 @@ trait DbUtils extends TransactionCounter {
      * where the step performs a direct db query to retrieve the view and check the count
      * matches the given value.
      */
-    def waitOnView[Au](db: ArtifactStore[Au], namespace: Namespace, count: Int)(
+    def waitOnView[Au](db: ArtifactStore[Au], namespace: EntityPath, count: Int)(
         implicit context: ExecutionContext, transid: TransactionId, timeout: Duration) = {
         val success = retry(() => {
             val startKey = List(namespace.toString)
@@ -98,7 +98,7 @@ trait DbUtils extends TransactionCounter {
      * This uses retry above, where the step performs a collection-specific view query using the collection
      * factory. The result count from the view is checked against the given value.
      */
-    def waitOnView(db: EntityStore, factory: WhiskEntityQueries[_], namespace: Namespace, count: Int)(
+    def waitOnView(db: EntityStore, factory: WhiskEntityQueries[_], namespace: EntityPath, count: Int)(
         implicit context: ExecutionContext, transid: TransactionId, timeout: Duration) = {
         val success = retry(() => {
             factory.listCollectionInNamespace(db, namespace, 0, 0) map { l =>
