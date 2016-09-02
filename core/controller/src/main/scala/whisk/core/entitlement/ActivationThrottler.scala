@@ -34,14 +34,14 @@ import whisk.core.entity.Subject
  * Determines user limits and activation counts as seen by the invoker and the loadbalancer
  * in a scheduled, repeating task for other services to get the cached information to be able
  * to calculate and determine whether the namespace currently invoking a new action should
- * be allowed to do so
+ * be allowed to do so.
  *
  * @param config containing the config information needed (consulServer)
  */
-class ActivationThrottler(consulServer: String, concurrencyLimit: Int)(
+class ActivationThrottler(consulServer: String, concurrencyLimit: Int, systemOverloadLimit: Int)(
     implicit val system: ActorSystem) extends Logging {
 
-    info(this, s"concurrencyLimit = $concurrencyLimit")
+    info(this, s"concurrencyLimit = $concurrencyLimit, systemOverloadLimit = $systemOverloadLimit")
 
     implicit private val executionContext = system.dispatcher
 
@@ -62,7 +62,12 @@ class ActivationThrottler(consulServer: String, concurrencyLimit: Int)(
     def check(subject: Subject): Boolean = userActivationCounter.getOrElse(subject(), 0L) < concurrencyLimit
 
     /**
-     * Returns the per-namespace activation count as seen by the loadbalancer
+     * Checks whether the system is in a generally overloaded state.
+     */
+    def isOverloaded = userActivationCounter.values.sum > systemOverloadLimit
+
+    /**
+     * Returns the per-namespace activation count as seen by the loadbalancer.
      *
      * @returns a map where each namespace maps to the activations for it counted
      *     by the loadbalancer
@@ -75,7 +80,7 @@ class ActivationThrottler(consulServer: String, concurrencyLimit: Int)(
         }
 
     /**
-     * Returns the per-namespace activation count as seen by all invokers combined
+     * Returns the per-namespace activation count as seen by all invokers combined.
      *
      * @returns a map where each namespace maps to the activations for it counted
      *     by all the invokers combined
