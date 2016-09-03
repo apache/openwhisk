@@ -23,6 +23,7 @@ import ActionContainer.withContainer
 import spray.json.JsObject
 import spray.json.JsString
 import common.WskActorSystem
+import spray.json.JsNumber
 
 @RunWith(classOf[JUnitRunner])
 class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSystem {
@@ -121,6 +122,54 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
 
             runRes shouldBe defined
             runRes should be(Some(JsObject("error" -> JsString("sorry"))))
+        }
+
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe empty
+                e shouldBe empty
+        })
+    }
+
+    it should "error when importing a not-supported package" in {
+        val (out, err) = withActionContainer() { c =>
+            val code = """
+                |import iamnotsupported
+                |def main(args):
+                |    return { "error": "not reaching here" }
+            """.stripMargin
+
+            val (initCode, res) = c.init(initPayload(code))
+            initCode should be(200)
+
+            val (runCode, runRes) = c.run(runPayload(JsObject()))
+            runCode should be(502)
+        }
+
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe empty
+                e should include("Traceback")
+        })
+    }
+
+    it should "be able to import additional packages as installed in the image" in {
+        val (out, err) = withActionContainer() { c =>
+            val code = """
+                |import requests
+                |def main(args):
+                |    r = requests.get("https://httpbin.org/status/418")
+                |    return { "status": r.status_code }
+            """.stripMargin
+
+            val (initCode, _) = c.init(initPayload(code))
+            initCode should be(200)
+
+            val (runCode, runRes) = c.run(runPayload(JsObject()))
+            runCode should be(200) // action writer returning an error is OK
+
+            runRes shouldBe defined
+            runRes should be(Some(JsObject("status" -> JsNumber(418))))
         }
 
         checkStreams(out, err, {

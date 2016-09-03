@@ -3,6 +3,9 @@ FROM dockerskeleton
 
 RUN apk add --no-cache python-dev
 
+# Install common modules for python
+RUN pip install requests
+
 ENV FLASK_PROXY_PORT 8080
 
 RUN mkdir -p /pythonAction
