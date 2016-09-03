@@ -26,23 +26,12 @@ import scala.util.matching.Regex.Match
 import akka.actor.ActorSystem
 import akka.actor.Props
 import akka.actor.actorRef2Scala
+import akka.event.Logging.LogLevel
 import whisk.common.Counter
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.core.connector.MessageConsumer
-import whisk.core.invoker.InvokerService
-import akka.event.Logging.LogLevel
-
-object Dispatcher extends Logging {
-    def main(args: Array[String]): Unit = {
-        val name = if (args.nonEmpty) args(0).trim.toLowerCase() else ""
-        name match {
-            case "invoker" => InvokerService.main(args)
-            case _         => error(Dispatcher, s"unrecognized app $name")
-        }
-    }
-}
 
 /**
  * Creates a dispatcher that pulls messages from the message pub/sub connector.

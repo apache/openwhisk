@@ -24,7 +24,7 @@
 				<arguments>
 					<matcher>
 						<id>org.eclipse.ui.ide.multiFilter</id>
-						<arguments>1.0-projectRelativePath-matches-false-false-core/dispatcher</arguments>
+						<arguments>1.0-projectRelativePath-matches-false-false-core/invoker</arguments>
 					</matcher>
 					<matcher>
 						<id>org.eclipse.ui.ide.multiFilter</id>

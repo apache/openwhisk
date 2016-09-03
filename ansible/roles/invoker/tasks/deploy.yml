@@ -38,7 +38,7 @@
       - "/var/lib/docker/containers/:/containers"
     ports:
       - "{{invoker.port + play_hosts.index(inventory_hostname)}}:8080"
-    command: /bin/sh -c "/invoker/bin/invoker invoker {{play_hosts.index(inventory_hostname)}} >> /logs/invoker{{play_hosts.index(inventory_hostname)}}_logs.log 2>&1"
+    command: /bin/sh -c "/invoker/bin/invoker {{play_hosts.index(inventory_hostname)}} >> /logs/invoker{{play_hosts.index(inventory_hostname)}}_logs.log 2>&1"
 
 - name: wait until Invoker is up and running
   uri:

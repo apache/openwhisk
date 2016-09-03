@@ -543,15 +543,12 @@ object Invoker {
         edgeHost ++
         consulServer ++
         whiskVersion
-}
-
-object InvokerService {
-    /**
-     * An object which records the environment variables required for this component to run.
-     */
-    def requiredProperties = Invoker.requiredProperties
 
     def main(args: Array[String]): Unit = {
+        require(args.length == 1, "invoker instance required")
+        val instance = args(0).toInt
+        val verbosity = InfoLevel
+
         implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
         implicit val system: ActorSystem = ActorSystem(
             name = "invoker-actor-system",
@@ -561,9 +558,6 @@ object InvokerService {
         val config = new WhiskConfig(requiredProperties)
 
         if (config.isValid) {
-            val instance = if (args.length > 0) args(1).toInt else 0
-            val verbosity = InfoLevel
-
             SimpleExec.setVerbosity(verbosity)
 
             val topic = s"invoke${instance}"
