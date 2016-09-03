@@ -13,14 +13,14 @@ RUN apk add --no-cache \
 
 # Install common modules for python
 RUN pip install \
-    beautifulsoup4 \
-    httplib2 \
-    lxml \
-    python-dateutil \
-    requests \
-    scrapy \
-    simplejson \
-    twisted
+    beautifulsoup4==4.5.1 \
+    httplib2==0.9.2 \
+    lxml==3.6.4 \
+    python-dateutil==2.5.3 \
+    requests==2.11.1 \
+    scrapy==1.1.2 \
+    simplejson==3.8.2 \
+    twisted==16.4.0
 
 ENV FLASK_PROXY_PORT 8080
 
