@@ -20,10 +20,9 @@ import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
 import ActionContainer.withContainer
-import spray.json.JsObject
-import spray.json.JsString
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 import common.WskActorSystem
-import spray.json.JsNumber
 
 @RunWith(classOf[JUnitRunner])
 class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSystem {
@@ -156,10 +155,30 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
     it should "be able to import additional packages as installed in the image" in {
         val (out, err) = withActionContainer() { c =>
             val code = """
+                |from bs4 import BeautifulSoup
+                |from dateutil.parser import *
+                |import httplib2
+                |from lxml import etree
                 |import requests
+                |from scrapy.item import Item, Field
+                |import simplejson as json
+                |from twisted.internet import protocol, reactor, endpoints
+                |
                 |def main(args):
-                |    r = requests.get("https://httpbin.org/status/418")
-                |    return { "status": r.status_code }
+                |    b = BeautifulSoup('<html><head><title>python action test</title></head></html>', 'html.parser')
+                |    h = httplib2.Http().request('https://httpbin.org/status/201')[0]
+                |    t = parse('2016-02-22 11:59:00 EST')
+                |    r = requests.get('https://httpbin.org/status/418')
+                |    j = json.dumps({'foo':'bar'}, separators = (',', ':'))
+                |
+                |    return {
+                |       "bs4": str(b.title),
+                |       "httplib2": h.status,
+                |       "dateutil": t.strftime("%A"),
+                |       "lxml": etree.Element("root").tag,
+                |       "json": j,
+                |       "request": r.status_code
+                |    }
             """.stripMargin
 
             val (initCode, _) = c.init(initPayload(code))
@@ -169,7 +188,13 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
             runCode should be(200) // action writer returning an error is OK
 
             runRes shouldBe defined
-            runRes should be(Some(JsObject("status" -> JsNumber(418))))
+            runRes should be(Some(JsObject(
+                "bs4" -> "<title>python action test</title>".toJson,
+                "httplib2" -> 201.toJson,
+                "dateutil" -> "Monday".toJson,
+                "lxml" -> "root".toJson,
+                "json" -> JsObject("foo" -> "bar".toJson).compactPrint.toJson,
+                "request" -> 418.toJson)))
         }
 
         checkStreams(out, err, {

@@ -351,6 +351,45 @@ The following packages are available to be used in the Node.js 0.12.14 environme
 - xmlhttprequest v1.7.0
 - yauzl v2.3.1
 
+## Python actions
+
+Python actions are executed by default using Python 2.7.12.
+In addition to the standard Python library, the following packages are also available for use by Python actions.
+
+- attrs v16.1.0
+- beautifulsoup4 v4.5.1
+- cffi v1.7.0
+- click v6.6
+- cryptography v1.5
+- cssselect v0.9.2
+- enum34 v1.1.6
+- flask v0.11.1
+- gevent v1.1.2
+- greenlet v0.4.10
+- httplib2 v0.9.2
+- idna v2.1
+- ipaddress v1.0.16
+- itsdangerous v0.24
+- jinja2 v2.8
+- lxml v3.6.4
+- markupsafe v0.23
+- parsel v1.0.3
+- pyasn1 v0.1.9
+- pyasn1-modules v0.0.8
+- pycparser v2.14
+- pydispatcher v2.0.5
+- pyopenssl v16.1.0
+- python-dateutil v2.5.3
+- queuelib v1.4.2
+- requests v2.11.1
+- scrapy v1.1.2
+- service-identity v16.0.0
+- simplejson v3.8.2
+- six v1.10.0
+- twisted v16.4.0
+- w3lib v1.15.0
+- werkzeug v0.11.10
+- zope.interface v4.3.1
 
 ## Docker actions
 

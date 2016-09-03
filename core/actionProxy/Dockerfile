@@ -7,7 +7,7 @@ RUN apk add --no-cache bash \
         bzip2-dev \
         gcc \
         libc-dev \
-  && pip install --no-cache-dir gevent flask \
+  && pip install --no-cache-dir gevent==1.1.2 flask==0.11.1 \
   && apk del .build-deps
 
 ENV FLASK_PROXY_PORT 8080
