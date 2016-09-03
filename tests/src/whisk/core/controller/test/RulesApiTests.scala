@@ -88,11 +88,13 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         }.toList
         rules foreach { put(entityStore, _) }
         waitOnView(entityStore, WhiskRule, namespace, 2)
-        Get(s"$collectionPath") ~> sealRoute(routes(creds)) ~> check {
-            status should be(OK)
-            val response = responseAs[List[JsObject]]
-            rules.length should be(response.length)
-            rules forall { r => response contains r.summaryAsJson } should be(true)
+        whisk.utils.retry {
+            Get(s"$collectionPath") ~> sealRoute(routes(creds)) ~> check {
+                status should be(OK)
+                val response = responseAs[List[JsObject]]
+                rules.length should be(response.length)
+                rules forall { r => response contains r.summaryAsJson } should be(true)
+            }
         }
     }
 
@@ -104,11 +106,13 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         }.toList
         rules foreach { put(entityStore, _) }
         waitOnView(entityStore, WhiskRule, namespace, 2)
-        Get(s"$collectionPath?docs=true") ~> sealRoute(routes(creds)) ~> check {
-            status should be(OK)
-            val response = responseAs[List[WhiskRule]]
-            rules.length should be(response.length)
-            rules forall { r => response contains r } should be(true)
+        whisk.utils.retry {
+            Get(s"$collectionPath?docs=true") ~> sealRoute(routes(creds)) ~> check {
+                status should be(OK)
+                val response = responseAs[List[WhiskRule]]
+                rules.length should be(response.length)
+                rules forall { r => response contains r } should be(true)
+            }
         }
     }
 

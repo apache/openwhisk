@@ -85,11 +85,13 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
         }.toList
         triggers foreach { put(entityStore, _) }
         waitOnView(entityStore, WhiskTrigger, namespace, 2)
-        Get(s"$collectionPath") ~> sealRoute(routes(creds)) ~> check {
-            status should be(OK)
-            val response = responseAs[List[JsObject]]
-            triggers.length should be(response.length)
-            triggers forall { a => response contains a.summaryAsJson } should be(true)
+        whisk.utils.retry {
+            Get(s"$collectionPath") ~> sealRoute(routes(creds)) ~> check {
+                status should be(OK)
+                val response = responseAs[List[JsObject]]
+                triggers.length should be(response.length)
+                triggers forall { a => response contains a.summaryAsJson } should be(true)
+            }
         }
     }
 
@@ -101,11 +103,13 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
         }.toList
         triggers foreach { put(entityStore, _) }
         waitOnView(entityStore, WhiskTrigger, namespace, 2)
-        Get(s"$collectionPath?docs=true") ~> sealRoute(routes(creds)) ~> check {
-            status should be(OK)
-            val response = responseAs[List[WhiskTrigger]]
-            triggers.length should be(response.length)
-            triggers forall { a => response contains a } should be(true)
+        whisk.utils.retry {
+            Get(s"$collectionPath?docs=true") ~> sealRoute(routes(creds)) ~> check {
+                status should be(OK)
+                val response = responseAs[List[WhiskTrigger]]
+                triggers.length should be(response.length)
+                triggers forall { a => response contains a } should be(true)
+            }
         }
     }
 
