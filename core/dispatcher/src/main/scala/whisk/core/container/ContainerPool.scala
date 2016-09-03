@@ -18,6 +18,7 @@ package whisk.core.container
 
 import java.nio.file.Files
 import java.nio.file.Paths
+import java.util.concurrent.locks.ReentrantLock
 import java.util.Timer
 import java.util.TimerTask
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -407,15 +408,15 @@ class ContainerPool(
         makeContainerName(action.fullyQualifiedName)
 
     /**
-     * dockerLock is used to serialize all docker operations except pull.
+     * dockerLock is a fair lock used to serialize all docker operations except pull.
      * However, a non-pull operation can run concurrently with a pull operation.
      */
-    val dockerLock = new Object()
+    val dockerLock = new ReentrantLock(true)
 
     /**
      * dockerPullLock is used to serialize all pull operations.
      */
-    val dockerPullLock = new Object()
+    val dockerPullLock = new ReentrantLock(true)
 
     /* A background thread that
      *   1. Kills leftover action containers on startup
@@ -462,23 +463,29 @@ class ContainerPool(
      * All docker operations from the pool must pass through here (except for pull).
      */
     private def runDockerOp[T](dockerOp: => T)(implicit transid: TransactionId): T = {
-        val (elapsed, result) = TimingUtil.time {
-            dockerLock.synchronized {
-                dockerOp
-            }
-        }
-        if (elapsed > slowDockerThreshold) {
-            warn(this, s"Docker operation took $elapsed")
-        }
-        result
+        runDockerOpWithLock(dockerLock, dockerOp)
     }
 
     /**
-     * All pull operations from the pool must pass through here.
+     * All docker pull operations from the pool must pass through here.
      */
-    private def runDockerPull[T](dockerOp: => T): T = {
-        dockerPullLock.synchronized {
-            dockerOp
+    private def runDockerPull[T](dockerOp: => T)(implicit transid: TransactionId): T = {
+        runDockerOpWithLock(dockerPullLock, dockerOp)
+    }
+
+    /**
+     * All docker operations from the pool must pass through here (except for pull).
+     */
+    private def runDockerOpWithLock[T](lock: ReentrantLock, dockerOp: => T)(implicit transid: TransactionId): T = {
+        lock.lock()
+        try {
+            val (elapsed, result) = TimingUtil.time { dockerOp }
+            if (elapsed > slowDockerThreshold) {
+                warn(this, s"Docker operation took $elapsed")
+            }
+            result
+        } finally {
+            lock.unlock()
         }
     }
 
@@ -607,6 +614,7 @@ class ContainerPool(
     private val defaultMaxIdle = 10
     private val defaultGCThreshold = 600.seconds
     private val slowDockerThreshold = 500.millis
+    private val slowDockerPullThreshold = 5.seconds
 
     val gcFrequency = 1000.milliseconds // this should not be leaked but a test needs this until GC count is implemented
     private var _maxIdle = defaultMaxIdle
