@@ -195,7 +195,7 @@ object WhiskEntityQueries {
      */
     def listAllInNamespace[A <: WhiskEntity](
         db: ArtifactStore[A],
-        namespace: Namespace,
+        namespace: EntityPath,
         includeDocs: Boolean)(
             implicit transid: TransactionId): Future[Map[String, List[JsObject]]] = {
         implicit val ec = db.executionContext
@@ -217,7 +217,7 @@ object WhiskEntityQueries {
      */
     def listEntitiesInNamespace[A <: WhiskEntity](
         db: ArtifactStore[A],
-        namespace: Namespace,
+        namespace: EntityPath,
         includeDocs: Boolean)(
             implicit transid: TransactionId): Future[Map[String, List[JsObject]]] = {
         implicit val ec = db.executionContext
@@ -251,7 +251,7 @@ object WhiskEntityQueries {
     def listCollectionInNamespace[A <: WhiskEntity, T](
         db: ArtifactStore[A],
         collection: String,
-        namespace: Namespace,
+        namespace: EntityPath,
         skip: Int,
         limit: Int,
         since: Option[Instant] = None,
@@ -266,7 +266,7 @@ object WhiskEntityQueries {
     def listCollectionByName[A <: WhiskEntity, T](
         db: ArtifactStore[A],
         collection: String,
-        namespace: Namespace,
+        namespace: EntityPath,
         name: EntityName,
         skip: Int,
         limit: Int,
@@ -331,7 +331,7 @@ trait WhiskEntityQueries[T] {
 
     def listCollectionInNamespace[A <: WhiskEntity, T](
         db: ArtifactStore[A],
-        namespace: Namespace,
+        namespace: EntityPath,
         skip: Int,
         limit: Int,
         docs: Boolean = false,
@@ -344,7 +344,7 @@ trait WhiskEntityQueries[T] {
 
     def listCollectionByName[A <: WhiskEntity, T](
         db: ArtifactStore[A],
-        namespace: Namespace,
+        namespace: EntityPath,
         name: EntityName,
         skip: Int,
         limit: Int,

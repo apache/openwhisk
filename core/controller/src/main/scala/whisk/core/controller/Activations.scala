@@ -31,7 +31,7 @@ import whisk.common.TransactionId
 import whisk.core.entity.ActivationId
 import whisk.core.entity.DocId
 import whisk.core.entity.EntityName
-import whisk.core.entity.Namespace
+import whisk.core.entity.EntityPath
 import whisk.core.entity.WhiskActivation
 import whisk.core.entity.WhiskEntity
 import whisk.core.entity.WhiskActivationStore
@@ -82,7 +82,7 @@ trait WhiskActivationsApi
      * Overrides because API allows for GET on /activations and /activations/[result|log] which
      * would be rejected in the superclass.
      */
-    override protected def innerRoutes(user: WhiskAuth, ns: Namespace)(implicit transid: TransactionId) = {
+    override protected def innerRoutes(user: WhiskAuth, ns: EntityPath)(implicit transid: TransactionId) = {
         (entityPrefix & entityOps & requestMethod) { (segment, m) =>
             entityname(segment) {
                 // defer rest of the path processing to the fetch operation, which is
@@ -113,7 +113,7 @@ trait WhiskActivationsApi
      * - 200 [] or [WhiskActivation as JSON]
      * - 500 Internal Server Error
      */
-    private def list(namespace: Namespace)(implicit transid: TransactionId) = {
+    private def list(namespace: EntityPath)(implicit transid: TransactionId) = {
         parameter('skip ? 0, 'limit ? collection.listLimit, 'count ? false, 'docs ? false, 'name.as[EntityName]?, 'since.as[Instant]?, 'upto.as[Instant]?) {
             (skip, limit, count, docs, name, since, upto) =>
                 // regardless of limit, cap at 200 records, client must paginate
@@ -141,7 +141,7 @@ trait WhiskActivationsApi
      * - 404 Not Found
      * - 500 Internal Server Error
      */
-    private def fetch(namespace: Namespace, activationId: ActivationId)(implicit transid: TransactionId) = {
+    private def fetch(namespace: EntityPath, activationId: ActivationId)(implicit transid: TransactionId) = {
         val docid = DocId(WhiskEntity.qualifiedName(namespace, activationId))
         pathEndOrSingleSlash {
             getEntity(WhiskActivation, activationStore, docid, postProcess = Some((activation: WhiskActivation) =>
@@ -188,9 +188,9 @@ trait WhiskActivationsApi
     }
 
     /** Custom deserializer for query parameters "name" into valid namespace. */
-    private implicit val stringToNamespace = new FromStringDeserializer[Namespace] {
-        def apply(value: String): Either[DeserializationError, Namespace] = {
-            Try { Namespace(value) } match {
+    private implicit val stringToNamespace = new FromStringDeserializer[EntityPath] {
+        def apply(value: String): Either[DeserializationError, EntityPath] = {
+            Try { EntityPath(value) } match {
                 case Success(e) => Right(e)
                 case Failure(t) => Left(MalformedContent(t.getMessage))
             }

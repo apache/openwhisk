@@ -39,7 +39,7 @@ case class WhiskTriggerPut(
  * @param status status of the rule
  */
 case class ReducedRule(
-    action: Namespace,
+    action: EntityPath,
     status: Status)
 
 /**
@@ -61,14 +61,14 @@ case class ReducedRule(
  */
 @throws[IllegalArgumentException]
 case class WhiskTrigger(
-    namespace: Namespace,
+    namespace: EntityPath,
     override val name: EntityName,
     parameters: Parameters = Parameters(),
     limits: TriggerLimits = TriggerLimits(),
     version: SemVer = SemVer(),
     publish: Boolean = false,
     annotations: Parameters = Parameters(),
-    rules: Option[Map[Namespace, ReducedRule]] = None)
+    rules: Option[Map[EntityPath, ReducedRule]] = None)
     extends WhiskEntity(name) {
 
     require(limits != null, "limits undefined")
@@ -84,9 +84,9 @@ case class WhiskTrigger(
      * @param rule The rule, that will be fired by this trigger. It's from type ReducedRule. This type
      * contains the fully qualified name of the action to be fired by the rule and the status of the rule.
      */
-    def addRule(rulename: Namespace, rule: ReducedRule) = {
+    def addRule(rulename: EntityPath, rule: ReducedRule) = {
         val entry = rulename -> rule
-        val links = rules getOrElse Map[Namespace, ReducedRule]()
+        val links = rules getOrElse Map[EntityPath, ReducedRule]()
         WhiskTrigger(namespace, name, parameters, limits, version, publish, annotations, Some(links + entry)).revision[WhiskTrigger](docinfo.rev)
     }
 
@@ -96,7 +96,7 @@ case class WhiskTrigger(
      * @param rule The fully qualified name of the rule, that should be removed from the
      * trigger. After removing the rule, it won't be fired anymore by this trigger.
      */
-    def removeRule(rule: Namespace) = {
+    def removeRule(rule: EntityPath) = {
         WhiskTrigger(namespace, name, parameters, limits, version, publish, annotations, rules.map(_ - rule)).revision[WhiskTrigger](docinfo.rev)
     }
 }

@@ -55,7 +55,7 @@ import whisk.core.database.DocumentFactory
  */
 @throws[IllegalArgumentException]
 case class WhiskActivation(
-    namespace: Namespace,
+    namespace: EntityPath,
     override val name: EntityName,
     subject: Subject,
     activationId: ActivationId,

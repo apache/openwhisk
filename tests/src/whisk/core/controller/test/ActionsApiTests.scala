@@ -49,7 +49,7 @@ import whisk.core.entity.AuthKey
 import whisk.core.entity.Exec
 import whisk.core.entity.MemoryLimit
 import whisk.core.entity.LogLimit
-import whisk.core.entity.Namespace
+import whisk.core.entity.EntityPath
 import whisk.core.entity.Parameters
 import whisk.core.entity.Subject
 import whisk.core.entity.TimeLimit
@@ -82,8 +82,8 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     behavior of "Actions API"
 
     val creds = WhiskAuth(Subject(), AuthKey())
-    val namespace = Namespace(creds.subject())
-    val collectionPath = s"/${Namespace.DEFAULT}/${collection.path}"
+    val namespace = EntityPath(creds.subject())
+    val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
     def aname = MakeName.next("action_tests")
     setVerbosity(InfoLevel)
     val entityTooBigRejectionMessage = "request entity too large"

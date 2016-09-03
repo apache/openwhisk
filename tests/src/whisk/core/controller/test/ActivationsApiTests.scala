@@ -29,7 +29,7 @@ import spray.json.JsObject
 import whisk.core.controller.WhiskActivationsApi
 import whisk.core.entity.ActivationId
 import whisk.core.entity.EntityName
-import whisk.core.entity.Namespace
+import whisk.core.entity.EntityPath
 import whisk.core.entity.AuthKey
 import whisk.core.entity.WhiskAuth
 import whisk.core.entity.Subject
@@ -59,8 +59,8 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
     behavior of "Activations API"
 
     val creds = WhiskAuth(Subject(), AuthKey())
-    val namespace = Namespace(creds.subject())
-    val collectionPath = s"/${Namespace.DEFAULT}/${collection.path}"
+    val namespace = EntityPath(creds.subject())
+    val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
     def aname = MakeName.next("activations_tests")
 
     //// GET /activations
@@ -69,7 +69,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         // create two sets of activation records, and check that only one set is served back
         val creds1 = WhiskAuth(Subject(), AuthKey())
         (1 to 2).map { i =>
-            WhiskActivation(Namespace(creds1.subject()), aname, creds1.subject, ActivationId(), start = Instant.now, end = Instant.now)
+            WhiskActivation(EntityPath(creds1.subject()), aname, creds1.subject, ActivationId(), start = Instant.now, end = Instant.now)
         } foreach { put(entityStore, _) }
 
         val actionName = aname
@@ -96,7 +96,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         // create two sets of activation records, and check that only one set is served back
         val creds1 = WhiskAuth(Subject(), AuthKey())
         (1 to 2).map { i =>
-            WhiskActivation(Namespace(creds1.subject()), aname, creds1.subject, ActivationId(), start = Instant.now, end = Instant.now)
+            WhiskActivation(EntityPath(creds1.subject()), aname, creds1.subject, ActivationId(), start = Instant.now, end = Instant.now)
         } foreach { put(entityStore, _) }
 
         val actionName = aname
@@ -122,7 +122,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         // create two sets of activation records, and check that only one set is served back
         val creds1 = WhiskAuth(Subject(), AuthKey())
         (1 to 2).map { i =>
-            WhiskActivation(Namespace(creds1.subject()), aname, creds1.subject, ActivationId(), start = Instant.now, end = Instant.now)
+            WhiskActivation(EntityPath(creds1.subject()), aname, creds1.subject, ActivationId(), start = Instant.now, end = Instant.now)
         } foreach { put(entityStore, _) }
 
         val actionName = aname
@@ -185,7 +185,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         // create two sets of activation records, and check that only one set is served back
         val creds1 = WhiskAuth(Subject(), AuthKey())
         (1 to 2).map { i =>
-            WhiskActivation(Namespace(creds1.subject()), aname, creds1.subject, ActivationId(), start = Instant.now, end = Instant.now)
+            WhiskActivation(EntityPath(creds1.subject()), aname, creds1.subject, ActivationId(), start = Instant.now, end = Instant.now)
         } foreach { put(entityStore, _) }
 
         val activations = (1 to 2).map { i =>

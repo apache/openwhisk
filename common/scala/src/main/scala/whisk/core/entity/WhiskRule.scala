@@ -58,7 +58,7 @@ case class WhiskRulePut(
  */
 @throws[IllegalArgumentException]
 case class WhiskRule(
-    namespace: Namespace,
+    namespace: EntityPath,
     override val name: EntityName,
     trigger: types.Trigger,
     action: types.Action,
@@ -87,7 +87,7 @@ case class WhiskRule(
  * @param annotation the set of annotations to attribute to the rule
  */
 case class WhiskRuleResponse(
-    namespace: Namespace,
+    namespace: EntityPath,
     name: EntityName,
     status: Status,
     trigger: types.Trigger,

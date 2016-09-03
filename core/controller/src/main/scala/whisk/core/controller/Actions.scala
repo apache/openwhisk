@@ -52,7 +52,7 @@ import whisk.core.entity.DocInfo
 import whisk.core.entity.EntityName
 import whisk.core.entity.SequenceExec
 import whisk.core.entity.MemoryLimit
-import whisk.core.entity.Namespace
+import whisk.core.entity.EntityPath
 import whisk.core.entity.Parameters
 import whisk.core.entity.SemVer
 import whisk.core.entity.TimeLimit
@@ -137,7 +137,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      *                  *and* one of { package(ns', *), package(ns', bar) }
      *                  resource resolves to { action(ns.bar, *) }
      */
-    protected override def innerRoutes(user: WhiskAuth, ns: Namespace)(implicit transid: TransactionId) = {
+    protected override def innerRoutes(user: WhiskAuth, ns: EntityPath)(implicit transid: TransactionId) = {
         (entityPrefix & entityOps & requestMethod) { (segment, m) =>
             entityname(segment) { outername =>
                 pathEnd {
@@ -210,7 +210,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      * - 409 Conflict
      * - 500 Internal Server Error
      */
-    override def create(namespace: Namespace, name: EntityName)(implicit transid: TransactionId) = {
+    override def create(namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
         parameter('overwrite ? false) { overwrite =>
             entity(as[WhiskActionPut]) { content =>
                 val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
@@ -230,7 +230,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      * - 502 Bad Gateway
      * - 500 Internal Server Error
      */
-    override def activate(user: WhiskAuth, namespace: Namespace, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
+    override def activate(user: WhiskAuth, namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
         parameter('blocking ? false, 'result ? false) { (blocking, result) =>
             entity(as[Option[JsObject]]) { payload =>
                 val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
@@ -284,7 +284,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      * - 409 Conflict
      * - 500 Internal Server Error
      */
-    override def remove(namespace: Namespace, name: EntityName)(implicit transid: TransactionId) = {
+    override def remove(namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
         val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
         deleteEntity(WhiskAction, entityStore, docid, (a: WhiskAction) => Future successful true)
     }
@@ -297,7 +297,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      * - 404 Not Found
      * - 500 Internal Server Error
      */
-    override def fetch(namespace: Namespace, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
+    override def fetch(namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
         val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
         getEntity(WhiskAction, entityStore, docid, Some { action: WhiskAction =>
             val mergedAction = env map { action inherit _ } getOrElse action
@@ -306,13 +306,13 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
     }
 
     /**
-     * Gets all action in namespace.
+     * Gets all actions in a path.
      *
      * Responses are one of (Code, Message)
      * - 200 [] or [WhiskAction as JSON]
      * - 500 Internal Server Error
      */
-    override def list(namespace: Namespace, excludePrivate: Boolean)(implicit transid: TransactionId) = {
+    override def list(namespace: EntityPath, excludePrivate: Boolean)(implicit transid: TransactionId) = {
         // for consistency, all the collections should support the same list API
         // but because supporting docs on actions is difficult, the API does not
         // offer an option to fetch entities with full docs yet.
@@ -337,7 +337,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
     }
 
     /** Creates a WhiskAction from PUT content, generating default values where necessary. */
-    private def make(content: WhiskActionPut, namespace: Namespace, name: EntityName)(implicit transid: TransactionId) = {
+    private def make(content: WhiskActionPut, namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
         if (content.exec.isDefined) Future successful {
             val exec = content.exec.get
             val limits = content.limits map { l =>
@@ -542,7 +542,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      * Note that when listing actions in a binding, the namespace on the actions will be that
      * of the referenced packaged, not the binding.
      */
-    private def listPackageActions(subject: Subject, ns: Namespace, pkgname: EntityName)(implicit transid: TransactionId) = {
+    private def listPackageActions(subject: Subject, ns: EntityPath, pkgname: EntityName)(implicit transid: TransactionId) = {
         // get the package to determine if it is a package or reference
         // (this will set the appropriate namespace), and then list actions
         // NOTE: these fetches are redundant with those from the authorization

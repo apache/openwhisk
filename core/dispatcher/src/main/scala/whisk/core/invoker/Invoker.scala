@@ -78,7 +78,7 @@ import whisk.core.entity.DocInfo
 import whisk.core.entity.DocRevision
 import whisk.core.entity.EntityName
 import whisk.core.entity.LogLimit
-import whisk.core.entity.Namespace
+import whisk.core.entity.EntityPath
 import whisk.core.entity.SemVer
 import whisk.core.entity.Subject
 import whisk.core.entity.WhiskAction
@@ -155,7 +155,7 @@ class Invoker(
             require(msg != null, "message undefined")
 
             val regex = matches(0)
-            val namespace = Namespace(regex.group(2))
+            val namespace = EntityPath(regex.group(2))
             val name = EntityName(regex.group(3))
             val version = if (regex.groupCount == 4) DocRevision(regex.group(4)) else DocRevision()
             val action = DocId(WhiskEntity.qualifiedName(namespace, name)).asDocInfo(version)
@@ -221,7 +221,7 @@ class Invoker(
         implicit transid: TransactionId): Unit = {
         error(this, errorMsg)
         val msg = tran.msg
-        val name = EntityName(actionDocInfo.id().split(Namespace.PATHSEP)(1))
+        val name = EntityName(actionDocInfo.id().split(EntityPath.PATHSEP)(1))
         val version = SemVer() // TODO: this is wrong, when the semver is passed from controller, fix this
         val response = ActivationResponse.whiskError(errorMsg)
         val interval = computeActivationInterval(tran)

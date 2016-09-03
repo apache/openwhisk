@@ -24,10 +24,14 @@ import spray.json.RootJsonFormat
 import spray.json.deserializationError
 
 /**
- * Namespace is a path string of allowed characters. The path consists of parts each of which
- * must be a valid EntityName, separated by the Namespace separator character. The private
+ * EntityPath is a path string of allowed characters. The path consists of parts each of which
+ * must be a valid EntityName, separated by the EntityPath separator character. The private
  * constructor accepts a validated sequence of path parts and can reconstruct the path
  * from it.
+ *
+ * N. B.   The qualified name of an entity is intended to be a pair of an (EntityPath,EntityName)
+ * However, right now lots of code abuses the EntityPath to mean qualified name.
+ * TODO This needs to be fixed.
  *
  * It is a value type (hence == is .equals, immutable and cannot be assigned null).
  * The constructor is private so that argument requirements are checked and normalized
@@ -35,17 +39,17 @@ import spray.json.deserializationError
  *
  * @param path the sequence of parts that make up a namespace path
  */
-protected[core] class Namespace private (val path: Seq[String]) extends AnyVal {
-    def namespace = path.foldLeft("")((a, b) => if (a != "") a.trim + Namespace.PATHSEP + b.trim else b.trim)
-    def addpath(e: EntityName) = Namespace(path :+ e.name)
-    def root = Namespace(Seq(path(0)))
+protected[core] class EntityPath private (val path: Seq[String]) extends AnyVal {
+    def namespace = path.foldLeft("")((a, b) => if (a != "") a.trim + EntityPath.PATHSEP + b.trim else b.trim)
+    def addpath(e: EntityName) = EntityPath(path :+ e.name)
+    def root = EntityPath(Seq(path(0)))
     def last = EntityName(path.last)
     def toJson = JsString(namespace)
     def apply() = namespace
     override def toString = namespace
 }
 
-protected[core] object Namespace {
+protected[core] object EntityPath {
 
     /** Path separator */
     protected[core] val PATHSEP = "/"
@@ -55,7 +59,7 @@ protected[core] object Namespace {
      * that allows omission of the namespace during API calls. It is only used in the URI
      * namespace extraction.
      */
-    protected[core] val DEFAULT = Namespace("_")
+    protected[core] val DEFAULT = EntityPath("_")
 
     /**
      * Constructs a Namespace from a string. String must be a valid path, consisting of
@@ -66,10 +70,10 @@ protected[core] object Namespace {
      * @throws IllegalArgumentException if the path does not conform to schema
      */
     @throws[IllegalArgumentException]
-    protected[core] def apply(path: String): Namespace = {
+    protected[core] def apply(path: String): EntityPath = {
         require(path != null, "path undefined")
         val parts = path.split(PATHSEP).filter { _.nonEmpty }.toSeq
-        Namespace(parts)
+        EntityPath(parts)
     }
 
     /**
@@ -81,23 +85,23 @@ protected[core] object Namespace {
      * @throws IllegalArgumentException if any of the parts are not valid path part names
      */
     @throws[IllegalArgumentException]
-    private def apply(parts: Seq[String]): Namespace = {
+    private def apply(parts: Seq[String]): EntityPath = {
         require(parts != null && parts.nonEmpty, "path undefined")
         require(parts.forall { s => s != null && s.matches(EntityName.REGEX) }, s"path contains invalid parts ${parts.toString}")
-        new Namespace(parts)
+        new EntityPath(parts)
     }
 
     /** Returns true iff the path is a valid namespace path. */
     protected[core] def validate(path: String): Boolean = {
-        Try { Namespace(path) } map { _ => true } getOrElse false
+        Try { EntityPath(path) } map { _ => true } getOrElse false
     }
 
-    implicit val serdes = new RootJsonFormat[Namespace] {
-        def write(n: Namespace) = n.toJson
+    implicit val serdes = new RootJsonFormat[EntityPath] {
+        def write(n: EntityPath) = n.toJson
 
         def read(value: JsValue) = Try {
             val JsString(name) = value
-            Namespace(name)
+            EntityPath(name)
         } getOrElse deserializationError("namespace malformed")
     }
 }
