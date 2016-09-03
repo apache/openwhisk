@@ -108,7 +108,8 @@ class DockerExampleContainerTests extends ActionProxyContainerTestUtils with Wsk
         }
 
         out should include("exit")
-        err shouldBe empty
+        // err stream may not be empty if the proxy did not get a chance to
+        // drain the action's out/err streams; skip check on err stream
     }
 
     it should "timeout run with exception" in {
@@ -131,7 +132,8 @@ class DockerExampleContainerTests extends ActionProxyContainerTestUtils with Wsk
         }
 
         out should include("exit")
-        err shouldBe empty
+        // err stream may not be empty if the proxy did not get a chance to
+        // drain the action's out/err streams; skip check on err stream
     }
 
     it should "timeout bad proxy with exception" in {
