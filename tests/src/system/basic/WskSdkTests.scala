@@ -18,12 +18,15 @@ package system.basic
 
 import java.io.File
 
+import scala.collection.JavaConversions.asScalaBuffer
+
 import org.apache.commons.io.FileUtils
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
 import common.TestHelpers
 import common.TestUtils.SUCCESS_EXIT
+import common.WhiskProperties
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
@@ -42,18 +45,29 @@ class WskSdkTests
         val dir = File.createTempFile("wskinstall", ".tmp")
         dir.delete()
         dir.mkdir() should be(true)
+        try {
+            wsk.cli(wskprops.overrides ++ Seq("sdk", "install", "docker"), workingDir = dir).
+                stdout should include("The docker skeleton is now installed at the current directory.")
 
-        wsk.cli(wskprops.overrides ++ Seq("sdk", "install", "docker"), workingDir = dir).
-            stdout should include("The docker skeleton is now installed at the current directory.")
+            val sdk = new File(dir, "dockerSkeleton")
+            sdk.exists() should be(true)
+            sdk.isDirectory() should be(true)
 
-        val sdk = new File(dir, "dockerSkeleton")
-        sdk.exists() should be(true)
-        sdk.isDirectory() should be(true)
+            val dockerfile = new File(sdk, "Dockerfile")
+            dockerfile.exists() should be(true)
+            dockerfile.isFile() should be(true)
+            val lines = FileUtils.readLines(dockerfile)
+            // confirm that the image is correct
+            lines.get(1) shouldBe "FROM openwhisk/dockerskeleton"
 
-        val file = new File(sdk, "Dockerfile")
-        file.exists() should be(true)
-        file.isFile() should be(true)
-        FileUtils.deleteDirectory(dir)
+            // confirm there is no other divergence from the base dockerfile
+            val originalDockerfile = WhiskProperties.getFileRelativeToWhiskHome("sdk/docker/Dockerfile")
+            val originalLines = FileUtils.readLines(originalDockerfile)
+            lines.get(0) shouldBe originalLines.get(0)
+            lines.drop(2).mkString("\n") shouldBe originalLines.drop(2).mkString("\n")
+        } finally {
+            FileUtils.deleteDirectory(dir)
+        }
     }
 
     it should "download iOS sdk" in {
@@ -89,8 +103,7 @@ class WskSdkTests
             stdout should include("is installed in the current directory")
             val fileContent = FileUtils.readFileToString(scriptfile)
             fileContent should include("bash completion for wsk")
-        }
-        finally {
+        } finally {
             scriptfile.delete()
             FileUtils.deleteDirectory(dir)
         }

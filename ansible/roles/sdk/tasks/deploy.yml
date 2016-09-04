@@ -16,12 +16,12 @@
   local_action: copy src="{{ openwhisk_home }}/sdk/docker/{{ item }}" dest="{{ tmpdir.stdout }}/dockerSkeleton/"
   with_items:
     - buildAndPush.sh
-    - Dockerfile.publish
+    - Dockerfile
     - example.c
     - README.md
 
-- name: "rename Dockerfile.publish to Dockerfile"
-  local_action: shell "mv" "{{ tmpdir.stdout }}/dockerSkeleton/Dockerfile.publish" "{{ tmpdir.stdout }}/dockerSkeleton/Dockerfile"
+- name: rename base image in Dockerfile
+  local_action: replace dest="{{ tmpdir.stdout }}/dockerSkeleton/Dockerfile" regexp='^FROM dockerskeleton*.*$' replace='FROM openwhisk/dockerskeleton'
 
 - name: fix file permissions
   local_action: file path="{{ tmpdir.stdout }}/dockerSkeleton/buildAndPush.sh" mode=0755
