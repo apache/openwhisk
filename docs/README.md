@@ -11,20 +11,16 @@ For more details about how OpenWhisk works, see [System overview](./about.md).
 
 ## Setting up the OpenWhisk CLI
 
-The OpenWhisk command line interface (CLI) requires Python 2.7.
+- Building OpenWhisk from a cloned repository will result in the generation of the command line interface. The
+generated CLIs will be located in `openwhisk/bin/go-cli/`. There will be an executable CLI located in the mentioned
+directory that will run on the operating system, and CPU architecture on which it was built. Executables for other
+operating system, and CPU architectures are located in the following directories: `openwhisk/bin/go-cli/mac`,
+`openwhisk/bin/go-cli/linux`, `openwhisk/bin/go-cli/windows`.
 
-- If you cloned the OpenWhisk repository, you will find the CLI in `openwhisk/bin/wsk`.
-
-- Otherwise, download the CLI from an existing deployment.
-You will need to know the base URL for the deployment you want to use and
-install it using [pip](https://pip.pypa.io/).
-
-```
-sudo pip install --upgrade https://{BASE URL}/openwhisk-0.1.0.tar.gz [--trusted-host {BASE URL}]
-```
-
-The `{BASE URL}` is the OpenWhisk API hostname or IP address (e.g., openwhisk.ng.bluemix.net).
-The `--trusted-host` option allows you to download the CLI from a host with a [self-signed (i.e., untrusted) certificate](../tools/vagrant/README.md#ssl-certificate-configuration-optional).
+- To download the CLI from an existing deployment, you will need to download the CLI using the deployment's base URL.
+A list of downloadable CLIs for various operating systems, and CPU architectures can be obtained from the following
+location `{BASE URL}/cli/go/download`. The `{BASE URL}` is the OpenWhisk API hostname or IP address
+(e.g., openwhisk.ng.bluemix.net).
 
 There are three properties to configure the CLI with:
 
@@ -52,6 +48,21 @@ To configure the CLI to use the guest account, you can run the following command
 
 To verify your CLI setup, try [creating and running an action](#openwhisk-hello-world-example).
 
+## Setting up the depreicated Python version of the CLI
+- The OpenWhisk command line interface (CLI) requires Python 2.7.
+
+- If you cloned the OpenWhisk repository, you will find the CLI in `openwhisk/bin/wsk`.
+
+- Otherwise, download the CLI from an existing deployment. You will need to know the base URL for the deployment you
+want to use and install it using [pip](https://pip.pypa.io/).
+
+```
+sudo pip install --upgrade https://{BASE URL}/openwhisk-0.1.0.tar.gz [--trusted-host {BASE URL}]
+```
+
+The `{BASE URL}` is the OpenWhisk API hostname or IP address (e.g., openwhisk.ng.bluemix.net).
+The `--trusted-host` option allows you to download the CLI from a host with a [self-signed (i.e., untrusted) certificate](../tools/vagrant/README.md#ssl-certificate-configuration-optional).
+
 ## Using the OpenWhisk CLI
 
 After you have configured your environment, you can begin using the OpenWhisk CLI to do the following:
@@ -60,7 +71,6 @@ After you have configured your environment, you can begin using the OpenWhisk CL
 * Use triggers and rules to enable your actions to respond to events. See [Creating triggers and rules](./triggers_rules.md).
 * Learn how packages bundle actions and configure external events sources. See [Using and creating packages](./packages.md).
 * Explore the catalog of packages and enhance your applications with external services, such as a [Cloudant event source](./catalog.md#using-the-cloudant-package). See [Using OpenWhisk-enabled services](./catalog.md).
-
 
 ## Using OpenWhisk from an iOS app
 
