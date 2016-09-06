@@ -5,9 +5,6 @@
 
 - hosts: ansible
   tasks:
-    - include: tasks/installCatalog.yml
-      when: (mode == "deploy" and catalog_source != "catalog-repos")
-      
     - include: tasks/installOpenwhiskCatalog.yml
-      when: (mode == "deploy" and catalog_source == "catalog-repos")
+      when: (mode == "deploy")
       with_dict: "{{ catalog_repos }}"
