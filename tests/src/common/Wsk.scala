@@ -717,16 +717,16 @@ object Wsk {
 
     /** What is the path to a downloaded CLI? **/
     private def getDownloadedGoCLIPath = {
-        s"${System.getProperty("user.home")}${File.separator}.local${File.separator}bin${File.separator}go-cli${File.separator}${binaryName}"
+        s"${System.getProperty("user.home")}${File.separator}.local${File.separator}bin${File.separator}${binaryName}"
     }
 
     def exists() = {
-        val cliPath = if (WhiskProperties.useCLIDownload) getDownloadedGoCLIPath else WhiskProperties.getGoCLIPath
+        val cliPath = if (WhiskProperties.useCLIDownload) getDownloadedGoCLIPath else WhiskProperties.getCLIPath
         assert((new File(cliPath)).exists, s"did not find $cliPath")
     }
 
     def baseCommand() =
-        if (WhiskProperties.useCLIDownload) Buffer(getDownloadedGoCLIPath) else Buffer(WhiskProperties.getGoCLIPath)
+        if (WhiskProperties.useCLIDownload) Buffer(getDownloadedGoCLIPath) else Buffer(WhiskProperties.getCLIPath)
 }
 
 sealed trait RunWskCmd {

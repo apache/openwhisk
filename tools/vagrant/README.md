@@ -58,7 +58,7 @@ You can use the CLI from the host machine as well as from inside the virtual mac
 The IP address of the virtual machine accessible from outside is `192.168.33.13`.
 If you start another Vagrant VM take into account that the IP address will conflict, use `vagrant suspend` before starting another VM with the same IP address.
 
-The CLI is available in `../../bin/go-cli`. There you will find binaries specific to various operating systems and architectures (e.g. `../../bin/go-cli/mac/amd64/wsk`).
+The CLI is available in `../../bin`. There you will find binaries specific to various operating systems and architectures (e.g. `../../bin/mac/amd64/wsk`).
 When using the CLI with a local deployment of OpenWhisk (which provides an insecure/self-signed SSL certificate), you must use the argument `-i` to permit an insecure HTTPS connection to OpenWhisk. This should be used for development purposes only.
 
 Call the binary directly or setup your environment variable PATH to include the location of the binary that corresponds to your environment.
@@ -79,7 +79,7 @@ wsk -i action invoke /whisk.system/utils/echo -p message hello --blocking --resu
 configure the CLI with new values for __apihost__, __namespace__, and __auth__ key.
  
 ### Use the wsk CLI inside the VM
-For your convenience, a `wsk` wrapper is provided inside the VM which delegates CLI commands to `$OPENWHISK_HOME/bin/go-cli/linux/amd64/wsk` and adds the `-i` parameter that is required for insecure access to the local OpenWhisk deployment.
+For your convenience, a `wsk` wrapper is provided inside the VM which delegates CLI commands to `$OPENWHISK_HOME/bin/linux/amd64/wsk` and adds the `-i` parameter that is required for insecure access to the local OpenWhisk deployment.
 
 Calling the wsk CLI via `vagrant ssh` directly
 ```

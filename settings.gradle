@@ -16,7 +16,6 @@ include 'services:kafka'
 include 'services:zookeeper'
 
 include 'tools:cli'
-include 'tools:go-cli'
 
 include 'sdk:docker'
 
