@@ -1,4 +1,4 @@
-# Setting up OpenWhisk on Ubuntu server
+# Setting up OpenWhisk on Ubuntu server(s)
 
 The following are verified to work on Ubuntu 14.04.3 LTS. You may need `sudo` or root access to install required software depending on your system setup. 
 

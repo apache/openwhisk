@@ -23,14 +23,15 @@ import org.scalatest.junit.JUnitRunner
 import spray.json._
 
 import ActionContainer.withContainer
+import common.WskActorSystem
 
 import collection.JavaConverters._
 
 @RunWith(classOf[JUnitRunner])
-class JavaActionContainerTests extends FlatSpec with Matchers {
+class JavaActionContainerTests extends FlatSpec with Matchers with WskActorSystem {
 
     // Helpers specific to javaaction
-    def withJavaContainer(code: ActionContainer => Unit) = withContainer("whisk/javaaction")(code)
+    def withJavaContainer(code: ActionContainer => Unit) = withContainer("javaaction")(code)
     def initPayload(mainClass: String, jar64: String) = JsObject(
         "value" -> JsObject(
             "name" -> JsString("dummyAction"),
@@ -38,7 +39,7 @@ class JavaActionContainerTests extends FlatSpec with Matchers {
             "jar" -> JsString(jar64)))
     def runPayload(args: JsValue) = JsObject("value" -> args)
 
-    behavior of "whisk/javaaction"
+    behavior of "Java action"
 
     it should "support valid flows" in {
         val (out, err) = withJavaContainer { c =>

@@ -26,8 +26,6 @@ import akka.util.Timeout
 import akka.util.Timeout.durationToTimeout
 import spray.json.JsObject
 import whisk.common.TransactionId
-import whisk.core.connector.LoadBalancerResponse
-import whisk.core.connector.LoadbalancerRequest
 import whisk.core.connector.ActivationMessage
 import whisk.core.WhiskConfig
 import whisk.core.entitlement.EntitlementService
@@ -36,14 +34,13 @@ import whisk.core.entitlement.RemoteEntitlementService
 import whisk.core.entity.{ ActivationId, WhiskActivation }
 import whisk.core.loadBalancer.LoadBalancerService
 import scala.language.postfixOps
+import whisk.core.entity.ActivationId.ActivationIdGenerator
 
-object WhiskServices extends LoadbalancerRequest {
+object WhiskServices {
 
     type LoadBalancerReq = (String, ActivationMessage, TransactionId)
 
-    def requiredProperties = WhiskConfig.loadbalancerHost ++
-        WhiskConfig.consulServer ++
-        WhiskConfig.entitlementHost
+    def requiredProperties = WhiskConfig.loadbalancerHost ++ WhiskConfig.consulServer ++ EntitlementService.requiredProperties
 
     def consulServer(config: WhiskConfig) = config.consulServer
 
@@ -70,7 +67,7 @@ object WhiskServices extends LoadbalancerRequest {
      * and returns the HTTP response from the load balancer as a future
      */
     def makeLoadBalancerComponent(config: WhiskConfig, timeout: Timeout = 10 seconds)(
-        implicit as: ActorSystem): (LoadBalancerReq => Future[LoadBalancerResponse], () => JsObject, (ActivationId, TransactionId) => Future[WhiskActivation]) = {
+        implicit as: ActorSystem): (LoadBalancerReq => Future[Unit], () => JsObject, (ActivationId, FiniteDuration, TransactionId) => Future[WhiskActivation]) = {
         val loadBalancer = new LoadBalancerService(config, InfoLevel)
         val requestTaker = (lbr: LoadBalancerReq) => { loadBalancer.doPublish(lbr._1, lbr._2)(lbr._3) }
         (requestTaker, loadBalancer.getInvokerHealth, loadBalancer.queryActivationResponse)
@@ -88,11 +85,14 @@ trait WhiskServices {
     /** An entitlement service to check access rights. */
     protected val entitlementService: EntitlementService
 
+    /** A generator for new activation ids. */
+    protected val activationId: ActivationIdGenerator
+
     /** Synchronously perform a request to the load balancer.  */
-    protected val performLoadBalancerRequest: WhiskServices.LoadBalancerReq => Future[LoadBalancerResponse]
+    protected val performLoadBalancerRequest: WhiskServices.LoadBalancerReq => Future[Unit]
 
     /** Ask load balancer (instead of db) for activation response */
-    protected val queryActivationResponse: (ActivationId, TransactionId) => Future[WhiskActivation]
+    protected val queryActivationResponse: (ActivationId, FiniteDuration, TransactionId) => Future[WhiskActivation]
 
     /** The hostname of the consul server */
     protected val consulServer: String

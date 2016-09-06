@@ -16,11 +16,16 @@
 
 package whisk.core.entity
 
+import scala.util.Try
+
 import spray.json.DefaultJsonProtocol
 import spray.json.JsBoolean
-import spray.json.JsValue
 import spray.json.JsObject
 import spray.json.JsString
+import spray.json.JsValue
+import spray.json.pimpString
+import whisk.common.Logging
+import scala.concurrent.duration.Duration
 
 protected[core] case class ActivationResponse private (
     val statusCode: Int, val result: Option[JsValue]) {
@@ -54,7 +59,7 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
     val ContainerError   = 2
     val WhiskError       = 3
 
-    private def messageForCode(code: Int) = {
+    protected[core] def messageForCode(code: Int) = {
         require(code >= 0 && code <= 3)
         code match {
             case 0 => "success"
@@ -78,5 +83,93 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
     protected[core] def whiskError(errorValue: JsValue)       = error(WhiskError, errorValue)
     protected[core] def whiskError(errorMsg: String)          = error(WhiskError, JsString(errorMsg))
 
+    protected[core] def abnormalInitialization = JsString("The action did not initialize and exited unexpectedly.")
+    protected[core] def abnormalRun = JsString("The action did not produce a valid response and exited unexpectedly.")
+    protected[core] def invalidInitResponse(actualResponse: String) = {
+        JsString("The action failed during initialization" + {
+            Option(actualResponse) filter { _.nonEmpty } map { s => s": $s" } getOrElse "."
+        })
+    }
+    protected[core] def invalidRunResponse(actualResponse: String) = {
+        JsString("The action did not produce a valid JSON response" + {
+            Option(actualResponse) filter { _.nonEmpty } map { s => s": $s" } getOrElse "."
+        })
+    }
+    protected[core] def timedoutActivation(timeout: Duration, init: Boolean) = {
+        JsString(s"The action exceeded its time limits of ${timeout.toMillis} milliseconds" + {
+            if (!init) "." else "during initialization."
+        })
+    }
+
+    /**
+     * Interprets response from container after initialization. This method is only called when the initialization failed.
+     *
+     * @param response an Option (HTTP Status Code, HTTP response bytes as String)
+     * @return appropriate ActivationResponse representing initialization error
+     */
+    protected[core] def processInitResponseContent(response: Option[(Int, String)], logger: Logging): ActivationResponse = {
+        require(response map { _._1 != 200 } getOrElse true, s"should not interpret init response when status code is 200")
+
+        response map {
+            case (code, contents) =>
+                logger.debug(this, s"init response: '$contents'")
+                Try { contents.parseJson.asJsObject } match {
+                    case scala.util.Success(result @ JsObject(fields)) =>
+                        // If the response is a JSON object container an error field, accept it as the response error.
+                        val errorOpt = fields.get(ERROR_FIELD)
+                        val errorContent = errorOpt getOrElse invalidInitResponse(contents)
+                        containerError(errorContent)
+                    case _ =>
+                        containerError(invalidInitResponse(contents))
+                }
+        } getOrElse {
+            // This indicates a terminal failure in the container (it exited prematurely).
+            containerError(abnormalInitialization)
+        }
+    }
+
+    /**
+     * Interprets response from container after running the action. This method is only called when the initialization succeeded.
+     *
+     * @param response an Option (HTTP Status Code, HTTP response bytes as String)
+     * @return appropriate ActivationResponse representing run result
+     */
+    protected[core] def processRunResponseContent(response: Option[(Int, String)], logger: Logging): ActivationResponse = {
+        response map {
+            case (code, contents) =>
+                logger.debug(this, s"response: '$contents'")
+                Try { contents.parseJson.asJsObject } match {
+                    case scala.util.Success(result @ JsObject(fields)) =>
+                        // If the response is a JSON object container an error field, accept it as the response error.
+                        val errorOpt = fields.get(ERROR_FIELD)
+
+                        if (code == 200) {
+                            errorOpt map { error =>
+                                applicationError(error)
+                            } getOrElse {
+                                // The happy path.
+                                success(Some(result))
+                            }
+                        } else {
+                            // Any non-200 code is treated as a container failure. We still need to check whether
+                            // there was a useful error message in there.
+                            val errorContent = errorOpt getOrElse invalidRunResponse(contents)
+                            containerError(errorContent)
+                        }
+
+                    case scala.util.Success(notAnObj) =>
+                        // This should affect only blackbox containers, since our own containers should already test for that.
+                        containerError(invalidRunResponse(contents))
+
+                    case scala.util.Failure(t) =>
+                        // This should affect only blackbox containers, since our own containers should already test for that.
+                        logger.warn(this, s"response did not json parse: '$contents' led to $t")
+                        containerError(invalidRunResponse(contents))
+                }
+        } getOrElse {
+            // This indicates a terminal failure in the container (it exited prematurely).
+            containerError(abnormalRun)
+        }
+    }
     protected[core] implicit val serdes = jsonFormat2(ActivationResponse.apply)
 }

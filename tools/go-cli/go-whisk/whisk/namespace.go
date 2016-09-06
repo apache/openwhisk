@@ -17,9 +17,9 @@
 package whisk
 
 import (
-    "fmt"
     "net/http"
     "errors"
+    "../wski18n"
 )
 
 type Namespace struct {
@@ -46,7 +46,8 @@ func (s *NamespaceService) List() ([]Namespace, *http.Response, error) {
     req, err := s.client.NewRequest("GET", route, nil)
     if err != nil {
         Debug(DbgError, "s.client.NewRequest(GET) error: %s\n", err)
-        errStr := fmt.Sprintf("Unable to create HTTP request for GET: %s", err)
+        errStr := wski18n.T("Unable to create HTTP request for GET: {{.err}}",
+            map[string]interface{}{"err": err})
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
@@ -55,7 +56,7 @@ func (s *NamespaceService) List() ([]Namespace, *http.Response, error) {
     resp, err := s.client.Do(req, &namespaceNames)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
-        errStr := fmt.Sprintf("Request failure: %s", err)
+        errStr := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, resp, werr
     }
@@ -83,7 +84,7 @@ func (s *NamespaceService) Get(nsName string) (*Namespace, *http.Response, error
     req, err := s.client.NewRequest("GET", "", nil)
     if err != nil {
         Debug(DbgError, "s.client.NewRequest(GET) error: %s\n", err)
-        errStr := fmt.Sprintf("Unable to create HTTP request for GET: %s", err)
+        errStr := wski18n.T("Unable to create HTTP request for GET: {{.err}}", map[string]interface{}{"err": err})
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
@@ -94,7 +95,7 @@ func (s *NamespaceService) Get(nsName string) (*Namespace, *http.Response, error
     resp, err := s.client.Do(req, &ns.Contents)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
-        errStr := fmt.Sprintf("Request failure: %s", err)
+        errStr := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, resp, werr
     }

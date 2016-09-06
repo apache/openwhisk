@@ -78,14 +78,15 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         }.toList
         activations foreach { put(entityStore, _) }
         waitOnView(entityStore, WhiskActivation, namespace, 2)
-
-        Get(s"$collectionPath") ~> sealRoute(routes(creds)) ~> check {
-            status should be(OK)
-            val rawResponse = responseAs[List[JsObject]]
-            val response = responseAs[List[JsObject]]
-            activations.length should be(response.length)
-            activations forall { a => response contains a.summaryAsJson } should be(true)
-            rawResponse forall { a => a.getFields("for") match { case Seq(JsString(n)) => n == actionName() case _ => false } }
+        whisk.utils.retry {
+            Get(s"$collectionPath") ~> sealRoute(routes(creds)) ~> check {
+                status should be(OK)
+                val rawResponse = responseAs[List[JsObject]]
+                val response = responseAs[List[JsObject]]
+                activations.length should be(response.length)
+                activations forall { a => response contains a.summaryAsJson } should be(true)
+                rawResponse forall { a => a.getFields("for") match { case Seq(JsString(n)) => n == actionName() case _ => false } }
+            }
         }
     }
 
@@ -105,11 +106,13 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         activations foreach { put(entityStore, _) }
         waitOnView(entityStore, WhiskActivation, namespace, 2)
 
-        Get(s"$collectionPath?docs=true") ~> sealRoute(routes(creds)) ~> check {
-            status should be(OK)
-            val response = responseAs[List[JsObject]]
-            activations.length should be(response.length)
-            activations forall { a => response contains a.toExtendedJson } should be(true)
+        whisk.utils.retry {
+            Get(s"$collectionPath?docs=true") ~> sealRoute(routes(creds)) ~> check {
+                status should be(OK)
+                val response = responseAs[List[JsObject]]
+                activations.length should be(response.length)
+                activations forall { a => response contains a.toExtendedJson } should be(true)
+            }
         }
     }
 
@@ -136,36 +139,42 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         waitOnView(entityStore, WhiskActivation, namespace, activations.length)
 
         // get between two time stamps
-        Get(s"$collectionPath?docs=true&since=${since.toEpochMilli}&upto=${upto.toEpochMilli}") ~> sealRoute(routes(creds)) ~> check {
-            status should be(OK)
-            val response = responseAs[List[JsObject]]
-            val expected = activations filter {
-                case e => (e.start.equals(since) || e.start.equals(upto) || (e.start.isAfter(since) && e.start.isBefore(upto)))
+        whisk.utils.retry {
+            Get(s"$collectionPath?docs=true&since=${since.toEpochMilli}&upto=${upto.toEpochMilli}") ~> sealRoute(routes(creds)) ~> check {
+                status should be(OK)
+                val response = responseAs[List[JsObject]]
+                val expected = activations filter {
+                    case e => (e.start.equals(since) || e.start.equals(upto) || (e.start.isAfter(since) && e.start.isBefore(upto)))
+                }
+                expected.length should be(response.length)
+                expected forall { a => response contains a.toExtendedJson } should be(true)
             }
-            expected.length should be(response.length)
-            expected forall { a => response contains a.toExtendedJson } should be(true)
         }
 
         // get 'upto' with no defined since value should return all activation 'upto'
-        Get(s"$collectionPath?docs=true&upto=${upto.toEpochMilli}") ~> sealRoute(routes(creds)) ~> check {
-            status should be(OK)
-            val response = responseAs[List[JsObject]]
-            val expected = activations filter {
-                case e => e.start.equals(upto) || e.start.isBefore(upto)
+        whisk.utils.retry {
+            Get(s"$collectionPath?docs=true&upto=${upto.toEpochMilli}") ~> sealRoute(routes(creds)) ~> check {
+                status should be(OK)
+                val response = responseAs[List[JsObject]]
+                val expected = activations filter {
+                    case e => e.start.equals(upto) || e.start.isBefore(upto)
+                }
+                expected.length should be(response.length)
+                expected forall { a => response contains a.toExtendedJson } should be(true)
             }
-            expected.length should be(response.length)
-            expected forall { a => response contains a.toExtendedJson } should be(true)
         }
 
         // get 'since' with no defined upto value should return all activation 'since'
-        Get(s"$collectionPath?docs=true&since=${since.toEpochMilli}") ~> sealRoute(routes(creds)) ~> check {
-            status should be(OK)
-            val response = responseAs[List[JsObject]]
-            val expected = activations filter {
-                case e => e.start.equals(since) || e.start.isAfter(since)
+        whisk.utils.retry {
+            Get(s"$collectionPath?docs=true&since=${since.toEpochMilli}") ~> sealRoute(routes(creds)) ~> check {
+                status should be(OK)
+                val response = responseAs[List[JsObject]]
+                val expected = activations filter {
+                    case e => e.start.equals(since) || e.start.isAfter(since)
+                }
+                expected.length should be(response.length)
+                expected forall { a => response contains a.toExtendedJson } should be(true)
             }
-            expected.length should be(response.length)
-            expected forall { a => response contains a.toExtendedJson } should be(true)
         }
     }
 
@@ -185,11 +194,13 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         activations foreach { put(entityStore, _) }
         waitOnView(entityStore, WhiskActivation, namespace, 2)
 
-        Get(s"$collectionPath?name=xyz") ~> sealRoute(routes(creds)) ~> check {
-            status should be(OK)
-            val response = responseAs[List[JsObject]]
-            activations.length should be(response.length)
-            activations forall { a => response contains a.summaryAsJson } should be(true)
+        whisk.utils.retry {
+            Get(s"$collectionPath?name=xyz") ~> sealRoute(routes(creds)) ~> check {
+                status should be(OK)
+                val response = responseAs[List[JsObject]]
+                activations.length should be(response.length)
+                activations forall { a => response contains a.summaryAsJson } should be(true)
+            }
         }
     }
 

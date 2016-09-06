@@ -21,6 +21,7 @@ import (
     "net/http"
     "errors"
     "net/url"
+    "../wski18n"
 )
 
 type ActivationService struct {
@@ -74,7 +75,8 @@ func (s *ActivationService) List(options *ActivationListOptions) ([]Activation, 
     routeUrl, err := addRouteOptions(route, options)
     if err != nil {
         Debug(DbgError, "addRouteOptions(%s, %#v) error: '%s'\n", route, options, err)
-        errStr := fmt.Sprintf("Unable to append options %#v to URL route '%s': %s", options, route, err)
+        errStr := wski18n.T("Unable to append options '{{.options}}' to URL route '{{.route}}': {{.err}}",
+            map[string]interface{}{"options": fmt.Sprintf("%#v", options), "route": route, "err": err})
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
@@ -82,7 +84,8 @@ func (s *ActivationService) List(options *ActivationListOptions) ([]Activation, 
     req, err := s.client.NewRequestUrl("GET", routeUrl, nil)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s) error: '%s'\n", route, err)
-        errStr := fmt.Sprintf("Unable to create HTTP request for GET '%s': %s", route, err)
+        errStr := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
+            map[string]interface{}{"route": route, "err": err})
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
@@ -93,7 +96,7 @@ func (s *ActivationService) List(options *ActivationListOptions) ([]Activation, 
     resp, err := s.client.Do(req, &activations)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
-        errStr := fmt.Sprintf("Request failure: %s", err)
+        errStr := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, resp, werr
     }
@@ -114,7 +117,8 @@ func (s *ActivationService) Get(activationID string) (*Activation, *http.Respons
     req, err := s.client.NewRequest("GET", route, nil)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s) error: '%s'\n", route, err)
-        errStr := fmt.Sprintf("Unable to create HTTP request for GET '%s': %s", route, err)
+        errStr := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
+            map[string]interface{}{"route": route, "err": err})
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
@@ -125,13 +129,12 @@ func (s *ActivationService) Get(activationID string) (*Activation, *http.Respons
     resp, err := s.client.Do(req, &a)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
-        errStr := fmt.Sprintf("Request failure: %s", err)
+        errStr := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, resp, werr
     }
 
     return a, resp, nil
-
 }
 
 func (s *ActivationService) Logs(activationID string) (*Activation, *http.Response, error) {
@@ -145,7 +148,8 @@ func (s *ActivationService) Logs(activationID string) (*Activation, *http.Respon
     req, err := s.client.NewRequest("GET", route, nil)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s) error: '%s'\n", route, err)
-        errStr := fmt.Sprintf("Unable to create HTTP request for GET '%s': %s", route, err)
+        errStr := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
+            map[string]interface{}{"route": route, "err": err})
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
@@ -156,7 +160,7 @@ func (s *ActivationService) Logs(activationID string) (*Activation, *http.Respon
     resp, err := s.client.Do(req, &activation)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
-        errStr := fmt.Sprintf("Request failure: %s", err)
+        errStr := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, resp, werr
     }
@@ -175,7 +179,8 @@ func (s *ActivationService) Result(activationID string) (*Response, *http.Respon
     req, err := s.client.NewRequest("GET", route, nil)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s) error: '%s'\n", route, err)
-        errStr := fmt.Sprintf("Unable to create HTTP request for GET '%s': %s", route, err)
+        errStr := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
+            map[string]interface{}{"route": route, "err": err})
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
@@ -186,7 +191,7 @@ func (s *ActivationService) Result(activationID string) (*Response, *http.Respon
     resp, err := s.client.Do(req, &r)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
-        errStr := fmt.Sprintf("Request failure: %s", err)
+        errStr := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, resp, werr
     }

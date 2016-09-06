@@ -134,9 +134,8 @@ class CouchDbRestClient protected(system: ActorSystem, protocol: String, host: S
                     Unmarshal(response.entity.withoutSizeLimit()).to[JsObject].map { o => Right(o) }
                 } else {
                     // This is important, even though the response is ignored:
-                    // Unmarshalling is one way to drain the entity stream.
                     // Otherwise the connection stays open and the pool dries up.
-                    Unmarshal(response.entity).to[Array[Byte]].map { _ => Left(response.status) }
+                    response.entity.dataBytes.runWith(Sink.ignore).map { _ => Left(response.status) }
                 }
             }
         }

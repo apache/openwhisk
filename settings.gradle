@@ -1,10 +1,11 @@
 include 'common:scala'
 
 include 'core:controller'
-include 'core:dispatcher'
+include 'core:invoker'
 include 'core:nodejsActionBase'
 include 'core:nodejsAction'
 include 'core:nodejs6Action'
+include 'core:actionProxy'
 include 'core:pythonAction'
 include 'core:swiftAction'
 include 'core:swift3Action'
@@ -20,6 +21,8 @@ include 'tools:go-cli'
 include 'sdk:docker'
 
 include 'tests'
+include 'tests:dat:blackbox:badaction'
+include 'tests:dat:blackbox:badproxy'
 
 rootProject.name = 'openwhisk'
 

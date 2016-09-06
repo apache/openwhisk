@@ -29,6 +29,7 @@ import (
     "github.com/fatih/color"
 
     "../../go-whisk/whisk"
+    "../wski18n"
 )
 
 var Properties struct {
@@ -52,7 +53,7 @@ const DefaultPropsFile  string = "~/.wskprops"
 
 var propertyCmd = &cobra.Command{
     Use:   "property",
-    Short: "work with whisk properties",
+    Short: wski18n.T("work with whisk properties"),
 }
 
 //
@@ -60,7 +61,7 @@ var propertyCmd = &cobra.Command{
 //
 var propertySetCmd = &cobra.Command{
     Use:            "set",
-    Short:          "set property",
+    Short:          wski18n.T("set property"),
     SilenceUsage:   true,
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
@@ -72,7 +73,9 @@ var propertySetCmd = &cobra.Command{
         props, err := readProps(Properties.PropsFile)
         if err != nil {
             whisk.Debug(whisk.DbgError, "readProps(%s) failed: %s\n", Properties.PropsFile, err)
-            errStr := fmt.Sprintf("Unable to set the property value: %s", err)
+            errStr := fmt.Sprintf(
+                wski18n.T("Unable to set the property value: {{.err}}",
+                    map[string]interface{}{"err": err}))
             werr = whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
@@ -82,31 +85,46 @@ var propertySetCmd = &cobra.Command{
         if auth := flags.global.auth; len(auth) > 0 {
             props["AUTH"] = auth
             client.Config.AuthToken = auth
-            okMsg += fmt.Sprintf("%s whisk auth set to %s\n", color.GreenString("ok:"), boldString(auth))
+            okMsg += fmt.Sprintf(
+                wski18n.T("{{.ok}} whisk auth set to {{.auth}}\n",
+                    map[string]interface{}{"ok": color.GreenString("ok:"), "auth": boldString(auth)}))
         }
 
         if apiHost := flags.property.apihostSet; len(apiHost) > 0 {
-            props["APIHOST"] = apiHost
             var apiHostBaseUrl = fmt.Sprintf("https://%s/api/", apiHost)
-            client.Config.BaseURL, err = url.Parse(apiHostBaseUrl)
+            tempURL, err := url.Parse(apiHostBaseUrl)
             if err != nil {
                 // Not aborting now.  Subsequent commands will result in error
                 whisk.Debug(whisk.DbgError, "url.Parse(%s) error: %s", apiHostBaseUrl, err)
+                errStr := fmt.Sprintf(
+                    wski18n.T("Unable to set API host value; the API host value '{{.apihost}}' is invalid: {{.err}}",
+                        map[string]interface{}{"apihost": apiHost, "err": err}))
+                werr = whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL,
+                    whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            } else {
+                props["APIHOST"] = apiHost
+                client.Config.BaseURL = tempURL
+                okMsg += fmt.Sprintf(
+                    wski18n.T("{{.ok}} whisk API host set to {{.host}}\n",
+                        map[string]interface{}{"ok": color.GreenString("ok:"), "host": boldString(apiHost)}))
             }
-            okMsg += fmt.Sprintf("%s whisk API host set to %s\n", color.GreenString("ok:"), boldString(apiHost))
         }
 
         if apiVersion := flags.property.apiversionSet; len(apiVersion) > 0 {
             props["APIVERSION"] = apiVersion
             client.Config.Version = apiVersion
-            okMsg += fmt.Sprintf("%s whisk API version set to %s\n", color.GreenString("ok:"), boldString(apiVersion))
+            okMsg += fmt.Sprintf(
+                wski18n.T("{{.ok}} whisk API version set to {{.version}}\n",
+                    map[string]interface{}{"ok": color.GreenString("ok:"), "version": boldString(apiVersion)}))
         }
 
         if namespace := flags.property.namespaceSet; len(namespace) > 0 {
             namespaces, _, err := client.Namespaces.List()
             if err != nil {
                 whisk.Debug(whisk.DbgError, "client.Namespaces.List() failed: %s\n", err)
-                errStr := fmt.Sprintf("Authenticated user does not have namespace '%s'; set command failed: %s", namespace, err)
+                errStr := fmt.Sprintf(
+                    wski18n.T("Authenticated user does not have namespace '{{.name}}'; set command failed: {{.err}}",
+                        map[string]interface{}{"name": namespace, "err": err}))
                 werr = whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             } else {
                 whisk.Debug(whisk.DbgInfo, "Validating namespace '%s' is in user namespace list %#v\n", namespace, namespaces)
@@ -119,11 +137,15 @@ var propertySetCmd = &cobra.Command{
                 }
                 if !validNamespace {
                     whisk.Debug(whisk.DbgError, "Namespace '%s' is not in the list of entitled namespaces\n", namespace)
-                    errStr := fmt.Sprintf("Namespace '%s' is not in the list of entitled namespaces", namespace)
+                    errStr := fmt.Sprintf(
+                        wski18n.T("Namespace '{{.name}}' is not in the list of entitled namespaces",
+                            map[string]interface{}{"name": namespace}))
                     werr = whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 } else {
                     props["NAMESPACE"] = namespace
-                    okMsg += fmt.Sprintf("%s whisk namespace set to %s\n", color.GreenString("ok:"), boldString(namespace))
+                    okMsg += fmt.Sprintf(
+                        wski18n.T("{{.ok}} whisk namespace set to {{.name}}\n",
+                            map[string]interface{}{"ok": color.GreenString("ok:"), "name": boldString(namespace)}))
                 }
             }
         }
@@ -131,7 +153,9 @@ var propertySetCmd = &cobra.Command{
         err = writeProps(Properties.PropsFile, props)
         if err != nil {
             whisk.Debug(whisk.DbgError, "writeProps(%s, %#v) failed: %s\n", Properties.PropsFile, props, err)
-            errStr := fmt.Sprintf("Unable to set the property value(s): %s", err)
+            errStr := fmt.Sprintf(
+                wski18n.T("Unable to set the property value(s): {{.err}}",
+                    map[string]interface{}{"err": err}))
             werr = whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         } else {
             fmt.Fprintf(color.Output, okMsg)
@@ -147,7 +171,7 @@ var propertySetCmd = &cobra.Command{
 
 var propertyUnsetCmd = &cobra.Command{
     Use:            "unset",
-    Short:          "unset property",
+    Short:          wski18n.T("unset property"),
     SilenceUsage:   true,
     SilenceErrors:  true,
     RunE: func(cmd *cobra.Command, args []string) error {
@@ -155,7 +179,9 @@ var propertyUnsetCmd = &cobra.Command{
         props, err := readProps(Properties.PropsFile)
         if err != nil {
             whisk.Debug(whisk.DbgError, "readProps(%s) failed: %s\n", Properties.PropsFile, err)
-            errStr := fmt.Sprintf("Unable to unset the property value: %s", err)
+            errStr := fmt.Sprintf(
+                wski18n.T("Unable to unset the property value: {{.err}}",
+                    map[string]interface{}{"err": err}))
             werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
@@ -164,48 +190,70 @@ var propertyUnsetCmd = &cobra.Command{
 
         if flags.property.auth {
             delete(props, "AUTH")
-            okMsg += fmt.Sprintf("%s whisk auth unset", color.GreenString("ok:"))
+            okMsg += fmt.Sprintf(
+                wski18n.T("{{.ok}} whisk auth unset",
+                    map[string]interface{}{"ok": color.GreenString("ok:")}))
             if len(DefaultAuth) > 0 {
-                okMsg += fmt.Sprintf("; the default value of %s will be used.\n", boldString(DefaultAuth))
+                okMsg += fmt.Sprintf(
+                    wski18n.T("; the default value of {{.default}} will be used.\n",
+                        map[string]interface{}{"default": boldString(DefaultAuth)}))
             } else {
-                okMsg += fmt.Sprint("; no default value will be used.\n")
+                okMsg += fmt.Sprint(
+                    wski18n.T("; there is no default value that can be used.\n"))
             }
         }
 
         if flags.property.namespace {
             delete(props, "NAMESPACE")
-            okMsg += fmt.Sprintf("%s whisk namespace unset", color.GreenString("ok:"))
+            okMsg += fmt.Sprintf(
+                wski18n.T("{{.ok}} whisk namespace unset",
+                    map[string]interface{}{"ok": color.GreenString("ok:")}))
             if len(DefaultNamespace) > 0 {
-                okMsg += fmt.Sprintf("; the default value of %s will be used.\n", boldString(DefaultNamespace))
+                okMsg += fmt.Sprintf(
+                    wski18n.T("; the default value of {{.default}} will be used.\n",
+                        map[string]interface{}{"default": boldString(DefaultNamespace)}))
             } else {
-                okMsg += fmt.Sprint("; there is no default value that can be used.\n")
+                okMsg += fmt.Sprint(
+                    wski18n.T("; there is no default value that can be used.\n"))
             }
         }
 
         if flags.property.apihost {
             delete(props, "APIHOST")
-            okMsg += fmt.Sprintf("%s whisk API host unset", color.GreenString("ok:"))
+            okMsg += fmt.Sprintf(
+                wski18n.T("{{.ok}} whisk API host unset",
+                    map[string]interface{}{"ok": color.GreenString("ok:")}))
             if len(DefaultAPIHost) > 0 {
-                okMsg += fmt.Sprintf("; the default value of %s will be used.\n", boldString(DefaultAPIHost))
+                okMsg += fmt.Sprintf(
+                    wski18n.T("; the default value of {{.default}} will be used.\n",
+                        map[string]interface{}{"default": boldString(DefaultAPIHost)}))
             } else {
-                okMsg += fmt.Sprint("; there is no default value that can be used.\n")
+                okMsg += fmt.Sprint(
+                    wski18n.T("; there is no default value that can be used.\n"))
             }
         }
 
         if flags.property.apiversion {
             delete(props, "APIVERSION")
-            okMsg += fmt.Sprintf("%s whisk API version unset", color.GreenString("ok:"))
+            okMsg += fmt.Sprintf(
+                wski18n.T("{{.ok}} whisk API version unset",
+                    map[string]interface{}{"ok": color.GreenString("ok:")}))
             if len(DefaultAPIVersion) > 0 {
-                okMsg += fmt.Sprintf("; the default value of %s will be used.\n", boldString(DefaultAPIVersion))
+                okMsg += fmt.Sprintf(
+                    wski18n.T("; the default value of {{.default}} will be used.\n",
+                        map[string]interface{}{"default": boldString(DefaultAPIVersion)}))
             } else {
-                okMsg += fmt.Sprint("; there is no default value that can be used.\n")
+                okMsg += fmt.Sprint(
+                    wski18n.T("; there is no default value that can be used.\n"))
             }
         }
 
         err = writeProps(Properties.PropsFile, props)
         if err != nil {
             whisk.Debug(whisk.DbgError, "writeProps(%s, %#v) failed: %s\n", Properties.PropsFile, props, err)
-            errStr := fmt.Sprintf("Unable to unset the property value: %s", err)
+            errStr := fmt.Sprintf(
+                wski18n.T("Unable to unset the property value: {{.err}}",
+                    map[string]interface{}{"err": err}))
             werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
@@ -220,7 +268,7 @@ var propertyUnsetCmd = &cobra.Command{
 
 var propertyGetCmd = &cobra.Command{
     Use:            "get",
-    Short:          "get property",
+    Short:          wski18n.T("get property"),
     SilenceUsage:   true,
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
@@ -235,23 +283,23 @@ var propertyGetCmd = &cobra.Command{
         }
 
         if flags.property.all || flags.property.auth {
-            fmt.Fprintf(color.Output, "whisk auth\t\t%s\n", boldString(Properties.Auth))
+            fmt.Fprintf(color.Output, "%s\t\t%s\n", wski18n.T("whisk auth"), boldString(Properties.Auth))
         }
 
         if flags.property.all || flags.property.apihost {
-            fmt.Fprintf(color.Output, "whisk API host\t\t%s\n", boldString(Properties.APIHost))
+            fmt.Fprintf(color.Output, "%s\t\t%s\n", wski18n.T("whisk API host"), boldString(Properties.APIHost))
         }
 
         if flags.property.all || flags.property.apiversion {
-            fmt.Fprintf(color.Output, "whisk API version\t%s\n", boldString(Properties.APIVersion))
+            fmt.Fprintf(color.Output, "%s\t%s\n", wski18n.T("whisk API version"), boldString(Properties.APIVersion))
         }
 
         if flags.property.all || flags.property.namespace {
-            fmt.Fprintf(color.Output, "whisk namespace\t\t%s\n", boldString(Properties.Namespace))
+            fmt.Fprintf(color.Output, "%s\t\t%s\n", wski18n.T("whisk namespace"), boldString(Properties.Namespace))
         }
 
         if flags.property.all || flags.property.cliversion {
-            fmt.Fprintf(color.Output, "whisk CLI version\t%s\n", boldString(Properties.CLIVersion))
+            fmt.Fprintf(color.Output, "%s\t%s\n", wski18n.T("whisk CLI version"), boldString(Properties.CLIVersion))
         }
 
         if flags.property.all || flags.property.apibuild || flags.property.apibuildno {
@@ -259,17 +307,19 @@ var propertyGetCmd = &cobra.Command{
             if err != nil {
                 whisk.Debug(whisk.DbgError, "client.Info.Get() failed: %s\n", err)
                 info = &whisk.Info{}
-                info.Build = "Unknown"
-                info.BuildNo = "Unknown"
+                info.Build = wski18n.T("Unknown")
+                info.BuildNo = wski18n.T("Unknown")
             }
             if flags.property.all || flags.property.apibuild {
-                fmt.Fprintf(color.Output, "whisk API build\t\t%s\n", boldString(info.Build))
+                fmt.Fprintf(color.Output, "%s\t\t%s\n", wski18n.T("whisk API build"), boldString(info.Build))
             }
             if flags.property.all || flags.property.apibuildno {
-                fmt.Fprintf(color.Output, "whisk API build number\t%s\n", boldString(info.BuildNo))
+                fmt.Fprintf(color.Output, "%s\t%s\n", wski18n.T("whisk API build number"), boldString(info.BuildNo))
             }
             if err != nil {
-                errStr := fmt.Sprintf("Unable to obtain API build information: %s", err)
+                errStr := fmt.Sprintf(
+                    wski18n.T("Unable to obtain API build information: {{.err}}",
+                        map[string]interface{}{"err": err}))
                 werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return werr
             }
@@ -287,24 +337,24 @@ func init() {
     )
 
     // need to set property flags as booleans instead of strings... perhaps with boolApihost...
-    propertyGetCmd.Flags().BoolVar(&flags.property.auth, "auth", false, "authorization key")
-    propertyGetCmd.Flags().BoolVar(&flags.property.apihost, "apihost", false, "whisk API host")
-    propertyGetCmd.Flags().BoolVar(&flags.property.apiversion, "apiversion", false, "whisk API version")
-    propertyGetCmd.Flags().BoolVar(&flags.property.apibuild, "apibuild", false, "whisk API build version")
-    propertyGetCmd.Flags().BoolVar(&flags.property.apibuildno, "apibuildno", false, "whisk API build number")
-    propertyGetCmd.Flags().BoolVar(&flags.property.cliversion, "cliversion", false, "whisk CLI version")
-    propertyGetCmd.Flags().BoolVar(&flags.property.namespace, "namespace", false, "whisk namespace")
-    propertyGetCmd.Flags().BoolVar(&flags.property.all, "all", false, "all properties")
+    propertyGetCmd.Flags().BoolVar(&flags.property.auth, "auth", false, wski18n.T("authorization key"))
+    propertyGetCmd.Flags().BoolVar(&flags.property.apihost, "apihost", false, wski18n.T("whisk API host"))
+    propertyGetCmd.Flags().BoolVar(&flags.property.apiversion, "apiversion", false, wski18n.T("whisk API version"))
+    propertyGetCmd.Flags().BoolVar(&flags.property.apibuild, "apibuild", false, wski18n.T("whisk API build version"))
+    propertyGetCmd.Flags().BoolVar(&flags.property.apibuildno, "apibuildno", false, wski18n.T("whisk API build number"))
+    propertyGetCmd.Flags().BoolVar(&flags.property.cliversion, "cliversion", false, wski18n.T("whisk CLI version"))
+    propertyGetCmd.Flags().BoolVar(&flags.property.namespace, "namespace", false, wski18n.T("whisk namespace"))
+    propertyGetCmd.Flags().BoolVar(&flags.property.all, "all", false, wski18n.T("all properties"))
 
-    propertySetCmd.Flags().StringVarP(&flags.global.auth, "auth", "u", "", "authorization `KEY`")
-    propertySetCmd.Flags().StringVar(&flags.property.apihostSet, "apihost", "", "whisk API `HOST`")
-    propertySetCmd.Flags().StringVar(&flags.property.apiversionSet, "apiversion", "", "whisk API `VERSION`")
-    propertySetCmd.Flags().StringVar(&flags.property.namespaceSet, "namespace", "", "whisk `NAMESPACE`")
+    propertySetCmd.Flags().StringVarP(&flags.global.auth, "auth", "u", "", wski18n.T("authorization `KEY`"))
+    propertySetCmd.Flags().StringVar(&flags.property.apihostSet, "apihost", "", wski18n.T("whisk API `HOST`"))
+    propertySetCmd.Flags().StringVar(&flags.property.apiversionSet, "apiversion", "", wski18n.T("whisk API `VERSION`"))
+    propertySetCmd.Flags().StringVar(&flags.property.namespaceSet, "namespace", "", wski18n.T("whisk `NAMESPACE`"))
 
-    propertyUnsetCmd.Flags().BoolVar(&flags.property.auth, "auth", false, "authorization key")
-    propertyUnsetCmd.Flags().BoolVar(&flags.property.apihost, "apihost", false, "whisk API host")
-    propertyUnsetCmd.Flags().BoolVar(&flags.property.apiversion, "apiversion", false, "whisk API version")
-    propertyUnsetCmd.Flags().BoolVar(&flags.property.namespace, "namespace", false, "whisk namespace")
+    propertyUnsetCmd.Flags().BoolVar(&flags.property.auth, "auth", false, wski18n.T("authorization key"))
+    propertyUnsetCmd.Flags().BoolVar(&flags.property.apihost, "apihost", false, wski18n.T("whisk API host"))
+    propertyUnsetCmd.Flags().BoolVar(&flags.property.apiversion, "apiversion", false, wski18n.T("whisk API version"))
+    propertyUnsetCmd.Flags().BoolVar(&flags.property.namespace, "namespace", false, wski18n.T("whisk namespace"))
 
 }
 
@@ -333,7 +383,9 @@ func getPropertiesFilePath() (propsFilePath string, werr error) {
 
         if err != nil {
             whisk.Debug(whisk.DbgError, "homedir.Expand(%s) failed: %s\n", Properties.PropsFile, err)
-            errStr := fmt.Sprintf("Unable to locate properties file '%s': %s", Properties.PropsFile, err)
+            errStr := fmt.Sprintf(
+                wski18n.T("Unable to locate properties file '{{.filename}}': {{.err}}",
+                    map[string]interface{}{"filename": Properties.PropsFile, "err": err}))
             werr = whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return propsFilePath, werr
         }
@@ -361,7 +413,9 @@ func loadProperties() error {
     props, err := readProps(Properties.PropsFile)
     if err != nil {
         whisk.Debug(whisk.DbgError, "readProps(%s) failed: %s\n", Properties.PropsFile, err)
-        errStr := fmt.Sprintf("Unable to read the properties file '%s': %s", Properties.PropsFile, err)
+        errStr := fmt.Sprintf(
+            wski18n.T("Unable to read the properties file '{{.filename}}': {{.err}}",
+                map[string]interface{}{"filename": Properties.PropsFile, "err": err}))
         werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return werr
     }
@@ -437,7 +491,9 @@ func parseConfigFlags(cmd *cobra.Command, args []string) error {
             baseURL, err := url.Parse(apiHostBaseUrl)
             if err != nil {
                 whisk.Debug(whisk.DbgError, "url.Parse(%s) failed: %s\n", apiHostBaseUrl, err)
-                errStr := fmt.Sprintf("Invalid host address: %s", err)
+                errStr := fmt.Sprintf(
+                    wski18n.T("Invalid host address '{{.host}}': {{.err}}",
+                        map[string]interface{}{"host": Properties.APIHost, "err": err}))
                 werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return werr
             }
@@ -492,7 +548,9 @@ func writeProps(path string, props map[string]string) error {
     file, err := os.Create(path)
     if err != nil {
         whisk.Debug(whisk.DbgError, "os.Create(%s) failed: %s\n", path, err)
-        errStr := fmt.Sprintf("Whisk properties file write failue: %s", err)
+        errStr := fmt.Sprintf(
+            wski18n.T("Whisk properties file write failure: {{.err}}",
+                map[string]interface{}{"err": err}))
         werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return werr
     }
@@ -505,7 +563,9 @@ func writeProps(path string, props map[string]string) error {
         _, err = fmt.Fprintln(writer, line)
         if err != nil {
             whisk.Debug(whisk.DbgError, "fmt.Fprintln() write to '%s' failed: %s\n", path, err)
-            errStr := fmt.Sprintf("Whisk properties file write failue: %s", err)
+            errStr := fmt.Sprintf(
+                wski18n.T("Whisk properties file write failure: {{.err}}",
+                    map[string]interface{}{"err": err}))
             werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }

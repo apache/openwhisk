@@ -106,7 +106,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
         }
     }
 
-    it should "list all public packages in exclicit namespace excluding bindings" in {
+    it should "list all public packages in explicit namespace excluding bindings" in {
         implicit val tid = transid()
         // create packages and package bindings, set some public and confirm API lists only public packages
         val namespaces = Seq(namespace, Namespace(aname.toString), Namespace(aname.toString))
@@ -256,7 +256,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
             status should be(OK)
             val response = responseAs[WhiskPackageWithActions]
             response should be(reference inherit provider.parameters withActions ())
-            // this is redundant in case the precendence orders on inherit are changed incorrectly
+            // this is redundant in case the precedence orders on inherit are changed incorrectly
             response.wp.parameters should be(Parameters("a", "A") ++ Parameters("b", "b") ++ Parameters("c", "C"))
         }
     }

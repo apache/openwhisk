@@ -19,11 +19,11 @@ package whisk.core
 import java.io.File
 
 import scala.concurrent.Await
-import scala.concurrent.duration._
+import scala.concurrent.duration.DurationInt
 import scala.io.Source
+import scala.util.Try
 
 import akka.actor.ActorSystem
-
 import whisk.common.Config
 import whisk.common.Config.Settings
 import whisk.common.ConsulClient
@@ -67,10 +67,13 @@ class WhiskConfig(
     val selfDockerEndpoint = this(WhiskConfig.selfDockerEndpoint)
     val dockerPort = this(WhiskConfig.dockerPort)
 
+    val dockerImagePrefix = this(WhiskConfig.dockerImagePrefix)
     val dockerImageTag = this(WhiskConfig.dockerImageTag)
 
     val invokerContainerNetwork = this(WhiskConfig.invokerContainerNetwork)
     val invokerContainerPolicy = if (this(WhiskConfig.invokerContainerPolicy) == "") None else Some(this(WhiskConfig.invokerContainerPolicy))
+    val invokerNumCore = this(WhiskConfig.invokerNumCore)
+    val invokerCoreShare = this(WhiskConfig.invokerCoreShare)
 
     val controllerHost = this(WhiskConfig.controllerHostName) + ":" + this(WhiskConfig.controllerHostPort)
     val edgeHost = this(WhiskConfig.edgeHostName) + ":" + this(WhiskConfig.edgeHostApiPort)
@@ -138,12 +141,12 @@ object WhiskConfig extends Logging {
     def readPropertiesFromConsul(properties: Settings)(implicit system: ActorSystem) = {
         //try to get consulServer prop
         val consulString = for {
-            server <- properties.get("consulserver.host")
-            port <- properties.get("consul.host.port4")
+            server <- properties.get(consulServerHost)
+            port <- properties.get(consulPort)
         } yield server + ":" + port
 
         consulString match {
-            case Some(consulServer) => {
+            case Some(consulServer) => Try {
                 info(this, s"reading properties from consul at $consulServer")
                 val consul = new ConsulClient(consulServer)
 
@@ -211,6 +214,7 @@ object WhiskConfig extends Logging {
 
     val whiskVersion = Map(whiskVersionDate -> null, whiskVersionBuildno -> null)
 
+    val dockerImagePrefix = "docker.image.prefix"
     val dockerImageTag = "docker.image.tag"
 
     val invokerContainerNetwork = "invoker.container.network"

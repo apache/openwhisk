@@ -21,8 +21,11 @@ import (
     "os"
     "reflect"
 
+    goi18n "github.com/nicksnyder/go-i18n/i18n"
+
     "../go-whisk/whisk"
-    "../go-whisk-cli/commands"
+    "./commands"
+    "./wski18n"
 )
 
 // CLI_BUILD_TIME holds the time of the CLI build.  During gradle builds,
@@ -32,10 +35,14 @@ var CLI_BUILD_TIME string = "not set"
 
 var cliDebug = os.Getenv("WSK_CLI_DEBUG")  // Useful for tracing init() code
 
+var T goi18n.TranslateFunc
+
 func init() {
     if len(cliDebug) > 0 {
         whisk.SetDebug(true)
     }
+
+    T = wski18n.T
 
     // Rest of CLI uses the Properties struct, so set the build time there
     commands.Properties.CLIVersion = CLI_BUILD_TIME
@@ -50,7 +57,7 @@ func main() {
     defer func() {
         if r := recover(); r != nil {
             fmt.Println(r)
-            fmt.Println("Application exited unexpectedly")
+            fmt.Println(T("Application exited unexpectedly"))
         }
     }()
 
@@ -74,7 +81,7 @@ func main() {
 
         // If the err msg should be displayed to the console and it has not already been
         // displayed, display it now.
-        var errMsgPrefix string = "error: "
+        var errMsgPrefix string = T("error: ")
         if (exitCode == 0) {
             errMsgPrefix = ""
         }
@@ -84,7 +91,8 @@ func main() {
 
         // Displays usage
         if displayUsage {
-            fmt.Fprintf(os.Stderr, "Run '%v --help' for usage.\n", commands.WskCmd.CommandPath())
+            fmt.Fprintf(os.Stderr, T("Run '{{.Name}} --help' for usage.\n",
+                map[string]interface{}{ "Name" : commands.WskCmd.CommandPath()}))
         }
     }
     os.Exit(exitCode)

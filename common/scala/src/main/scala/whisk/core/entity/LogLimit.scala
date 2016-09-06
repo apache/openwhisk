@@ -41,6 +41,8 @@ import whisk.core.entity.size.SizeInt
  */
 protected[core] class LogLimit private (val megabytes: Int) extends AnyVal {
     protected[core] def apply() = megabytes
+    protected[core] def truncatedLogMessage = s"Logs were truncated because they exceeded the limit of $megabytes megabytes."
+
 }
 
 protected[core] object LogLimit extends ArgNormalizer[LogLimit] {

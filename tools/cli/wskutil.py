@@ -194,20 +194,20 @@ def chooseFromArray(array):
         count += 1
     print '{0:>3}. {1}'.format('x', 'abort and exit')
 
-    choosen = None
+    chosen = None
     while True:
         try:
             keypress = raw_input('Choice: ')
             if keypress == 'x':
                 return -1
-            choosen = int(keypress)
+            chosen = int(keypress)
         except ValueError:
-            choosen = 0
-        if choosen > 0 and choosen < count:
+            chosen = 0
+        if chosen > 0 and chosen < count:
             break
         else:
             print 'Please choose one of the given options'
-    return array[choosen-1]
+    return array[chosen-1]
 
 # class to convert dictionary to objects
 class dict2obj(dict):

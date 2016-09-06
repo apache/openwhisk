@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package system.rest;
+package system.rest
 
 import common.TestUtils
 import common.WhiskProperties
@@ -25,7 +25,7 @@ import common.WhiskProperties
  */
 trait JsonSchema extends RestUtil {
 
-    def validatorDir = WhiskProperties.getFileRelativeToWhiskHome("tools/json");
+    def validatorDir = WhiskProperties.getFileRelativeToWhiskHome("tools/json")
 
     /**
      * Check whether a JSON document (represented as a String) conforms to a JSON schema (also a String).
@@ -34,7 +34,7 @@ trait JsonSchema extends RestUtil {
      * @return true if the document is valid, false otherwise
      */
     def check(doc: String, schema: String): Boolean = {
-        def result = TestUtils.runQuietly(TestUtils.DONTCARE_EXIT, validatorDir, WhiskProperties.python, "validate.py", doc, schema);
-        return result.fst.trim() == "true";
+        def result = TestUtils.runCmd(TestUtils.DONTCARE_EXIT, validatorDir, WhiskProperties.python, "validate.py", doc, schema)
+        return result.stdout.trim() == "true"
     }
 }

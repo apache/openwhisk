@@ -212,7 +212,7 @@ class ConsulCatalogApi(base: Uri)(implicit val actorSystem: ActorSystem, val mat
     /**
      * Gets all services in that consul instance
      *
-     * @return a future that completes with a set of servicenanmes
+     * @return a future that completes with a set of service names
      */
     def services(): Future[Set[String]] = {
         val r = Http().singleRequest(
@@ -306,6 +306,12 @@ object ConsulKV {
             } else None
         }
 
+    }
+
+    // All keys for information written from the controller are here.
+    object ControllerKeys {
+        val component = "controller"
+        val userActivationCountKey = s"${component}/userActivationCount"
     }
 
     // All load balancer written information under here.

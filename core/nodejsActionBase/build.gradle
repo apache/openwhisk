@@ -6,5 +6,5 @@ eclipse {
     }
 }
 
-ext.dockerImageName = 'whisk/nodejsactionbase'
+ext.dockerImageName = 'nodejsactionbase'
 apply from: '../../gradle/docker.gradle'

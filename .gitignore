@@ -26,6 +26,7 @@ bin/
 # Gradle
 .gradle
 build/
+!/tools/build/
 
 # Python
 .ipynb_checkpoints/
@@ -45,3 +46,6 @@ ansible/environments/mac/hosts
 ansible/db_local.ini*
 ansible/tmp/*
 
+# Action proxies copied during build
+core/swiftAction/actionproxy.py
+core/swift3Action/actionproxy.py

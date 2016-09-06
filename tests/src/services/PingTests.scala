@@ -28,6 +28,7 @@ import com.jayway.restassured.RestAssured
 
 import common.TestUtils
 import common.WhiskProperties
+import common.TestUtils.RunResult
 
 /**
  * Basic tests to check that a Whisk installation is healthy in that all
@@ -36,15 +37,14 @@ import common.WhiskProperties
 object PingTests {
     val bin: File = WhiskProperties.getFileRelativeToWhiskHome("tools/health")
 
-    def isAlive(name: String, whiskPropertyFile: String): (String, String) = {
-        val p = TestUtils.runCmd(TestUtils.SUCCESS_EXIT, bin, WhiskProperties.python, "isAlive", "-d", whiskPropertyFile, "--wait", "30", name)
-        (p.fst, p.snd)
+    def isAlive(name: String, whiskPropertyFile: String): RunResult = {
+        TestUtils.runCmd(TestUtils.SUCCESS_EXIT, bin, WhiskProperties.python, "isAlive", "-d", whiskPropertyFile, "--wait", "30", name)
     }
 }
 
 class PingTests {
     @Rule
-    def watcher(): TestRule = TestUtils.makeTestWatcher()
+    def watcher(): TestRule = TestUtils.makeTestWatcher
 
     /**
      * Check that the docker REST interface at endpoint is up. envVar is the
@@ -52,9 +52,9 @@ class PingTests {
      */
     def pingDocker(envVar: String, endpoint: String): Unit = {
         assertTrue(envVar + " not set", endpoint != null)
-        assertTrue(envVar + " not set", endpoint.length() > 0)
+        assertTrue(envVar + " not set", endpoint.length > 0)
 
-        val response: String = RestAssured.given().port(4243).baseUri("http://" + endpoint).get("/info").body().asString()
+        val response: String = RestAssured.given.port(4243).baseUri("http://" + endpoint).get("/info").body.asString
         println("GET /info")
         println(response)
         assertTrue(response.contains("Containers"))
@@ -65,7 +65,7 @@ class PingTests {
      */
     @Test
     def pingMainDocker(): Unit = {
-        pingDocker("main.docker.endpoint", WhiskProperties.getMainDockerEndpoint())
+        pingDocker("main.docker.endpoint", WhiskProperties.getMainDockerEndpoint)
     }
 
     /**
@@ -73,7 +73,7 @@ class PingTests {
      */
     @Test
     def pingKafkaDocker(): Unit = {
-        pingDocker("kafka.docker.endpoint", WhiskProperties.getKafkaDockerEndpoint())
+        pingDocker("kafka.docker.endpoint", WhiskProperties.getKafkaDockerEndpoint)
     }
 
     /**
@@ -81,7 +81,7 @@ class PingTests {
      */
     @Test
     def pingZookeeper(): Unit = {
-        PingTests.isAlive("zookeeper", WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath())
+        PingTests.isAlive("zookeeper", WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath)
     }
 
     /**
@@ -89,7 +89,7 @@ class PingTests {
      */
     @Test
     def pingKafka(): Unit = {
-        PingTests.isAlive("kafka", WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath())
+        PingTests.isAlive("kafka", WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath)
     }
 
     /**
@@ -97,8 +97,8 @@ class PingTests {
      */
     @Test
     def pingInvoker(): Unit = {
-        for (i <- 0 until WhiskProperties.numberOfInvokers()) {
-            PingTests.isAlive("invoker" + i, WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath())
+        for (i <- 0 until WhiskProperties.numberOfInvokers) {
+            PingTests.isAlive("invoker" + i, WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath)
         }
     }
 
@@ -107,6 +107,6 @@ class PingTests {
      */
     @Test
     def pingController(): Unit = {
-        PingTests.isAlive("controller", WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath())
+        PingTests.isAlive("controller", WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath)
     }
 }

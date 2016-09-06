@@ -18,19 +18,13 @@ package system.basic
 
 import java.time.Instant
 
-import scala.concurrent.duration.DurationInt
-
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
 import common.TestHelpers
 import common.TestUtils
-import common.TestUtils.ANY_ERROR_EXIT
 import common.TestUtils.CONFLICT
-import common.TestUtils.FORBIDDEN
-import common.TestUtils.NOT_FOUND
 import common.TestUtils.SUCCESS_EXIT
-import common.TestUtils.TIMEOUT
 import common.TestUtils.UNAUTHORIZED
 import common.Wsk
 import common.WskProps
@@ -38,7 +32,6 @@ import common.WskTestHelpers
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import spray.json.pimpAny
-import whisk.core.entity.WhiskPackage
 
 @RunWith(classOf[JUnitRunner])
 class WskBasicTests
@@ -47,7 +40,7 @@ class WskBasicTests
 
     implicit val wskprops = WskProps()
     val wsk = new Wsk(usePythonCLI = false)
-    val defaultAction = Some(TestUtils.getCatalogFilename("samples/hello.js"))
+    val defaultAction = Some(TestUtils.getTestActionFilename("hello.js"))
 
     behavior of "Wsk CLI"
 
@@ -93,43 +86,11 @@ class WskBasicTests
             stderr should include(errormsg)
     }
 
-    it should "reject deleting action in shared package not owned by authkey" in {
-        wsk.action.get("/whisk.system/util/cat") // make sure it exists
-        wsk.action.delete("/whisk.system/util/cat", expectedExitCode = FORBIDDEN)
-    }
-
-    it should "reject create action in shared package not owned by authkey" in {
-        wsk.action.get("/whisk.system/util/notallowed", expectedExitCode = NOT_FOUND) // make sure it does not exist
-        val file = Some(TestUtils.getCatalogFilename("samples/hello.js"))
-        try {
-            wsk.action.create("/whisk.system/util/notallowed", file, expectedExitCode = FORBIDDEN)
-        } finally {
-            wsk.action.sanitize("/whisk.system/util/notallowed")
-        }
-    }
-
-    it should "reject update action in shared package not owned by authkey" in {
-        wsk.action.create("/whisk.system/util/cat", None,
-            update = true, shared = Some(true), expectedExitCode = FORBIDDEN)
-    }
-
     behavior of "Wsk Package CLI"
-
-    it should "list shared packages" in {
-        val result = wsk.pkg.list(Some("/whisk.system")).stdout
-        result should include regex ("""/whisk.system/samples\s+shared""")
-        result should include regex ("""/whisk.system/util\s+shared""")
-    }
-
-    it should "list shared package actions" in {
-        val result = wsk.action.list(Some("/whisk.system/util")).stdout
-        result should include regex ("""/whisk.system/util/head\s+shared""")
-        result should include regex ("""/whisk.system/util/date\s+shared""")
-    }
 
     it should "create, update, get and list a package" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val name = "samplePackage"
+            val name = "testPackage"
             val params = Map("a" -> "A".toJson)
             assetHelper.withCleaner(wsk.pkg, name) {
                 (pkg, _) =>
@@ -144,22 +105,6 @@ class WskBasicTests
             wsk.pkg.list().stdout should include(name)
     }
 
-    it should "create a package binding" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val name = "bindPackage"
-            val provider = "/whisk.system/samples"
-            val annotations = Map("a" -> "A".toJson, WhiskPackage.bindingFieldName -> "xxx".toJson)
-            assetHelper.withCleaner(wsk.pkg, name) {
-                (pkg, _) =>
-                    pkg.bind(provider, name, annotations = annotations)
-            }
-            val stdout = wsk.pkg.get(name).stdout
-            stdout should include regex (""""key": "a"""")
-            stdout should include regex (""""value": "A"""")
-            stdout should include regex (s""""key": "${WhiskPackage.bindingFieldName}"""")
-            stdout should not include regex(""""key": "xxx"""")
-    }
-
     behavior of "Wsk Action CLI"
 
     it should "create the same action twice with different cases" in withAssetCleaner(wskprops) {
@@ -171,7 +116,7 @@ class WskBasicTests
     it should "create an action, then update its kind" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "createAndUpdate"
-            val file = Some(TestUtils.getCatalogFilename("samples/hello.js"))
+            val file = Some(TestUtils.getTestActionFilename("hello.js"))
 
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) => action.create(name, file, kind = Some("nodejs"))
@@ -188,7 +133,7 @@ class WskBasicTests
     it should "create, update, get and list an action" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "createAndUpdate"
-            val file = Some(TestUtils.getCatalogFilename("samples/hello.js"))
+            val file = Some(TestUtils.getTestActionFilename("hello.js"))
             val params = Map("a" -> "A".toJson)
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) =>
@@ -203,11 +148,6 @@ class WskBasicTests
             stdout should include regex (""""publish": true""")
             stdout should include regex (""""version": "0.0.2"""")
             wsk.action.list().stdout should include(name)
-    }
-
-    it should "get an action" in {
-        wsk.action.get("/whisk.system/samples/wordCount").
-            stdout should include("words")
     }
 
     it should "reject delete of action that does not exist" in {
@@ -227,9 +167,9 @@ class WskBasicTests
             val run = wsk.action.invoke(name, args)
             withActivation(wsk.activation, run) {
                 activation =>
-                    val result = activation.fields("response").asJsObject.fields("result").asJsObject
-                    result.fields("args") shouldBe args.toJson
-                    result.fields("msg") shouldBe "Hello from arbitrary C program!".toJson
+                    activation.response.result shouldBe Some(JsObject(
+                        "args" -> args.toJson,
+                        "msg" -> "Hello from arbitrary C program!".toJson))
             }
     }
 
@@ -249,9 +189,9 @@ class WskBasicTests
             val run = wsk.action.invoke(name, Map("payload" -> "whatever".toJson))
             withActivation(wsk.activation, run) {
                 activation =>
-                    activation.fields("response").asJsObject.fields("status") should be("action developer error".toJson)
+                    activation.response.status shouldBe "action developer error"
                     // representing nodejs giving an error when given malformed.js
-                    activation.fields("response").asJsObject.toString should include("ReferenceError")
+                    activation.response.result.get.toString should include("ReferenceError")
             }
     }
 
@@ -274,7 +214,7 @@ class WskBasicTests
         (wp, assetHelper) =>
             val name = "basicInvoke"
             assetHelper.withCleaner(wsk.action, name) {
-                (action, _) => action.create(name, Some(TestUtils.getCatalogFilename("samples/wc.js")))
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("wordcount.js")))
             }
             wsk.action.invoke(name, Map("payload" -> "one two three".toJson), blocking = true, result = true)
                 .stdout should include regex (""""count": 3""")
@@ -301,41 +241,11 @@ class WskBasicTests
             val run = wsk.trigger.fire(name, dynamicParams)
             withActivation(wsk.activation, run) {
                 activation =>
-                    activation.fields("response").asJsObject.fields("result") should be(dynamicParams.toJson)
-                    activation.fields("end") should be(Instant.EPOCH.toEpochMilli.toJson)
+                    activation.response.result shouldBe Some(dynamicParams.toJson)
+                    activation.end shouldBe Instant.EPOCH.toEpochMilli
             }
 
             wsk.trigger.list().stdout should include(name)
-    }
-
-    it should "not create a trigger when feed fails to initialize" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            assetHelper.withCleaner(wsk.trigger, "badfeed", confirmDelete = false) {
-                (trigger, name) =>
-                    trigger.create(name, feed = Some(s"bogus"), expectedExitCode = ANY_ERROR_EXIT).
-                        exitCode should { equal(NOT_FOUND) or equal(FORBIDDEN) }
-                    trigger.get(name, expectedExitCode = NOT_FOUND)
-
-                    trigger.create(name, feed = Some(s"bogus/feed"), expectedExitCode = ANY_ERROR_EXIT).
-                        exitCode should { equal(NOT_FOUND) or equal(FORBIDDEN) }
-                    trigger.get(name, expectedExitCode = NOT_FOUND)
-
-                    // verify that the feed runs and returns an application error (502 or Gateway Timeout)
-                    trigger.create(name, feed = Some(s"/whisk.system/github/webhook"), expectedExitCode = TIMEOUT)
-                    trigger.get(name, expectedExitCode = NOT_FOUND)
-            }
-    }
-
-    it should "display a trigger summary when --summary flag is used with 'wsk trigger get'" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val triggerName = "mySummaryTrigger"
-            assetHelper.withCleaner(wsk.trigger, triggerName, confirmDelete = false) {
-                (trigger, name) => trigger.create(name)
-            }
-            // Summary namespace should match one of the allowable namespaces (typically 'guest')
-            val ns_regex_list = wsk.namespace.list().stdout.trim.replace('\n', '|')
-            val stdout = wsk.trigger.get(triggerName, summary = true).stdout
-            stdout should include regex (s"(?i)trigger\\s+/${ns_regex_list}/${triggerName}")
     }
 
     behavior of "Wsk Rule CLI"
@@ -361,7 +271,7 @@ class WskBasicTests
             wsk.rule.create(ruleName, trigger = triggerName, action = actionName, update = true, expectedExitCode = CONFLICT)
 
             // now, we disable the rule, so that we can perform the actual update
-            wsk.rule.disableRule(ruleName, 30.seconds);
+            wsk.rule.disableRule(ruleName);
 
             // finally, we perform the update, and expect success this time
             wsk.rule.create(ruleName, trigger = triggerName, action = actionName, update = true)

@@ -254,7 +254,7 @@ class Activation(Item):
             return None
 
     #
-    # Fetch all activation reconds since a timestamp
+    # Fetch all activation records since a timestamp
     #
     def fetchActivations(self, beginMillis, args, props):
         # fetch all activations starting from SLACK_SECONDS seconds in the past
@@ -316,5 +316,5 @@ def printLogs(L, reported):
 #
 def stripTimeStampAndString(line):
     # log line should be formatted to fixed width and stripping
-    # first 38 charecters should do
+    # first 38 characters should do
     return line[39:]

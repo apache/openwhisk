@@ -33,13 +33,13 @@ var logger  = require('./src/logger').getLogger('logs/nodejsaction.log', 'nodejs
 var service = require('./src/service').getService(config, logger);
 
 app.set('port', config.port);
-app.use(bodyParser.json({limit: 1048576}));
+app.use(bodyParser.json());
 
 app.post('/init', safeEndpoint(service.initCode));
 app.post('/run',  safeEndpoint(service.runCode));
 app.use(function(err, req, res, next) {
     console.error(err.stack);
-    res.status(500).json({error: 'bad request'});
+    res.status(500).json({error: 'Bad request.'});
   });
 
 service.start(app);
@@ -57,7 +57,7 @@ function safeEndpoint(ep) {
             ep(req, res, next);
         } catch (e) {
             logger.error('[safeEndpoint]', 'exception caught', e);
-            res.status(500).json({ error : 'internal error' });
+            res.status(500).json({ error : 'Internal error.' });
         }
     };
 }

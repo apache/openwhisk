@@ -64,13 +64,13 @@ Invocations of an action are not ordered. If the user invokes an action twice fr
 
 Additionally, there is no guarantee that actions will execute atomically. Two actions can run concurrently and their side effects can be interleaved. OpenWhisk does not ensure any particular concurrent consistency model for side effects. Any concurrency side effects will be implementation-dependent.
 
-### At-most-once semantics
-
-The system supports at-most-once invocation of actions.
+### Action execution guarantees
 
 When an invocation request is received, the system records the request and dispatches an activation.
 
-The system returns an activation ID (in the case of a nonblocking invocation) to confirm that the invocation was received. Notice that even in the absence of this response (perhaps due to a broken network connection), it is possible that the invocation was received.
+The system returns an activation ID (in the case of a nonblocking invocation) to confirm that the invocation was received. 
+Notice that if there's a network failure or other failure which intervenes before you receive an HTTP response, it is possible 
+that OpenWhisk received and processed the request.
 
 The system attempts to invoke the action once, resulting in one of the following four outcomes:
 - *success*: the action invocation completed successfully.
@@ -81,6 +81,10 @@ The outcome is recorded in the `status` field of the activation record, as docum
 
 Every invocation that is successfully received, and that the user might be billed for, will eventually have an activation record.
 
+Note that in the case of *action developer error*, the action may have partially run and generated externally visible
+side effects.   It is the user's responsibility to check whether such side effects actually happened, and issue retry
+logic if desired.   Also note that certain *whisk internal errors* will indicate that an action started running but the
+system failed before the action registered completion.
 
 ## Activation record
 
@@ -196,11 +200,11 @@ The `whisk.invoke()` function invokes another action. It takes as an argument a 
 
 - *name*: The fully qualified name of the action to invoke,
 - *parameters*: A JSON object that represents the input to the invoked action. If omitted, defaults to an empty object.
-- *apiKey*: The authorization key with which to invoke the action. Defaults to `whisk.getAuthKey()`.
+- *apiKey*: The authorization key with which to invoke the action. Defaults to `whisk.getAuthKey()`. 
 - *blocking*: Whether the action should be invoked in blocking or non-blocking mode. Defaults to `false`, indicating a non-blocking invocation.
 - *next*: An optional callback function to be executed when the invocation completes. If next is not supplied, `whisk.invoke()` returns a promise.
 
-  The signature for `next` is `function(error, activation)`, where:
+The signature for `next` is `function(error, activation)`, where:
 
   - `error` is `false` if the invocation succeeded, and a *truthy* value (a value that translates to true when evaluated in a Boolean context) if it failed, usually a string that describes the error.
   - On errors, `activation` might be undefined, depending on the failure mode.
@@ -244,11 +248,11 @@ The `whisk.trigger()` function fires a trigger. It takes as an argument a JSON o
 - *apiKey*: The authorization key with which to fire the trigger. Defaults to `whisk.getAuthKey()`.
 - *next*: An optional callback to be executed when the firing completes.
 
-  The signature for `next` is `function(error, activation)`, where:
+The signature for `next` is `function(error, activation)`, where:
 
-  - `error` is `false` if the firing succeeded, and a *truthy* value  if it failed, usually a string that describes the error.
-  - On errors, `activation` might be undefined, depending on the failure mode.
-  - When defined, `activation` is a dictionary with an `activationId` field that contains the activation ID.
+- `error` is `false` if the firing succeeded, and a *truthy* value  if it failed, usually a string that describes the error.
+- On errors, `activation` might be undefined, depending on the failure mode.
+- When defined, `activation` is a dictionary with an `activationId` field that contains the activation ID.
 
   If `next` is not provided, then `whisk.trigger()` returns a promise.
   - If the trigger fails, the promise will reject with an object describing the error.
@@ -350,16 +354,13 @@ The following packages are available to be used in the Node.js 0.12.14 environme
 
 ## Docker actions
 
-Docker actions run a user-supplied binary in a Docker container. The binary runs in a Docker image based on Ubuntu 14.04 LTD, so the binary must be compatible with this distribution.
-
-The action input "payload" parameter is passed as a positional argument to the binary program, and the standard output from the execution of the program is returned in the "result" parameter.
+Docker actions run a user-supplied binary in a Docker container. The binary runs in a Docker image based on [python:2.7.12-alpine](https://hub.docker.com/r/library/python), so the binary must be compatible with this distribution.
 
 The Docker skeleton is a convenient way to build OpenWhisk-compatible Docker images. You can install the skeleton with the `wsk sdk install docker` CLI command.
 
-The main binary program is copied to the `dockerSkeleton/client/action` file. Any companion files or library can exist in the `dockerSkeleton/client` directory.
+The main binary program must be located in `/action/exec` inside the container. The executable receives the input arguments via `stdin` and must return a result via `stdout`.
 
-You can also include any compilation steps or dependencies by modifying the `dockerSkeleton/Dockerfile`. For example,you can install Python if your action is a Python script.
-
+You may include any compilation steps or dependencies by modifying the `Dockerfile` included in the `dockerSkeleton`.
 
 ## REST API
 
@@ -417,14 +418,14 @@ $ curl -u USERNAME:PASSWORD https://openwhisk.ng.bluemix.net/api/v1/namespaces/w
   ...
 ]
 ```
-
 The OpenWhisk API supports request-response calls from web clients. OpenWhisk responds to `OPTIONS` requests with Cross-Origin Resource Sharing headers. Currently, all origins are allowed (that is, Access-Control-Allow-Origin is "`*`") and Access-Control-Allow-Headers yield Authorization and Content-Type.
 
 **Attention:** Because OpenWhisk currently supports only one key per account, it is not recommended to use CORS beyond simple experiments. Your key would need to be embedded in client-side code, making it visible to the public. Use with caution.
 
 ## System limits
 
-OpenWhisk has a few system limits, including how much memory an action uses and how many action invocations are allowed per hour. The following table lists the default limits.
+### Actions
+OpenWhisk has a few system limits, including how much memory an action uses and how many action invocations are allowed per hour. The following table lists the default limits for actions.
 
 | limit | description | configurable | unit | default |
 | ----- | ----------- | ------------ | -----| ------- |
@@ -467,7 +468,7 @@ OpenWhisk has a few system limits, including how much memory an action uses and 
 ### Invocations per minute/hour (Fixed: 120/3600)
 * The rate limit N is set to 120/3600 and limits the number of action invocations in one minute/hour windows.
 * A user cannot change this limit when creating the action.
-* A CLI call that exceeds this limit receives an error code corresponding to TOO_MANY_REQUESTS.
+* A CLI or API call that exceeds this limit receives an error code corresponding to HTTP status code `429: TOO MANY REQUESTS`.
 
 ### Size of the parameters (Fixed: 1MB)
 * The size limit for the parameters on creating or updating of an action/package/trigger is 1MB.
@@ -483,3 +484,17 @@ OpenWhisk has a few system limits, including how much memory an action uses and 
 * The maximum number of processes available to a user is 512 (for both hard and soft limits).
 * The docker run command use the argument `--ulimit nproc=512:512`.
 * For more information about the ulimit for maximum number of processes see the [docker run](https://docs.docker.com/engine/reference/commandline/run) documentation.
+
+### Triggers
+
+Triggers are subject to a firing rate per minute and per hour as documented in the table below.
+
+| limit | description | configurable | unit | default |
+| ----- | ----------- | ------------ | -----| ------- |
+| minuteRate | a user cannot fire more than this many triggers per minute | per user | number | 60 |
+| hourRate | a user cannot fire more than this many triggers per hour | per user | number | 720 |
+
+### Triggers per minute/hour (Fixed: 60/720)
+* The rate limit N is set to 60/720 and limits the number of triggers that may be fired in one minute/hour windows.
+* A user cannot change this limit when creating the trigger.
+* A CLI or API call that exceeds this limit receives an error code corresponding to HTTP status code `429: TOO MANY REQUESTS`.

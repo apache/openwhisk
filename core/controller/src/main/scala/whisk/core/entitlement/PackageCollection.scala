@@ -18,14 +18,16 @@ package whisk.core.entitlement
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
+
+import spray.http.StatusCodes.NotFound
 import whisk.common.TransactionId
+import whisk.core.controller.RejectRequest
+import whisk.core.database.NoDocumentException
 import whisk.core.entity.DocId
+import whisk.core.entity.EntityName
+import whisk.core.entity.WhiskEntity
 import whisk.core.entity.WhiskPackage
 import whisk.core.entity.types.EntityStore
-import scala.concurrent.Promise
-import whisk.core.entity.WhiskEntity
-import whisk.core.entity.EntityName
-import whisk.core.database.NoDocumentException
 
 class PackageCollection(entityStore: EntityStore) extends Collection(Collection.PACKAGES) {
 
@@ -56,10 +58,8 @@ class PackageCollection(entityStore: EntityStore) extends Collection(Collection.
                         // must determine if this is a public or owned package
                         // or, for a binding, that it references a public or owned package
                         val docid = DocId(WhiskEntity.qualifiedName(resource.namespace.root, EntityName(pkgname)))
-                        val promise = Promise[Boolean]
-                        checkPackageReadPermission(promise, namespaces, isOwner, docid)
-                        promise.future
-                    case _ => Future successful { isOwner && allowedEntityRights.contains(right) }
+                        checkPackageReadPermission(namespaces, isOwner, docid)
+                    case _ => Future.successful(isOwner && allowedEntityRights.contains(right))
                 }
         } getOrElse {
             // only a READ on the package collection is permitted;
@@ -67,47 +67,49 @@ class PackageCollection(entityStore: EntityStore) extends Collection(Collection.
             // list packages in any namespace, and defers the filtering of
             // public packages to non-owning subjects to the API handlers
             // for packages
-            Future successful { right == Privilege.READ }
+            Future.successful(right == Privilege.READ)
         }
     }
 
     /**
-     * @param promise the promise to complete with authorization bit
+     * @param namespaces the set of namespaces the subject is entitled to
      * @param isOwner indicates if the resource is owned by the subject requesting authorization
      * @param docid the package (or binding) document id
      */
-    private def checkPackageReadPermission(
-        promise: Promise[Boolean],
-        namespaces: Set[String],
-        isOwner: Boolean,
-        doc: DocId)(
-            implicit ec: ExecutionContext, transid: TransactionId): Unit = {
+    private def checkPackageReadPermission(namespaces: Set[String], isOwner: Boolean, doc: DocId)(
+        implicit ec: ExecutionContext, transid: TransactionId): Future[Boolean] = {
 
         val right = Privilege.READ
 
-        WhiskPackage.get(entityStore, doc.asDocInfo) map {
+        WhiskPackage.get(entityStore, doc.asDocInfo) flatMap {
             case wp if wp.binding.isEmpty =>
                 val allowed = wp.publish || isOwner
                 info(this, s"entitlement check on package, '$right' allowed?: $allowed")
-                promise.success(allowed)
+                Future.successful(allowed)
             case wp =>
                 if (isOwner) {
                     val binding = wp.binding.get
                     val pkgOwner = namespaces.contains(binding.namespace.root())
                     val pkgDocid = binding.docid
                     info(this, s"checking subject has privilege '$right' for bound package '$pkgDocid'")
-                    checkPackageReadPermission(promise, namespaces, pkgOwner, pkgDocid)
+                    checkPackageReadPermission(namespaces, pkgOwner, pkgDocid)
                 } else {
                     info(this, s"entitlement check on package binding, '$right' allowed?: false")
-                    promise.success(false)
+                    Future.successful(false)
                 }
-        } onFailure {
+        } recoverWith {
             case t: NoDocumentException =>
                 info(this, s"the package does not exist")
-                promise.success(false)
+                // if owner, reject with not found, otherwise fail the future to reject with
+                // unauthorized (this prevents information leaks about packages in other namespaces)
+                if (isOwner) {
+                    Future.failed(RejectRequest(NotFound))
+                } else {
+                    Future.successful(false)
+                }
             case t =>
                 error(this, s"entitlement check on package failed: ${t.getMessage}")
-                promise.success(false)
+                Future.successful(false)
         }
     }
 }

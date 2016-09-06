@@ -4,13 +4,13 @@
 - name: remove kafka
   docker:
     name: kafka
-    image: "{{ docker_registry }}whisk/kafka:{{ docker_image_tag }}"
+    image: "{{ docker_registry }}{{ docker_image_prefix }}/kafka:{{ docker_image_tag }}"
     state: absent
   ignore_errors: True
 
 - name: remove zookeeper
   docker:
     name: zookeeper
-    image: "{{ docker_registry }}whisk/zookeeper:{{ docker_image_tag }}"
+    image: "{{ docker_registry }}{{ docker_image_prefix }}/zookeeper:{{ docker_image_tag }}"
     state: absent
   ignore_errors: True

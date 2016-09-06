@@ -20,7 +20,7 @@ import "encoding/json"
 
 type KeyValue struct {
     Key   string        `json:"key,omitempty"`
-    Value interface{}   `json:"value"`     // Whisk permits empty values, do don't omitemtpy
+    Value interface{}   `json:"value"`     // Whisk permits empty values, do not add 'omitempty'
 }
 
 type KeyValues struct {

@@ -49,46 +49,49 @@ import whisk.core.entity.size.SizeString
  */
 sealed abstract class Exec(val kind: String) extends ByteSizeable {
     def image: String
-
+    /** Indicates if the container generates log markers to stdout/stderr once action activation completes. */
+    val sentinelledLogs = true
     override def toString = Exec.serdes.write(this).compactPrint
 }
 
 protected[core] case class NodeJSExec(code: String, init: Option[String]) extends Exec(Exec.NODEJS) {
-    val image = "whisk/nodejsaction"
+    val image = Exec.imagename(Exec.NODEJS)
     def size = (code sizeInBytes) + init.map(_.sizeInBytes).getOrElse(0 B)
 }
 
 protected[core] case class NodeJS6Exec(code: String, init: Option[String]) extends Exec(Exec.NODEJS6) {
-    val image = "whisk/nodejs6action"
+    val image = Exec.imagename(Exec.NODEJS6)
     def size = (code sizeInBytes) + init.map(_.sizeInBytes).getOrElse(0 B)
 }
 
 protected[core] case class PythonExec(code: String) extends Exec(Exec.PYTHON) {
-    val image = "whisk/pythonaction"
+    val image = Exec.imagename(Exec.PYTHON)
     def size = code sizeInBytes
 }
 
 protected[core] case class SwiftExec(code: String) extends Exec(Exec.SWIFT) {
-    val image = "whisk/swiftaction"
+    val image = Exec.imagename(Exec.SWIFT)
     def size = code sizeInBytes
 }
 
 protected[core] case class Swift3Exec(code: String) extends Exec(Exec.SWIFT3) {
-    val image = "whisk/swift3action"
+    val image = Exec.imagename(Exec.SWIFT3)
     def size = code sizeInBytes
 }
 
 protected[core] case class JavaExec(jar: String, main: String) extends Exec(Exec.JAVA) {
-    val image = "whisk/javaaction"
+    val image = Exec.imagename(Exec.JAVA)
+    override val sentinelledLogs = false
     def size = (jar sizeInBytes) + (main sizeInBytes)
 }
 
 protected[core] case class BlackBoxExec(image: String) extends Exec(Exec.BLACKBOX) {
     def size = image sizeInBytes
+    override val sentinelledLogs = false
 }
 
 protected[core] case class SequenceExec(code: String, components: Vector[String]) extends Exec(Exec.SEQUENCE) {
-    val image = "whisk/nodejsaction"
+    val image = Exec.imagename(Exec.NODEJS)
     def size = components.map(_ sizeInBytes).reduce(_ + _)
 }
 
@@ -109,6 +112,10 @@ protected[core] object Exec
     protected[core] val BLACKBOX = "blackbox"
     protected[core] val SEQUENCE = "sequence"
     protected[core] val runtimes = Set(NODEJS, NODEJS6, PYTHON, SWIFT, SWIFT3, JAVA, BLACKBOX, SEQUENCE)
+
+    // Constructs standard image name for action
+    protected[core] def imagename(name: String) = s"${name}action".replace(":", "")
+
     val sizeLimit = 48 MB
 
     protected[core] def js(code: String, init: String = null): Exec = NodeJSExec(trim(code), Option(init).map(_.trim))

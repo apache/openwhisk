@@ -202,7 +202,7 @@ def createUserCmd(args, props):
         return 1
 
 def getUserCmd(args, props):
-    (doc, res) = getSubjecFromDb(args, props)
+    (doc, res) = getSubjectFromDb(args, props)
 
     if doc is not None:
         print '%s:%s' % (doc['uuid'], doc['key'])
@@ -211,7 +211,7 @@ def getUserCmd(args, props):
         print 'Failed to get subject (%s)' % res.read().strip()
         return 1
 
-def getSubjecFromDb(args, props):
+def getSubjectFromDb(args, props):
     protocol = props[DB_PROTOCOL]
     host     = props[DB_HOST]
     port     = props[DB_PORT]
@@ -250,7 +250,7 @@ def deleteUserCmd(args, props):
         print 'Subject must not be empty'
         return 2
 
-    (rev, res) = getSubjecFromDb(args, props)
+    (rev, res) = getSubjectFromDb(args, props)
     if rev is None:
         print 'Failed to delete subject (%s)' % res.read().strip()
         return 1

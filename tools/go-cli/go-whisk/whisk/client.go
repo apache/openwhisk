@@ -28,6 +28,7 @@ import (
     "crypto/tls"
     "errors"
     "reflect"
+    "../wski18n"
 )
 
 const (
@@ -86,7 +87,8 @@ func NewClient(httpClient *http.Client, config *Config) (*Client, error) {
         config.BaseURL, err = url.Parse(defaultBaseURL)
         if err != nil {
             Debug(DbgError, "url.Parse(%s) error: %s", defaultBaseURL, err)
-            errStr := fmt.Sprintf("Unable to create request URL '%s': %s", defaultBaseURL, err)
+            errStr := wski18n.T("Unable to create request URL '{{.url}}': {{.err}}",
+                map[string]interface{}{"url": defaultBaseURL, "err": err})
             werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
             return nil, werr
         }
@@ -131,7 +133,8 @@ func (c *Client) NewRequest(method, urlStr string, body interface{}) (*http.Requ
     rel, err := url.Parse(urlStr)
     if err != nil {
         Debug(DbgError, "url.Parse(%s) error: %s\n", urlStr, err)
-        errStr := fmt.Sprintf("Invalid request URL '%s': %s", urlStr, err)
+        errStr := wski18n.T("Invalid request URL '{{.url}}': {{.err}}",
+            map[string]interface{}{"url": urlStr, "err": err})
         werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, werr
     }
@@ -144,7 +147,7 @@ func (c *Client) NewRequest(method, urlStr string, body interface{}) (*http.Requ
         err := json.NewEncoder(buf).Encode(body)
         if err != nil {
             Debug(DbgError, "json.Encode(%#v) error: %s\n", body, err)
-            errStr := fmt.Sprintf("Error encoding request body: %s", err)
+            errStr := wski18n.T("Error encoding request body: {{.err}}", map[string]interface{}{"err": err})
             werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
             return nil, werr
         }
@@ -152,7 +155,7 @@ func (c *Client) NewRequest(method, urlStr string, body interface{}) (*http.Requ
     req, err := http.NewRequest(method, u.String(), buf)
     if err != nil {
         Debug(DbgError, "http.NewRequest(%v, %s, buf) error: %s\n", method, u.String(), err)
-        errStr := fmt.Sprintf("Error initializing request: %s", err)
+        errStr := wski18n.T("Error initializing request: {{.err}}", map[string]interface{}{"err": err})
         werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, werr
     }
@@ -163,7 +166,8 @@ func (c *Client) NewRequest(method, urlStr string, body interface{}) (*http.Requ
     err = c.addAuthHeader(req, AuthRequired)
     if err != nil {
         Debug(DbgError, "addAuthHeader() error: %s\n", err)
-        errStr := fmt.Sprintf("Unable to add the HTTP authentication header: %s", err)
+        errStr := wski18n.T("Unable to add the HTTP authentication header: {{.err}}",
+            map[string]interface{}{"err": err})
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, werr
     }
@@ -178,7 +182,7 @@ func (c *Client) addAuthHeader(req *http.Request, authRequired bool) error {
     } else {
         if authRequired {
             Debug(DbgError, "The required authorization key is not configured - neither set as a property nor set via the --auth CLI argument\n")
-            errStr := fmt.Sprintf("Authorization key is not configured (--auth is required)")
+            errStr := wski18n.T("Authorization key is not configured (--auth is required)")
             werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_USAGE, DISPLAY_MSG, DISPLAY_USAGE)
             return werr
         }
@@ -242,7 +246,8 @@ func (c *Client) Do(req *http.Request, v interface{}) (*http.Response, error) {
     // If this happens, just return no data and an error
     if !IsHttpRespSuccess(resp) && data == nil {
         Debug(DbgError, "HTTP failure %d + no body\n", resp.StatusCode)
-        werr := MakeWskError(errors.New("Command failed due to an HTTP failure"), resp.StatusCode-256, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskError(errors.New(wski18n.T("Command failed due to an HTTP failure")), resp.StatusCode-256,
+            DISPLAY_MSG, NO_DISPLAY_USAGE)
         return resp, werr
     }
 
@@ -266,7 +271,8 @@ func (c *Client) Do(req *http.Request, v interface{}) (*http.Response, error) {
 
     // We should never get here, but just in case return failure
     // to keep the compiler happy
-    werr := MakeWskError(errors.New("Command failed due to an internal failure"), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+    werr := MakeWskError(errors.New(wski18n.T("Command failed due to an internal failure")), EXITCODE_ERR_GENERAL,
+        DISPLAY_MSG, NO_DISPLAY_USAGE)
     return resp, werr
 }
 
@@ -289,7 +295,8 @@ func parseErrorResponse(resp *http.Response, data []byte, v interface{}) (*http.
         }
     } else {
         Debug(DbgError, "HTTP response with unexpected body failed due to contents parsing error: '%v'\n", err)
-        var errStr = fmt.Sprintf("Request failed (status code = %d). Error details: %s", resp.StatusCode, data)
+        var errStr = wski18n.T("Request failed (status code = {{.statusCode}}). Error details: {{.data}}",
+            map[string]interface{}{"statusCode": resp.StatusCode, "data": data})
         werr := MakeWskError(errors.New(errStr), resp.StatusCode - 256, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return resp, werr
     }
@@ -302,14 +309,15 @@ func parseWhiskErrorResponse(resp *http.Response, data []byte, v interface{}) (*
     // Determine if a whisk.error() response was received. Otherwise, the body contents are unknown (#6)
     if err == nil && whiskErrorResponse.Response.Result.Error != nil {
         Debug(DbgInfo, "Detected that a whisk.error(\"%s\") was returned\n", *whiskErrorResponse.Response.Result.Error)
-        errMsg := fmt.Sprintf("The following application error was received: %s",
-            *whiskErrorResponse.Response.Result.Error)
+        errMsg := wski18n.T("The following application error was received: {{.err}}",
+            map[string]interface{}{"err": *whiskErrorResponse.Response.Result.Error})
         whiskErr := MakeWskError(errors.New(errMsg), resp.StatusCode - 256, NO_DISPLAY_MSG, NO_DISPLAY_USAGE,
             NO_MSG_DISPLAYED, APPLICATION_ERR)
         return parseSuccessResponse(resp, data, v), whiskErr
     } else {
         Debug(DbgError, "HTTP response with unexpected body failed due to contents parsing error: '%v'\n", err)
-        errMsg := fmt.Sprintf("Request failed (status code = %d). Error details: %s", resp.StatusCode, data)
+        errMsg := wski18n.T("Request failed (status code = {{.statusCode}}). Error details: {{.data}}",
+            map[string]interface{}{"statusCode": resp.StatusCode, "data": data})
         whiskErr := MakeWskError(errors.New(errMsg), resp.StatusCode - 256, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return resp, whiskErr
     }
@@ -363,7 +371,8 @@ type WhiskErrorMessage struct {
 }
 
 func (r ErrorResponse) Error() string {
-    return fmt.Sprintf("%v (code %d)", r.ErrMsg, r.Code)
+    return wski18n.T("{{.msg}} (code {{.code}})",
+        map[string]interface{}{"msg": fmt.Sprintf("%v", r.ErrMsg), "code": r.Code})
 }
 
 ////////////////////////////
@@ -394,13 +403,14 @@ func (c *Client) NewRequestUrl(method string, urlRelResource *url.URL, body inte
     urlVerNamespace, err := url.Parse(urlVerNamespaceStr)
     if err != nil {
         Debug(DbgError, "url.Parse(%s) error: %s\n", urlVerNamespaceStr, err)
-        errStr := fmt.Sprintf("Invalid request URL '%s': %s", urlVerNamespaceStr, err)
+        errStr := wski18n.T("Invalid request URL '{{.url}}': {{.err}}",
+            map[string]interface{}{"url": urlVerNamespaceStr, "err": err})
         werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, werr
     }
 
     // URL construction order is important so that parts of the path are not lost
-    // 1. Combine absolute Base URL path with the relative namepace path.  The creates an absolute URL
+    // 1. Combine absolute Base URL path with the relative namespace path.  The creates an absolute URL
     // 2. Combine the Base+Namespace absolute URL with the relative resource path (including query params)
     u := c.BaseURL.ResolveReference(urlVerNamespace)
     u = u.ResolveReference(urlRelResource)
@@ -411,7 +421,8 @@ func (c *Client) NewRequestUrl(method string, urlRelResource *url.URL, body inte
         err := json.NewEncoder(buf).Encode(body)
         if err != nil {
             Debug(DbgError, "json.Encode(%#v) error: %s\n", body, err)
-            errStr := fmt.Sprintf("Error encoding request body: %s", err)
+            errStr := wski18n.T("Error encoding request body: {{.err}}",
+                map[string]interface{}{"err": err})
             werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
             return nil, werr
         }
@@ -419,7 +430,7 @@ func (c *Client) NewRequestUrl(method string, urlRelResource *url.URL, body inte
     req, err := http.NewRequest(method, u.String(), buf)
     if err != nil {
         Debug(DbgError, "http.NewRequest(%v, %s, buf) error: %s\n", method, u.String(), err)
-        errStr := fmt.Sprintf("Error initializing request: %s", err)
+        errStr := wski18n.T("Error initializing request: {{.err}}", map[string]interface{}{"err": err})
         werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, werr
     }
@@ -430,7 +441,8 @@ func (c *Client) NewRequestUrl(method string, urlRelResource *url.URL, body inte
     err = c.addAuthHeader(req, AuthRequired)
     if err != nil {
         Debug(DbgError, "addAuthHeader() error: %s\n", err)
-        errStr := fmt.Sprintf("Unable to add the HTTP authentication header: %s", err)
+        errStr := wski18n.T("Unable to add the HTTP authentication header: {{.err}}",
+            map[string]interface{}{"err": err})
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, werr
     }

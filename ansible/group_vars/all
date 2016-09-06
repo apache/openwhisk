@@ -1,10 +1,7 @@
 mode: deploy
 prompt_user: true
-
 openwhisk_home: "{{ lookup('env', 'OPENWHISK_HOME')|default(playbook_dir + '/..', true) }}"
-
-# Use this parameter to determine the type of OpenWhisk deploy (e.g., development, production)
-deployment: prod
+exclude_logs_from: []
 
 whisk:
   version:
@@ -62,9 +59,12 @@ db:
 linux:
   version: 3.19.0-25
 
+docker_image_prefix: whisk
 docker_image_tag: latest
 docker:
-  user:
+  # The user to install docker for. Defaults to the ansible user if not set. This will be the user who is able to run 
+  # docker commands on a machine setup with prereq_build.yml
+  #user:
   version: 1.9.1-0~trusty
   storagedriver: overlay
   port: 4243

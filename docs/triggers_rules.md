@@ -109,7 +109,7 @@ As an example, create a rule that calls the hello action whenever a location upd
   $ wsk rule create myRule locationUpdate hello
   ```
 
-At any time, you can choose to disable a rule.
+  At any time, you can choose to disable a rule.
   ```
   $ wsk rule disable myRule
   ```

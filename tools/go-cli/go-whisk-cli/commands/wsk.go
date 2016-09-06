@@ -18,12 +18,13 @@ package commands
 
 import (
     "github.com/spf13/cobra"
+    "../wski18n"
 )
 
 // WskCmd defines the entry point for the cli.
 var WskCmd = &cobra.Command{
     Use:              "wsk",
-    Short:            "Whisk cloud computing command line interface.",
+    Short:            wski18n.T("OpenWhisk cloud computing command line interface."),
     Long:             logoText(),
     SilenceUsage:     true,
     PersistentPreRunE:parseConfigFlags,
@@ -48,10 +49,10 @@ func init() {
         listCmd,
     )
 
-    WskCmd.PersistentFlags().BoolVarP(&flags.global.verbose, "verbose", "v", false, "verbose output")
-    WskCmd.PersistentFlags().BoolVarP(&flags.global.debug, "debug", "d", false, "debug level output")
-    WskCmd.PersistentFlags().StringVarP(&flags.global.auth, "auth", "u", "", "authorization `KEY`")
-    WskCmd.PersistentFlags().StringVar(&flags.global.apihost, "apihost", "", "whisk API `HOST`")
-    WskCmd.PersistentFlags().StringVar(&flags.global.apiversion, "apiversion", "", "whisk API `VERSION`")
-    WskCmd.PersistentFlags().BoolVarP(&flags.global.insecure, "insecure", "i", false, "bypass certificate checking")
+    WskCmd.PersistentFlags().BoolVarP(&flags.global.verbose, "verbose", "v", false, wski18n.T("verbose output"))
+    WskCmd.PersistentFlags().BoolVarP(&flags.global.debug, "debug", "d", false, wski18n.T("debug level output"))
+    WskCmd.PersistentFlags().StringVarP(&flags.global.auth, "auth", "u", "", wski18n.T("authorization `KEY`"))
+    WskCmd.PersistentFlags().StringVar(&flags.global.apihost, "apihost", "", wski18n.T("whisk API `HOST`"))
+    WskCmd.PersistentFlags().StringVar(&flags.global.apiversion, "apiversion", "", wski18n.T("whisk API `VERSION`"))
+    WskCmd.PersistentFlags().BoolVarP(&flags.global.insecure, "insecure", "i", false, wski18n.T("bypass certificate checking"))
 }

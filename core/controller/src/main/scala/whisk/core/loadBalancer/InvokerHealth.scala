@@ -202,7 +202,7 @@ class InvokerHealth(
 
     /*
      * Invoker indices are 0-based.
-     * curStatus maintains the status of the curent instance at a particular index while oldStatus
+     * curStatus maintains the status of the current instance at a particular index while oldStatus
      * tracks instances (potentially many per index) that are not longer fresh (invoker was restarted).
      */
     private case class Status(index: Int, startDate: String, lastDate: String, status: Boolean, activationCount: Int) {

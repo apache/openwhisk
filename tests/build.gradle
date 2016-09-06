@@ -24,17 +24,21 @@ test {
         showStandardStreams = true
         exceptionFormat = 'full'
     }
-    outputs.upToDateWhen { false } // force tests to run everytime
+    outputs.upToDateWhen { false } // force tests to run every time
 }
 
 // Add all images needed for local testing here
 test.dependsOn([
     ':core:nodejsAction:distDocker',
     ':core:nodejs6Action:distDocker',
+    ':core:actionProxy:distDocker',
     ':core:pythonAction:distDocker',
     ':core:javaAction:distDocker',
     ':core:swiftAction:distDocker',
-    ':core:swift3Action:distDocker'
+    ':core:swift3Action:distDocker',
+    ':sdk:docker:distDocker',
+    ':tests:dat:blackbox:badaction:distDocker',
+    ':tests:dat:blackbox:badproxy:distDocker'
 ])
 
 dependencies {
@@ -58,7 +62,7 @@ dependencies {
 
     testCompile project(':common:scala')
     testCompile project(':core:controller')
-    testCompile project(':core:dispatcher')
+    testCompile project(':core:invoker')
 }
 
 tasks.withType(ScalaCompile) {

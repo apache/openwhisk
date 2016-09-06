@@ -32,10 +32,16 @@ import scala.sys.process.stringToProcess
 import scala.util.Random
 import scala.util.Try
 
+import org.scalatest.FlatSpec
+import org.scalatest.Matchers
+import akka.actor.ActorSystem
+
 import common.WhiskProperties
 import spray.json.JsObject
+import spray.json.JsString
 import spray.json.JsValue
 import spray.json.pimpString
+import org.apache.commons.lang3.StringUtils
 
 /**
  * For testing convenience, this interface abstracts away the REST calls to a
@@ -46,11 +52,34 @@ trait ActionContainer {
     def run(value: JsValue): (Int, Option[JsObject])
 }
 
+trait ActionProxyContainerTestUtils extends FlatSpec with Matchers {
+    import ActionContainer.{ filterSentinel, sentinel }
+
+    def initPayload(code: String) = JsObject("value" -> JsObject("code" -> JsString(code)))
+    def runPayload(args: JsValue, other: Option[JsObject] = None) = {
+        JsObject(Map("value" -> args) ++ (other map { _.fields } getOrElse Map()))
+    }
+
+    def checkStreams(out: String, err: String, additionalCheck: (String, String) => Unit, sentinelCount: Int = 1) = {
+        withClue("expected number of stdout sentinels") {
+            sentinelCount shouldBe StringUtils.countMatches(out, sentinel)
+        }
+        withClue("expected number of stderr sentinels") {
+            sentinelCount shouldBe StringUtils.countMatches(err, sentinel)
+        }
+
+        val (o, e) = (filterSentinel(out), filterSentinel(err))
+        o should not include (sentinel)
+        e should not include (sentinel)
+        additionalCheck(o, e)
+    }
+}
+
 object ActionContainer {
     private lazy val dockerBin: String = {
         List("/usr/bin/docker", "/usr/local/bin/docker").find { bin =>
             new File(bin).isFile()
-        }.getOrElse(???) // This fails if the docker binary couln't be located.
+        }.getOrElse(???) // This fails if the docker binary couldn't be located.
     }
 
     private lazy val dockerCmd: String = {
@@ -85,8 +114,12 @@ object ActionContainer {
         Await.result(proc(docker(cmd)), t)
     }
 
+    // Filters out the sentinel markers inserted by the container (see relevant private code in Invoker.scala)
+    val sentinel = "XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX"
+    def filterSentinel(str: String) = str.replaceAll(sentinel, "").trim
+
     def withContainer(imageName: String, environment: Map[String, String] = Map.empty)(
-        code: ActionContainer => Unit): (String, String) = {
+        code: ActionContainer => Unit)(implicit actorSystem: ActorSystem): (String, String) = {
         val rand = { val r = Random.nextInt; if (r < 0) -r else r }
         val name = imageName.toLowerCase.replaceAll("""[^a-z]""", "") + rand
         val envArgs = environment.toSeq.map {
@@ -104,8 +137,8 @@ object ActionContainer {
 
         // ...we create an instance of the mock container interface...
         val mock = new ActionContainer {
-            def init(value: JsValue) = syncPost(s"$ip:8080", "/init", value)
-            def run(value: JsValue) = syncPost(s"$ip:8080", "/run", value)
+            def init(value: JsValue) = syncPost(ip, 8080, "/init", value)
+            def run(value: JsValue) = syncPost(ip, 8080, "/run", value)
         }
 
         try {
@@ -121,14 +154,31 @@ object ActionContainer {
         }
     }
 
-    private def syncPost(host: String, endPoint: String, content: JsValue): (Int, Option[JsObject]) = {
-        import whisk.common.HttpUtils
-        val connection = HttpUtils.makeHttpClient(30000, true)
-        val (code, bytes) = new HttpUtils(connection, host).dopost(endPoint, content, Map.empty)
-        val str = new java.lang.String(bytes)
-        val json = Try(str.parseJson.asJsObject).toOption
-        Try { connection.close() }
-        (code, json)
+    private def syncPost(host: String, port: Int, endPoint: String, content: JsValue)(
+        implicit actorSystem: ActorSystem): (Int, Option[JsObject]) = {
+        import whisk.common.NewHttpUtils
+
+        import akka.http.scaladsl.model._
+        import akka.http.scaladsl.marshalling._
+        import akka.http.scaladsl.unmarshalling._
+        import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+        import akka.stream.ActorMaterializer
+
+        implicit val materializer = ActorMaterializer()
+
+        val uri = Uri(
+            scheme = "http",
+            authority = Uri.Authority(host = Uri.Host(host), port = port),
+            path = Uri.Path(endPoint))
+
+        val f = for (
+            entity <- Marshal(content).to[MessageEntity];
+            request = HttpRequest(method = HttpMethods.POST, uri = uri, entity = entity);
+            response <- NewHttpUtils.singleRequest(request, 30.seconds, retryOnTCPErrors = true);
+            responseBody <- Unmarshal(response.entity).to[String]
+        ) yield (response.status.intValue, Try(responseBody.parseJson.asJsObject).toOption)
+
+        Await.result(f, 1.minute)
     }
 
     private class ActionContainerImpl() extends ActionContainer {

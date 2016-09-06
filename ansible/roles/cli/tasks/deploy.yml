@@ -15,13 +15,13 @@
   local_action: template src="default.props.j2" dest="{{openwhisk_home}}/tools/cli/default.props"
 
 - name: "pull the {{ docker_image_tag }} image of cli"
-  shell: "docker pull {{ docker_registry }}whisk/cli:{{ docker_image_tag }}"
+  shell: "docker pull {{ docker_registry }}{{ docker_image_prefix }}/cli:{{ docker_image_tag }}"
   when: docker_registry != ""
 
 - name: generate cli tar
   docker:
     name: cli
-    image: "{{ docker_registry }}whisk/cli:{{ docker_image_tag }}"
+    image: "{{ docker_registry }}{{ docker_image_prefix }}/cli:{{ docker_image_tag }}"
     command: sh -c "cp -f /cli/default.props /cli/openwhisk/default.props && cd /cli && python setup.py sdist"
     state: started
     volumes:
@@ -38,5 +38,5 @@
 - name: remove cli container after publishing
   docker:
     name: cli
-    image: "{{ docker_registry }}whisk/cli:{{ docker_image_tag }}"
+    image: "{{ docker_registry }}{{ docker_image_prefix }}/cli:{{ docker_image_tag }}"
     state: absent

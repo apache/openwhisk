@@ -24,17 +24,18 @@ import (
     "github.com/fatih/color"
 
     "../../go-whisk/whisk"
+    "../wski18n"
 )
 
 // namespaceCmd represents the namespace command
 var namespaceCmd = &cobra.Command{
     Use:   "namespace",
-    Short: "work with namespaces",
+    Short: wski18n.T("work with namespaces"),
 }
 
 var namespaceListCmd = &cobra.Command{
     Use:   "list",
-    Short: "list available namespaces",
+    Short: wski18n.T("list available namespaces"),
     SilenceUsage:   true,
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
@@ -44,7 +45,9 @@ var namespaceListCmd = &cobra.Command{
         namespaces, _, err := client.Namespaces.List()
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Namespaces.List() error: %s\n", err)
-            errStr := fmt.Sprintf("Unable to obtain list of available namspaces: %s", err)
+            errStr := fmt.Sprintf(
+                wski18n.T("Unable to obtain list of available namespaces: {{.err}}",
+                    map[string]interface{}{"err": err}))
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_NETWORK, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
@@ -55,7 +58,7 @@ var namespaceListCmd = &cobra.Command{
 
 var namespaceGetCmd = &cobra.Command{
     Use:   "get [NAMESPACE]",
-    Short: "get triggers, actions, and rules in the registry for a namespace",
+    Short: wski18n.T("get triggers, actions, and rules in the registry for a namespace"),
     SilenceUsage:   true,
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
@@ -68,7 +71,9 @@ var namespaceGetCmd = &cobra.Command{
             qName, err = parseQualifiedName(args[0])
             if err != nil {
                 whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[0], err)
-                errMsg := fmt.Sprintf("Failed to parse qualified name: %s", args[0])
+                errMsg := fmt.Sprintf(
+                    wski18n.T("'{{.name}}' is not a valid qualified name: {{.err}}",
+                        map[string]interface{}{"name": args[0], "err": err}))
                 werr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                     whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return werr
@@ -78,12 +83,14 @@ var namespaceGetCmd = &cobra.Command{
         namespace, _, err := client.Namespaces.Get(qName.namespace)
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Namespaces.Get(%s) error: %s\n", qName.namespace, err)
-            errStr := fmt.Sprintf("Unable to obtain namespace entities for namespace '%s': %s", qName.namespace, err)
+            errStr := fmt.Sprintf(
+                wski18n.T("Unable to obtain namespace entities for namespace '{{.namespace}}': {{.err}}",
+                    map[string]interface{}{"namespace": qName.namespace, "err":err}))
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_NETWORK, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
 
-        fmt.Printf("Entities in namespace: ")
+        fmt.Printf(wski18n.T("Entities in namespace: "))
 
         if (qName.namespace != "_") {
             fmt.Fprintf(color.Output, "%s\n", boldString(namespace.Name))
@@ -103,7 +110,7 @@ var namespaceGetCmd = &cobra.Command{
 
 var listCmd = &cobra.Command{
     Use:   "list",
-    Short: "list available namespaces",
+    Short: wski18n.T("list available namespaces"),
     SilenceUsage:   true,
     SilenceErrors:  true,
     PreRunE: setupClientConfig,

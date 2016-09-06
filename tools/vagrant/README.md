@@ -16,7 +16,7 @@ cd openwhisk/tools/vagrant
 #### Option 1: Create VM using ephemeral CouchDB
 **Important** We advise that you use this method for development of OpenWhisk.
 Please note that no data will persist between two creations of the container, 
-data will persist after re-deploying or restaring VM.
+data will persist after re-deploying or restarting VM.
 For more information on data store configurations see [tools/db/README.md](../db/README.md).
 ```
 # Configure with couchdb docker container running inside the VM
@@ -53,13 +53,13 @@ this might be too short. You can modify the timeout value in [docker.gradle](../
 
 ### Using CLI from outside the VM
 You can use the CLI from the host machine as well as from inside the virtual machine.
-The IP address of the virtual machine accesible from outside is `192.168.33.13`.
+The IP address of the virtual machine accessible from outside is `192.168.33.13`.
 If you start another Vagrant VM take into account that the IP address will conflict, use `vagrant suspend` before starting another VM with the same IP address.
 
 After the Vagrant VM is done deploying OpenWhisk, the `wsk` CLI will be available under `<openwhisk>/bin`
 We currently have two types for the `wsk` CLI, Python and Go. 
 
-The Python CLI is avaible in `../../bin/wsk`. 
+The Python CLI is available in `../../bin/wsk`.
 For the Python CLI you can configure autocomplete by adding `eval "$(register-python-argcomplete wsk)"` in your `~/.bash_profile` or `~/.profile`
 
 The Go CLI is available in `../../bin/go-cli` there are multiple binaries base on OS and Architecture (i.e. `../../bin/go-cli/mac/amd64/wsk`).

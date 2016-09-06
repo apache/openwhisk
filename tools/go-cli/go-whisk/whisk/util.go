@@ -25,6 +25,7 @@ import (
     "github.com/fatih/color"
     "github.com/google/go-querystring/query"
     "github.com/hokaccha/go-prettyjson"
+    "../wski18n"
 )
 
 // addOptions adds the parameters in opt as URL query parameters to s.  opt
@@ -34,7 +35,8 @@ func addRouteOptions(route string, options interface{}) (*url.URL, error) {
     u, err := url.Parse(route)
     if err != nil {
         Debug(DbgError,"url.Parse(%s) error: %s\n", route, err)
-        errStr := fmt.Sprintf("Unable to parse URL '%s': %s", route, err)
+        errStr := wski18n.T("Unable to parse URL '{{.route}}': {{.err}}",
+            map[string]interface{}{"route": route, "err": err})
         werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, werr
     }
@@ -47,7 +49,8 @@ func addRouteOptions(route string, options interface{}) (*url.URL, error) {
     qs, err := query.Values(options)
     if err != nil {
         Debug(DbgError,"query.Values(%#v) error: %s\n", options, err)
-        errStr := fmt.Sprintf("Unable to process URL query options '%#v': %s", options, err)
+        errStr := wski18n.T("Unable to process URL query options '{{.options}}': {{.err}}",
+            map[string]interface{}{"options": fmt.Sprintf("%#v", options), "err": err})
         werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, werr
     }

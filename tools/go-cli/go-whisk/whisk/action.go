@@ -22,6 +22,7 @@ import (
     "errors"
     "encoding/json"
     "net/url"
+    "../wski18n"
 )
 
 type ActionService struct {
@@ -99,7 +100,8 @@ func (s *ActionService) List(packageName string, options *ActionListOptions) ([]
     routeUrl, err := addRouteOptions(route, options)
     if err != nil {
         Debug(DbgError, "addRouteOptions(%s, %#v) error: '%s'\n", route, options, err)
-        errMsg := fmt.Sprintf("Unable to add route options: %s", options)
+        errMsg := wski18n.T("Unable to add route options '{{.options}}'",
+            map[string]interface{}{"options": options})
         whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
@@ -109,7 +111,8 @@ func (s *ActionService) List(packageName string, options *ActionListOptions) ([]
     req, err := s.client.NewRequestUrl("GET", routeUrl, nil)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s, nil) error: '%s'\n", routeUrl, err)
-        errMsg := fmt.Sprintf("Unable to create HTTP request for GET '%s': %s", routeUrl, err)
+        errMsg := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
+            map[string]interface{}{"route": routeUrl, "err": err})
         whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
@@ -118,7 +121,7 @@ func (s *ActionService) List(packageName string, options *ActionListOptions) ([]
     resp, err := s.client.Do(req, &actions)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
-        errMsg := fmt.Sprintf("Request failure: %s", err)
+        errMsg := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
         whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, resp, whiskErr
@@ -156,7 +159,8 @@ func (s *ActionService) Insert(action *Action, sharedSet bool, overwrite bool) (
     req, err := s.client.NewRequest("PUT", route, sentAction)
     if err != nil {
         Debug(DbgError, "http.NewRequest(PUT, %s, %#v) error: '%s'\n", route, err, sentAction)
-        errMsg := fmt.Sprintf("Unable to create HTTP request for PUT '%s': %s", route, err)
+        errMsg := wski18n.T("Unable to create HTTP request for PUT '{{.route}}': {{.err}}",
+            map[string]interface{}{"route": route, "err": err})
         whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
@@ -166,7 +170,7 @@ func (s *ActionService) Insert(action *Action, sharedSet bool, overwrite bool) (
     resp, err := s.client.Do(req, &a)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
-        errMsg := fmt.Sprintf("Request failure: %s", err)
+        errMsg := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
         whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, resp, whiskErr
@@ -184,7 +188,8 @@ func (s *ActionService) Get(actionName string) (*Action, *http.Response, error) 
     req, err := s.client.NewRequest("GET", route, nil)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s, nil) error: '%s'\n", route, err)
-        errMsg := fmt.Sprintf("Unable to create HTTP request for GET '%s': %s", route, err)
+        errMsg := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
+            map[string]interface{}{"route": route, "err": err})
         whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
@@ -194,7 +199,7 @@ func (s *ActionService) Get(actionName string) (*Action, *http.Response, error) 
     resp, err := s.client.Do(req, &a)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
-        errMsg := fmt.Sprintf("Request failure: %s", err)
+        errMsg := wski18n.T("Request failure: {{.err}}",  map[string]interface{}{"err": err})
         whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, resp, whiskErr
@@ -213,7 +218,8 @@ func (s *ActionService) Delete(actionName string) (*http.Response, error) {
     req, err := s.client.NewRequest("DELETE", route, nil)
     if err != nil {
         Debug(DbgError, "http.NewRequest(DELETE, %s, nil) error: '%s'\n", route, err)
-        errMsg := fmt.Sprintf("Unable to create HTTP request for DELETE '%s': %s", route, err)
+        errMsg := wski18n.T("Unable to create HTTP request for DELETE '{{.route}}': {{.err}}",
+            map[string]interface{}{"route": route, "err": err})
         whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, whiskErr
@@ -223,7 +229,7 @@ func (s *ActionService) Delete(actionName string) (*http.Response, error) {
     resp, err := s.client.Do(req, a)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
-        errMsg := fmt.Sprintf("Request failure: %s", err)
+        errMsg := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
         whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return resp, whiskErr
@@ -242,7 +248,8 @@ func (s *ActionService) Invoke(actionName string, payload *json.RawMessage, bloc
     req, err := s.client.NewRequest("POST", route, payload)
     if err != nil {
         Debug(DbgError, "http.NewRequest(POST, %s, %#v) error: '%s'\n", route, payload, err)
-        errMsg := fmt.Sprintf("Unable to create HTTP request for POST '%s': %s", route, err)
+        errMsg := wski18n.T("Unable to create HTTP request for POST '{{.route}}': {{.err}}",
+            map[string]interface{}{"route": route, "err": err})
         whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
@@ -252,7 +259,7 @@ func (s *ActionService) Invoke(actionName string, payload *json.RawMessage, bloc
     resp, err := s.client.Do(req, &activation)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
-        errMsg := fmt.Sprintf("Request failure: %s", err)
+        errMsg := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
         whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return activation, resp, whiskErr

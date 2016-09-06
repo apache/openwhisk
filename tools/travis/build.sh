@@ -11,7 +11,7 @@ tools/build/scanCode.py .
 
 cd $ROOTDIR/ansible
 
-ANSIBLE_CMD="ansible-playbook -i environments/local"
+ANSIBLE_CMD="ansible-playbook -i environments/local -e docker_image_prefix=testing"
 
 $ANSIBLE_CMD setup.yml
 $ANSIBLE_CMD prereq.yml
@@ -20,7 +20,7 @@ $ANSIBLE_CMD initdb.yml
 
 cd $ROOTDIR
 
-./gradlew distDocker
+./gradlew distDocker -PdockerImagePrefix=testing
 
 cd $ROOTDIR/ansible
 
@@ -31,3 +31,9 @@ $ANSIBLE_CMD postdeploy.yml
 cd $ROOTDIR
 cat whisk.properties
 ./gradlew :tests:test
+
+cd $ROOTDIR/ansible
+$ANSIBLE_CMD logs.yml
+
+cd $ROOTDIR
+tools/build/checkLogs.py logs

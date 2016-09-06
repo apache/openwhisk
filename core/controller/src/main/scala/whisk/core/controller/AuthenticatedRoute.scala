@@ -40,7 +40,7 @@ trait AuthenticatedRoute {
     /** An execution context for futures */
     protected implicit val executionContext: ExecutionContext
 
-    /** Creates HTTP BaiscAuth handler */
+    /** Creates HTTP BasicAuth handler */
     protected def basicauth(implicit transid: TransactionId) = {
         new BasicHttpAuthenticator[WhiskAuth](realm = "whisk rest service", validateCredentials _) {
             override def apply(ctx: RequestContext) = {

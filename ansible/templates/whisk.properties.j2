@@ -58,6 +58,7 @@ kafka.docker.endpoint={{ groups["kafka"]|first }}:{{ docker.port }}
 main.docker.endpoint={{ groups["controllers"]|first }}:{{ docker.port }}
 
 docker.registry={{ docker_registry }}
+docker.image.prefix={{ docker_image_prefix }}
 #use.docker.registry=false
 docker.port={{ docker.port }}
 docker.timezone.mount=

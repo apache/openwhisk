@@ -22,6 +22,7 @@ import (
     "errors"
     "encoding/json"
     "net/url"
+    "../wski18n"
 )
 
 type TriggerService struct {
@@ -61,7 +62,8 @@ func (s *TriggerService) List(options *TriggerListOptions) ([]TriggerFromServer,
     routeUrl, err := addRouteOptions(route, options)
     if err != nil {
         Debug(DbgError, "addRouteOptions(%s, %#v) error: '%s'\n", route, options, err)
-        errStr := fmt.Sprintf("Unable to append options %#v to URL route '%s': %s", options, route, err)
+        errStr := wski18n.T("Unable to append options '{{.options}}' to URL route '{{.route}}': {{.err}}",
+            map[string]interface{}{"options": fmt.Sprintf("%#v", options), "route": route, "err": err})
         werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
@@ -69,7 +71,8 @@ func (s *TriggerService) List(options *TriggerListOptions) ([]TriggerFromServer,
     req, err := s.client.NewRequestUrl("GET", routeUrl, nil)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s); error: '%s'\n", route, err)
-        errStr := fmt.Sprintf("Unable to create HTTP request for GET '%s': %s", route, err)
+        errStr := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
+            map[string]interface{}{"route": route, "err": err})
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
@@ -78,7 +81,7 @@ func (s *TriggerService) List(options *TriggerListOptions) ([]TriggerFromServer,
     resp, err := s.client.Do(req, &triggers)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
-        errStr := fmt.Sprintf("Request failure: %s", err)
+        errStr := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, resp, werr
     }
@@ -96,7 +99,8 @@ func (s *TriggerService) Insert(trigger *Trigger, overwrite bool) (*TriggerFromS
     routeUrl, err := url.Parse(route)
     if err != nil {
         Debug(DbgError, "url.Parse(%s) error: %s\n", route, err)
-        errStr := fmt.Sprintf("Invalid request URL '%s': %s", route, err)
+        errStr := wski18n.T("Invalid request URL '{{.url}}': {{.err}}",
+            map[string]interface{}{"url": route, "err": err})
         werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
@@ -104,7 +108,8 @@ func (s *TriggerService) Insert(trigger *Trigger, overwrite bool) (*TriggerFromS
     req, err := s.client.NewRequestUrl("PUT", routeUrl, trigger)
     if err != nil {
         Debug(DbgError, "http.NewRequest(PUT, %s); error: '%s'\n", routeUrl, err)
-        errStr := fmt.Sprintf("Unable to create HTTP request for PUT '%s': %s", routeUrl, err)
+        errStr := wski18n.T("Unable to create HTTP request for PUT '{{.route}}': {{.err}}",
+            map[string]interface{}{"route": routeUrl, "err": err})
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
@@ -113,7 +118,7 @@ func (s *TriggerService) Insert(trigger *Trigger, overwrite bool) (*TriggerFromS
     resp, err := s.client.Do(req, &t)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
-        errStr := fmt.Sprintf("Request failure: %s", err)
+        errStr := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, resp, werr
     }
@@ -131,7 +136,8 @@ func (s *TriggerService) Get(triggerName string) (*TriggerFromServer, *http.Resp
     req, err := s.client.NewRequest("GET", route, nil)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s); error: '%s'\n", route, err)
-        errStr := fmt.Sprintf("Unable to create HTTP request for GET '%s': %s", route, err)
+        errStr := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
+            map[string]interface{}{"route": route, "err": err})
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
@@ -140,7 +146,7 @@ func (s *TriggerService) Get(triggerName string) (*TriggerFromServer, *http.Resp
     resp, err := s.client.Do(req, &t)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
-        errStr := fmt.Sprintf("Request failure: %s", err)
+        errStr := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, resp, werr
     }
@@ -158,7 +164,8 @@ func (s *TriggerService) Delete(triggerName string) (*TriggerFromServer, *http.R
     req, err := s.client.NewRequest("DELETE", route, nil)
     if err != nil {
         Debug(DbgError, "http.NewRequest(DELETE, %s); error: '%s'\n", route, err)
-        errStr := fmt.Sprintf("Unable to create HTTP request for DELETE '%s': %s", route, err)
+        errStr := wski18n.T("Unable to create HTTP request for DELETE '{{.route}}': {{.err}}",
+            map[string]interface{}{"route": route, "err": err})
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
@@ -167,7 +174,7 @@ func (s *TriggerService) Delete(triggerName string) (*TriggerFromServer, *http.R
     resp, err := s.client.Do(req, &t)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
-        errStr := fmt.Sprintf("Request failure: %s", err)
+        errStr := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, resp, werr
     }
@@ -184,7 +191,8 @@ func (s *TriggerService) Fire(triggerName string, payload *json.RawMessage) (*Tr
     req, err := s.client.NewRequest("POST", route, payload)
     if err != nil {
         Debug(DbgError," http.NewRequest(POST, %s); error: '%s'\n", route, err)
-        errStr := fmt.Sprintf("Unable to create HTTP request for POST '%s': %s", route, err)
+        errStr := wski18n.T("Unable to create HTTP request for POST '{{.route}}': {{.err}}",
+            map[string]interface{}{"route": route, "err": err})
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
@@ -193,7 +201,7 @@ func (s *TriggerService) Fire(triggerName string, payload *json.RawMessage) (*Tr
     resp, err := s.client.Do(req, &t)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
-        errStr := fmt.Sprintf("Request failure: %s", err)
+        errStr := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, resp, werr
     }

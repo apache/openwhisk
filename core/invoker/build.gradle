@@ -1,0 +1,22 @@
+apply plugin: 'scala'
+apply plugin: 'application'
+apply plugin: 'eclipse'
+
+ext.dockerImageName = 'invoker'
+apply from: '../../gradle/docker.gradle'
+distDocker.dependsOn ':common:scala:distDocker', 'distTar'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile "org.scala-lang:scala-library:${gradle.scala.version}"
+    compile project(':common:scala')
+}
+
+tasks.withType(ScalaCompile) {
+    scalaCompileOptions.additionalParameters = gradle.scala.compileFlags
+}
+
+mainClassName = "whisk.core.invoker.Invoker"
