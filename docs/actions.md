@@ -333,9 +333,13 @@ Several utility actions are provided in a package called `/whisk.system/util` th
   }
   ```
 
-  In the result, you see that the lines are sorted.
+  In the result, you see that the lines are sorted, this is the result of the last action in the sequence.
 
-**Note**: For more information about invoking action sequences with multiple named parameters, see [Setting default parameters](./actions.md#setting-default-parameters)
+  The first action in the sequence receives the parameters of the invocation, the JSON object return from the first action becomes the input
+  parameters to the second action, if you already defined default parameters for the second action those will also be passed, take into account
+  that the ouptut of the first action can replace any of the default parameters in the second action.
+
+  **Note**: For more information about invoking action sequences with multiple named parameters, see [Setting default parameters](./actions.md#setting-default-parameters)
 
 
 ## Creating Python actions
