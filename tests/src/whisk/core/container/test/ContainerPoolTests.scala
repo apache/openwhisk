@@ -31,6 +31,8 @@ import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.dockerEndpoint
 import whisk.core.WhiskConfig.edgeHostName
 import whisk.core.WhiskConfig.selfDockerEndpoint
+import whisk.core.WhiskConfig.invokerSerializeDockerOp
+import whisk.core.WhiskConfig.invokerSerializeDockerPull
 import whisk.core.container.Container
 import whisk.core.container.ContainerPool
 import whisk.core.entity.AuthKey
@@ -61,7 +63,9 @@ class ContainerPoolTests extends FlatSpec
     val config = new WhiskConfig(
         Map(selfDockerEndpoint -> "localhost",
             dockerEndpoint -> null,
-            edgeHostName -> "localhost")
+            edgeHostName -> "localhost",
+            invokerSerializeDockerOp -> "true",
+            invokerSerializeDockerPull -> "true")
             ++ WhiskEntityStore.requiredProperties
             ++ WhiskAuthStore.requiredProperties)
     assert(config.isValid)

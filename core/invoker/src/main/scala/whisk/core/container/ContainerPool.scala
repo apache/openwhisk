@@ -37,6 +37,8 @@ import whisk.core.WhiskConfig.invokerContainerNetwork
 import whisk.core.WhiskConfig.invokerContainerPolicy
 import whisk.core.WhiskConfig.invokerCoreShare
 import whisk.core.WhiskConfig.invokerNumCore
+import whisk.core.WhiskConfig.invokerSerializeDockerOp
+import whisk.core.WhiskConfig.invokerSerializeDockerPull
 import whisk.core.WhiskConfig.selfDockerEndpoint
 import whisk.core.entity.ActionLimits
 import whisk.core.entity.MemoryLimit
@@ -58,8 +60,7 @@ import whisk.core.entity.BlackBoxExec
  * Synchronization via "this" is used to maintain integrity of the data structures.
  * A separate object "gcSync" is used to prevent multiple GC's from occurring.
  *
- * TODO: for now supports only one container per key
- * TODO: for now does not allow concurrent container creation
+ * TODO: Parallel container creation under evaluation for docker 12.
  */
 class ContainerPool(
     config: WhiskConfig,
@@ -74,6 +75,9 @@ class ContainerPool(
     setVerbosity(verbosity)
 
     val dockerhost = config.selfDockerEndpoint
+    val serializeDockerOp = config.invokerSerializeDockerOp.toBoolean
+    val serializeDockerPull = config.invokerSerializeDockerOp.toBoolean
+    info(this, s"dockerhost = $dockerhost    serializeDockerOp = $serializeDockerOp   serializeDockerPull = $serializeDockerPull")
 
     // Eventually, we will have a more sophisticated warmup strategy that does multiple sizes
     private val defaultMemoryLimit = MemoryLimit(MemoryLimit.STD_MEMORY)
@@ -463,21 +467,23 @@ class ContainerPool(
      * All docker operations from the pool must pass through here (except for pull).
      */
     private def runDockerOp[T](dockerOp: => T)(implicit transid: TransactionId): T = {
-        runDockerOpWithLock(dockerLock, dockerOp)
+        runDockerOpWithLock(serializeDockerOp, dockerLock, dockerOp)
     }
 
     /**
      * All docker pull operations from the pool must pass through here.
      */
     private def runDockerPull[T](dockerOp: => T)(implicit transid: TransactionId): T = {
-        runDockerOpWithLock(dockerPullLock, dockerOp)
+        runDockerOpWithLock(serializeDockerPull, dockerPullLock, dockerOp)
     }
 
     /**
      * All docker operations from the pool must pass through here (except for pull).
      */
-    private def runDockerOpWithLock[T](lock: ReentrantLock, dockerOp: => T)(implicit transid: TransactionId): T = {
-        lock.lock()
+    private def runDockerOpWithLock[T](useLock: Boolean, lock: ReentrantLock, dockerOp: => T)(implicit transid: TransactionId): T = {
+        if (useLock) {
+            lock.lock()
+        }
         try {
             val (elapsed, result) = TimingUtil.time { dockerOp }
             if (elapsed > slowDockerThreshold) {
@@ -485,7 +491,9 @@ class ContainerPool(
             }
             result
         } finally {
-            lock.unlock()
+            if (useLock) {
+                lock.unlock()
+            }
         }
     }
 
@@ -752,6 +760,8 @@ object ContainerPool extends Logging {
         invokerContainerNetwork -> "bridge",
         invokerNumCore -> "4",
         invokerCoreShare -> "2",
+        invokerSerializeDockerOp -> "true",
+        invokerSerializeDockerPull -> "true",
         invokerContainerPolicy -> "")
 
     /*

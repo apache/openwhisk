@@ -74,6 +74,8 @@ class WhiskConfig(
     val invokerContainerPolicy = if (this(WhiskConfig.invokerContainerPolicy) == "") None else Some(this(WhiskConfig.invokerContainerPolicy))
     val invokerNumCore = this(WhiskConfig.invokerNumCore)
     val invokerCoreShare = this(WhiskConfig.invokerCoreShare)
+    val invokerSerializeDockerOp = this(WhiskConfig.invokerSerializeDockerOp)
+    val invokerSerializeDockerPull = this(WhiskConfig.invokerSerializeDockerPull)
 
     val controllerHost = this(WhiskConfig.controllerHostName) + ":" + this(WhiskConfig.controllerHostPort)
     val edgeHost = this(WhiskConfig.edgeHostName) + ":" + this(WhiskConfig.edgeHostApiPort)
@@ -221,6 +223,8 @@ object WhiskConfig extends Logging {
     val invokerContainerPolicy = "invoker.container.policy"
     val invokerNumCore = "invoker.numcore"
     val invokerCoreShare = "invoker.coreshare"
+    val invokerSerializeDockerOp = "invoker.serializeDockerOp"
+    val invokerSerializeDockerPull = "invoker.serializeDockerPull"
 
     val routerHost = "router.host"
     val cliApiHost = "cli.api.host"
