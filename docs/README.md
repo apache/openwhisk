@@ -48,7 +48,7 @@ To configure the CLI to use the guest account, you can run the following command
 
 To verify your CLI setup, try [creating and running an action](#openwhisk-hello-world-example).
 
-## Setting up the depreicated Python version of the CLI
+## Setting up the deprecated OpenWhisk CLI (Python based)
 - The OpenWhisk command line interface (CLI) requires Python 2.7.
 
 - If you cloned the OpenWhisk repository, you will find the CLI in `openwhisk/bin/wsk`.
@@ -71,6 +71,12 @@ After you have configured your environment, you can begin using the OpenWhisk CL
 * Use triggers and rules to enable your actions to respond to events. See [Creating triggers and rules](./triggers_rules.md).
 * Learn how packages bundle actions and configure external events sources. See [Using and creating packages](./packages.md).
 * Explore the catalog of packages and enhance your applications with external services, such as a [Cloudant event source](./catalog.md#using-the-cloudant-package). See [Using OpenWhisk-enabled services](./catalog.md).
+
+## Configure the CLI to use an HTTPS proxy
+
+The CLI can be setup to use an HTTPS proxy. To setup an HTTPS proxy, an environment variable called `HTTPS_PROXY` must
+ be created. The variable must be set to the address of the HTTPS proxy, and its port using the following format:
+`{PROXY IP}:{PROXY PORT}`.
 
 ## Using OpenWhisk from an iOS app
 
