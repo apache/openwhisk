@@ -8,5 +8,4 @@
   roles:
   - nginx
   - cli
-  - go-cli
   - sdk

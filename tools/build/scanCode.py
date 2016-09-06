@@ -40,7 +40,9 @@ def exceptional_paths():
         "bin/wsk",
         "bin/wskadmin",
         "bin/wskdev",
-        "bin/go-cli/wsk",
+        "bin/wsk/mac",
+        "bin/wsk/linux",
+        "bin/wsk/windows",
         "tests/build/reports"
     ]
 

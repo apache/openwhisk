@@ -45,7 +45,7 @@ import json
 # ************************************************************************************
 scriptDir = sys.path[0]
 rootDir = os.path.dirname(os.path.dirname(scriptDir))
-cliDir = os.path.join(os.path.join(rootDir, "tools"), "cli")
+cliDir = os.path.join(rootDir, "core", "pythonAction", "cli")
 sys.path.insert(1, cliDir)
 
 healthDir = os.path.join(os.path.join(rootDir, "tools"), "health")
