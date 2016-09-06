@@ -546,12 +546,12 @@
     "translation": "install SDK artifacts"
   },
   {
-    "id": "install SDK artifacts, where valid COMPONENT values are docker, swift, iOS, and bashauto",
-    "translation": "install SDK artifacts, where valid COMPONENT values are docker, swift, iOS, and bashauto"
+    "id": "install SDK artifacts, where valid COMPONENT values are docker, ios, and bashauto",
+    "translation": "install SDK artifacts, where valid COMPONENT values are docker, iOS, and bashauto"
   },
   {
-    "id": "The SDK component argument is missing. One component (docker, swift, ios or bashauto) must be specified",
-    "translation": "The SDK component argument is missing. One component (docker, swift, ios or bashauto) must be specified"
+    "id": "The SDK component argument is missing. One component (docker, ios, or bashauto) must be specified",
+    "translation": "The SDK component argument is missing. One component (docker, ios, or bashauto) must be specified"
   },
   {
     "id": "Unable to generate '{{.name}}': {{.err}}",
@@ -562,8 +562,8 @@
     "translation": "The bash auto-completion script ({{.name}}) is installed in the current directory.\nTo enable command line completion of wsk commands, source the auto completion script into your bash environment\n"
   },
   {
-    "id": "The SDK component argument '{{.component}}' is invalid. Valid components are docker, swift, ios and bashauto",
-    "translation": "The SDK component argument '{{.component}}' is invalid. Valid components are docker, swift, ios and bashauto"
+    "id": "The SDK component argument '{{.component}}' is invalid. Valid components are docker, ios and bashauto",
+    "translation": "The SDK component argument '{{.component}}' is invalid. Valid components are docker, ios and bashauto"
   },
   {
     "id": "The file {{.name}} already exists.  Delete it and retry.",
