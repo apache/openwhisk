@@ -85,11 +85,6 @@ class WskSdkTests
         FileUtils.deleteDirectory(dir)
     }
 
-    it should "preview swift sdk" in {
-        wsk.cli(wskprops.overrides ++ Seq("sdk", "install", "swift")).
-            stdout should include("Swift SDK coming soon.")
-    }
-
     it should "install the bash auto-completion bash script" in {
         // Use a temp dir for testing to not disturb user's local folder
         val dir = File.createTempFile("wskinstall", ".tmp")

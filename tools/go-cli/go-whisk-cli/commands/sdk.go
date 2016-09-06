@@ -49,13 +49,12 @@ type sdkInfo struct {
 var sdkMap map[string]*sdkInfo
 const SDK_DOCKER_COMPONENT_NAME string = "docker"
 const SDK_IOS_COMPONENT_NAME string = "ios"
-const SDK_SWIFT_COMPONENT_NAME string = "swift"
 const BASH_AUTOCOMPLETE_FILENAME string = "wsk_cli_bash_completion.sh"
 
 var sdkInstallCmd = &cobra.Command{
     Use:   "install COMPONENT",
     Short: wski18n.T("install SDK artifacts"),
-    Long: wski18n.T("install SDK artifacts, where valid COMPONENT values are docker, swift, iOS, and bashauto"),
+    Long: wski18n.T("install SDK artifacts, where valid COMPONENT values are docker, ios, and bashauto"),
     SilenceUsage:   true,
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
@@ -64,7 +63,7 @@ var sdkInstallCmd = &cobra.Command{
         if len(args) != 1 {
             whisk.Debug(whisk.DbgError, "Invalid number of arguments: %d\n", len(args))
             errStr := fmt.Sprintf(
-                wski18n.T("The SDK component argument is missing. One component (docker, swift, ios or bashauto) must be specified"))
+                wski18n.T("The SDK component argument is missing. One component (docker, ios, or bashauto) must be specified"))
             werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             return werr
         }
@@ -72,8 +71,6 @@ var sdkInstallCmd = &cobra.Command{
         switch component {
         case "docker":
             err = dockerInstall()
-        case "swift":
-            err = swiftInstall()
         case "ios":
             err = iOSInstall()
         case "bashauto":
@@ -92,7 +89,7 @@ var sdkInstallCmd = &cobra.Command{
         default:
             whisk.Debug(whisk.DbgError, "Invalid component argument '%s'\n", component)
             errStr := fmt.Sprintf(
-                wski18n.T("The SDK component argument '{{.component}}' is invalid. Valid components are docker, swift, ios and bashauto",
+                wski18n.T("The SDK component argument '{{.component}}' is invalid. Valid components are docker, ios and bashauto",
                     map[string]interface{}{"component": component}))
             err = whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
         }
@@ -127,11 +124,6 @@ func dockerInstall() error {
     }
 
     fmt.Println(wski18n.T("The docker skeleton is now installed at the current directory."))
-    return nil
-}
-
-func swiftInstall() error {
-    fmt.Println("Swift SDK coming soon.")
     return nil
 }
 
