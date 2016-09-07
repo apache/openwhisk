@@ -834,3 +834,15 @@ func getURLBase(host string) (*url.URL, error)  {
 
     return url, err
 }
+
+func normalizeNamespace(namespace string) (string) {
+    if (namespace == "_") {
+        namespace = wski18n.T("default")
+    }
+
+    return namespace
+}
+
+func getClientNamespace() (string) {
+    return normalizeNamespace(client.Config.Namespace)
+}

@@ -50,7 +50,7 @@ var namespaceListCmd = &cobra.Command{
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Namespaces.List() error: %s\n", err)
             errStr := fmt.Sprintf(
-                wski18n.T("Unable to obtain list of available namespaces: {{.err}}",
+                wski18n.T("Unable to obtain the list of available namespaces: {{.err}}",
                     map[string]interface{}{"err": err}))
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_NETWORK, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
@@ -90,24 +90,18 @@ var namespaceGetCmd = &cobra.Command{
         }
 
         namespace, _, err := client.Namespaces.Get(qName.namespace)
+
         if err != nil {
-            whisk.Debug(whisk.DbgError, "client.Namespaces.Get(%s) error: %s\n", qName.namespace, err)
-            errStr := fmt.Sprintf(
-                wski18n.T("Unable to obtain namespace entities for namespace '{{.namespace}}': {{.err}}",
-                    map[string]interface{}{"namespace": qName.namespace, "err":err}))
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_NETWORK, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            whisk.Debug(whisk.DbgError, "client.Namespaces.Get(%s) error: %s\n", getClientNamespace(), err)
+            errStr := wski18n.T("Unable to obtain the list of entities for namespace '{{.namespace}}': {{.err}}",
+                    map[string]interface{}{"namespace": getClientNamespace(), "err": err})
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_NETWORK,
+                whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
 
-        fmt.Printf(wski18n.T("Entities in namespace: "))
-
-        if (qName.namespace != "_") {
-            fmt.Fprintf(color.Output, "%s\n", boldString(namespace.Name))
-        } else {
-            fmt.Fprintf(color.Output, "%s\n", boldString("default"))
-        }
-
-
+        fmt.Fprintf(color.Output, wski18n.T("Entities in namespace: {{.namespace}}\n",
+            map[string]interface{}{"namespace": boldString(getClientNamespace())}))
         printList(namespace.Contents.Packages)
         printList(namespace.Contents.Actions)
         printList(namespace.Contents.Triggers)
@@ -119,7 +113,7 @@ var namespaceGetCmd = &cobra.Command{
 
 var listCmd = &cobra.Command{
     Use:   "list",
-    Short: wski18n.T("list available namespaces"),
+    Short: wski18n.T("list entities in the current namespace"),
     SilenceUsage:   true,
     SilenceErrors:  true,
     PreRunE: setupClientConfig,

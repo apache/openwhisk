@@ -357,9 +357,8 @@ var actionListCmd = &cobra.Command{
     actions, _, err := client.Actions.List(qName.entityName, options)
     if err != nil {
       whisk.Debug(whisk.DbgError, "client.Actions.List(%s, %#v) error: %s\n", qName.entityName, options, err)
-      errMsg := fmt.Sprintf(
-        wski18n.T("Unable to list action(s): {{.err}}",
-          map[string]interface{}{"err": err}))
+      errMsg := wski18n.T("Unable to obtain the list of actions for namespace '{{.name}}': {{.err}}",
+          map[string]interface{}{"name": getClientNamespace(), "err": err})
       whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_NETWORK,
         whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
       return whiskErr

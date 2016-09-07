@@ -67,9 +67,7 @@ func (s *SdkService) Install(relFileUrl string) (*http.Response, error) {
     resp, err := s.client.client.Do(req)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
-        errStr := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
-        return resp, werr
+        return resp, err
     }
 
     return resp, nil

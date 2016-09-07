@@ -458,8 +458,8 @@ var packageListCmd = &cobra.Command{
     packages, _, err := client.Packages.List(options)
     if err != nil {
       whisk.Debug(whisk.DbgError, "client.Packages.List(%+v) failed: %s\n", options, err)
-      errStr := fmt.Sprintf(
-        wski18n.T("Unable to obtain package list: {{.err}}", map[string]interface{}{"err":err}))
+      errStr := wski18n.T("Unable to obtain the list of packages for namespace '{{.name}}': {{.err}}",
+          map[string]interface{}{"name": getClientNamespace(), "err": err})
       werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
       return werr
     }
