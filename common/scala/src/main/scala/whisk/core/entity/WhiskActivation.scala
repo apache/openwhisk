@@ -66,7 +66,9 @@ case class WhiskActivation(
     logs: ActivationLogs = ActivationLogs(),
     version: SemVer = SemVer(),
     publish: Boolean = false,
-    annotations: Parameters = Parameters())
+    annotations: Parameters = Parameters(),
+    limits: Option[ActionLimits] = None,
+    actionName: Option[Namespace] = None)
     extends WhiskEntity(EntityName(activationId())) {
 
     require(cause != null, "cause undefined")
@@ -101,7 +103,9 @@ case class WhiskActivation(
         logs = ActivationLogs(),
         version = version,
         publish = publish,
-        annotations = annotations)
+        annotations = annotations,
+        limits = limits,
+        actionName = actionName)
 
     def withLogs(logs: ActivationLogs) = WhiskActivation(
         namespace = namespace,
@@ -115,7 +119,9 @@ case class WhiskActivation(
         logs = logs,
         version = version,
         publish = publish,
-        annotations = annotations)
+        annotations = annotations,
+        limits = limits,
+        actionName = actionName)
 }
 
 object WhiskActivation
@@ -136,7 +142,7 @@ object WhiskActivation
     }
 
     override val collectionName = "activations"
-    override implicit val serdes = jsonFormat12(WhiskActivation.apply)
+    override implicit val serdes = jsonFormat14(WhiskActivation.apply)
 
     override val cacheEnabled = true
     override def cacheKeys(w: WhiskActivation) = Set(w.docid.asDocInfo, w.docinfo)
