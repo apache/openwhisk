@@ -241,24 +241,9 @@ class WskActionTests
 
     it should "reject an invoke with the wrong parameters set" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val name = "ping"
-            val samplePackage = "samples"
-            val sampleAction = "helloWorld"
-            val fullActioName = s"/$guestNamespace/$samplePackage/$sampleAction"
-            assetHelper.withCleaner(wsk.action, name) {
-                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("ping.js")))
-            }
-            assetHelper.withCleaner(wsk.pkg, samplePackage) {
-                (pkg, _) => pkg.create(samplePackage, shared = Some(true))(wp)
-            }
-
-            assetHelper.withCleaner(wsk.action, fullActioName) {
-                val file = Some(TestUtils.getTestActionFilename("empty.js"))
-                (action, _) => action.create(fullActioName, file, shared = Some(true))(wp)
-            }
+            val fullQualifiedName = s"/$guestNamespace/samples/helloWorld"
             val payload = "bob"
-            val rr = wsk.cli(Seq("action", "invoke", fullActioName, payload), expectedExitCode = TestUtils.ANY_ERROR_EXIT)
-            rr.exitCode shouldBe 1
+            val rr = wsk.cli(Seq("action", "invoke", fullQualifiedName, payload), expectedExitCode = TestUtils.ERROR_EXIT)
             rr.stderr should include("Run 'wsk --help' for usage.")
             rr.stderr should include(s"error: Invalid argument(s): $payload")
     }
