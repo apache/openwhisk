@@ -581,10 +581,10 @@ var triggerListCmd = &cobra.Command{
         }
         triggers, _, err := client.Triggers.List(options)
         if err != nil {
-            whisk.Debug(whisk.DbgError, "client.Triggers.List(%#v) for namespace '%s' failed: %s\n", options, client.Namespace, err)
-            errStr := fmt.Sprintf(
-                wski18n.T("Unable to obtain the trigger list for namespace '{{.name}}': {{.err}}",
-                    map[string]interface{}{"name": client.Namespace, "err": err}))
+            whisk.Debug(whisk.DbgError, "client.Triggers.List(%#v) for namespace '%s' failed: %s\n", options,
+                client.Namespace, err)
+            errStr := wski18n.T("Unable to obtain the list of triggers for namespace '{{.name}}': {{.err}}",
+                    map[string]interface{}{"name": getClientNamespace(), "err": err})
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }

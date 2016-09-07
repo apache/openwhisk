@@ -81,9 +81,7 @@ func (s *TriggerService) List(options *TriggerListOptions) ([]TriggerFromServer,
     resp, err := s.client.Do(req, &triggers)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
-        errStr := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
-        return nil, resp, werr
+        return nil, resp, err
     }
 
     return triggers, resp, nil
@@ -118,9 +116,7 @@ func (s *TriggerService) Insert(trigger *Trigger, overwrite bool) (*TriggerFromS
     resp, err := s.client.Do(req, &t)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
-        errStr := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
-        return nil, resp, werr
+        return nil, resp, err
     }
 
     return t, resp, nil
@@ -146,9 +142,7 @@ func (s *TriggerService) Get(triggerName string) (*TriggerFromServer, *http.Resp
     resp, err := s.client.Do(req, &t)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
-        errStr := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
-        return nil, resp, werr
+        return nil, resp, err
     }
 
     return t, resp, nil
@@ -174,9 +168,7 @@ func (s *TriggerService) Delete(triggerName string) (*TriggerFromServer, *http.R
     resp, err := s.client.Do(req, &t)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
-        errStr := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
-        return nil, resp, werr
+        return nil, resp, err
     }
 
     return t, resp, nil
@@ -201,9 +193,7 @@ func (s *TriggerService) Fire(triggerName string, payload *json.RawMessage) (*Tr
     resp, err := s.client.Do(req, &t)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
-        errStr := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
-        return nil, resp, werr
+        return nil, resp, err
     }
 
     return t, resp, nil

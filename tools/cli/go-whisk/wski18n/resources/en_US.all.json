@@ -4,10 +4,6 @@
     "translation": "Unable to add route options: {{.options}}"
   },
   {
-    "id": "Request failure: {{.err}}",
-    "translation": "Request failure: {{.err}}"
-  },
-  {
     "id": "Unable to create HTTP request for PUT '{{.route}}': {{.err}}",
     "translation": "Unable to create HTTP request for PUT '{{.route}}': {{.err}}"
   },
@@ -64,16 +60,8 @@
     "translation": "Command failed due to an internal failure"
   },
   {
-    "id": "Request failed (status code = {{.statusCode}}). Error details: {{.data}}",
-    "translation": "Request failed (status code = {{.statusCode}}). Error details: {{.data}}"
-  },
-  {
     "id": "The following application error was received: {{.err}}",
     "translation": "The following application error was received: {{.err}}"
-  },
-  {
-    "id": "Request failed (status code = {{.statusCode}}). Error details: {{.data}}",
-    "translation": "Request failed (status code = {{.statusCode}}). Error details: {{.data}}"
   },
   {
     "id": "Invalid request URL '{{.url}}': {{.err}}",
@@ -130,5 +118,9 @@
   {
     "id": "{{.msg}} (code {{.code}})",
     "translation": "{{.msg}} (code {{.code}})"
+  },
+  {
+    "id": "The connection failed, or timed out. (HTTP status code {{.code}})",
+    "translation": "The connection failed, or timed out. (HTTP status code {{.code}})"
   }
 ]

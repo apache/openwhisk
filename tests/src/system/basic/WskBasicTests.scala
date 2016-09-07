@@ -27,6 +27,7 @@ import common.TestUtils
 import common.TestUtils.CONFLICT
 import common.TestUtils.SUCCESS_EXIT
 import common.TestUtils.UNAUTHORIZED
+import common.TestUtils.FORBIDDEN
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
@@ -446,5 +447,12 @@ class WskBasicTests
         // the default namespace
         wsk.namespace.get(expectedExitCode = SUCCESS_EXIT)(WskProps()).
             stdout should include("default")
+    }
+
+    it should "not list entities with an invalid namespace" in {
+        val namespace = "fakeNamespace"
+        val stderr = wsk.namespace.get(Some(s"/${namespace}"), expectedExitCode = FORBIDDEN).stderr
+
+        stderr should include (s"Unable to obtain the list of entities for namespace '${namespace}'")
     }
 }

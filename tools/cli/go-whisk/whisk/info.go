@@ -62,9 +62,7 @@ func (s *InfoService) Get() (*Info, *http.Response, error) {
     resp, err := s.client.Do(req, &info)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
-        errStr := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
-        werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
-        return nil, nil, werr
+        return nil, nil, err
     }
 
     return info, resp, nil

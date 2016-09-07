@@ -295,8 +295,8 @@ func parseErrorResponse(resp *http.Response, data []byte, v interface{}) (*http.
         }
     } else {
         Debug(DbgError, "HTTP response with unexpected body failed due to contents parsing error: '%v'\n", err)
-        var errStr = wski18n.T("Request failed (status code = {{.statusCode}}). Error details: {{.data}}",
-            map[string]interface{}{"statusCode": resp.StatusCode, "data": data})
+        errStr := wski18n.T("The connection failed, or timed out. (HTTP status code {{.code}})",
+            map[string]interface{}{"code": resp.StatusCode})
         werr := MakeWskError(errors.New(errStr), resp.StatusCode - 256, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return resp, werr
     }
@@ -316,8 +316,8 @@ func parseWhiskErrorResponse(resp *http.Response, data []byte, v interface{}) (*
         return parseSuccessResponse(resp, data, v), whiskErr
     } else {
         Debug(DbgError, "HTTP response with unexpected body failed due to contents parsing error: '%v'\n", err)
-        errMsg := wski18n.T("Request failed (status code = {{.statusCode}}). Error details: {{.data}}",
-            map[string]interface{}{"statusCode": resp.StatusCode, "data": data})
+        errMsg := wski18n.T("The connection failed, or timed out. (HTTP status code {{.code}})",
+            map[string]interface{}{"code": resp.StatusCode})
         whiskErr := MakeWskError(errors.New(errMsg), resp.StatusCode - 256, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return resp, whiskErr
     }
