@@ -83,6 +83,13 @@ install "$CATALOG_HOME/samples/echo.js" \
     -a sampleInput '{ "payload": "Five fuzzy felines"}' \
     -a sampleOutput '{ "payload": "Five fuzzy felines"}'
 
+#preping for new location of echo /utils/echo
+install "$CATALOG_HOME/samples/echo.js" \
+    utils/echo \
+    -a description 'Returns the input' -a parameters '[{"name": "payload", "required":false, "description": "Any JSON entity"}]' \
+    -a sampleInput '{ "payload": "Five fuzzy felines"}' \
+    -a sampleOutput '{ "payload": "Five fuzzy felines"}'
+
 waitForAll
 
 echo whisk.system entities ERRORS = $ERRORS
