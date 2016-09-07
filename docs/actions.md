@@ -337,7 +337,8 @@ Several utility actions are provided in a package called `/whisk.system/util` th
 
   In the result, you see that the lines are sorted.
 
-**Note**: For more information about invoking action sequences with multiple named parameters, see [Setting default parameters](./actions.md#setting-default-parameters)
+**Note**: Parameters passed between actions in the sequence are explicit, except for default parameters. Therefore parameters passed to the action sequence is only available to the first action in the sequence and must explicitly be passed to the subsequent actions in the sequence.
+For more information about invoking action sequences with multiple named parameters, see [Setting default parameters](./actions.md#setting-default-parameters)
 
 
 ## Creating Python actions
