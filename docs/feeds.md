@@ -72,7 +72,9 @@ directly with a third part webhook API.
 When invoked with `CREATE`, the feed action simply installs a webhook for some other service, asking the remote service to POST notifications to the appropriate `fireTrigger` URL in OpenWhisk.
 
 The webhook should be directed to send notifications to a URL such as:
+
 `POST /namespaces/{namespace}/triggers/{triggerName}`
+
 The form with the POST request will be interpreted as a JSON document defining parameters on the trigger event.
 OpenWhisk rules pass these trigger parameters to any actions to fire as a result of the event.
 
