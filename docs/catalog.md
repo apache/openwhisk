@@ -262,7 +262,7 @@ The `/whisk.system/weather/forecast` action returns a weather forecast for a loc
 - `password`: Password for The Weather Company Data for IBM Bluemix that is entitled to invoke the forecast API.
 - `latitude`: The latitude coordinate of the location.
 - `longitude`: The longitude coordinate of the location.
-- `timeperiod`: Time period for the forecast. Valid options are '10day' - (default) Returns a daily 10-day forecast , '48hour' - Returns an hourly 2-day forecast, , 'current' - Returns the current weather conditions, 'timeseries' - Returns both the current observations and up to 24 hours of past observations, from the current date and time. 
+- `timeperiod`: Time period for the forecast. Valid options are '10day' - (default) Returns a daily 10-day forecast , '48hour' - Returns an hourly 2-day forecast, , 'current' - Returns the current weather conditions, 'timeseries' - Returns both the current observations and up to 24 hours of past observations, from the current date and time.
 
 
 The following is an example of creating a package binding and then getting a 10-day forecast.
@@ -474,7 +474,7 @@ The `/whisk.system/slack/post` action posts a message to a specified Slack chann
 - `channel`: The Slack channel to post the message to.
 - `username`: The name to post the message as.
 - `text`: A message to post.
-- `token`: (optional) A Slack [access token](https://api.slack.com/tokens). See [below](#slack-token-based-api) for more detail on the use of the Slack access tokens.
+- `token`: (optional) A Slack [access token](https://api.slack.com/tokens). See [below](./catalog.md#using-the-slack-token-based-api) for more detail on the use of the Slack access tokens.
 
 The following is an example of configuring Slack, creating a package binding, and posting a message to a channel.
 
@@ -494,7 +494,7 @@ The following is an example of configuring Slack, creating a package binding, an
   $ wsk action invoke mySlack/post --blocking --result --param text 'Hello from OpenWhisk!'
   ```
 
-### <a name="slack-token-based-api"></a>Using the Slack token-based API
+### Using the Slack token-based API
 
 If you prefer, you may optionally choose to use Slack's token-based API, rather than the webhook API. If you so choose, then pass in a `token` parameter that contains your Slack [access token](https://api.slack.com/tokens). You may then use any of the [Slack API methods](https://api.slack.com/methods) as your `url` parameter. For example, to post a message, you would use a `url` parameter value of [slack.postMessage](https://api.slack.com/methods/chat.postMessage).
 

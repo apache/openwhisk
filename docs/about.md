@@ -6,7 +6,7 @@ The following sections provide details about OpenWhisk.
 
 ## How OpenWhisk works
 
-OpenWhisk is an event-driven compute platform that runs code in response to events or direct invocations.
+OpenWhisk is an event-driven compute platform also referred to as Serverless computing or as Function as a Service (FaaS) that runs code in response to events or direct invocations.
 
 The following figure shows the high-level OpenWhisk architecture.
 

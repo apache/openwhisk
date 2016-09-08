@@ -497,7 +497,7 @@ Your code is compiled into an executable binary and embedded into a Docker image
 
 As a prerequisite, you must have a Docker Hub account.  To set up a free Docker ID and account, go to [Docker Hub](https://hub.docker.com).
 
-For the instructions that follow, assume that the Docker user ID is `janesmith` and the password is `janes_password`.  Assuming that the CLI is already set up, three steps are required to set up a custom binary for use by OpenWhisk.  After that, the uploaded Docker image can be used as an action.
+For the instructions that follow, assume that the Docker user ID is `janesmith` and the password is `janes_password`.  Assuming that the CLI is already set up, three steps are required to set up a custom binary for use by OpenWhisk. After that, the uploaded Docker image can be used as an action.
 
 1. Download the Docker skeleton. You can download it by using the CLI as follows:
 
@@ -580,7 +580,7 @@ For the instructions that follow, assume that the Docker user ID is `janesmith` 
   To update the Docker action, run buildAndPush.sh to refresh the image on Docker Hub, this will allow the next time the system pulls your Docker image to run the new code for your action. 
   If there are no warm containers any new invocations will use the new Docker image. 
   Take into account that if there is a warm container using a previous version of your Docker image, any new invocations will continue to use this image unless you run wsk action update, this will indicate to the system that for any new invocations force a docekr pull resulting on pulling your new Docker image.
-
+  
   ```
   $ ./buildAndPush.sh janesmith/blackboxdemo
   ```
