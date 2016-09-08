@@ -48,6 +48,7 @@ class ActivationThrottler(consulServer: String, concurrencyLimit: Int)(
      * services to be able to determine whether a namespace should be throttled or not based on
      * the number of concurrent invocations it has in the system
      */
+    @volatile
     private var userActivationCounter = Map.empty[String, Long]
 
     private val healthCheckInterval = 5.seconds
@@ -106,8 +107,8 @@ class ActivationThrottler(consulServer: String, concurrencyLimit: Int)(
 
     Scheduler.scheduleWaitAtLeast(healthCheckInterval) { () =>
         for {
-            loadbalancerActivationCount <- getLoadBalancerActivationCount
-            invokerActivationCount <- getInvokerActivationCount
+            loadbalancerActivationCount <- getLoadBalancerActivationCount()
+            invokerActivationCount <- getInvokerActivationCount()
         } yield {
             userActivationCounter = invokerActivationCount map {
                 case (subject, invokerCount) =>

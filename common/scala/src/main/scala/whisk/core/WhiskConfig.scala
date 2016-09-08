@@ -45,14 +45,12 @@ class WhiskConfig(
     propertiesFile: File = null)(implicit val system: ActorSystem)
     extends Config(requiredProperties) {
 
-    private val (settings, valid) = getProperties
-
     /**
      * Loads the properties as specified above.
      *
      * @return a pair which is the Map defining the properties, and a boolean indicating whether validation succeeded.
      */
-    override protected def getProperties: (Map[String, String], Boolean) = {
+    override protected def getProperties(): (Map[String, String], Boolean) = {
         val properties = scala.collection.mutable.Map[String, String]() ++= requiredProperties
         Config.readPropertiesFromEnvironment(properties)
         WhiskConfig.readPropertiesFromFile(properties, Option(propertiesFile) getOrElse (WhiskConfig.whiskPropertiesFile))
