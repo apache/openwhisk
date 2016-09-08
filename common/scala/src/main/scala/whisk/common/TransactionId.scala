@@ -132,6 +132,7 @@ object TransactionId {
     val invoker = TransactionId(-100) // Invoker startup/shutdown or GC activity
     val invokerWarmup = TransactionId(-101) // Invoker warmup thread
     val dispatcher = TransactionId(-102) // Kafka message dispatcher
+    val loadbalancer = TransactionId(-103) // Loadbalancer thread
 
     def apply(tid: BigDecimal): TransactionId = {
         Try {

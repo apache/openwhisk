@@ -89,7 +89,7 @@ protected[core] abstract class EntitlementService(config: WhiskConfig)(
 
     private implicit val executionContext = actorSystem.dispatcher
 
-    private var loadbalancerOverload: Option[Boolean] = None
+    private var loadbalancerOverload: Boolean = false
 
     private val invokeRateThrottler = new RateThrottler(config.actionInvokePerMinuteLimit.toInt, config.actionInvokePerHourLimit.toInt)
     private val triggerRateThrottler = new RateThrottler(config.triggerFirePerMinuteLimit.toInt, config.triggerFirePerHourLimit.toInt)
@@ -103,9 +103,9 @@ protected[core] abstract class EntitlementService(config: WhiskConfig)(
     Scheduler.scheduleWaitAtLeast(overloadCheckPeriod) { () =>
         consul.kv.get(LoadBalancerKeys.overloadKey).map { isOverloaded =>
             Try(isOverloaded.parseJson.convertTo[Boolean]) foreach { v =>
-                if (loadbalancerOverload != Some(v)) {
-                    loadbalancerOverload = Some(v)
-                    info(this, s"EntitlementService: loadbalancerOverload = ${v}")
+                if (loadbalancerOverload != v) {
+                    loadbalancerOverload = v
+                    warn(this, s"loadbalancerOverload = ${v}")(TransactionId.loadbalancer)
                 }
             }
         }
@@ -218,7 +218,7 @@ protected[core] abstract class EntitlementService(config: WhiskConfig)(
 
     /** Limits activations if the load balancer is overloaded. */
     protected def checkSystemOverload(subject: Subject, right: Privilege, resource: Resource)(implicit transid: TransactionId) = {
-        val systemOverload = right == Privilege.ACTIVATE && loadbalancerOverload.getOrElse(false)
+        val systemOverload = right == Privilege.ACTIVATE && loadbalancerOverload
         if (systemOverload) {
             Some { Future failed ThrottleRejectRequest(TooManyRequests, Some(ErrorResponse("System is overloaded", transid))) }
         } else None
