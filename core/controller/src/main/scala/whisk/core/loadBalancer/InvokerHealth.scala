@@ -41,6 +41,7 @@ import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.consulServer
 import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.common.Scheduler
+import whisk.common.TransactionId
 
 object InvokerHealth {
     val requiredProperties = consulServer
@@ -154,7 +155,7 @@ class InvokerHealth(
 
             // Warning is issued only if up/down is changed
             if (getInvokerHealth().deep != getHealth(newStatus).deep) {
-                warn(this, s"InvokerHealth status change: ${newStatus.deep.mkString(" ")}")
+                warn(this, s"InvokerHealth status change: ${newStatus.deep.mkString(" ")}")(TransactionId.loadbalancer)
             }
 
             // Existing entries that have become stale require recording and a warning
