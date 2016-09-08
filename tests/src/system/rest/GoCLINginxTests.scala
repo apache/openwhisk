@@ -29,10 +29,9 @@ import com.jayway.restassured.RestAssured
 @RunWith(classOf[JUnitRunner])
 class GoCLINginxTests extends FlatSpec with Matchers with RestUtil {
 
+    val ProductName = "OpenWhisk_CLI"
     val DownloadLinkGoCli = "/cli/go/download"
-    val MacArchitecture = List("386", "amd64", "arm", "arm64")
-    val LinuxArchitecture = List("386", "amd64", "arm", "arm64", "mips64", "mips64le", "ppc64", "ppc64le")
-    val WindowsArchitecture = List("386", "amd64")
+    val Architectures = List("386", "amd64")
 
     //// Check the download page for all the Go Cli binaries
     it should s"respond to ${DownloadLinkGoCli}" in {
@@ -53,8 +52,8 @@ class GoCLINginxTests extends FlatSpec with Matchers with RestUtil {
 
         response.statusCode should be(200)
         val responseString = response.body.asString
-        for (macArc <- MacArchitecture) {
-            responseString.contains(s"""<a href="${macArc}/">${macArc}/</a>""") should be(true)
+        for (arch <- Architectures) {
+            responseString.contains(s"""<a href="${arch}/">${arch}/</a>""") should be(true)
         }
     }
 
@@ -65,8 +64,8 @@ class GoCLINginxTests extends FlatSpec with Matchers with RestUtil {
 
         response.statusCode should be(200)
         val responseString = response.body.asString
-        for (linuxArc <- LinuxArchitecture) {
-            responseString.contains(s"""<a href="${linuxArc}/">${linuxArc}/</a>""") should be(true)
+        for (arch <- Architectures) {
+            responseString.contains(s"""<a href="${arch}/">${arch}/</a>""") should be(true)
         }
     }
 
@@ -77,14 +76,14 @@ class GoCLINginxTests extends FlatSpec with Matchers with RestUtil {
 
         response.statusCode should be(200)
         val responseString = response.body.asString
-        for (winArc <- WindowsArchitecture) {
-            responseString.contains(s"""<a href="${winArc}/">${winArc}/</a>""") should be(true)
+        for (arch <- Architectures) {
+            responseString.contains(s"""<a href="${arch}/">${arch}/</a>""") should be(true)
         }
     }
 
-    //// Check the all the download links for the Go Cli binaries available in Mac
-    for (macArc <- MacArchitecture) {
-        val macBinaryLink = s"/cli/go/download/mac/${macArc}/openwhisk-mac-${macArc}.tar.gz"
+    // Check the all the download links for the Go Cli binaries available in Mac
+    for (arch <- Architectures) {
+        val macBinaryLink = getCompressedName("mac", arch, "zip")
         it should "respond to " + macBinaryLink + " for the Mac download link" in {
             val response = RestAssured.given().config(sslconfig).
                 get(getServiceURL() + macBinaryLink)
@@ -93,9 +92,9 @@ class GoCLINginxTests extends FlatSpec with Matchers with RestUtil {
         }
     }
 
-    //// Check the all the download links for the Go Cli binaries available in Linux
-    for (linuxArc <- LinuxArchitecture) {
-        val linuxBinaryLink = s"/cli/go/download/linux/${linuxArc}/openwhisk-linux-${linuxArc}.tar.gz"
+    // Check the all the download links for the Go Cli binaries available in Linux
+    for (arch <- Architectures) {
+        val linuxBinaryLink = getCompressedName("linux", arch, "tgz")
         it should s"respond to ${linuxBinaryLink} for the Linux download link" in {
             val response = RestAssured.given().config(sslconfig).
                 get(getServiceURL() + linuxBinaryLink)
@@ -105,13 +104,21 @@ class GoCLINginxTests extends FlatSpec with Matchers with RestUtil {
     }
 
     //// Check the all the download links for the Go Cli binaries available in Windows
-    for (windowsArc <- WindowsArchitecture) {
-        val windowsBinaryLink = s"/cli/go/download/windows/${windowsArc}/openwhisk-win-${windowsArc}.zip"
+    for (arch <- Architectures) {
+        val windowsBinaryLink = getCompressedName("windows", arch, "zip")
         it should s"respond to ${windowsBinaryLink} for the Windows download link" in {
             val response = RestAssured.given().config(sslconfig).
                 get(getServiceURL() + windowsBinaryLink)
 
             response.statusCode should be(200)
         }
+    }
+
+    def getCompressedName(os: String, arch: String, ext: String) = if (arch == "amd64") {
+        s"/cli/go/download/${os}/${arch}/${ProductName}-${os}.${ext}"
+    } else if (arch == "386") {
+        s"/cli/go/download/${os}/${arch}/${ProductName}-${os}-32bit.${ext}"
+    } else {
+        s"/cli/go/download/${os}/${arch}/${ProductName}-${os}-${arch}.${ext}"
     }
 }
