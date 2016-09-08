@@ -43,9 +43,17 @@ task distDocker << {
     retry(cmd, dockerRetries, dockerTimeout)
 }
 task tagImage << {
-    def cmd = dockerBinary + ['tag', '-f', dockerImageName, dockerTaggedImageName]
+    def docker_minor_version = 'docker -v'.execute() | 'cut -d . -f2'.execute()
+    docker_minor_version = docker_minor_version.text as int
+    def cmd
+    if(docker_minor_version < 12){
+      cmd = dockerBinary + ['tag', '-f', dockerImageName, dockerTaggedImageName]
+    } else {
+      cmd = dockerBinary + ['tag', dockerImageName, dockerTaggedImageName]
+    }
     retry(cmd, dockerRetries, dockerTimeout)
 }
+
 task pushImage << {
     def cmd = dockerBinary + ['push', dockerTaggedImageName]
     retry(cmd, dockerRetries, dockerTimeout)
