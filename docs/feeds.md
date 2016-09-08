@@ -85,6 +85,7 @@ It is possible to set up an OpenWhisk *action* to poll a feed source entirely wi
 For feeds where a webhook is not available, but do not need high-volume or low latency response times, polling is an attractive option.
 
 To set up a polling-based feed, the feed action takes the following steps when called for `CREATE`:
+
 1.   The feed action sets up a periodic trigger (*T*) with the desired frequency, using the `whisk.system/alarms` feed.
 2.   The feed developer creates a `pollMyService` action which simply polls the remote service and returns any new events.
 3.  The feed action sets up a *rule* *T -> pollMyService*.
