@@ -54,6 +54,10 @@ import whisk.core.entity.size.SizeInt
 import whisk.core.entity.ActivationResponse
 import whisk.utils.retry
 import JsonArgsForTests._
+import whisk.core.entity.ActionLimits
+import whisk.core.entity.TimeLimit
+import whisk.core.entity.LogLimit
+import whisk.core.entity.MemoryLimit
 
 /**
  * Tests for basic CLI usage. Some of these tests require a deployed backend.
@@ -104,9 +108,9 @@ class WskBasicUsageTests
             val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
             val stdout = wsk.cli(Seq("property", "set", "-i", "--apihost", wskprops.apihost, "--auth", wskprops.authKey,
                 "--namespace", namespace), env = env).stdout
-            stdout should include (s"ok: whisk auth set to ${wskprops.authKey}")
-            stdout should include (s"ok: whisk API host set to ${wskprops.apihost}")
-            stdout should include (s"ok: whisk namespace set to ${namespace}")
+            stdout should include(s"ok: whisk auth set to ${wskprops.authKey}")
+            stdout should include(s"ok: whisk API host set to ${wskprops.apihost}")
+            stdout should include(s"ok: whisk namespace set to ${namespace}")
         } finally {
             tmpwskprops.delete()
         }
@@ -144,8 +148,8 @@ class WskBasicUsageTests
             val apihost = s"http://${WhiskProperties.getControllerHost}:${WhiskProperties.getControllerPort}"
             wsk.cli(Seq("property", "set", "--apihost", apihost), env = env)
             val rr = wsk.cli(Seq("property", "get", "--apibuild", "-i"), env = env)
-            rr.stdout should not include regex ("""whisk API build\s*Unknown""")
-            rr.stderr should not include regex ("Unable to obtain API build information")
+            rr.stdout should not include regex("""whisk API build\s*Unknown""")
+            rr.stderr should not include regex("Unable to obtain API build information")
             rr.stdout should include regex ("""(?i)whisk API build\s+201.*""")
         } finally {
             tmpwskprops.delete()
@@ -366,6 +370,34 @@ class WskBasicUsageTests
                     val response = activation.response
                     response.result.get.fields("error") shouldBe ActivationResponse.abnormalRun
                     response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ContainerError)
+            }
+    }
+
+    it should "write the action-path and the limits to the annotations" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "annotations"
+            val memoryLimit = 512 MB
+            val logLimit = 1 MB
+            val timeLimit = 60 seconds
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("helloAsync.js")), memory = Some(memoryLimit), timeout = Some(timeLimit), logsize = Some(logLimit))
+            }
+
+            val run = wsk.action.invoke(name, Map("payload" -> "this is a test".toJson))
+            withActivation(wsk.activation, run) {
+                activation =>
+                    activation.response.status shouldBe "success"
+                    val annotations = activation.annotations.get
+
+                    val limitsObj = JsObject(
+                        "key" -> JsString("limits"),
+                        "value" -> ActionLimits(TimeLimit(timeLimit), MemoryLimit(memoryLimit), LogLimit(logLimit)).toJson)
+
+                    val path = annotations.find { _.fields("key").convertTo[String] == "path" }.get
+
+                    path.fields("value").convertTo[String] should fullyMatch regex (s""".*/$name""")
+                    annotations should contain(limitsObj)
             }
     }
 
@@ -620,8 +652,7 @@ class WskBasicUsageTests
             (Seq("trigger", "update", "triggerName", "-a"), invalidAnnotMsg),
             (Seq("trigger", "update", "triggerName", "-a", "key"), invalidAnnotMsg),
             (Seq("trigger", "fire", "triggerName", "-a"), invalidAnnotMsg),
-            (Seq("trigger", "fire", "triggerName", "-a", "key"), invalidAnnotMsg)
-        )
+            (Seq("trigger", "fire", "triggerName", "-a", "key"), invalidAnnotMsg))
 
         invalidArgs foreach {
             case (cmd, err) =>
@@ -656,7 +687,7 @@ class WskBasicUsageTests
             (Seq("action", "create", "actionName", "artifactName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("action", "update"), s"${tooFewArgsMsg} ${actionNameReqMsg} ${actionOptMsg}"),
             (Seq("action", "update", "actionName", "artifactName", invalidArg),
-              s"${tooManyArgsMsg}${invalidArg}. ${actionNameReqMsg} ${actionOptMsg}"),
+                s"${tooManyArgsMsg}${invalidArg}. ${actionNameReqMsg} ${actionOptMsg}"),
             (Seq("action", "delete"), s"${tooFewArgsMsg} ${actionNameReqMsg}"),
             (Seq("action", "delete", "actionName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("action", "get"), s"${tooFewArgsMsg} ${actionNameReqMsg}"),
@@ -665,7 +696,7 @@ class WskBasicUsageTests
             (Seq("action", "invoke"), s"${tooFewArgsMsg} ${actionNameReqMsg}"),
             (Seq("action", "invoke", "actionName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("activation", "list", "namespace", invalidArg),
-              s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"),
+                s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"),
             (Seq("activation", "get"), s"${tooFewArgsMsg} ${activationIdReq}"),
             (Seq("activation", "get", "activationID", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("activation", "logs"), s"${tooFewArgsMsg} ${activationIdReq}"),
@@ -673,10 +704,10 @@ class WskBasicUsageTests
             (Seq("activation", "result"), s"${tooFewArgsMsg} ${activationIdReq}"),
             (Seq("activation", "result", "activationID", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("activation", "poll", "activationID", invalidArg),
-              s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"),
+                s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"),
             (Seq("namespace", "list", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${noArgsReqMsg}"),
             (Seq("namespace", "get", "namespace", invalidArg),
-              s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"),
+                s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"),
             (Seq("package", "create"), s"${tooFewArgsMsg} ${packageNameReqMsg}"),
             (Seq("package", "create", "packageName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("package", "update"), s"${tooFewArgsMsg} ${packageNameReqMsg}"),
@@ -687,11 +718,11 @@ class WskBasicUsageTests
             (Seq("package", "bind", "packageName"), s"${tooFewArgsMsg} ${packageNameBindingReqMsg}"),
             (Seq("package", "bind", "packageName", "bindingName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("package", "list", "namespace", invalidArg),
-              s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"),
+                s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"),
             (Seq("package", "delete"), s"${tooFewArgsMsg} ${packageNameReqMsg}"),
             (Seq("package", "delete", "namespace", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("package", "refresh", "namespace", invalidArg),
-              s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"),
+                s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"),
             (Seq("rule", "enable"), s"${tooFewArgsMsg} ${ruleNameReqMsg}"),
             (Seq("rule", "enable", "ruleName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("rule", "disable"), s"${tooFewArgsMsg} ${ruleNameReqMsg}"),
@@ -702,12 +733,12 @@ class WskBasicUsageTests
             (Seq("rule", "create", "ruleName"), s"${tooFewArgsMsg} ${ruleTriggerActionReqMsg}"),
             (Seq("rule", "create", "ruleName", "triggerName"), s"${tooFewArgsMsg} ${ruleTriggerActionReqMsg}"),
             (Seq("rule", "create", "ruleName", "triggerName", "actionName", invalidArg),
-              s"${tooManyArgsMsg}${invalidArg}."),
+                s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("rule", "update"), s"${tooFewArgsMsg} ${ruleTriggerActionReqMsg}"),
             (Seq("rule", "update", "ruleName"), s"${tooFewArgsMsg} ${ruleTriggerActionReqMsg}"),
             (Seq("rule", "update", "ruleName", "triggerName"), s"${tooFewArgsMsg} ${ruleTriggerActionReqMsg}"),
             (Seq("rule", "update", "ruleName", "triggerName", "actionName", invalidArg),
-              s"${tooManyArgsMsg}${invalidArg}."),
+                s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("rule", "get"), s"${tooFewArgsMsg} ${ruleNameReqMsg}"),
             (Seq("rule", "get", "ruleName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("rule", "delete"), s"${tooFewArgsMsg} ${ruleNameReqMsg}"),
@@ -715,7 +746,7 @@ class WskBasicUsageTests
             (Seq("rule", "list", "namespace", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"),
             (Seq("trigger", "fire"), s"${tooFewArgsMsg} ${triggerNameReqMsg} ${optPayloadMsg}"),
             (Seq("trigger", "fire", "triggerName", "triggerPayload", invalidArg),
-              s"${tooManyArgsMsg}${invalidArg}. ${triggerNameReqMsg} ${optPayloadMsg}"),
+                s"${tooManyArgsMsg}${invalidArg}. ${triggerNameReqMsg} ${optPayloadMsg}"),
             (Seq("trigger", "create"), s"${tooFewArgsMsg} ${triggerNameReqMsg}"),
             (Seq("trigger", "create", "triggerName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("trigger", "update"), s"${tooFewArgsMsg} ${triggerNameReqMsg}"),
@@ -724,14 +755,13 @@ class WskBasicUsageTests
             (Seq("trigger", "get", "triggerName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("trigger", "delete"), s"${tooFewArgsMsg} ${triggerNameReqMsg}"),
             (Seq("trigger", "delete", "triggerName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
-            (Seq("trigger", "list", "namespace", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}")
-        )
+            (Seq("trigger", "list", "namespace", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"))
 
         invalidArgs foreach {
             case (cmd, err) =>
-              val stderr = wsk.cli(cmd, expectedExitCode = ERROR_EXIT).stderr
-              stderr should include(err)
-              stderr should include("Run 'wsk --help' for usage.")
+                val stderr = wsk.cli(cmd, expectedExitCode = ERROR_EXIT).stderr
+                stderr should include(err)
+                stderr should include("Run 'wsk --help' for usage.")
         }
     }
 

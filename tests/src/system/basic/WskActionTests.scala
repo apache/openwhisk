@@ -16,6 +16,8 @@
 
 package system.basic
 
+import scala.language.postfixOps
+
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
