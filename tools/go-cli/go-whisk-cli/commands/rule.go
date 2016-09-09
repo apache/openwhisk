@@ -264,20 +264,6 @@ var ruleCreateCmd = &cobra.Command{
         }
         whisk.Debug(whisk.DbgInfo, "Inserted rule:\n%+v\n", retRule)
 
-        if flags.rule.enable {
-            retRule, _, err = client.Rules.SetState(ruleName, "active")
-            if err != nil {
-                whisk.Debug(whisk.DbgError, "client.Rules.SetState(%s, active) failed: %s\n", ruleName, err)
-                // MWD - Is this a hard error since the rule was actually created
-                errStr := fmt.Sprintf(
-                    wski18n.T("Unable to enable created rule '{{.name}}': {{.err}}",
-                        map[string]interface{}{"name": rule.Name, "err": err}))
-                werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
-                return werr
-            }
-        }
-        whisk.Debug(whisk.DbgInfo, "Enabled rule:\n%+v\n", retRule)
-
         fmt.Fprintf(color.Output,
             wski18n.T("{{.ok}} created rule {{.name}}\n",
                 map[string]interface{}{"ok": color.GreenString("ok:"), "name": boldString(ruleName)}))
@@ -545,7 +531,6 @@ var ruleListCmd = &cobra.Command{
 func init() {
 
     ruleCreateCmd.Flags().StringVar(&flags.common.shared, "shared", "", wski18n.T("rule visibility `SCOPE`; yes = shared, no = private"))
-    ruleCreateCmd.Flags().BoolVar(&flags.rule.enable, "enable", false, wski18n.T("automatically enable rule after creating it"))
 
     ruleUpdateCmd.Flags().StringVar(&flags.common.shared, "shared", "", wski18n.T("rule visibility `SCOPE`; yes = shared, no = private"))
 

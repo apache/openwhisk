@@ -461,10 +461,6 @@
     "translation": "Unable to create rule '{{.name}}': {{.err}}"
   },
   {
-    "id": "Unable to enable created rule '{{.name}}': {{.err}}",
-    "translation": "Unable to enable created rule '{{.name}}': {{.err}}"
-  },
-  {
     "id": "{{.ok}} created rule {{.name}}\n",
     "translation": "{{.ok}} created rule {{.name}}\n"
   },

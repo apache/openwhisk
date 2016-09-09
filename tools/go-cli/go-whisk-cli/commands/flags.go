@@ -91,7 +91,6 @@ var flags struct {
 
     // rule
     rule struct {
-        enable  bool
         disable bool
         summary bool
     }
