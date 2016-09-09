@@ -14,11 +14,15 @@ whisk.ssl.cert={{ openwhisk_home }}/ansible/roles/nginx/files/openwhisk-cert.pem
 whisk.ssl.key={{ openwhisk_home }}/ansible/roles/nginx/files/openwhisk-key.pem
 whisk.ssl.challenge=openwhisk
 
+defaultLimits.actions.invokes.perMinute={{ defaultLimits.actions.invokes.perMinute }}
+defaultLimits.actions.invokes.concurrent={{ defaultLimits.actions.invokes.concurrent }}
+defaultLimits.triggers.fires.perMinute={{ defaultLimits.triggers.fires.perMinute }}
+
+{% if limits is defined %}
 limits.actions.invokes.perMinute={{ limits.actions.invokes.perMinute }}
-limits.actions.invokes.perHour={{ limits.actions.invokes.perHour }}
 limits.actions.invokes.concurrent={{ limits.actions.invokes.concurrent }}
 limits.triggers.fires.perMinute={{ limits.triggers.fires.perMinute }}
-limits.triggers.fires.perHour={{ limits.triggers.fires.perHour }}
+{% endif %}
 
 consulserver.host={{ groups["consul_servers"]|first }}
 controller.host={{ groups["controllers"]|first }}

@@ -21,6 +21,7 @@ import scala.collection.parallel.immutable.ParSeq
 import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.duration._
+import scala.util.Try
 
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
@@ -57,9 +58,26 @@ class ThrottleTests
     val defaultAction = Some(TestUtils.getTestActionFilename("hello.js"))
 
     val throttleWindow = 1.minute
-    val maximumInvokesPerMinute = WhiskProperties.getProperty("limits.actions.invokes.perMinute").toInt
-    val maximumFiringsPerMinute = WhiskProperties.getProperty("limits.triggers.fires.perMinute").toInt
-    val maximumConcurrentInvokes = WhiskProperties.getProperty("limits.actions.invokes.concurrent").toInt
+
+    val maximumInvokesPerMinute = getLimit("defaultLimits.actions.invokes.perMinute", "limits.actions.invokes.perMinute")
+    val maximumFiringsPerMinute = getLimit("defaultLimits.triggers.fires.perMinute", "limits.triggers.fires.perMinute")
+    val maximumConcurrentInvokes = getLimit("defaultLimits.actions.invokes.concurrent", "limits.actions.invokes.concurrent")
+
+    println(s"maximumInvokesPerMinute  = $maximumInvokesPerMinute")
+    println(s"maximumFiringsPerMinute  = $maximumFiringsPerMinute")
+    println(s"maximumConcurrentInvokes = $maximumConcurrentInvokes")
+
+    val rateMessage = "Too many requests from user"
+    val concurrencyMessage = "The user has sent too many requests in a given amount of time."
+
+    /*
+     * Retrieve a numeric limit for the key from the property set.  If the overrideKey is present, use that.
+     */
+    def getLimit(key: String, overrideKey: String) = Try {
+        WhiskProperties.getProperty(overrideKey).toInt
+    } getOrElse {
+        WhiskProperties.getProperty(key).toInt
+    }
 
     /**
      * Extracts the number of throttled results from a sequence of <code>RunResult</code>
@@ -114,6 +132,7 @@ class ThrottleTests
         val results = List.fill(count)(Future {
             if (!p.isCompleted) {
                 val rr = run()
+                println(s"exitCode = ${rr.exitCode}   stderr = ${rr.stderr}")
                 if (rr.exitCode == THROTTLED) p.trySuccess(())
                 Some(rr)
             } else {
@@ -132,10 +151,19 @@ class ThrottleTests
                 (action, _) => action.create(name, defaultAction)
             }
 
-            // invokes per minute * 2 because the current minute could advance which resets the throttle
-            val results = untilThrottled(maximumInvokesPerMinute * 2 + 1) { () =>
-                wsk.action.invoke(name, Map("payload" -> "testWord".toJson), expectedExitCode = DONTCARE_EXIT)
-            }
+            // Two things to be careful of:
+            //   1) We do not know the minute boundary so we perform twice max so that it will trigger no matter where they fall
+            //   2) We cannot issue too quickly or else the concurrency throttle will be triggered
+            val totalInvokes = 2 * maximumInvokesPerMinute
+            val numGroups = (totalInvokes / maximumConcurrentInvokes) + 1
+            val invokesPerGroup = (totalInvokes / numGroups) + 1
+            val interGroupSleep = 5.seconds
+            val results = (1 to numGroups).map { i =>
+                if (i != 1) { Thread.sleep(interGroupSleep.toMillis) }
+                untilThrottled(invokesPerGroup) { () =>
+                    wsk.action.invoke(name, Map("payload" -> "testWord".toJson), expectedExitCode = DONTCARE_EXIT)
+                }
+            }.flatten.toList
             val afterInvokes = Instant.now
 
             waitForActivations(results.par)
@@ -174,34 +202,40 @@ class ThrottleTests
                 (action, _) => action.create(name, timeoutAction)
             }
 
-            val slowInvokes = maximumConcurrentInvokes * 0.6
-            val fastInvokes = maximumConcurrentInvokes * 0.4 + 1
+            // The sleep is necessary as the load balancer currently has a latency before recognizing concurency.
+            val sleep = 10.seconds
+            val slowInvokes = maximumConcurrentInvokes
+            val fastInvokes = 1
+            val fastInvokeDuration = 3.seconds
+            val slowInvokeDuration = sleep + fastInvokeDuration
 
-            // Keep queue from draining with these
-            val slowResults = untilThrottled(slowInvokes.toInt) { () =>
-                wsk.action.invoke(name, Map("payload" -> 15.seconds.toMillis.toJson), expectedExitCode = DONTCARE_EXIT)
+            // These invokes will stay active long enough that all are issued and load balancer has recognized concurrency.
+            val startSlowInvokes = Instant.now
+            val slowResults = untilThrottled(slowInvokes) { () =>
+                wsk.action.invoke(name, Map("payload" -> slowInvokeDuration.toMillis.toJson), expectedExitCode = DONTCARE_EXIT)
             }
+            val afterSlowInvokes = Instant.now
+            val slowIssueDuration = durationBetween(startSlowInvokes, afterSlowInvokes)
+            println(s"$slowInvokes slow invokes (dur = ${slowInvokeDuration.toSeconds} sec) took ${slowIssueDuration.toSeconds} seconds to issue")
 
-            // Create queue length quickly, drain fast
-            val fastResults = untilThrottled(fastInvokes.toInt) { () =>
-                wsk.action.invoke(name, Map("payload" -> 10.milliseconds.toMillis.toJson), expectedExitCode = DONTCARE_EXIT)
+            // Sleep to let the background thread get the newest values (refreshes every 2 seconds)
+            println(s"Sleeping for ${sleep.toSeconds} sec")
+            Thread.sleep(sleep.toMillis)
+
+            // These fast invokes will trigger the concurrency-based throttling.
+            val startFastInvokes = Instant.now
+            val fastResults = untilThrottled(fastInvokes) { () =>
+                wsk.action.invoke(name, Map("payload" -> slowInvokeDuration.toMillis.toJson), expectedExitCode = DONTCARE_EXIT)
             }
+            val afterFastInvokes = Instant.now
+            val fastIssueDuration = durationBetween(afterFastInvokes, startFastInvokes)
+            println(s"$fastInvokes fast invokes (dur = ${fastInvokeDuration.toSeconds} sec) took ${fastIssueDuration.toSeconds} seconds to issue")
 
-            // Sleep 5 seconds to let the background thread get the newest values (refreshes every 2 seconds)
-            Thread.sleep(5.seconds.toMillis)
-
-            // start 1 invoke less than the maximum per minute to avoid getting rate throttled
-            val throttledInvokes = maximumInvokesPerMinute - slowInvokes.toInt - fastInvokes.toInt - 1
-            val endResults = untilThrottled(throttledInvokes) { () =>
-                wsk.action.invoke(name, Map("payload" -> 10.milliseconds.toMillis.toJson), expectedExitCode = DONTCARE_EXIT)
-            }
-            val afterInvokes = Instant.now
-
-            val combinedResults = slowResults ++ fastResults ++ endResults
+            val combinedResults = slowResults ++ fastResults
             waitForActivations(combinedResults.par)
             throttledActivations(combinedResults, tooManyConcurrentRequests) should be > 0
 
-            val alreadyWaited = durationBetween(afterInvokes, Instant.now)
+            val alreadyWaited = durationBetween(afterSlowInvokes, Instant.now)
             settleThrottles(alreadyWaited)
     }
 }

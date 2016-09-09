@@ -73,11 +73,14 @@ protected[core] case class Resource(
 
 protected[core] object EntitlementService {
     val requiredProperties = WhiskConfig.consulServer ++ WhiskConfig.entitlementHost ++ Map(
-        WhiskConfig.actionInvokePerMinuteLimit -> null,
-        WhiskConfig.actionInvokePerHourLimit -> null,
-        WhiskConfig.actionInvokeConcurrentLimit -> null,
-        WhiskConfig.triggerFirePerMinuteLimit -> null,
-        WhiskConfig.triggerFirePerHourLimit -> null)
+        WhiskConfig.actionInvokePerMinuteDefaultLimit -> null,
+        WhiskConfig.actionInvokeConcurrentDefaultLimit -> null,
+        WhiskConfig.triggerFirePerMinuteDefaultLimit -> null)
+
+    val optionalProperties = Set(
+        WhiskConfig.actionInvokePerMinuteLimit,
+        WhiskConfig.actionInvokeConcurrentLimit,
+        WhiskConfig.triggerFirePerMinuteLimit)
 
     /**
      * The default list of namespaces for a subject.
@@ -95,8 +98,8 @@ protected[core] abstract class EntitlementService(config: WhiskConfig)(
 
     private var loadbalancerOverload: Boolean = false
 
-    private val invokeRateThrottler = new RateThrottler(config.actionInvokePerMinuteLimit.toInt, config.actionInvokePerHourLimit.toInt)
-    private val triggerRateThrottler = new RateThrottler(config.triggerFirePerMinuteLimit.toInt, config.triggerFirePerHourLimit.toInt)
+    private val invokeRateThrottler = new RateThrottler(config.actionInvokePerMinuteLimit.toInt)
+    private val triggerRateThrottler = new RateThrottler(config.triggerFirePerMinuteLimit.toInt)
     private val concurrentInvokeThrottler = new ActivationThrottler(config.consulServer, config.actionInvokeConcurrentLimit.toInt)
 
     /** query the KV store this often */
