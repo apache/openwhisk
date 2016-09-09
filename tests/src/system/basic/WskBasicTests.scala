@@ -284,6 +284,26 @@ class WskBasicTests
             wsk.rule.list().stdout should include(ruleName)
     }
 
+    it should "create rule, get rule, ensure rule is enabled by default" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val ruleName = "enabledRule"
+            val triggerName = "enabledRuleTrigger"
+            val actionName = "enabledRuleAction";
+            assetHelper.withCleaner(wsk.trigger, triggerName) {
+                (trigger, name) => trigger.create(name)
+            }
+            assetHelper.withCleaner(wsk.action, actionName) {
+                (action, name) => action.create(name, defaultAction)
+            }
+            assetHelper.withCleaner(wsk.rule, ruleName) {
+                (rule, name) =>
+                    rule.create(name, trigger = triggerName, action = actionName)
+            }
+
+            val stdout = wsk.rule.get(ruleName).stdout
+            stdout should include regex (""""status":\s*"active"""")
+    }
+
     it should "display a rule summary when --summary flag is used with 'wsk rule get'" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val ruleName = "mySummaryRule"
