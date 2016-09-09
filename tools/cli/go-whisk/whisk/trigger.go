@@ -91,8 +91,8 @@ func (s *TriggerService) List(options *TriggerListOptions) ([]TriggerFromServer,
 func (s *TriggerService) Insert(trigger *Trigger, overwrite bool) (*TriggerFromServer, *http.Response, error) {
     // Encode resource name as a path (with no query params) before inserting it into the URI
     // This way any '?' chars in the name won't be treated as the beginning of the query params
-    trigger.Name = (&url.URL{Path:  trigger.Name}).String()
-    route := fmt.Sprintf("triggers/%s?overwrite=%t", trigger.Name, overwrite)
+    triggerName := (&url.URL{Path:  trigger.Name}).String()
+    route := fmt.Sprintf("triggers/%s?overwrite=%t", triggerName, overwrite)
 
     routeUrl, err := url.Parse(route)
     if err != nil {
