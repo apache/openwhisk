@@ -28,8 +28,9 @@ import akka.event.Logging.InfoLevel
  *
  * For now, we throttle only at a 1-minute granularity.
  */
-class RateThrottler(maxPerMinute: Int,
-                    maxPerHour: Int) extends Logging {
+class RateThrottler(maxPerMinute: Int) extends Logging {
+
+    info(this, s"maxPerMinute = $maxPerMinute")
 
     // Parameters
     private val exemptSubject = Set[Subject]() // We exempt no one.
@@ -49,7 +50,7 @@ class RateThrottler(maxPerMinute: Int,
             roll()
             lastMinCount = lastMinCount + 1
             lastHourCount = lastHourCount + 1
-            lastMinCount <= maxPerMinute && lastHourCount <= maxPerHour
+            lastMinCount <= maxPerMinute // Add this to check hourly rates: && lastHourCount <= maxPerHour
         }
 
         def roll()(implicit transid: TransactionId) = {

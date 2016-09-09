@@ -41,6 +41,8 @@ import whisk.core.entity.Subject
 class ActivationThrottler(consulServer: String, concurrencyLimit: Int)(
     implicit val system: ActorSystem) extends Logging {
 
+    info(this, s"concurrencyLimit = $concurrencyLimit")
+
     implicit private val executionContext = system.dispatcher
 
     /**

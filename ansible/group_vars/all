@@ -7,16 +7,15 @@ whisk:
   version:
     date: "{{ansible_date_time.iso8601}}"
 
-limits:
+defaultLimits:
   actions:
     invokes:
       perMinute: 120
-      perHour: 3600
       concurrent: 100
   triggers:
     fires:
       perMinute: 60
-      perHour: 720
+
 
 # port means outer port
 controller:

@@ -105,11 +105,10 @@ class WhiskConfig(
     val kafkaDockerEndpoint = this(WhiskConfig.kafkaDockerEndpoint)
     val mainDockerEndpoint = this(WhiskConfig.mainDockerEndpoint)
 
-    val actionInvokePerHourLimit = this(WhiskConfig.actionInvokePerHourLimit)
-    val actionInvokePerMinuteLimit = this(WhiskConfig.actionInvokePerMinuteLimit)
-    val actionInvokeConcurrentLimit = this(WhiskConfig.actionInvokeConcurrentLimit)
-    val triggerFirePerMinuteLimit = this(WhiskConfig.triggerFirePerMinuteLimit)
-    val triggerFirePerHourLimit = this(WhiskConfig.triggerFirePerHourLimit)
+    val actionInvokePerMinuteLimit = this(WhiskConfig.actionInvokePerMinuteDefaultLimit)
+    val actionInvokeConcurrentLimit = this(WhiskConfig.actionInvokeConcurrentDefaultLimit)
+    val triggerFirePerMinuteLimit = this(WhiskConfig.triggerFirePerMinuteDefaultLimit)
+
 }
 
 object WhiskConfig extends Logging {
@@ -261,9 +260,8 @@ object WhiskConfig extends Logging {
     // an empty string is permitted but null is not
     val entitlementHost = Map(entitlementHostName -> "", entitlementHostPort -> "")
 
-    val actionInvokePerHourLimit = "limits.actions.invokes.perHour"
-    val actionInvokePerMinuteLimit = "limits.actions.invokes.perMinute"
-    val actionInvokeConcurrentLimit = "limits.actions.invokes.concurrent"
-    val triggerFirePerMinuteLimit = "limits.triggers.fires.perMinute"
-    val triggerFirePerHourLimit = "limits.triggers.fires.perHour"
+    val actionInvokePerMinuteDefaultLimit = "defaultLimits.actions.invokes.perMinute"
+    val actionInvokeConcurrentDefaultLimit = "defaultLimits.actions.invokes.concurrent"
+    val triggerFirePerMinuteDefaultLimit = "defaultLimits.triggers.fires.perMinute"
+
 }
