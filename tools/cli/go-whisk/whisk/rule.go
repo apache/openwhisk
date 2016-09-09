@@ -79,8 +79,8 @@ func (s *RuleService) List(options *RuleListOptions) ([]Rule, *http.Response, er
 func (s *RuleService) Insert(rule *Rule, overwrite bool) (*Rule, *http.Response, error) {
     // Encode resource name as a path (with no query params) before inserting it into the URI
     // This way any '?' chars in the name won't be treated as the beginning of the query params
-    rule.Name = (&url.URL{Path: rule.Name}).String()
-    route := fmt.Sprintf("rules/%s?overwrite=%t", rule.Name, overwrite)
+    ruleName := (&url.URL{Path: rule.Name}).String()
+    route := fmt.Sprintf("rules/%s?overwrite=%t", ruleName, overwrite)
 
     req, err := s.client.NewRequest("PUT", route, rule)
     if err != nil {

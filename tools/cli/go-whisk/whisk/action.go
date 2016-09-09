@@ -132,8 +132,8 @@ func (s *ActionService) Insert(action *Action, sharedSet bool, overwrite bool) (
 
     // Encode resource name as a path (with no query params) before inserting it into the URI
     // This way any '?' chars in the name won't be treated as the beginning of the query params
-    action.Name = (&url.URL{Path:  action.Name}).String()
-    route := fmt.Sprintf("actions/%s?overwrite=%t", action.Name, overwrite)
+    actionName := (&url.URL{Path:  action.Name}).String()
+    route := fmt.Sprintf("actions/%s?overwrite=%t", actionName, overwrite)
 
     if sharedSet {
         sentAction = SentActionPublish{
