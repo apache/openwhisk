@@ -249,10 +249,11 @@ class WskRuleTests
 
     it should "connect two triggers to two different actions, invoking them both eventually" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val triggerName1 = "t1to2a"
-            val triggerName2 = "t1to2b"
-            val actionName1 = "a1to2a"
-            val actionName2 = "a1to2b"
+            val triggerName1 = "t1to1a"
+            val triggerName2 = "t1to1b"
+            val actionName1 = "a1to1a"
+            val actionName2 = "a1to1b"
+
 
             ruleSetup(Seq(
                 ("r2to2a", triggerName1, (actionName1, defaultAction)),
