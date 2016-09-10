@@ -13,29 +13,31 @@ cd openwhisk/tools/vagrant
 
 ### Create a Vagrant VM
 
-#### Option 1: Create VM using ephemeral CouchDB
+#### Option 1: Create VM using CouchDB container
 **Important** We advise that you use this method for development of OpenWhisk.
-Please note that no data will persist between two creations of the container, 
-data will persist after re-deploying or restarting VM.
-For more information on data store configurations see [tools/db/README.md](../db/README.md).
+
 ```
 # Configure with couchdb docker container running inside the VM
 ./hello
 ```
 
-Follow instructions [tools/db/README.md](../db/README.md) on how to configure a data store for OpenWhisk.
+Follow instructions [tools/db/README.md](../db/README.md) on how to configure the remote DB for OpenWhisk.
 
-#### Option 2: Create VM using Cloudant DB
+#### Option 2: Create VM using a remote Cloudant DB
 ```
 # Provide credentials for cloudant database with admin permissions
 OW_DB=cloudant OW_DB_USERNAME=xxxxx OW_DB_PASSWORD=yyyyyy ./hello
 ```
 
-#### Option 3: Create VM using persistent CouchDB
+#### Option 3: Create VM using a remote CouchDB
 ```
 # Provide credentials for couchdb database with admin permissions
 OW_DB=couchdb OW_DB_USERNAME=xxxxx OW_DB_PASSWORD=yyyyyy OW_DB_PROTOCOL=http OW_DB_HOST=1.2.3.4 OW_DB_PORT=5984 ./hello
 ```
+
+**Note** Data will persist after safe re-deploy or restating the VM, but will be destroyed if you initialze the DB.
+For more information on data store configurations see [tools/db/README.md](../db/README.md).
+
 
 ### Wait for hello action output
 ```
@@ -56,14 +58,8 @@ You can use the CLI from the host machine as well as from inside the virtual mac
 The IP address of the virtual machine accessible from outside is `192.168.33.13`.
 If you start another Vagrant VM take into account that the IP address will conflict, use `vagrant suspend` before starting another VM with the same IP address.
 
-After the Vagrant VM is done deploying OpenWhisk, the `wsk` CLI will be available under `<openwhisk>/bin`
-We currently have two types for the `wsk` CLI, Python and Go. 
-
-The Python CLI is available in `../../bin/wsk`.
-For the Python CLI you can configure autocomplete by adding `eval "$(register-python-argcomplete wsk)"` in your `~/.bash_profile` or `~/.profile`
-
-The Go CLI is available in `../../bin/go-cli` there are multiple binaries base on OS and Architecture (i.e. `../../bin/go-cli/mac/amd64/wsk`).
-When using the Go CLI, use the argument `-i` to be able to connect insecurely to OpenWhisk for development purpose only.
+The CLI is available in `../../bin/go-cli` there are multiple binaries base on OS and Architecture (i.e. `../../bin/go-cli/mac/amd64/wsk`).
+When using the CLI, use the argument `-i` to be able to connect insecurely to OpenWhisk for development purpose only.
 
 Call the binary directly or setup your environment variable PATH to include the location of the binary that corresponds to your environment.
 
@@ -71,10 +67,10 @@ From your _host_, configure `wsk` to use your Vagrant-hosted OpenWhisk deploymen
 The following commands assume that you have `wsk` setup correctly in your PATH.
 ```
 # Set your OpenWhisk Namespace and Authorization Key.
-wsk property set --apihost 192.168.33.13 --namespace guest --auth `vagrant ssh -- cat openwhisk/ansible/files/auth.guest`
+wsk -i property set --apihost 192.168.33.13 --namespace guest --auth `vagrant ssh -- cat openwhisk/ansible/files/auth.guest`
 
 # Run the hello sample action
-wsk action invoke /whisk.system/samples/echo -p message hello --blocking --result
+wsk -i action invoke /whisk.system/samples/echo -p message hello --blocking --result
 {
     "message": "hello"
 }
@@ -92,11 +88,12 @@ Calling the wsk CLI by login into the Vagrant VM
 vagrant ssh
 wsk action invoke /whisk.system/samples/echo -p message hello --blocking --result
 ```
+**Tip** The VM is configured with the CLI `wsk` to use `-i`, and autocomplete.
 
 ### Running tests
 ```
 vagrant ssh
-cd openwhisk
+cd ${OPENWHISK_HOME}
 ./gradlew tests:test
 ```
 
@@ -104,7 +101,7 @@ cd openwhisk
 Use gradle to build docker images from inside the VM, this is done automatically once at VM creation.
 ```
 vagrant ssh
-cd openwhisk
+cd ${OPENWHISK_HOME}
 ./gradlew distDocker
 ```
 
@@ -115,7 +112,7 @@ This will keep the transient data store including user actions and sytem catalog
 You can do this after restarting the Vagrant VM using `vagrant reload` or after starting the VM with `vagrant up` from halt or suspended state
 ```
 vagrant ssh
-cd openwhisk/ansible
+cd ${ANSIBLE_HOME}
 ansible-playbook -i environments/local openwhisk.yml -e mode=clean
 ansible-playbook -i environments/local openwhisk.yml
 ```
@@ -124,23 +121,20 @@ ansible-playbook -i environments/local openwhisk.yml
 Use ansible to re-deploy OpenWhisk from inside the VM
 ```
 vagrant ssh
-cd openwhisk/ansible
-# system setup
-ansible-playbook -i environments/local setup.yml
-# install requisites
-ansible-playbook -i environments/local prereq.yml
+cd ${ANSIBLE_HOME}
+# teardown all deployed containers
+ansible-playbook -i environments/local teardown.yml
+# build openwhisk containers and cli
+cd ${OPENWHISK_HOME}
+./gradlew distDocker
+# deploy openwhisk containers
+cd ${ANSIBLE_HOME}
 # deploy couchdb
-ansible-playbook -i environments/local couchdb.yml -e mode=clean
 ansible-playbook -i environments/local couchdb.yml
 # initialize db with guest/system keys
 ansible-playbook -i environments/local initdb.yml
 # recreate main db for entities
 ansible-playbook -i environments/local wipe.yml
-# build/deploy system
-cd ..
-./gradlew distDocker
-cd ansible
-ansible-playbook -i environments/local openwhisk.yml -e mode=clean
 ansible-playbook -i environments/local openwhisk.yml
 #install catalog
 ansible-playbook -i environments/local postdeploy.yml

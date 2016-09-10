@@ -37,17 +37,16 @@ wsk action invoke /whisk.system/samples/echo -p message hello --blocking --resul
 }
 ```
 
-For more information about OpenWhisk vagrant scenarios see the [tools/vagrant/README.md](tools/vagrant/README.md)
-
-### Custom Configurations
-
-The quick start above uses an ephemeral data store that does not persist data when the vm is reloaded. The following instructions
-allow you to configure OpenWhisk to use a persistent data store via Cloudant or CouchDB.
-
 These steps were tested on Mac OS X El Capitan, Ubuntu 14.04.3 LTS and Windows using Vagrant.
+For more information about using OpenWhisk on Vagrant see the [tools/vagrant/README.md](tools/vagrant/README.md)
 
-* [Vagrant on Mac, Windows PC, or GNU/Linux](tools/vagrant/README.md)
-* [OpenWhisk on Ubuntu Server(s) natively](tools/ubuntu-setup/README.md)
+### Native development
+ 
+ To be able to build and deploy OpenWhisk it requires docker to be installed natively, if you plan to make contributions
+ to OpenWhisk we recommend setting up OpenWhisk using a Mac or Ubuntu Linux. 
+
+* [Setup Mac for OpenWhisk](tools/macos/README.md)
+* [Setup Ubuntu for OpenWhisk](tools/ubuntu-setup/README.md)
 
 ### Learn concepts and commands
 

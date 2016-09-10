@@ -53,7 +53,7 @@ Once you have created a Cloudant account, make note of the account `username` an
 
 ##### Setting the Cloudant credentials 
 
-Provision a [custom Vagrant box](../vagrant/custom/README.md) by following the instructions for Cloudant.
+Provision a [custom Vagrant box](../vagrant/README.md) by following the instructions for Cloudant.
 
 If you already have an existing box, you can simply modify the settings in the VM. Within your `openwhisk/ansible` directory, edit the file `db_local.ini` as appropriate.
 

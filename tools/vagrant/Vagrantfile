@@ -61,6 +61,17 @@ $script_common = <<SCRIPT
   swapon /swapfile
   echo '/swapfile none swap defaults 0 0' >> /etc/fstab
 
+  HOME=/home/vagrant
+  OPENWHISK_HOME=${HOME}/openwhisk
+  ANSIBLE_HOME=${OPENWHISK_HOME}/ansible
+  ANSIBLE_REMOTE_TEMP=${ANSIBLE_HOME}/tmp
+  # Add Global environments variables
+  # Set remote tmp dir for ansible to fix shared folder problems on Windows
+  echo ANSIBLE_HOME=${ANSIBLE_HOME} >> /etc/environment
+  echo ANSIBLE_REMOTE_TEMP=${ANSIBLE_REMOTE_TEMP} >> /etc/environment
+  echo OPENWHISK_HOME=${OPENWHISK_HOME} >> /etc/environment
+  echo PATH=${PATH}:${HOME}/bin:${OPENWHISK_HOME}/tools/build >> /etc/environment
+
   cd /home/vagrant/openwhisk
   cd tools/ubuntu-setup
   su vagrant -c 'source all.sh'
@@ -117,32 +128,34 @@ INIT_DB
 $script_end = <<SCRIPT
   set -e
   set -x
-  export ANSIBLE_REMOTE_TEMP=/home/vagrant/openwhisk/ansible/tmp
-  cd /home/vagrant/openwhisk
-  su vagrant -c './gradlew distDocker --parallel' 
-  cd ansible
+
+  HOME=/home/vagrant
+  source /etc/environment
+  # Build OpenWhisk using gradle
+  cd ${OPENWHISK_HOME}
+  su vagrant -c './gradlew distDocker --parallel'
+
+  # Deploy OpenWhisk using ansible
+  cd ${ANSIBLE_HOME}
   su vagrant -c 'ansible-playbook -i environments/local wipe.yml'
   su vagrant -c 'ansible-playbook -i environments/local openwhisk.yml'
   su vagrant -c 'ansible-playbook -i environments/local postdeploy.yml'
-  cd ..
-  # Add openwhisk/bin to system PATH to allow to work with vagrant ssh -- wsk
-  sed -i.bak s/:\\\\/bin/:\\\\/bin:\\\\/home\\\\/vagrant\\\\/openwhisk\\\\/bin/g /etc/environment
-  # Set remote tmp dir for ansible to fix shared folder problems on Windows
-  echo "ANSIBLE_REMOTE_TEMP=$ANSIBLE_REMOTE_TEMP" >> /etc/environment
-  # TODO: redoing symlinks to workaround windows problem, when go-cli lands this needs to be removed and use of symlinks
-  rm -r bin/wsk && rm -r bin/wskadmin
-  (cd bin && sudo ln -s ../tools/cli/wsk wsk)
-  (cd bin && sudo ln -s ../tools/cli/wskadmin wskadmin)
-  OPENWHISK_AUTH=`cat ansible/files/auth.guest`
-  HOME=/home/vagrant
-  # Adds openwhisk bins
-  echo PATH='$PATH':$HOME/openwhisk/bin:$HOME/openwhisk/tools/build >> "$HOME/.bash_profile"
-  # Adds tab completion
-  echo 'eval "$(register-python-argcomplete wsk)"' >> "$HOME/.bash_profile"
-  source "$HOME/.bash_profile"
+  
+  # Setup OpenWhisk CLI
+  su vagrant -c 'mkdir ${HOME}/bin'
+  su vagrant -c 'ln -s ${OPENWHISK_HOME}/tools/cli/wskadmin ${HOME}/bin/wskadmin'
+  su vagrant -c 'ln -s ${OPENWHISK_HOME}/tools/build/redo ${HOME}/bin/wskdev'
+  echo ${OPENWHISK_HOME}/bin/go-cli/linux/amd64/wsk -i '"$@"' > ${HOME}/bin/wsk
+  chmod +x ${HOME}/bin/wsk
+  chown vagrant:vagrant ${HOME}/bin/wsk
+  PATH=${PATH}:${HOME}/bin
+  echo 'pushd "$(mktemp -d)" > /dev/null && wsk sdk install bashauto > /dev/null && source wsk_cli_bash_completion.sh && popd > /dev/null' >> $HOME/.bashrc
+  
+  # Run OpenWhisk CLI
+  touch $HOME/.wskprops
   chown -R vagrant:vagrant $HOME
   # This allows user to see how to configure the wsk cli outside the VM 
-  wsk property set --apihost 192.168.33.13 --namespace guest --auth $OPENWHISK_AUTH 
+  wsk property set --apihost 192.168.33.13 --namespace guest --auth `cat ${ANSIBLE_HOME}/files/auth.guest`
   wsk action invoke /whisk.system/samples/echo -p message hello --blocking --result
 SCRIPT
 

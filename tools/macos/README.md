@@ -29,13 +29,16 @@ brew cask install virtualbox
 brew install https://raw.githubusercontent.com/Homebrew/homebrew-core/7702619bb7c1a42dc1ed83a57128727a1a1f5d9f/Formula/docker.rb
 # install docker-machine
 brew install docker-machine
-# install java 8, scala
+# install java 8
 brew cask install java
+# install scala
 brew install scala
+# install pip
+sudo easy_install pip
 # install ansible
 sudo -H pip install ansible==2.0.2.0
 # the following is required for running tests
-sudo -H pip install jsonschema' | bash
+sudo -H pip install jsonschema
 ```
 
 # Create and configure Docker machine
