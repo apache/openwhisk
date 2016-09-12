@@ -1,3 +1,5 @@
+import groovy.time.*
+
 /**
  * Utility to build docker images based in gradle projects
  *
@@ -39,8 +41,10 @@ if(project.hasProperty('dockerBuildArgs')) {
 }
 
 task distDocker << {
+    def start = new Date()
     def cmd = dockerBinary + dockerBuildArg + ['-t', dockerImageName, project.buildscript.sourceFile.getParentFile().getAbsolutePath()]
     retry(cmd, dockerRetries, dockerTimeout)
+    println("Building '${dockerImageName}' took ${TimeCategory.minus(new Date(), start)}")
 }
 task tagImage << {
     def docker_minor_version = 'docker -v'.execute() | 'cut -d . -f2'.execute()
@@ -63,14 +67,14 @@ pushImage.onlyIf { dockerRegistry != '' }
 distDocker.finalizedBy pushImage
 
 def retry(cmd, retries, timeout) {
-    println("Executing '${cmd.join(" ")}'")
+    println("${new Date()}: Executing '${cmd.join(" ")}'")
     def proc = cmd.execute()
     proc.consumeProcessOutput(System.out, System.err)
     proc.waitForOrKill(timeout * 1000)
     if(proc.exitValue() != 0) {
-        def message = "Command '${cmd.join(" ")}' failed with exitCode ${proc.exitValue()}"
+        def message = "${new Date()}: Command '${cmd.join(" ")}' failed with exitCode ${proc.exitValue()}"
         if(proc.exitValue() == 143) { // 143 means the process was killed (SIGTERM signal)
-            message = "Command '${cmd.join(" ")}' was killed after ${timeout} seconds"
+            message = "${new Date()}: Command '${cmd.join(" ")}' was killed after ${timeout} seconds"
         }
 
         if(retries > 1) {
