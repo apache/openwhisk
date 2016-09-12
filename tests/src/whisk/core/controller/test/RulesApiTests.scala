@@ -52,7 +52,6 @@ import whisk.core.entity.ReducedRule
 import whisk.core.entity.test.OldWhiskRule
 import whisk.core.entity.test.OldWhiskTrigger
 import whisk.core.entity.WhiskPackage
-import whisk.core.entity.WhiskActionPut
 
 /**
  * Tests Rules API.
