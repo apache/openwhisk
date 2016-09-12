@@ -92,6 +92,8 @@ object Controller {
         LoadBalancerService.requiredProperties ++
         EntitlementService.requiredProperties
 
+    def optionalProperties = EntitlementService.optionalProperties
+
     // akka-style factory to create a Controller object
     private class ServiceBuilder(config: WhiskConfig, instance: Int) extends Creator[Controller] {
         def create = new Controller(config, instance, InfoLevel)
@@ -101,7 +103,7 @@ object Controller {
         implicit val system = ActorSystem("controller-actor-system")
 
         // extract configuration data from the environment
-        val config = new WhiskConfig(requiredProperties)
+        val config = new WhiskConfig(requiredProperties, optionalProperties)
 
         // if deploying multiple instances (scale out), must pass the instance number as the
         // second argument.  (TODO .. seems fragile)

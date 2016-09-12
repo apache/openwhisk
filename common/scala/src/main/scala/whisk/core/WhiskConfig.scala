@@ -42,8 +42,9 @@ import whisk.common.Logging
 
 class WhiskConfig(
     requiredProperties: Map[String, String],
+    optionalProperties: Set[String] = Set(),
     propertiesFile: File = null)(implicit val system: ActorSystem)
-    extends Config(requiredProperties) {
+    extends Config(requiredProperties, optionalProperties) {
 
     /**
      * Loads the properties as specified above.
@@ -54,7 +55,7 @@ class WhiskConfig(
         val properties = scala.collection.mutable.Map[String, String]() ++= requiredProperties
         Config.readPropertiesFromEnvironment(properties)
         WhiskConfig.readPropertiesFromFile(properties, Option(propertiesFile) getOrElse (WhiskConfig.whiskPropertiesFile))
-        WhiskConfig.readPropertiesFromConsul(properties)
+        WhiskConfig.readPropertiesFromConsul(properties, optionalProperties)
         (properties.toMap, Config.validateProperties(requiredProperties, properties))
     }
 
@@ -105,9 +106,9 @@ class WhiskConfig(
     val kafkaDockerEndpoint = this(WhiskConfig.kafkaDockerEndpoint)
     val mainDockerEndpoint = this(WhiskConfig.mainDockerEndpoint)
 
-    val actionInvokePerMinuteLimit = this(WhiskConfig.actionInvokePerMinuteDefaultLimit)
-    val actionInvokeConcurrentLimit = this(WhiskConfig.actionInvokeConcurrentDefaultLimit)
-    val triggerFirePerMinuteLimit = this(WhiskConfig.triggerFirePerMinuteDefaultLimit)
+    val actionInvokePerMinuteLimit = this(WhiskConfig.actionInvokePerMinuteDefaultLimit, WhiskConfig.actionInvokePerMinuteLimit)
+    val actionInvokeConcurrentLimit = this(WhiskConfig.actionInvokeConcurrentDefaultLimit, WhiskConfig.actionInvokeConcurrentLimit)
+    val triggerFirePerMinuteLimit = this(WhiskConfig.triggerFirePerMinuteDefaultLimit, WhiskConfig.triggerFirePerMinuteLimit)
 
 }
 
@@ -137,7 +138,7 @@ object WhiskConfig extends Logging {
      * Reads a Map of key-value pairs from the Consul service -- store them in the
      * mutable properties object.
      */
-    def readPropertiesFromConsul(properties: Settings)(implicit system: ActorSystem) = {
+    def readPropertiesFromConsul(properties: Settings, optionalProperties: Set[String])(implicit system: ActorSystem) = {
         //try to get consulServer prop
         val consulString = for {
             server <- properties.get(consulServerHost)
@@ -150,7 +151,7 @@ object WhiskConfig extends Logging {
                 val consul = new ConsulClient(consulServer)
 
                 val whiskProps = Await.result(consul.kv.getRecurse(ConsulKV.WhiskProps.whiskProps), 1.minute)
-                properties.keys foreach { p =>
+                (properties.keys ++ optionalProperties) foreach { p =>
                     val kvp = ConsulKV.WhiskProps.whiskProps + "/" + p.replace('.', '_').toUpperCase
                     whiskProps.get(kvp) foreach { properties += p -> _ }
                 }
@@ -263,5 +264,9 @@ object WhiskConfig extends Logging {
     val actionInvokePerMinuteDefaultLimit = "defaultLimits.actions.invokes.perMinute"
     val actionInvokeConcurrentDefaultLimit = "defaultLimits.actions.invokes.concurrent"
     val triggerFirePerMinuteDefaultLimit = "defaultLimits.triggers.fires.perMinute"
+
+    val actionInvokePerMinuteLimit = "limits.actions.invokes.perMinute"
+    val actionInvokeConcurrentLimit = "limits.actions.invokes.concurrent"
+    val triggerFirePerMinuteLimit = "limits.triggers.fires.perMinute"
 
 }

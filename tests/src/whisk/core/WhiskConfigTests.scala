@@ -37,7 +37,7 @@ class WhiskConfigTests extends FlatSpec with Matchers with WskActorSystem {
         bw.write("a=A")
         bw.close()
 
-        val config = new WhiskConfig(Map("a" -> null), file)
+        val config = new WhiskConfig(Map("a" -> null), Set(), file)
         assert(config.isValid && config("a") == "A")
     }
 
@@ -49,7 +49,7 @@ class WhiskConfigTests extends FlatSpec with Matchers with WskActorSystem {
         bw.write("a=A")
         bw.close()
 
-        val config = new WhiskConfig(Map("a" -> null, "b" -> null), file)
+        val config = new WhiskConfig(Map("a" -> null, "b" -> null), Set(), file)
         assert(!config.isValid && config("b") == null)
     }
 }

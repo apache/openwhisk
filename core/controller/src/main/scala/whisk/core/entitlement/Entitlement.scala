@@ -77,6 +77,11 @@ protected[core] object EntitlementService {
         WhiskConfig.actionInvokeConcurrentDefaultLimit -> null,
         WhiskConfig.triggerFirePerMinuteDefaultLimit -> null)
 
+    val optionalProperties = Set(
+        WhiskConfig.actionInvokePerMinuteLimit,
+        WhiskConfig.actionInvokeConcurrentLimit,
+        WhiskConfig.triggerFirePerMinuteLimit)
+
     /**
      * The default list of namespaces for a subject.
      */

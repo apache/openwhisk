@@ -16,6 +16,8 @@
 
 package whisk.common
 
+import scala.util.Try
+
 /**
  * A set of properties which define a configuration.
  *
@@ -39,21 +41,19 @@ package whisk.common
  *
  * @param propertiesFile a file which defines the properties
  */
-class Config(requiredProperties: Map[String, String]) {
+class Config(requiredProperties: Map[String, String], optionalProperties: Set[String] = Set()) extends Logging {
 
     def isValid: Boolean = valid
 
     /**
      * Gets value for key if it exists else the empty string.
+     * The value of the override key will instead be returned if its value is present in the map.
      *
      * @param key to lookup
+     * @param overrideKey the property whose value will be returned if the map contains the override key.
      * @return value for the key or the empty string if the key does not have a value/does not exist
      */
-    def apply(key: String): String = try {
-        settings(key)
-    } catch {
-        case _: Throwable => ""
-    }
+    def apply(key: String, overrideKey: String = ""): String = Try(settings(overrideKey)).orElse(Try(settings(key))).getOrElse("")
 
     /**
      * Returns the value of a given key.

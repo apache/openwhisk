@@ -18,6 +18,12 @@ defaultLimits.actions.invokes.perMinute={{ defaultLimits.actions.invokes.perMinu
 defaultLimits.actions.invokes.concurrent={{ defaultLimits.actions.invokes.concurrent }}
 defaultLimits.triggers.fires.perMinute={{ defaultLimits.triggers.fires.perMinute }}
 
+{% if limits is defined %}
+limits.actions.invokes.perMinute={{ limits.actions.invokes.perMinute }}
+limits.actions.invokes.concurrent={{ limits.actions.invokes.concurrent }}
+limits.triggers.fires.perMinute={{ limits.triggers.fires.perMinute }}
+{% endif %}
+
 consulserver.host={{ groups["consul_servers"]|first }}
 controller.host={{ groups["controllers"]|first }}
 edge.host={{ groups["edge"]|first }}

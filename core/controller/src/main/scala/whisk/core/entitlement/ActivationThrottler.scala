@@ -112,11 +112,14 @@ class ActivationThrottler(consulServer: String, concurrencyLimit: Int)(
             loadbalancerActivationCount <- getLoadBalancerActivationCount()
             invokerActivationCount <- getInvokerActivationCount()
         } yield {
+            debug(this, s"loadbalancerActivationCount = $loadbalancerActivationCount")
+            debug(this, s"invokerActivationCount = $invokerActivationCount")
             userActivationCounter = invokerActivationCount map {
                 case (subject, invokerCount) =>
                     val loadbalancerCount = loadbalancerActivationCount(subject)
                     subject -> (loadbalancerCount - invokerCount)
             }
+            debug(this, s"userActivationCounter = $userActivationCounter")
         }
         publishUserConcurrentActivation()
     }
