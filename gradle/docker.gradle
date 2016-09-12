@@ -47,15 +47,17 @@ task distDocker << {
     println("Building '${dockerImageName}' took ${TimeCategory.minus(new Date(), start)}")
 }
 task tagImage << {
-    def docker_minor_version = 'docker -v'.execute() | 'cut -d . -f2'.execute()
-    docker_minor_version = docker_minor_version.text as int
-    def cmd
-    if(docker_minor_version < 12){
-      cmd = dockerBinary + ['tag', '-f', dockerImageName, dockerTaggedImageName]
-    } else {
-      cmd = dockerBinary + ['tag', dockerImageName, dockerTaggedImageName]
+    def versionString = (dockerBinary + ['-v']).execute().text
+    def matched = (versionString =~ /(\d+)\.(\d+)\.(\d+)/)
+
+    def major = matched[0][1] as int
+    def minor = matched[0][2] as int
+
+    def dockerCmd = ['tag']
+    if(major == 1 && minor < 12) {
+        dockerCmd += ['-f']
     }
-    retry(cmd, dockerRetries, dockerTimeout)
+    retry(dockerBinary + dockerCmd + [dockerImageName, dockerTaggedImageName], dockerRetries, dockerTimeout)
 }
 
 task pushImage << {
