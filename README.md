@@ -42,8 +42,9 @@ For more information about using OpenWhisk on Vagrant see the [tools/vagrant/REA
 
 ### Native development
  
- To be able to build and deploy OpenWhisk it requires docker to be installed natively, if you plan to make contributions
- to OpenWhisk we recommend setting up OpenWhisk using a Mac or Ubuntu Linux. 
+Docker must be natively installed in order to build and deploy OpenWhisk.
+Using docker natively makes your development cycle faster without the overhead of using a VM. 
+If you plan to make contributions to OpenWhisk, we recommend a Mac Or Ubuntu environment.
 
 * [Setup Mac for OpenWhisk](tools/macos/README.md)
 * [Setup Ubuntu for OpenWhisk](tools/ubuntu-setup/README.md)

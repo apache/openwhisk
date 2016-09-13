@@ -35,7 +35,7 @@ OW_DB=cloudant OW_DB_USERNAME=xxxxx OW_DB_PASSWORD=yyyyyy ./hello
 OW_DB=couchdb OW_DB_USERNAME=xxxxx OW_DB_PASSWORD=yyyyyy OW_DB_PROTOCOL=http OW_DB_HOST=1.2.3.4 OW_DB_PORT=5984 ./hello
 ```
 
-**Note** Data will persist after safe re-deploy or restating the VM, but will be destroyed if you initialze the DB.
+**Note** Data will persist after [safe re-deploy](#safe-re-deploy-after-vm-restart), but will be destroyed if you initialze the DB.
 For more information on data store configurations see [tools/db/README.md](../db/README.md).
 
 
@@ -59,7 +59,7 @@ The IP address of the virtual machine accessible from outside is `192.168.33.13`
 If you start another Vagrant VM take into account that the IP address will conflict, use `vagrant suspend` before starting another VM with the same IP address.
 
 The CLI is available in `../../bin/go-cli` there are multiple binaries base on OS and Architecture (i.e. `../../bin/go-cli/mac/amd64/wsk`).
-When using the CLI, use the argument `-i` to be able to connect insecurely to OpenWhisk for development purpose only.
+When using the CLI, use the argument `-i` to connect insecurely to OpenWhisk for development purpose only.
 
 Call the binary directly or setup your environment variable PATH to include the location of the binary that corresponds to your environment.
 
@@ -79,6 +79,8 @@ wsk -i action invoke /whisk.system/samples/echo -p message hello --blocking --re
 configure the CLI with new values for __apihost__, __namespace__, and __auth__ key.
  
 ### Use the wsk CLI inside the VM
+For your convenience, a `wsk` wrapper is provided inside the VM which delegates CLI commands to `$OPENWHISK_HOME/bin/go-cli/linux/amd64/wsk` and adds the `-i` parameter that is required for insecure access to the local OpenWhisk deployment.
+
 Calling the wsk CLI via `vagrant ssh` directly
 ```
 vagrant ssh -- wsk action invoke /whisk.system/samples/echo -p message hello --blocking --result
@@ -88,16 +90,18 @@ Calling the wsk CLI by login into the Vagrant VM
 vagrant ssh
 wsk action invoke /whisk.system/samples/echo -p message hello --blocking --result
 ```
-**Tip** The VM is configured with the CLI `wsk` to use `-i`, and autocomplete.
 
-### Running tests
+### Run OpenWhisk tests
 ```
 vagrant ssh
 cd ${OPENWHISK_HOME}
+# run all tests
 ./gradlew tests:test
+# or run a subset of tests using the --tests flag
+./gradlew tests:test --tests system.basic.ConsoleTests
 ```
 
-### Build
+### Build OpenWhisk
 Use gradle to build docker images from inside the VM, this is done automatically once at VM creation.
 ```
 vagrant ssh
@@ -106,37 +110,36 @@ cd ${OPENWHISK_HOME}
 ```
 
 ### Safe Re-deploy (after VM restart)
-Use ansible to deploy from inside the VM, this is done automatically once at VM creation.
-You can deploy OpenWhisk and keep the last state of the data store.
+You can re-deploy OpenWhisk and keep the last state of the data store.
 This will keep the transient data store including user actions and sytem catalog, even if using CouchDB container
-You can do this after restarting the Vagrant VM using `vagrant reload` or after starting the VM with `vagrant up` from halt or suspended state
+If you restart the VM, OpenWhisk containers will be running, but in a bad state.
+The following commands are helpful after restarting the VM using `vagrant reload` or after starting the VM with `vagrant up` from halted or suspended state
 ```
 vagrant ssh
 cd ${ANSIBLE_HOME}
+# teardown all containers expect couchdb container
 ansible-playbook -i environments/local openwhisk.yml -e mode=clean
+# deploy openwhisk containers
 ansible-playbook -i environments/local openwhisk.yml
 ```
 
 ### Teardown and Deploy (refresh the data store)
 Use ansible to re-deploy OpenWhisk from inside the VM
+To deploy a new code base you need to [re-build OpenWhisk](#build-openwhisk) first
 ```
 vagrant ssh
 cd ${ANSIBLE_HOME}
 # teardown all deployed containers
 ansible-playbook -i environments/local teardown.yml
-# build openwhisk containers and cli
-cd ${OPENWHISK_HOME}
-./gradlew distDocker
-# deploy openwhisk containers
-cd ${ANSIBLE_HOME}
-# deploy couchdb
+# deploy couchdb container
 ansible-playbook -i environments/local couchdb.yml
 # initialize db with guest/system keys
 ansible-playbook -i environments/local initdb.yml
 # recreate main db for entities
 ansible-playbook -i environments/local wipe.yml
+# deploy openwhisk containers
 ansible-playbook -i environments/local openwhisk.yml
-#install catalog
+# install catalog
 ansible-playbook -i environments/local postdeploy.yml
 ```
 
@@ -160,7 +163,7 @@ You may use this key if you like, or use `wskadmin` inside the VM to create a ne
 
 ```
 vagrant ssh
-openwhisk/bin/wskadmin user create <subject>
+wskadmin user create <subject>
 ```
 
 This command will create a new *subject* with the authorization key shown on the console once you run `wskadmin`. This key is required when making API calls to OpenWhisk, or when using the command line interface (CLI). The namespace is the same as the `<subject>` name used to create the key.
@@ -169,7 +172,7 @@ The same tool may be used to delete a subject.
 
 ```
 vagrant ssh
-openwhisk/bin/wskadmin user delete <subject>
+wskadmin user delete <subject>
 ```
   
  
