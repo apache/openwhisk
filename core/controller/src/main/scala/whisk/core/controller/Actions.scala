@@ -69,7 +69,6 @@ import whisk.core.entitlement.Collection
 import whisk.core.entitlement.Privilege
 import whisk.core.entity.WhiskAuth
 import whisk.core.connector.{ ActivationMessage => Message }
-import whisk.core.connector.ActivationMessage.INVOKER
 import whisk.core.entitlement.Resource
 import whisk.core.entity.WhiskPackage
 import whisk.core.entity.Binding
@@ -79,6 +78,7 @@ import whisk.common.PrintStreamEmitter
 import org.apache.kafka.common.errors.RecordTooLargeException
 import whisk.utils.ExecutionContextFactory.FutureExtensions
 import scala.concurrent.duration.FiniteDuration
+import whisk.core.entity.FullyQualifiedEntityName
 
 /**
  * A singleton object which defines the properties that must be present in a configuration
@@ -432,7 +432,13 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
             implicit transid: TransactionId): Future[(ActivationId, Option[WhiskActivation])] = {
         // merge package parameters with action (action parameters supersede), then merge in payload
         val args = { env map { _ ++ action.parameters } getOrElse action.parameters } merge payload
-        val message = Message(transid, s"/actions/invoke/${action.namespace}/${action.name}/${action.rev}", user, activationId.make(), args)
+        val message = Message(
+            transid,
+            FullyQualifiedEntityName(action.namespace, action.name, Some(action.rev())),
+            user,
+            activationId.make(),
+            user.namespace,
+            args)
 
         val activationResponse = if (blocking) {
             val duration = action.limits.timeout()
@@ -448,7 +454,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         }
 
         info(this, s"[POST] action activation id: ${message.activationId}")
-        performLoadBalancerRequest(INVOKER, message, transid) flatMap { _ =>
+        performLoadBalancerRequest(message, transid) flatMap { _ =>
             if (!blocking) {
                 // Duration of the non-blocking activation in Controller.
                 // We use the start time of the tid instead of a startMarker to avoid passing the start marker around.

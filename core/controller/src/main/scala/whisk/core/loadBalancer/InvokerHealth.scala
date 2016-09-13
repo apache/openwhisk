@@ -83,7 +83,7 @@ class InvokerHealth(
      */
     def hashAndCountSubjectAction(msg: Message): (Int, Int) = {
         val subject = msg.subject().toString()
-        val path = msg.path
+        val path = msg.action.toString
         val hash = subject.hashCode() ^ path.hashCode()
         val key = (subject, path)
         val count = activationCountMap.get(key) match {

@@ -22,6 +22,7 @@ import spray.json.JsString
 import spray.json.JsValue
 import spray.json.RootJsonFormat
 import spray.json.deserializationError
+import spray.json.DefaultJsonProtocol
 
 /**
  * EntityPath is a path string of allowed characters. The path consists of parts each of which
@@ -155,8 +156,18 @@ protected[core] object EntityName {
 }
 
 /**
- * An EntityQName (qualified name) is a pair of an EntityPath and and EntityName.
+ * A FullyQualifiedEntityName (qualified name) is a triple consisting of
+ * - EntityPath: the namespace and package where the entity is located
+ * - EntityName: the name of the entity
+ * - Version: a unique version for the resource
  *
- * Note: by convention, a "fully qualified name" would additionally include a version
+ * The version is not a SemVer (yet) because it semantic versioning of entities
+ * is not enforced. Instead this will be a context specific version identifier.
  */
-protected[core] case class EntityQName(path:EntityPath, name:EntityName)
+protected[core] case class FullyQualifiedEntityName(path: EntityPath, name: EntityName, version: Option[String]) {
+    override def toString = path.addpath(name) + version.map("@" + _).getOrElse("")
+}
+
+protected[core] object FullyQualifiedEntityName extends DefaultJsonProtocol {
+    implicit val serdes = jsonFormat3(FullyQualifiedEntityName.apply)
+}
