@@ -26,10 +26,9 @@ import spray.http.HttpMethod
 import whisk.common.TransactionId
 import whisk.core.entity.EntityPath
 import whisk.core.entity.Subject
-import whisk.core.entity.WhiskAuth
 import whisk.core.entitlement.EntitlementService
 import whisk.core.entitlement.Collection
-import whisk.core.entitlement.Privilege
+import whisk.core.entitlement.Privilege.Privilege
 import whisk.core.entitlement.Resource
 import whisk.core.entitlement.ThrottleRejectRequest
 import whisk.common.Logging
@@ -37,6 +36,7 @@ import scala.util.Failure
 import scala.util.Success
 import whisk.http.ErrorResponse.terminate
 import scala.language.postfixOps
+import whisk.core.entity.Identity
 
 /** A trait for routes that require entitlement checks. */
 trait BasicAuthorizedRouteProvider extends Directives with Logging {
@@ -61,17 +61,17 @@ trait BasicAuthorizedRouteProvider extends Directives with Logging {
     /** Checks entitlement and dispatches to handler if authorized. */
     protected def authorizeAndDispatch(
         method: HttpMethod,
-        user: WhiskAuth,
+        user: Identity,
         resource: Resource)(
             implicit transid: TransactionId): RequestContext => Unit = {
         val right = collection.determineRight(method, resource.entity)
-        authorizeAndContinue(right, user.subject, resource, () => dispatchOp(user, right, resource))
+        authorizeAndContinue(right, user, resource, () => dispatchOp(user, right, resource))
     }
 
     /** Checks entitlement and if authorized, continues with next handler. */
     protected def authorizeAndContinue(
         right: Privilege,
-        user: Subject,
+        user: Identity,
         resource: Resource,
         next: () => RequestContext => Unit)(
             implicit transid: TransactionId): RequestContext => Unit = {
@@ -91,7 +91,7 @@ trait BasicAuthorizedRouteProvider extends Directives with Logging {
 
     /** Dispatches resource to the proper handler depending on context. */
     protected def dispatchOp(
-        user: WhiskAuth,
+        user: Identity,
         op: Privilege,
         resource: Resource)(
             implicit transid: TransactionId): RequestContext => Unit
@@ -137,7 +137,7 @@ trait AuthorizedRouteProvider extends BasicAuthorizedRouteProvider {
      *
      * @param user the authenticated user for this route
      */
-    def routes(user: WhiskAuth)(implicit transid: TransactionId) = {
+    def routes(user: Identity)(implicit transid: TransactionId) = {
         collectionPrefix { segment =>
             namespace(user.subject, segment) { ns =>
                 (collectionOps & requestMethod) {
@@ -151,7 +151,7 @@ trait AuthorizedRouteProvider extends BasicAuthorizedRouteProvider {
     /**
      * Handles the inner routes of the collection. This allows customizing nested resources.
      */
-    protected def innerRoutes(user: WhiskAuth, ns: EntityPath)(implicit transid: TransactionId) = {
+    protected def innerRoutes(user: Identity, ns: EntityPath)(implicit transid: TransactionId) = {
         (entityPrefix & entityOps & requestMethod) { (segment, m) =>
             // matched /namespace/collection/entity
             (entityname(segment) & pathEnd) {

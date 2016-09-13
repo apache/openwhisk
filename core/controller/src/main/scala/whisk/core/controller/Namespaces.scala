@@ -25,12 +25,11 @@ import spray.httpx.SprayJsonSupport._
 import spray.routing.Directives
 import whisk.common.TransactionId
 import whisk.core.entitlement.Collection
-import whisk.core.entitlement.Privilege
+import whisk.core.entitlement.Privilege.Privilege
 import whisk.core.entitlement.Privilege.READ
 import whisk.core.entitlement.Resource
 import whisk.core.entity.EntityPath
 import whisk.core.entity.Subject
-import whisk.core.entity.WhiskAuth
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskActivation
 import whisk.core.entity.WhiskPackage
@@ -40,6 +39,7 @@ import whisk.core.entity.WhiskEntityStore
 import whisk.core.entity.types.EntityStore
 import whisk.http.ErrorResponse.terminate
 import whisk.core.entity.WhiskEntityQueries.listEntitiesInNamespace
+import whisk.core.entity.Identity
 
 object WhiskNamespacesApi {
     def requiredProperties = WhiskEntityStore.requiredProperties
@@ -71,7 +71,7 @@ trait WhiskNamespacesApi
      *
      * @param user the authenticated user for this route
      */
-    override def routes(user: WhiskAuth)(implicit transid: TransactionId) = {
+    override def routes(user: Identity)(implicit transid: TransactionId) = {
         pathPrefix(collection.path) {
             (collectionOps & requestMethod) { m =>
                 getNamespaces(user.subject)
@@ -91,7 +91,7 @@ trait WhiskNamespacesApi
      * The namespace of the resource is derived from the authenticated user. The
      * resource entity name, if it is defined, may be a different namespace.
      */
-    protected override def dispatchOp(user: WhiskAuth, op: Privilege, resource: Resource)(implicit transid: TransactionId) = {
+    protected override def dispatchOp(user: Identity, op: Privilege, resource: Resource)(implicit transid: TransactionId) = {
         resource.entity match {
             case None if op == READ => getAllInNamespace(resource.namespace)
             case _                  => reject // should not get here

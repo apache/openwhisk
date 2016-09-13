@@ -71,7 +71,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
     /** Rules API tests */
     behavior of "Rules API"
 
-    val creds = WhiskAuth(Subject(), AuthKey())
+    val creds = WhiskAuth(Subject(), AuthKey()).toIdentity
     val namespace = EntityPath(creds.subject())
     def aname = MakeName.next("rules_tests")
     val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"

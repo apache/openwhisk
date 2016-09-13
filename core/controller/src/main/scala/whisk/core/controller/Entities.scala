@@ -31,7 +31,7 @@ import spray.routing.Directives
 import spray.routing.RequestContext
 import spray.routing.Route
 import whisk.common.TransactionId
-import whisk.core.entitlement.Privilege
+import whisk.core.entitlement.Privilege.Privilege
 import whisk.core.entitlement.Privilege.ACTIVATE
 import whisk.core.entitlement.Privilege.DELETE
 import whisk.core.entitlement.Privilege.PUT
@@ -41,8 +41,8 @@ import whisk.core.entity.EntityName
 import whisk.core.entity.LimitedWhiskEntityPut
 import whisk.core.entity.EntityPath
 import whisk.core.entity.Parameters
-import whisk.core.entity.WhiskAuth
 import whisk.http.ErrorResponse.terminate
+import whisk.core.entity.Identity
 
 protected[controller] trait ValidateEntitySize extends Directives {
     protected def validateSize(check: ⇒ Boolean)(implicit tid: TransactionId) = new Directive0 {
@@ -66,7 +66,7 @@ trait WhiskCollectionAPI
     protected def create(namespace: EntityPath, name: EntityName)(implicit transid: TransactionId): RequestContext => Unit
 
     /** Activates entity. Examples include invoking an action, firing a trigger, enabling/disabling a rule. */
-    protected def activate(user: WhiskAuth, namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId): RequestContext => Unit
+    protected def activate(user: Identity, namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId): RequestContext => Unit
 
     /** Removes entity from namespace. Terminates HTTP request. */
     protected def remove(namespace: EntityPath, name: EntityName)(implicit transid: TransactionId): RequestContext => Unit
@@ -81,7 +81,7 @@ trait WhiskCollectionAPI
     protected val listRequiresPrivateEntityFilter = false // currently supported on PACKAGES only
 
     /** Dispatches resource to the proper handler depending on context. */
-    protected override def dispatchOp(user: WhiskAuth, op: Privilege, resource: Resource)(implicit transid: TransactionId) = {
+    protected override def dispatchOp(user: Identity, op: Privilege, resource: Resource)(implicit transid: TransactionId) = {
         resource.entity match {
             case Some(EntityName(name)) => op match {
                 case READ => fetch(resource.namespace, name, resource.env)

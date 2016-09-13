@@ -19,6 +19,8 @@ package whisk.core.entitlement
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
+import Privilege.Privilege
+import akka.event.Logging.LogLevel
 import spray.http.HttpMethod
 import spray.http.HttpMethods.DELETE
 import spray.http.HttpMethods.GET
@@ -33,7 +35,6 @@ import whisk.core.entity.WhiskPackage
 import whisk.core.entity.WhiskRule
 import whisk.core.entity.WhiskTrigger
 import whisk.core.entity.types.EntityStore
-import akka.event.Logging.LogLevel
 
 /**
  * A collection encapsulates the name of a collection and implicit rights when subject

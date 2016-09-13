@@ -26,12 +26,15 @@ import spray.http.StatusCodes.InternalServerError
 import spray.http.StatusCodes.NotFound
 import spray.http.StatusCodes.OK
 import spray.httpx.marshalling.ToResponseMarshallable.isMarshallable
+import spray.httpx.SprayJsonSupport._
 import spray.json.JsObject
 import spray.json.JsValue
 import spray.json.RootJsonFormat
-import spray.httpx.SprayJsonSupport._
 import spray.json.DefaultJsonProtocol._
+import spray.json.JsBoolean
 import spray.routing.RequestContext
+import spray.routing.Directives
+
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.controller.PostProcess.PostProcessEntity
@@ -41,23 +44,12 @@ import whisk.core.database.NoDocumentException
 import whisk.core.database.DocumentConflictException
 import whisk.core.entity.DocId
 import whisk.core.entity.WhiskDocument
-import spray.routing.Directives
+import whisk.core.database.DocumentTypeMismatchException
 import whisk.core.entity.WhiskEntity
 import whisk.http.ErrorResponse
 import whisk.http.ErrorResponse.terminate
-import spray.json.JsBoolean
-import whisk.core.database.DocumentTypeMismatchException
+import whisk.http.Messages._
 
-protected sealed trait Messages {
-    /** Standard message for reporting resource conflicts. */
-    protected val conflictMessage = "Concurrent modification to resource detected"
-
-    /**
-     * Standard message for reporting resource conformance error when trying to access
-     * a resource from a different collection.
-     */
-    protected val conformanceMessage = "Resource by this name already exists but is not in this collection"
-}
 
 /** An exception to throw inside a Predicate future. */
 protected[core] case class RejectRequest(code: ClientError, message: Option[ErrorResponse]) extends Throwable
@@ -114,7 +106,7 @@ package object PostProcess {
 }
 
 /** A trait for REST APIs that read entities from a datastore */
-trait ReadOps extends Directives with Messages with Logging {
+trait ReadOps extends Directives with Logging {
 
     /** An execution context for futures */
     protected implicit val executionContext: ExecutionContext
@@ -220,7 +212,7 @@ trait ReadOps extends Directives with Messages with Logging {
 }
 
 /** A trait for REST APIs that write entities to a datastore */
-trait WriteOps extends Directives with Messages with Logging {
+trait WriteOps extends Directives with Logging {
 
     /** An execution context for futures */
     protected implicit val executionContext: ExecutionContext

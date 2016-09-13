@@ -70,7 +70,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     /** Triggers API tests */
     behavior of "Triggers API"
 
-    val creds = WhiskAuth(Subject(), AuthKey())
+    val creds = WhiskAuth(Subject(), AuthKey()).toIdentity
     val namespace = EntityPath(creds.subject())
     val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
     def aname = MakeName.next("triggers_tests")

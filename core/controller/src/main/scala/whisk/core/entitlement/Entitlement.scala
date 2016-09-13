@@ -18,16 +18,18 @@ package whisk.core.entitlement
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.Future
-import scala.concurrent.Promise
 import scala.concurrent.duration.DurationInt
-import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
+import Privilege.Privilege
+import Privilege.ACTIVATE
 import Privilege.REJECT
 import akka.actor.ActorSystem
+import akka.event.Logging.LogLevel
 import spray.http.StatusCodes.ClientError
+import spray.http.StatusCodes.Forbidden
 import spray.http.StatusCodes.TooManyRequests
 import spray.json.DefaultJsonProtocol.BooleanJsonFormat
 import spray.json.pimpString
@@ -37,12 +39,14 @@ import whisk.common.Logging
 import whisk.common.Scheduler
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
+import whisk.core.controller.RejectRequest
 import whisk.core.entity.EntityPath
+import whisk.core.entity.Identity
 import whisk.core.entity.Parameters
 import whisk.core.entity.Subject
+import whisk.core.entity.Identity
 import whisk.http.ErrorResponse
-import akka.event.Logging.LogLevel
-import whisk.core.controller.RejectRequest
+import whisk.http.Messages._
 
 package object types {
     type Entitlements = TrieMap[(Subject, String), Set[Privilege]]
@@ -169,58 +173,63 @@ protected[core] abstract class EntitlementService(config: WhiskConfig)(
      * @param resource the resource the subject requests access to
      * @return a promise that completes with true iff the subject is permitted to access the request resource
      */
-    protected[core] def check(subject: Subject, right: Privilege, resource: Resource)(implicit transid: TransactionId): Future[Boolean] = {
-        checkSystemOverload(subject, right, resource) orElse {
-            checkUserThrottle(subject, right, resource)
-        } orElse {
-            checkConcurrentUserThrottle(subject, right, resource)
-        } getOrElse {
-            val promise = Promise[Boolean]
+    protected[core] def check(user: Identity, right: Privilege, resource: Resource)(
+        implicit transid: TransactionId): Future[Boolean] = {
 
-            // NOTE: explicit grants do not work with package bindings because the current model
-            // for authorization does not allow for a continuation to check that both the binding
-            // and the references package are both either implicitly or explicitly granted; this is
-            // accepted for the time being however because there exists no external mechanism to create
-            // explicit grants
-            val grant = if (right != REJECT) {
-                info(this, s"checking user '$subject' has privilege '$right' for '$resource'")
-                // check the default namespace first, bypassing additional checks if permitted
-                val defaultNamespaces = EntitlementService.defaultNamespaces(subject)
-                resource.collection.implicitRights(defaultNamespaces, right, resource) flatMap {
-                    case true => Future successful true
-                    case false => namespaces(subject) flatMap {
-                        additionalNamespaces =>
-                            val newNamespacesToCheck = additionalNamespaces -- defaultNamespaces
-                            if (newNamespacesToCheck nonEmpty) {
-                                resource.collection.implicitRights(newNamespacesToCheck, right, resource) flatMap {
-                                    case true  => Future successful true
-                                    case false => entitled(subject, right, resource)
-                                }
-                            } else entitled(subject, right, resource)
-                    }
-                }
-            } else Future successful false
+        val subject = user.subject
 
-            grant onComplete {
-                case Success(r) =>
-                    info(this, if (r) "authorized" else "not authorized")
-                    promise success r
-                case Failure(r: RejectRequest) =>
-                    promise failure r
-                case Failure(t) =>
-                    error(this, s"failed while checking entitlement: ${t.getMessage}")
-                    promise success false
+        if (user.rights.contains(right)) {
+            info(this, s"checking user '$subject' has privilege '$right' for '$resource'")
+            checkSystemOverload(subject, right, resource) orElse {
+                checkUserThrottle(subject, right, resource)
+            } orElse {
+                checkConcurrentUserThrottle(subject, right, resource)
+            } getOrElse checkPrivilege(subject, right, resource)
+        } else if (right != REJECT) {
+            info(this, s"supplied authkey for user '$subject' does not have privilege '$right' for '$resource'")
+            Future.failed(OperationNotAllowed(Forbidden, Some(ErrorResponse(notAuthorizedtoOperateOnResource, transid))))
+        } else {
+            Future.successful(false)
+        } andThen {
+            case Success(r) =>
+                info(this, if (r) "authorized" else "not authorized")
+            case Failure(r: RejectRequest) =>
+            case Failure(t) =>
+                error(this, s"failed while checking entitlement: ${t.getMessage}")
+        }
+    }
+
+    // NOTE: explicit grants do not work with package bindings because the current model
+    // for authorization does not allow for a continuation to check that both the binding
+    // and the references package are both either implicitly or explicitly granted; this is
+    // accepted for the time being however because there exists no external mechanism to create
+    // explicit grants
+    protected def checkPrivilege(subject: Subject, right: Privilege, resource: Resource)(
+        implicit transid: TransactionId): Future[Boolean] = {
+        // check the default namespace first, bypassing additional checks if permitted
+        val defaultNamespaces = EntitlementService.defaultNamespaces(subject)
+        resource.collection.implicitRights(defaultNamespaces, right, resource) flatMap {
+            case true => Future successful true
+            case false => namespaces(subject) flatMap {
+                additionalNamespaces =>
+                    val newNamespacesToCheck = additionalNamespaces -- defaultNamespaces
+                    if (newNamespacesToCheck nonEmpty) {
+                        resource.collection.implicitRights(newNamespacesToCheck, right, resource) flatMap {
+                            case true  => Future.successful(true)
+                            case false => entitled(subject, right, resource)
+                        }
+                    } else entitled(subject, right, resource)
             }
-
-            promise future
         }
     }
 
     /** Limits activations if the load balancer is overloaded. */
     protected def checkSystemOverload(subject: Subject, right: Privilege, resource: Resource)(implicit transid: TransactionId) = {
-        val systemOverload = right == Privilege.ACTIVATE && loadbalancerOverload
+        val systemOverload = right == ACTIVATE && loadbalancerOverload
         if (systemOverload) {
-            Some { Future failed ThrottleRejectRequest(TooManyRequests, Some(ErrorResponse("System is overloaded", transid))) }
+            Some {
+                Future failed ThrottleRejectRequest(TooManyRequests, Some(ErrorResponse(systemOverloaded, transid)))
+            }
         } else None
     }
 
@@ -232,8 +241,10 @@ protected[core] abstract class EntitlementService(config: WhiskConfig)(
             (isInvocation && !invokeRateThrottler.check(subject)) || (isTrigger && !triggerRateThrottler.check(subject))
         }
 
-        if (right == Privilege.ACTIVATE && userThrottled) {
-            Some { Future failed ThrottleRejectRequest(TooManyRequests, Some(ErrorResponse("Too many requests from user", transid))) }
+        if (right == ACTIVATE && userThrottled) {
+            Some {
+                Future failed ThrottleRejectRequest(TooManyRequests, Some(ErrorResponse(tooManyRequests, transid)))
+            }
         } else None
     }
 
@@ -244,11 +255,16 @@ protected[core] abstract class EntitlementService(config: WhiskConfig)(
             (isInvocation && !concurrentInvokeThrottler.check(subject))
         }
 
-        if (right == Privilege.ACTIVATE && userThrottled) {
-            Some { Future failed ThrottleRejectRequest(TooManyRequests, Some(ErrorResponse("The user has sent too many requests in a given amount of time.", transid))) }
+        if (right == ACTIVATE && userThrottled) {
+            Some {
+                Future failed ThrottleRejectRequest(TooManyRequests, Some(ErrorResponse(tooManyConcurrentRequests, transid)))
+            }
         } else None
     }
 }
 
-/** An exception to throw signaling the request is rejected due to load reasons */
+/** An exception to throw signaling the request is rejected due to load reasons. */
 case class ThrottleRejectRequest(code: ClientError, message: Option[ErrorResponse]) extends Throwable
+
+/** An exception for authkey that does not have sufficient rights. */
+case class OperationNotAllowed(code: ClientError, message: Option[ErrorResponse]) extends Throwable

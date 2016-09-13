@@ -36,6 +36,31 @@ import spray.routing.Rejection
 import spray.routing.StandardRoute
 import whisk.common.TransactionId
 
+object Messages {
+    /** Standard message for reporting resource conflicts. */
+    val conflictMessage = "Concurrent modification to resource detected."
+
+    /**
+     * Standard message for reporting resource conformance error when trying to access
+     * a resource from a different collection.
+     */
+    val conformanceMessage = "Resource by this name already exists but is not in this collection."
+
+    val systemOverloaded = "System is overloaded, try again later."
+
+    /** Standard message for resource not found. */
+    val resourceDoesNotExist = "The requested resource does not exist."
+
+    /** Standard message for too many activation requests within a rolling time window. */
+    val tooManyRequests = "Too many requests from user."
+
+    /** Standard message for too many concurrent activation requests within a time window. */
+    val tooManyConcurrentRequests = "The user has sent too many requests in a given amount of time."
+
+    /** Standard message when supplied authkey is not authorized for an operation. */
+    val notAuthorizedtoOperateOnResource = "The supplied authentication token is not authorized to perform operation resource."
+}
+
 /** Replaces rejections with Json object containing cause and transaction id. */
 case class ErrorResponse(error: String, code: TransactionId)
 
@@ -55,7 +80,7 @@ object ErrorResponse extends Directives {
     }
 
     def response(status: StatusCode)(implicit transid: TransactionId): ErrorResponse = status match {
-        case NotFound => ErrorResponse("The requested resource does not exist.", transid)
+        case NotFound => ErrorResponse(Messages.resourceDoesNotExist, transid)
         case _        => ErrorResponse(status.defaultMessage, transid)
     }
 

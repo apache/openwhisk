@@ -16,6 +16,13 @@
 
 package whisk.core.entity
 
+import scala.util.Try
+
+import spray.json.JsString
+import spray.json.JsValue
+import spray.json.RootJsonFormat
+import spray.json.deserializationError
+
 /**
  * Authentication key, consisting of a UUID and Secret.
  *
@@ -29,7 +36,8 @@ protected[core] class AuthKey private (private val k: (UUID, Secret)) extends An
     def uuid = k._1
     def key = k._2
     def revoke = new AuthKey(uuid, Secret())
-    override def toString = s"${uuid()}:${key()}"
+    def compact = s"$uuid:$key"
+    override def toString = compact
 }
 
 protected[core] object AuthKey {
@@ -77,5 +85,14 @@ protected[core] object AuthKey {
         val k = if (parts.size >= 1) parts(0).trim else null
         val v = if (parts.size == 2) parts(1).trim else null
         (k, v)
+    }
+
+    protected[core] implicit val serdes = new RootJsonFormat[AuthKey] {
+        def write(k: AuthKey) = JsString(k.toString)
+
+        def read(value: JsValue) = Try {
+            val JsString(s) = value
+            AuthKey(s)
+        } getOrElse deserializationError("authorization key malformed")
     }
 }

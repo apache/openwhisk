@@ -28,6 +28,9 @@ import org.scalatest.Matchers
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
 
+import spray.json._
+import spray.json.DefaultJsonProtocol._
+
 import common.TestHelpers
 import common.TestUtils
 import common.TestUtils._
@@ -35,9 +38,8 @@ import common.Wsk
 import common.WskActorSystem
 import common.WskProps
 import common.WskTestHelpers
-import spray.json._
-import spray.json.DefaultJsonProtocol._
 import common.WhiskProperties
+import whisk.http.Messages._
 
 @RunWith(classOf[JUnitRunner])
 class ThrottleTests
@@ -58,9 +60,6 @@ class ThrottleTests
     val maximumInvokesPerMinute = WhiskProperties.getProperty("limits.actions.invokes.perMinute").toInt
     val maximumFiringsPerMinute = WhiskProperties.getProperty("limits.triggers.fires.perMinute").toInt
     val maximumConcurrentInvokes = WhiskProperties.getProperty("limits.actions.invokes.concurrent").toInt
-
-    val rateMessage = "Too many requests from user"
-    val concurrencyMessage = "The user has sent too many requests in a given amount of time."
 
     /**
      * Extracts the number of throttled results from a sequence of <code>RunResult</code>
@@ -140,7 +139,7 @@ class ThrottleTests
             val afterInvokes = Instant.now
 
             waitForActivations(results.par)
-            throttledActivations(results, rateMessage) should be > 0
+            throttledActivations(results, tooManyRequests) should be > 0
 
             val alreadyWaited = durationBetween(afterInvokes, Instant.now)
             settleThrottles(alreadyWaited)
@@ -160,7 +159,7 @@ class ThrottleTests
             val afterFirings = Instant.now
 
             waitForActivations(results.par)
-            throttledActivations(results, rateMessage) should be > 0
+            throttledActivations(results, tooManyRequests) should be > 0
 
             val alreadyWaited = durationBetween(afterFirings, Instant.now)
             settleThrottles(alreadyWaited)
@@ -200,7 +199,7 @@ class ThrottleTests
 
             val combinedResults = slowResults ++ fastResults ++ endResults
             waitForActivations(combinedResults.par)
-            throttledActivations(combinedResults, concurrencyMessage) should be > 0
+            throttledActivations(combinedResults, tooManyConcurrentRequests) should be > 0
 
             val alreadyWaited = durationBetween(afterInvokes, Instant.now)
             settleThrottles(alreadyWaited)

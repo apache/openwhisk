@@ -16,14 +16,14 @@
 
 package whisk.core.entitlement
 
-import akka.actor.ActorSystem
-
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.Future
 
+import Privilege.Privilege
+import akka.actor.ActorSystem
 import whisk.common.TransactionId
-import whisk.core.entity.Subject
 import whisk.core.WhiskConfig
+import whisk.core.entity.Subject
 
 private object LocalEntitlementService {
     /** Poor mans entitlement matrix. Must persist to datastore eventually. */

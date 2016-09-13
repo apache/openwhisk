@@ -62,7 +62,7 @@ class AuthenticateTests extends ControllerTestCommon with Authenticate {
         val creds = createTempCredentials._1
         val pass = UserPass(creds.uuid(), creds.key())
         val user = Await.result(validateCredentials(Some(pass)), dbOpTimeout)
-        user.get should be(creds)
+        user.get should be(creds.toIdentity)
     }
 
     it should "authorize a known user from cache" in {
@@ -76,13 +76,13 @@ class AuthenticateTests extends ControllerTestCommon with Authenticate {
         authStore.outputStream = printstream
         try {
             val user = Await.result(validateCredentials(Some(pass))(transid()), dbOpTimeout)
-            user.get should be(creds)
+            user.get should be(creds.toIdentity)
             stream.toString should include regex (s"serving from datastore: ${creds.uuid()}")
             stream.reset()
 
             // repeat query, should be served from cache
             val cachedUser = Await.result(validateCredentials(Some(pass))(transid()), dbOpTimeout)
-            cachedUser.get should be(creds)
+            cachedUser.get should be(creds.toIdentity)
             stream.toString should include regex (s"serving from cache: ${creds.uuid()}")
             stream.reset()
 
@@ -103,7 +103,7 @@ class AuthenticateTests extends ControllerTestCommon with Authenticate {
             val refetchedUser = Await.result(validateCredentials(Some(newPass))(transid()), dbOpTimeout)
             stream.toString should include regex (s"serving from cache: ${creds.uuid()}")
             refetchedUser.isDefined should be(true)
-            refetchedUser.get should be(newCreds)
+            refetchedUser.get should be(newCreds.toIdentity)
         } finally {
             authStore.outputStream = savedstream
             stream.close()
