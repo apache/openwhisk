@@ -79,7 +79,7 @@ wsk -i action invoke /whisk.system/samples/echo -p message hello --blocking --re
 configure the CLI with new values for __apihost__, __namespace__, and __auth__ key.
  
 ### Use the wsk CLI inside the VM
-Inside the VM the CLI command `wsk` points to `$HOME/bin/wsk` this is a wrapper script that uses `$OPENWHISK_HOME/bin/go-cli/linux/amd64/wsk` and the flag `-i` to be able to connect insecurly.
+For your convenience, a `wsk` wrapper is provided inside the VM which delegates CLI commands to `$OPENWHISK_HOME/bin/go-cli/linux/amd64/wsk` and adds the `-i` parameter that is required for insecure access to the local OpenWhisk deployment.
 
 Calling the wsk CLI via `vagrant ssh` directly
 ```
@@ -113,7 +113,7 @@ cd ${OPENWHISK_HOME}
 You can re-deploy OpenWhisk and keep the last state of the data store.
 This will keep the transient data store including user actions and sytem catalog, even if using CouchDB container
 If you restart the VM, OpenWhisk containers will be running, but in a bad state.
-The following commands are helpful after restarting the VM using `vagrant reload` or after starting the VM with `vagrant up` from halt or suspended state
+The following commands are helpful after restarting the VM using `vagrant reload` or after starting the VM with `vagrant up` from halted or suspended state
 ```
 vagrant ssh
 cd ${ANSIBLE_HOME}
