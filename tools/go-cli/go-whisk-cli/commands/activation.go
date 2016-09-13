@@ -43,7 +43,7 @@ var activationCmd = &cobra.Command{
 }
 
 var activationListCmd = &cobra.Command{
-    Use:   "list [NAMESPACE]",
+    Use:   "list [NAMESPACE or NAME]",
     Short: wski18n.T("list activations"),
     SilenceUsage:   true,
     SilenceErrors:  true,
