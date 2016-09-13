@@ -12,6 +12,7 @@ source "$CATALOG_HOME/util.sh"
 echo Installing Git package.
 
 createPackage github \
+    -p endpoint "openwhisk.ng.bluemix.net"
     -a description "Package which contains actions and feeds to interact with Github"
 
 waitForAll
