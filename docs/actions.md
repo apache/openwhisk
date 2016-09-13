@@ -178,7 +178,7 @@ JavaScript functions that run asynchronously may need to return the activation r
        return new Promise(function(resolve, reject) {
          setTimeout(function() {
            resolve({ done: true });
-         }, 2000);
+         }, 20000);
       })
    }
   ```
@@ -293,9 +293,9 @@ Several utility actions are provided in a package called `/whisk.system/util` th
   $ wsk package get --summary /whisk.system/util
   ```
   ```
-  package /whisk.system/util
+  package /whisk.system/util: Building blocks that format and assemble data
    action /whisk.system/util/cat: Concatenate array of strings
-   action /whisk.system/util/head: Filter first K array elements and discard rest
+   action /whisk.system/util/head: Extract prefix of an array
    action /whisk.system/util/date: Get current date and time
    action /whisk.system/util/sort: Sort array
    action /whisk.system/util/split: Splits a string into an array of strings
@@ -306,23 +306,16 @@ Several utility actions are provided in a package called `/whisk.system/util` th
 2. Create an action sequence so that the result of one action is passed as an argument to the next action.
   
   ```
-  $ wsk action create myAction --sequence /whisk.system/util/split,/whisk.system/util/sort
+  $ wsk action create sequenceAction --sequence /whisk.system/util/split,/whisk.system/util/sort
   ```
 
   This action sequence converts some lines of text to an array, and sorts the lines.
 
-3. Before you invoke the action sequence, create a text file called 'haiku.txt' with a few lines of text:
 
-  ```
-  Over-ripe sushi,
-  The Master
-  Is full of regret.
-  ```
-
-4. Invoke the action:
+3. Invoke the action:
   
   ```
-  $ wsk action invoke --blocking --result myAction --param payload "$(cat haiku.txt)"
+  $ wsk action invoke --blocking --result sequenceAction --param payload "Over-ripe sushi,\nThe Master\nIs full of regret."
   ```
   ```
   {
@@ -355,11 +348,11 @@ An action is simply a top-level Python function, which means it is necessary to 
 `hello.py` with the following content:
 
 ```
-    def main(dict):
-        name = dict.get("name", "stranger")
-        greeting = "Hello " + name + "!"
-        print(greeting)
-        return {"greeting": greeting}
+def main(dict):
+    name = dict.get("name", "stranger")
+    greeting = "Hello " + name + "!"
+    print(greeting)
+    return {"greeting": greeting}
 ```
 
 Python actions always consume a dictionary and produce a dictionary.
@@ -375,6 +368,17 @@ When you use the command line and a `.py` source file, you do not need to
 specify that you are creating a Python action (as opposed to a JavaScript action);
 the tool determines that from the file extension.
 
+Action invocation is the same for Python actions as it is for JavaScript actions:
+
+```
+$ wsk action invoke --blocking --result helloPython --param name World
+```
+
+```
+  {
+      "greeting": "Hello World!"
+  }
+```
 
 
 ## Creating Swift actions
@@ -389,13 +393,13 @@ An action is simply a top-level Swift function. For example, create a file calle
 `hello.swift` with the following content:
 
 ```
-  func main(args: [String:Any]) -> [String:Any] {
-      if let name = args["name"] as? String {
-          return [ "greeting" : "Hello \(name)!" ]
-      } else {
-          return [ "greeting" : "Hello stranger!" ]
-      }
-  }
+func main(args: [String:Any]) -> [String:Any] {
+    if let name = args["name"] as? String {
+        return [ "greeting" : "Hello \(name)!" ]
+    } else {
+        return [ "greeting" : "Hello stranger!" ]
+    }
+}
 ```
 
 Swift actions always consume a dictionary and produce a dictionary.
@@ -547,6 +551,31 @@ For the instructions that follow, assume that the Docker user ID is `janesmith` 
   ```
   ```
   $ cd dockerSkeleton
+  ```
+  ```
+  $ cat Dockerfile
+  ```
+  ```
+  # Dockerfile for example whisk docker action
+  FROM openwhisk/dockerskeleton
+
+  ENV FLASK_PROXY_PORT 8080
+
+  ### Add source file(s)
+  ADD example.c /action/example.c
+
+  RUN apk add --no-cache --virtual .build-deps \
+          bzip2-dev \
+          gcc \
+          libc-dev \
+  ### Compile source file(s)
+  && cd /action; gcc -o exec example.c \
+  && apk del .build-deps
+
+  CMD ["/bin/bash", "-c", "cd actionProxy && python -u actionproxy.py"]  
+  ```
+  ```
+  $ chmod +x buildAndPush.sh
   ```
   ```
   $ ./buildAndPush.sh janesmith/blackboxdemo
