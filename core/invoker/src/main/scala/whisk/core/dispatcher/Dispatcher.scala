@@ -21,7 +21,6 @@ import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Failure
 import scala.util.Success
-import scala.util.matching.Regex.Match
 
 import akka.actor.ActorSystem
 import akka.actor.Props
@@ -64,58 +63,45 @@ class Dispatcher(
     def stop() = consumer.close()
 
     /**
-     * Consumes messages from the bus using a streaming consumer
-     * interface. Each message is a JSON object with at least these properties:
-     * { path: the topic name,
-     *   payload: the message body }
+     * Consumes activation messages from the bus using a streaming consumer
+     * interface. Each message is a JSON object serialization of ActivationMessage.
      *
-     * Expected topics are "/whisk/invoke[0..n-1]" (handled by Invoker).
-     * Expected paths "actions/invoke" (handled by Invoker).
-     *
-     * The paths should generally mirror the REST API.
-     *
-     * For every message that is received, this method extracts the path property
-     * from the message and checks if there are registered handlers for the message.
+     * For every message that is received, process it with all attached handlers.
      * A handler is registered via addHandler and unregistered via removeHandler.
-     * All matches are checked in parallel, and messages are dispatched to all matching
-     * handlers. The handling of a message is wrapped in a Future. A handler is skipped
-     * if it is not active.
+     * There is typically only one handler.
      */
     def process(topic: String, bytes: Array[Byte]) = {
         val raw = new String(bytes, "utf-8")
         Message(raw) match {
             case Success(m) =>
-                implicit val tid = m.transid
-                if (m.path.nonEmpty) inform(handlers) foreach {
-                    case (name, handler) =>
-                        val matches = handler.matches(m.path)
-                        handleMessage(handler, topic, m, matches)
+                handlers foreach {
+                    case (name, handler) => handleMessage(handler, m)
                 }
             case Failure(t) => info(this, errorMsg(raw, t))
         }
     }
 
-    private def handleMessage(rule: DispatchRule, topic: String, msg: Message, matches: Seq[Match]) = {
+    private def handleMessage(handler: MessageHandler, msg: Message) = {
         implicit val tid = msg.transid
         implicit val executionContext = actorSystem.dispatcher
 
-        if (matches.nonEmpty) Future {
+        Future {
             val count = counter.next()
-            debug(this, s"activeCount = $count while handling ${rule.name}")
-            rule.doit(topic, msg, matches) // returns a future which is flat-mapped to hang onComplete
+            debug(this, s"activeCount = $count while handling ${handler.name}")
+            handler.onMessage(msg) // returns a future which is flat-mapped via identity to hang onComplete
         } flatMap (identity) onComplete {
-            case Success(a) => debug(this, s"activeCount = ${counter.prev()} after handling $rule")
-            case Failure(t) => error(this, s"activeCount = ${counter.prev()} ${errorMsg(rule, t)}")
+            case Success(a) => debug(this, s"activeCount = ${counter.prev()} after handling ${handler.name}")
+            case Failure(t) => error(this, s"activeCount = ${counter.prev()} ${errorMsg(handler, t)}")
         }
     }
 
-    private def inform(matchers: TrieMap[String, DispatchRule])(implicit transid: TransactionId) = {
+    private def inform(matchers: TrieMap[String, MessageHandler])(implicit transid: TransactionId) = {
         val names = matchers map { _._2.name } reduce (_ + "," + _)
         debug(this, s"matching message to ${matchers.size} handlers: $names")
         matchers
     }
 
-    private def errorMsg(handler: DispatchRule, e: Throwable): String =
+    private def errorMsg(handler: MessageHandler, e: Throwable): String =
         s"failed applying handler '${handler.name}': ${errorMsg(e)}"
 
     private def errorMsg(msg: String, e: Throwable) =
@@ -142,8 +128,8 @@ trait Registrar {
      * @param replace indicates whether a new handler should replace an older handler by the same name
      * @return an option dispatch rule, the previous value of the rule if any
      */
-    def addHandler(handler: DispatchRule, replace: Boolean): Option[DispatchRule] = {
-        if (handler != null && handler.isValid) {
+    def addHandler(handler: MessageHandler, replace: Boolean): Option[MessageHandler] = {
+        if (handler != null) {
             if (replace) handlers.put(handler.name, handler)
             else handlers.putIfAbsent(handler.name, handler)
         } else None
@@ -155,7 +141,7 @@ trait Registrar {
      * @param name is the name of the handler to remove
      * @return the handler just removed if any
      */
-    def removeHandler(name: String): Option[DispatchRule] = {
+    def removeHandler(name: String): Option[MessageHandler] = {
         if (name != null && name.trim.nonEmpty)
             handlers.remove(name)
         else None
@@ -167,11 +153,11 @@ trait Registrar {
      * @param handler is the message handler to remove
      * @return the handler just removed if any
      */
-    def removeHandler(handler: DispatchRule): Option[DispatchRule] = {
-        if (handler != null && handler.isValid) {
+    def removeHandler(handler: MessageHandler): Option[MessageHandler] = {
+        if (handler != null) {
             handlers.remove(handler.name)
         } else None
     }
 
-    protected val handlers = new TrieMap[String, DispatchRule]
+    protected val handlers = new TrieMap[String, MessageHandler]
 }

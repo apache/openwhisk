@@ -79,6 +79,7 @@ import whisk.common.PrintStreamEmitter
 import org.apache.kafka.common.errors.RecordTooLargeException
 import whisk.utils.ExecutionContextFactory.FutureExtensions
 import scala.concurrent.duration.FiniteDuration
+import whisk.core.entity.FullyQualifiedEntityName
 
 /**
  * A singleton object which defines the properties that must be present in a configuration
@@ -432,7 +433,13 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
             implicit transid: TransactionId): Future[(ActivationId, Option[WhiskActivation])] = {
         // merge package parameters with action (action parameters supersede), then merge in payload
         val args = { env map { _ ++ action.parameters } getOrElse action.parameters } merge payload
-        val message = Message(transid, s"/actions/invoke/${action.namespace}/${action.name}/${action.rev}", user, activationId.make(), args)
+        val message = Message(
+            transid,
+            FullyQualifiedEntityName(action.namespace, action.name, Some(action.rev())),
+            user,
+            activationId.make(),
+            user.namespace,
+            args)
 
         val activationResponse = if (blocking) {
             val duration = action.limits.timeout()

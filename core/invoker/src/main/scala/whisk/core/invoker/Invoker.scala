@@ -29,7 +29,6 @@ import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-import scala.util.matching.Regex.Match
 
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
@@ -68,7 +67,7 @@ import whisk.core.container.WhiskContainer
 import whisk.core.dispatcher.ActivationFeed.ActivationNotification
 import whisk.core.dispatcher.ActivationFeed.ContainerReleased
 import whisk.core.dispatcher.ActivationFeed.FailedActivation
-import whisk.core.dispatcher.DispatchRule
+import whisk.core.dispatcher.MessageHandler
 import whisk.core.dispatcher.Dispatcher
 import whisk.core.entity.ActivationLogs
 import whisk.core.entity.ActivationResponse
@@ -108,7 +107,8 @@ class Invoker(
     activationFeed: ActorRef,
     verbosity: LogLevel = InfoLevel,
     runningInContainer: Boolean = true)(implicit actorSystem: ActorSystem)
-    extends DispatchRule("invoker", "/actions/invoke", s"""(.+)/(.+)/(.+),(.+)/(.+)""") {
+    extends MessageHandler(s"invoker$instance")
+    with Logging {
 
     private implicit val executionContext: ExecutionContext = actorSystem.dispatcher
     private implicit val emitter: PrintStreamEmitter = this
@@ -144,20 +144,15 @@ class Invoker(
      * @param msg is the kafka message payload as Json
      * @param matches contains the regex matches
      */
-    override def doit(topic: String, msg: Message, matches: Seq[Match])(implicit transid: TransactionId): Future[DocInfo] = {
+    override def onMessage(msg: Message)(implicit transid: TransactionId): Future[DocInfo] = {
         val start = transid.started(this, LoggingMarkers.INVOKER_ACTIVATION)
+
         Future {
-            // conformance checks can terminate the future if a variance is detected
-            require(matches != null && matches.size >= 1, "matches undefined")
-            require(matches(0).groupCount >= 3, "wrong number of matches")
-            require(matches(0).group(2).nonEmpty, "action namespace undefined") // fully qualified name (namespace:name)
-            require(matches(0).group(3).nonEmpty, "action name undefined") // fully qualified name (namespace:name)
             require(msg != null, "message undefined")
 
-            val regex = matches(0)
-            val namespace = EntityPath(regex.group(2))
-            val name = EntityName(regex.group(3))
-            val version = if (regex.groupCount == 4) DocRevision(regex.group(4)) else DocRevision()
+            val namespace = msg.action.path
+            val name = msg.action.name
+            val version = msg.action.version map { v => DocRevision(v) } getOrElse DocRevision()
             val action = DocId(WhiskEntity.qualifiedName(namespace, name)).asDocInfo(version)
             action
         } flatMap {

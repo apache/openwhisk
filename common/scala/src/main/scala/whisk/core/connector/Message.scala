@@ -25,6 +25,8 @@ import whisk.common.TransactionId
 import whisk.core.entity.ActivationId
 import whisk.core.entity.Subject
 import whisk.core.entity.WhiskActivation
+import whisk.core.entity.EntityPath
+import whisk.core.entity.FullyQualifiedEntityName
 
 /** Basic trait for messages that are sent on a message bus connector. */
 trait Message {
@@ -46,9 +48,10 @@ trait Message {
 
 case class ActivationMessage(
     override val transid: TransactionId,
-    path: String,
+    action: FullyQualifiedEntityName,
     subject: Subject,
     activationId: ActivationId,
+    activationNamespace: EntityPath,
     content: Option[JsObject],
     cause: Option[ActivationId] = None)
     extends Message {
@@ -65,7 +68,7 @@ case class ActivationMessage(
 
     override def toString = {
         val value = (content getOrElse JsObject()).compactPrint
-        s"$path?message=$value"
+        s"$action?message=$value"
     }
 }
 
@@ -78,7 +81,7 @@ object ActivationMessage extends DefaultJsonProtocol {
         serdes.read(msg.parseJson)
     }
 
-    implicit val serdes = jsonFormat6(ActivationMessage.apply)
+    implicit val serdes = jsonFormat7(ActivationMessage.apply)
 }
 
 /**

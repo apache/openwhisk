@@ -22,7 +22,6 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
-import scala.util.matching.Regex.Match
 
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
@@ -37,11 +36,15 @@ import spray.json.JsObject
 import whisk.common.TransactionId
 import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.core.dispatcher.ActivationFeed
-import whisk.core.dispatcher.DispatchRule
+import whisk.core.dispatcher.MessageHandler
 import whisk.core.dispatcher.Dispatcher
 import whisk.core.entity.ActivationId
 import whisk.core.entity.Subject
 import whisk.utils.retry
+import whisk.core.entity.EntityName
+import whisk.core.entity.EntityPath
+import whisk.core.entity.FullyQualifiedEntityName
+import whisk.common.Logging
 
 @RunWith(classOf[JUnitRunner])
 class DispatcherTests extends FlatSpec with Matchers with WskActorSystem {
@@ -60,13 +63,15 @@ class DispatcherTests extends FlatSpec with Matchers with WskActorSystem {
 
     def sendMessage(connector: TestConnector, count: Int) = {
         val content = JsObject("payload" -> JsNumber(count))
-        val msg = Message(TransactionId.testing, s"/test/$count", Subject(), ActivationId(), Some(content))
+        val subject = Subject()
+        val path = FullyQualifiedEntityName(EntityPath("test"), EntityName(s"count-$count"), None)
+        val msg = Message(TransactionId.testing, path, subject, ActivationId(), subject.namespace, Some(content))
         connector.send(msg)
     }
 
-    class TestRule(dosomething: Message => Any) extends DispatchRule("test message handler", "/test", ".+") {
+    class TestRule(dosomething: Message => Any) extends MessageHandler("test message handler") with Logging {
         setVerbosity(InfoLevel)
-        override def doit(topic: String, msg: Message, matches: Seq[Match])(implicit transid: TransactionId): Future[Any] = {
+        override def onMessage(msg: Message)(implicit transid: TransactionId): Future[Any] = {
             debug(this, s"received: ${msg.content.get.compactPrint}")
             Future.successful {
                 dosomething(msg)
