@@ -67,7 +67,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     /** Package Actions API tests */
     behavior of "Package Actions API"
 
-    val creds = WhiskAuth(Subject(), AuthKey())
+    val creds = WhiskAuth(Subject(), AuthKey()).toIdentity
     val namespace = EntityPath(creds.subject())
     val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
     def aname = MakeName.next("package_action_tests")
@@ -188,7 +188,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     it should "reject put action in package owned by different subject" in {
         implicit val tid = transid()
-        val provider = WhiskPackage(Subject().namespace, aname, publish = true)
+        val provider = WhiskPackage(EntityPath(Subject()()), aname, publish = true)
         val content = WhiskActionPut(Some(Exec.js("??")))
         put(entityStore, provider)
         Put(s"/${provider.namespace}/${collection.path}/${provider.name}/$aname", content) ~> sealRoute(routes(creds)) ~> check {
@@ -205,7 +205,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         put(entityStore, action)
 
         // it should "reject delete action in package owned by different subject" in {
-        val auser = WhiskAuth(Subject(), AuthKey())
+        val auser = WhiskAuth(Subject(), AuthKey()).toIdentity
         Delete(s"/${provider.namespace}/${collection.path}/${provider.name}/${action.name}") ~> sealRoute(routes(auser)) ~> check {
             status should be(Forbidden)
         }
@@ -266,7 +266,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     it should "get action in package binding with public package" in {
         implicit val tid = transid()
-        val auser = WhiskAuth(Subject(), AuthKey())
+        val auser = WhiskAuth(Subject(), AuthKey()).toIdentity
         val provider = WhiskPackage(namespace, aname, None, publish = true)
         val binding = WhiskPackage(EntityPath(auser.subject()), aname, provider.bind, Parameters("b", "B"))
         val action = WhiskAction(provider.path, aname, Exec.js("??"))
@@ -284,7 +284,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     it should "get action in package binding with public package with overriding parameters" in {
         implicit val tid = transid()
-        val auser = WhiskAuth(Subject(), AuthKey())
+        val auser = WhiskAuth(Subject(), AuthKey()).toIdentity
         val provider = WhiskPackage(namespace, aname, None, Parameters("p", "P"), publish = true)
         val binding = WhiskPackage(EntityPath(auser.subject()), aname, provider.bind, Parameters("b", "B"))
         val action = WhiskAction(provider.path, aname, Exec.js("??"), Parameters("a", "A") ++ Parameters("b", "b"))
@@ -304,7 +304,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     // check on either one or both of the binding and package
     ignore should "get action in package binding with explicit entitlement grant" in {
         implicit val tid = transid()
-        val auser = WhiskAuth(Subject(), AuthKey())
+        val auser = WhiskAuth(Subject(), AuthKey()).toIdentity
         val provider = WhiskPackage(namespace, aname, None, Parameters("p", "P"), publish = false)
         val binding = WhiskPackage(EntityPath(auser.subject()), aname, provider.bind, Parameters("b", "B"))
         val action = WhiskAction(provider.path, aname, Exec.js("??"), Parameters("a", "A"))
@@ -343,7 +343,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     it should "reject get action in package binding that does not exist" in {
         implicit val tid = transid()
         val name = aname
-        val auser = WhiskAuth(Subject(), AuthKey())
+        val auser = WhiskAuth(Subject(), AuthKey()).toIdentity
         val provider = WhiskPackage(namespace, aname, None, Parameters("p", "P"), publish = true)
         val binding = WhiskPackage(EntityPath(auser.subject()), aname, provider.bind, Parameters("b", "B"))
         val action = WhiskAction(provider.path, aname, Exec.js("??"), Parameters("a", "A"))
@@ -357,7 +357,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     it should "reject get action in package binding with package that does not exist" in {
         implicit val tid = transid()
         val name = aname
-        val auser = WhiskAuth(Subject(), AuthKey())
+        val auser = WhiskAuth(Subject(), AuthKey()).toIdentity
         val provider = WhiskPackage(namespace, aname, None, Parameters("p", "P"), publish = true)
         val binding = WhiskPackage(EntityPath(auser.subject()), aname, provider.bind, Parameters("b", "B"))
         val action = WhiskAction(provider.path, aname, Exec.js("??"), Parameters("a", "A"))
@@ -371,7 +371,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     it should "reject get non-existing action in package binding" in {
         implicit val tid = transid()
         val name = aname
-        val auser = WhiskAuth(Subject(), AuthKey())
+        val auser = WhiskAuth(Subject(), AuthKey()).toIdentity
         val provider = WhiskPackage(namespace, aname, None, Parameters("p", "P"), publish = true)
         val binding = WhiskPackage(EntityPath(auser.subject()), aname, provider.bind, Parameters("b", "B"))
         val action = WhiskAction(provider.path, aname, Exec.js("??"), Parameters("a", "A"))
@@ -384,7 +384,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     it should "reject get action in package binding with private package" in {
         implicit val tid = transid()
-        val auser = WhiskAuth(Subject(), AuthKey())
+        val auser = WhiskAuth(Subject(), AuthKey()).toIdentity
         val provider = WhiskPackage(namespace, aname, None, Parameters("p", "P"), publish = false)
         val binding = WhiskPackage(EntityPath(auser.subject()), aname, provider.bind, Parameters("b", "B"))
         val action = WhiskAction(provider.path, aname, Exec.js("??"), Parameters("a", "A"))
@@ -413,7 +413,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     it should "allow non-owner to invoke an action in public package" in {
         implicit val tid = transid()
-        val auser = WhiskAuth(Subject(), AuthKey())
+        val auser = WhiskAuth(Subject(), AuthKey()).toIdentity
         val provider = WhiskPackage(namespace, aname, publish = true)
         val action = WhiskAction(provider.path, aname, Exec.js("??"))
         val content = JsObject("xxx" -> "yyy".toJson)
@@ -428,7 +428,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     it should "invoke action in package binding with public package" in {
         implicit val tid = transid()
-        val auser = WhiskAuth(Subject(), AuthKey())
+        val auser = WhiskAuth(Subject(), AuthKey()).toIdentity
         val provider = WhiskPackage(namespace, aname, publish = true)
         val reference = WhiskPackage(EntityPath(auser.subject()), aname, provider.bind)
         val action = WhiskAction(provider.path, aname, Exec.js("??"))
@@ -447,7 +447,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     // check on either one or both of the binding and package
     ignore should "invoke action in package binding with explicit entitlement grant even if package is not public" in {
         implicit val tid = transid()
-        val auser = WhiskAuth(Subject(), AuthKey())
+        val auser = WhiskAuth(Subject(), AuthKey()).toIdentity
         val provider = WhiskPackage(namespace, aname, publish = false)
         val reference = WhiskPackage(EntityPath(auser.subject()), aname, provider.bind)
         val action = WhiskAction(provider.path, aname, Exec.js("??"))
@@ -466,7 +466,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     it should "reject non-owner invoking an action in private package" in {
         implicit val tid = transid()
-        val auser = WhiskAuth(Subject(), AuthKey())
+        val auser = WhiskAuth(Subject(), AuthKey()).toIdentity
         val provider = WhiskPackage(namespace, aname, publish = false)
         val action = WhiskAction(provider.path, aname, Exec.js("??"))
         val content = JsObject("xxx" -> "yyy".toJson)
@@ -502,7 +502,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     it should "reject invoke action in package binding with private package" in {
         implicit val tid = transid()
-        val auser = WhiskAuth(Subject(), AuthKey())
+        val auser = WhiskAuth(Subject(), AuthKey()).toIdentity
         val provider = WhiskPackage(namespace, aname, publish = false)
         val reference = WhiskPackage(EntityPath(auser.subject()), aname, provider.bind)
         val action = WhiskAction(provider.path, aname, Exec.js("??"))

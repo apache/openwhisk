@@ -18,15 +18,14 @@ package whisk.core.controller
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
-import scala.concurrent.Promise
-import scala.util.Failure
-import scala.util.Success
+import scala.util.Try
 
 import spray.routing.authentication.UserPass
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.database.NoDocumentException
 import whisk.core.entity.AuthKey
+import whisk.core.entity.Identity
 import whisk.core.entity.Secret
 import whisk.core.entity.UUID
 import whisk.core.entity.WhiskAuth
@@ -51,37 +50,31 @@ trait Authenticate extends Logging {
      * Validates credentials against the authentication database; may be used in
      * authentication directive.
      */
-    def validateCredentials(userpass: Option[UserPass])(implicit transid: TransactionId): Future[Option[WhiskAuth]] = {
-        val promise = Promise[Option[WhiskAuth]]
-        userpass map { pw =>
-            Future {
-                // inside a future should these fail to validate
-                AuthKey(UUID(pw.user), Secret(pw.pass))
-            } flatMap { authkey =>
+    def validateCredentials(userpass: Option[UserPass])(implicit transid: TransactionId): Future[Option[Identity]] = {
+        userpass flatMap { pw =>
+            Try {
+                // authkey deserialization is wrapped in a try to guard against malformed values
+                val authkey = AuthKey(UUID(pw.user), Secret(pw.pass))
                 info(this, s"authenticate: ${authkey.uuid}")
-                WhiskAuth.get(authStore, authkey.uuid) map { result =>
+                val future = WhiskAuth.get(authStore, authkey.uuid) map { result =>
                     if (authkey == result.authkey) {
                         info(this, s"authentication valid")
-                        Some(result)
+                        Some(result.subject.toIdentity(result.authkey))
                     } else {
                         info(this, s"authentication not valid")
                         None
                     }
+                } recover {
+                    case _: NoDocumentException | _: IllegalArgumentException =>
+                        info(this, s"authentication not valid")
+                        None
                 }
-            } onComplete {
-                case Success(s) =>
-                    promise.success(s)
-                case Failure(_: NoDocumentException | _: IllegalArgumentException) =>
-                    info(this, s"authentication not valid")
-                    promise.success(None)
-                case Failure(t) =>
-                    info(this, s"authentication error: $t")
-                    promise.failure(t)
-            }
+                future onFailure { case t => error(this, s"authentication error: $t") }
+                future
+            }.toOption
         } getOrElse {
             info(this, s"credentials are malformed")
-            promise.success(None)
+            Future.successful(None)
         }
-        promise.future
     }
 }

@@ -19,6 +19,7 @@ package whisk.core.entitlement
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
+import Privilege.Privilege
 import spray.http.StatusCodes.NotFound
 import whisk.common.TransactionId
 import whisk.core.controller.RejectRequest

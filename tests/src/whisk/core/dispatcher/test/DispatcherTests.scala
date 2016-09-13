@@ -45,6 +45,7 @@ import whisk.core.entity.EntityName
 import whisk.core.entity.EntityPath
 import whisk.core.entity.FullyQualifiedEntityName
 import whisk.common.Logging
+import whisk.core.entity.AuthKey
 
 @RunWith(classOf[JUnitRunner])
 class DispatcherTests extends FlatSpec with Matchers with WskActorSystem {
@@ -64,8 +65,9 @@ class DispatcherTests extends FlatSpec with Matchers with WskActorSystem {
     def sendMessage(connector: TestConnector, count: Int) = {
         val content = JsObject("payload" -> JsNumber(count))
         val subject = Subject()
+        val authkey = AuthKey()
         val path = FullyQualifiedEntityName(EntityPath("test"), EntityName(s"count-$count"), None)
-        val msg = Message(TransactionId.testing, path, subject, ActivationId(), subject.namespace, Some(content))
+        val msg = Message(TransactionId.testing, path, subject, authkey, ActivationId(), EntityPath(subject()), Some(content))
         connector.send(msg)
     }
 

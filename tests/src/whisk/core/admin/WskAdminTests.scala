@@ -56,8 +56,8 @@ class WskAdminTests
         wskadmin.cli(Seq("user", "whois", authkey)).stdout.trim should be(subject)
         wskadmin.cli(Seq("user", "delete", subject)).stdout should include("Subject deleted")
 
-        val recreate = wskadmin.cli(Seq("user", "create", subject, "-u", auth.compact))
-        wskadmin.cli(Seq("user", "get", subject)).stdout.trim should be(auth.compact)
+        val recreate = wskadmin.cli(Seq("user", "create", subject, "-u", auth.authkey.compact))
+        wskadmin.cli(Seq("user", "get", subject)).stdout.trim should be(auth.authkey.compact)
         wskadmin.cli(Seq("user", "delete", subject)).stdout should include("Subject deleted")
     }
 

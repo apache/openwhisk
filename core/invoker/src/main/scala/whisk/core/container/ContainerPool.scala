@@ -45,13 +45,13 @@ import whisk.core.entity.MemoryLimit
 import whisk.core.entity.LogLimit
 import whisk.core.entity.TimeLimit
 import whisk.core.entity.WhiskAction
-import whisk.core.entity.WhiskAuth
 import whisk.core.entity.WhiskAuthStore
 import whisk.core.entity.WhiskEntityStore
 import whisk.core.entity.NodeJS6Exec
 import akka.event.Logging.LogLevel
 import akka.event.Logging.InfoLevel
 import whisk.core.entity.BlackBoxExec
+import whisk.core.entity.AuthKey
 
 /**
  * A thread-safe container pool that internalizes container creation/teardown and allows users
@@ -163,7 +163,7 @@ class ContainerPool(
      * The invariant of returning the container back to the pool holds regardless of whether init succeeded or not.
      * In case of failure to start a container, None is returned.
      */
-    def getAction(action: WhiskAction, auth: WhiskAuth)(implicit transid: TransactionId): Option[(WhiskContainer, Option[RunResult])] =
+    def getAction(action: WhiskAction, auth: AuthKey)(implicit transid: TransactionId): Option[(WhiskContainer, Option[RunResult])] =
         if (shuttingDown) {
             info(this, s"Shutting down: Not getting container for ${action.fullyQualifiedName} with ${auth.uuid}")
             None
@@ -525,7 +525,7 @@ class ContainerPool(
         }
 
     // Obtain a container (by creation or promotion) and initialize by sending code.
-    private def makeWhiskContainer(action: WhiskAction, auth: WhiskAuth)(implicit transid: TransactionId): FinalContainerResult = {
+    private def makeWhiskContainer(action: WhiskAction, auth: AuthKey)(implicit transid: TransactionId): FinalContainerResult = {
         val imageName = getDockerImageName(action)
         val limits = action.limits
         val nodeImageName = WhiskAction.containerImageName(nodejsExec, config.dockerRegistry, config.dockerImagePrefix, config.dockerImageTag)

@@ -58,7 +58,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
     /** Activations API tests */
     behavior of "Activations API"
 
-    val creds = WhiskAuth(Subject(), AuthKey())
+    val creds = WhiskAuth(Subject(), AuthKey()).toIdentity
     val namespace = EntityPath(creds.subject())
     val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
     def aname = MakeName.next("activations_tests")

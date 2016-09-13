@@ -50,7 +50,6 @@ case class WhiskAuth(
     def uuid = authkey.uuid
     def key = authkey.key
     def revoke = WhiskAuth(subject, authkey.revoke)
-    def compact = authkey.toString
 
     override def toString = {
         s"""|subject: $subject
@@ -63,6 +62,8 @@ case class WhiskAuth(
         "subject" -> subject.toJson,
         "uuid" -> authkey.uuid.toJson,
         "key" -> authkey.key.toJson)
+
+    def toIdentity = subject.toIdentity(authkey)
 }
 
 object WhiskAuth extends DocumentFactory[WhiskAuth] {

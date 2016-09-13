@@ -36,13 +36,20 @@ import akka.actor.actorRef2Scala
 import akka.event.Logging.InfoLevel
 import akka.event.Logging.LogLevel
 import akka.japi.Creator
-import spray.json._
+import spray.json.DefaultJsonProtocol
 import spray.json.DefaultJsonProtocol.IntJsonFormat
 import spray.json.DefaultJsonProtocol.StringJsonFormat
+import spray.json.JsArray
+import spray.json.JsNumber
+import spray.json.JsObject
+import spray.json.JsValue
+import spray.json.pimpAny
+import spray.json.pimpString
 import whisk.common.ConsulClient
 import whisk.common.ConsulKV.InvokerKeys
 import whisk.common.ConsulKVReporter
 import whisk.common.Counter
+import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.PrintStreamEmitter
 import whisk.common.SimpleExec
@@ -67,23 +74,23 @@ import whisk.core.container.WhiskContainer
 import whisk.core.dispatcher.ActivationFeed.ActivationNotification
 import whisk.core.dispatcher.ActivationFeed.ContainerReleased
 import whisk.core.dispatcher.ActivationFeed.FailedActivation
-import whisk.core.dispatcher.MessageHandler
 import whisk.core.dispatcher.Dispatcher
+import whisk.core.dispatcher.MessageHandler
 import whisk.core.entity.ActivationLogs
 import whisk.core.entity.ActivationResponse
+import whisk.core.entity.AuthKey
 import whisk.core.entity.BlackBoxExec
 import whisk.core.entity.DocId
 import whisk.core.entity.DocInfo
 import whisk.core.entity.DocRevision
 import whisk.core.entity.EntityName
-import whisk.core.entity.LogLimit
 import whisk.core.entity.EntityPath
+import whisk.core.entity.LogLimit
 import whisk.core.entity.SemVer
 import whisk.core.entity.Subject
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskActivation
 import whisk.core.entity.WhiskActivationStore
-import whisk.core.entity.WhiskAuth
 import whisk.core.entity.WhiskAuthStore
 import whisk.core.entity.WhiskEntity
 import whisk.core.entity.WhiskEntityStore
@@ -91,7 +98,6 @@ import whisk.core.entity.size.SizeLong
 import whisk.core.entity.size.SizeString
 import whisk.http.BasicHttpService
 import whisk.utils.ExecutionContextFactory
-import whisk.common.Logging
 
 /**
  * A kafka message handler that invokes actions as directed by message on topic "/actions/invoke".
@@ -145,67 +151,31 @@ class Invoker(
      * @param matches contains the regex matches
      */
     override def onMessage(msg: Message)(implicit transid: TransactionId): Future[DocInfo] = {
+        require(msg != null, "message undefined")
+
         val start = transid.started(this, LoggingMarkers.INVOKER_ACTIVATION)
-
-        Future {
-            require(msg != null, "message undefined")
-
-            val namespace = msg.action.path
-            val name = msg.action.name
-            val version = msg.action.version map { v => DocRevision(v) } getOrElse DocRevision()
-            val action = DocId(WhiskEntity.qualifiedName(namespace, name)).asDocInfo(version)
-            action
-        } flatMap {
-            fetchFromStoreAndInvoke(_, msg) map { docInfo =>
-                transid.finished(this, start)
-                docInfo
-            }
-        }
-    }
-
-    /**
-     * Common point for injection from Kafka or InvokerServer.
-     */
-    def fetchFromStoreAndInvoke(action: DocInfo, msg: Message)(
-        implicit transid: TransactionId): Future[DocInfo] = {
+        val namespace = msg.action.path
+        val name = msg.action.name
+        val version = msg.action.version map { v => DocRevision(v) } getOrElse DocRevision()
+        val action = DocId(WhiskEntity.qualifiedName(namespace, name)).asDocInfo(version)
         val tran = Transaction(msg)
         val subject = msg.subject
         val payload = msg.content getOrElse JsObject()
+
         info(this, s"${action.id} $subject ${msg.activationId}")
 
         // caching is enabled since actions have revision id and an updated
         // action will not hit in the cache due to change in the revision id;
         // if the doc revision is missing, then bypass cache
-        val actionFuture = WhiskAction.get(entityStore, action, action.rev != DocRevision())
-        actionFuture onFailure {
-            case t => error(this, s"failed to fetch action ${action.id}: ${t.getMessage}")
-        }
-
-        // keys are immutable, cache them
-        val authFuture = WhiskAuth.get(authStore, subject, true)
-        authFuture onFailure {
-            case t => error(this, s"failed to fetch auth key for $subject: ${t.getMessage}")
-        }
-
-        // when records are fetched, invoke action
-        val activationDocFuture = actionFuture flatMap { theAction =>
-            // assume this future is done here
-            authFuture flatMap { theAuth =>
-                // assume this future is done here
-                invokeAction(theAction, theAuth, payload, tran)
-            }
-        }
-
-        activationDocFuture onComplete {
+        WhiskAction.get(entityStore, action, action.rev != DocRevision()) flatMap {
+            invokeAction(_, msg.authkey, payload, tran)
+        } andThen {
             case Success(activationDoc) =>
                 info(this, s"recorded activation '$activationDoc'")
-                activationDoc
             case Failure(t) =>
                 info(this, s"failed to invoke action ${action.id} due to ${t.getMessage}")
                 completeTransactionWithError(action, tran, s"failed to invoke action ${action.id}: ${t.getMessage}")
         }
-
-        activationDocFuture
     }
 
     /*
@@ -252,7 +222,7 @@ class Invoker(
         }
     }
 
-    protected def invokeAction(action: WhiskAction, auth: WhiskAuth, payload: JsObject, tran: Transaction)(
+    protected def invokeAction(action: WhiskAction, auth: AuthKey, payload: JsObject, tran: Transaction)(
         implicit transid: TransactionId): Future[DocInfo] = {
         val msg = tran.msg
 
@@ -467,7 +437,7 @@ class Invoker(
         activationResponse: ActivationResponse,
         interval: Interval) = {
         WhiskActivation(
-            namespace = msg.subject.namespace,
+            namespace = msg.activationNamespace,
             name = actionName,
             version = actionVersion,
             publish = false,

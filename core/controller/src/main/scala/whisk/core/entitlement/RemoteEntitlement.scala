@@ -22,6 +22,7 @@ import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 
+import Privilege.Privilege
 import akka.actor.ActorSystem
 import spray.client.pipelining.Get
 import spray.client.pipelining.Post
@@ -37,12 +38,13 @@ import spray.http.StatusCodes.Unauthorized
 import spray.http.Uri
 import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
 import spray.httpx.UnsuccessfulResponseException
-import spray.json._
+import spray.json.DefaultJsonProtocol
 import spray.json.DefaultJsonProtocol._
+import spray.json.pimpString
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
-import whisk.core.entity.Subject
 import whisk.core.controller.RejectRequest
+import whisk.core.entity.Subject
 
 protected[core] class RemoteEntitlementService(
     private val config: WhiskConfig,

@@ -17,15 +17,18 @@
 package whisk.core.entity
 
 import scala.util.Try
+
+import spray.json.JsString
 import spray.json.JsValue
 import spray.json.RootJsonFormat
-import spray.json.JsString
 import spray.json.deserializationError
+import whisk.core.entitlement.Privilege
+import whisk.core.entitlement.Privilege.Privilege
 
 protected[core] class Subject private (private val subject: String) extends AnyVal {
     protected[core] def apply() = subject
-    protected[core] def namespace = EntityPath(subject)
     protected[entity] def toJson = JsString(subject)
+    protected[core] def toIdentity(authkey: AuthKey) = Identity(this, EntityName(subject), authkey, Privilege.ALL)
     override def toString = subject
 }
 
@@ -66,3 +69,5 @@ protected[core] object Subject extends ArgNormalizer[Subject] {
 
     private val rand = new scala.util.Random()
 }
+
+protected[core] case class Identity(subject: Subject, namespace: EntityName, authkey: AuthKey, rights: Set[Privilege])

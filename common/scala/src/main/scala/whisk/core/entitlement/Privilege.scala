@@ -16,16 +16,12 @@
 
 package whisk.core.entitlement
 
-/** A privilege is a right that is granted to a subject for a given resources. */
-protected[core] case class Privilege private (val right: String) extends AnyVal {
-    override def toString = right
-}
-
 /** An enumeration of privileges available to subjects. */
-protected[core] object Privilege {
-    val READ = new Privilege("read")
-    val PUT = new Privilege("put") // create or update
-    val DELETE = new Privilege("delete")
-    val ACTIVATE = new Privilege("activate") // usually a POST
-    val REJECT = new Privilege("reject")
+protected[core] object Privilege extends Enumeration {
+    type Privilege = Value
+
+    val READ, PUT, DELETE, ACTIVATE, REJECT = Value
+
+    val CRUD = Set(READ, PUT, DELETE)
+    val ALL = CRUD + ACTIVATE
 }

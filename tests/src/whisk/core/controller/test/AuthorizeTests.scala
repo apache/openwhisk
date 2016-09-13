@@ -32,6 +32,11 @@ import whisk.core.entitlement.Privilege.READ
 import whisk.core.entitlement.Privilege.REJECT
 import whisk.core.entitlement.Resource
 import whisk.core.entity.Subject
+import whisk.core.entity.AuthKey
+import whisk.core.entitlement.Privilege
+import whisk.core.entity.EntityName
+import whisk.core.entity.Identity
+import whisk.core.entitlement.OperationNotAllowed
 
 /**
  * Tests authorization handler which guards resources.
@@ -51,14 +56,14 @@ class AuthorizeTests extends ControllerTestCommon with Authenticate {
     behavior of "Authorize"
 
     val requestTimeout = 1 second
-    val someUser = Subject()
-    val adminUser = Subject("admin")
-    val guestUser = Subject("anonym")
+    val someUser = Subject().toIdentity(AuthKey())
+    val adminUser = Subject("admin").toIdentity(AuthKey())
+    val guestUser = Subject("anonym").toIdentity(AuthKey())
 
     it should "authorize a user to only read from their collection" in {
         implicit val tid = transid()
         val collections = Seq(ACTIONS, RULES, TRIGGERS, PACKAGES, ACTIVATIONS, NAMESPACES)
-        val resources = collections map { Resource(someUser.namespace, _, None) }
+        val resources = collections map { Resource(someUser.namespace.toPath, _, None) }
         resources foreach { r =>
             Await.result(entitlementService.check(someUser, READ, r), requestTimeout) should be(true)
             Await.result(entitlementService.check(someUser, PUT, r), requestTimeout) should be(false)
@@ -71,7 +76,7 @@ class AuthorizeTests extends ControllerTestCommon with Authenticate {
     it should "not authorize a user to list someone else's collection or access it by other other right" in {
         implicit val tid = transid()
         val collections = Seq(ACTIONS, RULES, TRIGGERS, PACKAGES, ACTIVATIONS, NAMESPACES)
-        val resources = collections map { Resource(someUser.namespace, _, None) }
+        val resources = collections map { Resource(someUser.namespace.toPath, _, None) }
         resources foreach { r =>
             // it is permissible to list packages in any namespace (provided they are either owned by
             // the subject requesting access or the packages are public); that is, the entitlement is more
@@ -89,7 +94,7 @@ class AuthorizeTests extends ControllerTestCommon with Authenticate {
         implicit val tid = transid()
         // packages are tested separately
         val collections = Seq(ACTIONS, RULES, TRIGGERS)
-        val resources = collections map { Resource(someUser.namespace, _, Some("xyz")) }
+        val resources = collections map { Resource(someUser.namespace.toPath, _, Some("xyz")) }
         resources foreach { r =>
             Await.result(entitlementService.check(someUser, READ, r), requestTimeout) should be(true)
             Await.result(entitlementService.check(someUser, PUT, r), requestTimeout) should be(true)
@@ -98,10 +103,30 @@ class AuthorizeTests extends ControllerTestCommon with Authenticate {
         }
     }
 
+    it should "not authorize a user to CRUD an entity in a collection if authkey has no CRUD rights" in {
+        implicit val tid = transid()
+        val subject = Subject()
+        val someUser = Identity(subject, EntityName(subject()), AuthKey(), Set(Privilege.ACTIVATE))
+        val collections = Seq(ACTIONS, RULES, TRIGGERS)
+        val resources = collections map { Resource(someUser.namespace.toPath, _, Some("xyz")) }
+        resources foreach { r =>
+            an[OperationNotAllowed] should be thrownBy {
+                Await.result(entitlementService.check(someUser, READ, r), requestTimeout)
+            }
+            an[OperationNotAllowed] should be thrownBy {
+                Await.result(entitlementService.check(someUser, PUT, r), requestTimeout)
+            }
+            an[OperationNotAllowed] should be thrownBy {
+                Await.result(entitlementService.check(someUser, DELETE, r), requestTimeout)
+            }
+            Await.result(entitlementService.check(someUser, ACTIVATE, r), requestTimeout) should be(true)
+        }
+    }
+
     it should "not authorize a user to CRUD or activate an entity in a collection that does not support CRUD or activate" in {
         implicit val tid = transid()
         val collections = Seq(NAMESPACES, ACTIVATIONS)
-        val resources = collections map { Resource(someUser.namespace, _, Some("xyz")) }
+        val resources = collections map { Resource(someUser.namespace.toPath, _, Some("xyz")) }
         resources foreach { r =>
             Await.result(entitlementService.check(someUser, READ, r), requestTimeout) should be(true)
             Await.result(entitlementService.check(someUser, PUT, r), requestTimeout) should be(false)
@@ -113,7 +138,7 @@ class AuthorizeTests extends ControllerTestCommon with Authenticate {
     it should "not authorize a user to CRUD or activate an entity in someone else's collection" in {
         implicit val tid = transid()
         val collections = Seq(ACTIONS, RULES, TRIGGERS, PACKAGES)
-        val resources = collections map { Resource(someUser.namespace, _, Some("xyz")) }
+        val resources = collections map { Resource(someUser.namespace.toPath, _, Some("xyz")) }
         resources foreach { r =>
             Await.result(entitlementService.check(guestUser, READ, r), requestTimeout) should be(false)
             Await.result(entitlementService.check(guestUser, PUT, r), requestTimeout) should be(false)
@@ -125,7 +150,7 @@ class AuthorizeTests extends ControllerTestCommon with Authenticate {
     it should "authorize a user to list, create/update/delete a package" in {
         implicit val tid = transid()
         val collections = Seq(PACKAGES)
-        val resources = collections map { Resource(someUser.namespace, _, Some("xyz")) }
+        val resources = collections map { Resource(someUser.namespace.toPath, _, Some("xyz")) }
         resources foreach { r =>
             a[RejectRequest] should be thrownBy {
                 // read should fail because the lookup for the package will fail
@@ -141,27 +166,27 @@ class AuthorizeTests extends ControllerTestCommon with Authenticate {
 
     it should "grant access to entire collection to another user" in {
         implicit val tid = transid()
-        val all = Resource(someUser.namespace, ACTIONS, None)
-        val one = Resource(someUser.namespace, ACTIONS, Some("xyz"))
+        val all = Resource(someUser.namespace.toPath, ACTIONS, None)
+        val one = Resource(someUser.namespace.toPath, ACTIONS, Some("xyz"))
         Await.result(entitlementService.check(adminUser, READ, all), requestTimeout) should not be (true)
         Await.result(entitlementService.check(adminUser, READ, one), requestTimeout) should not be (true)
-        Await.result(entitlementService.grant(adminUser, READ, all), requestTimeout) // granted
+        Await.result(entitlementService.grant(adminUser.subject, READ, all), requestTimeout) // granted
         Await.result(entitlementService.check(adminUser, READ, all), requestTimeout) should be(true)
         Await.result(entitlementService.check(adminUser, READ, one), requestTimeout) should be(true)
-        Await.result(entitlementService.revoke(adminUser, READ, all), requestTimeout) // revoked
+        Await.result(entitlementService.revoke(adminUser.subject, READ, all), requestTimeout) // revoked
     }
 
     it should "grant access to specific resource to a user" in {
         implicit val tid = transid()
-        val all = Resource(someUser.namespace, ACTIONS, None)
-        val one = Resource(someUser.namespace, ACTIONS, Some("xyz"))
+        val all = Resource(someUser.namespace.toPath, ACTIONS, None)
+        val one = Resource(someUser.namespace.toPath, ACTIONS, Some("xyz"))
         Await.result(entitlementService.check(adminUser, READ, all), requestTimeout) should not be (true)
         Await.result(entitlementService.check(adminUser, READ, one), requestTimeout) should not be (true)
         Await.result(entitlementService.check(adminUser, DELETE, one), requestTimeout) should not be (true)
-        Await.result(entitlementService.grant(adminUser, READ, one), requestTimeout) // granted
+        Await.result(entitlementService.grant(adminUser.subject, READ, one), requestTimeout) // granted
         Await.result(entitlementService.check(adminUser, READ, all), requestTimeout) should not be (true)
         Await.result(entitlementService.check(adminUser, READ, one), requestTimeout) should be(true)
         Await.result(entitlementService.check(adminUser, DELETE, one), requestTimeout) should not be (true)
-        Await.result(entitlementService.revoke(adminUser, READ, one), requestTimeout) // revoked
+        Await.result(entitlementService.revoke(adminUser.subject, READ, one), requestTimeout) // revoked
     }
 }

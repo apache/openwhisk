@@ -37,11 +37,11 @@ import whisk.core.entity.WhiskEntity
 import whisk.core.entity.WhiskActivationStore
 import whisk.core.entity.types.ActivationStore
 import whisk.core.entitlement.Collection
-import whisk.core.entitlement.Privilege
+import whisk.core.entitlement.Privilege.Privilege
 import whisk.core.entitlement.Privilege.READ
 import whisk.core.entitlement.Resource
-import whisk.core.entity.WhiskAuth
 import scala.language.postfixOps
+import whisk.core.entity.Identity
 
 object WhiskActivationsApi {
     def requiredProperties = WhiskActivationStore.requiredProperties
@@ -82,7 +82,7 @@ trait WhiskActivationsApi
      * Overrides because API allows for GET on /activations and /activations/[result|log] which
      * would be rejected in the superclass.
      */
-    override protected def innerRoutes(user: WhiskAuth, ns: EntityPath)(implicit transid: TransactionId) = {
+    override protected def innerRoutes(user: Identity, ns: EntityPath)(implicit transid: TransactionId) = {
         (entityPrefix & entityOps & requestMethod) { (segment, m) =>
             entityname(segment) {
                 // defer rest of the path processing to the fetch operation, which is
@@ -93,7 +93,7 @@ trait WhiskActivationsApi
     }
 
     /** Dispatches resource to the proper handler depending on context. */
-    protected override def dispatchOp(user: WhiskAuth, op: Privilege, resource: Resource)(implicit transid: TransactionId) = {
+    protected override def dispatchOp(user: Identity, op: Privilege, resource: Resource)(implicit transid: TransactionId) = {
         resource.entity match {
             case Some(ActivationId(id)) => op match {
                 case READ => fetch(resource.namespace, id)

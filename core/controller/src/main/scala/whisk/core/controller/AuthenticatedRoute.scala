@@ -19,19 +19,15 @@ package whisk.core.controller
 import scala.Left
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
-import scala.concurrent.Promise
-import scala.util.Failure
-import scala.util.Success
 
 import spray.http.StatusCodes.InternalServerError
 import spray.http.StatusCodes.ServiceUnavailable
-import spray.routing.Rejection
 import spray.routing.RequestContext
 import spray.routing.Route
 import spray.routing.authentication.BasicHttpAuthenticator
 import spray.routing.authentication.UserPass
 import whisk.common.TransactionId
-import whisk.core.entity.WhiskAuth
+import whisk.core.entity.Identity
 import whisk.http.CustomRejection
 
 /** A common trait for secured routes */
@@ -42,24 +38,21 @@ trait AuthenticatedRoute {
 
     /** Creates HTTP BasicAuth handler */
     protected def basicauth(implicit transid: TransactionId) = {
-        new BasicHttpAuthenticator[WhiskAuth](realm = "whisk rest service", validateCredentials _) {
+        new BasicHttpAuthenticator[Identity](realm = "whisk rest service", validateCredentials _) {
             override def apply(ctx: RequestContext) = {
-                val promise = Promise[Either[Rejection, WhiskAuth]]
-                super.apply(ctx) onComplete {
-                    case Success(t)                        => promise.success(t)
-                    case Failure(t: IllegalStateException) => promise.success(Left(CustomRejection(InternalServerError)))
-                    case Failure(t)                        => promise.success(Left(CustomRejection(ServiceUnavailable)))
+                super.apply(ctx) recover {
+                    case t: IllegalStateException => Left(CustomRejection(InternalServerError))
+                    case t                        => Left(CustomRejection(ServiceUnavailable))
                 }
-                promise.future
             }
         }
     }
 
     /** Validates credentials against database of subjects */
-    protected def validateCredentials(userpass: Option[UserPass])(implicit transid: TransactionId): Future[Option[WhiskAuth]]
+    protected def validateCredentials(userpass: Option[UserPass])(implicit transid: TransactionId): Future[Option[Identity]]
 }
 
 /** A trait for authenticated routes. */
 trait AuthenticatedRouteProvider {
-    def routes(user: WhiskAuth)(implicit transid: TransactionId): Route
+    def routes(user: Identity)(implicit transid: TransactionId): Route
 }

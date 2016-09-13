@@ -54,7 +54,6 @@ import whisk.core.entity.SemVer
 import whisk.core.entity.Status
 import whisk.core.entity.TriggerLimits
 import whisk.core.entity.WhiskActivation
-import whisk.core.entity.WhiskAuth
 import whisk.core.entity.WhiskEntity
 import whisk.core.entity.WhiskEntityStore
 import whisk.core.entity.WhiskTrigger
@@ -64,6 +63,7 @@ import whisk.core.entity.types.EntityStore
 import whisk.http.ErrorResponse.terminate
 import spray.httpx.UnsuccessfulResponseException
 import spray.http.StatusCodes
+import whisk.core.entity.Identity
 
 /**
  * A singleton object which defines the properties that must be present in a configuration
@@ -125,7 +125,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
      * - 404 Not Found
      * - 500 Internal Server Error
      */
-    override def activate(user: WhiskAuth, namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
+    override def activate(user: Identity, namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
 
         entity(as[Option[JsObject]]) {
             payload =>
@@ -137,7 +137,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                         info(this, s"[POST] trigger activation id: ${triggerActivationId}")
 
                         val triggerActivation = WhiskActivation(
-                            namespace = user.subject.namespace, // all activations should end up in the one space regardless trigger.namespace,
+                            namespace = user.namespace.toPath, // all activations should end up in the one space regardless trigger.namespace,
                             name,
                             user.subject,
                             triggerActivationId,
@@ -162,7 +162,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                             } foreach {
                                 case (ruleName, rule) =>
                                     val ruleActivation = WhiskActivation(
-                                        namespace = user.subject.namespace, // all activations should end up in the one space regardless trigger.namespace,
+                                        namespace = user.namespace.toPath, // all activations should end up in the one space regardless trigger.namespace,
                                         ruleName.last,
                                         user.subject,
                                         activationId.make(),

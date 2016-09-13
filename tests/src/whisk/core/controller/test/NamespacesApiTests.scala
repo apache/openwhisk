@@ -53,7 +53,7 @@ class NamespacesApiTests extends ControllerTestCommon with WhiskNamespacesApi {
     behavior of "Namespaces API"
 
     val collectionPath = s"/${collection.path}"
-    val creds = WhiskAuth(Subject(), AuthKey())
+    val creds = WhiskAuth(Subject(), AuthKey()).toIdentity
     val namespace = EntityPath(creds.subject())
 
     it should "list namespaces for subject" in {

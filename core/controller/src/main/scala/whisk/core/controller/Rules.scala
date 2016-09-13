@@ -47,14 +47,15 @@ import whisk.core.entity.ReducedRule
 import whisk.core.entity.SemVer
 import whisk.core.entity.Status
 import whisk.core.entity.WhiskAction
-import whisk.core.entity.WhiskAuth
 import whisk.core.entity.WhiskEntity
 import whisk.core.entity.WhiskEntityStore
 import whisk.core.entity.WhiskRule
 import whisk.core.entity.WhiskRulePut
 import whisk.core.entity.WhiskTrigger
 import whisk.core.entity.types.EntityStore
+import whisk.core.entity.Identity
 import whisk.http.ErrorResponse.terminate
+import whisk.http.Messages._
 
 /**
  * A singleton object which defines the properties that must be present in a configuration
@@ -127,7 +128,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
      * - 409 Conflict
      * - 500 Internal Server Error
      */
-    override def activate(user: WhiskAuth, namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
+    override def activate(user: Identity, namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
         extractStatusRequest { requestedState =>
             val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
 

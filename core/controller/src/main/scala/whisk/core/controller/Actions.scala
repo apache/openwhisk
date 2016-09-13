@@ -24,6 +24,7 @@ import scala.concurrent.duration.FiniteDuration
 import scala.util.Failure
 import scala.util.Success
 import scala.language.postfixOps
+
 import akka.actor.ActorSystem
 import spray.http.HttpMethod
 import spray.http.HttpMethods.DELETE
@@ -41,9 +42,12 @@ import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
 import spray.json.DefaultJsonProtocol.RootJsObjectFormat
 import spray.json.{ JsArray, JsObject, JsString }
 import spray.routing.RequestContext
+import org.apache.kafka.common.errors.RecordTooLargeException
+
 import whisk.common.LoggingMarkers
 import whisk.common.StartMarker
 import whisk.common.TransactionId
+import whisk.common.PrintStreamEmitter
 import whisk.core.database.NoDocumentException
 import whisk.core.entity.ActionLimits
 import whisk.core.entity.ActivationId
@@ -67,18 +71,15 @@ import whisk.core.entity.types.ActivationStore
 import whisk.core.entity.types.EntityStore
 import whisk.core.entitlement.Collection
 import whisk.core.entitlement.Privilege
-import whisk.core.entity.WhiskAuth
 import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.core.entitlement.Resource
 import whisk.core.entity.WhiskPackage
 import whisk.core.entity.Binding
 import whisk.core.entity.Subject
-import whisk.http.ErrorResponse.terminate
-import whisk.common.PrintStreamEmitter
-import org.apache.kafka.common.errors.RecordTooLargeException
-import whisk.utils.ExecutionContextFactory.FutureExtensions
-import scala.concurrent.duration.FiniteDuration
 import whisk.core.entity.FullyQualifiedEntityName
+import whisk.core.entity.Identity
+import whisk.http.ErrorResponse.terminate
+import whisk.utils.ExecutionContextFactory.FutureExtensions
 
 /**
  * A singleton object which defines the properties that must be present in a configuration
@@ -137,7 +138,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      *                  *and* one of { package(ns', *), package(ns', bar) }
      *                  resource resolves to { action(ns.bar, *) }
      */
-    protected override def innerRoutes(user: WhiskAuth, ns: EntityPath)(implicit transid: TransactionId) = {
+    protected override def innerRoutes(user: Identity, ns: EntityPath)(implicit transid: TransactionId) = {
         (entityPrefix & entityOps & requestMethod) { (segment, m) =>
             entityname(segment) { outername =>
                 pathEnd {
@@ -148,7 +149,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                     // matched GET /namespace/collection/package-name/
                     // list all actions in package iff subject is entitled to READ package
                     val resource = Resource(ns, Collection(Collection.PACKAGES), Some(outername))
-                    authorizeAndContinue(Privilege.READ, user.subject, resource, next = () => {
+                    authorizeAndContinue(Privilege.READ, user, resource, next = () => {
                         listPackageActions(user.subject, ns, EntityName(outername))
                     })
                 } ~ (entityPrefix & pathEnd) { segment =>
@@ -170,7 +171,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                                 // it may be desirable to separate these but currently the PACKAGES collection
                                 // does not allow ACTIVATE since it does not make sense to activate a package
                                 // but rather an action in the package
-                                authorizeAndContinue(Privilege.READ, user.subject, packageResource, next = () => {
+                                authorizeAndContinue(Privilege.READ, user, packageResource, next = () => {
                                     getEntity(WhiskPackage, entityStore, packageDocId, Some {
                                         mergeActionWithPackageAndDispatch(m, user, EntityName(innername)) _
                                     })
@@ -180,7 +181,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                                 // but may not be permitted if this is a binding, or if the subject does
                                 // not have PUT and DELETE rights to the package itself
                                 val right = collection.determineRight(m, Some { innername })
-                                authorizeAndContinue(right, user.subject, packageResource, next = () => {
+                                authorizeAndContinue(right, user, packageResource, next = () => {
                                     getEntity(WhiskPackage, entityStore, packageDocId, Some { wp: WhiskPackage =>
                                         wp.binding map {
                                             _ => terminate(BadRequest, "Operation not permitted on package binding")
@@ -230,14 +231,14 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      * - 502 Bad Gateway
      * - 500 Internal Server Error
      */
-    override def activate(user: WhiskAuth, namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
+    override def activate(user: Identity, namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
         parameter('blocking ? false, 'result ? false) { (blocking, result) =>
             entity(as[Option[JsObject]]) { payload =>
                 val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
                 getEntity(WhiskAction, entityStore, docid, Some {
                     action: WhiskAction =>
                         transid.started(this, if (blocking) LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING else LoggingMarkers.CONTROLLER_ACTIVATION)
-                        val postToLoadBalancer = postInvokeRequest(user.subject, action, env, payload, blocking)
+                        val postToLoadBalancer = postInvokeRequest(user, action, env, payload, blocking)
                         onComplete(postToLoadBalancer) {
                             case Success((activationId, None)) =>
                                 // non-blocking invoke or blocking invoke which got queued instead
@@ -424,7 +425,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      * @return a promise that completes with (ActivationId, Some(WhiskActivation)) if blocking else (ActivationId, None)
      */
     private def postInvokeRequest(
-        user: Subject,
+        user: Identity,
         action: WhiskAction,
         env: Option[Parameters],
         payload: Option[JsObject],
@@ -435,9 +436,10 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         val message = Message(
             transid,
             FullyQualifiedEntityName(action.namespace, action.name, Some(action.rev())),
-            user,
+            user.subject,
+            user.authkey,
             activationId.make(),
-            user.namespace,
+            activationNamespace = user.namespace.toPath,
             args)
 
         val activationResponse = if (blocking) {
@@ -470,14 +472,14 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      * If this mechanism fails to produce an answer quickly, the future will switch to polling the database for the response
      * record.
      */
-    private def waitForActivationResponse(user: Subject, message: Message, totalWaitTime: FiniteDuration)(implicit transid: TransactionId) = {
+    private def waitForActivationResponse(user: Identity, message: Message, totalWaitTime: FiniteDuration)(implicit transid: TransactionId) = {
         // this is the promise which active ack or db polling will try to complete in one of four ways:
         // 1. active ack response
         // 2. failing active ack (due to active ack timeout), fall over to db polling
         // 3. timeout on db polling => converts activation to non-blocking (returns activation id only)
         // 4. internal error
         val promise = Promise[WhiskActivation]
-        val docid = DocId(WhiskEntity.qualifiedName(user.namespace, message.activationId)).asDocInfo
+        val docid = DocId(WhiskEntity.qualifiedName(user.namespace.toPath, message.activationId)).asDocInfo
         val activationId = message.activationId
 
         info(this, s"[POST] action activation will block on result up to $totalWaitTime")
@@ -579,7 +581,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      * Once the package is resolved, the operation is dispatched to the action in the package
      * namespace.
      */
-    private def mergeActionWithPackageAndDispatch(method: HttpMethod, user: WhiskAuth, action: EntityName, ref: Option[WhiskPackage] = None)(wp: WhiskPackage)(
+    private def mergeActionWithPackageAndDispatch(method: HttpMethod, user: Identity, action: EntityName, ref: Option[WhiskPackage] = None)(wp: WhiskPackage)(
         implicit transid: TransactionId): RequestContext => Unit = {
         wp.binding map {
             case Binding(ns, n) =>
