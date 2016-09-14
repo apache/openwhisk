@@ -98,8 +98,8 @@ create_cli_packages() {
   echo $dirIndex > ./build/content.json
 };
 
-platforms="mac linux windows"
-archs="386 amd64"
+platforms="$CLI_OS"
+archs="$CLI_ARCH";
 default_arch="amd64"
 
 create_cli_packages

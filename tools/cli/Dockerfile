@@ -32,8 +32,9 @@ RUN cd /src/github.com/go-whisk-cli && echo "Dependencies list requires restruct
 # All of the Go CLI binaries will be placed under a build folder
 RUN mkdir /src/github.com/go-whisk-cli/build
 
+ARG CLI_OS
+ARG CLI_ARCH
+
 # Build the Go wsk CLI binaries and compress resultant binaries
 RUN chmod +x /src/github.com/build.sh
 RUN cd /src/github.com/ && ./build.sh
-
-
