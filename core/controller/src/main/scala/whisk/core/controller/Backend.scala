@@ -38,7 +38,7 @@ import whisk.core.entity.ActivationId.ActivationIdGenerator
 
 object WhiskServices {
 
-    type LoadBalancerReq = (String, ActivationMessage, TransactionId)
+    type LoadBalancerReq = (ActivationMessage, TransactionId)
 
     def requiredProperties = WhiskConfig.loadbalancerHost ++ WhiskConfig.consulServer ++ EntitlementService.requiredProperties
 
@@ -69,7 +69,7 @@ object WhiskServices {
     def makeLoadBalancerComponent(config: WhiskConfig, timeout: Timeout = 10 seconds)(
         implicit as: ActorSystem): (LoadBalancerReq => Future[Unit], () => JsObject, (ActivationId, FiniteDuration, TransactionId) => Future[WhiskActivation]) = {
         val loadBalancer = new LoadBalancerService(config, InfoLevel)
-        val requestTaker = (lbr: LoadBalancerReq) => { loadBalancer.doPublish(lbr._1, lbr._2)(lbr._3) }
+        val requestTaker = (lbr: LoadBalancerReq) => { loadBalancer.publish(lbr._1)(lbr._2) }
         (requestTaker, loadBalancer.getInvokerHealth, loadBalancer.queryActivationResponse)
     }
 

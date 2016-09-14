@@ -73,9 +73,9 @@ case class ActivationMessage(
 }
 
 object ActivationMessage extends DefaultJsonProtocol {
-    val INVOKER = "invoke"
+    private val INVOKE = "invoke"
 
-    def publish(component: String) = s"/publish/$component"
+    def invoker(instance: Int) = INVOKE + instance
 
     def apply(msg: String): Try[ActivationMessage] = Try {
         serdes.read(msg.parseJson)

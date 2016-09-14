@@ -555,7 +555,7 @@ object Invoker {
         if (config.isValid) {
             SimpleExec.setVerbosity(verbosity)
 
-            val topic = s"invoke${instance}"
+            val topic = Message.invoker(instance)
             val groupid = "invokers"
             val maxdepth = ContainerPool.getDefaultMaxActive(config)
             val consumer = new KafkaConsumerConnector(config.kafkaHost, groupid, topic, maxdepth)

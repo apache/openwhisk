@@ -46,25 +46,22 @@ trait LoadBalancerToKafka extends Logging {
     /**
      * Publishes message on kafka bus for the invoker to pick up.
      *
-     * @param topic the topic name extracted from URI
-     * @param msg the message received via POST
-     * @param transid the transaction id, this may be the tid assigned by the controller and carried by the message or one determined by the load balancer service
-     * @return msg to return in HTTP response
+     * @param msg the activation message to publish on an invoker topic
+     * @param transid the transaction id for the request
+     * @return result of publishing the message as a Future
      */
-    def doPublish(component: String, msg: Message)(implicit transid: TransactionId): Future[Unit] = {
-        getTopic(component, msg) match {
+    def publish(msg: Message)(implicit transid: TransactionId): Future[Unit] = {
+        getInvoker(msg) map {
+            i => (i, Message.invoker(i))
+        } match {
             case Some((invokerIndex, topic)) =>
                 val subject = msg.subject()
                 info(this, s"posting topic '$topic' with activation id '${msg.activationId}'")
                 producer.send(topic, msg) map { status =>
-                    if (component == Message.INVOKER) {
-                        val counter = updateActivationCount(subject, invokerIndex)
-                        info(this, s"user has ${counter} activations posted. Posted to ${status.topic()}[${status.partition()}][${status.offset()}]")
-                    }
+                    val counter = updateActivationCount(subject, invokerIndex)
+                    info(this, s"user has ${counter} activations posted. Posted to ${status.topic()}[${status.partition()}][${status.offset()}]")
                 }
-            case None => Future.failed {
-                new LoadBalancerException("no invokers available")
-            }
+            case None => Future.failed(new LoadBalancerException("no invokers available"))
         }
     }
 
@@ -74,12 +71,6 @@ trait LoadBalancerToKafka extends Logging {
      * @return index of invoker to receive request
      */
     def getInvoker(message: Message): Option[Int]
-
-    private def getTopic(component: String, message: Message): Option[(Int, String)] = {
-        if (component == Message.INVOKER) {
-            getInvoker(message) map { i => (i, s"$component$i") }
-        } else Some(-1, component)
-    }
 
     private def updateActivationCount(user: String, invokerIndex: Int): Int = {
         invokerActivationCounter get invokerIndex match {

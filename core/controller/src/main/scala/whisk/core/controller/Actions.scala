@@ -69,7 +69,6 @@ import whisk.core.entitlement.Collection
 import whisk.core.entitlement.Privilege
 import whisk.core.entity.WhiskAuth
 import whisk.core.connector.{ ActivationMessage => Message }
-import whisk.core.connector.ActivationMessage.INVOKER
 import whisk.core.entitlement.Resource
 import whisk.core.entity.WhiskPackage
 import whisk.core.entity.Binding
@@ -455,7 +454,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         }
 
         info(this, s"[POST] action activation id: ${message.activationId}")
-        performLoadBalancerRequest(INVOKER, message, transid) flatMap { _ =>
+        performLoadBalancerRequest(message, transid) flatMap { _ =>
             if (!blocking) {
                 // Duration of the non-blocking activation in Controller.
                 // We use the start time of the tid instead of a startMarker to avoid passing the start marker around.
