@@ -52,16 +52,16 @@ trait LoadBalancerToKafka extends Logging {
      */
     def publish(msg: Message)(implicit transid: TransactionId): Future[Unit] = {
         getInvoker(msg) map {
-            i => (i, Message.invoker(i))
-        } match {
-            case Some((invokerIndex, topic)) =>
+            invokerIndex =>
+                val topic = Message.invoker(invokerIndex)
                 val subject = msg.subject()
                 info(this, s"posting topic '$topic' with activation id '${msg.activationId}'")
                 producer.send(topic, msg) map { status =>
                     val counter = updateActivationCount(subject, invokerIndex)
                     info(this, s"user has ${counter} activations posted. Posted to ${status.topic()}[${status.partition()}][${status.offset()}]")
                 }
-            case None => Future.failed(new LoadBalancerException("no invokers available"))
+        } getOrElse {
+            Future.failed(new LoadBalancerException("no invokers available"))
         }
     }
 
