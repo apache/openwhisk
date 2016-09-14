@@ -31,7 +31,7 @@ cd openwhisk/tools/vagrant
 
 Wait for hello action output:
 ```
-wsk action invoke /whisk.system/samples/echo -p message hello --blocking --result
+wsk action invoke /whisk.system/utils/echo -p message hello --blocking --result
 {
     "message": "hello"
 }

@@ -44,7 +44,7 @@ should be `172.17.0.1` or more formally, the IP of the `edge` host from the
 
 ### Use the wsk CLI
 ```
-bin/wsk action invoke /whisk.system/samples/echo -p message hello --blocking --result
+bin/wsk action invoke /whisk.system/utils/echo -p message hello --blocking --result
 {
     "message": "hello"
 }

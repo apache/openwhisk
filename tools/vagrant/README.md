@@ -41,7 +41,7 @@ For more information on data store configurations see [tools/db/README.md](../db
 
 ### Wait for hello action output
 ```
-wsk action invoke /whisk.system/samples/echo -p message hello --blocking --result
+wsk action invoke /whisk.system/utils/echo -p message hello --blocking --result
 {
     "message": "hello"
 }
@@ -70,7 +70,7 @@ The following commands assume that you have `wsk` setup correctly in your PATH.
 wsk -i property set --apihost 192.168.33.13 --namespace guest --auth `vagrant ssh -- cat openwhisk/ansible/files/auth.guest`
 
 # Run the hello sample action
-wsk -i action invoke /whisk.system/samples/echo -p message hello --blocking --result
+wsk -i action invoke /whisk.system/utils/echo -p message hello --blocking --result
 {
     "message": "hello"
 }
@@ -83,12 +83,12 @@ For your convenience, a `wsk` wrapper is provided inside the VM which delegates 
 
 Calling the wsk CLI via `vagrant ssh` directly
 ```
-vagrant ssh -- wsk action invoke /whisk.system/samples/echo -p message hello --blocking --result
+vagrant ssh -- wsk action invoke /whisk.system/utils/echo -p message hello --blocking --result
 ```
 Calling the wsk CLI by login into the Vagrant VM
 ```
 vagrant ssh
-wsk action invoke /whisk.system/samples/echo -p message hello --blocking --result
+wsk action invoke /whisk.system/utils/echo -p message hello --blocking --result
 ```
 
 ### Run OpenWhisk tests
