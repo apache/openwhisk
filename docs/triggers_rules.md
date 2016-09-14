@@ -146,4 +146,4 @@ As an example, create a rule that calls the hello action whenever a location upd
 
 You can create multiple rules that associate the same trigger with different actions.
 The trigger and action that make a rule must be in the same namespace and cannot belong to a package.
-If you want to use an action that belongs to a package, you can copy the action into your namespace. For example: `wsk action create echo --copy /whisk.system/samples/echo`.
+If you want to use an action that belongs to a package, you can copy the action into your namespace. For example: `wsk action create echo --copy /whisk.system/utils/echo`.

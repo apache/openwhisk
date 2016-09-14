@@ -285,20 +285,21 @@ This example invokes a Yahoo Weather service to get the current conditions at a 
 
 You can create an action that chains together a sequence of actions.
 
-Several utility actions are provided in a package called `/whisk.system/util` that you can use to create your first sequence. You can learn more about packages in the [Packages](./packages.md) section.
+Several utility actions are provided in a package called `/whisk.system/utils` that you can use to create your first sequence. You can learn more about packages in the [Packages](./packages.md) section.
 
-1. Display the actions in the `/whisk.system/util` package.
+1. Display the actions in the `/whisk.system/utils` package.
   
   ```
-  $ wsk package get --summary /whisk.system/util
+  $ wsk package get --summary /whisk.system/utils
   ```
   ```
-  package /whisk.system/util
-   action /whisk.system/util/cat: Concatenate array of strings
-   action /whisk.system/util/head: Filter first K array elements and discard rest
-   action /whisk.system/util/date: Get current date and time
-   action /whisk.system/util/sort: Sort array
-   action /whisk.system/util/split: Splits a string into an array of strings
+  package /whisk.system/utils: Building blocks that format and assemble data
+   action /whisk.system/utils/head: Extract prefix of an array
+   action /whisk.system/utils/split: Split a string into an array
+   action /whisk.system/utils/sort: Sorts an array
+   action /whisk.system/utils/echo: Returns the input
+   action /whisk.system/utils/date: Current date and time
+   action /whisk.system/utils/cat: Concatenates input into a string
   ```
 
   You will be using the `split` and `sort` actions in this example.
@@ -306,7 +307,7 @@ Several utility actions are provided in a package called `/whisk.system/util` th
 2. Create an action sequence so that the result of one action is passed as an argument to the next action.
   
   ```
-  $ wsk action create myAction --sequence /whisk.system/util/split,/whisk.system/util/sort
+  $ wsk action create myAction --sequence /whisk.system/utils/split,/whisk.system/utils/sort
   ```
 
   This action sequence converts some lines of text to an array, and sorts the lines.
