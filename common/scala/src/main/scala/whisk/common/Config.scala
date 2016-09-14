@@ -67,20 +67,20 @@ class Config(requiredProperties: Map[String, String]) {
     /*
      * Converts the set of property to a string for debugging.
      */
-    def mkString(): String = settings.mkString("\n")
+    def mkString: String = settings.mkString("\n")
 
     /**
      * Loads the properties as specified above.
      *
      * @return a pair which is the Map defining the properties, and a boolean indicating whether validation succeeded.
      */
-    protected def getProperties: (Map[String, String], Boolean) = {
+    protected def getProperties(): (Map[String, String], Boolean) = {
         val properties = scala.collection.mutable.Map[String, String]() ++= requiredProperties
         Config.readPropertiesFromEnvironment(properties)
         (properties.toMap, Config.validateProperties(requiredProperties, properties))
     }
 
-    private val (settings, valid) = getProperties
+    private val (settings, valid) = getProperties()
 }
 
 /**

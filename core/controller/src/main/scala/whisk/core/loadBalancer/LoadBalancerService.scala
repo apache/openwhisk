@@ -88,7 +88,8 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
             val inFlight = issuedCount - completedCount
             val overload = JsBoolean(overloadThreshold > 0 && inFlight >= overloadThreshold)
             if (count % 10 == 0) {
-                warn(this, s"In flight: $issuedCount - $completedCount = $inFlight $overload")
+                implicit val sid = TransactionId.loadbalancer
+                info(this, s"In flight: $issuedCount - $completedCount = $inFlight $overload")
                 info(this, s"Issued counts: [${issuedCounts.mkString(", ")}]")
                 info(this, s"Completion counts: [${invokerCounts.mkString(", ")}]")
                 info(this, s"Invoker health: [${health.mkString(", ")}]")
