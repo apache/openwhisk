@@ -178,7 +178,7 @@ JavaScript functions that run asynchronously may need to return the activation r
        return new Promise(function(resolve, reject) {
          setTimeout(function() {
            resolve({ done: true });
-         }, 20000);
+         }, 2000);
       })
    }
   ```
@@ -229,7 +229,7 @@ JavaScript functions that run asynchronously may need to return the activation r
   }
   ```
 
-  Comparing the `start` and `end` time stamps in the activation record, you can see that this activation took slightly over twenty seconds to complete.
+  Comparing the `start` and `end` time stamps in the activation record, you can see that this activation took slightly over two seconds to complete.
 
 
 ### Using actions to call an external API
