@@ -8,19 +8,11 @@ function main(params) {
     if (n === 0) {
         console.log('Happy New Year!');
     } else if (n > 0) {
-        whisk.invoke({
+        return whisk.invoke({
             name : 'countdown',
             parameters : {
                 n : n - 1
-            },
-            next : function(error, activation) {
-                if (!error) {
-                    whisk.done();
-                } else {
-                    whisk.error(error);
-                }
             }
         });
-        return whisk.async();
     }
 }
