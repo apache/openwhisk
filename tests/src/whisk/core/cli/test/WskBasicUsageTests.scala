@@ -126,7 +126,7 @@ class WskBasicUsageTests
         val tmpwskprops = File.createTempFile("wskprops", ".tmp")
         try {
             val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
-            val apihost = s"${WhiskProperties.getControllerHost}"
+            val apihost = s"http://${WhiskProperties.getControllerHost}:${WhiskProperties.getControllerPort}"
             wsk.cli(Seq("property", "set", "--apihost", apihost), env = env)
             val rr = wsk.cli(Seq("property", "get", "--apibuild", "-i"), env = env)
             rr.stdout should not include regex ("""whisk API build\s*Unknown""")

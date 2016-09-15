@@ -32,6 +32,7 @@ import (
     "compress/gzip"
     "archive/zip"
     "encoding/json"
+    "net/url"
 )
 
 type qualifiedName struct {
@@ -822,3 +823,14 @@ func checkArgs(args []string, minimumArgNumber int, maximumArgNumber int, comman
     }
 }
 
+func urlBase() (*url.URL, error)  {
+    urlBase := fmt.Sprintf("%s/api/", Properties.APIHost)
+    url, err := url.Parse(urlBase)
+
+    if len(url.Scheme) == 0 || len(url.Host) == 0 {
+        urlBase = fmt.Sprintf("https://%s/api/", Properties.APIHost)
+        url, err = url.Parse(urlBase)
+    }
+
+    return url, err
+}

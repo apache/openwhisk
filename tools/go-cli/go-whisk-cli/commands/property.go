@@ -22,7 +22,6 @@ import (
     "fmt"
     "os"
     "strings"
-    "net/url"
 
     "github.com/mitchellh/go-homedir"
     "github.com/spf13/cobra"
@@ -91,11 +90,11 @@ var propertySetCmd = &cobra.Command{
         }
 
         if apiHost := flags.property.apihostSet; len(apiHost) > 0 {
-            var apiHostBaseUrl = fmt.Sprintf("https://%s/api/", apiHost)
-            tempURL, err := url.Parse(apiHostBaseUrl)
+            baseURL, err := urlBase()
+
             if err != nil {
                 // Not aborting now.  Subsequent commands will result in error
-                whisk.Debug(whisk.DbgError, "url.Parse(%s) error: %s", apiHostBaseUrl, err)
+                whisk.Debug(whisk.DbgError, "urlBase() error: %s", err)
                 errStr := fmt.Sprintf(
                     wski18n.T("Unable to set API host value; the API host value '{{.apihost}}' is invalid: {{.err}}",
                         map[string]interface{}{"apihost": apiHost, "err": err}))
@@ -103,7 +102,7 @@ var propertySetCmd = &cobra.Command{
                     whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             } else {
                 props["APIHOST"] = apiHost
-                client.Config.BaseURL = tempURL
+                client.Config.BaseURL = baseURL
                 okMsg += fmt.Sprintf(
                     wski18n.T("{{.ok}} whisk API host set to {{.host}}\n",
                         map[string]interface{}{"ok": color.GreenString("ok:"), "host": boldString(apiHost)}))
@@ -483,14 +482,10 @@ func parseConfigFlags(cmd *cobra.Command, args []string) error {
 
         if client != nil {
             client.Config.Host = apiHost
+            baseURL, err := urlBase()
 
-            // Place the host name (or ip addr) in whisk base URL string and parse
-            // it to create a URL object.  Parsing will also validate the URL providing
-            // a sanity check on the host/ip format
-            var apiHostBaseUrl = fmt.Sprintf("https://%s/api/", Properties.APIHost)
-            baseURL, err := url.Parse(apiHostBaseUrl)
             if err != nil {
-                whisk.Debug(whisk.DbgError, "url.Parse(%s) failed: %s\n", apiHostBaseUrl, err)
+                whisk.Debug(whisk.DbgError, "urlBase() failed: %s\n", err)
                 errStr := fmt.Sprintf(
                     wski18n.T("Invalid host address '{{.host}}': {{.err}}",
                         map[string]interface{}{"host": Properties.APIHost, "err": err}))

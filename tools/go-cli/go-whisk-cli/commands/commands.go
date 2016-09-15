@@ -32,13 +32,12 @@ import (
 var client *whisk.Client
 
 func setupClientConfig(cmd *cobra.Command, args []string) (error){
-    var apiHostBaseUrl = fmt.Sprintf("https://%s/api/", Properties.APIHost)
-    baseURL, err := url.Parse(apiHostBaseUrl)
+    baseURL, err := urlBase()
 
     // Don't display the 'invalid apihost' error if this CLI invocation is setting that value
     isApiHostPropSetCmd := cmd.Parent().Name() == "property" && cmd.Name() == "set" && len(flags.property.apihostSet) > 0
     if err != nil && !isApiHostPropSetCmd {
-        whisk.Debug(whisk.DbgError, "url.Parse(%s) error: %s\n", apiHostBaseUrl, err)
+        whisk.Debug(whisk.DbgError, "urlBase() error: %s\n", err)
         errMsg := fmt.Sprintf(
             wski18n.T("error: The configured API host property value '{{.apihost}}' is invalid : {{.err}}",
                 map[string]interface{}{"apihost": Properties.APIHost, "err": err}))
