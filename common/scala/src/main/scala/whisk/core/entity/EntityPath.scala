@@ -45,9 +45,34 @@ protected[core] class EntityPath private (val path: Seq[String]) extends AnyVal 
     def addpath(e: EntityName) = EntityPath(path :+ e.name)
     def root = EntityPath(Seq(path(0)))
     def last = EntityName(path.last)
+    def defaultPackage = path.size == 1   // if only one element in the path, then it's the namespace with a default package
     def toJson = JsString(namespace)
     def apply() = namespace
     override def toString = namespace
+
+    /**
+     * helper method to replace the default namespace with a given namespace
+     * no effect if the namespace is not the default one
+     */
+    def resolveNamespace(newNamespace: EntityName): EntityPath ={
+        // check if namespace is default
+        if (root == EntityPath.DEFAULT) {
+            val newPath = path.updated(0, newNamespace.name)
+            EntityPath(newPath)
+        } else
+            this
+    }
+
+    /**
+     * @throws IllegalArgumentException if the path does not conform to schema (at least namespace and entity name must be present0
+     */
+    @throws[IllegalArgumentException]
+    def toFullyQualifiedEntityName = {
+        require(path.size > 1, "fully qualified entity name must contain at least the namespace and the name of the entity")
+        val name = last
+        val newPath = EntityPath(path.dropRight(1))
+        FullyQualifiedEntityName(newPath, name)
+    }
 }
 
 protected[core] object EntityPath {
@@ -162,10 +187,17 @@ protected[core] object EntityName {
  * - EntityName: the name of the entity
  * - Version: the semantic version of the resource
  */
-protected[core] case class FullyQualifiedEntityName(path: EntityPath, name: EntityName, version: SemVer) {
-    override def toString = path.addpath(name) + "@" + version.toString
+protected[core] case class FullyQualifiedEntityName(path: EntityPath, name: EntityName, version: Option[SemVer] = None) {
+    override def toString = path.addpath(name) + version.map("@" + _.toString).getOrElse("")
+    def toDocId = DocId(this.toString)
+    def pathToDocId = DocId(path.toString)
 }
 
 protected[core] object FullyQualifiedEntityName extends DefaultJsonProtocol {
     implicit val serdes = jsonFormat3(FullyQualifiedEntityName.apply)
+
+    /**
+     * utility function that makes a fully qualified name from a string
+     */
+    def apply(qualifiedName: String): FullyQualifiedEntityName = EntityPath(qualifiedName).toFullyQualifiedEntityName
 }

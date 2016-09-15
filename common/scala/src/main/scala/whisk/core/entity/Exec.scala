@@ -98,9 +98,12 @@ protected[core] case class BlackBoxExec(image: String) extends Exec(Exec.BLACKBO
     override val sentinelledLogs = false
 }
 
-protected[core] case class SequenceExec(code: String, components: Vector[String]) extends Exec(Exec.SEQUENCE) {
+/**
+ * add temporary field that holds the "fixed" names for components where the '_' is replaced by the user's namespace
+ */
+protected[core] case class SequenceExec(code: String, components: Vector[FullyQualifiedEntityName]) extends Exec(Exec.SEQUENCE) {
     val image = Exec.imagename(Exec.NODEJS)
-    def size = components.map(_ sizeInBytes).reduce(_ + _)
+    def size = 0.bytes // not used for the hacky implementation and not used for the new implementation either
 }
 
 protected[core] object Exec
@@ -132,7 +135,7 @@ protected[core] object Exec
     protected[core] def swift(code: String): Exec = SwiftExec(trim(code))
     protected[core] def swift3(code: String): Exec = Swift3Exec(trim(code))
     protected[core] def java(jar: String, main: String): Exec = JavaExec(Inline(trim(jar)), trim(main))
-    protected[core] def sequence(components: Vector[String]): Exec = SequenceExec(Pipecode.code, components)
+    protected[core] def sequence(components: Vector[String]): Exec = SequenceExec(Pipecode.code, components map {c => FullyQualifiedEntityName(c) } )
 
     private def attFmt[T: JsonFormat] = Attachments.serdes[T]
 
@@ -149,7 +152,7 @@ protected[core] object Exec
 
             case p @ PythonExec(code)     => JsObject("kind" -> JsString(Exec.PYTHON), "code" -> JsString(code), "binary" -> JsBoolean(p.binary))
 
-            case SequenceExec(code, comp) => JsObject("kind" -> JsString(Exec.SEQUENCE), "code" -> JsString(code), "components" -> JsArray(comp map { JsString(_) }))
+            case SequenceExec(code, comp) => JsObject("kind" -> JsString(Exec.SEQUENCE), "code" -> JsString(code), "components" -> JsArray(comp map { c => JsString(c.toString) }))
             case BlackBoxExec(image)      => JsObject("kind" -> JsString(Exec.BLACKBOX), "image" -> JsString(image))
         }
 
@@ -179,6 +182,20 @@ protected[core] object Exec
                     }
                     if (kind == Exec.NODEJS) NodeJSExec(code, init) else NodeJS6Exec(code, init)
 
+                case Exec.SEQUENCE =>
+                    val comp: Vector[FullyQualifiedEntityName] = obj.getFields("components") match {
+                        case Seq(JsArray(components)) =>
+                            components map {
+                                _ match {
+                                    case JsString(s) => FullyQualifiedEntityName(s)
+                                    case _           => throw new DeserializationException(s"'components' must be an array of strings")
+                                }
+                            }
+                        case Seq(_) => throw new DeserializationException(s"'components' must be an array")
+                        case _      => throw new DeserializationException(s"'components' must be defined for sequence kind")
+                    }
+                    SequenceExec(Pipecode.code, comp)
+
                 case Exec.SWIFT | Exec.SWIFT3 =>
                     val code: String = obj.getFields("code") match {
                         case Seq(JsString(c)) => c
@@ -204,20 +221,6 @@ protected[core] object Exec
                         case _                => throw new DeserializationException(s"'code' must be a string defined in 'exec' for '${Exec.PYTHON}' actions")
                     }
                     PythonExec(code)
-
-                case Exec.SEQUENCE =>
-                    val comp: Vector[String] = obj.getFields("components") match {
-                        case Seq(JsArray(components)) =>
-                            components map {
-                                _ match {
-                                    case JsString(s) => s
-                                    case _           => throw new DeserializationException(s"'components' must be an array of strings")
-                                }
-                            }
-                        case Seq(_) => throw new DeserializationException(s"'components' must be an array")
-                        case _      => throw new DeserializationException(s"'components' must be defined for sequence kind")
-                    }
-                    SequenceExec(Pipecode.code, comp)
 
                 case Exec.BLACKBOX =>
                     val image: String = obj.getFields("image") match {
