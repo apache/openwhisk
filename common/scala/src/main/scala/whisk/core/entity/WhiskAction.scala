@@ -17,6 +17,7 @@
 package whisk.core.entity
 
 import scala.concurrent.Future
+import scala.concurrent.ExecutionContext
 import scala.util.{ Try, Success, Failure }
 
 import akka.http.scaladsl.model.ContentType
@@ -38,6 +39,7 @@ import whisk.common.TransactionId
 import whisk.core.database.ArtifactStore
 import whisk.core.database.DocumentFactory
 import whisk.core.entity.Attachments._
+import whisk.core.entity.types.EntityStore
 
 /**
  * ActionLimitsOption mirrors ActionLimits but makes both the timeout and memory
@@ -128,7 +130,7 @@ case class WhiskAction(
         exec match {
             case NodeJSExec(code, optInit)      => getNodeInitializer(code, optInit)
             case NodeJS6Exec(code, optInit)     => getNodeInitializer(code, optInit)
-            case SequenceExec(code, components) => getNodeInitializer(code, None)
+            case SequenceExec(code, components, _) => getNodeInitializer(code, None)
             case SwiftExec(code) =>
                 JsObject(
                     "name" -> name.toJson,
@@ -238,7 +240,26 @@ object WhiskAction
                     Future.successful(action)
             }
         }
+    }
 
+    /** utility function that given a fully qualified name for an action, resolve its possible package bindings and returns
+     *  the fully qualified name of the resolved action
+     */
+    def resolveAction(entityStore: EntityStore, fullyQualifiedName: String)(
+        implicit ec: ExecutionContext, transid: TransactionId): Future[String] = {
+        // first check that there is a package to be resolved
+        val entityPathWithActionName = EntityPath(fullyQualifiedName)
+        val entityPath = entityPathWithActionName.dropLast
+        if (entityPath.defaultPackage) {
+            // this is the default package, nothing to resolve
+            Future.successful(fullyQualifiedName)
+        } else {
+            // there is a package to be resolved
+            val pkgDocid = WhiskPackage.packageDocId(fullyQualifiedName)
+            val actionName = entityPathWithActionName.last
+            val wp = WhiskPackage.resolveBinding(entityStore, pkgDocid)
+            wp map { resolvedPkg => WhiskEntity.qualifiedName(resolvedPkg.namespace.addpath(resolvedPkg.name), actionName) }
+        }
     }
 }
 

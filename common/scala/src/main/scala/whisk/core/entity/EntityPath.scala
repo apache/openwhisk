@@ -45,9 +45,24 @@ protected[core] class EntityPath private (val path: Seq[String]) extends AnyVal 
     def addpath(e: EntityName) = EntityPath(path :+ e.name)
     def root = EntityPath(Seq(path(0)))
     def last = EntityName(path.last)
+    def dropLast = EntityPath(path.dropRight(1)) // remove last element from path (e.g., name)
+    def defaultPackage = path.size == 1   // if only one element in the path, then it's the namespace with a default package
     def toJson = JsString(namespace)
     def apply() = namespace
     override def toString = namespace
+
+    /**
+     * helper method to replace the default namespace with a given namespace
+     * no effect if the namespace is not the default one
+     */
+    def replaceDefaultNamespace(newNamespace: String): EntityPath ={
+        // check if namespace is default
+        if (root == EntityPath.DEFAULT) {
+            val newPath = path.updated(0, newNamespace)
+            EntityPath(newPath)
+        } else
+            this
+    }
 }
 
 protected[core] object EntityPath {

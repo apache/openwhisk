@@ -12,6 +12,8 @@ defaultLimits:
     invokes:
       perMinute: 120
       concurrent: 100
+    sequence:
+      max: 10
   triggers:
     fires:
       perMinute: 60

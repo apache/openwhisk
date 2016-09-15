@@ -93,7 +93,10 @@ protected[core] case class BlackBoxExec(image: String) extends Exec(Exec.BLACKBO
     override val sentinelledLogs = false
 }
 
-protected[core] case class SequenceExec(code: String, components: Vector[String]) extends Exec(Exec.SEQUENCE) {
+/**
+ * add temporary field that holds the "fixed" names for components where the '_' is replaced by the user's namespace
+ */
+protected[core] case class SequenceExec(code: String, components: Vector[String], fixedComponents: Option[Vector[String]] = None) extends Exec(Exec.SEQUENCE) {
     val image = Exec.imagename(Exec.NODEJS)
     def size = components.map(_ sizeInBytes).reduce(_ + _)
 }
@@ -135,7 +138,7 @@ protected[core] object Exec
         override def write(e: Exec) = e match {
             case NodeJSExec(code, None)        => JsObject("kind" -> JsString(Exec.NODEJS), "code" -> JsString(code))
             case NodeJSExec(code, Some(init))  => JsObject("kind" -> JsString(Exec.NODEJS), "code" -> JsString(code), "init" -> JsString(init))
-            case SequenceExec(code, comp)      => JsObject("kind" -> JsString(Exec.SEQUENCE), "code" -> JsString(code), "components" -> JsArray(comp map { JsString(_) }))
+            case SequenceExec(code, comp, _)      => JsObject("kind" -> JsString(Exec.SEQUENCE), "code" -> JsString(code), "components" -> JsArray(comp map { JsString(_) }))
             case NodeJS6Exec(code, None)       => JsObject("kind" -> JsString(Exec.NODEJS6), "code" -> JsString(code))
             case NodeJS6Exec(code, Some(init)) => JsObject("kind" -> JsString(Exec.NODEJS6), "code" -> JsString(code), "init" -> JsString(init))
             case PythonExec(code)              => JsObject("kind" -> JsString(Exec.PYTHON), "code" -> JsString(code))

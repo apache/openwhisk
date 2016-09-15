@@ -63,7 +63,7 @@ trait WhiskCollectionAPI
     services: WhiskServices =>
 
     /** Creates an entity, or updates an existing one, in namespace. Terminates HTTP request. */
-    protected def create(namespace: EntityPath, name: EntityName)(implicit transid: TransactionId): RequestContext => Unit
+    protected def create(user: Identity, namespace: EntityPath, name: EntityName)(implicit transid: TransactionId): RequestContext => Unit
 
     /** Activates entity. Examples include invoking an action, firing a trigger, enabling/disabling a rule. */
     protected def activate(user: Identity, namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId): RequestContext => Unit
@@ -88,7 +88,7 @@ trait WhiskCollectionAPI
                 case PUT =>
                     entity(as[LimitedWhiskEntityPut]) { e =>
                         validateSize(e.isWithinSizeLimits)(transid) {
-                            create(resource.namespace, name)
+                            create(user, resource.namespace, name)
                         }
                     }
                 case ACTIVATE => activate(user, resource.namespace, name, resource.env)
