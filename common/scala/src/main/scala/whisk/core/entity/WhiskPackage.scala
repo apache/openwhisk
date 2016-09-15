@@ -16,6 +16,10 @@
 
 package whisk.core.entity
 
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+
+
 import scala.language.postfixOps
 import scala.util.Try
 import spray.json.DefaultJsonProtocol
@@ -28,6 +32,10 @@ import spray.json.RootJsonFormat
 import spray.json.deserializationError
 import spray.json.pimpAny
 import whisk.core.database.DocumentFactory
+
+import whisk.core.entity.types.EntityStore
+
+import whisk.common.TransactionId
 
 /**
  * WhiskPackagePut is a restricted WhiskPackage view that eschews properties
@@ -139,6 +147,20 @@ object WhiskPackage
 
     val bindingFieldName = "binding"
     override val collectionName = "packages"
+
+    /**
+     * an utility function that traverses all potential binding references and returns the resolved package
+     * @param pkg the package for which the resolution to be applied
+     * @return the same package if there is no binding, or the fully resolved package
+     */
+    def resolveBinding(entityStore: EntityStore, pkg: DocId)(
+        implicit ec: ExecutionContext, transid: TransactionId): Future[WhiskPackage] = {
+        WhiskPackage.get(entityStore, pkg.asDocInfo) flatMap {
+            case wp if wp.binding.isEmpty =>
+                Future.successful(wp)
+            case wp => resolveBinding(entityStore, wp.binding.get.docid)
+        }
+    }
 
     override implicit val serdes = {
         // This is to conform to the old style where {} represents None.
