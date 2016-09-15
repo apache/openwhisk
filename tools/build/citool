@@ -100,14 +100,14 @@ def request(method, urlString, body = "", headers = {}, auth = None, verbose = F
         print 'Got response with code %s' % res.status
     return res
 
-def shell(cmd, data=None, verbose=False):
+def shell(cmd, data = None, verbose = False):
     start = time.time()
 
-    if input:
-        p = Popen(cmd, shell=True, stdout=PIPE, stderr=STDOUT, stdin=PIPE)
-        out, err = p.communicate(input=data)
-    else:
-        out, err = Popen(cmd, shell=True, stdout=PIPE, stderr=STDOUT)
+    if verbose:
+        print('%s%s' % (cmd, ' <stdin>' if (data) else ''))
+
+    p = Popen(cmd, shell = True, stdout = PIPE, stderr = STDOUT, stdin = PIPE)
+    out, err = p.communicate(input = data)
 
     p.wait()
     end = time.time()
@@ -209,14 +209,18 @@ def grepForFailingTests(args, body):
             print(output.replace('&gt;', '>')),
 
 def reportBuildStatus(args, body):
-    cmd = 'tail -1'
-    (time, output, error) = shell(cmd, body, args.verbose)
-    output = output.replace('</span>', '').replace('</a>', '')
-    if 'Finished: ' in output or output.startswith('Done.'):
-        print output.strip()
+    lines = body.rstrip('\n').rsplit('\n', 1)
+    if len(lines) == 2:
+        output = lines[1]
+        output = re.sub('<[^<]+?>', '', output).strip()
+
+    if output and ('Finished: ' in output or output.startswith('Done.') or ('exceeded' in output and 'terminated' in output)):
+        print output
         return (0, True)
     else:
         print 'Build: ONGOING'
+        if output:
+            print output
         return (0, False)
 
 def cat(args):
