@@ -73,6 +73,8 @@ docker:
   restart:
     policy: always
 
+cli_path: "{{ openwhisk_home }}/bin/go-cli/wsk"
+
 # The default name space is /whisk.system. The catalog namespace must begin with a slash "/".
 catalog_namespace: "/whisk.system"
 
