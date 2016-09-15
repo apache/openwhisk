@@ -26,3 +26,4 @@ before_install:
 
 script:
   - ./tools/travis/build.sh
+  - ./tools/travis/box-upload.py "/home/travis/build/openwhisk/openwhisk/logs" "$TRAVIS_BUILD_ID-$TRAVIS_BRANCH.tar.gz"
