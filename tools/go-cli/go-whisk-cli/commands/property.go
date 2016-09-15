@@ -64,7 +64,6 @@ var propertySetCmd = &cobra.Command{
     Short:          wski18n.T("set property"),
     SilenceUsage:   true,
     SilenceErrors:  true,
-    PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var okMsg string = ""
         var werr *whisk.WskError = nil
@@ -79,7 +78,12 @@ var propertySetCmd = &cobra.Command{
             werr = whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
-
+        if client == nil {
+            whisk.Debug(whisk.DbgError,"client not initialized",nil)
+            errStr := "client not initialized"
+            werr :=whisk.MakeWskError(errors.New(errStr),whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG,whisk.NO_DISPLAY_USAGE)
+            return werr
+        }
         // read in each flag, update if necessary
 
         if auth := flags.global.auth; len(auth) > 0 {
