@@ -37,12 +37,8 @@ import textwrap
 ####
 def exceptional_paths():
     return [
-        "bin/wsk",
         "bin/wskadmin",
         "bin/wskdev",
-        "bin/wsk/mac",
-        "bin/wsk/linux",
-        "bin/wsk/windows",
         "tests/build/reports"
     ]
 
