@@ -5,10 +5,6 @@
 # Other machines that are not in the 'consul_servers' group, have the Consul Agents
 # The template 'config.json.j2' will look at the environment inventory to decide to generate a config file for booting a server or an agent
 
-- name: "pull the {{ docker_image_tag }} image of consul"
-  shell: "docker pull {{ docker_registry }}{{ docker_image_prefix }}/consul:{{ docker_image_tag }}"
-  when: (docker_registry != "") and ("'consul_servers' in group_names")
-
 - name: ensure consul config directory exists
   file:
     path: "{{ consul_conf_dir }}"
@@ -24,15 +20,14 @@
 - name: (re)start consul server/agent
   docker:
     name: consul
-    image: "{{ docker_registry }}{{ docker_image_prefix }}/consul:{{ docker_image_tag }}"
+    image: consul:v0.7.0
     state: reloaded
-    command: /bin/consul agent -config-file=/consul/config/config.json 
     restart_policy: "{{ docker.restart.policy }}"
     volumes:
       - "{{ whisk_logs_dir }}/consul:/logs"
       - "{{ consul_conf_dir }}:/consul/config"
     ports:
-      - "{{ consul.port.dns }}:53/udp"
+      - "{{ consul.port.dns }}:8600/udp"
       - "{{ consul.port.http }}:8500"
       - "{{ consul.port.rpc }}:8400"
       - "{{ consul.port.serf_wan }}:8302"

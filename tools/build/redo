@@ -237,8 +237,7 @@ Components = [
 
     makeComponent('consul',
                   'build/deploy consul (includes registrator)',
-                  modes = 'clean',
-                  gradle = 'services:consul'),
+                  modes = 'clean'),
 
     makeComponent('kafka',
                   'build/deploy kafka',
