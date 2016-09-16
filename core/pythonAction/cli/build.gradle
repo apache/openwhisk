@@ -1,0 +1,54 @@
+apply plugin: 'eclipse'
+eclipse {
+    project {
+        natures 'org.python.pydev.pythonNature'
+        buildCommand 'org.python.pydev.PyDevBuilder'
+    }
+}
+
+ext.dockerImageName = 'cli'
+ext.dockerContainerName = 'cli'
+apply from: '../../gradle/docker.gradle'
+
+task clean(type: Delete) {
+    delete 'build'
+}
+
+task removeDistribution(type: Delete) {
+    delete 'build/distributions'
+}
+
+task establishStructure(type: Copy) {
+    into 'build/tmp'
+    from('packagescripts') {
+        include '*.rst', '*.in', 'setup.py'
+    }
+
+    into('openwhisk') {
+        from('.') {
+            include '*.py', 'wsk'
+            rename('^wsk$', 'wsk.py')
+        }
+        from('packagescripts') {
+            include '__init__.py'
+        }
+    }
+}
+distDocker.dependsOn(establishStructure)
+
+task distTar(dependsOn: [removeDistribution, distDocker]) << {
+    run(dockerBinary + ["rm", "-f", dockerContainerName], true)
+    run(dockerBinary + ["run", "--name", dockerContainerName, dockerTaggedImageName])
+    run(dockerBinary + ["cp", dockerContainerName + ":/cli/dist/", "${buildDir}/distributions/"])
+    run(dockerBinary + ["rm", "-f", dockerContainerName])
+}
+pushImage.finalizedBy(distTar)
+
+def run(cmd, ignoreError = false) {
+    println("Executing '${cmd.join(" ")}'")
+    def proc = cmd.execute()
+    proc.waitFor()
+    if(!ignoreError && proc.exitValue() != 0) {
+        println("Command '${cmd.join(" ")}' failed with exitCode ${proc.exitValue()}")
+    }
+}

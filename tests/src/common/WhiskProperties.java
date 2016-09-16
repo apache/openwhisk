@@ -110,17 +110,17 @@ public class WhiskProperties {
     }
 
     /**
-     * The path to the Go CLI directory.
+     * The path to the CLI directory.
      */
-    public static String getGoCLIDir() {
-        return whiskHome + "/bin/go-cli";
+    public static String getCLIDir() {
+        return whiskHome + "/bin";
     }
 
     /**
      * The path to the Go CLI executable.
      */
-    public static String getGoCLIPath() {
-        return getGoCLIDir() + "/wsk";
+    public static String getCLIPath() {
+        return getCLIDir() + "/wsk";
     }
 
     public static File getFileRelativeToWhiskHome(String name) {

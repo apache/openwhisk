@@ -1,41 +1,26 @@
 ---
 # Tasks for handling CLI customization and publishing
 
-- name: ensure cli directory exists
+- name: "ensure nginx directory for cli exists"
   file:
-    path: "{{cli_conf_dir}}"
+    path: "{{ cli_nginx_dir  }}"
     state: directory
-
-- name: copy default.props template from local to temp folder
-  template:
-    src: default.props.j2
-    dest: "{{cli_conf_dir}}/default.props"
-
-- name: copy default.props to cli dir to make test happy
-  local_action: template src="default.props.j2" dest="{{openwhisk_home}}/tools/cli/default.props"
 
 - name: "pull the {{ docker_image_tag }} image of cli"
   shell: "docker pull {{ docker_registry }}{{ docker_image_prefix }}/cli:{{ docker_image_tag }}"
   when: docker_registry != ""
 
-- name: generate cli tar
-  docker:
-    name: cli
-    image: "{{ docker_registry }}{{ docker_image_prefix }}/cli:{{ docker_image_tag }}"
-    command: sh -c "cp -f /cli/default.props /cli/openwhisk/default.props && cd /cli && python setup.py sdist"
-    state: started
-    volumes:
-      - "{{ cli_conf_dir }}/default.props:/cli/default.props"
-      - "{{ cli_conf_dir }}/output:/cli/dist"
+- name: "run Docker"
+  shell: "docker run --name cli {{ docker_registry }}{{ docker_image_prefix }}/cli:{{ docker_image_tag }}"
 
-- name: wait until cli tar is generated
-  wait_for: 
-    path: "{{ cli_conf_dir }}/output/openwhisk-0.1.0.tar.gz"
+- name: "copy all the cli binaries into nginx"
+  shell: "docker cp cli:/src/github.com/go-whisk-cli/build/. '{{ cli_nginx_dir }}'"
+  ignore_errors: yes
 
-- name: copy cli tarball to nginx config directory
-  shell: "cp -f {{ cli_conf_dir }}/output/openwhisk-0.1.0.tar.gz {{ nginx_conf_dir }}"
-
-- name: remove cli container after publishing
+- name: "stop Docker"
+  shell: "docker stop cli"
+  
+- name: "remove cli container after publishing"
   docker:
     name: cli
     image: "{{ docker_registry }}{{ docker_image_prefix }}/cli:{{ docker_image_tag }}"

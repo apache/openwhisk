@@ -26,7 +26,7 @@ import argparse
 
 scriptDir = sys.path[0]
 openDir = os.path.dirname(os.path.dirname(scriptDir))
-cliDir = os.path.join(os.path.join(openDir, "tools"), "cli")
+cliDir = os.path.join(openDir, "core", "pythonAction", "cli")
 sys.path.insert(1, cliDir)
 
 healthDir = os.path.join(os.path.join(openDir, "tools"), "health")

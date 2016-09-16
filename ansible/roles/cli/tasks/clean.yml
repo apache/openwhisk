@@ -1,8 +1,7 @@
 ---
-# Remove cli_conf_dir.
 
-- name: remove cli config directory
+- name: remove cli nginx directory
   file:
-    path: "{{ cli_conf_dir }}"
+    path: "{{ cli_nginx_dir }}"
     state: absent
   become: true

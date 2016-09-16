@@ -12,9 +12,7 @@ whisk_version_name: local
 nginx_conf_dir: /tmp/nginx
 consul_conf_dir: /tmp/consul
 whisk_logs_dir: /tmp/wsklogs
-cli_conf_dir: /tmp/cli
-go_cli_conf_dir: /tmp/go-cli
-go_cli_nginx_dir: "{{ nginx_conf_dir }}/cli/go/download"
+cli_nginx_dir: "{{ nginx_conf_dir }}/cli/go/download"
 registry_conf_dir: /tmp/registry
 registry_storage_dir: "/"
 #docker_registry: "whisk-registry:5000/"

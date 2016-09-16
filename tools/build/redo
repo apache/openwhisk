@@ -265,10 +265,6 @@ Components = [
                   yaml = 'postdeploy.yml'),
 
     # the following (re)build images via gradle
-    makeComponent('gocli',
-                  'build go CLI',
-                  yaml = False,
-                  gradle = 'tools:go-cli'),
 
     makeComponent('nodejsaction',
                   'build node.js action container',
