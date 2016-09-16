@@ -22,12 +22,16 @@ def upload_file(local_file, remote_file):
 
 def tar_gz_dir(dir_path):
     _, dst = tempfile.mkstemp(suffix = ".tar.gz")
-    subprocess.call([ "tar", "-czf", dst, dir_path ])
+    subprocess.call([ "tar", "-cvzf", dst, dir_path ])
     return dst
 
 if __name__ == "__main__":
     dir_path = sys.argv[1]
     dst_path = sys.argv[2]
+
+    if not os.path.isdir(dir_path):
+        print "Directory doesn't exist: %s." % dir_path
+        sys.exit(0)
 
     print "Compressing logs dir..."
     tar = tar_gz_dir(dir_path)
