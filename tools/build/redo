@@ -243,7 +243,7 @@ Components = [
     makeComponent('kafka',
                   'build/deploy kafka (includes zookeeper)',
                   modes = 'clean',
-                  gradle = ':services:kafka, :services:zookeeper'),
+                  gradle = ':services:kafka'),
 
     makeComponent('controller',
                   'build/deploy controller',
