@@ -24,9 +24,6 @@
 
 - name: "stop Docker"
   shell: "docker stop go-cli"
-  
+
 - name: "remove go-cli container after publishing"
-  docker:
-    name: go-cli
-    image: "{{ docker_registry }}{{ docker_image_prefix }}/go-cli:{{ docker_image_tag }}"
-    state: absent
+  shell: "docker rm go-cli"
