@@ -451,7 +451,7 @@ class Invoker(
             end = interval.end,
             response = activationResponse,
             logs = ActivationLogs(),
-            annotations = Parameters("limits", limits.toJson) ++ Parameters("fqdn", actionName.toJson))
+            annotations = Parameters("limits", limits.toJson) ++ Parameters("path", actionName.toJson))
     }
 
     /**
