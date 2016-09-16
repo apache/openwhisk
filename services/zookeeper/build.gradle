@@ -1,3 +1,0 @@
-ext.dockerImageName = 'zookeeper'
-apply from: '../../gradle/docker.gradle'
-distDocker.dependsOn ':common:scala:distDocker'
