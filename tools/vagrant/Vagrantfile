@@ -143,7 +143,7 @@ $script_end = <<SCRIPT
   
   # Setup OpenWhisk CLI
   su vagrant -c 'mkdir ${HOME}/bin'
-  su vagrant -c 'ln -s ${OPENWHISK_HOME}/core/pythonAction/cli/wskadmin ${HOME}/bin/wskadmin'
+  su vagrant -c 'ln -s ${OPENWHISK_HOME}/tools/admin/wskadmin ${HOME}/bin/wskadmin'
   su vagrant -c 'ln -s ${OPENWHISK_HOME}/tools/build/redo ${HOME}/bin/wskdev'
   echo ${OPENWHISK_HOME}/bin/linux/amd64/wsk -i '"$@"' > ${HOME}/bin/wsk
   chmod +x ${HOME}/bin/wsk

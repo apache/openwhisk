@@ -28,11 +28,10 @@ import monitorUtil
 # wskprop is in the sibling directory
 scriptDir = sys.path[0]
 rootDir = os.path.dirname(os.path.dirname(scriptDir))
-cliDir = os.path.join(rootDir, "core", "pythonAction", "cli")
+cliDir = os.path.join(rootDir, "tools", "admin")
 sys.path.insert(1, cliDir)
-from wskprop import *
 
-
+import wskprop
 
 def getProp(key) :
     try:
@@ -130,7 +129,7 @@ if (args.dir is None):
     print 'Must specify directory with -d'
     exit(-1)
 
-whiskprops = importPropsIfAvailable(propfile(args.dir))
+whiskprops = wskprop.importPropsIfAvailable(wskprop.propfile(args.dir))
 
 if (args.wait is None):
     delay = 0

@@ -25,17 +25,17 @@ import subprocess
 import argparse
 
 scriptDir = sys.path[0]
-openDir = os.path.dirname(os.path.dirname(scriptDir))
-cliDir = os.path.join(openDir, "core", "pythonAction", "cli")
+rootDir = os.path.dirname(os.path.dirname(scriptDir))
+cliDir = os.path.join(rootDir, "tools", "admin")
 sys.path.insert(1, cliDir)
 
-healthDir = os.path.join(os.path.join(openDir, "tools"), "health")
+healthDir = os.path.join(os.path.join(rootDir, "tools"), "health")
 sys.path.insert(1, healthDir)
 
-from wskprop import *
+import wskprop
 import monitorUtil
 
-whiskprops = importPropsIfAvailable(propfile(scriptDir))
+whiskprops = wskprop.importPropsIfAvailable(wskprop.propfile(scriptDir))
 
 parser = argparse.ArgumentParser(description='Kill some whisk component by stopping its container.')
 parser.add_argument('component', help='name of component to kill: elk, kafka, ...')

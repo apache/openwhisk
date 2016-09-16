@@ -34,12 +34,11 @@ import json
 import base64
 
 # ************************************************************************************
-# * Path stuff. If this script is moved, it should be enough to adjust blueDir only. *
+# * Path stuff. If this script is moved, it should be enough to adjust rootDir only. *
 # ************************************************************************************
 scriptDir = sys.path[0]
-blueDir = os.path.dirname(os.path.dirname(scriptDir))
-cliDir = os.path.join(blueDir, "core", "pythonAction", "cli")
-
+rootDir = os.path.dirname(os.path.dirname(scriptDir))
+cliDir = os.path.join(rootDir, "tools", "admin")
 sys.path.insert(1, cliDir)
 
 # After path adjusted, do the remaining imports.
