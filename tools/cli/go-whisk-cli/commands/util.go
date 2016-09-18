@@ -823,12 +823,12 @@ func checkArgs(args []string, minimumArgNumber int, maximumArgNumber int, comman
     }
 }
 
-func urlBase() (*url.URL, error)  {
-    urlBase := fmt.Sprintf("%s/api/", Properties.APIHost)
+func getURLBase(host string) (*url.URL, error)  {
+    urlBase := fmt.Sprintf("%s/api/", host)
     url, err := url.Parse(urlBase)
 
     if len(url.Scheme) == 0 || len(url.Host) == 0 {
-        urlBase = fmt.Sprintf("https://%s/api/", Properties.APIHost)
+        urlBase = fmt.Sprintf("https://%s/api/", host)
         url, err = url.Parse(urlBase)
     }
 

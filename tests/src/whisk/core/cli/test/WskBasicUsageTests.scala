@@ -97,6 +97,21 @@ class WskBasicUsageTests
         stdout should include regex ("""(?i)whisk API version\s+v1""")
     }
 
+    it should "set apihost, auth, and namespace" in {
+        val tmpwskprops = File.createTempFile("wskprops", ".tmp")
+        try {
+            val namespace = wsk.namespace.list().stdout.trim.split("\n").last
+            val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
+            val stdout = wsk.cli(Seq("property", "set", "-i", "--apihost", wskprops.apihost, "--auth", wskprops.authKey,
+                "--namespace", namespace), env = env).stdout
+            stdout should include (s"ok: whisk auth set to ${wskprops.authKey}")
+            stdout should include (s"ok: whisk API host set to ${wskprops.apihost}")
+            stdout should include (s"ok: whisk namespace set to ${namespace}")
+        } finally {
+            tmpwskprops.delete()
+        }
+    }
+
     it should "show api build version using property file" in {
         val tmpwskprops = File.createTempFile("wskprops", ".tmp")
         try {

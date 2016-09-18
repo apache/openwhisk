@@ -90,11 +90,11 @@ var propertySetCmd = &cobra.Command{
         }
 
         if apiHost := flags.property.apihostSet; len(apiHost) > 0 {
-            baseURL, err := urlBase()
+            baseURL, err := getURLBase(apiHost)
 
             if err != nil {
                 // Not aborting now.  Subsequent commands will result in error
-                whisk.Debug(whisk.DbgError, "urlBase() error: %s", err)
+                whisk.Debug(whisk.DbgError, "getURLBase(%s) error: %s", apiHost, err)
                 errStr := fmt.Sprintf(
                     wski18n.T("Unable to set API host value; the API host value '{{.apihost}}' is invalid: {{.err}}",
                         map[string]interface{}{"apihost": apiHost, "err": err}))
@@ -482,10 +482,10 @@ func parseConfigFlags(cmd *cobra.Command, args []string) error {
 
         if client != nil {
             client.Config.Host = apiHost
-            baseURL, err := urlBase()
+            baseURL, err := getURLBase(apiHost)
 
             if err != nil {
-                whisk.Debug(whisk.DbgError, "urlBase() failed: %s\n", err)
+                whisk.Debug(whisk.DbgError, "getURLBase(%s) failed: %s\n", apiHost, err)
                 errStr := fmt.Sprintf(
                     wski18n.T("Invalid host address '{{.host}}': {{.err}}",
                         map[string]interface{}{"host": Properties.APIHost, "err": err}))
