@@ -27,11 +27,13 @@ registry:
     threshold: 80
     keeptags: 5
 
+# openstack vars
+# TODO, should move these to a role and create a designated "defaults.yml" file
 rc_file:
 #net_name: "{{ lookup('env','OS_NET_NAME') }}"
 net_id: "{{ lookup('env','OS_NET_ID') }}"
 image: "{{ lookup('env','OS_IMAGE') }}"
-flavor: "{{ lookup('env','OS_FLAVOR') }}"
+default_flavor: "{{ lookup('env','OS_FLAVOR') | default('m1.small') }}"
 auth:
   auth_url: "{{ lookup('env','OS_AUTH_URL') }}"
   username: "{{ lookup('env','OS_USERNAME') }}"
@@ -40,6 +42,8 @@ auth:
 key_name: "{{ lookup('env','OS_KEY_NAME') }}"
 security_groups: "{{ lookup('env','OS_SECURITY_GROUPS') }}"
 
+# list of instances.
+# TODO, move each object to designated group_vars file
 instances:
   - name: registry
     num_instances: 1
@@ -69,3 +73,7 @@ instances:
     num_instances: 1
     flavor:
     volume:
+      name:
+      size:
+      fstype:
+      fsmount:

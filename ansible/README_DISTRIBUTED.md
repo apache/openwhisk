@@ -105,6 +105,6 @@ ansible-playbook -i environments/<environment> postdeploy.yml
 Setup your CLI and verify that OpenWhisk is working.
 
 ```
-../bin/wsk  property set --auth $(cat files/auth.guest) --apihost <edge_url>
-../bin/wsk -v action invoke /whisk.system/utils/echo -p message hello --blocking --result
+../bin/wsk property set --auth $(cat files/auth.whisk.system) --apihost <edge_url>
+../bin/wsk -i -v action invoke /whisk.system/samples/helloWorld --blocking --result
 ```
