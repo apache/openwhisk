@@ -39,7 +39,6 @@ import whisk.core.database.DocumentConflictException
 import whisk.core.database.NoDocumentException
 import whisk.core.entitlement.Collection
 import whisk.core.entity.DocId
-import whisk.core.entity.DocInfo
 import whisk.core.entity.EntityName
 import whisk.core.entity.EntityPath
 import whisk.core.entity.Parameters
@@ -134,7 +133,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
 
             getEntity(WhiskRule, entityStore, docid, Some {
                 rule: WhiskRule =>
-                    val tid = DocId(WhiskEntity.qualifiedName(namespace, rule.trigger)).asDocInfo
+                    val tid = DocId(WhiskEntity.qualifiedName(namespace, rule.trigger))
                     val ruleName = EntityPath(WhiskEntity.qualifiedName(rule.namespace, rule.name))
 
                     val changeStatus = getTrigger(tid) map { trigger =>
@@ -194,7 +193,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
     override def remove(namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
         val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
         deleteEntity(WhiskRule, entityStore, docid, (r: WhiskRule) => {
-            val tid = DocId(WhiskEntity.qualifiedName(namespace, r.trigger)).asDocInfo
+            val tid = DocId(WhiskEntity.qualifiedName(namespace, r.trigger))
             val ruleName = EntityPath(WhiskEntity.qualifiedName(r.namespace, r.name))
             getTrigger(tid) map { trigger =>
                 (getStatus(trigger, ruleName), trigger)
@@ -226,7 +225,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
         getEntity(WhiskRule, entityStore, docid, Some { rule: WhiskRule =>
             val ruleName = WhiskEntity.qualifiedName(namespace, name)
             val triggerName = WhiskEntity.qualifiedName(namespace, rule.trigger)
-            val tid = DocId(triggerName).asDocInfo
+            val tid = DocId(triggerName)
 
             val getRuleWithStatus = getTrigger(tid) map { trigger =>
                 getStatus(trigger, EntityPath(ruleName))
@@ -309,7 +308,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
         val predicate = Promise[WhiskRule]
         val ruleName = WhiskEntity.qualifiedName(rule.namespace, rule.name)
         val oldTriggerName = WhiskEntity.qualifiedName(rule.namespace, rule.trigger)
-        val oldTid = DocId(oldTriggerName).asDocInfo
+        val oldTid = DocId(oldTriggerName)
 
         getTrigger(oldTid) map { trigger =>
             (getStatus(trigger, EntityPath(ruleName)), trigger)
@@ -367,7 +366,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
      * @param tid DocInfo defining the trigger to get
      * @return a WhiskTrigger iff found, else None
      */
-    private def getTrigger(tid: DocInfo)(implicit transid: TransactionId): Future[Option[WhiskTrigger]] = {
+    private def getTrigger(tid: DocId)(implicit transid: TransactionId): Future[Option[WhiskTrigger]] = {
         WhiskTrigger.get(entityStore, tid) map {
             trigger => Some(trigger)
         } recover {
@@ -415,7 +414,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
         val validTrigger = Promise[WhiskTrigger]
         val validAction = Promise[WhiskAction]
 
-        val validateTrigger = WhiskTrigger.get(entityStore, trigger.asDocInfo) onComplete {
+        val validateTrigger = WhiskTrigger.get(entityStore, trigger) onComplete {
             case Success(trigger) => validTrigger.success(trigger)
             case Failure(t) => t match {
                 case _: NoDocumentException => validTrigger.failure(new NoDocumentException(s"trigger $trigger does not exist"))
@@ -423,7 +422,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
             }
         }
 
-        val validateAction = WhiskAction.get(entityStore, action.asDocInfo) onComplete {
+        val validateAction = WhiskAction.get(entityStore, action) onComplete {
             case Success(action) => validAction.success(action)
             case Failure(t) => t match {
                 case _: NoDocumentException => validAction.failure(new NoDocumentException(s"action $action does not exist"))

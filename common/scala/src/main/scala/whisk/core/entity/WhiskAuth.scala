@@ -86,7 +86,7 @@ object WhiskAuth extends DocumentFactory[WhiskAuth] {
 
     def get(datastore: ArtifactStore[WhiskAuth], subject: Subject, fromCache: Boolean)(
         implicit transid: TransactionId): Future[WhiskAuth] = {
-        super.get(datastore, DocInfo(subject()), fromCache)
+        super.get(datastore, DocId(subject()), fromCache = fromCache)
     }
 
     def get(datastore: ArtifactStore[WhiskAuth], uuid: UUID)(

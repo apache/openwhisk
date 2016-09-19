@@ -52,7 +52,6 @@ import whisk.core.database.NoDocumentException
 import whisk.core.entity.ActionLimits
 import whisk.core.entity.ActivationId
 import whisk.core.entity.DocId
-import whisk.core.entity.DocInfo
 import whisk.core.entity.EntityName
 import whisk.core.entity.SequenceExec
 import whisk.core.entity.MemoryLimit
@@ -479,7 +478,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         // 3. timeout on db polling => converts activation to non-blocking (returns activation id only)
         // 4. internal error
         val promise = Promise[WhiskActivation]
-        val docid = DocId(WhiskEntity.qualifiedName(user.namespace.toPath, message.activationId)).asDocInfo
+        val docid = DocId(WhiskEntity.qualifiedName(user.namespace.toPath, message.activationId))
         val activationId = message.activationId
 
         info(this, s"[POST] action activation will block on result up to $totalWaitTime")
@@ -520,7 +519,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      * complete in the caller to terminate the polling.
      */
     private def pollDbForResult(
-        docid: DocInfo,
+        docid: DocId,
         activationId: ActivationId,
         promise: Promise[WhiskActivation])(
             implicit transid: TransactionId): Unit = {

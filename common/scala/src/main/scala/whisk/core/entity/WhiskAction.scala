@@ -213,12 +213,12 @@ object WhiskAction
     }
 
     // Overriden to retrieve attached Java `exec` fields.
-    override def get[A >: WhiskAction](db: ArtifactStore[A], doc: DocInfo, fromCache: Boolean)(
+    override def get[A >: WhiskAction](db: ArtifactStore[A], doc: DocId, rev: DocRevision = DocRevision(), fromCache: Boolean)(
         implicit transid: TransactionId, mw: Manifest[WhiskAction]): Future[WhiskAction] = {
 
         implicit val ec = db.executionContext
 
-        val fa = super.get(db, doc, fromCache)
+        val fa = super.get(db, doc, rev, fromCache = fromCache)
 
         fa.flatMap { action =>
             action.exec match {

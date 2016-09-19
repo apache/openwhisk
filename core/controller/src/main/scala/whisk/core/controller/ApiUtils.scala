@@ -157,7 +157,7 @@ trait ReadOps extends Directives with Logging {
             implicit transid: TransactionId,
             format: RootJsonFormat[A],
             ma: Manifest[A]) = {
-        onComplete(factory.get(datastore, docid.asDocInfo)) {
+        onComplete(factory.get(datastore, docid)) {
             case Success(entity) =>
                 info(this, s"[GET] entity success")
                 postProcess map { _(entity) } getOrElse complete(OK, entity)
@@ -194,7 +194,7 @@ trait ReadOps extends Directives with Logging {
             implicit transid: TransactionId,
             format: RootJsonFormat[A],
             ma: Manifest[A]) = {
-        onComplete(factory.get(datastore, docid.asDocInfo)) {
+        onComplete(factory.get(datastore, docid)) {
             case Success(entity) =>
                 info(this, s"[PROJECT] entity success")
                 complete(OK, project(entity))
@@ -259,7 +259,7 @@ trait WriteOps extends Directives with Logging {
         // marker to return an existing doc with status OK rather than conflict if overwrite is false
         case class IdentityPut(self: A) extends Throwable
 
-        onComplete(factory.get(datastore, docid.asDocInfo) flatMap { doc =>
+        onComplete(factory.get(datastore, docid) flatMap { doc =>
             if (overwrite) {
                 info(this, s"[PUT] entity exists, will try to update '$doc'")
                 update(doc)
@@ -324,7 +324,7 @@ trait WriteOps extends Directives with Logging {
             implicit transid: TransactionId,
             format: RootJsonFormat[A],
             ma: Manifest[A]) = {
-        onComplete(factory.get(datastore, docid.asDocInfo) flatMap {
+        onComplete(factory.get(datastore, docid) flatMap {
             entity =>
                 confirm(entity) flatMap {
                     case true => factory.del(datastore, entity.docinfo) map { _ => entity }

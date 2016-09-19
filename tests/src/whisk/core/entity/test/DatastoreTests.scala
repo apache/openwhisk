@@ -351,25 +351,5 @@ class DatastoreTests extends FlatSpec
             Await.result(WhiskAction.put(null, null), dbOpTimeout)
             assert(false)
         }
-        intercept[IllegalArgumentException] {
-            Await.result(WhiskAction.get(datastore, null), dbOpTimeout)
-            assert(false)
-        }
-        intercept[IllegalArgumentException] {
-            Await.result(WhiskTrigger.get(datastore, null), dbOpTimeout)
-            assert(false)
-        }
-        intercept[IllegalArgumentException] {
-            Await.result(WhiskRule.get(datastore, null), dbOpTimeout)
-            assert(false)
-        }
-        intercept[IllegalArgumentException] {
-            Await.result(WhiskActivation.get(datastore, null), dbOpTimeout)
-            assert(false)
-        }
-        intercept[IllegalArgumentException] {
-            Await.result(WhiskAuth.get(authstore, null: DocInfo), dbOpTimeout)
-            assert(false)
-        }
     }
 }

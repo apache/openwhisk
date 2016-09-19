@@ -205,7 +205,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
             case Some(binding) =>
                 val promise = Promise[WhiskPackage]
                 val resolvedBinding = Some(binding.resolve(namespace))
-                WhiskPackage.get(entityStore, resolvedBinding.get.docid.asDocInfo) onComplete {
+                WhiskPackage.get(entityStore, resolvedBinding.get.docid) onComplete {
                     case Success(doc) =>
                         if (doc.binding.isEmpty) promise success {
                             WhiskPackage(
@@ -253,7 +253,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
                 else {
                     val promise = Promise[WhiskPackage]
                     val resolvedBinding = Some(binding.resolve(wp.namespace))
-                    WhiskPackage.get(entityStore, binding.docid.asDocInfo) onComplete {
+                    WhiskPackage.get(entityStore, binding.docid) onComplete {
                         case Success(_) =>
                             promise success {
                                 WhiskPackage(
