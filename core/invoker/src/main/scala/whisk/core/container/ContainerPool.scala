@@ -45,7 +45,6 @@ import whisk.core.entity.MemoryLimit
 import whisk.core.entity.LogLimit
 import whisk.core.entity.TimeLimit
 import whisk.core.entity.WhiskAction
-import whisk.core.entity.WhiskAuthStore
 import whisk.core.entity.WhiskEntityStore
 import whisk.core.entity.NodeJS6Exec
 import akka.event.Logging.LogLevel
@@ -74,13 +73,8 @@ class ContainerPool(
     // These must be defined before verbosity is set
     private val datastore = WhiskEntityStore.datastore(config)
 
-    // val dockerhost = config.selfDockerEndpoint
     val serializeDockerOp = config.invokerSerializeDockerOp.toBoolean
     val serializeDockerPull = config.invokerSerializeDockerOp.toBoolean
-    // FIXME
-    // info(this, s"dockerhost = $dockerhost    serializeDockerOp = $serializeDockerOp   serializeDockerPull = $serializeDockerPull")
-
-    // val dockerhost = config.selfDockerEndpoint
 
     // Eventually, we will have a more sophisticated warmup strategy that does multiple sizes
     private val defaultMemoryLimit = MemoryLimit(MemoryLimit.STD_MEMORY)
@@ -91,7 +85,6 @@ class ContainerPool(
     override def setVerbosity(level: LogLevel) = {
         super.setVerbosity(level)
         datastore.setVerbosity(level)
-        authStore.setVerbosity(level)
     }
 
     /**

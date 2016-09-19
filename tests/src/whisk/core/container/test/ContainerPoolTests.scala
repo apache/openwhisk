@@ -69,7 +69,7 @@ class ContainerPoolTests extends FlatSpec
             ++ WhiskAuthStore.requiredProperties)
     assert(config.isValid)
 
-    implicit val docker = new DockerProxy(config.selfDockerEndpoint)
+    implicit val docker = new DockerProxy(config, config.selfDockerEndpoint)
 
     val pool = new ContainerPool(config, 0, InfoLevel, true)
     pool.logDir = "/tmp"

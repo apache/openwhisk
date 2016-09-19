@@ -477,7 +477,7 @@ class Invoker(
     private val entityStore = WhiskEntityStore.datastore(config)
     private val authStore = WhiskAuthStore.datastore(config)
     private val activationStore = WhiskActivationStore.datastore(config)
-    private implicit val docker = new DockerProxy(config.selfDockerEndpoint)
+    private implicit val docker = new DockerProxy(config, config.selfDockerEndpoint)
     private val pool = new ContainerPool(config, instance, verbosity)
     private val activationCounter = new Counter() // global activation counter
     private val userActivationCounter = new TrieMap[String, Counter]

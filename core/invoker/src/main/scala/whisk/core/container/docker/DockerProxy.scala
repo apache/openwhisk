@@ -32,6 +32,7 @@ import whisk.common.TransactionId
 import whisk.common.SimpleExec
 import whisk.common.PrintStreamEmitter
 
+import whisk.core.WhiskConfig
 import whisk.core.container.DockerOutput
 import whisk.core.container.ContainerAddr
 import whisk.core.container.ContainerHash
@@ -45,7 +46,7 @@ import whisk.core.container.ContainerState
  *
  *  You only need one instance (and you shouldn't get more).
  */
-class DockerProxy(val dockerHost: String)(implicit actorSystem: ActorSystem) extends Logging {
+class DockerProxy(config: WhiskConfig, val dockerHost: String)(implicit actorSystem: ActorSystem) extends Logging {
     private implicit val emitter: PrintStreamEmitter = this
     private implicit val ec = actorSystem.dispatcher
 
@@ -66,6 +67,10 @@ class DockerProxy(val dockerHost: String)(implicit actorSystem: ActorSystem) ext
             Seq(dockerBin, "--host", s"tcp://$dockerHost")
         }
     }
+
+    val serializeDockerOp = config.invokerSerializeDockerOp.toBoolean
+    val serializeDockerPull = config.invokerSerializeDockerOp.toBoolean
+    info(this, s"dockerhost = $dockerHost    serializeDockerOp = $serializeDockerOp   serializeDockerPull = $serializeDockerPull")
 
     // docker run
     def run(name: Option[ContainerName], image: String, args: Seq[String], settings: ContainerSettings)(implicit transid: TransactionId): ContainerHash = {
