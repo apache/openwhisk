@@ -20,6 +20,7 @@ import (
     "fmt"
     "net/http"
     "errors"
+    "encoding/json"
     "net/url"
     "../wski18n"
 )
@@ -41,6 +42,7 @@ type Activation struct {
     End          int64  `json:"end"`                    // Since a 0 is a valid value from server, don't omit
     Response     `json:"response,omitempty"`
     Logs         []string `json:"logs,omitempty"`
+    Annotations *json.RawMessage `json:"annotations,omitempty"`
 }
 
 type Response struct {
