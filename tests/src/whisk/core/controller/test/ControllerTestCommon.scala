@@ -113,42 +113,42 @@ protected trait ControllerTestCommon
     }
 
     def deleteAction(doc: DocId)(implicit transid: TransactionId) = {
-        Await.result(WhiskAction.get(entityStore, doc.asDocInfo) flatMap { doc =>
+        Await.result(WhiskAction.get(entityStore, doc) flatMap { doc =>
             info(this, s"deleting ${doc.docinfo}")
             WhiskAction.del(entityStore, doc.docinfo)
         }, dbOpTimeout)
     }
 
     def deleteActivation(doc: DocId)(implicit transid: TransactionId) = {
-        Await.result(WhiskActivation.get(entityStore, doc.asDocInfo) flatMap { doc =>
+        Await.result(WhiskActivation.get(entityStore, doc) flatMap { doc =>
             info(this, s"deleting ${doc.docinfo}")
             WhiskActivation.del(entityStore, doc.docinfo)
         }, dbOpTimeout)
     }
 
     def deleteTrigger(doc: DocId)(implicit transid: TransactionId) = {
-        Await.result(WhiskTrigger.get(entityStore, doc.asDocInfo) flatMap { doc =>
+        Await.result(WhiskTrigger.get(entityStore, doc) flatMap { doc =>
             info(this, s"deleting ${doc.docinfo}")
             WhiskAction.del(entityStore, doc.docinfo)
         }, dbOpTimeout)
     }
 
     def deleteRule(doc: DocId)(implicit transid: TransactionId) = {
-        Await.result(WhiskRule.get(entityStore, doc.asDocInfo) flatMap { doc =>
+        Await.result(WhiskRule.get(entityStore, doc) flatMap { doc =>
             info(this, s"deleting ${doc.docinfo}")
             WhiskRule.del(entityStore, doc.docinfo)
         }, dbOpTimeout)
     }
 
     def deleteAuth(doc: DocId)(implicit transid: TransactionId) = {
-        Await.result(WhiskAuth.get(authStore, doc.asDocInfo) flatMap { doc =>
+        Await.result(WhiskAuth.get(authStore, doc) flatMap { doc =>
             info(this, s"deleting ${doc.docinfo}")
             WhiskAuth.del(authStore, doc.docinfo)
         }, dbOpTimeout)
     }
 
     def deletePackage(doc: DocId)(implicit transid: TransactionId) = {
-        Await.result(WhiskPackage.get(entityStore, doc.asDocInfo) flatMap { doc =>
+        Await.result(WhiskPackage.get(entityStore, doc) flatMap { doc =>
             info(this, s"deleting ${doc.docinfo}")
             WhiskPackage.del(entityStore, doc.docinfo)
         }, dbOpTimeout)

@@ -167,7 +167,7 @@ class Invoker(
         // caching is enabled since actions have revision id and an updated
         // action will not hit in the cache due to change in the revision id;
         // if the doc revision is missing, then bypass cache
-        WhiskAction.get(entityStore, action, action.rev != DocRevision()) flatMap {
+        WhiskAction.get(entityStore, action.id, action.rev, action.rev != DocRevision()) flatMap {
             invokeAction(_, msg.authkey, payload, tran)
         } andThen {
             case Success(activationDoc) =>

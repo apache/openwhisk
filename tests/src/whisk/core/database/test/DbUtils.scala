@@ -141,12 +141,12 @@ trait DbUtils extends TransactionCounter {
     /**
      * Gets document by id from datastore, and add it to gc queue to delete after the test completes.
      */
-    def get[A, Au >: A](db: ArtifactStore[Au], docid: DocInfo, factory: DocumentFactory[A], garbageCollect: Boolean = true)(
+    def get[A, Au >: A](db: ArtifactStore[Au], docid: DocId, factory: DocumentFactory[A], garbageCollect: Boolean = true)(
         implicit transid: TransactionId, timeout: Duration = 10 seconds, ma: Manifest[A]): A = {
         val docFuture = factory.get(db, docid)
         val doc = Await.result(docFuture, timeout)
         assert(doc != null)
-        if (garbageCollect) docsToDelete += ((db, docid))
+        if (garbageCollect) docsToDelete += ((db, docid.asDocInfo))
         doc
     }
 
@@ -155,7 +155,7 @@ trait DbUtils extends TransactionCounter {
      */
     def del[A <: WhiskDocument, Au >: A](db: ArtifactStore[Au], docid: DocId, factory: DocumentFactory[A])(
         implicit transid: TransactionId, timeout: Duration = 10 seconds, ma: Manifest[A]) = {
-        val docFuture = factory.get(db, docid.asDocInfo)
+        val docFuture = factory.get(db, docid)
         val doc = Await.result(docFuture, timeout)
         assert(doc != null)
         Await.result(db.del(doc.docinfo), timeout)
@@ -168,7 +168,7 @@ trait DbUtils extends TransactionCounter {
         implicit transid: TransactionId, timeout: Duration = 10 seconds, ma: Manifest[A]): (DocInfo, A) = {
         val doc = put(db, entity, gc)
         assert(doc != null && doc.id() != null && doc.rev() != null)
-        val future = factory.get(db, doc)
+        val future = factory.get(db, doc.id, doc.rev)
         val dbEntity = Await.result(future, timeout)
         assert(dbEntity != null)
         assert(dbEntity == entity)

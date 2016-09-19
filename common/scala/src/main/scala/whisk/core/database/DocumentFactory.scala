@@ -34,6 +34,7 @@ import whisk.common.TransactionId
 import whisk.core.entity.DocInfo
 
 import spray.json.JsObject
+import whisk.core.entity.DocId
 
 /**
  * A common trait for all records that are stored in the datastore requiring an _id field,
@@ -200,20 +201,21 @@ trait DocumentFactory[W] extends InMemoryCache[W] {
      * and share common super types EntityRecord and WhiskEntity.
      *
      * @param db the datastore client to fetch entity from
-     * @param doc the entity document information (must contain a valid id, and optional revision)
+     * @param doc the entity document information (must contain a valid id)
+     * @param rev the document revision (optional)
      * @param fromCache will only query cache if true (defaults to collection settings)
      * @param transid the transaction id for logging
      * @param mw a manifest for W (hint to compiler to preserve type R for runtime)
      * @return Future[W] with completion to Success(W), or Failure(Throwable) if the raw record cannot be converted into W
      */
-    def get[Wsuper >: W](db: ArtifactStore[Wsuper], doc: DocInfo, fromCache: Boolean = cacheEnabled)(
+    def get[Wsuper >: W](db: ArtifactStore[Wsuper], doc: DocId, rev: DocRevision = DocRevision(), fromCache: Boolean = cacheEnabled)(
         implicit transid: TransactionId, mw: Manifest[W]): Future[W] = {
         Try {
             require(db != null, "db undefined")
-            require(doc != null, "doc undefined")
         } map {
             implicit val logger = db: Logging
-            _ => cacheLookup(db, doc, db.get[W](doc), fromCache)
+            val key = doc.asDocInfo(rev)
+            _ => cacheLookup(db, key, db.get[W](key), fromCache)
         } match {
             case Success(f) => f
             case Failure(t) => Future.failed(t)

@@ -204,7 +204,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         put(entityStore, trigger, false)
         put(entityStore, rule)
         Delete(s"$collectionPath/${rule.name}") ~> sealRoute(routes(creds)) ~> check {
-            val t = get(entityStore, trigger.docid.asDocInfo, WhiskTrigger)
+            val t = get(entityStore, trigger.docid, WhiskTrigger)
             deleteTrigger(t.docid)
 
             status should be(OK)
@@ -259,7 +259,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         put(entityStore, trigger, false)
         put(entityStore, action)
         Put(s"$collectionPath/${rule.name}", content) ~> sealRoute(routes(creds)) ~> check {
-            val t = get(entityStore, trigger.docid.asDocInfo, WhiskTrigger)
+            val t = get(entityStore, trigger.docid, WhiskTrigger)
             deleteTrigger(t.docid)
             deleteRule(rule.docid)
 
@@ -293,7 +293,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         put(entityStore, trigger, false)
         put(entityStore, action)
         Put(s"$collectionPath/${rule.name}", content) ~> sealRoute(routes(creds)) ~> check {
-            val t = get(entityStore, trigger.docid.asDocInfo, WhiskTrigger)
+            val t = get(entityStore, trigger.docid, WhiskTrigger)
             deleteTrigger(t.docid)
             deleteRule(rule.docid)
 
@@ -316,7 +316,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         put(entityStore, trigger, false)
         put(entityStore, action)
         Put(s"$collectionPath/${aname}", content) ~> sealRoute(routes(creds)) ~> check {
-            val t = get(entityStore, trigger.docid.asDocInfo, WhiskTrigger)
+            val t = get(entityStore, trigger.docid, WhiskTrigger)
             deleteTrigger(t.docid)
 
             status should be(RequestEntityTooLarge)
@@ -338,7 +338,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         put(entityStore, action)
         put(entityStore, rule)
         Put(s"$collectionPath/${rule.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
-            val t = get(entityStore, trigger.docid.asDocInfo, WhiskTrigger)
+            val t = get(entityStore, trigger.docid, WhiskTrigger)
             deleteTrigger(t.docid)
 
             status should be(RequestEntityTooLarge)
@@ -387,7 +387,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         put(entityStore, rule, false)
         val content = WhiskRulePut(Some(trigger.name), Some(action.name))
         Put(s"$collectionPath/${rule.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
-            val t = get(entityStore, trigger.docid.asDocInfo, WhiskTrigger)
+            val t = get(entityStore, trigger.docid, WhiskTrigger)
             deleteTrigger(t.docid)
             deleteRule(rule.docid)
 
@@ -409,7 +409,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         put(entityStore, rule, false)
         val content = WhiskRulePut(Some(trigger.name), Some(action.name))
         Put(s"$collectionPath/${rule.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
-            val t = get(entityStore, trigger.docid.asDocInfo, WhiskTrigger)
+            val t = get(entityStore, trigger.docid, WhiskTrigger)
             deleteTrigger(t.docid)
             deleteRule(rule.docid)
 
@@ -430,7 +430,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         put(entityStore, rule, false)
         val content = WhiskRulePut(action = Some(action.name))
         Put(s"$collectionPath/${rule.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
-            val t = get(entityStore, trigger.docid.asDocInfo, WhiskTrigger)
+            val t = get(entityStore, trigger.docid, WhiskTrigger)
             deleteTrigger(t.docid)
             deleteRule(rule.docid)
 
@@ -451,7 +451,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         put(entityStore, rule, false)
         val content = WhiskRulePut(trigger = Some(trigger.name))
         Put(s"$collectionPath/${rule.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
-            val t = get(entityStore, trigger.docid.asDocInfo, WhiskTrigger)
+            val t = get(entityStore, trigger.docid, WhiskTrigger)
             deleteTrigger(t.docid)
             deleteRule(rule.docid)
 
@@ -580,7 +580,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         put(entityStore, trigger, false)
         put(entityStore, rule)
         Post(s"$collectionPath/${rule.name}", activeStatus) ~> sealRoute(routes(creds)) ~> check {
-            val t = get(entityStore, trigger.docid.asDocInfo, WhiskTrigger)
+            val t = get(entityStore, trigger.docid, WhiskTrigger)
             deleteTrigger(t.docid)
 
             status should be(OK)
@@ -599,7 +599,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         put(entityStore, trigger, false)
         put(entityStore, rule)
         Post(s"$collectionPath/${rule.name}", activeStatus) ~> sealRoute(routes(creds)) ~> check {
-            val t = get(entityStore, trigger.docid.asDocInfo, WhiskTrigger)
+            val t = get(entityStore, trigger.docid, WhiskTrigger)
             deleteTrigger(t.docid)
 
             status should be(OK)
@@ -629,7 +629,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         put(entityStore, trigger, false)
         put(entityStore, rule)
         Post(s"$collectionPath/${rule.name}", inactiveStatus) ~> sealRoute(routes(creds)) ~> check {
-            val t = get(entityStore, trigger.docid.asDocInfo, WhiskTrigger)
+            val t = get(entityStore, trigger.docid, WhiskTrigger)
             deleteTrigger(t.docid)
 
             status should be(OK)
@@ -674,7 +674,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         put(entityStore, trigger, false)
         put(entityStore, action)
         Put(s"$collectionPath/${rule.name}", content) ~> sealRoute(routes(creds)) ~> check {
-            val t = get(entityStore, trigger.docid.asDocInfo, WhiskTrigger)
+            val t = get(entityStore, trigger.docid, WhiskTrigger)
             deleteTrigger(t.docid)
             deleteRule(rule.docid)
 
@@ -695,7 +695,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         put(entityStore, trigger, false)
         put(entityStore, rule)
         Post(s"$collectionPath/${rule.name}", activeStatus) ~> sealRoute(routes(creds)) ~> check {
-            val t = get(entityStore, trigger.docid.asDocInfo, WhiskTrigger)
+            val t = get(entityStore, trigger.docid, WhiskTrigger)
             deleteTrigger(t.docid)
 
             status should be(OK)

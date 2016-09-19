@@ -90,7 +90,7 @@ class AuthenticateTests extends ControllerTestCommon with Authenticate {
             val newCreds = {
                 implicit val tid = transid()
                 val newCreds = creds.revoke
-                val prevRecord = get(authStore, DocId(creds.subject()).asDocInfo, WhiskAuth, false)
+                val prevRecord = get(authStore, DocId(creds.subject()), WhiskAuth, false)
                 Await.result(WhiskAuth.put(authStore, newCreds.revision[WhiskAuth](prevRecord.docinfo.rev)), dbOpTimeout)
                 newCreds
             }

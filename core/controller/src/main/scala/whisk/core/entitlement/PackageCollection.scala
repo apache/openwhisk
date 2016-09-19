@@ -82,7 +82,7 @@ class PackageCollection(entityStore: EntityStore) extends Collection(Collection.
 
         val right = Privilege.READ
 
-        WhiskPackage.get(entityStore, doc.asDocInfo) flatMap {
+        WhiskPackage.get(entityStore, doc) flatMap {
             case wp if wp.binding.isEmpty =>
                 val allowed = wp.publish || isOwner
                 info(this, s"entitlement check on package, '$right' allowed?: $allowed")

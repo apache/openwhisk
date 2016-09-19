@@ -272,7 +272,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
             val activationId = ActivationId(id)
             response.fields("activationId") should not be None
 
-            val activationDoc = DocId(WhiskEntity.qualifiedName(namespace, activationId)).asDocInfo
+            val activationDoc = DocId(WhiskEntity.qualifiedName(namespace, activationId))
             val activation = get(activationStore, activationDoc, WhiskActivation, garbageCollect = false)
             del(entityStore, DocId(WhiskEntity.qualifiedName(namespace, activationId)), WhiskActivation)
             activation.end should be(Instant.EPOCH)
