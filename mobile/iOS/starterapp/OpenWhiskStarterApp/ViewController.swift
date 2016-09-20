@@ -42,7 +42,7 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
     var MyActionParameters: [String:AnyObject]? = nil
     let HasResult: Bool = true // true if the action returns a result
     
-    var session: NSURLSession!
+    var session: URLSession!
     
     let locationManager = CLLocationManager()
     var currentLocation: [CLLocation]?
@@ -51,7 +51,7 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
         super.viewDidLoad()
         
         // create custom session that allows self-signed certificates
-        let session = NSURLSession(configuration: NSURLSessionConfiguration.defaultSessionConfiguration(), delegate: SelfSignedNetworkDelegate(), delegateQueue:NSOperationQueue.mainQueue())
+        let session = URLSession(configuration: URLSessionConfiguration.default, delegate: SelfSignedNetworkDelegate(), delegateQueue:OperationQueue.main)
         
         // create whisk credentials token
         let creds = WhiskCredentials(accessKey: WhiskAppKey,accessToken: WhiskAppSecret)
@@ -70,14 +70,14 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
     @IBAction func whiskButtonPressed(sender: AnyObject) {
         // Set latitude and longitude parameters.
         if let currentLocation = currentLocation {
-            MyActionParameters = ["latitude": currentLocation[0].coordinate.latitude, "longitude": currentLocation[0].coordinate.longitude]
+            MyActionParameters = ["latitude": currentLocation[0].coordinate.latitude as AnyObject, "longitude": currentLocation[0].coordinate.longitude as AnyObject]
         }
         
         // Invoke action with parameters.
         whiskButton.invokeAction(parameters: MyActionParameters, actionCallback: { reply, error in
             if let error = error {
                 print("Oh no! \(error)")
-                if case let WhiskError.HTTPError(description, statusCode, _) = error {
+                if case let WhiskError.httpError(description, statusCode) = error {
                     print("HttpError: \(description) statusCode:\(statusCode)")
                 }
             } else if let reply = reply {
@@ -85,7 +85,7 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
                 print("reply: \(str)")
                 self.statusLabel.text = "Action \(self.MyNamespace)/\(self.MyWhiskAction) returned \(str.characters.count) characters"
                 if let result = reply["result"] as? [String:AnyObject] {
-                    self.displayOutput(result)
+                    self.displayOutput(reply: result)
                 }
             } else {
                 print("Success")
@@ -96,25 +96,27 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
     
     func displayOutput(reply: [String:AnyObject]) {
         if let date = reply["date"] as? String{
-            self.outputText.text = "The date is \(reformatDate(date))"
+            self.outputText.text = "The date is \(reformatDate(dateStr: date))"
         }
     }
     
     // Optional, can be used to display results in a UITableView
     func displayResultView(reply: [String: AnyObject]) {
         let storyboard = UIStoryboard(name: "Main", bundle: nil)
-        let vc = storyboard.instantiateViewControllerWithIdentifier("resultSetTable") as! ResultSetTableController
+        let vc = storyboard.instantiateViewController(withIdentifier: "resultSetTable") as! ResultSetTableController
         vc.resultSet = reply
         self.navigationController?.pushViewController(vc, animated: true)
     }
     
+    
     // CLLocationDelegate Functions
-    func locationManager(manager: CLLocationManager, didChangeAuthorizationStatus status: CLAuthorizationStatus) {
+    func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
         print("Got location manager authorization status \(status)")
         locationManager.startUpdatingLocation()
+
     }
     
-    func locationManager(manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         currentLocation = locations
     }
     
@@ -128,15 +130,15 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
     func reformatDate(dateStr: String) -> String {
         
         var newDateStr = dateStr
-        let formatter = NSDateFormatter()
+        let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
         
-        formatter.timeZone = NSTimeZone(name: "UTC")
+        formatter.timeZone = TimeZone(abbreviation: "UTC") //NSTimeZone(name: "UTC")
         
-        if let date = formatter.dateFromString(dateStr) {
+        if let date = formatter.date(from: dateStr) {
             formatter.dateFormat = "MMM dd EEEE yyyy HH:mm"
-            formatter.timeZone = NSTimeZone(name: "UTC")
-            newDateStr = formatter.stringFromDate(date)
+            formatter.timeZone = TimeZone(abbreviation: "UTC")
+            newDateStr = formatter.string(from: date)
         }
         
         return newDateStr

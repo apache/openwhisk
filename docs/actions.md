@@ -48,9 +48,9 @@ Review the following steps and examples to create your first JavaScript action.
 
   You can see the `hello` action you just created.
 
-4. After you create your action, you can run it in the cloud in OpenWhisk with the 'invoke' command. You can run actions with a *blocking* invocation (i.e., request/response style) or a *non-blocking* invocation by specifying a flag in the command. A blocking invocation request will _wait_ for the activation result to be available. The wait period is the lesser of 60 seconds or the action's configured [time limit](./reference.md#per-action-timeout-ms-default-60s). The result of the activation is returned if it is available within the wait period. Otherwise, the activation continues processing in the system and an activation ID is returned so that one may check for the result later, as with non-blocking requests (see [here](#watching-action-output) for tips on monitoring activations).
+4. After you create your action, you can invoke it in the cloud in OpenWhisk with the 'invoke' command. You can run actions with a *blocking* invocation (i.e., request/response style) or a *non-blocking* invocation by specifying a flag in the command. A blocking invocation request will _wait_ for the activation result to be available. The wait period is the lesser of 60 seconds or the action's configured [time limit](./reference.md#per-action-timeout-ms-default-60s). The result of the activation is returned if it is available within the wait period. Otherwise, the activation continues processing in the system and an activation ID is returned so that one may check for the result later, as with non-blocking requests (see [here](#watching-action-output) for tips on monitoring activations).
 
-This example uses the blocking parameter, `--blocking`:
+  This example uses the blocking parameter, `--blocking`:
 
   ```
   $ wsk action invoke --blocking hello
@@ -239,36 +239,37 @@ The examples so far have been self-contained JavaScript functions. You can also 
 This example invokes a Yahoo Weather service to get the current conditions at a specific location. 
 
 1. Save the following content in a file called `weather.js`.
+  
   ```
-    var request = require('request');
-
-    function main(params) {
-        var location = params.location || 'Vermont';
-        var url = 'https://query.yahooapis.com/v1/public/yql?q=select item.condition from weather.forecast where woeid in (select woeid from geo.places(1) where text="' + location + '")&format=json';
-
-        return new Promise(function(resolve, reject) {
-            request.get(url, function(error, response, body) {
-                if (error) {
-                    reject(error);    
-                }
-                else {
-                    var condition = JSON.parse(body).query.results.channel.item.condition;
-                    var text = condition.text;
-                    var temperature = condition.temp;
-                    var output = 'It is ' + temperature + ' degrees in ' + location + ' and ' + text;
-                    resolve({msg: output});
-                }
-            });
-        });
-    }
+  var request = require('request');
+  
+  function main(params) {
+      var location = params.location || 'Vermont';
+      var url = 'https://query.yahooapis.com/v1/public/yql?q=select item.condition from weather.forecast where woeid in (select woeid from geo.places(1) where text="' + location + '")&format=json';
+  
+      return new Promise(function(resolve, reject) {
+          request.get(url, function(error, response, body) {
+              if (error) {
+                  reject(error);
+              }
+              else {
+                  var condition = JSON.parse(body).query.results.channel.item.condition;
+                  var text = condition.text;
+                  var temperature = condition.temp;
+                  var output = 'It is ' + temperature + ' degrees in ' + location + ' and ' + text;
+                  resolve({msg: output});
+              }
+          });
+      });
+  }
   ```
-
+  
   Note that the action in the example uses the JavaScript `request` library to make an HTTP request to the Yahoo Weather API, and extracts fields from the JSON result. The [References](./reference.md#javascript-runtime-environments) detail the Node.js packages that you can use in your actions.
-
+  
   This example also shows the need for asynchronous actions. The action returns a Promise to indicate that the result of this action is not available yet when the function returns. Instead, the result is available in the `request` callback after the HTTP call completes, and is passed as an argument to the `resolve()` function.
-
-
+  
 2. Run the following commands to create the action and invoke it:
+  
   ```
   $ wsk action create weather weather.js
   ```
@@ -280,7 +281,7 @@ This example invokes a Yahoo Weather service to get the current conditions at a 
       "msg": "It is 28 degrees in Brooklyn, NY and Cloudy"
   }
   ```
-
+  
 ### Creating action sequences
 
 You can create an action that chains together a sequence of actions.
@@ -301,18 +302,17 @@ Several utility actions are provided in a package called `/whisk.system/utils` t
    action /whisk.system/utils/date: Current date and time
    action /whisk.system/utils/cat: Concatenates input into a string
   ```
-
+  
   You will be using the `split` and `sort` actions in this example.
-
+  
 2. Create an action sequence so that the result of one action is passed as an argument to the next action.
   
   ```
-  $ wsk action create myAction --sequence /whisk.system/utils/split,/whisk.system/utils/sort
+  $ wsk action create sequenceAction --sequence /whisk.system/utils/split,/whisk.system/utils/sort
   ```
-
+  
   This action sequence converts some lines of text to an array, and sorts the lines.
-
-
+  
 3. Invoke the action:
   
   ```
@@ -337,7 +337,6 @@ The result of the first action in the sequence becomes the input JSON object to 
 This object does not include any of the parameters originally passed to the sequence unless the first action explicitly includes them in its result.
 Input parameters to an action are merged with the action's default parameters, with the former taking precedence and overriding any matching default parameters.
 For more information about invoking action sequences with multiple named parameters, see [Setting default parameters](./actions.md#setting-default-parameters).
-
 
 ## Creating Python actions
 
@@ -494,6 +493,7 @@ $ wsk action invoke --blocking --result helloJava --param name World
 **Note:** If the JAR file has more than one class with a main method matching required signature, the CLI tool uses the first one reported by `jar -tf`.
 
 
+
 ## Creating Docker actions
 
 With OpenWhisk Docker actions, you can write your actions in any language.
@@ -529,7 +529,6 @@ For the instructions that follow, assume that the Docker user ID is `janesmith` 
   ```
   ```
   #include <stdio.h>
-
   int main(int argc, char *argv[]) {
       printf("This is an example log message from an arbitrary C program!\n");
       printf("{ \"msg\": \"Hello from arbitrary C program!\", \"args\": %s }",
@@ -546,7 +545,7 @@ For the instructions that follow, assume that the Docker user ID is `janesmith` 
   By convention, the last line of output _must_ be a stringified JSON object which represents the result of the action.
 
 3. Build the Docker image and upload it using a supplied script. You must first run `docker login` to authenticate, and then run the script with a chosen image name.
-
+  
   ```
   $ docker login -u janesmith -p janes_password
   ```
@@ -559,20 +558,20 @@ For the instructions that follow, assume that the Docker user ID is `janesmith` 
   ```
   $ ./buildAndPush.sh janesmith/blackboxdemo
   ```
-
+  
   Notice that part of the example.c file is compiled as part of the Docker image build process, so you do not need C compiled on your machine.
   In fact, unless you are compiling the binary on a compatible host machine, it may not run inside the container since formats will not match.
-
+  
   Your Docker container may now be used as an OpenWhisk action.
-
-
+  
+  
   ```
   $ wsk action create --docker example janesmith/blackboxdemo
   ```
-
+  
   Notice the use of `--docker` when creating an action. Currently all Docker images are assumed to be hosted on Docker Hub.
   The action may be invoked as any other OpenWhisk action.
-
+  
   ```
   $ wsk action invoke --blocking --result example --param payload Rey
   ```
@@ -584,7 +583,7 @@ For the instructions that follow, assume that the Docker user ID is `janesmith` 
       "msg": "Hello from arbitrary C program!"
   }
   ```
-
+  
   To update the Docker action, run buildAndPush.sh to refresh the image on Docker Hub, this will allow the next time the system pulls your Docker image to run the new code for your action. 
   If there are no warm containers any new invocations will use the new Docker image. 
   Take into account that if there is a warm container using a previous version of your Docker image, any new invocations will continue to use this image unless you run wsk action update, this will indicate to the system that for any new invocations force a docekr pull resulting on pulling your new Docker image.
@@ -595,9 +594,8 @@ For the instructions that follow, assume that the Docker user ID is `janesmith` 
   ```
   $ wsk action update --docker example janesmith/blackboxdemo
   ```
-
+  
   You can find more information about creating Docker actions in the [References](./reference.md#docker-actions) section.
-
 
 ## Watching action output
 

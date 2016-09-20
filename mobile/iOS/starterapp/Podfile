@@ -1,7 +1,14 @@
-install! 'cocoapods', :deterministic_uuids => false
 use_frameworks!
 
 target 'OpenWhiskStarterApp' do
-     platform :ios, '9.0'
-     pod 'OpenWhisk', :git => 'https://github.com/openwhisk/openwhisk-client-swift.git', :tag => '0.1.7'
+     platform :ios, '10.0'
+     pod 'OpenWhisk', :git => 'https://github.com/openwhisk/openwhisk-client-swift.git', :tag => '0.2.1'
+end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    target.build_configurations.each do |config|
+      config.build_settings['SWIFT_VERSION'] = '3.0'
+    end
+  end
 end
