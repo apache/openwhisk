@@ -41,7 +41,7 @@ class ResultSetTableController: UITableViewController {
         names = [String]()
         values = [String]()
         
-        if let resultSet = resultSet where resultSet.count > 0 {
+        if let resultSet = resultSet , resultSet.count > 0 {
             for (name, value) in resultSet {
                 names.append(name)
                 
@@ -61,11 +61,11 @@ class ResultSetTableController: UITableViewController {
                         isComplex.append(false)
                     } else {
                         do {
-                            let theJSONData = try NSJSONSerialization.dataWithJSONObject(
-                                value ,
-                                options: NSJSONWritingOptions(rawValue: 0))
+                            let theJSONData = try JSONSerialization.data(
+                                withJSONObject: value ,
+                                options: JSONSerialization.WritingOptions(rawValue: 0))
                             let theJSONText = NSString(data: theJSONData,
-                                encoding: NSASCIIStringEncoding)
+                                encoding: String.Encoding.ascii.rawValue)
                             values.append(theJSONText as! String)
                             isComplex.append(true)
                         } catch {
@@ -83,18 +83,18 @@ class ResultSetTableController: UITableViewController {
     
     
     // MARK UITableViewDataSource
-    override func tableView(tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+    override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return resultSet.count
     }
     
-    override func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCellWithIdentifier("resultCell") as! ResultSetCell
+    override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "resultCell") as! ResultSetCell
         
-        cell.nameLabel.text = names[indexPath.row]
-        cell.valueLabel.text = values[indexPath.row]
+        cell.nameLabel.text = names[(indexPath as NSIndexPath).row]
+        cell.valueLabel.text = values[(indexPath as NSIndexPath).row]
         
-        if isComplex[indexPath.row] == true {
-            cell.accessoryType = UITableViewCellAccessoryType.DisclosureIndicator
+        if isComplex[(indexPath as NSIndexPath).row] == true {
+            cell.accessoryType = UITableViewCellAccessoryType.disclosureIndicator
         }
         
         
