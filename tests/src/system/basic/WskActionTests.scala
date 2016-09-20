@@ -31,6 +31,8 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 import spray.json.JsObject
 import spray.json.pimpAny
+import whisk.core.entity.size.SizeInt
+import scala.concurrent.duration.DurationInt
 
 @RunWith(classOf[JUnitRunner])
 class WskActionTests
@@ -263,6 +265,35 @@ class WskActionTests
                     activation.response.result shouldBe Some(JsObject(
                         "stderr" -> "ping: icmp open socket: Operation not permitted\n".toJson,
                         "stdout" -> "".toJson))
+            }
+    }
+
+    it should "write the action-path and the limits to the annotations" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "annotations"
+            val memoryLimit = 512 MB
+            val logLimit = 1 MB
+            val timeLimit = 60 seconds
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("helloAsync.js")), memory = Some(memoryLimit), timeout = Some(timeLimit), logsize = Some(logLimit))
+            }
+
+            val run = wsk.action.invoke(name, Map("payload" -> testString.toJson))
+            withActivation(wsk.activation, run) {
+                activation =>
+                    activation.response.status shouldBe "success"
+                    val annotations = activation.annotations.get
+
+                    val limitsObj = JsObject("key" -> JsString("limits"),
+                        "value" -> JsObject("timeout" -> JsNumber(timeLimit.toMillis),
+                            "memory" -> JsNumber(memoryLimit.toMB),
+                            "logs" -> JsNumber(logLimit.toMB)))
+
+                    val path = annotations.find { _.fields("key").convertTo[String] == "path" }.get
+
+                    path.fields("value").convertTo[String] should fullyMatch regex (s""".*/$name""")
+                    annotations should contain(limitsObj)
             }
     }
 
