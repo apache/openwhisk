@@ -49,3 +49,6 @@ ansible/tmp/*
 # Action proxies copied during build
 core/swiftAction/actionproxy.py
 core/swift3Action/actionproxy.py
+
+# Tests copied during deployment
+tests/src/packages/
