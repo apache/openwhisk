@@ -256,8 +256,7 @@ Components = [
 
     makeComponent('edge',
                   'deploy edge',
-                  gradle = ':tools:cli',
-                  tasks = 'distTar'),
+                  gradle = ':tools:cli'),
 
     makeComponent('catalog',
                   'install catalog',
@@ -308,8 +307,7 @@ Components = [
     makeComponent('cli',
                   'build CLI (to deploy, use edge component)',
                   yaml = False,
-                  gradle = ':tools:cli',
-                  tasks = 'distTar'),
+                  gradle = ':tools:cli'),
 
     # required for tests
     makeComponent('props',
