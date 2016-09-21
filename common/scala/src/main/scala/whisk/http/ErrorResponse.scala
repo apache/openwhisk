@@ -52,10 +52,10 @@ object Messages {
     val resourceDoesNotExist = "The requested resource does not exist."
 
     /** Standard message for too many activation requests within a rolling time window. */
-    val tooManyRequests = "Too many requests from user."
+    val tooManyRequests = "Too many requests from user in a given amount of time."
 
     /** Standard message for too many concurrent activation requests within a time window. */
-    val tooManyConcurrentRequests = "The user has sent too many requests in a given amount of time."
+    val tooManyConcurrentRequests = "The user has sent too many concurrent requests."
 
     /** Standard message when supplied authkey is not authorized for an operation. */
     val notAuthorizedtoOperateOnResource = "The supplied authentication token is not authorized to perform operation resource."

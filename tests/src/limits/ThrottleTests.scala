@@ -67,9 +67,6 @@ class ThrottleTests
     println(s"maximumFiringsPerMinute  = $maximumFiringsPerMinute")
     println(s"maximumConcurrentInvokes = $maximumConcurrentInvokes")
 
-    val rateMessage = "Too many requests from user"
-    val concurrencyMessage = "The user has sent too many requests in a given amount of time."
-
     /*
      * Retrieve a numeric limit for the key from the property set.  If the overrideKey is present, use that.
      */
