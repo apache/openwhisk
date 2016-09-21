@@ -95,8 +95,8 @@ protected class ActivationFeed(
                                 handler(topic, bytes)
                         }
                 } recover {
-                    case e: CommitFailedException => logging.error(this, s"failed to commit consumer offset: ${e.getMessage}")
-                    case e: Throwable             => logging.error(this, s"exception while pulling new records: ${e.getMessage}")
+                    case e: CommitFailedException => logging.error(this, s"failed to commit consumer offset: $e")
+                    case e: Throwable             => logging.error(this, s"exception while pulling new records: $e")
                 }
                 fill()
             } else logging.debug(this, "dropping fill request until feed is drained")

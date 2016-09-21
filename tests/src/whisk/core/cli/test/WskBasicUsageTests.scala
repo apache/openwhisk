@@ -22,6 +22,7 @@ import java.time.Instant
 import scala.language.postfixOps
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
+import scala.util.Random
 
 import org.apache.commons.io.FileUtils
 import org.junit.runner.RunWith
@@ -398,6 +399,24 @@ class WskBasicUsageTests
 
                     path.fields("value").convertTo[String] should fullyMatch regex (s""".*/$name""")
                     annotations should contain(limitsObj)
+            }
+    }
+
+    it should "create, and invoke an action that utilizes an invalid docker container with appropriate error" in withAssetCleaner(wskprops) {
+        val name = "invalid dockerContainer"
+        val containerName = s"bogus${Random.alphanumeric.take(16).mkString.toLowerCase}"
+
+        (wp, assetHelper) =>
+            assetHelper.withCleaner(wsk.action, name) {
+                // docker name is a randomly generate string
+                (action, _) => action.create(name, Some(containerName), kind = Some("docker"))
+            }
+
+            val run = wsk.action.invoke(name)
+            withActivation(wsk.activation, run) {
+                activation =>
+                    activation.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ApplicationError)
+                    activation.response.result.get.fields("error") shouldBe s"Failed to pull container image '$containerName'.".toJson
             }
     }
 

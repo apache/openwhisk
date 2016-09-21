@@ -50,8 +50,8 @@ import whisk.core.entity.WhiskEntityStore
 import whisk.core.entity.NodeJS6Exec
 import akka.event.Logging.LogLevel
 import akka.event.Logging.InfoLevel
-import whisk.core.entity.BlackBoxExec
 import whisk.core.entity.AuthKey
+import whisk.core.entity.Exec
 
 /**
  * A thread-safe container pool that internalizes container creation/teardown and allows users
@@ -536,10 +536,10 @@ class ContainerPool(
             try {
                 info(this, s"making new container because none available")
                 startingCounter.next()
-                makeGeneralContainer(key, containerName, imageName, limits, action.exec.kind == BlackBoxExec)
+                makeGeneralContainer(key, containerName, imageName, limits, action.exec.kind == Exec.BLACKBOX)
             } finally {
                 val newCount = startingCounter.prev()
-                info(this, s"made container, number of remaining containers to start: $newCount")
+                info(this, s"finished trying to make container, $newCount more containers to start")
             }
         }
         initWhiskContainer(action, con)
@@ -557,15 +557,31 @@ class ContainerPool(
         val cpuShare = ContainerPool.cpuShare(config)
         val policy = config.invokerContainerPolicy
         val env = getContainerEnvironment()
-        // This will start up the container
-        if (pull) runDockerPull {
-            ContainerUtils.pullImage(dockerhost, imageName)
+
+        // distinguishes between a black box container vs a whisk container
+        def disambiguateContainerError[T](op: => T) = {
+            try { op } catch {
+                case e: ContainerError =>
+                    throw if (pull) BlackBoxContainerError(e.msg) else WhiskContainerError(e.msg)
+            }
         }
+
+        if (pull) runDockerPull {
+            disambiguateContainerError {
+                // if pull fails, the transaction is aborted by throwing an exception;
+                // a pull is only done for black box container
+                ContainerUtils.pullImage(dockerhost, imageName)
+            }
+        }
+
+        // This will start up the container
         runDockerOp {
-            // because of the docker lock, by the time the container gets around to be started
-            // there could be a container to reuse (from a previous run of the same action, or
-            // from a stem cell container); should revisit this logic
-            new WhiskContainer(transid, this.dockerhost, key, containerName, imageName, network, cpuShare, policy, env, limits, isBlackbox = pull, logLevel = this.getVerbosity())
+            disambiguateContainerError {
+                // because of the docker lock, by the time the container gets around to be started
+                // there could be a container to reuse (from a previous run of the same action, or
+                // from a stem cell container); should revisit this logic
+                new WhiskContainer(transid, this.dockerhost, key, containerName, imageName, network, cpuShare, policy, env, limits, isBlackbox = pull, logLevel = this.getVerbosity())
+            }
         }
     }
 

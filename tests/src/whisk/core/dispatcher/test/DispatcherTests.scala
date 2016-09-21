@@ -33,19 +33,21 @@ import akka.event.Logging.{ InfoLevel, DebugLevel }
 import common.WskActorSystem
 import spray.json.JsNumber
 import spray.json.JsObject
+import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.core.dispatcher.ActivationFeed
-import whisk.core.dispatcher.MessageHandler
 import whisk.core.dispatcher.Dispatcher
+import whisk.core.dispatcher.MessageHandler
 import whisk.core.entity.ActivationId
-import whisk.core.entity.Subject
-import whisk.utils.retry
+import whisk.core.entity.AuthKey
+import whisk.core.entity.DocRevision
 import whisk.core.entity.EntityName
 import whisk.core.entity.EntityPath
 import whisk.core.entity.FullyQualifiedEntityName
-import whisk.common.Logging
-import whisk.core.entity.AuthKey
+import whisk.core.entity.SemVer
+import whisk.core.entity.Subject
+import whisk.utils.retry
 
 @RunWith(classOf[JUnitRunner])
 class DispatcherTests extends FlatSpec with Matchers with WskActorSystem {
@@ -66,8 +68,8 @@ class DispatcherTests extends FlatSpec with Matchers with WskActorSystem {
         val content = JsObject("payload" -> JsNumber(count))
         val subject = Subject()
         val authkey = AuthKey()
-        val path = FullyQualifiedEntityName(EntityPath("test"), EntityName(s"count-$count"), None)
-        val msg = Message(TransactionId.testing, path, subject, authkey, ActivationId(), EntityPath(subject()), Some(content))
+        val path = FullyQualifiedEntityName(EntityPath("test"), EntityName(s"count-$count"), SemVer())
+        val msg = Message(TransactionId.testing, path, DocRevision(), subject, authkey, ActivationId(), EntityPath(subject()), Some(content))
         connector.send(msg)
     }
 
@@ -100,7 +102,7 @@ class DispatcherTests extends FlatSpec with Matchers with WskActorSystem {
                 Console.withErr(stream) {
                     retry({
                         val logs = stream.toString()
-                        logs should include regex (s"exception while pulling new records: commit failed")
+                        logs should include regex (s"exception while pulling new records *.* commit failed")
                     }, 10, Some(100 milliseconds))
 
                     connector.throwCommitException = false

@@ -64,6 +64,7 @@ trait ContainerUtils extends Logging {
     /*
      * TODO: The file handle and process limits should be moved to some global limits config.
      */
+    @throws[ContainerError]
     def makeContainer(name: Option[ContainerName], image: String, network: String, cpuShare: Int, env: Map[String, String], args: Seq[String], limits: ActionLimits, policy: Option[String])(implicit transid: TransactionId): ContainerHash = {
         val nameOption = name.map(n => Array("--name", n.name)).getOrElse(Array.empty[String])
         val cpuArg = Array("-c", cpuShare.toString)
@@ -81,7 +82,7 @@ trait ContainerUtils extends Logging {
         runDockerCmd(cmd: _*).toOption.map { result =>
             ContainerHash.fromString(result)
         } getOrElse {
-            throw new Exception("Container hash or name expected in `makeContainer`.")
+            throw new ContainerError("Failed to start container.")
         }
     }
 
@@ -228,13 +229,14 @@ object ContainerUtils extends Logging {
         }
     }
 
+    @throws[FileNotFoundException]
     private def getDockerCmd(dockerhost: String): Seq[String] = {
         def file(path: String) = Try { new File(path) } filter { _.exists } toOption
 
         val dockerLoc = file("/usr/bin/docker") orElse file("/usr/local/bin/docker")
 
         val dockerBin = dockerLoc.map(_.toString).getOrElse {
-            throw new FileNotFoundException("Couldn't locate docker binary.")
+            throw new FileNotFoundException("Failed to locate docker binary.")
         }
 
         if (dockerhost == "localhost") {
@@ -247,9 +249,15 @@ object ContainerUtils extends Logging {
     /**
      * Pulls container images.
      */
+    @throws[ContainerError]
     def pullImage(dockerhost: String, image: String)(implicit transid: TransactionId): DockerOutput = {
         val cmd = Array("pull", image)
-        runDockerCmd(dockerhost, false, cmd)
+        val result = runDockerCmd(dockerhost, false, cmd)
+        if (result != DockerOutput.unavailable) {
+            result
+        } else {
+            throw new ContainerError(s"Failed to pull container image '$image'.")
+        }
     }
 
 }
