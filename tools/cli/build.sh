@@ -70,10 +70,10 @@ compress_binary() {
 };
 
 create_cli_packages() {
-  local dirIndex="{'cli':{"
+  local dirIndex="{\"cli\":{"
 
   for platform in $platforms; do
-    dirIndex="$dirIndex'$platform':{"
+    dirIndex="$dirIndex\"$platform\":{"
 
     for arch in $archs; do
       bin=$(get_bin_name $platform)
@@ -82,10 +82,10 @@ create_cli_packages() {
       comp_path=$(compress_binary $comp_name $bin $platform $arch)
 
       if [ $arch = $default_arch ]; then
-          dirIndex="$dirIndex'default':{'path':'$comp_path'},";
+          dirIndex="$dirIndex\"default\":{\"path\":\"$comp_path\"},";
       fi
 
-      dirIndex="$dirIndex'$arch':{'path':'$comp_path'},";
+      dirIndex="$dirIndex\"$arch\":{\"path\":\"$comp_path\"},";
     done
 
     dirIndex="$(echo $dirIndex | rev | cut -c2- | rev)"
@@ -95,7 +95,7 @@ create_cli_packages() {
   dirIndex="$(echo $dirIndex | rev | cut -c2- | rev)"
   dirIndex="$dirIndex}}"
 
-  echo $dirIndex > ./build/content.dirIndex
+  echo $dirIndex > ./build/content.json
 };
 
 platforms="mac linux windows"
