@@ -23,6 +23,8 @@ import org.scalatest.junit.JUnitRunner
 
 import com.jayway.restassured.RestAssured
 
+import spray.json._
+import DefaultJsonProtocol._
 /**
  * Basic tests of the download link for Go CLI binaries
  */
@@ -30,95 +32,90 @@ import com.jayway.restassured.RestAssured
 class GoCLINginxTests extends FlatSpec with Matchers with RestUtil {
 
     val ProductName = "OpenWhisk_CLI"
-    val DownloadLinkGoCli = "/cli/go/download"
+    val DownloadLinkGoCli = "cli/go/download"
+    val OperatingSystems = List("mac", "linux", "windows")
     val Architectures = List("386", "amd64")
+    val ServiceURL = getServiceURL()
 
-    //// Check the download page for all the Go Cli binaries
-    it should s"respond to ${DownloadLinkGoCli}" in {
+    it should s"respond to all files in root directory" in {
         val response = RestAssured.given().config(sslconfig).
-            get(getServiceURL() + DownloadLinkGoCli)
-
+            get(s"$ServiceURL/$DownloadLinkGoCli")
         response.statusCode should be(200)
         val responseString = response.body.asString
-        responseString.contains("""<a href="mac/">mac/</a>""") should be(true)
-        responseString.contains("""<a href="linux/">linux/</a>""") should be(true)
-        responseString.contains("""<a href="windows/">windows/</a>""") should be(true)
-    }
-
-    //// Check the Mac download page
-    it should s"respond to ${DownloadLinkGoCli}/mac" in {
-        val response = RestAssured.given().config(sslconfig).
-            get(getServiceURL() + s"${DownloadLinkGoCli}/mac")
-
-        response.statusCode should be(200)
-        val responseString = response.body.asString
-        for (arch <- Architectures) {
-            responseString.contains(s"""<a href="${arch}/">${arch}/</a>""") should be(true)
+        for (os <- OperatingSystems) {
+            responseString.contains(s"""<a href="$os/">$os/</a>""") should be(true)
         }
+        responseString.contains("""<a href="content.json">content.json</a>""") should be(true)
     }
 
-    //// Check the Linux download page
-    it should s"respond to ${DownloadLinkGoCli}/linux" in {
-        val response = RestAssured.given().config(sslconfig).
-            get(getServiceURL() + DownloadLinkGoCli + "/linux")
-
-        response.statusCode should be(200)
-        val responseString = response.body.asString
-        for (arch <- Architectures) {
-            responseString.contains(s"""<a href="${arch}/">${arch}/</a>""") should be(true)
-        }
-    }
-
-    //// Check the Windows download page
-    it should s"respond to ${DownloadLinkGoCli}/windows" in {
-        val response = RestAssured.given().config(sslconfig).
-            get(getServiceURL() + DownloadLinkGoCli + "/windows")
-
-        response.statusCode should be(200)
-        val responseString = response.body.asString
-        for (arch <- Architectures) {
-            responseString.contains(s"""<a href="${arch}/">${arch}/</a>""") should be(true)
-        }
-    }
-
-    // Check the all the download links for the Go Cli binaries available in Mac
-    for (arch <- Architectures) {
-        val macBinaryLink = getCompressedName("mac", arch, "zip")
-        it should "respond to " + macBinaryLink + " for the Mac download link" in {
+    it should "respond to all operating systems and architectures in HTML index" in {
+        for (os <- OperatingSystems) {
             val response = RestAssured.given().config(sslconfig).
-                get(getServiceURL() + macBinaryLink)
-
+              get(s"$ServiceURL/$DownloadLinkGoCli/$os")
             response.statusCode should be(200)
+            val responseString = response.body.asString
+            for (arch <- Architectures) {
+                responseString.contains(s"""<a href="$arch/">$arch/</a>""") should be(true)
+            }
         }
     }
 
-    // Check the all the download links for the Go Cli binaries available in Linux
-    for (arch <- Architectures) {
-        val linuxBinaryLink = getCompressedName("linux", arch, "tgz")
-        it should s"respond to ${linuxBinaryLink} for the Linux download link" in {
-            val response = RestAssured.given().config(sslconfig).
-                get(getServiceURL() + linuxBinaryLink)
-
-            response.statusCode should be(200)
+    it should "respond to the download paths in content.json" in {
+        val response = RestAssured.given().config(sslconfig).
+          get(s"$ServiceURL/$DownloadLinkGoCli/content.json")
+        response.statusCode should be(200)
+        val jsObj = response.body.asString.parseJson.asJsObject.fields("cli").asJsObject
+        jsObj shouldBe getExpectedJSONIndex
+        val urls = Seq(
+            jsObj.fields("mac").asJsObject.fields("386").asJsObject.fields("path").convertTo[String],
+            jsObj.fields("mac").asJsObject.fields("default").asJsObject.fields("path").convertTo[String],
+            jsObj.fields("mac").asJsObject.fields("amd64").asJsObject.fields("path").convertTo[String],
+            jsObj.fields("linux").asJsObject.fields("386").asJsObject.fields("path").convertTo[String],
+            jsObj.fields("linux").asJsObject.fields("default").asJsObject.fields("path").convertTo[String],
+            jsObj.fields("linux").asJsObject.fields("amd64").asJsObject.fields("path").convertTo[String],
+            jsObj.fields("windows").asJsObject.fields("386").asJsObject.fields("path").convertTo[String],
+            jsObj.fields("windows").asJsObject.fields("default").asJsObject.fields("path").convertTo[String],
+            jsObj.fields("windows").asJsObject.fields("amd64").asJsObject.fields("path").convertTo[String]
+        )
+        for (url <- urls) {
+            RestAssured.given().config(sslconfig).
+              get(s"$ServiceURL/$DownloadLinkGoCli/$url").statusCode should be(200)
         }
     }
 
-    //// Check the all the download links for the Go Cli binaries available in Windows
-    for (arch <- Architectures) {
-        val windowsBinaryLink = getCompressedName("windows", arch, "zip")
-        it should s"respond to ${windowsBinaryLink} for the Windows download link" in {
-            val response = RestAssured.given().config(sslconfig).
-                get(getServiceURL() + windowsBinaryLink)
-
-            response.statusCode should be(200)
-        }
-    }
-
-    def getCompressedName(os: String, arch: String, ext: String) = if (arch == "amd64") {
-        s"/cli/go/download/${os}/${arch}/${ProductName}-${os}.${ext}"
-    } else if (arch == "386") {
-        s"/cli/go/download/${os}/${arch}/${ProductName}-${os}-32bit.${ext}"
-    } else {
-        s"/cli/go/download/${os}/${arch}/${ProductName}-${os}-${arch}.${ext}"
-    }
+    def getExpectedJSONIndex = JsObject(
+        "mac" -> JsObject(
+            "386" -> JsObject(
+                "path" -> JsString("mac/386/OpenWhisk_CLI-mac-32bit.zip")
+            ),
+            "default" -> JsObject(
+                "path" -> JsString("mac/amd64/OpenWhisk_CLI-mac.zip")
+            ),
+            "amd64" -> JsObject(
+                "path" -> JsString("mac/amd64/OpenWhisk_CLI-mac.zip")
+            )
+        ),
+        "linux" -> JsObject(
+            "386" -> JsObject(
+                "path" -> JsString("linux/386/OpenWhisk_CLI-linux-32bit.tgz")
+            ),
+            "default" -> JsObject(
+                "path" -> JsString("linux/amd64/OpenWhisk_CLI-linux.tgz")
+            ),
+            "amd64" -> JsObject(
+                "path" -> JsString("linux/amd64/OpenWhisk_CLI-linux.tgz")
+            )
+        ),
+        "windows" -> JsObject(
+            "386" -> JsObject(
+                "path" -> JsString("windows/386/OpenWhisk_CLI-windows-32bit.zip")
+            ),
+            "default" -> JsObject(
+                "path" -> JsString("windows/amd64/OpenWhisk_CLI-windows.zip")
+            ),
+            "amd64" -> JsObject(
+                "path" -> JsString("windows/amd64/OpenWhisk_CLI-windows.zip")
+            )
+        )
+    )
 }
