@@ -99,7 +99,6 @@ class ThrottleTests
      * @param results the sequence of results from invocations or firings
      */
     def waitForActivations(results: ParSeq[RunResult]) = results.foreach { result =>
-        println("waiting for activations to complete")
         if (result.exitCode == SUCCESS_EXIT) {
             withActivation(wsk.activation, result, totalWait = 5.minutes)(identity)
         }
@@ -135,6 +134,7 @@ class ThrottleTests
         val results = List.fill(count)(Future {
             if (!p.isCompleted) {
                 val rr = run()
+                println(s"exitCode = ${rr.exitCode}   stderr = ${rr.stderr}")
                 if (rr.exitCode == THROTTLED) {
                     p.trySuccess(())
                 }
@@ -168,9 +168,10 @@ class ThrottleTests
                 (action, _) => action.create(name, defaultAction)
             }
 
-            // Two things to be careful of:
+            // Three things to be careful of:
             //   1) We do not know the minute boundary so we perform twice max so that it will trigger no matter where they fall
             //   2) We cannot issue too quickly or else the concurrency throttle will be triggered
+            //   3) In the worst case, we do about almost the limit in the first min and just exceed the limit in the second min.
             val totalInvokes = 2 * maximumInvokesPerMinute
             val numGroups = (totalInvokes / maximumConcurrentInvokes) + 1
             val invokesPerGroup = (totalInvokes / numGroups) + 1
@@ -186,7 +187,6 @@ class ThrottleTests
             try {
                 val throttledCount = throttledActivations(results, tooManyRequests)
                 throttledCount should be > 0
-                throttledCount should be <= (results.length - maximumInvokesPerMinute)
             } finally {
                 waitForActivations(results.par)
                 val alreadyWaited = durationBetween(afterInvokes, Instant.now)
@@ -210,7 +210,6 @@ class ThrottleTests
             try {
                 val throttledCount = throttledActivations(results, tooManyRequests)
                 throttledCount should be > 0
-                throttledCount should be <= (results.length - maximumFiringsPerMinute)
             } finally {
                 // no need to wait for activations of triggers since they consume no resources
                 // (because there is no rule attached in this test)
