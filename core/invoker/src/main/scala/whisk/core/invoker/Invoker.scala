@@ -16,83 +16,35 @@
 
 package whisk.core.invoker
 
-import java.time.Clock
-import java.time.Instant
+import java.time.{ Clock, Instant }
 
 import scala.Vector
 import scala.collection.concurrent.TrieMap
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.duration.{ Duration, DurationInt }
 import scala.language.postfixOps
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
+import scala.util.{ Failure, Success, Try }
 
-import akka.actor.ActorRef
-import akka.actor.ActorSystem
-import akka.actor.actorRef2Scala
-import akka.event.Logging.InfoLevel
-import akka.event.Logging.LogLevel
+import akka.actor.{ ActorRef, ActorSystem, actorRef2Scala }
+import akka.event.Logging.{ InfoLevel, LogLevel }
 import akka.japi.Creator
-import spray.json._
+import spray.json.{ JsArray, JsNumber, JsObject, JsValue, pimpAny, pimpString }
 import spray.json.DefaultJsonProtocol._
+import spray.json.DefaultJsonProtocol
+import whisk.common.{ ConsulKVReporter, Counter, Logging, LoggingMarkers, PrintStreamEmitter, SimpleExec, TransactionId }
 import whisk.common.ConsulClient
 import whisk.common.ConsulKV.InvokerKeys
-import whisk.common.ConsulKVReporter
-import whisk.common.Counter
-import whisk.common.Logging
-import whisk.common.LoggingMarkers
-import whisk.common.PrintStreamEmitter
-import whisk.common.SimpleExec
-import whisk.common.TransactionId
-import whisk.connector.kafka.KafkaConsumerConnector
-import whisk.connector.kafka.KafkaProducerConnector
+import whisk.connector.kafka.{ KafkaConsumerConnector, KafkaProducerConnector }
 import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig.consulServer
-import whisk.core.WhiskConfig.dockerImagePrefix
-import whisk.core.WhiskConfig.dockerRegistry
-import whisk.core.WhiskConfig.edgeHost
-import whisk.core.WhiskConfig.kafkaHost
-import whisk.core.WhiskConfig.logsDir
-import whisk.core.WhiskConfig.servicePort
-import whisk.core.WhiskConfig.whiskVersion
-import whisk.core.connector.{ ActivationMessage => Message }
-import whisk.core.connector.CompletionMessage
-import whisk.core.container.ContainerPool
-import whisk.core.container.Interval
-import whisk.core.container.RunResult
-import whisk.core.container.WhiskContainer
-import whisk.core.dispatcher.ActivationFeed.ActivationNotification
-import whisk.core.dispatcher.ActivationFeed.ContainerReleased
-import whisk.core.dispatcher.ActivationFeed.FailedActivation
-import whisk.core.dispatcher.Dispatcher
-import whisk.core.dispatcher.MessageHandler
-import whisk.core.entity.ActivationLogs
-import whisk.core.entity.ActivationResponse
-import whisk.core.entity.AuthKey
-import whisk.core.entity.BlackBoxExec
-import whisk.core.entity.DocId
-import whisk.core.entity.DocInfo
-import whisk.core.entity.DocRevision
-import whisk.core.entity.EntityPath
-import whisk.core.entity.LogLimit
-import whisk.core.entity.SemVer
-import whisk.core.entity.Subject
-import whisk.core.entity.WhiskAction
-import whisk.core.entity.WhiskActivation
-import whisk.core.entity.WhiskActivationStore
-import whisk.core.entity.WhiskAuthStore
-import whisk.core.entity.WhiskEntity
-import whisk.core.entity.WhiskEntityStore
-import whisk.core.entity.size.SizeLong
-import whisk.core.entity.size.SizeString
+import whisk.core.WhiskConfig.{ consulServer, dockerImagePrefix, dockerRegistry, edgeHost, kafkaHost, logsDir, servicePort, whiskVersion }
+import whisk.core.connector.{ ActivationMessage => Message, CompletionMessage }
+import whisk.core.container.{ BlackBoxContainerError, ContainerPool, Interval, RunResult, WhiskContainer, WhiskContainerError }
+import whisk.core.dispatcher.{ Dispatcher, MessageHandler }
+import whisk.core.dispatcher.ActivationFeed.{ ActivationNotification, ContainerReleased, FailedActivation }
+import whisk.core.entity.{ ActionLimits, ActivationLogs, ActivationResponse, AuthKey, DocId, DocInfo, DocRevision, EntityPath, Exec, LogLimit, Parameters, SemVer, Subject, WhiskAction, WhiskActivation, WhiskActivationStore, WhiskAuthStore, WhiskEntity, WhiskEntityStore }
+import whisk.core.entity.size.{ SizeInt, SizeString }
 import whisk.http.BasicHttpService
 import whisk.utils.ExecutionContextFactory
-import whisk.common.Logging
-import whisk.core.entity.Parameters
-import whisk.core.entity.ActionLimits
 
 /**
  * A kafka message handler that invokes actions as directed by message on topic "/actions/invoke".
@@ -126,19 +78,6 @@ class Invoker(
         producer.setVerbosity(level)
     }
 
-    /*
-     * We track the state of the transaction by wrapping the Message object.
-     * Note that var fields cannot be added to Message as it leads to serialization issues and
-     * doesn't make sense to mix local mutable state with the value being passed around.
-     *
-     * See completeTransaction for why complete is needed.
-     */
-    case class Transaction(msg: Message) {
-        var result: Option[Future[DocInfo]] = None
-        var initInterval: Option[Interval] = None
-        var runInterval: Option[Interval] = None
-    }
-
     /**
      * This is the handler for the kafka message
      *
@@ -151,25 +90,35 @@ class Invoker(
         val start = transid.started(this, LoggingMarkers.INVOKER_ACTIVATION)
         val namespace = msg.action.path
         val name = msg.action.name
-        val version = msg.action.version map { v => DocRevision(v) } getOrElse DocRevision()
-        val action = DocId(WhiskEntity.qualifiedName(namespace, name)).asDocInfo(version)
+        val actionid = DocId(WhiskEntity.qualifiedName(namespace, name)).asDocInfo(msg.revision)
         val tran = Transaction(msg)
         val subject = msg.subject
         val payload = msg.content getOrElse JsObject()
 
-        info(this, s"${action.id} $subject ${msg.activationId}")
+        info(this, s"${actionid.id} $subject ${msg.activationId}")
 
         // caching is enabled since actions have revision id and an updated
         // action will not hit in the cache due to change in the revision id;
         // if the doc revision is missing, then bypass cache
-        WhiskAction.get(entityStore, action.id, action.rev, action.rev != DocRevision()) flatMap {
+        WhiskAction.get(entityStore, actionid.id, actionid.rev, actionid.rev != DocRevision()) recoverWith {
+            case t =>
+                error(this, s"failed to fetch action from db: ${t.getMessage}")
+                Future.failed(ActivationException(s"Failed to fetch action."))
+        } flatMap {
             invokeAction(_, msg.authkey, payload, tran)
-        } andThen {
-            case Success(activationDoc) =>
-                info(this, s"recorded activation '$activationDoc'")
-            case Failure(t) =>
-                info(this, s"failed to invoke action ${action.id} due to ${t.getMessage}")
-                completeTransactionWithError(action, tran, s"failed to invoke action ${action.id}: ${t.getMessage}")
+        } recoverWith {
+            case t =>
+                val failure = t match {
+                    // in case of container pull/run operations that fail to execute, assign an appropriate error response
+                    case BlackBoxContainerError(msg) => ActivationException(msg, internalError = false)
+                    case WhiskContainerError(msg)    => ActivationException(msg)
+                    case _ =>
+                        error(this, s"failed during invoke: $t")
+                        ActivationException(s"Failed to run action '${actionid.id}': ${t.getMessage}")
+                }
+
+                info(this, s"activation failed")
+                completeTransactionWithError(actionid.id, msg.action.version, tran, failure.activationResponse)
         }
     }
 
@@ -177,15 +126,11 @@ class Invoker(
      * Creates a whisk activation out of the errorMsg and finish the transaction.
      * Failing with an error can involve multiple futures but the effecting call is completeTransaction which is guarded.
      */
-    protected def completeTransactionWithError(actionDocInfo: DocInfo, tran: Transaction, errorMsg: String)(
-        implicit transid: TransactionId): Unit = {
-        error(this, errorMsg)
+    protected def completeTransactionWithError(name: DocId, version: SemVer, tran: Transaction, response: ActivationResponse)(
+        implicit transid: TransactionId): Future[DocInfo] = {
         val msg = tran.msg
-        val name = EntityPath(actionDocInfo.id())
-        val version = SemVer() // TODO: this is wrong, when the semver is passed from controller, fix this
-        val response = ActivationResponse.whiskError(errorMsg)
         val interval = computeActivationInterval(tran)
-        val activation = makeWhiskActivation(msg, name, version, response, interval, None)
+        val activation = makeWhiskActivation(msg, EntityPath(name.id), version, response, interval, None)
         completeTransaction(tran, activation, FailedActivation(transid))
     }
 
@@ -209,7 +154,10 @@ class Invoker(
                     activationFeed ! releaseResource
                     // Since there is no active action taken for completion from the invoker, writing activation record is it.
                     info(this, "recording the activation result to the data store")
-                    val result = WhiskActivation.put(activationStore, activation)
+                    val result = WhiskActivation.put(activationStore, activation) andThen {
+                        case Success(id) => info(this, s"recorded activation")
+                        case Failure(t)  => error(this, s"failed to record activation")
+                    }
                     tran.result = Some(result)
                     result
                 }
@@ -267,10 +215,10 @@ class Invoker(
 
             case None => { // this corresponds to the container not even starting - not /init failing
                 info(this, s"failed to start or get a container")
-                val response = if (action.exec.kind == BlackBoxExec) {
-                    ActivationResponse.containerError("the container did to start")
+                val response = if (action.exec.kind == Exec.BLACKBOX) {
+                    ActivationResponse.containerError("The container did to start.")
                 } else {
-                    ActivationResponse.whiskError("error starting container to run action")
+                    ActivationResponse.whiskError("Error starting container to run action.")
                 }
                 val interval = computeActivationInterval(tran)
                 val activation = makeWhiskActivation(msg, EntityPath(action.docid.id), action.version, response, interval, Some(action.limits))
@@ -387,7 +335,7 @@ class Invoker(
     private def incrementUserActivationCounter(user: Subject)(implicit transid: TransactionId): Int = {
         val counter = userActivationCounter.getOrElseUpdate(user(), new Counter())
         val count = counter.next()
-        info(this, s"'${user}' has '$count' activations processed")
+        info(this, s"'${user}' has $count activations processed")
         count
     }
 
@@ -556,5 +504,26 @@ object Invoker {
                 def create = new InvokerServer {}
             })
         }
+    }
+}
+
+/**
+ * Tracks the state of the transaction by wrapping the Message object.
+ * Note that var fields cannot be added to Message as it leads to serialization issues and
+ * doesn't make sense to mix local mutable state with the value being passed around.
+ *
+ * See completeTransaction for why complete is needed.
+ */
+private case class Transaction(msg: Message) {
+    var result: Option[Future[DocInfo]] = None
+    var initInterval: Option[Interval] = None
+    var runInterval: Option[Interval] = None
+}
+
+private case class ActivationException(msg: String, internalError: Boolean = true) extends Throwable {
+    val activationResponse = if (internalError) {
+        ActivationResponse.whiskError(msg)
+    } else {
+        ActivationResponse.applicationError(msg)
     }
 }

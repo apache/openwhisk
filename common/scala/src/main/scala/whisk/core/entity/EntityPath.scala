@@ -160,13 +160,10 @@ protected[core] object EntityName {
  * A FullyQualifiedEntityName (qualified name) is a triple consisting of
  * - EntityPath: the namespace and package where the entity is located
  * - EntityName: the name of the entity
- * - Version: a unique version for the resource
- *
- * The version is not a SemVer (yet) because it semantic versioning of entities
- * is not enforced. Instead this will be a context specific version identifier.
+ * - Version: the semantic version of the resource
  */
-protected[core] case class FullyQualifiedEntityName(path: EntityPath, name: EntityName, version: Option[String]) {
-    override def toString = path.addpath(name) + version.map("@" + _).getOrElse("")
+protected[core] case class FullyQualifiedEntityName(path: EntityPath, name: EntityName, version: SemVer) {
+    override def toString = path.addpath(name) + "@" + version.toString
 }
 
 protected[core] object FullyQualifiedEntityName extends DefaultJsonProtocol {

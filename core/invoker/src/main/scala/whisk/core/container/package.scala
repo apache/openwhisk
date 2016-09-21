@@ -16,12 +16,12 @@
 
 package whisk.core
 
-import scala.concurrent.duration._
-
 import java.time.Instant
 
-import whisk.core.entity.UUID
+import scala.concurrent.duration._
+
 import whisk.core.entity.DocRevision
+import whisk.core.entity.UUID
 
 /**
  * This object contains type definitions that are useful when observing and timing container operations.
@@ -115,4 +115,8 @@ package object container {
         def apply(content: String) = new DockerOutput(Some(content))
         def unavailable = new DockerOutput(None)
     }
+
+    sealed class ContainerError(val msg: String) extends Throwable(msg)
+    case class WhiskContainerError(override val msg: String) extends ContainerError(msg)
+    case class BlackBoxContainerError(override val msg: String) extends ContainerError(msg)
 }

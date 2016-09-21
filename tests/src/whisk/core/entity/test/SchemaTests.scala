@@ -45,6 +45,7 @@ import whisk.core.entity.ActivationId
 import whisk.core.entity.AuthKey
 import whisk.core.entity.DocId
 import whisk.core.entity.DocInfo
+import whisk.core.entity.DocRevision
 import whisk.core.entity.EntityName
 import whisk.core.entity.Exec
 import whisk.core.entity.LogLimit
@@ -86,6 +87,22 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
         Seq("a", " a", "a ").foreach { i =>
             val d = DocInfo(i)
             assert(d.id() == i.trim)
+        }
+    }
+
+    it should "accept any string as doc revision" in {
+        Seq("a", " a", "a ", "", null).foreach { i =>
+            val d = DocRevision(i)
+            assert(d.rev == (if (i != null) i.trim else null))
+        }
+
+        DocRevision.serdes.read(JsNull) shouldBe DocRevision()
+        DocRevision.serdes.read(JsString("")) shouldBe DocRevision("")
+        DocRevision.serdes.read(JsString("a")) shouldBe DocRevision("a")
+        DocRevision.serdes.read(JsString(" a")) shouldBe DocRevision("a")
+        DocRevision.serdes.read(JsString("a ")) shouldBe DocRevision("a")
+        intercept[DeserializationException] {
+            DocRevision.serdes.read(JsNumber(1))
         }
     }
 

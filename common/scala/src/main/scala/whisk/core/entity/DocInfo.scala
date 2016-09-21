@@ -20,6 +20,7 @@ import whisk.core.entity.ArgNormalizer.trim
 import scala.util.Try
 import spray.json.JsValue
 import spray.json.RootJsonFormat
+import spray.json.JsNull
 import spray.json.JsString
 import spray.json.deserializationError
 
@@ -105,6 +106,16 @@ protected[core] object DocRevision {
      * @return DocRevision
      */
     protected[core] def apply(s: String = null): DocRevision = new DocRevision(trim(s))
+
+    implicit val serdes = new RootJsonFormat[DocRevision] {
+        def write(d: DocRevision) = if (d.rev != null) JsString(d.rev) else JsNull
+
+        def read(value: JsValue) = value match {
+            case JsString(s) => DocRevision(s)
+            case JsNull      => DocRevision()
+            case _           => deserializationError("doc revision malformed")
+        }
+    }
 }
 
 protected[core] object DocInfo {
