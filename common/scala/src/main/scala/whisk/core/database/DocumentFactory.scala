@@ -120,7 +120,7 @@ trait DocumentSerializer {
  * but the get permits a datastore of its super type so that a single datastore client
  * may be used for multiple types (because the types are stored in the same database for example).
  */
-trait DocumentFactory[W] extends InMemoryCache[W] {
+trait DocumentFactory[W] extends MultipleReadersSingleWriterCache/*InMemoryCache*/[W, DocInfo] {
     /**
      * Puts a record of type W in the datastore.
      *
@@ -142,16 +142,18 @@ trait DocumentFactory[W] extends InMemoryCache[W] {
             implicit val logger = db: Logging
             implicit val ec = db.executionContext
 
-            cacheInvalidate(cacheKeys(doc))
-            db.put(doc) map { docinfo =>
+            var key = cacheKeyForUpdate(doc)
+
+            cacheInvalidate(key)
+
+            cacheUpdate(doc, key, db.put(doc) map { docinfo =>
                 doc match {
                     // if doc has a revision id, update it with new version
                     case w: DocumentRevisionProvider => w.revision[W](docinfo.rev)
                 }
-                // cache put result iff put future was successful
-                cacheUpdate(cacheKeys(doc), doc)
                 docinfo
-            }
+            }).future
+
         } match {
             case Success(f) => f
             case Failure(t) => Future.failed(t)
@@ -166,7 +168,8 @@ trait DocumentFactory[W] extends InMemoryCache[W] {
             require(doc != null, "doc undefined")
         } map { _ =>
             implicit val logger: Logging = db
-            cacheInvalidate(Set(doc, doc.id.asDocInfo))
+            var key = doc.id.asDocInfo
+            cacheInvalidate(key)
             val src = StreamConverters.fromInputStream(() => bytes)
             db.attach(doc, attachmentName, contentType, src)
         } match {
@@ -182,8 +185,8 @@ trait DocumentFactory[W] extends InMemoryCache[W] {
             require(doc != null, "doc undefined")
         } map { _ =>
             implicit val logger: Logging = db
-            // invalidate two keys: just the id, and id:rev
-            cacheInvalidate(Set(doc, doc.id.asDocInfo))
+            var key = doc.id.asDocInfo
+            cacheInvalidate(key)
             db.del(doc)
         } match {
             case Success(f) => f
@@ -214,8 +217,9 @@ trait DocumentFactory[W] extends InMemoryCache[W] {
             require(db != null, "db undefined")
         } map {
             implicit val logger = db: Logging
+            implicit val ec = db.executionContext
             val key = doc.asDocInfo(rev)
-            _ => cacheLookup(db, key, db.get[W](key), fromCache)
+            _ => cacheLookup(key, db.get[W](key), fromCache)
         } match {
             case Success(f) => f
             case Failure(t) => Future.failed(t)
