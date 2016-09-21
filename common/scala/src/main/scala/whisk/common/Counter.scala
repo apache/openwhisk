@@ -38,4 +38,9 @@ class Counter {
     def prev(): Int = {
         cnt.decrementAndGet()
     }
+
+    /**
+     * Sets the value
+     */
+    def set(i: Int) = cnt.set(i)
 }

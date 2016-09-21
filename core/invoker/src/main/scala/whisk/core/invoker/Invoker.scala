@@ -36,15 +36,8 @@ import akka.actor.actorRef2Scala
 import akka.event.Logging.InfoLevel
 import akka.event.Logging.LogLevel
 import akka.japi.Creator
-import spray.json.DefaultJsonProtocol
-import spray.json.DefaultJsonProtocol.IntJsonFormat
-import spray.json.DefaultJsonProtocol.StringJsonFormat
-import spray.json.JsArray
-import spray.json.JsNumber
-import spray.json.JsObject
-import spray.json.JsValue
-import spray.json.pimpAny
-import spray.json.pimpString
+import spray.json._
+import spray.json.DefaultJsonProtocol._
 import whisk.common.ConsulClient
 import whisk.common.ConsulKV.InvokerKeys
 import whisk.common.ConsulKVReporter
@@ -479,18 +472,37 @@ class Invoker(
     private val activationCounter = new Counter() // global activation counter
     private val userActivationCounter = new TrieMap[String, Counter]
 
-    /**
-     * Repeatedly updates the KV store as to the invoker's last check-in.
-     */
-    private val kv = new ConsulClient(config.consulServer)
-    private val reporter = new ConsulKVReporter(kv, 3 seconds, 2 seconds,
-        InvokerKeys.hostname(instance),
-        InvokerKeys.start(instance),
-        InvokerKeys.status(instance),
-        { index =>
-            (if (index % 5 == 0) getUserActivationCounts() else Map[String, JsValue]()) ++
-                Map(InvokerKeys.activationCount(instance) -> activationCounter.cur.toJson)
-        })
+    private val consul = new ConsulClient(config.consulServer)
+
+    // Restore old state from the same invoker instance
+    consul.kv.getRecurse(InvokerKeys.userActivationCount(instance)).map { partitioned =>
+        val flattened = partitioned.values.map { userCounts =>
+            userCounts.parseJson.convertTo[Map[String, Int]]
+        }.reduce(_ ++ _)
+
+        val readActivationCounter = flattened.mapValues { readCount =>
+            val cnt = new Counter()
+            cnt.set(readCount)
+            cnt
+        }
+
+        info(this, s"restored old counts from consul: $flattened")
+
+        userActivationCounter.clear()
+        userActivationCounter ++= readActivationCounter
+
+        activationCounter.set(flattened.values.sum)
+    } onComplete { _ =>
+        // Repeatedly updates the KV store as to the invoker's last check-in.
+        new ConsulKVReporter(consul, 3 seconds, 2 seconds,
+            InvokerKeys.hostname(instance),
+            InvokerKeys.start(instance),
+            InvokerKeys.status(instance),
+            { index =>
+                (if (index % 5 == 0) getUserActivationCounts() else Map[String, JsValue]()) ++
+                    Map(InvokerKeys.activationCount(instance) -> activationCounter.cur.toJson)
+            })
+    }
 
     setVerbosity(verbosity)
 }
