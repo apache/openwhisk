@@ -175,7 +175,7 @@ object WhiskAction
     }
 
     override val cacheEnabled = true
-    override def cacheKeys(w: WhiskAction) = Set(w.docid.asDocInfo, w.docinfo)
+    override def cacheKeyForUpdate(w: WhiskAction) = w.docid.asDocInfo
 
     private val jarAttachmentName = "jarfile"
     private val jarContentType = ContentType.Binary(MediaTypes.`application/java-archive`)

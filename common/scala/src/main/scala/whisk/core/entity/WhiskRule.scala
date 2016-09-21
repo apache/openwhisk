@@ -191,7 +191,7 @@ object WhiskRule
     override implicit val serdes = jsonFormat7(WhiskRule.apply)
 
     override val cacheEnabled = false
-    override def cacheKeys(w: WhiskRule) = Set(w.docid.asDocInfo, w.docinfo)
+    override def cacheKeyForUpdate(w: WhiskRule) = w.docid.asDocInfo
 }
 
 object WhiskRuleResponse extends DefaultJsonProtocol {
