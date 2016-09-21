@@ -16,196 +16,200 @@
 
 package whisk.core.database.test
 
-import scala.concurrent.Future
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+import scala.concurrent.duration.DurationInt
 import scala.util.Failure
 import scala.util.Success
 
-import java.util.concurrent._
-import java.util.concurrent.atomic.AtomicInteger
+import org.scalatest.FlatSpec
+import org.scalatest.Matchers
 
-import org.scalatest._
-import whisk.core.database.MultipleReadersSingleWriterCache
-import whisk.core.database.MultipleReadersSingleWriterCache
-import whisk.common.TransactionId
+import akka.actor.ActorSystem
 import whisk.common.Logging
+import whisk.common.TransactionId
+import whisk.core.database.MultipleReadersSingleWriterCache
 
+class MultipleReadersSingleWriterCacheTests(nIters: Int = 3) extends FlatSpec
+    with Matchers
+    with MultipleReadersSingleWriterCache[String, String]
+    with Logging {
 
-class MultipleReadersSingleWriterCacheTest extends FlatSpec with Matchers with MultipleReadersSingleWriterCache[String, String] with Logging {
-  // run each test this number of times
-  val nIters = 3
+    "the cache" should "support simple CRUD" in {
+        System.out.println();
+        System.out.println("simple CRUD");
 
-  override def cacheKeyForUpdate(w: String): String = (w)
+        val inhibits = doReadWriteRead("foo").go(0)
+        inhibits.debug(this)
 
-  implicit val logger = this
-
-  "the cache" should "support simple CRUD" in {
-    System.out.println();
-    System.out.println("simple CRUD");
-
-    val inhibits = new doReadWriteRead("foo").go(0)
-    inhibits.debug
-
-    inhibits.nReadInhibits.get should be(0)
-    getSize() should be(1)
-  }
-
-  "the cache" should "support concurrent CRUD to different keys" in {
-    //
-    // for the first iter, all reads are not-cached and each thread
-    // requests a different key, so we expect no read inhibits, and a
-    // bunch of write inhibits
-    //
-    val inhibits = doCRUD("CONCURRENT CRUD to different keys", { i => "foop_" + i })
-    inhibits.nReadInhibits.get should be(0)
-    inhibits.nWriteInhibits.get should not be (0)
-
-    //
-    // after the first iter, the keys already exist, so the first read
-    // should be cached, resulting in the writes proceeding more
-    // smoothly this time, thus inhibiting some of the second reads
-    //
-    for (i <- 1 to nIters - 1) {
-      doCRUD("CONCURRENT CRUD to different keys", { i => "foop_" + i })
-        .nReadInhibits.get should not be (0)
-    }
-  }
-
-  "the cache" should "support concurrent CRUD to shared keys" in {
-    for (i <- 1 to nIters) {
-      doCRUD("CONCURRENT CRUD to shared keys", sharedKeys)
-        .nWriteInhibits.get should not be (0)
-    }
-  }
-
-  "the cache" should "support concurrent CRUD to shared keys (zero latency)" in {
-    var someInhibits = false
-    for (i <- 1 to nIters) {
-      val inhibits = doCRUD("concurrent CRUD to shared keys (zero latency)", sharedKeys, 0)
-      someInhibits = inhibits.nReadInhibits.get + inhibits.nWriteInhibits.get > 0
-    }
-    someInhibits should not be (0)
-  }
-
-  "the cache" should "support concurrent CRUD to shared keys (short latency)" in {
-    for (i <- 1 to nIters) {
-      val inhibits = doCRUD("concurrent CRUD to shared keys (short latency)", sharedKeys, 10)
-      inhibits.nReadInhibits.get + inhibits.nWriteInhibits.get should not be (0)
-    }
-  }
-
-  "the cache" should "support concurrent CRUD to shared keys (medium latency)" in {
-    for (i <- 1 to nIters) {
-      val inhibits = doCRUD("concurrent CRUD to shared keys (medium latency)", sharedKeys, 100)
-      inhibits.nReadInhibits.get + inhibits.nWriteInhibits.get should not be (0)
-    }
-  }
-
-  "the cache" should "support concurrent CRUD to shared keys (long latency)" in {
-    for (i <- 1 to nIters) {
-      doCRUD("CONCURRENT CRUD to shared keys (long latency)", sharedKeys, 5000)
-        .nWriteInhibits.get should not be (0)
-    }
-  }
-
-  "the cache" should "support concurrent CRUD to shared keys, with update first" in {
-    for (i <- 1 to nIters) {
-      doCRUD("CONCURRENT CRUD to shared keys, with update first", sharedKeys, 1000, false)
-        .nWriteInhibits.get should be(0)
-    }
-  }
-
-  def sharedKeys = { i: Int => "foop_" + (i % 2) }
-
-  def doCRUD(
-    testName: String,
-    key: Int => String,
-    delay: Int = 1000,
-    readsFirst: Boolean = true,
-    nThreads: Int = 10): Inhibits = {
-
-    System.out.println();
-    System.out.println(testName);
-
-    val exec = Executors.newFixedThreadPool(nThreads)
-    val inhibits = Inhibits()
-
-    for (i <- 1 to nThreads) {
-      exec.submit(new Runnable { def run() = { new doReadWriteRead(key(i), inhibits, readsFirst).go(delay) } })
+        inhibits.nReadInhibits.get should be(0)
+        getSize() should be(1)
     }
 
-    exec.shutdown
-    exec.awaitTermination(2, TimeUnit.MINUTES)
+    "the cache" should "support concurrent CRUD to different keys" in {
+        //
+        // for the first iter, all reads are not-cached and each thread
+        // requests a different key, so we expect no read inhibits, and a
+        // bunch of write inhibits
+        //
+        val inhibits = doCRUD("CONCURRENT CRUD to different keys", { i => "foop_" + i })
+        inhibits.nReadInhibits.get should be(0)
+        inhibits.nWriteInhibits.get should not be (0)
 
-    inhibits.debug
-    inhibits
-  }
-
-  case class Inhibits(
-      nReadInhibits: AtomicInteger = new AtomicInteger(0),
-      nWriteInhibits: AtomicInteger = new AtomicInteger(0)) {
-    def debug {
-      System.out.println("InhibitedReads: " + nReadInhibits);
-      System.out.println("InhibitedWrites: " + nWriteInhibits);
-    }
-  }
-
-  class doReadWriteRead(key: String, inhibits: Inhibits = Inhibits(), readFirst: Boolean = true) {
-    def go(implicit delay: Int): Inhibits = {
-      val latch = new CountDownLatch(2)
-
-      implicit val transId = TransactionId.testing
-
-      if (!readFirst) {
-        // we want to do the update before the first read
-        cacheUpdate(key, key, delayed("bar_b")).future onFailure {
-          case t =>
-            inhibits.nWriteInhibits.incrementAndGet();
+        //
+        // after the first iter, the keys already exist, so the first read
+        // should be cached, resulting in the writes proceeding more
+        // smoothly this time, thus inhibiting some of the second reads
+        //
+        for (i <- 1 to nIters - 1) {
+            doCRUD("CONCURRENT CRUD to different keys", { i => "foop_" + i })
+                .nReadInhibits.get should not be (0)
         }
-      }
-
-      System.out.println("R1");
-      cacheLookup(key, delayed("bar"), true) onComplete {
-        case Success(s) => {
-          latch.countDown()
-        }
-        case Failure(t) => {
-          latch.countDown()
-          inhibits.nReadInhibits.incrementAndGet();
-        }
-      }
-
-      if (readFirst) {
-        System.out.println("W");
-        // we did the read before the update, so do the write next
-        cacheUpdate(key, key, delayed("bar_b")).future onFailure {
-          case t =>
-            inhibits.nWriteInhibits.incrementAndGet();
-        }
-      }
-
-      System.out.println("R2");
-      cacheLookup(key, delayed("bar_c"), true) onComplete {
-        case Success(s) => {
-          latch.countDown();
-        }
-        case Failure(t) => {
-          inhibits.nReadInhibits.incrementAndGet();
-          latch.countDown();
-        }
-      }
-
-      latch.await(2, TimeUnit.MINUTES)
-      // System.out.println("DONE " + i);
-
-      inhibits
     }
-  }
 
-  def delayed[W](v: W)(implicit delay: Int): Future[W] = {
-    Future {
-      Thread.sleep(delay)
-      v
+    "the cache" should "support concurrent CRUD to shared keys" in {
+        for (i <- 1 to nIters) {
+            doCRUD("CONCURRENT CRUD to shared keys", sharedKeys)
+                .nWriteInhibits.get should not be (0)
+        }
     }
-  }
+
+    "the cache" should "support concurrent CRUD to shared keys (zero latency)" in {
+        var someInhibits = false
+        for (i <- 1 to nIters) {
+            someInhibits = doCRUD("concurrent CRUD to shared keys (zero latency)", sharedKeys, 0)
+                .someInhibits
+        }
+        someInhibits should not be (false)
+    }
+
+    "the cache" should "support concurrent CRUD to shared keys (short latency)" in {
+        for (i <- 1 to nIters) {
+            doCRUD("concurrent CRUD to shared keys (short latency)", sharedKeys, 10)
+                .someInhibits should be(true)
+        }
+    }
+
+    "the cache" should "support concurrent CRUD to shared keys (medium latency)" in {
+        for (i <- 1 to nIters) {
+            doCRUD("concurrent CRUD to shared keys (medium latency)", sharedKeys, 100)
+                .someInhibits should be(true)
+        }
+    }
+
+    "the cache" should "support concurrent CRUD to shared keys (long latency)" in {
+        for (i <- 1 to nIters) {
+            doCRUD("CONCURRENT CRUD to shared keys (long latency)", sharedKeys, 5000)
+                .nWriteInhibits.get should not be (0)
+        }
+    }
+
+    "the cache" should "support concurrent CRUD to shared keys, with update first" in {
+        for (i <- 1 to nIters) {
+            doCRUD("CONCURRENT CRUD to shared keys, with update first", sharedKeys, 1000, false)
+                .nWriteInhibits.get should be(0)
+        }
+    }
+
+    def sharedKeys = { i: Int => "foop_" + (i % 2) }
+
+    def doCRUD(
+        testName: String,
+        key: Int => String,
+        delay: Int = 1000,
+        readsFirst: Boolean = true,
+        nThreads: Int = 10): Inhibits = {
+
+        System.out.println();
+        System.out.println(testName);
+
+        val exec = Executors.newFixedThreadPool(nThreads)
+        val inhibits = Inhibits()
+
+        for (i <- 1 to nThreads) {
+            exec.submit(new Runnable { def run() = { doReadWriteRead(key(i), inhibits, readsFirst).go(delay) } })
+        }
+
+        exec.shutdown
+        exec.awaitTermination(2, TimeUnit.MINUTES)
+
+        inhibits.debug(this)
+        inhibits
+    }
+
+    case class Inhibits(
+        nReadInhibits: AtomicInteger = new AtomicInteger(0),
+        nWriteInhibits: AtomicInteger = new AtomicInteger(0)) {
+
+        def debug(from: AnyRef) {
+            logger.debug(from, "InhibitedReads: " + nReadInhibits);
+            logger.debug(from, "InhibitedWrites: " + nWriteInhibits);
+        }
+
+        def someInhibits: Boolean = { nReadInhibits.get > 0 || nWriteInhibits.get > 0 }
+    }
+
+    private case class doReadWriteRead(key: String, inhibits: Inhibits = Inhibits(), readFirst: Boolean = true) {
+        def go(implicit delay: Int): Inhibits = {
+            val latch = new CountDownLatch(2)
+
+            implicit val transId = TransactionId.testing
+
+            if (!readFirst) {
+                // we want to do the update before the first read
+                cacheUpdate(key, key, delayed("bar_b")).future onFailure {
+                    case t =>
+                        inhibits.nWriteInhibits.incrementAndGet();
+                }
+            }
+
+            cacheLookup(key, delayed("bar"), true) onComplete {
+                case Success(s) => {
+                    latch.countDown()
+                }
+                case Failure(t) => {
+                    latch.countDown()
+                    inhibits.nReadInhibits.incrementAndGet();
+                }
+            }
+
+            if (readFirst) {
+                // we did the read before the update, so do the write next
+                cacheUpdate(key, key, delayed("bar_b")).future onFailure {
+                    case t =>
+                        inhibits.nWriteInhibits.incrementAndGet();
+                }
+            }
+
+            cacheLookup(key, delayed("bar_c"), true) onComplete {
+                case Success(s) => {
+                    latch.countDown();
+                }
+                case Failure(t) => {
+                    inhibits.nReadInhibits.incrementAndGet();
+                    latch.countDown();
+                }
+            }
+
+            latch.await(2, TimeUnit.MINUTES)
+
+            inhibits
+        }
+    }
+
+    private def delayed[W](v: W)(implicit delay: Int): Future[W] = {
+        akka.pattern.after(duration = delay.millis, using = actorSystem.scheduler)(
+            Future.successful { v })
+    }
+
+    /** we are using cache keys, so the update key is just the string itself */
+    override protected def cacheKeyForUpdate(w: String): String = (w)
+
+    implicit private val actorSystem: ActorSystem = ActorSystem("MRSW-cache-test-actor-system")
+    implicit private val logger = this
 }
