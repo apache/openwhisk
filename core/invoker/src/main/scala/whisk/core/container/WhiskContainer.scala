@@ -27,6 +27,8 @@ import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.duration.DurationInt
 
+import scala.util.Try
+
 import akka.actor.ActorSystem
 import akka.event.Logging.LogLevel
 import akka.http.scaladsl.Http
@@ -42,6 +44,7 @@ import whisk.common.TransactionId
 import whisk.core.entity.ActionLimits
 import whisk.common.LoggingMarkers
 import whisk.common.PrintStreamEmitter
+import whisk.common.HttpUtils
 import whisk.common.NewHttpUtils
 
 /**
@@ -124,6 +127,10 @@ class WhiskContainer(
      * @return response from container if any as array of byte
      */
     private def sendPayload(endpoint: String, msg: JsObject, timeout: FiniteDuration)(implicit system: ActorSystem): RunResult = {
+        sendPayloadApache(endpoint, msg, timeout)
+    }
+
+    private def sendPayloadAkka(endpoint: String, msg: JsObject, timeout: FiniteDuration)(implicit system: ActorSystem): RunResult = {
         import system.dispatcher
 
         val start = ContainerCounter.now()
@@ -175,6 +182,33 @@ class WhiskContainer(
         } getOrElse {
             Future.successful(None)
         }
+    }
+
+    private def sendPayloadApache(endpoint: String, msg: JsObject, timeout: FiniteDuration): RunResult = {
+        val start = ContainerCounter.now()
+        val result = containerHostAndPort flatMap { hp =>
+            val hostWithPort = s"${hp.host}:${hp.port}"
+
+            try {
+                val connection = HttpUtils.makeHttpClient(timeout.toMillis.toInt, true)
+                val http = new HttpUtils(connection, hostWithPort)
+                val (code, bytes) = http.dopost(endpoint, msg, Map(), timeout.toMillis.toInt)
+                Try { connection.close() }
+                if (code < 100) {
+                    None
+                } else {
+                    Some(code, new String(bytes, "UTF-8"))
+                }
+            } catch {
+                case t: Throwable => {
+                    warn(this, s"Exception while posting to action container ${t.getMessage}")
+                    None
+                }
+            }
+        }
+
+        val end = ContainerCounter.now()
+        RunResult(Interval(start, end), result)
     }
 }
 
