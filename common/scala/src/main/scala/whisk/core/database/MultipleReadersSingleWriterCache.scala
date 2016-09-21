@@ -65,251 +65,249 @@ import whisk.common.TransactionId
  *
  */
 trait MultipleReadersSingleWriterCache[W, Winfo] {
-  val DEBUG = true
+    /** Subclasses: Toggle this to enable/disable caching for your entity type. */
+    protected def cacheEnabled = true
 
-  /** Subclasses: Toggle this to enable/disable caching for your entity type. */
-  protected def cacheEnabled = true
+    /** Subclasses: tell me what key to use for updates */
+    protected def cacheKeyForUpdate(w: W): Any
 
-  /** Subclasses: tell me what key to use for updates */
-  protected def cacheKeyForUpdate(w: W): Any
-
-  /**
-   * Each entry has a state
-   *
-   */
-  protected object State extends Enumeration {
-    type State = Value
-    val ReadInProgress, WriteInProgress, InvalidateInProgress, Cached = Value
-  }
-  import State._;
-  implicit def state2Atomic(state: State): AtomicReference[State] = {
-    new AtomicReference(state);
-  }
-
-  /**
-   * Failure modes
-   *
-   */
-  private class ConcurrentUpdateException extends Exception {}
-
-  /**
-   * The entries in the cache will be a pair of State and the Future value
-   *
-   */
-  private case class Entry(transid: TransactionId, state: AtomicReference[State], value: Future[W]) {
-    def invalidate {
-      state.set(InvalidateInProgress)
+    /**
+     * Each entry has a state
+     *
+     */
+    protected object State extends Enumeration {
+        type State = Value
+        val ReadInProgress, WriteInProgress, InvalidateInProgress, Cached = Value
+    }
+    import State._;
+    implicit def state2Atomic(state: State): AtomicReference[State] = {
+        new AtomicReference(state);
     }
 
-    def writeDone()(implicit logger: Logging): Boolean = {
-      if (DEBUG) logger.info(this, "Write finished")
-      trySet(WriteInProgress, Cached)
-    }
+    /**
+     * Failure modes
+     *
+     */
+    private class ConcurrentUpdateException extends Exception {}
 
-    def readDone(value: W, promise: Promise[W])(implicit logger: Logging): Unit = {
-      logger.info(this, "Read finished")
+    /**
+     * The entries in the cache will be a pair of State and the Future value
+     *
+     */
+    private case class Entry(transid: TransactionId, state: AtomicReference[State], value: Future[W]) {
+        def invalidate {
+            state.set(InvalidateInProgress)
+        }
 
-      if (trySet(ReadInProgress, Cached)) {
-        promise success value
-      } else {
-        promise failure new ConcurrentUpdateException
-      }
-    }
+        def writeDone()(implicit logger: Logging): Boolean = {
+            logger.debug(this, "Write finished")
+            trySet(WriteInProgress, Cached)
+        }
 
-    def trySet(expectedState: State, desiredState: State): Boolean = {
-      state.compareAndSet(expectedState, desiredState)
-    }
-  }
+        def readDone(value: W, promise: Promise[W])(implicit logger: Logging): Unit = {
+            logger.info(this, "Read finished")
 
-  protected def cacheInvalidate(key: Any)(
-    implicit transid: TransactionId, logger: Logging): Unit = {
-    if (cacheEnabled) {
-      logger.info(this, s"invalidating $key")
-      cache remove key
-    }
-  }
-
-  protected def cacheLookup[Wsuper >: W](
-    key: Any,
-    future: => Future[W],
-    fromCache: Boolean = cacheEnabled)(
-      implicit ec: ExecutionContext, transid: TransactionId, logger: Logging): Future[W] = {
-
-    if (fromCache) {
-      val promise = Promise[W]
-      val desiredEntry = Entry(transid, ReadInProgress, promise.future)
-
-      //
-      // try inserting our desired entry...
-      //
-      cache(key)(desiredEntry) flatMap {
-        // ... and see what we get back
-        case actualEntry =>
-          // if (DEBUG) logger.info(this, s"Cache Lookup Status: the entry is currently in state ${actualEntry.state.get} ${getSize()}")
-
-          actualEntry.state.get match {
-            case Cached => {
-              if (DEBUG) logger.info(this, s"Cached read $key")
-              makeNoteOfCacheHit(key)
-              actualEntry.value
+            if (trySet(ReadInProgress, Cached)) {
+                promise success value
+            } else {
+                promise failure new ConcurrentUpdateException
             }
+        }
 
-            case ReadInProgress => {
-              if (actualEntry.transid == transid) {
-                if (DEBUG) logger.info(this, "Read initiated");
-                makeNoteOfCacheMiss(key)
-                listenForReadDone(key, actualEntry, future, promise)
-                actualEntry.value
+        def trySet(expectedState: State, desiredState: State): Boolean = {
+            state.compareAndSet(expectedState, desiredState)
+        }
+    }
 
-              } else {
-                if (DEBUG) logger.info(this, "Coalesced read")
-                makeNoteOfCacheHit(key)
-                actualEntry.value
-              }
+    protected def cacheInvalidate(key: Any)(
+        implicit transid: TransactionId, logger: Logging): Unit = {
+        if (cacheEnabled) {
+            logger.info(this, s"invalidating $key")
+            cache remove key
+        }
+    }
+
+    protected def cacheLookup[Wsuper >: W](
+        key: Any,
+        future: => Future[W],
+        fromCache: Boolean = cacheEnabled)(
+            implicit ec: ExecutionContext, transid: TransactionId, logger: Logging): Future[W] = {
+
+        if (fromCache) {
+            val promise = Promise[W]
+            val desiredEntry = Entry(transid, ReadInProgress, promise.future)
+
+            //
+            // try inserting our desired entry...
+            //
+            cache(key)(desiredEntry) flatMap {
+                // ... and see what we get back
+                case actualEntry =>
+                    // logger.debug(this, s"Cache Lookup Status: the entry is currently in state ${actualEntry.state.get} ${getSize()}")
+
+                    actualEntry.state.get match {
+                        case Cached => {
+                            logger.debug(this, s"Cached read $key")
+                            makeNoteOfCacheHit(key)
+                            actualEntry.value
+                        }
+
+                        case ReadInProgress => {
+                            if (actualEntry.transid == transid) {
+                                logger.debug(this, "Read initiated");
+                                makeNoteOfCacheMiss(key)
+                                listenForReadDone(key, actualEntry, future, promise)
+                                actualEntry.value
+
+                            } else {
+                                logger.debug(this, "Coalesced read")
+                                makeNoteOfCacheHit(key)
+                                actualEntry.value
+                            }
+                        }
+
+                        case WriteInProgress | InvalidateInProgress => {
+                            logger.debug(this, "Reading around a write in progress")
+                            makeNoteOfCacheMiss(key)
+                            future
+                        }
+                    }
             }
-
-            case WriteInProgress | InvalidateInProgress => {
-              if (DEBUG) logger.info(this, "Reading around a write in progress")
-              makeNoteOfCacheMiss(key)
-              future
-            }
-          }
-      }
-
-    } else {
-      // not caching
-      future
-    }
-  }
-
-  protected def cacheUpdate(doc: W, key: Any, future: => Future[Winfo])(
-    implicit transid: TransactionId, logger: Logging, ec: ExecutionContext): Promise[Winfo] = {
-
-    val valPromise = Promise[W]
-    val promise = Promise[Winfo]
-
-    if (cacheEnabled) {
-      logger.info(this, s"caching $key")
-
-      val desiredEntry = Entry(transid, WriteInProgress, valPromise.future)
-
-      //
-      // try inserting our desired entry...
-      //
-      cache(key)(desiredEntry) map {
-        // ... and see what we get back
-        case actualEntry =>
-          if (transid == actualEntry.transid) {
-            //
-            // then we won the race, and now own the entry
-            //
-            if (DEBUG) logger.info(this, s"Write initiated $key")
-            listenForWriteDone(doc, key, actualEntry, future, valPromise, promise)
-
-          } else {
-            //
-            // then we either lost the race, or there is an operation in progress on this key
-            //
-            if (DEBUG) logger.info(this, s"Write under ${actualEntry.state.get} $key")
-            promise completeWith future
-          }
-      }
-
-    } else {
-      // not caching
-      promise completeWith future
-    }
-
-    promise
-  }
-
-  def getSize() = cache.size
-
-  /**
-   * Log a cache hit
-   *
-   */
-  private def makeNoteOfCacheHit(key: Any)(implicit transid: TransactionId, logger: Logging) {
-    transid.mark(this, LoggingMarkers.DATABASE_CACHE_HIT, s"[GET] serving from cache: $key")(logger)
-  }
-
-  /**
-   * Log a cache miss
-   *
-   */
-  private def makeNoteOfCacheMiss(key: Any)(implicit transid: TransactionId, logger: Logging) {
-    transid.mark(this, LoggingMarkers.DATABASE_CACHE_MISS, s"[GET] serving from datastore: $key")(logger)
-  }
-
-  /**
-   * We have initiated a read (in cacheLookup), now handle its completion
-   *
-   */
-  private def listenForReadDone(key: Any, entry: Entry, future: => Future[W], promise: Promise[W])(
-    implicit logger: Logging): Unit = {
-
-    future onComplete {
-      case Success(value) => entry.readDone(value, promise)
-      case Failure(t)     => readOops(key, entry, promise, t)
-    }
-  }
-
-  /**
-   * We have initiated a write, now handle its completion
-   *
-   */
-  private def listenForWriteDone(doc: W, key: Any, entry: Entry, future: => Future[Winfo], valPromise: Promise[W], promise: Promise[Winfo])(
-    implicit logger: Logging): Unit = {
-
-    future onComplete {
-      case Success(docinfo) => {
-        //
-        // if the datastore write was successful, then transition to the Cached state
-        //
-        if (DEBUG) logger.info(this, "Write backend part done, now marking cache entry as done")
-
-        if (!entry.writeDone()) {
-          logger.error(this, "Concurrent update detected")
-          writeOops(key, entry, valPromise, promise, new ConcurrentUpdateException)
 
         } else {
-          if (DEBUG) logger.info(this, s"Write all done $key ${entry.transid} ${entry.state.get} ${getSize()}")
-          promise success docinfo
-          valPromise success doc
+            // not caching
+            future
         }
-      }
-      case Failure(t) => {
-        //
-        // oops, the datastore write failed. invalidate the cache entry
-        //
-        writeOops(key, entry, valPromise, promise, t)
-      }
     }
-  }
 
-  /**
-   * Write completion resulted in a failure
-   *
-   */
-  private def readOops(key: Any, entry: Entry, promise: Promise[W], t: Throwable) {
-    entry.invalidate
-    cache remove key
-    promise failure t
-  }
+    protected def cacheUpdate(doc: W, key: Any, future: => Future[Winfo])(
+        implicit transid: TransactionId, logger: Logging, ec: ExecutionContext): Promise[Winfo] = {
 
-  /**
-   * Write completion resulted in a failure
-   *
-   */
-  private def writeOops(key: Any, entry: Entry, valPromise: Promise[W], promise: Promise[Winfo], t: Throwable) {
-    entry.invalidate
-    cache remove key
-    promise failure t
-    valPromise failure t
-  }
+        val valPromise = Promise[W]
+        val promise = Promise[Winfo]
 
-  /**
-   * This is the backing store
-   */
-  private val cache: Cache[Entry] = LruCache.apply(timeToLive = 5.minutes)
+        if (cacheEnabled) {
+            logger.info(this, s"caching $key")
+
+            val desiredEntry = Entry(transid, WriteInProgress, valPromise.future)
+
+            //
+            // try inserting our desired entry...
+            //
+            cache(key)(desiredEntry) map {
+                // ... and see what we get back
+                case actualEntry =>
+                    if (transid == actualEntry.transid) {
+                        //
+                        // then we won the race, and now own the entry
+                        //
+                        logger.debug(this, s"Write initiated $key")
+                        listenForWriteDone(doc, key, actualEntry, future, valPromise, promise)
+
+                    } else {
+                        //
+                        // then we either lost the race, or there is an operation in progress on this key
+                        //
+                        logger.debug(this, s"Write under ${actualEntry.state.get} $key")
+                        promise completeWith future
+                    }
+            }
+
+        } else {
+            // not caching
+            promise completeWith future
+        }
+
+        promise
+    }
+
+    def getSize() = cache.size
+
+    /**
+     * Log a cache hit
+     *
+     */
+    private def makeNoteOfCacheHit(key: Any)(implicit transid: TransactionId, logger: Logging) {
+        transid.mark(this, LoggingMarkers.DATABASE_CACHE_HIT, s"[GET] serving from cache: $key")(logger)
+    }
+
+    /**
+     * Log a cache miss
+     *
+     */
+    private def makeNoteOfCacheMiss(key: Any)(implicit transid: TransactionId, logger: Logging) {
+        transid.mark(this, LoggingMarkers.DATABASE_CACHE_MISS, s"[GET] serving from datastore: $key")(logger)
+    }
+
+    /**
+     * We have initiated a read (in cacheLookup), now handle its completion
+     *
+     */
+    private def listenForReadDone(key: Any, entry: Entry, future: => Future[W], promise: Promise[W])(
+        implicit logger: Logging): Unit = {
+
+        future onComplete {
+            case Success(value) => entry.readDone(value, promise)
+            case Failure(t)     => readOops(key, entry, promise, t)
+        }
+    }
+
+    /**
+     * We have initiated a write, now handle its completion
+     *
+     */
+    private def listenForWriteDone(doc: W, key: Any, entry: Entry, future: => Future[Winfo], valPromise: Promise[W], promise: Promise[Winfo])(
+        implicit logger: Logging): Unit = {
+
+        future onComplete {
+            case Success(docinfo) => {
+                //
+                // if the datastore write was successful, then transition to the Cached state
+                //
+                logger.debug(this, "Write backend part done, now marking cache entry as done")
+
+                if (!entry.writeDone()) {
+                    logger.error(this, "Concurrent update detected")
+                    writeOops(key, entry, valPromise, promise, new ConcurrentUpdateException)
+
+                } else {
+                    logger.debug(this, s"Write all done $key ${entry.transid} ${entry.state.get} ${getSize()}")
+                    promise success docinfo
+                    valPromise success doc
+                }
+            }
+            case Failure(t) => {
+                //
+                // oops, the datastore write failed. invalidate the cache entry
+                //
+                writeOops(key, entry, valPromise, promise, t)
+            }
+        }
+    }
+
+    /**
+     * Write completion resulted in a failure
+     *
+     */
+    private def readOops(key: Any, entry: Entry, promise: Promise[W], t: Throwable) {
+        entry.invalidate
+        cache remove key
+        promise failure t
+    }
+
+    /**
+     * Write completion resulted in a failure
+     *
+     */
+    private def writeOops(key: Any, entry: Entry, valPromise: Promise[W], promise: Promise[Winfo], t: Throwable) {
+        entry.invalidate
+        cache remove key
+        promise failure t
+        valPromise failure t
+    }
+
+    /**
+     * This is the backing store
+     */
+    private val cache: Cache[Entry] = LruCache.apply(timeToLive = 5.minutes)
 }

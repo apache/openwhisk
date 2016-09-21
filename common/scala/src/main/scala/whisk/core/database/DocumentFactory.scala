@@ -120,7 +120,7 @@ trait DocumentSerializer {
  * but the get permits a datastore of its super type so that a single datastore client
  * may be used for multiple types (because the types are stored in the same database for example).
  */
-trait DocumentFactory[W] extends MultipleReadersSingleWriterCache/*InMemoryCache*/[W, DocInfo] {
+trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
     /**
      * Puts a record of type W in the datastore.
      *
