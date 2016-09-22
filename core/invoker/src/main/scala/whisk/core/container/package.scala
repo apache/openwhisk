@@ -83,7 +83,9 @@ package object container {
         override def toString() = s"$host:$port"
     }
 
-    sealed abstract class ContainerIdentifier(val id: String)
+    sealed abstract class ContainerIdentifier(val id: String) {
+        override def toString() = id
+    }
     class ContainerName(val name: String) extends ContainerIdentifier(name)
     class ContainerHash(val hash: String) extends ContainerIdentifier(hash)
 

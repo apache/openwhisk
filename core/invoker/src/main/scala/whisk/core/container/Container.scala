@@ -49,7 +49,7 @@ class Container(
     implicit var transid = originalId
 
     val id = Container.idCounter.next()
-    val name = containerName.getOrElse("anon")
+    val name = containerName.getOrElse(ContainerName.fromString("anon"))
 
     val (containerId, containerHostAndPort) = bringup(containerName, image, network, cpuShare, env, args, limits, policy)
 
