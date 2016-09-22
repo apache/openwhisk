@@ -96,7 +96,7 @@ protected[core] case class BlackBoxExec(image: String) extends Exec(Exec.BLACKBO
 /**
  * add temporary field that holds the "fixed" names for components where the '_' is replaced by the user's namespace
  */
-protected[core] case class SequenceExec(code: String, components: Vector[String], fixedComponents: Option[Vector[String]] = None) extends Exec(Exec.SEQUENCE) {
+protected[core] case class SequenceExec(code: String, components: Vector[String], fixedComponents: Option[Vector[FullyQualifiedEntityName]] = None) extends Exec(Exec.SEQUENCE) {
     val image = Exec.imagename(Exec.NODEJS)
     def size = components.map(_ sizeInBytes).reduce(_ + _)
 }

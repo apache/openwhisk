@@ -346,7 +346,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      */
     private def fixComponentsNames(seq: SequenceExec, user: Identity)(implicit transid: TransactionId): SequenceExec = {
         // if components are part of the default namespace, they contain `_`; replace it!
-        val fixedComponents = seq.components map { c => EntityPath(c) } map { c => c.resolveNamespace(user.namespace.toString).toString }
+        val fixedComponents = seq.components map { EntityPath(_) } map { _.resolveNamespace(user.namespace)} map {_.fullyQualifiedEntityName}
         new SequenceExec(seq.code, seq.components, Some(fixedComponents))
     }
 
@@ -359,7 +359,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                     val fixedExec = fixComponentsNames(seq, user)
                     val fixedContent = WhiskActionPut(Some(fixedExec), content.parameters, content.limits, content.version, content.publish, content.annotations)
                     // also check for sequence limits
-                    checkSequenceActionLimits(WhiskEntity.qualifiedName(namespace, name), fixedExec.fixedComponents.get)  map { _ =>
+                    checkSequenceActionLimits(FullyQualifiedEntityName(namespace, name), fixedExec.fixedComponents.get)  map { _ =>
                         makeWhiskAction(fixedContent, namespace, name)
                     } recoverWith{
                         case _: TooManyActionsInSequence =>
@@ -414,7 +414,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                 case seq: SequenceExec =>
                 val fixedExec = fixComponentsNames(seq, user)
                 val fixedContent = WhiskActionPut(Some(fixedExec), content.parameters, content.limits, content.version, content.publish, content.annotations)
-                checkSequenceActionLimits(WhiskEntity.qualifiedName(action.namespace, action.name), fixedExec.fixedComponents.get)  map { _ =>
+                checkSequenceActionLimits(FullyQualifiedEntityName(action.namespace, action.name), fixedExec.fixedComponents.get)  map { _ =>
                     updateWhiskAction(fixedContent, action)
                 } recoverWith{
                     case _: TooManyActionsInSequence =>
@@ -677,11 +677,11 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      * @param sequence the sequence to check
      * @param components the components of the sequence
      */
-    private def checkSequenceActionLimits(sequence: String, components: Vector[String]) (
+    private def checkSequenceActionLimits(sequence: FullyQualifiedEntityName, components: Vector[FullyQualifiedEntityName]) (
         implicit transid: TransactionId): Future[Boolean] = {
         // traverse all actions and "inline" all actions that are sequence
         // keep track of all sequences to detect recursion
-        info(this, "Checking limits and recursion for actions in a sequence")
+        info(this, s"Checking limits and recursion for actions in a sequence $sequence $components")
         // first check that out of the box no more components than necessary
         if (components.size > whiskConfig.actionSequenceLimit.toInt)
             Future.failed(new TooManyActionsInSequence())
@@ -703,19 +703,19 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      * @param sequences the sequences encountered during inlining
      * @return a successful future in case the conditions were met or a failed fugure with either too many actions or recursion found
      */
-    private def inlineComponentsAndCountAtomicActions(atomicActionsCnt: Int, actionsToInline: List[String], sequences: List[String])(
+    private def inlineComponentsAndCountAtomicActions(atomicActionsCnt: Int, actionsToInline: List[FullyQualifiedEntityName], sequences: List[FullyQualifiedEntityName])(
         implicit transid: TransactionId): Future[Boolean] = {
         if (atomicActionsCnt > whiskConfig.actionSequenceLimit.toInt)
             Future.failed(new TooManyActionsInSequence())
         else {
             actionsToInline match {
                 case action :: restActions =>
-                    val docid = DocId(action)
+                    val docid = DocId(action.toString)
                     WhiskAction.get(entityStore, docid) flatMap { act =>
                         act.exec match {
                             case seq: SequenceExec =>
                                 // this is actually a sequence, check already traversed sequences
-                                if (sequences.contains(WhiskEntity.qualifiedName(act.namespace, act.name))) {
+                                if (sequences.contains(FullyQualifiedEntityName(act.namespace, act.name))) {
                                    Future.failed(new SequenceWithRecursion())
                                 } else {
                                     // resolve the components first

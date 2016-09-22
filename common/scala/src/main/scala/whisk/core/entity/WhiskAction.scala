@@ -245,20 +245,19 @@ object WhiskAction
     /** utility function that given a fully qualified name for an action, resolve its possible package bindings and returns
      *  the fully qualified name of the resolved action
      */
-    def resolveAction(entityStore: EntityStore, fullyQualifiedName: String)(
-        implicit ec: ExecutionContext, transid: TransactionId): Future[String] = {
+    def resolveAction(entityStore: EntityStore, fullyQualifiedName: FullyQualifiedEntityName)(
+        implicit ec: ExecutionContext, transid: TransactionId): Future[FullyQualifiedEntityName] = {
         // first check that there is a package to be resolved
-        val entityPathWithActionName = EntityPath(fullyQualifiedName)
-        val entityPath = entityPathWithActionName.dropLast
+        val entityPath = fullyQualifiedName.path
         if (entityPath.defaultPackage) {
             // this is the default package, nothing to resolve
             Future.successful(fullyQualifiedName)
         } else {
             // there is a package to be resolved
             val pkgDocid = WhiskPackage.packageDocId(fullyQualifiedName)
-            val actionName = entityPathWithActionName.last
+            val actionName = fullyQualifiedName.name
             val wp = WhiskPackage.resolveBinding(entityStore, pkgDocid)
-            wp map { resolvedPkg => WhiskEntity.qualifiedName(resolvedPkg.namespace.addpath(resolvedPkg.name), actionName) }
+            wp map { resolvedPkg => FullyQualifiedEntityName(resolvedPkg.namespace.addpath(resolvedPkg.name), actionName) }
         }
     }
 }

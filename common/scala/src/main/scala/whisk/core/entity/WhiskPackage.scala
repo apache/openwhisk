@@ -168,8 +168,8 @@ object WhiskPackage
      * @param fullyQualifiedName the fully qualified name of the entity
      * @return the docid for the corresponding package
      */
-    def packageDocId(fullyQualifiedName: String): DocId = {
-        val wskPackage = EntityPath(fullyQualifiedName).dropLast
+    def packageDocId(fullyQualifiedName: FullyQualifiedEntityName): DocId = {
+        val wskPackage = fullyQualifiedName.path
         DocId(wskPackage.toString)
     }
 
