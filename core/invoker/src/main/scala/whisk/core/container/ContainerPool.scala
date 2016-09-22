@@ -705,7 +705,7 @@ class ContainerPool(
         val rawLogBytes = container.synchronized {
             this.getDockerLogContent(container.containerId, 0, size, !standalone)
         }
-        val filename = s"${_logDir}/${container.name}.log"
+        val filename = s"${_logDir}/${container.nameAsString}.log"
         Files.write(Paths.get(filename), rawLogBytes)
         info(this, s"teardownContainers: wrote docker logs to $filename")
         runDockerOp { container.remove() }
