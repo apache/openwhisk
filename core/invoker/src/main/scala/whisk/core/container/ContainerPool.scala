@@ -45,13 +45,14 @@ import whisk.core.entity.MemoryLimit
 import whisk.core.entity.LogLimit
 import whisk.core.entity.TimeLimit
 import whisk.core.entity.WhiskAction
-import whisk.core.entity.WhiskAuthStore
 import whisk.core.entity.WhiskEntityStore
 import whisk.core.entity.NodeJS6Exec
 import akka.event.Logging.LogLevel
 import akka.event.Logging.InfoLevel
 import whisk.core.entity.BlackBoxExec
 import whisk.core.entity.AuthKey
+
+import whisk.core.container.docker.DockerProxy
 
 /**
  * A thread-safe container pool that internalizes container creation/teardown and allows users
@@ -66,18 +67,14 @@ class ContainerPool(
     config: WhiskConfig,
     invokerInstance: Integer = 0,
     verbosity: LogLevel = InfoLevel,
-    standalone: Boolean = false)(implicit actorSystem: ActorSystem)
-    extends ContainerUtils {
+    standalone: Boolean = false)(implicit docker: DockerProxy, actorSystem: ActorSystem)
+    extends Logging {
 
     // These must be defined before verbosity is set
     private val datastore = WhiskEntityStore.datastore(config)
-    private val authStore = WhiskAuthStore.datastore(config)
-    setVerbosity(verbosity)
 
-    val dockerhost = config.selfDockerEndpoint
     val serializeDockerOp = config.invokerSerializeDockerOp.toBoolean
     val serializeDockerPull = config.invokerSerializeDockerOp.toBoolean
-    info(this, s"dockerhost = $dockerhost    serializeDockerOp = $serializeDockerOp   serializeDockerPull = $serializeDockerPull")
 
     // Eventually, we will have a more sophisticated warmup strategy that does multiple sizes
     private val defaultMemoryLimit = MemoryLimit(MemoryLimit.STD_MEMORY)
@@ -88,7 +85,6 @@ class ContainerPool(
     override def setVerbosity(level: LogLevel) = {
         super.setVerbosity(level)
         datastore.setVerbosity(level)
-        authStore.setVerbosity(level)
     }
 
     /**
@@ -155,7 +151,7 @@ class ContainerPool(
      * Lists ALL containers at this docker point with "docker ps -a --no-trunc".
      * This could include containers not in this pool at all.
      */
-    def listAll()(implicit transid: TransactionId): Seq[ContainerState] = listContainers(true)
+    def listAll()(implicit transid: TransactionId): Seq[ContainerState] = docker.ps(true)
 
     /**
      * Retrieves (possibly create) a container based on the subject and versioned action.
@@ -559,13 +555,13 @@ class ContainerPool(
         val env = getContainerEnvironment()
         // This will start up the container
         if (pull) runDockerPull {
-            ContainerUtils.pullImage(dockerhost, imageName)
+            docker.pull(imageName)
         }
         runDockerOp {
             // because of the docker lock, by the time the container gets around to be started
             // there could be a container to reuse (from a previous run of the same action, or
             // from a stem cell container); should revisit this logic
-            new WhiskContainer(transid, this.dockerhost, key, containerName, imageName, network, cpuShare, policy, env, limits, isBlackbox = pull, logLevel = this.getVerbosity())
+            new WhiskContainer(transid, key, containerName, imageName, network, cpuShare, policy, env, limits, isBlackbox = pull, logLevel = this.getVerbosity())
         }
     }
 
@@ -584,7 +580,7 @@ class ContainerPool(
      */
     private def makeContainer(key: ActionContainerId, imageName: String, args: Array[String])(implicit transid: TransactionId): FinalContainerResult = {
         val con = runDockerOp {
-            new Container(transid, this.dockerhost, key, None, imageName,
+            new Container(transid, key, None, imageName,
                 config.invokerContainerNetwork, ContainerPool.cpuShare(config),
                 config.invokerContainerPolicy, ActionLimits(), Map(), args,
                 this.getVerbosity())
@@ -724,18 +720,66 @@ class ContainerPool(
         info(this, s"Now removing ${candidates.length} leftover containers")
 
         candidates foreach { c =>
-            unpauseContainer(c.name)
-            rmContainer(c.name)
+            docker.unpause(c.name)
+            docker.rm(c.name)
         }
 
         info(this, s"Leftover container removal completed")
+    }
+
+    // If running outside a container, then logs files are in docker's own
+    // /var/lib/docker/containers.  If running inside a container, is mounted at /containers.
+    // Root access is needed when running outside the container.
+    private def dockerContainerDir(mounted: Boolean) = {
+        if (mounted) "/containers" else "/var/lib/docker/containers"
+    }
+
+    /**
+     * Gets the filename of the docker logs of other containers that is mapped back into the invoker.
+     */
+    private def getDockerLogFile(containerId: ContainerHash, mounted: Boolean) = {
+        new java.io.File(s"""${dockerContainerDir(mounted)}/${containerId.hash}/${containerId.hash}-json.log""").getCanonicalFile()
+    }
+
+    /**
+     * Reads the contents of the file at the given position.
+     * It is assumed that the contents does exist and that region is not changing concurrently.
+     */
+    def getDockerLogContent(containerHash: ContainerHash, start: Long, end: Long, mounted: Boolean)(implicit transid: TransactionId): Array[Byte] = {
+        var fis: java.io.FileInputStream = null
+        try {
+            val file = getDockerLogFile(containerHash, mounted)
+            fis = new java.io.FileInputStream(file)
+            val channel = fis.getChannel().position(start)
+            var remain = (end - start).toInt
+            val buffer = java.nio.ByteBuffer.allocate(remain)
+            while (remain > 0) {
+                val read = channel.read(buffer)
+                if (read > 0)
+                    remain = read - read.toInt
+            }
+            buffer.array
+        } catch {
+            case e: Exception =>
+                error(this, s"getDockerLogContent failed on ${containerHash.hash}: ${e.getClass}: ${e.getMessage}")
+                Array()
+        } finally {
+            if (fis != null) fis.close()
+        }
+
     }
 
     /**
      * Gets the size of the mounted file associated with this whisk container.
      */
     def getLogSize(con: Container, mounted: Boolean)(implicit transid: TransactionId): Long = {
-        getDockerLogSize(con.containerId, mounted)
+        try {
+            getDockerLogFile(con.containerId, mounted).length
+        } catch {
+            case e: Exception =>
+                error(this, s"getDockerLogSize failed on ${con.containerId.hash}")
+                0
+        }
     }
 
     nannyThread(listAll()(TransactionId.invokerWarmup)).start
@@ -746,7 +790,6 @@ class ContainerPool(
             warn(this, "Shutdown hook completed.")
         }
     }
-
 }
 
 /*

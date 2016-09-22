@@ -110,6 +110,11 @@ package object container {
         }
     }
 
+    /**
+     * Information from docker ps.
+     */
+    case class ContainerState(id: ContainerHash, image: String, name: ContainerName)
+
     final class DockerOutput(val toOption: Option[String]) extends AnyVal
     object DockerOutput {
         def apply(content: String) = new DockerOutput(Some(content))

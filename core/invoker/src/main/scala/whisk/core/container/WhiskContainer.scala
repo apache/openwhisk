@@ -38,18 +38,20 @@ import akka.stream.ActorMaterializer
 
 import spray.json.JsObject
 import spray.json.JsString
+
 import whisk.common.TransactionId
 import whisk.core.entity.ActionLimits
 import whisk.common.LoggingMarkers
 import whisk.common.PrintStreamEmitter
 import whisk.common.NewHttpUtils
 
+import whisk.core.container.docker.DockerProxy
+
 /**
  * Reifies a whisk container - one that respects the whisk container API.
  */
 class WhiskContainer(
     originalId: TransactionId,
-    dockerhost: String,
     key: ActionContainerId,
     containerName: ContainerName,
     image: String,
@@ -60,8 +62,8 @@ class WhiskContainer(
     limits: ActionLimits,
     args: Array[String] = Array(),
     val isBlackbox: Boolean,
-    logLevel: LogLevel)
-    extends Container(originalId, dockerhost, key, Some(containerName), image, network, cpuShare, policy, limits, env, args, logLevel) {
+    logLevel: LogLevel)(implicit docker: DockerProxy)
+    extends Container(originalId, key, Some(containerName), image, network, cpuShare, policy, limits, env, args, logLevel) {
 
     var boundParams = JsObject() // Mutable to support pre-alloc containers
     var lastLogSize = 0L
@@ -114,7 +116,9 @@ class WhiskContainer(
      * Tear down the container and retrieve the logs.
      */
     def teardown()(implicit transid: TransactionId): String = {
-        getContainerLogs(containerName).toOption.getOrElse("none")
+        // FIXME !!
+        // getContainerLogs(containerName).toOption.getOrElse("none")
+        "none"
     }
 
     /**
@@ -155,26 +159,22 @@ class WhiskContainer(
         implicit val ec = system.dispatcher
         implicit val materializer = ActorMaterializer()
 
-        containerHostAndPort map { hp =>
+        val flow = Http().outgoingConnection(host.host, host.port)
 
-            val flow = Http().outgoingConnection(hp.host, hp.port)
+        val uri = Uri(
+            scheme = "http",
+            authority = Uri.Authority(host = Uri.Host(host.host), port = host.port),
+            path = Uri.Path(endpoint))
 
-            val uri = Uri(
-                scheme = "http",
-                authority = Uri.Authority(host = Uri.Host(hp.host), port = hp.port),
-                path = Uri.Path(endpoint))
-
-            for (
-                entity <- Marshal(msg).to[MessageEntity];
-                request = HttpRequest(method = HttpMethods.POST, uri = uri, entity = entity);
-                response <- NewHttpUtils.singleRequest(request, timeout, retryOnTCPErrors = true, retryInterval = 100.milliseconds);
-                responseBody <- Unmarshal(response.entity).to[String]
-            ) yield {
-                Some((response.status.intValue, responseBody))
-            }
-        } getOrElse {
-            Future.successful(None)
+        for (
+            entity <- Marshal(msg).to[MessageEntity];
+            request = HttpRequest(method = HttpMethods.POST, uri = uri, entity = entity);
+            response <- NewHttpUtils.singleRequest(request, timeout, retryOnTCPErrors = true, retryInterval = 100.milliseconds);
+            responseBody <- Unmarshal(response.entity).to[String]
+        ) yield {
+            Some((response.status.intValue, responseBody))
         }
+
     }
 }
 
