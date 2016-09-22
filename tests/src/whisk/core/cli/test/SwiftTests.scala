@@ -37,7 +37,7 @@ class SwiftTests
 
     implicit val wskprops = WskProps()
     val wsk = new Wsk
-    val expectedDuration = 30 seconds
+    val expectedDuration = 45 seconds
     val activationPollDuration = 60 seconds
 
     behavior of "Swift Actions"
