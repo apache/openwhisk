@@ -214,11 +214,11 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      * - 409 Conflict
      * - 500 Internal Server Error
      */
-    override def create(user: Identity, name: EntityName)(implicit transid: TransactionId) = {
+    override def create(user: Identity, namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
         parameter('overwrite ? false) { overwrite =>
             entity(as[WhiskActionPut]) { content =>
-                val docid = DocId(WhiskEntity.qualifiedName(EntityPath(user.namespace.name), name))
-                putEntity(WhiskAction, entityStore, docid, overwrite, update(user, content)_, () => { make(user, content, name) })
+                val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
+                putEntity(WhiskAction, entityStore, docid, overwrite, update(user, content)_, () => { make(user, namespace, content, name) })
             }
         }
     }
@@ -351,8 +351,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
     }
 
     /** Creates a WhiskAction from PUT content, generating default values where necessary. */
-    private def make(user: Identity, content: WhiskActionPut, name: EntityName)(implicit transid: TransactionId) = {
-        val namespace = EntityPath(user.namespace.name)
+    private def make(user: Identity, namespace: EntityPath, content: WhiskActionPut, name: EntityName)(implicit transid: TransactionId) = {
         if (content.exec.isDefined) {
             // fix content if sequence and check for sequence limits
             content.exec.get match {

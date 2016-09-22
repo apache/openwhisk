@@ -103,10 +103,9 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
      * - 409 Conflict
      * - 500 Internal Server Error
      */
-    override def create(user: Identity, name: EntityName)(implicit transid: TransactionId) = {
+    override def create(user: Identity, namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
         parameter('overwrite ? false) { overwrite =>
             entity(as[WhiskRulePut]) { content =>
-                val namespace = EntityPath(user.namespace.name)
                 val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
                 putEntity(WhiskRule, entityStore, docid, overwrite, update(content) _, () => { create(content, namespace, name) },
                     postProcess = Some { rule: WhiskRule =>
