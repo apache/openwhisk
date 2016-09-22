@@ -55,7 +55,7 @@ protected[core] class EntityPath private (val path: Seq[String]) extends AnyVal 
      * helper method to replace the default namespace with a given namespace
      * no effect if the namespace is not the default one
      */
-    def replaceDefaultNamespace(newNamespace: String): EntityPath ={
+    def resolveNamespace(newNamespace: String): EntityPath ={
         // check if namespace is default
         if (root == EntityPath.DEFAULT) {
             val newPath = path.updated(0, newNamespace)

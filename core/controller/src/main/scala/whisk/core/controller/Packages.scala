@@ -86,9 +86,10 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
      * - 409 Conflict
      * - 500 Internal Server Error
      */
-    override def create(user: Identity, namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
+    override def create(user: Identity, name: EntityName)(implicit transid: TransactionId) = {
         parameter('overwrite ? false) { overwrite =>
             entity(as[WhiskPackagePut]) { content =>
+                val namespace = EntityPath(user.namespace.name)
                 val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
                 putEntity(WhiskPackage, entityStore, docid, overwrite,
                     update(content) _, () => create(content, namespace, name))

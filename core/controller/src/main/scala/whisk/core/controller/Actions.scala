@@ -214,11 +214,11 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      * - 409 Conflict
      * - 500 Internal Server Error
      */
-    override def create(user: Identity, namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
+    override def create(user: Identity, name: EntityName)(implicit transid: TransactionId) = {
         parameter('overwrite ? false) { overwrite =>
             entity(as[WhiskActionPut]) { content =>
-                val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
-                putEntity(WhiskAction, entityStore, docid, overwrite, update(user, content)_, () => { make(user, content, namespace, name) })
+                val docid = DocId(WhiskEntity.qualifiedName(EntityPath(user.namespace.name), name))
+                putEntity(WhiskAction, entityStore, docid, overwrite, update(user, content)_, () => { make(user, content, name) })
             }
         }
     }
@@ -346,12 +346,13 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      */
     private def fixComponentsNames(seq: SequenceExec, user: Identity)(implicit transid: TransactionId): SequenceExec = {
         // if components are part of the default namespace, they contain `_`; replace it!
-        val fixedComponents = seq.components map { c => EntityPath(c) } map { c => c.replaceDefaultNamespace(user.namespace.toString).toString }
+        val fixedComponents = seq.components map { c => EntityPath(c) } map { c => c.resolveNamespace(user.namespace.toString).toString }
         new SequenceExec(seq.code, seq.components, Some(fixedComponents))
     }
 
     /** Creates a WhiskAction from PUT content, generating default values where necessary. */
-    private def make(user: Identity, content: WhiskActionPut, namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
+    private def make(user: Identity, content: WhiskActionPut, name: EntityName)(implicit transid: TransactionId) = {
+        val namespace = EntityPath(user.namespace.name)
         if (content.exec.isDefined) {
             // fix content if sequence and check for sequence limits
             content.exec.get match {
