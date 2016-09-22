@@ -58,8 +58,6 @@ import whisk.core.entity.WhiskActionPut
 import whisk.core.entity.WhiskActivation
 import whisk.core.entity.WhiskAuth
 import java.time.Instant
-import whisk.core.entity.SequenceExec
-import whisk.core.entity.Pipecode
 import akka.event.Logging.InfoLevel
 import whisk.core.entity.WhiskTrigger
 

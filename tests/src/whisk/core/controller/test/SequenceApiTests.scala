@@ -27,7 +27,6 @@ import whisk.core.entity.EntityName
 import whisk.core.entity.EntityPath
 import whisk.core.entity.Exec
 import whisk.core.entity.Parameters
-import whisk.core.entity.SequenceExec
 import whisk.core.entity.Subject
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskActionPut
@@ -40,7 +39,6 @@ import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
 import spray.http.StatusCodes.BadRequest
-import spray.http.StatusCodes.NotFound
 import spray.http.StatusCodes.OK
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
 
