@@ -1,0 +1,77 @@
+version: '2'
+services:
+  db:
+    image: couchdb:1.6.1
+    ports:
+      - "5984:5984"
+    environment:
+      - COUCHDB_USER:whisk_admin
+      - COUCHDB_PASSWORD:some_passw0rd
+    volumes:
+      - ~/tmp/openwhisk/couchdb:/usr/local/var/lib/couchdb:rw
+
+  # KAFKA SERVICES
+  zookeeper:
+    image: wurstmeister/zookeeper
+    ports:
+      - "2181:2181"
+  kafka:
+    image: wurstmeister/kafka
+    links:
+      - zookeeper
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092"
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      # whisk topic will have 1 partition and 1 replica
+      KAFKA_CREATE_TOPICS: "whisk:1:1"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  # CONSUL & REGISTRATOR SERVICES
+  consul:
+    image: consul:v0.7.0
+    ports:
+      - "8400:8400" # CLI
+      - "8500:8500" # HTTP
+      - "8600:8600" # DNS
+      - "8302:8302" # Serf LAN
+  registrator:
+    image: gliderlabs/registrator
+    command: [-resync, "5", "consul://consul.docker:8500"]
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock
+    links:
+      - consul:consul.docker
+    depends_on:
+      - consul
+
+  # WHISK CONTROLLER
+  controller:
+    image: whisk/controller:latest
+    links:
+      - consul:consul.docker
+      - db:db.docker
+    depends_on:
+      - consul
+      - db
+    environment:
+      COMPONENT_NAME: "controller"
+      CONSULSERVER_HOST: consul.docker
+      CONSUL_HOST_PORT4: "8500"
+      PORT: 8080
+      WHISK_VERSION_NAME: "docker-compose-local"
+      WHISK_VERSION_DATE: "whisk.version.date"
+      WHISK_VERSION_BUILDNO: "latest"
+      KAFKA_NUMPARTITIONS: 1
+      SERVICE_CHECK_HTTP: "/ping"
+      SERVICE_CHECK_TIMEOUT: "2s"
+      SERVICE_CHECK_INTERVAL: "15s"
+      DB_PORT: "5948"
+      DB_HOST: "db.host"
+    volumes:
+      - ~/tmp/openwhisk/controller/logs:/logs
+    ports:
+      - "8080:8080"
