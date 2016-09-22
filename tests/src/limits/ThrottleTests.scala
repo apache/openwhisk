@@ -193,8 +193,11 @@ class ThrottleTests
                 val alreadyWaited = durationBetween(afterInvokes, Instant.now)
                 settleThrottles(alreadyWaited)
                 println("clearing activations")
-                Try { waitForActivations(results.par) }
             }
+            // wait for the activations last, if these fail, the throttle should be settled
+            // and this gives the activations time to complete and may avoid unnecessarily polling
+            println("waiting for activations to complete")
+            waitForActivations(results.par)
     }
 
     it should "throttle multiple activations of one trigger" in withAssetCleaner(wskprops) {
@@ -266,7 +269,10 @@ class ThrottleTests
                 val alreadyWaited = durationBetween(afterSlowInvokes, Instant.now)
                 settleThrottles(alreadyWaited)
                 println("clearing activations")
-                Try { waitForActivations(combinedResults.par) }
             }
+            // wait for the activations last, giving the activations time to complete and
+            // may avoid unnecessarily polling; if these fail, the throttle may not be settled
+            println("waiting for activations to complete")
+            waitForActivations(combinedResults.par)
     }
 }
