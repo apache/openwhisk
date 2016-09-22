@@ -501,7 +501,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         val args = { env map { _ ++ action.parameters } getOrElse action.parameters } merge payload
         val message = Message(
             transid,
-            FullyQualifiedEntityName(action.namespace, action.name, action.version),
+            FullyQualifiedEntityName(action.namespace, action.name, Some(action.version)),
             action.rev,
             user.subject,
             user.authkey,

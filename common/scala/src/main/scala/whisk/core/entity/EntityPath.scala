@@ -177,8 +177,8 @@ protected[core] object EntityName {
  * - EntityName: the name of the entity
  * - Version: the semantic version of the resource
  */
-protected[core] case class FullyQualifiedEntityName(path: EntityPath, name: EntityName, version: SemVer) {
-    override def toString = path.addpath(name) + "@" + version.toString
+protected[core] case class FullyQualifiedEntityName(path: EntityPath, name: EntityName, version: Option[SemVer] = None) {
+    override def toString = path.addpath(name) + version.map("@" + _.toString).getOrElse("")
 }
 
 protected[core] object FullyQualifiedEntityName extends DefaultJsonProtocol {

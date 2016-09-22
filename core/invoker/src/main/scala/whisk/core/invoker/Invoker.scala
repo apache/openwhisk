@@ -118,7 +118,7 @@ class Invoker(
                 }
 
                 info(this, s"activation failed")
-                completeTransactionWithError(actionid.id, msg.action.version, tran, failure.activationResponse)
+                completeTransactionWithError(actionid.id, msg.action.version.get, tran, failure.activationResponse)
         }
     }
 
