@@ -54,23 +54,31 @@ services:
     links:
       - consul:consul.docker
       - db:db.docker
+      - kafka:kafka.docker
     depends_on:
       - consul
       - db
+    env_file:
+      - ./docker-whisk-controller.env
     environment:
-      COMPONENT_NAME: "controller"
-      CONSULSERVER_HOST: consul.docker
-      CONSUL_HOST_PORT4: "8500"
+      COMPONENT_NAME: controller
       PORT: 8080
-      WHISK_VERSION_NAME: "docker-compose-local"
-      WHISK_VERSION_DATE: "whisk.version.date"
-      WHISK_VERSION_BUILDNO: "latest"
-      KAFKA_NUMPARTITIONS: 1
-      SERVICE_CHECK_HTTP: "/ping"
-      SERVICE_CHECK_TIMEOUT: "2s"
-      SERVICE_CHECK_INTERVAL: "15s"
-      DB_PORT: "5948"
-      DB_HOST: "db.host"
+
+      CONSULSERVER_HOST: consul.docker
+      CONSUL_HOST_PORT4: 8500
+
+      KAFKA_HOST: kafka.docker
+      KAFKA_HOST_PORT: 9092
+
+      DB_PROVIDER: CouchDB
+      DB_PROTOCOL: http
+      DB_PORT: 5948
+      DB_HOST: db.host
+      DB_USERNAME: whisk_admin
+      DB_PASSWORD: some_passw0rd
+
+      LOADBALANCER_HOST: localhost  # to be added
+      LOADBALANCER_HOST_PORT: 80    # to be added
     volumes:
       - ~/tmp/openwhisk/controller/logs:/logs
     ports:
