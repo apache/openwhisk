@@ -1,0 +1,8 @@
+---
+# Remove API Gateway route management actions.
+
+- name: remove route management actions
+  shell: ./uninstallRouteMgmt.sh {{ catalog_auth_key }} {{ groups['edge'] | first }} {{ catalog_namespace }} {{ cli_path }} chdir="{{ openwhisk_home }}/ansible/roles/routemgmt/scripts"
+  environment:
+    OPENWHISK_HOME: "{{ openwhisk_home }}"
+  ignore_errors: True

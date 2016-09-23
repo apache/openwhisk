@@ -55,6 +55,31 @@ do
     fi
 done
 
+## drop and recreate the transient API Gateway routes database
+DB_GWAPI=$(getProperty "$PROPERTIES_FILE" "db.whisk.gwapi")
+echo "dropping database: '$DB_GWAPI'"
+
+# drop the database
+CMD="$CURL_ADMIN -X DELETE $URL_BASE/$DB_GWAPI"
+RES=$($CMD)
+if [[ "$RES" == '{"ok":true}' ]]; then
+    echo DELETED
+else
+    # table may not exist
+    echo WARNING: $RES
+fi
+
+echo "recreating database '$DB_GWAPI'"
+CMD="$CURL_ADMIN -X PUT $URL_BASE/$DB_GWAPI"
+RES=$($CMD)
+if [[ "$RES" == '{"ok":true}' ]]; then
+    echo RECREATED
+else
+    echo ERROR: $RES
+    exit 1
+fi
+
+
 # recreate views required by whisk.core.entity.WhiskStore
 echo "loading views"
 source "$SCRIPTDIR/loadTransientDBViews.sh"
