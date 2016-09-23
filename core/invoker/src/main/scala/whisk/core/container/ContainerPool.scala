@@ -179,8 +179,9 @@ class ContainerPool(
             val conResult = Try(getContainer(1, myPos, key, () => makeWhiskContainer(action, auth)))
             completedPosition.next()
             conResult match {
-                case Success(Cold(con, initResult)) =>
-                    info(this, s"Obtained cold container ${con.containerId.id}")
+                case Success(Cold(con)) =>
+                    info(this, s"Obtained cold container ${con.containerId.id} - about to initialize")
+                    val initResult = initWhiskContainer(action, con)
                     Some(con, Some(initResult))
                 case Success(Warm(con)) =>
                     info(this, s"Obtained warm container ${con.containerId.id}")
@@ -192,14 +193,15 @@ class ContainerPool(
         }
 
     /*
-     * For testing by ContainerPoolTests
+     * For testing by ContainerPoolTests where non whisk containers are used.
+     * These do not require initialization.
      */
     def getByImageName(imageName: String, args: Array[String])(implicit transid: TransactionId): Option[Container] = {
         info(this, s"Getting container for image $imageName with args " + args.mkString(" "))
         // Not a regular key. Doesn't matter in testing.
         val key = new ActionContainerId(s"instantiated." + imageName + args.mkString("_"))
         getContainer(1, 0, key, () => makeContainer(key, imageName, args)) match {
-            case Cold(con, _) => Some(con)
+            case Cold(con) => Some(con)
             case Warm(con) => Some(con)
             case _ => None
         }
@@ -210,8 +212,8 @@ class ContainerPool(
      * This method will apply retry so that the caller is blocked until retry succeeds.
      */
     @tailrec
-    final def getContainer(tryCount: Int, position: Int, key: ActionContainerId, conMaker: () => ContainerResult)(implicit transid: TransactionId): ContainerResult = {
-        val positionInLine = position - completedPosition.cur // this will be 1 if at the front of the line
+    final def getContainer(tryCount: Int, position: Int, key: ActionContainerId, conMaker: () => WhiskContainer)(implicit transid: TransactionId): ContainerResult = {
+        val positionInLine = position - completedPosition.cur // Indicates queue position.  1 means front of the line
         val available = slack()
         if (tryCount % 100 == 0) {
             warn(this, s"""getImpl possibly stuck because still in line:
@@ -222,12 +224,14 @@ class ContainerPool(
                           | activeCount = ${activeCount()}
                           | startingCounter = ${startingCounter.cur}""".stripMargin)
         }
-        if (positionInLine > available) { // e.g. if there is 1 available, then I wait if I am second in line (positionInLine = 2)
-            Thread.sleep(50) // TODO: replace with wait/notify but tricky to get right because of desire for maximal concurrency
+        if (positionInLine <= available) {
+            getOrMake(key, conMaker) match {
+                case Some(cr) => cr
+                case None => getContainer(tryCount + 1, position, key, conMaker)
+            }
+        } else { // It's not our turn in line yet.
+            Thread.sleep(50) // TODO: Replace with wait/notify but tricky because of desire for maximal concurrency
             getContainer(tryCount + 1, position, key, conMaker)
-        } else getOrMake(key, conMaker) match {
-            case Some(cr) => cr
-            case None => getContainer(tryCount + 1, position, key, conMaker)
         }
     }
 
@@ -254,23 +258,14 @@ class ContainerPool(
      *
      * The returned container will be active (not paused).
      */
-    def getOrMake(key: ActionContainerId, conMaker: () => ContainerResult)(implicit transid: TransactionId): Option[ContainerResult] = {
+    def getOrMake(key: ActionContainerId, conMaker: () => WhiskContainer)(implicit transid: TransactionId): Option[ContainerResult] = {
         retrieve(key) match {
             case CacheMiss => {
-                conMaker() match { /* We make the container outside synchronization */
-                    // Unfortunately, variables are not allowed in pattern alternatives even when the types line up.
-                    case res @ Cold(con, initResult) =>
-                        this.synchronized {
-                            introduceContainer(key, con).state = State.Active
-                            Some(res)
-                        }
-                    case res @ Warm(con) =>
-                        this.synchronized {
-                            introduceContainer(key, con).state = State.Active
-                            Some(res)
-                        }
-                    case res => Some(res)
+                val con = conMaker()
+                this.synchronized {
+                    introduceContainer(key, con).state = State.Active
                 }
+                Some(Cold(con))
             }
             case CacheHit(con) =>
                 con.transid = transid
@@ -528,14 +523,14 @@ class ContainerPool(
         }
 
     // Obtain a container (by creation or promotion) and initialize by sending code.
-    private def makeWhiskContainer(action: WhiskAction, auth: AuthKey)(implicit transid: TransactionId): ContainerResult = {
+    private def makeWhiskContainer(action: WhiskAction, auth: AuthKey)(implicit transid: TransactionId): WhiskContainer = {
         val imageName = getDockerImageName(action)
         val limits = action.limits
         val nodeImageName = WhiskAction.containerImageName(nodejsExec, config.dockerRegistry, config.dockerImagePrefix, config.dockerImageTag)
         val key = ActionContainerId(auth.uuid, action.fullyQualifiedName, action.rev)
         val warmedContainer = if (limits.memory == defaultMemoryLimit && imageName == nodeImageName) getWarmNodejsContainer(key) else None
         val containerName = makeContainerName(action)
-        val con = warmedContainer getOrElse {
+        warmedContainer getOrElse {
             try {
                 info(this, s"making new container because none available")
                 startingCounter.next()
@@ -545,7 +540,6 @@ class ContainerPool(
                 info(this, s"finished trying to make container, $newCount more containers to start")
             }
         }
-        initWhiskContainer(action, con)
     }
 
     // Make a container somewhat generically without introducing into data structure.
@@ -589,19 +583,17 @@ class ContainerPool(
     }
 
     // We send the payload here but eventually must also handle morphing a pre-allocated container into the right state.
-    private def initWhiskContainer(action: WhiskAction, con: WhiskContainer)(implicit transid: TransactionId): ContainerResult = {
+    private def initWhiskContainer(action: WhiskAction, con: WhiskContainer)(implicit transid: TransactionId): RunResult = {
         con.boundParams = action.parameters.toJsObject
-
         // Then send it the init payload which is code for now
         val initArg = action.containerInitializer
-        val initResult = con.init(initArg, action.limits.timeout.duration)
-        Cold(con, initResult)
+        con.init(initArg, action.limits.timeout.duration)
     }
 
     /**
      * Used through testing only. Creates a container running the command in `args`.
      */
-    private def makeContainer(key: ActionContainerId, imageName: String, args: Array[String])(implicit transid: TransactionId): ContainerResult = {
+    private def makeContainer(key: ActionContainerId, imageName: String, args: Array[String])(implicit transid: TransactionId): WhiskContainer = {
         val con = runDockerOp {
             new WhiskContainer(transid, this.dockerhost, key, makeContainerName("testContainer"), imageName,
                 config.invokerContainerNetwork, ContainerPool.cpuShare(config),
@@ -609,7 +601,7 @@ class ContainerPool(
                 this.getVerbosity())
         }
         con.setVerbosity(getVerbosity())
-        Warm(con)
+        con
     }
 
     /**

@@ -73,12 +73,12 @@ package object container {
     /**
      * The result of trying to obtain a container which is known to exist or to create one.
      * Capacity constraints have been passed by this point so there are no Busy's.
-     * The presence of a RunResult indicates this container was not in cache and had to be initialized.
+     * Initiailization is performed later so no field for initResult here.
      */
     sealed trait ContainerResult
 
     case class Warm(con: WhiskContainer) extends ContainerResult
-    case class Cold(con: WhiskContainer, initResult: RunResult) extends ContainerResult
+    case class Cold(con: WhiskContainer) extends ContainerResult
 
     // Note: not using InetAddress here because we don't want to do any lookup
     // until used for something.
