@@ -401,4 +401,36 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
                 e shouldBe empty
         })
     }
+
+    it should "support large-ish actions" in {
+        val thought = " I took the one less traveled by, and that has made all the difference."
+        val assignment = "    x = \"" + thought + "\";\n"
+
+        val code = """
+            | function main(args) {
+            |     var x = "hello";
+            """.stripMargin + (assignment * 7000) + """
+            |     x = "world";
+            |     return { "message" : x };
+            | }
+            """.stripMargin
+
+        // Lest someone should make it too easy.
+        code.length should be >= 500000
+
+        val (out, err) = withNodeJsContainer { c =>
+            c.init(initPayload(code))._1 should be(200)
+
+            val (runCode, runRes) = c.run(runPayload(JsObject()))
+
+            runCode should be(200)
+            runRes.get.fields.get("message") shouldBe Some(JsString("world"))
+        }
+
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe empty
+                e shouldBe empty
+        })
+    }
 }
