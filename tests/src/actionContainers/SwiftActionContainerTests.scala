@@ -33,6 +33,21 @@ class SwiftActionContainerTests extends BasicActionRunnerTests with WskActorSyst
     val enforceEmptyOutputStream = true
     lazy val swiftContainerImageName = "swiftaction"
 
+    lazy val envCode = """
+         |func main(args: [String: Any]) -> [String: Any] {
+         |     let env = NSProcessInfo.processInfo().environment
+         |     var auth = "???"
+         |     var edge = "???"
+         |     if let authKey : String = env["AUTH_KEY"] {
+         |         auth = "\(authKey)"
+         |     }
+         |     if let edgeHost : String = env["EDGE_HOST"] {
+         |         edge = "\(edgeHost)"
+         |     }
+         |     return ["auth": auth, "edge": edge]
+         |}
+         """.stripMargin
+
     // Helpers specific to swiftaction
     override def withActionContainer(env: Map[String, String] = Map.empty)(code: ActionContainer => Unit) = {
         withContainer(swiftContainerImageName, env)(code)
@@ -59,20 +74,7 @@ class SwiftActionContainerTests extends BasicActionRunnerTests with WskActorSyst
     })
 
     testEnv(Seq {
-        ("swift", """
-         |func main(args: [String: Any]) -> [String: Any] {
-         |     let env = NSProcessInfo.processInfo().environment
-         |     var auth = "???"
-         |     var edge = "???"
-         |     if let authKey : String = env["AUTH_KEY"] {
-         |         auth = "\(authKey)"
-         |     }
-         |     if let edgeHost : String = env["EDGE_HOST"] {
-         |         edge = "\(edgeHost)"
-         |     }
-         |     return ["auth": auth, "edge": edge]
-         |}
-         """.stripMargin)
+        ("swift", envCode)
     }, enforceEmptyOutputStream)
 
     it should "return some error on action error" in {
