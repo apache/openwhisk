@@ -56,13 +56,7 @@ var ruleEnableCmd = &cobra.Command{
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
-        if len(qName.namespace) == 0 {
-            whisk.Debug(whisk.DbgError, "Namespace is missing from '%s'\n", args[0])
-            errStr := fmt.Sprintf(
-                wski18n.T("No valid namespace detected. Run 'wsk property set --namespace' or ensure the name argument is preceded by a \"/\""))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
-        }
+
         client.Namespace = qName.namespace
         ruleName := qName.entityName
 
@@ -106,13 +100,7 @@ var ruleDisableCmd = &cobra.Command{
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
-        if len(qName.namespace) == 0 {
-            whisk.Debug(whisk.DbgError, "Namespace is missing from '%s'\n", args[0])
-            errStr := fmt.Sprintf(
-                wski18n.T("No valid namespace detected. Run 'wsk property set --namespace' or ensure the name argument is preceded by a \"/\""))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
-        }
+
         client.Namespace = qName.namespace
         ruleName := qName.entityName
 
@@ -156,13 +144,7 @@ var ruleStatusCmd = &cobra.Command{
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
-        if len(qName.namespace) == 0 {
-            whisk.Debug(whisk.DbgError, "Namespace is missing from '%s'\n", args[0])
-            errStr := fmt.Sprintf(
-                wski18n.T("No valid namespace detected. Run 'wsk property set --namespace' or ensure the name argument is preceded by a \"/\""))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
-        }
+
         client.Namespace = qName.namespace
         ruleName := qName.entityName
 
@@ -214,13 +196,7 @@ var ruleCreateCmd = &cobra.Command{
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
-        if len(qName.namespace) == 0 {
-            whisk.Debug(whisk.DbgError, "Namespace is missing from '%s'\n", args[0])
-            errStr := fmt.Sprintf(
-                wski18n.T("No valid namespace detected. Run 'wsk property set --namespace' or ensure the name argument is preceded by a \"/\""))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
-        }
+
         client.Namespace = qName.namespace
         ruleName := qName.entityName
         triggerName := args[1]
@@ -278,13 +254,7 @@ var ruleUpdateCmd = &cobra.Command{
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
-        if len(qName.namespace) == 0 {
-            whisk.Debug(whisk.DbgError, "Namespace is missing from '%s'\n", args[0])
-            errStr := fmt.Sprintf(
-                wski18n.T("No valid namespace detected. Run 'wsk property set --namespace' or ensure the name argument is preceded by a \"/\""))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
-        }
+
         client.Namespace = qName.namespace
         ruleName := qName.entityName
         triggerName := args[1]  //MWD qualified name?
@@ -343,13 +313,7 @@ var ruleGetCmd = &cobra.Command{
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
-        if len(qName.namespace) == 0 {
-            whisk.Debug(whisk.DbgError, "Namespace is missing from '%s'\n", args[0])
-            errStr := fmt.Sprintf(
-                wski18n.T("No valid namespace detected. Run 'wsk property set --namespace' or ensure the name argument is preceded by a \"/\""))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
-        }
+
         client.Namespace = qName.namespace
         ruleName := qName.entityName
 
@@ -399,13 +363,7 @@ var ruleDeleteCmd = &cobra.Command{
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
-        if len(qName.namespace) == 0 {
-            whisk.Debug(whisk.DbgError, "Namespace is missing from '%s'\n", args[0])
-            errStr := fmt.Sprintf(
-                wski18n.T("No valid namespace detected. Run 'wsk property set --namespace' or ensure the name argument is preceded by a \"/\""))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
-        }
+
         client.Namespace = qName.namespace
         ruleName := qName.entityName
 

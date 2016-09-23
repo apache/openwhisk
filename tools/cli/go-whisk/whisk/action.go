@@ -20,7 +20,6 @@ import (
     "fmt"
     "net/http"
     "errors"
-    "encoding/json"
     "net/url"
     "../wski18n"
 )
@@ -35,8 +34,8 @@ type Action struct {
     Version     string              `json:"version,omitempty"`
     Publish     bool                `json:"publish"`
     Exec        *Exec               `json:"exec,omitempty"`
-    Annotations *json.RawMessage    `json:"annotations,omitempty"`
-    Parameters  *json.RawMessage    `json:"parameters,omitempty"`
+    Annotations KeyValueArr         `json:"annotations,omitempty"`
+    Parameters  KeyValueArr         `json:"parameters,omitempty"`
     Limits      *Limits             `json:"limits,omitempty"`
 }
 
@@ -44,9 +43,9 @@ type SentActionPublish struct {
     Namespace   string              `json:"-"`
     Version     string              `json:"-"`
     Publish     bool                `json:"publish"`
-    Parameters  *json.RawMessage    `json:"parameters,omitempty"`
+    Parameters  KeyValueArr         `json:"parameters,omitempty"`
+    Annotations KeyValueArr        `json:"annotations,omitempty"`
     Exec        *Exec               `json:"exec,omitempty"`
-    Annotations *json.RawMessage    `json:"annotations,omitempty"`
     Limits      *Limits             `json:"limits,omitempty"`
     Error       string              `json:"error,omitempty"`
     Code        int                 `json:"code,omitempty"`
@@ -56,9 +55,9 @@ type SentActionNoPublish struct {
     Namespace   string              `json:"-"`
     Version     string              `json:"-"`
     Publish     bool                `json:"publish,omitempty"`
-    Parameters  *json.RawMessage    `json:"parameters,omitempty"`
+    Parameters  KeyValueArr         `json:"parameters,omitempty"`
     Exec        *Exec               `json:"exec,omitempty"`
-    Annotations *json.RawMessage    `json:"annotations,omitempty"`
+    Annotations KeyValueArr         `json:"annotations,omitempty"`
     Limits      *Limits             `json:"limits,omitempty"`
     Error       string              `json:"error,omitempty"`
     Code        int                 `json:"code,omitempty"`
@@ -226,7 +225,7 @@ func (s *ActionService) Delete(actionName string) (*http.Response, error) {
     return resp, nil
 }
 
-func (s *ActionService) Invoke(actionName string, payload *json.RawMessage, blocking bool) (*Activation, *http.Response, error) {
+func (s *ActionService) Invoke(actionName string, payload interface{}, blocking bool) (*Activation, *http.Response, error) {
     // Encode resource name as a path (with no query params) before inserting it into the URI
     // This way any '?' chars in the name won't be treated as the beginning of the query params
     actionName = (&url.URL{Path: actionName}).String()

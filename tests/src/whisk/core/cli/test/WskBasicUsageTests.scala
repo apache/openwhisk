@@ -261,68 +261,76 @@ class WskBasicUsageTests
             wsk.action.create("updateMissingFile", Some("notfound"), update = true, expectedExitCode = MISUSE_EXIT)
     }
 
-    it should "create, and get an action to verify annotation parsing" in withAssetCleaner(wskprops) {
+    it should "create, and get an action to verify parameter and annotation parsing" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "actionAnnotations"
-
             val file = Some(TestUtils.getTestActionFilename("hello.js"))
+
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) =>
-                    action.create(name, file, annotations = getValidJSONTestArgInput)
+                    action.create(name, file, annotations = getValidJSONTestArgInput,
+                        parameters = getValidJSONTestArgInput)
             }
 
             val stdout = wsk.action.get(name).stdout
             assert(stdout.startsWith(s"ok: got action $name\n"))
 
-            wsk.parseJsonString(stdout).fields("annotations") shouldBe getValidJSONTestArgOutput
+            val receivedParams = wsk.parseJsonString(stdout).fields("parameters").convertTo[JsArray].elements
+            val receivedAnnots = wsk.parseJsonString(stdout).fields("annotations").convertTo[JsArray].elements
+            val escapedJSONArr = getValidJSONTestArgOutput.convertTo[JsArray].elements
+
+            for (expectedItem <- escapedJSONArr) {
+                receivedParams should contain(expectedItem)
+                receivedAnnots should contain(expectedItem)
+            }
     }
 
-    it should "create, and get an action to verify parameter parsing" in withAssetCleaner(wskprops) {
+    it should "create, and get an action to verify file parameter and annotation parsing" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val name = "actionParameters"
-
+            val name = "actionAnnotAndParamParsing"
             val file = Some(TestUtils.getTestActionFilename("hello.js"))
+            val argInput = Some(TestUtils.getTestActionFilename("validInput1.json"))
+
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) =>
-                    action.create(name, file, parameters = getValidJSONTestArgInput)
+                    action.create(name, file, annotationFile = argInput, parameterFile = argInput)
             }
 
             val stdout = wsk.action.get(name).stdout
             assert(stdout.startsWith(s"ok: got action $name\n"))
 
-            wsk.parseJsonString(stdout).fields("parameters") shouldBe getValidJSONTestArgOutput
+            val receivedParams = wsk.parseJsonString(stdout).fields("parameters").convertTo[JsArray].elements
+            val receivedAnnots = wsk.parseJsonString(stdout).fields("annotations").convertTo[JsArray].elements
+            val escapedJSONArr = getJSONFileOutput.convertTo[JsArray].elements
+
+            for (expectedItem <- escapedJSONArr) {
+                receivedParams should contain(expectedItem)
+                receivedAnnots should contain(expectedItem)
+            }
     }
 
-    it should "create an action with the proper parameter escapes" in withAssetCleaner(wskprops) {
+    it should "create an action with the proper parameter and annotation escapes" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val name = "actionName"
-            val file = TestUtils.getTestActionFilename("hello.js")
+            val name = "actionEscapes"
+            val file = Some(TestUtils.getTestActionFilename("hello.js"))
+
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) =>
-                    wsk.cli(wskprops.overrides ++ Seq("action", "create", wsk.action.fqn(name), file, "--auth", wp.authKey) ++
-                        getEscapedJSONTestArgInput())
+                    action.create(name, file, parameters = getEscapedJSONTestArgInput,
+                        annotations = getEscapedJSONTestArgInput)
             }
 
             val stdout = wsk.action.get(name).stdout
             assert(stdout.startsWith(s"ok: got action $name\n"))
 
-            wsk.parseJsonString(stdout).fields("parameters") shouldBe getEscapedJSONTestArgOutput
-    }
+            val receivedParams = wsk.parseJsonString(stdout).fields("parameters").convertTo[JsArray].elements
+            val receivedAnnots = wsk.parseJsonString(stdout).fields("annotations").convertTo[JsArray].elements
+            val escapedJSONArr = getEscapedJSONTestArgOutput.convertTo[JsArray].elements
 
-    it should "create an action with the proper annotation escapes" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val name = "actionName"
-            val file = TestUtils.getTestActionFilename("hello.js")
-            assetHelper.withCleaner(wsk.action, name) {
-                (action, _) =>
-                    wsk.cli(wskprops.overrides ++ Seq("action", "create", wsk.action.fqn(name), file, "--auth", wp.authKey) ++
-                        getEscapedJSONTestArgInput(false))
+            for (expectedItem <- escapedJSONArr) {
+                receivedParams should contain(expectedItem)
+                receivedAnnots should contain(expectedItem)
             }
-
-            val stdout = wsk.action.get(name).stdout
-            assert(stdout.startsWith(s"ok: got action $name\n"))
-
-            wsk.parseJsonString(stdout).fields("annotations") shouldBe getEscapedJSONTestArgOutput
     }
 
     it should "invoke an action that exits during init and get appropriate error" in withAssetCleaner(wskprops) {
@@ -443,96 +451,121 @@ class WskBasicUsageTests
 
     behavior of "Wsk packages"
 
-    it should "create, and get a package to verify annotation parsing" in withAssetCleaner(wskprops) {
+    it should "create, and get a package to verify parameter and annotation parsing" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val name = "packageAnnotations"
+            val name = "packageAnnotAndParamParsing"
 
             assetHelper.withCleaner(wsk.pkg, name) {
                 (pkg, _) =>
-                    pkg.create(name, annotations = getValidJSONTestArgInput)
+                    pkg.create(name, annotations = getValidJSONTestArgInput, parameters = getValidJSONTestArgInput)
             }
 
             val stdout = wsk.pkg.get(name).stdout
             assert(stdout.startsWith(s"ok: got package $name\n"))
 
-            wsk.parseJsonString(stdout).fields("annotations") shouldBe getValidJSONTestArgOutput
+            val receivedParams = wsk.parseJsonString(stdout).fields("parameters").convertTo[JsArray].elements
+            val receivedAnnots = wsk.parseJsonString(stdout).fields("annotations").convertTo[JsArray].elements
+            val escapedJSONArr = getValidJSONTestArgOutput.convertTo[JsArray].elements
+
+            for (expectedItem <- escapedJSONArr) {
+                receivedParams should contain(expectedItem)
+                receivedAnnots should contain(expectedItem)
+            }
     }
 
-    it should "create, and get a package to verify parameter parsing" in withAssetCleaner(wskprops) {
+    it should "create, and get a package to verify file parameter and annotation parsing" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val name = "packageParameters"
+            val name = "packageAnnotAndParamFileParsing"
+            val file = Some(TestUtils.getTestActionFilename("hello.js"))
+            val argInput = Some(TestUtils.getTestActionFilename("validInput1.json"))
 
             assetHelper.withCleaner(wsk.pkg, name) {
                 (pkg, _) =>
-                    pkg.create(name, parameters = getValidJSONTestArgInput)
+                    pkg.create(name, annotationFile = argInput, parameterFile = argInput)
             }
 
             val stdout = wsk.pkg.get(name).stdout
             assert(stdout.startsWith(s"ok: got package $name\n"))
 
-            wsk.parseJsonString(stdout).fields("parameters") shouldBe getValidJSONTestArgOutput
+            val receivedParams = wsk.parseJsonString(stdout).fields("parameters").convertTo[JsArray].elements
+            val receivedAnnots = wsk.parseJsonString(stdout).fields("annotations").convertTo[JsArray].elements
+            val escapedJSONArr = getJSONFileOutput.convertTo[JsArray].elements
+
+            for (expectedItem <- escapedJSONArr) {
+                receivedParams should contain(expectedItem)
+                receivedAnnots should contain(expectedItem)
+            }
     }
 
-    it should "create a package with the proper parameter escapes" in withAssetCleaner(wskprops) {
+    it should "create a package with the proper parameter and annotation escapes" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val name = "packageName"
+            val name = "packageEscapses"
+
             assetHelper.withCleaner(wsk.pkg, name) {
                 (pkg, _) =>
-                    wsk.cli(wskprops.overrides ++ Seq("package", "create", wsk.pkg.fqn(name), "--auth", wp.authKey) ++
-                        getEscapedJSONTestArgInput())
+                    pkg.create(name, parameters = getEscapedJSONTestArgInput,
+                        annotations = getEscapedJSONTestArgInput)
             }
 
             val stdout = wsk.pkg.get(name).stdout
             assert(stdout.startsWith(s"ok: got package $name\n"))
 
-            wsk.parseJsonString(stdout).fields("parameters") shouldBe getEscapedJSONTestArgOutput
-    }
+            val receivedParams = wsk.parseJsonString(stdout).fields("parameters").convertTo[JsArray].elements
+            val receivedAnnots = wsk.parseJsonString(stdout).fields("annotations").convertTo[JsArray].elements
+            val escapedJSONArr = getEscapedJSONTestArgOutput.convertTo[JsArray].elements
 
-    it should "create an package with the proper annotation escapes" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val name = "packageName"
-            assetHelper.withCleaner(wsk.pkg, name) {
-                (pkg, _) =>
-                    wsk.cli(wskprops.overrides ++ Seq("package", "create", wsk.pkg.fqn(name), "--auth", wp.authKey) ++
-                        getEscapedJSONTestArgInput(false))
+            for (expectedItem <- escapedJSONArr) {
+                receivedParams should contain(expectedItem)
+                receivedAnnots should contain(expectedItem)
             }
-
-            val stdout = wsk.pkg.get(name).stdout
-            assert(stdout.startsWith(s"ok: got package $name\n"))
-
-            wsk.parseJsonString(stdout).fields("annotations") shouldBe getEscapedJSONTestArgOutput
     }
 
     behavior of "Wsk triggers"
 
-    it should "create, and get a trigger to verify annotation parsing" in withAssetCleaner(wskprops) {
+    it should "create, and get a trigger to verify parameter and annotation parsing" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val name = "triggerAnnotations"
+            val name = "triggerAnnotAndParamParsing"
 
             assetHelper.withCleaner(wsk.trigger, name) {
                 (trigger, _) =>
-                    trigger.create(name, annotations = getValidJSONTestArgInput)
+                    trigger.create(name, annotations = getValidJSONTestArgInput, parameters = getValidJSONTestArgInput)
             }
 
             val stdout = wsk.trigger.get(name).stdout
             assert(stdout.startsWith(s"ok: got trigger $name\n"))
 
-            wsk.parseJsonString(stdout).fields("annotations") shouldBe getValidJSONTestArgOutput
+            val receivedParams = wsk.parseJsonString(stdout).fields("parameters").convertTo[JsArray].elements
+            val receivedAnnots = wsk.parseJsonString(stdout).fields("annotations").convertTo[JsArray].elements
+            val escapedJSONArr = getValidJSONTestArgOutput.convertTo[JsArray].elements
+
+            for (expectedItem <- escapedJSONArr) {
+                receivedParams should contain(expectedItem)
+                receivedAnnots should contain(expectedItem)
+            }
     }
 
-    it should "create, and get a trigger to verify parameter parsing" in withAssetCleaner(wskprops) {
+    it should "create, and get a trigger to verify file parameter and annotation parsing" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val name = "triggerParameters"
+            val name = "triggerAnnotAndParamFileParsing"
+            val file = Some(TestUtils.getTestActionFilename("hello.js"))
+            val argInput = Some(TestUtils.getTestActionFilename("validInput1.json"))
 
             assetHelper.withCleaner(wsk.trigger, name) {
                 (trigger, _) =>
-                    trigger.create(name, parameters = getValidJSONTestArgInput)
+                    trigger.create(name, annotationFile = argInput, parameterFile = argInput)
             }
 
             val stdout = wsk.trigger.get(name).stdout
             assert(stdout.startsWith(s"ok: got trigger $name\n"))
 
-            wsk.parseJsonString(stdout).fields("parameters") shouldBe getValidJSONTestArgOutput
+            val receivedParams = wsk.parseJsonString(stdout).fields("parameters").convertTo[JsArray].elements
+            val receivedAnnots = wsk.parseJsonString(stdout).fields("annotations").convertTo[JsArray].elements
+            val escapedJSONArr = getJSONFileOutput.convertTo[JsArray].elements
+
+            for (expectedItem <- escapedJSONArr) {
+                receivedParams should contain(expectedItem)
+                receivedAnnots should contain(expectedItem)
+            }
     }
 
     it should "display a trigger summary when --summary flag is used with 'wsk trigger get'" in withAssetCleaner(wskprops) {
@@ -548,34 +581,27 @@ class WskBasicUsageTests
             stdout should include regex (s"(?i)trigger\\s+/${ns_regex_list}/${triggerName}")
     }
 
-    it should "create a trigger with the proper parameter escapes" in withAssetCleaner(wskprops) {
+    it should "create a trigger with the proper parameter and annotation escapes" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val name = "triggerName"
+            val name = "triggerEscapes"
+
             assetHelper.withCleaner(wsk.trigger, name) {
                 (trigger, _) =>
-                    wsk.cli(wskprops.overrides ++ Seq("trigger", "create", wsk.trigger.fqn(name), "--auth", wp.authKey) ++
-                        getEscapedJSONTestArgInput())
+                    trigger.create(name, parameters = getEscapedJSONTestArgInput,
+                        annotations = getEscapedJSONTestArgInput)
             }
 
             val stdout = wsk.trigger.get(name).stdout
             assert(stdout.startsWith(s"ok: got trigger $name\n"))
 
-            wsk.parseJsonString(stdout).fields("parameters") shouldBe getEscapedJSONTestArgOutput
-    }
+            val receivedParams = wsk.parseJsonString(stdout).fields("parameters").convertTo[JsArray].elements
+            val receivedAnnots = wsk.parseJsonString(stdout).fields("annotations").convertTo[JsArray].elements
+            val escapedJSONArr = getEscapedJSONTestArgOutput.convertTo[JsArray].elements
 
-    it should "create a trigger with the proper annotation escapes" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val name = "triggerName"
-            assetHelper.withCleaner(wsk.trigger, name) {
-                (trigger, _) =>
-                    wsk.cli(wskprops.overrides ++ Seq("trigger", "create", wsk.trigger.fqn(name), "--auth", wp.authKey) ++
-                        getEscapedJSONTestArgInput(false))
+            for (expectedItem <- escapedJSONArr) {
+                receivedParams should contain(expectedItem)
+                receivedAnnots should contain(expectedItem)
             }
-
-            val stdout = wsk.trigger.get(name).stdout
-            assert(stdout.startsWith(s"ok: got trigger $name\n"))
-
-            wsk.parseJsonString(stdout).fields("annotations") shouldBe getEscapedJSONTestArgOutput
     }
 
     it should "not create a trigger when feed fails to initialize" in withAssetCleaner(wskprops) {
@@ -653,46 +679,179 @@ class WskBasicUsageTests
 
     behavior of "Wsk params and annotations"
 
-    it should "reject commands that are executed with params or annot that are not key/value pairs" in {
+    it should "reject commands that are executed with invalid JSON for annotations and parameters" in {
+        val invalidJSONInputs = getInvalidJSONInput
+        val invalidJSONFiles = Seq(
+            TestUtils.getTestActionFilename("malformed.js"),
+            TestUtils.getTestActionFilename("invalidInput1.json"),
+            TestUtils.getTestActionFilename("invalidInput2.json"),
+            TestUtils.getTestActionFilename("invalidInput3.json"),
+            TestUtils.getTestActionFilename("invalidInput4.json")
+        )
+        val paramCmds = Seq(
+            Seq("action", "create", "actionName", TestUtils.getTestActionFilename("hello.js")),
+            Seq("action", "update", "actionName", TestUtils.getTestActionFilename("hello.js")),
+            Seq("action", "invoke", "actionName"),
+            Seq("package", "create", "packageName"),
+            Seq("package", "update", "packageName"),
+            Seq("package", "bind", "packageName", "boundPackageName"),
+            Seq("trigger", "create", "triggerName"),
+            Seq("trigger", "update", "triggerName"),
+            Seq("trigger", "fire", "triggerName")
+        )
+        val annotCmds = Seq(
+            Seq("action", "create", "actionName", TestUtils.getTestActionFilename("hello.js")),
+            Seq("action", "update", "actionName", TestUtils.getTestActionFilename("hello.js")),
+            Seq("package", "create", "packageName"),
+            Seq("package", "update", "packageName"),
+            Seq("package", "bind", "packageName", "boundPackageName"),
+            Seq("trigger", "create", "triggerName"),
+            Seq("trigger", "update", "triggerName")
+        )
+
+        for (cmd <- paramCmds) {
+            for (invalid <- invalidJSONInputs) {
+                wsk.cli(cmd ++ Seq("-p", "key", invalid), expectedExitCode = ERROR_EXIT)
+                  .stderr should include("Invalid parameter argument")
+            }
+
+            for (invalid <- invalidJSONFiles) {
+                wsk.cli(cmd ++ Seq("-P", invalid), expectedExitCode = ERROR_EXIT)
+                  .stderr should include("Invalid parameter argument")
+
+            }
+        }
+
+        for (cmd <- annotCmds) {
+            for (invalid <- invalidJSONInputs) {
+                wsk.cli(cmd ++ Seq("-a", "key", invalid), expectedExitCode = ERROR_EXIT)
+                  .stderr should include("Invalid annotation argument")
+            }
+
+            for (invalid <- invalidJSONFiles) {
+                wsk.cli(cmd ++ Seq("-A", invalid), expectedExitCode = ERROR_EXIT)
+                  .stderr should include("Invalid annotation argument")
+            }
+        }
+    }
+
+    it should "reject commands that are executed with a missing or invalid parameter or annotation file" in {
+        val emptyFile = TestUtils.getTestActionFilename("emtpy.js")
+        val missingFile = "notafile"
+        val emptyFileMsg = s"File '$emptyFile' is not a valid file or it does not exist"
+        val missingFileMsg = s"File '$missingFile' is not a valid file or it does not exist"
+        val invalidArgs = Seq(
+            (Seq("action", "create", "actionName", TestUtils.getTestActionFilename("hello.js"), "-P", emptyFile),
+              emptyFileMsg),
+            (Seq("action", "update", "actionName", TestUtils.getTestActionFilename("hello.js"), "-P", emptyFile),
+              emptyFileMsg),
+            (Seq("action", "invoke", "actionName", "-P", emptyFile), emptyFileMsg),
+            (Seq("action", "create", "actionName", "-P", emptyFile), emptyFileMsg),
+            (Seq("action", "update", "actionName", "-P", emptyFile), emptyFileMsg),
+            (Seq("action", "invoke", "actionName", "-P", emptyFile), emptyFileMsg),
+            (Seq("package", "create", "packageName", "-P", emptyFile), emptyFileMsg),
+            (Seq("package", "update", "packageName", "-P", emptyFile), emptyFileMsg),
+            (Seq("package", "bind", "packageName", "boundPackageName", "-P", emptyFile), emptyFileMsg),
+            (Seq("package", "create", "packageName", "-P", emptyFile), emptyFileMsg),
+            (Seq("package", "update", "packageName", "-P", emptyFile), emptyFileMsg),
+            (Seq("package", "bind", "packageName", "boundPackageName", "-P", emptyFile), emptyFileMsg),
+            (Seq("trigger", "create", "triggerName", "-P", emptyFile), emptyFileMsg),
+            (Seq("trigger", "update", "triggerName", "-P", emptyFile), emptyFileMsg),
+            (Seq("trigger", "fire", "triggerName", "-P", emptyFile), emptyFileMsg),
+            (Seq("trigger", "create", "triggerName", "-P", emptyFile), emptyFileMsg),
+            (Seq("trigger", "update", "triggerName", "-P", emptyFile), emptyFileMsg),
+            (Seq("trigger", "fire", "triggerName", "-P", emptyFile), emptyFileMsg),
+            (Seq("action", "create", "actionName", TestUtils.getTestActionFilename("hello.js"), "-A", missingFile),
+              missingFileMsg),
+            (Seq("action", "update", "actionName", TestUtils.getTestActionFilename("hello.js"), "-A", missingFile),
+              missingFileMsg),
+            (Seq("action", "invoke", "actionName", "-A", missingFile), missingFileMsg),
+            (Seq("action", "create", "actionName", "-A", missingFile), missingFileMsg),
+            (Seq("action", "update", "actionName", "-A", missingFile), missingFileMsg),
+            (Seq("action", "invoke", "actionName", "-A", missingFile), missingFileMsg),
+            (Seq("package", "create", "packageName", "-A", missingFile), missingFileMsg),
+            (Seq("package", "update", "packageName", "-A", missingFile), missingFileMsg),
+            (Seq("package", "bind", "packageName", "boundPackageName", "-A", missingFile), missingFileMsg),
+            (Seq("package", "create", "packageName", "-A", missingFile), missingFileMsg),
+            (Seq("package", "update", "packageName", "-A", missingFile), missingFileMsg),
+            (Seq("package", "bind", "packageName", "boundPackageName", "-A", missingFile), missingFileMsg),
+            (Seq("trigger", "create", "triggerName", "-A", missingFile), missingFileMsg),
+            (Seq("trigger", "update", "triggerName", "-A", missingFile), missingFileMsg),
+            (Seq("trigger", "fire", "triggerName", "-A", missingFile), missingFileMsg),
+            (Seq("trigger", "create", "triggerName", "-A", missingFile), missingFileMsg),
+            (Seq("trigger", "update", "triggerName", "-A", missingFile), missingFileMsg),
+            (Seq("trigger", "fire", "triggerName", "-A", missingFile), missingFileMsg)
+        )
+
+        invalidArgs foreach {
+            case (cmd, err) =>
+            val stderr = wsk.cli(cmd, expectedExitCode = MISUSE_EXIT).stderr
+            stderr should include(err)
+            stderr should include("Run 'wsk --help' for usage.")
+        }
+    }
+
+    it should "reject commands that are executed with not enough param or annot arguments" in {
         val invalidParamMsg = "Arguments for '-p' must be a key/value pair"
         val invalidAnnotMsg = "Arguments for '-a' must be a key/value pair"
+        val invalidParamFileMsg = "An argument must be provided for '-P'"
+        val invalidAnnotFileMsg = "An argument must be provided for '-A'"
         val invalidArgs = Seq(
             (Seq("action", "create", "actionName", "-p"), invalidParamMsg),
             (Seq("action", "create", "actionName", "-p", "key"), invalidParamMsg),
+            (Seq("action", "create", "actionName", "-P"), invalidParamFileMsg),
             (Seq("action", "update", "actionName", "-p"), invalidParamMsg),
             (Seq("action", "update", "actionName", "-p", "key"), invalidParamMsg),
+            (Seq("action", "update", "actionName", "-P"), invalidParamFileMsg),
             (Seq("action", "invoke", "actionName", "-p"), invalidParamMsg),
             (Seq("action", "invoke", "actionName", "-p", "key"), invalidParamMsg),
+            (Seq("action", "invoke", "actionName", "-P"), invalidParamFileMsg),
             (Seq("action", "create", "actionName", "-a"), invalidAnnotMsg),
             (Seq("action", "create", "actionName", "-a", "key"), invalidAnnotMsg),
+            (Seq("action", "create", "actionName", "-A"), invalidAnnotFileMsg),
             (Seq("action", "update", "actionName", "-a"), invalidAnnotMsg),
             (Seq("action", "update", "actionName", "-a", "key"), invalidAnnotMsg),
+            (Seq("action", "update", "actionName", "-A"), invalidAnnotFileMsg),
             (Seq("action", "invoke", "actionName", "-a"), invalidAnnotMsg),
             (Seq("action", "invoke", "actionName", "-a", "key"), invalidAnnotMsg),
+            (Seq("action", "invoke", "actionName", "-A"), invalidAnnotFileMsg),
             (Seq("package", "create", "packageName", "-p"), invalidParamMsg),
             (Seq("package", "create", "packageName", "-p", "key"), invalidParamMsg),
+            (Seq("package", "create", "packageName", "-P"), invalidParamFileMsg),
             (Seq("package", "update", "packageName", "-p"), invalidParamMsg),
             (Seq("package", "update", "packageName", "-p", "key"), invalidParamMsg),
+            (Seq("package", "update", "packageName", "-P"), invalidParamFileMsg),
             (Seq("package", "bind", "packageName", "boundPackageName", "-p"), invalidParamMsg),
             (Seq("package", "bind", "packageName", "boundPackageName", "-p", "key"), invalidParamMsg),
+            (Seq("package", "bind", "packageName", "boundPackageName", "-P"), invalidParamFileMsg),
             (Seq("package", "create", "packageName", "-a"), invalidAnnotMsg),
             (Seq("package", "create", "packageName", "-a", "key"), invalidAnnotMsg),
+            (Seq("package", "create", "packageName", "-A"), invalidAnnotFileMsg),
             (Seq("package", "update", "packageName", "-a"), invalidAnnotMsg),
             (Seq("package", "update", "packageName", "-a", "key"), invalidAnnotMsg),
+            (Seq("package", "update", "packageName", "-A"), invalidAnnotFileMsg),
             (Seq("package", "bind", "packageName", "boundPackageName", "-a"), invalidAnnotMsg),
             (Seq("package", "bind", "packageName", "boundPackageName", "-a", "key"), invalidAnnotMsg),
+            (Seq("package", "bind", "packageName", "boundPackageName", "-A"), invalidAnnotFileMsg),
             (Seq("trigger", "create", "triggerName", "-p"), invalidParamMsg),
             (Seq("trigger", "create", "triggerName", "-p", "key"), invalidParamMsg),
+            (Seq("trigger", "create", "triggerName", "-P"), invalidParamFileMsg),
             (Seq("trigger", "update", "triggerName", "-p"), invalidParamMsg),
             (Seq("trigger", "update", "triggerName", "-p", "key"), invalidParamMsg),
+            (Seq("trigger", "update", "triggerName", "-P"), invalidParamFileMsg),
             (Seq("trigger", "fire", "triggerName", "-p"), invalidParamMsg),
             (Seq("trigger", "fire", "triggerName", "-p", "key"), invalidParamMsg),
+            (Seq("trigger", "fire", "triggerName", "-P"), invalidParamFileMsg),
             (Seq("trigger", "create", "triggerName", "-a"), invalidAnnotMsg),
             (Seq("trigger", "create", "triggerName", "-a", "key"), invalidAnnotMsg),
+            (Seq("trigger", "create", "triggerName", "-A"), invalidAnnotFileMsg),
             (Seq("trigger", "update", "triggerName", "-a"), invalidAnnotMsg),
             (Seq("trigger", "update", "triggerName", "-a", "key"), invalidAnnotMsg),
+            (Seq("trigger", "update", "triggerName", "-A"), invalidAnnotFileMsg),
             (Seq("trigger", "fire", "triggerName", "-a"), invalidAnnotMsg),
-            (Seq("trigger", "fire", "triggerName", "-a", "key"), invalidAnnotMsg))
+            (Seq("trigger", "fire", "triggerName", "-a", "key"), invalidAnnotMsg),
+            (Seq("trigger", "fire", "triggerName", "-A"), invalidAnnotFileMsg)
+        )
 
         invalidArgs foreach {
             case (cmd, err) =>

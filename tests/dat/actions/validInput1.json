@@ -1,0 +1,11 @@
+{
+  "a key": "a value",
+  "a bool": true,
+  "objKey": {"b": "c"},
+  "objKey2": {"another object": {"some string": "1111"}},
+  "objKey3": {"json object": {"some int": 1111}},
+  "a number arr": [1,2,3],
+  "a string arr": ["1", "2", "3"],
+  "a bool arr": [true, false, true],
+  "strThatLooksLikeJSON": "{\"someKey\": \"someValue\"}"
+}

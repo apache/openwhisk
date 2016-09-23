@@ -216,8 +216,8 @@
     "translation": "annotation values in `KEY VALUE` format"
   },
   {
-    "id": "default parameter values in `KEY VALUE` format",
-    "translation": "default parameter values in `KEY VALUE` format"
+    "id": "`FILE` containing annotation values in JSON format",
+    "translation": "`FILE` containing annotation values in JSON format"
   },
   {
     "note-to-translators": "DO NOT TRANSLATE THE 'yes' AND 'no'.  THOSE ARE FIXED CLI ARGUMENT VALUES",
@@ -680,6 +680,10 @@
     "translation": "parameter values in `KEY VALUE` format"
   },
   {
+    "id": "`FILE` containing parameter values in JSON format",
+    "translation": "`FILE` containing parameter values in JSON format"
+  },
+  {
     "id": "Arguments must be comma separated, and must be quoted if they contain spaces.",
     "translation": "Arguments must be comma separated, and must be quoted if they contain spaces."
   },
@@ -1110,5 +1114,9 @@
   {
     "id": "default",
     "translation": "default"
+  },
+  {
+    "id": "An argument must be provided for '{{.arg}}'",
+    "translation": "An argument must be provided for '{{.arg}}'"
   }
 ]
