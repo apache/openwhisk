@@ -163,10 +163,18 @@ object LoggingMarkers {
     private val invoker = "invoker"
     private val database = "database"
     private val activation = "activation"
+    private val kafka = "kafka"
+    private val loadbalancer = "loadbalancer"
 
     // Time of the activation in controller until it is delivered to Kafka
     val CONTROLLER_ACTIVATION = LogMarkerToken(controller, activation, start)
     val CONTROLLER_ACTIVATION_BLOCKING = LogMarkerToken(controller, "blockingActivation", start)
+
+    // Time that is needed load balance the activation
+    val CONTROLLER_LOADBALANCER = LogMarkerToken(controller, loadbalancer, start)
+
+    // Time that is needed to produce message in kafka
+    val CONTROLLER_KAFKA = LogMarkerToken(controller, kafka, start)
 
     // Time that is needed to execute the action
     val INVOKER_ACTIVATION_RUN = LogMarkerToken(invoker, "activationRun", start)
