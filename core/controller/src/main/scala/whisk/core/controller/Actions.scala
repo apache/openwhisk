@@ -455,13 +455,14 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
             (message.activationId, None)
         }
 
-        info(this, s"[POST] action activation id: ${message.activationId}")
+        val start = transid.started(this, LoggingMarkers.CONTROLLER_LOADBALANCER, s"[POST] action activation id: ${message.activationId}")
         performLoadBalancerRequest(message, transid) flatMap { _ =>
             if (!blocking) {
                 // Duration of the non-blocking activation in Controller.
                 // We use the start time of the tid instead of a startMarker to avoid passing the start marker around.
                 transid.finished(this, StartMarker(transid.meta.start, LoggingMarkers.CONTROLLER_ACTIVATION))
             }
+            transid.finished(this, start)
             activationResponse
         }
     }
