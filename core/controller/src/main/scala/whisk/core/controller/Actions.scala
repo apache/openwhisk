@@ -89,7 +89,7 @@ object WhiskActionsApi {
     def requiredProperties = WhiskServices.requiredProperties ++
         WhiskEntityStore.requiredProperties ++
         WhiskActivationStore.requiredProperties ++
-        WhiskConfig.actionSequenceMaxLimit
+        Map(WhiskConfig.actionSequenceLimit -> null)
 
         val sequenceHackFlag = true   // a temporary flag that disables the old hack that runs sequences using Pipe.js
 }

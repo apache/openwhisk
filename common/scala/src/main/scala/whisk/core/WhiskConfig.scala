@@ -268,5 +268,4 @@ object WhiskConfig extends Logging {
     val actionInvokePerMinuteLimit = "limits.actions.invokes.perMinute"
     val actionInvokeConcurrentLimit = "limits.actions.invokes.concurrent"
     val triggerFirePerMinuteLimit = "limits.triggers.fires.perMinute"
-    val actionSequenceMaxLimit = Map(actionSequenceLimit -> null)
 }
