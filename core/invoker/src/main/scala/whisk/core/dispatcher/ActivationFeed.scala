@@ -89,9 +89,10 @@ protected class ActivationFeed(
                 } map {
                     case (records, count) =>
                         records foreach {
-                            case (topic, partition, offset, bytes) =>
-                                logging.info(this, s"processing $topic[$partition][$offset ($count)]")
+                            case (topic, partition, offset, bytes, timestamp) =>
                                 pipelineOccupancy += 1
+                                val diff = System.currentTimeMillis()-timestamp
+                                logging.info(this, s"processing $topic[$partition][$offset ($count)], time msg in queue ${diff}ms, pipeline occupancy ${pipelineOccupancy}")
                                 handler(topic, bytes)
                         }
                 } recover {
