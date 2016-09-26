@@ -80,6 +80,7 @@ class ContainerPool(
     private val authStore = WhiskAuthStore.datastore(config)
     setVerbosity(verbosity)
 
+    val mounted = !standalone
     val dockerhost = config.selfDockerEndpoint
     val serializeDockerOp = config.invokerSerializeDockerOp.toBoolean
     val serializeDockerPull = config.invokerSerializeDockerOp.toBoolean
@@ -447,7 +448,7 @@ class ContainerPool(
     private def nannyThread(allContainers: Seq[ContainerState]) = new Thread {
         override def run {
             implicit val tid = TransactionId.invokerNanny
-            if (!standalone) {
+            if (mounted) {
                 killStragglers(allContainers)
                 // Create a new stem cell if the number of warm containers is less than the count allowed
                 // as long as there is slack so that any actions that may be waiting to create a container
@@ -608,7 +609,8 @@ class ContainerPool(
                 // because of the docker lock, by the time the container gets around to be started
                 // there could be a container to reuse (from a previous run of the same action, or
                 // from a stem cell container); should revisit this logic
-                new WhiskContainer(transid, this.dockerhost, key, containerName, imageName, network, cpuShare, policy, env, limits, isBlackbox = pull, logLevel = this.getVerbosity())
+                new WhiskContainer(transid, this.dockerhost, mounted, key, containerName, imageName,
+                    network, cpuShare, policy, env, limits, isBlackbox = pull, logLevel = this.getVerbosity())
             }
         }
     }
@@ -626,7 +628,7 @@ class ContainerPool(
      */
     private def makeContainer(key: ActionContainerId, imageName: String, args: Array[String])(implicit transid: TransactionId): WhiskContainer = {
         val con = runDockerOp {
-            new WhiskContainer(transid, this.dockerhost, key, makeContainerName("testContainer"), imageName,
+            new WhiskContainer(transid, this.dockerhost, mounted, key, makeContainerName("testContainer"), imageName,
                 config.invokerContainerNetwork, ContainerPool.cpuShare(config),
                 config.invokerContainerPolicy, Map(), ActionLimits(), args, false,
                 this.getVerbosity())
@@ -745,9 +747,9 @@ class ContainerPool(
     private def teardownContainer(removeJob: RemoveJob)(implicit transid: TransactionId) = try {
         val container = removeJob.containerInfo.container
         if (saveContainerLog) {
-            val size = this.getLogSize(container, !standalone)
+            val size = this.getLogSize(container, mounted)
             val rawLogBytes = container.synchronized {
-                this.getDockerLogContent(container.containerId, 0, size, !standalone)
+                this.getDockerLogContent(container.containerId, 0, size, mounted)
             }
             val filename = s"${_logDir}/${container.nameAsString}.log"
             Files.write(Paths.get(filename), rawLogBytes)
@@ -784,7 +786,7 @@ class ContainerPool(
     }
 
     nannyThread(listAll()(TransactionId.invokerWarmup)).start
-    if (!standalone) {
+    if (mounted) {
         sys addShutdownHook {
             warn(this, "Shutdown hook activated.  Starting container shutdown")
             shutdown()
