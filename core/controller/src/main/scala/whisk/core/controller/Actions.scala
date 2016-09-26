@@ -344,7 +344,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      * helper method that fixes the sequence components that are in the default namespace
      * replace default namespace witht the user namespace
      */
-    private def resolveSequenceComponentNames(seq: SequenceExec, user: Identity)(implicit transid: TransactionId): SequenceExec = {
+    private def fixDefaultPackage(seq: SequenceExec, user: Identity)(implicit transid: TransactionId): SequenceExec = {
         // if components are part of the default namespace, they contain `_`; replace it!
         val resolvedComponents = seq.components map { c: FullyQualifiedEntityName => FullyQualifiedEntityName(c.path.resolveNamespace(user.namespace), c.name) }
         new SequenceExec(seq.code, resolvedComponents)
@@ -356,11 +356,11 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
             // fix content if sequence and check for sequence limits
             content.exec.get match {
                 case seq: SequenceExec =>
-                    val resolvedExec = resolveSequenceComponentNames(seq, user)
-                    val resolvedContent = WhiskActionPut(Some(resolvedExec), content.parameters, content.limits, content.version, content.publish, content.annotations)
+                    val fixedExec = fixDefaultPackage(seq, user)
+                    val fixedContent = WhiskActionPut(Some(fixedExec), content.parameters, content.limits, content.version, content.publish, content.annotations)
                     // also check for sequence limits
-                    checkSequenceActionLimits(FullyQualifiedEntityName(namespace, name), resolvedExec.components)  map { _ =>
-                        makeWhiskAction(resolvedContent, namespace, name)
+                    checkSequenceActionLimits(FullyQualifiedEntityName(namespace, name), fixedExec.components)  map { _ =>
+                        makeWhiskAction(fixedContent, namespace, name)
                     } recoverWith{
                         case _: TooManyActionsInSequence =>
                             Future failed RejectRequest(BadRequest, "too many actions in sequence")
@@ -415,10 +415,10 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
             // the exec is being updated, new checks in place
             content.exec.get match {
                 case seq: SequenceExec =>
-                val resolvedExec = resolveSequenceComponentNames(seq, user)
-                val resolvedContent = WhiskActionPut(Some(resolvedExec), content.parameters, content.limits, content.version, content.publish, content.annotations)
-                checkSequenceActionLimits(FullyQualifiedEntityName(action.namespace, action.name), resolvedExec.components)  map { _ =>
-                    updateWhiskAction(resolvedContent, action)
+                val fixedExec = fixDefaultPackage(seq, user)
+                val fixedContent = WhiskActionPut(Some(fixedExec), content.parameters, content.limits, content.version, content.publish, content.annotations)
+                checkSequenceActionLimits(FullyQualifiedEntityName(action.namespace, action.name), fixedExec.components)  map { _ =>
+                    updateWhiskAction(fixedContent, action)
                 } recoverWith{
                     case _: TooManyActionsInSequence =>
                         Future failed RejectRequest(BadRequest, "too many actions in sequence")
@@ -640,7 +640,6 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                 info(this, s"list actions in package '${wp.name}'")
                 ns.addpath(wp.name)
             }
-
             // list actions in resolved namespace
             // NOTE: excludePrivate is false since the subject is authorize to access
             // the package; in the future, may wish to exclude private actions in a
@@ -724,11 +723,18 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                                 if (sequences.contains(FullyQualifiedEntityName(act.namespace, act.name))) {
                                    Future.failed(new SequenceWithRecursion())
                                 } else {
-                                    val overlap = seq.components.foldLeft(false){(b, elem) => b || sequences.contains(elem) }
-                                    if (overlap)
-                                        Future.failed(new SequenceWithRecursion())
-                                    else
-                                        inlineComponentsAndCountAtomicActions(atomicActionsCnt, restActions ++ seq.components, action :: sequences)
+                                    // resolve the components first
+                                    // need to inline each of its components
+                                    val resolvedComponents = seq.components map { c => WhiskAction.resolveAction(entityStore, c) }
+                                    val futureResComponents = Future.sequence(resolvedComponents)
+                                    futureResComponents flatMap { components =>  // these are resolved components
+                                        // check that these components don't overlap with the sequences found so far
+                                        val overlap = components.foldLeft(false){(b, elem) => b || sequences.contains(elem) }
+                                        if (overlap)
+                                            Future.failed(new SequenceWithRecursion())
+                                        else
+                                            inlineComponentsAndCountAtomicActions(atomicActionsCnt, restActions ++ components, action :: sequences)
+                                    }
                                 }
                             case _ =>
                                 // this is an atomic action

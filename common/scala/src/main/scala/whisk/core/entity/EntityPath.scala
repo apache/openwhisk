@@ -65,6 +65,7 @@ protected[core] class EntityPath private (val path: Seq[String]) extends AnyVal 
     }
 
     def fullyQualifiedEntityName = {
+        println(s"FQEN  $last $namespace")
         val name = last
         val path = dropLast
         FullyQualifiedEntityName(path, name)
