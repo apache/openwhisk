@@ -32,6 +32,7 @@ import whisk.common.Counter
 class Container(
     originalId: TransactionId,
     val dockerhost: String,
+    mounted: Boolean,
     val key: ActionContainerId,
     containerName: Option[ContainerName],
     val image: String,
@@ -51,7 +52,7 @@ class Container(
     val id = Container.idCounter.next()
     val nameAsString = containerName.map(_.name).getOrElse("anon")
 
-    val (containerId, containerHostAndPort) = bringup(containerName, image, network, cpuShare, env, args, limits, policy)
+    val (containerId, containerHostAndPort) = bringup(mounted, containerName, image, network, cpuShare, env, args, limits, policy)
 
     def details: String = {
         val name = containerName.map(_.name) getOrElse "??"
