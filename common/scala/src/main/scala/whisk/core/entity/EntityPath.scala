@@ -189,4 +189,10 @@ protected[core] case class FullyQualifiedEntityName(path: EntityPath, name: Enti
 
 protected[core] object FullyQualifiedEntityName extends DefaultJsonProtocol {
     implicit val serdes = jsonFormat3(FullyQualifiedEntityName.apply)
+
+    /**
+     * utility function that makes a fully qualified name from a string
+     */
+    def apply(qualifiedName: String): FullyQualifiedEntityName = EntityPath(qualifiedName).fullyQualifiedEntityName
+
 }

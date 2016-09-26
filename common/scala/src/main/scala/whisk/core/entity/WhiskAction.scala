@@ -130,7 +130,7 @@ case class WhiskAction(
         exec match {
             case NodeJSExec(code, optInit)      => getNodeInitializer(code, optInit)
             case NodeJS6Exec(code, optInit)     => getNodeInitializer(code, optInit)
-            case SequenceExec(code, components, _) => getNodeInitializer(code, None)
+            case SequenceExec(code, components) => getNodeInitializer(code, None)
             case SwiftExec(code) =>
                 JsObject(
                     "name" -> name.toJson,

@@ -344,10 +344,10 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      * helper method that fixes the sequence components that are in the default namespace
      * replace default namespace witht the user namespace
      */
-    private def fixComponentsNames(seq: SequenceExec, user: Identity)(implicit transid: TransactionId): SequenceExec = {
+    private def resolveSequenceComponentNames(seq: SequenceExec, user: Identity)(implicit transid: TransactionId): SequenceExec = {
         // if components are part of the default namespace, they contain `_`; replace it!
-        val fixedComponents = seq.components map { EntityPath(_) } map { _.resolveNamespace(user.namespace)} map {_.fullyQualifiedEntityName}
-        new SequenceExec(seq.code, seq.components, Some(fixedComponents))
+        val resolvedComponents = seq.components map { c: FullyQualifiedEntityName => FullyQualifiedEntityName(c.path.resolveNamespace(user.namespace), c.name) }
+        new SequenceExec(seq.code, resolvedComponents)
     }
 
     /** Creates a WhiskAction from PUT content, generating default values where necessary. */
@@ -356,11 +356,11 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
             // fix content if sequence and check for sequence limits
             content.exec.get match {
                 case seq: SequenceExec =>
-                    val fixedExec = fixComponentsNames(seq, user)
-                    val fixedContent = WhiskActionPut(Some(fixedExec), content.parameters, content.limits, content.version, content.publish, content.annotations)
+                    val resolvedExec = resolveSequenceComponentNames(seq, user)
+                    val resolvedContent = WhiskActionPut(Some(resolvedExec), content.parameters, content.limits, content.version, content.publish, content.annotations)
                     // also check for sequence limits
-                    checkSequenceActionLimits(FullyQualifiedEntityName(namespace, name), fixedExec.fixedComponents.get)  map { _ =>
-                        makeWhiskAction(fixedContent, namespace, name)
+                    checkSequenceActionLimits(FullyQualifiedEntityName(namespace, name), resolvedExec.components)  map { _ =>
+                        makeWhiskAction(resolvedContent, namespace, name)
                     } recoverWith{
                         case _: TooManyActionsInSequence =>
                             Future failed RejectRequest(BadRequest, "too many actions in sequence")
@@ -390,8 +390,11 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         // This is temporary while we are making sequencing directly supported in the controller.
         // The parameter override allows this to work with Pipecode.code. Any parameters other
         // than the action sequence itself are discarded and have no effect.
+        // Note: While changing the implementation of sequences, components now store the fully qualified entity names
+        // (which loses the leading "/"). Adding it back while both versions of the code are in place. This will disappear completely
+        // once the version of sequences with "pipe.js" is removed.
         val parameters = exec match {
-            case seq: SequenceExec => Parameters("_actions", JsArray(seq.components map { JsString(_) }))
+            case seq: SequenceExec => Parameters("_actions", JsArray(seq.components map {c => JsString("/" + c.toString) }))
             case _                 => content.parameters getOrElse Parameters()
         }
 
@@ -412,10 +415,10 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
             // the exec is being updated, new checks in place
             content.exec.get match {
                 case seq: SequenceExec =>
-                val fixedExec = fixComponentsNames(seq, user)
-                val fixedContent = WhiskActionPut(Some(fixedExec), content.parameters, content.limits, content.version, content.publish, content.annotations)
-                checkSequenceActionLimits(FullyQualifiedEntityName(action.namespace, action.name), fixedExec.fixedComponents.get)  map { _ =>
-                    updateWhiskAction(fixedContent, action)
+                val resolvedExec = resolveSequenceComponentNames(seq, user)
+                val resolvedContent = WhiskActionPut(Some(resolvedExec), content.parameters, content.limits, content.version, content.publish, content.annotations)
+                checkSequenceActionLimits(FullyQualifiedEntityName(action.namespace, action.name), resolvedExec.components)  map { _ =>
+                    updateWhiskAction(resolvedContent, action)
                 } recoverWith{
                     case _: TooManyActionsInSequence =>
                         Future failed RejectRequest(BadRequest, "too many actions in sequence")
@@ -450,8 +453,11 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         // If updating an action but not specifying a new exec type, then preserve the previous parameters if the
         // existing type of the action is a sequence (regardless of what parameters may be defined in the content)
         // otherwise, parameters are inferred from the content or previous values.
+        // Note: While changing the implementation of sequences, components now store the fully qualified entity names
+        // (which loses the leading "/"). Adding it back while both versions of the code are in place. This will disappear completely
+        // once the version of sequences with "pipe.js" is removed.
         val parameters = content.exec map {
-            case seq: SequenceExec => Parameters("_actions", JsArray(seq.components map { JsString(_) }))
+            case seq: SequenceExec => Parameters("_actions", JsArray(seq.components map { c => JsString("/" + c.toString) }))
             case _ => content.parameters getOrElse {
                 action.exec match {
                     case seq: SequenceExec => Parameters()
@@ -718,18 +724,11 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                                 if (sequences.contains(FullyQualifiedEntityName(act.namespace, act.name))) {
                                    Future.failed(new SequenceWithRecursion())
                                 } else {
-                                    // resolve the components first
-                                    // need to inline each of its components
-                                    val resolvedComponents = seq.fixedComponents.get map { c => WhiskAction.resolveAction(entityStore, c) }
-                                    val futureResComponents = Future.sequence(resolvedComponents)
-                                    futureResComponents flatMap { components =>  // these are resolved components
-                                        // check that these components don't overlap with the sequences found so far
-                                        val overlap = components.foldLeft(false){(b, elem) => b || sequences.contains(elem) }
-                                        if (overlap)
-                                            Future.failed(new SequenceWithRecursion())
-                                        else
-                                            inlineComponentsAndCountAtomicActions(atomicActionsCnt, restActions ++ components, action :: sequences)
-                                    }
+                                    val overlap = seq.components.foldLeft(false){(b, elem) => b || sequences.contains(elem) }
+                                    if (overlap)
+                                        Future.failed(new SequenceWithRecursion())
+                                    else
+                                        inlineComponentsAndCountAtomicActions(atomicActionsCnt, restActions ++ seq.components, action :: sequences)
                                 }
                             case _ =>
                                 // this is an atomic action

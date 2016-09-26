@@ -96,9 +96,9 @@ protected[core] case class BlackBoxExec(image: String) extends Exec(Exec.BLACKBO
 /**
  * add temporary field that holds the "fixed" names for components where the '_' is replaced by the user's namespace
  */
-protected[core] case class SequenceExec(code: String, components: Vector[String], fixedComponents: Option[Vector[FullyQualifiedEntityName]] = None) extends Exec(Exec.SEQUENCE) {
+protected[core] case class SequenceExec(code: String, components: Vector[FullyQualifiedEntityName]) extends Exec(Exec.SEQUENCE) {
     val image = Exec.imagename(Exec.NODEJS)
-    def size = components.map(_ sizeInBytes).reduce(_ + _)
+    def size = ByteSize.fromString("0B") // not used for the hacky implementation and not used for the new implementation either
 }
 
 protected[core] object Exec
@@ -130,7 +130,8 @@ protected[core] object Exec
     protected[core] def swift(code: String): Exec = SwiftExec(trim(code))
     protected[core] def swift3(code: String): Exec = Swift3Exec(trim(code))
     protected[core] def java(jar: String, main: String): Exec = JavaExec(Inline(trim(jar)), trim(main))
-    protected[core] def sequence(components: Vector[String]): Exec = SequenceExec(Pipecode.code, components)
+    //protected[core] def sequence(components: Vector[FullyQualifiedEntityName]): Exec = SequenceExec(Pipecode.code, components)
+    protected[core] def sequence(components: Vector[String]): Exec = SequenceExec(Pipecode.code, components map {c => FullyQualifiedEntityName(c) } )
 
     private def attFmt[T: JsonFormat] = Attachments.serdes[T]
 
@@ -138,7 +139,7 @@ protected[core] object Exec
         override def write(e: Exec) = e match {
             case NodeJSExec(code, None)        => JsObject("kind" -> JsString(Exec.NODEJS), "code" -> JsString(code))
             case NodeJSExec(code, Some(init))  => JsObject("kind" -> JsString(Exec.NODEJS), "code" -> JsString(code), "init" -> JsString(init))
-            case SequenceExec(code, comp, _)      => JsObject("kind" -> JsString(Exec.SEQUENCE), "code" -> JsString(code), "components" -> JsArray(comp map { JsString(_) }))
+            case SequenceExec(code, comp)      => JsObject("kind" -> JsString(Exec.SEQUENCE), "code" -> JsString(code), "components" -> JsArray(comp map { c => JsString(c.toString) }))
             case NodeJS6Exec(code, None)       => JsObject("kind" -> JsString(Exec.NODEJS6), "code" -> JsString(code))
             case NodeJS6Exec(code, Some(init)) => JsObject("kind" -> JsString(Exec.NODEJS6), "code" -> JsString(code), "init" -> JsString(init))
             case PythonExec(code)              => JsObject("kind" -> JsString(Exec.PYTHON), "code" -> JsString(code))
@@ -174,11 +175,11 @@ protected[core] object Exec
                     }
                     NodeJSExec(code, init)
                 case Exec.SEQUENCE =>
-                    val comp: Vector[String] = obj.getFields("components") match {
+                    val comp: Vector[FullyQualifiedEntityName] = obj.getFields("components") match {
                         case Seq(JsArray(components)) =>
                             components map {
                                 _ match {
-                                    case JsString(s) => s
+                                    case JsString(s) => FullyQualifiedEntityName(s)
                                     case _           => throw new DeserializationException(s"'components' must be an array of strings")
                                 }
                             }
