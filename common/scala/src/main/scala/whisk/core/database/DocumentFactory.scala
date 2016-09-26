@@ -142,7 +142,7 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
             implicit val logger = db: Logging
             implicit val ec = db.executionContext
 
-            var key = cacheKeyForUpdate(doc)
+            val key = cacheKeyForUpdate(doc)
 
             cacheInvalidate(key)
 
@@ -152,7 +152,7 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
                     case w: DocumentRevisionProvider => w.revision[W](docinfo.rev)
                 }
                 docinfo
-            }).future
+            })
 
         } match {
             case Success(f) => f
@@ -168,7 +168,7 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
             require(doc != null, "doc undefined")
         } map { _ =>
             implicit val logger: Logging = db
-            var key = doc.id.asDocInfo
+            val key = doc.id.asDocInfo
             cacheInvalidate(key)
             val src = StreamConverters.fromInputStream(() => bytes)
             db.attach(doc, attachmentName, contentType, src)
@@ -185,7 +185,7 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
             require(doc != null, "doc undefined")
         } map { _ =>
             implicit val logger: Logging = db
-            var key = doc.id.asDocInfo
+            val key = doc.id.asDocInfo
             cacheInvalidate(key)
             db.del(doc)
         } match {

@@ -48,7 +48,7 @@ class MultipleReadersSingleWriterCacheTests(nIters: Int = 3) extends FlatSpec
         inhibits.debug(this)
 
         inhibits.nReadInhibits.get should be(0)
-        getSize() should be(1)
+        cacheSize should be(1)
     }
 
     "the cache" should "support concurrent CRUD to different keys" in {
@@ -162,7 +162,7 @@ class MultipleReadersSingleWriterCacheTests(nIters: Int = 3) extends FlatSpec
 
             if (!readFirst) {
                 // we want to do the update before the first read
-                cacheUpdate(key, key, delayed("bar_b")).future onFailure {
+                cacheUpdate(key, key, delayed("bar_b")) onFailure {
                     case t =>
                         inhibits.nWriteInhibits.incrementAndGet();
                 }
@@ -180,7 +180,7 @@ class MultipleReadersSingleWriterCacheTests(nIters: Int = 3) extends FlatSpec
 
             if (readFirst) {
                 // we did the read before the update, so do the write next
-                cacheUpdate(key, key, delayed("bar_b")).future onFailure {
+                cacheUpdate(key, key, delayed("bar_b")) onFailure {
                     case t =>
                         inhibits.nWriteInhibits.incrementAndGet();
                 }
