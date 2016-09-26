@@ -247,8 +247,8 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
                 //
                 // oops, the datastore read failed. invalidate the cache entry
                 //
-                // note that this might be a perfectly legitimate failure, 
-                // e.g. a lookup for a non-existant key; we need to pass the particular t through 
+                // note that this might be a perfectly legitimate failure,
+                // e.g. a lookup for a non-existant key; we need to pass the particular t through
                 //
                 readOops(key, entry, promise, t)
             }
