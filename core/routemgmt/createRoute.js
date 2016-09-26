@@ -32,7 +32,7 @@ function main(message) {
   } else {
     return whisk.error('doc field is ' + (typeof doc) + ' and should be an object or a JSON string.');
   }
-  var cloudantDb = cloudant.use(dbName);
+  var cloudantDb = cloudant.use(dbname);
 
   if (typeof message.actionname === 'string') {
     actionname = message.actionname;

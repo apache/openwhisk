@@ -29,11 +29,24 @@ fi
 
 export WSK_CONFIG_FILE= # override local property file to avoid namespace clashes
 
-set +e
-echo Deleting routemgmt package.
-$WSK_CLI -i --apihost "$APIHOST" package delete --auth "$AUTH" "$NAMESPACE/routemgmt"
-
+# Delete actions, then the package.  The order is important (can't delete a package that contains an action)!
+# The "get" command will fail if the resource does not exist, so use "set +e" to avoid exiting the script
 echo Deleting routemgmt actions
-$WSK_CLI -i --apihost "$APIHOST" action delete --auth "$AUTH" "$NAMESPACE/routemgmt/createRoute"
+set +e
+$WSK_CLI -i --apihost "$APIHOST" action get --auth "$AUTH" "$NAMESPACE/routemgmt/createRoute"
+if [ $? -eq 0 ]
+then
+  set -e
+  $WSK_CLI -i --apihost "$APIHOST" action delete --auth "$AUTH" "$NAMESPACE/routemgmt/createRoute"
+fi
 #$WSK_CLI -i --apihost "$APIHOST" action delete --auth "$AUTH" "$NAMESPACE/routemgmt/deleteRoute"
 #$WSK_CLI -i --apihost "$APIHOST" action delete --auth "$AUTH" "$NAMESPACE/routemgmt/getRoute"
+
+echo Deleting routemgmt package - but only if it exists
+set +e
+$WSK_CLI -i --apihost "$APIHOST" package get --auth "$AUTH" "$NAMESPACE/routemgmt" -s
+if [ $? -eq 0 ]
+then
+  set -e
+  $WSK_CLI -i --apihost "$APIHOST" package delete --auth "$AUTH" "$NAMESPACE/routemgmt"
+fi
