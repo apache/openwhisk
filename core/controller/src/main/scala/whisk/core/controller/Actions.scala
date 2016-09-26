@@ -730,10 +730,12 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                                     futureResComponents flatMap { components =>  // these are resolved components
                                         // check that these components don't overlap with the sequences found so far
                                         val overlap = components.foldLeft(false){(b, elem) => b || sequences.contains(elem) }
-                                        if (overlap)
+                                        if (overlap){
                                             Future.failed(new SequenceWithRecursion())
-                                        else
+                                        }
+                                        else {
                                             inlineComponentsAndCountAtomicActions(atomicActionsCnt, restActions ++ components, action :: sequences)
+                                        }
                                     }
                                 }
                             case _ =>

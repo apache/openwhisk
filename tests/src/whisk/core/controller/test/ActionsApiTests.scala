@@ -311,9 +311,11 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     private def seqParameters(seq: Vector[String]) = Parameters("_actions", seq.toJson)
 
+    // this test is sneaky; the installation of the sequence is done directly in the db
+    // and api checks are skipped
     it should "reset parameters when changing sequence action to non sequence" in {
         implicit val tid = transid()
-        val sequence = Vector("a", "b")
+        val sequence = Vector("x/a", "x/b")
         val action = WhiskAction(namespace, aname, Exec.sequence(sequence), seqParameters(sequence))
         val content = WhiskActionPut(Some(Exec.js("")))
         put(entityStore, action, false)
@@ -328,9 +330,11 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         }
     }
 
+    // this test is sneaky; the installation of the sequence is done directly in the db
+    // and api checks are skipped
     it should "preserve new parameters when changing sequence action to non sequence" in {
         implicit val tid = transid()
-        val sequence = Vector("a", "b")
+        val sequence = Vector("x/a", "x/b")
         val action = WhiskAction(namespace, aname, Exec.sequence(sequence), seqParameters(sequence))
         val content = WhiskActionPut(Some(Exec.js("")), parameters = Some(Parameters("a", "A")))
         put(entityStore, action, false)
