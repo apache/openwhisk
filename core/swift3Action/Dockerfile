@@ -29,13 +29,13 @@ RUN wget --no-verbose -O - https://swift.org/keys/all-keys.asc | gpg --import - 
     gpg --keyserver hkp://pool.sks-keyservers.net --refresh-keys Swift
 
 # Install Swift Ubuntu 14.04 Snapshot
-#https://swift.org/builds/development/ubuntu1404/swift-DEVELOPMENT-SNAPSHOT-2016-09-21-a/swift-DEVELOPMENT-SNAPSHOT-2016-09-21-a-ubuntu14.04.tar.gz
-ENV SWIFT_VERSION SNAPSHOT-2016-09-21-a
-ENV SWIFT_RELEASE_TYPE DEVELOPMENT
+#https://swift.org/builds/swift-3.0.1-preview-1/ubuntu1404/swift-3.0.1-PREVIEW-1/swift-3.0.1-PREVIEW-1-ubuntu14.04.tar.gz
+ENV SWIFT_VERSION 3.0.1
+ENV SWIFT_RELEASE_TYPE PREVIEW-1
 ENV SWIFT_PLATFORM ubuntu14.04
 
-RUN SWIFT_ARCHIVE_NAME=swift-$SWIFT_RELEASE_TYPE-$SWIFT_VERSION-$SWIFT_PLATFORM && \
-    SWIFT_URL=https://swift.org/builds/development/$(echo "$SWIFT_PLATFORM" | tr -d .)/swift-$SWIFT_RELEASE_TYPE-$SWIFT_VERSION/$SWIFT_ARCHIVE_NAME.tar.gz && \
+RUN SWIFT_ARCHIVE_NAME=swift-$SWIFT_VERSION-$SWIFT_RELEASE_TYPE-$SWIFT_PLATFORM && \
+    SWIFT_URL=https://swift.org/builds/swift-$SWIFT_VERSION-$(echo "$SWIFT_RELEASE_TYPE" | tr '[:upper:]' '[:lower:]')/$(echo "$SWIFT_PLATFORM" | tr -d .)/swift-$SWIFT_VERSION-$SWIFT_RELEASE_TYPE/$SWIFT_ARCHIVE_NAME.tar.gz && \
     echo $SWIFT_URL && \
     wget --no-verbose $SWIFT_URL && \
     wget --no-verbose $SWIFT_URL.sig && \
@@ -53,9 +53,12 @@ ADD epilogue.swift /swift3Action
 ADD swift3runner.py /swift3Action
 ADD spm-build /swift3Action/spm-build
 
+# Add swift build script to bypass swift build
+ADD swiftbuildandlink.sh /swift3Action/spm-build
+
 # Build kitura net
 RUN touch /swift3Action/spm-build/main.swift
-RUN cd /swift3Action/spm-build; swift build; rm .build/debug/Action
+RUN cd /swift3Action/spm-build; swift build -c release; rm .build/release/Action
 
 ENV FLASK_PROXY_PORT 8080
 
