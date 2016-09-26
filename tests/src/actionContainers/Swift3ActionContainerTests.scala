@@ -41,6 +41,16 @@ class Swift3ActionContainerTests extends SwiftActionContainerTests {
          |     return ["auth": auth, "edge": edge]
          |}
          """.stripMargin
+    override lazy val errorCode = """
+                | // You need an indirection, or swiftc detects the div/0
+                | // at compile-time. Smart.
+                | func div(x: Int, y: Int) -> Int {
+                |     return x/y
+                | }
+                | func main(args: [String: Any]) -> [String: Any] {
+                |     return [ "divBy0": div(x:5, y:0) ]
+                | }
+            """.stripMargin
 
     it should "properly use KituraNet and Dispatch" in {
         val (out, err) = withActionContainer() { c =>
