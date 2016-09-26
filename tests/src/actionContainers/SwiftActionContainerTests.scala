@@ -48,6 +48,17 @@ class SwiftActionContainerTests extends BasicActionRunnerTests with WskActorSyst
          |}
          """.stripMargin
 
+    lazy val errorCode = """
+                | // You need an indirection, or swiftc detects the div/0
+                | // at compile-time. Smart.
+                | func div(x: Int, _ y: Int) -> Int {
+                |     return x/y
+                | }
+                | func main(args: [String: Any]) -> [String: Any] {
+                |     return [ "divBy0": div(5,0) ]
+                | }
+            """.stripMargin
+
     // Helpers specific to swiftaction
     override def withActionContainer(env: Map[String, String] = Map.empty)(code: ActionContainer => Unit) = {
         withContainer(swiftContainerImageName, env)(code)
@@ -79,16 +90,7 @@ class SwiftActionContainerTests extends BasicActionRunnerTests with WskActorSyst
 
     it should "return some error on action error" in {
         val (out, err) = withActionContainer() { c =>
-            val code = """
-                | // You need an indirection, or swiftc detects the div/0
-                | // at compile-time. Smart.
-                | func div(x: Int, _ y: Int) -> Int {
-                |     return x/y
-                | }
-                | func main(args: [String: Any]) -> [String: Any] {
-                |     return [ "divBy0": div(5,0) ]
-                | }
-            """.stripMargin
+            val code = errorCode
 
             val (initCode, _) = c.init(initPayload(code))
             initCode should be(200)
