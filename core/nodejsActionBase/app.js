@@ -33,7 +33,7 @@ var logger  = require('./src/logger').getLogger('logs/nodejsaction.log', 'nodejs
 var service = require('./src/service').getService(config, logger);
 
 app.set('port', config.port);
-app.use(bodyParser.json());
+app.use(bodyParser.json({ limit: "48mb" }));
 
 app.post('/init', safeEndpoint(service.initCode));
 app.post('/run',  safeEndpoint(service.runCode));
