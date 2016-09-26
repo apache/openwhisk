@@ -48,7 +48,7 @@ class Container(
 
     implicit var transid = originalId
 
-    val id = Container.idCounter.next()
+    val id: Int = Container.idCounter.next()
     val nameAsString = containerName.map(_.name).getOrElse("anon")
 
     val (containerId, containerHostAndPort) = bringup(containerName, image, network, cpuShare, env, args, limits, policy)
@@ -85,12 +85,12 @@ class Container(
     @tailrec
     final def remove(tryCount: Int = Container.removeContainerRetryCount)(implicit transid: TransactionId): Unit = {
         if (tryCount <= 0) {
-            error(this, s"Failed to remove container $containerId")
+            error(this, s"Failed to remove container ${containerId.id}")
         } else {
             if (tryCount == Container.removeContainerRetryCount) {
-                info(this, s"Removing container $containerId")
+                info(this, s"Removing container ${containerId.id}")
             } else {
-                warn(this, s"Retrying to remove container $containerId")
+                warn(this, s"Retrying to remove container ${containerId.id}")
             }
             unpause() // a paused container cannot be removed
             rmContainer(containerId).toOption match {
