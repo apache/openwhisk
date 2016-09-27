@@ -685,7 +685,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         // keep track of all sequences to detect recursion
         info(this, s"Checking limits and recursion for actions in a sequence $sequence $components")
         // first check that out of the box no more components than necessary
-        if (components.size > sequenceActionMaxLength)
+        if (components.size > whiskConfig.actionSequenceLimit.toInt)
             Future.failed(new TooManyActionsInSequence())
         val resolvedSequence = WhiskAction.resolveAction(entityStore, sequence) // this assumes that entityStore is the same for actions and packages
         val resolvedComponents = components map { c => WhiskAction.resolveAction(entityStore, c) }
@@ -707,7 +707,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      */
     private def inlineComponentsAndCountAtomicActions(atomicActionsCnt: Int, actionsToInline: List[FullyQualifiedEntityName], sequences: List[FullyQualifiedEntityName])(
         implicit transid: TransactionId): Future[Boolean] = {
-        if (atomicActionsCnt > sequenceActionMaxLength)
+        if (atomicActionsCnt > whiskConfig.actionSequenceLimit.toInt)
             Future.failed(new TooManyActionsInSequence())
         else {
             actionsToInline match {
@@ -752,9 +752,6 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
 
     /** Max duration to wait for a blocking activation. */
     private val maxWaitForBlockingActivation = 60 seconds
-
-    // limit for the number of inlined actions in a sequence
-    protected lazy val sequenceActionMaxLength = this.whiskConfig.actionSequenceLimit.toInt
 }
 
 private case class BlockingInvokeTimeout(activationId: ActivationId) extends TimeoutException
