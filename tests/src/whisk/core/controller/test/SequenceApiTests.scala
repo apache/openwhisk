@@ -39,8 +39,6 @@ import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
 import spray.json.pimpString
-import spray.json.JsObject
-import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
 import spray.json.DefaultJsonProtocol.RootJsObjectFormat
 
