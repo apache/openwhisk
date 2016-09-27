@@ -70,10 +70,12 @@ class KafkaConsumerConnector(
                 while (!disconnect) {
                     Try {
                         // Grab next batch of messages and commit offsets immediately
-                        // Process the message and commit afterwards. Otherwise the message would not be fetched again.
                         // It won't be processed twice (tested in "KafkaConnectorTest")
-                        peek() foreach { process.tupled(_) }
+                        val messages = peek()
                         commit()
+                        messages
+                    } map {
+                        _.foreach { process.tupled(_) }
                     } recover {
                         case e: CommitFailedException => error(self, s"failed to commit to kafka: ${e.getMessage}")
                         case e: Throwable             => error(self, s"exception while pulling new records: ${e.getMessage}")

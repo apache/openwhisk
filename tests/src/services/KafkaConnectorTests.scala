@@ -121,22 +121,29 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
         consumer.outputStream = printstream
         val messageReceived = "message recieved"
         try {
-            val message = new Message { override val serialize = Calendar.getInstance().getTime().toString }
-            val sent = Await.result(producer.send(topic, message), 10 seconds)
-            consumer.throwCommitException = true
             consumer.onMessage((topic, partition, offset, bytes) => {
                 printstream.println(messageReceived)
             })
+            val message = new Message { override val serialize = Calendar.getInstance().getTime().toString }
 
-            retry(stream.toString should include("exception while pulling new records: commit failed"), 50, Some(100 millisecond))
-            consumer.throwCommitException = false
-
-            // Give the background-thread some time to get the message and commit that it is collected.
+            // Send message while commit throws no exception -> Should be processed
+            consumer.commitFails = false
+            Await.result(producer.send(topic, message), 10 seconds)
             retry(stream.toString should include(messageReceived), 20, Some(500 millisecond))
 
-            // Wait a few seconds and ensure that the message is not processed twice
+            // Send message while commit throws exception -> Message will not be processed
+            consumer.commitFails = true
+            Await.result(producer.send(topic, message), 10 seconds)
+            retry(stream.toString should include("failed to commit to kafka: commit failed"), 50, Some(100 millisecond))
+
+            // Send message again -> No commit exception -> Should work again
+            consumer.commitFails = false
+            Await.result(producer.send(topic, message), 10 seconds)
+            retry(StringUtils.countMatches(stream.toString, messageReceived) should be(2), 50, Some(100 milliseconds))
+
+            // Wait a few seconds and ensure that the message is not processed three times
             Thread.sleep(5000)
-            StringUtils.countMatches(stream.toString, messageReceived) should be(1)
+            StringUtils.countMatches(stream.toString, messageReceived) should be(2)
         } finally {
             printstream.close()
             stream.close()
@@ -152,12 +159,12 @@ class TestKafkaConsumerConnector(
     sessionTimeout: FiniteDuration) extends KafkaConsumerConnector(kafkahost, groupid, topic, sessionTimeout = sessionTimeout) {
 
     override def commit() = {
-        if (throwCommitException) {
-            throw new Exception("commit failed")
+        if (commitFails) {
+            throw new CommitFailedException("commit failed")
         } else {
             super.commit()
         }
     }
 
-    var throwCommitException = false
+    var commitFails = false
 }
