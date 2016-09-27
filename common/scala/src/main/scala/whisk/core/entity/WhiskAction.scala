@@ -17,6 +17,7 @@
 package whisk.core.entity
 
 import scala.concurrent.Future
+import scala.concurrent.ExecutionContext
 import scala.util.{ Try, Success, Failure }
 
 import akka.http.scaladsl.model.ContentType
@@ -38,6 +39,7 @@ import whisk.common.TransactionId
 import whisk.core.database.ArtifactStore
 import whisk.core.database.DocumentFactory
 import whisk.core.entity.Attachments._
+import whisk.core.entity.types.EntityStore
 
 /**
  * ActionLimitsOption mirrors ActionLimits but makes both the timeout and memory
@@ -238,7 +240,26 @@ object WhiskAction
                     Future.successful(action)
             }
         }
+    }
 
+    /**
+     *  utility function that given a fully qualified name for an action, resolve its possible package bindings and returns
+     *  the fully qualified name of the resolved action
+     */
+    def resolveAction(entityStore: EntityStore, fullyQualifiedName: FullyQualifiedEntityName)(
+        implicit ec: ExecutionContext, transid: TransactionId): Future[FullyQualifiedEntityName] = {
+        // first check that there is a package to be resolved
+        val entityPath = fullyQualifiedName.path
+        if (entityPath.defaultPackage) {
+            // this is the default package, nothing to resolve
+            Future.successful(fullyQualifiedName)
+        } else {
+            // there is a package to be resolved
+            val pkgDocid = fullyQualifiedName.pathToDocId
+            val actionName = fullyQualifiedName.name
+            val wp = WhiskPackage.resolveBinding(entityStore, pkgDocid)
+            wp map { resolvedPkg => FullyQualifiedEntityName(resolvedPkg.namespace.addpath(resolvedPkg.name), actionName) }
+        }
     }
 }
 

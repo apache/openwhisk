@@ -88,7 +88,7 @@ trait WhiskServices {
     /** A generator for new activation ids. */
     protected val activationId: ActivationIdGenerator
 
-    /** Synchronously perform a request to the load balancer.  */
+    /** Perform a request to the load balancer.  */
     protected val performLoadBalancerRequest: WhiskServices.LoadBalancerReq => Future[Unit]
 
     /** Ask load balancer (instead of db) for activation response */

@@ -86,6 +86,7 @@ class Invoker(
      */
     override def onMessage(msg: Message)(implicit transid: TransactionId): Future[DocInfo] = {
         require(msg != null, "message undefined")
+        require(msg.action.version.isDefined, "action version undefined")
 
         val start = transid.started(this, LoggingMarkers.INVOKER_ACTIVATION)
         val namespace = msg.action.path
@@ -116,9 +117,8 @@ class Invoker(
                         error(this, s"failed during invoke: $t")
                         ActivationException(s"Failed to run action '${actionid.id}': ${t.getMessage}")
                 }
-
                 info(this, s"activation failed")
-                completeTransactionWithError(actionid.id, msg.action.version, tran, failure.activationResponse)
+                completeTransactionWithError(actionid.id, msg.action.version.get, tran, failure.activationResponse)
         }
     }
 
