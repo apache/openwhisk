@@ -352,28 +352,25 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
 
     /** Creates a WhiskAction from PUT content, generating default values where necessary. */
     private def make(user: Identity, namespace: EntityPath, content: WhiskActionPut, name: EntityName)(implicit transid: TransactionId) = {
-        if (content.exec.isDefined) {
-            // fix content if sequence and check for sequence limits
-            content.exec.get match {
-                case seq: SequenceExec =>
-                    val fixedExec = fixDefaultPackage(seq, user)
-                    val fixedContent = WhiskActionPut(Some(fixedExec), content.parameters, content.limits, content.version, content.publish, content.annotations)
-                    // also check for sequence limits
-                    checkSequenceActionLimits(FullyQualifiedEntityName(namespace, name), fixedExec.components)  map { _ =>
-                        makeWhiskAction(fixedContent, namespace, name)
-                    } recoverWith{
-                        case _: TooManyActionsInSequence =>
-                            Future failed RejectRequest(BadRequest, "too many actions in sequence")
-                        case _: SequenceWithRecursion =>
-                            Future failed RejectRequest(BadRequest, "recursion detected in sequence")
-                        case _: NoDocumentException =>
-                            Future failed RejectRequest(BadRequest, "action not found")
-                        // anything else that should be caught here?
-                    }
-                case _ => Future successful {makeWhiskAction(content, namespace, name)}
-            }
-        }
-        else Future failed RejectRequest(BadRequest, "exec undefined")
+        content.exec map {
+             // fix content if sequence and check for sequence limits
+            case seq: SequenceExec =>
+                val fixedExec = fixDefaultPackage(seq, user)
+                val fixedContent = WhiskActionPut(Some(fixedExec), content.parameters, content.limits, content.version, content.publish, content.annotations)
+                // also check for sequence limits
+                checkSequenceActionLimits(FullyQualifiedEntityName(namespace, name), fixedExec.components)  map { _ =>
+                    makeWhiskAction(fixedContent, namespace, name)
+                } recoverWith{
+                    case _: TooManyActionsInSequence =>
+                        Future failed RejectRequest(BadRequest, "too many actions in sequence")
+                    case _: SequenceWithRecursion =>
+                        Future failed RejectRequest(BadRequest, "recursion detected in sequence")
+                    case _: NoDocumentException =>
+                        Future failed RejectRequest(BadRequest, "action not found")
+                    // anything else that should be caught here?
+                }
+            case _ => Future successful {makeWhiskAction(content, namespace, name)}
+        } getOrElse Future.failed(RejectRequest(BadRequest, "exec undefined"))
     }
 
     /**

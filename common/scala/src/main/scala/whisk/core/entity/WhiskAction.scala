@@ -242,7 +242,8 @@ object WhiskAction
         }
     }
 
-    /** utility function that given a fully qualified name for an action, resolve its possible package bindings and returns
+    /**
+     *  utility function that given a fully qualified name for an action, resolve its possible package bindings and returns
      *  the fully qualified name of the resolved action
      */
     def resolveAction(entityStore: EntityStore, fullyQualifiedName: FullyQualifiedEntityName)(

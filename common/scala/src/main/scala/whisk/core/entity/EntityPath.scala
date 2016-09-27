@@ -45,7 +45,7 @@ protected[core] class EntityPath private (val path: Seq[String]) extends AnyVal 
     def addpath(e: EntityName) = EntityPath(path :+ e.name)
     def root = EntityPath(Seq(path(0)))
     def last = EntityName(path.last)
-    def dropLast = EntityPath(path.dropRight(1)) // remove last element from path (e.g., name)
+    //def dropLast =  // remove last element from path (e.g., name)
     def defaultPackage = path.size == 1   // if only one element in the path, then it's the namespace with a default package
     def toJson = JsString(namespace)
     def apply() = namespace
@@ -64,11 +64,15 @@ protected[core] class EntityPath private (val path: Seq[String]) extends AnyVal 
             this
     }
 
+    /**
+     * @throws IllegalArgumentException if the path does not conform to schema (at least namespace and entity name must be present0
+     */
+    @throws[IllegalArgumentException]
     def fullyQualifiedEntityName = {
-        println(s"FQEN  $last $namespace")
+        require(path.size > 1, "fully qualified entity name must contain at least the namespace and the name of the entity")
         val name = last
-        val path = dropLast
-        FullyQualifiedEntityName(path, name)
+        val newPath = EntityPath(path.dropRight(1))
+        FullyQualifiedEntityName(newPath, name)
     }
 }
 

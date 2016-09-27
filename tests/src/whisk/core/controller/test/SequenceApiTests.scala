@@ -38,6 +38,13 @@ import org.scalatest.junit.JUnitRunner
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
+import spray.json.pimpString
+import spray.json.JsObject
+import spray.json.DefaultJsonProtocol.StringJsonFormat
+import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
+import spray.json.DefaultJsonProtocol.RootJsObjectFormat
+
+
 import spray.http.StatusCodes.BadRequest
 import spray.http.StatusCodes.OK
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
@@ -66,6 +73,7 @@ class SequenceApiTests
     private val tooManyActionsMessage = "too many actions in sequence"
     private val recursionDetectedMessage = "recursion detected in sequence"
     private val actionNotFoundMessage = "action not found"
+    private val malformedActionNameMessage = "fully qualified entity name must contain at least the namespace and the name of the entity"
 
     it should "reject creation of sequence with more actions than allowed limit" in {
         implicit val tid = transid()
@@ -219,6 +227,37 @@ class SequenceApiTests
         Put(s"${collectionPath}/$pkg/${seqName.name}?overwrite=true", updatedContent) ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
             response.entity.toString should include(recursionDetectedMessage)
+        }
+    }
+
+    it should "reject creation of a sequence with components that don't have at least namespace and action name" in {
+        implicit val tid = transid()
+        val sequence = Vector("a", "b")
+        //val action = WhiskAction(namespace, aname, Exec.sequence(sequence))
+        val content = """{"exec":{"kind":"sequence","code":"","components":["a","b"]}}""".parseJson.asJsObject
+
+        // create an action sequence
+        Put(s"$collectionPath/${aname}", content) ~> sealRoute(routes(creds)) ~> check {
+            status should be(BadRequest)
+        }
+    }
+
+    it should "reject update of a sequence with components that don't have at least namespace and action name" in {
+        implicit val tid = transid()
+        val bogus = s"${aname}_bogus"
+        val bogusAction = s"/${namespace}/${bogus}"
+        // put the action in the entity store so it's found
+        val bogusAct = WhiskAction(namespace, EntityName(bogus), Exec.js("??"))
+        put(entityStore, bogusAct)
+
+        val sequence = Vector("a", "b")
+        val updatedContent = """{"exec":{"kind":"sequence","code":"","components":["a","b"]}}""".parseJson.asJsObject
+
+        // create an action sequence
+        Put(s"$collectionPath/${bogus}?overwrite=true", updatedContent) ~> sealRoute(routes(creds)) ~> check {
+            deleteAction(bogusAct.docid)
+            status should be(BadRequest)
+            response.entity.toString should include(malformedActionNameMessage)
         }
     }
 }
