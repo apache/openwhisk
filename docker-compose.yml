@@ -58,6 +58,7 @@ services:
     depends_on:
       - consul
       - db
+      - kafka
     env_file:
       - ./docker-whisk-controller.env
     environment:
@@ -83,3 +84,46 @@ services:
       - ~/tmp/openwhisk/controller/logs:/logs
     ports:
       - "8080:8080"
+
+  # WHISK INVOKER AGENT
+  invoker:
+    image: whisk/invoker:latest
+    command: /bin/sh -c "/invoker/bin/invoker 0 >> /logs/invoker-localhost_logs.log 2>&1"
+    links:
+      - consul:consul.docker
+      - db:db.docker
+      - kafka:kafka.docker
+    depends_on:
+      - consul
+      - db
+      - kafka
+    env_file:
+      - ./docker-whisk-controller.env # env vars shared
+    environment:
+      COMPONENT_NAME: invoker
+      SERVICE_NAME: invoker0
+      PORT: 8080
+
+      CONSULSERVER_HOST: consul.docker
+      CONSUL_HOST_PORT4: 8500
+
+      KAFKA_HOST: kafka.docker
+      KAFKA_HOST_PORT: 9092
+
+      DB_PROVIDER: CouchDB
+      DB_PROTOCOL: http
+      DB_PORT: 5948
+      DB_HOST: db.host
+      DB_USERNAME: whisk_admin
+      DB_PASSWORD: some_passw0rd
+
+      EDGE_HOST: localhost
+      EDGE_HOST_APIPORT: 80
+
+      DOCKER_REGISTRY: ""
+      DOCKER_IMAGE_PREFIX: whisk
+    volumes:
+      - ~/tmp/openwhisk/invoker/logs:/logs
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "8081:8080"
