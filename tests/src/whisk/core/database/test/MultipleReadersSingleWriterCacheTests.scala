@@ -30,21 +30,24 @@ import scala.util.Success
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 
-import akka.actor.ActorSystem
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.database.MultipleReadersSingleWriterCache
+import common.WskActorSystem
+import scala.concurrent.duration.Duration
+import scala.concurrent.duration.FiniteDuration
 
 class MultipleReadersSingleWriterCacheTests(nIters: Int = 3) extends FlatSpec
     with Matchers
     with MultipleReadersSingleWriterCache[String, String]
+    with WskActorSystem
     with Logging {
 
     "the cache" should "support simple CRUD" in {
         System.out.println();
         System.out.println("simple CRUD");
 
-        val inhibits = doReadWriteRead("foo").go(0)
+        val inhibits = doReadWriteRead("foo").go(0 seconds)
         inhibits.debug(this)
 
         inhibits.nReadInhibits.get should be(0)
@@ -80,38 +83,38 @@ class MultipleReadersSingleWriterCacheTests(nIters: Int = 3) extends FlatSpec
     }
 
     "the cache" should "support concurrent CRUD to shared keys (zero latency)" in {
-        var someInhibits = false
+        var hasInhibits = false
         for (i <- 1 to nIters) {
-            someInhibits = doCRUD("concurrent CRUD to shared keys (zero latency)", sharedKeys, 0)
-                .someInhibits
+            hasInhibits = doCRUD("concurrent CRUD to shared keys (zero latency)", sharedKeys, 0 seconds)
+                .hasInhibits
         }
-        someInhibits should not be (false)
+        hasInhibits should not be (false)
     }
 
     "the cache" should "support concurrent CRUD to shared keys (short latency)" in {
         for (i <- 1 to nIters) {
-            doCRUD("concurrent CRUD to shared keys (short latency)", sharedKeys, 10)
-                .someInhibits should be(true)
+            doCRUD("concurrent CRUD to shared keys (short latency)", sharedKeys, 10 milliseconds)
+                .hasInhibits should be(true)
         }
     }
 
     "the cache" should "support concurrent CRUD to shared keys (medium latency)" in {
         for (i <- 1 to nIters) {
-            doCRUD("concurrent CRUD to shared keys (medium latency)", sharedKeys, 100)
-                .someInhibits should be(true)
+            doCRUD("concurrent CRUD to shared keys (medium latency)", sharedKeys, 100 milliseconds)
+                .hasInhibits should be(true)
         }
     }
 
     "the cache" should "support concurrent CRUD to shared keys (long latency)" in {
         for (i <- 1 to nIters) {
-            doCRUD("CONCURRENT CRUD to shared keys (long latency)", sharedKeys, 5000)
+            doCRUD("CONCURRENT CRUD to shared keys (long latency)", sharedKeys, 5 seconds)
                 .nWriteInhibits.get should not be (0)
         }
     }
 
     "the cache" should "support concurrent CRUD to shared keys, with update first" in {
         for (i <- 1 to nIters) {
-            doCRUD("CONCURRENT CRUD to shared keys, with update first", sharedKeys, 1000, false)
+            doCRUD("CONCURRENT CRUD to shared keys, with update first", sharedKeys, 1 second, false)
                 .nWriteInhibits.get should be(0)
         }
     }
@@ -121,7 +124,7 @@ class MultipleReadersSingleWriterCacheTests(nIters: Int = 3) extends FlatSpec
     def doCRUD(
         testName: String,
         key: Int => String,
-        delay: Int = 1000,
+        delay: FiniteDuration = 1 second,
         readsFirst: Boolean = true,
         nThreads: Int = 10): Inhibits = {
 
@@ -146,16 +149,16 @@ class MultipleReadersSingleWriterCacheTests(nIters: Int = 3) extends FlatSpec
         nReadInhibits: AtomicInteger = new AtomicInteger(0),
         nWriteInhibits: AtomicInteger = new AtomicInteger(0)) {
 
-        def debug(from: AnyRef) {
+        def debug(from: AnyRef) = {
             logger.debug(from, "InhibitedReads: " + nReadInhibits);
             logger.debug(from, "InhibitedWrites: " + nWriteInhibits);
         }
 
-        def someInhibits: Boolean = { nReadInhibits.get > 0 || nWriteInhibits.get > 0 }
+        def hasInhibits: Boolean = { nReadInhibits.get > 0 || nWriteInhibits.get > 0 }
     }
 
     private case class doReadWriteRead(key: String, inhibits: Inhibits = Inhibits(), readFirst: Boolean = true) {
-        def go(implicit delay: Int): Inhibits = {
+        def go(implicit delay: FiniteDuration): Inhibits = {
             val latch = new CountDownLatch(2)
 
             implicit val transId = TransactionId.testing
@@ -202,14 +205,13 @@ class MultipleReadersSingleWriterCacheTests(nIters: Int = 3) extends FlatSpec
         }
     }
 
-    private def delayed[W](v: W)(implicit delay: Int): Future[W] = {
-        akka.pattern.after(duration = delay.millis, using = actorSystem.scheduler)(
+    private def delayed[W](v: W)(implicit delay: FiniteDuration): Future[W] = {
+        akka.pattern.after(duration = delay, using = actorSystem.scheduler)(
             Future.successful { v })
     }
 
     /** we are using cache keys, so the update key is just the string itself */
     override protected def cacheKeyForUpdate(w: String): String = (w)
 
-    implicit private val actorSystem: ActorSystem = ActorSystem("MRSW-cache-test-actor-system")
     implicit private val logger = this
 }
