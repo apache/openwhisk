@@ -62,20 +62,23 @@ package object container {
     }
 
     /**
-     * The result of trying to obtain a container.
+     * The result of trying to obtain a container that has already run this user+action in the past.
+     */
+    sealed trait CacheResult
+
+    case object CacheMiss extends CacheResult
+    case object CacheBusy extends CacheResult
+    case class  CacheHit(con: WhiskContainer) extends CacheResult
+
+    /**
+     * The result of trying to obtain a container which is known to exist or to create one.
+     * Capacity constraints have been passed by this point so there are no Busy's.
+     * Initiailization is performed later so no field for initResult here.
      */
     sealed trait ContainerResult
 
-    case object CacheMiss extends ContainerResult
-
-    /**
-     * The result of trying to obtain a container which is known to exist.
-     */
-    sealed trait FinalContainerResult extends ContainerResult
-
-    case class Success(con: Container, initResult: Option[RunResult]) extends FinalContainerResult
-    case object Busy extends FinalContainerResult
-    case class Error(string: String) extends FinalContainerResult
+    case class Warm(con: WhiskContainer) extends ContainerResult
+    case class Cold(con: WhiskContainer) extends ContainerResult
 
     // Note: not using InetAddress here because we don't want to do any lookup
     // until used for something.

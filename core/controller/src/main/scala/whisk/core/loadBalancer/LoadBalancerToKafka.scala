@@ -25,6 +25,8 @@ import spray.json.DefaultJsonProtocol._
 import whisk.common.Counter
 import whisk.common.Logging
 import whisk.common.TransactionId
+import whisk.common.LoggingMarkers
+import whisk.common.PrintStreamEmitter
 import whisk.connector.kafka.KafkaProducerConnector
 import whisk.core.connector.{ ActivationMessage => Message }
 import akka.event.Logging.LogLevel
@@ -37,6 +39,8 @@ trait LoadBalancerToKafka extends Logging {
 
     /** The execution context for futures */
     implicit val executionContext: ExecutionContext
+
+    private implicit val emitter: PrintStreamEmitter = this
 
     override def setVerbosity(level: LogLevel) = {
         super.setVerbosity(level)
@@ -52,13 +56,14 @@ trait LoadBalancerToKafka extends Logging {
      */
     def publish(msg: Message)(implicit transid: TransactionId): Future[Unit] = {
         getInvoker(msg) map {
+            val start = transid.started(this, LoggingMarkers.CONTROLLER_KAFKA)
             invokerIndex =>
                 val topic = Message.invoker(invokerIndex)
                 val subject = msg.subject()
                 info(this, s"posting topic '$topic' with activation id '${msg.activationId}'")
                 producer.send(topic, msg) map { status =>
                     val counter = updateActivationCount(subject, invokerIndex)
-                    info(this, s"user has ${counter} activations posted. Posted to ${status.topic()}[${status.partition()}][${status.offset()}]")
+                    transid.finished(this, start, s"user has ${counter} activations posted. Posted to ${status.topic()}[${status.partition()}][${status.offset()}]")
                 }
         } getOrElse {
             Future.failed(new LoadBalancerException("no invokers available"))
