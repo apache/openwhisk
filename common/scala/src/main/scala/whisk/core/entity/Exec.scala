@@ -98,7 +98,7 @@ protected[core] case class BlackBoxExec(image: String) extends Exec(Exec.BLACKBO
  */
 protected[core] case class SequenceExec(code: String, components: Vector[FullyQualifiedEntityName]) extends Exec(Exec.SEQUENCE) {
     val image = Exec.imagename(Exec.NODEJS)
-    def size = ByteSize.fromString("0B") // not used for the hacky implementation and not used for the new implementation either
+    def size = 0.bytes // not used for the hacky implementation and not used for the new implementation either
 }
 
 protected[core] object Exec

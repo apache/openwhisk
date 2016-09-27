@@ -255,7 +255,7 @@ object WhiskAction
             Future.successful(fullyQualifiedName)
         } else {
             // there is a package to be resolved
-            val pkgDocid = WhiskPackage.packageDocId(fullyQualifiedName)
+            val pkgDocid = fullyQualifiedName.pathToDocId
             val actionName = fullyQualifiedName.name
             val wp = WhiskPackage.resolveBinding(entityStore, pkgDocid)
             wp map { resolvedPkg => FullyQualifiedEntityName(resolvedPkg.namespace.addpath(resolvedPkg.name), actionName) }

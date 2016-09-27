@@ -685,7 +685,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         // keep track of all sequences to detect recursion
         info(this, s"Checking limits and recursion for actions in a sequence $sequence $components")
         // first check that out of the box no more components than necessary
-        if (components.size > whiskConfig.actionSequenceLimit.toInt)
+        if (components.size > sequenceActionMaxLength)
             Future.failed(new TooManyActionsInSequence())
         val resolvedSequence = WhiskAction.resolveAction(entityStore, sequence) // this assumes that entityStore is the same for actions and packages
         val resolvedComponents = components map { c => WhiskAction.resolveAction(entityStore, c) }
@@ -707,17 +707,17 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      */
     private def inlineComponentsAndCountAtomicActions(atomicActionsCnt: Int, actionsToInline: List[FullyQualifiedEntityName], sequences: List[FullyQualifiedEntityName])(
         implicit transid: TransactionId): Future[Boolean] = {
-        if (atomicActionsCnt > whiskConfig.actionSequenceLimit.toInt)
+        if (atomicActionsCnt > sequenceActionMaxLength)
             Future.failed(new TooManyActionsInSequence())
         else {
             actionsToInline match {
                 case action :: restActions =>
-                    val docid = DocId(action.toString)
+                    val docid = action.toDocId
                     WhiskAction.get(entityStore, docid) flatMap { act =>
                         act.exec match {
                             case seq: SequenceExec =>
                                 // this is actually a sequence, check already traversed sequences
-                                if (sequences.contains(FullyQualifiedEntityName(act.namespace, act.name))) {
+                                if (sequences.contains(action)) {
                                    Future.failed(new SequenceWithRecursion())
                                 } else {
                                     // resolve the components first
@@ -726,7 +726,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                                     val futureResComponents = Future.sequence(resolvedComponents)
                                     futureResComponents flatMap { components =>  // these are resolved components
                                         // check that these components don't overlap with the sequences found so far
-                                        val overlap = components.foldLeft(false){(b, elem) => b || sequences.contains(elem) }
+                                        val overlap = components.intersect(sequences).nonEmpty
                                         if (overlap){
                                             Future.failed(new SequenceWithRecursion())
                                         }
@@ -753,6 +753,8 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
     /** Max duration to wait for a blocking activation. */
     private val maxWaitForBlockingActivation = 60 seconds
 
+    // limit for the number of inlined actions in a sequence
+    protected lazy val sequenceActionMaxLength = this.whiskConfig.actionSequenceLimit.toInt
 }
 
 private case class BlockingInvokeTimeout(activationId: ActivationId) extends TimeoutException

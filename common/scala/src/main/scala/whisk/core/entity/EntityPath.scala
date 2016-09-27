@@ -68,7 +68,7 @@ protected[core] class EntityPath private (val path: Seq[String]) extends AnyVal 
      * @throws IllegalArgumentException if the path does not conform to schema (at least namespace and entity name must be present0
      */
     @throws[IllegalArgumentException]
-    def fullyQualifiedEntityName = {
+    def toFullyQualifiedEntityName = {
         require(path.size > 1, "fully qualified entity name must contain at least the namespace and the name of the entity")
         val name = last
         val newPath = EntityPath(path.dropRight(1))
@@ -190,6 +190,8 @@ protected[core] object EntityName {
  */
 protected[core] case class FullyQualifiedEntityName(path: EntityPath, name: EntityName, version: Option[SemVer] = None) {
     override def toString = path.addpath(name) + version.map("@" + _.toString).getOrElse("")
+    def toDocId = DocId(this.toString)
+    def pathToDocId = DocId(path.toString)
 }
 
 protected[core] object FullyQualifiedEntityName extends DefaultJsonProtocol {
@@ -198,6 +200,5 @@ protected[core] object FullyQualifiedEntityName extends DefaultJsonProtocol {
     /**
      * utility function that makes a fully qualified name from a string
      */
-    def apply(qualifiedName: String): FullyQualifiedEntityName = EntityPath(qualifiedName).fullyQualifiedEntityName
-
+    def apply(qualifiedName: String): FullyQualifiedEntityName = EntityPath(qualifiedName).toFullyQualifiedEntityName
 }

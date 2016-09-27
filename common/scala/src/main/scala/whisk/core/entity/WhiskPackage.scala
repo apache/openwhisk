@@ -155,22 +155,11 @@ object WhiskPackage
      */
     def resolveBinding(entityStore: EntityStore, pkg: DocId)(
         implicit ec: ExecutionContext, transid: TransactionId): Future[WhiskPackage] = {
-        WhiskPackage.get(entityStore, pkg) flatMap {
-            case wp if wp.binding.isEmpty =>
-                Future.successful(wp)
-            case wp => resolveBinding(entityStore, wp.binding.get.docid)
+        WhiskPackage.get(entityStore, pkg) flatMap { wp =>
+            // if there is a binding resolve it
+            val resolved = wp.binding flatMap { binding => Some(resolveBinding(entityStore, binding.docid))}
+            resolved getOrElse Future.successful(wp)
         }
-    }
-
-    /**
-     * utility function that extracts the package information from a fully qualified name,
-     * which contains a package and returns the corresponding docid
-     * @param fullyQualifiedName the fully qualified name of the entity
-     * @return the docid for the corresponding package
-     */
-    def packageDocId(fullyQualifiedName: FullyQualifiedEntityName): DocId = {
-        val wskPackage = fullyQualifiedName.path
-        DocId(wskPackage.toString)
     }
 
     override implicit val serdes = {
