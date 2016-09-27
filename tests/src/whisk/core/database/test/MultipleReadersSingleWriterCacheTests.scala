@@ -24,18 +24,18 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.FiniteDuration
+import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 
+import common.WskActorSystem
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.database.MultipleReadersSingleWriterCache
-import common.WskActorSystem
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.FiniteDuration
 
 class MultipleReadersSingleWriterCacheTests(nIters: Int = 3) extends FlatSpec
     with Matchers
