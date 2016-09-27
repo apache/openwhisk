@@ -157,7 +157,7 @@ object WhiskPackage
         implicit ec: ExecutionContext, transid: TransactionId): Future[WhiskPackage] = {
         WhiskPackage.get(entityStore, pkg) flatMap { wp =>
             // if there is a binding resolve it
-            val resolved = wp.binding flatMap { binding => Some(resolveBinding(entityStore, binding.docid))}
+            val resolved = wp.binding map { binding => resolveBinding(entityStore, binding.docid)}
             resolved getOrElse Future.successful(wp)
         }
     }
