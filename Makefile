@@ -1,6 +1,12 @@
 .PHONY: run
-run: start-docker-compose setup-couchdb
+run: setup start-docker-compose setup-couchdb
 
+.PHONY: setup
+setup:
+	mkdir -p ~/tmp/openwhisk/apigateway/ssl
+	cp ./ansible/roles/nginx/files/*.pem ~/tmp/openwhisk/apigateway/ssl
+	mkdir -p ~/tmp/openwhisk/apigateway/conf
+	cp ./tools/apigateway/whisk-docker-compose.conf ~/tmp/openwhisk/apigateway/conf/
 
 .PHONY: start-docker-compose
 start-docker-compose:

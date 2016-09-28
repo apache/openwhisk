@@ -73,13 +73,13 @@ services:
 
       DB_PROVIDER: CouchDB
       DB_PROTOCOL: http
-      DB_PORT: 5948
-      DB_HOST: db.host
+      DB_PORT: 5984
+      DB_HOST: db.docker
       DB_USERNAME: whisk_admin
       DB_PASSWORD: some_passw0rd
 
-      LOADBALANCER_HOST: localhost  # to be added
-      LOADBALANCER_HOST_PORT: 80    # to be added
+      LOADBALANCER_HOST: localhost
+      LOADBALANCER_HOST_PORT: 443
     volumes:
       - ~/tmp/openwhisk/controller/logs:/logs
     ports:
@@ -118,7 +118,7 @@ services:
       DB_PASSWORD: some_passw0rd
 
       EDGE_HOST: localhost
-      EDGE_HOST_APIPORT: 80
+      EDGE_HOST_APIPORT: 443
 
       DOCKER_REGISTRY: ""
       DOCKER_IMAGE_PREFIX: whisk
@@ -127,3 +127,17 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - "8081:8080"
+
+  # The API Gateway is currently used to expose the Controller API
+  apigateway:
+    image: adobeapiplatform/apigateway:1.1.0
+    links:
+      - controller:whisk.controller
+    depends_on:
+      - controller
+    volumes:
+      - ~/tmp/openwhisk/apigateway/ssl:/etc/ssl:ro
+      - ~/tmp/openwhisk/apigateway/conf:/etc/api-gateway/generated-conf.d:ro
+    ports:
+      - "80:80"
+      - "443:443"
