@@ -5,8 +5,8 @@ services:
     ports:
       - "5984:5984"
     environment:
-      - COUCHDB_USER:whisk_admin
-      - COUCHDB_PASSWORD:some_passw0rd
+      COUCHDB_USER: whisk_admin
+      COUCHDB_PASSWORD: some_passw0rd
     volumes:
       - ~/tmp/openwhisk/couchdb:/usr/local/var/lib/couchdb:rw
 
@@ -26,7 +26,7 @@ services:
     environment:
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       # whisk topic will have 1 partition and 1 replica
-      KAFKA_CREATE_TOPICS: "whisk:1:1"
+      KAFKA_CREATE_TOPICS: "invoke0:1:1"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
 
