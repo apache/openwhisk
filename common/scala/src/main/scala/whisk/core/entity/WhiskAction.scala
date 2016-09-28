@@ -56,7 +56,12 @@ case class WhiskActionPut(
     limits: Option[ActionLimitsOption] = None,
     version: Option[SemVer] = None,
     publish: Option[Boolean] = None,
-    annotations: Option[Parameters] = None)
+    annotations: Option[Parameters] = None) {
+
+    protected[core] def replace(exec: Exec) = {
+        WhiskActionPut(Some(exec), parameters, limits, version, publish, annotations)
+    }
+}
 
 /**
  * A WhiskAction provides an abstraction of the meta-data

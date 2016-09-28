@@ -82,7 +82,7 @@ class SequenceApiTests
         // put the action in the entity store so it's found
         val bogusAct = WhiskAction(namespace, EntityName(bogus), Exec.js("??"), Parameters("x", "y"))
         put(entityStore, bogusAct)
-        val sequence = for (i <- 1 to limit) yield bogusAction
+        val sequence = for (i <- 1 to limit) yield stringToFullyQualifiedName(bogusAction)
         val seqAction = WhiskAction(namespace, seqName, Exec.sequence(sequence.toVector))
         val content = WhiskActionPut(Some(seqAction.exec))
 
@@ -98,7 +98,7 @@ class SequenceApiTests
         val seqName = EntityName(s"${aname}_toomanyactions")
         val bogus = s"${aname}_bogus"
         val bogusAction = s"/${namespace}/${bogus}"
-        val sequence = Vector(bogusAction)
+        val sequence = Vector(bogusAction).map(stringToFullyQualifiedName(_))
         val seqAction = WhiskAction(namespace, seqName, Exec.sequence(sequence))
         val content = WhiskActionPut(Some(seqAction.exec))
 
@@ -118,7 +118,7 @@ class SequenceApiTests
         // put the action in the entity store so it's found
         val bogusAct = WhiskAction(namespace, EntityName(bogus), Exec.js("??"), Parameters("x", "y"))
         put(entityStore, bogusAct)
-        val sequence = for (i <- 1 to limit) yield bogusAction
+        val sequence = for (i <- 1 to limit) yield stringToFullyQualifiedName(bogusAction)
         val seqAction = WhiskAction(namespace, seqName, Exec.sequence(sequence.toVector))
         val content = WhiskActionPut(Some(seqAction.exec))
 
@@ -127,7 +127,7 @@ class SequenceApiTests
             status should be(OK)
         }
 
-        val seqNameWithNamespace = s"/${namespace}/${seqName.name}"
+        val seqNameWithNamespace = stringToFullyQualifiedName(s"/${namespace}/${seqName.name}")
         // update the action sequence
         val updatedSeq = sequence.updated(1, seqNameWithNamespace)
         val updatedSeqAction = WhiskAction(namespace, seqName, Exec.sequence(updatedSeq.toVector))
@@ -149,7 +149,7 @@ class SequenceApiTests
         // put the action in the entity store so it exists
         val bogusAct = WhiskAction(namespace, EntityName(bogus), Exec.js("??"), Parameters("x", "y"))
         put(entityStore, bogusAct)
-        val sequence = for (i <- 1 to limit) yield bogusAction
+        val sequence = for (i <- 1 to limit) yield stringToFullyQualifiedName(bogusAction)
         val seqAction = WhiskAction(namespace, seqName, Exec.sequence(sequence.toVector))
         val content = WhiskActionPut(Some(seqAction.exec))
 
@@ -176,7 +176,7 @@ class SequenceApiTests
         val bogusAct = WhiskAction(EntityPath(namespaceWithPkg), EntityName(bogus), Exec.js("??"), Parameters("x", "y"))
         put(entityStore, bogusAct)
         // create sequence that refers to action with binding
-        val sequence = Vector(s"/${guestNamespace}/${pkgWithBinding}/${bogus}")
+        val sequence = Vector(s"/${guestNamespace}/${pkgWithBinding}/${bogus}").map(stringToFullyQualifiedName(_))
         val seqAction = WhiskAction(namespace, seqName, Exec.sequence(sequence))
         val content = WhiskActionPut(Some(seqAction.exec))
 
@@ -196,7 +196,7 @@ class SequenceApiTests
         // put the action in the entity store so it's found
         val bogusAct = WhiskAction(namespace, EntityName(bogus), Exec.js("??"), Parameters("x", "y"))
         put(entityStore, bogusAct)
-        val sequence = for (i <- 1 to limit) yield bogusAction
+        val sequence = for (i <- 1 to limit) yield stringToFullyQualifiedName(bogusAction)
         // create package
         val pkg = s"${aname}_pkg"
         val wp = WhiskPackage(namespace, EntityName(pkg), None, publish = true)
@@ -215,7 +215,7 @@ class SequenceApiTests
         val pkgWithBinding = s"${aname}_pkgbinding"
         val wpBinding = WhiskPackage(namespace, EntityName(pkgWithBinding), wp.bind, publish = true)
         put(entityStore, wpBinding)
-        val seqNameWithBinding = s"/${namespace}/${pkgWithBinding}/${seqName.name}"  // the same as previous sequence through package binding; should detect recursion
+        val seqNameWithBinding = stringToFullyQualifiedName(s"/${namespace}/${pkgWithBinding}/${seqName.name}")  // the same as previous sequence through package binding; should detect recursion
         // update the action sequence
         val updatedSeq = sequence.updated(1, seqNameWithBinding)
         val updatedSeqAction = WhiskAction(namespace, seqName, Exec.sequence(updatedSeq.toVector))
@@ -241,9 +241,8 @@ class SequenceApiTests
     it should "reject update of a sequence with components that don't have at least namespace and action name" in {
         implicit val tid = transid()
         val bogus = s"${aname}_bogus"
-        val bogusAction = s"/${namespace}/${bogus}"
-        // put the action in the entity store so it's found
         val bogusAct = WhiskAction(namespace, EntityName(bogus), Exec.js("??"))
+        // put the action in the entity store so it's found
         put(entityStore, bogusAct)
 
         val updatedContent = """{"exec":{"kind":"sequence","code":"","components":["a","b"]}}""".parseJson.asJsObject

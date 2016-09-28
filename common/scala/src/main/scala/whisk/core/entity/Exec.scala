@@ -132,7 +132,7 @@ protected[core] object Exec
     protected[core] def swift(code: String): Exec = SwiftExec(trim(code))
     protected[core] def swift3(code: String): Exec = Swift3Exec(trim(code))
     protected[core] def java(jar: String, main: String): Exec = JavaExec(Inline(trim(jar)), trim(main))
-    protected[core] def sequence(components: Vector[String]): Exec = SequenceExec(Pipecode.code, components map {c => FullyQualifiedEntityName(c) } )
+    protected[core] def sequence(components: Vector[FullyQualifiedEntityName]): Exec = SequenceExec(Pipecode.code, components)
 
     private def attFmt[T: JsonFormat] = Attachments.serdes[T]
 
@@ -149,7 +149,7 @@ protected[core] object Exec
 
             case p @ PythonExec(code)     => JsObject("kind" -> JsString(Exec.PYTHON), "code" -> JsString(code), "binary" -> JsBoolean(p.binary))
 
-            case SequenceExec(code, comp) => JsObject("kind" -> JsString(Exec.SEQUENCE), "code" -> JsString(code), "components" -> JsArray(comp map { c => JsString(c.toString) }))
+            case SequenceExec(code, comp)      => JsObject("kind" -> JsString(Exec.SEQUENCE), "code" -> JsString(code), "components" -> comp.toJson)
             case BlackBoxExec(image)      => JsObject("kind" -> JsString(Exec.BLACKBOX), "image" -> JsString(image))
         }
 
@@ -181,15 +181,9 @@ protected[core] object Exec
 
                 case Exec.SEQUENCE =>
                     val comp: Vector[FullyQualifiedEntityName] = obj.getFields("components") match {
-                        case Seq(JsArray(components)) =>
-                            components map {
-                                _ match {
-                                    case JsString(s) => FullyQualifiedEntityName(s)
-                                    case _           => throw new DeserializationException(s"'components' must be an array of strings")
-                                }
-                            }
-                        case Seq(_) => throw new DeserializationException(s"'components' must be an array")
-                        case _      => throw new DeserializationException(s"'components' must be defined for sequence kind")
+                        case Seq(JsArray(components)) => components map { FullyQualifiedEntityName.serdes.read(_) }
+                        case Seq(_)                   => throw new DeserializationException(s"'components' must be an array")
+                        case _                        => throw new DeserializationException(s"'components' must be defined for sequence kind")
                     }
                     SequenceExec(Pipecode.code, comp)
 

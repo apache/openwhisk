@@ -65,7 +65,7 @@ class SequenceActionApiMigrationTests extends ControllerTestCommon
 
     it should "list old-style sequence action with explicit namespace" in {
         implicit val tid = transid()
-        val sequence = Vector("/_/a", "/_/x/b", "/n/a", "/n/x/c")
+        val sequence = Vector("/_/a", "/_/x/b", "/n/a", "/n/x/c").map(stringToFullyQualifiedName(_))
         val actions = (1 to 2).map { i =>
             WhiskAction(namespace, aname, Exec.sequence(sequence))
         }.toList
@@ -82,7 +82,7 @@ class SequenceActionApiMigrationTests extends ControllerTestCommon
 
     it should "get old-style sequence action by name in default namespace" in {
         implicit val tid = transid()
-        val sequence = Vector("/_/a", "/_/x/b", "/n/a", "/n/x/c")
+        val sequence = Vector("/_/a", "/_/x/b", "/n/a", "/n/x/c").map(stringToFullyQualifiedName(_))
         val action = WhiskAction(namespace, aname, Exec.sequence(sequence))
         put(entityStore, action)
         Get(s"$collectionPath/${action.name}") ~> sealRoute(routes(creds)) ~> check {
@@ -95,8 +95,9 @@ class SequenceActionApiMigrationTests extends ControllerTestCommon
     // this test is a repeat from ActionsApiTest BUT with old style sequence
     it should "preserve new parameters when changing old-style sequence action to non sequence" in {
         implicit val tid = transid()
-        val sequence = Vector("/_/a", "/_/x/b", "/n/a", "/n/x/c")
-        val action = WhiskAction(namespace, aname, Exec.sequence(sequence), seqParameters(sequence))
+        val components = Vector("/_/a", "/_/x/b", "/n/a", "/n/x/c")
+        val sequence = components.map(stringToFullyQualifiedName(_))
+        val action = WhiskAction(namespace, aname, Exec.sequence(sequence), seqParameters(components))
         val content = WhiskActionPut(Some(Exec.js("")), parameters = Some(Parameters("a", "A")))
         put(entityStore, action, false)
 
@@ -113,8 +114,9 @@ class SequenceActionApiMigrationTests extends ControllerTestCommon
     // this test is a repeat from ActionsApiTest BUT with old style sequence
     it should "reset parameters when changing old-style sequence action to non sequence" in {
         implicit val tid = transid()
-        val sequence = Vector("/_/a", "/_/x/b", "/n/a", "/n/x/c")
-        val action = WhiskAction(namespace, aname, Exec.sequence(sequence), seqParameters(sequence))
+        val components = Vector("/_/a", "/_/x/b", "/n/a", "/n/x/c")
+        val sequence = components.map(stringToFullyQualifiedName(_))
+        val action = WhiskAction(namespace, aname, Exec.sequence(sequence), seqParameters(components))
         val content = WhiskActionPut(Some(Exec.js("")))
         put(entityStore, action, false)
 
@@ -130,8 +132,9 @@ class SequenceActionApiMigrationTests extends ControllerTestCommon
 
     it should "update old-style sequence action with new annotations" in {
         implicit val tid = transid()
-        val sequence = Vector("/_/a", "/_/x/b", "/n/a", "/n/x/c")
-        val action = WhiskAction(namespace, aname, Exec.sequence(sequence), seqParameters(sequence))
+        val components = Vector("/_/a", "/_/x/b", "/n/a", "/n/x/c")
+        val sequence = components.map(stringToFullyQualifiedName(_))
+        val action = WhiskAction(namespace, aname, Exec.sequence(sequence))
         val content = """{"annotations":[{"key":"old","value":"new"}]}""".parseJson.asJsObject
         put(entityStore, action, false)
 
@@ -141,7 +144,7 @@ class SequenceActionApiMigrationTests extends ControllerTestCommon
             status should be(OK)
             val response = responseAs[String]
             // contains the action
-            sequence map {c => response should include(c)}
+            components map {c => response should include(c)}
             // contains the annotations
             response should include("old")
             response should include("new")
@@ -152,7 +155,7 @@ class SequenceActionApiMigrationTests extends ControllerTestCommon
         implicit val tid = transid()
         // old sequence
         val seqName = EntityName(s"${aname}_new")
-        val oldComponents = Vector("/_/a", "/_/x/b", "/n/a", "/n/x/c")
+        val oldComponents = Vector("/_/a", "/_/x/b", "/n/a", "/n/x/c").map(stringToFullyQualifiedName(_))
         val oldSequence = WhiskAction(namespace, seqName, Exec.sequence(oldComponents))
         put(entityStore, oldSequence)
 
@@ -163,7 +166,7 @@ class SequenceActionApiMigrationTests extends ControllerTestCommon
         // put the action in the entity store so it exists
         val bogusAction = WhiskAction(namespace, EntityName(bogus), Exec.js("??"), Parameters("x", "y"))
         put(entityStore, bogusAction)
-        val sequence = for (i <- 1 to limit) yield bogusActionName
+        val sequence = for (i <- 1 to limit) yield stringToFullyQualifiedName(bogusActionName)
         val seqAction = WhiskAction(namespace, seqName, Exec.sequence(sequence.toVector))
         val content = WhiskActionPut(Some(seqAction.exec), Some(Parameters()))
 

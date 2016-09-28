@@ -338,10 +338,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         }
     }
 
-    /**
-     * helper method that fixes the sequence components that are in the default namespace
-     * replace default namespace witht the user namespace
-     */
+    /** Replaces default namespaces in an action sequence with appropriate namespace. */
     private def resolveDefaultNamespace(seq: SequenceExec, user: Identity)(implicit transid: TransactionId): SequenceExec = {
         // if components are part of the default namespace, they contain `_`; replace it!
         val resolvedComponents = seq.components map { c => FullyQualifiedEntityName(c.path.resolveNamespace(user.namespace), c.name) }
@@ -351,15 +348,15 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
     /** Creates a WhiskAction from PUT content, generating default values where necessary. */
     private def make(user: Identity, namespace: EntityPath, content: WhiskActionPut, name: EntityName)(implicit transid: TransactionId) = {
         content.exec map {
-             // fix content if sequence and check for sequence limits
+            // if this is a sequence, rewrite the action names in the sequence to resolve the namespace if necessary
+            // and check that the sequence conforms to max length and no recursion rules
             case seq: SequenceExec =>
                 val fixedExec = resolveDefaultNamespace(seq, user)
-                val fixedContent = WhiskActionPut(Some(fixedExec), content.parameters, content.limits, content.version, content.publish, content.annotations)
                 // also check for sequence limits
-                checkSequenceActionLimits(FullyQualifiedEntityName(namespace, name), fixedExec.components)  map { _ =>
-                    makeWhiskAction(fixedContent, namespace, name)
+                checkSequenceActionLimits(FullyQualifiedEntityName(namespace, name), fixedExec.components) map { _ =>
+                    makeWhiskAction(content.replace(fixedExec), namespace, name)
                 }
-            case _ => Future successful {makeWhiskAction(content, namespace, name)}
+            case _ => Future successful { makeWhiskAction(content, namespace, name) }
         } getOrElse Future.failed(RejectRequest(BadRequest, "exec undefined"))
     }
 
@@ -369,11 +366,11 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
     private def makeWhiskAction(content: WhiskActionPut, namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
         val exec = content.exec.get
         val limits = content.limits map { l =>
-                        ActionLimits(
-                            l.timeout getOrElse TimeLimit(),
-                            l.memory getOrElse MemoryLimit(),
-                            l.logs getOrElse LogLimit())
-                    } getOrElse ActionLimits()
+            ActionLimits(
+                l.timeout getOrElse TimeLimit(),
+                l.memory getOrElse MemoryLimit(),
+                l.logs getOrElse LogLimit())
+        } getOrElse ActionLimits()
         // This is temporary while we are making sequencing directly supported in the controller.
         // The parameter override allows this to work with Pipecode.code. Any parameters other
         // than the action sequence itself are discarded and have no effect.
@@ -381,7 +378,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         // (which loses the leading "/"). Adding it back while both versions of the code are in place. This will disappear completely
         // once the version of sequences with "pipe.js" is removed.
         val parameters = exec match {
-            case seq: SequenceExec => Parameters("_actions", JsArray(seq.components map {c => JsString("/" + c.toString) }))
+            case seq: SequenceExec => Parameters("_actions", JsArray(seq.components map { c => JsString("/" + c.toString) }))
             case _                 => content.parameters getOrElse Parameters()
         }
 
@@ -653,7 +650,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      * @param sequence the sequence to check
      * @param components the components of the sequence
      */
-    private def checkSequenceActionLimits(sequence: FullyQualifiedEntityName, components: Vector[FullyQualifiedEntityName]) (
+    private def checkSequenceActionLimits(sequence: FullyQualifiedEntityName, components: Vector[FullyQualifiedEntityName])(
         implicit transid: TransactionId): Future[Boolean] = {
         // traverse all actions and "inline" all actions that are sequences
         // keep track of all sequences to detect recursion
@@ -702,19 +699,18 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                             case seq: SequenceExec =>
                                 // this is actually a sequence, check already traversed sequences
                                 if (sequences.contains(action)) {
-                                   Future.failed(new SequenceWithRecursion())
+                                    Future.failed(new SequenceWithRecursion())
                                 } else {
                                     // resolve the components first
                                     // need to inline each of its components
                                     val resolvedComponents = seq.components map { c => WhiskAction.resolveAction(entityStore, c) }
                                     val futureResComponents = Future.sequence(resolvedComponents)
-                                    futureResComponents flatMap { components =>  // these are resolved components
+                                    futureResComponents flatMap { components => // these are resolved components
                                         // check that these components don't overlap with the sequences found so far
                                         val overlap = components.intersect(sequences).nonEmpty
-                                        if (overlap){
+                                        if (overlap) {
                                             Future.failed(new SequenceWithRecursion())
-                                        }
-                                        else {
+                                        } else {
                                             inlineComponentsAndCountAtomicActions(atomicActionsCnt, restActions ++ components, action :: sequences)
                                         }
                                     }

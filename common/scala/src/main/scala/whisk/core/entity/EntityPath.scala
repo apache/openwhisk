@@ -17,12 +17,13 @@
 package whisk.core.entity
 
 import scala.util.Try
+import scala.util.Failure
+import scala.util.Success
 
 import spray.json.JsString
 import spray.json.JsValue
 import spray.json.RootJsonFormat
 import spray.json.deserializationError
-import spray.json.DefaultJsonProtocol
 
 /**
  * EntityPath is a path string of allowed characters. The path consists of parts each of which
@@ -190,18 +191,21 @@ protected[core] object EntityName {
  */
 protected[core] case class FullyQualifiedEntityName(path: EntityPath, name: EntityName, version: Option[SemVer] = None) {
     override def toString = path.addpath(name) + version.map("@" + _.toString).getOrElse("")
-    def toDocId = DocId(this.toString)
+    def toDocId = DocId(WhiskEntity.qualifiedName(path, name))
     def pathToDocId = DocId(path())
 }
 
-protected[core] object FullyQualifiedEntityName extends DefaultJsonProtocol {
-    implicit val serdes = jsonFormat3(FullyQualifiedEntityName.apply)
+protected[core] object FullyQualifiedEntityName {
+    implicit val serdes = new RootJsonFormat[FullyQualifiedEntityName] {
+        def write(n: FullyQualifiedEntityName) = JsString(EntityPath.PATHSEP + WhiskEntity.qualifiedName(n.path, n.name))
 
-    /**
-     * Makes a fully qualified name from a string.
-     *
-     * @throws IllegalArgumentException if the name does not conform to schema
-     */
-    @throws[IllegalArgumentException]
-    def apply(qualifiedName: String): FullyQualifiedEntityName = EntityPath(qualifiedName).toFullyQualifiedEntityName
+        def read(value: JsValue) = Try {
+            val JsString(name) = value
+            EntityPath(name).toFullyQualifiedEntityName
+        } match {
+            case Success(s)                           => s
+            case Failure(t: IllegalArgumentException) => deserializationError(t.getMessage)
+            case Failure(t)                           => deserializationError("fully qualified name malformed")
+        }
+    }
 }

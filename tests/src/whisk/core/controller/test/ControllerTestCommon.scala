@@ -27,6 +27,7 @@ import org.scalatest.Matchers
 
 import akka.event.Logging.{ InfoLevel, LogLevel }
 import spray.http.BasicHttpCredentials
+import spray.json.JsString
 import spray.routing.HttpService
 import spray.testkit.ScalatestRouteTest
 import whisk.common.{ Logging, TransactionCounter, TransactionId }
@@ -38,6 +39,7 @@ import whisk.core.database.test.DbUtils
 import whisk.core.entitlement.{ Collection, EntitlementService, LocalEntitlementService }
 import whisk.core.entity._
 import whisk.core.loadBalancer.LoadBalancer
+
 
 protected trait ControllerTestCommon
     extends FlatSpec
@@ -123,6 +125,8 @@ protected trait ControllerTestCommon
             WhiskPackage.del(entityStore, doc.docinfo)
         }, dbOpTimeout)
     }
+
+    def stringToFullyQualifiedName(s: String) = FullyQualifiedEntityName.serdes.read(JsString(s))
 
     object MakeName {
         @volatile var counter = 1
