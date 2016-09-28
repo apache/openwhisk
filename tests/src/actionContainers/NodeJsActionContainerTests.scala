@@ -18,7 +18,11 @@ package actionContainers
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
+import whisk.core.entity.{ NodeJSAbstractExec, NodeJSExec }
+
 import ActionContainer.withContainer
+import ResourceHelpers.ZipBuilder
+
 import common.WskActorSystem
 import spray.json._
 
@@ -33,11 +37,17 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
 
     def withNodeJsContainer(code: ActionContainer => Unit) = withActionContainer()(code)
 
-    override def initPayload(code: String) = JsObject(
-        "value" -> JsObject(
-            "name" -> JsString("dummyAction"),
-            "code" -> JsString(code),
-            "main" -> JsString("main")))
+    def exec(code: String): NodeJSAbstractExec = NodeJSExec(code, None)
+
+    override def initPayload(code: String) = {
+        val e = exec(code)
+        JsObject(
+            "value" -> JsObject(
+                "name" -> JsString("dummyAction"),
+                "code" -> JsString(e.code),
+                "binary" -> JsBoolean(e.binary),
+                "main" -> JsString("main")))
+    }
 
     behavior of nodejsContainerImageName
 
@@ -432,6 +442,81 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
             case (o, e) =>
                 o shouldBe empty
                 e shouldBe empty
+        })
+    }
+
+    it should "support zip-encoded npm package actions" in {
+        val srcs = Seq(
+            Seq("package.json") -> """
+                | {
+                |   "name": "wskaction",
+                |   "version": "1.0.0",
+                |   "description": "An OpenWhisk action as an npm package.",
+                |   "main": "index.js",
+                |   "author": "info@openwhisk.org",
+                |   "license": "Apache-2.0"
+                | }
+            """.stripMargin,
+            Seq("index.js") -> """
+                | exports.main = function (args) {
+                |     var name = typeof args["name"] === "string" ? args["name"] : "stranger";
+                |
+                |     return {
+                |         greeting: "Hello " + name + ", from an npm package action."
+                |     };
+                | }
+            """.stripMargin)
+
+        val code = ZipBuilder.mkBase64Zip(srcs)
+
+        val (out, err) = withNodeJsContainer { c =>
+            c.init(initPayload(code))._1 should be(200)
+
+            val (runCode, runRes) = c.run(runPayload(JsObject()))
+
+            runCode should be(200)
+            runRes.get.fields.get("greeting") shouldBe Some(JsString("Hello stranger, from an npm package action."))
+        }
+
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe empty
+                e shouldBe empty
+        })
+    }
+
+    it should "fail gracefully on invalid zip files" in {
+        // Some text-file encoded to base64.
+        val code = "Q2VjaSBuJ2VzdCBwYXMgdW4gemlwLgo="
+
+        val (out, err) = withNodeJsContainer { c =>
+            c.init(initPayload(code))._1 should not be (200)
+        }
+
+        // Somewhere, the logs should mention the connection to the archive.
+        checkStreams(out, err, {
+            case (o, e) =>
+                (o + e).toLowerCase should include("error")
+                (o + e).toLowerCase should include("uncompressing")
+        })
+    }
+
+    it should "fail gracefully on valid zip files that are not actions" in {
+        val srcs = Seq(
+            Seq("hello") -> """
+                | Hello world!
+            """.stripMargin)
+
+        val code = ZipBuilder.mkBase64Zip(srcs)
+
+        val (out, err) = withNodeJsContainer { c =>
+            c.init(initPayload(code))._1 should not be (200)
+        }
+
+        checkStreams(out, err, {
+            case (o, e) =>
+                (o + e).toLowerCase should include("error")
+                (o + e).toLowerCase should include("module_not_found")
         })
     }
 }
