@@ -163,8 +163,11 @@ protected[controller] class RestAPIVersion_v1(
 
     // initialize backend services
     protected implicit val consulServer = WhiskServices.consulServer(config)
-    protected implicit val entitlementService = WhiskServices.entitlementService(config)
-    protected implicit val (performLoadBalancerRequest, getInvokerHealth, queryActivationResponse) = WhiskServices.makeLoadBalancerComponent(config)
+    protected implicit val loadBalancer = WhiskServices.makeLoadBalancerComponent(config)
+    protected implicit val performLoadBalancerRequest = loadBalancer.acceptRequest _
+    protected implicit val getInvokerHealth = loadBalancer.getInvokerHealth _
+    protected implicit val queryActiavtionResponse = loadBalancer.queryActivationResponse _
+    protected implicit val entitlementService = WhiskServices.entitlementService(config, loadBalancer)
     protected implicit val activationId = new ActivationIdGenerator {}
 
     // register collections and set verbosities on datastores and backend services

@@ -24,7 +24,6 @@ import akka.actor.ActorSystem
 import akka.event.Logging.InfoLevel
 import akka.util.Timeout
 import akka.util.Timeout.durationToTimeout
-import spray.json.JsObject
 import whisk.common.TransactionId
 import whisk.core.connector.ActivationMessage
 import whisk.core.WhiskConfig
@@ -47,14 +46,14 @@ object WhiskServices {
     /**
      * Creates instance of an entitlement service.
      */
-    def entitlementService(config: WhiskConfig, timeout: FiniteDuration = 5 seconds)(
+    def entitlementService(config: WhiskConfig, loadBalancer: LoadBalancerService, timeout: FiniteDuration = 5 seconds)(
         implicit as: ActorSystem) = {
         // remote entitlement service requires a host:port definition. If not given,
         // i.e., the value equals ":" or ":xxxx", use a local entitlement flow.
         if (config.entitlementHost.startsWith(":")) {
-            new LocalEntitlementService(config)
+            new LocalEntitlementService(config, loadBalancer)
         } else {
-            new RemoteEntitlementService(config, timeout)
+            new RemoteEntitlementService(config, loadBalancer, timeout)
         }
     }
 
@@ -67,10 +66,9 @@ object WhiskServices {
      * and returns the HTTP response from the load balancer as a future
      */
     def makeLoadBalancerComponent(config: WhiskConfig, timeout: Timeout = 10 seconds)(
-        implicit as: ActorSystem): (LoadBalancerReq => Future[Unit], () => JsObject, (ActivationId, FiniteDuration, TransactionId) => Future[WhiskActivation]) = {
+        implicit as: ActorSystem): LoadBalancerService = {
         val loadBalancer = new LoadBalancerService(config, InfoLevel)
-        val requestTaker = (lbr: LoadBalancerReq) => { loadBalancer.publish(lbr._1)(lbr._2) }
-        (requestTaker, loadBalancer.getInvokerHealth, loadBalancer.queryActivationResponse)
+        loadBalancer
     }
 
 }
