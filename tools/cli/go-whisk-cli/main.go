@@ -26,6 +26,7 @@ import (
     "../go-whisk/whisk"
     "./commands"
     "./wski18n"
+    "github.com/mattn/go-colorable"
 )
 
 // CLI_BUILD_TIME holds the time of the CLI build.  During gradle builds,
@@ -79,18 +80,19 @@ func main() {
             exitCode = 1;
         }
 
+        outputStream := colorable.NewColorableStderr()
+
         // If the err msg should be displayed to the console and it has not already been
         // displayed, display it now.
         if displayMsg && !msgDisplayed && exitCode != 0 {
-            fmt.Fprintf(os.Stderr, "%s%s\n", color.RedString(T("error: ")), err)
+            fmt.Fprintf(outputStream, "%s%s\n", color.RedString(T("error: ")), err)
         } else if displayMsg && !msgDisplayed && exitCode == 0 {
-            fmt.Fprintf(os.Stderr, "%s\n", err)
+            fmt.Fprintf(outputStream, "%s\n", err)
         }
-
 
         // Displays usage
         if displayUsage {
-            fmt.Fprintf(os.Stderr, T("Run '{{.Name}} --help' for usage.\n",
+            fmt.Fprintf(outputStream, T("Run '{{.Name}} --help' for usage.\n",
                 map[string]interface{}{ "Name" : commands.WskCmd.CommandPath()}))
         }
     }
