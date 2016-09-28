@@ -14,8 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Create an API Gateway to action mapping document in database:
- * https://docs.cloudant.com/document.html#documentCreate
+ * Delete an API Gateway to action mapping document from the database:
+ * https://docs.cloudant.com/document.html#delete
  *
  * Parameters (all as fields in the message JSON object)
  *   host       Required. The database dns host name
@@ -24,7 +24,9 @@
  *   dbname     Required. The name of the database
  *   username   Required. The database user name used to access the database
  *   password   Required. The database user password
- *   apidoc     Required. The API Gateway mapping document
+ *   docid      Required. The database id of the API Gateway mapping document
+ *                        Format:  owNamespace:MethodVerb:gatewayPath
+ *                        Example: mdeuser@us.ibm.com_dev:get:/v1/order
  *
  * NOTE: The package containing this action will be bound to the following values:
  *         host, port, protocol, dbname, username, password
@@ -33,8 +35,6 @@
  **/
 
 function main(message) {
-  var doc;
-  var dbname;
 
   if(!message) {
     console.error('No message argument!');
@@ -49,37 +49,15 @@ function main(message) {
   }
   var cloudant = cloudantOrError;
 
-  // Validate the remaining parameters (apidoc, dbname, and apidoc.action)
-  if(!message.apidoc) {
-    return whisk.error('apidoc is required.');
-  }
-  if (typeof message.apidoc === 'object') {
-      doc = message.apidoc;
-  } else if (typeof message.apidoc === 'string') {
-      try {
-        doc = JSON.parse(message.apidoc);
-      } catch (e) {
-        return whisk.error('apidoc field cannot be parsed. Ensure it is valid JSON.');
-      }
-  } else {
-      return whisk.error('apidoc field is ' + (typeof apidoc) + ' and should be an object or a JSON string.');
-  }
-  if (!doc._id) {
-      return whisk.error('apidoc is missing the _id field.');
-  }
+  var docRev = message.docrev;
 
+  // Validate the remaining parameters (dbname and docid)
   if(!message.dbname) {
     return whisk.error('dbname is required.');
   }
-  dbname = message.dbname;
-
-  if(!doc.action) {
-      return whisk.error('apidoc is missing the fully qualified action name.');
+  if(!message.docid) {
+    return whisk.error('docid is required.');
   }
-  if (typeof doc.action !== 'string') {
-      return whisk.error('action must be an action name.');
-  }
-  // TODO:  Validate that the action actually exists
 
   // Log parameter values
   console.log('DB host    : '+message.host);
@@ -87,27 +65,33 @@ function main(message) {
   console.log('DB protocol: '+message.protocol);
   console.log('DB username: '+message.username);
   console.log('DB database: '+message.dbname);
-  console.log('action name: '+message.apidoc.action);
-  console.log('apidoc     :\n'+JSON.stringify(message.apidoc , null, 2));
+  console.log('doc id     : '+message.docid);
 
-  doc.documentTimestamp = (new Date()).toString();
+  var cloudantDb = cloudant.use(message.dbname);
 
-  var cloudantDb = cloudant.use(dbname);
-  insert(cloudantDb, doc, doc._id);
+  getCurrentDocRev(cloudantDb, message.docid, function(err, docRev) {
+     if (err) {
+       console.error('Could not obtain document revision; unable to delete document');
+       whisk.done({msg: 'Currently unable to delete document'});  // FIXME MWD - this does NOT indicate a failed command.  Need whisk.error() ??
+     } else {
+       console.log('Document revision to delete: '+docRev);
+       destroy(cloudantDb, message.docid, docRev);  // whisk.done() is called inside destroy()
+     }
+  });
 
   return whisk.async();
 }
 
 /**
- * Create document in database.
+ * Delete document by id and rev.
  */
-function insert(cloudantDb, doc, actionname) {
-  cloudantDb.insert(doc, actionname, function(error, response) {
+function destroy(cloudantDb, docId, docRev) {
+  cloudantDb.destroy(docId, docRev, function(error, response) {
     if (!error) {
-      console.log("success", response);
+      console.log('success', response);
       whisk.done(response);
     } else {
-      console.log("error", error)
+      console.error('error', error);
       whisk.error(error);
     }
   });
@@ -148,5 +132,30 @@ function getCloudantAccount(message) {
 
   return require('cloudant')({
     url: cloudantUrl
+  });
+}
+
+function getCurrentDocRev(db, docid, callback) {
+  var actionName = '/whisk.system/routemgmt/getRoute';
+  var params = { 'docid': docid };
+  whisk.invoke({
+    name: actionName,
+    blocking: true,
+    parameters: params,
+    next: function(error, activation) {
+      if (!error) {
+        console.log('whisk.invoke('+actionName+', '+docid+') ok');
+        console.log('Results: '+JSON.stringify(activation, null, 2));
+        if (activation && activation.result && activation.result._rev) {
+          callback(null, activation.result._rev);
+        } else {
+          console.error('_rev value not returned!');
+          callback(new Error('Missing _rev value'), null);
+        }
+      } else {
+        console.error('whisk.invoke('+actionName+','+docid+') error:\n'+JSON.stringify(error, null, 2));
+        callback(error, null);
+      }
+    }
   });
 }

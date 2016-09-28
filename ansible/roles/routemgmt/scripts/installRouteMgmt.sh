@@ -51,8 +51,8 @@ echo Installing routemgmt actions
 $WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" --shared no "$NAMESPACE/routemgmt/createRoute" "$OPENWHISK_HOME/core/routemgmt/createRoute.js" \
 -a description 'Create an API route'
 
-#$WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" --shared no "$NAMESPACE/routemgmt/deleteRoute" "$PACKAGE_HOME/actions/deleteRoute.js" \
-#-a description 'Delete an API route'
+$WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" --shared no "$NAMESPACE/routemgmt/deleteRoute" "$OPENWHISK_HOME/core/routemgmt/deleteRoute.js" \
+-a description 'Delete an API route'
 
-#$WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" --shared no "$NAMESPACE/routemgmt/getRoute" "$PACKAGE_HOME/actions/getRoute.js" \
-#-a description 'Retrieve the API route configuration (in JSON format)'
+$WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" --shared no "$NAMESPACE/routemgmt/getRoute" "$OPENWHISK_HOME/core/routemgmt/getRoute.js" \
+-a description 'Retrieve the API route configuration (in JSON format)'

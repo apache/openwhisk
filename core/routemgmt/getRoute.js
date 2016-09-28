@@ -1,5 +1,4 @@
 /**
- *
  * Copyright 2015-2016 IBM Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Create an API Gateway to action mapping document in database:
- * https://docs.cloudant.com/document.html#documentCreate
+ * Retrieve an API Gateway to action mapping document from the database:
+ * https://docs.cloudant.com/document.html#read
+ * https://github.com/apache/couchdb-nano#dbgetdocname-params-callback
  *
  * Parameters (all as fields in the message JSON object)
  *   host       Required. The database dns host name
@@ -24,7 +24,9 @@
  *   dbname     Required. The name of the database
  *   username   Required. The database user name used to access the database
  *   password   Required. The database user password
- *   apidoc     Required. The API Gateway mapping document
+ *   docid      Required. The database id of the API Gateway mapping document
+ *                        Format:  owNamespace:MethodVerb:gatewayPath
+ *                        Example: mdeuser@us.ibm.com_dev:get:/v1/order
  *
  * NOTE: The package containing this action will be bound to the following values:
  *         host, port, protocol, dbname, username, password
@@ -33,15 +35,12 @@
  **/
 
 function main(message) {
-  var doc;
-  var dbname;
 
   if(!message) {
     console.error('No message argument!');
     return whisk.error('Internal error.  A message parameter was not supplied.');
   }
 
-  // The host, port, protocol, username, and password parameters are validated here
   var cloudantOrError = getCloudantAccount(message);
   if (typeof cloudantOrError !== 'object') {
     console.error('CloudantAccount returned an unexpected object type: '+(typeof cloudantOrError));
@@ -49,37 +48,13 @@ function main(message) {
   }
   var cloudant = cloudantOrError;
 
-  // Validate the remaining parameters (apidoc, dbname, and apidoc.action)
-  if(!message.apidoc) {
-    return whisk.error('apidoc is required.');
-  }
-  if (typeof message.apidoc === 'object') {
-      doc = message.apidoc;
-  } else if (typeof message.apidoc === 'string') {
-      try {
-        doc = JSON.parse(message.apidoc);
-      } catch (e) {
-        return whisk.error('apidoc field cannot be parsed. Ensure it is valid JSON.');
-      }
-  } else {
-      return whisk.error('apidoc field is ' + (typeof apidoc) + ' and should be an object or a JSON string.');
-  }
-  if (!doc._id) {
-      return whisk.error('apidoc is missing the _id field.');
-  }
-
+  // Validate the remaining parameters (dbname and docid)
   if(!message.dbname) {
     return whisk.error('dbname is required.');
   }
-  dbname = message.dbname;
-
-  if(!doc.action) {
-      return whisk.error('apidoc is missing the fully qualified action name.');
+  if(!message.docid) {
+    return whisk.error('docid is required.');
   }
-  if (typeof doc.action !== 'string') {
-      return whisk.error('action must be an action name.');
-  }
-  // TODO:  Validate that the action actually exists
 
   // Log parameter values
   console.log('DB host    : '+message.host);
@@ -87,27 +62,20 @@ function main(message) {
   console.log('DB protocol: '+message.protocol);
   console.log('DB username: '+message.username);
   console.log('DB database: '+message.dbname);
-  console.log('action name: '+message.apidoc.action);
-  console.log('apidoc     :\n'+JSON.stringify(message.apidoc , null, 2));
+  console.log('doc id     : '+message.docid);
 
-  doc.documentTimestamp = (new Date()).toString();
-
-  var cloudantDb = cloudant.use(dbname);
-  insert(cloudantDb, doc, doc._id);
-
+  var cloudantDb = cloudant.use(message.dbname);
+  readDocument(cloudantDb, message.docid, {});
   return whisk.async();
 }
 
-/**
- * Create document in database.
- */
-function insert(cloudantDb, doc, actionname) {
-  cloudantDb.insert(doc, actionname, function(error, response) {
+function readDocument(cloudantDb, docId, params) {
+  cloudantDb.get(docId, params, function(error, response) {
     if (!error) {
-      console.log("success", response);
+      console.log('success', response);
       whisk.done(response);
     } else {
-      console.log("error", error)
+      console.error('error', error);
       whisk.error(error);
     }
   });

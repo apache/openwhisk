@@ -40,8 +40,27 @@ then
   set -e
   $WSK_CLI -i --apihost "$APIHOST" action delete --auth "$AUTH" "$NAMESPACE/routemgmt/createRoute"
 fi
-#$WSK_CLI -i --apihost "$APIHOST" action delete --auth "$AUTH" "$NAMESPACE/routemgmt/deleteRoute"
-#$WSK_CLI -i --apihost "$APIHOST" action delete --auth "$AUTH" "$NAMESPACE/routemgmt/getRoute"
+set -e
+
+set +e
+$WSK_CLI -i --apihost "$APIHOST" action get --auth "$AUTH" "$NAMESPACE/routemgmt/deleteRoute"
+RC=$?
+if [ $RC -eq 0 ]
+then
+  set -e
+  $WSK_CLI -i --apihost "$APIHOST" action delete --auth "$AUTH" "$NAMESPACE/routemgmt/deleteRoute"
+fi
+set -e
+
+set +e
+$WSK_CLI -i --apihost "$APIHOST" action get --auth "$AUTH" "$NAMESPACE/routemgmt/getRoute"
+RC=$?
+if [ $RC -eq 0 ]
+then
+  set -e
+  $WSK_CLI -i --apihost "$APIHOST" action delete --auth "$AUTH" "$NAMESPACE/routemgmt/getRoute"
+fi
+set -e
 
 echo Deleting routemgmt package - but only if it exists
 set +e
