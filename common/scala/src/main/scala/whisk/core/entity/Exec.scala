@@ -98,9 +98,6 @@ protected[core] case class BlackBoxExec(image: String) extends Exec(Exec.BLACKBO
     override val sentinelledLogs = false
 }
 
-/**
- * add temporary field that holds the "fixed" names for components where the '_' is replaced by the user's namespace
- */
 protected[core] case class SequenceExec(code: String, components: Vector[FullyQualifiedEntityName]) extends Exec(Exec.SEQUENCE) {
     val image = Exec.imagename(Exec.NODEJS)
     def size = 0.bytes // not used for the hacky implementation and not used for the new implementation either

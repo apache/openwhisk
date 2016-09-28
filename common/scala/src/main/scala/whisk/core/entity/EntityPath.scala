@@ -45,25 +45,26 @@ protected[core] class EntityPath private (val path: Seq[String]) extends AnyVal 
     def addpath(e: EntityName) = EntityPath(path :+ e.name)
     def root = EntityPath(Seq(path(0)))
     def last = EntityName(path.last)
-    def defaultPackage = path.size == 1   // if only one element in the path, then it's the namespace with a default package
+    def defaultPackage = path.size == 1 // if only one element in the path, then it's the namespace with a default package
     def toJson = JsString(namespace)
     def apply() = namespace
     override def toString = namespace
 
     /**
-     * helper method to replace the default namespace with a given namespace
-     * no effect if the namespace is not the default one
+     * Replaces root of this path with given namespace iff the root is
+     * the default namespace.
      */
-    def resolveNamespace(newNamespace: EntityName): EntityPath ={
+    def resolveNamespace(newNamespace: EntityName): EntityPath = {
         // check if namespace is default
         if (root == EntityPath.DEFAULT) {
             val newPath = path.updated(0, newNamespace.name)
             EntityPath(newPath)
-        } else
-            this
+        } else this
     }
 
     /**
+     * Converts the path to a fully qualified name. The path must contains at least 2 parts.
+     *
      * @throws IllegalArgumentException if the path does not conform to schema (at least namespace and entity name must be present0
      */
     @throws[IllegalArgumentException]
@@ -190,14 +191,17 @@ protected[core] object EntityName {
 protected[core] case class FullyQualifiedEntityName(path: EntityPath, name: EntityName, version: Option[SemVer] = None) {
     override def toString = path.addpath(name) + version.map("@" + _.toString).getOrElse("")
     def toDocId = DocId(this.toString)
-    def pathToDocId = DocId(path.toString)
+    def pathToDocId = DocId(path())
 }
 
 protected[core] object FullyQualifiedEntityName extends DefaultJsonProtocol {
     implicit val serdes = jsonFormat3(FullyQualifiedEntityName.apply)
 
     /**
-     * utility function that makes a fully qualified name from a string
+     * Makes a fully qualified name from a string.
+     *
+     * @throws IllegalArgumentException if the name does not conform to schema
      */
+    @throws[IllegalArgumentException]
     def apply(qualifiedName: String): FullyQualifiedEntityName = EntityPath(qualifiedName).toFullyQualifiedEntityName
 }

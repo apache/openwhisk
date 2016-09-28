@@ -19,7 +19,6 @@ package whisk.core.entity
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
-
 import scala.language.postfixOps
 import scala.util.Try
 import spray.json.DefaultJsonProtocol
@@ -149,15 +148,17 @@ object WhiskPackage
     override val collectionName = "packages"
 
     /**
-     * utility function that traverses all potential binding references and returns the resolved package
-     * @param pkg the package for which the resolution to be applied
-     * @return the same package if there is no binding, or the fully resolved package
+     * Traverses a binding recursively to find the root package.
+     *
+     * @param entityStore a store containing packages
+     * @param pkg the package document id to start resolving
+     * @return the same package if there is no binding, or the actual reference package otherwise
      */
     def resolveBinding(entityStore: EntityStore, pkg: DocId)(
         implicit ec: ExecutionContext, transid: TransactionId): Future[WhiskPackage] = {
         WhiskPackage.get(entityStore, pkg) flatMap { wp =>
             // if there is a binding resolve it
-            val resolved = wp.binding map { binding => resolveBinding(entityStore, binding.docid)}
+            val resolved = wp.binding map { binding => resolveBinding(entityStore, binding.docid) }
             resolved getOrElse Future.successful(wp)
         }
     }
@@ -170,7 +171,7 @@ object WhiskPackage
             new JsonFormat[Option[Binding]] {
                 override def write(ob: Option[Binding]) = ob match {
                     case None => JsObject()
-                    case _ => base.write(ob)
+                    case _    => base.write(ob)
                 }
                 override def read(js: JsValue) = {
                     if (js == JsObject()) None else base.read(js)
@@ -201,7 +202,7 @@ case class Binding(namespace: EntityPath, name: EntityName) {
     def resolve(ns: EntityPath): Binding = {
         namespace match {
             case EntityPath.DEFAULT => Binding(ns, name)
-            case _                 => this
+            case _                  => this
         }
     }
 }

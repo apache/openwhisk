@@ -236,8 +236,10 @@ object WhiskAction
     }
 
     /**
-     *  utility function that given a fully qualified name for an action, resolve its possible package bindings and returns
-     *  the fully qualified name of the resolved action
+     * Resolves an action name if it is contained in a package.
+     * Look up the package to determine if it is a binding or the actual package.
+     * If it's a binding, rewrite the fully qualified name of the action using the actual package path name.
+     * If it's the actual package, use its name directly as the package path name.
      */
     def resolveAction(entityStore: EntityStore, fullyQualifiedName: FullyQualifiedEntityName)(
         implicit ec: ExecutionContext, transid: TransactionId): Future[FullyQualifiedEntityName] = {
