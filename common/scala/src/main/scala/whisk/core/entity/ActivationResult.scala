@@ -97,7 +97,7 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
     }
     protected[core] def timedoutActivation(timeout: Duration, init: Boolean) = {
         JsString(s"The action exceeded its time limits of ${timeout.toMillis} milliseconds" + {
-            if (!init) "." else "during initialization."
+            if (!init) "." else " during initialization."
         })
     }
 
