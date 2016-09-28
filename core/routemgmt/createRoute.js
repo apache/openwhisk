@@ -42,6 +42,9 @@ function main(message) {
   } else {
       return whisk.error('apidoc field is ' + (typeof apidoc) + ' and should be an object or a JSON string.');
   }
+  if (!doc._id) {
+      return whisk.error('apidoc is missing the _id field.');
+  }
 
   if(!message.dbname) {
     return whisk.error('dbname is required.');
@@ -68,7 +71,7 @@ function main(message) {
   doc.documentTimestamp = (new Date()).toString();
 
   var cloudantDb = cloudant.use(dbname);
-  insert(cloudantDb, doc, doc.action);
+  insert(cloudantDb, doc, doc._id);
 
   return whisk.async();
 }
