@@ -16,14 +16,15 @@
 
 package whisk.core.entity
 
-import scala.util.Try
 import scala.util.Failure
 import scala.util.Success
+import scala.util.Try
 
 import spray.json.JsString
 import spray.json.JsValue
 import spray.json.RootJsonFormat
 import spray.json.deserializationError
+import whisk.core.entity.size.SizeString
 
 /**
  * EntityPath is a path string of allowed characters. The path consists of parts each of which
@@ -189,10 +190,12 @@ protected[core] object EntityName {
  * - EntityName: the name of the entity
  * - Version: the semantic version of the resource
  */
-protected[core] case class FullyQualifiedEntityName(path: EntityPath, name: EntityName, version: Option[SemVer] = None) {
-    override def toString = path.addpath(name) + version.map("@" + _.toString).getOrElse("")
-    def toDocId = DocId(WhiskEntity.qualifiedName(path, name))
+protected[core] case class FullyQualifiedEntityName(path: EntityPath, name: EntityName, version: Option[SemVer] = None) extends ByteSizeable {
+    private val qualifiedName = WhiskEntity.qualifiedName(path, name)
+    def toDocId = DocId(qualifiedName)
     def pathToDocId = DocId(path())
+    override def size = qualifiedName.sizeInBytes
+    override def toString = path.addpath(name) + version.map("@" + _.toString).getOrElse("")
 }
 
 protected[core] object FullyQualifiedEntityName {
