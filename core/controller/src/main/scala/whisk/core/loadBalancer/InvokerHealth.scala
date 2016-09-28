@@ -25,7 +25,7 @@ import scala.language.postfixOps
 
 import akka.actor.ActorSystem
 import akka.event.Logging.InfoLevel
-import spray.json.DefaultJsonProtocol.IntJsonFormat
+import spray.json.DefaultJsonProtocol.LongJsonFormat
 import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json.JsObject
 import spray.json.JsString
@@ -55,7 +55,7 @@ object InvokerHealth {
 class InvokerHealth(
     config: WhiskConfig,
     instanceChange: Array[Int] => Unit,
-    getKafkaPostCount: () => Int)(
+    getKafkaPostCount: () => Long)(
         implicit val system: ActorSystem) extends Logging {
 
     private implicit val executionContext = system.dispatcher
