@@ -7,6 +7,10 @@ OPEN_WHISK_DB_PASSWORD ?= some_passw0rd
 DB_IMMORTAL_DBS ?= subjects
 OPEN_WHISK_DB_ACTIONS ?= whisk_actions
 
+docker:
+	echo "building the docker images ... "
+	./gradlew distdocker
+
 .PHONY: run
 run: setup start-docker-compose init-couchdb init-couchdb-actions init-whisk-cli
 
@@ -57,7 +61,7 @@ init-couchdb-actions:
 .PHONY: init-whisk-cli
 init-whisk-cli:
 	echo "waiting for the Whisk controller to come up ... "
-	until $$(curl --output /dev/null --silent --head --fail http://localhost:8080/ping); do printf '.'; sleep 5; done
+	until $$(curl --output /dev/null --silent --head --fail http://localhost:8888/ping); do printf '.'; sleep 5; done
 	echo "initializing CLI ... "
 	./bin/go-cli/wsk -v property set --namespace guest --auth `cat ansible/files/auth.guest` --apihost localhost:443 -i
 

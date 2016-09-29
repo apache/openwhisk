@@ -63,7 +63,7 @@ services:
       - ./docker-whisk-controller.env
     environment:
       COMPONENT_NAME: controller
-      PORT: 8080
+      PORT: 8888
 
       CONSULSERVER_HOST: consul.docker
       CONSUL_HOST_PORT4: 8500
@@ -83,7 +83,7 @@ services:
     volumes:
       - ~/tmp/openwhisk/controller/logs:/logs
     ports:
-      - "8080:8080"
+      - "8888:8888"
 
   # WHISK INVOKER AGENT
   invoker:
@@ -122,6 +122,7 @@ services:
 
       DOCKER_REGISTRY: ""
       DOCKER_IMAGE_PREFIX: whisk
+      INVOKER_CONTAINER_NETWORK: openwhisk_default
     volumes:
       - ~/tmp/openwhisk/invoker/logs:/logs
       - /var/run/docker.sock:/var/run/docker.sock
