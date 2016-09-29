@@ -203,6 +203,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
         implicit transid: TransactionId, logger: Logging, ec: ExecutionContext): Future[Winfo] = {
 
         if (cacheEnabled) {
+            logger.info(this, s"invalidating $key") // make the tests happy, as cacheUpdate now has invalidate built in
             logger.info(this, s"caching $key")
 
             val desiredEntry = Entry(transid, WriteInProgress, Future { doc })
