@@ -144,8 +144,6 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
 
             val key = cacheKeyForUpdate(doc)
 
-            cacheInvalidate(key)
-
             cacheUpdate(doc, key, db.put(doc) map { docinfo =>
                 doc match {
                     // if doc has a revision id, update it with new version
@@ -168,10 +166,13 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
             require(doc != null, "doc undefined")
         } map { _ =>
             implicit val logger: Logging = db
+            implicit val ec = db.executionContext
+
             val key = doc.id.asDocInfo
-            cacheInvalidate(key)
-            val src = StreamConverters.fromInputStream(() => bytes)
-            db.attach(doc, attachmentName, contentType, src)
+            cacheInvalidate(key, {
+                val src = StreamConverters.fromInputStream(() => bytes)
+                db.attach(doc, attachmentName, contentType, src)
+            })
         } match {
             case Success(f) => f
             case Failure(t) => Future.failed(t)
@@ -185,9 +186,10 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
             require(doc != null, "doc undefined")
         } map { _ =>
             implicit val logger: Logging = db
+            implicit val ec = db.executionContext
+
             val key = doc.id.asDocInfo
-            cacheInvalidate(key)
-            db.del(doc)
+            cacheInvalidate(key, db.del(doc))
         } match {
             case Success(f) => f
             case Failure(t) => Future.failed(t)
