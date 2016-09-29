@@ -67,8 +67,7 @@ var namespaceGetCmd = &cobra.Command{
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
-        var qName qualifiedName
-        var err error
+        var qualifiedName QualifiedName
 
         if whiskErr := checkArgs(args, 0, 1, "Namespace get",
                 wski18n.T("An optional namespace is the only valid argument.")); whiskErr != nil {
@@ -77,19 +76,10 @@ var namespaceGetCmd = &cobra.Command{
 
         // Namespace argument is optional; defaults to configured property namespace
         if len(args) == 1 {
-            qName, err = parseQualifiedName(args[0])
-            if err != nil {
-                whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[0], err)
-                errMsg := fmt.Sprintf(
-                    wski18n.T("'{{.name}}' is not a valid qualified name: {{.err}}",
-                        map[string]interface{}{"name": args[0], "err": err}))
-                werr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-                    whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
-                return werr
-            }
+            qualifiedName = parseQualifiedName(args[0])
         }
 
-        namespace, _, err := client.Namespaces.Get(qName.namespace)
+        namespace, _, err := client.Namespaces.Get(qualifiedName.namespace)
 
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Namespaces.Get(%s) error: %s\n", getClientNamespace(), err)

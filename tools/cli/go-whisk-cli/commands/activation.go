@@ -50,38 +50,19 @@ var activationListCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        qName := qualifiedName{}
+        var qualifiedName QualifiedName
 
         // Specifying an activation item name filter is optional
         if len(args) == 1 {
-            whisk.Debug(whisk.DbgInfo, "Activation item name filter '%s' provided\n", args[0])
-            qName, err = parseQualifiedName(args[0])
-            if err != nil {
-                whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[0], err)
-                errStr := fmt.Sprintf(
-                    wski18n.T("'{{.name}}' is not a valid qualified name: {{.err}}",
-                        map[string]interface{}{"name": args[0], "err": err}))
-                werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
-                return werr
-            }
-            ns := qName.namespace
-            if len(ns) == 0 {
-                whisk.Debug(whisk.DbgError, "Namespace '%s' is invalid\n", ns)
-                errStr := fmt.Sprintf(
-                    wski18n.T("Namespace '{{.name}}' is invalid",
-                        map[string]interface{}{"name": ns}))
-                werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-                return werr
-            }
-
-            client.Namespace = ns
+            qualifiedName = parseQualifiedName(args[0])
+            client.Namespace = qualifiedName.namespace
         } else if whiskErr := checkArgs(args, 0, 1, "Activation list",
                 wski18n.T("An optional namespace is the only valid argument.")); whiskErr != nil {
             return whiskErr
         }
 
         options := &whisk.ActivationListOptions{
-            Name:  qName.entityName,
+            Name:  qualifiedName.entityName,
             Limit: flags.common.limit,
             Skip:  flags.common.skip,
             Upto:  flags.activation.upto,
@@ -116,7 +97,6 @@ var activationGetCmd = &cobra.Command{
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
-
         if whiskErr := checkArgs(args, 1, 1, "Activation get",
                 wski18n.T("An activation ID is required.")); whiskErr != nil {
             return whiskErr
@@ -160,7 +140,6 @@ var activationLogsCmd = &cobra.Command{
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
-
         if whiskErr := checkArgs(args, 1, 1, "Activation logs",
                 wski18n.T("An activation ID is required.")); whiskErr != nil {
             return whiskErr
@@ -189,7 +168,6 @@ var activationResultCmd = &cobra.Command{
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
-
         if whiskErr := checkArgs(args, 1, 1, "Activation result",
                 wski18n.T("An activation ID is required.")); whiskErr != nil {
             return whiskErr
@@ -218,11 +196,12 @@ var activationPollCmd = &cobra.Command{
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
-        var name string
         var pollSince int64 // Represents an instant in time (in milliseconds since Jan 1 1970)
+        var qualifiedName QualifiedName
 
         if len(args) == 1 {
-            name = args[0]
+            qualifiedName = parseQualifiedName(args[0])
+            client.Namespace = qualifiedName.namespace
         } else if whiskErr := checkArgs(args, 0, 1, "Activation poll",
                 wski18n.T("An optional namespace is the only valid argument.")); whiskErr != nil {
             return whiskErr
@@ -293,7 +272,7 @@ var activationPollCmd = &cobra.Command{
             }
             whisk.Verbose("Polling for activations since %s\n", time.Unix(pollSince/1000, 0))
             options := &whisk.ActivationListOptions{
-                Name:  name,
+                Name:  qualifiedName.entityName,
                 Since: pollSince,
                 Docs:  true,
                 Limit: 0,
