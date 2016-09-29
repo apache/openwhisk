@@ -77,3 +77,18 @@ destroy: stop
 	echo "cleaning dangling docker volumes ... "
 	docker volume ls -qf dangling=true | xargs docker volume rm
 	rm -rf ~/tmp/openwhisk
+
+.PHONY: hello-world
+hello-world:
+	echo "invoking a hello-world function ... "
+	echo "creating the hello.js function"
+	echo 'function main(params) {var name = params.name || "World"; return { payload:  "Hello, " + name + "!" }; }' > hello.js
+	#"-------"
+	cat hello.js
+	#"--------"
+	echo "adding the function to whisk ..."
+	./bin/go-cli/wsk -i action create hello hello.js
+	echo "invoking the function ..."
+	./bin/go-cli/wsk -i action invoke hello --blocking --result
+	echo "deleting the function ..."
+	./bin/go-cli/wsk -i action delete hello
