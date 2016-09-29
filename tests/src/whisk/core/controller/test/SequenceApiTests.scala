@@ -230,8 +230,6 @@ class SequenceApiTests
 
     it should "reject creation of a sequence with components that don't have at least namespace and action name" in {
         implicit val tid = transid()
-        val sequence = Vector("a", "b")
-        //val action = WhiskAction(namespace, aname, Exec.sequence(sequence))
         val content = """{"exec":{"kind":"sequence","code":"","components":["a","b"]}}""".parseJson.asJsObject
 
         // create an action sequence
@@ -248,10 +246,9 @@ class SequenceApiTests
         val bogusAct = WhiskAction(namespace, EntityName(bogus), Exec.js("??"))
         put(entityStore, bogusAct)
 
-        val sequence = Vector("a", "b")
         val updatedContent = """{"exec":{"kind":"sequence","code":"","components":["a","b"]}}""".parseJson.asJsObject
 
-        // create an action sequence
+        // update an action sequence
         Put(s"$collectionPath/${bogus}?overwrite=true", updatedContent) ~> sealRoute(routes(creds)) ~> check {
             deleteAction(bogusAct.docid)
             status should be(BadRequest)
