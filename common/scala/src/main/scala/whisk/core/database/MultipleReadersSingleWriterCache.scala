@@ -84,6 +84,12 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
     implicit def state2Atomic(state: State): AtomicReference[State] = {
         new AtomicReference(state);
     }
+    implicit def value2Atomic(value: Future[W]): AtomicReference[Future[W]] = {
+        new AtomicReference(value);
+    }
+    implicit def transid2Atomic(transid: TransactionId): AtomicReference[TransactionId] = {
+        new AtomicReference(transid);
+    }
 
     /** Failure modes, which will only occur if there is a bug in this implementation */
     case class ConcurrentOperationUnderRead(actualState: State) extends Exception(s"Cache bug: a read started, but completion raced with a concurrent operation: ${actualState}")
@@ -96,7 +102,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
      * We need the transid in order to detect whether we have won the race to add an entry to the cache
      *
      */
-    private case class Entry(transid: TransactionId, state: AtomicReference[State], value: Future[W]) {
+    private case class Entry(transid: AtomicReference[TransactionId], state: AtomicReference[State], value: AtomicReference[Future[W]]) {
         def invalidate = state.set(InvalidateInProgress)
 
         def writeDone()(implicit logger: Logging): Boolean = {
@@ -111,6 +117,18 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
 
         def trySet(expectedState: State, desiredState: State): Boolean = {
             state.compareAndSet(expectedState, desiredState)
+        }
+
+        def grabWriteLock(new_transid: TransactionId, new_value: Future[W]): Boolean = {
+            trySet(Cached, WriteInProgress) match {
+                case true => {
+                    value.set(new_value)
+                    transid.set(new_transid)
+                    true
+                }
+                case false => false
+
+            }
         }
     }
 
@@ -164,20 +182,20 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
                     case Cached => {
                         logger.debug(this, s"Cached read $key")
                         makeNoteOfCacheHit(key)
-                        actualEntry.value
+                        actualEntry.value.get
                     }
 
                     case ReadInProgress => {
-                        if (actualEntry.transid == transid) {
+                        if (actualEntry.transid.get == transid) {
                             logger.debug(this, "Read initiated");
                             makeNoteOfCacheMiss(key)
                             listenForReadDone(key, actualEntry, future, promise)
-                            actualEntry.value
+                            actualEntry.value.get
 
                         } else {
                             logger.debug(this, "Coalesced read")
                             makeNoteOfCacheHit(key)
-                            actualEntry.value
+                            actualEntry.value.get
                         }
                     }
 
@@ -214,22 +232,31 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
             cache(key)(desiredEntry) flatMap { actualEntry =>
                 // ... and see what we get back
 
-                if (transid == actualEntry.transid) {
+                if (actualEntry.transid.get == transid) {
                     //
-                    // then we won the race, and now own the entry
+                    // then we won the race to insert a new entry in the cache
                     //
-                    logger.info(this, s"Write initiated $key")
+                    logger.info(this, s"Write initiated on new cache entry $key")
                     listenForWriteDone(key, actualEntry, future)
 
                 } else {
                     //
-                    // then either we lost the race, or there is an operation in progress on this key
+                    // otherwise, some existing entry is in the way, so try to grab a write lock
                     //
-                    // note that we don't care what that other operation is doing; unlike for lookups,
-                    // we don't need to do anything special (e.g. coalescing, as in the case of lookups)
-                    //
-                    logger.info(this, s"Write under ${actualEntry.state.get} $key")
-                    future
+                    if (actualEntry.grabWriteLock(transid, desiredEntry.value.get)) {
+                        //
+                        // we won this race! we are now the writer
+                        //
+                        logger.info(this, s"Write initiated on existing cache entry $key")
+                        listenForWriteDone(key, actualEntry, future)
+
+                    } else {
+                        //
+                        // then either we lost the race, or there is a conflicting operation in progress on this key
+                        //
+                        logger.info(this, s"Write-around (i.e. not cached) under ${actualEntry.state.get} $key")
+                        future
+                    }
                 }
             }
 
@@ -311,12 +338,12 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
                     // if this ever happens, this cache impl is buggy
                     logger.error(this, ConcurrentOperationUnderUpdate.toString())
                 } else {
-                    logger.info(this, s"Write done, but invalidating cache entry $key ${entry.transid}")
+                    logger.info(this, s"Write done, but invalidating cache entry $key")
                 }
                 invalidateEntry(key, entry)
 
             } else {
-                logger.info(this, s"Write all done $key ${entry.transid} ${entry.state.get}")
+                logger.info(this, s"Write all done $key ${entry.state.get}")
             }
 
             Future.successful(docinfo)
