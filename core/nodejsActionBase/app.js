@@ -22,10 +22,10 @@ var config = {
 
 var bodyParser = require('body-parser');
 var express    = require('express');
-var app        = express();
+
+var app = express();
 
 var logger  = require('./src/logger').getLogger('logs/nodejsaction.log', 'nodejsAction');
-
 
 /**
  * instantiate an object which handles REST calls from the Invoker
@@ -35,29 +35,47 @@ var service = require('./src/service').getService(config, logger);
 app.set('port', config.port);
 app.use(bodyParser.json({ limit: "48mb" }));
 
-app.post('/init', safeEndpoint(service.initCode));
-app.post('/run',  safeEndpoint(service.runCode));
+app.post('/init', wrapEndpoint(service.initCode));
+app.post('/run',  wrapEndpoint(service.runCode));
+
 app.use(function(err, req, res, next) {
     console.error(err.stack);
-    res.status(500).json({error: 'Bad request.'});
+    res.status(500).json({ error: "Bad request." });
   });
 
 service.start(app);
 
 /**
- * Wraps an endpoint with a try-catch to catch errors and close off http
- * responses correctly in case of errors.
+ * Wraps an endpoint written to return a Promise into an express endpoint,
+ * producing the appropriate HTTP response and closing it for all controlable
+ * failure modes.
  *
- * @param ep function endpoint
- * @return new function closure with internal try-catch
+ * The expected signature for the promise value (both completed and failed)
+ * is { code: int, response: object }.
+ *
+ * @param ep a request=>promise function
+ * @returns an express endpoint handler
  */
-function safeEndpoint(ep) {
-    return function safeEndpoint(req, res, next) {
+function wrapEndpoint(ep) {
+    return function (req, res) {
         try {
-            ep(req, res, next);
+            ep(req).then(function (result) {
+                res.status(result.code).json(result.response);
+            }).catch(function (error) {
+                if (typeof error.code === "number" && typeof error.response !== "undefined") {
+                    res.status(error.code).json(error.response);
+                } else {
+                    logger.error("[wrapEndpoint]", "invalid errored promise", JSON.stringify(error));
+                    res.status(500).json({ error: "Internal error." });
+                }
+            });
         } catch (e) {
-            logger.error('[safeEndpoint]', 'exception caught', e);
-            res.status(500).json({ error : 'Internal error.' });
+            // This should not happen, as the contract for the endpoints is to
+            // never (externally) throw, and wrap failures in the promise instead,
+            // but, as they say, better safe than sorry.
+            logger.error("[wrapEndpoint]", "exception caught", e);
+
+            res.status(500).json({ error: "Internal error (exception)." });
         }
-    };
+    }
 }

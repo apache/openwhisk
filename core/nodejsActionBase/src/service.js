@@ -19,7 +19,6 @@ var fs = require('fs');
 var whisk = require('./whisk');
 
 function NodeActionService(config, logger) {
-
     var Status = {
         ready: 'ready',
         starting: 'starting',
@@ -29,7 +28,29 @@ function NodeActionService(config, logger) {
 
     var status = Status.ready;
     var server = undefined;
-    var userScript = undefined;
+    var userCodeRunner = undefined;
+
+    function setStatus(newStatus) {
+        if (status !== Status.stopped) {
+            status = newStatus;
+        }
+    }
+
+    /**
+     * An ad-hoc format for the endpoints returning a Promise representing,
+     * eventually, an HTTP response.
+     *
+     * The promised values (whether successful or not) have the form:
+     * { code: int, response: object }
+     *
+     */
+    function responseMessage (code, response) {
+        return { code: code, response: response };
+    }
+
+    function errorMessage (code, errorMsg) {
+        return responseMessage(code, { error: errorMsg });
+    }
 
     /**
      * Starts the server.
@@ -44,112 +65,99 @@ function NodeActionService(config, logger) {
         });
     }
 
-    /**
-     * req.body = { main: String, code: String, name: String }
+    /** Returns a promise of a response to the /init invocation.
+     *
+     *  req.body = { main: String, code: String, name: String }
      */
-    this.initCode = function initCode(req, res) {
+    this.initCode = function initCode(req) {
         if (status === Status.ready) {
             setStatus(Status.starting);
 
-            try {
-                var body = req.body || {};
-                var message = body.value || {};
+            var body = req.body || {};
+            var message = body.value || {};
 
-                if (message.main && message.code && typeof message.main === 'string' && typeof message.code === 'string') {
-                    if (!message.lib) {
-                        var success = doInit(message);
-                        if (success)
-                            res.status(200).send();
-                        else {
-                            // this writes to the activation logs visible to the user
-                            console.error('Error during initialization:', userScript.initError);
-                            var errStr = String(userScript.initError.stack)
-                            res.status(502).json({ error: 'Initialization has failed due to: ' + errStr });
-                        }
-                    } else {
-                        setStatus(Status.ready);
-                        res.status(500).json({ error: 'Library and code dependencies not yet supported.' });
-                    }
-                } else {
-                    setStatus(Status.ready);
-                    res.status(500).json({ error: 'Missing main/no code to execute.' });
-                }
-            } catch (e) {
-                shutdown(res, 500, { error: 'Internal system error: ' + String(e) });
-            }
-        } else res.status(502).send({ error: 'Internal system error: system not ready.' });
-    }
-
-    /**
-     * req.body = { value: Object, meta { activationId : int } }
-     */
-    this.runCode = function runCode(req, res) {
-        if (status === Status.ready) {
-            setStatus(Status.running);
-            doRun(req, function(result, errMsg) {
+            if (message.main && message.code && typeof message.main === 'string' && typeof message.code === 'string') {
+                return doInit(message).then(function (result) {
+                    return responseMessage(200, { OK: true });
+                }).catch(function (error) {
+                    // this writes to the activation logs visible to the user
+                    console.error('Error during initialization:', error);
+                    var errStr = String(error.stack);
+                    return Promise.reject(errorMessage(502, "Initialization has failed due to: " + errStr));
+                });
+            } else {
                 setStatus(Status.ready);
-                if (result) {
-                    // it is an error if the value is defined but not of type object
-                    if (typeof result !== 'object') {
-                        console.error('Result must be of type object but has type "' + typeof result + '":', result);
-                        res.status(502).json({ error: 'The action did not return a dictionary.' });
-                    } else {
-                        res.status(200).json(result);
-                    }
-                } else {
-                    res.status(500).json({ error: 'An error has occurred: ' + errMsg });
-                }
-            });
-        } else if (status === Status.starting || status === Status.running) {
-            logger.info('[runCode]', 're-scheduling runCode due to status',  status);
-            setTimeout(function() { runCode(req, res); }, 1); // Node can achieve 1 ms
+                return Promise.reject(errorMessage(500, "Missing main/no code to execute."));
+            }
         } else {
-            logger.info('[runCode]', 'cannot schedule runCode due to status', status);
-            res.status(500).json({});
+            return Promise.reject(errorMessage(502, "Internal system error: system not ready."));
         }
     }
 
-    function shutdown(res, code, msg) {
-        status = Status.stopped
-        logger.info('[setStatus]', 'stopping now');
-        res.status(code).json(msg);
-        server.close();
-    }
+    /**
+     * Returns a promise of a response to the /exec invocation.
+     * Note that the promise is failed if and only if there was an unhandled error
+     * (the user code threw an exception, or our proxy had an internal error).
+     * Actions returning { error: ... } are modeled as a Promise successful resolution.
+     *
+     * req.body = { value: Object, meta { activationId : int } }
+     */
+    this.runCode = function runCode(req) {
+        if (status === Status.ready) {
+            setStatus(Status.running);
 
-    function setStatus(newStatus) {
-        if (status !== Status.stopped) {
-            status = newStatus;
+            return doRun(req).then(function (result) {
+                setStatus(Status.ready);
+
+                if (typeof result !== "object") {
+                    console.error('Result must be of type object but has type "' + typeof result + '":', result);
+                    return errorMessage(502, "The action did not return a dictionary.");
+                } else {
+                    return responseMessage(200, result);
+                }
+            }).catch(function (error) {
+                setStatus(Status.ready);
+
+                return Promise.reject(errorMessage(500, "An error has occurred: " + error));
+            });
+        } else {
+            logger.info('[runCode]', 'cannot schedule runCode due to status', status);
+            return Promise.reject(errorMessage(500, "Internal system error: container not ready."));
         }
     }
 
     function doInit(message) {
         var context = newWhiskContext(config, logger);
-        userScript = new NodeActionRunner(message, context);
-        if (typeof userScript.userScriptMain === 'function') {
+
+        userCodeRunner = new NodeActionRunner(context);
+
+        return userCodeRunner.init(message).then(function (result) {
             setStatus(Status.ready);
+            // 'true' has no particular meaning here. The fact that the promise
+            // is resolved successfully in itself carries the intended message
+            // that initialization succeeded.
             return true;
-        } else {
+        }).catch(function (error) {
             writeMarkers();
             setStatus(Status.stopped);
-            return false;
-        }
+            return Promise.reject(error);
+        });
     }
 
-    function doRun(req, next) {
-        try {
-            var ids = (req.body || {}).meta;
-            var args = (req.body || {}).value;
-            var authKey = (req.body || {}).authKey;
-            userScript.whisk.setAuthKey(authKey)
-            userScript.run(args, function(response) {
-                writeMarkers();
-                next(response, undefined);
-            });
-        } catch (e) {
-            console.error(e);
+    function doRun(req) {
+        var ids = (req.body || {}).meta;
+        var args = (req.body || {}).value;
+        var authKey = (req.body || {}).authKey;
+        userCodeRunner.whisk.setAuthKey(authKey)
+
+        return userCodeRunner.run(args).then(function(response) {
             writeMarkers();
-            next(false, e);
-        }
+            return response;
+        }).catch(function (error) {
+            console.error(error);
+            writeMarkers();
+            return Promise.reject(error);
+        });
     }
 
     function writeMarkers() {

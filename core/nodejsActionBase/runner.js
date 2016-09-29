@@ -19,63 +19,94 @@
  * an action.
  *
  * This file (runner.js) must currently live in root directory for nodeJsAction.
- * See issue #102 for a discussion.
  */
-var util  = require('util');
+var util = require('util');
 
-function NodeActionRunner(message, whisk) {
-    this.userScriptName = getname(message.name);
+function NodeActionRunner(whisk) {
+    // Use this ref inside lambdas etc.
+    var thisRunner = this;
+
+    this.userScriptName = undefined;
     this.userScriptMain = undefined;
-    this.initError = undefined;
 
-    try {
-        eval(message.code);
-        this.userScriptMain = eval(message.main);
-    } catch (e) {
-        this.initError = e;
-        return;
+    // This structure is reset for every action invocation. It contains two fields:
+    //   - completed; indicating whether the action has already signaled completion
+    //   - next; a callback to be invoked with the result of the action.
+    // Note that { error: ... } results are still results.
+    var callback = {
+        completed : undefined,
+        next      : function (result) { return; }
+    };
+
+    this.whisk = modWhisk(whisk, callback);
+
+    this.init = function(message) {
+        // Determining a sensible name for the action.
+        var name = typeof message.name === 'string' ? message.name.trim() : '';
+        name = name !== '' ? name : 'Anonymous User Action';
+
+        this.userScriptName = name;
+
+        // Loading the user code.
+        return new Promise(
+            function (resolve, reject) {
+                try {
+                    eval(message.code);
+                    thisRunner.userScriptMain = eval(message.main);
+
+                    if (typeof thisRunner.userScriptMain === 'function') {
+                        // The value 'true' has no special meaning here;
+                        // the successful state is fully reflected in the
+                        // successful resolution of the promise.
+                        resolve(true);
+                    } else {
+                        throw "Action entrypoint '" + message.main + "' is not a function.";
+                    }
+                } catch (e) {
+                    reject(e);
+                }
+            }
+        );
     }
 
-    var callback = { };
+    // Returns a Promise with the result of the user code invocation.
+    // The Promise is rejected iff the user code throws.
+    this.run = function(args) {
+        return new Promise(
+            function (resolve, reject) {
+                callback.completed = undefined;
+                callback.next = resolve;
 
-    function closeAndReturn(result) {
+                try {
+                    var result = thisRunner.userScriptMain(args);
+                } catch (e) {
+                    reject(e);
+                }
 
-        if (typeof callback.closedConnection === 'undefined') {
-            callback.closedConnection = true;
-            callback.next(result);
-        } else {
-            // There is no 'else': we can't close the connection more than once
-            // (which is what callback.next eventually does). We should warn the
-            // user if (s)he is trying to do just that, but that warning takes
-            // place in the call to (overwritten) _terminate.
-        }
-    }
+                if (result !== thisRunner.whisk.async()) {
+                    // This branch handles all direct (non-async) returns, as well
+                    // as returned Promises.
 
-    this.whisk = modWhisk(whisk, callback, closeAndReturn);
-
-    // This throws an exception if the userScript does. This lets the service
-    // distinguish between willful application errors and inadvertent ones.
-    this.run = function(args, next) {
-        callback.done = undefined;
-        callback.closedConnection = undefined;
-        callback.next = next;
-
-        var result = this.userScriptMain(args);
-
-        if (result !== this.whisk.async()) {
-            var self = this;
-            Promise.resolve(result) //Non-promises/undefined instantly resolve.
-                .then(function(resolvedResult) {
-                    // This happens, e.g. if you just have "return;"
-                    if (typeof resolvedResult === 'undefined') {
-                        resolvedResult = {};
-                    }
-                    closeAndReturn(resolvedResult);
-                }, function (error) {
-                        self.whisk.error(error);
-                    }
-                );
-        }
+                    // Non-promises/undefined instantly resolve.
+                    Promise.resolve(result).then(function (resolvedResult) {
+                        // This happens, e.g. if you just have "return;"
+                        if (typeof resolvedResult === "undefined") {
+                            resolvedResult = {};
+                        }
+                        resolve(resolvedResult);
+                    }).catch(function (error) {
+                        // A rejected Promise from the user code maps into a
+                        // successful promise wrapping a whisk-encoded error.
+                        resolve({ error: error });
+                    });
+                } else {
+                    // Nothing to do in this 'else' branch. The user code returned the
+                    // 'async' signal, indicating that it will call .done or .error.
+                    // At that point, callback.next will be invoked, and the Promise will
+                    // be completed.
+                }
+            }
+        );
     };
 }
 
@@ -87,20 +118,16 @@ function NodeActionRunner(message, whisk) {
  * the scope of the user code to run.  This encapsulates the whisk
  * SDK available to user code.
  *
- * @param callback a reference to an empty object which will record if
- *  whisk.done is called; when whisk._terminate is called the first time, a
- *  property “done” is added to callback object and the continuation
- *  function is called;  if whisk._terminate is called more than once, we check
- *  if the property done already exists and it should, and log an error message
+ * @param callback a reference to an object matching the schema of
+ * `callback` above. It includes a continuation callback and a field marking
+ * whether it was invoked already.
  *
- * @param closeAndReturn a continuation function to call on whisk._terminate
- * (receives arguments passed to Whisk.done or Whisk.error namely a result object)
  */
-function modWhisk(whisk, callback, closeAndReturn) {
+function modWhisk(whisk, callback) {
     whisk._terminate = function(r) {
-        if (callback.done === undefined) {
-            callback.done = true;
-            closeAndReturn(r);
+        if (callback.completed === undefined) {
+            callback.completed = true;
+            callback.next(r);
         } else {
             // The warning doesn't mention _terminate because users aren't supposed to
             // call it directly.
@@ -108,17 +135,6 @@ function modWhisk(whisk, callback, closeAndReturn) {
         }
     };
     return whisk;
-}
-
-function duration(start, end) {
-    var elapsedMicro = (end[0] - start[0]) * 1000000 + Math.round((end[1] - start[1]) / 1000);
-    return elapsedMicro / 1000.0;
-}
-
-function getname(name) {
-    name = typeof name === 'string' ? name.trim() : '';
-    name = name !== '' ? name : 'Anonymous User Action';
-    return name;
 }
 
 module.exports = NodeActionRunner;
