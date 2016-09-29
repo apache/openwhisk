@@ -7,6 +7,24 @@ OPEN_WHISK_DB_PASSWORD ?= some_passw0rd
 DB_IMMORTAL_DBS ?= subjects
 OPEN_WHISK_DB_ACTIONS ?= whisk_actions
 
+# Quick-Start is a simple way to get started with OpenWhisk locally
+#   1. at start it builds the project and the docker containers
+#   2. then it starts all components using docker-compose
+#   3. it runs a sample hello-world function
+#   To stop and cleanup the environment use: make destroy
+quick-start: docker run quick-start-pause hello-world quick-start-info
+
+.PHONY: quick-start-pause
+quick-start-pause:
+	echo "waiting for the Whisk invoker to come up ... "
+	until $$(curl --output /dev/null --silent --head --fail http://localhost:8081/ping); do printf '.'; sleep 5; done
+	sleep 30
+
+.PHONY: quick-start-info
+quick-start-info:
+	echo "$$(tput setaf 2)To invoke the function again use: $$(tput setaf 4)make hello-world$$(tput sgr0)"
+	echo "$$(tput setaf 2)To stop openwhisk use: $$(tput setaf 4)make destroy$$(tput sgr0)"
+
 docker:
 	echo "building the docker images ... "
 	./gradlew distdocker
@@ -23,7 +41,7 @@ setup:
 
 .PHONY: start-docker-compose
 start-docker-compose:
-	docker-compose up &
+	docker-compose up 2>&1 > ~/tmp/openwhisk/docker-compose.log &
 
 .PHONY: init-couchdb
 init-couchdb:
@@ -81,14 +99,17 @@ destroy: stop
 .PHONY: hello-world
 hello-world:
 	echo "invoking a hello-world function ... "
-	echo "creating the hello.js function"
+
+	echo "$$(tput setaf 2)creating the hello.js function ...$$(tput sgr0)"
 	echo 'function main(params) {var name = params.name || "World"; return { payload:  "Hello, " + name + "!" }; }' > hello.js
-	#"-------"
-	cat hello.js
-	#"--------"
-	echo "adding the function to whisk ..."
+
+	echo "$$(tput setaf 4)adding the function to whisk ...$$(tput sgr0)"
 	./bin/go-cli/wsk -i action create hello hello.js
-	echo "invoking the function ..."
+
+	echo "$$(tput setaf 4)invoking the function ...$$(tput sgr0)"
 	./bin/go-cli/wsk -i action invoke hello --blocking --result
-	echo "deleting the function ..."
+	read -r -p "The function has been invoked. Press any key to continue ... "
+
+	echo "$$(tput setaf 1)deleting the function ...$$(tput sgr0)"
 	./bin/go-cli/wsk -i action delete hello
+	rm hello.js
