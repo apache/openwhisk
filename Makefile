@@ -97,11 +97,8 @@ destroy: stop
 	rm -rf ~/tmp/openwhisk
 
 .PHONY: hello-world
-hello-world:
-	echo "invoking a hello-world function ... "
-
-	echo "$$(tput setaf 2)creating the hello.js function ...$$(tput sgr0)"
-	echo 'function main(params) {var name = params.name || "World"; return { payload:  "Hello, " + name + "!" }; }' > hello.js
+hello-world: create-hello-world-function
+	echo "invoking the hello-world function ... "
 
 	echo "$$(tput setaf 4)adding the function to whisk ...$$(tput sgr0)"
 	./bin/wsk -i action create hello hello.js
@@ -112,4 +109,24 @@ hello-world:
 
 	echo "$$(tput setaf 1)deleting the function ...$$(tput sgr0)"
 	./bin/wsk -i action delete hello
+	rm hello.js
+
+.PHONY: create-hello-world-function
+create-hello-world-function:
+	echo "$$(tput setaf 2)creating the hello.js function ...$$(tput sgr0)"
+	echo 'function main(params) {var name = params.name || "World"; return { payload:  "Hello, " + name + "!" }; }' > hello.js
+
+# Using the hello-world function this task executes a performance test using Apache Benchmark
+.PHONY: hello-world-perf-test
+hello-world-perf-test: create-hello-world-function
+	./bin/wsk -i action create hello-perf hello.js
+
+	docker run \
+	    --net openwhisk_default \
+	    --link controller jordi/ab ab -k -n 2000 -c 20 \
+	    -m POST -H "Authorization:Basic MjNiYzQ2YjEtNzFmNi00ZWQ1LThjNTQtODE2YWE0ZjhjNTAyOjEyM3pPM3haQ0xyTU42djJCS0sxZFhZRnBYbFBrY2NPRnFtMTJDZEFzTWdSVTRWck5aOWx5R1ZDR3VNREdJd1A=" \
+	            -H "Content-Type:application/json" \
+	            http://controller:8888/api/v1/namespaces/guest/actions/hello-perf?blocking=true
+
+	./bin/wsk -i action delete hello-perf
 	rm hello.js
