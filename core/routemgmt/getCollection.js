@@ -1,5 +1,4 @@
 /**
- *
  * Copyright 2015-2016 IBM Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Delete an API Gateway to action mapping document from the database:
- * https://docs.cloudant.com/document.html#delete
+ * Retrieve all API Gateway to action mapping documents that are associated
+ * with the specified API connection "group" as grouped by either path or name.
  *
  * Parameters (all as fields in the message JSON object)
  *   host       Required. The database dns host name
@@ -24,9 +23,9 @@
  *   dbname     Required. The name of the database
  *   username   Required. The database user name used to access the database
  *   password   Required. The database user password
- *   docid      Required. The database id of the API Gateway mapping document
- *                        Format:  owNamespace:MethodVerb:gatewayPath
- *                        Example: mdeuser@us.ibm.com_dev:get:/v1/order
+ *   namespace  Required. The namespace under which the target API Gateway mappings are associated
+ *   collectionname  Required if collectionpath is not specified. The target collection name
+ *   collectionpath  Required if collectionname is not specified. The target collection path
  *
  * NOTE: The package containing this action will be bound to the following values:
  *         host, port, protocol, dbname, username, password
@@ -41,7 +40,6 @@ function main(message) {
     return whisk.error('Internal error.  A message parameter was not supplied.');
   }
 
-  // The host, port, protocol, username, and password parameters are validated here
   var cloudantOrError = getCloudantAccount(message);
   if (typeof cloudantOrError !== 'object') {
     console.error('CloudantAccount returned an unexpected object type: '+(typeof cloudantOrError));
@@ -49,44 +47,49 @@ function main(message) {
   }
   var cloudant = cloudantOrError;
 
-  var docRev = message.docrev;
-
-  // Validate the remaining parameters (dbname and docid)
+  // Validate the remaining parameters (dbname, collectionname and namespace)
   if(!message.dbname) {
     return whisk.error('dbname is required.');
   }
-  if(!message.docid) {
-    return whisk.error('docid is required.');
+  if(!message.collectionname && !message.collectionpath) {
+    return whisk.error('collectionname or collectionpath is required.');
+  }
+  if(message.collectionname && message.collectionpath) {
+    return whisk.error('Specify either collectionname or collectionpath, but not both.');
+  }
+  if(!message.namespace) {
+    return whisk.error('namespace is required.');
   }
 
   // Log parameter values
-  console.log('DB host    : '+message.host);
-  console.log('DB port    : '+message.port);
-  console.log('DB protocol: '+message.protocol);
-  console.log('DB username: '+message.username);
-  console.log('DB database: '+message.dbname);
-  console.log('doc id     : '+message.docid);
+  console.log('DB host        : '+message.host);
+  console.log('DB port        : '+message.port);
+  console.log('DB protocol    : '+message.protocol);
+  console.log('DB username    : '+message.username);
+  console.log('DB database    : '+message.dbname);
+  console.log('namespace      : '+message.namespace);
+  console.log('collection name: '+message.collectionname);
+  console.log('collection path: '+message.collectionpath);
 
   var cloudantDb = cloudant.use(message.dbname);
 
-  getCurrentDocRev(cloudantDb, message.docid, function(err, docRev) {
-     if (err) {
-       console.error('Could not obtain document revision; unable to delete document');
-       return whisk.error('Currently unable to delete document');
-     } else {
-       console.log('Document revision to delete: '+docRev);
-       destroy(cloudantDb, message.docid, docRev);  // whisk.done() is called inside destroy()
-     }
-  });
+  if (message.collectionname) {
+    var params = {key: [message.namespace, message.collectionname]}
+    queryView(cloudantDb, 'gwapis', 'routes-by-collection', params);
+  }
+  else {
+    var params = {key: [message.namespace, message.collectionpath]}
+    queryView(cloudantDb, 'gwapis', 'routes-by-path', params);
+  }
 
   return whisk.async();
 }
 
 /**
- * Delete document by id and rev.
+ * Get view by design doc id and view name.
  */
-function destroy(cloudantDb, docId, docRev) {
-  cloudantDb.destroy(docId, docRev, function(error, response) {
+function queryView(cloudantDb, designDocId, designDocViewName, params) {
+  cloudantDb.view(designDocId, designDocViewName, params, function(error, response) {
     if (!error) {
       console.log('success', response);
       whisk.done(response);
@@ -132,30 +135,5 @@ function getCloudantAccount(message) {
 
   return require('cloudant')({
     url: cloudantUrl
-  });
-}
-
-function getCurrentDocRev(db, docid, callback) {
-  var actionName = '/whisk.system/routemgmt/getRoute';
-  var params = { 'docid': docid };
-  whisk.invoke({
-    name: actionName,
-    blocking: true,
-    parameters: params,
-    next: function(error, activation) {
-      if (!error) {
-        console.log('whisk.invoke('+actionName+', '+docid+') ok');
-        console.log('Results: '+JSON.stringify(activation, null, 2));
-        if (activation && activation.result && activation.result._rev) {
-          callback(null, activation.result._rev);
-        } else {
-          console.error('_rev value not returned!');
-          callback(new Error('Missing _rev value'), null);
-        }
-      } else {
-        console.error('whisk.invoke('+actionName+','+docid+') error:\n'+JSON.stringify(error, null, 2));
-        callback(error, null);
-      }
-    }
   });
 }

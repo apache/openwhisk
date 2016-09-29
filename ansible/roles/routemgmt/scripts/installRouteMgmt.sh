@@ -56,3 +56,9 @@ $WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" --shared no "$NAME
 
 $WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" --shared no "$NAMESPACE/routemgmt/getRoute" "$OPENWHISK_HOME/core/routemgmt/getRoute.js" \
 -a description 'Retrieve the API route configuration (in JSON format)'
+
+$WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" --shared no "$NAMESPACE/routemgmt/getCollection" "$OPENWHISK_HOME/core/routemgmt/getCollection.js" \
+-a description 'Retrieve all API routes configuration (in JSON format) for the specified collection'
+
+$WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" --shared no "$NAMESPACE/routemgmt/deleteCollection" "$OPENWHISK_HOME/core/routemgmt/deleteCollection.js" \
+-a description 'Delete all API routes configuration (in JSON format) for the specified collection'

@@ -29,45 +29,42 @@ fi
 
 export WSK_CONFIG_FILE= # override local property file to avoid namespace clashes
 
+function deleteAction
+{
+  # The "get" command will fail if the resource does not exist, so use "set +e" to avoid exiting the script
+  set +e
+  $WSK_CLI -i --apihost "$APIHOST" action get --auth "$AUTH" "$1"
+  RC=$?
+  if [ $RC -eq 0 ]
+  then
+    set -e
+    $WSK_CLI -i --apihost "$APIHOST" action delete --auth "$AUTH" "$1"
+  fi
+  set -e
+}
+
+function deletePackage
+{
+  # The "get" command will fail if the resource does not exist, so use "set +e" to avoid exiting the script
+  set +e
+  $WSK_CLI -i --apihost "$APIHOST" package get --auth "$AUTH" "$1" -s
+  RC=$?
+  if [ $RC -eq 0 ]
+  then
+    set -e
+    $WSK_CLI -i --apihost "$APIHOST" package delete --auth "$AUTH" "$1"
+  fi
+}
+
 # Delete actions, then the package.  The order is important (can't delete a package that contains an action)!
-# The "get" command will fail if the resource does not exist, so use "set +e" to avoid exiting the script
+
 echo Deleting routemgmt actions
-set +e
-$WSK_CLI -i --apihost "$APIHOST" action get --auth "$AUTH" "$NAMESPACE/routemgmt/createRoute"
-RC=$?
-if [ $RC -eq 0 ]
-then
-  set -e
-  $WSK_CLI -i --apihost "$APIHOST" action delete --auth "$AUTH" "$NAMESPACE/routemgmt/createRoute"
-fi
-set -e
-
-set +e
-$WSK_CLI -i --apihost "$APIHOST" action get --auth "$AUTH" "$NAMESPACE/routemgmt/deleteRoute"
-RC=$?
-if [ $RC -eq 0 ]
-then
-  set -e
-  $WSK_CLI -i --apihost "$APIHOST" action delete --auth "$AUTH" "$NAMESPACE/routemgmt/deleteRoute"
-fi
-set -e
-
-set +e
-$WSK_CLI -i --apihost "$APIHOST" action get --auth "$AUTH" "$NAMESPACE/routemgmt/getRoute"
-RC=$?
-if [ $RC -eq 0 ]
-then
-  set -e
-  $WSK_CLI -i --apihost "$APIHOST" action delete --auth "$AUTH" "$NAMESPACE/routemgmt/getRoute"
-fi
-set -e
+deleteAction $NAMESPACE/routemgmt/createRoute
+deleteAction $NAMESPACE/routemgmt/deleteRoute
+deleteAction $NAMESPACE/routemgmt/getRoute
+deleteAction $NAMESPACE/routemgmt/getCollection
+deleteAction $NAMESPACE/routemgmt/deleteCollection
 
 echo Deleting routemgmt package - but only if it exists
-set +e
-$WSK_CLI -i --apihost "$APIHOST" package get --auth "$AUTH" "$NAMESPACE/routemgmt" -s
-RC=$?
-if [ $RC -eq 0 ]
-then
-  set -e
-  $WSK_CLI -i --apihost "$APIHOST" package delete --auth "$AUTH" "$NAMESPACE/routemgmt"
-fi
+deletePackage $NAMESPACE/routemgmt
+

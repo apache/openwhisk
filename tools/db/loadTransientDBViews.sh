@@ -83,16 +83,16 @@ function view_gwapis() {
     echo '{
       "_id":"_design/gwapis", PREV_REV
       "views": {
-        "routesbypath": {
+        "routes-by-path": {
           "map": "function (doc) {\n  var PATHSEP = \"/\";\n\n  if (doc.namespace && doc.gatewayPath) {\n    emit([doc.namespace, doc.gatewayPath], {\"gatewayMethod\":doc.gatewayMethod, \"gatewayPath\":doc.gatewayPath, \"action\":doc.action, \"route-collection\":doc[\"route-collection\"], \"apidoc\":doc.apidoc});\n  }\n}"
         },
-        "routesbycollection": {
+        "routes-by-collection": {
           "map": "function (doc) {\n  var PATHSEP = \"/\";\n\n  if (doc.namespace && doc[\"route-collection\"]) {\n    emit([doc.namespace, doc[\"route-collection\"]], {\"gatewayMethod\":doc.gatewayMethod, \"gatewayPath\": doc.gatewayPath, \"action\":doc.action, \"route-collection\":doc[\"route-collection\"], \"apidoc\": doc.apidoc });\n  }\n}"
         },
-        "routesbymethodandpath": {
+        "routes-by-method-and-path": {
           "map": "function (doc) {\n  var PATHSEP = \"/\";\n\n  if (doc.namespace && doc.gatewayPath && doc.gatewayMethod) {\n    emit([doc.namespace, doc.gatewayMethod+\":\"+doc.gatewayPath], {\"gatewayMethod\":doc.gatewayMethod, \"gatewayPath\": doc.gatewayPath, \"action\":doc.action, \"route-collection\":doc[\"route-collection\"], \"apidoc\": doc.apidoc });\n  }\n}"
         },
-        "routesbyaction": {
+        "routes-by-action": {
           "map": "function (doc) {\n  var PATHSEP = \"/\";\n\n  if (doc.action) {\n    emit(doc.action, {\"gatewayMethod\":doc.gatewayMethod, \"gatewayPath\": doc.gatewayPath, \"action\":doc.action, \"route-collection\":doc[\"route-collection\"], \"apidoc\": doc.apidoc });\n  }\n}"
         }
       },
