@@ -23,12 +23,14 @@
  JSON serialization is available in Foundation. */
 
 import Foundation
-
+#if os(Linux)
+    import Glibc
+#endif
 
 func _whisk_json2dict(txt: String) -> [String:Any]? {
-    if let data = txt.data(using: NSUTF8StringEncoding, allowLossyConversion: true) {
+    if let data = txt.data(using: String.Encoding.utf8, allowLossyConversion: true) {
         do {
-            return try NSJSONSerialization.jsonObject(with: data, options: NSJSONReadingOptions.AllowFragments) as? [String:Any]
+            return try JSONSerialization.jsonObject(with: data) as? [String:Any]
         } catch {
             return nil
         }
@@ -38,20 +40,29 @@ func _whisk_json2dict(txt: String) -> [String:Any]? {
 
 
 func _run_main() -> Void {
-    let env = NSProcessInfo.processInfo().environment
+    //let env = NSProcessInfo.processInfo.environment
+    let env = ProcessInfo.processInfo.environment
     let inputStr: String = env["WHISK_INPUT"] ?? "{}"
-
+    
     if let parsed = _whisk_json2dict(txt: inputStr) {
         let result = main(args:parsed)
         
-        do {
-            let resp = try NSJSONSerialization.data(withJSONObject: result.bridge(), options: [])
-            if let string = NSString(data: resp, encoding: NSUTF8StringEncoding) {
-                // send response to stdout
-                print("\(string)")
+        if result is [String:Any] {
+            do {
+                let resp = try JSONSerialization.data(withJSONObject: result, options: [])
+                
+                if let string = String(data: resp, encoding: String.Encoding.utf8) {
+                    // send response to stdout
+                    print("\(string)")
+                }
+            } catch {
+                print("Error serializing response \(error)")
             }
-        } catch {
-            print("Serialization failed (\(result)).")
+        } else {
+            print("Cannot serialize response: \(result)")
+            #if os(Linux)
+                fputs("Cannot serialize response: \(result)", stderr)
+            #endif
         }
     } else {
         print("Error: couldn't parse JSON input.")

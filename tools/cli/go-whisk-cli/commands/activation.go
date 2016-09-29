@@ -91,10 +91,10 @@ var activationListCmd = &cobra.Command{
         activations, _, err := client.Activations.List(options)
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Activations.List() error: %s\n", err)
-            errStr := fmt.Sprintf(
-                wski18n.T("Unable to obtain list of activations: {{.err}}",
-                    map[string]interface{}{"err": err}))
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            errStr := wski18n.T("Unable to obtain the list of activations for namespace '{{.name}}': {{.err}}",
+                    map[string]interface{}{"name": getClientNamespace(), "err": err})
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL,
+                whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
 

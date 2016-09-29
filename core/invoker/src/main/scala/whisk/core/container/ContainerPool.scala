@@ -25,11 +25,13 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration._
+import scala.concurrent.Future
 import scala.annotation.tailrec
 import scala.util.{Try, Success, Failure}
 import akka.actor.ActorSystem
 import whisk.common.Counter
 import whisk.common.Logging
+import whisk.common.Scheduler
 import whisk.common.TimingUtil
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
@@ -67,8 +69,11 @@ class ContainerPool(
     config: WhiskConfig,
     invokerInstance: Integer = 0,
     verbosity: LogLevel = InfoLevel,
-    standalone: Boolean = false)(implicit actorSystem: ActorSystem)
+    standalone: Boolean = false,
+    saveContainerLog: Boolean = false)(implicit actorSystem: ActorSystem)
     extends ContainerUtils {
+
+    implicit val executionContext = actorSystem.dispatcher
 
     // These must be defined before verbosity is set
     private val datastore = WhiskEntityStore.datastore(config)
@@ -175,6 +180,8 @@ class ContainerPool(
                           | myPos = $myPos
                           | completed = ${completedPosition.cur}
                           | slack = ${slack()}
+                          | activeCount = ${activeCount()}
+                          | toBeRemoved = ${toBeRemoved.size}
                           | startingCounter = ${startingCounter.cur}""".stripMargin)
             val conResult = Try(getContainer(1, myPos, key, () => makeWhiskContainer(action, auth)))
             completedPosition.next()
@@ -245,7 +252,7 @@ class ContainerPool(
      * How many containers can we start?  Someone could have fully started a container so we must include startingCounter.
      * The use of a method rather than a getter is meant to signify the synchronization in the implementation.
      */
-    private def slack() = _maxActive - (activeCount() + startingCounter.cur)
+    private def slack() = _maxActive - (activeCount() + startingCounter.cur + toBeRemoved.size)
 
     /*
      * Try to get or create a container, returning None if there are too many
@@ -394,6 +401,7 @@ class ContainerPool(
     private val warmNodejsKey = WarmNodeJsActionContainerId
     private val nodejsExec = NodeJS6Exec("", None)
     private val WARM_NODEJS_CONTAINERS = 2
+    private val RM_THRESHOLD = 4
 
     private def keyMapToString(): String = {
         keyMap.map(p => s"[${p._1.stringRepr} -> ${p._2}]").mkString("  ")
@@ -422,22 +430,31 @@ class ContainerPool(
 
     /* A background thread that
      *   1. Kills leftover action containers on startup
-     *   2. Periodically re-populates the container pool with fresh (un-instantiated) nodejs containers.
+     *   2. (actually a Future) Periodically re-populates the container pool with fresh (un-instantiated) nodejs containers.
      *   3. Periodically tears down containers that have logically been removed from the system
+     *   4. Each of the significant method subcalls are guarded to not throw an exception.
      */
     private def nannyThread(allContainers: Seq[ContainerState]) = new Thread {
         override def run {
-            implicit val tid = TransactionId.invokerWarmup
-            if (!standalone) killStragglers(allContainers)
-            while (true) {
-                Thread.sleep(100) // serves to prevent busy looping
-                // create a new stem cell if the number of warm containers is less than the count allowed
+            implicit val tid = TransactionId.invokerNanny
+            if (!standalone) {
+                killStragglers(allContainers)
+                // Create a new stem cell if the number of warm containers is less than the count allowed
                 // as long as there is slack so that any actions that may be waiting to create a container
                 // are not held back; Note since this method is not fully synchronized, it is possible to
                 // start this operation while there is slack and end up waiting on the docker lock later
-                if (!standalone && getNumberOfIdleContainers(warmNodejsKey) < WARM_NODEJS_CONTAINERS && slack() > 0) {
-                    makeWarmNodejsContainer()(tid)
+                val warmupInterval = 100.milliseconds
+                Scheduler.scheduleWaitAtLeast(warmupInterval) { () =>
+                    implicit val tid = TransactionId.invokerWarmup
+                    if (getNumberOfIdleContainers(warmNodejsKey) < WARM_NODEJS_CONTAINERS && slack() > 0 && toBeRemoved.size < RM_THRESHOLD) {
+                        addWarmNodejsContainer()(tid)
+                    } else {
+                        Future.successful(())
+                    }
                 }
+            }
+            while (true) {
+                Thread.sleep(100) // serves to prevent busy looping
                 // We grab the size first so we know there has been enough delay for anything we are shutting down
                 val size = toBeRemoved.size()
                 1 to size foreach { _ =>
@@ -495,21 +512,23 @@ class ContainerPool(
         }
     }
 
-    private def makeWarmNodejsContainer()(implicit transid: TransactionId): WhiskContainer = {
+    /*
+     * This method will introduce a stem cell container into the system.
+     * If container creation fails, the container will not be entered into the pool.
+     */
+    private def addWarmNodejsContainer()(implicit transid: TransactionId) = Future { Try {
         val imageName = WhiskAction.containerImageName(nodejsExec, config.dockerRegistry, config.dockerImagePrefix, config.dockerImageTag)
         val limits = ActionLimits(TimeLimit(), defaultMemoryLimit, LogLimit())
         val containerName = makeContainerName("warmJsContainer")
-
         info(this, "Starting warm nodejs container")
-
         val con = makeGeneralContainer(warmNodejsKey, containerName, imageName, limits, false)
-
         this.synchronized {
             introduceContainer(warmNodejsKey, con)
         }
-        info(this, "Started warm nodejs container")
-        con
-    }
+        info(this, s"Started warm nodejs container $con.id: $con.containerId")
+    }.recover {
+        case t => warn(this, s"addWarmNodejsContainer encountered an exception: ${t.getMessage}")
+    }}
 
     private def getWarmNodejsContainer(key: ActionContainerId)(implicit transid: TransactionId): Option[WhiskContainer] =
         retrieve(warmNodejsKey) match {
@@ -711,35 +730,36 @@ class ContainerPool(
     /**
      * Actually deletes the containers.
      */
-    private def teardownContainer(container: Container)(implicit transid: TransactionId) = {
-        val size = this.getLogSize(container, !standalone)
-        val rawLogBytes = container.synchronized {
-            this.getDockerLogContent(container.containerId, 0, size, !standalone)
+    private def teardownContainer(container: Container)(implicit transid: TransactionId) = try {
+        if (saveContainerLog) {
+            val size = this.getLogSize(container, !standalone)
+            val rawLogBytes = container.synchronized {
+                this.getDockerLogContent(container.containerId, 0, size, !standalone)
+            }
+            val filename = s"${_logDir}/${container.nameAsString}.log"
+            Files.write(Paths.get(filename), rawLogBytes)
+            info(this, s"teardownContainers: wrote docker logs to $filename")
         }
-        val filename = s"${_logDir}/${container.nameAsString}.log"
-        Files.write(Paths.get(filename), rawLogBytes)
-        info(this, s"teardownContainers: wrote docker logs to $filename")
         runDockerOp { container.remove() }
+    } catch {
+        case t: Throwable => warn(this, s"teardownContainer encountered an exception: ${t.getMessage}")
     }
 
     /**
      * Removes all containers with the actionContainerPrefix to kill leftover action containers.
-     * This is needed for startup and shutdown.
-     * Concurrent access from clients must be prevented.
+     * This is needed for clean startup and shutdown.
+     * Concurrent access from clients must be prevented externally.
      */
-    private def killStragglers(allContainers: Seq[ContainerState])(implicit transid: TransactionId) = {
-        val candidates = allContainers.filter {
-            _.name.name.startsWith(actionContainerPrefix)
-        }
-
-        info(this, s"Now removing ${candidates.length} leftover containers")
-
+    private def killStragglers(allContainers: Seq[ContainerState])(implicit transid: TransactionId) = try {
+        val candidates = allContainers.filter { _.name.name.startsWith(actionContainerPrefix) }
+        info(this, s"killStragglers now removing ${candidates.length} leftover containers")
         candidates foreach { c =>
             unpauseContainer(c.name)
             rmContainer(c.name)
         }
-
-        info(this, s"Leftover container removal completed")
+        info(this, s"killStragglers completed")
+    } catch {
+        case t: Throwable => warn(this, s"killStragglers encountered an exception: ${t.getMessage}")
     }
 
     /**

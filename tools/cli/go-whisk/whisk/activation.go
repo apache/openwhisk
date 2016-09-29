@@ -98,9 +98,7 @@ func (s *ActivationService) List(options *ActivationListOptions) ([]Activation, 
     resp, err := s.client.Do(req, &activations)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
-        errStr := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
-        return nil, resp, werr
+        return nil, resp, err
     }
 
     return activations, resp, nil
@@ -131,9 +129,7 @@ func (s *ActivationService) Get(activationID string) (*Activation, *http.Respons
     resp, err := s.client.Do(req, &a)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
-        errStr := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
-        return nil, resp, werr
+        return nil, resp, err
     }
 
     return a, resp, nil
@@ -162,9 +158,7 @@ func (s *ActivationService) Logs(activationID string) (*Activation, *http.Respon
     resp, err := s.client.Do(req, &activation)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
-        errStr := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
-        return nil, resp, werr
+        return nil, resp, err
     }
 
     return activation, resp, nil
@@ -193,9 +187,7 @@ func (s *ActivationService) Result(activationID string) (*Response, *http.Respon
     resp, err := s.client.Do(req, &r)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
-        errStr := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
-        return nil, resp, werr
+        return nil, resp, err
     }
 
     return r, resp, nil

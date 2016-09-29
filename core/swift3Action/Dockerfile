@@ -10,34 +10,38 @@ RUN apt-get -y purge \
  && apt-get -y install --fix-missing python2.7 python-gevent python-flask \
 \
 # Upgrade and install Swift dependencies
- && apt-get -y install --fix-missing build-essential wget clang libedit-dev libicu52 libxml2-dev \
+ && apt-get -y install --fix-missing build-essential curl wget libicu-dev \
 \
 # Clean up
  && apt-get clean
 
-# Kitura dependencies
-RUN apt-get -y install autoconf libtool libkqueue-dev libkqueue0 libdispatch-dev libdispatch0 libcurl4-openssl-dev libbsd-dev \
- && apt-get clean
+# Install clang manually, since SPM wants at least Clang 3-6
+RUN cd / &&\
+(curl -L -k http://llvm.org/releases/3.6.2/clang+llvm-3.6.2-x86_64-linux-gnu-ubuntu-14.04.tar.xz | tar xJ) &&\
+cp -r /clang+llvm-3.6.2-x86_64-linux-gnu-ubuntu-14.04/* /usr/ &&\
+rm -rf /clang+llvm-3.6.2-x86_64-linux-gnu-ubuntu-14.04
+
+RUN update-alternatives --install /usr/bin/g++ g++ /usr/bin/clang++ 20 
+RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/clang 20 
 
 # Install Swift keys
 RUN wget --no-verbose -O - https://swift.org/keys/all-keys.asc | gpg --import - && \
     gpg --keyserver hkp://pool.sks-keyservers.net --refresh-keys Swift
 
 # Install Swift Ubuntu 14.04 Snapshot
-ENV SWIFT_VERSION DEVELOPMENT-SNAPSHOT-2016-05-03-a
+#https://swift.org/builds/development/ubuntu1404/swift-DEVELOPMENT-SNAPSHOT-2016-09-21-a/swift-DEVELOPMENT-SNAPSHOT-2016-09-21-a-ubuntu14.04.tar.gz
+ENV SWIFT_VERSION SNAPSHOT-2016-09-21-a
+ENV SWIFT_RELEASE_TYPE DEVELOPMENT
 ENV SWIFT_PLATFORM ubuntu14.04
 
-RUN SWIFT_ARCHIVE_NAME=swift-$SWIFT_VERSION-$SWIFT_PLATFORM && \
-    SWIFT_URL=https://swift.org/builds/development/$(echo "$SWIFT_PLATFORM" | tr -d .)/swift-$SWIFT_VERSION/$SWIFT_ARCHIVE_NAME.tar.gz && \
+RUN SWIFT_ARCHIVE_NAME=swift-$SWIFT_RELEASE_TYPE-$SWIFT_VERSION-$SWIFT_PLATFORM && \
+    SWIFT_URL=https://swift.org/builds/development/$(echo "$SWIFT_PLATFORM" | tr -d .)/swift-$SWIFT_RELEASE_TYPE-$SWIFT_VERSION/$SWIFT_ARCHIVE_NAME.tar.gz && \
+    echo $SWIFT_URL && \
     wget --no-verbose $SWIFT_URL && \
     wget --no-verbose $SWIFT_URL.sig && \
     gpg --verify $SWIFT_ARCHIVE_NAME.tar.gz.sig && \
     tar -xzf $SWIFT_ARCHIVE_NAME.tar.gz --directory / --strip-components=1 && \
     rm -rf $SWIFT_ARCHIVE_NAME* /tmp/* /var/tmp/*
-
-#build lib dispatch for kitura net
-RUN git clone -b experimental/foundation https://github.com/apple/swift-corelibs-libdispatch.git
-RUN cd swift-corelibs-libdispatch && git submodule init && git submodule update && sh ./autogen.sh && ./configure --with-swift-toolchain=/usr --prefix=/usr && make && make install
 
 # Add the action proxy
 RUN mkdir -p /actionProxy
@@ -51,8 +55,7 @@ ADD spm-build /swift3Action/spm-build
 
 # Build kitura net
 RUN touch /swift3Action/spm-build/main.swift
-RUN cd /swift3Action/spm-build; swift build -Xcc -fblocks
-RUN rm /swift3Action/spm-build/.build/debug/Action
+RUN cd /swift3Action/spm-build; swift build; rm .build/debug/Action
 
 ENV FLASK_PROXY_PORT 8080
 

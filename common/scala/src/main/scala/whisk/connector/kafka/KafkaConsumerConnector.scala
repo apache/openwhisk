@@ -24,8 +24,6 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
-import scala.util.Failure
-import scala.util.Success
 import scala.util.Try
 
 import org.apache.kafka.clients.consumer.ConsumerConfig
@@ -35,6 +33,7 @@ import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import whisk.common.Logging
 import whisk.common.TransactionCounter
 import whisk.core.connector.MessageConsumer
+import org.apache.kafka.clients.consumer.CommitFailedException
 
 class KafkaConsumerConnector(
     kafkahost: String,
@@ -69,13 +68,18 @@ class KafkaConsumerConnector(
         val thread = new Thread() {
             override def run() = {
                 while (!disconnect) {
-                    Try { peek() } match {
-                        case Success(records) =>
-                            records foreach { process.tupled(_) }
-                        case Failure(t) =>
-                            error(self, s"while polling: $t")
+                    Try {
+                        // Grab next batch of messages and commit offsets immediately
+                        // It won't be processed twice (tested in "KafkaConnectorTest")
+                        val messages = peek()
+                        commit()
+                        messages
+                    } map {
+                        _.foreach { process.tupled(_) }
+                    } recover {
+                        case e: CommitFailedException => error(self, s"failed to commit to kafka: ${e.getMessage}")
+                        case e: Throwable             => error(self, s"exception while pulling new records: ${e.getMessage}")
                     }
-                    commit()
                 }
                 warn(self, "consumer stream terminated")
                 consumer.close()

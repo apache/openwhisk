@@ -30,7 +30,6 @@ import scala.util.Success
 import akka.actor.ActorSystem
 import akka.event.Logging.LogLevel
 import akka.pattern.after
-import spray.json.JsBoolean
 import spray.json.JsObject
 import whisk.common.ConsulClient
 import whisk.common.ConsulKV.LoadBalancerKeys
@@ -72,30 +71,31 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
     // this must happen after the overrides
     setVerbosity(verbosity)
 
-    private val overloadThreshold = 5000 // this is the total across all invokers.  Disable by setting to -1.
     private val kv = new ConsulClient(config.consulServer)
     private val reporter = new ConsulKVReporter(kv, 3 seconds, 2 seconds,
         LoadBalancerKeys.hostnameKey,
         LoadBalancerKeys.startKey,
         LoadBalancerKeys.statusKey,
         { count =>
+            // Get counts as seen by the loadbalancer
             val issuedCounts = getIssueCountByInvoker()
-            val issuedCount = issuedCounts.foldLeft(0)(_ + _._2)
-            val health = invokerHealth.getInvokerHealth()
+            val issuedCount = issuedCounts.values.sum
+
+            // Get counts as seen by the invokers
             val invokerCounts = invokerHealth.getInvokerActivationCounts()
-            val completedCounts = invokerCounts map { indexCount => indexCount._2 }
-            val completedCount = completedCounts.foldLeft(0)(_ + _)
+            val completedCount = invokerCounts.values.sum
+
             val inFlight = issuedCount - completedCount
-            val overload = JsBoolean(overloadThreshold > 0 && inFlight >= overloadThreshold)
+
+            val health = invokerHealth.getInvokerHealth()
             if (count % 10 == 0) {
                 implicit val sid = TransactionId.loadbalancer
-                info(this, s"In flight: $issuedCount - $completedCount = $inFlight $overload")
+                info(this, s"In flight: $issuedCount - $completedCount = $inFlight")
                 info(this, s"Issued counts: [${issuedCounts.mkString(", ")}]")
                 info(this, s"Completion counts: [${invokerCounts.mkString(", ")}]")
                 info(this, s"Invoker health: [${health.mkString(", ")}]")
             }
-            Map(LoadBalancerKeys.overloadKey -> overload,
-                LoadBalancerKeys.invokerHealth -> getInvokerHealth()) ++
+            Map(LoadBalancerKeys.invokerHealth -> getInvokerHealth()) ++
                 getUserActivationCounts()
         })
 

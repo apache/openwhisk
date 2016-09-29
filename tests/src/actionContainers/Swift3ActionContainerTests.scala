@@ -27,55 +27,60 @@ class Swift3ActionContainerTests extends SwiftActionContainerTests {
 
     override val enforceEmptyOutputStream = false
     override lazy val swiftContainerImageName = "swift3action"
+    override lazy val envCode =  """
+         |func main(args: [String: Any]) -> [String: Any] {
+         |     let env = ProcessInfo.processInfo.environment
+         |     var auth = "???"
+         |     var edge = "???"
+         |     if let authKey : String = env["AUTH_KEY"] {
+         |         auth = "\(authKey)"
+         |     }
+         |     if let edgeHost : String = env["EDGE_HOST"] {
+         |         edge = "\(edgeHost)"
+         |     }
+         |     return ["auth": auth, "edge": edge]
+         |}
+         """.stripMargin
 
-    ignore should "properly use KituraNet and Dispatch" in {
+    it should "properly use KituraNet and Dispatch" in {
         val (out, err) = withActionContainer() { c =>
             val code = """
                 | import KituraNet
                 | import Foundation
                 | import Dispatch
                 | func main(args:[String: Any]) -> [String:Any] {
-                |       print("Entering Swift3ActionContainer KituraNet test")
-                |       let Retries = 3
-                |       var respStr = "No response"
+                |       let retries = 3
+                |       var resp = [String:Any]()
                 |       var attempts = 0
-                |       while attempts < Retries {
-                |           let group = dispatch_group_create()
-                |           dispatch_group_async(group, dispatch_get_global_queue(0,0), {
-                |               HTTP.get("http://httpbin.org/get", callback: { response in
-                |                   if let response = response {
-                |                       print("Status code is \(response.statusCode)")
+                |       if let url = args["getUrl"] as? String {
+                |           while attempts < retries {
+                |               let group = DispatchGroup()
+                |               let queue = DispatchQueue.global(qos: .default)
+                |               group.enter()
+                |               queue.async {
+                |                   HTTP.get(url, callback: { response in
+                |                       if let response = response {
                 |                           do {
-                |                           if let str = try response.readString() {
-                |                                   respStr = str
-                |                                   print("Got string2 \(str)")
-                |                              } else {
-                |                                   print("Could not read string")
+                |                               if let str = try response.readString() {
+                |                                   resp["serverResp"] = str
                 |                               }
                 |                           } catch {
-                |                               print("Error reading string body")
+                |                              resp["error"] = error.localizedDescription
                 |                           }
-                |                   }
-                |               })
-                |           })
-                |       let maxWait = dispatch_time(DISPATCH_TIME_NOW, Int64(10 * NSEC_PER_SEC))
-                |       let code = dispatch_group_wait(group, maxWait)
-                |       if code == 0 {
-                |           let data = respStr.data(using: NSUTF8StringEncoding, allowLossyConversion: true)!
-                |           do {
-                |               if let result = try NSJSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
-                |                   return ["reply": result]
+                |                       }
+                |                       group.leave()
+                |                   })
                 |               }
-                |           } catch {
-                |                print("Error \(error)")
-                |           }
-                |           return ["reply": respStr, "code": code]
-                |       } else {
-                |           print("WAIT timed out or failed on \(attempts) attempts with code \(code), retrying")
-                |           attempts = attempts + 1
-                |       }
-                |   }
-                |   return ["status": "Exceeded \(Retries) tries, returning."]
+                |            switch group.wait(timeout: DispatchTime.distantFuture) {
+                |                case DispatchTimeoutResult.success:
+                |                    resp["attempts"] = attempts
+                |                    return resp
+                |                case DispatchTimeoutResult.timedOut:
+                |                    attempts = attempts + 1
+                |            }
+                |        }
+                |     }
+                |     return ["status":"Exceeded \(retries) attempts, aborting."]
                 | }
             """.stripMargin
 
@@ -98,16 +103,16 @@ class Swift3ActionContainerTests extends SwiftActionContainerTests {
 
         checkStreams(out, err, {
             case (o, e) =>
-                o shouldBe empty
+                //o shouldBe empty
                 e shouldBe empty
         })
     }
 
-    ignore should "make Watson SDKs available to action authors" in {
+    it should "make Watson SDKs available to action authors" in {
         val (out, err) = withActionContainer() { c =>
             val code = """
                 | import RestKit
-                | import InsightsForWeather
+                | import WeatherCompanyData
                 | import AlchemyVision
                 |
                 | func main(args: [String:Any]) -> [String:Any] {
@@ -125,7 +130,7 @@ class Swift3ActionContainerTests extends SwiftActionContainerTests {
 
         checkStreams(out, err, {
             case (o, e) =>
-                o shouldBe empty
+                //o shouldBe empty
                 e shouldBe empty
         })
     }

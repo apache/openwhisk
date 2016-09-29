@@ -99,11 +99,7 @@ trait LoadBalancerToKafka extends Logging {
     }
 
     // Make a new immutable map so caller cannot mess up the state
-    def getIssueCountByInvoker(): Map[Int, Int] = {
-        invokerActivationCounter.foldLeft(Map[Int, Int]()) {
-            case (map, (index, counter)) => map ++ Map(index -> counter.cur)
-        }
-    }
+    def getIssueCountByInvoker(): Map[Int, Int] = invokerActivationCounter.readOnlySnapshot.mapValues(_.cur).toMap
 
     /**
      * Convert user activation counters into a map of JsObjects to be written into consul kv
