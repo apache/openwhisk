@@ -81,7 +81,7 @@ init-whisk-cli:
 	echo "waiting for the Whisk controller to come up ... "
 	until $$(curl --output /dev/null --silent --head --fail http://localhost:8888/ping); do printf '.'; sleep 5; done
 	echo "initializing CLI ... "
-	./bin/go-cli/wsk -v property set --namespace guest --auth `cat ansible/files/auth.guest` --apihost localhost:443 -i
+	./bin/wsk -v property set --namespace guest --auth `cat ansible/files/auth.guest` --apihost localhost:443 -i
 
 .PHONY: stop
 stop:
@@ -104,12 +104,12 @@ hello-world:
 	echo 'function main(params) {var name = params.name || "World"; return { payload:  "Hello, " + name + "!" }; }' > hello.js
 
 	echo "$$(tput setaf 4)adding the function to whisk ...$$(tput sgr0)"
-	./bin/go-cli/wsk -i action create hello hello.js
+	./bin/wsk -i action create hello hello.js
 
 	echo "$$(tput setaf 4)invoking the function ...$$(tput sgr0)"
-	./bin/go-cli/wsk -i action invoke hello --blocking --result
+	./bin/wsk -i action invoke hello --blocking --result
 	read -r -p "The function has been invoked. Press any key to continue ... "
 
 	echo "$$(tput setaf 1)deleting the function ...$$(tput sgr0)"
-	./bin/go-cli/wsk -i action delete hello
+	./bin/wsk -i action delete hello
 	rm hello.js
