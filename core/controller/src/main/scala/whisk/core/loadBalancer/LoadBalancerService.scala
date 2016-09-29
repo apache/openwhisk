@@ -96,8 +96,7 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
                 info(this, s"Completion counts: [${invokerCounts.mkString(", ")}]")
                 info(this, s"Invoker health: [${health.mkString(", ")}]")
             }
-            Map(LoadBalancerKeys.invokerHealth -> getInvokerHealth()) ++
-                getUserActivationCounts()
+            Map(LoadBalancerKeys.invokerHealth -> getInvokerHealth())
         })
 
     /**

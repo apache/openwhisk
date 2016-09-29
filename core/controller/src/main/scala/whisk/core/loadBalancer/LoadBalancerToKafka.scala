@@ -20,8 +20,6 @@ import scala.collection.concurrent.TrieMap
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
-import spray.json._
-import spray.json.DefaultJsonProtocol._
 import whisk.common.Counter
 import whisk.common.Logging
 import whisk.common.TransactionId
@@ -30,7 +28,6 @@ import whisk.common.PrintStreamEmitter
 import whisk.connector.kafka.KafkaProducerConnector
 import whisk.core.connector.{ ActivationMessage => Message }
 import akka.event.Logging.LogLevel
-import whisk.common.ConsulKV.LoadBalancerKeys
 
 trait LoadBalancerToKafka extends Logging {
 
@@ -102,21 +99,9 @@ trait LoadBalancerToKafka extends Logging {
     def getIssueCountByInvoker(): Map[Int, Int] = invokerActivationCounter.readOnlySnapshot.mapValues(_.cur).toMap
 
     /**
-     * Convert user activation counters into a map of JsObjects to be written into consul kv
-     *
-     * @param userActivationCounter the counters for each user's activations
-     * @returns a map where the key represents the final nested key structure for consul and a JsObject
-     *     containing the activation counts for each user
+     * Retrieve a snapshot of activation counts issued per subject by load balancer
      */
-    protected def getUserActivationCounts(): Map[String, JsObject] = {
-        userActivationCounter.toMap mapValues {
-            _.cur
-        } groupBy {
-            case (key, _) => LoadBalancerKeys.userActivationCountKey + "/" + key.substring(0, 1)
-        } mapValues { map =>
-            map.toJson.asJsObject
-        }
-    }
+    def getUserActivationCounts(): Map[String, Long] = userActivationCounter.toMap mapValues { _.cur.toLong }
 
     // A count of how many activations have been posted to Kafka based on invoker index or user/subject.
     private val invokerActivationCounter = new TrieMap[Int, Counter]

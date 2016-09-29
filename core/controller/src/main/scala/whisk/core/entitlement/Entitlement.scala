@@ -95,7 +95,7 @@ protected[core] abstract class EntitlementService(config: WhiskConfig, loadBalan
 
     private val invokeRateThrottler = new RateThrottler(config.actionInvokePerMinuteLimit.toInt)
     private val triggerRateThrottler = new RateThrottler(config.triggerFirePerMinuteLimit.toInt)
-    private val concurrentInvokeThrottler = new ActivationThrottler(config.consulServer, config.actionInvokeConcurrentLimit.toInt, config.actionInvokeSystemOverloadLimit.toInt)
+    private val concurrentInvokeThrottler = new ActivationThrottler(config.consulServer, loadBalancer, config.actionInvokeConcurrentLimit.toInt, config.actionInvokeSystemOverloadLimit.toInt)
 
     private val consul = new ConsulClient(config.consulServer)
 

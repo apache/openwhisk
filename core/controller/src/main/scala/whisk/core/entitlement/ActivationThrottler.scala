@@ -25,10 +25,10 @@ import spray.json._
 import whisk.common.ConsulClient
 import whisk.common.ConsulKV.ControllerKeys
 import whisk.common.ConsulKV.InvokerKeys
-import whisk.common.ConsulKV.LoadBalancerKeys
 import whisk.common.Logging
 import whisk.common.Scheduler
 import whisk.core.entity.Subject
+import whisk.core.loadBalancer.LoadBalancerService
 
 /**
  * Determines user limits and activation counts as seen by the invoker and the loadbalancer
@@ -38,7 +38,7 @@ import whisk.core.entity.Subject
  *
  * @param config containing the config information needed (consulServer)
  */
-class ActivationThrottler(consulServer: String, concurrencyLimit: Int, systemOverloadLimit: Int)(
+class ActivationThrottler(consulServer: String, loadBalancer: LoadBalancerService, concurrencyLimit: Int, systemOverloadLimit: Int)(
     implicit val system: ActorSystem) extends Logging {
 
     info(this, s"concurrencyLimit = $concurrencyLimit, systemOverloadLimit = $systemOverloadLimit")
@@ -65,19 +65,6 @@ class ActivationThrottler(consulServer: String, concurrencyLimit: Int, systemOve
      * Checks whether the system is in a generally overloaded state.
      */
     def isOverloaded = userActivationCounter.values.sum > systemOverloadLimit
-
-    /**
-     * Returns the per-namespace activation count as seen by the loadbalancer.
-     *
-     * @returns a map where each namespace maps to the activations for it counted
-     *     by the loadbalancer
-     */
-    private def getLoadBalancerActivationCount(): Future[Map[String, Long]] =
-        consul.kv.getRecurse(LoadBalancerKeys.userActivationCountKey) map {
-            _ map {
-                case (_, users) => users.parseJson.convertTo[Map[String, Long]]
-            } reduce { _ ++ _ } // keys are unique in every sub map, no adding necessary
-        }
 
     /**
      * Returns the per-namespace activation count as seen by all invokers combined.
@@ -113,8 +100,8 @@ class ActivationThrottler(consulServer: String, concurrencyLimit: Int, systemOve
     }
 
     Scheduler.scheduleWaitAtLeast(healthCheckInterval) { () =>
+        val loadbalancerActivationCount = loadBalancer.getUserActivationCounts()
         for {
-            loadbalancerActivationCount <- getLoadBalancerActivationCount()
             invokerActivationCount <- getInvokerActivationCount()
         } yield {
             debug(this, s"loadbalancerActivationCount = $loadbalancerActivationCount")
