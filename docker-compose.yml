@@ -22,11 +22,9 @@ services:
     depends_on:
       - zookeeper
     ports:
-      - "9092"
+      - "9092:9092"
     environment:
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      # whisk topic will have 1 partition and 1 replica
-      KAFKA_CREATE_TOPICS: "invoke0:1:1"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
 
@@ -38,6 +36,8 @@ services:
       - "8500:8500" # HTTP
       - "8600:8600" # DNS
       - "8302:8302" # Serf LAN
+    environment:
+      CONSUL_LOCAL_CONFIG: '{"log_level":"warn"}'
   registrator:
     image: gliderlabs/registrator
     command: [-resync, "5", "consul://consul.docker:8500"]
@@ -102,7 +102,7 @@ services:
     environment:
       COMPONENT_NAME: invoker
       SERVICE_NAME: invoker0
-      PORT: 8080
+      PORT: 8081
 
       CONSULSERVER_HOST: consul.docker
       CONSUL_HOST_PORT4: 8500
@@ -112,8 +112,8 @@ services:
 
       DB_PROVIDER: CouchDB
       DB_PROTOCOL: http
-      DB_PORT: 5948
-      DB_HOST: db.host
+      DB_PORT: 5984
+      DB_HOST: db.docker
       DB_USERNAME: whisk_admin
       DB_PASSWORD: some_passw0rd
 
@@ -126,7 +126,7 @@ services:
       - ~/tmp/openwhisk/invoker/logs:/logs
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
-      - "8081:8080"
+      - "8081:8081"
 
   # The API Gateway is currently used to expose the Controller API
   apigateway:

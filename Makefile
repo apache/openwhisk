@@ -1,5 +1,14 @@
+OPEN_WHISK_DB_PROTOCOL ?= http
+OPEN_WHISK_DB_HOST ?= localhost
+OPEN_WHISK_DB_PORT ?= 5984
+OPEN_WHISK_DB_PROVIDER ?= CouchDB
+OPEN_WHISK_DB_USERNAME ?= whisk_admin
+OPEN_WHISK_DB_PASSWORD ?= some_passw0rd
+DB_IMMORTAL_DBS ?= subjects
+OPEN_WHISK_DB_ACTIONS ?= whisk_actions
+
 .PHONY: run
-run: setup start-docker-compose setup-couchdb init-whisk-cli
+run: setup start-docker-compose init-couchdb init-couchdb-actions init-whisk-cli
 
 .PHONY: setup
 setup:
@@ -12,19 +21,38 @@ setup:
 start-docker-compose:
 	docker-compose up &
 
-.PHONY: setup-couchdb
-setup-couchdb:
+.PHONY: init-couchdb
+init-couchdb:
 	echo "waiting for the database to come up ... "
 	until $$(curl --output /dev/null --silent --head --fail http://localhost:5984/_all_dbs); do printf '.'; sleep 5; done
+
 	echo "initializing the database ... "
-	curl -X PUT http://localhost:5984/_config/query_server_config/reduce_limit -u whisk_admin:some_passw0rd --data '"false"'
-	curl -X PUT http://localhost:5984/subjects -u whisk_admin:some_passw0rd
-	curl -X PUT http://localhost:5984/whisk_actions -u whisk_admin:some_passw0rd
-	curl -X POST http://localhost:5984/subjects -u whisk_admin:some_passw0rd --data @./ansible/files/auth_index.json -H "Content-type:application/json"
-	cat ./ansible/files/auth.guest | awk -F ":" '{ print "{\"_id\":\"guest\", \"subject\":\"guest\", \"uuid\":\"" $$1 "\",\"key\":\""  $$2 "\"}" }' > ~/tmp/openwhisk/guest.json
-	curl -X POST http://localhost:5984/subjects -u whisk_admin:some_passw0rd --data @$${HOME}/tmp/openwhisk/guest.json -H "Content-type:application/json"
-	cat ./ansible/files/auth.whisk.system | awk -F ":" '{ print "{\"_id\":\"whisk.system\", \"subject\":\"whisk.system\", \"uuid\":\"" $$1 "\",\"key\":\""  $$2 "\"}" }' > ~/tmp/openwhisk/system.json
-	curl -X POST http://localhost:5984/subjects -u whisk_admin:some_passw0rd --data @$${HOME}/tmp/openwhisk/system.json -H "Content-type:application/json"
+	# the folder ./config/keys is referenced from createImmortalsDBs.sh
+	mkdir -p ./config/keys
+	cp ./ansible/files/auth.* ./config/keys
+	touch ./config/dbSetup.sh
+	OPEN_WHISK_DB_PROVIDER=$(OPEN_WHISK_DB_PROVIDER) \
+	    OPEN_WHISK_DB_PROTOCOL=$(OPEN_WHISK_DB_PROTOCOL) \
+	    OPEN_WHISK_DB_HOST=$(OPEN_WHISK_DB_HOST) OPEN_WHISK_DB_PORT=$(OPEN_WHISK_DB_PORT) \
+	    OPEN_WHISK_DB_USERNAME=$(OPEN_WHISK_DB_USERNAME) OPEN_WHISK_DB_PASSWORD=$(OPEN_WHISK_DB_PASSWORD) \
+	    DB_IMMORTAL_DBS=$(DB_IMMORTAL_DBS) DB_WHISK_AUTHS=$(DB_IMMORTAL_DBS) \
+	    tools/db/createImmortalDBs.sh --dropit
+	# cleanup the files referenced by createImmortalDBs.sh
+	rm -rf ./config/keys
+
+.PHONY: init-couchdb-actions
+init-couchdb-actions:
+	echo "initializing CouchDB Views ... "
+	echo "" > whisk.properties
+	echo db.provider=$(OPEN_WHISK_DB_PROVIDER) >> whisk.properties
+	echo db.protocol=$(OPEN_WHISK_DB_PROTOCOL) >> whisk.properties
+	echo db.host=$(OPEN_WHISK_DB_HOST) >> whisk.properties
+	echo db.port=$(OPEN_WHISK_DB_PORT) >> whisk.properties
+	echo db.username=$(OPEN_WHISK_DB_USERNAME) >> whisk.properties
+	echo db.password=$(OPEN_WHISK_DB_PASSWORD) >> whisk.properties
+	echo db.whisk.actions=$(OPEN_WHISK_DB_ACTIONS) >> whisk.properties
+	tools/db/wipeTransientDBs.sh
+	rm whisk.properties
 
 .PHONY: init-whisk-cli
 init-whisk-cli:
@@ -38,6 +66,10 @@ stop:
 	docker-compose stop
 
 .PHONY: destroy
-destroy:
+destroy: stop
 	docker-compose rm
+	echo "cleaning other openwhisk containers started by the invoker ... "
+	docker ps | grep whisk | awk '{print $$1}' | xargs docker stop | xargs docker rm
+	echo "cleaning dangling docker volumes ... "
+	docker volume ls -qf dangling=true | xargs docker volume rm
 	rm -rf ~/tmp/openwhisk
