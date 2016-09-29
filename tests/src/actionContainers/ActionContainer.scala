@@ -127,18 +127,21 @@ object ActionContainer {
         } mkString (" ")
 
         // We create the container...
-        val runOut = awaitDocker(s"run --name $name $envArgs -d $imageName", 10 seconds)
+        val runOut = awaitDocker(s"run -p :8080 --name $name $envArgs -d $imageName", 10 seconds)
         assert(runOut._1 == 0, "'docker run' did not exit with 0: " + runOut)
 
         // ...find out its IP address...
-        val ipOut = awaitDocker(s"""inspect --format '{{.NetworkSettings.IPAddress}}' $name""", 10 seconds)
-        assert(ipOut._1 == 0, "'docker inspect did not exit with 0")
-        val ip = ipOut._2.replaceAll("""[^0-9.]""", "")
+        val ip = WhiskProperties.getMainDockerEndpoint().split(":")(0).trim()
+
+        // ...find out its ephemeral Port
+        val portOut = awaitDocker(s"""port $name 8080""", 10 seconds)
+        assert(portOut._1 == 0, "'docker port did not exit with 0")
+        val port = portOut._2.split(":")(1).trim().toInt
 
         // ...we create an instance of the mock container interface...
         val mock = new ActionContainer {
-            def init(value: JsValue) = syncPost(ip, 8080, "/init", value)
-            def run(value: JsValue) = syncPost(ip, 8080, "/run", value)
+            def init(value: JsValue) = syncPost(ip, port, "/init", value)
+            def run(value: JsValue) = syncPost(ip, port, "/run", value)
         }
 
         try {

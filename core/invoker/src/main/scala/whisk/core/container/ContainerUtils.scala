@@ -75,8 +75,9 @@ trait ContainerUtils extends Logging {
         val processLimit = Array("--ulimit", "nproc=512:512")
         val securityOpts = policy map { p => Array("--security-opt", s"apparmor:${p}") } getOrElse (Array.empty[String])
         val containerNetwork = Array("--net", network)
+        val portOption = Array("-p",":8080")
 
-        val cmd = Seq("run") ++ makeEnvVars(env) ++ consulServiceIgnore ++ nameOption ++ cpuArg ++ memoryArg ++
+        val cmd = Seq("run") ++ makeEnvVars(env) ++ consulServiceIgnore ++ portOption ++nameOption ++ cpuArg ++ memoryArg ++
             capabilityArg ++ fileHandleLimit ++ processLimit ++ securityOpts ++ containerNetwork ++ Seq("-d", image) ++ args
 
         runDockerCmd(cmd: _*).toOption.map { result =>
@@ -161,9 +162,11 @@ trait ContainerUtils extends Logging {
 
     def getContainerHostAndPort(container: ContainerIdentifier)(implicit transid: TransactionId): Option[ContainerAddr] = {
         // FIXME it would be good if this could return ContainerAddr and fail loudly instead.
-        runDockerCmd("inspect", "--format", "'{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'", container.id).toOption.map { output =>
-            ContainerAddr(output.substring(1, output.length - 1), 8080)
+
+        runDockerCmd("port",container.id).toOption.map { output =>
+          ContainerAddr(dockerhost.split(":")(0),output.split(":")(1).toInt)
         }
+
     }
 
     private def runDockerCmd(args: String*)(implicit transid: TransactionId): DockerOutput = runDockerCmd(false, args)
