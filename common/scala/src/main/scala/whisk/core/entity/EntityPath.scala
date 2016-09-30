@@ -16,15 +16,12 @@
 
 package whisk.core.entity
 
-import scala.util.Failure
-import scala.util.Success
 import scala.util.Try
 
 import spray.json.JsString
 import spray.json.JsValue
 import spray.json.RootJsonFormat
 import spray.json.deserializationError
-import whisk.core.entity.size.SizeString
 
 /**
  * EntityPath is a path string of allowed characters. The path consists of parts each of which
@@ -181,34 +178,5 @@ protected[core] object EntityName {
             val JsString(name) = value
             EntityName(name)
         } getOrElse deserializationError("entity name malformed")
-    }
-}
-
-/**
- * A FullyQualifiedEntityName (qualified name) is a triple consisting of
- * - EntityPath: the namespace and package where the entity is located
- * - EntityName: the name of the entity
- * - Version: the semantic version of the resource
- */
-protected[core] case class FullyQualifiedEntityName(path: EntityPath, name: EntityName, version: Option[SemVer] = None) extends ByteSizeable {
-    private val qualifiedName = WhiskEntity.qualifiedName(path, name)
-    def toDocId = DocId(qualifiedName)
-    def pathToDocId = DocId(path())
-    override def size = qualifiedName.sizeInBytes
-    override def toString = path.addpath(name) + version.map("@" + _.toString).getOrElse("")
-}
-
-protected[core] object FullyQualifiedEntityName {
-    implicit val serdes = new RootJsonFormat[FullyQualifiedEntityName] {
-        def write(n: FullyQualifiedEntityName) = JsString(EntityPath.PATHSEP + WhiskEntity.qualifiedName(n.path, n.name))
-
-        def read(value: JsValue) = Try {
-            val JsString(name) = value
-            EntityPath(name).toFullyQualifiedEntityName
-        } match {
-            case Success(s)                           => s
-            case Failure(t: IllegalArgumentException) => deserializationError(t.getMessage)
-            case Failure(t)                           => deserializationError("fully qualified name malformed")
-        }
     }
 }

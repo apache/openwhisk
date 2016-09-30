@@ -149,7 +149,7 @@ protected[core] object Exec
 
             case p @ PythonExec(code)     => JsObject("kind" -> JsString(Exec.PYTHON), "code" -> JsString(code), "binary" -> JsBoolean(p.binary))
 
-            case SequenceExec(code, comp)      => JsObject("kind" -> JsString(Exec.SEQUENCE), "code" -> JsString(code), "components" -> comp.toJson)
+            case SequenceExec(code, comp)      => JsObject("kind" -> JsString(Exec.SEQUENCE), "code" -> JsString(code), "components" -> comp.map(_.qualifiedNameWithLeadingSlash).toJson)
             case BlackBoxExec(image)      => JsObject("kind" -> JsString(Exec.BLACKBOX), "image" -> JsString(image))
         }
 
