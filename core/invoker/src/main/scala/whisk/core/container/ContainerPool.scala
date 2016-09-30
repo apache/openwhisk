@@ -252,7 +252,7 @@ class ContainerPool(
      * How many containers can we start?  Someone could have fully started a container so we must include startingCounter.
      * The use of a method rather than a getter is meant to signify the synchronization in the implementation.
      */
-    private def slack() = _maxActive - (activeCount() + startingCounter.cur + toBeRemoved.size)
+    private def slack() = _maxActive - (activeCount() + startingCounter.cur + Math.max(toBeRemoved.size - RM_SLACK, 0))
 
     /*
      * Try to get or create a container, returning None if there are too many
@@ -401,7 +401,11 @@ class ContainerPool(
     private val warmNodejsKey = WarmNodeJsActionContainerId
     private val nodejsExec = NodeJS6Exec("", None)
     private val WARM_NODEJS_CONTAINERS = 2
-    private val RM_THRESHOLD = 4
+
+    // This parameter controls how many outstanding un-removed containers there are before
+    // we stop stem cell container creation.  This is also the an allowance in slack calculation
+    // to allow limited de-coupling between container removal and creation when under load.
+    private val RM_SLACK = 4
 
     private def keyMapToString(): String = {
         keyMap.map(p => s"[${p._1.stringRepr} -> ${p._2}]").mkString("  ")
@@ -446,7 +450,7 @@ class ContainerPool(
                 val warmupInterval = 100.milliseconds
                 Scheduler.scheduleWaitAtLeast(warmupInterval) { () =>
                     implicit val tid = TransactionId.invokerWarmup
-                    if (getNumberOfIdleContainers(warmNodejsKey) < WARM_NODEJS_CONTAINERS && slack() > 0 && toBeRemoved.size < RM_THRESHOLD) {
+                    if (getNumberOfIdleContainers(warmNodejsKey) < WARM_NODEJS_CONTAINERS && slack() > 0 && toBeRemoved.size < RM_SLACK) {
                         addWarmNodejsContainer()(tid)
                     } else {
                         Future.successful(())
