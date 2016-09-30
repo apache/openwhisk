@@ -22,11 +22,8 @@ import scala.util.{ Try, Success, Failure }
 import akka.http.scaladsl.model.ContentType
 import akka.http.scaladsl.model.MediaTypes
 
-import spray.json.DefaultJsonProtocol
-import spray.json.DefaultJsonProtocol.StringJsonFormat
-import spray.json.JsObject
-import spray.json.JsString
-import spray.json.pimpAny
+import spray.json._
+import spray.json.DefaultJsonProtocol._
 
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -115,9 +112,10 @@ case class WhiskAction(
      * { name, main, code, lib } required to run the action.
      */
     def containerInitializer: JsObject = {
-        def getNodeInitializer(code: String, optInit: Option[String]) = {
+        def getNodeInitializer(code: String, optInit: Option[String], binary: Boolean) = {
             val init = JsObject(
                 "name" -> name.toJson,
+                "binary" -> JsBoolean(binary),
                 "main" -> JsString("main"),
                 "code" -> JsString(code))
             optInit map {
@@ -126,23 +124,18 @@ case class WhiskAction(
         }
 
         exec match {
-            case NodeJSExec(code, optInit)      => getNodeInitializer(code, optInit)
-            case NodeJS6Exec(code, optInit)     => getNodeInitializer(code, optInit)
-            case SequenceExec(code, components) => getNodeInitializer(code, None)
-            case SwiftExec(code) =>
+            case n: NodeJSAbstractExec          => getNodeInitializer(n.code, n.init, n.binary)
+            case SequenceExec(code, components) => getNodeInitializer(code, None, false)
+            case s: SwiftAbstractExec =>
                 JsObject(
                     "name" -> name.toJson,
-                    "code" -> code.toJson)
-            case PythonExec(code) =>
-                JsObject(
-                    "name" -> name.toJson,
-                    "code" -> code.toJson)
+                    "code" -> s.code.toJson)
             case JavaExec(jar, main) =>
                 JsObject(
                     "name" -> name.toJson,
                     "jar" -> jar.toJson,
                     "main" -> main.toJson)
-            case Swift3Exec(code) =>
+            case PythonExec(code) =>
                 JsObject(
                     "name" -> name.toJson,
                     "code" -> code.toJson)

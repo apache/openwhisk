@@ -21,6 +21,9 @@
  * This file (runner.js) must currently live in root directory for nodeJsAction.
  */
 var util = require('util');
+var child_process = require('child_process');
+var fs = require('fs');
+var path = require('path');
 
 function NodeActionRunner(whisk) {
     // Use this ref inside lambdas etc.
@@ -47,26 +50,41 @@ function NodeActionRunner(whisk) {
 
         this.userScriptName = name;
 
-        // Loading the user code.
-        return new Promise(
-            function (resolve, reject) {
-                try {
-                    eval(message.code);
-                    thisRunner.userScriptMain = eval(message.main);
-
-                    if (typeof thisRunner.userScriptMain === 'function') {
-                        // The value 'true' has no special meaning here;
-                        // the successful state is fully reflected in the
-                        // successful resolution of the promise.
-                        resolve(true);
-                    } else {
-                        throw "Action entrypoint '" + message.main + "' is not a function.";
-                    }
-                } catch (e) {
-                    reject(e);
-                }
+        function assertMainIsFunction() {
+            if (typeof thisRunner.userScriptMain !== 'function') {
+                throw "Action entrypoint '" + message.main + "' is not a function.";
             }
-        );
+        }
+
+        // Loading the user code.
+        if(message.binary) {
+            // The code is a base64-encoded zip file.
+            return unzipInTmpDir(message.code).then(function (moduleDir) {
+                try {
+                    thisRunner.userScriptMain = eval('require("' + moduleDir + '").' + message.main);
+                    assertMainIsFunction();
+                    // The value 'true' has no special meaning here;
+                    // the successful state is fully reflected in the
+                    // successful resolution of the promise.
+                    return true;
+                } catch (e) {
+                    return Promise.reject(e);
+                }
+            }).catch(function (error) {
+                return Promise.reject(error);
+            });
+        } else {
+            // The code is a plain old JS file.
+            try {
+                eval(message.code);
+                thisRunner.userScriptMain = eval(message.main);
+                assertMainIsFunction()
+                // See comment above about 'true'; it has no specific meaning.
+                return Promise.resolve(true);
+            } catch (e) {
+                return Promise.reject(e);
+            }
+        }
     }
 
     // Returns a Promise with the result of the user code invocation.
@@ -108,6 +126,51 @@ function NodeActionRunner(whisk) {
             }
         );
     };
+
+    // Helper function to copy a base64-encoded zip file to a temporary location,
+    // decompress it into temporary directory, and return the name of that directory.
+    // Note that this makes heavy use of shell commands because:
+    //   1) Node 0.12 doesn't have many of the useful fs functions.
+    //   2) We know in which environment we're running.
+    function unzipInTmpDir(base64) {
+        var mkTempCmd = "mktemp -d XXXXXXXX";
+        return exec(mkTempCmd).then(function (tmpDir1) {
+            return new Promise(
+                function (resolve, reject) {
+                    var zipFile = path.join(tmpDir1, "action.zip");
+                    fs.writeFile(zipFile, base64, "base64", function (err) {
+                        if(err) {
+                            reject("There was an error reading the action archive.");
+                        }
+                        resolve(zipFile);
+                    });
+                }
+            );
+        }).then(function (zipFile) {
+            return exec(mkTempCmd).then(function (tmpDir2) {
+                return exec("unzip " + zipFile + " -d " + tmpDir2).then(function (res) {
+                   return path.resolve(tmpDir2);
+                }).catch(function (error) {
+                   return Promise.reject("There was an error uncompressing the action archive.");
+                });
+            });
+        });
+    }
+
+    // Helper function to run shell commands.
+    function exec(cmd) {
+        return new Promise(
+            function (resolve, reject) {
+                child_process.exec(cmd, function (error, stdout, stderr) {
+                    if(error) {
+                        reject(stderr.trim());
+                    } else {
+                        resolve(stdout.trim());
+                    }
+                });
+            }
+        );
+    }
 }
 
 /**

@@ -18,6 +18,8 @@ package whisk.core.entity
 
 import java.util.Base64
 
+import scala.util.Try
+
 import scala.language.postfixOps
 
 import spray.json._
@@ -60,7 +62,7 @@ sealed abstract class CodeExec[T <% SizeConversion](kind: String) extends Exec(k
     final val image = Exec.imagename(kind)
 
     // Whether the code is stored in a text-readable or binary format.
-    val binary: Boolean = false
+    def binary: Boolean = false
 
     def size = code.sizeInBytes
 }
@@ -69,6 +71,10 @@ sealed abstract class NodeJSAbstractExec(kind: String) extends CodeExec[String](
     // The entrypoint, if not 'main'.
     val init: Option[String]
     override def size = super.size + init.map(_.sizeInBytes).getOrElse(0 B)
+    override lazy val binary: Boolean = {
+        val t = code.trim
+        (t.length % 4 == 0) && Try(Exec.b64decoder.decode(t)).isSuccess
+    }
 }
 
 protected[core] case class NodeJSExec(code: String, init: Option[String]) extends NodeJSAbstractExec(Exec.NODEJS)
@@ -102,7 +108,7 @@ protected[core] object Exec
     with DefaultJsonProtocol
     with DefaultRuntimeVersions {
 
-    private lazy val b64decoder = Base64.getDecoder()
+    protected[core] lazy val b64decoder = Base64.getDecoder()
 
     // The possible values of the JSON 'kind' field.
     protected[core] val NODEJS = "nodejs"

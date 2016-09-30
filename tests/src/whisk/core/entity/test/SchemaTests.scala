@@ -206,12 +206,15 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
     behavior of "Exec"
 
     it should "properly deserialize and reserialize JSON" in {
+        val b64Body = """ZnVuY3Rpb24gbWFpbihhcmdzKSB7IHJldHVybiBhcmdzOyB9Cg=="""
+
         val json = Seq[JsObject](
             JsObject("kind" -> "nodejs".toJson, "code" -> "js1".toJson, "binary" -> false.toJson),
             JsObject("kind" -> "nodejs".toJson, "code" -> "js2".toJson, "binary" -> false.toJson, "init" -> "zipfile2".toJson),
             JsObject("kind" -> "nodejs".toJson, "code" -> "js3".toJson, "binary" -> false.toJson, "init" -> "zipfile3".toJson, "foo" -> "bar".toJson),
             JsObject("kind" -> "blackbox".toJson, "image" -> "container1".toJson),
-            JsObject("kind" -> "swift".toJson, "code" -> "swift1".toJson, "binary" -> false.toJson))
+            JsObject("kind" -> "swift".toJson, "code" -> "swift1".toJson, "binary" -> false.toJson),
+            JsObject("kind" -> "nodejs".toJson, "code" -> b64Body.toJson, "binary" -> true.toJson))
 
         val execs = json.map { e => Exec.serdes.read(e) }
 
@@ -220,6 +223,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
         assert(execs(2) == Exec.js("js3", "zipfile3") && json(2).compactPrint != Exec.js("js3", "zipfile3").toString) // ignores unknown properties
         assert(execs(3) == Exec.bb("container1") && json(3).compactPrint == Exec.bb("container1").toString)
         assert(execs(4) == Exec.swift("swift1") && json(4).compactPrint == Exec.swift("swift1").toString)
+        assert(execs(5) == Exec.js(b64Body) && json(5).compactPrint == Exec.js(b64Body).toString)
 
     }
 
