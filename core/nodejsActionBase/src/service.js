@@ -82,7 +82,7 @@ function NodeActionService(config, logger) {
                 }).catch(function (error) {
                     // this writes to the activation logs visible to the user
                     console.error('Error during initialization:', error);
-                    var errStr = String(error.stack);
+                    var errStr = error.stack ? String(error.stack) : error;
                     return Promise.reject(errorMessage(502, "Initialization has failed due to: " + errStr));
                 });
             } else {
