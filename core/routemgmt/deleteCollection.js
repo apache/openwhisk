@@ -85,67 +85,66 @@ function main(message) {
       viewCollectionKey = message.collectionpath;
     }
     var params = {key: [message.namespace, viewCollectionKey]}
-    queryView(cloudantDb, 'gwapis', viewName, params, function(err, data) {
-      if (err) {
-        console.error('queryView() failed: '+JSON.stringify(err, null, 2));
-        return whisk.error('Internal error.  Database query failed');
-      } else {
-        // Loop through list, deleting each API configuration
-        var deleteFailed = false;
+    return new Promise ( function(resolve, reject) {
+      queryView(cloudantDb, 'gwapis', viewName, params)
+      .then(function(data) {
         if (data && data.rows) {
           if (data.rows instanceof Array) {
             var numApisToDelete = data.rows.length;
-            var ApisProcessed = 0;
             console.log('Deleting '+numApisToDelete+' routes');
             if (numApisToDelete > 0) {
+              var deletePromises = [];
               for (var i = 0; i < numApisToDelete; i++) {
-                deleteSingleRoute(cloudantDb, data.rows[i].id, function(err) {
-                  if (err) {
-                    console.error('Error deleting API route '+data.rows[ApisProcessed].id);
-                    deleteFailed = true;
-                  } else {
-                    console.log('Deleted API route '+data.rows[ApisProcessed].id);
-                  }
-                  ApisProcessed++;
-                  console.log('ApisProcessed: '+ApisProcessed+', numApisToDelete: '+numApisToDelete);
-                  if (ApisProcessed == numApisToDelete ) {
-                    console.log('Completed processing all collection routes');
-                    whisk.done();
-                  }
-                });
+                deletePromises.push(deleteSingleRoute(cloudantDb, data.rows[i].id));
               }
+              Promise.all(deletePromises)
+              .then(function (result) {
+                 console.log('Completed processing all collection routes');
+                 resolve();
+              })
+              .catch(function(error) {
+                 console.error('Route deletion failure: '+JSON.stringify(error));
+                 reject(JSON.stringify(error)); // FIXME MWD need to return string instead of object
+              });
             } else {
-              return whisk.error('Collection '+viewCollectionKey+" has no routes to delete.");
+              console.error('Collection does not have any routes.  Number of returned rows is 0.');
+              reject('Collection does not have any routes');
             }
           } else {
-            return whisk.error('Internal error.  Unexpected data.rows type');
+            console.error('data.rows is not an instanceOf Array');
+            reject('Internal error.  Unexpected data.rows type');
           }
         } else {
-          return whisk.error('Collection does not have any routes');
+          console.error('Either data or data.rows is undefined/null');
+          reject('Collection '+viewCollectionKey+" has no routes to delete.");
         }
-      }
+      })
+      .catch(function(error) {
+        console.error('Collection view failed: '+JSON.stringify(error));
+        reject(JSON.stringify(error));  // FIXME MWD need to return string instead of object
+      });
     });
-
-    return whisk.async();
   }
   catch(e) {
-    console.error('Internal error: '+e);
-    return whisk.error('Internal error.  '+e);
+    console.error('Internal error: '+JSON.stringify(e));
+    return whisk.error('Internal error. Exception: '+e);
   }
 }
 
 /**
  * Get view by design doc id and view name.
  */
-function queryView(cloudantDb, designDocId, designDocViewName, params, callback) {
-  cloudantDb.view(designDocId, designDocViewName, params, function(error, response) {
-    if (!error) {
-      console.log('success', response);
-      callback(null, response);
-    } else {
-      console.error('error', error);
-      callback(error, null);
-    }
+function queryView(cloudantDb, designDocId, designDocViewName, params) {
+  return new Promise( function(resolve, reject) {
+    cloudantDb.view(designDocId, designDocViewName, params, function(error, response) {
+      if (!error) {
+        console.log('success', response);
+        resolve(response);
+      } else {
+        console.error('error', JSON.stringify(error));
+        reject(error);
+      }
+    });
   });
 }
 
@@ -187,22 +186,24 @@ function getCloudantAccount(message) {
   });
 }
 
-function deleteSingleRoute(db, docid, callback) {
+function deleteSingleRoute(db, docid) {
   var actionName = '/whisk.system/routemgmt/deleteRoute';
   var params = { 'docid': docid };
-  whisk.invoke({
-    name: actionName,
-    blocking: true,
-    parameters: params,
-    next: function(error, activation) {
-      if (!error) {
-        console.log('whisk.invoke('+actionName+', '+docid+') ok');
-        console.log('Results: '+JSON.stringify(activation, null, 2));
-        callback(null);
-      } else {
-        console.error('whisk.invoke('+actionName+','+docid+') error:\n'+JSON.stringify(error, null, 2));
-        callback(error);
+  return new Promise( function(resolve, reject) {
+    whisk.invoke({
+      name: actionName,
+      blocking: true,
+      parameters: params,
+      next: function(error, activation) {
+        if (!error) {
+          console.log('whisk.invoke('+actionName+', '+docid+') ok');
+          console.log('Results: '+JSON.stringify(activation));
+          resolve();
+        } else {
+          console.error('whisk.invoke('+actionName+','+docid+') error:\n'+JSON.stringify(error));
+          reject(error);
+        }
       }
-    }
+    });
   });
 }

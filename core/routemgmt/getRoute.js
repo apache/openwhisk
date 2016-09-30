@@ -65,19 +65,21 @@ function main(message) {
   console.log('doc id     : '+message.docid);
 
   var cloudantDb = cloudant.use(message.dbname);
-  readDocument(cloudantDb, message.docid, {});
-  return whisk.async();
+  return readDocument(cloudantDb, message.docid, {});
 }
 
 function readDocument(cloudantDb, docId, params) {
-  cloudantDb.get(docId, params, function(error, response) {
-    if (!error) {
-      console.log('success', response);
-      whisk.done(response);
-    } else {
-      console.error('error', error);
-      whisk.error(error);
-    }
+  return new Promise (function(resolve,reject) {
+    cloudantDb.get(docId, params, function(error, response) {
+      if (!error) {
+        console.log('success', response);
+        resolve(response);
+      } else {
+        var errStr = JSON.stringify(error);
+        console.error('error', errStr);
+        reject(errStr);     // FIXME MWD could not return the error object as it caused an exception
+      }
+    });
   });
 }
 

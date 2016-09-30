@@ -73,30 +73,35 @@ function main(message) {
 
   var cloudantDb = cloudant.use(message.dbname);
 
+  var viewName;
+  var viewCollectionKey;
   if (message.collectionname) {
-    var params = {key: [message.namespace, message.collectionname]}
-    queryView(cloudantDb, 'gwapis', 'routes-by-collection', params);
+    viewName = 'routes-by-collection';
+    viewCollectionKey = message.collectionname;
   }
   else {
-    var params = {key: [message.namespace, message.collectionpath]}
-    queryView(cloudantDb, 'gwapis', 'routes-by-path', params);
+    viewName = 'routes-by-path';
+    viewCollectionKey = message.collectionpath;
   }
+  var params = {key: [message.namespace, viewCollectionKey]}
 
-  return whisk.async();
+  return queryView(cloudantDb, 'gwapis', viewName, params);
 }
 
 /**
  * Get view by design doc id and view name.
  */
 function queryView(cloudantDb, designDocId, designDocViewName, params) {
-  cloudantDb.view(designDocId, designDocViewName, params, function(error, response) {
-    if (!error) {
-      console.log('success', response);
-      whisk.done(response);
-    } else {
-      console.error('error', error);
-      whisk.error(error);
-    }
+  return new Promise(function (resolve, reject) {
+    cloudantDb.view(designDocId, designDocViewName, params, function(error, response) {
+      if (!error) {
+        console.log('success', response);
+        resolve(response);
+      } else {
+        console.error('error', JSON.stringify(error));
+        reject(JSON.stringify(error));  // FIXME MWD issue with rejecting object; so using string
+      }
+    });
   });
 }
 

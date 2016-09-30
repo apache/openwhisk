@@ -93,23 +93,23 @@ function main(message) {
   doc.documentTimestamp = (new Date()).toString();
 
   var cloudantDb = cloudant.use(dbname);
-  insert(cloudantDb, doc, doc._id);
-
-  return whisk.async();
+  return insert(cloudantDb, doc, doc._id);
 }
 
 /**
  * Create document in database.
  */
 function insert(cloudantDb, doc, actionname) {
-  cloudantDb.insert(doc, actionname, function(error, response) {
-    if (!error) {
-      console.log("success", response);
-      whisk.done(response);
-    } else {
-      console.log("error", error)
-      whisk.error(error);
-    }
+  return new Promise( function(resolve, reject) {
+    cloudantDb.insert(doc, actionname, function(error, response) {
+      if (!error) {
+        console.log("success", response);
+        resolve(response);
+      } else {
+        console.log("error", JSON.stringify(error))
+        reject(JSON.stringify(error));  // FIXME MWD could not return the error object as it caused an exception
+      }
+    });
   });
 }
 

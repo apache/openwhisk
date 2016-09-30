@@ -69,31 +69,43 @@ function main(message) {
 
   var cloudantDb = cloudant.use(message.dbname);
 
-  getCurrentDocRev(cloudantDb, message.docid, function(err, docRev) {
-     if (err) {
-       console.error('Could not obtain document revision; unable to delete document');
-       return whisk.error('Currently unable to delete document');
-     } else {
-       console.log('Document revision to delete: '+docRev);
-       destroy(cloudantDb, message.docid, docRev);  // whisk.done() is called inside destroy()
-     }
+  return new Promise(function (resolve, reject) {
+    getCurrentDocRev(cloudantDb, message.docid)
+    .then(function(docRev) {
+      console.log('Document revision to delete: '+docRev);
+      destroy(cloudantDb, message.docid, docRev)
+      .then(function (result) {
+        console.log('Document deleted: '+message.docid+' '+docRev);
+        resolve(result);
+      })
+      .catch(function (err) {
+        console.error('Document delete failed: '+message.docid+' '+docRev+': '+JSON.stringify(err));
+        resolve(result);
+      });
+    })
+    .catch(function(err) {
+      var errStr = JSON.stringify(err);
+      console.error('Could not obtain document revision; unable to delete document: '+errStr);
+      reject(errStr);  // FIXME MWD issue with rejecting object; so using string
+    });
   });
 
-  return whisk.async();
 }
 
 /**
  * Delete document by id and rev.
  */
 function destroy(cloudantDb, docId, docRev) {
-  cloudantDb.destroy(docId, docRev, function(error, response) {
-    if (!error) {
-      console.log('success', response);
-      whisk.done(response);
-    } else {
-      console.error('error', error);
-      whisk.error(error);
-    }
+  return new Promise( function(resolve, reject) {
+    cloudantDb.destroy(docId, docRev, function(error, response) {
+      if (!error) {
+        console.log('success', response);
+        resolve(response);
+      } else {
+        console.error('error', JSON.stringify(error));
+        reject(error);
+      }
+    });
   });
 }
 
@@ -135,27 +147,29 @@ function getCloudantAccount(message) {
   });
 }
 
-function getCurrentDocRev(db, docid, callback) {
+function getCurrentDocRev(db, docid) {
   var actionName = '/whisk.system/routemgmt/getRoute';
   var params = { 'docid': docid };
-  whisk.invoke({
-    name: actionName,
-    blocking: true,
-    parameters: params,
-    next: function(error, activation) {
-      if (!error) {
-        console.log('whisk.invoke('+actionName+', '+docid+') ok');
-        console.log('Results: '+JSON.stringify(activation, null, 2));
-        if (activation && activation.result && activation.result._rev) {
-          callback(null, activation.result._rev);
-        } else {
-          console.error('_rev value not returned!');
-          callback(new Error('Missing _rev value'), null);
-        }
+  console.log('getCurrentDocRev() for docid: '+docid);
+  return new Promise( function (resolve, reject) {
+    whisk.invoke({
+      name: actionName,
+      blocking: true,
+      parameters: params
+    })
+    .then(function (activation) {
+      console.log('whisk.invoke('+actionName+', '+docid+') ok');
+      console.log('Results: '+JSON.stringify(activation));
+      if (activation && activation.result && activation.result._rev) {
+        resolve(activation.result._rev);
       } else {
-        console.error('whisk.invoke('+actionName+','+docid+') error:\n'+JSON.stringify(error, null, 2));
-        callback(error, null);
+        console.error('_rev value not returned!');
+        reject('Route '+docid+' was not located');
       }
-    }
+    })
+    .catch(function (error) {
+      console.error('whisk.invoke('+actionName+', '+docid+') error:\n'+JSON.stringify(error));
+      reject(error);
+    });
   });
 }
