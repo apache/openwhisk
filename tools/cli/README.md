@@ -1,6 +1,6 @@
 To build the OpenWhisk CLI run the following command from the OpenWhisk home directory:
 
-$ gradle :tools:go-cli:distDocker
+$ gradle :tools:cli:distDocker
 
 Multiple binaries are produced in a Docker container during the build process. One of those binaries is copied from the
 Docker container to the local file system in the following directory: ../../bin/go-cli/wsk. This binary will be platform
