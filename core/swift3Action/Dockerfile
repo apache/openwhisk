@@ -53,12 +53,9 @@ ADD epilogue.swift /swift3Action
 ADD swift3runner.py /swift3Action
 ADD spm-build /swift3Action/spm-build
 
-# Add swift build script to bypass swift build
-ADD swiftbuildandlink.sh /swift3Action/spm-build
-
 # Build kitura net
 RUN touch /swift3Action/spm-build/main.swift
-RUN cd /swift3Action/spm-build; swift build -c release; rm .build/release/Action
+RUN cd /swift3Action/spm-build; swift build; rm .build/debug/Action
 
 ENV FLASK_PROXY_PORT 8080
 
