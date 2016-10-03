@@ -91,7 +91,7 @@ class TestConnector(
             }
         }
         def close() = {}
-        def sentCount() = counter.next()
+        def sentCount() = counter.next().toInt
         val counter = new Counter()
     }
 

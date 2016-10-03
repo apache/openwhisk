@@ -16,14 +16,12 @@
 
 package whisk.core.controller
 
-import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.Future
 
 import akka.actor.ActorSystem
 import akka.event.Logging.InfoLevel
-import akka.util.Timeout
-import akka.util.Timeout.durationToTimeout
 import whisk.common.TransactionId
 import whisk.core.connector.ActivationMessage
 import whisk.core.WhiskConfig
@@ -36,8 +34,6 @@ import scala.language.postfixOps
 import whisk.core.entity.ActivationId.ActivationIdGenerator
 
 object WhiskServices {
-
-    type LoadBalancerReq = (ActivationMessage, TransactionId)
 
     def requiredProperties = WhiskConfig.loadbalancerHost ++ WhiskConfig.consulServer ++ EntitlementService.requiredProperties
 
@@ -62,14 +58,10 @@ object WhiskServices {
      *
      * @param config the configuration with loadbalancerHost defined
      * @param timeout the duration before timing out the HTTP request
-     * @return function that accepts a LoadBalancerReq, posts request to load balancer
-     * and returns the HTTP response from the load balancer as a future
+     * @return a load balancer component
      */
-    def makeLoadBalancerComponent(config: WhiskConfig, timeout: Timeout = 10 seconds)(
-        implicit as: ActorSystem): LoadBalancerService = {
-        val loadBalancer = new LoadBalancerService(config, InfoLevel)
-        loadBalancer
-    }
+    def makeLoadBalancerComponent(config: WhiskConfig)(
+        implicit as: ActorSystem): LoadBalancerService = new LoadBalancerService(config, InfoLevel)
 
 }
 
@@ -86,8 +78,11 @@ trait WhiskServices {
     /** A generator for new activation ids. */
     protected val activationId: ActivationIdGenerator
 
+    /** A load balancing service that launches invocations */
+    protected val loadBalancer: LoadBalancerService
+
     /** Synchronously perform a request to the load balancer.  */
-    protected val performLoadBalancerRequest: WhiskServices.LoadBalancerReq => Future[Unit]
+    protected val performLoadBalancerRequest: (ActivationMessage, TransactionId) => Future[Unit]
 
     /** Ask load balancer (instead of db) for activation response */
     protected val queryActivationResponse: (ActivationId, FiniteDuration, TransactionId) => Future[WhiskActivation]

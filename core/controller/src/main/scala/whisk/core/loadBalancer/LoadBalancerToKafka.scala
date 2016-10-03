@@ -51,7 +51,7 @@ trait LoadBalancerToKafka extends Logging {
      * @param transid the transaction id for the request
      * @return result of publishing the message as a Future
      */
-    def publish(msg: Message)(implicit transid: TransactionId): Future[Unit] = {
+    def publish(msg: Message, transid: TransactionId): Future[Unit] = {
         getInvoker(msg) map {
             val start = transid.started(this, LoggingMarkers.CONTROLLER_KAFKA)
             invokerIndex =>
@@ -74,7 +74,7 @@ trait LoadBalancerToKafka extends Logging {
      */
     def getInvoker(message: Message): Option[Int]
 
-    private def updateActivationCount(user: String, invokerIndex: Int): Int = {
+    private def updateActivationCount(user: String, invokerIndex: Int): Long = {
         invokerActivationCounter get invokerIndex match {
             case Some(counter) => counter.next()
             case None =>
@@ -96,12 +96,12 @@ trait LoadBalancerToKafka extends Logging {
     }
 
     // Make a new immutable map so caller cannot mess up the state
-    def getIssueCountByInvoker(): Map[Int, Int] = invokerActivationCounter.readOnlySnapshot.mapValues(_.cur).toMap
+    def getIssueCountByInvoker(): Map[Int, Long] = invokerActivationCounter.readOnlySnapshot.mapValues(_.cur).toMap
 
     /**
      * Retrieve a snapshot of activation counts issued per subject by load balancer
      */
-    def getUserActivationCounts(): Map[String, Long] = userActivationCounter.toMap mapValues { _.cur.toLong }
+    def getUserActivationCounts: Map[String, Long] = userActivationCounter.toMap mapValues { _.cur }
 
     // A count of how many activations have been posted to Kafka based on invoker index or user/subject.
     private val invokerActivationCounter = new TrieMap[Int, Counter]

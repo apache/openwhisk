@@ -43,7 +43,6 @@ import whisk.core.WhiskConfig.consulServer
 import whisk.core.WhiskConfig.kafkaHost
 import whisk.core.connector.ActivationMessage
 import whisk.core.connector.CompletionMessage
-import whisk.core.controller.WhiskServices.LoadBalancerReq
 import whisk.core.entity.ActivationId
 import whisk.core.entity.WhiskActivation
 
@@ -98,11 +97,6 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
             }
             Map(LoadBalancerKeys.invokerHealth -> getInvokerHealth())
         })
-
-    /**
-     * A bridge method to impedance match against RestAPI.
-     */
-    def acceptRequest(lbr: LoadBalancerReq) = publish(lbr._1)(lbr._2)
 
     /**
      * Tries to fill in the result slot (i.e., complete the promise) when a completion message arrives.

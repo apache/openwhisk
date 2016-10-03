@@ -34,6 +34,7 @@ import whisk.common.Logging
 import whisk.common.TransactionCounter
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
+import whisk.core.connector.ActivationMessage
 import whisk.core.controller.WhiskActionsApi
 import whisk.core.controller.WhiskServices
 import whisk.core.database.test.DbUtils
@@ -81,7 +82,7 @@ protected trait ControllerTestCommon
 
     val loadBalancer = new LoadBalancerService(whiskConfig, InfoLevel)
     override val entitlementService: EntitlementService = new LocalEntitlementService(whiskConfig, loadBalancer)
-    override val performLoadBalancerRequest = (lbr: WhiskServices.LoadBalancerReq) => Future.successful {}
+    override val performLoadBalancerRequest = (msg: ActivationMessage, tid: TransactionId) => Future.successful {}
 
     override val activationId = new ActivationIdGenerator() {
         // need a static activation id to test activations api

@@ -219,7 +219,7 @@ class ContainerPool(
      * This method will apply retry so that the caller is blocked until retry succeeds.
      */
     @tailrec
-    final def getContainer(tryCount: Int, position: Int, key: ActionContainerId, conMaker: () => WhiskContainer)(implicit transid: TransactionId): ContainerResult = {
+    final def getContainer(tryCount: Int, position: Long, key: ActionContainerId, conMaker: () => WhiskContainer)(implicit transid: TransactionId): ContainerResult = {
         val positionInLine = position - completedPosition.cur // Indicates queue position.  1 means front of the line
         val available = slack()
         if (tryCount % 100 == 0) {

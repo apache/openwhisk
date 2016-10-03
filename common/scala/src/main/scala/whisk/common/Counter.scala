@@ -16,31 +16,31 @@
 
 package whisk.common
 
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * A simple thread-safe counter.
  */
 class Counter {
-    private val cnt = new AtomicInteger(0)
+    private val cnt = new AtomicLong(0L)
     def cur = cnt.get()
 
     /**
      * Increments and gets the current value.
      */
-    def next(): Int = {
+    def next(): Long = {
         cnt.incrementAndGet()
     }
 
     /**
      * Decrements and gets the current value.
      */
-    def prev(): Int = {
+    def prev(): Long = {
         cnt.decrementAndGet()
     }
 
     /**
      * Sets the value
      */
-    def set(i: Int) = cnt.set(i)
+    def set(i: Long) = cnt.set(i)
 }
