@@ -16,11 +16,21 @@
 
 package whisk.core.controller.test
 
+import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
+
+import org.junit.runner.RunWith
+import org.scalatest.junit.JUnitRunner
+
 import common.TestHelpers
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
-
+import spray.http.StatusCodes.BadRequest
+import spray.http.StatusCodes.OK
+import spray.httpx.SprayJsonSupport._
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 import whisk.core.controller.WhiskActionsApi
 import whisk.core.entity.AuthKey
 import whisk.core.entity.EntityName
@@ -32,20 +42,7 @@ import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskActionPut
 import whisk.core.entity.WhiskAuth
 import whisk.core.entity.WhiskPackage
-
-import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import scala.concurrent.duration.DurationInt
-import scala.language.postfixOps
-
-import spray.json.pimpString
-import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
-import spray.json.DefaultJsonProtocol.RootJsObjectFormat
-
-
-import spray.http.StatusCodes.BadRequest
-import spray.http.StatusCodes.OK
-import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
+import whisk.http.Messages._
 
 /**
  * Tests Sequence API - stand-alone tests that require only the controller to be up
@@ -68,11 +65,6 @@ class SequenceApiTests
     def aname = MakeName.next("sequence_tests")
     val allowedActionDuration = 120 seconds
 
-    private val tooManyActionsMessage = "too many actions in sequence"
-    private val recursionDetectedMessage = "recursion detected in sequence"
-    private val actionNotFoundMessage = "action not found"
-    private val malformedActionNameMessage = "fully qualified entity name must contain at least the namespace and the name of the entity"
-
     it should "reject creation of sequence with more actions than allowed limit" in {
         implicit val tid = transid()
         val seqName = EntityName(s"${aname}_toomanyactions")
@@ -89,7 +81,7 @@ class SequenceApiTests
         // create an action sequence
         Put(s"${collectionPath}/${seqName.name}", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
-            response.entity.toString should include(tooManyActionsMessage)
+            response.entity.toString should include(sequenceIsTooLong)
         }
     }
 
@@ -105,7 +97,7 @@ class SequenceApiTests
         // create an action sequence
         Put(s"${collectionPath}/${seqName.name}", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
-            response.entity.toString should include(actionNotFoundMessage)
+            response.entity.toString should include(sequenceComponentNotFound)
         }
     }
 
@@ -136,7 +128,7 @@ class SequenceApiTests
         // update the sequence
         Put(s"${collectionPath}/${seqName.name}?overwrite=true", updatedContent) ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
-            response.entity.toString should include(recursionDetectedMessage)
+            response.entity.toString should include(sequenceIsCyclic)
         }
     }
 
@@ -224,7 +216,7 @@ class SequenceApiTests
         // update the sequence
         Put(s"${collectionPath}/$pkg/${seqName.name}?overwrite=true", updatedContent) ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
-            response.entity.toString should include(recursionDetectedMessage)
+            response.entity.toString should include(sequenceIsCyclic)
         }
     }
 
@@ -251,7 +243,7 @@ class SequenceApiTests
         Put(s"$collectionPath/${bogus}?overwrite=true", updatedContent) ~> sealRoute(routes(creds)) ~> check {
             deleteAction(bogusAct.docid)
             status should be(BadRequest)
-            response.entity.toString should include(malformedActionNameMessage)
+            response.entity.toString should include(malformedFullyQualifiedEntityName)
         }
     }
 }

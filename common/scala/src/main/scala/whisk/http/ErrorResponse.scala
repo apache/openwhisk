@@ -59,6 +59,14 @@ object Messages {
 
     /** Standard message when supplied authkey is not authorized for an operation. */
     val notAuthorizedtoOperateOnResource = "The supplied authentication token is not authorized to perform operation resource."
+
+    /** Standard error message for malformed fully qualified entity names. */
+    val malformedFullyQualifiedEntityName = "The fully qualified name of the entity must contain at least the namespace and the name of the entity."
+
+    /** Error messages for sequence actions. */
+    val sequenceIsTooLong = "Too many actions in the sequence."
+    val sequenceIsCyclic = "Sequence may not refer to itself."
+    val sequenceComponentNotFound = "Sequence component does not exist."
 }
 
 /** Replaces rejections with Json object containing cause and transaction id. */

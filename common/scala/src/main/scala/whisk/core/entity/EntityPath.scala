@@ -23,6 +23,8 @@ import spray.json.JsValue
 import spray.json.RootJsonFormat
 import spray.json.deserializationError
 
+import whisk.http.Messages
+
 /**
  * EntityPath is a path string of allowed characters. The path consists of parts each of which
  * must be a valid EntityName, separated by the EntityPath separator character. The private
@@ -68,7 +70,7 @@ protected[core] class EntityPath private (val path: Seq[String]) extends AnyVal 
      */
     @throws[IllegalArgumentException]
     def toFullyQualifiedEntityName = {
-        require(path.size > 1, "fully qualified entity name must contain at least the namespace and the name of the entity")
+        require(path.size > 1, Messages.malformedFullyQualifiedEntityName)
         val name = last
         val newPath = EntityPath(path.dropRight(1))
         FullyQualifiedEntityName(newPath, name)
