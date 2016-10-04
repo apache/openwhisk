@@ -35,6 +35,8 @@ import whisk.core.entity.ActivationId.ActivationIdGenerator
 
 object WhiskServices {
 
+    type LoadBalancerReq = (ActivationMessage, FiniteDuration, TransactionId)
+
     def requiredProperties = WhiskConfig.loadbalancerHost ++ WhiskConfig.consulServer ++ EntitlementService.requiredProperties
 
     def consulServer(config: WhiskConfig) = config.consulServer
