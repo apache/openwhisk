@@ -442,10 +442,9 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
             activationNamespace = user.namespace.toPath,
             args)
 
+        val duration = action.limits.timeout()
+        val timeout = (maxWaitForBlockingActivation min duration) + blockingInvokeGrace
         val activationResponse = if (blocking) {
-            val duration = action.limits.timeout()
-            val timeout = (maxWaitForBlockingActivation min duration) + blockingInvokeGrace
-
             // register active ack handler before posting request to avoid race
             // since response might come back before the listener becomes active;
             // note that the total waiting time may be just shy of the specified timeouts since
@@ -456,7 +455,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         }
 
         val start = transid.started(this, LoggingMarkers.CONTROLLER_LOADBALANCER, s"[POST] action activation id: ${message.activationId}")
-        performLoadBalancerRequest(message, transid) flatMap { _ =>
+        performLoadBalancerRequest(message, timeout, transid) flatMap { _ =>
             if (!blocking) {
                 // Duration of the non-blocking activation in Controller.
                 // We use the start time of the tid instead of a startMarker to avoid passing the start marker around.
