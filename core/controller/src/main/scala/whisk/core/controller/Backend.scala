@@ -18,18 +18,14 @@ package whisk.core.controller
 
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.Future
 
 import akka.actor.ActorSystem
 import akka.event.Logging.InfoLevel
-import whisk.common.TransactionId
-import whisk.core.connector.ActivationMessage
 import whisk.core.WhiskConfig
 import whisk.core.entitlement.EntitlementService
 import whisk.core.entitlement.LocalEntitlementService
 import whisk.core.entitlement.RemoteEntitlementService
-import whisk.core.entity.{ ActivationId, WhiskActivation }
-import whisk.core.loadBalancer.LoadBalancerService
+import whisk.core.loadBalancer.{ LoadBalancer, LoadBalancerService }
 import scala.language.postfixOps
 import whisk.core.entity.ActivationId.ActivationIdGenerator
 
@@ -42,7 +38,7 @@ object WhiskServices {
     /**
      * Creates instance of an entitlement service.
      */
-    def entitlementService(config: WhiskConfig, loadBalancer: LoadBalancerService, timeout: FiniteDuration = 5 seconds)(
+    def entitlementService(config: WhiskConfig, loadBalancer: LoadBalancer, timeout: FiniteDuration = 5 seconds)(
         implicit as: ActorSystem) = {
         // remote entitlement service requires a host:port definition. If not given,
         // i.e., the value equals ":" or ":xxxx", use a local entitlement flow.
@@ -77,13 +73,7 @@ trait WhiskServices {
     protected val activationId: ActivationIdGenerator
 
     /** A load balancing service that launches invocations */
-    protected val loadBalancer: LoadBalancerService
-
-    /** Synchronously perform a request to the load balancer.  */
-    protected val performLoadBalancerRequest: (ActivationMessage, TransactionId) => Future[Unit]
-
-    /** Ask load balancer (instead of db) for activation response */
-    protected val queryActivationResponse: (ActivationId, FiniteDuration, TransactionId) => Future[WhiskActivation]
+    protected val loadBalancer: LoadBalancer
 
     /** The hostname of the consul server */
     protected val consulServer: String

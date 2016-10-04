@@ -648,7 +648,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
         try {
             // do not store the activation in the db, instead register it as the response to generate on active ack
-            whiskActivationStub = Some(activation)
+            loadBalancer.whiskActivationStub = Some(activation)
 
             Post(s"$collectionPath/${action.name}?blocking=true") ~> sealRoute(routes(creds)) ~> check {
                 status should be(OK)
@@ -663,7 +663,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
                 response should be(activation.resultAsJson)
             }
         } finally {
-            whiskActivationStub = None
+            loadBalancer.whiskActivationStub = None
         }
     }
 
