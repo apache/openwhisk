@@ -16,15 +16,12 @@
 
 package whisk.core.controller
 
-import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.Future
 
 import akka.actor.ActorSystem
 import akka.event.Logging.InfoLevel
-import akka.util.Timeout
-import akka.util.Timeout.durationToTimeout
-import spray.json.JsObject
 import whisk.common.TransactionId
 import whisk.core.connector.ActivationMessage
 import whisk.core.WhiskConfig
@@ -38,8 +35,6 @@ import whisk.core.entity.ActivationId.ActivationIdGenerator
 
 object WhiskServices {
 
-    type LoadBalancerReq = (ActivationMessage, TransactionId)
-
     def requiredProperties = WhiskConfig.loadbalancerHost ++ WhiskConfig.consulServer ++ EntitlementService.requiredProperties
 
     def consulServer(config: WhiskConfig) = config.consulServer
@@ -47,14 +42,14 @@ object WhiskServices {
     /**
      * Creates instance of an entitlement service.
      */
-    def entitlementService(config: WhiskConfig, timeout: FiniteDuration = 5 seconds)(
+    def entitlementService(config: WhiskConfig, loadBalancer: LoadBalancerService, timeout: FiniteDuration = 5 seconds)(
         implicit as: ActorSystem) = {
         // remote entitlement service requires a host:port definition. If not given,
         // i.e., the value equals ":" or ":xxxx", use a local entitlement flow.
         if (config.entitlementHost.startsWith(":")) {
-            new LocalEntitlementService(config)
+            new LocalEntitlementService(config, loadBalancer)
         } else {
-            new RemoteEntitlementService(config, timeout)
+            new RemoteEntitlementService(config, loadBalancer, timeout)
         }
     }
 
@@ -63,15 +58,10 @@ object WhiskServices {
      *
      * @param config the configuration with loadbalancerHost defined
      * @param timeout the duration before timing out the HTTP request
-     * @return function that accepts a LoadBalancerReq, posts request to load balancer
-     * and returns the HTTP response from the load balancer as a future
+     * @return a load balancer component
      */
-    def makeLoadBalancerComponent(config: WhiskConfig, timeout: Timeout = 10 seconds)(
-        implicit as: ActorSystem): (LoadBalancerReq => Future[Unit], () => JsObject, (ActivationId, FiniteDuration, TransactionId) => Future[WhiskActivation]) = {
-        val loadBalancer = new LoadBalancerService(config, InfoLevel)
-        val requestTaker = (lbr: LoadBalancerReq) => { loadBalancer.publish(lbr._1)(lbr._2) }
-        (requestTaker, loadBalancer.getInvokerHealth, loadBalancer.queryActivationResponse)
-    }
+    def makeLoadBalancerComponent(config: WhiskConfig)(
+        implicit as: ActorSystem): LoadBalancerService = new LoadBalancerService(config, InfoLevel)
 
 }
 
@@ -88,8 +78,11 @@ trait WhiskServices {
     /** A generator for new activation ids. */
     protected val activationId: ActivationIdGenerator
 
+    /** A load balancing service that launches invocations */
+    protected val loadBalancer: LoadBalancerService
+
     /** Synchronously perform a request to the load balancer.  */
-    protected val performLoadBalancerRequest: WhiskServices.LoadBalancerReq => Future[Unit]
+    protected val performLoadBalancerRequest: (ActivationMessage, TransactionId) => Future[Unit]
 
     /** Ask load balancer (instead of db) for activation response */
     protected val queryActivationResponse: (ActivationId, FiniteDuration, TransactionId) => Future[WhiskActivation]

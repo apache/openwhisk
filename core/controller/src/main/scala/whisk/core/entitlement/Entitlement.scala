@@ -39,6 +39,7 @@ import whisk.core.entity.Identity
 import whisk.core.entity.Parameters
 import whisk.core.entity.Subject
 import whisk.core.entity.Identity
+import whisk.core.loadBalancer.LoadBalancerService
 import whisk.http.ErrorResponse
 import whisk.http.Messages._
 
@@ -87,14 +88,14 @@ protected[core] object EntitlementService {
 /**
  * A trait for entitlement service. This is a WIP.
  */
-protected[core] abstract class EntitlementService(config: WhiskConfig)(
+protected[core] abstract class EntitlementService(config: WhiskConfig, loadBalancer: LoadBalancerService)(
     implicit actorSystem: ActorSystem) extends Logging {
 
     private implicit val executionContext = actorSystem.dispatcher
 
     private val invokeRateThrottler = new RateThrottler(config.actionInvokePerMinuteLimit.toInt)
     private val triggerRateThrottler = new RateThrottler(config.triggerFirePerMinuteLimit.toInt)
-    private val concurrentInvokeThrottler = new ActivationThrottler(config.consulServer, config.actionInvokeConcurrentLimit.toInt, config.actionInvokeSystemOverloadLimit.toInt)
+    private val concurrentInvokeThrottler = new ActivationThrottler(config.consulServer, loadBalancer, config.actionInvokeConcurrentLimit.toInt, config.actionInvokeSystemOverloadLimit.toInt)
 
     private val consul = new ConsulClient(config.consulServer)
 

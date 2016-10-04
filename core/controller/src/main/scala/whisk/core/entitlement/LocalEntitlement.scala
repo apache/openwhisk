@@ -24,6 +24,7 @@ import akka.actor.ActorSystem
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.entity.Subject
+import whisk.core.loadBalancer.LoadBalancerService
 
 private object LocalEntitlementService {
     /** Poor mans entitlement matrix. Must persist to datastore eventually. */
@@ -31,9 +32,10 @@ private object LocalEntitlementService {
 }
 
 protected[core] class LocalEntitlementService(
-    private val config: WhiskConfig)(
+    private val config: WhiskConfig,
+    private val loadBalancer: LoadBalancerService)(
         implicit actorSystem: ActorSystem)
-    extends EntitlementService(config) {
+    extends EntitlementService(config, loadBalancer) {
 
     private implicit val executionContext = actorSystem.dispatcher
 

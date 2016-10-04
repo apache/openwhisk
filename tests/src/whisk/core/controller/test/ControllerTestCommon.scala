@@ -34,6 +34,7 @@ import whisk.common.Logging
 import whisk.common.TransactionCounter
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
+import whisk.core.connector.ActivationMessage
 import whisk.core.controller.WhiskActionsApi
 import whisk.core.controller.WhiskServices
 import whisk.core.database.test.DbUtils
@@ -55,6 +56,7 @@ import whisk.core.entity.WhiskEntityStore
 import whisk.core.entity.WhiskPackage
 import whisk.core.entity.WhiskRule
 import whisk.core.entity.WhiskTrigger
+import whisk.core.loadBalancer.LoadBalancerService
 import scala.concurrent.duration.FiniteDuration
 
 protected trait ControllerTestCommon
@@ -78,15 +80,15 @@ protected trait ControllerTestCommon
     override val whiskConfig = new WhiskConfig(WhiskActionsApi.requiredProperties)
     assert(whiskConfig.isValid)
 
-    override val entitlementService: EntitlementService = new LocalEntitlementService(whiskConfig)
+    val loadBalancer = new LoadBalancerService(whiskConfig, InfoLevel)
+    override val entitlementService: EntitlementService = new LocalEntitlementService(whiskConfig, loadBalancer)
+    override val performLoadBalancerRequest = (msg: ActivationMessage, tid: TransactionId) => Future.successful {}
 
     override val activationId = new ActivationIdGenerator() {
         // need a static activation id to test activations api
         private val fixedId = ActivationId()
         override def make = fixedId
     }
-
-    override val performLoadBalancerRequest = (lbr: WhiskServices.LoadBalancerReq) => Future.successful {}
 
     override val queryActivationResponse = (activationId: ActivationId, timeout: FiniteDuration, transid: TransactionId) => {
         whiskActivationStub map {

@@ -45,12 +45,14 @@ import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.controller.RejectRequest
 import whisk.core.entity.Subject
+import whisk.core.loadBalancer.LoadBalancerService
 
 protected[core] class RemoteEntitlementService(
     private val config: WhiskConfig,
+    private val loadBalancer: LoadBalancerService,
     private val timeout: FiniteDuration = 5 seconds)(
         private implicit val actorSystem: ActorSystem)
-    extends EntitlementService(config) {
+    extends EntitlementService(config, loadBalancer) {
 
     private implicit val executionContext = actorSystem.dispatcher
 

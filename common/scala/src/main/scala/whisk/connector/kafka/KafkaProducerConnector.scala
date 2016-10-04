@@ -42,7 +42,7 @@ class KafkaProducerConnector(
     id: String = UUID.randomUUID().toString)
     extends MessageProducer with Logging {
 
-    override def sentCount() = sentCounter.cur
+    override def sentCount() = sentCounter.cur.toInt
 
     /** Sends msg to topic. This is an asynchronous operation. */
     override def send(topic: String, msg: Message): Future[RecordMetadata] = {
