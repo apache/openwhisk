@@ -31,7 +31,7 @@ RUN wget --no-verbose -O - https://swift.org/keys/all-keys.asc | gpg --import - 
 # Install Swift Ubuntu 14.04 Snapshot
 #https://swift.org/builds/swift-3.0.1-preview-1/ubuntu1404/swift-3.0.1-PREVIEW-1/swift-3.0.1-PREVIEW-1-ubuntu14.04.tar.gz
 ENV SWIFT_VERSION 3.0.1
-ENV SWIFT_RELEASE_TYPE PREVIEW-1
+ENV SWIFT_RELEASE_TYPE PREVIEW-3
 ENV SWIFT_PLATFORM ubuntu14.04
 
 RUN SWIFT_ARCHIVE_NAME=swift-$SWIFT_VERSION-$SWIFT_RELEASE_TYPE-$SWIFT_PLATFORM && \
@@ -47,16 +47,18 @@ RUN SWIFT_ARCHIVE_NAME=swift-$SWIFT_VERSION-$SWIFT_RELEASE_TYPE-$SWIFT_PLATFORM 
 RUN mkdir -p /actionProxy
 ADD actionproxy.py /actionProxy
 
-# Add swift3 action runner
+# Add files needed to build and run action
 RUN mkdir -p /swift3Action
 ADD epilogue.swift /swift3Action
+ADD buildandrecord.py /swift3Action
 ADD swift3runner.py /swift3Action
 ADD spm-build /swift3Action/spm-build
 
+
 # Build kitura net
 RUN touch /swift3Action/spm-build/main.swift
-RUN cd /swift3Action/spm-build; swift build; rm .build/debug/Action
-
+RUN python /swift3Action/buildandrecord.py; rm /swift3Action/spm-build/.build/release/Action
+#RUN cd /swift3Action/spm-build; swift build -c release; rm /swift3Action/spm-build/.build/release/Action
 ENV FLASK_PROXY_PORT 8080
 
 CMD ["/bin/bash", "-c", "cd swift3Action && python -u swift3runner.py"]
