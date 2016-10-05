@@ -446,7 +446,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         val timeout = (maxWaitForBlockingActivation min duration) + blockingInvokeGrace
 
         val start = transid.started(this, LoggingMarkers.CONTROLLER_LOADBALANCER, s"[POST] action activation id: ${message.activationId}")
-        val (postedFuture, activationResponse) = performLoadBalancerRequest(message, timeout, transid)
+        val (postedFuture, activationResponse) = loadBalancer.publish(message, timeout)(transid)
         postedFuture flatMap { _ =>
             transid.finished(this, start)
             if (blocking) {

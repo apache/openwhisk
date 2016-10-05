@@ -53,7 +53,7 @@ import whisk.core.connector.CompletionMessage
 import whisk.core.entity.ActivationId
 import whisk.core.entity.WhiskActivation
 
-class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
+class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel, unitTest: Boolean = false)(
     implicit val actorSystem: ActorSystem)
     extends Logging {
 
@@ -164,16 +164,17 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
         })
     }
 
-    val consumer = new KafkaConsumerConnector(config.kafkaHost, "completions", "completed")
-    consumer.setVerbosity(verbosity)
-    consumer.onMessage((topic, partition, offset, bytes) => {
-        val raw = new String(bytes, "utf-8")
-        CompletionMessage(raw) match {
-            case Success(m) => processCompletion(m)
-            case Failure(t) => error(this, s"failed processing message: $raw with $t")
-        }
-    })
-
+    if (!unitTest) {
+        val consumer = new KafkaConsumerConnector(config.kafkaHost, "completions", "completed")
+        consumer.setVerbosity(verbosity)
+        consumer.onMessage((topic, partition, offset, bytes) => {
+            val raw = new String(bytes, "utf-8")
+            CompletionMessage(raw) match {
+                case Success(m) => processCompletion(m)
+                case Failure(t) => error(this, s"failed processing message: $raw with $t")
+            }
+        })
+    }
 
     private implicit val emitter: PrintStreamEmitter = this
 
