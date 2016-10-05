@@ -16,8 +16,7 @@
 
 package whisk.core.controller.test
 
-import scala.concurrent.Await
-import scala.concurrent.Future
+import scala.concurrent.{ Await, Future }
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
@@ -30,34 +29,14 @@ import akka.event.Logging.InfoLevel
 import spray.http.BasicHttpCredentials
 import spray.routing.HttpService
 import spray.testkit.ScalatestRouteTest
-import whisk.common.Logging
-import whisk.common.TransactionCounter
-import whisk.common.TransactionId
+import whisk.common.{ Logging, TransactionCounter, TransactionId }
 import whisk.core.WhiskConfig
-import whisk.core.connector.ActivationMessage
 import whisk.core.controller.WhiskActionsApi
 import whisk.core.controller.WhiskServices
 import whisk.core.database.test.DbUtils
-import whisk.core.entitlement.Collection
-import whisk.core.entitlement.EntitlementService
-import whisk.core.entitlement.LocalEntitlementService
-import whisk.core.entity.ActivationId
-import whisk.core.entity.ActivationId.ActivationIdGenerator
-import whisk.core.entity.AuthKey
-import whisk.core.entity.DocId
-import whisk.core.entity.EntityName
-import whisk.core.entity.Subject
-import whisk.core.entity.WhiskAction
-import whisk.core.entity.WhiskActivation
-import whisk.core.entity.WhiskActivationStore
-import whisk.core.entity.WhiskAuth
-import whisk.core.entity.WhiskAuthStore
-import whisk.core.entity.WhiskEntityStore
-import whisk.core.entity.WhiskPackage
-import whisk.core.entity.WhiskRule
-import whisk.core.entity.WhiskTrigger
+import whisk.core.entitlement.{ Collection, EntitlementService, LocalEntitlementService }
+import whisk.core.entity._
 import whisk.core.loadBalancer.LoadBalancerService
-import scala.concurrent.duration.FiniteDuration
 
 protected trait ControllerTestCommon
     extends FlatSpec
@@ -82,20 +61,18 @@ protected trait ControllerTestCommon
 
     val loadBalancer = new LoadBalancerService(whiskConfig, InfoLevel)
     override val entitlementService: EntitlementService = new LocalEntitlementService(whiskConfig, loadBalancer)
-    override val performLoadBalancerRequest = (msg: ActivationMessage, tid: TransactionId) => Future.successful {}
-
-    override val activationId = new ActivationIdGenerator() {
-        // need a static activation id to test activations api
-        private val fixedId = ActivationId()
-        override def make = fixedId
-    }
-
-    override val queryActivationResponse = (activationId: ActivationId, timeout: FiniteDuration, transid: TransactionId) => {
+    override val performLoadBalancerRequest = (lbr: WhiskServices.LoadBalancerReq) =>
+        (Future.successful {},
         whiskActivationStub map {
             activation => Future.successful(activation)
         } getOrElse (Future.failed {
             new IllegalArgumentException("Unit test does not need fast path")
-        })
+        }))
+
+    override val activationId = new ActivationId.ActivationIdGenerator() {
+        // need a static activation id to test activations api
+        private val fixedId = ActivationId()
+        override def make = fixedId
     }
 
     override val consulServer = "???"
