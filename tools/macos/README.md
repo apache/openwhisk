@@ -7,7 +7,7 @@ One way to develop or deploy OpenWhisk on a Mac is to use [docker-machine](https
 The following are required to build and deploy OpenWhisk from a Mac host:
 
 - [Oracle VM VirtualBox](https://www.virtualbox.org/wiki/Downloads)
-- [Docker 1.9.1](https://docs.docker.com/engine/installation/mac/) (including `docker-machine`)
+- [Docker 1.12.0](https://docs.docker.com/engine/installation/mac/) (including `docker-machine`)
 - [Java 8](http://www.oracle.com/technetwork/java/javase/downloads/index.html)
 - [Scala 2.11](http://scala-lang.org/download/)
 - [Ansible 2.1.2.0](http://docs.ansible.com/ansible/intro_installation.html)
@@ -25,8 +25,8 @@ echo '
 brew tap caskroom/cask
 # install virtualbox
 brew cask install virtualbox
-# install docker 1.9.1
-brew install https://raw.githubusercontent.com/Homebrew/homebrew-core/7702619bb7c1a42dc1ed83a57128727a1a1f5d9f/Formula/docker.rb
+# install docker 1.12.0
+brew install https://raw.githubusercontent.com/Homebrew/homebrew-core/33301827c3d770bfd49f0e50d84e0b125b06b0b7/Formula/docker.rb
 # install docker-machine
 brew install docker-machine
 # install java 8
@@ -48,7 +48,7 @@ It is recommended that you create a virtual machine `whisk` with at least 4GB of
 ```
 docker-machine create -d virtualbox \
    --virtualbox-memory 4096 \
-   --virtualbox-boot2docker-url=https://github.com/boot2docker/boot2docker/releases/download/v1.9.1/boot2docker.iso \
+   --virtualbox-boot2docker-url=https://github.com/boot2docker/boot2docker/releases/download/v1.12.0/boot2docker.iso \
     whisk # the name of your docker machine
 ```
 
