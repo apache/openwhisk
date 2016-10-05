@@ -31,7 +31,7 @@ trait MessageConsumer {
      * @param duration for the long poll
      * @return iterable collection (topic, partition, offset, bytes)
      */
-    def peek(duration: Duration): Iterable[(String, Int, Long, Array[Byte])]
+    def peek(duration: Duration): Iterable[(String, Int, Long, Array[Byte], Long)]
 
     /**
      * Commits offsets from last peek operation to ensure they are removed
@@ -43,7 +43,7 @@ trait MessageConsumer {
      * Calls process for every message received. Process receives a tuple
      * (topic, partition, offset, and message as byte array).
      */
-    def onMessage(process: (String, Int, Long, Array[Byte]) => Unit): Unit
+    def onMessage(process: (String, Int, Long, Array[Byte], Long) => Unit): Unit
 
     /** Closes consumer. */
     def close(): Unit

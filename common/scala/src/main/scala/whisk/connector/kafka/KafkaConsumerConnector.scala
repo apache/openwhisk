@@ -55,7 +55,7 @@ class KafkaConsumerConnector(
      */
     override def peek(duration: Duration = 500 milliseconds) = {
         val records = consumer.poll(duration.toMillis)
-        records map { r => (r.topic, r.partition, r.offset, r.value) }
+        records map { r => (r.topic, r.partition, r.offset, r.value, r.timestamp) }
     }
 
     /**
@@ -63,7 +63,7 @@ class KafkaConsumerConnector(
      */
     def commit() = consumer.commitSync()
 
-    override def onMessage(process: (String, Int, Long, Array[Byte]) => Unit) = {
+    override def onMessage(process: (String, Int, Long, Array[Byte], Long) => Unit) = {
         val self = this
         val thread = new Thread() {
             override def run() = {
