@@ -26,38 +26,25 @@
  *   password   Required. The database user password
  *   docid      Required. The database id of the API Gateway mapping document
  *                        Format:  owNamespace:MethodVerb:gatewayPath
- *                        Example: mdeuser@us.ibm.com_dev:get:/v1/order
+ *                        Example: mdeuser@us.ibm.com_dev:get:v1/order
+ *   gwUrl      Required. The API Gateway base path (i.e. http://gw.com)
  *
  * NOTE: The package containing this action will be bound to the following values:
  *         host, port, protocol, dbname, username, password
  *       As such, the caller to this action should normally avoid explicitly setting
  *       these values
  **/
+ var request = require('request');
 
 function main(message) {
-
-  if(!message) {
-    console.error('No message argument!');
-    return whisk.error('Internal error.  A message parameter was not supplied.');
+  var badArgMsg = '';
+  if (badArgMsg = validateArgs(message)) {
+    return whisk.error(badArgMsg);
   }
-
-  // The host, port, protocol, username, and password parameters are validated here
-  var cloudantOrError = getCloudantAccount(message);
-  if (typeof cloudantOrError !== 'object') {
-    console.error('CloudantAccount returned an unexpected object type: '+(typeof cloudantOrError));
-    return whisk.error('Internal error.  An unexpected object type was obtained.');
-  }
-  var cloudant = cloudantOrError;
-
-  var docRev = message.docrev;
-
-  // Validate the remaining parameters (dbname and docid)
-  if(!message.dbname) {
-    return whisk.error('dbname is required.');
-  }
-  if(!message.docid) {
-    return whisk.error('docid is required.');
-  }
+  var gwInfo = {
+    gwUrl: message.gwUrl,
+    gwAuth: message.gwAuth
+  };
 
   // Log parameter values
   console.log('DB host    : '+message.host);
@@ -66,48 +53,49 @@ function main(message) {
   console.log('DB username: '+message.username);
   console.log('DB database: '+message.dbname);
   console.log('doc id     : '+message.docid);
+  console.log('GW URL     : '+message.gwUrl);
+  console.log('GW Auth API: '+message.gwAuth);
 
+  // The host, port, protocol, username, and password parameters are validated here
+  var cloudantOrError = getCloudantAccount(message);
+  if (typeof cloudantOrError !== 'object') {
+    console.error('CloudantAccount returned an unexpected object type: '+(typeof cloudantOrError));
+    return whisk.error('Internal error.  An unexpected object type was obtained.');
+  }
+  var cloudant = cloudantOrError;
   var cloudantDb = cloudant.use(message.dbname);
 
-  return new Promise(function (resolve, reject) {
-    getCurrentDocRev(cloudantDb, message.docid)
-    .then(function(docRev) {
-      console.log('Document revision to delete: '+docRev);
-      destroy(cloudantDb, message.docid, docRev)
-      .then(function (result) {
-        console.log('Document deleted: '+message.docid+' '+docRev);
-        resolve(result);
-      })
-      .catch(function (err) {
-        console.error('Document delete failed: '+message.docid+' '+docRev+': '+JSON.stringify(err));
-        resolve(result);
-      });
-    })
-    .catch(function(err) {
-      var errStr = JSON.stringify(err);
-      console.error('Could not obtain document revision; unable to delete document: '+errStr);
-      reject(errStr);  // FIXME MWD issue with rejecting object; so using string
-    });
-  });
-
-}
-
-/**
- * Delete document by id and rev.
- */
-function destroy(cloudantDb, docId, docRev) {
-  return new Promise( function(resolve, reject) {
-    cloudantDb.destroy(docId, docRev, function(error, response) {
-      if (!error) {
-        console.log('success', response);
-        resolve(response);
-      } else {
-        console.error('error', JSON.stringify(error));
-        reject(error);
-      }
-    });
+  // Delete an API route
+  // 1. Obtain current DB doc revision and API Gateway id; both are in the DB document
+  // 2. Remove the API from the API gateway
+  // 3. Delete the document from the DB
+  var routeDeleted = false;
+  var dbUpdated = false;
+  var docRev;
+  var gwApiGuid;
+  return getCurrentDoc(cloudantDb, message.docid)
+  .then(function(apiDoc) {
+      console.log('Found API doc in db: '+JSON.stringify(apiDoc));
+      docRev = apiDoc._rev;
+      gwApiGuid = apiDoc.gwApiGuid;
+      return deleteRouteFromGateway(gwInfo, gwApiGuid);
+  })
+  .then(function() {
+      console.log('Deleted API from gateway');
+      routeDeleted = true;
+      return destroy(cloudantDb, message.docid, docRev);
+  })
+  .then(function() {
+      console.log('Document deleted from db: '+message.docid+' '+docRev);
+      dbUpdated = true;
+  })
+  .catch(function(reason) {
+      // FIXME MWD Possibly need to rollback some operations ??
+      console.error('API deletion failure: '+reason);
+      return Promise.reject('API deletion failure: '+reason);
   });
 }
+
 
 function getCloudantAccount(message) {
   // full cloudant URL - Cloudant NPM package has issues creating valid URLs
@@ -147,7 +135,7 @@ function getCloudantAccount(message) {
   });
 }
 
-function getCurrentDocRev(db, docid) {
+function getCurrentDoc(db, docid) {
   var actionName = '/whisk.system/routemgmt/getRoute';
   var params = { 'docid': docid };
   console.log('getCurrentDocRev() for docid: '+docid);
@@ -161,7 +149,7 @@ function getCurrentDocRev(db, docid) {
       console.log('whisk.invoke('+actionName+', '+docid+') ok');
       console.log('Results: '+JSON.stringify(activation));
       if (activation && activation.result && activation.result._rev) {
-        resolve(activation.result._rev);
+        resolve(activation.result);
       } else {
         console.error('_rev value not returned!');
         reject('Route '+docid+' was not located');
@@ -172,4 +160,84 @@ function getCurrentDocRev(db, docid) {
       reject(error);
     });
   });
+}
+
+/**
+ * Deletes the specified API route from the API Gateway.
+ *
+ * @param gwInfo Required.
+ * @param    gwUrl   Required.  The base URL gateway path (i.e.  'PROTOCOL://gw.host.domain:PORT/CONTEXT')
+ * @param    gwAuth  Required.  The credentials used to access the API Gateway REST endpoints
+ * @param gwApiGuid.  Required. The API Gateway generated GUID for this API route
+ * @return A promise for an object describing the result with fields error and response
+ */
+function deleteRouteFromGateway(gwInfo, gwApiGuid) {
+
+  var options = {
+    url: gwInfo.gwUrl+'/v1/apis/'+gwApiGuid,
+    agentOptions: {rejectUnauthorized: false},
+    headers: {
+      'Content-Type': 'application/json',
+      //'Authorization': 'Basic ' + 'btoa(gwInfo.gwAuth)',  // FIXME MWD Authentication
+    }
+  };
+  console.log('deleteRouteFromGateway: request: '+JSON.stringify(options));
+
+  return new Promise(function(resolve, reject) {
+    request.delete(options, function(error, response, body) {
+      var statusCode = response ? response.statusCode : undefined;
+      console.log('deleteRouteFromGateway: response status: '+ statusCode);
+      error && console.error('Warning: addRouteToGateway request failed: '+ JSON.stringify(error));
+      body && console.log('deleteRouteFromGateway: response body: '+JSON.stringify(body));
+
+      if (error) {
+        console.error('deleteRouteFromGateway: Unable to delete the API Gateway: '+JSON.stringify(error))
+        reject('Unable to configure the API Gateway: '+JSON.stringify(error));
+      } else if (statusCode != 200) {
+        console.error('deleteRouteFromGateway: Response code: '+statusCode)
+        reject('Unable to delete the API Gateway: Response failure code: '+statusCode);
+      } else {
+        resolve();
+      }
+    });
+  });
+}
+
+/**
+ * Delete document by id and rev.
+ */
+function destroy(cloudantDb, docId, docRev) {
+  return new Promise( function(resolve, reject) {
+    cloudantDb.destroy(docId, docRev, function(error, response) {
+      if (!error) {
+        console.log('success', response);
+        resolve(response);
+      } else {
+        console.error('error', JSON.stringify(error));
+        reject(error);
+      }
+    });
+  });
+}
+
+function validateArgs(message) {
+  var tmpdoc;
+  if(!message) {
+    console.error('No message argument!');
+    return 'Internal error.  A message parameter was not supplied.';
+  }
+
+  if (!message.dbname) {
+    return 'dbname is required.';
+  }
+
+  if(!message.docid) {
+    return whisk.error('docid is required.');
+  }
+
+  if (!message.gwUrl) {
+    return 'gwUrl is required.';
+  }
+
+  return '';
 }
