@@ -28,6 +28,7 @@ import common.JsHelpers
 import common.TestHelpers
 import common.TestUtils
 import common.Wsk
+import common.WskAdmin
 import common.WskProps
 import common.WskTestHelpers
 import spray.json.DefaultJsonProtocol.IntJsonFormat
@@ -47,13 +48,13 @@ class WskActionSequenceTests
     val wsk = new Wsk
     val allowedActionDuration = 120 seconds
     val guestNamespace = wskprops.namespace
+    val user = WskAdmin.getUser(wskprops.authKey)
 
     behavior of "Wsk Action Sequence"
 
     it should "invoke a blocking action and get only the result" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "sequence"
-
             val actions = Seq("split", "sort", "head", "cat")
             for (actionName <- actions) {
                 val file = TestUtils.getTestActionFilename(s"$actionName.js")
@@ -116,8 +117,8 @@ class WskActionSequenceTests
             val artifacts = s"$fullHelloActionName,$fullCatActionName"
             val kindValue = JsString("sequence")
             val compValue = JsArray(
-                JsString(fullHelloActionName),
-                JsString(fullCatActionName))
+                JsString(resolveDefaultNamespace(fullHelloActionName)),
+                JsString(resolveDefaultNamespace(fullCatActionName)))
 
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) => action.create(name, Some(artifacts), kind = Some("sequence"))
@@ -125,7 +126,9 @@ class WskActionSequenceTests
 
             val stdout = wsk.action.get(name).stdout
             assert(stdout.startsWith(s"ok: got action $name\n"))
+            wsk.parseJsonString(stdout).fields("exec").asJsObject.fields("components") shouldBe compValue
             wsk.parseJsonString(stdout).fields("exec").asJsObject.fields("kind") shouldBe kindValue
     }
 
+    private def resolveDefaultNamespace(actionName: String) = actionName.replace("/_/", s"/$user/")
 }
