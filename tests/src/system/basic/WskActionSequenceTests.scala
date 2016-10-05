@@ -47,7 +47,7 @@ class WskActionSequenceTests
     implicit val wskprops = WskProps()
     val wsk = new Wsk
     val allowedActionDuration = 120 seconds
-    val guestNamespace = wskprops.namespace
+    val defaultNamespace = wskprops.namespace
     val user = WskAdmin.getUser(wskprops.authKey)
 
     behavior of "Wsk Action Sequence"
@@ -97,8 +97,8 @@ class WskActionSequenceTests
             val packageName = "samples"
             val helloName = "hello"
             val catName = "cat"
-            val fullHelloActionName = s"/$guestNamespace/$packageName/$helloName"
-            val fullCatActionName = s"/$guestNamespace/$packageName/$catName"
+            val fullHelloActionName = s"/$defaultNamespace/$packageName/$helloName"
+            val fullCatActionName = s"/$defaultNamespace/$packageName/$catName"
 
             assetHelper.withCleaner(wsk.pkg, packageName) {
                 (pkg, _) => pkg.create(packageName, shared = Some(true))(wp)

@@ -642,7 +642,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
     }
 
     /**
-     * Checks that the sequence is not cyclic and that the number of inlined actions in the sequence is fewer than max allowed.
+     * Checks that the sequence is not cyclic and that the number of atomic actions in the "inlined" sequence is lower than max allowed.
      *
      * @param sequenceAction is the action sequence to check
      * @param components the components of the sequence
@@ -668,7 +668,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
 
         future recoverWith {
             case _: TooManyActionsInSequence => Future failed RejectRequest(BadRequest, sequenceIsTooLong)
-            case _: SequenceWithRecursion    => Future failed RejectRequest(BadRequest, sequenceIsCyclic)
+            case _: SequenceWithCycle    => Future failed RejectRequest(BadRequest, sequenceIsCyclic)
             case _: NoDocumentException      => Future failed RejectRequest(BadRequest, sequenceComponentNotFound)
         }
     }
@@ -697,7 +697,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                             // if this is a sequence, check if already traversed it
                             case seq: SequenceExec =>
                                 if (visitedSequences.contains(action)) {
-                                    Future.failed(SequenceWithRecursion())
+                                    Future.failed(SequenceWithCycle())
                                 } else {
                                     // resolve the components first
                                     // need to inline each of its components
@@ -706,7 +706,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                                         // check that these components don't overlap with the sequences found so far
                                         val overlap = components.intersect(visitedSequences).nonEmpty
                                         if (overlap) {
-                                            Future.failed(SequenceWithRecursion())
+                                            Future.failed(SequenceWithCycle())
                                         } else {
                                             inlineComponentsAndCountAtomicActions(atomicActionsCnt, restActions ++ components, action :: visitedSequences)
                                         }
@@ -739,4 +739,4 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
 
 private case class BlockingInvokeTimeout(activationId: ActivationId) extends TimeoutException
 private case class TooManyActionsInSequence() extends RuntimeException
-private case class SequenceWithRecursion() extends RuntimeException
+private case class SequenceWithCycle() extends RuntimeException
