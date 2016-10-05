@@ -456,9 +456,8 @@ OpenWhisk has a few system limits, including how much memory an action uses and 
 | timeout | a container is not allowed to run longer than N milliseconds | per action |  milliseconds | 60000 |
 | memory | a container is not allowed to allocate more than N MB of memory | per action | MB | 256 |
 | logs | a container is not allowed to write more than N MB to stdout | per action | MB | 10 |
-| concurrent | no more than N concurrent activations per namespace are allowed | per namespace | number | 100 |
-| minuteRate | a user cannot invoke more than this many actions per minute | per user | number | 120 |
-| hourRate | a user cannot invoke more than this many actions per hour | per user | number | 3600 |
+| concurrent | no more than N concurrent activations per namespace are allowed | per namespace | number | 1000 |
+| minuteRate | a user cannot invoke more than this many actions per minute | per user | number | 5000 |
 | codeSize | the maximum size of the actioncode | not configurable, limit per action | MB | 48 |
 | parameters | the maximum size of the paramters that can be attached | not configurable, limit per action/package/trigger | MB | 1 |
 
@@ -484,13 +483,13 @@ OpenWhisk has a few system limits, including how much memory an action uses and 
 ### Per activation payload size (MB) (Fixed: 1MB)
 * The maximum POST content size plus any curried parameters for an action invocation or trigger firing is 1MB.
 
-### Per namespace concurrent invocation (Default: 100)
+### Per namespace concurrent invocation (Default: 1000)
 * The number of activations that are currently processed for a namespace cannot exceed 100.
 * The default limit can be statically configured by whisk in consul kvstore.
 * A user is currently not able to change the limits.
 
-### Invocations per minute/hour (Fixed: 120/3600)
-* The rate limit N is set to 120/3600 and limits the number of action invocations in one minute/hour windows.
+### Invocations per minute (Fixed: 5000)
+* The rate limit N is set to 5000 and limits the number of action invocations in one a minute window.
 * A user cannot change this limit when creating the action.
 * A CLI or API call that exceeds this limit receives an error code corresponding to HTTP status code `429: TOO MANY REQUESTS`.
 
