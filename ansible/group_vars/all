@@ -59,7 +59,7 @@ db:
   - whisk.system
 
 linux:
-  version: 3.19.0-25
+  version: 4.4.0-31
 
 docker_image_prefix: whisk
 docker_image_tag: latest
@@ -67,7 +67,7 @@ docker:
   # The user to install docker for. Defaults to the ansible user if not set. This will be the user who is able to run 
   # docker commands on a machine setup with prereq_build.yml
   #user:
-  version: 1.9.1-0~trusty
+  version: 1.12.0-0~trusty
   storagedriver: overlay
   port: 4243
   restart:
