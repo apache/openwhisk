@@ -33,8 +33,6 @@ import akka.actor.ActorSystem
 import akka.event.Logging.LogLevel
 import akka.pattern.after
 
-import spray.json._
-import spray.json.DefaultJsonProtocol._
 import spray.json.JsObject
 
 import whisk.common.ConsulClient
@@ -189,26 +187,27 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
      *
      * @param msg the activation message to publish on an invoker topic
      * @param transid the transaction id for the request
-     * @return result of publishing the message as a Future
+     * @return result a pair of Futures the first indicating completion of publishing and the second the completion of the action
      */
-    def publish(msg: ActivationMessage, timeout: FiniteDuration)(implicit transid: TransactionId): Future[Unit] = {
+    def publish(msg: ActivationMessage, timeout: FiniteDuration)(implicit transid: TransactionId): (Future[Unit], Future[WhiskActivation]) = {
         getInvoker(msg) map {
             val start = transid.started(this, LoggingMarkers.CONTROLLER_KAFKA)
             invokerIndex =>
                 val topic = ActivationMessage.invoker(invokerIndex)
                 val subject = msg.subject()
-                setupActivation(msg.activationId, timeout, transid)
+                val entry = setupActivation(msg.activationId, timeout, transid)
                 info(this, s"posting topic '$topic' with activation id '${msg.activationId}'")
-                producer.send(topic, msg) map { status =>
+                (producer.send(topic, msg) map { status =>
                     val counter = updateActivationCount(subject, invokerIndex)
                     transid.finished(this, start, s"user has ${counter} activations posted. Posted to ${status.topic()}[${status.partition()}][${status.offset()}]")
-                }
+                }, entry._2.future)
         } getOrElse {
-            Future.failed(new LoadBalancerException("no invokers available"))
+            (Future.failed(new LoadBalancerException("no invokers available")),
+             Future.failed(new LoadBalancerException("no invokers available")))
         }
     }
 
-    private def updateActivationCount(user: String, invokerIndex: Int): Int = {
+    private def updateActivationCount(user: String, invokerIndex: Int): Long = {
         invokerActivationCounter get invokerIndex match {
             case Some(counter) => counter.next()
             case None =>
@@ -230,24 +229,14 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
     }
 
     // Make a new immutable map so caller cannot mess up the state
-    def getIssueCountByInvoker(): Map[Int, Int] = invokerActivationCounter.readOnlySnapshot.mapValues(_.cur).toMap
+    def getIssueCountByInvoker(): Map[Int, Long] = invokerActivationCounter.readOnlySnapshot.mapValues(_.cur).toMap
 
     /**
-     * Convert user activation counters into a map of JsObjects to be written into consul kv
+     * Retrieve a snapshot of activation counts issued per subject by load balancer
      *
-     * @param userActivationCounter the counters for each user's activations
-     * @returns a map where the key represents the final nested key structure for consul and a JsObject
-     *     containing the activation counts for each user
+     * @returns a map where the key is the subject and the long is total issued activations by that user
      */
-    protected def getUserActivationCounts(): Map[String, JsObject] = {
-        userActivationCounter.toMap mapValues {
-            _.cur
-        } groupBy {
-            case (key, _) => LoadBalancerKeys.userActivationCountKey + "/" + key.substring(0, 1)
-        } mapValues { map =>
-            map.toJson.asJsObject
-        }
-    }
+    def getUserActivationCounts: Map[String, Long] = userActivationCounter.toMap mapValues { _.cur }
 
     // A count of how many activations have been posted to Kafka based on invoker index or user/subject.
     private val invokerActivationCounter = new TrieMap[Int, Counter]
