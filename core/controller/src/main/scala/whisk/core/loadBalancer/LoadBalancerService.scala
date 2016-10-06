@@ -124,6 +124,7 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
         implicit val tid = msg.transid
         val response = msg.response
         val aid = response.activationId
+        info(this, s"active ack for aid '$aid'")
         activationMap.remove(aid) match {
             case Some((_, p)) =>
                 p.trySuccess(response)
