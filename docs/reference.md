@@ -95,7 +95,7 @@ An activation record contains the following fields:
 - *activationId*: The activation ID.
 - *start* and *end*: Timestamps recording the start and end of the activation. The values are in [UNIX time format](http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap04.html#tag_04_15).
 - *namespace* and `name`: The namespace and name of the entity.
-- *logs*: An array of strings with the logs that are produced by the action during its activation. Each array element corresponds to a line output to `stdout` or `stderr` by the action, and includes the time and stream of the log output. The structure is as follows: ```TIMESTAMP STREAM: LOG_OUTPUT```.
+- *logs*: An array of strings with the logs that are produced by the action during its activation. Each array element corresponds to a line output to `stdout` or `stderr` by the action, and includes the time and stream of the log output. The structure is as follows: `TIMESTAMP STREAM: LOG_OUTPUT`.
 - *response*: A dictionary that defines the keys `success`, `status`, and `result`:
   - *status*: The activation result, which might be one of the following values: "success", "application error", "action developer error", "whisk internal error".
   - *success*: Is `true` if and only if the status is `"success"`
@@ -128,8 +128,8 @@ It is common for JavaScript functions to continue execution in a callback functi
 
 A JavaScript action's activation is **synchronous** if the main function exits under one of the following conditions:
 
-- The main function exits without executing a ```return``` statement.
-- The main function exits by executing a ```return``` statement that returns any value *except* a Promise.
+- The main function exits without executing a `return` statement.
+- The main function exits by executing a `return` statement that returns any value *except* a Promise.
 
 Here is an example of a synchronous action.
 
@@ -239,6 +239,7 @@ The `whisk.trigger()` function fires a trigger and returns a Promise for the res
 - *apiKey*: The authorization key with which to fire the trigger. Defaults to `whisk.getAuthKey()`.
 
 `whisk.trigger()` returns a Promise. If you require the OpenWhisk system to wait for the trigger to complete, you should return this Promise from your action's `main` function.
+
 - If the trigger fails, the promise will reject with an object describing the error.
 - If the trigger succeeds, the promise will resolve with a dictionary with an `activationId` field containing the activation ID.
 
@@ -390,7 +391,6 @@ You may include any compilation steps or dependencies by modifying the `Dockerfi
 All the capabilities in the system are available through a REST API. There are collection and entity endpoints for actions, triggers, rules, packages, activations, and namespaces.
 
 These are the collection endpoints:
-
 - `https://{BASE URL}/api/v1/namespaces`
 - `https://{BASE URL}/api/v1/namespaces/{namespace}/actions`
 - `https://{BASE URL}/api/v1/namespaces/{namespace}/triggers`
@@ -399,14 +399,12 @@ These are the collection endpoints:
 - `https://{BASE URL}/api/v1/namespaces/{namespace}/activations`
 
 The `{BASE URL}` is the OpenWhisk API hostname (for example, openwhisk.ng.bluemix.net, 172.17.0.1, and so on).
-
 For the `{namespace}`, the character `_` can be used to specify the user's *default
 namespace* (that is, email address).
 
 You can perform a GET request on the collection endpoints to fetch a list of entities in the collection.
 
 There are entity endpoints for each type of entity:
-
 - `https://{BASE URL}/api/v1/namespaces/{namespace}`
 - `https://{BASE URL}/api/v1/namespaces/{namespace}/actions/[{packageName}/]{actionName}`
 - `https://{BASE URL}/api/v1/namespaces/{namespace}/triggers/{triggerName}`
@@ -416,13 +414,13 @@ There are entity endpoints for each type of entity:
 
 The namespace and activation endpoints support only GET requests. The actions, triggers, rules, and packages endpoints support GET, PUT, and DELETE requests. The endpoints of actions, triggers, and rules also support POST requests, which are used to invoke actions and triggers and enable or disable rules. Refer to the [API reference](http://petstore.swagger.io/?url=https://raw.githubusercontent.com/openwhisk/openwhisk/master/core/controller/src/main/resources/whiskswagger.json) for details.
 
-All APIs are protected with HTTP Basic authentication. The Basic authentication credentials are in the `AUTH` property in your `~/.wskprops` file, delimited by a colon. You can also retrieve these credentials in the [CLI configuration steps](../README.md#setup-cli).
-
+All APIs are protected with HTTP Basic authentication. The Basic authentication credentials are in the `AUTH` property in your `~/.wskprops` file, delimited by a colon. You can also retrieve these credentials in the [CLI configuration steps](../README.md#setup-cli)).
 The following is an example that uses the cURL command to get the list of all packages in the `whisk.system` namespace:
 
 ```
 $ curl -u USERNAME:PASSWORD https://openwhisk.ng.bluemix.net/api/v1/namespaces/whisk.system/packages
 ```
+
 ```
 [
   {
@@ -458,7 +456,6 @@ OpenWhisk has a few system limits, including how much memory an action uses and 
 | logs | a container is not allowed to write more than N MB to stdout | per action | MB | 10 |
 | concurrent | no more than N concurrent activations per namespace are allowed | per namespace | number | 100 |
 | minuteRate | a user cannot invoke more than this many actions per minute | per user | number | 120 |
-| hourRate | a user cannot invoke more than this many actions per hour | per user | number | 3600 |
 | codeSize | the maximum size of the actioncode | not configurable, limit per action | MB | 48 |
 | parameters | the maximum size of the paramters that can be attached | not configurable, limit per action/package/trigger | MB | 1 |
 
@@ -489,8 +486,8 @@ OpenWhisk has a few system limits, including how much memory an action uses and 
 * The default limit can be statically configured by whisk in consul kvstore.
 * A user is currently not able to change the limits.
 
-### Invocations per minute/hour (Fixed: 120/3600)
-* The rate limit N is set to 120/3600 and limits the number of action invocations in one minute/hour windows.
+### Invocations per minute (Fixed: 120)
+* The rate limit N is set to 120 and limits the number of action invocations in one minute windows.
 * A user cannot change this limit when creating the action.
 * A CLI or API call that exceeds this limit receives an error code corresponding to HTTP status code `429: TOO MANY REQUESTS`.
 
@@ -518,7 +515,7 @@ Triggers are subject to a firing rate per minute and per hour as documented in t
 | minuteRate | a user cannot fire more than this many triggers per minute | per user | number | 60 |
 | hourRate | a user cannot fire more than this many triggers per hour | per user | number | 720 |
 
-### Triggers per minute/hour (Fixed: 60/720)
-* The rate limit N is set to 60/720 and limits the number of triggers that may be fired in one minute/hour windows.
+### Triggers per minute (Fixed: 60)
+* The rate limit N is set to 60 and limits the number of triggers that may be fired in one minute windows.
 * A user cannot change this limit when creating the trigger.
 * A CLI or API call that exceeds this limit receives an error code corresponding to HTTP status code `429: TOO MANY REQUESTS`.

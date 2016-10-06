@@ -72,7 +72,7 @@ As an example, create a trigger to send user location updates, and manually fire
 3. Next, fire a trigger event by specifying the trigger name and parameters:
 
   ```
-  $ wsk trigger fire locationUpdate --param name "Donald" --param place "Washington, D.C."
+  $ wsk trigger fire locationUpdate --param name Donald --param place "Washington, D.C."
   ```
 
   ```
@@ -86,7 +86,7 @@ Triggers cannot be created inside a package; they must be created directly under
 
 Rules are used to associate a trigger with an action. Each time a trigger event is fired, the action is invoked with the event parameters.
 
-As an example, create a rule that calls the hello action whenever a location update is posted. 
+As an example, create a rule that calls the hello action whenever a location update is posted.
 
 1. Create a 'hello.js' file with the action code we will use:
   ```
@@ -116,7 +116,7 @@ As an example, create a rule that calls the hello action whenever a location upd
 
 4. Fire the locationUpdate trigger. Each time that you fire an event, the hello action is called with the event parameters.
   ```
-  $ wsk trigger fire locationUpdate --param name "Donald" --param place "Washington, D.C."
+  $ wsk trigger fire locationUpdate --param name Donald --param place "Washington, D.C."
   ```
   
   ```
