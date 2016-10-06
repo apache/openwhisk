@@ -203,7 +203,7 @@ class WskActionTests
             withClue(s"check failed for activation: $activation") {
                 activation.response.status shouldBe "success"
                 activation.response.result shouldBe Some(testResult)
-                activation.logs shouldBe None
+                activation.logs shouldBe Some(List())
             }
     }
 

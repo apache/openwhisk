@@ -374,6 +374,27 @@ class WskBasicUsageTests
             }
     }
 
+    it should "ensure keys are not omitted from activation record" in withAssetCleaner(wskprops) {
+        val name = "activationRecordTest"
+
+        (wp, assetHelper) =>
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("argCheck.js")))
+            }
+
+            val run = wsk.action.invoke(name)
+            withActivation(wsk.activation, run) {
+                activation =>
+                    activation.start should be > 0L
+                    activation.end should be > 0L
+                    activation.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.Success)
+                    activation.response.success shouldBe true
+                    activation.response.result shouldBe Some(JsObject())
+                    activation.logs shouldBe Some(List())
+                    activation.annotations shouldBe defined
+            }
+    }
+
     it should "write the action-path and the limits to the annotations" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "annotations"
