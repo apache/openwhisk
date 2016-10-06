@@ -48,7 +48,7 @@ Review the following steps and examples to create your first JavaScript action.
 
   You can see the `hello` action you just created.
 
-4. After you create your action, you can invoke it in the cloud in OpenWhisk with the 'invoke' command. You can run actions with a *blocking* invocation (i.e., request/response style) or a *non-blocking* invocation by specifying a flag in the command. A blocking invocation request will _wait_ for the activation result to be available. The wait period is the lesser of 60 seconds or the action's configured [time limit](./reference.md#per-action-timeout-ms-default-60s). The result of the activation is returned if it is available within the wait period. Otherwise, the activation continues processing in the system and an activation ID is returned so that one may check for the result later, as with non-blocking requests (see [here](#watching-action-output) for tips on monitoring activations).
+4. After you create your action, you can run it in the cloud in OpenWhisk with the 'invoke' command. You can invoke actions with a *blocking* invocation (i.e., request/response style) or a *non-blocking* invocation by specifying a flag in the command. A blocking invocation request will _wait_ for the activation result to be available. The wait period is the lesser of 60 seconds or the action's configured [time limit](./reference.md#per-action-timeout-ms-default-60s). The result of the activation is returned if it is available within the wait period. Otherwise, the activation continues processing in the system and an activation ID is returned so that one may check for the result later, as with non-blocking requests (see [here](#watching-action-output) for tips on monitoring activations).
 
   This example uses the blocking parameter, `--blocking`:
 
@@ -121,7 +121,7 @@ Parameters can be passed to the action when it is invoked.
   $ wsk action update hello hello.js
   ```
   ```
-  $ wsk action invoke --blocking --result hello --param name 'Bernie' --param place 'Vermont'
+  $ wsk action invoke --blocking --result hello --param name Bernie --param place Vermont
   ```
   ```
   {
@@ -140,13 +140,13 @@ Rather than pass all the parameters to an action every time, you can bind certai
 1. Update the action by using the `--param` option to bind parameter values.
 
   ```
-  $ wsk action update hello --param place 'Vermont'
+  $ wsk action update hello --param place Vermont
   ```
 
 2. Invoke the action, passing only the `name` parameter this time.
 
   ```
-  $ wsk action invoke --blocking --result hello --param name 'Bernie'
+  $ wsk action invoke --blocking --result hello --param name Bernie
   ```
   ```
   {
@@ -159,7 +159,7 @@ Rather than pass all the parameters to an action every time, you can bind certai
 3. Invoke the action, passing both `name` and `place` values. The latter overwrites the value that is bound to the action.
 
   ```
-  $ wsk action invoke --blocking --result hello --param name 'Bernie' --param place 'Washington, DC'
+  $ wsk action invoke --blocking --result hello --param name Bernie --param place "Washington, DC"
   ```
   ```
   {  
@@ -274,7 +274,7 @@ This example invokes a Yahoo Weather service to get the current conditions at a 
   $ wsk action create weather weather.js
   ```
   ```
-  $ wsk action invoke --blocking --result weather --param location 'Brooklyn, NY'
+  $ wsk action invoke --blocking --result weather --param location "Brooklyn, NY"
   ```
   ```
   {
@@ -328,7 +328,7 @@ Several utility actions are provided in a package called `/whisk.system/utils` t
       ]
   }
   ```
-
+  
   In the result, you see that the lines are sorted.
 
 **Note**: Parameters passed between actions in the sequence are explicit, except for default parameters.
@@ -494,6 +494,8 @@ $ wsk action invoke --blocking --result helloJava --param name World
 
 
 
+
+
 ## Creating Docker actions
 
 With OpenWhisk Docker actions, you can write your actions in any language.
@@ -586,7 +588,7 @@ For the instructions that follow, assume that the Docker user ID is `janesmith` 
   
   To update the Docker action, run buildAndPush.sh to refresh the image on Docker Hub, this will allow the next time the system pulls your Docker image to run the new code for your action. 
   If there are no warm containers any new invocations will use the new Docker image. 
-  Take into account that if there is a warm container using a previous version of your Docker image, any new invocations will continue to use this image unless you run wsk action update, this will indicate to the system that for any new invocations force a docekr pull resulting on pulling your new Docker image.
+  Take into account that if there is a warm container using a previous version of your Docker image, any new invocations will continue to use this image unless you run wsk action update, this will indicate to the system that for any new invocations force a docker pull resulting on pulling your new Docker image.
   
   ```
   $ ./buildAndPush.sh janesmith/blackboxdemo

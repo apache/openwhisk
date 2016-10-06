@@ -1,5 +1,5 @@
 
-# Using OpenWhisk-enabled services 
+# Using OpenWhisk-enabled services
 
 In OpenWhisk, a catalog of packages gives you an easy way to enhance your app with useful capabilities, and to access external services in the ecosystem. Examples of external services that are OpenWhisk-enabled include Cloudant, The Weather Company, Slack, and GitHub.
 
@@ -87,7 +87,7 @@ If you're not using OpenWhisk in Bluemix or if you want to set up your Cloudant 
 1. Create a package binding that is configured for your Cloudant account.
 
   ```
-  $ wsk package bind /whisk.system/cloudant myCloudant -p username 'MYUSERNAME' -p password 'MYPASSWORD' -p host 'MYCLOUDANTACCOUNT.cloudant.com'
+  $ wsk package bind /whisk.system/cloudant myCloudant -p username MYUSERNAME -p password MYPASSWORD -p host MYCLOUDANTACCOUNT.cloudant.com
   ```
 
 2. Verify that the package binding exists.
@@ -171,7 +171,7 @@ You can use an action to store a document in a Cloudant database called `testdb`
 1. Store a document by using the `write` action in the package binding you created previously. Be sure to replace `/myNamespace/myCloudant` with your package name.
 
   ```
-  $ wsk action invoke /myNamespace/myCloudant/write --blocking --result --param dbname testdb --param doc '{"_id":"heisenberg", "name":"Walter White"}'
+  $ wsk action invoke /myNamespace/myCloudant/write --blocking --result --param dbname testdb --param doc "{\"_id\":\"heisenberg\",\"name\":\"Walter White\"}"
   ```
   ```
   ok: invoked /myNamespace/myCloudant/write with id 62bf696b38464fd1bcaff216a68b8287
@@ -235,7 +235,7 @@ The `/whisk.system/alarms/alarm` feed configures the Alarm service to fire a tri
 The following is an example of creating a trigger that will be fired once every 20 seconds with `name` and `place` values in the trigger event.
 
   ```
-  $ wsk trigger create periodic --feed /whisk.system/alarms/alarm --param cron '*/20 * * * * *' --param trigger_payload '{"name":"Odin","place":"Asgard"}'
+  $ wsk trigger create periodic --feed /whisk.system/alarms/alarm --param cron "*/20 * * * * *" --param trigger_payload "{\"name\":\"Odin\",\"place\":\"Asgard\"}"
   ```
 
 Each generated event will include as parameters the properties specified in the `trigger_payload` value. In this case, each trigger event will have parameters `name=Odin` and `place=Asgard`.
@@ -270,13 +270,13 @@ The following is an example of creating a package binding and then getting a 10-
 1. Create a package binding with your API key.
 
   ```
-  $ wsk package bind /whisk.system/weather myWeather --param username 'MY_USERNAME' --param password 'MY_PASSWORD'
+  $ wsk package bind /whisk.system/weather myWeather --param username MY_USERNAME --param password MY_PASSWORD
   ```
 
 2. Invoke the `forecast` action in your package binding to get the weather forecast.
 
   ```
-  $ wsk action invoke myWeather/forecast --blocking --result --param latitude '43.7' --param longitude '-79.4'
+  $ wsk action invoke myWeather/forecast --blocking --result --param latitude "43.7" --param longitude "-79.4"
   ```
 
   ```
@@ -334,13 +334,13 @@ The following is an example of creating a package binding and translating some t
 1. Create a package binding with your Watson credentials.
 
   ```
-  $ wsk package bind /whisk.system/watson myWatson --param username 'MY_WATSON_USERNAME' --param password 'MY_WATSON_PASSWORD'
+  $ wsk package bind /whisk.system/watson myWatson --param username MY_WATSON_USERNAME --param password MY_WATSON_PASSWORD
   ```
 
 2. Invoke the `translate` action in your package binding to translate some text from English to French.
 
   ```
-  $ wsk action invoke myWatson/translate --blocking --result --param payload 'Blue skies ahead' --param translateParam 'payload' --param translateFrom 'en' --param translateTo 'fr'
+  $ wsk action invoke myWatson/translate --blocking --result --param payload "Blue skies ahead" --param translateParam payload --param translateFrom en --param translateTo fr
   ```
 
   ```
@@ -363,13 +363,13 @@ The following is an example of creating a package binding and identifying the la
 1. Create a package binding with your Watson credentials.
 
   ```
-  $ wsk package bind /whisk.system/watson myWatson -p username 'MY_WATSON_USERNAME' -p password 'MY_WATSON_PASSWORD'
+  $ wsk package bind /whisk.system/watson myWatson -p username MY_WATSON_USERNAME -p password MY_WATSON_PASSWORD
   ```
 
 2. Invoke the `languageId` action in your package binding to identify the language.
 
   ```
-  $ wsk action invoke myWatson/languageId --blocking --result --param payload 'Ciel bleu a venir'
+  $ wsk action invoke myWatson/languageId --blocking --result --param payload "Ciel bleu a venir"
   ```
   ```
   {
@@ -396,13 +396,13 @@ The following is an example of creating a package binding and converting some te
 1. Create a package binding with your Watson credentials.
 
   ```
-  $ wsk package bind /whisk.system/watson myWatson -p username 'MY_WATSON_USERNAME' -p password 'MY_WATSON_PASSWORD'
+  $ wsk package bind /whisk.system/watson myWatson -p username MY_WATSON_USERNAME -p password MY_WATSON_PASSWORD
   ```
 
 2. Invoke the `textToSpeech` action in your package binding to convert the text.
 
   ```
-  $ wsk action invoke myWatson/textToSpeech --blocking --result --param payload 'Hey.' --param voice 'en-US_MichaelVoice' --param accept 'audio/wav' --param encoding 'base64'
+  $ wsk action invoke myWatson/textToSpeech --blocking --result --param payload Hey. --param voice en-US_MichaelVoice --param accept audio/wav --param encoding base64
   ```
   ```
   {
@@ -438,13 +438,13 @@ The following is an example of creating a package binding and converting speech 
 1. Create a package binding with your Watson credentials.
 
   ```
-  $ wsk package bind /whisk.system/watson myWatson -p username 'MY_WATSON_USERNAME' -p password 'MY_WATSON_PASSWORD'
+  $ wsk package bind /whisk.system/watson myWatson -p username MY_WATSON_USERNAME -p password MY_WATSON_PASSWORD
   ```
 
 2. Invoke the `speechToText` action in your package binding to convert the encoded audio.
 
   ```
-  $ wsk action invoke myWatson/speechToText --blocking --result --param payload <base64 encoding of a .wav file> --param content_type 'audio/wav' --param encoding 'base64'
+  $ wsk action invoke myWatson/speechToText --blocking --result --param payload <base64 encoding of a .wav file> --param content_type audio/wav --param encoding base64
   ```
   ```
   {
@@ -485,13 +485,13 @@ The following is an example of configuring Slack, creating a package binding, an
 2. Create a package binding with your Slack credentials, the channel that you want to post to, and the user name to post as.
 
   ```
-  $ wsk package bind /whisk.system/slack mySlack --param url 'https://hooks.slack.com/services/...' --param username 'Bob' --param channel '#MySlackChannel'
+  $ wsk package bind /whisk.system/slack mySlack --param url "https://hooks.slack.com/services/..." --param username Bob --param channel #MySlackChannel
   ```
 
 3. Invoke the `post` action in your package binding to post a message to your Slack channel.
 
   ```
-  $ wsk action invoke mySlack/post --blocking --result --param text 'Hello from OpenWhisk!'
+  $ wsk action invoke mySlack/post --blocking --result --param text "Hello from OpenWhisk!"
   ```
 
 ### Using the Slack token-based API
@@ -591,7 +591,7 @@ The following is an example of creating a package binding.
 4. Create a package binding with the `/whisk.system/pushnotifications`.
 
   ```
-  $ wsk package bind /whisk.system/pushnotifications myPush -p appId "myAppID" -p appSecret "myAppSecret"
+  $ wsk package bind /whisk.system/pushnotifications myPush -p appId myAppID -p appSecret myAppSecret
   ```
 
 5. Verify that the package binding exists.
@@ -610,6 +610,9 @@ The following is an example of creating a package binding.
 The `/whisk.system/pushnotifications/sendMessage` action sends push notifications to registered devices. The parameters are as follows:
 - `text`: The notification message to be shown to the user. For example: `-p text "Hi ,OpenWhisk send a notification"`.
 - `url`: An optional URL that can be sent along with the alert. For example: `-p url "https:\\www.w3.ibm.com"`.
+- `deviceIds` The list of specified devices. For example: `-p deviceIds ["deviceID1"]`.
+- `platforms` Send notification to the devices of the specified platforms. 'A' for apple (iOS) devices and 'G' for google (Android) devices. For example `-p platforms ["A"]`.
+- `tagNames` Send notification to the devices that have subscribed to any of these tags. For example `-p tagNames "["tag1"]" `.
 - `gcmPayload`: Custom JSON payload that will be sent as part of the notification message. For example: `-p gcmPayload "{"hi":"hello"}"`
 - `gcmSound`: The sound file (on device) that will be attempted to play when the notification arrives on the device.
 - `gcmCollapseKey`: This parameter identifies a group of messages
@@ -628,7 +631,7 @@ Here is an example of sending push notification from the pushnotification packag
 1. Send push notification by using the `sendMessage` action in the package binding that you created previously. Be sure to replace `/myNamespace/myPush` with your package name.
 
   ```
-  $ wsk action invoke /myNamespace/myPush/sendMessage --blocking --result  -p url https://example.com -p text "this is my message"  -p sound soundFileName -p deviceIds '["T1","T2"]'
+  $ wsk action invoke /myNamespace/myPush/sendMessage --blocking --result  -p url https://example.com -p text "this is my message"  -p sound soundFileName -p deviceIds "[\"T1\",\"T2\"]"
   ```
 
   ```
