@@ -521,7 +521,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         // check if promise already completed due to timeout expiration (abort polling if so)
         if (!promise.isCompleted) {
             WhiskActivation.get(activationStore, docid) map {
-                activation => promise.trySuccess(activation) // activation may have logs, do not strip them
+                activation => promise.trySuccess(activation.withoutLogs) // Logs always not provided on blocking call
             } onFailure {
                 case e: NoDocumentException =>
                     Thread.sleep(500)
