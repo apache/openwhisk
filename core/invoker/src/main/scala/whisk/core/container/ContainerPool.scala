@@ -530,8 +530,8 @@ class ContainerPool(
             introduceContainer(warmNodejsKey, con)
         }
         info(this, s"Started warm nodejs container $con.id: $con.containerId")
-    } recover {
-        case t => warn(this, s"addWarmNodejsContainer encountered an exception: ${t.getMessage}")
+    } andThen {
+        case Failure(t) => warn(this, s"addWarmNodejsContainer encountered an exception: ${t.getMessage}")
     }
 
     private def getWarmNodejsContainer(key: ActionContainerId)(implicit transid: TransactionId): Option[WhiskContainer] =
