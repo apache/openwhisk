@@ -107,6 +107,7 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
     def processCompletion(msg: CompletionMessage) = {
         implicit val tid = msg.transid
         val aid = msg.response.activationId
+        info(this, s"received active ack for aid '$aid'")
         val response = msg.response
         val promise = queryMap.remove(aid)
         promise map { p =>
