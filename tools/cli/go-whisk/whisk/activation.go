@@ -30,26 +30,26 @@ type ActivationService struct {
 }
 
 type Activation struct {
-    Namespace string `json:"namespace,omitempty"`
-    Name      string `json:"name,omitempty"`
-    Version   string `json:"version,omitempty"`
-    Publish   bool   `json:"publish,omitempty"`
+    Namespace string `json:"namespace"`
+    Name      string `json:"name"`
+    Version   string `json:"version"`
+    Publish   bool   `json:"publish"`
 
-    Subject      string `json:"subject,omitempty"`
-    ActivationID string `json:"activationId,omitempty"`
+    Subject      string `json:"subject"`
+    ActivationID string `json:"activationId"`
     Cause        string `json:"cause,omitempty"`
-    Start        int64  `json:"start,omitempty"`        // When action started (in milliseconds since January 1, 1970 UTC)
+    Start        int64  `json:"start"`        // When action started (in milliseconds since January 1, 1970 UTC)
     End          int64  `json:"end"`                    // Since a 0 is a valid value from server, don't omit
-    Response     `json:"response,omitempty"`
-    Logs         []string `json:"logs,omitempty"`
-    Annotations *json.RawMessage `json:"annotations,omitempty"`
+    Response     `json:"response"`
+    Logs         []string `json:"logs"`
+    Annotations *json.RawMessage `json:"annotations"`
 }
 
 type Response struct {
-    Status     string `json:"status,omitempty"`
-    StatusCode int    `json:"statusCode,omitempty"`
+    Status     string `json:"status"`
+    StatusCode int    `json:"statusCode"`
     Success    bool   `json:"success"`
-    Result     `json:"result,omitempty"`
+    Result     `json:"result"`
 }
 
 type Result map[string]interface{}
