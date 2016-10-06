@@ -442,28 +442,21 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
             activationNamespace = user.namespace.toPath,
             args)
 
-        val activationResponse = if (blocking) {
-            val duration = action.limits.timeout()
-            val timeout = (maxWaitForBlockingActivation min duration) + blockingInvokeGrace
-
-            // register active ack handler before posting request to avoid race
-            // since response might come back before the listener becomes active;
-            // note that the total waiting time may be just shy of the specified timeouts since
-            // the active ack listener is registered before the message is posted to invokers
-            waitForActivationResponse(user, message, timeout)
-        } else Future.successful {
-            (message.activationId, None)
-        }
+        val duration = action.limits.timeout()
+        val timeout = (maxWaitForBlockingActivation min duration) + blockingInvokeGrace
 
         val start = transid.started(this, LoggingMarkers.CONTROLLER_LOADBALANCER, s"[POST] action activation id: ${message.activationId}")
-        performLoadBalancerRequest(message, transid) flatMap { _ =>
-            if (!blocking) {
+        val (postedFuture, activationResponse) = loadBalancer.publish(message, timeout)(transid)
+        postedFuture flatMap { _ =>
+            transid.finished(this, start)
+            if (blocking) {
+                waitForActivationResponse(user, message, timeout, activationResponse)
+            } else {
                 // Duration of the non-blocking activation in Controller.
                 // We use the start time of the tid instead of a startMarker to avoid passing the start marker around.
                 transid.finished(this, StartMarker(transid.meta.start, LoggingMarkers.CONTROLLER_ACTIVATION))
+                Future.successful { (message.activationId, None) }
             }
-            transid.finished(this, start)
-            activationResponse
         }
     }
 
@@ -473,7 +466,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      * If this mechanism fails to produce an answer quickly, the future will switch to polling the database for the response
      * record.
      */
-    private def waitForActivationResponse(user: Identity, message: Message, totalWaitTime: FiniteDuration)(implicit transid: TransactionId) = {
+    private def waitForActivationResponse(user: Identity, message: Message, totalWaitTime: FiniteDuration, activationResponse: Future[WhiskActivation])(implicit transid: TransactionId) = {
         // this is the promise which active ack or db polling will try to complete in one of four ways:
         // 1. active ack response
         // 2. failing active ack (due to active ack timeout), fall over to db polling
@@ -486,7 +479,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         info(this, s"[POST] action activation will block on result up to $totalWaitTime")
 
         // the active ack will timeout after specified duration, causing the db polling to kick in
-        queryActivationResponse(activationId, 30 seconds, transid) map {
+        activationResponse map {
             activation => promise.trySuccess(activation)
         } onFailure {
             case t: TimeoutException =>
@@ -528,7 +521,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         // check if promise already completed due to timeout expiration (abort polling if so)
         if (!promise.isCompleted) {
             WhiskActivation.get(activationStore, docid) map {
-                activation => promise.trySuccess(activation) // activation may have logs, do not strip them
+                activation => promise.trySuccess(activation.withoutLogs) // Logs always not provided on blocking call
             } onFailure {
                 case e: NoDocumentException =>
                     Thread.sleep(500)

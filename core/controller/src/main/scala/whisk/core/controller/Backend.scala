@@ -18,7 +18,6 @@ package whisk.core.controller
 
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.Future
 
 import akka.actor.ActorSystem
 import akka.event.Logging.InfoLevel
@@ -28,12 +27,13 @@ import whisk.core.WhiskConfig
 import whisk.core.entitlement.EntitlementService
 import whisk.core.entitlement.LocalEntitlementService
 import whisk.core.entitlement.RemoteEntitlementService
-import whisk.core.entity.{ ActivationId, WhiskActivation }
 import whisk.core.loadBalancer.LoadBalancerService
 import scala.language.postfixOps
 import whisk.core.entity.ActivationId.ActivationIdGenerator
 
 object WhiskServices {
+
+    type LoadBalancerReq = (ActivationMessage, FiniteDuration, TransactionId)
 
     def requiredProperties = WhiskConfig.loadbalancerHost ++ WhiskConfig.consulServer ++ EntitlementService.requiredProperties
 
@@ -78,12 +78,6 @@ trait WhiskServices {
 
     /** A load balancing service that launches invocations */
     protected val loadBalancer: LoadBalancerService
-
-    /** Synchronously perform a request to the load balancer.  */
-    protected val performLoadBalancerRequest: (ActivationMessage, TransactionId) => Future[Unit]
-
-    /** Ask load balancer (instead of db) for activation response */
-    protected val queryActivationResponse: (ActivationId, FiniteDuration, TransactionId) => Future[WhiskActivation]
 
     /** The hostname of the consul server */
     protected val consulServer: String

@@ -16,6 +16,8 @@
 
 package whisk.core.loadBalancer
 
+import java.time.{Clock, Instant}
+
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
@@ -30,11 +32,16 @@ import scala.util.Success
 import akka.actor.ActorSystem
 import akka.event.Logging.LogLevel
 import akka.pattern.after
+
 import spray.json.JsObject
+
 import whisk.common.ConsulClient
 import whisk.common.ConsulKV.LoadBalancerKeys
 import whisk.common.ConsulKVReporter
+import whisk.common.Counter
 import whisk.common.Logging
+import whisk.common.LoggingMarkers
+import whisk.common.PrintStreamEmitter
 import whisk.common.TransactionId
 import whisk.connector.kafka.KafkaConsumerConnector
 import whisk.connector.kafka.KafkaProducerConnector
@@ -48,9 +55,9 @@ import whisk.core.entity.WhiskActivation
 
 class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
     implicit val actorSystem: ActorSystem)
-    extends LoadBalancerToKafka
-    with Logging {
+    extends Logging {
 
+    /** The execution context for futures */
     implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
     /**
@@ -58,15 +65,24 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
      */
     def getInvokerHealth(): JsObject = invokerHealth.getInvokerHealthJson()
 
-    override def getInvoker(message: ActivationMessage): Option[Int] = invokerHealth.getInvoker(message)
+    /**
+     * Gets an invoker index to send request to.
+     *
+     * @return index of invoker to receive request
+     */
+    def getInvoker(message: ActivationMessage): Option[Int] = invokerHealth.getInvoker(message)
 
-    override val producer = new KafkaProducerConnector(config.kafkaHost, executionContext)
+    /** Gets a producer which can publish messages to the kafka bus. */
+    val producer = new KafkaProducerConnector(config.kafkaHost, executionContext)
 
     private val invokerHealth = new InvokerHealth(config, resetIssueCountByInvoker, () => producer.sentCount())
 
-    // map stores the promise which either completes if an active response is received or
-    // after the set timeout expires
-    private val queryMap = new TrieMap[ActivationId, Promise[WhiskActivation]]
+    /**
+     * A map storing current activations based on ActivationId.
+     * The promise value represents the obligation of writing the answer back.
+     */
+    type ActivationEntry = (Instant, Promise[WhiskActivation])
+    private val activationMap = new TrieMap[ActivationId, ActivationEntry]
 
     // this must happen after the overrides
     setVerbosity(verbosity)
@@ -106,12 +122,15 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
      */
     def processCompletion(msg: CompletionMessage) = {
         implicit val tid = msg.transid
-        val aid = msg.response.activationId
         val response = msg.response
-        val promise = queryMap.remove(aid)
-        promise map { p =>
-            p.trySuccess(response)
-            info(this, s"processed active response for '$aid'")
+        val aid = response.activationId
+        info(this, s"active ack for aid '$aid'")
+        activationMap.remove(aid) match {
+            case Some((_, p)) =>
+                p.trySuccess(response)
+                info(this, s"processed active response for '$aid'")
+            case None =>
+                warn(this, s"processed active response for '$aid' which has no entry")
         }
     }
 
@@ -122,20 +141,27 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
      */
     def queryActivationResponse(activationId: ActivationId, timeout: FiniteDuration, transid: TransactionId): Future[WhiskActivation] = {
         implicit val tid = transid
+        setupActivation(activationId, timeout, transid)._2.future
+    }
+
+    /**
+     * Creates an entry in the activation map where we note the time of publishing and establishes a place to store the result.
+     */
+    private def setupActivation(activationId: ActivationId, timeout: FiniteDuration, transid: TransactionId): ActivationEntry = {
         // either create a new promise or reuse a previous one for this activation if it exists
-        queryMap.getOrElseUpdate(activationId, {
+        activationMap.getOrElseUpdate(activationId, {
             val promise = Promise[WhiskActivation]
             // store the promise to complete on success, and the timed future that completes
             // with the TimeoutException after alloted time has elapsed
             after(timeout, actorSystem.scheduler)({
-                if (queryMap.remove(activationId).isDefined) {
+                if (activationMap.remove(activationId).isDefined) {
                     val failedit = promise.tryFailure(new ActiveAckTimeout(activationId))
                     if (failedit) info(this, "active response timed out")
                 }
                 Future.successful {} // do not care about this future, need to return promise.future below
             })
-            promise
-        }).future
+            (Instant.now(Clock.systemUTC()), promise)
+        })
     }
 
     val consumer = new KafkaConsumerConnector(config.kafkaHost, "completions", "completed")
@@ -148,7 +174,77 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
         }
     })
 
+
+    private implicit val emitter: PrintStreamEmitter = this
+
+    override def setVerbosity(level: LogLevel) = {
+        super.setVerbosity(level)
+        producer.setVerbosity(level)
+    }
+
+    /**
+     * Publishes message on kafka bus for the invoker to pick up.
+     *
+     * @param msg the activation message to publish on an invoker topic
+     * @param transid the transaction id for the request
+     * @return result a pair of Futures the first indicating completion of publishing and the second the completion of the action
+     */
+    def publish(msg: ActivationMessage, timeout: FiniteDuration)(implicit transid: TransactionId): (Future[Unit], Future[WhiskActivation]) = {
+        getInvoker(msg) map {
+            val start = transid.started(this, LoggingMarkers.CONTROLLER_KAFKA)
+            invokerIndex =>
+                val topic = ActivationMessage.invoker(invokerIndex)
+                val subject = msg.subject()
+                val entry = setupActivation(msg.activationId, timeout, transid)
+                info(this, s"posting topic '$topic' with activation id '${msg.activationId}'")
+                (producer.send(topic, msg) map { status =>
+                    val counter = updateActivationCount(subject, invokerIndex)
+                    transid.finished(this, start, s"user has ${counter} activations posted. Posted to ${status.topic()}[${status.partition()}][${status.offset()}]")
+                }, entry._2.future)
+        } getOrElse {
+            (Future.failed(new LoadBalancerException("no invokers available")),
+             Future.failed(new LoadBalancerException("no invokers available")))
+        }
+    }
+
+    private def updateActivationCount(user: String, invokerIndex: Int): Long = {
+        invokerActivationCounter get invokerIndex match {
+            case Some(counter) => counter.next()
+            case None =>
+                invokerActivationCounter(invokerIndex) = new Counter()
+                invokerActivationCounter(invokerIndex).next
+        }
+        userActivationCounter get user match {
+            case Some(counter) => counter.next()
+            case None =>
+                userActivationCounter(user) = new Counter()
+                userActivationCounter(user).next
+        }
+    }
+
+    def resetIssueCountByInvoker(invokerIndices: Array[Int]) = {
+        invokerIndices.foreach {
+            invokerActivationCounter(_) = new Counter()
+        }
+    }
+
+    // Make a new immutable map so caller cannot mess up the state
+    def getIssueCountByInvoker(): Map[Int, Long] = invokerActivationCounter.readOnlySnapshot.mapValues(_.cur).toMap
+
+    /**
+     * Retrieve a snapshot of activation counts issued per subject by load balancer
+     *
+     * @returns a map where the key is the subject and the long is total issued activations by that user
+     */
+    def getUserActivationCounts: Map[String, Long] = userActivationCounter.toMap mapValues { _.cur }
+
+    // A count of how many activations have been posted to Kafka based on invoker index or user/subject.
+    private val invokerActivationCounter = new TrieMap[Int, Counter]
+    private val userActivationCounter = new TrieMap[String, Counter]
+    private case class LoadBalancerException(msg: String) extends Throwable(msg)
+
 }
+
 
 object LoadBalancerService {
     def requiredProperties = kafkaHost ++
