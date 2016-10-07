@@ -2,7 +2,7 @@
 # Remove controller containers.
 
 - name: remove controller
-  docker:
+  docker_container:
     name: controller
     image: "{{ docker_registry }}{{ docker_image_prefix }}/controller:{{ docker_image_tag }}"
     state: absent

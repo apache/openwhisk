@@ -16,10 +16,11 @@
   when: "{{ (block_device is defined) and (block_device in disk_status.stdout) }}"
 
 - name: (re)start CouchDB
-  docker:
+  docker_container:
     name: couchdb
     image: couchdb
-    state: reloaded
+    state: started
+    recreate: true
     restart_policy: "{{ docker.restart.policy }}"
     volumes: "{{volume_dir | default([])}}"
     ports:

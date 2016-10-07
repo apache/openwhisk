@@ -18,10 +18,11 @@
   when: "'consul_servers' in group_names"
 
 - name: (re)start consul server/agent
-  docker:
+  docker_container:
     name: consul
     image: consul:v0.7.0
-    state: reloaded
+    state: started
+    recreate: true
     restart_policy: "{{ docker.restart.policy }}"
     volumes:
       - "{{ whisk_logs_dir }}/consul:/logs"
@@ -64,11 +65,12 @@
   when: "'consul_servers' in group_names"
 
 - name: (re)start registrator
-  docker:
+  docker_container:
     name: registrator
     hostname: registrator
     image: gliderlabs/registrator
-    state: reloaded
+    state: started
+    recreate: true
     restart_policy: "{{ docker.restart.policy }}"
     log_driver: syslog
     volumes:

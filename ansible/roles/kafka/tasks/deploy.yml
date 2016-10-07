@@ -2,10 +2,11 @@
 # This role will install Kafka with Zookeeper in group 'kafka' in the environment inventory
 
 - name: (re)start zookeeper
-  docker:
+  docker_container:
     name: zookeeper
     image: zookeeper:3.4
-    state: reloaded
+    state: started
+    recreate: true
     restart_policy: "{{ docker.restart.policy }}"
     log_driver: syslog
     ports:
@@ -23,10 +24,11 @@
   when: docker_registry != ""
 
 - name: (re)start kafka
-  docker:
+  docker_container:
     name: kafka
     image: "{{ docker_registry }}{{ docker_image_prefix }}/kafka:{{ docker_image_tag }}"
-    state: reloaded
+    state: started
+    recreate: true
     restart_policy: "{{ docker.restart.policy }}"
     log_driver: syslog
     links:

@@ -2,7 +2,7 @@
 # Remove nginx containers.
 
 - name: remove nginx
-  docker:
+  docker_container:
     name: nginx
     image: nginx
     state: absent

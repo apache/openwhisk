@@ -2,14 +2,14 @@
 # Remove consul agent/server and registrator containers as well as the consul_conf_dir
 
 - name: remove registrator
-  docker:
+  docker_container:
     name: registrator
     image: "gliderlabs/registrator"
     state: absent
   ignore_errors: True
 
 - name: remove consul
-  docker:
+  docker_container:
     name: consul
     image: "{{ docker_registry }}{{ docker_image_prefix }}/consul:{{ docker_image_tag }}"
     state: absent
