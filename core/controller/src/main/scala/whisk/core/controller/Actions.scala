@@ -648,80 +648,77 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      * @param components the components of the sequence
      */
     private def checkSequenceActionLimits(sequenceAction: FullyQualifiedEntityName, components: Vector[FullyQualifiedEntityName])(
-        implicit transid: TransactionId): Future[Boolean] = {
+        implicit transid: TransactionId): Future[Unit] = {
         // first checks that current sequence length is allowed
         // then traverses all actions in the sequence, inlining any that are sequences
-        // keeps track of all sequences to detect if sequence is cyclic
         val future = if (components.size > actionSequenceLimit) {
             Future.failed(TooManyActionsInSequence())
         } else {
             // resolve the action document id (if it's in a package/binding);
             // this assumes that entityStore is the same for actions and packages
-            WhiskAction.resolveAction(entityStore, sequenceAction) flatMap { action =>
-                val resolvedComponents = components map { c => WhiskAction.resolveAction(entityStore, c) }
-                Future.sequence(resolvedComponents) flatMap { sequence =>
-                    // start inlining while keeping track of all sequences to check for recursion
-                    inlineComponentsAndCountAtomicActions(0, sequence.toList, List(action))
+            WhiskAction.resolveAction(entityStore, sequenceAction) flatMap { resolvedSeq =>
+                val atomicActionCnt = countAtomicActionsAndCheckCycle(resolvedSeq, resolvedSeq, components)
+                atomicActionCnt flatMap { count =>
+                    info(this, s"sequence '$sequenceAction' atomic action count $count")
+                    if (count > actionSequenceLimit) {
+                        Future failed TooManyActionsInSequence()
+                    } else {
+                        Future successful {}
+                    }
                 }
             }
         }
 
         future recoverWith {
             case _: TooManyActionsInSequence => Future failed RejectRequest(BadRequest, sequenceIsTooLong)
-            case _: SequenceWithCycle    => Future failed RejectRequest(BadRequest, sequenceIsCyclic)
+            case _: SequenceWithCycle        => Future failed RejectRequest(BadRequest, sequenceIsCyclic)
             case _: NoDocumentException      => Future failed RejectRequest(BadRequest, sequenceComponentNotFound)
         }
     }
 
     /**
-     * Traverses the components that make up a sequence to inline any that are sequences.
-     * Counts atomic (non-sequence) actions while keeping track of sequences.
-     *
-     * @param atomicActionsCnt the atomic actions seen so far
-     * @param actionsToInline the actions to inline
-     * @param visitedSequences the sequences already visited during recursive traversal
-     * @return a successful future in case the conditions were met or a failed future with an appropriate error response
+     * Counts the number of atomic actions in a sequence and checks for potential cycles.
+     * @param origSequence the original sequence that is updated/created which generated the checks
+     * @param sequence the current sequence in the traversal
+     * @param the components of the current sequence
+     * @return Future with the number of atomic actions in the current sequence
      */
-    private def inlineComponentsAndCountAtomicActions(
-        atomicActionsCnt: Int,
-        actionsToInline: List[FullyQualifiedEntityName],
-        visitedSequences: List[FullyQualifiedEntityName])(
-            implicit transid: TransactionId): Future[Boolean] = {
-
-        if (atomicActionsCnt <= actionSequenceLimit) {
-            actionsToInline match {
-                case action :: restActions =>
-                    val docid = action.toDocId
-                    WhiskAction.get(entityStore, docid) flatMap {
-                        _.exec match {
-                            // if this is a sequence, check if already traversed it
-                            case seq: SequenceExec =>
-                                if (visitedSequences.contains(action)) {
-                                    Future.failed(SequenceWithCycle())
-                                } else {
-                                    // resolve the components first
-                                    // need to inline each of its components
-                                    val resolvedComponents = seq.components map { c => WhiskAction.resolveAction(entityStore, c) }
-                                    Future.sequence(resolvedComponents) flatMap { components => // these are resolved components
-                                        // check that these components don't overlap with the sequences found so far
-                                        val overlap = components.intersect(visitedSequences).nonEmpty
-                                        if (overlap) {
-                                            Future.failed(SequenceWithCycle())
-                                        } else {
-                                            inlineComponentsAndCountAtomicActions(atomicActionsCnt, restActions ++ components, action :: visitedSequences)
-                                        }
-                                    }
-                                }
-
-                            // otherwise this is an atomic action
-                            case _ => inlineComponentsAndCountAtomicActions(atomicActionsCnt + 1, restActions, visitedSequences)
+    private def countAtomicActionsAndCheckCycle(origSequence: FullyQualifiedEntityName, sequence: FullyQualifiedEntityName, components: Vector[FullyQualifiedEntityName])(
+        implicit transid: TransactionId): Future[Int] = {
+        if (components.size > actionSequenceLimit) {
+            Future.failed(TooManyActionsInSequence())
+        } else {
+            // resolve components wrt any package bindings
+            val resolvedComponentsFutures = components map { c => WhiskAction.resolveAction(entityStore, c) }
+            // traverse the sequence structure by checking each of its components and do the following:
+            // 1. check for cycles by checking whether any action (sequence or not) referred by the sequence (directly or indirectly)
+            // is the same as the original sequence (aka origSequence)
+            // 2. count the atomic actions each component has ("inlining" all sequences)
+            val actionCountsFutures = resolvedComponentsFutures map {
+                _ flatMap { resolvedComponent =>
+                    // check whether this component is the same as origSequence
+                    // this can happen when updating an atomic action to become a sequence
+                    if (origSequence.equals(resolvedComponent)) {
+                        Future failed SequenceWithCycle()
+                    } else {
+                        // check whether component is a sequence or an atomic action
+                        WhiskAction.get(entityStore, resolvedComponent.toDocId) flatMap { wskComponent =>
+                            wskComponent.exec match {
+                                case SequenceExec(_, seqComponents) =>
+                                    // sequence action, count the number of atomic actions in this sequence
+                                    countAtomicActionsAndCheckCycle(origSequence, resolvedComponent, seqComponents)
+                                case _ => Future successful 1 // atomic action count is one
+                            }
                         }
                     }
-
-                // no more actions to inline, no exceptions, finished successfully
-                case Nil => Future.successful(true)
+                }
             }
-        } else Future.failed(TooManyActionsInSequence())
+            // collapse the futures in one future
+            val actionCountsFuture = Future.sequence(actionCountsFutures)
+            // sum up all individual action counts per component
+            val totalActionCount = actionCountsFuture map { actionCounts => actionCounts.foldLeft(0)(_ + _) }
+            totalActionCount
+        }
     }
 
     /** Grace period after action timeout limit to poll for result. */
