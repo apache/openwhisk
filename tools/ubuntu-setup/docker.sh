@@ -17,7 +17,7 @@ sudo apt-get -y install linux-image-extra-$(uname -r)
 sudo apt-get install -y --force-yes docker-engine=1.12.0-0~trusty
 
 # enable (security - use 127.0.0.1)
-sudo -E bash -c 'echo '\''DOCKER_OPTS="-H tcp://0.0.0.0:4243 -H unix:///var/run/docker.sock --storage-driver=overlay"'\'' >> /etc/default/docker'
+sudo -E bash -c 'echo '\''DOCKER_OPTS="-H tcp://0.0.0.0:4243 -H unix:///var/run/docker.sock --storage-driver=aufs"'\'' >> /etc/default/docker'
 sudo gpasswd -a `whoami` docker
 
 # Set DOCKER_HOST as an environment variable
