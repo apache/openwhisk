@@ -787,6 +787,13 @@ func checkArgs(args []string, minimumArgNumber int, maximumArgNumber int, comman
 }
 
 func getURLBase(host string) (*url.URL, error)  {
+    if len(host) == 0 {
+        errMsg := wski18n.T("An API host must be provided.")
+        whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+            whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+        return nil, whiskErr
+    }
+
     urlBase := fmt.Sprintf("%s/api/", host)
     url, err := url.Parse(urlBase)
 

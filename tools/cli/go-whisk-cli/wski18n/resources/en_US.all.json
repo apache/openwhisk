@@ -44,10 +44,6 @@
     "translation": "bypass certificate checking"
   },
   {
-    "id": "error: The configured API host property value '{{.apihost}}' is invalid : {{.err}}",
-    "translation": "error: The configured API host property value '{{.apihost}}' is invalid : {{.err}}"
-  },
-  {
     "id": "Unable to initialize server connection: {{.err}}",
     "translation": "Unable to initialize server connection: {{.err}}"
   },
@@ -1122,5 +1118,13 @@
   {
     "id": "An argument must be provided for '{{.arg}}'",
     "translation": "An argument must be provided for '{{.arg}}'"
+  },
+  {
+    "id": "The API host is not valid: {{.err}}",
+    "translation": "The API host is not valid: {{.err}}"
+  },
+  {
+    "id": "An API host must be provided.",
+    "translation": "An API host must be provided."
   }
 ]
