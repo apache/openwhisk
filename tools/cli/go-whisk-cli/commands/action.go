@@ -32,6 +32,10 @@ import (
   "github.com/mattn/go-colorable"
 )
 
+const MEMORY_LIMIT = 256
+const TIMEOUT_LIMIT = 60000
+const LOGSIZE_LIMIT = 10
+
 //////////////
 // Commands //
 //////////////
@@ -419,7 +423,6 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
   var err error
   var shared, sharedSet bool
   var artifact string
-  var limits *whisk.Limits
 
   qName := qualifiedName{}
   qName, err = parseQualifiedName(args[0])
@@ -448,43 +451,28 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
     sharedSet = false
   }
 
-    whisk.Debug(whisk.DbgInfo, "Parsing parameters: %#v\n", flags.common.param)
-    parameters, err := getJSONFromStrings(flags.common.param, true)
-    if err != nil {
-        whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, true) failed: %s\n", flags.common.param, err)
-      errMsg := fmt.Sprintf(
-        wski18n.T("Invalid parameter argument '{{.param}}': {{.err}}",
-          map[string]interface{}{"param": fmt.Sprintf("%#v", flags.common.param), "err": err}))
-        whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-            whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-        return nil, sharedSet, whiskErr
-    }
+  whisk.Debug(whisk.DbgInfo, "Parsing parameters: %#v\n", flags.common.param)
+  parameters, err := getJSONFromStrings(flags.common.param, true)
+  if err != nil {
+    whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, true) failed: %s\n", flags.common.param, err)
+    errMsg := fmt.Sprintf(
+      wski18n.T("Invalid parameter argument '{{.param}}': {{.err}}",
+        map[string]interface{}{"param": fmt.Sprintf("%#v", flags.common.param), "err": err}))
+    whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+      whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+    return nil, sharedSet, whiskErr
+  }
 
-    whisk.Debug(whisk.DbgInfo, "Parsing annotations: %#v\n", flags.common.annotation)
-    annotations, err := getJSONFromStrings(flags.common.annotation, true)
-    if err != nil {
-        whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, true) failed: %s\n", flags.common.annotation, err)
-      errMsg := fmt.Sprintf(
-        wski18n.T("Invalid annotation argument '{{.annotation}}': {{.err}}",
-          map[string]interface{}{"annotation": fmt.Sprintf("%#v", flags.common.annotation), "err": err}))
-        whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-            whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-        return nil, sharedSet, whiskErr
-    }
-
-  // Only include the memory and timeout limit if set
-  if flags.action.memory > -1 || flags.action.timeout > -1 || flags.action.logsize > -1 {
-    limits = new(whisk.Limits)
-    if flags.action.memory > -1 {
-      limits.Memory = &flags.action.memory
-    }
-    if flags.action.timeout > -1 {
-      limits.Timeout = &flags.action.timeout
-    }
-    if flags.action.logsize > -1 {
-      limits.Logsize = &flags.action.logsize
-    }
-    whisk.Debug(whisk.DbgInfo, "Action limits: %+v\n", limits)
+  whisk.Debug(whisk.DbgInfo, "Parsing annotations: %#v\n", flags.common.annotation)
+  annotations, err := getJSONFromStrings(flags.common.annotation, true)
+  if err != nil {
+    whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, true) failed: %s\n", flags.common.annotation, err)
+    errMsg := fmt.Sprintf(
+      wski18n.T("Invalid annotation argument '{{.annotation}}': {{.err}}",
+        map[string]interface{}{"annotation": fmt.Sprintf("%#v", flags.common.annotation), "err": err}))
+    whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+      whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+    return nil, sharedSet, whiskErr
   }
 
   action := new(whisk.Action)
@@ -582,7 +570,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
   action.Namespace = qName.namespace
   action.Publish = shared
   action.Annotations = annotations.(whisk.KeyValueArr)
-  action.Limits = limits
+  action.Limits = getLimits()
 
   // If the action sequence is not already the Parameters value, set it to the --param parameter values
   if action.Parameters == nil && parameters != nil {
@@ -591,6 +579,31 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
 
   whisk.Debug(whisk.DbgInfo, "Parsed action struct: %#v\n", action)
   return action, sharedSet, nil
+}
+
+func getLimits() (*whisk.Limits) {
+  var limits *whisk.Limits
+
+  if flags.action.memory != MEMORY_LIMIT || flags.action.timeout != TIMEOUT_LIMIT ||
+    flags.action.logsize != LOGSIZE_LIMIT {
+    limits = new(whisk.Limits)
+
+    if flags.action.memory != MEMORY_LIMIT {
+      limits.Memory = &flags.action.memory
+    }
+
+    if flags.action.timeout != TIMEOUT_LIMIT {
+      limits.Timeout = &flags.action.timeout
+    }
+
+    if flags.action.logsize != LOGSIZE_LIMIT {
+      limits.Logsize = &flags.action.logsize
+    }
+
+    whisk.Debug(whisk.DbgInfo, "Action limits: %+v\n", limits)
+  }
+
+  return limits
 }
 
 ///////////
@@ -603,9 +616,9 @@ func init() {
   actionCreateCmd.Flags().BoolVar(&flags.action.sequence, "sequence", false, wski18n.T("treat ACTION as comma separated sequence of actions to invoke"))
   actionCreateCmd.Flags().StringVar(&flags.action.kind, "kind", "", wski18n.T("the `KIND` of the action runtime (example: swift:3, nodejs:6)"))
   actionCreateCmd.Flags().StringVar(&flags.action.shared, "shared", "no", wski18n.T("action visibility `SCOPE`; yes = shared, no = private"))
-  actionCreateCmd.Flags().IntVarP(&flags.action.timeout, "timeout", "t", -1, wski18n.T("the timeout `LIMIT` in milliseconds when the action will be terminated"))
-  actionCreateCmd.Flags().IntVarP(&flags.action.memory, "memory", "m", -1, wski18n.T("the memory `LIMIT` in MB of the container that runs the action"))
-  actionCreateCmd.Flags().IntVarP(&flags.action.logsize, "logsize", "l", -1, wski18n.T("the log size `LIMIT` in MB of the container that runs the action (default 10MB)"))
+  actionCreateCmd.Flags().IntVarP(&flags.action.timeout, "timeout", "t", TIMEOUT_LIMIT, wski18n.T("the timeout `LIMIT` in milliseconds after which the action is terminated"))
+  actionCreateCmd.Flags().IntVarP(&flags.action.memory, "memory", "m", MEMORY_LIMIT, wski18n.T("the maximum memory `LIMIT` in MB for the action"))
+  actionCreateCmd.Flags().IntVarP(&flags.action.logsize, "logsize", "l", LOGSIZE_LIMIT, wski18n.T("the maximum log size `LIMIT` in MB for the action"))
   actionCreateCmd.Flags().StringSliceVarP(&flags.common.annotation, "annotation", "a", nil, wski18n.T("annotation values in `KEY VALUE` format"))
   actionCreateCmd.Flags().StringVarP(&flags.common.annotFile, "annotation-file", "A", "", wski18n.T("`FILE` containing annotation values in JSON format"))
   actionCreateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", nil, wski18n.T("parameter values in `KEY VALUE` format"))
@@ -616,9 +629,9 @@ func init() {
   actionUpdateCmd.Flags().BoolVar(&flags.action.sequence, "sequence", false, wski18n.T("treat ACTION as comma separated sequence of actions to invoke"))
   actionUpdateCmd.Flags().StringVar(&flags.action.kind, "kind", "", wski18n.T("the `KIND` of the action runtime (example: swift:3, nodejs:6)"))
   actionUpdateCmd.Flags().StringVar(&flags.action.shared, "shared", "", wski18n.T("action visibility `SCOPE`; yes = shared, no = private"))
-  actionUpdateCmd.Flags().IntVarP(&flags.action.timeout, "timeout", "t", -1, wski18n.T("the timeout `LIMIT` in milliseconds when the action will be terminated"))
-  actionUpdateCmd.Flags().IntVarP(&flags.action.memory, "memory", "m", -1, wski18n.T("the memory `LIMIT` in MB of the container that runs the action"))
-  actionUpdateCmd.Flags().IntVarP(&flags.action.logsize, "logsize", "l", -1, wski18n.T("the log size `LIMIT` in MB of the container that runs the action (default 10MB)"))
+  actionUpdateCmd.Flags().IntVarP(&flags.action.timeout, "timeout", "t", TIMEOUT_LIMIT, wski18n.T("the timeout `LIMIT` in milliseconds after which the action is terminated"))
+  actionUpdateCmd.Flags().IntVarP(&flags.action.memory, "memory", "m", MEMORY_LIMIT, wski18n.T("the maximum memory `LIMIT` in MB for the action"))
+  actionUpdateCmd.Flags().IntVarP(&flags.action.logsize, "logsize", "l", LOGSIZE_LIMIT, wski18n.T("the maximum log size `LIMIT` in MB for the action"))
   actionUpdateCmd.Flags().StringSliceVarP(&flags.common.annotation, "annotation", "a", []string{}, wski18n.T("annotation values in `KEY VALUE` format"))
   actionUpdateCmd.Flags().StringVarP(&flags.common.annotFile, "annotation-file", "A", "", wski18n.T("`FILE` containing annotation values in JSON format"))
   actionUpdateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, wski18n.T("parameter values in `KEY VALUE` format"))
@@ -632,7 +645,7 @@ func init() {
   actionGetCmd.Flags().BoolVarP(&flags.common.summary, "summary", "s", false, wski18n.T("summarize action details"))
 
   actionListCmd.Flags().IntVarP(&flags.common.skip, "skip", "s", 0, wski18n.T("exclude the first `SKIP` number of actions from the result"))
-  actionListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, wski18n.T("only return `LIMIT` number of actions from the collection"))
+  actionListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, wski18n.T("the maximum log size `LIMIT` in MB for the action"))
 
   actionCmd.AddCommand(
     actionCreateCmd,

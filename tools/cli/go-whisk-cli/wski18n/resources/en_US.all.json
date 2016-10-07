@@ -884,16 +884,16 @@
     "translation": "action visibility `SCOPE`; yes = shared, no = private"
   },
   {
-    "id": "the timeout `LIMIT` in milliseconds when the action will be terminated",
-    "translation": "the timeout `LIMIT` in milliseconds when the action will be terminated"
+    "id": "the timeout `LIMIT` in milliseconds after which the action is terminated",
+    "translation": "the timeout `LIMIT` in milliseconds after which the action is terminated"
   },
   {
-    "id": "the memory `LIMIT` in MB of the container that runs the action",
-    "translation": "the memory `LIMIT` in MB of the container that runs the action"
+    "id": "the maximum memory `LIMIT` in MB for the action",
+    "translation": "the maximum memory `LIMIT` in MB for the action"
   },
   {
-    "id": "the log size `LIMIT` in MB of the container that runs the action (default 10MB)",
-    "translation": "the log size `LIMIT` in MB of the container that runs the action (default 10MB)"
+    "id": "the maximum log size `LIMIT` in MB for the action",
+    "translation": "the maximum log size `LIMIT` in MB for the action"
   },
   {
     "id": "blocking invoke",
