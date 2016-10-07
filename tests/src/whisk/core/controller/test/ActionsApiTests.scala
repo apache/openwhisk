@@ -416,7 +416,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         val stream = new ByteArrayOutputStream
         val printstream = new PrintStream(stream)
         val savedstream = authStore.outputStream
+        val savedVerbosity = entityStore.getVerbosity()
         entityStore.outputStream = printstream
+        entityStore.setVerbosity(akka.event.Logging.InfoLevel)
         try {
             // first request invalidates any previous entries and caches new result
             Put(s"$collectionPath/$name", content) ~> sealRoute(routes(creds)(transid())) ~> check {
@@ -453,6 +455,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             stream.reset()
         } finally {
             entityStore.outputStream = savedstream
+            entityStore.setVerbosity(savedVerbosity)
             stream.close()
             printstream.close()
         }
