@@ -16,23 +16,21 @@
 
 package system.basic
 
-import org.junit.runner.RunWith
 import scala.concurrent.duration.DurationInt
+
+import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
 import common.JsHelpers
 import common.TestHelpers
 import common.TestUtils
 import common.TestUtils.ANY_ERROR_EXIT
+import common.TestUtils.RunResult
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
-import spray.json.DefaultJsonProtocol.StringJsonFormat
-import spray.json.pimpAny
-import spray.json.pimpString
-import spray.json.JsString
-import common.TestUtils.RunResult
-import spray.json.JsObject
+import spray.json._
+import spray.json.DefaultJsonProtocol._
 
 @RunWith(classOf[JUnitRunner])
 class WskBasicNodeTests

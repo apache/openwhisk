@@ -25,7 +25,6 @@ import scala.language.postfixOps
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
-import common.JsHelpers
 import common.TestHelpers
 import common.TestUtils
 import common.TestUtils._
@@ -47,7 +46,6 @@ import scala.util.matching.Regex
 @RunWith(classOf[JUnitRunner])
 class WskSequenceTests
     extends TestHelpers
-    with JsHelpers
     with ScalatestRouteTest
     with WskTestHelpers {
 

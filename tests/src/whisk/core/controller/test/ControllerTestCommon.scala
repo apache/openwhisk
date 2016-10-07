@@ -25,7 +25,7 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 
-import akka.event.Logging.{ InfoLevel, LogLevel }
+import akka.event.Logging.{ ErrorLevel, InfoLevel, LogLevel }
 import spray.http.BasicHttpCredentials
 import spray.json.DefaultJsonProtocol
 import spray.json.JsString
@@ -143,12 +143,12 @@ protected trait ControllerTestCommon
         }
     }
 
-    setVerbosity(InfoLevel)
-    Collection.initialize(entityStore, InfoLevel)
-    entityStore.setVerbosity(InfoLevel)
-    activationStore.setVerbosity(InfoLevel)
-    authStore.setVerbosity(InfoLevel)
-    entitlementProvider.setVerbosity(InfoLevel)
+    setVerbosity(ErrorLevel)
+    Collection.initialize(entityStore, ErrorLevel)
+    entityStore.setVerbosity(ErrorLevel)
+    activationStore.setVerbosity(ErrorLevel)
+    authStore.setVerbosity(ErrorLevel)
+    entitlementProvider.setVerbosity(ErrorLevel)
 
     val ACTIONS = Collection(Collection.ACTIONS)
     val TRIGGERS = Collection(Collection.TRIGGERS)
@@ -162,7 +162,7 @@ protected trait ControllerTestCommon
     }
 
     override def afterAll() {
-        println("Shutting down cloudant connections");
+        println("Shutting down db connections");
         entityStore.shutdown()
         activationStore.shutdown()
         authStore.shutdown()

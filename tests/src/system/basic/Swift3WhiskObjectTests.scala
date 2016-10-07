@@ -29,13 +29,11 @@ import common.WskProps
 import common.WskTestHelpers
 import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json.pimpAny
-import common.JsHelpers
 
 @RunWith(classOf[JUnitRunner])
 class Swift3WhiskObjectTests
     extends TestHelpers
-    with WskTestHelpers
-    with JsHelpers {
+    with WskTestHelpers {
 
     implicit val wskprops = WskProps()
     val wsk = new Wsk

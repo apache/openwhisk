@@ -36,6 +36,7 @@ import spray.json.DefaultJsonProtocol._
 import whisk.core.entitlement.Privilege
 import whisk.core.entity._
 import whisk.core.entity.size.SizeInt
+import whisk.utils.JsHelpers
 
 @RunWith(classOf[JUnitRunner])
 class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
@@ -553,5 +554,27 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
         val id = "213174381920559471141441e1"
         assert(ActivationId.unapply(id).isEmpty)
         assert(Try { ActivationId.serdes.read(JsString(id)) }.failed.get.getMessage.contains("too short"))
+    }
+
+    behavior of "Js Helpers"
+
+    it should "project paths from json object" in {
+        val js = JsObject("a" -> JsObject("b" -> JsObject("c" -> JsString("v"))), "b" -> JsString("v"))
+        JsHelpers.fieldPathExists(js) shouldBe true
+        JsHelpers.fieldPathExists(js, "a") shouldBe true
+        JsHelpers.fieldPathExists(js, "a", "b") shouldBe true
+        JsHelpers.fieldPathExists(js, "a", "b", "c") shouldBe true
+        JsHelpers.fieldPathExists(js, "a", "b", "c", "d") shouldBe false
+        JsHelpers.fieldPathExists(js, "b") shouldBe true
+        JsHelpers.fieldPathExists(js, "c") shouldBe false
+
+        JsHelpers.getFieldPath(js) shouldBe Some(js)
+        JsHelpers.getFieldPath(js, "x") shouldBe None
+        JsHelpers.getFieldPath(js, "b") shouldBe Some(JsString("v"))
+        JsHelpers.getFieldPath(js, "a") shouldBe Some(JsObject("b" -> JsObject("c" -> JsString("v"))))
+        JsHelpers.getFieldPath(js, "a", "b") shouldBe Some(JsObject("c" -> JsString("v")))
+        JsHelpers.getFieldPath(js, "a", "b", "c") shouldBe Some(JsString("v"))
+        JsHelpers.getFieldPath(js, "a", "b", "c", "d") shouldBe None
+        JsHelpers.getFieldPath(JsObject()) shouldBe Some(JsObject())
     }
 }

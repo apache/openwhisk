@@ -309,8 +309,8 @@ trait WhiskActionsApi
         // offer an option to fetch entities with full docs yet.
         //
         // the complication with actions is that providing docs on actions in
-        // package bindings is complicated; it cannot be do readily with a cloudant
-        // (couchdb) view and would require finding all bindings in namespace and
+        // package bindings is cannot be do readily done with a couchdb view
+        // and would require finding all bindings in namespace and
         // joining the actions explicitly here.
         val docs = false
         parameter('skip ? 0, 'limit ? collection.listLimit, 'count ? false) {

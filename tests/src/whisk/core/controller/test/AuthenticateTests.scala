@@ -66,7 +66,9 @@ class AuthenticateTests extends ControllerTestCommon with Authenticate {
         val stream = new ByteArrayOutputStream
         val printstream = new PrintStream(stream)
         val savedstream = authStore.outputStream
+        val savedVerbosity = authStore.getVerbosity()
         authStore.outputStream = printstream
+        authStore.setVerbosity(akka.event.Logging.InfoLevel)
         try {
             val user = Await.result(validateCredentials(Some(pass))(transid()), dbOpTimeout)
             user.get should be(creds)
@@ -80,6 +82,7 @@ class AuthenticateTests extends ControllerTestCommon with Authenticate {
             stream.reset()
         } finally {
             authStore.outputStream = savedstream
+            authStore.setVerbosity(savedVerbosity)
             stream.close()
             printstream.close()
         }
