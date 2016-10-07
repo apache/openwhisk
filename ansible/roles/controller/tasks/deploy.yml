@@ -6,10 +6,11 @@
   when: docker_registry != ""
 
 - name: (re)start controller
-  docker:
+  docker_container:
     name: controller
     image: "{{ docker_registry }}{{ docker_image_prefix }}/controller:{{ docker_image_tag }}"
-    state: reloaded
+    state: started
+    recreate: true
     restart_policy: "{{ docker.restart.policy }}"
     hostname: controller
     env:

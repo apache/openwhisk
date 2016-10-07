@@ -2,7 +2,7 @@
 # Remove invoker containers.
 
 - name: remove invoker
-  docker:
+  docker_container:
     name: "invoker{{play_hosts.index(inventory_hostname)}}"
     image: "{{ docker_registry }}{{ docker_image_prefix }}/invoker:{{ docker_image_tag }}"
     state: absent

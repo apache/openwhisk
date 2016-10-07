@@ -17,10 +17,11 @@
     dest: "{{ nginx_conf_dir }}"
 
 - name: (re)start nginx
-  docker:
+  docker_container:
     name: nginx
     image: nginx
-    state: reloaded
+    state: started
+    recreate: true
     restart_policy: "{{ docker.restart.policy }}"
     hostname: "nginx"
     volumes:

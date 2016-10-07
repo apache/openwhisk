@@ -2,7 +2,7 @@
 # Remove CouchDB server
 
 - name: remove CouchDB
-  docker:
+  docker_container:
     name: couchdb
     image: couchdb
     state: absent

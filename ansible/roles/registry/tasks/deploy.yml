@@ -23,7 +23,7 @@
   when: registry.gencert
 
 - name: (re)start registry with ssl enabled
-  docker:
+  docker_container:
     name: whisk_docker_registry
     image: "registry:{{ registry.version }}"
     state: started
@@ -39,7 +39,7 @@
   when: registry.gencert
 
 - name: (re)start registry with insecure ssl
-  docker:
+  docker_container:
     name: whisk_docker_registry
     image: "registry:{{ registry.version }}"
     state: started
