@@ -121,10 +121,7 @@ func (s *ActionService) List(packageName string, options *ActionListOptions) ([]
     resp, err := s.client.Do(req, &actions)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
-        errMsg := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
-            NO_DISPLAY_USAGE)
-        return nil, resp, whiskErr
+        return nil, resp, err
     }
 
     return actions, resp, err
@@ -135,8 +132,8 @@ func (s *ActionService) Insert(action *Action, sharedSet bool, overwrite bool) (
 
     // Encode resource name as a path (with no query params) before inserting it into the URI
     // This way any '?' chars in the name won't be treated as the beginning of the query params
-    action.Name = (&url.URL{Path:  action.Name}).String()
-    route := fmt.Sprintf("actions/%s?overwrite=%t", action.Name, overwrite)
+    actionName := (&url.URL{Path:  action.Name}).String()
+    route := fmt.Sprintf("actions/%s?overwrite=%t", actionName, overwrite)
 
     if sharedSet {
         sentAction = SentActionPublish{
@@ -170,10 +167,7 @@ func (s *ActionService) Insert(action *Action, sharedSet bool, overwrite bool) (
     resp, err := s.client.Do(req, &a)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
-        errMsg := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
-            NO_DISPLAY_USAGE)
-        return nil, resp, whiskErr
+        return nil, resp, err
     }
 
     return a, resp, nil
@@ -199,10 +193,7 @@ func (s *ActionService) Get(actionName string) (*Action, *http.Response, error) 
     resp, err := s.client.Do(req, &a)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
-        errMsg := wski18n.T("Request failure: {{.err}}",  map[string]interface{}{"err": err})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
-            NO_DISPLAY_USAGE)
-        return nil, resp, whiskErr
+        return nil, resp, err
     }
 
     return a, resp, nil
@@ -229,10 +220,7 @@ func (s *ActionService) Delete(actionName string) (*http.Response, error) {
     resp, err := s.client.Do(req, a)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
-        errMsg := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
-            NO_DISPLAY_USAGE)
-        return resp, whiskErr
+        return resp, err
     }
 
     return resp, nil
@@ -259,10 +247,7 @@ func (s *ActionService) Invoke(actionName string, payload *json.RawMessage, bloc
     resp, err := s.client.Do(req, &activation)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
-        errMsg := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
-            NO_DISPLAY_USAGE)
-        return activation, resp, whiskErr
+        return activation, resp, err
     }
 
     return activation, resp, nil

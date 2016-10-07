@@ -37,6 +37,12 @@ import whisk.core.WhiskConfig
 import whisk.core.connector.Message
 import whisk.utils.ExecutionContextFactory
 import common.WskActorSystem
+import scala.concurrent.duration.FiniteDuration
+import whisk.utils.retry
+import java.io.PrintStream
+import java.io.ByteArrayOutputStream
+import org.apache.commons.lang3.StringUtils
+import scala.concurrent.duration.FiniteDuration
 
 @RunWith(classOf[JUnitRunner])
 class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem with BeforeAndAfterAll {
@@ -50,7 +56,7 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
     val topic = "Dinosaurs"
     val sessionTimeout = 10 seconds
     val producer = new KafkaProducerConnector(config.kafkaHost, ec)
-    val consumer = new KafkaConsumerConnector(config.kafkaHost, groupid, topic, sessionTimeout = sessionTimeout)
+    val consumer = new TestKafkaConsumerConnector(config.kafkaHost, groupid, topic, sessionTimeout = sessionTimeout)
 
     producer.setVerbosity(DebugLevel)
     consumer.setVerbosity(DebugLevel)
@@ -109,4 +115,56 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
         }
     }
 
+    it should "catch a failing commit" in {
+        val stream = new ByteArrayOutputStream
+        val printstream = new PrintStream(stream)
+        consumer.outputStream = printstream
+        val messageReceived = "message recieved"
+        try {
+            consumer.onMessage((topic, partition, offset, bytes) => {
+                printstream.println(messageReceived)
+            })
+            val message = new Message { override val serialize = Calendar.getInstance().getTime().toString }
+
+            // Send message while commit throws no exception -> Should be processed
+            consumer.commitFails = false
+            Await.result(producer.send(topic, message), 10 seconds)
+            retry(stream.toString should include(messageReceived), 20, Some(500 millisecond))
+
+            // Send message while commit throws exception -> Message will not be processed
+            consumer.commitFails = true
+            Await.result(producer.send(topic, message), 10 seconds)
+            retry(stream.toString should include("failed to commit to kafka: commit failed"), 50, Some(100 millisecond))
+
+            // Send message again -> No commit exception -> Should work again
+            consumer.commitFails = false
+            Await.result(producer.send(topic, message), 10 seconds)
+            retry(StringUtils.countMatches(stream.toString, messageReceived) should be(2), 50, Some(100 milliseconds))
+
+            // Wait a few seconds and ensure that the message is not processed three times
+            Thread.sleep(5000)
+            StringUtils.countMatches(stream.toString, messageReceived) should be(2)
+        } finally {
+            printstream.close()
+            stream.close()
+        }
+    }
+
+}
+
+class TestKafkaConsumerConnector(
+    kafkahost: String,
+    groupid: String,
+    topic: String,
+    sessionTimeout: FiniteDuration) extends KafkaConsumerConnector(kafkahost, groupid, topic, sessionTimeout = sessionTimeout) {
+
+    override def commit() = {
+        if (commitFails) {
+            throw new CommitFailedException("commit failed")
+        } else {
+            super.commit()
+        }
+    }
+
+    var commitFails = false
 }

@@ -126,7 +126,7 @@ trait ContainerUtils extends Logging {
             getDockerLogFile(containerId, mounted).length
         } catch {
             case e: Exception =>
-                error(this, s"getDockerLogSize failed on $containerId")
+                error(this, s"getDockerLogSize failed on ${containerId.id}")
                 0
         }
     }

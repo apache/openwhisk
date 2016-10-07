@@ -70,9 +70,7 @@ func (s *RuleService) List(options *RuleListOptions) ([]Rule, *http.Response, er
     resp, err := s.client.Do(req, &rules)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
-        errStr := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
-        return nil, resp, werr
+        return nil, resp, err
     }
 
     return rules, resp, err
@@ -81,8 +79,8 @@ func (s *RuleService) List(options *RuleListOptions) ([]Rule, *http.Response, er
 func (s *RuleService) Insert(rule *Rule, overwrite bool) (*Rule, *http.Response, error) {
     // Encode resource name as a path (with no query params) before inserting it into the URI
     // This way any '?' chars in the name won't be treated as the beginning of the query params
-    rule.Name = (&url.URL{Path: rule.Name}).String()
-    route := fmt.Sprintf("rules/%s?overwrite=%t", rule.Name, overwrite)
+    ruleName := (&url.URL{Path: rule.Name}).String()
+    route := fmt.Sprintf("rules/%s?overwrite=%t", ruleName, overwrite)
 
     req, err := s.client.NewRequest("PUT", route, rule)
     if err != nil {
@@ -97,9 +95,7 @@ func (s *RuleService) Insert(rule *Rule, overwrite bool) (*Rule, *http.Response,
     resp, err := s.client.Do(req, &r)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
-        errStr := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
-        return nil, resp, werr
+        return nil, resp, err
     }
 
     return r, resp, nil
@@ -124,9 +120,7 @@ func (s *RuleService) Get(ruleName string) (*Rule, *http.Response, error) {
     resp, err := s.client.Do(req, &r)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
-        errStr := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
-        return nil, resp, werr
+        return nil, resp, err
     }
 
     return r, resp, nil
@@ -150,9 +144,7 @@ func (s *RuleService) Delete(ruleName string) (*http.Response, error) {
     resp, err := s.client.Do(req, nil)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
-        errStr := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
-        return resp, werr
+        return resp, err
     }
 
     return resp, nil
@@ -187,9 +179,7 @@ func (s *RuleService) SetState(ruleName string, state string) (*Rule, *http.Resp
     resp, err := s.client.Do(req, &r)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
-        errStr := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
-        return nil, resp, werr
+        return nil, resp, err
     }
 
     return r, resp, nil

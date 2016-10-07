@@ -68,12 +68,12 @@
     "translation": "work with namespaces"
   },
   {
-    "id": "list available namespaces",
-    "translation": "list available namespaces"
+    "id": "list entities in the current namespace",
+    "translation": "list entities in the current namespace"
   },
   {
-    "id": "Unable to obtain list of available namespaces: {{.err}}",
-    "translation": "Unable to obtain list of available namespaces: {{.err}}"
+    "id": "Unable to obtain the list of available namespaces: {{.err}}",
+    "translation": "Unable to obtain the list of available namespaces: {{.err}}"
   },
   {
     "id": "get triggers, actions, and rules in the registry for a namespace",
@@ -84,12 +84,12 @@
     "translation": "'{{.name}}' is not a valid qualified name: {{.err}}"
   },
   {
-    "id": "Unable to obtain namespace entities for namespace '{{.namespace}}': {{.err}}",
-    "translation": "Unable to obtain namespace entities for namespace '{{.namespace}}': {{.err}}"
+    "id": "Unable to obtain the list of entities for namespace '{{.namespace}}': {{.err}}",
+    "translation": "Unable to obtain the list of entities for namespace '{{.namespace}}': {{.err}}"
   },
   {
-    "id": "Entities in namespace: ",
-    "translation": "Entities in namespace: "
+    "id": "Entities in namespace: {{.namespace}}\n",
+    "translation": "Entities in namespace: {{.namespace}}\n"
   },
   {
     "id": "list available namespaces",
@@ -176,8 +176,8 @@
     "translation": "No valid namespace detected. Run 'wsk property set --namespace' or ensure the name argument is preceded by a \"/\""
   },
   {
-    "id": "Unable to obtain package list: {{.err}}",
-    "translation": "Unable to obtain package list: {{.err}}"
+    "id": "Unable to obtain the list of packages for namespace '{{.name}}': {{.err}}",
+    "translation": "Unable to obtain the list of packages for namespace '{{.name}}': {{.err}}"
   },
   {
     "id": "refresh package bindings",
@@ -489,8 +489,8 @@
     "translation": "Namespace '{{.name}}' is invalid: {{.err}}\n"
   },
   {
-    "id": "Unable to obtain list of rules: {{.err}}",
-    "translation": "Unable to obtain list of rules: {{.err}}"
+    "id": "Unable to obtain the list of rules for namespace '{{.name}}': {{.err}}",
+    "translation": "Unable to obtain the list of rules for namespace '{{.name}}': {{.err}}"
   },
   {
     "note-to-translators": "DO NOT TRANSLATE THE 'yes' AND 'no'.  THOSE ARE FIXED CLI ARGUMENT VALUES",
@@ -655,8 +655,8 @@
     "translation": "list all triggers"
   },
   {
-    "id": "Unable to obtain the trigger list for namespace '{{.name}}': {{.err}}",
-    "translation": "Unable to obtain the trigger list for namespace '{{.name}}': {{.err}}"
+    "id": "Unable to obtain the list of triggers for namespace '{{.name}}': {{.err}}",
+    "translation": "Unable to obtain the list of triggers for namespace '{{.name}}': {{.err}}"
   },
   {
     "id": "Unable to invoke trigger '{{.trigname}}' feed action '{{.feedname}}'; feed is not configured: {{.err}}",
@@ -836,8 +836,8 @@
     "translation": "list all actions"
   },
   {
-    "id": "Unable to list action(s): {{.err}}",
-    "translation": "Unable to list action(s): {{.err}}"
+    "id": "Unable to obtain the list of actions for namespace '{{.name}}': {{.err}}",
+    "translation": "Unable to obtain the list of actions for namespace '{{.name}}': {{.err}}"
   },
   {
     "id": "Could not find 'main' method in '{{.name}}'",
@@ -924,8 +924,8 @@
     "translation": "Namespace '{{.name}}' is invalid"
   },
   {
-    "id": "Unable to obtain list of activations: {{.err}}",
-    "translation": "Unable to obtain list of activations: {{.err}}"
+    "id": "Unable to obtain the list of activations for namespace '{{.name}}': {{.err}}",
+    "translation": "Unable to obtain the list of activations for namespace '{{.name}}': {{.err}}"
   },
   {
     "id": "get activation",
@@ -1106,5 +1106,9 @@
   {
     "id": "parameters",
     "translation": "parameters"
+  },
+  {
+    "id": "default",
+    "translation": "default"
   }
 ]

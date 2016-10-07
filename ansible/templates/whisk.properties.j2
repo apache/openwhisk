@@ -17,10 +17,12 @@ whisk.ssl.challenge=openwhisk
 defaultLimits.actions.invokes.perMinute={{ defaultLimits.actions.invokes.perMinute }}
 defaultLimits.actions.invokes.concurrent={{ defaultLimits.actions.invokes.concurrent }}
 defaultLimits.triggers.fires.perMinute={{ defaultLimits.triggers.fires.perMinute }}
+defaultLimits.actions.invokes.concurrentInSystem={{ defaultLimits.actions.invokes.concurrentInSystem }}
 
 {% if limits is defined %}
 limits.actions.invokes.perMinute={{ limits.actions.invokes.perMinute }}
 limits.actions.invokes.concurrent={{ limits.actions.invokes.concurrent }}
+limits.actions.invokes.concurrentInSystem={{ limits.actions.invokes.concurrentInSystem }}
 limits.triggers.fires.perMinute={{ limits.triggers.fires.perMinute }}
 {% endif %}
 
@@ -55,6 +57,8 @@ invoker.container.network=bridge
 invoker.container.policy={{ invoker_container_policy_name | default()}}
 invoker.numcore={{ invoker.numcore }}
 invoker.coreshare={{ invoker.coreshare }}
+invoker.serializeDockerOp={{ invoker.serializeDockerOp }}
+invoker.serializeDockerPull={{ invoker.serializeDockerPull }}
 
 consulserver.docker.endpoint={{ groups["consul_servers"]|first }}:{{ docker.port }}
 edge.docker.endpoint={{ groups["edge"]|first }}:{{ docker.port }}

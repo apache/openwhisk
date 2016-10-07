@@ -18,10 +18,8 @@ package whisk.core.entitlement
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.Future
-import scala.concurrent.duration.DurationInt
 import scala.util.Failure
 import scala.util.Success
-import scala.util.Try
 
 import Privilege.Privilege
 import Privilege.ACTIVATE
@@ -31,12 +29,8 @@ import akka.event.Logging.LogLevel
 import spray.http.StatusCodes.ClientError
 import spray.http.StatusCodes.Forbidden
 import spray.http.StatusCodes.TooManyRequests
-import spray.json.DefaultJsonProtocol.BooleanJsonFormat
-import spray.json.pimpString
 import whisk.common.ConsulClient
-import whisk.common.ConsulKV.LoadBalancerKeys
 import whisk.common.Logging
-import whisk.common.Scheduler
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.controller.RejectRequest
@@ -45,6 +39,7 @@ import whisk.core.entity.Identity
 import whisk.core.entity.Parameters
 import whisk.core.entity.Subject
 import whisk.core.entity.Identity
+import whisk.core.loadBalancer.LoadBalancerService
 import whisk.http.ErrorResponse
 import whisk.http.Messages._
 
@@ -75,12 +70,14 @@ protected[core] object EntitlementService {
     val requiredProperties = WhiskConfig.consulServer ++ WhiskConfig.entitlementHost ++ Map(
         WhiskConfig.actionInvokePerMinuteDefaultLimit -> null,
         WhiskConfig.actionInvokeConcurrentDefaultLimit -> null,
-        WhiskConfig.triggerFirePerMinuteDefaultLimit -> null)
+        WhiskConfig.triggerFirePerMinuteDefaultLimit -> null,
+        WhiskConfig.actionInvokeSystemOverloadDefaultLimit -> null)
 
     val optionalProperties = Set(
         WhiskConfig.actionInvokePerMinuteLimit,
         WhiskConfig.actionInvokeConcurrentLimit,
-        WhiskConfig.triggerFirePerMinuteLimit)
+        WhiskConfig.triggerFirePerMinuteLimit,
+        WhiskConfig.actionInvokeSystemOverloadLimit)
 
     /**
      * The default list of namespaces for a subject.
@@ -91,32 +88,16 @@ protected[core] object EntitlementService {
 /**
  * A trait for entitlement service. This is a WIP.
  */
-protected[core] abstract class EntitlementService(config: WhiskConfig)(
+protected[core] abstract class EntitlementService(config: WhiskConfig, loadBalancer: LoadBalancerService)(
     implicit actorSystem: ActorSystem) extends Logging {
 
     private implicit val executionContext = actorSystem.dispatcher
 
-    private var loadbalancerOverload: Boolean = false
-
     private val invokeRateThrottler = new RateThrottler(config.actionInvokePerMinuteLimit.toInt)
     private val triggerRateThrottler = new RateThrottler(config.triggerFirePerMinuteLimit.toInt)
-    private val concurrentInvokeThrottler = new ActivationThrottler(config.consulServer, config.actionInvokeConcurrentLimit.toInt)
-
-    /** query the KV store this often */
-    private val overloadCheckPeriod = 10.seconds
+    private val concurrentInvokeThrottler = new ActivationThrottler(config.consulServer, loadBalancer, config.actionInvokeConcurrentLimit.toInt, config.actionInvokeSystemOverloadLimit.toInt)
 
     private val consul = new ConsulClient(config.consulServer)
-
-    Scheduler.scheduleWaitAtLeast(overloadCheckPeriod) { () =>
-        consul.kv.get(LoadBalancerKeys.overloadKey).map { isOverloaded =>
-            Try(isOverloaded.parseJson.convertTo[Boolean]) foreach { v =>
-                if (loadbalancerOverload != v) {
-                    loadbalancerOverload = v
-                    warn(this, s"loadbalancerOverload = ${v}")(TransactionId.loadbalancer)
-                }
-            }
-        }
-    }
 
     override def setVerbosity(level: LogLevel) = {
         super.setVerbosity(level)
@@ -228,8 +209,9 @@ protected[core] abstract class EntitlementService(config: WhiskConfig)(
 
     /** Limits activations if the load balancer is overloaded. */
     protected def checkSystemOverload(subject: Subject, right: Privilege, resource: Resource)(implicit transid: TransactionId) = {
-        val systemOverload = right == ACTIVATE && loadbalancerOverload
+        val systemOverload = right == ACTIVATE && concurrentInvokeThrottler.isOverloaded
         if (systemOverload) {
+            error(this, "system is overloaded")
             Some {
                 Future failed ThrottleRejectRequest(TooManyRequests, Some(ErrorResponse(systemOverloaded, transid)))
             }

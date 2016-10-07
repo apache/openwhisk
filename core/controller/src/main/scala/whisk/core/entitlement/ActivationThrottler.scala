@@ -25,23 +25,23 @@ import spray.json._
 import whisk.common.ConsulClient
 import whisk.common.ConsulKV.ControllerKeys
 import whisk.common.ConsulKV.InvokerKeys
-import whisk.common.ConsulKV.LoadBalancerKeys
 import whisk.common.Logging
 import whisk.common.Scheduler
 import whisk.core.entity.Subject
+import whisk.core.loadBalancer.LoadBalancerService
 
 /**
  * Determines user limits and activation counts as seen by the invoker and the loadbalancer
  * in a scheduled, repeating task for other services to get the cached information to be able
  * to calculate and determine whether the namespace currently invoking a new action should
- * be allowed to do so
+ * be allowed to do so.
  *
  * @param config containing the config information needed (consulServer)
  */
-class ActivationThrottler(consulServer: String, concurrencyLimit: Int)(
+class ActivationThrottler(consulServer: String, loadBalancer: LoadBalancerService, concurrencyLimit: Int, systemOverloadLimit: Int)(
     implicit val system: ActorSystem) extends Logging {
 
-    info(this, s"concurrencyLimit = $concurrencyLimit")
+    info(this, s"concurrencyLimit = $concurrencyLimit, systemOverloadLimit = $systemOverloadLimit")
 
     implicit private val executionContext = system.dispatcher
 
@@ -62,20 +62,12 @@ class ActivationThrottler(consulServer: String, concurrencyLimit: Int)(
     def check(subject: Subject): Boolean = userActivationCounter.getOrElse(subject(), 0L) < concurrencyLimit
 
     /**
-     * Returns the per-namespace activation count as seen by the loadbalancer
-     *
-     * @returns a map where each namespace maps to the activations for it counted
-     *     by the loadbalancer
+     * Checks whether the system is in a generally overloaded state.
      */
-    private def getLoadBalancerActivationCount(): Future[Map[String, Long]] =
-        consul.kv.getRecurse(LoadBalancerKeys.userActivationCountKey) map {
-            _ map {
-                case (_, users) => users.parseJson.convertTo[Map[String, Long]]
-            } reduce { _ ++ _ } // keys are unique in every sub map, no adding necessary
-        }
+    def isOverloaded = userActivationCounter.values.sum > systemOverloadLimit
 
     /**
-     * Returns the per-namespace activation count as seen by all invokers combined
+     * Returns the per-namespace activation count as seen by all invokers combined.
      *
      * @returns a map where each namespace maps to the activations for it counted
      *     by all the invokers combined
@@ -108,11 +100,9 @@ class ActivationThrottler(consulServer: String, concurrencyLimit: Int)(
     }
 
     Scheduler.scheduleWaitAtLeast(healthCheckInterval) { () =>
-        for {
-            loadbalancerActivationCount <- getLoadBalancerActivationCount()
-            invokerActivationCount <- getInvokerActivationCount()
-        } yield {
-            debug(this, s"loadbalancerActivationCount = $loadbalancerActivationCount")
+        val loadbalancerActivationCount = loadBalancer.getUserActivationCounts
+        debug(this, s"loadbalancerActivationCount = $loadbalancerActivationCount")
+        getInvokerActivationCount() map { invokerActivationCount =>
             debug(this, s"invokerActivationCount = $invokerActivationCount")
             userActivationCounter = invokerActivationCount map {
                 case (subject, invokerCount) =>

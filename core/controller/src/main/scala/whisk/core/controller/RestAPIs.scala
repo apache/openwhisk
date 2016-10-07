@@ -36,10 +36,11 @@ import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.whiskVersionDate
 import whisk.core.WhiskConfig.whiskVersionBuildno
+import whisk.core.connector.ActivationMessage
 import whisk.core.entitlement.{ Collection, EntitlementService }
 import whisk.core.entity.{ ActivationId, WhiskActivation, WhiskActivationStore, WhiskAuthStore, WhiskEntityStore }
 import whisk.core.entity.types.{ ActivationStore, EntityStore }
-import whisk.core.controller.WhiskServices.LoadBalancerReq
+import whisk.core.loadBalancer.LoadBalancerService
 import akka.event.Logging.LogLevel
 import whisk.core.entity.ActivationId.ActivationIdGenerator
 import scala.concurrent.duration.FiniteDuration
@@ -163,9 +164,13 @@ protected[controller] class RestAPIVersion_v1(
 
     // initialize backend services
     protected implicit val consulServer = WhiskServices.consulServer(config)
-    protected implicit val entitlementService = WhiskServices.entitlementService(config)
-    protected implicit val (performLoadBalancerRequest, getInvokerHealth, queryActivationResponse) = WhiskServices.makeLoadBalancerComponent(config)
+    protected implicit val loadBalancer = WhiskServices.makeLoadBalancerComponent(config)
+    protected implicit val entitlementService = WhiskServices.entitlementService(config, loadBalancer)
     protected implicit val activationId = new ActivationIdGenerator {}
+
+    // Try to get rid of these methods but note sensitivity with Controller unit tests
+    protected implicit val performLoadBalancerRequest = loadBalancer.publish _
+    protected implicit val queryActivationResponse = loadBalancer.queryActivationResponse _
 
     // register collections and set verbosities on datastores and backend services
     Collection.initialize(entityStore, verbosity)
@@ -201,7 +206,8 @@ protected[controller] class RestAPIVersion_v1(
             override val activationStore: ActivationStore,
             override val entitlementService: EntitlementService,
             override val activationId: ActivationIdGenerator,
-            override val performLoadBalancerRequest: LoadBalancerReq => Future[Unit],
+            override val loadBalancer: LoadBalancerService,
+            override val performLoadBalancerRequest: (ActivationMessage, TransactionId) => Future[Unit],
             override val queryActivationResponse: (ActivationId, FiniteDuration, TransactionId) => Future[WhiskActivation],
             override val consulServer: String,
             override val executionContext: ExecutionContext)
@@ -219,7 +225,8 @@ protected[controller] class RestAPIVersion_v1(
             override val entitlementService: EntitlementService,
             override val activationStore: ActivationStore,
             override val activationId: ActivationIdGenerator,
-            override val performLoadBalancerRequest: LoadBalancerReq => Future[Unit],
+            override val loadBalancer: LoadBalancerService,
+            override val performLoadBalancerRequest: (ActivationMessage, TransactionId) => Future[Unit],
             override val queryActivationResponse: (ActivationId, FiniteDuration, TransactionId) => Future[WhiskActivation],
             override val consulServer: String,
             override val executionContext: ExecutionContext)
@@ -236,7 +243,8 @@ protected[controller] class RestAPIVersion_v1(
             override val entityStore: EntityStore,
             override val entitlementService: EntitlementService,
             override val activationId: ActivationIdGenerator,
-            override val performLoadBalancerRequest: LoadBalancerReq => Future[Unit],
+            override val loadBalancer: LoadBalancerService,
+            override val performLoadBalancerRequest: (ActivationMessage, TransactionId) => Future[Unit],
             override val queryActivationResponse: (ActivationId, FiniteDuration, TransactionId) => Future[WhiskActivation],
             override val consulServer: String,
             override val executionContext: ExecutionContext)
@@ -263,7 +271,8 @@ protected[controller] class RestAPIVersion_v1(
             implicit override val entityStore: EntityStore,
             override val entitlementService: EntitlementService,
             override val activationId: ActivationIdGenerator,
-            override val performLoadBalancerRequest: LoadBalancerReq => Future[Unit],
+            override val loadBalancer: LoadBalancerService,
+            override val performLoadBalancerRequest: (ActivationMessage, TransactionId) => Future[Unit],
             override val queryActivationResponse: (ActivationId, FiniteDuration, TransactionId) => Future[WhiskActivation],
             override val consulServer: String,
             override val executionContext: ExecutionContext)
@@ -280,7 +289,7 @@ protected[controller] class RestAPIVersion_v1(
     val internalInvokerHealth = {
         (path("invokers") & get) {
             complete {
-                getInvokerHealth()
+                loadBalancer.getInvokerHealth()
             }
         }
     }

@@ -22,6 +22,7 @@ limits:
     invokes:
       perMinute: 60
       concurrent: 30
+      concurrentInSystem: 5000
   triggers:
     fires:
       perMinute: 60

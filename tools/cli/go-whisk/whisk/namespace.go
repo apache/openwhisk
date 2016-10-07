@@ -23,13 +23,15 @@ import (
 )
 
 type Namespace struct {
-    Name     string `json:"name"`
-    Contents struct {
-                 Actions  []Action              `json:"actions"`
-                 Packages []Package             `json:"packages"`
-                 Triggers []TriggerFromServer   `json:"triggers"`
-                 Rules    []Rule                `json:"rules"`
-             } `json:"contents,omitempty"`
+    Name                string  `json:"name"`
+    Contents                    `json:"contents,omitempty"`
+}
+
+type Contents struct {
+    Actions  []Action              `json:"actions"`
+    Packages []Package             `json:"packages"`
+    Triggers []TriggerFromServer   `json:"triggers"`
+    Rules    []Rule                `json:"rules"`
 }
 
 type NamespaceService struct {
@@ -56,9 +58,7 @@ func (s *NamespaceService) List() ([]Namespace, *http.Response, error) {
     resp, err := s.client.Do(req, &namespaceNames)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
-        errStr := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
-        return nil, resp, werr
+        return nil, resp, err
     }
 
     var namespaces []Namespace
@@ -73,12 +73,15 @@ func (s *NamespaceService) List() ([]Namespace, *http.Response, error) {
     return namespaces, resp, nil
 }
 
-func (s *NamespaceService) Get(nsName string) (*Namespace, *http.Response, error) {
+func (s *NamespaceService) Get(namespace string) (*Namespace, *http.Response, error) {
 
-    // GET request to currently-set namespace (def. "_")
+    if len(namespace) == 0 {
+        namespace = s.client.Config.Namespace
+    }
 
-    if nsName == "" {
-        nsName = s.client.Config.Namespace
+    s.client.Namespace = namespace
+    resNamespace := &Namespace{
+        Name: namespace,
     }
 
     req, err := s.client.NewRequest("GET", "", nil)
@@ -86,20 +89,16 @@ func (s *NamespaceService) Get(nsName string) (*Namespace, *http.Response, error
         Debug(DbgError, "s.client.NewRequest(GET) error: %s\n", err)
         errStr := wski18n.T("Unable to create HTTP request for GET: {{.err}}", map[string]interface{}{"err": err})
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
-        return nil, nil, werr
+        return resNamespace, nil, werr
     }
 
-    ns := &Namespace{
-        Name: nsName,
-    }
-    resp, err := s.client.Do(req, &ns.Contents)
+    resp, err := s.client.Do(req, &resNamespace.Contents)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
-        errStr := wski18n.T("Request failure: {{.err}}", map[string]interface{}{"err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
-        return nil, resp, werr
+        return resNamespace, resp, err
     }
 
-    Debug(DbgInfo, "Returning namespace: %#v\n", ns)
-    return ns, resp, nil
+    Debug(DbgInfo, "Returning namespace: %#v\n", resNamespace)
+
+    return resNamespace, resp, nil
 }

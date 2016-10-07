@@ -233,10 +233,10 @@ class ThrottleTests
             }
 
             // The sleep is necessary as the load balancer currently has a latency before recognizing concurency.
-            val sleep = 10.seconds
+            val sleep = 15.seconds
             val slowInvokes = maximumConcurrentInvokes
-            val fastInvokes = 1
-            val fastInvokeDuration = 3.seconds
+            val fastInvokes = 2
+            val fastInvokeDuration = 4.seconds
             val slowInvokeDuration = sleep + fastInvokeDuration
 
             // These invokes will stay active long enough that all are issued and load balancer has recognized concurrency.

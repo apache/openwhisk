@@ -25,7 +25,8 @@ SRC_EPILOGUE_FILE = "./epilogue.swift"
 DEST_SCRIPT_FILE = "/swift3Action/spm-build/main.swift"
 DEST_SCRIPT_DIR = "/swift3Action/spm-build"
 DEST_BIN_FILE = "/swift3Action/spm-build/.build/debug/Action"
-BUILD_PROCESS = [ "swift", "build", "-Xcc", "-fblocks"]
+
+BUILD_PROCESS = [ "swift", "build"]
 
 class Swift3Runner(ActionRunner):
 

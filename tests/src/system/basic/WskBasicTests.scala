@@ -27,6 +27,7 @@ import common.TestUtils
 import common.TestUtils.CONFLICT
 import common.TestUtils.SUCCESS_EXIT
 import common.TestUtils.UNAUTHORIZED
+import common.TestUtils.FORBIDDEN
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
@@ -155,6 +156,18 @@ class WskBasicTests
 
             stdout should include regex(s"(?i)package /${ns_regex_list}/${packageName}: Package description\\s*\\(parameters: paramName1, paramName2\\)")
             stdout should include regex(s"(?i)action /${ns_regex_list}/${packageName}/${actionName}: Action description\\s*\\(parameters: paramName1, paramName2\\)")
+    }
+
+    it should "create a package with a name that contains spaces" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "package with spaces"
+
+            val res = assetHelper.withCleaner(wsk.pkg, name) {
+                (pkg, _) =>
+                   pkg.create(name)
+            }
+
+            res.stdout should include(s"ok: created package $name")
     }
 
     behavior of "Wsk Action CLI"
@@ -301,6 +314,18 @@ class WskBasicTests
             stdout should include regex (s"(?i)action /${ns_regex_list}/${name}: Action description\\s*\\(parameters: paramName1, paramName2\\)")
     }
 
+    it should "create an action with a name that contains spaces" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "action with spaces"
+
+            val res = assetHelper.withCleaner(wsk.action, name) {
+                (action, _) =>
+                    action.create(name, defaultAction)
+            }
+
+            res.stdout should include(s"ok: created action $name")
+    }
+
     behavior of "Wsk Trigger CLI"
 
     it should "create, update, get, fire and list trigger" in withAssetCleaner(wskprops) {
@@ -355,6 +380,18 @@ class WskBasicTests
             val ns_regex_list = wsk.namespace.list().stdout.trim.replace('\n', '|')
 
             stdout should include regex(s"trigger /${ns_regex_list}/${name}: Trigger description\\s*\\(parameters: paramName1, paramName2\\)")
+    }
+
+    it should "create a trigger with a name that contains spaces" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "trigger with spaces"
+
+            val res = assetHelper.withCleaner(wsk.trigger, name) {
+                (trigger, _) =>
+                    trigger.create(name)
+            }
+
+            res.stdout should include regex(s"ok: created trigger $name")
     }
 
     behavior of "Wsk Rule CLI"
@@ -446,5 +483,12 @@ class WskBasicTests
         // the default namespace
         wsk.namespace.get(expectedExitCode = SUCCESS_EXIT)(WskProps()).
             stdout should include("default")
+    }
+
+    it should "not list entities with an invalid namespace" in {
+        val namespace = "fakeNamespace"
+        val stderr = wsk.namespace.get(Some(s"/${namespace}"), expectedExitCode = FORBIDDEN).stderr
+
+        stderr should include (s"Unable to obtain the list of entities for namespace '${namespace}'")
     }
 }
