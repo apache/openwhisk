@@ -442,14 +442,13 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
             activationNamespace = user.namespace.toPath,
             args)
 
-        val duration = action.limits.timeout()
-        val timeout = (maxWaitForBlockingActivation min duration) + blockingInvokeGrace
-
         val start = transid.started(this, LoggingMarkers.CONTROLLER_LOADBALANCER, s"[POST] action activation id: ${message.activationId}")
-        val (postedFuture, activationResponse) = loadBalancer.publish(message, timeout)(transid)
+        val (postedFuture, activationResponse) = loadBalancer.publish(message, activeAckTimeout)
         postedFuture flatMap { _ =>
             transid.finished(this, start)
             if (blocking) {
+                val duration = action.limits.timeout()
+                val timeout = (maxWaitForBlockingActivation min duration) + blockingInvokeGrace
                 waitForActivationResponse(user, message, timeout, activationResponse)
             } else {
                 // Duration of the non-blocking activation in Controller.
@@ -603,6 +602,9 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
 
     /** Max duration to wait for a blocking activation. */
     private val maxWaitForBlockingActivation = 60 seconds
+
+    /** Max duration for active ack. */
+    private val activeAckTimeout = 30 seconds
 
 }
 

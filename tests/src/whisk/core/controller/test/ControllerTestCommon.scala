@@ -25,7 +25,6 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 
-import akka.actor.ActorSystem
 import akka.event.Logging.{ InfoLevel, LogLevel }
 import spray.http.BasicHttpCredentials
 import spray.routing.HttpService
@@ -38,7 +37,7 @@ import whisk.core.controller.WhiskServices
 import whisk.core.database.test.DbUtils
 import whisk.core.entitlement.{ Collection, EntitlementService, LocalEntitlementService }
 import whisk.core.entity._
-import whisk.core.loadBalancer.LoadBalancerService
+import whisk.core.loadBalancer.LoadBalancer
 
 protected trait ControllerTestCommon
     extends FlatSpec
@@ -61,7 +60,7 @@ protected trait ControllerTestCommon
     override val whiskConfig = new WhiskConfig(WhiskActionsApi.requiredProperties)
     assert(whiskConfig.isValid)
 
-    val loadBalancer = new DegenerateLoadBalancerService(whiskConfig, InfoLevel)
+    override val loadBalancer = new DegenerateLoadBalancerService(whiskConfig, InfoLevel)
     override val entitlementService: EntitlementService = new LocalEntitlementService(whiskConfig, loadBalancer)
 
     override val activationId = new ActivationId.ActivationIdGenerator() {
@@ -159,19 +158,18 @@ protected trait ControllerTestCommon
     }
 }
 
-class DegenerateLoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
-    implicit override val actorSystem: ActorSystem)
-    extends LoadBalancerService(config, verbosity, true) {
+class DegenerateLoadBalancerService(config: WhiskConfig, verbosity: LogLevel)
+    extends LoadBalancer {
 
     // unit tests that need an activation via active ack/fast path should set this to value expected
     var whiskActivationStub: Option[WhiskActivation] = None
 
+    override def getUserActivationCounts: Map[String, Long] = Map()
+
     override def publish(msg: ActivationMessage, timeout: FiniteDuration)(implicit transid: TransactionId): (Future[Unit], Future[WhiskActivation]) =
         (Future.successful {},
-        whiskActivationStub map {
+         whiskActivationStub map {
             activation => Future.successful(activation)
-        } getOrElse (Future.failed {
-            new IllegalArgumentException("Unit test does not need fast path")
-        }))
+        } getOrElse Future.failed(new IllegalArgumentException("Unit test does not need fast path")))
 
 }

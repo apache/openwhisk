@@ -39,7 +39,7 @@ import whisk.core.entity.Identity
 import whisk.core.entity.Parameters
 import whisk.core.entity.Subject
 import whisk.core.entity.Identity
-import whisk.core.loadBalancer.LoadBalancerService
+import whisk.core.loadBalancer.LoadBalancer
 import whisk.http.ErrorResponse
 import whisk.http.Messages._
 
@@ -88,7 +88,7 @@ protected[core] object EntitlementService {
 /**
  * A trait for entitlement service. This is a WIP.
  */
-protected[core] abstract class EntitlementService(config: WhiskConfig, loadBalancer: LoadBalancerService)(
+protected[core] abstract class EntitlementService(config: WhiskConfig, loadBalancer: LoadBalancer)(
     implicit actorSystem: ActorSystem) extends Logging {
 
     private implicit val executionContext = actorSystem.dispatcher

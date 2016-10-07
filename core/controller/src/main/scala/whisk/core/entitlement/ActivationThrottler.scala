@@ -28,7 +28,7 @@ import whisk.common.ConsulKV.InvokerKeys
 import whisk.common.Logging
 import whisk.common.Scheduler
 import whisk.core.entity.Subject
-import whisk.core.loadBalancer.LoadBalancerService
+import whisk.core.loadBalancer.LoadBalancer
 
 /**
  * Determines user limits and activation counts as seen by the invoker and the loadbalancer
@@ -38,7 +38,7 @@ import whisk.core.loadBalancer.LoadBalancerService
  *
  * @param config containing the config information needed (consulServer)
  */
-class ActivationThrottler(consulServer: String, loadBalancer: LoadBalancerService, concurrencyLimit: Int, systemOverloadLimit: Int)(
+class ActivationThrottler(consulServer: String, loadBalancer: LoadBalancer, concurrencyLimit: Int, systemOverloadLimit: Int)(
     implicit val system: ActorSystem) extends Logging {
 
     info(this, s"concurrencyLimit = $concurrencyLimit, systemOverloadLimit = $systemOverloadLimit")
