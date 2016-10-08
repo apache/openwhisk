@@ -109,11 +109,11 @@ class InvokerHealth(
         status.index -> status.activationCount
     }.toMap
 
-    private def getHealth(statuses: Array[Status]): Array[(Int, Boolean)] = {
-        statuses map { status => (status.index, status.status) }
+    private def getHealth(statuses: Array[Status]): Map[Int, Boolean] = {
+        statuses.map { status => (status.index, status.status) }.toMap
     }
 
-    def getInvokerHealth(): Array[(Int, Boolean)] = getHealth(curStatus.get())
+    def getInvokerHealth(): Map[Int, Boolean] = getHealth(curStatus.get())
 
     def getInvokerHealthJson(): JsObject = {
         val health = getInvokerHealth().map { case (index, isUp) => s"invoker${index}" -> (if (isUp) "up" else "down").toJson }
@@ -157,7 +157,7 @@ class InvokerHealth(
             val newStatus = statusMap.values.toArray.sortBy(_.index)
 
             // Warning is issued only if up/down is changed
-            if (getInvokerHealth().deep != getHealth(newStatus).deep) {
+            if (getInvokerHealth() != getHealth(newStatus)) {
                 warn(this, s"InvokerHealth status change: ${newStatus.deep.mkString(" ")}")(TransactionId.loadbalancer)
             }
 

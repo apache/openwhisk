@@ -31,7 +31,6 @@ import scala.util.Success
 
 import akka.actor.ActorSystem
 import akka.event.Logging.LogLevel
-import akka.pattern.after
 
 import spray.json.JsObject
 
@@ -57,7 +56,7 @@ trait LoadBalancer {
     /**
      * Retrieves a snapshot of activation counts issued per subject by load balancer
      *
-     * @returns a map where the key is the subject and the long is total issued activations by that user
+     * @return a map where the key is the subject and the long is total issued activations by that user
      */
     def getUserActivationCounts: Map[String, Long]
 
@@ -102,10 +101,9 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
     /**
      * Retrieves a snapshot of activation counts issued per subject by load balancer
      *
-     * @returns a map where the key is the subject and the long is total issued activations by that user
+     * @return a map where the key is the subject and the long is total issued activations by that user
      */
     override def getUserActivationCounts: Map[String, Long] = userActivationCounter.toMap mapValues { _.cur }
-
 
     /**
      * Publishes message on kafka bus for the invoker to pick up.
@@ -128,7 +126,7 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
                 }, entry.promise.future)
         } getOrElse {
             (Future.failed(new LoadBalancerException("no invokers available")),
-             Future.failed(new LoadBalancerException("no invokers available")))
+                Future.failed(new LoadBalancerException("no invokers available")))
         }
     }
 
@@ -211,32 +209,22 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
         // either create a new promise or reuse a previous one for this activation if it exists
         activationMap.getOrElseUpdate(activationId, {
             val promise = Promise[WhiskActivation]
-            // store the promise to complete on success, and the timed future that completes
-            // with the TimeoutException after alloted time has elapsed
-            after(timeout, actorSystem.scheduler)({
-                if (activationMap.remove(activationId).isDefined) {
+            // store the promise to complete on success, or fail with ActiveAckTimeout
+            // if the time runs out
+            actorSystem.scheduler.scheduleOnce(timeout) {
+                activationMap.remove(activationId).foreach { _ =>
                     val failedit = promise.tryFailure(new ActiveAckTimeout(activationId))
                     if (failedit) info(this, "active response timed out")
                 }
-                Future.successful {} // do not care about this future, need to return promise.future below
-            })
+            }
+
             ActivationEntry(Instant.now(Clock.systemUTC()), promise)
         })
     }
 
     private def updateActivationCount(user: String, invokerIndex: Int): Long = {
-        invokerActivationCounter get invokerIndex match {
-            case Some(counter) => counter.next()
-            case None =>
-                invokerActivationCounter(invokerIndex) = new Counter()
-                invokerActivationCounter(invokerIndex).next
-        }
-        userActivationCounter get user match {
-            case Some(counter) => counter.next()
-            case None =>
-                userActivationCounter(user) = new Counter()
-                userActivationCounter(user).next
-        }
+        invokerActivationCounter.getOrElseUpdate(invokerIndex, new Counter()).next()
+        userActivationCounter.getOrElseUpdate(user, new Counter()).next()
     }
 
     private def resetIssueCountByInvoker(invokerIndices: Array[Int]) = {
