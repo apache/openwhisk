@@ -20,10 +20,6 @@ cat /kafka/config/server.properties.default \
   | sed "s|{{EXPOSED_PORT}}|${EXPOSED_PORT:-9092}|g" \
    > /kafka/config/server.properties
 
-export CLASSPATH=$CLASSPATH:/kafka/lib/slf4j-log4j12.jar
-export JMX_PORT=7203
-
-
 echo "Environment"
 echo "-----------"
 echo "IP = $IP"
@@ -36,10 +32,5 @@ echo "ZOOKEEPER_PORT = $ZOOKEEPER_PORT"
 echo ""
 echo "Starting kafka"
 echo "--------------"
-/kafka/bin/kafka-server-start.sh /kafka/config/server.properties &
-unset JMX_PORT
-
-echo "Starting monitor (will make base topics)"
-echo "----------------------------------------"
-cd /monitor; /usr/local/bin/node ./app.js $ZOOKEEPER_IP:$ZOOKEEPER_PORT
+/kafka/bin/kafka-server-start.sh /kafka/config/server.properties
 

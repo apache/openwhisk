@@ -85,14 +85,6 @@ class PingTests {
     }
 
     /**
-     * Check that the kafka endpoint is up and running
-     */
-    @Test
-    def pingKafka(): Unit = {
-        PingTests.isAlive("kafka", WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath)
-    }
-
-    /**
      * Check that the invoker endpoints are up and running
      */
     @Test
