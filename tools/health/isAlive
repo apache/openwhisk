@@ -85,13 +85,6 @@ def isElkAlive() :
     okString = '"cluster_name"'
     return monitorUtil.outputChecker(cmd, okString, 1)
 
-def isKafkaAlive() :
-    host_port = getHostWithPort('kafka', 'kafkaras')
-    # ping signals monitor itself is alive; ready signals kafka is alive
-    cmd = ['curl', '-m', '3', '-s', '-X', 'GET', '%s/ready' % host_port]
-    okString = '{"msg":"yes"}'
-    return monitorUtil.outputChecker(cmd, okString)
-
 def isConsulAlive() :
     host = getProp('CONSULSERVER_HOST')
     port = getProp('CONSUL_HOST_PORT4')
@@ -140,8 +133,6 @@ if (args.component == 'docker.registry'):
     monitorUtil.checkLoop(args.component, isDockerRegistryAlive, delay)
 elif (args.component == 'elk'):
     monitorUtil.checkLoop(args.component, isElkAlive, delay)
-elif (args.component == 'kafka'):
-    monitorUtil.checkLoop(args.component, isKafkaAlive, delay)
 elif (args.component == 'zookeeper'):
     monitorUtil.checkLoop(args.component, isZookeeperAlive, delay)
 elif (args.component == 'consulserver'):

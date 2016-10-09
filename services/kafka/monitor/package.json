@@ -1,9 +1,0 @@
-{
-  "name": "kafkaMonitor",
-  "version": "0.0.1",
-  "description": "Kafka Monitor",
-  "dependencies": {
-    "process": "0.10.1",
-    "express": "^4.8.0"
-  }
-}
