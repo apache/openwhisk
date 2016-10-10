@@ -107,6 +107,7 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
 
             runRes shouldBe defined
             runRes.get.fields.get("error") shouldBe defined
+            runRes.get.fields("error").toString.toLowerCase should include("nooooo")
         }
     }
 
