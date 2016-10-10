@@ -34,31 +34,10 @@
  **/
 
 function main(message) {
+  var badArgMsg = '';
   try{
-    if(!message) {
-      console.error('No message argument!');
-      return whisk.error('Internal error.  A message parameter was not supplied.');
-    }
-
-    var cloudantOrError = getCloudantAccount(message);
-    if (typeof cloudantOrError !== 'object') {
-      console.error('CloudantAccount returned an unexpected object type: '+(typeof cloudantOrError));
-      return whisk.error('Internal error.  An unexpected object type was obtained.');
-    }
-    var cloudant = cloudantOrError;
-
-    // Validate the remaining parameters (dbname, collectionname and namespace)
-    if(!message.dbname) {
-      return whisk.error('dbname is required.');
-    }
-    if(!message.collectionname && !message.collectionpath) {
-      return whisk.error('collectionname or collectionpath is required.');
-    }
-    if(message.collectionname && message.collectionpath) {
-      return whisk.error('Specify either collectionname or collectionpath, but not both.');
-    }
-    if(!message.namespace) {
-      return whisk.error('namespace is required.');
+    if (badArgMsg = validateArgs(message)) {
+      return whisk.error(badArgMsg);
     }
 
     // Log parameter values
@@ -68,12 +47,19 @@ function main(message) {
     console.log('DB username    : '+message.username);
     console.log('DB database    : '+message.dbname);
     console.log('namespace      : '+message.namespace);
+    console.log('GW URL         : '+message.gwUrl);
     console.log('collection name: '+message.collectionname);
     console.log('collection path: '+message.collectionpath);
 
+    var cloudantOrError = getCloudantAccount(message);
+    if (typeof cloudantOrError !== 'object') {
+      console.error('CloudantAccount returned an unexpected object type: '+(typeof cloudantOrError));
+      return whisk.error('Internal error.  An unexpected object type was obtained.');
+    }
+    var cloudant = cloudantOrError;
     var cloudantDb = cloudant.use(message.dbname);
 
-    // Retrieve list of API configuration documents associated with the specified collection
+    // Create the database 'key' query parameter used to filter the collection query/view results
     var viewName;
     var viewCollectionKey;
     if (message.collectionname) {
@@ -85,49 +71,48 @@ function main(message) {
       viewCollectionKey = message.collectionpath;
     }
     var params = {key: [message.namespace, viewCollectionKey]}
-    return new Promise ( function(resolve, reject) {
-      queryView(cloudantDb, 'gwapis', viewName, params)
-      .then(function(data) {
+
+    // Deleting a collection of routes
+    // 1. Retrieve list of routes using specified collection filter criteria
+    // 2. Iterate through list of routes, invoking deleteRoute action on each route individually
+    //    The deleteRoute action will removed the route from the database and API Gateway
+    var deleteDocids = [];
+    return queryView(cloudantDb, 'gwapis', viewName, params)
+    .then(function(data) {
         if (data && data.rows) {
           if (data.rows instanceof Array) {
             var numApisToDelete = data.rows.length;
             console.log('Deleting '+numApisToDelete+' routes');
             if (numApisToDelete > 0) {
-              var deletePromises = [];
               for (var i = 0; i < numApisToDelete; i++) {
-                deletePromises.push(deleteSingleRoute(cloudantDb, data.rows[i].id));
+                deleteDocids.push(data.rows[i].id.substring(0));
               }
-              Promise.all(deletePromises)
-              .then(function (result) {
-                 console.log('Completed processing all collection routes');
-                 resolve();
-              })
-              .catch(function(error) {
-                 console.error('Route deletion failure: '+JSON.stringify(error));
-                 reject(JSON.stringify(error)); // FIXME MWD need to return string instead of object
-              });
+              return deleteRoutes(cloudantDb, deleteDocids, message.gwUrl);
             } else {
               console.error('Collection does not have any routes.  Number of returned rows is 0.');
-              reject('Collection does not have any routes');
+              return Promise.reject('Collection does not have any routes');
             }
           } else {
             console.error('data.rows is not an instanceOf Array');
-            reject('Internal error.  Unexpected data.rows type');
+            return Promise.reject('Internal error.  Unexpected data.rows type');
           }
         } else {
           console.error('Either data or data.rows is undefined/null');
-          reject('Collection '+viewCollectionKey+" has no routes to delete.");
+          return Promise.reject('Collection '+viewCollectionKey+" has no routes to delete.");
         }
       })
-      .catch(function(error) {
-        console.error('Collection view failed: '+JSON.stringify(error));
-        reject(JSON.stringify(error));  // FIXME MWD need to return string instead of object
-      });
+    .then(function(results) {  // Results -  [{docid: DOCID1}, {docid: DOCID2}, ... ]
+      console.log('Completed deletion of all collection routes');
+      return Promise.resolve();
+    })
+    .catch(function(error) {  // error -  [{docid: DOCID1}, {docid: DOCID2, error: ERROBJ}, ... ]
+      console.error('Collection view failed: ', error);
+      return Promise.reject(JSON.stringify(error));  // FIXME MWD need to return string instead of object
     });
   }
   catch(e) {
     console.error('Internal error: '+JSON.stringify(e));
-    return whisk.error('Internal error. Exception: '+e);
+    return Promise.reject('Internal error. Exception: '+e);
   }
 }
 
@@ -186,9 +171,49 @@ function getCloudantAccount(message) {
   });
 }
 
-function deleteSingleRoute(db, docid) {
+function deleteRoutes(db, docids, gwurl) {
+  var promises = [];
+
+  function deleteSingleRouteAlwaysResolved(db, docid, gwurl) {
+    return deleteSingleRoute(db, docid, gwurl)
+      .then(function(result) {
+        console.log('deleteSingleRouteAlwaysResolved: docid delete resolved: ', docid);
+        return Promise.resolve({
+          docid: docid
+        });
+      })
+      .catch(function(error) {
+        console.log('deleteSingleRouteAlwaysResolved: docid delete rejected: ', docid);
+        return Promise.resolve({
+          docid: docid,
+          error: error
+        });
+      });
+  }
+
+  for (var i = 0; i < docids.length; i++) {
+    promises.push(deleteSingleRouteAlwaysResolved(db, docids[i], gwurl));
+  }
+
+  return Promise.all(promises)
+    .then(function(results) {
+      var gotErr = false;
+      for (var i = 0; i < results.length; i++) {
+        console.log('deleteRoutes: result: ', JSON.stringify(results[i]));
+        if (results[i].error)
+          gotErr = true;
+      }
+      if (gotErr) {
+        return Promise.reject(results);
+      } else {
+        return Promise.resolve(results);
+      }
+    });
+}
+
+function deleteSingleRoute(db, docid, gwurl) {
   var actionName = '/whisk.system/routemgmt/deleteRoute';
-  var params = { 'docid': docid };
+  var params = { 'docid': docid, 'gwUrl': gwurl };
   return new Promise( function(resolve, reject) {
     whisk.invoke({
       name: actionName,
@@ -205,5 +230,29 @@ function deleteSingleRoute(db, docid) {
         }
       }
     });
-  });
+ });
+}
+
+function validateArgs(message) {
+  if(!message) {
+    console.error('No message argument!');
+    return 'Internal error.  A message parameter was not supplied.';
+  }
+  if(!message.dbname) {
+    return whisk.error('dbname is required.');
+  }
+  if(!message.collectionname && !message.collectionpath) {
+    return whisk.error('collectionname or collectionpath is required.');
+  }
+  if(message.collectionname && message.collectionpath) {
+    return whisk.error('Specify either collectionname or collectionpath, but not both.');
+  }
+  if(!message.namespace) {
+    return whisk.error('namespace is required.');
+  }
+  if (!message.gwUrl) {
+    return 'gwUrl is required.';
+  }
+
+  return '';
 }

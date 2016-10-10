@@ -34,31 +34,9 @@
  **/
 
 function main(message) {
-
-  if(!message) {
-    console.error('No message argument!');
-    return whisk.error('Internal error.  A message parameter was not supplied.');
-  }
-
-  var cloudantOrError = getCloudantAccount(message);
-  if (typeof cloudantOrError !== 'object') {
-    console.error('CloudantAccount returned an unexpected object type: '+(typeof cloudantOrError));
-    return whisk.error('Internal error.  An unexpected object type was obtained.');
-  }
-  var cloudant = cloudantOrError;
-
-  // Validate the remaining parameters (dbname, collectionname and namespace)
-  if(!message.dbname) {
-    return whisk.error('dbname is required.');
-  }
-  if(!message.collectionname && !message.collectionpath) {
-    return whisk.error('collectionname or collectionpath is required.');
-  }
-  if(message.collectionname && message.collectionpath) {
-    return whisk.error('Specify either collectionname or collectionpath, but not both.');
-  }
-  if(!message.namespace) {
-    return whisk.error('namespace is required.');
+  var badArgMsg = '';
+  if (badArgMsg = validateArgs(message)) {
+    return whisk.error(badArgMsg);
   }
 
   // Log parameter values
@@ -71,8 +49,15 @@ function main(message) {
   console.log('collection name: '+message.collectionname);
   console.log('collection path: '+message.collectionpath);
 
+  var cloudantOrError = getCloudantAccount(message);
+  if (typeof cloudantOrError !== 'object') {
+    console.error('CloudantAccount returned an unexpected object type: '+(typeof cloudantOrError));
+    return whisk.error('Internal error.  An unexpected object type was obtained.');
+  }
+  var cloudant = cloudantOrError;
   var cloudantDb = cloudant.use(message.dbname);
 
+  // Create the database 'key' query parameter used to filter the collection query/view results
   var viewName;
   var viewCollectionKey;
   if (message.collectionname) {
@@ -84,6 +69,7 @@ function main(message) {
     viewCollectionKey = message.collectionpath;
   }
   var params = {key: [message.namespace, viewCollectionKey]}
+  console.log('Calling DB view '+viewName+' with ', params);
 
   return queryView(cloudantDb, 'gwapis', viewName, params);
 }
@@ -141,4 +127,25 @@ function getCloudantAccount(message) {
   return require('cloudant')({
     url: cloudantUrl
   });
+}
+
+function validateArgs(message) {
+  if(!message) {
+    console.error('No message argument!');
+    return whisk.error('Internal error.  A message parameter was not supplied.');
+  }
+  if(!message.dbname) {
+    return whisk.error('dbname is required.');
+  }
+  if(!message.collectionname && !message.collectionpath) {
+    return whisk.error('collectionname or collectionpath is required.');
+  }
+  if(message.collectionname && message.collectionpath) {
+    return whisk.error('Specify either collectionname or collectionpath, but not both.');
+  }
+  if(!message.namespace) {
+    return whisk.error('namespace is required.');
+  }
+
+  return '';
 }
