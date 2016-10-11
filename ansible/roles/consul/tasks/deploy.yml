@@ -17,6 +17,13 @@
     dest: "{{ consul_conf_dir }}/config.json"
   when: "'consul_servers' in group_names"
 
+- name: ensure consul log directory is created with permissions
+  file:
+    path: "{{ whisk_logs_dir }}/consul"
+    state: directory
+    mode: 0777
+  become: true
+
 - name: (re)start consul server/agent
   docker_container:
     name: consul
@@ -64,16 +71,16 @@
   notify: fill consul kv
   when: "'consul_servers' in group_names"
 
-- name: (re)start registrator
-  docker_container:
-    name: registrator
-    hostname: registrator
-    image: gliderlabs/registrator
-    state: started
-    recreate: true
-    restart_policy: "{{ docker.restart.policy }}"
-    log_driver: syslog
-    volumes:
-      - "{{ whisk_logs_dir }}/registrator:/logs"
-      - "{{ docker_sock | default('/var/run/docker.sock') }}:/tmp/docker.sock"
-    command: "-ip {{ ansible_host | default(inventory_hostname) }} -resync 2 consul://{{ groups['consul_servers'] | first }}:{{ consul.port.http }}"
+- name: start registrator using docker cli
+  shell: >
+        docker run -d
+        --name registrator
+        --hostname registrator
+        --restart {{ docker.restart.policy }}
+        --log-driver syslog
+        -v {{ whisk_logs_dir }}/registrator:/logs
+        -v {{ docker_sock | default('/var/run/docker.sock') }}:/tmp/docker.sock
+        --userns host
+        gliderlabs/registrator -ip {{ ansible_host | default(inventory_hostname) }} -resync 2 consul://{{ groups['consul_servers'] | first }}:{{ consul.port.http }}
+
+# todo: re-enable docker_container module once https://github.com/ansible/ansible-modules-core/issues/5054 is resolved
