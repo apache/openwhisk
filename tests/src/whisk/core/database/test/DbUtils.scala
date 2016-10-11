@@ -16,31 +16,36 @@
 
 package whisk.core.database.test
 
+import java.util.concurrent.TimeoutException
+
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
+
+import spray.json._
+import spray.json.DefaultJsonProtocol._
+import whisk.common.TransactionCounter
 import whisk.common.TransactionId
 import whisk.core.database.ArtifactStore
+import whisk.core.database.CouchDbRestClient
 import whisk.core.database.DocumentFactory
 import whisk.core.database.NoDocumentException
+import whisk.core.entity.DocId
 import whisk.core.entity.DocInfo
 import whisk.core.entity.EntityPath
 import whisk.core.entity.UUID
 import whisk.core.entity.WhiskAuth
+import whisk.core.entity.WhiskDocument
 import whisk.core.entity.WhiskEntityQueries
 import whisk.core.entity.types.AuthStore
 import whisk.core.entity.types.EntityStore
-import whisk.core.entity.WhiskDocument
-import whisk.core.entity.DocId
-import java.util.concurrent.TimeoutException
-import whisk.common.TransactionCounter
-import scala.language.postfixOps
 
 trait DbUtils extends TransactionCounter {
     implicit val dbOpTimeout = 15 seconds
@@ -121,6 +126,25 @@ trait DbUtils extends TransactionCounter {
                 if (l.length != count) {
                     throw RetryOp()
                 } else true
+            }
+        }, timeout)
+        assert(success.isSuccess, "wait aborted after: " + timeout + ": " + success)
+    }
+
+    /**
+     * Wait on view using the CouchDbRestClient. This is like the other waitOnViews.
+     */
+    def waitOnView(db: CouchDbRestClient, designDocName: String, viewName: String, count: Int)(
+        implicit context: ExecutionContext, timeout: Duration) = {
+        val success = retry(() => {
+            db.executeView(designDocName, viewName)().map {
+                case Right(doc) =>
+                    val length = doc.fields("rows").convertTo[List[JsObject]].length
+                    if (length != count) {
+                        throw RetryOp()
+                    } else true
+                case Left(_) =>
+                    throw RetryOp()
             }
         }, timeout)
         assert(success.isSuccess, "wait aborted after: " + timeout + ": " + success)

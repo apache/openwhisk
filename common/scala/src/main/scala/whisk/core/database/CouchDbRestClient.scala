@@ -178,7 +178,11 @@ class CouchDbRestClient(protocol: String, host: String, port: Int, username: Str
         limit: Option[Int] = None,
         includeDocs: Boolean = false,
         descending: Boolean = false,
-        reduce: Boolean = false): Future[Either[StatusCode, JsObject]] = {
+        reduce: Boolean = false,
+        group: Boolean = false): Future[Either[StatusCode, JsObject]] = {
+
+        require(reduce || !group, "Parameter 'group=true' cannot be used together with the parameter 'reduce=false'.")
+
         def any2json(any: Any): JsValue = any match {
             case b: Boolean => JsBoolean(b)
             case i: Int     => JsNumber(i)
@@ -205,7 +209,8 @@ class CouchDbRestClient(protocol: String, host: String, port: Int, username: Str
             "limit" -> limit.filter(_ > 0).map(_.toString),
             "include_docs" -> Some(includeDocs).filter(identity).map(_.toString),
             "descending" -> Some(descending).filter(identity).map(_.toString),
-            "reduce" -> Some(reduce).map(_.toString))
+            "reduce" -> Some(reduce).map(_.toString),
+            "group" -> Some(group).filter(identity).map(_.toString))
 
         // Throw out all undefined arguments.
         val argMap: Map[String, String] = args.collect({
