@@ -1126,5 +1126,85 @@
   {
     "id": "An API host must be provided.",
     "translation": "An API host must be provided."
+  },
+  {
+    "id": "An API path, an API verb, and an action name are required.",
+    "translation": "An API path, an API verb, and an action name are required."
+  },
+  {
+    "id": "Unable to create api: {{.err}}",
+    "translation": "Unable to create api: {{.err}}"
+  },
+  {
+    "id": "{{.ok}} created api {{.path}} {{.verb}} for action {{.name}}\n{{.fullpath}}\n",
+    "translation": "{{.ok}} created api {{.path}} {{.verb}} for action {{.name}}\n{{.fullpath}}\n"
+  },
+  {
+    "id": "Unable to parse api command arguments: {{.err}}",
+    "translation": "Unable to parse api command arguments: {{.err}}"
+  },
+  {
+    "id": "create a new API",
+    "translation": "create a new API"
+  },
+  {
+    "id": "update an existing API",
+    "translation": "update an existing API"
+  },
+  {
+    "id": "Unable to update api: {{.err}}",
+    "translation": "Unable to update api: {{.err}}"
+  },
+  {
+    "id": "{{.ok}} updated api {{.path}} {{.verb}} for action {{.name}}\n{{.fullpath}}\n",
+    "translation": "{{.ok}} updated api {{.path}} {{.verb}} for action {{.name}}\n{{.fullpath}}\n"
+  },
+  {
+    "id": "get API",
+    "translation": "get API"
+  },
+  {
+    "id": "Unable to get api: {{.err}}",
+    "translation": "Unable to get api: {{.err}}"
+  },
+  {
+    "id": "{{.ok}} api for path {{.path}} verb {{.verb}}\n",
+    "translation": "{{.ok}} api for path {{.path}} verb {{.verb}}\n"
+  },
+  {
+    "id": "delete an API",
+    "translation": "delete an API"
+  },
+  {
+    "id": "Unable to delete action: {{.err}}",
+    "translation": "Unable to delete action: {{.err}}"
+  },
+  {
+    "id": "{{.ok}} deleted api {{.path}} {{.verb}}\n",
+    "translation": "{{.ok}} deleted api {{.path}} {{.verb}}\n"
+  },
+  {
+    "id": "list APIs",
+    "translation": "list APIs"
+  },
+  {
+    "id": "Unable to obtain the list of apis: {{.err}}",
+    "translation": "Unable to obtain the list of apis: {{.err}}"
+  },
+  {
+    "id": "'{{.verb}}' is not a valid API verb.  Valid values are: {{.verbs}}",
+    "translation": "'{{.verb}}' is not a valid API verb.  Valid values are: {{.verbs}}"
+  },
+  {
+    "id": "`ACTION` to invoke when API is called",
+    "translation": "`ACTION` to invoke when API is called"
+  },
+  {
+    "id": "relative `PATH` of API",
+    "translation": "relative `PATH` of API"
+  },
+  {
+    "id": "API `VERB`",
+    "translation": "API `VERB`"
   }
 ]

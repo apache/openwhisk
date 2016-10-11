@@ -101,6 +101,13 @@ var flags struct {
     trigger struct {
         summary bool
     }
+
+    // api
+    api struct {
+        action string
+        path   string
+        verb   string
+    }
 }
 
 func IsVerbose() bool {

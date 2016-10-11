@@ -50,6 +50,7 @@ type Client struct {
     Packages    *PackageService
     Namespaces  *NamespaceService
     Info        *InfoService
+    Apis        *ApiService
 }
 
 type Config struct {
@@ -115,6 +116,7 @@ func NewClient(httpClient *http.Client, config *Config) (*Client, error) {
     c.Packages = &PackageService{client: c}
     c.Namespaces = &NamespaceService{client: c}
     c.Info = &InfoService{client: c}
+    c.Apis = &ApiService{client: c}
 
     return c, nil
 }
