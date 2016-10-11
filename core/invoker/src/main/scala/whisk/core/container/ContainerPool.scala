@@ -244,7 +244,7 @@ class ContainerPool(
 
     def getNumberOfIdleContainers(key: ActionContainerId)(implicit transid: TransactionId): Int = {
         this.synchronized {
-            keyMap.get(key) map { bucket => bucket.count { _.isIdle() } } getOrElse 0
+            keyMap.get(key) map { bucket => bucket.count { _.isIdle } } getOrElse 0
         }
     }
 
@@ -293,7 +293,7 @@ class ContainerPool(
             // determine if the pool is full or has capacity to accommodate a new container;
             // this allows any new containers introduced into the pool to be reused if already idle
             val bucket = keyMap.getOrElseUpdate(key, new ListBuffer())
-            bucket.find({ ci => ci.isIdle() }) match {
+            bucket.find({ ci => ci.isIdle }) match {
                 case None =>
                     if (activeCount() + startingCounter.cur >= _maxActive) {
                         CacheBusy
@@ -363,7 +363,7 @@ class ContainerPool(
             toBeDeleted
         }
 
-        toBeDeleted.foreach(toBeRemoved.offer(_))
+        toBeDeleted.foreach { ci => toBeRemoved.offer(RemoveJob(false, ci)) }
         // Perform capacity-based GC here.
         if (gcOn) { // Synchronization occurs inside calls in a fine-grained manner.
             while (idleCount() > _maxIdle) { // it is safe for this to be non-atomic with body
@@ -386,19 +386,21 @@ class ContainerPool(
         val container = con
         var state = State.Idle
         var lastUsed = System.currentTimeMillis()
-        def isIdle() = state == State.Idle
+        def isIdle = state == State.Idle
+        def isStemCell = key == stemCellNodejsKey
     }
 
     private val containerMap = new TrieMap[Container, ContainerInfo]
     private val keyMap = new TrieMap[ActionContainerId, ListBuffer[ContainerInfo]]
 
     // These are containers that are already removed from the data structure waiting to be docker-removed
-    private val toBeRemoved = new ConcurrentLinkedQueue[ContainerInfo]()
+    case class RemoveJob(needUnpause: Boolean, containerInfo: ContainerInfo)
+    private val toBeRemoved = new ConcurrentLinkedQueue[RemoveJob]
 
     // Note that the prefix separates the name space of this from regular keys.
     // TODO: Generalize across language by storing image name when we generalize to other languages
     //       Better heuristic for # of containers to keep warm - make sensitive to idle capacity
-    private val warmNodejsKey = WarmNodeJsActionContainerId
+    private val stemCellNodejsKey = StemCellNodeJsActionContainerId
     private val nodejsExec = NodeJS6Exec("", None)
     private val WARM_NODEJS_CONTAINERS = 2
 
@@ -450,8 +452,8 @@ class ContainerPool(
                 val warmupInterval = 100.milliseconds
                 Scheduler.scheduleWaitAtLeast(warmupInterval) { () =>
                     implicit val tid = TransactionId.invokerWarmup
-                    if (getNumberOfIdleContainers(warmNodejsKey) < WARM_NODEJS_CONTAINERS && slack() > 0 && toBeRemoved.size < RM_SLACK) {
-                        addWarmNodejsContainer()(tid)
+                    if (getNumberOfIdleContainers(stemCellNodejsKey) < WARM_NODEJS_CONTAINERS && slack() > 0 && toBeRemoved.size < RM_SLACK) {
+                        addStemCellNodejsContainer()(tid)
                     } else {
                         Future.successful(())
                     }
@@ -462,10 +464,12 @@ class ContainerPool(
                 // We grab the size first so we know there has been enough delay for anything we are shutting down
                 val size = toBeRemoved.size()
                 1 to size foreach { _ =>
-                    val ci = toBeRemoved.poll()
-                    if (ci != null) { // should never happen but defensive
+                    val removeJob = toBeRemoved.poll()
+                    if (removeJob != null) {
                         Thread.sleep(100) // serves to not hog docker lock and add slack
-                        teardownContainer(ci.container)
+                        teardownContainer(removeJob)
+                    } else {
+                        error(this, "toBeRemove.poll failed - possibly another concurrent remover?")
                     }
                 }
             }
@@ -520,27 +524,27 @@ class ContainerPool(
      * This method will introduce a stem cell container into the system.
      * If container creation fails, the container will not be entered into the pool.
      */
-    private def addWarmNodejsContainer()(implicit transid: TransactionId) = Future {
+    private def addStemCellNodejsContainer()(implicit transid: TransactionId) = Future {
         val imageName = WhiskAction.containerImageName(nodejsExec, config.dockerRegistry, config.dockerImagePrefix, config.dockerImageTag)
         val limits = ActionLimits(TimeLimit(), defaultMemoryLimit, LogLimit())
         val containerName = makeContainerName("warmJsContainer")
         info(this, "Starting warm nodejs container")
-        val con = makeGeneralContainer(warmNodejsKey, containerName, imageName, limits, false)
+        val con = makeGeneralContainer(stemCellNodejsKey, containerName, imageName, limits, false)
         this.synchronized {
-            introduceContainer(warmNodejsKey, con)
+            introduceContainer(stemCellNodejsKey, con)
         }
         info(this, s"Started warm nodejs container $con.id: $con.containerId")
     } andThen {
-        case Failure(t) => warn(this, s"addWarmNodejsContainer encountered an exception: ${t.getMessage}")
+        case Failure(t) => warn(this, s"addStemCellNodejsContainer encountered an exception: ${t.getMessage}")
     }
 
-    private def getWarmNodejsContainer(key: ActionContainerId)(implicit transid: TransactionId): Option[WhiskContainer] =
-        retrieve(warmNodejsKey) match {
+    private def getStemCellNodejsContainer(key: ActionContainerId)(implicit transid: TransactionId): Option[WhiskContainer] =
+        retrieve(stemCellNodejsKey) match {
             case CacheHit(con) =>
                 info(this, s"Obtained a pre-warmed container")
                 con.transid = transid
                 val Some(ci) = containerMap.get(con)
-                changeKey(ci, warmNodejsKey, key)
+                changeKey(ci, stemCellNodejsKey, key)
                 Some(con)
             case _ => None
         }
@@ -551,7 +555,7 @@ class ContainerPool(
         val limits = action.limits
         val nodeImageName = WhiskAction.containerImageName(nodejsExec, config.dockerRegistry, config.dockerImagePrefix, config.dockerImageTag)
         val key = ActionContainerId(auth.uuid, action.fullyQualifiedName, action.rev)
-        val warmedContainer = if (limits.memory == defaultMemoryLimit && imageName == nodeImageName) getWarmNodejsContainer(key) else None
+        val warmedContainer = if (limits.memory == defaultMemoryLimit && imageName == nodeImageName) getStemCellNodejsContainer(key) else None
         val containerName = makeContainerName(action)
         warmedContainer getOrElse {
             try {
@@ -690,7 +694,7 @@ class ContainerPool(
     private def removeAllIdle(pred: ContainerInfo => Boolean)(implicit transid: TransactionId) = {
         gcSync.synchronized {
             val idleInfo = this.synchronized {
-                val idle = containerMap filter { case (container, ci) => ci.isIdle() && pred(ci) }
+                val idle = containerMap filter { case (container, ci) => ci.isIdle && pred(ci) }
                 idle.keys foreach { con =>
                     info(this, s"removeAllIdle removing container ${con.id}")
                 }
@@ -699,7 +703,7 @@ class ContainerPool(
                 keyMap retain { case (key, ciList) => !ciList.isEmpty }
                 idle.values
             }
-            idleInfo.foreach(toBeRemoved.offer(_))
+            idleInfo.foreach { idleCi => toBeRemoved.offer(RemoveJob(!idleCi.isStemCell, idleCi)) }
         }
     }
 
@@ -714,7 +718,7 @@ class ContainerPool(
     private def removeOldestIdle()(implicit transid: TransactionId) = {
         // Note that the container removal - if any - is done outside the synchronized block
         val oldestIdle = this.synchronized {
-            val idle = (containerMap filter { case (container, ci) => ci.isIdle() })
+            val idle = (containerMap filter { case (container, ci) => ci.isIdle })
             if (idle.isEmpty)
                 List()
             else {
@@ -724,7 +728,7 @@ class ContainerPool(
                 List(oldestConInfo)
             }
         }
-        oldestIdle.foreach(toBeRemoved.offer(_))
+        oldestIdle.foreach { ci => toBeRemoved.offer(RemoveJob(!ci.isStemCell, ci)) }
     }
 
     // Getter/setter for this are above.
@@ -734,7 +738,8 @@ class ContainerPool(
     /**
      * Actually deletes the containers.
      */
-    private def teardownContainer(container: Container)(implicit transid: TransactionId) = try {
+    private def teardownContainer(removeJob: RemoveJob)(implicit transid: TransactionId) = try {
+        val container = removeJob.containerInfo.container
         if (saveContainerLog) {
             val size = this.getLogSize(container, !standalone)
             val rawLogBytes = container.synchronized {
@@ -744,7 +749,7 @@ class ContainerPool(
             Files.write(Paths.get(filename), rawLogBytes)
             info(this, s"teardownContainers: wrote docker logs to $filename")
         }
-        runDockerOp { container.remove() }
+        runDockerOp { container.remove(removeJob.needUnpause) }
     } catch {
         case t: Throwable => warn(this, s"teardownContainer encountered an exception: ${t.getMessage}")
     }

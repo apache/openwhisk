@@ -42,7 +42,7 @@ package object container {
     /**
      * Special case for stem cell containers
      */
-    val WarmNodeJsActionContainerId = new ActionContainerId("warm.nodejs")
+    val StemCellNodeJsActionContainerId = new ActionContainerId("stemcell.nodejs")
 
     /**
      * Represents a time interval, which can be viewed as a duration for which
