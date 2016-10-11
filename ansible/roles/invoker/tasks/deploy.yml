@@ -14,30 +14,39 @@
     - '{{ docker_image_prefix }}/javaaction'
   when: docker_registry != ""
 
-- name: (re)start invoker
-  docker_container:
-    name: "invoker{{play_hosts.index(inventory_hostname)}}"
-    image: "{{docker_registry}}{{ docker_image_prefix }}/invoker:{{docker_image_tag}}"
-    state: started
-    recreate: true
-    restart_policy: "{{docker.restart.policy}}"
-    hostname: "invoker{{play_hosts.index(inventory_hostname)}}"
-    env:
-      "COMPONENT_NAME": "invoker{{play_hosts.index(inventory_hostname)}}"
-      "CONSULSERVER_HOST": "{{groups['consul_servers'] | first}}"
-      "CONSUL_HOST_PORT4": "{{consul.port.http}}"
-      "SELF_DOCKER_ENDPOINT": "{{inventory_hostname}}:{{docker.port}}"
-      "SERVICE_NAME": "invoker{{play_hosts.index(inventory_hostname)}}"
-      "SERVICE_CHECK_HTTP": "/ping"
-      "SERVICE_CHECK_TIMEOUT": "2s"
-      "SERVICE_CHECK_INTERVAL": "15s"
-      "PORT": 8080 
-    volumes:
-      - "{{whisk_logs_dir}}/invoker{{play_hosts.index(inventory_hostname)}}:/logs"
-      - "/var/lib/docker/containers/:/containers"
-    ports:
-      - "{{invoker.port + play_hosts.index(inventory_hostname)}}:8080"
-    command: /bin/sh -c "/invoker/bin/invoker {{play_hosts.index(inventory_hostname)}} >> /logs/invoker{{play_hosts.index(inventory_hostname)}}_logs.log 2>&1"
+- name: determine docker root dir
+  uri:  url="http://{{ inventory_hostname }}:{{ docker.port }}/info" return_content=yes
+  register: dockerInfo
+
+- name: ensure invoker log directory is created with permissions
+  file:
+    path: "{{ whisk_logs_dir }}/invoker{{play_hosts.index(inventory_hostname)}}"
+    state: directory
+    mode: 0777
+  become: true
+
+- name: start invoker using docker cli
+  shell: >
+        docker run -d
+        --name invoker{{play_hosts.index(inventory_hostname)}}
+        --hostname invoker{{play_hosts.index(inventory_hostname)}}
+        --restart {{ docker.restart.policy }}
+        -e COMPONENT_NAME=invoker{{play_hosts.index(inventory_hostname)}}
+        -e CONSULSERVER_HOST={{ groups['consul_servers'] | first }}
+        -e CONSUL_HOST_PORT4={{ consul.port.http }}
+        -e PORT=8080
+        -e SELF_DOCKER_ENDPOINT={{inventory_hostname}}:{{docker.port}}
+        -e SERVICE_CHECK_HTTP=/ping
+        -e SERVICE_CHECK_TIMEOUT=2s
+        -e SERVICE_CHECK_INTERVAL=15s
+        -v {{whisk_logs_dir}}/invoker{{play_hosts.index(inventory_hostname)}}:/logs
+        -v {{dockerInfo["json"]["DockerRootDir"]}}/containers/:/containers
+        -p {{invoker.port + play_hosts.index(inventory_hostname)}}:8080
+        --userns host
+        {{docker_registry}}{{ docker_image_prefix }}/invoker:{{docker_image_tag}}
+        /bin/sh -c "/invoker/bin/invoker {{play_hosts.index(inventory_hostname)}} >> /logs/invoker{{play_hosts.index(inventory_hostname)}}_logs.log 2>&1"
+
+# todo: re-enable docker_container module once https://github.com/ansible/ansible-modules-core/issues/5054 is resolved
 
 - name: wait until Invoker is up and running
   uri:

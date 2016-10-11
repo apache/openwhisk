@@ -12,9 +12,16 @@
     dest: "{{ nginx_conf_dir }}/nginx.conf"
 
 - name: copy cert files from local to remote in nginx config directory
-  copy: 
+  copy:
     src: "files/"
     dest: "{{ nginx_conf_dir }}"
+
+- name: ensure nginx log directory is created with permissions
+  file:
+    path: "{{ whisk_logs_dir }}/nginx"
+    state: directory
+    mode: 0777
+  become: true
 
 - name: (re)start nginx
   docker_container:
