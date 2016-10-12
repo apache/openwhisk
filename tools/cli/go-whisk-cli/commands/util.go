@@ -35,13 +35,13 @@ import (
     "net/url"
 )
 
-type qualifiedName struct {
+type QualifiedName struct {
     namespace   string
     packageName string
     entityName  string
 }
 
-func (qName qualifiedName) String() string {
+func (qName QualifiedName) String() string {
     output := []string{}
 
     if len(qName.namespace) > 0 {
@@ -68,33 +68,41 @@ Examples:
       /ns/foo => qName {namespace: ns, entityName: foo}
       /ns/pkg/foo => qName {namespace: ns, entityName: pkg/foo}
 */
-func parseQualifiedName(name string) (qName qualifiedName, err error) {
+func parseQualifiedName(name string) (QualifiedName) {
+    var qualifedName QualifiedName
 
     // If name has a preceding delimiter (/), it contains a namespace. Otherwise the name does not specify a namespace,
     // so default the namespace to the namespace value set in the properties file; if that is not set, use "_"
     if len(name) > 0  && name[0] == '/' {
         parts := strings.Split(name, "/")
-        qName.namespace = parts[1]
+        qualifedName.namespace = parts[1]
+
+        if len(qualifedName.namespace) == 0 {
+            qualifedName.namespace = getNamespace()
+        }
 
         if len(parts) > 2 {
-            qName.entityName = strings.Join(parts[2:], "/")
-        } else {
-            qName.entityName = ""
+            qualifedName.entityName = strings.Join(parts[2:], "/")
         }
     } else {
-        qName.entityName = name
-
-        if Properties.Namespace != "" {
-            qName.namespace = Properties.Namespace
-        } else {
-            qName.namespace = "_"
-        }
+        qualifedName.entityName = name
+        qualifedName.namespace = getNamespace()
     }
 
-    whisk.Debug(whisk.DbgInfo, "Qualified entityName: %s\n", qName.entityName)
-    whisk.Debug(whisk.DbgInfo, "Qaulified namespace: %s\n", qName.namespace)
+    whisk.Debug(whisk.DbgInfo, "Qualified entityName '%s'\n", qualifedName.entityName)
+    whisk.Debug(whisk.DbgInfo, "Qaulified namespace '%s'\n", qualifedName.namespace)
 
-    return qName, err
+    return qualifedName
+}
+
+func getNamespace() (string) {
+    namespace := "_"
+
+    if Properties.Namespace != "" {
+        namespace = Properties.Namespace
+    }
+
+    return namespace
 }
 
 /*

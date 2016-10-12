@@ -40,33 +40,15 @@ var ruleEnableCmd = &cobra.Command{
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
-        var err error
-
         if whiskErr := checkArgs(args, 1, 1, "Rule enable", wski18n.T("A rule name is required.")); whiskErr != nil {
             return whiskErr
         }
 
-        qName, err := parseQualifiedName(args[0])
-        if err != nil {
-            whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[0], err)
-            errMsg := fmt.Sprintf(
-                wski18n.T("'{{.name}}' is not a valid qualified name: {{.err}}",
-                    map[string]interface{}{"name": args[0], "err": err}))
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-                whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
-            return werr
-        }
-        if len(qName.namespace) == 0 {
-            whisk.Debug(whisk.DbgError, "Namespace is missing from '%s'\n", args[0])
-            errStr := fmt.Sprintf(
-                wski18n.T("No valid namespace detected. Run 'wsk property set --namespace' or ensure the name argument is preceded by a \"/\""))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
-        }
-        client.Namespace = qName.namespace
-        ruleName := qName.entityName
+        qualifiedName := parseQualifiedName(args[0])
+        client.Namespace = qualifiedName.namespace
+        ruleName := qualifiedName.entityName
 
-        _, _, err = client.Rules.SetState(ruleName, "active")
+        _, _, err := client.Rules.SetState(ruleName, "active")
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Rules.SetState(%s, active) failed: %s\n", ruleName, err)
             errStr := fmt.Sprintf(
@@ -90,33 +72,15 @@ var ruleDisableCmd = &cobra.Command{
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
-        var err error
-
         if whiskErr := checkArgs(args, 1, 1, "Rule disable", wski18n.T("A rule name is required.")); whiskErr != nil {
             return whiskErr
         }
 
-        qName, err := parseQualifiedName(args[0])
-        if err != nil {
-            whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[0], err)
-            errMsg := fmt.Sprintf(
-                wski18n.T("'{{.name}}' is not a valid qualified name: {{.err}}",
-                    map[string]interface{}{"name": args[0], "err": err}))
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-                whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
-            return werr
-        }
-        if len(qName.namespace) == 0 {
-            whisk.Debug(whisk.DbgError, "Namespace is missing from '%s'\n", args[0])
-            errStr := fmt.Sprintf(
-                wski18n.T("No valid namespace detected. Run 'wsk property set --namespace' or ensure the name argument is preceded by a \"/\""))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
-        }
-        client.Namespace = qName.namespace
-        ruleName := qName.entityName
+        qualifiedName := parseQualifiedName(args[0])
+        client.Namespace = qualifiedName.namespace
+        ruleName := qualifiedName.entityName
 
-        _, _, err = client.Rules.SetState(ruleName, "inactive")
+        _, _, err := client.Rules.SetState(ruleName, "inactive")
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Rules.SetState(%s, inactive) failed: %s\n", ruleName, err)
             errStr := fmt.Sprintf(
@@ -140,33 +104,15 @@ var ruleStatusCmd = &cobra.Command{
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
-        var err error
-
         if whiskErr := checkArgs(args, 1, 1, "Rule status", wski18n.T("A rule name is required.")); whiskErr != nil {
             return whiskErr
         }
 
-        qName, err := parseQualifiedName(args[0])
-        if err != nil {
-            whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[0], err)
-            errMsg := fmt.Sprintf(
-                wski18n.T("'{{.name}}' is not a valid qualified name: {{.err}}",
-                    map[string]interface{}{"name": args[0], "err": err}))
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-                whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
-            return werr
-        }
-        if len(qName.namespace) == 0 {
-            whisk.Debug(whisk.DbgError, "Namespace is missing from '%s'\n", args[0])
-            errStr := fmt.Sprintf(
-                wski18n.T("No valid namespace detected. Run 'wsk property set --namespace' or ensure the name argument is preceded by a \"/\""))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
-        }
-        client.Namespace = qName.namespace
-        ruleName := qName.entityName
-
+        qualifiedName := parseQualifiedName(args[0])
+        client.Namespace = qualifiedName.namespace
+        ruleName := qualifiedName.entityName
         rule, _, err := client.Rules.Get(ruleName)
+
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Rules.Get(%s) failed: %s\n", ruleName, err)
             errStr := fmt.Sprintf(
@@ -204,25 +150,9 @@ var ruleCreateCmd = &cobra.Command{
             shared = false
         }
 
-        qName, err := parseQualifiedName(args[0])
-        if err != nil {
-            whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[0], err)
-            errMsg := fmt.Sprintf(
-                wski18n.T("'{{.name}}' is not a valid qualified name: {{.err}}",
-                    map[string]interface{}{"name": args[0], "err": err}))
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-                whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
-            return werr
-        }
-        if len(qName.namespace) == 0 {
-            whisk.Debug(whisk.DbgError, "Namespace is missing from '%s'\n", args[0])
-            errStr := fmt.Sprintf(
-                wski18n.T("No valid namespace detected. Run 'wsk property set --namespace' or ensure the name argument is preceded by a \"/\""))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
-        }
-        client.Namespace = qName.namespace
-        ruleName := qName.entityName
+        qualifiedName := parseQualifiedName(args[0])
+        client.Namespace = qualifiedName.namespace
+        ruleName := qualifiedName.entityName
         triggerName := args[1]
         actionName := args[2]
 
@@ -260,7 +190,6 @@ var ruleUpdateCmd = &cobra.Command{
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
-        var err error
         var shared bool
 
         if whiskErr := checkArgs(args, 3, 3, "Rule update",
@@ -268,27 +197,11 @@ var ruleUpdateCmd = &cobra.Command{
             return whiskErr
         }
 
-        qName, err := parseQualifiedName(args[0])
-        if err != nil {
-            whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[0], err)
-            errMsg := fmt.Sprintf(
-                wski18n.T("'{{.name}}' is not a valid qualified name: {{.err}}",
-                    map[string]interface{}{"name": args[0], "err": err}))
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-                whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
-            return werr
-        }
-        if len(qName.namespace) == 0 {
-            whisk.Debug(whisk.DbgError, "Namespace is missing from '%s'\n", args[0])
-            errStr := fmt.Sprintf(
-                wski18n.T("No valid namespace detected. Run 'wsk property set --namespace' or ensure the name argument is preceded by a \"/\""))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
-        }
-        client.Namespace = qName.namespace
-        ruleName := qName.entityName
-        triggerName := args[1]  //MWD qualified name?
-        actionName := args[2]   //MWD qualified name?
+        qualifiedName := parseQualifiedName(args[0])
+        client.Namespace = qualifiedName.namespace
+        ruleName := qualifiedName.entityName
+        triggerName := args[1]
+        actionName := args[2]
 
         if (flags.common.shared == "yes") {
             shared = true
@@ -303,7 +216,7 @@ var ruleUpdateCmd = &cobra.Command{
             Publish: shared,
         }
 
-        _, _, err = client.Rules.Insert(rule, true)
+        _, _, err := client.Rules.Insert(rule, true)
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Rules.Insert(%#v) failed: %s\n", rule, err)
             errStr := fmt.Sprintf(
@@ -327,33 +240,15 @@ var ruleGetCmd = &cobra.Command{
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
-        var err error
-
         if whiskErr := checkArgs(args, 1, 1, "Rule get", wski18n.T("A rule name is required.")); whiskErr != nil {
             return whiskErr
         }
 
-        qName, err := parseQualifiedName(args[0])
-        if err != nil {
-            whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[0], err)
-            errMsg := fmt.Sprintf(
-                wski18n.T("'{{.name}}' is not a valid qualified name: {{.err}}",
-                    map[string]interface{}{"name": args[0], "err": err}))
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-                whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
-            return werr
-        }
-        if len(qName.namespace) == 0 {
-            whisk.Debug(whisk.DbgError, "Namespace is missing from '%s'\n", args[0])
-            errStr := fmt.Sprintf(
-                wski18n.T("No valid namespace detected. Run 'wsk property set --namespace' or ensure the name argument is preceded by a \"/\""))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
-        }
-        client.Namespace = qName.namespace
-        ruleName := qName.entityName
-
+        qualifiedName := parseQualifiedName(args[0])
+        client.Namespace = qualifiedName.namespace
+        ruleName := qualifiedName.entityName
         rule, _, err := client.Rules.Get(ruleName)
+
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Rules.Get(%s) failed: %s\n", ruleName, err)
             errStr := fmt.Sprintf(
@@ -383,31 +278,13 @@ var ruleDeleteCmd = &cobra.Command{
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
-        var err error
-
         if whiskErr := checkArgs(args, 1, 1, "Rule delete", wski18n.T("A rule name is required.")); whiskErr != nil {
             return whiskErr
         }
 
-        qName, err := parseQualifiedName(args[0])
-        if err != nil {
-            whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[0], err)
-            errMsg := fmt.Sprintf(
-                wski18n.T("'{{.name}}' is not a valid qualified name: {{.err}}",
-                    map[string]interface{}{"name": args[0], "err": err}))
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-                whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
-            return werr
-        }
-        if len(qName.namespace) == 0 {
-            whisk.Debug(whisk.DbgError, "Namespace is missing from '%s'\n", args[0])
-            errStr := fmt.Sprintf(
-                wski18n.T("No valid namespace detected. Run 'wsk property set --namespace' or ensure the name argument is preceded by a \"/\""))
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
-        }
-        client.Namespace = qName.namespace
-        ruleName := qName.entityName
+        qualifiedName := parseQualifiedName(args[0])
+        client.Namespace = qualifiedName.namespace
+        ruleName := qualifiedName.entityName
 
         if flags.rule.disable {
             _, _, err := client.Rules.SetState(ruleName, "inactive")
@@ -421,7 +298,7 @@ var ruleDeleteCmd = &cobra.Command{
             }
         }
 
-        _, err = client.Rules.Delete(ruleName)
+        _, err := client.Rules.Delete(ruleName)
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Rules.Delete(%s) error: %s\n", ruleName, err)
             errStr := fmt.Sprintf(
@@ -445,28 +322,9 @@ var ruleListCmd = &cobra.Command{
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
-        var err error
-        qName := qualifiedName{}
-
         if len(args) == 1 {
-            qName, err = parseQualifiedName(args[0])
-            if err != nil {
-                whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[0], err)
-                errStr := fmt.Sprintf(
-                    wski18n.T("Namespace '{{.name}}' is invalid: {{.err}}\n",
-                        map[string]interface{}{"name": args[0], "err": err}))
-                werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
-                return werr
-            }
-            ns := qName.namespace
-            if len(ns) == 0 {
-                whisk.Debug(whisk.DbgError, "Namespace is missing from '%s'\n", args[0])
-                errStr := fmt.Sprintf(
-                    wski18n.T("No valid namespace detected. Run 'wsk property set --namespace' or ensure the name argument is preceded by a \"/\""))
-                werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-                return werr
-            }
-            client.Namespace = ns
+            qualifiedName := parseQualifiedName(args[0])
+            client.Namespace = qualifiedName.namespace
         } else if whiskErr := checkArgs(args, 0, 1, "Rule list",
                 wski18n.T("An optional namespace is the only valid argument.")); whiskErr != nil {
             return whiskErr
