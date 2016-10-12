@@ -21,7 +21,6 @@ import (
     "net/http"
     "net/url"
     "errors"
-    "encoding/json"
     "../wski18n"
 )
 
@@ -39,8 +38,8 @@ type SentPackagePublish struct {
     Name        string              `json:"-"`
     Version     string              `json:"version,omitempty"`
     Publish     bool                `json:"publish"`
-    Annotations *json.RawMessage    `json:"annotations,omitempty"`
-    Parameters  *json.RawMessage    `json:"parameters,omitempty"`
+    Annotations KeyValueArr         `json:"annotations,omitempty"`
+    Parameters  KeyValueArr         `json:"parameters,omitempty"`
 }
 func (p *SentPackagePublish) GetName() string {
     return p.Name
@@ -52,8 +51,8 @@ type SentPackageNoPublish struct {
     Name        string              `json:"-"`
     Version     string              `json:"version,omitempty"`
     Publish     bool                `json:"publish,omitempty"`
-    Annotations *json.RawMessage    `json:"annotations,omitempty"`
-    Parameters  *json.RawMessage    `json:"parameters,omitempty"`
+    Annotations KeyValueArr         `json:"annotations,omitempty"`
+    Parameters  KeyValueArr         `json:"parameters,omitempty"`
 }
 func (p *SentPackageNoPublish) GetName() string {
     return p.Name
@@ -66,8 +65,8 @@ type Package struct {
     Name        string              `json:"name,omitempty"`
     Version     string              `json:"version,omitempty"`
     Publish     bool                `json:"publish"`
-    Annotations *json.RawMessage    `json:"annotations,omitempty"`
-    Parameters  *json.RawMessage    `json:"parameters,omitempty"`
+    Annotations KeyValueArr         `json:"annotations,omitempty"`
+    Parameters  KeyValueArr         `json:"parameters,omitempty"`
     Binding                         `json:"binding,omitempty"`
     Actions     []Action            `json:"actions,omitempty"`
     Feeds       []Action            `json:"feeds,omitempty"`
@@ -83,8 +82,8 @@ type BindingPackage struct {
     Name        string              `json:"-"`
     Version     string              `json:"version,omitempty"`
     Publish     bool                `json:"publish"`
-    Annotations *json.RawMessage    `json:"annotations,omitempty"`
-    Parameters  *json.RawMessage    `json:"parameters,omitempty"`
+    Annotations KeyValueArr         `json:"annotations,omitempty"`
+    Parameters  KeyValueArr         `json:"parameters,omitempty"`
     Binding                         `json:"binding"`
 }
 func (p *BindingPackage) GetName() string {
@@ -97,9 +96,6 @@ type Binding struct {
 }
 
 type BindingUpdates struct {
-    //Added   []Binding `json:"added,omitempty"`
-    //Updated []Binding `json:"updated,omitempty"`
-    //Deleted []Binding `json:"deleted,omitempty"`
     Added   []string `json:"added,omitempty"`
     Updated []string `json:"updated,omitempty"`
     Deleted []string `json:"deleted,omitempty"`

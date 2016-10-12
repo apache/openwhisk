@@ -24,41 +24,85 @@ import spray.json.JsBoolean
 
 object JsonArgsForTests {
 
-    def getEscapedJSONTestArgInput(parameters: Boolean = true) = Seq(
-        if (parameters) "-p" else "-a",
-        "\"key\"with\\escapes",                 // key:   key"with\escapes (will be converted to JSON string "key\"with\\escapes")
-        "{\"valid\": \"JSON\"}",                // value: {"valid":"JSON"}
-        if (parameters) "-p" else "-a",
-        "another\"escape\"",                    // key:   another"escape" (will be converted to JSON string "another\"escape\"")
-        "{\"valid\": \"\\nJ\\rO\\tS\\bN\\f\"}", // value: {"valid":"\nJ\rO\tS\bN\f"}  JSON strings can escape: \n, \r, \t, \b, \f
-        // NOTE: When uncommentting these tests, be sure to include the expected response in getEscapedJSONTestArgOutput()
-        //        if (parameters) "-p" else "-a",
-        //        "escape\\again",                        // key:   escape\again (will be converted to JSON string "escape\\again")
-        //        "{\"valid\": \"JS\\u2312ON\"}",         // value: {"valid":"JS\u2312ON"}   JSON strings can have escaped 4 digit unicode
-        //        if (parameters) "-p" else "-a",
-        //        "mykey",                                // key:   mykey  (will be converted to JSON string "key")
-        //        "{\"valid\": \"JS\\/ON\"}",             // value: {"valid":"JS\/ON"}   JSON strings can have escaped \/
-        if (parameters) "-p" else "-a",
-        "key1",                                 // key:   key  (will be converted to JSON string "key")
-        "{\"nonascii\": \"日本語\"}",           // value: {"nonascii":"日本語"}   JSON strings can have non-ascii
-        if (parameters) "-p" else "-a",
-        "key2",                                 // key:   key  (will be converted to JSON string "key")
-        "{\"valid\": \"J\\\\SO\\\"N\"}"         // value: {"valid":"J\\SO\"N"}   JSON strings can have escaped \\ and \"
+    def getInvalidJSONInput = Seq(
+        "{\"invalid1\": }",
+        "{\"invalid2\": bogus}",
+        "{\"invalid1\": \"aKey\"",
+        "invalid \"string\"",
+        "{\"invalid1\": [1, 2, \"invalid\"\"arr\"]}"
+    )
+
+    def getJSONFileOutput() = JsArray(
+        JsObject(
+            "key" -> JsString("a key"),
+            "value" -> JsString("a value")
+        ),
+        JsObject(
+            "key" -> JsString("a bool"),
+            "value" -> JsBoolean(true)
+        ),
+        JsObject(
+            "key" -> JsString("objKey"),
+            "value" -> JsObject(
+                "b" -> JsString("c")
+            )
+        ),
+        JsObject(
+            "key" -> JsString("objKey2"),
+            "value" -> JsObject(
+                "another object" -> JsObject(
+                    "some string" -> JsString("1111")
+                )
+            )
+        ),
+        JsObject(
+            "key" -> JsString("objKey3"),
+            "value" -> JsObject(
+                "json object" -> JsObject(
+                    "some int" -> JsNumber(1111)
+                )
+            )
+        ),
+        JsObject(
+            "key" -> JsString("a number arr"),
+            "value" -> JsArray(
+                JsNumber(1), JsNumber(2), JsNumber(3)
+            )
+        ),
+        JsObject(
+            "key" -> JsString("a string arr"),
+            "value" -> JsArray(
+                JsString("1"), JsString("2"), JsString("3")
+            )
+        ),
+        JsObject(
+            "key" -> JsString("a bool arr"),
+            "value" -> JsArray(
+                JsBoolean(true), JsBoolean(false), JsBoolean(true)
+            )
+        ),
+        JsObject(
+            "key" -> JsString("strThatLooksLikeJSON"),
+            "value" -> JsString("{\"someKey\": \"someValue\"}")
+        )
+    )
+
+    def getEscapedJSONTestArgInput() = Map(
+        "key1" -> JsObject(
+            "nonascii" -> JsString("日本語")
+        ),
+        "key2" -> JsObject(
+            "valid" -> JsString("J\\SO\"N")
+        ),
+        "\"key\"with\\escapes" -> JsObject(
+            "valid" -> JsString("JSON")
+        ),
+        "another\"escape\"" -> JsObject(
+            "valid" -> JsString("\\nJ\\rO\\tS\\bN\\f")
+        )
     )
 
     def getEscapedJSONTestArgOutput() = JsArray(
-        JsObject(
-            "key" -> JsString("\"key\"with\\escapes"),
-            "value" -> JsObject(
-                "valid" -> JsString("JSON")
-            )
-        ),
-        JsObject(
-            "key" -> JsString("another\"escape\""),
-            "value" -> JsObject(
-                "valid" -> JsString("\nJ\rO\tS\bN\f")
-            )
-        ),
         JsObject(
             "key" -> JsString("key1"),
             "value" -> JsObject(
@@ -69,6 +113,18 @@ object JsonArgsForTests {
             "key" -> JsString("key2"),
             "value" -> JsObject(
                 "valid" -> JsString("J\\SO\"N")
+            )
+        ),
+        JsObject(
+            "key" -> JsString("\"key\"with\\escapes"),
+            "value" -> JsObject(
+                "valid" -> JsString("JSON")
+            )
+        ),
+        JsObject(
+            "key" -> JsString("another\"escape\""),
+            "value" -> JsObject(
+                "valid" -> JsString("\\nJ\\rO\\tS\\bN\\f")
             )
         )
     )

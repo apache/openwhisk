@@ -20,7 +20,6 @@ import (
     "fmt"
     "net/http"
     "errors"
-    "encoding/json"
     "net/url"
     "../wski18n"
 )
@@ -34,15 +33,14 @@ type Activation struct {
     Name      string `json:"name"`
     Version   string `json:"version"`
     Publish   bool   `json:"publish"`
-
-    Subject      string `json:"subject"`
-    ActivationID string `json:"activationId"`
-    Cause        string `json:"cause,omitempty"`
-    Start        int64  `json:"start"`        // When action started (in milliseconds since January 1, 1970 UTC)
-    End          int64  `json:"end"`                    // Since a 0 is a valid value from server, don't omit
-    Response     `json:"response"`
-    Logs         []string `json:"logs"`
-    Annotations *json.RawMessage `json:"annotations"`
+    Subject         string `json:"subject"`
+    ActivationID    string `json:"activationId"`
+    Cause           string `json:"cause,omitempty"`
+    Start           int64  `json:"start"`        // When action started (in milliseconds since January 1, 1970 UTC)
+    End             int64  `json:"end"`                    // Since a 0 is a valid value from server, don't omit
+    Response        `json:"response"`
+    Logs            []string `json:"logs"`
+    Annotations     KeyValueArr `json:"annotations"`
 }
 
 type Response struct {

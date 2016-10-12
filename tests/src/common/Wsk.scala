@@ -225,6 +225,8 @@ class WskAction()
         kind: Option[String] = None, // one of docker, copy, sequence or none for autoselect else an explicit type
         parameters: Map[String, JsValue] = Map(),
         annotations: Map[String, JsValue] = Map(),
+        parameterFile: Option[String] = None,
+        annotationFile: Option[String] = None,
         timeout: Option[Duration] = None,
         memory: Option[ByteSize] = None,
         logsize: Option[ByteSize] = None,
@@ -242,6 +244,8 @@ class WskAction()
             } ++
             { parameters flatMap { p => Seq("-p", p._1, p._2.compactPrint) } } ++
             { annotations flatMap { p => Seq("-a", p._1, p._2.compactPrint) } } ++
+            { parameterFile map { pf => Seq("-P", pf) } getOrElse Seq() } ++
+            { annotationFile map { af => Seq("-A", af) } getOrElse Seq() } ++
             { timeout map { t => Seq("-t", t.toMillis.toString) } getOrElse Seq() } ++
             { memory map { m => Seq("-m", m.toMB.toString) } getOrElse Seq() } ++
             { logsize map { l => Seq("-l", l.toMB.toString) } getOrElse Seq() } ++
@@ -259,12 +263,14 @@ class WskAction()
     def invoke(
         name: String,
         parameters: Map[String, JsValue] = Map(),
+        parameterFile: Option[String] = None,
         blocking: Boolean = false,
         result: Boolean = false,
         expectedExitCode: Int = SUCCESS_EXIT)(
             implicit wp: WskProps): RunResult = {
         val params = Seq(noun, "invoke", "--auth", wp.authKey, fqn(name)) ++
             { parameters flatMap { p => Seq("-p", p._1, p._2.compactPrint) } } ++
+            { parameterFile map { pf => Seq("-P", pf) } getOrElse Seq() } ++
             { if (blocking) Seq("--blocking") else Seq() } ++
             { if (result) Seq("--result") else Seq() }
         cli(wp.overrides ++ params, expectedExitCode)
@@ -290,6 +296,8 @@ class WskTrigger()
         name: String,
         parameters: Map[String, JsValue] = Map(),
         annotations: Map[String, JsValue] = Map(),
+        parameterFile: Option[String] = None,
+        annotationFile: Option[String] = None,
         feed: Option[String] = None,
         shared: Option[Boolean] = None,
         update: Boolean = false,
@@ -299,6 +307,8 @@ class WskTrigger()
             { feed map { f => Seq("--feed", fqn(f)) } getOrElse Seq() } ++
             { parameters flatMap { p => Seq("-p", p._1, p._2.compactPrint) } } ++
             { annotations flatMap { p => Seq("-a", p._1, p._2.compactPrint) } } ++
+            { parameterFile map { pf => Seq("-P", pf) } getOrElse Seq() } ++
+            { annotationFile map { af => Seq("-A", af) } getOrElse Seq() } ++
             { shared map { s => Seq("--shared", if (s) "yes" else "no") } getOrElse Seq() }
         cli(wp.overrides ++ params, expectedExitCode)
     }
@@ -313,10 +323,12 @@ class WskTrigger()
     def fire(
         name: String,
         parameters: Map[String, JsValue] = Map(),
+        parameterFile: Option[String] = None,
         expectedExitCode: Int = SUCCESS_EXIT)(
             implicit wp: WskProps): RunResult = {
         val params = Seq(noun, "fire", "--auth", wp.authKey, fqn(name)) ++
-            { parameters flatMap { p => Seq("-p", p._1, p._2.compactPrint) } }
+            { parameters flatMap { p => Seq("-p", p._1, p._2.compactPrint) } } ++
+            { parameterFile map { pf => Seq("-P", pf) } getOrElse Seq() }
         cli(wp.overrides ++ params, expectedExitCode)
     }
 }
@@ -650,6 +662,8 @@ class WskPackage()
         name: String,
         parameters: Map[String, JsValue] = Map(),
         annotations: Map[String, JsValue] = Map(),
+        parameterFile: Option[String] = None,
+        annotationFile: Option[String] = None,
         shared: Option[Boolean] = None,
         update: Boolean = false,
         expectedExitCode: Int = SUCCESS_EXIT)(
@@ -657,6 +671,8 @@ class WskPackage()
         val params = Seq(noun, if (!update) "create" else "update", "--auth", wp.authKey, fqn(name)) ++
             { parameters flatMap { p => Seq("-p", p._1, p._2.compactPrint) } } ++
             { annotations flatMap { p => Seq("-a", p._1, p._2.compactPrint) } } ++
+            { parameterFile map { pf => Seq("-P", pf) } getOrElse Seq() } ++
+            { annotationFile map { af => Seq("-A", af) } getOrElse Seq() } ++
             { shared map { s => Seq("--shared", if (s) "yes" else "no") } getOrElse Seq() }
         cli(wp.overrides ++ params, expectedExitCode)
     }

@@ -18,11 +18,8 @@ package commands
 
 import (
   "encoding/base64"
-  "encoding/json"
   "errors"
   "fmt"
-  "io/ioutil"
-  "os"
   "os/exec"
   "path/filepath"
   "strings"
@@ -136,6 +133,7 @@ var actionInvokeCmd = &cobra.Command{
   PreRunE:       setupClientConfig,
   RunE: func(cmd *cobra.Command, args []string) error {
     var err error
+    var parameters interface{}
 
     if whiskErr := checkArgs(args, 1, 1, "Action invoke", wski18n.T("An action name is required.")); whiskErr != nil {
       return whiskErr
@@ -153,14 +151,12 @@ var actionInvokeCmd = &cobra.Command{
     }
     client.Namespace = qName.namespace
 
-    var payload *json.RawMessage
-
     if len(flags.common.param) > 0 {
       whisk.Debug(whisk.DbgInfo, "Parsing parameters: %#v\n", flags.common.param)
 
-      parameters, err := getJSONFromArguments(flags.common.param, false)
+      parameters, err = getJSONFromStrings(flags.common.param, false)
       if err != nil {
-        whisk.Debug(whisk.DbgError, "getJSONFromArguments(%#v, false) failed: %s\n", flags.common.param, err)
+        whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, false) failed: %s\n", flags.common.param, err)
         errMsg := fmt.Sprintf(
           wski18n.T("Invalid parameter argument '{{.param}}': {{.err}}",
             map[string]interface{}{"param": fmt.Sprintf("%#v", flags.common.param), "err": err}))
@@ -169,22 +165,16 @@ var actionInvokeCmd = &cobra.Command{
         return whiskErr
       }
 
-      payload = parameters
-    }
-
-    if payload == nil {
-      data := []byte("{}")
-      payload = (*json.RawMessage)(&data)
     }
 
     outputStream := color.Output
 
-    activation, _, err := client.Actions.Invoke(qName.entityName, payload, flags.common.blocking)
+    activation, _, err := client.Actions.Invoke(qName.entityName, parameters, flags.common.blocking)
     if err != nil {
       whiskErr, isWhiskErr := err.(*whisk.WskError)
 
       if (isWhiskErr && whiskErr.ApplicationError != true) || !isWhiskErr {
-        whisk.Debug(whisk.DbgError, "client.Actions.Invoke(%s, %s, %t) error: %s\n", qName.entityName, payload,
+        whisk.Debug(whisk.DbgError, "client.Actions.Invoke(%s, %s, %t) error: %s\n", qName.entityName, parameters,
           flags.common.blocking, err)
         errMsg := fmt.Sprintf(
           wski18n.T("Unable to invoke action '{{.name}}': {{.err}}",
@@ -459,9 +449,9 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
   }
 
     whisk.Debug(whisk.DbgInfo, "Parsing parameters: %#v\n", flags.common.param)
-    parameters, err := getJSONFromArguments(flags.common.param, true)
+    parameters, err := getJSONFromStrings(flags.common.param, true)
     if err != nil {
-        whisk.Debug(whisk.DbgError, "getJSONFromArguments(%#v, true) failed: %s\n", flags.common.param, err)
+        whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, true) failed: %s\n", flags.common.param, err)
       errMsg := fmt.Sprintf(
         wski18n.T("Invalid parameter argument '{{.param}}': {{.err}}",
           map[string]interface{}{"param": fmt.Sprintf("%#v", flags.common.param), "err": err}))
@@ -471,9 +461,9 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
     }
 
     whisk.Debug(whisk.DbgInfo, "Parsing annotations: %#v\n", flags.common.annotation)
-    annotations, err := getJSONFromArguments(flags.common.annotation, true)
+    annotations, err := getJSONFromStrings(flags.common.annotation, true)
     if err != nil {
-        whisk.Debug(whisk.DbgError, "getJSONFromArguments(%#v, true) failed: %s\n", flags.common.annotation, err)
+        whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, true) failed: %s\n", flags.common.annotation, err)
       errMsg := fmt.Sprintf(
         wski18n.T("Invalid annotation argument '{{.annotation}}': {{.err}}",
           map[string]interface{}{"annotation": fmt.Sprintf("%#v", flags.common.annotation), "err": err}))
@@ -536,32 +526,13 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
     action.Exec.Components = csvToQualifiedActions(artifact)
   } else if artifact != "" {
     ext := filepath.Ext(artifact)
-
-    _, err := os.Stat(artifact)
-    if err != nil {
-      whisk.Debug(whisk.DbgError, "os.Stat(%s) error: %s\n", artifact, err)
-      errMsg := fmt.Sprintf(
-        wski18n.T("File '{{.name}}' is not a valid file or it does not exist: {{.err}}",
-          map[string]interface{}{"name": artifact, "err": err}))
-      whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_USAGE,
-        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-
-      return nil, sharedSet, whiskErr
-    }
-
-    file, err := ioutil.ReadFile(artifact)
-    if err != nil {
-      whisk.Debug(whisk.DbgError, "os.ioutil.ReadFile(%s) error: %s\n", artifact, err)
-      errMsg := fmt.Sprintf(
-        wski18n.T("Unable to read '{{.name}}': {{.err}}",
-          map[string]interface{}{"name": artifact, "err": err}))
-      whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-      return nil, sharedSet, whiskErr
-    }
-
     action.Exec = new(whisk.Exec)
-    action.Exec.Code = string(file)
+    action.Exec.Code, err = readFile(artifact)
+
+    if err != nil {
+      whisk.Debug(whisk.DbgError, "readFile(%s) error: %s\n", artifact, err)
+      return nil, sharedSet, err
+    }
 
     if flags.action.kind == "swift:3" || flags.action.kind == "swift:3.0" || flags.action.kind == "swift:3.0.0" {
       action.Exec.Kind = "swift:3"
@@ -588,10 +559,10 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
     } else if ext == ".py" {
       action.Exec.Kind = "python"
     } else if ext == ".jar" {
-      action.Exec.Code = ""
       action.Exec.Kind = "java"
-      action.Exec.Jar = base64.StdEncoding.EncodeToString([]byte(string(file)))
+      action.Exec.Jar = base64.StdEncoding.EncodeToString([]byte(action.Exec.Code))
       action.Exec.Main, err = findMainJarClass(artifact)
+      action.Exec.Code = ""
 
       if err != nil {
         return nil, sharedSet, err
@@ -610,12 +581,12 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
   action.Name = qName.entityName
   action.Namespace = qName.namespace
   action.Publish = shared
-  action.Annotations = annotations
+  action.Annotations = annotations.(whisk.KeyValueArr)
   action.Limits = limits
 
   // If the action sequence is not already the Parameters value, set it to the --param parameter values
   if action.Parameters == nil && parameters != nil {
-    action.Parameters = parameters
+    action.Parameters = parameters.(whisk.KeyValueArr)
   }
 
   whisk.Debug(whisk.DbgInfo, "Parsed action struct: %#v\n", action)
@@ -636,7 +607,9 @@ func init() {
   actionCreateCmd.Flags().IntVarP(&flags.action.memory, "memory", "m", -1, wski18n.T("the memory `LIMIT` in MB of the container that runs the action"))
   actionCreateCmd.Flags().IntVarP(&flags.action.logsize, "logsize", "l", -1, wski18n.T("the log size `LIMIT` in MB of the container that runs the action (default 10MB)"))
   actionCreateCmd.Flags().StringSliceVarP(&flags.common.annotation, "annotation", "a", nil, wski18n.T("annotation values in `KEY VALUE` format"))
-  actionCreateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", nil, wski18n.T("default parameter values in `KEY VALUE` format"))
+  actionCreateCmd.Flags().StringVarP(&flags.common.annotFile, "annotation-file", "A", "", wski18n.T("`FILE` containing annotation values in JSON format"))
+  actionCreateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", nil, wski18n.T("parameter values in `KEY VALUE` format"))
+  actionCreateCmd.Flags().StringVarP(&flags.common.paramFile, "param-file", "P", "", wski18n.T("`FILE` containing parameter values in JSON format"))
 
   actionUpdateCmd.Flags().BoolVar(&flags.action.docker, "docker", false, wski18n.T("treat ACTION as docker image path on dockerhub"))
   actionUpdateCmd.Flags().BoolVar(&flags.action.copy, "copy", false, wski18n.T("treat ACTION as the name of an existing action"))
@@ -647,9 +620,12 @@ func init() {
   actionUpdateCmd.Flags().IntVarP(&flags.action.memory, "memory", "m", -1, wski18n.T("the memory `LIMIT` in MB of the container that runs the action"))
   actionUpdateCmd.Flags().IntVarP(&flags.action.logsize, "logsize", "l", -1, wski18n.T("the log size `LIMIT` in MB of the container that runs the action (default 10MB)"))
   actionUpdateCmd.Flags().StringSliceVarP(&flags.common.annotation, "annotation", "a", []string{}, wski18n.T("annotation values in `KEY VALUE` format"))
-  actionUpdateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, wski18n.T("default parameter values in `KEY VALUE` format"))
+  actionUpdateCmd.Flags().StringVarP(&flags.common.annotFile, "annotation-file", "A", "", wski18n.T("`FILE` containing annotation values in JSON format"))
+  actionUpdateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, wski18n.T("parameter values in `KEY VALUE` format"))
+  actionUpdateCmd.Flags().StringVarP(&flags.common.paramFile, "param-file", "P", "", wski18n.T("`FILE` containing parameter values in JSON format"))
 
   actionInvokeCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, wski18n.T("parameter values in `KEY VALUE` format"))
+  actionInvokeCmd.Flags().StringVarP(&flags.common.paramFile, "param-file", "P", "", wski18n.T("`FILE` containing parameter values in JSON format"))
   actionInvokeCmd.Flags().BoolVarP(&flags.common.blocking, "blocking", "b", false, wski18n.T("blocking invoke"))
   actionInvokeCmd.Flags().BoolVarP(&flags.action.result, "result", "r", false, wski18n.T("show only activation result if a blocking activation (unless there is a failure)"))
 

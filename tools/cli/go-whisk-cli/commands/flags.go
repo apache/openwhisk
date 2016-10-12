@@ -40,7 +40,9 @@ var flags struct {
     common struct {
         blocking    bool
         annotation  []string
+        annotFile   string
         param       []string
+        paramFile   string
         shared      string // AKA "public" or "publish"
         skip        int  // skip first N records
         limit       int  // return max N records
