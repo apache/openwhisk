@@ -207,11 +207,11 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
 
     it should "properly deserialize and reserialize JSON" in {
         val json = Seq[JsObject](
-            JsObject("kind" -> "nodejs".toJson, "code" -> "js1".toJson),
-            JsObject("kind" -> "nodejs".toJson, "code" -> "js2".toJson, "init" -> "zipfile2".toJson),
-            JsObject("kind" -> "nodejs".toJson, "code" -> "js3".toJson, "init" -> "zipfile3".toJson, "foo" -> "bar".toJson),
+            JsObject("kind" -> "nodejs".toJson, "code" -> "js1".toJson, "binary" -> false.toJson),
+            JsObject("kind" -> "nodejs".toJson, "code" -> "js2".toJson, "binary" -> false.toJson, "init" -> "zipfile2".toJson),
+            JsObject("kind" -> "nodejs".toJson, "code" -> "js3".toJson, "binary" -> false.toJson, "init" -> "zipfile3".toJson, "foo" -> "bar".toJson),
             JsObject("kind" -> "blackbox".toJson, "image" -> "container1".toJson),
-            JsObject("kind" -> "swift".toJson, "code" -> "swift1".toJson))
+            JsObject("kind" -> "swift".toJson, "code" -> "swift1".toJson, "binary" -> false.toJson))
 
         val execs = json.map { e => Exec.serdes.read(e) }
 
@@ -262,9 +262,9 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
     it should "serialize to json" in {
         val execs = Seq(Exec.bb("container"), Exec.js("js"), Exec.js("js", "zipfile"), Exec.swift("swft")).map { _.toString }
         assert(execs(0) == JsObject("kind" -> "blackbox".toJson, "image" -> "container".toJson).compactPrint)
-        assert(execs(1) == JsObject("kind" -> "nodejs".toJson, "code" -> "js".toJson).compactPrint)
-        assert(execs(2) == JsObject("kind" -> "nodejs".toJson, "code" -> "js".toJson, "init" -> "zipfile".toJson).compactPrint)
-        assert(execs(3) == JsObject("kind" -> "swift".toJson, "code" -> "swft".toJson).compactPrint)
+        assert(execs(1) == JsObject("kind" -> "nodejs".toJson, "code" -> "js".toJson, "binary" -> false.toJson).compactPrint)
+        assert(execs(2) == JsObject("kind" -> "nodejs".toJson, "code" -> "js".toJson, "binary" -> false.toJson, "init" -> "zipfile".toJson).compactPrint)
+        assert(execs(3) == JsObject("kind" -> "swift".toJson, "code" -> "swft".toJson, "binary" -> false.toJson).compactPrint)
     }
 
     behavior of "Parameter"

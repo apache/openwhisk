@@ -20,14 +20,7 @@ import java.util.Base64
 
 import scala.language.postfixOps
 
-import spray.json.DefaultJsonProtocol
-import spray.json.DeserializationException
-import spray.json.JsonFormat
-import spray.json.JsArray
-import spray.json.JsObject
-import spray.json.JsString
-import spray.json.JsValue
-import spray.json.RootJsonFormat
+import spray.json._
 import whisk.core.entity.ArgNormalizer.trim
 import whisk.core.entity.Attachments._
 import whisk.core.entity.size.SizeInt
@@ -36,8 +29,7 @@ import whisk.core.entity.size.SizeString
 /**
  * Exec encodes the executable details of an action. For black
  * box container, an image name is required. For Javascript and Python
- * actions, the code to execute is required. Optionally, Javascript actions
- * also permit a library to support the code in the form of a zip file.
+ * actions, the code to execute is required.
  * For Swift actions, the source code to execute the action is required.
  * For Java actions, a base64-encoded string representing a jar file is
  * required, as well as the name of the entrypoint class.
@@ -46,8 +38,7 @@ import whisk.core.entity.size.SizeString
  *         code  : code to execute if kind is supported
  *         init  : optional zipfile reference when kind is "nodejs",
  *         image : container name when kind is "blackbox",
- *         jar   : a base64-encoded JAR file when kind is "java",
- *         name  : a fully-qualified class name when kind is "java" }
+ *         main  : a fully-qualified class name when kind is "java" }
  */
 sealed abstract class Exec(val kind: String) extends ByteSizeable {
     def image: String
@@ -56,37 +47,45 @@ sealed abstract class Exec(val kind: String) extends ByteSizeable {
     override def toString = Exec.serdes.write(this).compactPrint
 }
 
-protected[core] case class NodeJSExec(code: String, init: Option[String]) extends Exec(Exec.NODEJS) {
-    val image = Exec.imagename(Exec.NODEJS)
-    def size = (code sizeInBytes) + init.map(_.sizeInBytes).getOrElse(0 B)
+/**
+ * A common super class for all action exec types that contain their executable
+ * code explicitly.
+ */
+sealed abstract class CodeExec[T <% SizeConversion](kind: String) extends Exec(kind) {
+    // The executable code
+    val code: T
+
+    // All codeexec containers have this in common that the image name is
+    // fully determined by the kind.
+    final val image = Exec.imagename(kind)
+
+    // Whether the code is stored in a text-readable or binary format.
+    val binary: Boolean = false
+
+    def size = code.sizeInBytes
 }
 
-protected[core] case class NodeJS6Exec(code: String, init: Option[String]) extends Exec(Exec.NODEJS6) {
-    val image = Exec.imagename(Exec.NODEJS6)
-    def size = (code sizeInBytes) + init.map(_.sizeInBytes).getOrElse(0 B)
+sealed abstract class NodeJSAbstractExec(kind: String) extends CodeExec[String](kind) {
+    // The entrypoint, if not 'main'.
+    val init: Option[String]
+    override def size = super.size + init.map(_.sizeInBytes).getOrElse(0 B)
 }
 
-protected[core] case class PythonExec(code: String) extends Exec(Exec.PYTHON) {
-    val image = Exec.imagename(Exec.PYTHON)
-    def size = code sizeInBytes
-}
+protected[core] case class NodeJSExec(code: String, init: Option[String]) extends NodeJSAbstractExec(Exec.NODEJS)
+protected[core] case class NodeJS6Exec(code: String, init: Option[String]) extends NodeJSAbstractExec(Exec.NODEJS6)
 
-protected[core] case class SwiftExec(code: String) extends Exec(Exec.SWIFT) {
-    val image = Exec.imagename(Exec.SWIFT)
-    def size = code sizeInBytes
-}
+sealed abstract class SwiftAbstractExec(kind: String) extends CodeExec[String](kind)
 
-protected[core] case class Swift3Exec(code: String) extends Exec(Exec.SWIFT3) {
-    val image = Exec.imagename(Exec.SWIFT3)
-    def size = code sizeInBytes
-}
+protected[core] case class SwiftExec(code: String) extends SwiftAbstractExec(Exec.SWIFT)
+protected[core] case class Swift3Exec(code: String) extends SwiftAbstractExec(Exec.SWIFT3)
 
-protected[core] case class JavaExec(jar: Attachment[String], main: String) extends Exec(Exec.JAVA) {
-    val image = Exec.imagename(Exec.JAVA)
+protected[core] case class JavaExec(code: Attachment[String], main: String) extends CodeExec[Attachment[String]](Exec.JAVA) {
+    override val binary = true
     override val sentinelledLogs = false
-    // FIXME attachments are free, really?
-    def size = jar.fold(_.sizeInBytes, 0.bytes) + main.sizeInBytes
+    override def size = super.size + main.sizeInBytes
 }
+
+protected[core] case class PythonExec(code: String) extends CodeExec[String](Exec.PYTHON)
 
 protected[core] case class BlackBoxExec(image: String) extends Exec(Exec.BLACKBOX) {
     def size = image sizeInBytes
@@ -108,13 +107,13 @@ protected[core] object Exec
     // The possible values of the JSON 'kind' field.
     protected[core] val NODEJS = "nodejs"
     protected[core] val NODEJS6 = "nodejs:6"
-    protected[core] val PYTHON = "python"
     protected[core] val SWIFT = "swift"
     protected[core] val SWIFT3 = "swift:3"
     protected[core] val JAVA = "java"
-    protected[core] val BLACKBOX = "blackbox"
+    protected[core] val PYTHON = "python"
     protected[core] val SEQUENCE = "sequence"
-    protected[core] val runtimes = Set(NODEJS, NODEJS6, PYTHON, SWIFT, SWIFT3, JAVA, BLACKBOX, SEQUENCE)
+    protected[core] val BLACKBOX = "blackbox"
+    protected[core] val runtimes = Set(NODEJS, NODEJS6, SWIFT, SWIFT3, JAVA, PYTHON, SEQUENCE, BLACKBOX)
 
     // Constructs standard image name for action
     protected[core] def imagename(name: String) = s"${name}action".replace(":", "")
@@ -133,16 +132,19 @@ protected[core] object Exec
 
     override protected[core] implicit val serdes = new RootJsonFormat[Exec] {
         override def write(e: Exec) = e match {
-            case NodeJSExec(code, None)        => JsObject("kind" -> JsString(Exec.NODEJS), "code" -> JsString(code))
-            case NodeJSExec(code, Some(init))  => JsObject("kind" -> JsString(Exec.NODEJS), "code" -> JsString(code), "init" -> JsString(init))
-            case SequenceExec(code, comp)      => JsObject("kind" -> JsString(Exec.SEQUENCE), "code" -> JsString(code), "components" -> JsArray(comp map { JsString(_) }))
-            case NodeJS6Exec(code, None)       => JsObject("kind" -> JsString(Exec.NODEJS6), "code" -> JsString(code))
-            case NodeJS6Exec(code, Some(init)) => JsObject("kind" -> JsString(Exec.NODEJS6), "code" -> JsString(code), "init" -> JsString(init))
-            case PythonExec(code)              => JsObject("kind" -> JsString(Exec.PYTHON), "code" -> JsString(code))
-            case SwiftExec(code)               => JsObject("kind" -> JsString(Exec.SWIFT), "code" -> JsString(code))
-            case Swift3Exec(code)              => JsObject("kind" -> JsString(Exec.SWIFT3), "code" -> JsString(code))
-            case JavaExec(jar, main)           => JsObject("kind" -> JsString(Exec.JAVA), "jar" -> attFmt[String].write(jar), "main" -> JsString(main))
-            case BlackBoxExec(image)           => JsObject("kind" -> JsString(Exec.BLACKBOX), "image" -> JsString(image))
+            case n: NodeJSAbstractExec =>
+                val base = Map("kind" -> JsString(n.kind), "code" -> JsString(n.code), "binary" -> JsBoolean(n.binary))
+                n.init.map(i => JsObject(base + ("init" -> JsString(i)))).getOrElse(JsObject(base))
+
+            case s: SwiftAbstractExec =>
+                JsObject("kind" -> JsString(s.kind), "code" -> JsString(s.code), "binary" -> JsBoolean(s.binary))
+
+            case j @ JavaExec(jar, main)  => JsObject("kind" -> JsString(Exec.JAVA), "jar" -> attFmt[String].write(jar), "main" -> JsString(main), "binary" -> JsBoolean(j.binary))
+
+            case p @ PythonExec(code)     => JsObject("kind" -> JsString(Exec.PYTHON), "code" -> JsString(code), "binary" -> JsBoolean(p.binary))
+
+            case SequenceExec(code, comp) => JsObject("kind" -> JsString(Exec.SEQUENCE), "code" -> JsString(code), "components" -> JsArray(comp map { JsString(_) }))
+            case BlackBoxExec(image)      => JsObject("kind" -> JsString(Exec.BLACKBOX), "image" -> JsString(image))
         }
 
         override def read(v: JsValue) = {
@@ -159,17 +161,44 @@ protected[core] object Exec
             val kind = resolveDefaultRuntime(kindField)
 
             kind match {
-                case Exec.NODEJS =>
+                case Exec.NODEJS | Exec.NODEJS6 =>
                     val code: String = obj.getFields("code") match {
                         case Seq(JsString(c)) => c
-                        case _                => throw new DeserializationException(s"'code' must be a string defined in 'exec' for '${Exec.NODEJS}' actions")
+                        case _                => throw new DeserializationException(s"'code' must be a string defined in 'exec' for '$kind' actions")
                     }
                     val init: Option[String] = obj.getFields("init") match {
                         case Seq(JsString(i)) => Some(i)
-                        case Seq(_)           => throw new DeserializationException(s"if defined, 'init' must a string in 'exec' for '${Exec.NODEJS}' actions")
+                        case Seq(_)           => throw new DeserializationException(s"if defined, 'init' must a string in 'exec' for '$kind' actions")
                         case _                => None
                     }
-                    NodeJSExec(code, init)
+                    if (kind == Exec.NODEJS) NodeJSExec(code, init) else NodeJS6Exec(code, init)
+
+                case Exec.SWIFT | Exec.SWIFT3 =>
+                    val code: String = obj.getFields("code") match {
+                        case Seq(JsString(c)) => c
+                        case _                => throw new DeserializationException(s"'code' must be a string defined in 'exec' for '$kind' actions")
+                    }
+                    if (kind == Exec.SWIFT) SwiftExec(code) else Swift3Exec(code)
+
+                case Exec.JAVA =>
+                    val jar: Attachment[String] = obj.fields.get("jar").map { f =>
+                        attFmt[String].read(f)
+                    } getOrElse {
+                        throw new DeserializationException(s"'jar' must be a valid base64 string in 'exec' for '${Exec.JAVA}' actions")
+                    }
+                    val main: String = obj.getFields("main") match {
+                        case Seq(JsString(m)) => m
+                        case _                => throw new DeserializationException(s"'main' must be a string defined in 'exec' for '${Exec.JAVA}' actions")
+                    }
+                    JavaExec(jar, main)
+
+                case Exec.PYTHON =>
+                    val code: String = obj.getFields("code") match {
+                        case Seq(JsString(c)) => c
+                        case _                => throw new DeserializationException(s"'code' must be a string defined in 'exec' for '${Exec.PYTHON}' actions")
+                    }
+                    PythonExec(code)
+
                 case Exec.SEQUENCE =>
                     val comp: Vector[String] = obj.getFields("components") match {
                         case Seq(JsArray(components)) =>
@@ -183,51 +212,6 @@ protected[core] object Exec
                         case _      => throw new DeserializationException(s"'components' must be defined for sequence kind")
                     }
                     SequenceExec(Pipecode.code, comp)
-
-                case Exec.NODEJS6 =>
-                    val code: String = obj.getFields("code") match {
-                        case Seq(JsString(c)) => c
-                        case _                => throw new DeserializationException(s"'code' must be a string defined in 'exec' for '${Exec.NODEJS6}' actions")
-                    }
-                    val init: Option[String] = obj.getFields("init") match {
-                        case Seq(JsString(i)) => Some(i)
-                        case Seq(_)           => throw new DeserializationException(s"if defined, 'init' must a string in 'exec' for '${Exec.NODEJS6}' actions")
-                        case _                => None
-                    }
-                    NodeJS6Exec(code, init)
-
-                case Exec.PYTHON =>
-                    val code: String = obj.getFields("code") match {
-                        case Seq(JsString(c)) => c
-                        case _                => throw new DeserializationException(s"'code' must be a string defined in 'exec' for '${Exec.PYTHON}' actions")
-                    }
-                    PythonExec(code)
-
-                case Exec.SWIFT =>
-                    val code: String = obj.getFields("code") match {
-                        case Seq(JsString(c)) => c
-                        case _                => throw new DeserializationException(s"'code' must be a string defined in 'exec' for '${Exec.SWIFT}' actions")
-                    }
-                    SwiftExec(code)
-
-                case Exec.SWIFT3 =>
-                    val code: String = obj.getFields("code") match {
-                        case Seq(JsString(c)) => c
-                        case _                => throw new DeserializationException(s"'code' must be a string defined in 'exec' for '${Exec.SWIFT3}' actions")
-                    }
-                    Swift3Exec(code)
-
-                case Exec.JAVA =>
-                    val jar: Attachment[String] = obj.fields.get("jar").map { f =>
-                        attFmt[String].read(f)
-                    } getOrElse {
-                        throw new DeserializationException(s"'jar' must be a valid base64 string in 'exec' for '${Exec.JAVA}' actions")
-                    }
-                    val main: String = obj.getFields("main") match {
-                        case Seq(JsString(m)) => m
-                        case _                => throw new DeserializationException(s"'main' must be a string defined in 'exec' for '${Exec.JAVA}' actions")
-                    }
-                    JavaExec(jar, main)
 
                 case Exec.BLACKBOX =>
                     val image: String = obj.getFields("image") match {
