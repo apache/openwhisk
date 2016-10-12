@@ -25,7 +25,7 @@ import scala.language.postfixOps
 
 import akka.actor.ActorSystem
 import akka.event.Logging.InfoLevel
-import spray.json.DefaultJsonProtocol.IntJsonFormat
+import spray.json.DefaultJsonProtocol.LongJsonFormat
 import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json.JsObject
 import spray.json.JsString
@@ -55,7 +55,7 @@ object InvokerHealth {
 class InvokerHealth(
     config: WhiskConfig,
     instanceChange: Array[Int] => Unit,
-    getKafkaPostCount: () => Int)(
+    getKafkaPostCount: () => Long)(
         implicit val system: ActorSystem) extends Logging {
 
     private implicit val executionContext = system.dispatcher
@@ -109,11 +109,11 @@ class InvokerHealth(
         status.index -> status.activationCount
     }.toMap
 
-    private def getHealth(statuses: Array[Status]): Array[(Int, Boolean)] = {
-        statuses map { status => (status.index, status.status) }
+    private def getHealth(statuses: Array[Status]): Map[Int, Boolean] = {
+        statuses.map { status => (status.index, status.status) }.toMap
     }
 
-    def getInvokerHealth(): Array[(Int, Boolean)] = getHealth(curStatus.get())
+    def getInvokerHealth(): Map[Int, Boolean] = getHealth(curStatus.get())
 
     def getInvokerHealthJson(): JsObject = {
         val health = getInvokerHealth().map { case (index, isUp) => s"invoker${index}" -> (if (isUp) "up" else "down").toJson }
@@ -157,7 +157,7 @@ class InvokerHealth(
             val newStatus = statusMap.values.toArray.sortBy(_.index)
 
             // Warning is issued only if up/down is changed
-            if (getInvokerHealth().deep != getHealth(newStatus).deep) {
+            if (getInvokerHealth() != getHealth(newStatus)) {
                 warn(this, s"InvokerHealth status change: ${newStatus.deep.mkString(" ")}")(TransactionId.loadbalancer)
             }
 

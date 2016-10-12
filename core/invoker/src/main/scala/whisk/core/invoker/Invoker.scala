@@ -332,7 +332,7 @@ class Invoker(
         }
     }
 
-    private def incrementUserActivationCounter(user: Subject)(implicit transid: TransactionId): Int = {
+    private def incrementUserActivationCounter(user: Subject)(implicit transid: TransactionId): Long = {
         val counter = userActivationCounter.getOrElseUpdate(user(), new Counter())
         val count = counter.next()
         info(this, s"'${user}' has $count activations processed")
@@ -345,7 +345,7 @@ class Invoker(
         groups.keySet map { prefix =>
             val key = InvokerKeys.userActivationCount(instance) + "/" + prefix
             val users = groups.getOrElse(prefix, Set())
-            val items = users map { u => (u, JsNumber(userActivationCounter.get(u) map { c => c.cur } getOrElse 0)) }
+            val items = users map { u => (u, JsNumber(userActivationCounter.get(u) map { c => c.cur } getOrElse 0L)) }
             key -> JsObject(items toMap)
         } toMap
     }

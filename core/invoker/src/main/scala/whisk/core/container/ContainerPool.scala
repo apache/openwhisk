@@ -27,7 +27,7 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration._
 import scala.concurrent.Future
 import scala.annotation.tailrec
-import scala.util.{Try, Success, Failure}
+import scala.util.{ Try, Success, Failure }
 import akka.actor.ActorSystem
 import whisk.common.Counter
 import whisk.common.Logging
@@ -210,7 +210,7 @@ class ContainerPool(
         getContainer(1, 0, key, () => makeContainer(key, imageName, args)) match {
             case Cold(con) => Some(con)
             case Warm(con) => Some(con)
-            case _ => None
+            case _         => None
         }
     }
 
@@ -219,7 +219,7 @@ class ContainerPool(
      * This method will apply retry so that the caller is blocked until retry succeeds.
      */
     @tailrec
-    final def getContainer(tryCount: Int, position: Int, key: ActionContainerId, conMaker: () => WhiskContainer)(implicit transid: TransactionId): ContainerResult = {
+    final def getContainer(tryCount: Int, position: Long, key: ActionContainerId, conMaker: () => WhiskContainer)(implicit transid: TransactionId): ContainerResult = {
         val positionInLine = position - completedPosition.cur // Indicates queue position.  1 means front of the line
         val available = slack()
         if (tryCount % 100 == 0) {
@@ -234,7 +234,7 @@ class ContainerPool(
         if (positionInLine <= available) {
             getOrMake(key, conMaker) match {
                 case Some(cr) => cr
-                case None => getContainer(tryCount + 1, position, key, conMaker)
+                case None     => getContainer(tryCount + 1, position, key, conMaker)
             }
         } else { // It's not our turn in line yet.
             Thread.sleep(50) // TODO: Replace with wait/notify but tricky because of desire for maximal concurrency
@@ -252,7 +252,7 @@ class ContainerPool(
      * How many containers can we start?  Someone could have fully started a container so we must include startingCounter.
      * The use of a method rather than a getter is meant to signify the synchronization in the implementation.
      */
-    private def slack() = _maxActive - (activeCount() + startingCounter.cur + toBeRemoved.size)
+    private def slack() = _maxActive - (activeCount() + startingCounter.cur + Math.max(toBeRemoved.size - RM_SLACK, 0))
 
     /*
      * Try to get or create a container, returning None if there are too many
@@ -401,7 +401,11 @@ class ContainerPool(
     private val warmNodejsKey = WarmNodeJsActionContainerId
     private val nodejsExec = NodeJS6Exec("", None)
     private val WARM_NODEJS_CONTAINERS = 2
-    private val RM_THRESHOLD = 4
+
+    // This parameter controls how many outstanding un-removed containers there are before
+    // we stop stem cell container creation.  This is also the an allowance in slack calculation
+    // to allow limited de-coupling between container removal and creation when under load.
+    private val RM_SLACK = 4
 
     private def keyMapToString(): String = {
         keyMap.map(p => s"[${p._1.stringRepr} -> ${p._2}]").mkString("  ")
@@ -446,7 +450,7 @@ class ContainerPool(
                 val warmupInterval = 100.milliseconds
                 Scheduler.scheduleWaitAtLeast(warmupInterval) { () =>
                     implicit val tid = TransactionId.invokerWarmup
-                    if (getNumberOfIdleContainers(warmNodejsKey) < WARM_NODEJS_CONTAINERS && slack() > 0 && toBeRemoved.size < RM_THRESHOLD) {
+                    if (getNumberOfIdleContainers(warmNodejsKey) < WARM_NODEJS_CONTAINERS && slack() > 0 && toBeRemoved.size < RM_SLACK) {
                         addWarmNodejsContainer()(tid)
                     } else {
                         Future.successful(())
@@ -516,7 +520,7 @@ class ContainerPool(
      * This method will introduce a stem cell container into the system.
      * If container creation fails, the container will not be entered into the pool.
      */
-    private def addWarmNodejsContainer()(implicit transid: TransactionId) = Future { Try {
+    private def addWarmNodejsContainer()(implicit transid: TransactionId) = Future {
         val imageName = WhiskAction.containerImageName(nodejsExec, config.dockerRegistry, config.dockerImagePrefix, config.dockerImageTag)
         val limits = ActionLimits(TimeLimit(), defaultMemoryLimit, LogLimit())
         val containerName = makeContainerName("warmJsContainer")
@@ -526,9 +530,9 @@ class ContainerPool(
             introduceContainer(warmNodejsKey, con)
         }
         info(this, s"Started warm nodejs container $con.id: $con.containerId")
-    }.recover {
-        case t => warn(this, s"addWarmNodejsContainer encountered an exception: ${t.getMessage}")
-    }}
+    } andThen {
+        case Failure(t) => warn(this, s"addWarmNodejsContainer encountered an exception: ${t.getMessage}")
+    }
 
     private def getWarmNodejsContainer(key: ActionContainerId)(implicit transid: TransactionId): Option[WhiskContainer] =
         retrieve(warmNodejsKey) match {

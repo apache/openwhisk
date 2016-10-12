@@ -1,4 +1,4 @@
-FROM golang:1.6
+FROM golang:1.7
 
 # Install zip
 RUN apt-get -y update && \
