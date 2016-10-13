@@ -79,7 +79,7 @@ init-couchdb-actions:
 	echo db.password=$(OPEN_WHISK_DB_PASSWORD) >> $(PROJECT_HOME)/whisk.properties
 	echo db.whisk.actions=$(OPEN_WHISK_DB_ACTIONS) >> $(PROJECT_HOME)/whisk.properties
 	cd $(PROJECT_HOME)/ && tools/db/wipeTransientDBs.sh
-	cd $(PROJECT_HOME)/ && rm whisk.properties
+	rm $(PROJECT_HOME)/whisk.properties
 
 .PHONY: init-whisk-cli
 init-whisk-cli:
@@ -113,8 +113,7 @@ hello-world: create-hello-world-function
 	$(WSK_CLI) -i action create hello hello.js
 
 	echo "$$(tput setaf 4)invoking the function ...$$(tput sgr0)"
-	$(WSK_CLI) -i action invoke hello --blocking --result
-	read -r -p "The function has been invoked. Press any key to continue ... "
+	($(WSK_CLI) -i action invoke hello --blocking --result | grep "Hello, World") || exit 1
 
 	echo "$$(tput setaf 1)deleting the function ...$$(tput sgr0)"
 	$(WSK_CLI) -i action delete hello
