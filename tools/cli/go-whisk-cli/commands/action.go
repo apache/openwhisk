@@ -528,6 +528,8 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
       action.Exec.Kind = "nodejs:6"
     } else if flags.action.kind == "nodejs:default" {
       action.Exec.Kind = "nodejs:default"
+    } else if flags.action.kind == "swift:default" {
+      action.Exec.Kind = "swift:default"
     } else if flags.action.kind == "nodejs" {
       action.Exec.Kind = "nodejs"
     } else if flags.action.kind == "swift" {
@@ -541,7 +543,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
         whisk.DISPLAY_USAGE)
       return nil, sharedSet, whiskErr
     } else if ext == ".swift" {
-      action.Exec.Kind = "swift"
+      action.Exec.Kind = "swift:default"
     } else if ext == ".js" {
       action.Exec.Kind = "nodejs:6"
     } else if ext == ".py" {

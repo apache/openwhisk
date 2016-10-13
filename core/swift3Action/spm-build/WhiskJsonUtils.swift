@@ -47,7 +47,7 @@ class WhiskJsonUtils {
     class func jsonDataToArray(jsonData: Data) -> [Any]? {
         do {
             let arr = try JSONSerialization.jsonObject(with: jsonData, options: [])
-            return (arr as! [Any])
+            return (arr as? [Any])
         } catch {
             print("Error converting json data to dictionary \(error)")
             return nil
@@ -57,7 +57,7 @@ class WhiskJsonUtils {
     class func jsonDataToDictionary(jsonData: Data) -> [String:Any]? {
         do {
             let dic = try JSONSerialization.jsonObject(with: jsonData, options: [])
-            return dic as! [String:Any]
+            return dic as? [String:Any]
         } catch {
             print("Error converting json data to dictionary \(error)")
             return nil
@@ -67,13 +67,18 @@ class WhiskJsonUtils {
     // use SwiftyJSON to serialize JSON object because of bug in Linux Swift 3.0
     // https://github.com/IBM-Swift/SwiftRuntime/issues/230
     class func dictionaryToJsonString(jsonDict: [String:Any]) -> String? {
-        let json: JSON = JSON(jsonDict)
         
-        if let jsonStr = json.rawString() {
-            var trimmed = jsonStr.replacingOccurrences(of: "\n", with: "")
-            return trimmed
+        if let escapedDict = escape(json: jsonDict) {
+            let json: JSON = JSON(escapedDict)
+            if let jsonStr = json.rawString() {
+                let trimmed = jsonStr.replacingOccurrences(of: "\n", with: "").replacingOccurrences(of: "\r", with: "")
+                return trimmed
+            } else {
+                print("Could not convert dictionary \(jsonDict) to JSON")
+                return nil
+            }
         } else {
-            print("Could not convert dictionary \(jsonDict) to JSON")
+            print("Escaping dictionary failed, returning nil")
             return nil
         }
     }
@@ -94,7 +99,8 @@ class WhiskJsonUtils {
         let json: JSON = JSON(jsonArray)
         
         if let jsonStr = json.rawString() {
-            return jsonStr
+            let trimmed = jsonStr.replacingOccurrences(of: "\n", with: "").replacingOccurrences(of: "\r", with: "")
+            return trimmed
         } else {
             return nil
         }
@@ -111,4 +117,56 @@ class WhiskJsonUtils {
             return nil
         }
     }
+    
+    private class func escapeDict(json: [String:Any]) -> [String:Any] {
+        var escaped = [String:Any]()
+        
+        for (k,v) in json {
+            if v is String {
+                let str = (v as! String).replacingOccurrences(of:"\"", with:"\\\"")
+                escaped[k] = str
+            } else if v is [String:Any] {
+                escaped[k] = escapeDict(json: v as! [String : Any])
+            } else if v is [Any] {
+                escaped[k] = escapeArray(json: v as! [Any])
+            } else {
+                escaped[k] = v
+            }
+        }
+        return escaped
+    }
+    
+    private class func escapeArray(json: [Any]) -> [Any] {
+        var escaped = [Any]()
+        
+        for v in json {
+            if v is String {
+                let str = (v as! String).replacingOccurrences(of:"\"", with:"\\\"")
+                escaped.append(str)
+            } else if v is [String:Any] {
+                let dic = escapeDict(json: v as! [String:Any])
+                escaped.append(dic)
+            } else if v is [Any] {
+                let arr = escapeArray(json: v as! [Any])
+                escaped.append(arr)
+            } else {
+                escaped.append(v)
+            }
+        }
+        
+        return escaped
+    }
+    
+    private class func escape(json: Any) -> Any? {
+        if json is [String:Any] {
+            let escapeObj = json as! [String:Any]
+            return escapeDict(json: escapeObj)
+        } else if json is [Any] {
+            let escapeObj = json as! [Any]
+            return escapeArray(json: escapeObj)
+        } else {
+            return nil
+        }
+    }
+    
 }
