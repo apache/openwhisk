@@ -71,8 +71,12 @@ class Swift3ActionContainerTests extends SwiftActionContainerTests {
                 |                   HTTP.get(url, callback: { response in
                 |                       if let response = response {
                 |                           do {
-                |                               if let str = try response.readString() {
-                |                                   resp["serverResp"] = str
+                |                               var jsonData = Data()
+                |                               try response.readAllData(into: &jsonData)
+                |                               if let dic = WhiskJsonUtils.jsonDataToDictionary(jsonData: jsonData) {
+                |                                   resp = dic
+                |                               } else {
+                |                                   resp = ["error":"response from server is not JSON"]
                 |                               }
                 |                           } catch {
                 |                              resp["error"] = error.localizedDescription

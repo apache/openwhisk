@@ -30,7 +30,7 @@ import Foundation
 func _whisk_json2dict(txt: String) -> [String:Any]? {
     if let data = txt.data(using: String.Encoding.utf8, allowLossyConversion: true) {
         do {
-            return try JSONSerialization.jsonObject(with: data) as? [String:Any]
+            return WhiskJsonUtils.jsonDataToDictionary(jsonData: data)
         } catch {
             return nil
         }
@@ -49,14 +49,19 @@ func _run_main() -> Void {
         
         if result is [String:Any] {
             do {
-                let resp = try JSONSerialization.data(withJSONObject: result, options: [])
-                
-                if let string = String(data: resp, encoding: String.Encoding.utf8) {
-                    // send response to stdout
-                    print("\(string)")
+                if let respString = WhiskJsonUtils.dictionaryToJsonString(jsonDict: result) {
+                    print("\(respString)")
+                } else {
+                    print("Error converting \(result) to JSON string")
+                    #if os(Linux)
+                        fputs("Error converting \(result) to JSON string", stderr)
+                    #endif
                 }
             } catch {
                 print("Error serializing response \(error)")
+                #if os(Linux)
+                    fputs("Error serializing response \(error)", stderr)
+                #endif
             }
         } else {
             print("Cannot serialize response: \(result)")
@@ -66,6 +71,9 @@ func _run_main() -> Void {
         }
     } else {
         print("Error: couldn't parse JSON input.")
+        #if os(Linux)
+            fputs("Error: couldn't parse JSON input.", stderr)
+        #endif
     }
 }
 
