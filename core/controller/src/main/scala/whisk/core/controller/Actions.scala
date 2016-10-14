@@ -657,7 +657,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
             // resolve the action document id (if it's in a package/binding);
             // this assumes that entityStore is the same for actions and packages
             WhiskAction.resolveAction(entityStore, sequenceAction) flatMap { resolvedSeq =>
-                val atomicActionCnt = countAtomicActionsAndCheckCycle(resolvedSeq, resolvedSeq, components)
+                val atomicActionCnt = countAtomicActionsAndCheckCycle(resolvedSeq, components)
                 atomicActionCnt flatMap { count =>
                     info(this, s"sequence '$sequenceAction' atomic action count $count")
                     if (count > actionSequenceLimit) {
@@ -677,13 +677,15 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
     }
 
     /**
-     * Counts the number of atomic actions in a sequence and checks for potential cycles.
+     * Counts the number of atomic actions in a sequence and checks for potential cycles. The latter is done
+     * by inlining any sequence components that are themselves sequences and checking if there if a reference to
+     * the given original sequence.
+     *
      * @param origSequence the original sequence that is updated/created which generated the checks
-     * @param sequence the current sequence in the traversal
-     * @param the components of the current sequence
-     * @return Future with the number of atomic actions in the current sequence
+     * @param the components of the a sequence to check if they reference the original sequence
+     * @return Future with the number of atomic actions in the current sequence or an appropriate error if there is a cycle or a non-existent action reference
      */
-    private def countAtomicActionsAndCheckCycle(origSequence: FullyQualifiedEntityName, sequence: FullyQualifiedEntityName, components: Vector[FullyQualifiedEntityName])(
+    private def countAtomicActionsAndCheckCycle(origSequence: FullyQualifiedEntityName, components: Vector[FullyQualifiedEntityName])(
         implicit transid: TransactionId): Future[Int] = {
         if (components.size > actionSequenceLimit) {
             Future.failed(TooManyActionsInSequence())
@@ -691,22 +693,23 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
             // resolve components wrt any package bindings
             val resolvedComponentsFutures = components map { c => WhiskAction.resolveAction(entityStore, c) }
             // traverse the sequence structure by checking each of its components and do the following:
-            // 1. check for cycles by checking whether any action (sequence or not) referred by the sequence (directly or indirectly)
-            // is the same as the original sequence (aka origSequence)
-            // 2. count the atomic actions each component has ("inlining" all sequences)
+            // 1. check whether any action (sequence or not) referred by the sequence (directly or indirectly)
+            //    is the same as the original sequence (aka origSequence)
+            // 2. count the atomic actions each component has (by "inlining" all sequences)
             val actionCountsFutures = resolvedComponentsFutures map {
                 _ flatMap { resolvedComponent =>
                     // check whether this component is the same as origSequence
                     // this can happen when updating an atomic action to become a sequence
-                    if (origSequence.equals(resolvedComponent)) {
+                    if (origSequence == resolvedComponent) {
                         Future failed SequenceWithCycle()
                     } else {
                         // check whether component is a sequence or an atomic action
+                        // if the component does not exist, the future will fail with appropriate error
                         WhiskAction.get(entityStore, resolvedComponent.toDocId) flatMap { wskComponent =>
                             wskComponent.exec match {
                                 case SequenceExec(_, seqComponents) =>
                                     // sequence action, count the number of atomic actions in this sequence
-                                    countAtomicActionsAndCheckCycle(origSequence, resolvedComponent, seqComponents)
+                                    countAtomicActionsAndCheckCycle(origSequence, seqComponents)
                                 case _ => Future successful 1 // atomic action count is one
                             }
                         }
