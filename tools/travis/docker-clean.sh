@@ -2,6 +2,6 @@
 #!/bin/bash
 
 echo "Cleaning Docker containers ..."
-docker ps -aq | xargs docker stop | xargs docker rm
+(docker ps -aq | xargs docker stop | xargs docker rm ) || echo "continue ... "
 echo "Cleaning dangling Docker volumes ..."
-docker volume ls -qf dangling=true | xargs docker volume rm
+(docker volume ls -qf dangling=true | xargs docker volume rm) || echo "continue ... "
