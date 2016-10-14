@@ -113,7 +113,9 @@ hello-world: create-hello-world-function
 	$(WSK_CLI) -i action create hello hello.js
 
 	echo "$$(tput setaf 4)invoking the function ...$$(tput sgr0)"
-	($(WSK_CLI) -i action invoke hello --blocking --result | grep "Hello, World") || exit 1
+	res=`$(WSK_CLI) -i action invoke hello --blocking --result` \
+	    && echo "invokation result:" $$res \
+	    && (echo $$res | grep "Hello, World") || ($(WSK_CLI) -i action delete hello && exit 1)
 
 	echo "$$(tput setaf 1)deleting the function ...$$(tput sgr0)"
 	$(WSK_CLI) -i action delete hello
