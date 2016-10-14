@@ -24,8 +24,10 @@ install: true
 before_install:
   - ./tools/travis/setup.sh
   - ./tools/travis/setup-docker-compose.sh
+  - ./tools/travis/docker-clean.sh
 
 script:
   - ./tools/travis/build.sh
   - ./tools/travis/box-upload.py "/home/travis/build/openwhisk/openwhisk/logs" "$TRAVIS_BUILD_ID-$TRAVIS_BRANCH.tar.gz"
+  - ./tools/travis/docker-clean.sh
   - ./tools/travis/build-docker-compose.sh
