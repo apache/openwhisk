@@ -10,7 +10,7 @@ if [ "${version_exists}" == "false" ]
 then
     echo "Installing Docker Compose ${DOCKER_COMPOSE_VERSION}"
     sudo rm /usr/local/bin/docker-compose
-    curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose
-    chmod +x /usr/local/bin/docker-compose
+    sudo curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose
+    sudo chmod +x /usr/local/bin/docker-compose
 fi
 echo "Docker Compose Version:" `docker-compose --version`
