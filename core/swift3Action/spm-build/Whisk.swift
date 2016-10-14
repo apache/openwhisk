@@ -120,8 +120,27 @@ class Whisk {
                     var jsonData = Data()
                     try response!.readAllData(into: &jsonData)
                     
-                    let resp = try JSONSerialization.jsonObject(with: jsonData, options: [])
-                    callback(resp as! [String:Any])
+                    //let resp = try JSONSerialization.jsonObject(with: jsonData, options: [])
+                    //callback(resp as! [String:Any])
+                    
+                    switch WhiskJsonUtils.getJsonType(jsonData: jsonData) {
+                    case .Dictionary:
+                        if let resp = WhiskJsonUtils.jsonDataToDictionary(jsonData: jsonData) {
+                            callback(resp)
+                        } else {
+                            callback(["error": "Could not parse a valid JSON response."])
+                            
+                        }
+                    case .Array:
+                        if let resp = WhiskJsonUtils.jsonDataToArray(jsonData: jsonData) {
+                            callback(["error": "Response is an array, expecting dictionary."])
+                        } else {
+                            callback(["error": "Could not parse a valid JSON response."])
+                            
+                        }
+                    case .Undefined:
+                        callback(["error": "Could not parse a valid JSON response."])
+                    }
                 } catch {
                     callback(["error": "Could not parse a valid JSON response."])
                 }
@@ -130,20 +149,14 @@ class Whisk {
             }
         }
         
-        do {
-            //#if os(OSX)
-                let jsonData = try JSONSerialization.data(withJSONObject: params as! [String:AnyObject], options: [])
-            //#elseif os(Linux)
-            //    let jsonData = try JSONSerialization.data(withJSONObject: params, options: [])
-            //#endif
-            
-            print(jsonData)
-            
+        // turn params into JSON data
+        if let jsonData = WhiskJsonUtils.dictionaryToJsonString(jsonDict: params) {
             request.write(from: jsonData)
             request.end()
-        } catch {
+        } else {
             callback(["error": "Could not parse parameters."])
         }
+        
     }
     
     // separate an OpenWhisk qualified name (e.g. "/whisk.system/samples/date")
@@ -162,4 +175,6 @@ class Whisk {
             return (defaultNamespace, name)
         }
     }
+    
+    
 }

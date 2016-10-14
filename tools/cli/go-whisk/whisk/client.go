@@ -67,7 +67,7 @@ func NewClient(httpClient *http.Client, config *Config) (*Client, error) {
 
     // Disable certificate checking in the dev environment if in insecure mode
     if config.Insecure {
-        Debug(DbgInfo, "Disabling certificate checking.")
+        Debug(DbgInfo, "Disabling certificate checking.\n")
 
         tlsConfig := &tls.Config{
             InsecureSkipVerify: true,
@@ -86,7 +86,7 @@ func NewClient(httpClient *http.Client, config *Config) (*Client, error) {
     if config.BaseURL == nil {
         config.BaseURL, err = url.Parse(defaultBaseURL)
         if err != nil {
-            Debug(DbgError, "url.Parse(%s) error: %s", defaultBaseURL, err)
+            Debug(DbgError, "url.Parse(%s) error: %s\n", defaultBaseURL, err)
             errStr := wski18n.T("Unable to create request URL '{{.url}}': {{.err}}",
                 map[string]interface{}{"url": defaultBaseURL, "err": err})
             werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)

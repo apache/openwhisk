@@ -66,13 +66,16 @@ class SwiftActionContainerTests extends BasicActionRunnerTests with WskActorSyst
 
     behavior of swiftContainerImageName
 
-    testNotReturningJson(
+    // remove this test: it will not even compile under Swift 3 anymore
+    // so it should not be possible to write an action that does not return
+    // a [String:Any]
+    /*testNotReturningJson(
         """
         |func main(args: [String: Any]) -> String {
         |    return "not a json object"
         |}
         """.stripMargin)
-
+    */
     testEcho(Seq {
         ("swift", """
          |import Glibc

@@ -238,6 +238,26 @@ class WskBasicTests
             }
     }
 
+    it should "create, and invoke an action using a parameter file" in withAssetCleaner(wskprops) {
+        val name = "paramFileAction"
+        val file = Some(TestUtils.getTestActionFilename("argCheck.js"))
+        val argInput = Some(TestUtils.getTestActionFilename("validInput2.json"))
+
+        (wp, assetHelper) =>
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, file)
+            }
+
+            val expectedOutput = JsObject(
+                "payload" -> JsString("test")
+            )
+            val run = wsk.action.invoke(name, parameterFile = argInput)
+            withActivation(wsk.activation, run) {
+                activation =>
+                    activation.response.result shouldBe Some(expectedOutput)
+            }
+    }
+
     /**
      * Tests creating an action from a malformed js file. This should fail in
      * some way - preferably when trying to create the action. If not, then
@@ -392,6 +412,27 @@ class WskBasicTests
             }
 
             res.stdout should include regex(s"ok: created trigger $name")
+    }
+
+    it should "create, and fire a trigger using a parameter file" in withAssetCleaner(wskprops) {
+        val name = "paramFileTrigger"
+        val file = Some(TestUtils.getTestActionFilename("argCheck.js"))
+        val argInput = Some(TestUtils.getTestActionFilename("validInput2.json"))
+
+        (wp, assetHelper) =>
+            assetHelper.withCleaner(wsk.trigger, name) {
+                (trigger, _) =>
+                    trigger.create(name)
+            }
+
+            val expectedOutput = JsObject(
+                    "payload" -> JsString("test")
+            )
+            val run = wsk.trigger.fire(name, parameterFile = argInput)
+            withActivation(wsk.activation, run) {
+                activation =>
+                    activation.response.result shouldBe Some(expectedOutput)
+            }
     }
 
     behavior of "Wsk Rule CLI"

@@ -1,19 +1,16 @@
 ---
 # This role installs invokers.
 
-- set_fact:
-     imagesToPull:
-      - '{{ docker_image_prefix }}/invoker'
-      - '{{ docker_image_prefix }}/nodejsaction'
-      - '{{ docker_image_prefix }}/nodejs6action'
-      - '{{ docker_image_prefix }}/pythonaction'
-      - '{{ docker_image_prefix }}/swiftaction'
-      - '{{ docker_image_prefix }}/swift3action'
-      - '{{ docker_image_prefix }}/javaaction'
-
 - name: "pull action images with tag {{docker_image_tag}}"
   shell: "docker pull {{docker_registry}}{{item}}:{{docker_image_tag}}"
-  with_items: "{{imagesToPull}}"
+  with_items:
+    - '{{ docker_image_prefix }}/invoker'
+    - '{{ docker_image_prefix }}/nodejsaction'
+    - '{{ docker_image_prefix }}/nodejs6action'
+    - '{{ docker_image_prefix }}/pythonaction'
+    - '{{ docker_image_prefix }}/swiftaction'
+    - '{{ docker_image_prefix }}/swift3action'
+    - '{{ docker_image_prefix }}/javaaction'
   when: docker_registry != ""
 
 - name: (re)start invoker

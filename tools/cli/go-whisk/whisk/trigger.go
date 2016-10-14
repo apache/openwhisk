@@ -20,7 +20,6 @@ import (
     "fmt"
     "net/http"
     "errors"
-    "encoding/json"
     "net/url"
     "../wski18n"
 )
@@ -35,8 +34,8 @@ type Trigger struct {
     Version   string                `json:"version,omitempty"`
     Publish   bool                  `json:"publish,omitempty"`
     ActivationId string             `json:"activationId,omitempty"`
-    Annotations *json.RawMessage    `json:"annotations,omitempty"`
-    Parameters  *json.RawMessage    `json:"parameters,omitempty"`
+    Annotations KeyValueArr         `json:"annotations,omitempty"`
+    Parameters  KeyValueArr         `json:"parameters,omitempty"`
     //Limits                        `json:"limits,omitempty"`
 }
 
@@ -46,8 +45,8 @@ type TriggerFromServer struct {
     Version   string                `json:"version"`
     Publish   bool                  `json:"publish"`
     ActivationId string             `json:"activationId,omitempty"`
-    Annotations *json.RawMessage    `json:"annotations"`
-    Parameters  *json.RawMessage    `json:"parameters"`
+    Annotations KeyValueArr         `json:"annotations"`
+    Parameters  KeyValueArr         `json:"parameters"`
     Limits                          `json:"limits"`
 }
 
@@ -174,7 +173,7 @@ func (s *TriggerService) Delete(triggerName string) (*TriggerFromServer, *http.R
     return t, resp, nil
 }
 
-func (s *TriggerService) Fire(triggerName string, payload *json.RawMessage) (*TriggerFromServer, *http.Response, error) {
+func (s *TriggerService) Fire(triggerName string, payload interface{}) (*TriggerFromServer, *http.Response, error) {
     // Encode resource name as a path (with no query params) before inserting it into the URI
     // This way any '?' chars in the name won't be treated as the beginning of the query params
     triggerName = (&url.URL{Path: triggerName}).String()
