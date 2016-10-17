@@ -558,13 +558,27 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
         return nil, sharedSet, err
       }
     } else {
-      whisk.Debug(whisk.DbgError, "Action runtime extension '%s' is not supported\n", ext)
-      errMsg := fmt.Sprintf(
-        wski18n.T("'{{.name}}' is not a supported action runtime",
-          map[string]interface{}{"name": ext}))
+      errMsg := ""
+      if ext == ".zip" {
+        // This point is reached if the extension was .zip and the kind was not specifically set to nodejs:*.
+        whisk.Debug(whisk.DbgError, "The extension .zip is only supported with an explicit kind flag\n", ext)
+        errMsg = wski18n.T("creating an action from a .zip artifact requires specifying the action kind explicitly")
+      } else {
+        whisk.Debug(whisk.DbgError, "Action runtime extension '%s' is not supported\n", ext)
+        errMsg = fmt.Sprintf(
+          wski18n.T("'{{.name}}' is not a supported action runtime",
+            map[string]interface{}{"name": ext}))
+      }
       whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG,
         whisk.DISPLAY_USAGE)
       return nil, sharedSet, whiskErr
+    }
+
+    // For zip-encoded NodeJS action, the code needs to be base64-encoded.
+    // We reach this point if the kind has already be determined. Since the extension is not js,
+    // this means the kind was specified explicitly.
+    if ext == ".zip" && strings.HasPrefix(action.Exec.Kind, "nodejs") {
+      action.Exec.Code = base64.StdEncoding.EncodeToString([]byte(action.Exec.Code))
     }
   }
 
