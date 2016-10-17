@@ -24,7 +24,6 @@ import spray.json.DefaultJsonProtocol._
 import spray.json._
 import whisk.common.ConsulClient
 import whisk.common.ConsulKV.ControllerKeys
-import whisk.common.ConsulKV.InvokerKeys
 import whisk.common.Logging
 import whisk.common.Scheduler
 import whisk.core.entity.Subject
@@ -67,26 +66,6 @@ class ActivationThrottler(consulServer: String, loadBalancer: LoadBalancer, conc
     def isOverloaded = userActivationCounter.values.sum > systemOverloadLimit
 
     /**
-     * Returns the per-namespace activation count as seen by all invokers combined.
-     *
-     * @returns a map where each namespace maps to the activations for it counted
-     *     by all the invokers combined
-     */
-    private def getInvokerActivationCount(): Future[Map[String, Long]] =
-        consul.kv.getRecurse(InvokerKeys.allInvokersData) map { rawMaps =>
-            val activationCountPerInvoker = rawMaps map {
-                case (_, users) => users.parseJson.convertTo[Map[String, Long]]
-            }
-
-            // merge all maps and sum values with identical keys
-            activationCountPerInvoker.foldLeft(Map[String, Long]()) { (a, b) =>
-                (a.keySet ++ b.keySet).map { k =>
-                    (k, a.getOrElse(k, 0L) + b.getOrElse(k, 0L))
-                }.toMap
-            }
-        }
-
-    /**
      * Publish into Consul KV values showing the controller's view
      * of concurrent activations on a per-user basis.
      */
@@ -100,17 +79,7 @@ class ActivationThrottler(consulServer: String, loadBalancer: LoadBalancer, conc
     }
 
     Scheduler.scheduleWaitAtLeast(healthCheckInterval) { () =>
-        val loadbalancerActivationCount = loadBalancer.getIssuedUserActivationCounts
-        debug(this, s"loadbalancerActivationCount = $loadbalancerActivationCount")
-        getInvokerActivationCount() map { invokerActivationCount =>
-            debug(this, s"invokerActivationCount = $invokerActivationCount")
-            userActivationCounter = invokerActivationCount map {
-                case (subject, invokerCount) =>
-                    val loadbalancerCount = loadbalancerActivationCount(subject)
-                    subject -> (loadbalancerCount - invokerCount)
-            }
-            debug(this, s"userActivationCounter = $userActivationCounter")
-        }
+        userActivationCounter = loadBalancer.getActiveUserActivationCounts
         publishUserConcurrentActivation()
     }
 

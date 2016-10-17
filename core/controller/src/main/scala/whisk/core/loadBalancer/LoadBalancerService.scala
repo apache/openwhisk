@@ -61,6 +61,13 @@ trait LoadBalancer {
     def getIssuedUserActivationCounts: Map[String, Long]
 
     /**
+     * Retrieves a per subject map of counts representing in-flight activations as seen by the load balancer
+     *
+     * @return a map where the key is the subject and the long is total issued activations by that user
+     */
+    def getActiveUserActivationCounts: Map[String, Long]
+
+    /**
      * Publishes activation message on internal bus for the invoker to pick up.
      *
      * @param msg the activation message to publish on an invoker topic
@@ -106,6 +113,13 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
     override def getIssuedUserActivationCounts: Map[String, Long] = userActivationCounter.toMap mapValues { _.cur }
 
     /**
+     * Retrieves a per subject map of counts representing in-flight activations as seen by the load balancer
+     *
+     * @return a map where the key is the subject and the long is total issued activations by that user
+     */
+    override def getActiveUserActivationCounts: Map[String, Long] = activationBySubject.toMap mapValues { _.size.toLong }
+
+    /**
      * Publishes message on kafka bus for the invoker to pick up.
      *
      * @param msg the activation message to publish on an invoker topic
@@ -143,10 +157,10 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
      * The promise value represents the obligation of writing the answer back.
      */
     case class ActivationEntry(id: ActivationId, subject: String, invokerIndex: Int, created: Instant, promise: Promise[WhiskActivation])
-    type ActivationSet = TrieMap[ActivationEntry, Unit]
+    type TrieSet[T] = TrieMap[T, Unit]
     private val activationById = new TrieMap[ActivationId, ActivationEntry]
-    private val activationByInvoker = new TrieMap[Int, ActivationSet]
-    private val activationBySubject = new TrieMap[String, ActivationSet]
+    private val activationByInvoker = new TrieMap[Int, TrieSet[ActivationEntry]]
+    private val activationBySubject = new TrieMap[String, TrieSet[ActivationEntry]]
 
     private val kv = new ConsulClient(config.consulServer)
     private val reporter = new ConsulKVReporter(kv, 3 seconds, 2 seconds,
@@ -198,8 +212,8 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
         val response = msg.response
         activationById.remove(aid) match {
             case Some(entry @ ActivationEntry(_, subject, invokerIndex, _, p)) =>
-                activationByInvoker.getOrElseUpdate(invokerIndex, new ActivationSet).remove(entry)
-                activationBySubject.getOrElseUpdate(subject, new ActivationSet).remove(entry)
+                activationByInvoker.getOrElseUpdate(invokerIndex, new TrieSet[ActivationEntry]).remove(entry)
+                activationBySubject.getOrElseUpdate(subject, new TrieSet[ActivationEntry]).remove(entry)
                 p.trySuccess(response)
                 info(this, s"processed active response for '$aid'")
             case None =>
@@ -225,8 +239,8 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
             }
             ActivationEntry(activationId, subject, invokerIndex, Instant.now(Clock.systemUTC()), promise)
         })
-        activationByInvoker.getOrElseUpdate(invokerIndex, new ActivationSet).put(entry, {})
-        activationBySubject.getOrElseUpdate(subject, new ActivationSet).put(entry, {})
+        activationByInvoker.getOrElseUpdate(invokerIndex, new TrieSet[ActivationEntry]).put(entry, {})
+        activationBySubject.getOrElseUpdate(subject, new TrieSet[ActivationEntry]).put(entry, {})
         entry
     }
 
@@ -236,11 +250,11 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
     private def invokerChangeCallback(invokerIndices: Array[Int]) = {
         invokerIndices.foreach { index =>
             invokerActivationCounter(index) = new Counter()
-            val actSet = activationByInvoker.getOrElseUpdate(index, new ActivationSet)
-            actSet.keySet map { case ActivationEntry(activationId, subject, _, _, promise) =>
-                promise.tryFailure(new ActiveAckTimeout(activationId))
+            val actSet = activationByInvoker.getOrElseUpdate(index, new TrieSet[ActivationEntry])
+            actSet.keySet map { case actEntry @ ActivationEntry(activationId, subject, invokerIndex, _, promise) =>
+                promise.tryFailure(new LoadBalancerException(s"Invoker $invokerIndex restarted"))
                 activationById.remove(activationId)
-                activationBySubject.remove(subject)
+                activationBySubject.get(subject) map { _.remove(actEntry) }
             }
             actSet.clear()
         }
