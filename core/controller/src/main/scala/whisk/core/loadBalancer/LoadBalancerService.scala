@@ -53,12 +53,6 @@ import whisk.core.entity.ActivationId
 import whisk.core.entity.WhiskActivation
 
 trait LoadBalancer {
-    /**
-     * Retrieves a snapshot of activation counts issued per subject by load balancer
-     *
-     * @return a map where the key is the subject and the long is total issued activations by that user
-     */
-    def getIssuedUserActivationCounts: Map[String, Long]
 
     /**
      * Retrieves a per subject map of counts representing in-flight activations as seen by the load balancer
@@ -104,13 +98,6 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
      * @return index of invoker to receive request
      */
     def getInvoker(message: ActivationMessage): Option[Int] = invokerHealth.getInvoker(message)
-
-    /**
-     * Retrieves a snapshot of activation counts issued per subject by load balancer
-     *
-     * @return a map where the key is the subject and the long is total issued activations by that user
-     */
-    override def getIssuedUserActivationCounts: Map[String, Long] = userActivationCounter.toMap mapValues { _.cur }
 
     /**
      * Retrieves a per subject map of counts representing in-flight activations as seen by the load balancer
