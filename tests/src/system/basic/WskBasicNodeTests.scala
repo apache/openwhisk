@@ -23,6 +23,7 @@ import org.scalatest.junit.JUnitRunner
 import common.JsHelpers
 import common.TestHelpers
 import common.TestUtils
+import common.TestUtils.ANY_ERROR_EXIT
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
@@ -62,10 +63,42 @@ class WskBasicNodeTests
             }
     }
 
+    it should "Ensure that zipped actions are encoded and uploaded as NodeJS actions" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "zippedNpmAction"
+            val file = Some(TestUtils.getTestActionFilename("zippedaction.zip"))
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) =>
+                    action.create(name, file, kind = Some("nodejs:default"))
+            }
+
+            withActivation(wsk.activation, wsk.action.invoke(name)) {
+                activation =>
+                    val response = activation.response
+                    response.result.get.fields.get("error") shouldBe empty
+                    response.result.get.fields.get("author") shouldBe defined
+            }
+    }
+
+    it should "Ensure that zipped actions cannot be created without a kind specified" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "zippedNpmActionWithNoKindSpecified"
+            val file = Some(TestUtils.getTestActionFilename("zippedaction.zip"))
+
+            val createResult = assetHelper.withCleaner(wsk.action, name, confirmDelete = false) {
+                (action, _) =>
+                    action.create(name, file, expectedExitCode = ANY_ERROR_EXIT)
+            }
+
+            val output = s"${createResult.stdout}\n${createResult.stderr}"
+
+            output should include("kind")
+    }
+
     it should "Ensure that JS actions created with no explicit kind use the current default NodeJS runtime" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "jsWithNoKindSpecified"
-            val file = Some(TestUtils.getTestActionFilename("hello.js"))
 
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) =>

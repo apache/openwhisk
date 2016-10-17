@@ -864,6 +864,10 @@
     "translation": "'{{.name}}' is not a supported action runtime"
   },
   {
+    "id": "creating an action from a .zip artifact requires specifying the action kind explicitly",
+    "translation": "creating an action from a .zip artifact requires specifying the action kind explicitly"
+  },
+  {
     "id": "treat ACTION as docker image path on dockerhub",
     "translation": "treat ACTION as docker image path on dockerhub"
   },
