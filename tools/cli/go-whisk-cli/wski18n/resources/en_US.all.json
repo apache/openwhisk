@@ -1132,6 +1132,18 @@
     "translation": "An API path, an API verb, and an action name are required."
   },
   {
+    "id": "An API path and an API verb are required.",
+    "translation": "An API path and an API verb are required."
+  },
+  {
+    "id":"'{{.name}}' is not a valid action name: {{.err}}",
+    "translation": "'{{.name}}' is not a valid action name: {{.err}}"
+  },
+  {
+    "id":"'{{.name}}' is not a valid action name.",
+    "translation": "'{{.name}}' is not a valid action name."
+  },
+  {
     "id": "Unable to create api: {{.err}}",
     "translation": "Unable to create api: {{.err}}"
   },
@@ -1200,11 +1212,19 @@
     "translation": "`ACTION` to invoke when API is called"
   },
   {
-    "id": "relative `PATH` of API",
-    "translation": "relative `PATH` of API"
+    "id": "relative `API_PATH` of API",
+    "translation": "relative `API_PATH` of API"
   },
   {
-    "id": "API `VERB`",
-    "translation": "API `VERB`"
+    "id": "API `API_VERB`",
+    "translation": "API `API_VERB`"
+  },
+  {
+    "id": "API collection `NAME` (default NAMESPACE)",
+    "translation": "API collection `NAME` (default NAMESPACE)"
+  },
+  {
+    "id": "The API `BASE_PATH` to which the API_PATH is relative",
+    "translation": "The API `BASE_PATH` to which the API_PATH is relative"
   }
 ]

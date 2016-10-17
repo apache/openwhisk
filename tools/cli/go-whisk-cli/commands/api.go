@@ -79,7 +79,7 @@ var apiCreateCmd = &cobra.Command{
                     "ok": color.GreenString("ok:"),
                     "path": api.GatewayRelPath,
                     "verb": api.GatewayMethod,
-                    "name": boldString(api.ActionName),
+                    "name": boldString(api.Action.Name),
                     "fullpath": retApi.GatewayFullPath,
                 }))
         return nil
@@ -127,7 +127,7 @@ var apiUpdateCmd = &cobra.Command{
                     "ok": color.GreenString("ok:"),
                     "path": api.GatewayRelPath,
                     "verb": api.GatewayMethod,
-                    "name": boldString(api.ActionName),
+                    "name": boldString(api.Action.Name),
                     "fullpath": retApi.GatewayFullPath,
                 }))
         return nil
@@ -135,7 +135,7 @@ var apiUpdateCmd = &cobra.Command{
 }
 
 var apiGetCmd = &cobra.Command{
-    Use:           "get API_PATH API_VERB ACTION",
+    Use:           "get API_PATH API_VERB",
     Short:         wski18n.T("get API"),
     SilenceUsage:  true,
     SilenceErrors: true,
@@ -143,8 +143,8 @@ var apiGetCmd = &cobra.Command{
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
 
-        if whiskErr := checkArgs(args, 3, 3, "Api get",
-            wski18n.T("An API path, an API verb, and an action name are required.")); whiskErr != nil {
+        if whiskErr := checkArgs(args, 2, 2, "Api get",
+            wski18n.T("An API path and an API verb are required.")); whiskErr != nil {
             return whiskErr
         }
 
@@ -278,10 +278,12 @@ var apiListCmd = &cobra.Command{
 /*
  * args[0] = API relative path
  * args[1] = API verb
- * args[2] = action name (may or may not be qualified with namespace and package name)
+ * args[2] = Optional.  Action name (may or may not be qualified with namespace and package name)
  */
 func parseApi(cmd *cobra.Command, args []string) (*whisk.Api, error) {
     var err error
+    var basepath string = "/"
+    var apiname string = "/"
 
     // Is the API path valid?
     // FIXME MWD - Add check
@@ -291,29 +293,53 @@ func parseApi(cmd *cobra.Command, args []string) (*whisk.Api, error) {
         return nil, whiskErr
     }
 
-    // Is the action name valid?
+    // Is the specified action name valid?
     // FIXME MWD - validate action exists??
-    qName := qualifiedName{}
-    qName, err = parseQualifiedName(args[2])
-    if err != nil {
-        whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[0], err)
-        errMsg := fmt.Sprintf(
-            wski18n.T("'{{.name}}' is not a valid qualified name: {{.err}}",
-                map[string]interface{}{"name": args[0], "err": err}))
-        whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-            whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-        return nil, whiskErr
+    var qName qualifiedName
+    if (len(args) == 3) {
+        qName = qualifiedName{}
+        qName, err = parseQualifiedName(args[2])
+        if err != nil {
+            whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[2], err)
+            errMsg := fmt.Sprintf(
+                wski18n.T("''{{.name}}' is not a valid action name: {{.err}}",
+                    map[string]interface{}{"name": args[2], "err": err}))
+            whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+                whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            return nil, whiskErr
+        }
+        if (qName.entityName == "") {
+            whisk.Debug(whisk.DbgError, "Action name '%s' is invalid\n", args[2])
+            errMsg := fmt.Sprintf(
+                wski18n.T("'{{.name}}' is not a valid action name.",
+                    map[string]interface{}{"name": args[2]}))
+            whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+                whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            return nil, whiskErr
+        }
     }
-    client.Namespace = qName.namespace
+
+    if ( len(flags.api.apiname) > 0 ) {
+        apiname = flags.api.apiname
+    }
+
+    if ( len(flags.api.basepath) > 0 ) {
+        basepath = flags.api.basepath
+    }
 
     api := new(whisk.Api)
     api.Namespace = client.Config.Namespace
-    api.GatewayRelPath = args[0]
-    api.GatewayMethod = args[1]
-    api.BackendUrl = "https://" + client.Config.AuthToken + "@" + client.Config.Host + "/api/v1/namespaces/" + qName.namespace + "/actions/" + qName.entityName + "?blocking=true"
-    api.BackendMethod = "post"
-    api.ActionName = qName.entityName
-    api.Id = api.Namespace+":"+api.GatewayMethod+":"+api.GatewayRelPath
+    api.GatewayRelPath = args[0]    // Maintain case as URLs may be case-sensitive
+    api.GatewayMethod = strings.ToUpper(args[1])
+    api.Action = new(whisk.ApiAction)
+    api.Action.BackendUrl = "https://" + client.Config.Host + "/api/v1/namespaces/" + qName.namespace + "/actions/" + qName.entityName + "?blocking=true"
+    api.Action.BackendMethod = "POST"
+    api.Action.Name = qName.entityName
+    api.Action.Namespace = qName.namespace
+    api.Action.Auth = client.Config.AuthToken
+    api.ApiName = apiname
+    api.GatewayBasePath = basepath
+    api.Id = api.Namespace+":"+api.GatewayBasePath
 
     whisk.Debug(whisk.DbgInfo, "Parsed api struct: %#v\n", api)
     return api, nil
@@ -341,8 +367,8 @@ func IsValidApiVerb(verb string) (error, bool) {
 
 func init() {
     //apiCreateCmd.Flags().StringVarP(&flags.api.action, "action", "a", "", wski18n.T("`ACTION` to invoke when API is called"))
-    //apiCreateCmd.Flags().StringVarP(&flags.api.path, "path", "p", "", wski18n.T("relative `PATH` of API"))
-    //apiCreateCmd.Flags().StringVarP(&flags.api.verb, "method", "m", "", wski18n.T("API `VERB`"))
+    apiCreateCmd.Flags().StringVarP(&flags.api.apiname, "apiname", "n", "", wski18n.T("API collection `NAME` (default NAMESPACE)"))
+    apiCreateCmd.Flags().StringVarP(&flags.api.basepath, "basepath", "b", "", wski18n.T("The API `BASE_PATH` to which the API_PATH is relative"))
     //
     //apiUpdateCmd.Flags().StringVarP(&flags.api.action, "action", "a", "", wski18n.T("`ACTION` to invoke when API is called"))
     //apiUpdateCmd.Flags().StringVarP(&flags.api.path, "path", "p", "", wski18n.T("relative `PATH` of API"))
@@ -354,8 +380,8 @@ func init() {
     //apiGetCmd.Flags().StringVarP(&flags.api.verb, "method", "m", "", wski18n.T("API `VERB`"))
 
     apiListCmd.Flags().StringVarP(&flags.api.action, "action", "a", "", wski18n.T("`ACTION` to invoke when API is called"))
-    apiListCmd.Flags().StringVarP(&flags.api.path, "path", "p", "", wski18n.T("relative `PATH` of API"))
-    apiListCmd.Flags().StringVarP(&flags.api.verb, "method", "m", "", wski18n.T("API `VERB`"))
+    apiListCmd.Flags().StringVarP(&flags.api.path, "path", "p", "", wski18n.T("relative `API_PATH` of API"))
+    apiListCmd.Flags().StringVarP(&flags.api.verb, "method", "m", "", wski18n.T("API `API_VERB`"))
     apiListCmd.Flags().IntVarP(&flags.common.skip, "skip", "s", 0, wski18n.T("exclude the first `SKIP` number of actions from the result"))
     apiListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, wski18n.T("only return `LIMIT` number of actions from the collection"))
 

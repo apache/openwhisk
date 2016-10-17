@@ -101,7 +101,19 @@ function view_gwapis() {
     }'
 }
 
-
+# routes-by-swagger-path
+#function (doc) {
+#  var PATHSEP = "/";
+#
+#  if (doc.namespace && doc.apidoc && doc.apidoc.paths) {
+#    for (var path in doc.apidoc.paths) {
+#      for (var operation in doc.apidoc.paths[path]) {
+#          //emit([doc.namespace, path], {"gatewayPath":path, "gatewayMethod":operation, "action":doc.action, "route-collection":doc.info.title});
+#          emit([doc.namespace, path], {"apiname": doc.apidoc.info.title, "basepath":doc.apidoc.basePath, "gatewayPath":path, "gatewayMethod":operation, "action":doc.action});
+#      }
+#    }
+#  }
+#}
 
 DB_WHISK_ACTIONS=$(getProperty "$PROPERTIES_FILE" "db.whisk.actions")
 

@@ -33,11 +33,20 @@ type Api struct {
     Namespace       string   `json:"namespace,omitempty"`
     GatewayRelPath  string   `json:"gatewayPath,omitempty"`
     GatewayMethod   string   `json:"gatewayMethod,omitempty"`
-    BackendUrl      string   `json:"backendUrl,omitempty"`
-    BackendMethod   string   `json:"backendMethod,omitempty"`
-    ActionName      string   `json:"action,omitempty"`
     Id              string   `json:"id,omitempty"`
     GatewayFullPath string   `json:"gatewayFullPath,omitempty"`
+    ApiName         string   `json:"apiName,omitempty"`
+    GatewayBasePath string   `json:"gatewayBasePath,omitempty"`
+    ApiDoc          string   `json:"swagger,omitempty"`
+    Action          *ApiAction `json:"action,omitempty"`
+}
+
+type ApiAction struct {
+    Name            string    `json:"name,omitempty"`
+    Namespace       string    `json:"namespace,omitempty"`
+    BackendMethod   string    `json:"backendMethod,omitempty"`
+    BackendUrl      string    `json:"backendUrl,omitempty"`
+    Auth            string    `json:"authkey,omitempty"`
 }
 
 type ApiOptions struct {

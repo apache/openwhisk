@@ -45,17 +45,30 @@ $WSK_CLI -i --apihost "$APIHOST" package update --auth "$AUTH"  --shared no "$NA
 -p protocol $DB_PROTOCOL \
 -p username $DB_USERNAME \
 -p password $DB_PASSWORD \
--p dbname $DB_GWAPI
+-p dbname $DB_GWAPI \
+-p gwUrl "https://api-gw.cumulus.apim.ibmcloud.com"
 
 echo Installing routemgmt actions
 $WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" --shared no "$NAMESPACE/routemgmt/createRoute" "$OPENWHISK_HOME/core/routemgmt/createRoute.js" \
 -a description 'Create an API route'
 
-$WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" --shared no "$NAMESPACE/routemgmt/deleteRoute" "$OPENWHISK_HOME/core/routemgmt/deleteRoute.js" \
--a description 'Delete an API route'
+$WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" --shared no "$NAMESPACE/routemgmt/createApi" "$OPENWHISK_HOME/core/routemgmt/createApi.js" \
+-a description 'Create an API configuration'
 
-$WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" --shared no "$NAMESPACE/routemgmt/getRoute" "$OPENWHISK_HOME/core/routemgmt/getRoute.js" \
--a description 'Retrieve the API route configuration (in JSON format)'
+$WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" --shared no "$NAMESPACE/routemgmt/updateApi" "$OPENWHISK_HOME/core/routemgmt/updateApi.js" \
+-a description 'Update the specified API configuration'
+
+$WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" --shared no "$NAMESPACE/routemgmt/deleteApi" "$OPENWHISK_HOME/core/routemgmt/deleteApi.js" \
+-a description 'Delete the specified API configuration'
+
+$WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" --shared no "$NAMESPACE/routemgmt/getApi" "$OPENWHISK_HOME/core/routemgmt/getApi.js" \
+-a description 'Retrieve the specified API configuration (in JSON format)'
+
+$WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" --shared no "$NAMESPACE/routemgmt/activateApi" "$OPENWHISK_HOME/core/routemgmt/activateApi.js" \
+-a description 'Activate the specified API'
+
+$WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" --shared no "$NAMESPACE/routemgmt/deactivateApi" "$OPENWHISK_HOME/core/routemgmt/deactivateApi.js" \
+-a description 'Deactivate the specified API'
 
 $WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" --shared no "$NAMESPACE/routemgmt/getCollection" "$OPENWHISK_HOME/core/routemgmt/getCollection.js" \
 -a description 'Retrieve all API routes configuration (in JSON format) for the specified collection'
