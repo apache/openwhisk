@@ -100,7 +100,7 @@ class ActivationThrottler(consulServer: String, loadBalancer: LoadBalancer, conc
     }
 
     Scheduler.scheduleWaitAtLeast(healthCheckInterval) { () =>
-        val loadbalancerActivationCount = loadBalancer.getUserActivationCounts
+        val loadbalancerActivationCount = loadBalancer.getIssuedUserActivationCounts
         debug(this, s"loadbalancerActivationCount = $loadbalancerActivationCount")
         getInvokerActivationCount() map { invokerActivationCount =>
             debug(this, s"invokerActivationCount = $invokerActivationCount")
