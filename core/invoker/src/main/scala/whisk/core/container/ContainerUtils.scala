@@ -95,11 +95,11 @@ trait ContainerUtils extends Logging {
     }
 
     def pauseContainer(container: ContainerIdentifier)(implicit transid: TransactionId): DockerOutput = {
-        runDockerCmd(true, Seq("pause", container.id))
+        runDockerCmd("pause", container.id)
     }
 
     def unpauseContainer(container: ContainerIdentifier)(implicit transid: TransactionId): DockerOutput = {
-        runDockerCmd(true, Seq("unpause", container.id))
+        runDockerCmd("unpause", container.id)
     }
 
     /**
