@@ -106,7 +106,9 @@ function main(message) {
     return dbdoc;
   }, function(err) {
     console.error('Got DB error: ', err);
-    if (err.error == "not_found" && err.reason == "missing" && err.headers.statusCode == 404) {
+    // FIXME MWD remove check for 'undefined (undefined)'
+    if ( (err == 'undefined (undefined)') ||
+         (err.error == "not_found" && err.reason == "missing" && err.headers.statusCode == 404)) {
       // No document.  Create an initial one
       console.log('API document not found; creating a new one:', err);
       newDoc = true;
@@ -324,7 +326,7 @@ function addPathToDbApiDoc(dbApiDoc, message) {
             {
               action: 'insert',
               from: {
-                value: 'Base '+message.action.authkey
+                value: 'Basic '+message.action.authkey
               },
               to: {
                 name: 'Authorization',

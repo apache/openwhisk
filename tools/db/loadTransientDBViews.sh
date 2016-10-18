@@ -94,6 +94,9 @@ function view_gwapis() {
         },
         "routes-by-action": {
           "map": "function (doc) {\n  var PATHSEP = \"/\";\n\n  if (doc.action) {\n    emit(doc.action, {\"gatewayMethod\":doc.gatewayMethod, \"gatewayPath\": doc.gatewayPath, \"action\":doc.action, \"route-collection\":doc[\"route-collection\"], \"apidoc\": doc.apidoc });\n  }\n}"
+        },
+        "route-by-ns-bp-rp-op": {
+          "map": "function (doc) {\n  var PATHSEP = \"/\";\n\n  if (doc.namespace && doc.apidoc && doc.apidoc.basePath && doc.apidoc.paths) {\n    for (var path in doc.apidoc.paths) {\n      for (var operation in doc.apidoc.paths[path]) {\n          emit([doc.namespace, doc.apidoc.basePath, path, operation], doc.apidoc.paths[path][operation]);\n      }\n    }\n  }\n}"
         }
       },
       "language": "javascript",

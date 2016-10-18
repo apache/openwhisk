@@ -110,10 +110,11 @@ function main(message) {
       dbApiDoc.gwApiGuid = gwApiResponse.id;
       dbApiDoc.tenantId = tenantGuid;
       dbApiDoc.gwApiActivated = true;
+      console.log('Updatding DB API doc: '+JSON.stringify(dbApiDoc));
       return updateApiDocInDb(cloudantDb, dbApiDoc); })
   .then(function(insertResp) {
       dbUpdated = true;
-      return Promise.resolve(retApi);
+      return Promise.resolve(dbApiDoc);
   })
   .catch(function(reason) {
       // FIXME MWD Possibly need to rollback some operations (i.e. rollback gateway config if db insert fails)
@@ -252,17 +253,17 @@ function addTenantToGateway(gwInfo, namespace) {
  * @return A promise for an object describing the result with fields error and response
  */
 function addRouteToGateway(gwInfo, payload) {
-
   var options = {
-    url: gwInfo.gwUrl+'/v1/apis',
+    url: gwInfo.gwUrl+'/gws/dmi/v1/apis',
     agentOptions: {rejectUnauthorized: false},
     headers: {
       'Content-Type': 'application/json',
+      'Accept': 'application/json'
       //'Authorization': 'Basic ' + 'btoa(gwInfo.gwAuth)',  // FIXME MWD Authentication
     },
     json: payload,
   };
-  console.log('addRouteToGateway: request: '+JSON.stringify(options));
+  console.log('addRouteToGateway: request: '+JSON.stringify(options, " ", 2));
 
   return new Promise(function(resolve, reject) {
     request.post(options, function(error, response, body) {
@@ -294,7 +295,7 @@ function addRouteToGateway(gwInfo, payload) {
  */
 function updateApiDocInDb(cloudantDb, doc) {
   return new Promise( function(resolve, reject) {
-    cloudantDb.insert(doc, docid, function(error, response) {
+    cloudantDb.insert(doc, function(error, response) {
       if (!error) {
         console.log("success", response);
         resolve(response);
@@ -392,7 +393,7 @@ function updateApiDocInDb(cloudantDb, doc) {
   */
 function makeGwApiDoc(api) {
   var gwdoc = {};
-  gwdoc.basepath = api.apidoc.basepath;
+  gwdoc.basePath = api.apidoc.basePath;
   gwdoc.name = api.apidoc.info.title;
   gwdoc.resources = {};
   for (var path in api.apidoc.paths) {

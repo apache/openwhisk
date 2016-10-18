@@ -26,6 +26,8 @@
  *   password   Required. The database user password
  *   namespace  Required. Namespace of API author
  *   basepath   Required. Base path of the API
+ *   relpath    Optional. Must be defined with 'operation'.  Filters API result to path/operation
+ *   operation  Optional. Must be defined with 'relpath'.  Filters API result to path/operation
  *
  * NOTE: The package containing this action will be bound to the following values:
  *         host, port, protocol, dbname, username, password
@@ -49,6 +51,8 @@ function main(message) {
   console.log('DB database: '+message.dbname);
   console.log('namespace  : '+message.namespace);
   console.log('basepath   : '+message.basepath);
+  console.log('relpath    : '+message.relpath);
+  console.log('operation  : '+message.operation);
   console.log('docid      : '+docid);
 
   var cloudantOrError = getCloudantAccount(message);
@@ -63,8 +67,12 @@ function main(message) {
 //  var viewCollectionKey = message.basepath;
 //  var params = {key: [message.namespace, viewCollectionKey]}
 //  return readApiDocument(cloudantDb, 'gwapis', viewName, params);
-
-  return readApiDocument(cloudantDb, docid, {});
+  if (message.relpath && message.operation) {
+    var params = {key: [message.namespace, message.basepath, message.relpath, message.operation.toLowerCase()]}
+    return readFilteredApiDocument(cloudantDb, 'gwapis', 'route-by-ns-bp-rp-op', params);
+  } else {
+    return readApiDocument(cloudantDb, docid, {});
+  }
 }
 
 function readApiDocument(cloudantDb, docId, params) {
@@ -75,26 +83,26 @@ function readApiDocument(cloudantDb, docId, params) {
         resolve(response);
       } else {
         console.error("DB error: ",error.name, error.error, error.reason, error.headers.statusCode);
-        //FIXME MWD reject(error);
-        reject("some error string instead of reject(error)")
+        reject(error);
+        //FIXME MWD reject("some error string instead of reject(error)")
       }
     });
   });
 }
 
-//function readApiDocument(cloudantDb, designDocId, designDocViewName, params) {
-//  return new Promise(function (resolve, reject) {
-//    cloudantDb.view(designDocId, designDocViewName, params, function(error, response) {
-//      if (!error) {
-//        console.log('success', response);
-//        resolve(response);
-//      } else {
-//        console.error('error', JSON.stringify(error));
-//        reject(JSON.stringify(error));  // FIXME MWD issue with rejecting object; so using string
-//      }
-//    });
-//  });
-//}
+function readFilteredApiDocument(cloudantDb, designDocId, designDocViewName, params) {
+  return new Promise(function (resolve, reject) {
+    cloudantDb.view(designDocId, designDocViewName, params, function(error, response) {
+      if (!error) {
+        console.log('success', response);
+        resolve(response);
+      } else {
+        console.error('error', JSON.stringify(error));
+        reject(error);  // FIXME MWD issue with rejecting object
+      }
+    });
+  });
+}
 
 function getCloudantAccount(message) {
   // full cloudant URL - Cloudant NPM package has issues creating valid URLs

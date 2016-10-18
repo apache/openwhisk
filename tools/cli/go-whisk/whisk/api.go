@@ -51,8 +51,8 @@ type ApiAction struct {
 
 type ApiOptions struct {
     ActionName      string    `url:"action,omitempty"`
-    ApiPath         string    `url:"path,omitempty"`
-    ApiVerb         string    `url:"verb,omitempty"`
+    ApiPath         string    `url:"relpath,omitempty"`
+    ApiVerb         string    `url:"operation,omitempty"`
 }
 
 type ApiListOptions struct {
@@ -135,7 +135,7 @@ func (s *ApiService) Insert(api *Api, overwrite bool) (*Api, *http.Response, err
     return a, resp, nil
 }
 
-func (s *ApiService) Get(api *Api) (*Api, *http.Response, error) {
+func (s *ApiService) Get(api *Api, options *ApiOptions) (*Api, *http.Response, error) {
     // Encode resource name as a path (with no query ) before inserting it into the URI
     // This way any '?' chars in the name won't be treated as the beginning of the query params
     apiId := (&url.URL{Path: api.Id}).String()
@@ -143,7 +143,18 @@ func (s *ApiService) Get(api *Api) (*Api, *http.Response, error) {
     route := fmt.Sprintf("routes/%s", apiId)
     Debug(DbgInfo, "Api GET route: %s\n", route)
 
-    req, err := s.client.NewRequest("GET", route, nil)
+    routeUrl, err := addRouteOptions(route, options)
+    if err != nil {
+        Debug(DbgError, "addRouteOptions(%s, %#v) error: '%s'\n", route, options, err)
+        errMsg := wski18n.T("Unable to add route options '{{.options}}'",
+            map[string]interface{}{"options": options})
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG,
+            NO_DISPLAY_USAGE)
+        return nil, nil, whiskErr
+    }
+    Debug(DbgError, "Api get route with options: %s\n", routeUrl)
+
+    req, err := s.client.NewRequestUrl("GET", routeUrl, nil)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s, nil) error: '%s'\n", route, err)
         errMsg := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",

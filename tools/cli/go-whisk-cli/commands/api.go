@@ -159,7 +159,12 @@ var apiGetCmd = &cobra.Command{
             return whiskErr
         }
 
-        retApi, _, err := client.Apis.Get(api)
+        options := &whisk.ApiOptions{
+            ApiPath: api.GatewayRelPath,
+            ApiVerb: api.GatewayMethod,
+        }
+
+        retApi, _, err := client.Apis.Get(api, options)
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Apis.Get(%s) error: %s\n", api.Id, err)
             errMsg := fmt.Sprintf(
@@ -368,20 +373,21 @@ func IsValidApiVerb(verb string) (error, bool) {
 func init() {
     //apiCreateCmd.Flags().StringVarP(&flags.api.action, "action", "a", "", wski18n.T("`ACTION` to invoke when API is called"))
     apiCreateCmd.Flags().StringVarP(&flags.api.apiname, "apiname", "n", "", wski18n.T("API collection `NAME` (default NAMESPACE)"))
-    apiCreateCmd.Flags().StringVarP(&flags.api.basepath, "basepath", "b", "", wski18n.T("The API `BASE_PATH` to which the API_PATH is relative"))
-    //
+    apiCreateCmd.Flags().StringVarP(&flags.api.basepath, "basepath", "b", "/", wski18n.T("The API `BASE_PATH` to which the API_PATH is relative"))
+
     //apiUpdateCmd.Flags().StringVarP(&flags.api.action, "action", "a", "", wski18n.T("`ACTION` to invoke when API is called"))
     //apiUpdateCmd.Flags().StringVarP(&flags.api.path, "path", "p", "", wski18n.T("relative `PATH` of API"))
     //apiUpdateCmd.Flags().StringVarP(&flags.api.verb, "method", "m", "", wski18n.T("API `VERB`"))
 
     apiGetCmd.Flags().BoolVarP(&flags.common.summary, "summary", "s", false, wski18n.T("summarize API details"))
-    //apiGetCmd.Flags().StringVarP(&flags.api.action, "action", "a", "", wski18n.T("`ACTION` to invoke when API is called"))
-    //apiGetCmd.Flags().StringVarP(&flags.api.path, "path", "p", "", wski18n.T("relative `PATH` of API"))
-    //apiGetCmd.Flags().StringVarP(&flags.api.verb, "method", "m", "", wski18n.T("API `VERB`"))
+    apiGetCmd.Flags().StringVarP(&flags.api.apiname, "apiname", "n", "", wski18n.T("API collection `NAME` (default NAMESPACE)"))
+    apiGetCmd.Flags().StringVarP(&flags.api.basepath, "basepath", "b", "/", wski18n.T("The API `BASE_PATH` to which the API_PATH is relative"))
 
     apiListCmd.Flags().StringVarP(&flags.api.action, "action", "a", "", wski18n.T("`ACTION` to invoke when API is called"))
     apiListCmd.Flags().StringVarP(&flags.api.path, "path", "p", "", wski18n.T("relative `API_PATH` of API"))
     apiListCmd.Flags().StringVarP(&flags.api.verb, "method", "m", "", wski18n.T("API `API_VERB`"))
+    apiListCmd.Flags().StringVarP(&flags.api.apiname, "apiname", "n", "", wski18n.T("API collection `NAME` (default NAMESPACE)"))
+    apiListCmd.Flags().StringVarP(&flags.api.basepath, "basepath", "b", "/", wski18n.T("The API `BASE_PATH` to which the API_PATH is relative"))
     apiListCmd.Flags().IntVarP(&flags.common.skip, "skip", "s", 0, wski18n.T("exclude the first `SKIP` number of actions from the result"))
     apiListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, wski18n.T("only return `LIMIT` number of actions from the collection"))
 

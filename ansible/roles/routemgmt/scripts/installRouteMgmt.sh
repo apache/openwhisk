@@ -48,6 +48,7 @@ $WSK_CLI -i --apihost "$APIHOST" package update --auth "$AUTH"  --shared no "$NA
 -p dbname $DB_GWAPI \
 -p gwUrl "https://api-gw.cumulus.apim.ibmcloud.com"
 
+
 echo Installing routemgmt actions
 $WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" --shared no "$NAMESPACE/routemgmt/createRoute" "$OPENWHISK_HOME/core/routemgmt/createRoute.js" \
 -a description 'Create an API route'
