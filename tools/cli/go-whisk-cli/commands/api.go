@@ -80,7 +80,7 @@ var apiCreateCmd = &cobra.Command{
                     "path": api.GatewayRelPath,
                     "verb": api.GatewayMethod,
                     "name": boldString(api.Action.Name),
-                    "fullpath": retApi.GatewayFullPath,
+                    "fullpath": getManagedUrl(retApi, api.GatewayRelPath, api.GatewayMethod),
                 }))
         return nil
     },
@@ -128,7 +128,7 @@ var apiUpdateCmd = &cobra.Command{
                     "path": api.GatewayRelPath,
                     "verb": api.GatewayMethod,
                     "name": boldString(api.Action.Name),
-                    "fullpath": retApi.GatewayFullPath,
+                    "fullpath": getManagedUrl(retApi, api.GatewayRelPath, api.GatewayMethod),
                 }))
         return nil
     },
@@ -160,7 +160,7 @@ var apiGetCmd = &cobra.Command{
         }
 
         options := &whisk.ApiOptions{
-            ApiPath: api.GatewayRelPath,
+            ApiBasePath: api.GatewayBasePath,
             ApiVerb: api.GatewayMethod,
         }
 
@@ -179,11 +179,13 @@ var apiGetCmd = &cobra.Command{
             printSummary(api)
         } else {
             fmt.Fprintf(color.Output,
-                wski18n.T("{{.ok}} api for path {{.path}} verb {{.verb}}\n",
+                wski18n.T("{{.ok}} api {{.path}} {{.verb}} for action {{.name}}\n{{.fullpath}}\n",
                     map[string]interface{}{
                         "ok": color.GreenString("ok:"),
-                        "path": retApi.GatewayRelPath,
-                        "verb": retApi.GatewayMethod,
+                        "path": api.GatewayRelPath,
+                        "verb": api.GatewayMethod,
+                        "action": api.Action.Name,
+                        "fullurl": getManagedUrl(retApi, api.GatewayRelPath, api.GatewayMethod),
                     }))
             printJSON(retApi)
         }
@@ -257,6 +259,7 @@ var apiListCmd = &cobra.Command{
         apiListOptions := &whisk.ApiListOptions{
             whisk.ApiOptions{
                 flags.api.action,
+                flags.api.basepath,
                 flags.api.path,
                 flags.api.verb,
             },
@@ -364,6 +367,23 @@ func IsValidApiVerb(verb string) (error, bool) {
         return whiskErr, false
     }
     return nil, true
+}
+
+/*
+ * Pull the managedUrl (external API URL) from the API configuration
+ */
+func getManagedUrl(api *whisk.RetApi, relpath string, operation string) (url string) {
+    for path, _ := range api.Swagger.Paths {
+        if (path == relpath) {
+            for op, opv  := range api.Swagger.Paths[path] {
+                if (op == operation) {
+                    var opext = opv["x-ibm-op-ext"]
+                    url = opext["managedUrl"].(string)
+                }
+            }
+        }
+    }
+    return url
 }
 
 ///////////

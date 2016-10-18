@@ -51,16 +51,37 @@ type ApiAction struct {
 
 type ApiOptions struct {
     ActionName      string    `url:"action,omitempty"`
-    ApiPath         string    `url:"relpath,omitempty"`
+    ApiBasePath     string    `url:"basepath,omitempty"`
+    ApiRelPath      string    `url:"relpath,omitempty"`
     ApiVerb         string    `url:"operation,omitempty"`
 }
 
 type ApiListOptions struct {
-                    ApiOptions
+    ApiOptions
     Limit           int  `url:"limit"`
     Skip            int  `url:"skip"`
     Docs            bool `url:"docs,omitempty"`
 }
+
+type RetApi struct {
+    Namespace       string    `json:"namespace,omitempty"`
+    Activated       bool      `json:"gwApiActivated,omitempty"`
+    TenantId        string    `json:"tenantId,omitempty"`
+    Swagger         *ApiSwagger `json:"apidoc,omitempty"`
+}
+
+type ApiSwagger struct {
+    SwaggerName     string     `json:"swagger,omitempty"`
+    BasePath        string     `json:"basePath,omitempty"`
+    Info            *ApiSwaggerInfo `json:"info,omitempty"`
+    Paths           map[string]map[string]map[string]map[string]interface{} `json:"paths,omitempty"`
+}
+
+type ApiSwaggerInfo struct {
+    Title           string     `json:"title,omitempty"`
+    Version         string     `json:"version,omitempty"`
+}
+
 
 var ApiVerbs map[string]bool = map[string]bool {
     "GET": true,
@@ -109,7 +130,7 @@ func (s *ApiService) List(apiListOptions *ApiListOptions) ([]Api, *http.Response
     return apiList, resp, err
 }
 
-func (s *ApiService) Insert(api *Api, overwrite bool) (*Api, *http.Response, error) {
+func (s *ApiService) Insert(api *Api, overwrite bool) (*RetApi, *http.Response, error) {
     var sentAction interface{}
 
     route := fmt.Sprintf("routes")
@@ -125,17 +146,17 @@ func (s *ApiService) Insert(api *Api, overwrite bool) (*Api, *http.Response, err
         return nil, nil, whiskErr
     }
 
-    a := new(Api)
-    resp, err := s.client.Do(req, &a)
+    retApi := new(RetApi)
+    resp, err := s.client.Do(req, &retApi)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
         return nil, resp, err
     }
 
-    return a, resp, nil
+    return retApi, resp, nil
 }
 
-func (s *ApiService) Get(api *Api, options *ApiOptions) (*Api, *http.Response, error) {
+func (s *ApiService) Get(api *Api, options *ApiOptions) (*RetApi, *http.Response, error) {
     // Encode resource name as a path (with no query ) before inserting it into the URI
     // This way any '?' chars in the name won't be treated as the beginning of the query params
     apiId := (&url.URL{Path: api.Id}).String()
@@ -164,7 +185,7 @@ func (s *ApiService) Get(api *Api, options *ApiOptions) (*Api, *http.Response, e
         return nil, nil, whiskErr
     }
 
-    retApi := new(Api)
+    retApi := new(RetApi)
     resp, err := s.client.Do(req, &retApi)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
