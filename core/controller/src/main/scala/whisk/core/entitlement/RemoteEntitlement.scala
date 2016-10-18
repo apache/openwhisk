@@ -24,54 +24,35 @@ import scala.util.Try
 
 import Privilege.Privilege
 import akka.actor.ActorSystem
-import spray.client.pipelining.Get
-import spray.client.pipelining.Post
-import spray.client.pipelining.WithTransformerConcatenation
-import spray.client.pipelining.addHeader
-import spray.client.pipelining.sendReceive
-import spray.client.pipelining.unmarshal
+import spray.client.pipelining._
 import spray.http.FormData
 import spray.http.HttpRequest
 import spray.http.HttpResponse
 import spray.http.StatusCodes.OK
 import spray.http.StatusCodes.Unauthorized
 import spray.http.Uri
-import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
 import spray.httpx.UnsuccessfulResponseException
 import spray.json.DefaultJsonProtocol
-import spray.json.DefaultJsonProtocol._
 import spray.json.pimpString
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.controller.RejectRequest
 import whisk.core.entity.Subject
 import whisk.core.loadBalancer.LoadBalancer
+import whisk.core.iam.Identities
 
 protected[core] class RemoteEntitlementService(
     private val config: WhiskConfig,
     private val loadBalancer: LoadBalancer,
+    private val iam: Identities,
     private val timeout: FiniteDuration = 5 seconds)(
         private implicit val actorSystem: ActorSystem)
-    extends EntitlementService(config, loadBalancer) {
+    extends EntitlementService(config, loadBalancer, iam) {
 
     private implicit val executionContext = actorSystem.dispatcher
 
     private val apiLocation = config.entitlementHost
     private val matrix = TrieMap[(Subject, String), Set[Privilege]]()
-
-    protected[core] override def namespaces(subject: Subject)(implicit transid: TransactionId): Future[Set[String]] = {
-        info(this, s"getting namespaces from ${apiLocation}")
-
-        val url = Uri("http://" + apiLocation + "/namespaces").withQuery(
-            "subject" -> subject())
-
-        val pipeline: HttpRequest => Future[Set[String]] = (
-            addHeader("X-Transaction-Id", transid.toString())
-            ~> sendReceive
-            ~> unmarshal[Set[String]])
-
-        request(pipeline(Get(url)))
-    }
 
     protected[core] override def grant(subject: Subject, right: Privilege, resource: Resource)(implicit transid: TransactionId): Future[Boolean] = {
         val url = Uri("http://" + apiLocation + "/grant")
