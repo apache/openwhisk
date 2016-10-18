@@ -62,7 +62,7 @@ class Container(
 
     def pause(): Unit = pauseContainer(containerId)
 
-    def unpause(): Unit = unpauseContainer(containerId)
+    def unpause()(implicit transid: TransactionId): Unit = unpauseContainer(containerId)
 
     /**
      * A prefix of the container id known to be displayed by docker ps.
