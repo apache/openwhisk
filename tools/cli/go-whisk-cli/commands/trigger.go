@@ -362,16 +362,30 @@ var triggerUpdateCmd = &cobra.Command{
 }
 
 var triggerGetCmd = &cobra.Command{
-    Use:   "get TRIGGER_NAME",
+    Use:   "get TRIGGER_NAME [FIELD_FILTER]",
     Short: wski18n.T("get trigger"),
     SilenceUsage:   true,
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
+        var field string
 
-        if whiskErr := checkArgs(args, 1, 1, "Trigger get", wski18n.T("A trigger name is required.")); whiskErr != nil {
+        if whiskErr := checkArgs(args, 1, 2, "Trigger get", wski18n.T("A trigger name is required.")); whiskErr != nil {
             return whiskErr
+        }
+
+        if len(args) > 1 {
+            field = args[1]
+
+            if field != "namespace" && field != "name" && field != "version" && field != "publish" &&
+              field != "activationid" && field != "annotations" && field != "parameters" && field != "limits" {
+                errMsg := fmt.Sprintf(
+                    wski18n.T("Invalid field filter '{{.arg}}'.", map[string]interface{}{"arg": field}))
+                whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+                    whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                return whiskErr
+            }
         }
 
         qName, err := parseQualifiedName(args[0])
@@ -401,10 +415,33 @@ var triggerGetCmd = &cobra.Command{
         if (flags.trigger.summary) {
             printSummary(retTrigger)
         } else {
-            fmt.Fprintf(color.Output,
-                wski18n.T("{{.ok}} got trigger {{.name}}\n",
-                    map[string]interface{}{"ok": color.GreenString("ok:"), "name": boldString(qName.entityName)}))
-            printJSON(retTrigger)
+            if len(field) > 0 {
+                fmt.Fprintf(color.Output, wski18n.T("{{.ok}} got trigger {{.name}}, displaying field {{.field}}\n",
+                    map[string]interface{}{"ok": color.GreenString("ok:"), "name": boldString(qName.entityName),
+                    "field": boldString(field)}))
+
+                if field == "namespace" {
+                    printJSON(retTrigger.Namespace)
+                } else if field == "name" {
+                    printJSON(retTrigger.Name)
+                } else if field == "version" {
+                    printJSON(retTrigger.Version)
+                } else if field == "publish" {
+                    printJSON(retTrigger.Publish)
+                } else if field == "activationid" {
+                    printJSON(retTrigger.ActivationId)
+                } else if field == "annotations" {
+                    printJSON(retTrigger.Annotations)
+                } else if field == "parameters" {
+                    printJSON(retTrigger.Parameters)
+                } else if field == "limits" {
+                    printJSON(retTrigger.Limits)
+                }
+            } else {
+                fmt.Fprintf(color.Output, wski18n.T("{{.ok}} got trigger {{.name}}\n",
+                        map[string]interface{}{"ok": color.GreenString("ok:"), "name": boldString(qName.entityName)}))
+                printJSON(retTrigger)
+            }
         }
 
         return nil

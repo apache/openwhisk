@@ -217,16 +217,30 @@ var actionInvokeCmd = &cobra.Command{
 }
 
 var actionGetCmd = &cobra.Command{
-  Use:           "get ACTION_NAME",
+  Use:           "get ACTION_NAME [FIELD_FILTER]",
   Short:         wski18n.T("get action"),
   SilenceUsage:  true,
   SilenceErrors: true,
   PreRunE:       setupClientConfig,
   RunE: func(cmd *cobra.Command, args []string) error {
     var err error
+    var field string
 
-    if whiskErr := checkArgs(args, 1, 1, "Action get", wski18n.T("An action name is required.")); whiskErr != nil {
+    if whiskErr := checkArgs(args, 1, 2, "Action get", wski18n.T("An action name is required.")); whiskErr != nil {
       return whiskErr
+    }
+
+    if len(args) > 1 {
+      field = args[1]
+
+      if field != "namespace" && field != "name" && field != "version" && field != "publish" && field != "exec" &&
+        field != "annotations" && field != "parameters" && field != "limits" {
+        errMsg := fmt.Sprintf(
+          wski18n.T("Invalid field filter '{{.arg}}'.", map[string]interface{}{"arg": field}))
+        whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+          whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+        return whiskErr
+      }
     }
 
     qName, err := parseQualifiedName(args[0])
@@ -255,10 +269,35 @@ var actionGetCmd = &cobra.Command{
     if flags.common.summary {
       printSummary(action)
     } else {
-      fmt.Fprintf(color.Output,
-        wski18n.T("{{.ok}} got action {{.name}}\n",
-          map[string]interface{}{"ok": color.GreenString("ok:"), "name": boldString(qName.entityName)}))
-      printJSON(action)
+
+      if len(field) > 0 {
+        fmt.Fprintf(color.Output, wski18n.T("{{.ok}} got action {{.name}}, displaying field {{.field}}\n",
+          map[string]interface{}{"ok": color.GreenString("ok:"), "name": boldString(qName.entityName),
+          "field": boldString(field)}))
+
+        if field == "namespace" {
+          printJSON(action.Namespace)
+        } else if field == "name" {
+          printJSON(action.Name)
+        } else if field == "version" {
+          printJSON(action.Version)
+        } else if field == "publish" {
+          printJSON(action.Publish)
+        } else if field == "exec" {
+          printJSON(action.Exec)
+        } else if field == "annotations" {
+          printJSON(action.Annotations)
+        } else if field == "parameters" {
+          printJSON(action.Parameters)
+        } else if field == "limits" {
+          printJSON(action.Limits)
+        }
+      } else {
+        fmt.Fprintf(color.Output,
+          wski18n.T("{{.ok}} got action {{.name}}\n", map[string]interface{}{"ok": color.GreenString("ok:"),
+            "name": boldString(qName.entityName)}))
+        printJSON(action)
+      }
     }
 
     return nil

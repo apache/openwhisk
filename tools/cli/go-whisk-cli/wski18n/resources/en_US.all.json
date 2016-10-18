@@ -1126,5 +1126,29 @@
   {
     "id": "An API host must be provided.",
     "translation": "An API host must be provided."
+  },
+  {
+    "id": "Invalid field filter '{{.arg}}'.",
+    "translation": "Invalid field filter '{{.arg}}'."
+  },
+  {
+    "id": "{{.ok}} got activation {{.id}}, displaying field {{.field}}\n",
+    "translation": "{{.ok}} got activation {{.id}}, displaying field {{.field}}\n"
+  },
+  {
+    "id": "{{.ok}} got action {{.name}}, displaying field {{.field}}\n",
+    "translation": "{{.ok}} got action {{.name}}, displaying field {{.field}}\n"
+  },
+  {
+    "id": "{{.ok}} got package {{.name}}, displaying field {{.field}}\n",
+    "translation": "{{.ok}} got package {{.name}}, displaying field {{.field}}\n"
+  },
+  {
+    "id": "{{.ok}} got rule {{.name}}, displaying field {{.field}}\n",
+    "translation": "{{.ok}} got rule {{.name}}, displaying field {{.field}}\n"
+  },
+  {
+    "id": "{{.ok}} got trigger {{.name}}, displaying field {{.field}}\n",
+    "translation": "{{.ok}} got trigger {{.name}}, displaying field {{.field}}\n"
   }
 ]

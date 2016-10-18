@@ -298,9 +298,23 @@ var ruleGetCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
+        var field string
 
-        if whiskErr := checkArgs(args, 1, 1, "Rule get", wski18n.T("A rule name is required.")); whiskErr != nil {
+        if whiskErr := checkArgs(args, 1, 2, "Rule get", wski18n.T("A rule name is required.")); whiskErr != nil {
             return whiskErr
+        }
+
+        if len(args) > 1 {
+            field = args[1]
+
+            if field != "namespace" && field != "name" && field != "version" && field != "publish" && field != "status"&&
+              field != "trigger" && field != "action" {
+                errMsg := fmt.Sprintf(
+                    wski18n.T("Invalid projection field '{{.arg}}'.", map[string]interface{}{"arg": field}))
+                whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+                    whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                return whiskErr
+            }
         }
 
         qName, err := parseQualifiedName(args[0])
@@ -330,10 +344,33 @@ var ruleGetCmd = &cobra.Command{
         if (flags.rule.summary) {
             printRuleSummary(rule)
         } else {
-            fmt.Fprintf(color.Output,
-                wski18n.T("{{.ok}} got rule {{.name}}\n",
-                    map[string]interface{}{"ok": color.GreenString("ok:"), "name": boldString(ruleName)}))
-            printJSON(rule)
+            if len(field) > 0 {
+                fmt.Fprintf(color.Output, wski18n.T("{{.ok}} got rule {{.name}}, projecting {{.field}}\n",
+                    map[string]interface{}{"ok": color.GreenString("ok:"), "name": boldString(ruleName),
+                        "field": field}))
+
+                if field == "namespace" {
+                    printJSON(rule.Namespace)
+                } else if field == "name" {
+                    printJSON(rule.Name)
+                } else if field == "version" {
+                    printJSON(rule.Version)
+                } else if field == "publish" {
+                    printJSON(rule.Publish)
+                } else if field == "status" {
+                    printJSON(rule.Status)
+                } else if field == "trigger" {
+                    printJSON(rule.Trigger)
+                } else if field == "action" {
+                    printJSON(rule.Action)
+                } else {
+                    printJSON(rule)
+                }
+            } else {
+                fmt.Fprintf(color.Output, wski18n.T("{{.ok}} got rule {{.name}}\n",
+                        map[string]interface{}{"ok": color.GreenString("ok:"), "name": boldString(ruleName)}))
+                printJSON(rule)
+            }
         }
 
         return nil

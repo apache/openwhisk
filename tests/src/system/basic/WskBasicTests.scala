@@ -28,6 +28,7 @@ import common.TestUtils.CONFLICT
 import common.TestUtils.SUCCESS_EXIT
 import common.TestUtils.UNAUTHORIZED
 import common.TestUtils.FORBIDDEN
+import common.TestUtils.ERROR_EXIT
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
@@ -162,6 +163,30 @@ class WskBasicTests
             res.stdout should include(s"ok: created package $name")
     }
 
+    it should "create a package, and get its individual fields" in withAssetCleaner(wskprops) {
+        val name = "packageFields"
+        val paramInput = Map("payload" -> "test".toJson)
+        val successMsg = s"ok: got package $name, displaying field"
+
+        (wp, assetHelper) =>
+            assetHelper.withCleaner(wsk.pkg, name) {
+                (action, _) => action.create(name, parameters = paramInput)
+            }
+
+            val expectedParam = JsObject(
+                "payload" -> JsString("test")
+            )
+
+            val ns_regex_list = wsk.namespace.list().stdout.trim.replace('\n', '|')
+
+            wsk.pkg.get(name, fieldFilter = Some("namespace")).stdout should include regex (s"""(?i)$successMsg namespace\n$ns_regex_list""")
+            wsk.pkg.get(name, fieldFilter = Some("name")).stdout should include (s"""$successMsg name\n"$name"""")
+            wsk.pkg.get(name, fieldFilter = Some("version")).stdout should include (s"""$successMsg version\n"0.0.1"""")
+            wsk.pkg.get(name, fieldFilter = Some("publish")).stdout should include (s"""$successMsg publish\nfalse""")
+            wsk.pkg.get(name, fieldFilter = Some("binding")).stdout should include regex (s"""\\{\\}""")
+            wsk.pkg.get(name, fieldFilter = Some("invalid"), expectedExitCode = ERROR_EXIT).stderr should include ("error: Invalid field filter 'invalid'.")
+    }
+
     behavior of "Wsk Action CLI"
 
     it should "create the same action twice with different cases" in withAssetCleaner(wskprops) {
@@ -267,6 +292,32 @@ class WskBasicTests
                 activation =>
                     activation.response.result shouldBe Some(expectedOutput)
             }
+    }
+
+    it should "create an action, and get its individual fields" in withAssetCleaner(wskprops) {
+        val name = "actionFields"
+        val paramInput = Map("payload" -> "test".toJson)
+        val successMsg = s"ok: got action $name, displaying field"
+
+        (wp, assetHelper) =>
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, defaultAction, parameters = paramInput)
+            }
+
+            val expectedParam = JsObject(
+                "payload" -> JsString("test")
+            )
+
+            val ns_regex_list = wsk.namespace.list().stdout.trim.replace('\n', '|')
+
+            wsk.action.get(name, fieldFilter = Some("name")).stdout should include (s"""$successMsg name\n"$name"""")
+            wsk.action.get(name, fieldFilter = Some("version")).stdout should include (s"""$successMsg version\n"0.0.1"""")
+            wsk.action.get(name, fieldFilter = Some("publish")).stdout should include (s"""$successMsg publish\nfalse""")
+            wsk.action.get(name, fieldFilter = Some("exec")).stdout should include regex (s"""$successMsg exec\n\\{\\s+"kind":\\s+"nodejs:6",\\s+"code":\\s+"\\/\\*\\*\\\\n \\* Hello, world.\\\\n \\*\\/\\\\nfunction main\\(params\\) \\{\\\\n    console.log\\('hello', params.payload\\+'!'\\);\\\\n\\}\\\\n"\n\\}""")
+            wsk.action.get(name, fieldFilter = Some("parameters")).stdout should include regex (s"""$successMsg parameters\n\\[\\s+\\{\\s+"key":\\s+"payload",\\s+"value":\\s+"test"\\s+\\}\\s+\\]""")
+            wsk.action.get(name, fieldFilter = Some("limits")).stdout should include regex (s"""$successMsg limits\n\\{\\s+"timeout":\\s+60000,\\s+"memory":\\s+256,\\s+"logs":\\s+10\\s+\\}""")
+            wsk.action.get(name, fieldFilter = Some("namespace")).stdout should include regex (s"""(?i)$successMsg namespace\n$ns_regex_list""")
+            wsk.action.get(name, fieldFilter = Some("invalid"), expectedExitCode = ERROR_EXIT).stderr should include ("error: Invalid field filter 'invalid'.")
     }
 
     /**
@@ -457,6 +508,31 @@ class WskBasicTests
                 activation =>
                     activation.response.result shouldBe Some(expectedOutput)
             }
+    }
+
+    it should "create a trigger, and get its individual fields" in withAssetCleaner(wskprops) {
+        val name = "triggerFields"
+        val paramInput = Map("payload" -> "test".toJson)
+        val successMsg = s"ok: got trigger $name, displaying field"
+
+        (wp, assetHelper) =>
+            assetHelper.withCleaner(wsk.trigger, name) {
+                (action, _) => action.create(name, parameters = paramInput)
+            }
+
+            val expectedParam = JsObject(
+                "payload" -> JsString("test")
+            )
+
+            val ns_regex_list = wsk.namespace.list().stdout.trim.replace('\n', '|')
+
+            wsk.trigger.get(name, fieldFilter = Some("namespace")).stdout should include regex (s"""(?i)$successMsg namespace\n$ns_regex_list""")
+            wsk.trigger.get(name, fieldFilter = Some("name")).stdout should include (s"""$successMsg name\n"$name"""")
+            wsk.trigger.get(name, fieldFilter = Some("version")).stdout should include (s"""$successMsg version\n"0.0.1"""")
+            wsk.trigger.get(name, fieldFilter = Some("publish")).stdout should include (s"""$successMsg publish\nfalse""")
+            wsk.trigger.get(name, fieldFilter = Some("annotations")).stdout should include regex (s"""\\[\\]""")
+            wsk.trigger.get(name, fieldFilter = Some("limits")).stdout should include regex (s"""\\{\\}""")
+            wsk.trigger.get(name, fieldFilter = Some("invalid"), expectedExitCode = ERROR_EXIT).stderr should include ("error: Invalid field filter 'invalid'.")
     }
 
     behavior of "Wsk Rule CLI"
