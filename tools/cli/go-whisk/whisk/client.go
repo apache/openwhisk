@@ -307,10 +307,10 @@ func parseWhiskErrorResponse(resp *http.Response, data []byte, v interface{}) (*
     err := json.Unmarshal(data, whiskErrorResponse)
 
     // Determine if a whisk.error() response was received. Otherwise, the body contents are unknown (#6)
-    if err == nil && whiskErrorResponse.Response.Result.Error != nil {
-        Debug(DbgInfo, "Detected that a whisk.error(\"%s\") was returned\n", *whiskErrorResponse.Response.Result.Error)
+    if err == nil && whiskErrorResponse.Response.Status != nil {
+        Debug(DbgInfo, "Detected that a whisk.error(\"%s\") was returned\n", *whiskErrorResponse.Response.Status)
         errMsg := wski18n.T("The following application error was received: {{.err}}",
-            map[string]interface{}{"err": *whiskErrorResponse.Response.Result.Error})
+            map[string]interface{}{"err": *whiskErrorResponse.Response.Status})
         whiskErr := MakeWskError(errors.New(errMsg), resp.StatusCode - 256, NO_DISPLAY_MSG, NO_DISPLAY_USAGE,
             NO_MSG_DISPLAYED, APPLICATION_ERR)
         return parseSuccessResponse(resp, data, v), whiskErr
@@ -361,13 +361,7 @@ type WhiskErrorResponse struct {
 }
 
 type WhiskErrorResult struct {
-    Status  string              `json:"status"`
-    Success bool                `json:"success"`
-    Result  WhiskErrorMessage   `json:"result"`
-}
-
-type WhiskErrorMessage struct {
-    Error *string `json:"error"`
+    Status  *string              `json:"status"`
 }
 
 func (r ErrorResponse) Error() string {
