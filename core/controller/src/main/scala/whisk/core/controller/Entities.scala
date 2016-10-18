@@ -31,18 +31,18 @@ import spray.routing.Directives
 import spray.routing.RequestContext
 import spray.routing.Route
 import whisk.common.TransactionId
-import whisk.core.entitlement.Privilege.Privilege
 import whisk.core.entitlement.Privilege.ACTIVATE
 import whisk.core.entitlement.Privilege.DELETE
 import whisk.core.entitlement.Privilege.PUT
+import whisk.core.entitlement.Privilege.Privilege
 import whisk.core.entitlement.Privilege.READ
 import whisk.core.entitlement.Resource
 import whisk.core.entity.EntityName
-import whisk.core.entity.LimitedWhiskEntityPut
 import whisk.core.entity.EntityPath
+import whisk.core.entity.Identity
+import whisk.core.entity.LimitedWhiskEntityPut
 import whisk.core.entity.Parameters
 import whisk.http.ErrorResponse.terminate
-import whisk.core.entity.Identity
 
 protected[controller] trait ValidateEntitySize extends Directives {
     protected def validateSize(check: ⇒ Boolean)(implicit tid: TransactionId) = new Directive0 {
@@ -103,7 +103,7 @@ trait WhiskCollectionAPI
                     // entitled to them which for now means they own the namespace. If the
                     // subject does not own the namespace, then exclude packages that are private
                     val checkIfSubjectOwnsResource = if (listRequiresPrivateEntityFilter) {
-                        entitlementService.namespaces(user.subject) map {
+                        iam.namespaces(user.subject) map {
                             _.contains(resource.namespace.root()) == false
                         }
                     } else Future.successful { false }

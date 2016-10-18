@@ -21,8 +21,8 @@ import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Success
 
-import Privilege.Privilege
 import Privilege.ACTIVATE
+import Privilege.Privilege
 import Privilege.REJECT
 import akka.actor.ActorSystem
 import akka.event.Logging.LogLevel
@@ -38,7 +38,7 @@ import whisk.core.entity.EntityPath
 import whisk.core.entity.Identity
 import whisk.core.entity.Parameters
 import whisk.core.entity.Subject
-import whisk.core.entity.Identity
+import whisk.core.iam.Identities
 import whisk.core.loadBalancer.LoadBalancer
 import whisk.http.ErrorResponse
 import whisk.http.Messages._
@@ -78,17 +78,13 @@ protected[core] object EntitlementService {
         WhiskConfig.actionInvokeConcurrentLimit,
         WhiskConfig.triggerFirePerMinuteLimit,
         WhiskConfig.actionInvokeSystemOverloadLimit)
-
-    /**
-     * The default list of namespaces for a subject.
-     */
-    protected[core] def defaultNamespaces(subject: Subject) = Set(subject())
 }
 
 /**
- * A trait for entitlement service. This is a WIP.
+ * A trait that implements entitlements to resources. It performs checks for CRUD and Acivation requests.
+ * This is where enforcement of activation quotas takes place, in additional to basic authorization.
  */
-protected[core] abstract class EntitlementService(config: WhiskConfig, loadBalancer: LoadBalancer)(
+protected[core] abstract class EntitlementService(config: WhiskConfig, loadBalancer: LoadBalancer, iam: Identities)(
     implicit actorSystem: ActorSystem) extends Logging {
 
     private implicit val executionContext = actorSystem.dispatcher
@@ -103,17 +99,6 @@ protected[core] abstract class EntitlementService(config: WhiskConfig, loadBalan
         super.setVerbosity(level)
         invokeRateThrottler.setVerbosity(level)
         triggerRateThrottler.setVerbosity(level)
-    }
-
-    /**
-     * Gets the set of namespaces the subject has rights to (may be empty).
-     * The default set of namespaces contains only one entry, which is the subject name.
-     *
-     * @param subject the subject to lookup namespaces for
-     * @return a promise that completes with list of namespaces the subject has rights to
-     */
-    protected[core] def namespaces(subject: Subject)(implicit transid: TransactionId): Future[Set[String]] = Future.successful {
-        EntitlementService.defaultNamespaces(subject)
     }
 
     /**
@@ -191,10 +176,14 @@ protected[core] abstract class EntitlementService(config: WhiskConfig, loadBalan
     protected def checkPrivilege(subject: Subject, right: Privilege, resource: Resource)(
         implicit transid: TransactionId): Future[Boolean] = {
         // check the default namespace first, bypassing additional checks if permitted
-        val defaultNamespaces = EntitlementService.defaultNamespaces(subject)
+        val defaultNamespaces = Identities.defaultNamespaces(subject)
         resource.collection.implicitRights(defaultNamespaces, right, resource) flatMap {
             case true => Future successful true
-            case false => namespaces(subject) flatMap {
+            case false =>
+                // currently allow subject to work across any of their namespaces
+                // but this feature will be removed in future iterations, thereby removing
+                // the iam entanglement with entitlement
+                iam.namespaces(subject) flatMap {
                 additionalNamespaces =>
                     val newNamespacesToCheck = additionalNamespaces -- defaultNamespaces
                     if (newNamespacesToCheck nonEmpty) {
