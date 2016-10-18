@@ -103,7 +103,7 @@ class Swift3ActionContainerTests extends SwiftActionContainerTests {
             initCode should be(200)
 
             val argss = List(
-                JsObject("getUrl" -> JsString("https://httpbin.org/get")))
+                JsObject("getUrl" -> JsString("https://openwhisk.ng.bluemix.net/api/v1")))
 
             for (args <- argss) {
                 val (runCode, out) = c.run(runPayload(args))
