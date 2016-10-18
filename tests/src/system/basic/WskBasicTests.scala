@@ -295,6 +295,17 @@ class WskBasicTests
                 .stderr should include regex (""""error": "This error thrown on purpose by the action."""")
     }
 
+    it should "create and invoke a blocking action resulting in an error response object" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "errorResponseObject"
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("asyncError.js")))
+            }
+
+            wsk.action.invoke(name, blocking = true, expectedExitCode = 246)
+              .stderr should include regex (""""error": "name '!' contains illegal characters \(.+\)"""")
+    }
+
     it should "invoke a blocking action and get only the result" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "basicInvoke"
