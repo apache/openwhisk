@@ -319,16 +319,29 @@ var packageUpdateCmd = &cobra.Command{
 }
 
 var packageGetCmd = &cobra.Command{
-  Use:           "get PACKAGE_NAME",
+  Use:           "get PACKAGE_NAME [FIELD_FILTER]",
   Short:         wski18n.T("get package"),
   SilenceUsage:  true,
   SilenceErrors: true,
   PreRunE:       setupClientConfig,
   RunE: func(cmd *cobra.Command, args []string) error {
     var err error
+    var field string
 
-    if whiskErr := checkArgs(args, 1, 1, "Package get", wski18n.T("A package name is required.")); whiskErr != nil {
+    if whiskErr := checkArgs(args, 1, 2, "Package get", wski18n.T("A package name is required.")); whiskErr != nil {
       return whiskErr
+    }
+
+    if len(args) > 1 {
+      field = args[1]
+
+      if !fieldExists(&whisk.Package{}, field) {
+        errMsg := fmt.Sprintf(
+          wski18n.T("Invalid field filter '{{.arg}}'.", map[string]interface{}{"arg": field}))
+        whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+          whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+        return whiskErr
+      }
     }
 
     qName, err := parseQualifiedName(args[0])
@@ -355,10 +368,17 @@ var packageGetCmd = &cobra.Command{
     if flags.common.summary {
       printSummary(xPackage)
     } else {
-      fmt.Fprintf(color.Output,
-        wski18n.T("{{.ok}} got package {{.name}}\n",
+
+      if len(field) > 0 {
+        fmt.Fprintf(color.Output, wski18n.T("{{.ok}} got package {{.name}}, displaying field {{.field}}\n",
+          map[string]interface{}{"ok": color.GreenString("ok:"), "name": boldString(qName.entityName),
+          "field": boldString(field)}))
+        printField(xPackage, field)
+      } else {
+        fmt.Fprintf(color.Output, wski18n.T("{{.ok}} got package {{.name}}\n",
           map[string]interface{}{"ok": color.GreenString("ok:"), "name": boldString(qName.entityName)}))
-      printJSON(xPackage)
+        printJSON(xPackage)
+      }
     }
 
     return nil

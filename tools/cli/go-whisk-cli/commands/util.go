@@ -35,6 +35,7 @@ import (
     "net/url"
     "io/ioutil"
     "sort"
+    "reflect"
 )
 
 type QualifiedName struct {
@@ -868,4 +869,27 @@ func readFile(filename string) (string, error) {
     }
 
     return string(file), nil
+}
+
+func fieldExists(value interface{}, field string) (bool) {
+    element := reflect.ValueOf(value).Elem()
+
+    for i := 0; i < element.NumField(); i++ {
+        if strings.ToLower(element.Type().Field(i).Name) == strings.ToLower(field) {
+            return true
+        }
+    }
+
+    return false
+}
+
+func printField(value interface{}, field string) {
+    var matchFunc = func(structField string) bool {
+        return strings.ToLower(structField) == strings.ToLower(field)
+    }
+
+    structValue := reflect.ValueOf(value)
+    fieldValue := reflect.Indirect(structValue).FieldByNameFunc(matchFunc)
+
+    printJSON(fieldValue.Interface())
 }
