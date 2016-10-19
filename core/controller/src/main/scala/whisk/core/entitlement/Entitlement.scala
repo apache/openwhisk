@@ -132,34 +132,55 @@ protected[core] abstract class EntitlementService(config: WhiskConfig, loadBalan
     protected def entitled(subject: Subject, right: Privilege, resource: Resource)(implicit transid: TransactionId): Future[Boolean]
 
     /**
-     * Checks if a subject has the right to access a resource. The entitlement may be implicit,
+     * Checks if a subject has the right to access a specific resource. The entitlement may be implicit,
+     * that is, inferred based on namespaces that a subject belongs to and the namespace of the
+     * resource for example, or explicit. The implicit check is computed here. The explicit check
+     * is delegated to the service implementing this interface.
+     *
+     * NOTE: do not use this method to check a package binding because this method does not allow
+     * for a continuation to check that both the binding and the references package are both either
+     * implicitly or explicitly granted. Instead, resolve the package binding first and use the alternate
+     * method which authorizes a set of resources.
+     *
+     * @param subject the subject to check rights for
+     * @param right the privilege the subject is requesting (applies to the entire set of resources)
+     * @param resource the resource the subject requests access to
+     * @return a promise that completes with true iff the subject is permitted to access the requested resource
+     */
+    protected[core] def check(user: Identity, right: Privilege, resource: Resource)(
+        implicit transid: TransactionId): Future[Boolean] = check(user, right, Set(resource))
+
+    /**
+     * Checks if a subject has the right to access a set of resources. The entitlement may be implicit,
      * that is, inferred based on namespaces that a subject belongs to and the namespace of the
      * resource for example, or explicit. The implicit check is computed here. The explicit check
      * is delegated to the service implementing this interface.
      *
      * @param subject the subject to check rights for
-     * @param right the privilege the subject is requesting
-     * @param resource the resource the subject requests access to
-     * @return a promise that completes with true iff the subject is permitted to access the request resource
+     * @param right the privilege the subject is requesting (applies to the entire set of resources)
+     * @param resources the set of resources the subject requests access to
+     * @return a promise that completes with true iff the subject is permitted to access all of the requested resources
      */
-    protected[core] def check(user: Identity, right: Privilege, resource: Resource)(
+    protected[core] def check(user: Identity, right: Privilege, resources: Set[Resource])(
         implicit transid: TransactionId): Future[Boolean] = {
 
         val subject = user.subject
 
-        if (user.rights.contains(right)) {
-            info(this, s"checking user '$subject' has privilege '$right' for '$resource'")
-            checkSystemOverload(subject, right, resource) orElse {
-                checkUserThrottle(subject, right, resource)
+        val entitlementCheck = if (user.rights.contains(right)) {
+            info(this, s"checking user '$subject' has privilege '$right' for '${resources.mkString(",")}'")
+            checkSystemOverload(subject, right) orElse {
+                checkUserThrottle(subject, right, resources)
             } orElse {
-                checkConcurrentUserThrottle(subject, right, resource)
-            } getOrElse checkPrivilege(subject, right, resource)
+                checkConcurrentUserThrottle(subject, right, resources)
+            } getOrElse checkPrivilege(subject, right, resources)
         } else if (right != REJECT) {
-            info(this, s"supplied authkey for user '$subject' does not have privilege '$right' for '$resource'")
+            info(this, s"supplied authkey for user '$subject' does not have privilege '$right' for '${resources.mkString(",")}'")
             Future.failed(OperationNotAllowed(Forbidden, Some(ErrorResponse(notAuthorizedtoOperateOnResource, transid))))
         } else {
             Future.successful(false)
-        } andThen {
+        }
+
+        entitlementCheck andThen {
             case Success(r) =>
                 info(this, if (r) "authorized" else "not authorized")
             case Failure(r: RejectRequest) =>
@@ -169,71 +190,85 @@ protected[core] abstract class EntitlementService(config: WhiskConfig, loadBalan
         }
     }
 
-    // NOTE: explicit grants do not work with package bindings because the current model
-    // for authorization does not allow for a continuation to check that both the binding
-    // and the references package are both either implicitly or explicitly granted; this is
-    // accepted for the time being however because there exists no external mechanism to create
-    // explicit grants
-    protected def checkPrivilege(subject: Subject, right: Privilege, resource: Resource)(
+    /**
+     * NOTE: explicit grants do not work with package bindings because this method does not allow
+     * for a continuation to check that both the binding and the references package are both either
+     * implicitly or explicitly granted. Instead, the given resource set should include both the binding
+     * and the referenced package.
+     */
+    protected def checkPrivilege(subject: Subject, right: Privilege, resources: Set[Resource])(
         implicit transid: TransactionId): Future[Boolean] = {
         // check the default namespace first, bypassing additional checks if permitted
         val defaultNamespaces = Identities.defaultNamespaces(subject)
-        resource.collection.implicitRights(defaultNamespaces, right, resource) flatMap {
-            case true => Future successful true
-            case false =>
-                // currently allow subject to work across any of their namespaces
-                // but this feature will be removed in future iterations, thereby removing
-                // the iam entanglement with entitlement
-                iam.namespaces(subject) flatMap {
-                additionalNamespaces =>
-                    val newNamespacesToCheck = additionalNamespaces -- defaultNamespaces
-                    if (newNamespacesToCheck nonEmpty) {
-                        resource.collection.implicitRights(newNamespacesToCheck, right, resource) flatMap {
-                            case true  => Future.successful(true)
-                            case false => entitled(subject, right, resource)
+
+        Future.sequence {
+            resources.map { resource =>
+                resource.collection.implicitRights(defaultNamespaces, right, resource) flatMap {
+                    case true => Future.successful(true)
+                    case false =>
+                        // currently allow subject to work across any of their namespaces
+                        // but this feature will be removed in future iterations, thereby removing
+                        // the iam entanglement with entitlement
+                        iam.namespaces(subject) flatMap {
+                            additionalNamespaces =>
+                                val newNamespacesToCheck = additionalNamespaces -- defaultNamespaces
+                                if (newNamespacesToCheck nonEmpty) {
+                                    info(this, "checking additional namespace")
+                                    resource.collection.implicitRights(newNamespacesToCheck, right, resource) flatMap {
+                                        case true  => Future.successful(true)
+                                        case false => entitled(subject, right, resource)
+                                    }
+                                } else {
+                                    info(this, "checking explicit grants")
+                                    entitled(subject, right, resource)
+                                }
                         }
-                    } else entitled(subject, right, resource)
+                }
             }
-        }
+        }.map { _.forall(identity) }
     }
 
     /** Limits activations if the load balancer is overloaded. */
-    protected def checkSystemOverload(subject: Subject, right: Privilege, resource: Resource)(implicit transid: TransactionId) = {
+    protected def checkSystemOverload(subject: Subject, right: Privilege)(implicit transid: TransactionId) = {
         val systemOverload = right == ACTIVATE && concurrentInvokeThrottler.isOverloaded
         if (systemOverload) {
             error(this, "system is overloaded")
-            Some {
-                Future failed ThrottleRejectRequest(TooManyRequests, Some(ErrorResponse(systemOverloaded, transid)))
-            }
+            Some(Future failed ThrottleRejectRequest(TooManyRequests, Some(ErrorResponse(systemOverloaded, transid))))
         } else None
     }
 
-    /** Limits activations if subject exceeds their own limits. */
-    protected def checkUserThrottle(subject: Subject, right: Privilege, resource: Resource)(implicit transid: TransactionId) = {
+    /**
+     * Limits activations if subject exceeds their own limits.
+     * If the requested right is an activation, the set of resources must contain an activation of an action or filter to be throttled.
+     * While it is possible for the set of resources to contain more than one action or trigger, the plurality is ignored and treated
+     * as one activation since these should originate from a single macro resources (e.g., a sequence).
+     */
+    protected def checkUserThrottle(subject: Subject, right: Privilege, resources: Set[Resource])(implicit transid: TransactionId) = {
         def userThrottled = {
-            val isInvocation = resource.collection.path == Collection.ACTIONS
-            val isTrigger = resource.collection.path == Collection.TRIGGERS
+            val isInvocation = resources.exists(_.collection.path == Collection.ACTIONS)
+            val isTrigger = resources.exists(_.collection.path == Collection.TRIGGERS)
             (isInvocation && !invokeRateThrottler.check(subject)) || (isTrigger && !triggerRateThrottler.check(subject))
         }
 
         if (right == ACTIVATE && userThrottled) {
-            Some {
-                Future failed ThrottleRejectRequest(TooManyRequests, Some(ErrorResponse(tooManyRequests, transid)))
-            }
+            Some(Future failed ThrottleRejectRequest(TooManyRequests, Some(ErrorResponse(tooManyRequests, transid))))
         } else None
     }
 
-    /** Limits activations if subject exceeds limit of concurrent invocations */
-    protected def checkConcurrentUserThrottle(subject: Subject, right: Privilege, resource: Resource)(implicit transid: TransactionId) = {
+    /**
+     * Limits activations if subject exceeds limit of concurrent invocations.
+     * If the requested right is an activation, the set of resources must contain an activation of an action to be throttled.
+     * While it is possible for the set of resources to contain more than one action, the plurality is ignored and treated
+     * as one activation since these should originate from a single macro resources (e.g., a sequence).
+     */
+    protected def checkConcurrentUserThrottle(subject: Subject, right: Privilege, resources: Set[Resource])(implicit transid: TransactionId) = {
         def userThrottled = {
-            val isInvocation = resource.collection.path == Collection.ACTIONS
+            val isInvocation = resources.exists(_.collection.path == Collection.ACTIONS)
             (isInvocation && !concurrentInvokeThrottler.check(subject))
         }
 
         if (right == ACTIVATE && userThrottled) {
-            Some {
-                Future failed ThrottleRejectRequest(TooManyRequests, Some(ErrorResponse(tooManyConcurrentRequests, transid)))
-            }
+            Some(Future failed ThrottleRejectRequest(TooManyRequests, Some(ErrorResponse(tooManyConcurrentRequests, transid))))
         } else None
     }
 }
