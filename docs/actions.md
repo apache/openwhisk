@@ -281,8 +281,78 @@ This example invokes a Yahoo Weather service to get the current conditions at a 
       "msg": "It is 28 degrees in Brooklyn, NY and Cloudy"
   }
   ```
+
+### Packaging an action as a Node.js module
+
+As an alternative to writing all your action code in a single JavaScript source file, you can write an action as a `npm` package. Consider as an example a directory with the following files:
+
+First, `package.json`:
+
+  ```
+  {
+    "name": "my-action",
+    "version": "1.0.0",
+    "main": "index.js",
+    "dependencies" : {
+      "left-pad" : "1.1.3"
+    }
+  }
+  ```
+
+Then, `index.js`:
+
+  ```
+  function myAction(args) {
+      const leftPad = require("left-pad")
+      const lines = args.lines || [];
+      return { padded: lines.map(l => leftPad(l, 30, ".")) }
+  }
+
+  exports.main = myAction;
+  ```
+
+Note that the action is exposed through `exports.main`; the action handler itself can have any name, as long as it conforms to the usual signature of accepting an object and returning an object (or a `Promise` of an object).
+
+To create an OpenWhisk action from this package:
+
+1. Install first all dependencies locally
+
+  ```
+  $ npm install
+  ```
+
+2. Create a `.zip` archive containing all files (including all dependencies):
+
+  ```
+  $ zip -r action.zip *
+  ```
+
+3. Create the action:
+
+  ```
+  $ wsk action create packageAction --kind nodejs:6 action.zip
+  ```
+
+  Note that when creating an action from a `.zip` archive using the CLI tool, you must explicitly provide a value for the `--kind` flag.
+
+4. You can invoke the action like any other:
+
+  ```
+  $ wsk action invoke --blocking --result packageAction --param lines '[ "and now", "for something completely", "different" ]'
+  ```
+  ```
+  {
+      "padded": [
+          ".......................and now",
+          "......for something completely",
+          ".....................different"
+      ]
+  }
+  ```
+
+Finally, note that while most `npm` packages install JavaScript sources on `npm install`, some also install and compile binary artifacts. The archive file upload currently does not support binary dependencies but rather only JavaScript dependencies. Action invocations may fail if the archive includes binary dependencies.
   
-### Creating action sequences
+## Creating action sequences
 
 You can create an action that chains together a sequence of actions.
 
