@@ -187,31 +187,25 @@ function getDbApiDoc(namespace, basepath) {
     'basepath': basepath
   }
   console.log('getDbApiDoc() for namespace:basepath: '+namespace+':'+basepath);
-  //return new Promise( function (resolve, reject) {
-    //whisk.invoke({
-    return whisk.invoke({
-      name: actionName,
-      blocking: true,
-      parameters: params
-    })
-    .then(function (activation) {
-      console.log('whisk.invoke('+actionName+', '+params.namespace+', '+params.basepath+') ok');
-      console.log('Results: '+JSON.stringify(activation));
-      if (activation && activation.result && activation.result._rev) {
-        //resolve(activation.result);
-        return Promise.resolve(activation.result);
-      } else {
-        console.error('_rev value not returned!');
-        //reject('Document for basepath \"'+basepath+'\" was not located');
-        return Promise.reject('Document for namepace \"'+namespace+'\" and basepath \"'+basepath+'\" was not located');
-      }
-    })
-    .catch(function (error) {
-      console.error('whisk.invoke('+actionName+', '+params.namespace+', '+params.basepath+') error: '+JSON.stringify(error));
-      //reject(error);
-      return Promise.reject(error);
-    });
-  //});
+  return whisk.invoke({
+    name: actionName,
+    blocking: true,
+    parameters: params
+  })
+  .then(function (activation) {
+    console.log('whisk.invoke('+actionName+', '+params.namespace+', '+params.basepath+') ok');
+    console.log('Results: '+JSON.stringify(activation));
+    if (activation && activation.result && activation.result._rev) {
+      return Promise.resolve(activation.result);
+    } else {
+      console.error('_rev value not returned!');
+      return Promise.reject('Document for namepace \"'+namespace+'\" and basepath \"'+basepath+'\" was not located');
+    }
+  })
+  .catch(function (error) {
+    console.error('whisk.invoke('+actionName+', '+params.namespace+', '+params.basepath+') error: '+JSON.stringify(error));
+    return Promise.reject(error);
+  });
 }
 
 /**

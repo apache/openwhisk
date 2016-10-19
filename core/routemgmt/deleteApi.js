@@ -70,8 +70,8 @@ function main(message) {
   return getDbApiDoc(message.namespace, message.basepath)
   .then(function(dbdoc) {
       console.log('Found API doc in db: '+JSON.stringify(dbdoc));
-      if (dbdoc.activationStatus) {
-        return Promise.reject('API is active and cannot be deleted.  Once the API is deactived, it can be deleted.')
+      if (dbdoc.gwApiActivated) {
+        return Promise.reject('API is active and cannot be deleted.  Once the API is deactivated, it can be deleted.')
       }
       return deleteApiFromDb(cloudantDb, dbdoc._id, dbdoc._rev);
   })
@@ -130,26 +130,24 @@ function getDbApiDoc(namespace, basepath) {
     'basepath': basepath
   }
   console.log('getDbApiDoc() for namespace:basepath: '+namespace+':'+basepath);
-  return new Promise( function (resolve, reject) {
-    whisk.invoke({
-      name: actionName,
-      blocking: true,
-      parameters: params
-    })
-    .then(function (activation) {
-      console.log('whisk.invoke('+actionName+', '+docid+') ok');
-      console.log('Results: '+JSON.stringify(activation));
-      if (activation && activation.result && activation.result._rev) {
-        resolve(activation.result);
-      } else {
-        console.error('_rev value not returned!');
-        reject('Document for basepath \"'+basepath+'\" was not located');
-      }
-    })
-    .catch(function (error) {
-      console.error('whisk.invoke('+actionName+', '+docid+') error:\n'+JSON.stringify(error));
-      reject(error);
-    });
+  return whisk.invoke({
+    name: actionName,
+    blocking: true,
+    parameters: params
+  })
+  .then(function (activation) {
+    console.log('whisk.invoke('+actionName+', '+params.namespace+', '+params.basepath+') ok');
+    console.log('Results: '+JSON.stringify(activation));
+    if (activation && activation.result && activation.result._rev) {
+      return Promise.resolve(activation.result);
+    } else {
+      console.error('_rev value not returned!');
+      return Promise.reject('Document for namepace \"'+namespace+'\" and basepath \"'+basepath+'\" was not located');
+    }
+  })
+  .catch(function (error) {
+    console.error('whisk.invoke('+actionName+', '+params.namespace+', '+params.basepath+') error: '+JSON.stringify(error));
+    return Promise.reject(error);
   });
 }
 

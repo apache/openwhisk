@@ -378,12 +378,12 @@ func IsValidApiVerb(verb string) (error, bool) {
  * Pull the managedUrl (external API URL) from the API configuration
  */
 func getManagedUrl(api *whisk.RetApi, relpath string, operation string) (url string) {
+    baseUrl := api.BaseUrl
     for path, _ := range api.Swagger.Paths {
         if (path == relpath) {
-            for op, opv  := range api.Swagger.Paths[path] {
+            for op, _  := range api.Swagger.Paths[path] {
                 if (op == operation) {
-                    var opext = opv["x-ibm-op-ext"]
-                    url = opext["managedUrl"].(string)
+                    url = baseUrl+path
                 }
             }
         }

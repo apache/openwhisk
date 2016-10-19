@@ -72,16 +72,16 @@ function main(message) {
   // 3. FIXME MWD If successful, update the API configuration in the DB to indicate the activation status
   var dbApiDoc;
   var gwApiDeactivated = false;
-  return getApiDoc(message.namespace, message.basepath)
+  return getDbApiDoc(message.namespace, message.basepath)
   .then(function(dbdoc) {
     dbApiDoc = dbdoc;
-    console.log("Gateway doc to delete: id = "+dbdoc.gwApiGuid);
-    return deleteApiFromGateway(apidoc.gwApiGuid);
+    console.log("Gateway doc to deactivate: db id; gw id = "+dbdoc._id+" ; "+dbdoc.gwApiGuid);
+    return deleteApiFromGateway(gwInfo, dbdoc.gwApiGuid);
   })
   .then(function() {
-    console.log('API '+dbApiDoc.namespace+':'+dbApiDoc.apidoc.basepath+' deactivated.');
+    console.log('API '+dbApiDoc._id+' deactivated.');
     gwApiDeactivated = true;
-    dbApiDoc.activationStatus = false;
+    dbApiDoc.gwApiActivated = false;
     updateApiDocInDb(cloudantDb, dbApiDoc);
   })
   .then(function() {
@@ -140,32 +140,71 @@ function getCloudantAccount(message) {
 
 // Retrieve the specific API document from the DB
 // This is a wrapper around an action invocation (getApi)
-function getApiDoc(namespace, basepath) {
+function getDbApiDoc(namespace, basepath) {
   var actionName = '/whisk.system/routemgmt/getApi';
   var params = {
     'namespace': namespace,
     'basepath': basepath
   }
-  console.log('getApiDoc() for namespace:basepath: '+namespace+':'+basepath);
-  return new Promise( function (resolve, reject) {
-    whisk.invoke({
-      name: actionName,
-      blocking: true,
-      parameters: params
-    })
-    .then(function (activation) {
-      console.log('whisk.invoke('+actionName+', '+docid+') ok');
-      console.log('Results: '+JSON.stringify(activation));
-      if (activation && activation.result && activation.result._rev) {
-        resolve(activation.result);
+  console.log('getDbApiDoc() for namespace:basepath: '+namespace+':'+basepath);
+  return whisk.invoke({
+    name: actionName,
+    blocking: true,
+    parameters: params
+  })
+  .then(function (activation) {
+    console.log('whisk.invoke('+actionName+', '+params.namespace+', '+params.basepath+') ok');
+    console.log('Results: '+JSON.stringify(activation));
+    if (activation && activation.result && activation.result._rev) {
+      return Promise.resolve(activation.result);
+    } else {
+      console.error('_rev value not returned!');
+      return Promise.reject('Document for namepace \"'+namespace+'\" and basepath \"'+basepath+'\" was not located');
+    }
+  })
+  .catch(function (error) {
+    console.error('whisk.invoke('+actionName+', '+params.namespace+', '+params.basepath+') error: '+JSON.stringify(error));
+    return Promise.reject(error);
+  });
+}
+
+/**
+ * Configures an API route on the API Gateway.  This API will map to an OpenWhisk action that
+ * will be invoked by the API Gateway when the API route is accessed.
+ *
+ * @param gwInfo Required.
+ * @param    gwUrl   Required.  The base URL gateway path (i.e.  'PROTOCOL://gw.host.domain:PORT/CONTEXT')
+ * @param    gwAuth  Required.  The credentials used to access the API Gateway REST endpoints
+ * @param apiId  Required.  Unique Gateway API Id
+ * @return A promise for an object describing the result with fields error and response
+ */
+function deleteApiFromGateway(gwInfo, gwApiId) {
+  var options = {
+    url: gwInfo.gwUrl+'/gws/dmi/v1/apis/'+gwApiId,
+    agentOptions: {rejectUnauthorized: false},
+    headers: {
+      'Accept': 'application/json'
+      //'Authorization': 'Basic ' + 'btoa(gwInfo.gwAuth)',  // FIXME MWD Authentication
+    }
+  };
+  console.log('deleteApiFromGateway: request: '+JSON.stringify(options, " ", 2));
+
+  return new Promise(function(resolve, reject) {
+    request.delete(options, function(error, response, body) {
+      var statusCode = response ? response.statusCode : undefined;
+      console.log('deleteApiFromGateway: response status:'+ statusCode);
+      error && console.error('Warning: deleteApiFromGateway request failed: '+ JSON.stringify(error));
+      body && console.log('deleteApiFromGateway: response body: '+JSON.stringify(body));
+
+      if (error) {
+        console.error('deleteApiFromGateway: Unable to delete the API Gateway: '+JSON.stringify(error))
+        reject('Unable to delete the API Gateway: '+JSON.stringify(error));
+      } else if (statusCode != 200) {
+        console.error('deleteApiFromGateway: Response code: '+statusCode)
+        reject('Unable to delete the API Gateway: Response failure code: '+statusCode);
       } else {
-        console.error('_rev value not returned!');
-        reject('Document for basepath \"'+basepath+'\" was not located');
+        resolve();
       }
-    })
-    .catch(function (error) {
-      console.error('whisk.invoke('+actionName+', '+docid+') error:\n'+JSON.stringify(error));
-      reject(error);
     });
   });
 }
@@ -177,7 +216,9 @@ function getApiDoc(namespace, basepath) {
  */
 function updateApiDocInDb(cloudantDb, doc) {
   return new Promise( function(resolve, reject) {
-    cloudantDb.insert(doc, docid, function(error, response) {
+    console.log("updateApiDocInDb(): calling insert: "+JSON.stringify(doc))
+    cloudantDb.insert(doc, function(error, response) {
+      console.log("updateApiDocInDb(): insert() returned")
       if (!error) {
         console.log("success", response);
         resolve(response);

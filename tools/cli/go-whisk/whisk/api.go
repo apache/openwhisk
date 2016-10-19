@@ -69,6 +69,8 @@ type ApiListOptions struct {
 
 type RetApi struct {
     Namespace       string    `json:"namespace"`
+    BasePath        string    `json:"basepath`
+    BaseUrl         string    `json:"gwApiUrl`
     Activated       bool      `json:"gwApiActivated"`
     TenantId        string    `json:"tenantId"`
     Swagger         *ApiSwagger `json:"apidoc,omitempty"`
