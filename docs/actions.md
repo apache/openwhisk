@@ -588,7 +588,7 @@ For the instructions that follow, assume that the Docker user ID is `janesmith` 
   
   To update the Docker action, run buildAndPush.sh to refresh the image on Docker Hub, this will allow the next time the system pulls your Docker image to run the new code for your action. 
   If there are no warm containers any new invocations will use the new Docker image. 
-  Take into account that if there is a warm container using a previous version of your Docker image, any new invocations will continue to use this image unless you run wsk action update, this will indicate to the system that for any new invocations force a docker pull resulting on pulling your new Docker image.
+  **Note:** If there is a warm container using a previous version of your Docker image, any new invocations will continue to use this image until you run `wsk action update` on the action. The action update forces the system to pull the Docker image again.
   
   ```
   $ ./buildAndPush.sh janesmith/blackboxdemo

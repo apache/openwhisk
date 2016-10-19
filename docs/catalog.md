@@ -276,7 +276,7 @@ The following is an example of creating a package binding and then getting a 10-
 2. Invoke the `forecast` action in your package binding to get the weather forecast.
 
   ```
-  $ wsk action invoke myWeather/forecast --blocking --result --param latitude "43.7" --param longitude "-79.4"
+  $ wsk action invoke myWeather/forecast --blocking --result --param latitude 43.7 --param longitude -79.4
   ```
 
   ```
@@ -485,7 +485,7 @@ The following is an example of configuring Slack, creating a package binding, an
 2. Create a package binding with your Slack credentials, the channel that you want to post to, and the user name to post as.
 
   ```
-  $ wsk package bind /whisk.system/slack mySlack --param url "https://hooks.slack.com/services/..." --param username Bob --param channel #MySlackChannel
+  $ wsk package bind /whisk.system/slack mySlack --param url "https://hooks.slack.com/services/..." --param username Bob --param channel "#MySlackChannel"
   ```
 
 3. Invoke the `post` action in your package binding to post a message to your Slack channel.
@@ -545,7 +545,7 @@ For more information about the payload content, see the [GitHub events and paylo
 
 ## Using the Push package
 
-The `/whisk.system/pushnotifications` package enables you to work with a push service. 
+The `/whisk.system/pushnotifications` package enables you to work with a push service.
 
 ### Install the IBM Push Notification OpenWhisk package 
 
@@ -610,10 +610,10 @@ The following is an example of creating a package binding.
 The `/whisk.system/pushnotifications/sendMessage` action sends push notifications to registered devices. The parameters are as follows:
 - `text`: The notification message to be shown to the user. For example: `-p text "Hi ,OpenWhisk send a notification"`.
 - `url`: An optional URL that can be sent along with the alert. For example: `-p url "https:\\www.w3.ibm.com"`.
-- `deviceIds` The list of specified devices. For example: `-p deviceIds ["deviceID1"]`.
-- `platforms` Send notification to the devices of the specified platforms. 'A' for apple (iOS) devices and 'G' for google (Android) devices. For example `-p platforms ["A"]`.
-- `tagNames` Send notification to the devices that have subscribed to any of these tags. For example `-p tagNames "["tag1"]" `.
-- `gcmPayload`: Custom JSON payload that will be sent as part of the notification message. For example: `-p gcmPayload "{"hi":"hello"}"`
+- `deviceIds` The list of specified devices. For example: `-p deviceIds "[\"deviceID1\"]"`.
+- `platforms` Send notification to the devices of the specified platforms. 'A' for apple (iOS) devices and 'G' for google (Android) devices. For example `-p platforms "[\"A\"]"`.
+- `tagNames` Send notification to the devices that have subscribed to any of these tags. For example `-p tagNames "[\"tag1\"]" `.
+- `gcmPayload`: Custom JSON payload that will be sent as part of the notification message. For example: `-p gcmPayload "{\"hi\":\"hello\"}"`
 - `gcmSound`: The sound file (on device) that will be attempted to play when the notification arrives on the device.
 - `gcmCollapseKey`: This parameter identifies a group of messages
 - `gcmDelayWhileIdle`: When this parameter is set to true, it indicates that the message will not be sent until the device becomes active.
