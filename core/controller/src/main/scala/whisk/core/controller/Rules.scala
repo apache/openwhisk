@@ -17,7 +17,6 @@
 package whisk.core.controller
 
 import scala.concurrent.Future
-import scala.concurrent.Promise
 import scala.util.Failure
 import scala.util.Success
 
@@ -269,8 +268,6 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
 
     /** Creates a WhiskRule from PUT content, generating default values where necessary. */
     private def create(content: WhiskRulePut, namespace: EntityPath, name: EntityName)(implicit transid: TransactionId): Future[WhiskRule] = {
-        val predicate = Promise[WhiskRule]
-
         if (content.trigger.isDefined && content.action.isDefined) {
             val ruleName = WhiskEntity.qualifiedName(namespace, name)
             val triggerName = WhiskEntity.qualifiedName(namespace, content.trigger.get)
@@ -279,8 +276,10 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
             val tid = DocId(triggerName)
             val aid = DocId(actionName)
 
-            checkTriggerAndActionExist(tid, aid) onComplete {
-                case Success((trigger, action)) =>
+            checkTriggerAndActionExist(tid, aid) recoverWith {
+                case t => Future.failed(RejectRequest(BadRequest, t))
+            } flatMap {
+                case (trigger, action) =>
                     val rule = WhiskRule(
                         namespace,
                         name,
@@ -291,30 +290,22 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
                         content.annotations getOrElse Parameters())
 
                     val triggerLink = ReducedRule(EntityPath(actionName), Status.ACTIVE)
-                    val saveRule = WhiskTrigger.put(entityStore, trigger.addRule(EntityPath(ruleName), triggerLink)) onComplete {
-                        case Success(_) => predicate.success(rule)
-                        case Failure(t) => predicate.failure(t)
-                    }
-
-                case Failure(t) => predicate.failure { RejectRequest(BadRequest, t) }
+                    WhiskTrigger.put(entityStore, trigger.addRule(EntityPath(ruleName), triggerLink)).map(_ => rule)
             }
-        } else predicate.failure { RejectRequest(BadRequest, "rule requires a valid trigger and a valid action") }
-
-        predicate.future
+        } else Future.failed(RejectRequest(BadRequest, "rule requires a valid trigger and a valid action"))
     }
 
     /** Updates a WhiskTrigger from PUT content, merging old trigger where necessary. */
     private def update(content: WhiskRulePut)(rule: WhiskRule)(implicit transid: TransactionId): Future[WhiskRule] = {
-        val predicate = Promise[WhiskRule]
         val ruleName = WhiskEntity.qualifiedName(rule.namespace, rule.name)
         val oldTriggerName = WhiskEntity.qualifiedName(rule.namespace, rule.trigger)
         val oldTid = DocId(oldTriggerName)
 
-        getTrigger(oldTid) map { trigger =>
-            (getStatus(trigger, EntityPath(ruleName)), trigger)
-        } map {
-            case (status, oldTriggerOpt) =>
-                if (status == Status.INACTIVE) {
+        getTrigger(oldTid) map {
+            trigger => (getStatus(trigger, EntityPath(ruleName)), trigger)
+        } flatMap {
+            case (status, oldTriggerOpt) => status match {
+                case Status.INACTIVE =>
                     val newTriggerEntity = content.trigger getOrElse rule.trigger
                     val newTriggerName = WhiskEntity.qualifiedName(rule.namespace, newTriggerEntity)
                     val tid = DocId(newTriggerName)
@@ -323,8 +314,10 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
                     val actionName = WhiskEntity.qualifiedName(rule.namespace, actionEntity)
                     val aid = DocId(actionName)
 
-                    checkTriggerAndActionExist(tid, aid) onComplete {
-                        case Success((newTrigger, newAction)) => {
+                    checkTriggerAndActionExist(tid, aid) recoverWith {
+                        case t => Future.failed(RejectRequest(BadRequest, t))
+                    } flatMap {
+                        case (newTrigger, newAction) =>
                             val r = WhiskRule(
                                 rule.namespace,
                                 rule.name,
@@ -346,18 +339,11 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
                             val triggerLink = ReducedRule(EntityPath(actionName), Status.INACTIVE)
                             val update = WhiskTrigger.put(entityStore, newTrigger.addRule(EntityPath(ruleName), triggerLink))
 
-                            Future.sequence(Seq(deleteOldLink.getOrElse(Future.successful(true)), update)) onComplete {
-                                case Success(_) => predicate.success(r)
-                                case Failure(t) => predicate.failure(t)
-                            }
-
-                        }
-                        case Failure(t) => predicate.failure { RejectRequest(BadRequest, t) }
+                            Future.sequence(Seq(deleteOldLink.getOrElse(Future.successful(true)), update)).map(_ => r)
                     }
-                } else predicate.failure { RejectRequest(Conflict, s"rule may not be updated while status is ${status}") }
-
+                case _ => Future.failed(RejectRequest(Conflict, s"rule may not be updated while status is ${status}"))
+            }
         }
-        predicate.future
     }
 
     /**
@@ -408,33 +394,17 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
      *
      * @param trigger the trigger id
      * @param action the action id
-     * @return promise that completes to true iff both documents exist
+     * @return future that completes with references trigger and action if they exist
      */
     private def checkTriggerAndActionExist(trigger: DocId, action: DocId)(implicit transid: TransactionId): Future[(WhiskTrigger, WhiskAction)] = {
-        val validTrigger = Promise[WhiskTrigger]
-        val validAction = Promise[WhiskAction]
-
-        val validateTrigger = WhiskTrigger.get(entityStore, trigger) onComplete {
-            case Success(trigger) => validTrigger.success(trigger)
-            case Failure(t) => t match {
-                case _: NoDocumentException => validTrigger.failure(new NoDocumentException(s"trigger $trigger does not exist"))
-                case _                      => validTrigger.failure(t)
+        for {
+            triggerExists <- WhiskTrigger.get(entityStore, trigger) recoverWith {
+                case _: NoDocumentException => Future.failed(new NoDocumentException(s"trigger $trigger does not exist"))
             }
-        }
-
-        val validateAction = WhiskAction.get(entityStore, action) onComplete {
-            case Success(action) => validAction.success(action)
-            case Failure(t) => t match {
-                case _: NoDocumentException => validAction.failure(new NoDocumentException(s"action $action does not exist"))
-                case _                      => validAction.failure(t)
+            actionExists <- WhiskAction.get(entityStore, action) recoverWith {
+                case _: NoDocumentException => Future.failed(new NoDocumentException(s"action $action does not exist"))
             }
-        }
-
-        val entities = for {
-            triggerExists <- validTrigger.future
-            actionExists <- validAction.future
         } yield (triggerExists, actionExists)
-        entities
     }
 
     /** Extracts status request subject to allowed values. */

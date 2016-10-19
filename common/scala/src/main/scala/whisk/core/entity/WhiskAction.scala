@@ -253,7 +253,7 @@ object WhiskAction
      * If it's a binding, rewrite the fully qualified name of the action using the actual package path name.
      * If it's the actual package, use its name directly as the package path name.
      */
-    def resolveAction(entityStore: EntityStore, fullyQualifiedName: FullyQualifiedEntityName)(
+    def resolveAction(db: EntityStore, fullyQualifiedName: FullyQualifiedEntityName)(
         implicit ec: ExecutionContext, transid: TransactionId): Future[FullyQualifiedEntityName] = {
         // first check that there is a package to be resolved
         val entityPath = fullyQualifiedName.path
@@ -264,7 +264,7 @@ object WhiskAction
             // there is a package to be resolved
             val pkgDocid = fullyQualifiedName.pathToDocId
             val actionName = fullyQualifiedName.name
-            val wp = WhiskPackage.resolveBinding(entityStore, pkgDocid)
+            val wp = WhiskPackage.resolveBinding(db, pkgDocid)
             wp map { resolvedPkg => FullyQualifiedEntityName(resolvedPkg.namespace.addpath(resolvedPkg.name), actionName) }
         }
     }

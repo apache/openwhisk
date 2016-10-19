@@ -18,23 +18,15 @@ package whisk.core.entity
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
-
 import scala.language.postfixOps
 import scala.util.Try
+
 import spray.json.DefaultJsonProtocol
-import spray.json.DefaultJsonProtocol.BooleanJsonFormat
-import spray.json.JsArray
-import spray.json.JsObject
-import spray.json.JsValue
-import spray.json.JsonFormat
-import spray.json.RootJsonFormat
-import spray.json.deserializationError
-import spray.json.pimpAny
-import whisk.core.database.DocumentFactory
-
-import whisk.core.entity.types.EntityStore
-
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 import whisk.common.TransactionId
+import whisk.core.database.DocumentFactory
+import whisk.core.entity.types.EntityStore
 
 /**
  * WhiskPackagePut is a restricted WhiskPackage view that eschews properties
@@ -150,15 +142,15 @@ object WhiskPackage
     /**
      * Traverses a binding recursively to find the root package.
      *
-     * @param entityStore a store containing packages
+     * @param db the entity store containing packages
      * @param pkg the package document id to start resolving
      * @return the same package if there is no binding, or the actual reference package otherwise
      */
-    def resolveBinding(entityStore: EntityStore, pkg: DocId)(
+    def resolveBinding(db: EntityStore, pkg: DocId)(
         implicit ec: ExecutionContext, transid: TransactionId): Future[WhiskPackage] = {
-        WhiskPackage.get(entityStore, pkg) flatMap { wp =>
+        WhiskPackage.get(db, pkg) flatMap { wp =>
             // if there is a binding resolve it
-            val resolved = wp.binding map { binding => resolveBinding(entityStore, binding.docid) }
+            val resolved = wp.binding map { binding => resolveBinding(db, binding.docid) }
             resolved getOrElse Future.successful(wp)
         }
     }

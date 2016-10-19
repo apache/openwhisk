@@ -19,13 +19,14 @@ package whisk.core.entity
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
+
 import spray.json.DefaultJsonProtocol
+import spray.json.JsObject
 import spray.json.JsString
 import spray.json.JsValue
 import spray.json.RootJsonFormat
 import spray.json.deserializationError
 import whisk.core.database.DocumentFactory
-import spray.json.JsObject
 
 /**
  * WhiskRulePut is a restricted WhiskRule view that eschews properties
