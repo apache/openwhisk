@@ -82,19 +82,20 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
     }
     import State._
     implicit def state2Atomic(state: State): AtomicReference[State] = {
-        new AtomicReference(state);
+        new AtomicReference(state)
     }
-    implicit def value2Atomic(value: Future[W]): AtomicReference[Future[W]] = {
-        new AtomicReference(value);
+    implicit def value2Atomic(value: Future[W]): Option[AtomicReference[Future[W]]] = {
+        Some(new AtomicReference(value))
     }
     implicit def transid2Atomic(transid: TransactionId): AtomicReference[TransactionId] = {
-        new AtomicReference(transid);
+        new AtomicReference(transid)
     }
 
     /** Failure modes, which will only occur if there is a bug in this implementation */
     case class ConcurrentOperationUnderRead(actualState: State) extends Exception(s"Cache bug: a read started, but completion raced with a concurrent operation: ${actualState}")
     case class ConcurrentOperationUnderUpdate(actualState: State) extends Exception("Cache bug: an update started, but completion raced with a concurrent operation: ${actualState}")
     case class SquashedInvalidation(actualState: State) extends Exception("Cache invalidation squashed due ${actualState}")
+    case class StaleRead(actualState: State) extends Exception(s"Attempted read of invalid entry due to ${actualState}")
 
     /**
      * The entries in the cache will be a triple of (transid, State, Future[W])
@@ -102,8 +103,15 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
      * We need the transid in order to detect whether we have won the race to add an entry to the cache
      *
      */
-    private case class Entry(transid: AtomicReference[TransactionId], state: AtomicReference[State], value: AtomicReference[Future[W]]) {
+    private case class Entry(transid: AtomicReference[TransactionId], state: AtomicReference[State], value: Option[AtomicReference[Future[W]]]) {
         def invalidate = state.set(InvalidateInProgress)
+
+        def unpack: Future[W] = {
+            value match {
+                case Some(ref) => ref.get
+                case None      => Future.failed(new StaleRead(state.get))
+            }
+        }
 
         def writeDone()(implicit logger: Logging): Boolean = {
             logger.debug(this, "Write finished")
@@ -122,7 +130,11 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
         def grabWriteLock(new_transid: TransactionId, new_value: Future[W]): Boolean = {
             trySet(Cached, WriteInProgress) match {
                 case true => {
-                    value.set(new_value)
+                    value match {
+                        case Some(ref) => ref.set(new_value)
+                        case None      => // nothing to do
+                    }
+
                     transid.set(new_transid)
                     true
                 }
@@ -130,35 +142,51 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
 
             }
         }
+
+        def grabInvalidationLock = state.set(InvalidateInProgress)
     }
 
-    protected def cacheInvalidate[R](key: Any, afterInvalidate: => Future[R])(
+    protected def cacheInvalidate[R](key: Any, invalidator: => Future[R])(
         implicit ec: ExecutionContext, transid: TransactionId, logger: Logging): Future[R] = {
         if (cacheEnabled) {
             logger.info(this, s"invalidating $key")
 
-            cache.remove(key) map { entryToBeRemovedFuture =>
-                entryToBeRemovedFuture flatMap { entryToBeRemoved =>
-                    entryToBeRemoved.state.get match {
-                        case ReadInProgress | WriteInProgress => {
-                            //Future.failed[Winfo](new SquashedInvalidation(state))
-                            entryToBeRemoved.state.set(InvalidateWhenDone)
-                        }
-                        case Cached => {
-                            entryToBeRemoved.state.set(InvalidateInProgress)
+            val desiredEntry = Entry(transid, InvalidateInProgress, None)
+
+            cache(key)(desiredEntry) flatMap { actualEntry =>
+                actualEntry.state.get match {
+                    case Cached => {
+                        //
+                        // nobody owns the entry, forcefully grab ownership
+                        //
+                        invalidateEntryAfter(invalidator, key, actualEntry)
+                    }
+                    case ReadInProgress | WriteInProgress => {
+                        if (actualEntry.trySet(actualEntry.state.get, InvalidateWhenDone)) {
+                            //
+                            // then the current owner will take care of the invalidation
+                            //
+                            invalidator
+                        } else {
+                            //
+                            // then the current reader or writer finished up,
+                            // so we can't depend on it to perform the invalidation
+                            //
+                            invalidateEntryAfter(invalidator, key, actualEntry)
                         }
                     }
-                    afterInvalidate
+                    case InvalidateInProgress | InvalidateWhenDone => {
+                        //
+                        // someone else requested an invalidation already
+                        //
+                        invalidator
+                    }
                 }
-
-            } getOrElse {
-                // not found in cache
-                afterInvalidate
             }
 
         } else {
             // not caching
-            afterInvalidate
+            invalidator
         }
     }
 
@@ -182,7 +210,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
                     case Cached => {
                         logger.debug(this, s"Cached read $key")
                         makeNoteOfCacheHit(key)
-                        actualEntry.value.get
+                        actualEntry.unpack
                     }
 
                     case ReadInProgress => {
@@ -190,12 +218,12 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
                             logger.debug(this, "Read initiated");
                             makeNoteOfCacheMiss(key)
                             listenForReadDone(key, actualEntry, future, promise)
-                            actualEntry.value.get
+                            actualEntry.unpack
 
                         } else {
                             logger.debug(this, "Coalesced read")
                             makeNoteOfCacheHit(key)
-                            actualEntry.value.get
+                            actualEntry.unpack
                         }
                     }
 
@@ -243,7 +271,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
                     //
                     // otherwise, some existing entry is in the way, so try to grab a write lock
                     //
-                    if (actualEntry.grabWriteLock(transid, desiredEntry.value.get)) {
+                    if (actualEntry.grabWriteLock(transid, desiredEntry.unpack)) {
                         //
                         // we won this race! we are now the writer
                         //
@@ -368,12 +396,26 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
     }
 
     /**
-     * Write completion resulted in a failure
+     * Immediately invalidate the given entry
      *
      */
     private def invalidateEntry(key: Any, entry: Entry): Unit = {
         entry.invalidate
         cache remove key
+    }
+
+    /**
+     * Invalidate the given entry after a given invalidator completes
+     */
+    private def invalidateEntryAfter[R](invalidator: => Future[R], key: Any, entry: Entry)(
+        implicit ec: ExecutionContext): Future[R] = {
+
+        entry.grabInvalidationLock
+        invalidator map { r =>
+            invalidateEntry(key, entry)
+            r
+        }
+
     }
 
     /**
