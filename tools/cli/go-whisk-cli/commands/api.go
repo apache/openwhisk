@@ -61,8 +61,10 @@ var apiCreateCmd = &cobra.Command{
                 whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             return whiskErr
         }
+        sendApi := new(whisk.SendApi)
+        sendApi.ApiDoc = api
 
-        retApi, _, err := client.Apis.Insert(api, false)
+        retApi, _, err := client.Apis.Insert(sendApi, false)
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Apis.Insert(%#v, false) error: %s\n", api, err)
             errMsg := fmt.Sprintf(
@@ -109,8 +111,10 @@ var apiUpdateCmd = &cobra.Command{
                 whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             return whiskErr
         }
+        sendApi := new(whisk.SendApi)
+        sendApi.ApiDoc = api
 
-        retApi, _, err := client.Apis.Insert(api, true)
+        retApi, _, err := client.Apis.Insert(sendApi, true)
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Apis.Insert(%#v, %t, false) error: %s\n", api, err)
             errMsg := fmt.Sprintf(
@@ -162,6 +166,7 @@ var apiGetCmd = &cobra.Command{
         options := &whisk.ApiOptions{
             ApiBasePath: api.GatewayBasePath,
             ApiVerb: api.GatewayMethod,
+            ApiRelPath: api.GatewayRelPath,
         }
 
         retApi, _, err := client.Apis.Get(api, options)
@@ -347,7 +352,7 @@ func parseApi(cmd *cobra.Command, args []string) (*whisk.Api, error) {
     api.Action.Auth = client.Config.AuthToken
     api.ApiName = apiname
     api.GatewayBasePath = basepath
-    api.Id = api.Namespace+":"+api.GatewayBasePath
+    api.Id = "API:"+api.Namespace+":"+api.GatewayBasePath
 
     whisk.Debug(whisk.DbgInfo, "Parsed api struct: %#v\n", api)
     return api, nil

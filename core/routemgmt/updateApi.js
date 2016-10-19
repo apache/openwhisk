@@ -62,7 +62,7 @@ function main(message) {
     doc.documentTimestamp = (new Date()).toString();
   }
 
-  var dbDocId = message.namespace+":"+getBasePath(message);
+  var dbDocId = "API:"+message.namespace+":"+getBasePath(message);
 
   // Log parameter values
   console.log('DB host             : '+message.host);

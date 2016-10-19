@@ -29,15 +29,19 @@ type ApiService struct {
     client *Client
 }
 
+type SendApi struct {
+    ApiDoc         *Api      `json:"apidoc,omitempty"`
+}
+
 type Api struct {
     Namespace       string   `json:"namespace,omitempty"`
+    ApiName         string   `json:"apiName,omitempty"`
+    GatewayBasePath string   `json:"gatewayBasePath,omitempty"`
     GatewayRelPath  string   `json:"gatewayPath,omitempty"`
     GatewayMethod   string   `json:"gatewayMethod,omitempty"`
     Id              string   `json:"id,omitempty"`
     GatewayFullPath string   `json:"gatewayFullPath,omitempty"`
-    ApiName         string   `json:"apiName,omitempty"`
-    GatewayBasePath string   `json:"gatewayBasePath,omitempty"`
-    ApiDoc          string   `json:"swagger,omitempty"`
+    Swagger         string   `json:"swagger,omitempty"`
     Action          *ApiAction `json:"action,omitempty"`
 }
 
@@ -64,9 +68,9 @@ type ApiListOptions struct {
 }
 
 type RetApi struct {
-    Namespace       string    `json:"namespace,omitempty"`
-    Activated       bool      `json:"gwApiActivated,omitempty"`
-    TenantId        string    `json:"tenantId,omitempty"`
+    Namespace       string    `json:"namespace"`
+    Activated       bool      `json:"gwApiActivated"`
+    TenantId        string    `json:"tenantId"`
     Swagger         *ApiSwagger `json:"apidoc,omitempty"`
 }
 
@@ -130,16 +134,16 @@ func (s *ApiService) List(apiListOptions *ApiListOptions) ([]Api, *http.Response
     return apiList, resp, err
 }
 
-func (s *ApiService) Insert(api *Api, overwrite bool) (*RetApi, *http.Response, error) {
+func (s *ApiService) Insert(api *SendApi, overwrite bool) (*RetApi, *http.Response, error) {
     var sentAction interface{}
 
     route := fmt.Sprintf("routes")
     Debug(DbgInfo, "Api PUT route: %s\n", route)
 
-    req, err := s.client.NewRequest("PUT", route, api)
+    req, err := s.client.NewRequest("POST", route, api)
     if err != nil {
-        Debug(DbgError, "http.NewRequest(PUT, %s, %#v) error: '%s'\n", route, err, sentAction)
-        errMsg := wski18n.T("Unable to create HTTP request for PUT '{{.route}}': {{.err}}",
+        Debug(DbgError, "http.NewRequest(POST, %s, %#v) error: '%s'\n", route, err, sentAction)
+        errMsg := wski18n.T("Unable to create HTTP request for POST '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
         whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
@@ -159,8 +163,9 @@ func (s *ApiService) Insert(api *Api, overwrite bool) (*RetApi, *http.Response, 
 func (s *ApiService) Get(api *Api, options *ApiOptions) (*RetApi, *http.Response, error) {
     // Encode resource name as a path (with no query ) before inserting it into the URI
     // This way any '?' chars in the name won't be treated as the beginning of the query params
-    apiId := (&url.URL{Path: api.Id}).String()
-    apiId = strings.Replace(apiId, "/", "!", -1)  // Since '/' is the URL path delimiter, replace these chars
+    preEncodedApiId := api.Id
+    encodedApiId := url.QueryEscape(preEncodedApiId) // Escape ':' and '/' characters typical in this id string
+    apiId := (&url.URL{Path: encodedApiId}).String()
     route := fmt.Sprintf("routes/%s", apiId)
     Debug(DbgInfo, "Api GET route: %s\n", route)
 

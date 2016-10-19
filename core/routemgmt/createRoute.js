@@ -26,23 +26,18 @@
  *   password   Required. The database user password
  *   gwUrl      Required. The API Gateway base path (i.e. http://gw.com)
  *   apidoc     Required. The API Gateway mapping document
-       namespace          Required.  Namespace of user/caller
-       apiName            Required.  API descriptive name
-       gatewayBasePath    Required.  API base path
-       gatewayPath        Required.  Specific API path (relative to base path)
-       gatewayMethod      Required.  API path operation
-       id                 Optional.  Unique id of API
-       action             Required.
-            name            Required.  Action name (includes package)
-            namespace       Required.  Action namespace
-            backendMethod   Required.  Action invocation REST verb.  "POST"
-            backendUrl      Required.  Action invocation REST url
-            authkey         Required.  Action invocation auth key
- }
-
- type ApiAction struct {
-
- }
+ *      namespace          Required.  Namespace of user/caller
+ *      apiName            Required.  API descriptive name
+ *      gatewayBasePath    Required.  API base path
+ *      gatewayPath        Required.  Specific API path (relative to base path)
+ *      gatewayMethod      Required.  API path operation
+ *      id                 Optional.  Unique id of API
+ *      action             Required.
+ *           name            Required.  Action name (includes package)
+ *           namespace       Required.  Action namespace
+ *           backendMethod   Required.  Action invocation REST verb.  "POST"
+ *           backendUrl      Required.  Action invocation REST url
+ *           authkey         Required.  Action invocation auth key
  *
  * NOTE: The package containing this action will be bound to the following values:
  *         host, port, protocol, dbname, username, password
@@ -52,6 +47,7 @@
  var request = require('request');
 
 function main(message) {
+  console.log('createRoute:  params: '+JSON.stringify(message));
   var badArgMsg = '';
   if (badArgMsg = validateArgs(message)) {
     return whisk.error(badArgMsg);

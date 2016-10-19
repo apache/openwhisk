@@ -41,7 +41,7 @@ function main(message) {
     return whisk.error(badArgMsg);
   }
   var dbname = message.dbname;
-  var docid = message.namespace+":"+message.basepath
+  var docid = "API:"+message.namespace+":"+message.basepath
 
   // Log parameter values
   console.log('DB host    : '+message.host);

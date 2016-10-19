@@ -62,7 +62,7 @@ function main(message) {
     doc.documentTimestamp = (new Date()).toString();
   }
 
-  var dbDocId = message.namespace+":"+getBasePath(message);
+  var dbDocId = "API:"+message.namespace+":"+getBasePath(message);
 
   // Log parameter values
   console.log('DB host             : '+message.host);
@@ -107,7 +107,7 @@ function main(message) {
   }, function(err) {
     console.error('Got DB error: ', err);
     // FIXME MWD remove check for 'undefined (undefined)'
-    if ( (err == 'undefined (undefined)') ||
+    if ( (err == 'undefined (undefined)') || (err.error == 'undefined (undefined)') ||
          (err.error == "not_found" && err.reason == "missing" && err.headers.statusCode == 404)) {
       // No document.  Create an initial one
       console.log('API document not found; creating a new one:', err);
