@@ -90,7 +90,7 @@ function main(message) {
 }
 
 function readApiDocument(cloudantDb, docId, params) {
-  console.log('readApiDocument: filter params: %v', params);
+  console.log('readApiDocument: filter params: ', params);
   return new Promise (function(resolve,reject) {
     cloudantDb.get(docId, params, function(error, response) {
       if (!error) {
