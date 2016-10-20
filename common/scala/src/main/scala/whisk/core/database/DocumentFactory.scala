@@ -169,6 +169,8 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
             implicit val ec = db.executionContext
 
             val key = doc.id.asDocInfo
+            // invalidate the key because attachments update the revision;
+            // do not cache the new attachment (controller does not need it)
             cacheInvalidate(key, {
                 val src = StreamConverters.fromInputStream(() => bytes)
                 db.attach(doc, attachmentName, contentType, src)

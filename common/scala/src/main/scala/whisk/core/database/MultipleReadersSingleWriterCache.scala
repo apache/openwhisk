@@ -34,7 +34,7 @@ import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
 
 /**
- * A cache that allows multiple readers, bit only a single writer, at
+ * A cache that allows multiple readers, but only a single writer, at
  * a time. It will make a best effort attempt to coalesce reads, but
  * does not guarantee that all overlapping reads will be coalesced.
  *
@@ -43,14 +43,14 @@ import whisk.common.TransactionId
  * cache with State.ReadInProgress. A write does the same, with
  * State.WriteInProgress.
  *
- * On read or write completion, the value transitions to
- * State.Cached.
+ * On read or write completion, the value transitions to State.Cached.
  *
  * State.Initial is represented implicitly by absence from the cache.
  *
  * The handshake for cache entry state transition is:
+ *
  * 1. if entry is in an agreeable state, proceed
- *    where agreeable for reads is Initial, ReadInProgress, or Cached
+ *      where agreeable for reads is Initial, ReadInProgress, or Cached
  *                    and the read proceeds by ensuring the entry is State.ReadInProgress
  *      and agreeable for writes is Initial or Cached
  *                    and the write proceeds by ensuring the entry is State.WriteInProgress
@@ -68,58 +68,62 @@ import whisk.common.TransactionId
  * 5. lastly, for cache invalidations that race with, we mark the entry as
  *
  */
-trait MultipleReadersSingleWriterCache[W, Winfo] {
-    /** Subclasses: Toggle this to enable/disable caching for your entity type. */
-    protected def cacheEnabled = true
-
-    /** Subclasses: tell me what key to use for updates */
-    protected def cacheKeyForUpdate(w: W): Any
-
-    /** Each entry has a state, as explained in the class comment above */
-    protected object State extends Enumeration {
+private object MultipleReadersSingleWriterCache {
+    /** Each entry has a state, as explained in the class comment above. */
+    object State extends Enumeration {
         type State = Value
         val ReadInProgress, WriteInProgress, InvalidateInProgress, InvalidateWhenDone, Cached = Value
     }
+
     import State._
-    implicit def state2Atomic(state: State): AtomicReference[State] = {
-        new AtomicReference(state)
-    }
-    implicit def value2Atomic(value: Future[W]): Option[AtomicReference[Future[W]]] = {
-        Some(new AtomicReference(value))
-    }
-    implicit def transid2Atomic(transid: TransactionId): AtomicReference[TransactionId] = {
-        new AtomicReference(transid)
-    }
 
     /** Failure modes, which will only occur if there is a bug in this implementation */
-    case class ConcurrentOperationUnderRead(actualState: State) extends Exception(s"Cache bug: a read started, but completion raced with a concurrent operation: ${actualState}")
-    case class ConcurrentOperationUnderUpdate(actualState: State) extends Exception("Cache bug: an update started, but completion raced with a concurrent operation: ${actualState}")
-    case class SquashedInvalidation(actualState: State) extends Exception("Cache invalidation squashed due ${actualState}")
-    case class StaleRead(actualState: State) extends Exception(s"Attempted read of invalid entry due to ${actualState}")
+    case class ConcurrentOperationUnderRead(actualState: State) extends Exception(s"Cache read started, but completion raced with a concurrent operation: $actualState.")
+    case class ConcurrentOperationUnderUpdate(actualState: State) extends Exception(s"Cache update started, but completion raced with a concurrent operation: $actualState.")
+    case class SquashedInvalidation(actualState: State) extends Exception(s"Cache invalidation squashed due $actualState.")
+    case class StaleRead(actualState: State) extends Exception(s"Attempted read of invalid entry due to $actualState.")
+}
+
+trait MultipleReadersSingleWriterCache[W, Winfo] {
+    import MultipleReadersSingleWriterCache._
+    import MultipleReadersSingleWriterCache.State._
+
+    /** Subclasses: Toggle this to enable/disable caching for your entity type. */
+    protected def cacheEnabled = true
+
+    /** Subclasses: tell me what key to use for updates. */
+    protected def cacheKeyForUpdate(w: W): Any
+
+    // Implicit conversions to boxed atomic references.
+    private implicit def toAtomic(state: State): AtomicReference[State] = new AtomicReference(state)
+    private implicit def toAtomic(value: Future[W]): AtomicReference[Future[W]] = new AtomicReference(value)
+    private implicit def toAtomic(transid: TransactionId): AtomicReference[TransactionId] = new AtomicReference(transid)
 
     /**
-     * The entries in the cache will be a triple of (transid, State, Future[W])
+     * The entries in the cache will be a triple of (transid, State, Future[W]?).
      *
-     * We need the transid in order to detect whether we have won the race to add an entry to the cache
-     *
+     * We need the transid in order to detect whether we have won the race to add an entry to the cache.
      */
-    private case class Entry(transid: AtomicReference[TransactionId], state: AtomicReference[State], value: Option[AtomicReference[Future[W]]]) {
-        def invalidate = state.set(InvalidateInProgress)
+    private case class Entry(
+        transid: AtomicReference[TransactionId],
+        state: AtomicReference[State],
+        value: Option[AtomicReference[Future[W]]]) {
 
-        def unpack: Future[W] = {
-            value match {
-                case Some(ref) => ref.get
-                case None      => Future.failed(new StaleRead(state.get))
-            }
+        def invalidate(): Unit = {
+            state.set(InvalidateInProgress)
+        }
+
+        def unpack(): Future[W] = {
+            value map { ref => ref.get } getOrElse Future.failed(new StaleRead(state.get))
         }
 
         def writeDone()(implicit logger: Logging): Boolean = {
-            logger.debug(this, "Write finished")
+            logger.debug(this, "Write finished")(transid.get)
             trySet(WriteInProgress, Cached)
         }
 
         def readDone()(implicit logger: Logging): Boolean = {
-            logger.debug(this, "Read finished")
+            logger.debug(this, "Read finished")(transid.get)
             trySet(ReadInProgress, Cached)
         }
 
@@ -128,19 +132,12 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
         }
 
         def grabWriteLock(new_transid: TransactionId, new_value: Future[W]): Boolean = {
-            trySet(Cached, WriteInProgress) match {
-                case true => {
-                    value match {
-                        case Some(ref) => ref.set(new_value)
-                        case None      => // nothing to do
-                    }
-
-                    transid.set(new_transid)
-                    true
-                }
-                case false => false
-
+            val swapped = trySet(Cached, WriteInProgress)
+            if (swapped) {
+                value map { _.set(new_value) }
+                transid.set(new_transid)
             }
+            swapped
         }
 
         def grabInvalidationLock = state.set(InvalidateInProgress)
@@ -148,149 +145,114 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
 
     protected def cacheInvalidate[R](key: Any, invalidator: => Future[R])(
         implicit ec: ExecutionContext, transid: TransactionId, logger: Logging): Future[R] = {
-        if (cacheEnabled) {
-            logger.info(this, s"invalidating $key")
+        cacheEnabled match {
+            case true =>
+                logger.info(this, s"invalidating $key")
 
-            val desiredEntry = Entry(transid, InvalidateInProgress, None)
+                // try inserting our desired entry...
+                val desiredEntry = Entry(transid, InvalidateInProgress, None)
+                cache(key)(desiredEntry) flatMap { actualEntry =>
+                    // ... and see what we get back
 
-            cache(key)(desiredEntry) flatMap { actualEntry =>
-                actualEntry.state.get match {
-                    case Cached => {
-                        //
-                        // nobody owns the entry, forcefully grab ownership
-                        //
-                        invalidateEntryAfter(invalidator, key, actualEntry)
-                    }
-                    case ReadInProgress | WriteInProgress => {
-                        if (actualEntry.trySet(actualEntry.state.get, InvalidateWhenDone)) {
-                            //
-                            // then the current owner will take care of the invalidation
-                            //
-                            invalidator
-                        } else {
-                            //
-                            // then the current reader or writer finished up,
-                            // so we can't depend on it to perform the invalidation
-                            //
+                    actualEntry.state.get match {
+                        case Cached =>
+                            // nobody owns the entry, forcefully grab ownership
                             invalidateEntryAfter(invalidator, key, actualEntry)
-                        }
-                    }
-                    case InvalidateInProgress | InvalidateWhenDone => {
-                        //
-                        // someone else requested an invalidation already
-                        //
-                        invalidator
+
+                        case ReadInProgress | WriteInProgress =>
+                            if (actualEntry.trySet(actualEntry.state.get, InvalidateWhenDone)) {
+                                // then the pre-existing owner will take care of the invalidation
+                                invalidator
+                            } else {
+                                // the pre-existing reader or writer finished and so must
+                                // explicitly invalidate here
+                                invalidateEntryAfter(invalidator, key, actualEntry)
+                            }
+
+                        case InvalidateInProgress | InvalidateWhenDone =>
+                            // someone else requested an invalidation already
+                            invalidator
                     }
                 }
-            }
 
-        } else {
-            // not caching
-            invalidator
+            case _ => invalidator // not caching
         }
     }
 
-    protected def cacheLookup[Wsuper >: W](
-        key: Any,
-        future: => Future[W],
-        fromCache: Boolean = cacheEnabled)(
-            implicit ec: ExecutionContext, transid: TransactionId, logger: Logging): Future[W] = {
+    protected def cacheLookup[Wsuper >: W](key: Any, generator: => Future[W], fromCache: Boolean = cacheEnabled)(
+        implicit ec: ExecutionContext, transid: TransactionId, logger: Logging): Future[W] = {
+        cacheEnabled match {
+            case true =>
+                val promise = Promise[W]
 
-        if (fromCache) {
-            val promise = Promise[W]
-            val desiredEntry = Entry(transid, ReadInProgress, promise.future)
+                // try inserting our desired entry...
+                val desiredEntry = Entry(transid, ReadInProgress, Some(promise.future))
+                cache(key)(desiredEntry) flatMap { actualEntry =>
+                    // ... and see what we get back
 
-            //
-            // try inserting our desired entry...
-            //
-            cache(key)(desiredEntry) flatMap { actualEntry =>
-                // ... and see what we get back
-
-                actualEntry.state.get match {
-                    case Cached => {
-                        logger.debug(this, s"Cached read $key")
-                        makeNoteOfCacheHit(key)
-                        actualEntry.unpack
-                    }
-
-                    case ReadInProgress => {
-                        if (actualEntry.transid.get == transid) {
-                            logger.debug(this, "Read initiated");
-                            makeNoteOfCacheMiss(key)
-                            listenForReadDone(key, actualEntry, future, promise)
-                            actualEntry.unpack
-
-                        } else {
-                            logger.debug(this, "Coalesced read")
+                    actualEntry.state.get match {
+                        case Cached =>
+                            logger.debug(this, s"Cached read $key")
                             makeNoteOfCacheHit(key)
                             actualEntry.unpack
-                        }
-                    }
 
-                    case WriteInProgress | InvalidateInProgress => {
-                        logger.debug(this, "Reading around a write in progress")
-                        makeNoteOfCacheMiss(key)
-                        future
+                        case ReadInProgress =>
+                            if (actualEntry.transid.get == transid) {
+                                logger.debug(this, "Read initiated");
+                                makeNoteOfCacheMiss(key)
+                                listenForReadDone(key, actualEntry, generator, promise)
+                                actualEntry.unpack
+                            } else {
+                                logger.debug(this, "Coalesced read")
+                                makeNoteOfCacheHit(key)
+                                actualEntry.unpack
+                            }
+
+                        case WriteInProgress | InvalidateInProgress =>
+                            logger.debug(this, "Reading around a write in progress")
+                            makeNoteOfCacheMiss(key)
+                            generator
                     }
                 }
-            }
 
-        } else {
-            // not caching
-            future
+            case _ => generator // not caching
         }
     }
 
     /**
      * This method posts an update to the backing store, and potentially stores the result in the cache.
-     *
      */
-    protected def cacheUpdate(doc: W, key: Any, future: => Future[Winfo])(
+    protected def cacheUpdate(doc: W, key: Any, generator: => Future[Winfo])(
         implicit transid: TransactionId, logger: Logging, ec: ExecutionContext): Future[Winfo] = {
+        cacheEnabled match {
+            case true =>
+                logger.info(this, s"invalidating $key") // make the tests happy, as cacheUpdate now has invalidate built in
+                logger.info(this, s"caching $key")
 
-        if (cacheEnabled) {
-            logger.info(this, s"invalidating $key") // make the tests happy, as cacheUpdate now has invalidate built in
-            logger.info(this, s"caching $key")
+                // try inserting our desired entry...
+                val desiredEntry = Entry(transid, WriteInProgress, Some(Future.successful(doc)))
+                cache(key)(desiredEntry) flatMap { actualEntry =>
+                    // ... and see what we get back
 
-            val desiredEntry = Entry(transid, WriteInProgress, Future { doc })
-
-            //
-            // try inserting our desired entry...
-            //
-            cache(key)(desiredEntry) flatMap { actualEntry =>
-                // ... and see what we get back
-
-                if (actualEntry.transid.get == transid) {
-                    //
-                    // then we won the race to insert a new entry in the cache
-                    //
-                    logger.info(this, s"Write initiated on new cache entry $key")
-                    listenForWriteDone(key, actualEntry, future)
-
-                } else {
-                    //
-                    // otherwise, some existing entry is in the way, so try to grab a write lock
-                    //
-                    if (actualEntry.grabWriteLock(transid, desiredEntry.unpack)) {
-                        //
-                        // we won this race! we are now the writer
-                        //
-                        logger.info(this, s"Write initiated on existing cache entry $key")
-                        listenForWriteDone(key, actualEntry, future)
-
+                    if (actualEntry.transid.get == transid) {
+                        // then we won the race to insert a new entry in the cache
+                        logger.info(this, s"Write initiated on new cache entry $key")
+                        listenForWriteDone(key, actualEntry, generator)
                     } else {
-                        //
-                        // then either we lost the race, or there is a conflicting operation in progress on this key
-                        //
-                        logger.info(this, s"Write-around (i.e. not cached) under ${actualEntry.state.get} $key")
-                        future
+                        // otherwise, some existing entry is in the way, so try to grab a write lock
+                        if (actualEntry.grabWriteLock(transid, desiredEntry.unpack)) {
+                            // we won this race! we are now the writer
+                            logger.info(this, s"Write initiated on existing cache entry $key")
+                            listenForWriteDone(key, actualEntry, generator)
+                        } else {
+                            // then either we lost the race, or there is a conflicting operation in progress on this key
+                            logger.info(this, s"Write-around (i.e. not cached) under ${actualEntry.state.get} $key")
+                            generator
+                        }
                     }
                 }
-            }
 
-        } else {
-            // not caching
-            future
+            case _ => generator // not caching
         }
     }
 
