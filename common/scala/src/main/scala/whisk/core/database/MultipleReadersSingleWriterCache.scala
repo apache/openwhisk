@@ -272,7 +272,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
                         val allowedToAssumeCompletion = currentState == Cached || currentState == ReadInProgress
 
                         if (allowedToAssumeCompletion && actualEntry.grabWriteLock(transid, currentState, desiredEntry.unpack)) {
-                            // this transaciton is now responsible for updating the cache entry
+                            // this transaction is now responsible for updating the cache entry
                             logger.info(this, s"write initiated on existing cache entry")
                             listenForWriteDone(key, actualEntry, generator)
                         } else {
