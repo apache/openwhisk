@@ -118,12 +118,12 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
         }
 
         def writeDone()(implicit logger: Logging): Boolean = {
-            logger.debug(this, "Write finished")(transid.get)
+            logger.debug(this, "write finished")(transid.get)
             trySet(WriteInProgress, Cached)
         }
 
         def readDone()(implicit logger: Logging): Boolean = {
-            logger.debug(this, "Read finished")(transid.get)
+            logger.debug(this, "read finished")(transid.get)
             trySet(ReadInProgress, Cached)
         }
 
@@ -143,6 +143,10 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
         def grabInvalidationLock() = state.set(InvalidateInProgress)
     }
 
+    /**
+     * This method posts a delete to the backing store, and either directly invalidates the cache entry
+     * or informs any outstanding transaction that it must invalidate the cache on completion.
+     */
     protected def cacheInvalidate[R](key: Any, invalidator: => Future[R])(
         implicit ec: ExecutionContext, transid: TransactionId, logger: Logging): Future[R] = {
         cacheEnabled match {
@@ -158,6 +162,15 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
                     currentState match {
                         case Cached =>
                             // nobody owns the entry, forcefully grab ownership
+                            // note: if a new cache lookup is received while
+                            // the invalidator has not yet completed (and hence the actual entry
+                            // removed from the cache), such lookup operations will still be able
+                            // to return the value that is cached, and this is acceptable (under
+                            // the eventual consistency model) as long as such lookups do not
+                            // mutate the state of the cache to violate the invalidation that is
+                            // about to occur (this is eventually consistent and NOT sequentially
+                            // consistent since the cache lookup and the setting of the
+                            // InvalidateInProgress bit are not atomic
                             invalidateEntryAfter(invalidator, key, actualEntry)
 
                         case ReadInProgress | WriteInProgress =>
@@ -178,6 +191,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
                                 // someone else requested an invalidation already
                                 invalidator
                             }
+
                         case InvalidateWhenDone =>
                             // a pre-existing owner will take care of the invalidation
                             invalidator
@@ -188,11 +202,14 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
         }
     }
 
+    /**
+     * This method may initiate a read from the backing store, and potentially stores the result in the cache.
+     */
     protected def cacheLookup[Wsuper >: W](key: Any, generator: => Future[W], fromCache: Boolean = cacheEnabled)(
         implicit ec: ExecutionContext, transid: TransactionId, logger: Logging): Future[W] = {
         cacheEnabled match {
             case true =>
-                val promise = Promise[W]
+                val promise = Promise[W] // this promise completes with the generator value
 
                 // try inserting our desired entry...
                 val desiredEntry = new Entry(transid, ReadInProgress, Some(promise.future))
@@ -201,24 +218,27 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
 
                     actualEntry.state.get match {
                         case Cached =>
-                            logger.debug(this, s"Cached read $key")
+                            logger.debug(this, "cached read")
                             makeNoteOfCacheHit(key)
                             actualEntry.unpack
 
                         case ReadInProgress =>
                             if (actualEntry.transid.get == transid) {
-                                logger.debug(this, "Read initiated");
+                                logger.debug(this, "read initiated");
                                 makeNoteOfCacheMiss(key)
+                                // updating the cache with the new value is done in the listener
+                                // and will complete unless an invalidation request or an intervening
+                                // write occur in the meantime
                                 listenForReadDone(key, actualEntry, generator, promise)
                                 actualEntry.unpack
                             } else {
-                                logger.debug(this, "Coalesced read")
+                                logger.debug(this, "coalesced read")
                                 makeNoteOfCacheHit(key)
                                 actualEntry.unpack
                             }
 
                         case WriteInProgress | InvalidateInProgress =>
-                            logger.debug(this, "Reading around a write in progress")
+                            logger.debug(this, "reading around an update in progress")
                             makeNoteOfCacheMiss(key)
                             generator
                     }
@@ -243,19 +263,20 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
                 cache(key)(desiredEntry) flatMap { actualEntry =>
                     // ... and see what we get back
 
+                    // there's an assumed invariant here that transid is unique and not recycled
                     if (actualEntry.transid.get == transid) {
                         // then we won the race to insert a new entry in the cache
-                        logger.info(this, s"Write initiated on new cache entry $key")
+                        logger.info(this, s"write initiated on new cache entry")
                         listenForWriteDone(key, actualEntry, generator)
                     } else {
                         // otherwise, some existing entry is in the way, so try to grab a write lock
                         if (actualEntry.grabWriteLock(transid, desiredEntry.unpack)) {
                             // we won this race! we are now the writer
-                            logger.info(this, s"Write initiated on existing cache entry $key")
+                            logger.info(this, s"write initiated on existing cache entry")
                             listenForWriteDone(key, actualEntry, generator)
                         } else {
                             // then either we lost the race, or there is a conflicting operation in progress on this key
-                            logger.info(this, s"Write-around (i.e. not cached) under ${actualEntry.state.get} $key")
+                            logger.info(this, s"write-around (i.e., not cached) under ${actualEntry.state.get}")
                             generator
                         }
                     }
@@ -287,21 +308,24 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
      * We have initiated a read (in cacheLookup), now handle its completion
      *
      */
-    private def listenForReadDone(key: Any, entry: Entry, future: => Future[W], promise: Promise[W])(
+    private def listenForReadDone(key: Any, entry: Entry, generator: => Future[W], promise: Promise[W])(
         implicit logger: Logging, ec: ExecutionContext): Unit = {
 
-        future onComplete {
+        generator onComplete {
             case Success(value) => {
                 //
                 // if the datastore read was successful, then transition to the Cached state
                 //
-                logger.debug(this, "Read backend part done, now marking cache entry as done")
+                logger.debug(this, "read backend part done, now marking cache entry as done")
+                // cache entry is still in ReadInProgress and successful transitioned to Cached
+                // hence the new value is cached
                 if (entry.readDone()) {
                     promise success value
-
+                    // else if the state is not ReadInProgress, do not cache this value and remove
+                    // entry from the cache
                 } else if (entry.state.get == InvalidateWhenDone) {
                     invalidateEntry(key, entry)
-
+                    // there could be a third case of WriteInProgress
                 } else {
                     // if this ever happens, this cache impl is buggy
                     readOops(key, entry, promise, ConcurrentOperationUnderRead(entry.state.get))
@@ -320,33 +344,29 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
     }
 
     /**
-     * We have initiated a write, now handle its completion
-     *
+     * We have initiated a write, now handle its completion.
      */
-    private def listenForWriteDone(key: Any, entry: Entry, future: => Future[Winfo])(
+    private def listenForWriteDone(key: Any, entry: Entry, generator: => Future[Winfo])(
         implicit logger: Logging, ec: ExecutionContext): Future[Winfo] = {
 
-        future flatMap { docinfo =>
-            //
+        generator flatMap { docinfo =>
             // if the datastore write was successful, then transition to the Cached state
-            //
-            logger.debug(this, "Write backend part done, now marking cache entry as done")
+            logger.debug(this, "write backend part done, now marking cache entry as done")
 
+            // if the state transition from WriteInProgress to CACHED fails, then invalidate
+            // the entry in the cache
             if (!entry.writeDone()) {
                 if (entry.state.get != InvalidateWhenDone) {
                     // if this ever happens, this cache impl is buggy
                     logger.error(this, ConcurrentOperationUnderUpdate.toString())
                 } else {
-                    logger.info(this, s"Write done, but invalidating cache entry $key")
+                    logger.info(this, s"write done, but invalidating cache entry $key")
                 }
                 invalidateEntry(key, entry)
-
             } else {
-                logger.info(this, s"Write all done $key ${entry.state.get}")
+                logger.info(this, s"write all done $key ${entry.state.get}")
             }
-
             Future.successful(docinfo)
-
         } recoverWith {
             case t =>
                 //
@@ -357,27 +377,19 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
         }
     }
 
-    /**
-     * Write completion resulted in a failure
-     *
-     */
+    /** Writes completion resulted in a failure. */
     private def readOops(key: Any, entry: Entry, promise: Promise[W], t: Throwable): Unit = {
         invalidateEntry(key, entry)
         promise failure t
     }
 
-    /**
-     * Immediately invalidate the given entry
-     *
-     */
+    /** Immediately invalidates the given entry. */
     private def invalidateEntry(key: Any, entry: Entry): Unit = {
         entry.invalidate()
         cache remove key
     }
 
-    /**
-     * Invalidate the given entry after a given invalidator completes
-     */
+    /** Invalidates the given entry after a given invalidator completes. */
     private def invalidateEntryAfter[R](invalidator: => Future[R], key: Any, entry: Entry)(
         implicit ec: ExecutionContext): Future[R] = {
 
@@ -387,8 +399,6 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
         }
     }
 
-    /**
-     * This is the backing store
-     */
+    /** This is the backing store. */
     private val cache: Cache[Entry] = LruCache(timeToLive = 5.minutes)
 }
