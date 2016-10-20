@@ -169,8 +169,16 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
                                 invalidateEntryAfter(invalidator, key, actualEntry)
                             }
 
-                        case InvalidateInProgress | InvalidateWhenDone =>
-                            // someone else requested an invalidation already
+                        case InvalidateInProgress =>
+                            if (actualEntry.transid == transid) {
+                                // we own the entry, so we are responsible for cleaning it up
+                                invalidateEntryAfter(invalidator, key, actualEntry)
+                            } else {
+                                // someone else requested an invalidation already
+                                invalidator
+                            }
+                        case InvalidateWhenDone =>
+                            // a pre-existing owner will take care of the invalidation
                             invalidator
                     }
                 }
