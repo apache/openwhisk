@@ -89,7 +89,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
     import MultipleReadersSingleWriterCache.State._
 
     /** Subclasses: Toggle this to enable/disable caching for your entity type. */
-    protected def cacheEnabled = true
+    protected lazy val cacheEnabled = true
 
     /** Subclasses: tell me what key to use for updates. */
     protected def cacheKeyForUpdate(w: W): Any
@@ -131,8 +131,8 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
             state.compareAndSet(expectedState, desiredState)
         }
 
-        def grabWriteLock(new_transid: TransactionId, new_value: Future[W]): Boolean = {
-            val swapped = trySet(Cached, WriteInProgress)
+        def grabWriteLock(new_transid: TransactionId, expectedState: State, new_value: Future[W]): Boolean = {
+            val swapped = trySet(expectedState, WriteInProgress)
             if (swapped) {
                 value map { _.set(new_value) }
                 transid.set(new_transid)
@@ -207,7 +207,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
      */
     protected def cacheLookup[Wsuper >: W](key: Any, generator: => Future[W], fromCache: Boolean = cacheEnabled)(
         implicit ec: ExecutionContext, transid: TransactionId, logger: Logging): Future[W] = {
-        cacheEnabled match {
+        fromCache match {
             case true =>
                 val promise = Promise[W] // this promise completes with the generator value
 
@@ -252,12 +252,9 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
      * This method posts an update to the backing store, and potentially stores the result in the cache.
      */
     protected def cacheUpdate(doc: W, key: Any, generator: => Future[Winfo])(
-        implicit transid: TransactionId, logger: Logging, ec: ExecutionContext): Future[Winfo] = {
+        implicit ec: ExecutionContext, transid: TransactionId, logger: Logging): Future[Winfo] = {
         cacheEnabled match {
             case true =>
-                logger.info(this, s"invalidating $key") // make the tests happy, as cacheUpdate now has invalidate built in
-                logger.info(this, s"caching $key")
-
                 // try inserting our desired entry...
                 val desiredEntry = new Entry(transid, WriteInProgress, Some(Future.successful(doc)))
                 cache(key)(desiredEntry) flatMap { actualEntry =>
@@ -265,19 +262,23 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
 
                     // there's an assumed invariant here that transid is unique and not recycled
                     if (actualEntry.transid.get == transid) {
-                        // then we won the race to insert a new entry in the cache
+                        // then this transaction won the race to insert a new entry in the cache
+                        // and it is responsible for updating the cache entry...
                         logger.info(this, s"write initiated on new cache entry")
                         listenForWriteDone(key, actualEntry, generator)
                     } else {
-                        // otherwise, some existing entry is in the way, so try to grab a write lock
-                        if (actualEntry.grabWriteLock(transid, desiredEntry.unpack)) {
-                            // we won this race! we are now the writer
+                        // ... otherwise, some existing entry is in the way, so try to grab a write lock
+                        val currentState = actualEntry.state.get
+                        val allowedToAssumeCompletion = currentState == Cached || currentState == ReadInProgress
+
+                        if (allowedToAssumeCompletion && actualEntry.grabWriteLock(transid, currentState, desiredEntry.unpack)) {
+                            // this transaciton is now responsible for updating the cache entry
                             logger.info(this, s"write initiated on existing cache entry")
                             listenForWriteDone(key, actualEntry, generator)
                         } else {
-                            // then either we lost the race, or there is a conflicting operation in progress on this key
-                            logger.info(this, s"write-around (i.e., not cached) under ${actualEntry.state.get}")
-                            generator
+                            // there is a conflicting operation in progress on this key
+                            logger.info(this, s"write-around (i.e., not cached) under $currentState")
+                            invalidateEntryAfter(generator, key, actualEntry)
                         }
                     }
                 }
@@ -292,7 +293,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
      * Log a cache hit
      *
      */
-    private def makeNoteOfCacheHit(key: Any)(implicit transid: TransactionId, logger: Logging) {
+    private def makeNoteOfCacheHit(key: Any)(implicit transid: TransactionId, logger: Logging) = {
         transid.mark(this, LoggingMarkers.DATABASE_CACHE_HIT, s"[GET] serving from cache: $key")(logger)
     }
 
@@ -300,87 +301,88 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
      * Log a cache miss
      *
      */
-    private def makeNoteOfCacheMiss(key: Any)(implicit transid: TransactionId, logger: Logging) {
+    private def makeNoteOfCacheMiss(key: Any)(implicit transid: TransactionId, logger: Logging) = {
         transid.mark(this, LoggingMarkers.DATABASE_CACHE_MISS, s"[GET] serving from datastore: $key")(logger)
     }
 
     /**
-     * We have initiated a read (in cacheLookup), now handle its completion
-     *
+     * We have initiated a read (in cacheLookup), now handle its completion:
+     * 1. either cache the result if there is no intervening delete or update, or
+     * 2. invalidate the cache because there was an intervening delete or update.
      */
     private def listenForReadDone(key: Any, entry: Entry, generator: => Future[W], promise: Promise[W])(
-        implicit logger: Logging, ec: ExecutionContext): Unit = {
+        implicit ec: ExecutionContext, transid: TransactionId, logger: Logging): Unit = {
+
+        // helper that writes completion resulted in a failure
+        def readOops(t: Throwable): Unit = {
+            invalidateEntry(key, entry)
+            promise.failure(t)
+        }
 
         generator onComplete {
-            case Success(value) => {
-                //
-                // if the datastore read was successful, then transition to the Cached state
-                //
+            case Success(value) =>
+                // if the datastore read was successful, then try to transition to the Cached state
                 logger.debug(this, "read backend part done, now marking cache entry as done")
-                // cache entry is still in ReadInProgress and successful transitioned to Cached
-                // hence the new value is cached
+
                 if (entry.readDone()) {
+                    // cache entry is still in ReadInProgress and successful transitioned to Cached
+                    // hence the new value is cached
                     promise success value
-                    // else if the state is not ReadInProgress, do not cache this value and remove
-                    // entry from the cache
-                } else if (entry.state.get == InvalidateWhenDone) {
-                    invalidateEntry(key, entry)
-                    // there could be a third case of WriteInProgress
                 } else {
-                    // if this ever happens, this cache impl is buggy
-                    readOops(key, entry, promise, ConcurrentOperationUnderRead(entry.state.get))
+                    entry.state.get match {
+                        case InvalidateWhenDone =>
+                            // some transaction requested an invalidation, so remove the key from the cache
+                            invalidateEntry(key, entry)
+                        case WriteInProgress =>
+                            // do nothing, the write will handle the entry
+                            ()
+                        case _ =>
+                            // this should not happen
+                            // if this ever happens, this cache impl is buggy
+                            val error = ConcurrentOperationUnderRead(entry.state.get)
+                            logger.error(this, error.toString)
+                            readOops(error)
+                    }
                 }
-            }
-            case Failure(t) => {
-                //
+
+            case Failure(t) =>
                 // oops, the datastore read failed. invalidate the cache entry
-                //
-                // note that this might be a perfectly legitimate failure,
+                // note: that this might be a perfectly legitimate failure,
                 // e.g. a lookup for a non-existant key; we need to pass the particular t through
-                //
-                readOops(key, entry, promise, t)
-            }
+                readOops(t)
         }
     }
 
     /**
-     * We have initiated a write, now handle its completion.
+     * We have initiated a write, now handle its completion:
+     * 1. either cache the result if there is no intervening delete or update, or
+     * 2. invalidate the cache cache because there was an intervening delete or update
      */
     private def listenForWriteDone(key: Any, entry: Entry, generator: => Future[Winfo])(
-        implicit logger: Logging, ec: ExecutionContext): Future[Winfo] = {
+        implicit ec: ExecutionContext, transid: TransactionId, logger: Logging): Future[Winfo] = {
 
-        generator flatMap { docinfo =>
-            // if the datastore write was successful, then transition to the Cached state
-            logger.debug(this, "write backend part done, now marking cache entry as done")
+        generator andThen {
+            case Success(_) =>
+                // if the datastore write was successful, then transition to the Cached state
+                logger.debug(this, "write backend part done, now marking cache entry as done")
 
-            // if the state transition from WriteInProgress to CACHED fails, then invalidate
-            // the entry in the cache
-            if (!entry.writeDone()) {
-                if (entry.state.get != InvalidateWhenDone) {
-                    // if this ever happens, this cache impl is buggy
-                    logger.error(this, ConcurrentOperationUnderUpdate.toString())
+                if (entry.writeDone()) {
+                    // entry transitioned from WriteInProgress to Cached state
+                    logger.info(this, s"write all done $key ${entry.state.get}")
                 } else {
-                    logger.info(this, s"write done, but invalidating cache entry $key")
+                    // state transition from WriteInProgress to Cached fails so invalidate
+                    // the entry in the cache
+                    if (entry.state.get != InvalidateWhenDone) {
+                        // if this ever happens, this cache impl is buggy
+                        logger.error(this, ConcurrentOperationUnderUpdate.toString)
+                    } else {
+                        logger.info(this, s"write done, but invalidating cache entry as requested")
+                    }
+                    invalidateEntry(key, entry)
                 }
-                invalidateEntry(key, entry)
-            } else {
-                logger.info(this, s"write all done $key ${entry.state.get}")
-            }
-            Future.successful(docinfo)
-        } recoverWith {
-            case t =>
-                //
-                // oops, the datastore write failed. invalidate the cache entry
-                //
-                invalidateEntry(key, entry)
-                Future.failed(t)
-        }
-    }
 
-    /** Writes completion resulted in a failure. */
-    private def readOops(key: Any, entry: Entry, promise: Promise[W], t: Throwable): Unit = {
-        invalidateEntry(key, entry)
-        promise failure t
+            case Failure(_) => invalidateEntry(key, entry) // datastore write failed, invalidate cache entry
+        }
     }
 
     /** Immediately invalidates the given entry. */
