@@ -332,6 +332,36 @@ function addPathToDbApiDoc(dbApiDoc, message) {
                 name: 'Authorization',
                 location: 'header'
               }
+            },
+            {
+              action: 'insert',
+              from: {
+                value: 'application/json'
+              },
+              to: {
+                name: 'Content-Type',
+                location: 'header'
+              }
+            },
+            {
+              action: 'insert',
+              from: {
+                value: 'true'
+              },
+              to: {
+                name: 'blocking',
+                location: 'query'
+              }
+            },
+            {
+              action: 'insert',
+              from: {
+                value: 'true'
+              },
+              to: {
+                name: 'result',
+                location: 'query'
+              }
             }
           ]
         }

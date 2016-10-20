@@ -49,6 +49,7 @@ var flags struct {
         full        bool // return full records (docs=true for client request)
         summary     bool
         feed        string  // name of feed
+        detail      bool
     }
 
     property struct {

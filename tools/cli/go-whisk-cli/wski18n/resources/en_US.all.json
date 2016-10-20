@@ -1192,8 +1192,16 @@
     "translation": "Unable to delete action: {{.err}}"
   },
   {
-    "id": "{{.ok}} deleted api {{.path}} {{.verb}}\n",
-    "translation": "{{.ok}} deleted api {{.path}} {{.verb}}\n"
+    "id": "{{.ok}} deleted api {{.basepath}}\n",
+    "translation": "{{.ok}} deleted api {{.basepath}}\n"
+  },
+  {
+    "id": "{{.ok}} deleted {{.path}} from {{.basepath}}\n",
+    "translation": "{{.ok}} deleted {{.path}} from {{.basepath}}\n"
+  },
+  {
+    "id": "{{.ok}} deleted {{.path}} {{.verb}} from {{.basepath}}\n",
+    "translation": "{{.ok}} deleted {{.path}} {{.verb}} from {{.basepath}}\n"
   },
   {
     "id": "list APIs",
@@ -1234,5 +1242,9 @@
   {
     "id": "{{.url}} {{.operation}} {{.action}} {{.activated}}\n",
     "translation": "{{.url}} {{.operation}} {{.action}} {{.activated}}\n"
+  },
+  {
+    "id": "An API base path is required.  An optional API relative path and operation may also be provided.",
+    "translation": "An API base path is required.  An optional API relative path and operation may also be provided."
   }
 ]

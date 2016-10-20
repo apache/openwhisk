@@ -22,7 +22,6 @@ import (
     "errors"
     "net/url"
     "../wski18n"
-    "strings"
 )
 
 type ApiService struct {
@@ -191,7 +190,7 @@ func (s *ApiService) Get(api *Api, options *ApiOptions) (*RetInsertApi, *http.Re
 
     req, err := s.client.NewRequestUrl("GET", routeUrl, nil)
     if err != nil {
-        Debug(DbgError, "http.NewRequest(GET, %s, nil) error: '%s'\n", route, err)
+        Debug(DbgError, "http.NewRequestUrl(GET, %s, nil) error: '%s'\n", route, err)
         errMsg := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
         whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
@@ -209,17 +208,29 @@ func (s *ApiService) Get(api *Api, options *ApiOptions) (*RetInsertApi, *http.Re
     return retApi, resp, nil
 }
 
-func (s *ApiService) Delete(api *Api) (*http.Response, error) {
+func (s *ApiService) Delete(api *Api, options *ApiOptions) (*http.Response, error) {
     // Encode resource name as a path (with no query ) before inserting it into the URI
     // This way any '?' chars in the name won't be treated as the beginning of the query params
-    apiId := (&url.URL{Path: api.Id}).String()
-    apiId = strings.Replace(apiId, "/", "!", -1)  // Since '/' is the URL path delimiter, replace these chars
+    preEncodedApiId := api.Id
+    encodedApiId := url.QueryEscape(preEncodedApiId) // Escape ':' and '/' characters typical in this id string
+    apiId := (&url.URL{Path: encodedApiId}).String()
     route := fmt.Sprintf("routes/%s", apiId)
     Debug(DbgInfo, "Api DELETE route: %s\n", route)
 
-    req, err := s.client.NewRequest("DELETE", route, nil)
+    routeUrl, err := addRouteOptions(route, options)
     if err != nil {
-        Debug(DbgError, "http.NewRequest(DELETE, %s, nil) error: '%s'\n", route, err)
+        Debug(DbgError, "addRouteOptions(%s, %#v) error: '%s'\n", route, options, err)
+        errMsg := wski18n.T("Unable to add route options '{{.options}}'",
+            map[string]interface{}{"options": options})
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG,
+            NO_DISPLAY_USAGE)
+        return nil, whiskErr
+    }
+    Debug(DbgError, "Api DELETE route with options: %s\n", routeUrl)
+
+    req, err := s.client.NewRequestUrl("DELETE", routeUrl, nil)
+    if err != nil {
+        Debug(DbgError, "http.NewRequestUrl(DELETE, %s, nil) error: '%s'\n", route, err)
         errMsg := wski18n.T("Unable to create HTTP request for DELETE '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
         whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
@@ -227,13 +238,12 @@ func (s *ApiService) Delete(api *Api) (*http.Response, error) {
         return nil, whiskErr
     }
 
-    retApi := new(Api)
-    resp, err := s.client.Do(req, retApi)
+    resp, err := s.client.Do(req, nil)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
         return resp, err
     }
 
-    return resp, nil
+    return nil, nil
 }
 

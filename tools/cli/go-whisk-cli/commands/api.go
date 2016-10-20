@@ -221,7 +221,9 @@ var apiGetCmd = &cobra.Command{
             //            "action": api.Action.Name,
             //            "fullurl": getManagedUrl(retApi, api.GatewayRelPath, api.GatewayMethod),
             //        }))
-            //printJSON(retApi)
+            if (flags.common.detail) {
+                printJSON(retApi)
+            }
         }
 
         return nil
@@ -229,30 +231,50 @@ var apiGetCmd = &cobra.Command{
 }
 
 var apiDeleteCmd = &cobra.Command{
-    Use:           "delete API_PATH API_VERB ACTION",
+    Use:           "delete BASE_PATH [API_PATH [API_VERB]]",
     Short:         wski18n.T("delete an API"),
     SilenceUsage:  true,
     SilenceErrors: true,
     PreRunE:       setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
 
-        if whiskErr := checkArgs(args, 3, 3, "Api get",
-            wski18n.T("An API path, an API verb, and an action name are required.")); whiskErr != nil {
+        if whiskErr := checkArgs(args, 1, 3, "Api get",
+            wski18n.T("An API base path is required.  An optional API relative path and operation may also be provided.")); whiskErr != nil {
             return whiskErr
         }
 
-        api, err := parseApi(cmd, args)
-        if err != nil {
-            whisk.Debug(whisk.DbgError, "parseApi(%s, %s) error: %s\n", cmd, args, err)
-            errMsg := fmt.Sprintf(
-                wski18n.T("Unable to parse api command arguments: {{.err}}",
-                    map[string]interface{}{"err": err}))
-            whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-                whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return whiskErr
+        //api, err := parseApi(cmd, args)
+        //if err != nil {
+        //    whisk.Debug(whisk.DbgError, "parseApi(%s, %s) error: %s\n", cmd, args, err)
+        //    errMsg := fmt.Sprintf(
+        //        wski18n.T("Unable to parse api command arguments: {{.err}}",
+        //            map[string]interface{}{"err": err}))
+        //    whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+        //        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+        //    return whiskErr
+        //}
+
+        api := new(whisk.Api)
+        api.GatewayBasePath = args[0]
+        if (len(args) > 1) {
+            api.GatewayRelPath = args[1]
+        }
+        if (len(args) > 2) {
+            // Is the API verb valid?
+            if whiskErr, ok := IsValidApiVerb(args[1]); !ok {
+                return whiskErr
+            }
+            api.GatewayMethod = strings.ToUpper(args[1])
+        }
+        api.Namespace = client.Config.Namespace
+        api.Id = "API:"+api.Namespace+":"+api.GatewayBasePath
+
+        options := &whisk.ApiOptions{
+            ApiVerb: api.GatewayMethod,
+            ApiRelPath: api.GatewayRelPath,
         }
 
-        _, err = client.Apis.Delete(api)
+        _, err := client.Apis.Delete(api, options)
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Apis.Delete(%s) error: %s\n", api.Id, err)
             errMsg := fmt.Sprintf(
@@ -263,13 +285,32 @@ var apiDeleteCmd = &cobra.Command{
             return whiskErr
         }
 
-        fmt.Fprintf(color.Output,
-            wski18n.T("{{.ok}} deleted api {{.path}} {{.verb}}\n",
-                map[string]interface{}{
-                    "ok": color.GreenString("ok:"),
-                    "path": api.GatewayRelPath,
-                    "verb": api.GatewayMethod,
-                }))
+        if (len(args) == 1) {
+            fmt.Fprintf(color.Output,
+                wski18n.T("{{.ok}} deleted api {{.basepath}}\n",
+                    map[string]interface{}{
+                        "ok": color.GreenString("ok:"),
+                        "basepath": api.GatewayBasePath,
+                    }))
+        } else if (len(args) == 2 ) {
+            fmt.Fprintf(color.Output,
+                wski18n.T("{{.ok}} deleted {{.path}} from {{.basepath}}\n",
+                    map[string]interface{}{
+                        "ok": color.GreenString("ok:"),
+                        "path": api.GatewayRelPath,
+                        "basepath": api.GatewayBasePath,
+                    }))
+        } else {
+            fmt.Fprintf(color.Output,
+                wski18n.T("{{.ok}} deleted {{.path}} {{.verb}} from {{.basepath}}\n",
+                    map[string]interface{}{
+                        "ok": color.GreenString("ok:"),
+                        "path": api.GatewayRelPath,
+                        "verb": api.GatewayMethod,
+                        "basepath": api.GatewayBasePath,
+                    }))
+        }
+
         return nil
     },
 }
@@ -377,7 +418,7 @@ func parseApi(cmd *cobra.Command, args []string) (*whisk.Api, error) {
         api.GatewayMethod = strings.ToUpper(args[1])
     }
     api.Action = new(whisk.ApiAction)
-    api.Action.BackendUrl = "https://" + client.Config.Host + "/api/v1/namespaces/" + qName.namespace + "/actions/" + qName.entityName + "?blocking=true"
+    api.Action.BackendUrl = "https://" + client.Config.Host + "/api/v1/namespaces/" + qName.namespace + "/actions/" + qName.entityName
     api.Action.BackendMethod = "POST"
     api.Action.Name = qName.entityName
     api.Action.Namespace = qName.namespace
@@ -441,7 +482,7 @@ func init() {
     //apiUpdateCmd.Flags().StringVarP(&flags.api.path, "path", "p", "", wski18n.T("relative `PATH` of API"))
     //apiUpdateCmd.Flags().StringVarP(&flags.api.verb, "method", "m", "", wski18n.T("API `VERB`"))
 
-    apiGetCmd.Flags().BoolVarP(&flags.common.summary, "summary", "s", false, wski18n.T("summarize API details"))
+    apiGetCmd.Flags().BoolVarP(&flags.common.detail, "full", "f", false, wski18n.T("display full API configuration details"))
     apiGetCmd.Flags().StringVarP(&flags.api.apiname, "apiname", "n", "", wski18n.T("API collection `NAME` (default NAMESPACE)"))
     apiGetCmd.Flags().StringVarP(&flags.api.basepath, "basepath", "b", "/", wski18n.T("The API `BASE_PATH` to which the API_PATH is relative"))
 
