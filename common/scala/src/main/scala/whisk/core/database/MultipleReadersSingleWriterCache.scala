@@ -104,9 +104,9 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
      *
      * We need the transid in order to detect whether we have won the race to add an entry to the cache.
      */
-    private case class Entry(
-        transid: AtomicReference[TransactionId],
-        state: AtomicReference[State],
+    private class Entry(
+        val transid: AtomicReference[TransactionId],
+        val state: AtomicReference[State],
         value: Option[AtomicReference[Future[W]]]) {
 
         def invalidate(): Unit = {
@@ -140,7 +140,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
             swapped
         }
 
-        def grabInvalidationLock = state.set(InvalidateInProgress)
+        def grabInvalidationLock() = state.set(InvalidateInProgress)
     }
 
     protected def cacheInvalidate[R](key: Any, invalidator: => Future[R])(
@@ -150,17 +150,18 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
                 logger.info(this, s"invalidating $key")
 
                 // try inserting our desired entry...
-                val desiredEntry = Entry(transid, InvalidateInProgress, None)
+                val desiredEntry = new Entry(transid, InvalidateInProgress, None)
                 cache(key)(desiredEntry) flatMap { actualEntry =>
                     // ... and see what we get back
+                    val currentState = actualEntry.state.get
 
-                    actualEntry.state.get match {
+                    currentState match {
                         case Cached =>
                             // nobody owns the entry, forcefully grab ownership
                             invalidateEntryAfter(invalidator, key, actualEntry)
 
                         case ReadInProgress | WriteInProgress =>
-                            if (actualEntry.trySet(actualEntry.state.get, InvalidateWhenDone)) {
+                            if (actualEntry.trySet(currentState, InvalidateWhenDone)) {
                                 // then the pre-existing owner will take care of the invalidation
                                 invalidator
                             } else {
@@ -194,7 +195,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
                 val promise = Promise[W]
 
                 // try inserting our desired entry...
-                val desiredEntry = Entry(transid, ReadInProgress, Some(promise.future))
+                val desiredEntry = new Entry(transid, ReadInProgress, Some(promise.future))
                 cache(key)(desiredEntry) flatMap { actualEntry =>
                     // ... and see what we get back
 
@@ -238,7 +239,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
                 logger.info(this, s"caching $key")
 
                 // try inserting our desired entry...
-                val desiredEntry = Entry(transid, WriteInProgress, Some(Future.successful(doc)))
+                val desiredEntry = new Entry(transid, WriteInProgress, Some(Future.successful(doc)))
                 cache(key)(desiredEntry) flatMap { actualEntry =>
                     // ... and see what we get back
 
@@ -370,7 +371,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
      *
      */
     private def invalidateEntry(key: Any, entry: Entry): Unit = {
-        entry.invalidate
+        entry.invalidate()
         cache remove key
     }
 
@@ -380,7 +381,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
     private def invalidateEntryAfter[R](invalidator: => Future[R], key: Any, entry: Entry)(
         implicit ec: ExecutionContext): Future[R] = {
 
-        entry.grabInvalidationLock
+        entry.grabInvalidationLock()
         invalidator andThen {
             case _ => invalidateEntry(key, entry)
         }
