@@ -381,11 +381,9 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
         implicit ec: ExecutionContext): Future[R] = {
 
         entry.grabInvalidationLock
-        invalidator map { r =>
-            invalidateEntry(key, entry)
-            r
+        invalidator andThen {
+            case _ => invalidateEntry(key, entry)
         }
-
     }
 
     /**
