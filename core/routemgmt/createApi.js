@@ -297,11 +297,17 @@ function makeTemplateDbApiDoc(message) {
 // Update an existing DB API document with new path configuration for a single path
 function addPathToDbApiDoc(dbApiDoc, message) {
   var operation = message.operation;
-  dbApiDoc.apidoc.paths[message.relpath] = {};
+
+  // If the relative path already exists, append to it; otherwise create it
+  if (!dbApiDoc.apidoc.paths[message.relpath]) {
+    dbApiDoc.apidoc.paths[message.relpath] = {};
+  }
   dbApiDoc.apidoc.paths[message.relpath][operation] = {
     'x-ibm-op-ext': {
       backendMethod: message.action.backendMethod,
       backendUrl: message.action.backendUrl,
+      actionName: message.action.name,
+      actionNamespace: message.action.namespace,
       policies: [
         {
           type: 'reqMapping',

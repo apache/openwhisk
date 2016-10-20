@@ -1226,5 +1226,13 @@
   {
     "id": "The API `BASE_PATH` to which the API_PATH is relative",
     "translation": "The API `BASE_PATH` to which the API_PATH is relative"
+  },
+  {
+    "id": "{{.ok}} apis\n",
+    "translation": "{{.ok}} apis\n"
+  },
+  {
+    "id": "{{.url}} {{.operation}} {{.action}} {{.activated}}\n",
+    "translation": "{{.url}} {{.operation}} {{.action}} {{.activated}}\n"
   }
 ]

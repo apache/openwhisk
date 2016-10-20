@@ -82,7 +82,7 @@ function main(message) {
     console.log('API '+dbApiDoc._id+' deactivated.');
     gwApiDeactivated = true;
     dbApiDoc.gwApiActivated = false;
-    updateApiDocInDb(cloudantDb, dbApiDoc);
+    return updateApiDocInDb(cloudantDb, dbApiDoc);
   })
   .then(function() {
       console.log('DB updated with API deactivation status');

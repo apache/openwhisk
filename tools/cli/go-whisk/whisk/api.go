@@ -67,10 +67,17 @@ type ApiListOptions struct {
     Docs            bool `url:"docs,omitempty"`
 }
 
+type RetInsertApi struct {
+    Response        *RetResult `json:"response"`
+}
+
+type RetResult struct {
+    Result          *RetApi    `json:"result"`
+}
+
 type RetApi struct {
     Namespace       string    `json:"namespace"`
-    BasePath        string    `json:"basepath`
-    BaseUrl         string    `json:"gwApiUrl`
+    BaseUrl         string    `json:"gwApiUrl"`
     Activated       bool      `json:"gwApiActivated"`
     TenantId        string    `json:"tenantId"`
     Swagger         *ApiSwagger `json:"apidoc,omitempty"`
@@ -136,7 +143,7 @@ func (s *ApiService) List(apiListOptions *ApiListOptions) ([]Api, *http.Response
     return apiList, resp, err
 }
 
-func (s *ApiService) Insert(api *SendApi, overwrite bool) (*RetApi, *http.Response, error) {
+func (s *ApiService) Insert(api *SendApi, overwrite bool) (*RetInsertApi, *http.Response, error) {
     var sentAction interface{}
 
     route := fmt.Sprintf("routes")
@@ -152,7 +159,7 @@ func (s *ApiService) Insert(api *SendApi, overwrite bool) (*RetApi, *http.Respon
         return nil, nil, whiskErr
     }
 
-    retApi := new(RetApi)
+    retApi := new(RetInsertApi)
     resp, err := s.client.Do(req, &retApi)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
@@ -162,7 +169,7 @@ func (s *ApiService) Insert(api *SendApi, overwrite bool) (*RetApi, *http.Respon
     return retApi, resp, nil
 }
 
-func (s *ApiService) Get(api *Api, options *ApiOptions) (*RetApi, *http.Response, error) {
+func (s *ApiService) Get(api *Api, options *ApiOptions) (*RetInsertApi, *http.Response, error) {
     // Encode resource name as a path (with no query ) before inserting it into the URI
     // This way any '?' chars in the name won't be treated as the beginning of the query params
     preEncodedApiId := api.Id
@@ -192,7 +199,7 @@ func (s *ApiService) Get(api *Api, options *ApiOptions) (*RetApi, *http.Response
         return nil, nil, whiskErr
     }
 
-    retApi := new(RetApi)
+    retApi := new(RetInsertApi)
     resp, err := s.client.Do(req, &retApi)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)

@@ -82,7 +82,7 @@ var apiCreateCmd = &cobra.Command{
                     "path": api.GatewayRelPath,
                     "verb": api.GatewayMethod,
                     "name": boldString(api.Action.Name),
-                    "fullpath": getManagedUrl(retApi, api.GatewayRelPath, api.GatewayMethod),
+                    "fullpath": getManagedUrl(retApi.Response.Result, api.GatewayRelPath, api.GatewayMethod),
                 }))
         return nil
     },
@@ -132,14 +132,14 @@ var apiUpdateCmd = &cobra.Command{
                     "path": api.GatewayRelPath,
                     "verb": api.GatewayMethod,
                     "name": boldString(api.Action.Name),
-                    "fullpath": getManagedUrl(retApi, api.GatewayRelPath, api.GatewayMethod),
+                    "fullpath": getManagedUrl(retApi.Response.Result, api.GatewayRelPath, api.GatewayMethod),
                 }))
         return nil
     },
 }
 
 var apiGetCmd = &cobra.Command{
-    Use:           "get API_PATH API_VERB",
+    Use:           "get [API_PATH [API_VERB]]",
     Short:         wski18n.T("get API"),
     SilenceUsage:  true,
     SilenceErrors: true,
@@ -147,8 +147,8 @@ var apiGetCmd = &cobra.Command{
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
 
-        if whiskErr := checkArgs(args, 2, 2, "Api get",
-            wski18n.T("An API path and an API verb are required.")); whiskErr != nil {
+        if whiskErr := checkArgs(args, 0, 2, "Api get",
+            wski18n.T("An API path, or an API path with an API verb, or neither are valid inputs.")); whiskErr != nil {
             return whiskErr
         }
 
@@ -179,20 +179,49 @@ var apiGetCmd = &cobra.Command{
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return whiskErr
         }
+        whisk.Debug(whisk.DbgInfo, "client.Apis.Get returned: %#v\n", retApi)
 
         if flags.common.summary {
             printSummary(api)
         } else {
             fmt.Fprintf(color.Output,
-                wski18n.T("{{.ok}} api {{.path}} {{.verb}} for action {{.name}}\n{{.fullpath}}\n",
+                wski18n.T("{{.ok}} apis\n",
                     map[string]interface{}{
                         "ok": color.GreenString("ok:"),
-                        "path": api.GatewayRelPath,
-                        "verb": api.GatewayMethod,
-                        "action": api.Action.Name,
-                        "fullurl": getManagedUrl(retApi, api.GatewayRelPath, api.GatewayMethod),
                     }))
-            printJSON(retApi)
+            resultApi := retApi.Response.Result
+            baseUrl := resultApi.BaseUrl
+            for path, _ := range resultApi.Swagger.Paths {
+                whisk.Debug(whisk.DbgInfo, "apiGetCmd: comparing api relpath: %s\n", path)
+                if ( len(api.GatewayRelPath) == 0 || path == api.GatewayRelPath) {
+                    whisk.Debug(whisk.DbgInfo, "apiGetCmd: relpath matches\n")
+                    for op, opv  := range resultApi.Swagger.Paths[path] {
+                        whisk.Debug(whisk.DbgInfo, "apiGetCmd: comparing operation: '%s'\n", op)
+                        if ( len(api.GatewayMethod) == 0 || strings.ToLower(op) == strings.ToLower(api.GatewayMethod)) {
+                            whisk.Debug(whisk.DbgInfo, "apiGetCmd: operation matches\n")
+                            whisk.Debug(whisk.DbgInfo, "apiGetCmd: operation value %#v\n", opv)
+                            fmt.Fprintf(color.Output,
+                                wski18n.T("{{.url}} {{.operation}} {{.action}} {{.activated}}\n",
+                                    map[string]interface{}{
+                                        "url": baseUrl+path,
+                                        "operation": op,
+                                        "action": opv["x-ibm-op-ext"]["actionNamespace"].(string)+"/"+opv["x-ibm-op-ext"]["actionName"].(string),
+                                        "activated": resultApi.Activated,
+                                    }))
+                        }
+                    }
+                }
+            }
+            //fmt.Fprintf(color.Output,
+            //    wski18n.T("{{.ok}} api {{.path}} {{.verb}} for action {{.name}}\n{{.fullpath}}\n",
+            //        map[string]interface{}{
+            //            "ok": color.GreenString("ok:"),
+            //            "path": api.GatewayRelPath,
+            //            "verb": api.GatewayMethod,
+            //            "action": api.Action.Name,
+            //            "fullurl": getManagedUrl(retApi, api.GatewayRelPath, api.GatewayMethod),
+            //        }))
+            //printJSON(retApi)
         }
 
         return nil
@@ -301,11 +330,6 @@ func parseApi(cmd *cobra.Command, args []string) (*whisk.Api, error) {
     // Is the API path valid?
     // FIXME MWD - Add check
 
-    // Is the API verb valid?
-    if whiskErr, ok := IsValidApiVerb(args[1]); !ok {
-        return nil, whiskErr
-    }
-
     // Is the specified action name valid?
     // FIXME MWD - validate action exists??
     var qName qualifiedName
@@ -342,8 +366,16 @@ func parseApi(cmd *cobra.Command, args []string) (*whisk.Api, error) {
 
     api := new(whisk.Api)
     api.Namespace = client.Config.Namespace
-    api.GatewayRelPath = args[0]    // Maintain case as URLs may be case-sensitive
-    api.GatewayMethod = strings.ToUpper(args[1])
+    if (len(args) > 0) {
+        api.GatewayRelPath = args[0]    // Maintain case as URLs may be case-sensitive
+    }
+    if (len(args) > 1) {
+        // Is the API verb valid?
+        if whiskErr, ok := IsValidApiVerb(args[1]); !ok {
+            return nil, whiskErr
+        }
+        api.GatewayMethod = strings.ToUpper(args[1])
+    }
     api.Action = new(whisk.ApiAction)
     api.Action.BackendUrl = "https://" + client.Config.Host + "/api/v1/namespaces/" + qName.namespace + "/actions/" + qName.entityName + "?blocking=true"
     api.Action.BackendMethod = "POST"
@@ -379,10 +411,15 @@ func IsValidApiVerb(verb string) (error, bool) {
  */
 func getManagedUrl(api *whisk.RetApi, relpath string, operation string) (url string) {
     baseUrl := api.BaseUrl
+    whisk.Debug(whisk.DbgInfo, "getManagedUrl: baseUrl = %s, relpath = %s, operation = %s\n", baseUrl, relpath, operation)
     for path, _ := range api.Swagger.Paths {
+        whisk.Debug(whisk.DbgInfo, "getManagedUrl: comparing api relpath: %s\n", path)
         if (path == relpath) {
+            whisk.Debug(whisk.DbgInfo, "getManagedUrl: relpath matches '%s'\n", relpath)
             for op, _  := range api.Swagger.Paths[path] {
-                if (op == operation) {
+                whisk.Debug(whisk.DbgInfo, "getManagedUrl: comparing operation: '%s'\n", op)
+                if (strings.ToLower(op) == strings.ToLower(operation)) {
+                    whisk.Debug(whisk.DbgInfo, "getManagedUrl: operation matches: %s\n", operation)
                     url = baseUrl+path
                 }
             }
