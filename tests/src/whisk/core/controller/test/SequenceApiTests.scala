@@ -41,6 +41,8 @@ import whisk.core.entity.WhiskAuth
 import whisk.core.entity.WhiskPackage
 import whisk.http.Messages._
 
+import akka.event.Logging.DebugLevel
+
 /**
  * Tests Sequence API - stand-alone tests that require only the controller to be up
  */
@@ -57,6 +59,9 @@ class SequenceApiTests
     val defaultNamespace = EntityPath.DEFAULT
     def aname() = MakeName.next("sequence_tests")
     val allowedActionDuration = 120 seconds
+
+    // set logging level to debug
+    setVerbosity(DebugLevel)
 
     it should "reject creation of sequence with more actions than allowed limit" in {
         implicit val tid = transid()
@@ -153,8 +158,7 @@ class SequenceApiTests
         put(entityStore, bogusAct)
         // create sequence that refers to action with binding
         val sequence = Vector(s"/${defaultNamespace}/${pkgWithBinding}/${bogus}").map(stringToFullyQualifiedName(_))
-        val seqAction = WhiskAction(namespace, seqName, Exec.sequence(sequence))
-        val content = WhiskActionPut(Some(seqAction.exec))
+        val content = WhiskActionPut(Some(Exec.sequence(sequence)))
 
         // create an action sequence
         Put(s"${collectionPath}/${seqName.name}", content) ~> sealRoute(routes(creds)) ~> check {
@@ -179,8 +183,7 @@ class SequenceApiTests
         // put the package in the entity store
         put(entityStore, wp)
         val namespaceWithPkg = EntityPath(s"/$namespace/$pkg")
-        val seqAction = WhiskAction(namespaceWithPkg, seqName, Exec.sequence(sequence.toVector))
-        val content = WhiskActionPut(Some(seqAction.exec))
+        val content = WhiskActionPut(Some(Exec.sequence(sequence.toVector)))
 
         // create an action sequence
         Put(s"${collectionPath}/$pkg/${seqName.name}", content) ~> sealRoute(routes(creds)) ~> check {
@@ -194,8 +197,7 @@ class SequenceApiTests
         val seqNameWithBinding = stringToFullyQualifiedName(s"/${namespace}/${pkgWithBinding}/${seqName.name}") // the same as previous sequence through package binding; should detect cycle
         // update the action sequence
         val updatedSeq = sequence.updated(1, seqNameWithBinding)
-        val updatedSeqAction = WhiskAction(namespace, seqName, Exec.sequence(updatedSeq.toVector))
-        val updatedContent = WhiskActionPut(Some(updatedSeqAction.exec))
+        val updatedContent = WhiskActionPut(Some(Exec.sequence(updatedSeq.toVector)))
 
         // update the sequence
         Put(s"${collectionPath}/$pkg/${seqName.name}?overwrite=true", updatedContent) ~> sealRoute(routes(creds)) ~> check {
@@ -253,7 +255,7 @@ class SequenceApiTests
                 Put(s"${collectionPath}/$sName", content) ~> sealRoute(routes(creds)) ~> check {
                     status should be(OK)
                 }
-                logContains(s"atomic action count ${2 * actionCnt}")
+                //logContains(s"atomic action count ${2 * actionCnt}")
             }
         } finally {
             stream.close()

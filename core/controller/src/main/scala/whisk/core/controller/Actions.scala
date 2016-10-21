@@ -658,12 +658,10 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
             // this assumes that entityStore is the same for actions and packages
             WhiskAction.resolveAction(entityStore, sequenceAction) flatMap { resolvedSeq =>
                 val atomicActionCnt = countAtomicActionsAndCheckCycle(resolvedSeq, components)
-                atomicActionCnt flatMap { count =>
-                    info(this, s"sequence '$sequenceAction' atomic action count $count")
+                atomicActionCnt map { count =>
+                    debug(this, s"sequence '$sequenceAction' atomic action count $count")
                     if (count > actionSequenceLimit) {
-                        Future failed TooManyActionsInSequence()
-                    } else {
-                        Future successful {}
+                        throw TooManyActionsInSequence()
                     }
                 }
             }
