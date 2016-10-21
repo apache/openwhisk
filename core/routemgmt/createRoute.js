@@ -100,7 +100,7 @@ function main(message) {
   // 1. Create or update the API configuration in the DB
   // 2. Activate the entire API
   return configureApi(message.apidoc)
-  .then(function() {
+  .then(function(api) {
     console.log('API route configured successfully')
     return activateApi(doc.namespace, doc.gatewayBasePath)
   })
@@ -271,7 +271,7 @@ function activateApi(namespace, basepath) {
 //
 //function addTenantToGateway(gwInfo, namespace) {
 //  var options = {
-//    url: gwInfo.gwUrl+'/v1/tenants',
+//    url: gwInfo.gwUrl+'/tenants',
 //    agentOptions: {rejectUnauthorized: false},
 //    headers: {
 //      'Content-Type': 'application/json',
@@ -327,7 +327,7 @@ function activateApi(namespace, basepath) {
 //function addRouteToGateway(gwInfo, payload) {
 //
 //  var options = {
-//    url: gwInfo.gwUrl+'/v1/apis',
+//    url: gwInfo.gwUrl+'/apis',
 //    agentOptions: {rejectUnauthorized: false},
 //    headers: {
 //      'Content-Type': 'application/json',

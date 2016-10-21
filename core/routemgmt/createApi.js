@@ -297,6 +297,7 @@ function makeTemplateDbApiDoc(message) {
 // Update an existing DB API document with new path configuration for a single path
 function addPathToDbApiDoc(dbApiDoc, message) {
   var operation = message.operation;
+  var auth_base64 = Buffer.from(message.action.authkey,'ascii').toString('base64');
 
   // If the relative path already exists, append to it; otherwise create it
   if (!dbApiDoc.apidoc.paths[message.relpath]) {
@@ -326,7 +327,7 @@ function addPathToDbApiDoc(dbApiDoc, message) {
             {
               action: 'insert',
               from: {
-                value: 'Basic '+message.action.authkey
+                value: 'Basic '+auth_base64
               },
               to: {
                 name: 'Authorization',

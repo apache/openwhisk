@@ -180,7 +180,7 @@ function getDbApiDoc(namespace, basepath) {
  */
 function deleteApiFromGateway(gwInfo, gwApiId) {
   var options = {
-    url: gwInfo.gwUrl+'/gws/dmi/v1/apis/'+gwApiId,
+    url: gwInfo.gwUrl+'/apis/'+gwApiId,
     agentOptions: {rejectUnauthorized: false},
     headers: {
       'Accept': 'application/json'

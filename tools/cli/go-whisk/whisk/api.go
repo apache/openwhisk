@@ -57,6 +57,7 @@ type ApiOptions struct {
     ApiBasePath     string    `url:"basepath,omitempty"`
     ApiRelPath      string    `url:"relpath,omitempty"`
     ApiVerb         string    `url:"operation,omitempty"`
+    Force           bool      `url:"force,omitempty"`
 }
 
 type ApiListOptions struct {
@@ -238,7 +239,8 @@ func (s *ApiService) Delete(api *Api, options *ApiOptions) (*http.Response, erro
         return nil, whiskErr
     }
 
-    resp, err := s.client.Do(req, nil)
+    retApi := new(RetInsertApi)
+    resp, err := s.client.Do(req, &retApi)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
         return resp, err

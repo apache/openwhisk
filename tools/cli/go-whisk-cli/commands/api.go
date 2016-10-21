@@ -272,6 +272,8 @@ var apiDeleteCmd = &cobra.Command{
         options := &whisk.ApiOptions{
             ApiVerb: api.GatewayMethod,
             ApiRelPath: api.GatewayRelPath,
+            ApiBasePath: api.GatewayBasePath,
+            Force: true,    // FIXME MWD revisit
         }
 
         _, err := client.Apis.Delete(api, options)
@@ -337,6 +339,7 @@ var apiListCmd = &cobra.Command{
                 flags.api.basepath,
                 flags.api.path,
                 flags.api.verb,
+                false,
             },
             flags.common.limit,
             flags.common.skip,

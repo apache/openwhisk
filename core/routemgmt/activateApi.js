@@ -27,7 +27,7 @@
  *   gwUrl      Required. The API Gateway base path (i.e. http://gw.com)
  *   namespace  Required. The namespace of the API to be activated
  *   basepath   Required. The basepath of the API to be activated
-
+ *   apiGuid    Optional. When set, this is the API's GUID; when not set the document is new
  *
  * NOTE: The package containing this action will be bound to the following values:
  *         host, port, protocol, dbname, username, password
@@ -96,7 +96,8 @@ function main(message) {
         return Promise.reject('Internal error. API gateway did not return a tenant guid.')
       }
       tenantAdded = true;
-      return addRouteToGateway(gwInfo, gwApiDoc); })
+      return addRouteToGateway(gwInfo, gwApiDoc);
+  })
   .then(function(gwApiResponse) {
       if (gwApiResponse) {
         console.log('API Gateway response: '+JSON.stringify(gwApiResponse));
@@ -198,7 +199,7 @@ function getApiDoc(namespace, basepath) {
 
 function addTenantToGateway(gwInfo, namespace) {
   var options = {
-    url: gwInfo.gwUrl+'/gws/dmi/v1/tenants',
+    url: gwInfo.gwUrl+'/tenants',
     agentOptions: {rejectUnauthorized: false},
     headers: {
       'Content-Type': 'application/json',
@@ -244,7 +245,7 @@ function addTenantToGateway(gwInfo, namespace) {
  * @param gwInfo Required.
  * @param    gwUrl   Required.  The base URL gateway path (i.e.  'PROTOCOL://gw.host.domain:PORT/CONTEXT')
  * @param    gwAuth  Required.  The credentials used to access the API Gateway REST endpoints
- * @param payload  Required. A JSON object used as the request body
+ * @param gwApiDoc   Required. The gateway API object to send to the API gateway
  * @param   payload.namespace  Required. The OpenWhisk namespace of the user defining this API route
  * @param   payload.gatewayPath  Required.  The relative path for this route
  * @param   payload.gatewayMethod  Required.  The gateway route REST verb
@@ -252,21 +253,28 @@ function addTenantToGateway(gwInfo, namespace) {
  * @param   payload.backendMethod  Required.  The REST verb used to invoke the associated action
  * @return A promise for an object describing the result with fields error and response
  */
-function addRouteToGateway(gwInfo, payload) {
+function addRouteToGateway(gwInfo, gwApiDoc) {
+  var requestFcn = request.post;
+
   var options = {
-    url: gwInfo.gwUrl+'/gws/dmi/v1/apis',
+    url: gwInfo.gwUrl+'/apis',
     agentOptions: {rejectUnauthorized: false},
     headers: {
       'Content-Type': 'application/json',
       'Accept': 'application/json'
       //'Authorization': 'Basic ' + 'btoa(gwInfo.gwAuth)',  // FIXME MWD Authentication
     },
-    json: payload,
+    json: gwApiDoc,
   };
+  if (gwApiDoc.id) {
+    console.log("addRouteToGateway: Updating existing API");
+    options.url = gwInfo.gwUrl+'/apis/'+gwApiDoc.id;
+    requestFcn = request.put;
+  }
   console.log('addRouteToGateway: request: '+JSON.stringify(options, " ", 2));
 
   return new Promise(function(resolve, reject) {
-    request.post(options, function(error, response, body) {
+    requestFcn(options, function(error, response, body) {
       var statusCode = response ? response.statusCode : undefined;
       console.log('addRouteToGateway: response status:'+ statusCode);
       error && console.error('Warning: addRouteToGateway request failed: '+ JSON.stringify(error));
@@ -396,6 +404,9 @@ function makeGwApiDoc(api) {
   gwdoc.basePath = api.apidoc.basePath;
   gwdoc.name = api.apidoc.info.title;
   gwdoc.resources = {};
+  if (api.gwApiGuid) {
+    gwdoc.id = api.gwApiGuid;
+  }
   for (var path in api.apidoc.paths) {
   console.log('Got dbapidoc path: ', JSON.stringify(path));
     gwdoc.resources[path] = {};

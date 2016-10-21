@@ -29,7 +29,7 @@
  *   basepath   Required. Base path of the API
  *   relpath    Optional. Delete just this relative path from the API.  Required if operation is specified
  *   operation  Optional. Delete just this relpath's operation from the API.
- *   force      Required. Boolean. If true, the API will be automatically deactivated when deleting the entire API
+ *   force      Optional. Boolean. If true, the API will be automatically deactivated when deleting the entire API
  *
  * NOTE: The package containing this action will be bound to the following values:
  *         host, port, protocol, dbname, username, password
@@ -39,6 +39,8 @@
  var request = require('request');
 
 function main(message) {
+  console.log("deleteApi: args: "+JSON.stringify(message));
+  message.force = true;  // FIXME MWD Awaiting controller fix
   var badArgMsg = '';
   if (badArgMsg = validateArgs(message)) {
     return whisk.error(badArgMsg);
@@ -256,7 +258,7 @@ function updateApiDocInDb(cloudantDb, doc) {
  */
 function updateGatewayApi(gwInfo, apiId, payload) {
   var options = {
-    url: gwInfo.gwUrl+'/gws/dmi/v1/apis/'+apiId,
+    url: gwInfo.gwUrl+'/apis/'+apiId,
     agentOptions: {rejectUnauthorized: false},
     headers: {
       'Content-Type': 'application/json',
@@ -301,7 +303,7 @@ function updateGatewayApi(gwInfo, apiId, payload) {
  */
 function deleteGatewayApi(gwInfo, gwApiId) {
   var options = {
-    url: gwInfo.gwUrl+'/gws/dmi/v1/apis/'+gwApiId,
+    url: gwInfo.gwUrl+'/apis/'+gwApiId,
     agentOptions: {rejectUnauthorized: false},
     headers: {
       'Accept': 'application/json'
