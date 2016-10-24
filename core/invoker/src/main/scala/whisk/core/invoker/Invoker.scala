@@ -406,7 +406,7 @@ class Invoker(
             InvokerKeys.hostname(instance),
             InvokerKeys.start(instance),
             InvokerKeys.status(instance),
-            { index => Map(InvokerKeys.activationCount(instance) -> activationCounter.cur.toJson) })
+            { _ => Map() })
 
     setVerbosity(verbosity)
 }

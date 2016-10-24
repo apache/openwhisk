@@ -166,8 +166,6 @@ class DegenerateLoadBalancerService(config: WhiskConfig, verbosity: LogLevel)
 
     override def getActiveUserActivationCounts: Map[String, Long] = Map()
 
-    override def getActiveUserActivationCounts: Map[String, Long] = Map()
-
     override def publish(msg: ActivationMessage, timeout: FiniteDuration)(implicit transid: TransactionId): (Future[Unit], Future[WhiskActivation]) =
         (Future.successful {},
          whiskActivationStub map {

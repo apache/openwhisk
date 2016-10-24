@@ -155,22 +155,12 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
         LoadBalancerKeys.startKey,
         LoadBalancerKeys.statusKey,
         { count =>
-            // Get counts as seen by the loadbalancer
-            val issuedCounts = getIssueCountByInvoker()
-            val issuedCount = issuedCounts.values.sum
-
-            // Get counts as seen by the invokers
-            val invokerCounts = invokerHealth.getInvokerActivationCounts()
-            val completedCount = invokerCounts.values.sum
-
-            val inFlight = issuedCount - completedCount
-
+            val activeCounts = getActiveCountByInvoker()
+            val totalActiveCount = activeCounts.values.sum
             val health = invokerHealth.getInvokerHealth()
             if (count % 10 == 0) {
                 implicit val sid = TransactionId.loadbalancer
-                info(this, s"In flight: $issuedCount - $completedCount = $inFlight")
-                info(this, s"Issued counts: [${issuedCounts.mkString(", ")}]")
-                info(this, s"Completion counts: [${invokerCounts.mkString(", ")}]")
+                info(this, s"In flight: $totalActiveCount = [${activeCounts.mkString(", ")}]")
                 info(this, s"Invoker health: [${health.mkString(", ")}]")
             }
             Map(LoadBalancerKeys.invokerHealth -> getInvokerHealth())
@@ -236,7 +226,6 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
       */
     private def invokerChangeCallback(invokerIndices: Array[Int]) = {
         invokerIndices.foreach { index =>
-            invokerActivationCounter(index) = new Counter()
             val actSet = activationByInvoker.getOrElseUpdate(index, new TrieSet[ActivationEntry])
             actSet.keySet map { case actEntry @ ActivationEntry(activationId, subject, invokerIndex, _, promise) =>
                 promise.tryFailure(new LoadBalancerException(s"Invoker $invokerIndex restarted"))
@@ -248,15 +237,13 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
     }
 
     private def updateActivationCount(user: String, invokerIndex: Int): Long = {
-        invokerActivationCounter.getOrElseUpdate(invokerIndex, new Counter()).next()
         userActivationCounter.getOrElseUpdate(user, new Counter()).next()
     }
 
     // Make a new immutable map so caller cannot mess up the state
-    private def getIssueCountByInvoker(): Map[Int, Long] = invokerActivationCounter.readOnlySnapshot.mapValues(_.cur).toMap
+    private def getActiveCountByInvoker(): Map[Int, Long] = activationByInvoker.toMap mapValues { _.size.toLong }
 
     // A count of how many activations have been posted to Kafka based on invoker index or user/subject.
-    private val invokerActivationCounter = new TrieMap[Int, Counter]
     private val userActivationCounter = new TrieMap[String, Counter]
 
 }
