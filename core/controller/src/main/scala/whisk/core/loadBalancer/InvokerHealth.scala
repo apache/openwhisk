@@ -48,7 +48,7 @@ object InvokerHealth {
 }
 
 /**
- * Monitors the health of the invokers. The number of invokers is dynamic, and preferably a power of 2.
+ * Monitors the health of the invokers. The number of invokers is dynamic.
  *
  * We are starting to put real load-balancer logic in here too.  Should probably be moved out at some point.
  */
