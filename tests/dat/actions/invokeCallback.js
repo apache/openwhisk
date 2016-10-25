@@ -23,9 +23,9 @@ function main(params) {
                 } else {
                     if (err !== undefined) {
                         // this is what we were expecting
-                        resolve(err);
-                    } else {
                         reject(err);
+                    } else {
+                        resolve(err);
                     }
                 }
             }

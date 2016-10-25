@@ -303,7 +303,7 @@ class WskBasicTests
             }
 
             wsk.action.invoke(name, blocking = true, expectedExitCode = 246)
-              .stderr should include regex (""""error": "name '!' contains illegal characters \(.+\)"""")
+              .stderr should include regex (""""error": "name '!' contains illegal characters \(code \d+\)"""")
     }
 
     it should "invoke a blocking action and get only the result" in withAssetCleaner(wskprops) {
