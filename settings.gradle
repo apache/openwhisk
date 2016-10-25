@@ -11,8 +11,6 @@ include 'core:swiftAction'
 include 'core:swift3Action'
 include 'core:javaAction'
 
-include 'services:kafka'
-
 include 'tools:cli'
 
 include 'sdk:docker'

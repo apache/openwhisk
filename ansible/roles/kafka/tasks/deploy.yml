@@ -18,21 +18,17 @@
   retries: 36
   delay: 5
 
-- name: "pull the {{ docker_image_tag }} image of kafka"
-  shell: "docker pull {{ docker_registry }}{{ docker_image_prefix }}/kafka:{{ docker_image_tag }}"
-  when: docker_registry != ""
-
 - name: (re)start kafka
   docker_container:
     name: kafka
-    image: "{{ docker_registry }}{{ docker_image_prefix }}/kafka:{{ docker_image_tag }}"
+    image: ches/kafka:0.10.0.1
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
     links:
       - "zookeeper:zookeeper"
     env:
-      "EXPOSED_HOST": "{{ inventory_hostname }}"
+      "KAFKA_ADVERTISED_HOST_NAME": "{{ inventory_hostname }}"
     ports:
       - "{{ kafka.port }}:9092"
 
@@ -44,10 +40,10 @@
   delay: 2
 
 - name: create the active-ack topic
-  shell: "docker exec kafka kafka-topics.sh --create --topic {{ item }} --replication-factor 1 --partitions 1 --zookeeper {{ inventory_hostname }}:{{ zookeeper.port }}"
+  shell: "docker exec kafka bash -c 'unset JMX_PORT; kafka-topics.sh --create --topic {{ item }} --replication-factor 1 --partitions 1 --zookeeper {{ inventory_hostname }}:{{ zookeeper.port }}'"
   with_items:
     - completed
 
 - name: create the invoker topics
-  shell: "docker exec kafka kafka-topics.sh --create --topic invoke{{ item.0 }} --replication-factor 1 --partitions 1 --zookeeper {{ inventory_hostname }}:{{ zookeeper.port }}"
+  shell: "docker exec kafka bash -c 'unset JMX_PORT; kafka-topics.sh --create --topic invoke{{ item.0 }} --replication-factor 1 --partitions 1 --zookeeper {{ inventory_hostname }}:{{ zookeeper.port }}'"
   with_indexed_items: "{{ groups['invokers'] }}"

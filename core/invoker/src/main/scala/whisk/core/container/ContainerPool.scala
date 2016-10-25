@@ -749,6 +749,7 @@ class ContainerPool(
             Files.write(Paths.get(filename), rawLogBytes)
             info(this, s"teardownContainers: wrote docker logs to $filename")
         }
+        container.transid = transid
         runDockerOp { container.remove(removeJob.needUnpause) }
     } catch {
         case t: Throwable => warn(this, s"teardownContainer encountered an exception: ${t.getMessage}")
