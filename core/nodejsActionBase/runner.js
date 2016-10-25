@@ -133,13 +133,14 @@ function NodeActionRunner(whisk) {
     //   1) Node 0.12 doesn't have many of the useful fs functions.
     //   2) We know in which environment we're running.
     function unzipInTmpDir(base64) {
-        var mkTempCmd = "mktemp -d XXXXXXXX";
+        var mkTempCmd = [ "mktemp",  "-d", "XXXXXXXX" ];
         return exec(mkTempCmd).then(function (tmpDir1) {
             return new Promise(
                 function (resolve, reject) {
                     var zipFile = path.join(tmpDir1, "action.zip");
                     fs.writeFile(zipFile, base64, "base64", function (err) {
                         if(err) {
+                            console.error(err);
                             reject("There was an error reading the action archive.");
                         }
                         resolve(zipFile);
@@ -148,9 +149,10 @@ function NodeActionRunner(whisk) {
             );
         }).then(function (zipFile) {
             return exec(mkTempCmd).then(function (tmpDir2) {
-                return exec("unzip " + zipFile + " -d " + tmpDir2).then(function (res) {
+                return exec([ "unzip", zipFile, "-d", tmpDir2 ]).then(function (res) {
                    return path.resolve(tmpDir2);
                 }).catch(function (error) {
+                    console.error(error);
                    return Promise.reject("There was an error uncompressing the action archive.");
                 });
             });
@@ -159,13 +161,58 @@ function NodeActionRunner(whisk) {
 
     // Helper function to run shell commands.
     function exec(cmd) {
+        var mainCmd = cmd[0];
+        var cmdArgs = cmd.slice(1,cmd.length);
+
         return new Promise(
             function (resolve, reject) {
-                child_process.exec(cmd, function (error, stdout, stderr) {
-                    if(error) {
-                        reject(stderr.trim());
+                var child = child_process.spawn(mainCmd, cmdArgs);
+                var lastOut = "";
+                var lastErr = "";
+
+                var completed = false;
+
+                function doResolve() {
+                    if(!completed) {
+                        completed = true;
+                        resolve((new String(lastOut)).trim());
+                    }
+                }
+
+                function doReject(err) {
+                    if(!completed) {
+                        completed = true;
+                        reject(err || (new String(lastErr)).trim());
+                    }
+                }
+
+                child.stdout.on("data", function (data) {
+                    lastOut = data;
+                });
+
+                child.stderr.on("data", function (data) {
+                    lastErr = data;
+                });
+
+                child.on("error", function (err) {
+                   doReject(err);
+                });
+
+                child.on("close", function (code) {
+                    if(code === 0) {
+                        doResolve();
                     } else {
-                        resolve(stdout.trim());
+                        doReject();
+                    }
+                });
+
+                child.on("exit", function (code, signal) {
+                    if(code !== null && code === 0) {
+                        doResolve();
+                    } else if(code !== null) {
+                        doReject();
+                    } else {
+                        doReject(mainCmd + " process exited after signal " + signal);
                     }
                 });
             }
