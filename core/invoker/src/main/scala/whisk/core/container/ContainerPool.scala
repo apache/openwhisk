@@ -222,8 +222,12 @@ class ContainerPool(
     final def getContainer(tryCount: Int, position: Long, key: ActionContainerId, conMaker: () => WhiskContainer)(implicit transid: TransactionId): ContainerResult = {
         val positionInLine = position - completedPosition.cur // Indicates queue position.  1 means front of the line
         val available = slack()
-        if (tryCount % 100 == 0) {
-            warn(this, s"""getImpl possibly stuck because still in line:
+        // Warn at 10 seconds and then once a minute after that.
+        val waitDur = 50.millis
+        val warnAtCount = 10.seconds.toMillis / waitDur.toMillis
+        val warnPeriodic = 60.seconds.toMillis / waitDur.toMillis
+        if (tryCount == warnAtCount || tryCount % warnPeriodic == 0) {
+            warn(this, s"""getContainer has been waiting about ${warnAtCount * waitDur.toMillis} ms:
                           | position = $position
                           | completed = ${completedPosition.cur}
                           | slack = $available
@@ -237,7 +241,7 @@ class ContainerPool(
                 case None     => getContainer(tryCount + 1, position, key, conMaker)
             }
         } else { // It's not our turn in line yet.
-            Thread.sleep(50) // TODO: Replace with wait/notify but tricky because of desire for maximal concurrency
+            Thread.sleep(waitDur.toMillis) // TODO: Replace with wait/notify but tricky because of desire for maximal concurrency
             getContainer(tryCount + 1, position, key, conMaker)
         }
     }

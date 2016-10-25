@@ -85,11 +85,11 @@ class ContainerPoolTests extends FlatSpec
      */
     def getEcho(word: String): Container = {
         val conOpt = pool.getByImageName("ubuntu", Array("/bin/echo", word))
-        assert(conOpt isDefined); // we must be able to start the container
-        val con = conOpt.getOrElse(null);
-        Thread.sleep(1000); // docker run has no guarantee how far along the process is
-        assert(con.getLogs().contains(word)); // the word must be in the docker logs
-        return con;
+        assert(conOpt isDefined) // we must be able to start the container
+        val con = conOpt.getOrElse(null)
+        Thread.sleep(1000) // docker run has no guarantee how far along the process is
+        assert(con.getLogs().contains(word)) // the word must be in the docker logs
+        con
     }
 
     /*
@@ -97,7 +97,7 @@ class ContainerPoolTests extends FlatSpec
      */
     def getSleep(duration: Int): Container = {
         val conOpt = pool.getByImageName("ubuntu", Array("/bin/sleep", duration.toString()))
-        assert(conOpt isDefined); // we must be able to start the container
+        assert(conOpt isDefined) // we must be able to start the container
         conOpt.getOrElse(null)
     }
 
@@ -105,11 +105,11 @@ class ContainerPoolTests extends FlatSpec
      * Ensure pool is empty/clean.
      */
     def ensureClean() = {
-        pool.enableGC();
-        pool.forceGC();
+        pool.enableGC()
+        pool.forceGC()
         Thread.sleep(2 * pool.gcFrequency.toMillis + 1500L) // GC should collect this by now
-        assert(pool.idleCount() == 0);
-        assert(pool.activeCount() == 0);
+        assert(pool.idleCount() == 0)
+        assert(pool.activeCount() == 0)
     }
 
     /*
@@ -132,45 +132,45 @@ class ContainerPoolTests extends FlatSpec
     }
 
     it should "allow getting container by image name, run it, retrieve logs, return it, force GC, check via docker ps" in {
-        pool.disableGC();
+        pool.disableGC()
         val startIdleCount = pool.idleCount()
         val container = getEcho("abracadabra")
         val containerIdPrefix = container.containerIdPrefix
         assert(poolHasContainerIdPrefix(containerIdPrefix)) // container must be around
-        pool.putBack(container); // contractually, user must let go of con at this point
+        pool.putBack(container) // contractually, user must let go of con at this point
         assert(pool.idleCount() == startIdleCount + 1)
-        pool.enableGC();
-        pool.forceGC(); // force all containers in pool to be freed
+        pool.enableGC()
+        pool.forceGC() // force all containers in pool to be freed
         Thread.sleep(2 * pool.gcFrequency.toMillis + 1500L) // GC should collect this by now
         assert(!poolHasContainerIdPrefix(containerIdPrefix)) // container must be gone by now
         assert(pool.idleCount() == 0)
     }
 
     it should "respect maxIdle by shooting a container on a putBack that could exceed it" in {
-        ensureClean();
-        pool.maxIdle = 1;
-        val c1 = getEcho("quasar");
-        val c2 = getEcho("pulsar");
+        ensureClean()
+        pool.maxIdle = 1
+        val c1 = getEcho("quasar")
+        val c2 = getEcho("pulsar")
         val p1 = c1.containerIdPrefix
         val p2 = c2.containerIdPrefix
-        assert(pool.activeCount() == 2);
-        assert(pool.idleCount() == 0);
-        pool.putBack(c1);
-        assert(pool.activeCount() == 1);
-        assert(pool.idleCount() == 1);
-        pool.putBack(c2);
-        assert(pool.activeCount() == 0);
+        assert(pool.activeCount() == 2)
+        assert(pool.idleCount() == 0)
+        pool.putBack(c1)
+        assert(pool.activeCount() == 1)
+        assert(pool.idleCount() == 1)
+        pool.putBack(c2)
+        assert(pool.activeCount() == 0)
         assert(pool.idleCount() == 1) // because c1 got shot
         pool.resetMaxIdle()
     }
 
     it should "respect activeIdle by blocking a getContainer until another is returned" in {
-        ensureClean();
-        pool.maxActive = 1;
-        val c1 = getEcho("hocus");
+        ensureClean()
+        pool.maxActive = 1
+        val c1 = getEcho("hocus")
         var c1Back = false
         val f = Future { Thread.sleep(3000); c1Back = true; pool.putBack(c1) }
-        val c2 = getEcho("pocus");
+        val c2 = getEcho("pocus")
         assert(c1Back) // make sure c2 is not available before c1 is put back
         pool.putBack(c2)
         pool.resetMaxActive()
@@ -178,19 +178,19 @@ class ContainerPoolTests extends FlatSpec
 
     it should "also perform automatic GC with a settable threshold, invoke same action afterwards, another GC" in {
         ensureClean();
-        pool.gcThreshold = 2.seconds
+        pool.gcThreshold = 1.seconds
         val container = getEcho("hocus pocus")
         val containerIdPrefix = container.containerIdPrefix
         assert(poolHasContainerIdPrefix(containerIdPrefix)) // container must be around
         pool.putBack(container); // contractually, user must let go of con at this point
         // TODO: replace this with GC count so we don't break abstraction by knowing the GC check freq.  (!= threshold)
-        Thread.sleep(2 * pool.gcFrequency.toMillis + 1500L) // GC should collect this by now
+        Thread.sleep(2 * pool.gcFrequency.toMillis + 4000L) // GC should collect this by now
         assert(!poolHasContainerIdPrefix(containerIdPrefix)) // container must be gone by now
         // Do it again now
         val container2 = getEcho("hocus pocus")
         val containerIdPrefix2 = container2.containerIdPrefix
         assert(poolHasContainerIdPrefix(containerIdPrefix2)) // container must be around
-        pool.putBack(container2);
+        pool.putBack(container2)
         pool.resetGCThreshold()
     }
 
@@ -208,8 +208,8 @@ class ContainerPoolTests extends FlatSpec
                     val str = "QWERTY" + i.toString()
                     con.run(str, (20000 + i).toString()) // payload + activationId
                     if (i == max - 1) {
-                        Thread.sleep(1000);
-                        assert(con.getLogs().contains(str));
+                        Thread.sleep(1000)
+                        assert(con.getLogs().contains(str))
                     }
                     pool.putBack(con)
                 }
@@ -230,22 +230,22 @@ class ContainerPoolTests extends FlatSpec
     }
 
     it should "be able to start a nodejs action with init, do a run, return to pool, do another get testing reuse, another run" in {
-        ensureClean();
+        ensureClean()
         val action = makeHelloAction("foobar", 0)
         // Make a whisk container and test init and a push
         val Some((con, initRes)) = pool.getAction(action, defaultAuth)
-        Thread.sleep(1000);
-        assert(con.getLogs().contains("ABCXYZ"));
+        Thread.sleep(1000)
+        assert(con.getLogs().contains("ABCXYZ"))
         con.run("QWERTY", "55555") // payload + activationId
-        Thread.sleep(1000);
-        assert(con.getLogs().contains("QWERTY"));
+        Thread.sleep(1000)
+        assert(con.getLogs().contains("QWERTY"))
         pool.putBack(con)
         // Test container reuse
         val Some((con2, _)) = pool.getAction(action, defaultAuth)
         assert(con == con2) // check re-use
         con.run("ASDFGH", "4444") // payload + activationId
-        Thread.sleep(1000);
-        assert(con.getLogs().contains("ASDFGH"));
+        Thread.sleep(1000)
+        assert(con.getLogs().contains("ASDFGH"))
         pool.putBack(con)
     }
 
