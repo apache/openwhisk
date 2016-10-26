@@ -102,13 +102,6 @@ class InvokerHealth(
         curStatus.get() map { _.index }
     }
 
-    /**
-     * The current Activation count per Invoker.
-     */
-    def getInvokerActivationCounts(): Map[Int, Int] = curStatus.get().map { status =>
-        status.index -> status.activationCount
-    }.toMap
-
     private def getHealth(statuses: Array[Status]): Map[Int, Boolean] = {
         statuses.map { status => (status.index, status.status) }.toMap
     }
@@ -152,7 +145,7 @@ class InvokerHealth(
                     val index = InvokerKeys.extractInvokerIndex(key)
                     val JsString(startDate) = inner(InvokerKeys.startKey).parseJson
                     val JsString(lastDate) = inner(InvokerKeys.statusKey).parseJson
-                    (index, Status(index, startDate, lastDate, isFresh(lastDate), inner(InvokerKeys.activationCountKey).toInt))
+                    (index, Status(index, startDate, lastDate, isFresh(lastDate)))
             }
             val newStatus = statusMap.values.toArray.sortBy(_.index)
 
@@ -163,7 +156,7 @@ class InvokerHealth(
 
             // Existing entries that have become stale require recording and a warning
             val stale = curStatus.get().filter {
-                case Status(index, startDate, _, _, _) =>
+                case Status(index, startDate, _, _) =>
                     statusMap.get(index).map(startDate != _.startDate) getOrElse false
             }
             if (!stale.isEmpty) {
@@ -209,8 +202,8 @@ class InvokerHealth(
      * curStatus maintains the status of the current instance at a particular index while oldStatus
      * tracks instances (potentially many per index) that are not longer fresh (invoker was restarted).
      */
-    private case class Status(index: Int, startDate: String, lastDate: String, status: Boolean, activationCount: Int) {
-        override def toString = s"index: $index, healthy: $status, activations: $activationCount, start: $startDate, last: $lastDate"
+    private case class Status(index: Int, startDate: String, lastDate: String, status: Boolean) {
+        override def toString = s"index: $index, healthy: $status, start: $startDate, last: $lastDate"
     }
     private lazy val curStatus = new AtomicReference(Array(): Array[Status])
     private lazy val oldStatus = new AtomicReference(Array(): Array[Status])

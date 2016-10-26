@@ -19,7 +19,6 @@ package whisk.core.invoker
 import java.time.{ Clock, Instant }
 
 import scala.Vector
-import scala.collection.concurrent.TrieMap
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.duration.{ Duration, DurationInt }
 import scala.language.postfixOps
@@ -28,7 +27,7 @@ import scala.util.{ Failure, Success, Try }
 import akka.actor.{ ActorRef, ActorSystem, actorRef2Scala }
 import akka.event.Logging.{ InfoLevel, LogLevel }
 import akka.japi.Creator
-import spray.json.{ JsArray, JsNumber, JsObject, JsValue, pimpAny, pimpString }
+import spray.json.{ JsArray, JsObject, pimpAny, pimpString }
 import spray.json.DefaultJsonProtocol._
 import spray.json.DefaultJsonProtocol
 import whisk.common.{ ConsulKVReporter, Counter, Logging, LoggingMarkers, PrintStreamEmitter, SimpleExec, TransactionId }
@@ -41,7 +40,7 @@ import whisk.core.connector.{ ActivationMessage => Message, CompletionMessage }
 import whisk.core.container.{ BlackBoxContainerError, ContainerPool, Interval, RunResult, WhiskContainer, WhiskContainerError }
 import whisk.core.dispatcher.{ Dispatcher, MessageHandler }
 import whisk.core.dispatcher.ActivationFeed.{ ActivationNotification, ContainerReleased, FailedActivation }
-import whisk.core.entity.{ ActionLimits, ActivationLogs, ActivationResponse, AuthKey, DocId, DocInfo, DocRevision, EntityPath, Exec, LogLimit, Parameters, SemVer, Subject, WhiskAction, WhiskActivation, WhiskActivationStore, WhiskAuthStore, WhiskEntity, WhiskEntityStore }
+import whisk.core.entity.{ ActionLimits, ActivationLogs, ActivationResponse, AuthKey, DocId, DocInfo, DocRevision, EntityPath, Exec, LogLimit, Parameters, SemVer, WhiskAction, WhiskActivation, WhiskActivationStore, WhiskAuthStore, WhiskEntity, WhiskEntityStore }
 import whisk.core.entity.size.{ SizeInt, SizeString }
 import whisk.http.BasicHttpService
 import whisk.utils.ExecutionContextFactory
@@ -147,7 +146,6 @@ class Invoker(
                 case Some(res) => res
                 case None => {
                     activationCounter.next() // this is the global invoker counter
-                    incrementUserActivationCounter(tran.msg.subject)
                     // Send a message to the activation feed indicating there is a free resource to handle another activation.
                     // Since all transaction completions flow through this method and the invariant is that the transaction is
                     // completed only once, there is only one completion message sent to the feed as a result.
@@ -332,24 +330,6 @@ class Invoker(
         }
     }
 
-    private def incrementUserActivationCounter(user: Subject)(implicit transid: TransactionId): Long = {
-        val counter = userActivationCounter.getOrElseUpdate(user(), new Counter())
-        val count = counter.next()
-        info(this, s"'${user}' has $count activations processed")
-        count
-    }
-
-    private def getUserActivationCounts(): Map[String, JsObject] = {
-        val subjects = userActivationCounter.keySet toList
-        val groups = subjects.groupBy { user => user.substring(0, 1) } // Any sort of partitioning will be ok wrt load balancer
-        groups.keySet map { prefix =>
-            val key = InvokerKeys.userActivationCount(instance) + "/" + prefix
-            val users = groups.getOrElse(prefix, Set())
-            val items = users map { u => (u, JsNumber(userActivationCounter.get(u) map { c => c.cur } getOrElse 0L)) }
-            key -> JsObject(items toMap)
-        } toMap
-    }
-
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -418,39 +398,15 @@ class Invoker(
     private val activationStore = WhiskActivationStore.datastore(config)
     private val pool = new ContainerPool(config, instance, verbosity)
     private val activationCounter = new Counter() // global activation counter
-    private val userActivationCounter = new TrieMap[String, Counter]
 
     private val consul = new ConsulClient(config.consulServer)
 
-    // Restore old state from the same invoker instance
-    consul.kv.getRecurse(InvokerKeys.userActivationCount(instance)).map { partitioned =>
-        val flattened = partitioned.values.map { userCounts =>
-            userCounts.parseJson.convertTo[Map[String, Int]]
-        }.reduce(_ ++ _)
-
-        val readActivationCounter = flattened.mapValues { readCount =>
-            val cnt = new Counter()
-            cnt.set(readCount)
-            cnt
-        }
-
-        info(this, s"restored old counts from consul: $flattened")
-
-        userActivationCounter.clear()
-        userActivationCounter ++= readActivationCounter
-
-        activationCounter.set(flattened.values.sum)
-    } onComplete { _ =>
-        // Repeatedly updates the KV store as to the invoker's last check-in.
-        new ConsulKVReporter(consul, 3 seconds, 2 seconds,
+    // Repeatedly updates the KV store as to the invoker's last check-in.
+    new ConsulKVReporter(consul, 3 seconds, 2 seconds,
             InvokerKeys.hostname(instance),
             InvokerKeys.start(instance),
             InvokerKeys.status(instance),
-            { index =>
-                (if (index % 5 == 0) getUserActivationCounts() else Map[String, JsValue]()) ++
-                    Map(InvokerKeys.activationCount(instance) -> activationCounter.cur.toJson)
-            })
-    }
+            { _ => Map() })
 
     setVerbosity(verbosity)
 }
