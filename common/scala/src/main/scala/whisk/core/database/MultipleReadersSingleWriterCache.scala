@@ -273,7 +273,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
 
                         if (allowedToAssumeCompletion && actualEntry.grabWriteLock(transid, currentState, desiredEntry.unpack)) {
                             // this transaction is now responsible for updating the cache entry
-                            logger.info(this, s"write initiated on existing cache entry")
+                            logger.info(this, s"write initiated on existing cache entry invalidating $key")
                             listenForWriteDone(key, actualEntry, generator)
                         } else {
                             // there is a conflicting operation in progress on this key
@@ -368,7 +368,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
 
                 if (entry.writeDone()) {
                     // entry transitioned from WriteInProgress to Cached state
-                    logger.info(this, s"write all done $key ${entry.state.get}")
+                    logger.info(this, s"write all done, caching $key ${entry.state.get}")
                 } else {
                     // state transition from WriteInProgress to Cached fails so invalidate
                     // the entry in the cache
@@ -386,14 +386,16 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
     }
 
     /** Immediately invalidates the given entry. */
-    private def invalidateEntry(key: Any, entry: Entry): Unit = {
+    private def invalidateEntry(key: Any, entry: Entry)(
+        implicit transid: TransactionId, logger: Logging): Unit = {
+        logger.info(this, s"invalidating $key")
         entry.invalidate()
         cache remove key
     }
 
     /** Invalidates the given entry after a given invalidator completes. */
     private def invalidateEntryAfter[R](invalidator: => Future[R], key: Any, entry: Entry)(
-        implicit ec: ExecutionContext): Future[R] = {
+        implicit ec: ExecutionContext, transid: TransactionId, logger: Logging): Future[R] = {
 
         entry.grabInvalidationLock()
         invalidator andThen {
