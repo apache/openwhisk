@@ -2,6 +2,7 @@
 
 N=20
 WSK="${1-./bin/wsk} -i"
+ACTIONFILE="${1-empty.js}"
 
 echo -n "init "
 (for i in `seq 1 $N`; do ($WSK action delete testy$i &); done; wait) 2>&1 | grep -v failure > /dev/null

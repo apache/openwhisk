@@ -40,7 +40,8 @@ class CacheConcurrencyTests extends FlatSpec
     "the cache" should "support concurrent CRUD without bogus residual cache entries" in {
         //val scriptPath = getClass.getResource("CacheConcurrencyTests.sh").getPath;
         val scriptPath = TestUtils.getTestActionFilename("CacheConcurrencyTests.sh")
-        val fullCmd = Seq(scriptPath, Wsk.baseCommand.mkString)
+        val actionFile = TestUtils.getTestActionFilename("empty.js")
+        val fullCmd = Seq(scriptPath, Wsk.baseCommand.mkString, actionFile)
 
         val (stdout, stderr, exitCode) = SimpleExec.syncRunCmd(fullCmd)
 
