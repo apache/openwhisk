@@ -69,7 +69,7 @@ function main(message) {
   // Activating a specified API
   // 1. Pull the API's configuration document from the DB
   // 2. Send the DELETE request to the API Gateway to remove the entire API
-  // 3. FIXME MWD If successful, update the API configuration in the DB to indicate the activation status
+  // 3. If successful, update the API configuration in the DB to indicate the activation status
   var dbApiDoc;
   var gwApiDeactivated = false;
   return getDbApiDoc(message.namespace, message.basepath)
@@ -82,6 +82,7 @@ function main(message) {
     console.log('API '+dbApiDoc._id+' deactivated.');
     gwApiDeactivated = true;
     dbApiDoc.gwApiActivated = false;
+    delete dbApiDoc.gwApiGuid;
     return updateApiDocInDb(cloudantDb, dbApiDoc);
   })
   .then(function() {

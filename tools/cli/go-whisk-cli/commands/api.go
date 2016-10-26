@@ -261,10 +261,10 @@ var apiDeleteCmd = &cobra.Command{
         }
         if (len(args) > 2) {
             // Is the API verb valid?
-            if whiskErr, ok := IsValidApiVerb(args[1]); !ok {
+            if whiskErr, ok := IsValidApiVerb(args[2]); !ok {
                 return whiskErr
             }
-            api.GatewayMethod = strings.ToUpper(args[1])
+            api.GatewayMethod = strings.ToUpper(args[2])
         }
         api.Namespace = client.Config.Namespace
         api.Id = "API:"+api.Namespace+":"+api.GatewayBasePath
@@ -372,7 +372,11 @@ func parseApi(cmd *cobra.Command, args []string) (*whisk.Api, error) {
     var apiname string = "/"
 
     // Is the API path valid?
-    // FIXME MWD - Add check
+    if (len(args) > 0) {
+        if whiskErr, ok := isValidRelpath(args[0]); !ok {
+            return nil, whiskErr
+        }
+    }
 
     // Is the specified action name valid?
     // FIXME MWD - validate action exists??
@@ -400,12 +404,17 @@ func parseApi(cmd *cobra.Command, args []string) (*whisk.Api, error) {
         }
     }
 
-    if ( len(flags.api.apiname) > 0 ) {
-        apiname = flags.api.apiname
-    }
-
     if ( len(flags.api.basepath) > 0 ) {
         basepath = flags.api.basepath
+    }
+    if whiskErr, ok:= isValidBasepath(basepath); !ok {
+        return nil, whiskErr
+    }
+
+    if ( len(flags.api.apiname) > 0 ) {
+        apiname = flags.api.apiname
+    } else {
+        apiname = basepath
     }
 
     api := new(whisk.Api)
@@ -450,6 +459,35 @@ func IsValidApiVerb(verb string) (error, bool) {
     return nil, true
 }
 
+func hasPathPrefix(path string) (error, bool) {
+    if (! strings.HasPrefix(path, "/")) {
+        whisk.Debug(whisk.DbgError, "path does not begin with '/': %s\n", path)
+        errMsg := fmt.Sprintf(
+            wski18n.T("'{{.path}}' must begin with '/'.",
+                map[string]interface{}{
+                    "path": path,
+                }))
+        whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+            whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+        return whiskErr, false
+    }
+    return nil, true
+}
+
+func isValidBasepath(basepath string) (error, bool) {
+    if whiskerr, ok := hasPathPrefix(basepath); !ok {
+        return whiskerr, false
+    }
+    return nil, true
+}
+
+func isValidRelpath(relpath string) (error, bool) {
+    if whiskerr, ok := hasPathPrefix(relpath); !ok {
+        return whiskerr, false
+    }
+    return nil, true
+}
+
 /*
  * Pull the managedUrl (external API URL) from the API configuration
  */
@@ -469,7 +507,8 @@ func getManagedUrl(api *whisk.RetApi, relpath string, operation string) (url str
             }
         }
     }
-    return url
+    // Remove possible duplicate path delimiter that can occur when the basepath ends with '/'
+    return strings.Replace(url, "//", "/", -1)
 }
 
 ///////////
@@ -478,7 +517,7 @@ func getManagedUrl(api *whisk.RetApi, relpath string, operation string) (url str
 
 func init() {
     //apiCreateCmd.Flags().StringVarP(&flags.api.action, "action", "a", "", wski18n.T("`ACTION` to invoke when API is called"))
-    apiCreateCmd.Flags().StringVarP(&flags.api.apiname, "apiname", "n", "", wski18n.T("API collection `NAME` (default NAMESPACE)"))
+    apiCreateCmd.Flags().StringVarP(&flags.api.apiname, "apiname", "n", "", wski18n.T("API collection `NAME` (default BASE_PATH)"))
     apiCreateCmd.Flags().StringVarP(&flags.api.basepath, "basepath", "b", "/", wski18n.T("The API `BASE_PATH` to which the API_PATH is relative"))
 
     //apiUpdateCmd.Flags().StringVarP(&flags.api.action, "action", "a", "", wski18n.T("`ACTION` to invoke when API is called"))

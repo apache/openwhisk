@@ -63,29 +63,6 @@ function main(message) {
   var cloudant = cloudantOrError;
   var cloudantDb = cloudant.use(message.dbname);
 
-//  var viewName = 'routes-by-basepath';
-//  var viewCollectionKey = message.basepath;
-//  var params = {key: [message.namespace, viewCollectionKey]}
-//  return readApiDocument(cloudantDb, 'gwapis', viewName, params);
-
-
-//  var params = {};
-//  if (message.relpath && !message.operation) {
-//    params.startkey = [message.namespace, message.basepath];
-//    params.endkey = [message.namespace, message.basepath, message.relpath, {}];
-//  } else if (!message.relpath && !message.operation) {
-//    params.startkey = [message.namespace, message.basepath];
-//    params.endkey = [message.namespace, message.basepath, {}, {}];
-//  }
-//
-//  //if (message.relpath && message.operation) {
-//  if (params.startkey) {
-//    //FIXME var params = {key: [message.namespace, message.basepath, message.relpath, message.operation.toLowerCase()]}
-//    return readFilteredApiDocument(cloudantDb, 'gwapis', 'route-by-ns-bp-rp-op', params);
-//  } else {
-//    return readApiDocument(cloudantDb, docid, {});
-//  }
-
   return readApiDocument(cloudantDb, docid, {});
 }
 

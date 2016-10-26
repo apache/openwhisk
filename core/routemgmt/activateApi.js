@@ -27,7 +27,6 @@
  *   gwUrl      Required. The API Gateway base path (i.e. http://gw.com)
  *   namespace  Required. The namespace of the API to be activated
  *   basepath   Required. The basepath of the API to be activated
- *   apiGuid    Optional. When set, this is the API's GUID; when not set the document is new
  *
  * NOTE: The package containing this action will be bound to the following values:
  *         host, port, protocol, dbname, username, password
@@ -70,11 +69,11 @@ function main(message) {
   // 1. Pull the API's configuration document from the DB
   // 2. Create the request document to send to the API Gateway
   // 3. Send the request to the API Gateway to configure and activate the API
-  // 4. FIXME MWD If successful, update the API configuration in the DB to indicate the activation status
+  // 4. If successful, update the API configuration in the DB to indicate the activation status
   var retApi;
   var tenantGuid;
   var tenantAdded = false;
-  var routeAdded = false;
+  var gwApiActivated = false;
   var dbUpdated = false;
   var gwApiDoc;
   var dbApiDoc;
@@ -106,7 +105,7 @@ function main(message) {
         console.error('No configured API route returned');
         return Promise.reject('Internal error.  API gateway did not return a configured API route.')
       }
-      routeAdded = true;
+      gwApiActivated = true;
       dbApiDoc.gwApiUrl = gwApiResponse.managedUrl;
       dbApiDoc.gwApiGuid = gwApiResponse.id;
       dbApiDoc.tenantId = tenantGuid;
@@ -118,9 +117,12 @@ function main(message) {
       return Promise.resolve(dbApiDoc);
   })
   .catch(function(reason) {
-      // FIXME MWD Possibly need to rollback some operations (i.e. rollback gateway config if db insert fails)
-      console.error('API activation failure: '+reason);
-      return Promise.reject('API activation failure: '+reason);
+      if (!gwApiActivated) {
+        console.error('API activation failure: '+reason);
+        return Promise.reject('API activation failure: '+reason);
+      }
+      console.error('API was activated; however, the database could not be udpated: '+reason);
+      return Promise.reject('API was activated; however, an internal error occurred after activation: '+reason);
   });
 }
 
@@ -171,7 +173,6 @@ function getApiDoc(namespace, basepath) {
     'basepath': basepath
   }
   console.log('getApiDoc() for namespace:basepath: '+namespace+':'+basepath);
-  //FIXME MWD return new Promise( function (resolve, reject) {
     return whisk.invoke({
       name: actionName,
       blocking: true,
@@ -181,20 +182,16 @@ function getApiDoc(namespace, basepath) {
       console.log('whisk.invoke('+actionName+', '+params.namespace+', '+params.basepath+') ok');
       console.log('Results: '+JSON.stringify(activation));
       if (activation && activation.result && activation.result._rev) {
-        //resolve(activation.result);
         return Promise.resolve(activation.result);
       } else {
         console.error('_rev value not returned!');
-        //reject('Document for basepath \"'+basepath+'\" was not located');
         return Promise.reject('Document for namepace \"'+namespace+'\" and basepath \"'+basepath+'\" was not located');
       }
     })
     .catch(function (error) {
       console.error('whisk.invoke('+actionName+', '+params.namespace+', '+params.basepath+') error: '+JSON.stringify(error));
-      //reject(error);
       return Promise.reject(error);
     });
-  //});
 }
 
 function addTenantToGateway(gwInfo, namespace) {
@@ -207,7 +204,7 @@ function addTenantToGateway(gwInfo, namespace) {
       //'Authorization': 'Basic ' + 'btoa(gwInfo.gwAuth)',  // FIXME MWD Authentication
     },
     json: {
-      instance: 'openwhisk',    // Use a fixed instance so only 1 openwhisk tenant is ever created.
+      instance: 'openwhisk',    // Use a fixed instance so all openwhisk tenants have a common instance
       namespace: namespace
     }
   };
@@ -227,7 +224,7 @@ function addTenantToGateway(gwInfo, namespace) {
         console.error('addTenantToGateway: failure: response code: '+statusCode)
         reject('Unable to configure the API Gateway: Response failure code: '+statusCode);
       } else {
-        if (body && body.id) {  // { id: GUID, namespace: NAMESPACE, instance: 'whisk' }
+        if (body && body.id) {  // body has format like:  { id: GUID, namespace: NAMESPACE, instance: 'openwhisk' }
           resolve(body);
         } else {
           console.error('addTenantToGateway: failure: No tenant guid provided')
@@ -315,90 +312,7 @@ function updateApiDocInDb(cloudantDb, doc) {
   });
 }
 
-  /*
-  {
-    "id": "string",
-    "name": "string",
-    "basePath": "string",
-    "tenantId": "string",
-    "resources": {
-      "path": {
-        "operations": {
-          "get": {
-            "backendMethod": "string",
-            "backendUrl": "string",
-            "policies": [
-              {
-                "type": "string",
-                "value": {}
-              }
-            ]
-          },
-          "put": {
-            "backendMethod": "string",
-            "backendUrl": "string",
-            "policies": [
-              {
-                "type": "string",
-                "value": {}
-              }
-            ]
-          },
-          "post": {
-            "backendMethod": "string",
-            "backendUrl": "string",
-            "policies": [
-              {
-                "type": "string",
-                "value": {}
-              }
-            ]
-          },
-          "delete": {
-            "backendMethod": "string",
-            "backendUrl": "string",
-            "policies": [
-              {
-                "type": "string",
-                "value": {}
-              }
-            ]
-          },
-          "patch": {
-            "backendMethod": "string",
-            "backendUrl": "string",
-            "policies": [
-              {
-                "type": "string",
-                "value": {}
-              }
-            ]
-          },
-          "head": {
-            "backendMethod": "string",
-            "backendUrl": "string",
-            "policies": [
-              {
-                "type": "string",
-                "value": {}
-              }
-            ]
-          },
-          "options": {
-            "backendMethod": "string",
-            "backendUrl": "string",
-            "policies": [
-              {
-                "type": "string",
-                "value": {}
-              }
-            ]
-          }
-        }
-      }
-    }
-  }
-  */
+
 function makeGwApiDoc(api) {
   var gwdoc = {};
   gwdoc.basePath = api.apidoc.basePath;

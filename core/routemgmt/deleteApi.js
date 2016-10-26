@@ -40,7 +40,6 @@
 
 function main(message) {
   console.log("deleteApi: args: "+JSON.stringify(message));
-  message.force = true;  // FIXME MWD Awaiting controller fix
   var badArgMsg = '';
   if (badArgMsg = validateArgs(message)) {
     return whisk.error(badArgMsg);
@@ -92,32 +91,32 @@ function main(message) {
   var dbUpdated = false;
   var docRev;
   var gwApiGuid;
-  var updatedDbDoc
+  var updatedDbDocOrErrMsg
 
   return getDbApiDoc(message.namespace, message.basepath)
   .then(function(dbdoc) {
       console.log('Found API doc in db: '+JSON.stringify(dbdoc));
       if (!deleteEntireApi) {
-          updatedDbDoc = removePath(dbdoc, message.relpath, message.operation);
-          if (!updatedDbDoc._id) {
+          updatedDbDocOrErrMsg = removePath(dbdoc, message.relpath, message.operation);
+          if (!updatedDbDocOrErrMsg._id) {
               console.error('Unable to remove specified relpath/operation');
-              return Promise.reject(updatedDbDoc);  // On failure, updatedDbDoc is an error string
+              return Promise.reject(updatedDbDocOrErrMsg);  // On failure, updatedDbDocOrErrMsg is an error string
           }
-          console.log('Updated API configuration: '+JSON.stringify(updatedDbDoc));
-          return updateApiDocInDb(cloudantDb, updatedDbDoc)
+          console.log('Updated API configuration: '+JSON.stringify(updatedDbDocOrErrMsg));
+          return updateApiDocInDb(cloudantDb, updatedDbDocOrErrMsg)
           .then(function() {
-              console.log('API configuration '+updatedDbDoc._id+' successfully updated in database');
+              console.log('API configuration '+updatedDbDocOrErrMsg._id+' successfully updated in database');
               if (dbdoc.gwApiActivated) {
                   console.log('API configuration is active; updating gateway');
-                  var gwdoc = makeGwApiDoc(updatedDbDoc);
+                  var gwdoc = makeGwApiDoc(updatedDbDocOrErrMsg);
                   console.log('Updated API GW configuration: '+JSON.stringify(gwdoc));
-                  return updateGatewayApi(gwInfo, updatedDbDoc.gwApiGuid, gwdoc);
+                  return updateGatewayApi(gwInfo, updatedDbDocOrErrMsg.gwApiGuid, gwdoc);
               } else {
                   console.log('API configuration is not active; no need to update gateway');
                   return Promise.resolve();
               }
           }).then(function() {
-              console.log('API configuration '+updatedDbDoc._id+' successfully updated');
+              console.log('API configuration '+updatedDbDocOrErrMsg._id+' successfully updated');
               return Promise.resolve();
           })
       } else {
@@ -332,6 +331,10 @@ function deleteGatewayApi(gwInfo, gwApiId) {
   });
 }
 
+/*
+ * Create a JSON object that's compatible with the API GW REST interface.  Use the
+ * API configuration JSON object stored in the DB as input
+ */
 function makeGwApiDoc(apiDbDoc) {
   var gwdoc = {};
   gwdoc.basePath = apiDbDoc.apidoc.basePath;
@@ -353,28 +356,39 @@ function makeGwApiDoc(apiDbDoc) {
   return gwdoc;
 }
 
-// Update an existing DB API document by removing the specified relpath/operation section
+/*
+ * Update an existing DB API document by removing the specified relpath/operation section.
+ * @param dbApiDoc   Required.  The JSON API document from the DB
+ * @param relpath    Optional.  The relative path.  If not provided, the original dbApiDoc is returned
+ * @param operation  Optional.  The operation under relpath.  If not provided, the entire relpath is deleted.
+ *                              If relpath has no more operations, then the entire relpath is deleted.
+ * @returns Updated JSON API document
+ */
 function removePath(dbApiDoc, relpath, operation) {
   console.log('removePath: relpath '+relpath+' operation '+operation);
-  if (!relpath && !operation) {
-      console.log('removePath: No operation and no relpath; nothing to remove');
-      return 'No operation and no relpath provided; nothing to remove';
+  if (!relpath) {
+      console.log('removePath: No relpath specified; nothing to remove');
+      return 'No relpath provided; nothing to remove';
   }
 
   // If an operation is not specified, delete the entire relpath
   if (!operation) {
       console.log('removePath: No operation; removing entire relpath '+relpath);
-      if (dbApiDoc.apidoc.path[relpath]) {
-          delete dbApiDoc.apidoc.path[relpath];
+      if (dbApiDoc.apidoc.paths[relpath]) {
+          delete dbApiDoc.apidoc.paths[relpath];
       } else {
           console.log('removePath: relpath '+relpath+' does not exist in the DB doc; already deleted');
           return 'relpath '+relpath+' does not exist in the DB doc';
       }
   } else {
-      if (dbApiDoc.apidoc.paths[relpath][operation]) {
+      if (dbApiDoc.apidoc.paths[relpath] && dbApiDoc.apidoc.paths[relpath][operation]) {
           delete dbApiDoc.apidoc.paths[relpath][operation];
+          if (Object.keys(dbApiDoc.apidoc.paths[relpath]).length == 0) {
+            console.log('removePath: after deleting operation '+operation+', relpath '+relpath+' has no more operations; so deleting entire relpath '+relpath);
+            delete dbApiDoc.apidoc.paths[relpath];
+          }
       } else {
-          console.log('removePath: relpath '+relpath+' with operation '+operation+' does not exist in the DB doc; already deleted');
+          console.log('removePath: relpath '+relpath+' with operation '+operation+' does not exist in the DB doc');
           return 'relpath '+relpath+' with operation '+operation+' does not exist in the DB doc';
       }
   }
@@ -411,6 +425,10 @@ function validateArgs(message) {
 
   if (message.force && (message.force != true) && (message.force != false)) {
     return 'Valid force values are true or false.';
+  }
+
+  if (message.operation) {
+    message.operation = message.operation.toLowerCase();
   }
 
   return '';

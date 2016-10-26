@@ -269,6 +269,7 @@ function validateArgs(message) {
   return '';
 }
 
+
 function getBasePath(message) {
   if (message.swagger) {
     return message.swagger.basePath;

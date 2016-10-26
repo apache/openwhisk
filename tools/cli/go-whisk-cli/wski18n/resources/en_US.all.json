@@ -1246,5 +1246,9 @@
   {
     "id": "An API base path is required.  An optional API relative path and operation may also be provided.",
     "translation": "An API base path is required.  An optional API relative path and operation may also be provided."
+  },
+  {
+    "id": "'{{.path}}' must begin with '/'.",
+    "translation": "'{{.path}}' must begin with '/'."
   }
 ]
