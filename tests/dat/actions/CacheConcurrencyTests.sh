@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 
-N=20
 WSK="${1-./bin/wsk -i}"
 ACTIONFILE="${2-empty.js}"
+N=${3-20}
+shift
 shift
 shift
 

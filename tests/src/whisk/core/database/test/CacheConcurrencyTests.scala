@@ -28,6 +28,7 @@ import common.WskProps
 import whisk.common.Logging
 import whisk.common.SimpleExec
 import whisk.common.TransactionId
+import scala.util.Try
 
 @RunWith(classOf[JUnitRunner])
 class CacheConcurrencyTests extends FlatSpec
@@ -35,25 +36,39 @@ class CacheConcurrencyTests extends FlatSpec
     with Logging
     with Matchers {
 
+    private val wsk = new Wsk
+
     implicit private val logger = this
     implicit private val transId = TransactionId.testing
     implicit private val wp = WskProps()
 
-    "the cache" should "support concurrent CRUD without bogus residual cache entries" in {
-        //val scriptPath = getClass.getResource("CacheConcurrencyTests.sh").getPath;
-        val scriptPath = TestUtils.getTestActionFilename("CacheConcurrencyTests.sh")
-        val actionFile = TestUtils.getTestActionFilename("empty.js")
-        val fullCmd = Seq(scriptPath, Wsk.baseCommand.mkString, actionFile, "--auth", wp.authKey) ++ wp.overrides
+    val nExternalIters = 10
+    val nInternalIters = 20
 
-        val (stdout, stderr, exitCode) = SimpleExec.syncRunCmd(fullCmd)
+    for (i <- 1 to nExternalIters)
+        "the cache" should s"support concurrent CRUD without bogus residual cache entries, iter ${i}" in {
+            try {
+                val scriptPath = TestUtils.getTestActionFilename("CacheConcurrencyTests.sh")
+                val actionFile = TestUtils.getTestActionFilename("empty.js")
+                val fullCmd = Seq(scriptPath, Wsk.baseCommand.mkString, actionFile, nInternalIters.toString(), "--auth", wp.authKey) ++ wp.overrides
 
-        if (!stdout.isEmpty) {
-            logger.info(stdout)
+                val (stdout, stderr, exitCode) = SimpleExec.syncRunCmd(fullCmd)
+
+                if (!stdout.isEmpty) {
+                    logger.info(stdout)
+                }
+                if (!stderr.isEmpty) {
+                    logger.error(this, stderr)
+                }
+
+                exitCode should be(0)
+
+            } finally {
+                // clean up
+                {
+                    for (i <- 1 to nInternalIters)
+                        yield Try { wsk.action.delete(s"testy${i}") }
+                }.forall(_.isSuccess)
+            }
         }
-        if (!stderr.isEmpty) {
-            logger.error(this, stderr)
-        }
-
-        exitCode should be(0)
-    }
 }
