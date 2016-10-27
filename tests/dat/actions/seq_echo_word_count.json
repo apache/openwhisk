@@ -10,13 +10,13 @@
         "memory": 256,
         "timeout": 60000
     },
-    "name": "my_seq_echo_word_count",
+    "name": "seq_echo_word_count",
     "parameters": [
         {
             "key": "_actions",
             "value": [
-                "/_/my_echo",
-                "/_/my_word_count"
+                "/_/echo",
+                "/_/word_count"
             ]
         }
     ],

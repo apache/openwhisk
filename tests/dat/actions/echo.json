@@ -1,5 +1,5 @@
 {
-    "name": "my_echo",
+    "name": "echo",
     "version": "0.0.1",
     "publish": false,
     "exec": {

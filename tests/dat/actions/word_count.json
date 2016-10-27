@@ -1,5 +1,5 @@
 {
-    "name": "my_word_count",
+    "name": "word_count",
     "version": "0.0.1",
     "publish": false,
     "exec": {

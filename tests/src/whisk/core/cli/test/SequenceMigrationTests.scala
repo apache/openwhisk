@@ -65,10 +65,10 @@ class SequenceMigrationTests
     it should "invoke an old-style sequence and get the result" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             // create entities to insert in the entity store
-            val my_echo = "my_echo.json"
-            val my_wc = "my_word_count.json"
-            val my_seq_echo_wc = "my_seq_echo_word_count.json"   // old-style sequence
-            val entities = Seq(my_echo, my_wc, my_seq_echo_wc)
+            val echo = "echo.json"
+            val wc = "word_count.json"
+            val seq_echo_wc = "seq_echo_word_count.json"   // old-style sequence
+            val entities = Seq(echo, wc, seq_echo_wc)
             implicit val tid = transid() // needed for put db below
             for (entity <- entities) {
                 // read json file and add the appropriate namespace
@@ -82,7 +82,7 @@ class SequenceMigrationTests
                 put(entityStore, wskEntity)
             }
             // invoke sequence
-            val seqName = "my_seq_echo_word_count"
+            val seqName = "seq_echo_word_count"
             val now = "it is now " + new Date()
             val run = wsk.action.invoke(seqName, Map("payload" -> now.mkString("\n").toJson))
             withActivation(wsk.activation, run, totalWait = allowedActionDuration) {
