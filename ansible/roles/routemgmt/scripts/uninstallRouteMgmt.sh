@@ -59,15 +59,16 @@ function deletePackage
 # Delete actions, then the package.  The order is important (can't delete a package that contains an action)!
 
 echo Deleting routemgmt actions
-deleteAction $NAMESPACE/routemgmt/createApi
-deleteAction $NAMESPACE/routemgmt/getApi
-deleteAction $NAMESPACE/routemgmt/updateApi
-deleteAction $NAMESPACE/routemgmt/deleteApi
-deleteAction $NAMESPACE/routemgmt/activateApi
-deleteAction $NAMESPACE/routemgmt/deactivateApi
 deleteAction $NAMESPACE/routemgmt/createRoute
 deleteAction $NAMESPACE/routemgmt/deleteRoute
 deleteAction $NAMESPACE/routemgmt/getRoute
+deleteAction $NAMESPACE/routemgmt/createApi
+deleteAction $NAMESPACE/routemgmt/updateApi
+deleteAction $NAMESPACE/routemgmt/getApi
+deleteAction $NAMESPACE/routemgmt/deleteApi
+deleteAction $NAMESPACE/routemgmt/activateApi
+deleteAction $NAMESPACE/routemgmt/deactivateApi
+deleteAction $NAMESPACE/routemgmt/syncApi
 deleteAction $NAMESPACE/routemgmt/getCollection
 deleteAction $NAMESPACE/routemgmt/deleteCollection
 

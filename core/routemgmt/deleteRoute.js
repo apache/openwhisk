@@ -187,7 +187,7 @@ function deleteRouteFromGateway(gwInfo, gwApiGuid) {
     request.delete(options, function(error, response, body) {
       var statusCode = response ? response.statusCode : undefined;
       console.log('deleteRouteFromGateway: response status: '+ statusCode);
-      error && console.error('Warning: addRouteToGateway request failed: '+ JSON.stringify(error));
+      error && console.error('Warning: deleteRouteFromGateway request failed: '+ JSON.stringify(error));
       body && console.log('deleteRouteFromGateway: response body: '+JSON.stringify(body));
 
       if (error) {

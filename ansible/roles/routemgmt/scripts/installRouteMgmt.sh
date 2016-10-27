@@ -71,6 +71,9 @@ $WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" --shared no "$NAME
 $WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" --shared no "$NAMESPACE/routemgmt/deactivateApi" "$OPENWHISK_HOME/core/routemgmt/deactivateApi.js" \
 -a description 'Deactivate the specified API'
 
+$WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" --shared no "$NAMESPACE/routemgmt/syncApi" "$OPENWHISK_HOME/core/routemgmt/syncApi.js" \
+-a description 'Synchronize the API configuration with the API gateway'
+
 $WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" --shared no "$NAMESPACE/routemgmt/getCollection" "$OPENWHISK_HOME/core/routemgmt/getCollection.js" \
 -a description 'Retrieve all API routes configuration (in JSON format) for the specified collection'
 
