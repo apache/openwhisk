@@ -146,9 +146,10 @@ class ConsulClientTests extends FlatSpec with ScalaFutures with Matchers with Ws
         registerService(service.name, service.id).futureValue
 
         val services = consul.health.service(service.name).futureValue
-        services.head shouldBe service
-
+        // Immediately deregister before actually asserting to clean up
         deregisterService(service.id).futureValue
+
+        services.head shouldBe service
     }
 
     it should "return only the passing service" in {
@@ -157,13 +158,14 @@ class ConsulClientTests extends FlatSpec with ScalaFutures with Matchers with Ws
         registerService(passing.name, passing.id, Some("exit 0")).futureValue
         registerService(failing.name, failing.id, Some("exit 1")).futureValue
 
-        Thread.sleep(checkInterval.toMillis)
+        Thread.sleep(checkInterval.toMillis * 2)
 
         val services = consul.health.service(passing.name, true).futureValue
-        services.head shouldBe passing
-
+        // Immediately deregister before actually asserting to clean up
         deregisterService(passing.id).futureValue
         deregisterService(failing.id).futureValue
+
+        services.head shouldBe passing
     }
 
     "ConsulClient helper methods" should "drop the first part of the key" in {
