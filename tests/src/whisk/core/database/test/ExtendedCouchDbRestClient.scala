@@ -41,4 +41,19 @@ class ExtendedCouchDbRestClient(protocol: String, host: String, port: Int, usern
     // http://docs.couchdb.org/en/1.6.1/api/database/common.html#delete--db
     def deleteDb(): Future[Either[StatusCode, JsObject]] =
         requestJson(mkRequest(HttpMethods.DELETE, uri(db)))
+
+    // http://docs.couchdb.org/en/1.6.1/api/database/bulk-api.html#get--db-_all_docs
+    def getAllDocs(skip: Option[Int] = None, limit: Option[Int] = None): Future[Either[StatusCode, JsObject]] = {
+        val args = Seq[(String, Option[String])](
+            "skip" -> skip.filter(_ > 0).map(_.toString),
+            "limit" -> limit.filter(_ > 0).map(_.toString))
+
+        // Throw out all undefined arguments.
+        val argMap: Map[String, String] = args.collect({
+            case (l, Some(r)) => (l, r)
+        }).toMap
+
+        val url = uri(db, "_all_docs").withQuery(Uri.Query(argMap))
+        requestJson(mkRequest(HttpMethods.GET, url))
+    }
 }
