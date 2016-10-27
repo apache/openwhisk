@@ -24,6 +24,7 @@ import org.scalatest.junit.JUnitRunner
 
 import common.TestUtils
 import common.Wsk
+import common.WskProps
 import whisk.common.Logging
 import whisk.common.SimpleExec
 import whisk.common.TransactionId
@@ -36,12 +37,13 @@ class CacheConcurrencyTests extends FlatSpec
 
     implicit private val logger = this
     implicit private val transId = TransactionId.testing
+    implicit private val wp = WskProps()
 
     "the cache" should "support concurrent CRUD without bogus residual cache entries" in {
         //val scriptPath = getClass.getResource("CacheConcurrencyTests.sh").getPath;
         val scriptPath = TestUtils.getTestActionFilename("CacheConcurrencyTests.sh")
         val actionFile = TestUtils.getTestActionFilename("empty.js")
-        val fullCmd = Seq(scriptPath, Wsk.baseCommand.mkString, actionFile)
+        val fullCmd = Seq(scriptPath, Wsk.baseCommand.mkString, actionFile, "--auth", wp.authKey) ++ wp.overrides
 
         val (stdout, stderr, exitCode) = SimpleExec.syncRunCmd(fullCmd)
 
