@@ -13,17 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package system.basic.migration
+package whisk.core.cli.test
 
 
 import java.util.Date
-
 import scala.concurrent.duration.DurationInt
-import scala.language.postfixOps
-
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-
 import common.JsHelpers
 import common.TestHelpers
 import common.TestUtils
@@ -31,17 +27,15 @@ import common.Wsk
 import common.WskAdmin
 import common.WskProps
 import common.WskTestHelpers
-
-
 import spray.json._
 import spray.json.DefaultJsonProtocol.StringJsonFormat
-import spray.testkit.ScalatestRouteTest  // for actor system
-
+import spray.testkit.ScalatestRouteTest
 import whisk.core.WhiskConfig
 import whisk.core.entity._
 import whisk.core.database.test.DbUtils
-
 import org.scalatest.BeforeAndAfter
+
+import scala.language.postfixOps
 
 /**
  * Tests that "old-style" sequences can be invoked
