@@ -119,7 +119,7 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
         val stream = new ByteArrayOutputStream
         val printstream = new PrintStream(stream)
         consumer.outputStream = printstream
-        val messageReceived = "message recieved"
+        val messageReceived = "message received"
         try {
             consumer.onMessage((topic, partition, offset, bytes) => {
                 printstream.println(messageReceived)
@@ -133,6 +133,7 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
 
             // Send message while commit throws exception -> Message will not be processed
             consumer.commitFails = true
+            retry(stream.toString should include("failed to commit to kafka: commit failed"), 50, Some(100 millisecond))
             Await.result(producer.send(topic, message), 10 seconds)
             retry(stream.toString should include("failed to commit to kafka: commit failed"), 50, Some(100 millisecond))
 
