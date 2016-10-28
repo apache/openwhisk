@@ -16,6 +16,10 @@
 
 package whisk.core.database.test
 
+import scala.util.Try
+
+
+
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
@@ -25,15 +29,12 @@ import org.scalatest.junit.JUnitRunner
 import common.TestUtils
 import common.Wsk
 import common.WskProps
-import whisk.common.Logging
 import whisk.common.SimpleExec
 import whisk.common.TransactionId
-import scala.util.Try
 
 @RunWith(classOf[JUnitRunner])
 class CacheConcurrencyTests extends FlatSpec
     with BeforeAndAfterAll
-    with Logging
     with Matchers {
 
     private val wsk = new Wsk
@@ -55,10 +56,10 @@ class CacheConcurrencyTests extends FlatSpec
                 val (stdout, stderr, exitCode) = SimpleExec.syncRunCmd(fullCmd)
 
                 if (!stdout.isEmpty) {
-                    logger.info(stdout)
+                    println(stdout)
                 }
                 if (!stderr.isEmpty) {
-                    logger.error(this, stderr)
+                    println(this, stderr)
                 }
 
                 exitCode should be(0)

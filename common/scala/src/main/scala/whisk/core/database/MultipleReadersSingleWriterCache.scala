@@ -22,7 +22,6 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.duration.DurationInt
-import scala.language.implicitConversions
 import scala.util.Failure
 import scala.util.Success
 
@@ -94,10 +93,11 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
     /** Subclasses: tell me what key to use for updates. */
     protected def cacheKeyForUpdate(w: W): Any
 
-    // Implicit conversions to boxed atomic references.
-    private implicit def toAtomic(state: State): AtomicReference[State] = new AtomicReference(state)
-    private implicit def toAtomic(value: Future[W]): AtomicReference[Future[W]] = new AtomicReference(value)
-    private implicit def toAtomic(transid: TransactionId): AtomicReference[TransactionId] = new AtomicReference(transid)
+    private object Entry {
+        def apply(transid: TransactionId, state: State, value: Option[Future[W]]): Entry = {
+            new Entry(transid, new AtomicReference(state), value)
+        }
+    }
 
     /**
      * The entries in the cache will be a triple of (transid, State, Future[W]?).
@@ -105,25 +105,27 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
      * We need the transid in order to detect whether we have won the race to add an entry to the cache.
      */
     private class Entry(
-        val transid: AtomicReference[TransactionId],
+        @volatile private var transid: TransactionId,
         val state: AtomicReference[State],
-        value: Option[AtomicReference[Future[W]]]) {
+        @volatile private var value: Option[Future[W]]) {
+
+        def id() = transid
 
         def invalidate(): Unit = {
             state.set(InvalidateInProgress)
         }
 
         def unpack(): Future[W] = {
-            value map { ref => ref.get } getOrElse Future.failed(new StaleRead(state.get))
+            value getOrElse Future.failed(StaleRead(state.get))
         }
 
         def writeDone()(implicit logger: Logging): Boolean = {
-            logger.debug(this, "write finished")(transid.get)
+            logger.debug(this, "write finished")(transid)
             trySet(WriteInProgress, Cached)
         }
 
         def readDone()(implicit logger: Logging): Boolean = {
-            logger.debug(this, "read finished")(transid.get)
+            logger.debug(this, "read finished")(transid)
             trySet(ReadInProgress, Cached)
         }
 
@@ -131,11 +133,11 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
             state.compareAndSet(expectedState, desiredState)
         }
 
-        def grabWriteLock(new_transid: TransactionId, expectedState: State, new_value: Future[W]): Boolean = {
+        def grabWriteLock(newTransid: TransactionId, expectedState: State, newValue: Future[W]): Boolean = synchronized {
             val swapped = trySet(expectedState, WriteInProgress)
             if (swapped) {
-                value map { _.set(new_value) }
-                transid.set(new_transid)
+                value = Option(newValue)
+                transid = newTransid
             }
             swapped
         }
@@ -154,7 +156,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
                 logger.info(this, s"invalidating $key")
 
                 // try inserting our desired entry...
-                val desiredEntry = new Entry(transid, InvalidateInProgress, None)
+                val desiredEntry = Entry(transid, InvalidateInProgress, None)
                 cache(key)(desiredEntry) flatMap { actualEntry =>
                     // ... and see what we get back
                     val currentState = actualEntry.state.get
@@ -184,7 +186,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
                             }
 
                         case InvalidateInProgress =>
-                            if (actualEntry.transid == transid) {
+                            if (actualEntry.id() == transid) {
                                 // we own the entry, so we are responsible for cleaning it up
                                 invalidateEntryAfter(invalidator, key, actualEntry)
                             } else {
@@ -212,7 +214,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
                 val promise = Promise[W] // this promise completes with the generator value
 
                 // try inserting our desired entry...
-                val desiredEntry = new Entry(transid, ReadInProgress, Some(promise.future))
+                val desiredEntry = Entry(transid, ReadInProgress, Some(promise.future))
                 cache(key)(desiredEntry) flatMap { actualEntry =>
                     // ... and see what we get back
 
@@ -223,7 +225,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
                             actualEntry.unpack
 
                         case ReadInProgress =>
-                            if (actualEntry.transid.get == transid) {
+                            if (actualEntry.id() == transid) {
                                 logger.debug(this, "read initiated");
                                 makeNoteOfCacheMiss(key)
                                 // updating the cache with the new value is done in the listener
@@ -256,12 +258,12 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
         cacheEnabled match {
             case true =>
                 // try inserting our desired entry...
-                val desiredEntry = new Entry(transid, WriteInProgress, Some(Future.successful(doc)))
+                val desiredEntry = Entry(transid, WriteInProgress, Some(Future.successful(doc)))
                 cache(key)(desiredEntry) flatMap { actualEntry =>
                     // ... and see what we get back
 
                     // there's an assumed invariant here that transid is unique and not recycled
-                    if (actualEntry.transid.get == transid) {
+                    if (actualEntry.id() == transid) {
                         // then this transaction won the race to insert a new entry in the cache
                         // and it is responsible for updating the cache entry...
                         logger.info(this, s"write initiated on new cache entry")

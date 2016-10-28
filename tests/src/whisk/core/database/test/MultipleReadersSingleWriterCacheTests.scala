@@ -44,9 +44,6 @@ class MultipleReadersSingleWriterCacheTests(nIters: Int = 3) extends FlatSpec
     with Logging {
 
     "the cache" should "support simple CRUD" in {
-        System.out.println();
-        System.out.println("simple CRUD");
-
         val inhibits = doReadWriteRead("foo").go(0 seconds)
         inhibits.debug(this)
 
@@ -128,7 +125,6 @@ class MultipleReadersSingleWriterCacheTests(nIters: Int = 3) extends FlatSpec
         readsFirst: Boolean = true,
         nThreads: Int = 10): Inhibits = {
 
-        System.out.println();
         System.out.println(testName);
 
         val exec = Executors.newFixedThreadPool(nThreads)

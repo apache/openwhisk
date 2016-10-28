@@ -199,7 +199,7 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
     }
 
     /**
-     * FIXME UPDATE Fetches a raw record of type R from the datastore by its id (and revision if given)
+     * Fetches a raw record of type R from the datastore by its id (and revision if given)
      * and converts it to Success(W) or Failure(Throwable) if there is an error fetching
      * the record or deserializing it.
      *
