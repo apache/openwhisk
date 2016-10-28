@@ -794,6 +794,16 @@ object WskAdmin {
     def baseCommand = {
         Buffer(WhiskProperties.python, new File(binDir, binaryName).toString)
     }
+
+    /**
+     * returns user given the auth key
+     */
+    def getUser(authKey: String): String = {
+        val wskadmin = new RunWskAdminCmd {}
+        val user = wskadmin.cli(Seq("user", "whois", authKey)).stdout.trim
+        assert(!user.contains("Subject id is not recognized"), s"failed to retrieve user from authkey '$authKey'")
+        user
+    }
 }
 
 trait RunWskAdminCmd extends RunWskCmd {

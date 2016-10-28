@@ -16,6 +16,9 @@
 
 package whisk.core.entity
 
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+
 import scala.language.postfixOps
 import scala.util.Try
 import spray.json.DefaultJsonProtocol
@@ -28,6 +31,10 @@ import spray.json.RootJsonFormat
 import spray.json.deserializationError
 import spray.json.pimpAny
 import whisk.core.database.DocumentFactory
+
+import whisk.core.entity.types.EntityStore
+
+import whisk.common.TransactionId
 
 /**
  * WhiskPackagePut is a restricted WhiskPackage view that eschews properties
@@ -140,6 +147,22 @@ object WhiskPackage
     val bindingFieldName = "binding"
     override val collectionName = "packages"
 
+    /**
+     * Traverses a binding recursively to find the root package.
+     *
+     * @param entityStore a store containing packages
+     * @param pkg the package document id to start resolving
+     * @return the same package if there is no binding, or the actual reference package otherwise
+     */
+    def resolveBinding(entityStore: EntityStore, pkg: DocId)(
+        implicit ec: ExecutionContext, transid: TransactionId): Future[WhiskPackage] = {
+        WhiskPackage.get(entityStore, pkg) flatMap { wp =>
+            // if there is a binding resolve it
+            val resolved = wp.binding map { binding => resolveBinding(entityStore, binding.docid) }
+            resolved getOrElse Future.successful(wp)
+        }
+    }
+
     override implicit val serdes = {
         // This is to conform to the old style where {} represents None.
         val tolerantOptionBindingFormat: JsonFormat[Option[Binding]] = {
@@ -148,7 +171,7 @@ object WhiskPackage
             new JsonFormat[Option[Binding]] {
                 override def write(ob: Option[Binding]) = ob match {
                     case None => JsObject()
-                    case _ => base.write(ob)
+                    case _    => base.write(ob)
                 }
                 override def read(js: JsValue) = {
                     if (js == JsObject()) None else base.read(js)
@@ -179,7 +202,7 @@ case class Binding(namespace: EntityPath, name: EntityName) {
     def resolve(ns: EntityPath): Binding = {
         namespace match {
             case EntityPath.DEFAULT => Binding(ns, name)
-            case _                 => this
+            case _                  => this
         }
     }
 }

@@ -68,7 +68,7 @@ class DispatcherTests extends FlatSpec with Matchers with WskActorSystem {
         val content = JsObject("payload" -> JsNumber(count))
         val subject = Subject()
         val authkey = AuthKey()
-        val path = FullyQualifiedEntityName(EntityPath("test"), EntityName(s"count-$count"), SemVer())
+        val path = FullyQualifiedEntityName(EntityPath("test"), EntityName(s"count-$count"), Some(SemVer()))
         val msg = Message(TransactionId.testing, path, DocRevision(), subject, authkey, ActivationId(), EntityPath(subject()), Some(content))
         connector.send(msg)
     }

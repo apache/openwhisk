@@ -105,7 +105,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
      * - 409 Conflict
      * - 500 Internal Server Error
      */
-    override def create(namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
+    override def create(user: Identity, namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
         parameter('overwrite ? false) { overwrite =>
             entity(as[WhiskTriggerPut]) { content =>
                 val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
