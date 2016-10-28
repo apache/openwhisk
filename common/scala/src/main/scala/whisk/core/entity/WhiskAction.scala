@@ -167,7 +167,7 @@ object WhiskAction
         }
     }
 
-    override lazy val cacheEnabled = true
+    override val cacheEnabled = true
     override def cacheKeyForUpdate(w: WhiskAction) = w.docid.asDocInfo
 
     private val jarAttachmentName = "jarfile"

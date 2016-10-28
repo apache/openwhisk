@@ -190,7 +190,7 @@ object WhiskRule
     override val collectionName = "rules"
     override implicit val serdes = jsonFormat7(WhiskRule.apply)
 
-    override lazy val cacheEnabled = false
+    override val cacheEnabled = false
     override def cacheKeyForUpdate(w: WhiskRule) = w.docid.asDocInfo
 }
 

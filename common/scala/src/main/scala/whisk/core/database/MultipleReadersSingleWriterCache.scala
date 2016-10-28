@@ -88,7 +88,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
     import MultipleReadersSingleWriterCache.State._
 
     /** Subclasses: Toggle this to enable/disable caching for your entity type. */
-    protected lazy val cacheEnabled = true
+    protected val cacheEnabled = true
 
     /** Subclasses: tell me what key to use for updates. */
     protected def cacheKeyForUpdate(w: W): Any

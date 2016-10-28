@@ -81,7 +81,7 @@ object WhiskAuth extends DocumentFactory[WhiskAuth] {
         } getOrElse deserializationError("auth record malformed")
     }
 
-    override lazy val cacheEnabled = true
+    override val cacheEnabled = true
     override def cacheKeyForUpdate(w: WhiskAuth) = w.uuid
 
     /*def get(datastore: ArtifactStore[WhiskAuth], subject: Subject, fromCache: Boolean)(

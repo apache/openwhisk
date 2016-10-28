@@ -138,6 +138,6 @@ object WhiskActivation
     override val collectionName = "activations"
     override implicit val serdes = jsonFormat12(WhiskActivation.apply)
 
-    override lazy val cacheEnabled = true
+    override val cacheEnabled = true
     override def cacheKeyForUpdate(w: WhiskActivation) = w.docid.asDocInfo
 }

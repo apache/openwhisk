@@ -160,7 +160,7 @@ object WhiskPackage
         jsonFormat7(WhiskPackage.apply)
     }
 
-    override lazy val cacheEnabled = true
+    override val cacheEnabled = true
     override def cacheKeyForUpdate(w: WhiskPackage) = w.docid.asDocInfo
 }
 
