@@ -43,8 +43,8 @@ class CacheConcurrencyTests extends FlatSpec
     implicit private val transId = TransactionId.testing
     implicit private val wp = WskProps()
 
-    val nExternalIters = 10
-    val nInternalIters = 20
+    val nExternalIters = 1
+    val nInternalIters = 10
 
     for (i <- 1 to nExternalIters)
         "the cache" should s"support concurrent CRUD without bogus residual cache entries, iter ${i}" in {
