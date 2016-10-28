@@ -109,8 +109,6 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
         val state: AtomicReference[State],
         @volatile private var value: Option[Future[W]]) {
 
-        def id() = transid
-
         def invalidate(): Unit = {
             state.set(InvalidateInProgress)
         }
@@ -185,7 +183,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
                         }
 
                     case InvalidateInProgress =>
-                        if (actualEntry.id() == transid) {
+                        if (actualEntry == desiredEntry) {
                             // we own the entry, so we are responsible for cleaning it up
                             invalidateEntryAfter(invalidator, key, actualEntry)
                         } else {
@@ -221,7 +219,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
                         actualEntry.unpack
 
                     case ReadInProgress =>
-                        if (actualEntry.id() == transid) {
+                        if (actualEntry == desiredEntry) {
                             logger.debug(this, "read initiated");
                             makeNoteOfCacheMiss(key)
                             // updating the cache with the new value is done in the listener
@@ -255,8 +253,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
             cache(key)(desiredEntry) flatMap { actualEntry =>
                 // ... and see what we get back
 
-                // there's an assumed invariant here that transid is unique and not recycled
-                if (actualEntry.id() == transid) {
+                if (actualEntry == desiredEntry) {
                     // then this transaction won the race to insert a new entry in the cache
                     // and it is responsible for updating the cache entry...
                     logger.info(this, s"write initiated on new cache entry")
