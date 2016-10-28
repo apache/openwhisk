@@ -203,10 +203,12 @@ class Invoker(
 
                     val contents = getContainerLogs(con, action.exec.sentinelledLogs, action.limits.logs)
 
-                    // Force delete the container instead of just pausing it iff the initialization failed or the container
-                    // failed otherwise. An example of a ContainerError is the timeout of an action in which case the
-                    // container is to be removed to prevent leaking
-                    pool.putBack(con, failedInit)
+                    /* Force delete the container instead of just pausing it iff the initialization failed or the container
+                     * failed otherwise. An example of a ContainerError is the timeout of an action in which case the
+                     * container is to be removed to prevent leaking.  Since putting back the container involves pausing,
+                     * we run this in a Future so as not to block transaction completion but also return resources promptly.
+                     */
+                    Future { pool.putBack(con, failedInit) }
 
                     completeTransaction(tran, activationResult withLogs ActivationLogs.serdes.read(contents), ContainerReleased(transid))
             }
