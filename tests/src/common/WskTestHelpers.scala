@@ -25,7 +25,7 @@ import scala.language.postfixOps
 
 import org.scalatest.Matchers
 
-import common.TestUtils.RunResult
+import TestUtils._
 import spray.json._
 import java.time.Instant
 
@@ -47,7 +47,23 @@ trait WskTestHelpers extends Matchers {
     class AssetCleaner(assetsToDeleteAfterTest: Assets, wskprops: WskProps) {
         def withCleaner[T <: DeleteFromCollection](cli: T, name: String, confirmDelete: Boolean = true)(
             cmd: (T, String) => RunResult): RunResult = {
-            cli.sanitize(name)(wskprops) // sanitize (delete) if asset exists
+            // sanitize (delete) if asset exists
+            cli match {
+                case _: WskPackage =>
+                    val rr = cli.sanitize(name)(wskprops)
+                    rr.exitCode match {
+                        case CONFLICT =>
+                            // retry sanitization on a package since there may be a list (view)
+                            // operation that requires a retry for eventual consistency
+                            whisk.utils.retry({
+                                cli.sanitize(name)(wskprops)
+                            }, 5, Some(1 second))
+                        case _ => rr
+                    }
+
+                case _ => cli.sanitize(name)(wskprops)
+            }
+
             assetsToDeleteAfterTest += ((cli, name, confirmDelete))
             cmd(cli, name)
         }

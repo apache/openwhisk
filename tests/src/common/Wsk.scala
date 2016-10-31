@@ -29,9 +29,7 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
-import TestUtils.DONTCARE_EXIT
-import TestUtils.NOT_FOUND
-import TestUtils.SUCCESS_EXIT
+import TestUtils._
 import common.TestUtils.RunResult
 import spray.json.JsObject
 import spray.json.JsValue
