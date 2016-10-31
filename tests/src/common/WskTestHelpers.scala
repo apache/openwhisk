@@ -22,9 +22,7 @@ import scala.util.Try
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
-
 import org.scalatest.Matchers
-
 import common.TestUtils.RunResult
 import spray.json._
 import java.time.Instant
@@ -69,7 +67,12 @@ trait WskTestHelpers extends Matchers {
             val deletedAll = assetsToDeleteAfterTest.reverse map {
                 case ((cli, n, delete)) => n -> Try {
                     if (delete) {
-                        cli.delete(n)(wskprops)
+                        whisk.utils.retry {
+                            val r = cli.delete(n, TestUtils.DONTCARE_EXIT)(wskprops)
+                            println("retry deleting " + n)
+                            assert(r.exitCode != TestUtils.CONFLICT, s"deleting ${n} caused a conflict")
+                            r
+                        }
                     } else {
                         cli.sanitize(n)(wskprops)
                     }
