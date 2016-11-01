@@ -122,7 +122,18 @@ trait WskTestHelpers extends Matchers {
         end: Long,
         duration: Long,
         cause: Option[String],
-        annotations: Option[List[JsObject]])
+        annotations: Option[List[JsObject]]) {
+
+        def getAnnotationValue(key: String): Option[JsValue] = {
+            Try {
+                val annotation = annotations.get.filter(x => x.getFields("key")(0) == JsString(key))
+                assert(annotation.size == 1) // only one annotation with this value
+                val value = annotation(0).getFields("value")
+                assert(value.size == 1)
+                value(0)
+            } toOption
+        }
+    }
 
     object CliActivation extends DefaultJsonProtocol {
         implicit val serdes = jsonFormat8(CliActivation.apply)
@@ -147,7 +158,22 @@ trait WskTestHelpers extends Matchers {
             activationId shouldBe a[Some[_]]
         }
 
-        val id = activationId.get
+        withActivation(wsk, activationId.get, initialWait, pollPeriod, totalWait)(check)
+    }
+
+    /**
+     * Polls activations until one matching id is found. If found, pass
+     * the activation to the post processor which then check for expected values.
+     */
+    def withActivation(
+        wsk: WskActivation,
+        activationId: String,
+        initialWait: Duration,
+        pollPeriod: Duration,
+        totalWait: Duration)(
+            check: CliActivation => Unit)(
+                implicit wskprops: WskProps): Unit = {
+        val id = activationId
         val activation = wsk.waitForActivation(id, initialWait, pollPeriod, totalWait)
         if (activation.isLeft) {
             assert(false, s"error waiting for activation $id: ${activation.left.get}")

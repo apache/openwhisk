@@ -81,7 +81,7 @@ trait WhiskServices {
     protected val iam: NamespaceProvider
 
     /** A generator for new activation ids. */
-    protected val activationId: ActivationIdGenerator
+    protected val activationIdFactory: ActivationIdGenerator
 
     /** A load balancing service that launches invocations */
 

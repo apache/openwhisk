@@ -12,7 +12,7 @@ function main(msg) {
     console.log('dosTimeout', 'timeout ' + msg.payload+'');
     var n = msg.payload;
     sleep(n);
-    var res = "[OK] message terminated successfully after " + msg.payload + " seconds.";
+    var res = "[OK] message terminated successfully after " + msg.payload + " milliseconds.";
     console.log('dosTimeout', 'result:', res);
     return {msg: res};
 }

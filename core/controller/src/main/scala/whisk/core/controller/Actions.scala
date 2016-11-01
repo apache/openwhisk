@@ -19,72 +19,41 @@ package whisk.core.controller
 import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.TimeoutException
-import scala.concurrent.duration.DurationInt
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
+import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
-import scala.language.postfixOps
 
+import org.apache.kafka.common.errors.RecordTooLargeException
+
+import WhiskActionsApi._
 import akka.actor.ActorSystem
 import spray.http.HttpMethod
 import spray.http.HttpMethods.DELETE
 import spray.http.HttpMethods.GET
 import spray.http.HttpMethods.POST
 import spray.http.HttpMethods.PUT
-import spray.http.StatusCodes.BadGateway
-import spray.http.StatusCodes.BadRequest
-import spray.http.StatusCodes.InternalServerError
-import spray.http.StatusCodes.NotFound
-import spray.http.StatusCodes.OK
-import spray.http.StatusCodes.Accepted
-import spray.http.StatusCodes.RequestEntityTooLarge
-import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
-import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
-import spray.json.DefaultJsonProtocol._
+import spray.http.StatusCodes._
+import spray.httpx.SprayJsonSupport._
 import spray.json._
+import spray.json.DefaultJsonProtocol._
 import spray.routing.RequestContext
-import org.apache.kafka.common.errors.RecordTooLargeException
-
 import whisk.common.LoggingMarkers
+import whisk.common.PrintStreamEmitter
 import whisk.common.StartMarker
 import whisk.common.TransactionId
-import whisk.common.PrintStreamEmitter
+import whisk.core.WhiskConfig
+import whisk.core.connector.ActivationMessage
+import whisk.core.database.DocumentTypeMismatchException
 import whisk.core.database.NoDocumentException
-import whisk.core.entity.ActionLimits
-import whisk.core.entity.ActivationId
-import whisk.core.entity.DocId
-import whisk.core.entity.EntityName
-import whisk.core.entity.SequenceExec
-import whisk.core.entity.MemoryLimit
-import whisk.core.entity.EntityPath
-import whisk.core.entity.Parameters
-import whisk.core.entity.SemVer
-import whisk.core.entity.TimeLimit
-import whisk.core.entity.LogLimit
-import whisk.core.entity.WhiskAction
-import whisk.core.entity.WhiskActionPut
-import whisk.core.entity.WhiskActivation
-import whisk.core.entity.WhiskActivationStore
-import whisk.core.entity.WhiskEntity
-import whisk.core.entity.WhiskEntityStore
+import whisk.core.entitlement._
+import whisk.core.entity._
 import whisk.core.entity.types.ActivationStore
 import whisk.core.entity.types.EntityStore
-import whisk.core.entitlement.Collection
-import whisk.core.entitlement.Privilege
-import whisk.core.connector.{ ActivationMessage => Message }
-import whisk.core.entitlement.Resource
-import whisk.core.entity.WhiskPackage
-import whisk.core.entity.Exec
-import whisk.core.entity.Binding
-import whisk.core.entity.Subject
-import whisk.core.entity.FullyQualifiedEntityName
-import whisk.core.entity.Identity
-import whisk.core.WhiskConfig
 import whisk.http.ErrorResponse.terminate
 import whisk.http.Messages._
-import whisk.utils.ExecutionContextFactory.FutureExtensions
 import whisk.http.Messages
-import whisk.core.database.DocumentTypeMismatchException
+import whisk.utils.ExecutionContextFactory.FutureExtensions
 
 /**
  * A singleton object which defines the properties that must be present in a configuration
@@ -95,10 +64,16 @@ object WhiskActionsApi {
         WhiskEntityStore.requiredProperties ++
         WhiskActivationStore.requiredProperties ++
         Map(WhiskConfig.actionSequenceDefaultLimit -> null)
+
+    /** Grace period after action timeout limit to poll for result. */
+    protected[core] val blockingInvokeGrace = 5 seconds
+
+    /** Max duration to wait for a blocking activation. */
+    protected[core] private val maxWaitForBlockingActivation = 60 seconds
 }
 
 /** A trait implementing the actions API. */
-trait WhiskActionsApi extends WhiskCollectionAPI {
+trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions {
     services: WhiskServices =>
 
     protected override val collection = Collection(Collection.ACTIONS)
@@ -230,7 +205,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                         val referencedEntities = resolveDefaultNamespace(seq, user).components.map {
                             c => Resource(c.path, Collection(Collection.ACTIONS), Some(c.name()))
                         }.toSet
-                        authorizeAndContinue(Privilege.READ, user, referencedEntities, doput) {
+                        authorizeAndContinue(Privilege.READ, user, referencedEntities, () => doput) {
                             case authorizationFailure: Throwable =>
                                 val r = rewriteFailure(authorizationFailure)
                                 terminate(r.code, r.message)
@@ -260,7 +235,19 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                     action: WhiskAction =>
                         def doActivate = {
                             transid.started(this, if (blocking) LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING else LoggingMarkers.CONTROLLER_ACTIVATION)
-                            val postToLoadBalancer = postInvokeRequest(user, action, env, payload, blocking)
+                            val postToLoadBalancer = {
+                                action.exec match {
+                                    // this is a topmost sequence
+                                    case SequenceExec(_, components) =>
+                                        val futureSeqTuple = invokeSequence(user, action, payload, blocking, topmost = true, components, cause = None, 0)
+                                        futureSeqTuple map { case (activationId, wskActivation, _) => (activationId, wskActivation) }
+                                    case _ => {
+                                        val duration = action.limits.timeout()
+                                        val timeout = (maxWaitForBlockingActivation min duration) + blockingInvokeGrace
+                                        invokeSingleAction(user, action, env, payload, timeout, blocking)
+                                    }
+                                }
+                            }
                             onComplete(postToLoadBalancer) {
                                 case Success((activationId, None)) =>
                                     // non-blocking invoke or blocking invoke which got queued instead
@@ -301,7 +288,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                                 val referencedEntities = resolveDefaultNamespace(seq, user).components.map {
                                     c => Resource(c.path, Collection(Collection.ACTIONS), Some(c.name()))
                                 }.toSet
-                                authorizeAndContinue(Privilege.ACTIVATE, user, referencedEntities, doActivate) {
+                                authorizeAndContinue(Privilege.ACTIVATE, user, referencedEntities, () => doActivate) {
                                     case authorizationFailure: Throwable =>
                                         val r = rewriteFailure(authorizationFailure)
                                         terminate(r.code, r.message)
@@ -374,10 +361,17 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         }
     }
 
-    /** Replaces default namespaces in an action sequence with appropriate namespace. */
-    private def resolveDefaultNamespace(seq: SequenceExec, user: Identity)(implicit transid: TransactionId): SequenceExec = {
+    /** Replaces default namespaces in a vector of components from a sequence with appropriate namespace. */
+    private def resolveDefaultNamespace(components: Vector[FullyQualifiedEntityName], user: Identity): Vector[FullyQualifiedEntityName] = {
         // if components are part of the default namespace, they contain `_`; replace it!
-        val resolvedComponents = seq.components map { c => FullyQualifiedEntityName(c.path.resolveNamespace(user.namespace), c.name) }
+        val resolvedComponents = components map { c => FullyQualifiedEntityName(c.path.resolveNamespace(user.namespace), c.name) }
+        resolvedComponents
+    }
+
+    /** Replaces default namespaces in an action sequence with appropriate namespace. */
+    private def resolveDefaultNamespace(seq: SequenceExec, user: Identity): SequenceExec = {
+        // if components are part of the default namespace, they contain `_`; replace it!
+        val resolvedComponents = resolveDefaultNamespace(seq.components, user)
         new SequenceExec(seq.code, resolvedComponents)
     }
 
@@ -497,41 +491,55 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      * If the loadbalancer accepts the requests with an activation id, then wait for the result of the activation
      * if this is a blocking invoke, else return the activation id.
      *
+     * NOTE: This is a point-in-time type of statement:
+     * For activations of actions, cause is populated only for actions that were invoked as a result of a sequence activation.
+     * For actions that are enclosed in a sequence and are activated as a result of the sequence activation, the cause
+     * contains the activation id of the immediately enclosing sequence.
+     * e.g.,: s -> a, x, c    and   x -> c  (x and s are sequences, a, b, c atomic actions)
+     * cause for a, x, c is the activation id of s
+     * cause for c is the activation id of x
+     * cause for s is not defined
+     *
      * @param subject the subject invoking the action
      * @param docid the action document id
      * @param env the merged parameters from the package/reference if any
      * @param payload the dynamic arguments for the activation
+     * @param timeout the timeout used for polling for result if the invoke is blocking
      * @param blocking true iff this is a blocking invoke
+     * @param cause the activation id that is responsible for this invoke/activation
      * @param transid a transaction id for logging
      * @return a promise that completes with (ActivationId, Some(WhiskActivation)) if blocking else (ActivationId, None)
      */
-    private def postInvokeRequest(
+    protected def invokeSingleAction(
         user: Identity,
         action: WhiskAction,
         env: Option[Parameters],
         payload: Option[JsObject],
-        blocking: Boolean)(
+        timeout: FiniteDuration,
+        blocking: Boolean,
+        cause: Option[ActivationId] = None)(
             implicit transid: TransactionId): Future[(ActivationId, Option[WhiskActivation])] = {
         // merge package parameters with action (action parameters supersede), then merge in payload
         val args = { env map { _ ++ action.parameters } getOrElse action.parameters } merge payload
-        val message = Message(
+        val message = ActivationMessage(
             transid,
             FullyQualifiedEntityName(action.namespace, action.name, Some(action.version)),
             action.rev,
             user.subject,
             user.authkey,
-            activationId.make(),
+            activationIdFactory.make(), // activation id created here
             activationNamespace = user.namespace.toPath,
-            args)
+            args,
+            cause = cause)
 
         val start = transid.started(this, LoggingMarkers.CONTROLLER_LOADBALANCER, s"[POST] action activation id: ${message.activationId}")
         val (postedFuture, activationResponse) = loadBalancer.publish(message, activeAckTimeout)
         postedFuture flatMap { _ =>
             transid.finished(this, start)
             if (blocking) {
-                val duration = action.limits.timeout()
-                val timeout = (maxWaitForBlockingActivation min duration) + blockingInvokeGrace
-                waitForActivationResponse(user, message, timeout, activationResponse)
+                waitForActivationResponse(user, message.activationId, timeout, activationResponse) map {
+                    whiskActivation => (whiskActivation.activationId, Some(whiskActivation))
+                }
             } else {
                 // Duration of the non-blocking activation in Controller.
                 // We use the start time of the tid instead of a startMarker to avoid passing the start marker around.
@@ -547,15 +555,14 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      * If this mechanism fails to produce an answer quickly, the future will switch to polling the database for the response
      * record.
      */
-    private def waitForActivationResponse(user: Identity, message: Message, totalWaitTime: FiniteDuration, activationResponse: Future[WhiskActivation])(implicit transid: TransactionId) = {
+    private def waitForActivationResponse(user: Identity, activationId: ActivationId, totalWaitTime: FiniteDuration, activationResponse: Future[WhiskActivation])(implicit transid: TransactionId) = {
         // this is the promise which active ack or db polling will try to complete in one of four ways:
         // 1. active ack response
         // 2. failing active ack (due to active ack timeout), fall over to db polling
         // 3. timeout on db polling => converts activation to non-blocking (returns activation id only)
         // 4. internal error
         val promise = Promise[WhiskActivation]
-        val docid = DocId(WhiskEntity.qualifiedName(user.namespace.toPath, message.activationId))
-        val activationId = message.activationId
+        val docid = DocId(WhiskEntity.qualifiedName(user.namespace.toPath, activationId))
 
         info(this, s"[POST] action activation will block on result up to $totalWaitTime")
 
@@ -571,9 +578,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                 pollDbForResult(docid, activationId, promise)
         }
 
-        val response = promise.future map {
-            result => (activationId, Some(result))
-        } withTimeout (totalWaitTime, new BlockingInvokeTimeout(message.activationId))
+        val response = promise.future withTimeout (totalWaitTime, new BlockingInvokeTimeout(activationId))
 
         response onComplete {
             case Success(_) =>
@@ -781,12 +786,6 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         }
     }
 
-    /** Grace period after action timeout limit to poll for result. */
-    private val blockingInvokeGrace = 5 seconds
-
-    /** Max duration to wait for a blocking activation. */
-    private val maxWaitForBlockingActivation = 60 seconds
-
     /** Max duration for active ack. */
     private val activeAckTimeout = 30 seconds
 
@@ -797,3 +796,4 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
 private case class BlockingInvokeTimeout(activationId: ActivationId) extends TimeoutException
 private case class TooManyActionsInSequence() extends RuntimeException
 private case class SequenceWithCycle() extends RuntimeException
+
