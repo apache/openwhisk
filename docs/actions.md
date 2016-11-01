@@ -238,7 +238,7 @@ JavaScript functions that run asynchronously may need to return the activation r
 
   Notice that the `main` function returns a Promise, which indicates that the activation hasn't completed yet, but is expected to in the future.
 
-  The `setTimeout()` JavaScript function in this case waits for twenty seconds before calling the callback function.  This represents the asynchronous code and goes inside the Promise's callback function.
+  The `setTimeout()` JavaScript function in this case waits for two seconds before calling the callback function.  This represents the asynchronous code and goes inside the Promise's callback function.
 
   The Promise's callback takes two arguments, resolve and reject, which are both functions.  The call to `resolve()` fulfills the Promise and indicates that the activation has completed normally.
 
