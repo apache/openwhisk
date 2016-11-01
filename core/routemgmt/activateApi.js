@@ -110,7 +110,7 @@ function main(message) {
       dbApiDoc.gwApiGuid = gwApiResponse.id;
       dbApiDoc.tenantId = tenantGuid;
       dbApiDoc.gwApiActivated = true;
-      console.log('Updatding DB API doc: '+JSON.stringify(dbApiDoc));
+      console.log('Updating DB API doc: '+JSON.stringify(dbApiDoc));
       return updateApiDocInDb(cloudantDb, dbApiDoc); })
   .then(function(insertResp) {
       dbUpdated = true;
@@ -225,6 +225,7 @@ function addTenantToGateway(gwInfo, namespace) {
         reject('Unable to configure the API Gateway: Response failure code: '+statusCode);
       } else {
         if (body && body.id) {  // body has format like:  { id: GUID, namespace: NAMESPACE, instance: 'openwhisk' }
+          console.log('addTenantToGateway: got a single tenant resposne');
           resolve(body);
         } else {
           console.error('addTenantToGateway: failure: No tenant guid provided')

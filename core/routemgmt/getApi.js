@@ -76,7 +76,6 @@ function readApiDocument(cloudantDb, docId, params) {
       } else {
         console.error("DB error: ",error.name, error.error, error.reason, error.headers.statusCode);
         reject(error);
-        //FIXME MWD reject("some error string instead of reject(error)")
       }
     });
   });
@@ -91,7 +90,7 @@ function readFilteredApiDocument(cloudantDb, designDocId, designDocViewName, par
         resolve(response);
       } else {
         console.error('error', JSON.stringify(error));
-        reject(error);  // FIXME MWD issue with rejecting object
+        reject(error);
       }
     });
   });

@@ -27,17 +27,18 @@
  *   gwUrl      Required. The API Gateway base path (i.e. http://gw.com)
  *   apidoc     Required. The API Gateway mapping document
  *      namespace          Required.  Namespace of user/caller
- *      apiName            Required.  API descriptive name
- *      gatewayBasePath    Required.  API base path
- *      gatewayPath        Required.  Specific API path (relative to base path)
- *      gatewayMethod      Required.  API path operation
- *      id                 Optional.  Unique id of API
- *      action             Required.
+ *      apiName            Required if swagger not specified.  API descriptive name
+ *      gatewayBasePath    Required if swagger not specified.  API base path
+ *      gatewayPath        Required if swagger not specified.  Specific API path (relative to base path)
+ *      gatewayMethod      Required if swagger not specified.  API path operation
+ *      id                 Optional if swagger not specified.  Unique id of API
+ *      action             Required. if swagger not specified
  *           name            Required.  Action name (includes package)
  *           namespace       Required.  Action namespace
  *           backendMethod   Required.  Action invocation REST verb.  "POST"
  *           backendUrl      Required.  Action invocation REST url
  *           authkey         Required.  Action invocation auth key
+ *      swagger            Required if gatewayBasePath not provided.  API swagger JSON
  *
  * NOTE: The package containing this action will be bound to the following values:
  *         host, port, protocol, dbname, username, password
@@ -65,6 +66,24 @@ function main(message) {
   } else if (typeof message.apidoc === 'string') {
     doc = JSON.parse(message.apidoc);
   }
+
+  // message.swagger already validated; creating object
+  var swaggerObj;
+  if (typeof doc.swagger === 'object') {
+    swaggerObj = doc.swagger;
+  } else if (typeof doc.swagger === 'string') {
+    swaggerObj = JSON.parse(doc.swagger);
+  }
+  doc.swaggerOriginal = doc.swagger;
+  doc.swagger = swaggerObj;
+
+  var basepath;
+  if (doc.swagger) {
+    basepath = doc.swagger.basePath;
+  } else {
+    basepath = doc.gatewayBasePath;
+  }
+
   //doc.documentTimestamp = (new Date()).toString();
   //var docid = doc.namespace+":"+doc.gatewayMethod.toUpperCase()+":"+doc.action;
 
@@ -81,10 +100,12 @@ function main(message) {
   console.log('basepath   : '+doc.gatewayBasePath);
   console.log('relpath    : '+doc.gatewayPath);
   console.log('GW method  : '+doc.gatewayMethod);
-  console.log('action name: '+doc.action.name);
-  console.log('action namespace: '+doc.action.namespace);
-  console.log('action backendUrl: '+doc.action.backendUrl);
-  console.log('action backendMethod: '+doc.action.backendMethod);
+  if (doc.action) {
+    console.log('action name: '+doc.action.name);
+    console.log('action namespace: '+doc.action.namespace);
+    console.log('action backendUrl: '+doc.action.backendUrl);
+    console.log('action backendMethod: '+doc.action.backendMethod);
+  }
   console.log('apidoc     :\n'+JSON.stringify(doc , null, 2));
 
   // Create and activate a new API path
@@ -93,7 +114,7 @@ function main(message) {
   return configureApi(message.apidoc)
   .then(function(api) {
     console.log('API route configured successfully')
-    return activateApi(doc.namespace, doc.gatewayBasePath)
+    return activateApi(doc.namespace, basepath)
   })
   .catch(function(reason) {
     console.error('API route creation failure: '+JSON.stringify(reason))
@@ -119,20 +140,27 @@ function main(message) {
  */
 function configureApi(apiPath) {
   var actionName = '/whisk.system/routemgmt/createApi';
-  var params = {
-    'namespace': apiPath.namespace,
-    'basepath': apiPath.gatewayBasePath,
-    'relpath': apiPath.gatewayPath,
-    'operation': apiPath.gatewayMethod,
-    'apiname': apiPath.apiName,
-    'action': {
-      'backendMethod': apiPath.action.backendMethod,
-      'backendUrl': apiPath.action.backendUrl,
-      'name': apiPath.action.name,
-      'namespace': apiPath.action.namespace,
-      'authkey': apiPath.action.authkey
-    },
-    'swagger': apiPath.swagger
+  var params;
+  if (!apiPath.swagger) {
+    params = {
+      'namespace': apiPath.namespace,
+      'basepath': apiPath.gatewayBasePath,
+      'relpath': apiPath.gatewayPath,
+      'operation': apiPath.gatewayMethod,
+      'apiname': apiPath.apiName,
+      'action': {
+        'backendMethod': apiPath.action.backendMethod,
+        'backendUrl': apiPath.action.backendUrl,
+        'name': apiPath.action.name,
+        'namespace': apiPath.action.namespace,
+        'authkey': apiPath.action.authkey
+      }
+    }
+  } else {
+      params = {
+        'namespace': apiPath.namespace,
+        'swagger': apiPath.swagger
+      }
   }
   console.log('configureApi() params: ', params);
   return whisk.invoke({
@@ -215,44 +243,72 @@ function validateArgs(message) {
     return 'apidoc is missing the namespace field';
   }
 
-  if (!tmpdoc.gatewayBasePath) {
-    return 'apidoc is missing the gatewayBasePath field';
-  }
+ var tmpSwaggerDoc
+  if(tmpdoc.swagger) {
+    if (tmpdoc.basepath) {
+      return 'swagger and basepath are mutually exclusive and cannot be specified together.';
+    }
+    if (typeof tmpdoc.swagger == 'object') {
+      tmpSwaggerDoc = tmpdoc.swagger;
+    } else if (typeof tmpdoc.swagger === 'string') {
+      try {
+        tmpSwaggerDoc = JSON.parse(tmpdoc.swagger);
+      } catch (e) {
+        return 'swagger field cannot be parsed. Ensure it is valid JSON.';
+      }
+    } else {
+      return 'swagger field is ' + (typeof tmpdoc.swagger) + ' and should be an object or a JSON string.';
+    }
+    console.log('Swagger JSON object: ', tmpSwaggerDoc);
+    if (!tmpSwaggerDoc.basePath) {
+      return 'swagger is missing the basePath field.';
+    }
+    if (!tmpSwaggerDoc.paths) {
+      return 'swagger is missing the paths field.';
+    }
+    if (!tmpSwaggerDoc.info) {
+      return 'swagger is missing the info field.';
+    }
+  } else {
+    if (!tmpdoc.gatewayBasePath) {
+      return 'apidoc is missing the gatewayBasePath field';
+    }
 
-  if (!tmpdoc.gatewayPath) {
-    return 'apidoc is missing the gatewayPath field';
-  }
+    if (!tmpdoc.gatewayPath) {
+      return 'apidoc is missing the gatewayPath field';
+    }
 
-  if (!tmpdoc.gatewayMethod) {
-    return 'apidoc is missing the gatewayMethod field';
-  }
+    if (!tmpdoc.gatewayMethod) {
+      return 'apidoc is missing the gatewayMethod field';
+    }
 
-  if (!tmpdoc.apiName) {
-    return 'apidoc is missing the apiName field';
-  }
+    if (!tmpdoc.apiName) {
+      return 'apidoc is missing the apiName field';
+    }
 
-  if(!tmpdoc.action) {
-    return 'apidoc is missing the action (action name) field.';
-  }
+    if (!tmpdoc.action) {
+      return 'apidoc is missing the action (action name) field.';
+    }
 
-  if (!tmpdoc.action.backendMethod) {
-    return 'action is missing the backendMethod field.';
-  }
+    if (!tmpdoc.action.backendMethod) {
+      return 'action is missing the backendMethod field.';
+    }
 
-  if (!tmpdoc.action.backendUrl) {
-    return 'action is missing the backendMethod field.';
-  }
+    if (!tmpdoc.action.backendUrl) {
+      return 'action is missing the backendMethod field.';
+    }
 
-  if(!tmpdoc.action.namespace) {
-    return 'action is missing the namespace field.';
-  }
+    if (!tmpdoc.action.namespace) {
+      return 'action is missing the namespace field.';
+    }
 
-  if(!tmpdoc.action.name) {
-    return 'action is missing the name field.';
-  }
+    if(!tmpdoc.action.name) {
+      return 'action is missing the name field.';
+    }
 
-  if(!tmpdoc.action.authkey) {
-    return 'action is missing the authkey field.';
+    if (!tmpdoc.action.authkey) {
+      return 'action is missing the authkey field.';
+    }
   }
 
   return '';

@@ -107,7 +107,7 @@ function main(message) {
     })
     .catch(function(error) {  // error -  [{docid: DOCID1}, {docid: DOCID2, error: ERROBJ}, ... ]
       console.error('Collection view failed: ', error);
-      return Promise.reject(JSON.stringify(error));  // FIXME MWD need to return string instead of object
+      return Promise.reject(error);
     });
   }
   catch(e) {

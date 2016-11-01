@@ -85,7 +85,7 @@ function queryView(cloudantDb, designDocId, designDocViewName, params) {
         resolve(response);
       } else {
         console.error('error', JSON.stringify(error));
-        reject(JSON.stringify(error));  // FIXME MWD issue with rejecting object; so using string
+        reject(error);
       }
     });
   });

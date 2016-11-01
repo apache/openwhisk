@@ -29,18 +29,18 @@ type ApiService struct {
 }
 
 type SendApi struct {
-    ApiDoc         *Api      `json:"apidoc,omitempty"`
+    ApiDoc         *Api       `json:"apidoc,omitempty"`
 }
 
 type Api struct {
-    Namespace       string   `json:"namespace,omitempty"`
-    ApiName         string   `json:"apiName,omitempty"`
-    GatewayBasePath string   `json:"gatewayBasePath,omitempty"`
-    GatewayRelPath  string   `json:"gatewayPath,omitempty"`
-    GatewayMethod   string   `json:"gatewayMethod,omitempty"`
-    Id              string   `json:"id,omitempty"`
-    GatewayFullPath string   `json:"gatewayFullPath,omitempty"`
-    Swagger         string   `json:"swagger,omitempty"`
+    Namespace       string    `json:"namespace,omitempty"`
+    ApiName         string    `json:"apiName,omitempty"`
+    GatewayBasePath string    `json:"gatewayBasePath,omitempty"`
+    GatewayRelPath  string    `json:"gatewayPath,omitempty"`
+    GatewayMethod   string    `json:"gatewayMethod,omitempty"`
+    Id              string    `json:"id,omitempty"`
+    GatewayFullPath string    `json:"gatewayFullPath,omitempty"`
+    Swagger         string    `json:"swagger,omitempty"`
     Action          *ApiAction `json:"action,omitempty"`
 }
 
@@ -62,9 +62,10 @@ type ApiOptions struct {
 
 type ApiListOptions struct {
     ApiOptions
-    Limit           int  `url:"limit"`
-    Skip            int  `url:"skip"`
-    Docs            bool `url:"docs,omitempty"`
+    ApiName         string    `url:"apiname"`
+    Limit           int       `url:"limit"`
+    Skip            int       `url:"skip"`
+    Docs            bool      `url:"docs,omitempty"`
 }
 
 type RetInsertApi struct {
@@ -72,7 +73,7 @@ type RetInsertApi struct {
 }
 
 type RetResult struct {
-    Result          *RetApi    `json:"result"`
+    Result          *RetApi   `json:"result"`
 }
 
 type RetApi struct {
@@ -84,15 +85,15 @@ type RetApi struct {
 }
 
 type ApiSwagger struct {
-    SwaggerName     string     `json:"swagger,omitempty"`
-    BasePath        string     `json:"basePath,omitempty"`
+    SwaggerName     string    `json:"swagger,omitempty"`
+    BasePath        string    `json:"basePath,omitempty"`
     Info            *ApiSwaggerInfo `json:"info,omitempty"`
     Paths           map[string]map[string]map[string]map[string]interface{} `json:"paths,omitempty"`
 }
 
 type ApiSwaggerInfo struct {
-    Title           string     `json:"title,omitempty"`
-    Version         string     `json:"version,omitempty"`
+    Title           string    `json:"title,omitempty"`
+    Version         string    `json:"version,omitempty"`
 }
 
 

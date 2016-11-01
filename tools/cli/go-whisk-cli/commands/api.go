@@ -27,6 +27,7 @@ import (
 
     "github.com/fatih/color"
     "github.com/spf13/cobra"
+    "encoding/json"
 )
 
 //////////////
@@ -39,28 +40,50 @@ var apiCmd = &cobra.Command{
 }
 
 var apiCreateCmd = &cobra.Command{
-    Use:           "create API_PATH API_VERB ACTION",
+    Use:           "create [BASE_PATH] API_PATH API_VERB ACTION",
     Short:         wski18n.T("create a new API"),
     SilenceUsage:  true,
     SilenceErrors: true,
     PreRunE:       setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
 
-        if whiskErr := checkArgs(args, 3, 3, "Api create",
-            wski18n.T("An API path, an API verb, and an action name are required.")); whiskErr != nil {
-            return whiskErr
-        }
+        var api *whisk.Api
+        var err error
 
-        api, err := parseApi(cmd, args)
-        if err != nil {
-            whisk.Debug(whisk.DbgError, "parseApi(%s, %s) error: %s\n", cmd, args, err)
-            errMsg := fmt.Sprintf(
-                wski18n.T("Unable to parse api command arguments: {{.err}}",
-                    map[string]interface{}{"err": err}))
-            whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+        if (len(args) == 0 && flags.api.swaggerfile == "") {
+            whisk.Debug(whisk.DbgError, "No swagger file and no arguments\n")
+            errMsg := wski18n.T("Invalid argument(s). Specify a swagger file or specify an API path, an API verb, and an action name.") // FIXME MWD add pii
+            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             return whiskErr
+        } else if (len(args) == 0 && flags.api.swaggerfile != "") {
+            api, err = parseSwaggerApi()
+            if err != nil {
+                whisk.Debug(whisk.DbgError, "parseSwaggerApi() error: %s\n", err)
+                errMsg := fmt.Sprintf(
+                    wski18n.T("Unable to parse swagger file: {{.err}}",
+                        map[string]interface{}{"err": err}))  // FIXME MWD add pii
+                whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+                    whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+                return whiskErr
+            }
+        } else {
+            if whiskErr := checkArgs(args, 3, 4, "Api create",
+                wski18n.T("An API base path is optional.  An API path, API verb, and action name are required.")); whiskErr != nil {  // FIXME PII
+                return whiskErr
+            }
+            api, err = parseApi(cmd, args)
+            if err != nil {
+                whisk.Debug(whisk.DbgError, "parseApi(%s, %s) error: %s\n", cmd, args, err)
+                errMsg := fmt.Sprintf(
+                    wski18n.T("Unable to parse api command arguments: {{.err}}",
+                        map[string]interface{}{"err": err}))
+                whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+                    whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+                return whiskErr
+            }
         }
+
         sendApi := new(whisk.SendApi)
         sendApi.ApiDoc = api
 
@@ -75,15 +98,38 @@ var apiCreateCmd = &cobra.Command{
             return whiskErr
         }
 
-        fmt.Fprintf(color.Output,
-            wski18n.T("{{.ok}} created api {{.path}} {{.verb}} for action {{.name}}\n{{.fullpath}}\n",
-                map[string]interface{}{
-                    "ok": color.GreenString("ok:"),
-                    "path": api.GatewayRelPath,
-                    "verb": api.GatewayMethod,
-                    "name": boldString(api.Action.Name),
-                    "fullpath": getManagedUrl(retApi.Response.Result, api.GatewayRelPath, api.GatewayMethod),
-                }))
+        if (api.Swagger == "") {
+            fmt.Fprintf(color.Output,
+                wski18n.T("{{.ok}} created api {{.path}} {{.verb}} for action {{.name}}\n{{.fullpath}}\n",
+                    map[string]interface{}{
+                        "ok": color.GreenString("ok:"),
+                        "path": api.GatewayRelPath,
+                        "verb": api.GatewayMethod,
+                        "name": boldString(api.Action.Name),
+                        "fullpath": getManagedUrl(retApi.Response.Result, api.GatewayRelPath, api.GatewayMethod),
+                    }))
+        } else {
+            whisk.Debug(whisk.DbgInfo, "Processing swagger based create API response\n")
+            baseUrl := retApi.Response.Result.BaseUrl
+            for path, _ := range retApi.Response.Result.Swagger.Paths {
+                managedUrl := baseUrl+path
+                whisk.Debug(whisk.DbgInfo, "Managed path: %s\n",managedUrl)
+                for op, _  := range retApi.Response.Result.Swagger.Paths[path] {
+                    whisk.Debug(whisk.DbgInfo, "Path operation: %s\n", op)
+                    fmt.Fprintf(color.Output,
+                        wski18n.T("{{.ok}} created api {{.path}} {{.verb}} for action {{.name}}\n{{.fullpath}}\n",
+                            map[string]interface{}{
+                                "ok": color.GreenString("ok:"),
+                                "path": path,
+                                "verb": op,
+                                "name": boldString(retApi.Response.Result.Swagger.Paths[path][op]["x-ibm-op-ext"]["actionName"]),
+                                "fullpath": managedUrl,
+                            }))
+                }
+            }
+        }
+
+
         return nil
     },
 }
@@ -139,7 +185,7 @@ var apiUpdateCmd = &cobra.Command{
 }
 
 var apiGetCmd = &cobra.Command{
-    Use:           "get [API_PATH [API_VERB]]",
+    Use:           "get BASE_PATH [API_PATH [API_VERB]]",
     Short:         wski18n.T("get API"),
     SilenceUsage:  true,
     SilenceErrors: true,
@@ -147,21 +193,44 @@ var apiGetCmd = &cobra.Command{
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
 
-        if whiskErr := checkArgs(args, 0, 2, "Api get",
-            wski18n.T("An API path, or an API path with an API verb, or neither are valid inputs.")); whiskErr != nil {
+        if whiskErr := checkArgs(args, 1, 3, "Api get",
+            wski18n.T("An API base path is required.  An optional API relative path and operation may also be provided.")); whiskErr != nil {
             return whiskErr
         }
 
-        api, err := parseApi(cmd, args)
-        if err != nil {
-            whisk.Debug(whisk.DbgError, "parseApi(%s, %s) error: %s\n", cmd, args, err)
-            errMsg := fmt.Sprintf(
-                wski18n.T("Unable to parse api command arguments: {{.err}}",
-                    map[string]interface{}{"err": err}))
-            whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-                whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+        //api, err := parseApi(cmd, args)
+        //if err != nil {
+        //    whisk.Debug(whisk.DbgError, "parseApi(%s, %s) error: %s\n", cmd, args, err)
+        //    errMsg := fmt.Sprintf(
+        //        wski18n.T("Unable to parse api command arguments: {{.err}}",
+        //            map[string]interface{}{"err": err}))
+        //    whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+        //        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+        //    return whiskErr
+        //}
+
+        api := new(whisk.Api)
+        // Is the API base path valid?
+        if whiskErr, ok := isValidBasepath(args[0]); !ok {
             return whiskErr
         }
+        api.GatewayBasePath = args[0]
+        if (len(args) > 1) {
+            // Is the API path valid?
+            if whiskErr, ok := isValidRelpath(args[1]); !ok {
+                return whiskErr
+            }
+            api.GatewayRelPath = args[1]
+        }
+        if (len(args) > 2) {
+            // Is the API verb valid?
+            if whiskErr, ok := IsValidApiVerb(args[2]); !ok {
+                return whiskErr
+            }
+            api.GatewayMethod = strings.ToUpper(args[2])
+        }
+        api.Namespace = client.Config.Namespace
+        api.Id = "API:"+api.Namespace+":"+api.GatewayBasePath
 
         options := &whisk.ApiOptions{
             ApiBasePath: api.GatewayBasePath,
@@ -206,7 +275,7 @@ var apiGetCmd = &cobra.Command{
                                         "url": baseUrl+path,
                                         "operation": op,
                                         "action": opv["x-ibm-op-ext"]["actionNamespace"].(string)+"/"+opv["x-ibm-op-ext"]["actionName"].(string),
-                                        "activated": resultApi.Activated,
+                                        // FIXME MWD "activated": resultApi.Activated,
                                     }))
                         }
                     }
@@ -243,20 +312,17 @@ var apiDeleteCmd = &cobra.Command{
             return whiskErr
         }
 
-        //api, err := parseApi(cmd, args)
-        //if err != nil {
-        //    whisk.Debug(whisk.DbgError, "parseApi(%s, %s) error: %s\n", cmd, args, err)
-        //    errMsg := fmt.Sprintf(
-        //        wski18n.T("Unable to parse api command arguments: {{.err}}",
-        //            map[string]interface{}{"err": err}))
-        //    whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-        //        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-        //    return whiskErr
-        //}
-
         api := new(whisk.Api)
+        // Is the API base path valid?
+        if whiskErr, ok := isValidBasepath(args[0]); !ok {
+            return whiskErr
+        }
         api.GatewayBasePath = args[0]
         if (len(args) > 1) {
+            // Is the API path valid?
+            if whiskErr, ok := isValidRelpath(args[1]); !ok {
+                return whiskErr
+            }
             api.GatewayRelPath = args[1]
         }
         if (len(args) > 2) {
@@ -318,7 +384,7 @@ var apiDeleteCmd = &cobra.Command{
 }
 
 var apiListCmd = &cobra.Command{
-    Use:           "list",
+    Use:           "list [API_NAME]",
     Short:         wski18n.T("list APIs"),
     SilenceUsage:  true,
     SilenceErrors: true,
@@ -326,24 +392,14 @@ var apiListCmd = &cobra.Command{
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
 
-        // Is the API verb valid?
-        if flags.api.verb != "" {
-            if whiskErr, ok := IsValidApiVerb(flags.api.verb); !ok {
-                return whiskErr
-            }
+        apiListOptions := &whisk.ApiListOptions{
+            Limit: flags.common.limit,
+            Skip: flags.common.skip,
         }
 
-        apiListOptions := &whisk.ApiListOptions{
-            whisk.ApiOptions{
-                flags.api.action,
-                flags.api.basepath,
-                flags.api.path,
-                flags.api.verb,
-                false,
-            },
-            flags.common.limit,
-            flags.common.skip,
-            false,
+        // If the api name was specified, list only those APIs
+        if (len(args) > 0 ){
+            apiListOptions.ApiName = args[0]
         }
 
         apis, _, err := client.Apis.List(apiListOptions)
@@ -362,6 +418,13 @@ var apiListCmd = &cobra.Command{
 }
 
 /*
+ * if # args = 4
+ * args[0] = API base path
+ * args[0] = API relative path
+ * args[1] = API verb
+ * args[2] = Optional.  Action name (may or may not be qualified with namespace and package name)
+ *
+ * if # args = 3
  * args[0] = API relative path
  * args[1] = API verb
  * args[2] = Optional.  Action name (may or may not be qualified with namespace and package name)
@@ -371,11 +434,32 @@ func parseApi(cmd *cobra.Command, args []string) (*whisk.Api, error) {
     var basepath string = "/"
     var apiname string = "/"
 
+    api := new(whisk.Api)
+
+    if (len(args) > 3) {
+        if whiskErr, ok := isValidBasepath(args[0]); !ok {
+            return nil, whiskErr
+        }
+        basepath = args[0]
+
+        // Shift the args so the remaining code works with or without the explicit base path arg
+        args = args[1:]
+    }
+
     // Is the API path valid?
     if (len(args) > 0) {
         if whiskErr, ok := isValidRelpath(args[0]); !ok {
             return nil, whiskErr
         }
+        api.GatewayRelPath = args[0]    // Maintain case as URLs may be case-sensitive
+    }
+
+    // Is the API verb valid?
+    if (len(args) > 1) {
+        if whiskErr, ok := IsValidApiVerb(args[1]); !ok {
+            return nil, whiskErr
+        }
+        api.GatewayMethod = strings.ToUpper(args[1])
     }
 
     // Is the specified action name valid?
@@ -404,31 +488,13 @@ func parseApi(cmd *cobra.Command, args []string) (*whisk.Api, error) {
         }
     }
 
-    if ( len(flags.api.basepath) > 0 ) {
-        basepath = flags.api.basepath
-    }
-    if whiskErr, ok:= isValidBasepath(basepath); !ok {
-        return nil, whiskErr
-    }
-
     if ( len(flags.api.apiname) > 0 ) {
         apiname = flags.api.apiname
     } else {
         apiname = basepath
     }
 
-    api := new(whisk.Api)
     api.Namespace = client.Config.Namespace
-    if (len(args) > 0) {
-        api.GatewayRelPath = args[0]    // Maintain case as URLs may be case-sensitive
-    }
-    if (len(args) > 1) {
-        // Is the API verb valid?
-        if whiskErr, ok := IsValidApiVerb(args[1]); !ok {
-            return nil, whiskErr
-        }
-        api.GatewayMethod = strings.ToUpper(args[1])
-    }
     api.Action = new(whisk.ApiAction)
     api.Action.BackendUrl = "https://" + client.Config.Host + "/api/v1/namespaces/" + qName.namespace + "/actions/" + qName.entityName
     api.Action.BackendMethod = "POST"
@@ -440,6 +506,54 @@ func parseApi(cmd *cobra.Command, args []string) (*whisk.Api, error) {
     api.Id = "API:"+api.Namespace+":"+api.GatewayBasePath
 
     whisk.Debug(whisk.DbgInfo, "Parsed api struct: %#v\n", api)
+    return api, nil
+}
+
+func parseSwaggerApi() (*whisk.Api, error) {
+    if ( len(flags.api.swaggerfile) == 0 ) {
+        whisk.Debug(whisk.DbgError, "No swagger file is specified\n")
+        errMsg := fmt.Sprintf(
+            wski18n.T("Internal error.  Swagger file is missing."))   // FIXME MWD add to en_us pii
+        whiskErr := whisk.MakeWskError(errors.New(errMsg),whisk.EXITCODE_ERR_GENERAL,
+            whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+        return nil, whiskErr
+    }
+
+    swagger, err:= readFile(flags.api.swaggerfile)
+    if ( err != nil ) {
+        whisk.Debug(whisk.DbgError, "readFile(%s) error: %s\n", flags.api.swaggerfile, err)
+        errMsg := fmt.Sprintf(
+            wski18n.T("Error reading swagger file '{{.name}}': {{.err}}",
+                map[string]interface{}{"name": flags.api.swaggerfile, "err": err}))   // FIXME MWD add to en_us pii
+        whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+            whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+        return nil, whiskErr
+    }
+
+    // Parse the JSON into a swagger object
+    swaggerObj := new(whisk.ApiSwagger)
+    err = json.Unmarshal([]byte(swagger), swaggerObj)
+    if ( err != nil ) {
+        whisk.Debug(whisk.DbgError, "JSON parse of `%s' error: %s\n", flags.api.swaggerfile, err)
+        errMsg := fmt.Sprintf(
+            wski18n.T("Error parsing swagger file '{{.name}}': {{.err}}",
+                map[string]interface{}{"name": flags.api.swaggerfile, "err": err}))   // FIXME MWD add to en_us pii
+        whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+            whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+        return nil, whiskErr
+    }
+    if (swaggerObj.BasePath == "" || swaggerObj.SwaggerName == "" || swaggerObj.Info == nil || swaggerObj.Paths == nil) {
+        whisk.Debug(whisk.DbgError, "Swagger file is invalid.\n", flags.api.swaggerfile, err)
+        errMsg := wski18n.T("Swagger file is invalid (missing basePath, info, paths, or swagger fields")   // FIXME MWD add to en_us pii
+        whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+            whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+        return nil, whiskErr
+    }
+
+    api := new(whisk.Api)
+    api.Namespace = client.Config.Namespace
+    api.Swagger = swagger
+
     return api, nil
 }
 
@@ -517,16 +631,17 @@ func getManagedUrl(api *whisk.RetApi, relpath string, operation string) (url str
 
 func init() {
     //apiCreateCmd.Flags().StringVarP(&flags.api.action, "action", "a", "", wski18n.T("`ACTION` to invoke when API is called"))
-    apiCreateCmd.Flags().StringVarP(&flags.api.apiname, "apiname", "n", "", wski18n.T("API collection `NAME` (default BASE_PATH)"))
-    apiCreateCmd.Flags().StringVarP(&flags.api.basepath, "basepath", "b", "/", wski18n.T("The API `BASE_PATH` to which the API_PATH is relative"))
+    apiCreateCmd.Flags().StringVarP(&flags.api.apiname, "apiname", "n", "", wski18n.T("API collection `API_NAME` (default BASE_PATH)"))
+    //apiCreateCmd.Flags().StringVarP(&flags.api.basepath, "basepath", "b", "/", wski18n.T("The API `BASE_PATH` to which the API_PATH is relative"))
+    apiCreateCmd.Flags().StringVarP(&flags.api.swaggerfile, "swagger-file", "S", "", wski18n.T("`FILE` containing API configuration in swagger JSON format"))
 
     //apiUpdateCmd.Flags().StringVarP(&flags.api.action, "action", "a", "", wski18n.T("`ACTION` to invoke when API is called"))
     //apiUpdateCmd.Flags().StringVarP(&flags.api.path, "path", "p", "", wski18n.T("relative `PATH` of API"))
     //apiUpdateCmd.Flags().StringVarP(&flags.api.verb, "method", "m", "", wski18n.T("API `VERB`"))
 
     apiGetCmd.Flags().BoolVarP(&flags.common.detail, "full", "f", false, wski18n.T("display full API configuration details"))
-    apiGetCmd.Flags().StringVarP(&flags.api.apiname, "apiname", "n", "", wski18n.T("API collection `NAME` (default NAMESPACE)"))
-    apiGetCmd.Flags().StringVarP(&flags.api.basepath, "basepath", "b", "/", wski18n.T("The API `BASE_PATH` to which the API_PATH is relative"))
+    //apiGetCmd.Flags().StringVarP(&flags.api.apiname, "apiname", "n", "", wski18n.T("API collection `NAME` (default NAMESPACE)"))
+    //apiGetCmd.Flags().StringVarP(&flags.api.basepath, "basepath", "b", "/", wski18n.T("The API `BASE_PATH` to which the API_PATH is relative"))
 
     apiListCmd.Flags().StringVarP(&flags.api.action, "action", "a", "", wski18n.T("`ACTION` to invoke when API is called"))
     apiListCmd.Flags().StringVarP(&flags.api.path, "path", "p", "", wski18n.T("relative `API_PATH` of API"))
@@ -538,7 +653,7 @@ func init() {
 
     apiCmd.AddCommand(
         apiCreateCmd,
-        apiUpdateCmd,
+        //apiUpdateCmd,
         apiGetCmd,
         apiDeleteCmd,
         apiListCmd,

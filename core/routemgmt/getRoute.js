@@ -75,9 +75,8 @@ function readDocument(cloudantDb, docId, params) {
         console.log('success', response);
         resolve(response);
       } else {
-        var errStr = JSON.stringify(error);
-        console.error('error', errStr);
-        reject(errStr);     // FIXME MWD could not return the error object as it caused an exception
+        console.error('error', JSON.stringify(error));
+        reject(error);
       }
     });
   });

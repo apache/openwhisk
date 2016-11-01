@@ -25,16 +25,16 @@
  *   username   Required. The database user name used to access the database
  *   password   Required. The database user password
  *   namespace  Required. Openwhisk namespace of this request's originator
- *   basepath   Required if apidoc not provided.  API base path
- *   relpath    Required if apidoc not provided.  API path (relative to basepath)
- *   operation  Required if apidoc not provided.  API path's operation (i.e. GET, POST, etc)
- *   action     Required if apidoc not provided.  Object with the following fields
+ *   basepath   Required if swagger not provided.  API base path
+ *   relpath    Required if swagger not provided.  API path (relative to basepath)
+ *   operation  Required if swagger not provided.  API path's operation (i.e. GET, POST, etc)
+ *   action     Required if swagger not provided.  Object with the following fields
  *     backendMethod  Required if action provided. Normally set to POST
  *     backendUrl     Required if action provided. Complete invocable URL of the action
  *     name           Required if action provided. Entity name of action (incl package if specified)
  *     namespace      Required if action provided. Namespace in which the action resides
   *    authkey        Required if action provided. Authorization needed to call the action
- *   apiname    Required if apidoc not provided.  API friendly title
+ *   apiname    Required if swagger not provided.  API friendly title
  *   swagger    Required if basepath is not provided.  Entire swagger document specifying API
  *
  * NOTE: The package containing this action will be bound to the following values:
@@ -51,16 +51,15 @@ function main(message) {
   }
   var dbname = message.dbname;
 
-  // message.apidoc already validated; creating shortcut to it
-  var doc;
-  if (typeof message.apidoc === 'object') {
-    doc = message.apidoc;
-  } else if (typeof message.apidoc === 'string') {
-    doc = JSON.parse(message.apidoc);
+  // message.swagger already validated; creating shortcut to it
+  var swaggerObj;
+  if (typeof message.swagger === 'object') {
+    swaggerObj = message.swagger;
+  } else if (typeof message.swagger === 'string') {
+    swaggerObj = JSON.parse(message.swagger);
   }
-  if (doc) {
-    doc.documentTimestamp = (new Date()).toString();
-  }
+  message.swaggerOriginal = message.swagger;
+  message.swagger = swaggerObj;
 
   var dbDocId = "API:"+message.namespace+":"+getBasePath(message);
 
@@ -77,12 +76,13 @@ function main(message) {
   console.log('basepath            : '+getBasePath(message));
   console.log('relpath             : '+message.relpath);
   console.log('operation           : '+message.operation);
-  console.log('action name         : '+message.action.name);
-  console.log('action namespace    : '+message.action.namespace);
-  console.log('action backendMethod: '+message.action.backendMethod);
-  console.log('action backendUrl   : '+message.action.backendUrl);
-  console.log('swagger             :\n'+JSON.stringify(doc , null, 2));
-
+  if (message.action) {
+    console.log('action name         : '+message.action.name);
+    console.log('action namespace    : '+message.action.namespace);
+    console.log('action backendMethod: '+message.action.backendMethod);
+    console.log('action backendUrl   : '+message.action.backendUrl);
+  }
+  console.log('swagger             :\n'+JSON.stringify(swaggerObj , null, 2));
 
   var cloudantOrError = getCloudantAccount(message);
   if (typeof cloudantOrError !== 'object') {
@@ -99,33 +99,40 @@ function main(message) {
   // 4. Add new relpath & operation to API doc
   // 5. Save doc in DB
   var newDoc = false;
-  return getDbApiDoc(message.namespace, message.basepath)
+  return getDbApiDoc(message.namespace, getBasePath(message))
   .then(function(dbdoc) {
     // Got document
     console.log('Got API document from DB: ', JSON.stringify(dbdoc));
+    // If an entire swagger document is used to configure the API, then having
+    // an existing configuration for the same API is unexpected
+    if (message.swagger) {
+      console.error('An API configuration already exists for basepath '+getBasePath(message));
+      return Promise.reject('An API configuration already exists for basepath '+getBasePath(message));
+    }
     return dbdoc;
   }, function(err) {
     console.error('Got DB error: ', err);
-    // FIXME MWD remove check for 'undefined (undefined)'
-    if ( (err == 'undefined (undefined)') || (err.error == 'undefined (undefined)') ||
-         (err.error == "not_found" && err.reason == "missing" && err.headers.statusCode == 404)) {
+    if ( (err.error.error == "not_found" && err.error.statusCode == 404)) {  // err.error.reason == "missing" or "deleted"
       // No document.  Create an initial one
-      console.log('API document not found; creating a new one:', err);
+      console.log('API document not found; creating a new one');
       newDoc = true;
       return makeTemplateDbApiDoc(message);
     }
+    console.error('DB request failed');
     return Promise.reject(err);
   })
   .then(function(dbApiDoc) {
-    console.log('Got API document from DB: ', JSON.stringify(dbApiDoc));
-    // Check if relpath and operation are already in the API document
-    if (dbApiDoc.apidoc.paths[message.relpath] && dbApiDoc.apidoc.paths[message.relpath][message.operation]) {
-      console.error('Operation '+message.operation+' already exists under path '+message.relpath+ ' under basepath '+message.basepath);
-      return Promise.reject('Operation '+message.operation+' already exists under path '+message.relpath+ ' under basepath '+message.basepath);
-    } else {
-        // Add new relpath & operation to API doc
-        console.log('Adding new relpath:operation ('+message.relpath+':'+message.operation+') to document '+dbDocId);
-        dbApiDoc = addPathToDbApiDoc(dbApiDoc, message);
+    console.log('Got DB API document: ', JSON.stringify(dbApiDoc));
+    // If a swagger file is not provided, then Check if relpath and operation are already in the API document
+    if (!message.swagger) {
+        if (dbApiDoc.apidoc.paths[message.relpath] && dbApiDoc.apidoc.paths[message.relpath][message.operation]) {
+          console.error('Operation '+message.operation+' already exists under path '+message.relpath+ ' under basepath '+message.basepath);
+          return Promise.reject('Operation '+message.operation+' already exists under path '+message.relpath+ ' under basepath '+message.basepath);
+        } else {
+            // Add new relpath & operation to API doc
+            console.log('Adding new relpath:operation ('+message.relpath+':'+message.operation+') to document '+dbDocId);
+            dbApiDoc = addPathToDbApiDoc(dbApiDoc, message);
+        }
     }
     return(dbApiDoc)
   })
@@ -240,30 +247,74 @@ function validateArgs(message) {
     return 'namespace is required.';
   }
 
-  if(message.swagger && message.basepath) {
-    return 'swagger and basepath are mutually exclusive and cannot be specified together.';
-  }
-
-  if ( !message.swagger && !(message.basepath && message.relpath && message.operation && message.apiname && message.action) )
-  {
-    return 'When swagger is not specified, basepath, relpath, operation, action, and apiname are required.';
-  } else if ( !(message.action.backendMethod && message.action.backendUrl && message.action.name && message.action.namespace) ) {
-    return 'An action must include backendMethod, backendUrl, name (of action) and namespace (of action).';
-  }
-  message.operation = message.operation.toLowerCase();
-
-  if (message.swagger) {
-    if (typeof message.swagger !== 'object') {
-      return 'swagger field is ' + (typeof apidoc) + ' and should be an object or a JSON string.';
+ var tmpSwaggerDoc
+  if(message.swagger) {
+    if (message.basepath) {
+      return 'swagger and basepath are mutually exclusive and cannot be specified together.';
+    }
+    if (typeof message.swagger == 'object') {
+      tmpSwaggerDoc = message.swagger;
     } else if (typeof message.swagger === 'string') {
       try {
-        var tmpdoc = JSON.parse(message.swagger);
+        tmpSwaggerDoc = JSON.parse(message.swagger);
       } catch (e) {
         return 'swagger field cannot be parsed. Ensure it is valid JSON.';
       }
     } else {
-      tmpdoc = message.swagger;
+      return 'swagger field is ' + (typeof message.swagger) + ' and should be an object or a JSON string.';
     }
+    console.log('Swagger JSON object: ', tmpSwaggerDoc);
+    if (!tmpSwaggerDoc.basePath) {
+      return 'swagger is missing the basePath field.';
+    }
+    if (!tmpSwaggerDoc.paths) {
+      return 'swagger is missing the paths field.';
+    }
+    if (!tmpSwaggerDoc.info) {
+      return 'swagger is missing the info field.';
+    }
+  } else {
+    if (!message.basepath) {
+      return 'basepath is required when swagger is not specified.';
+    }
+
+    if (!message.relpath) {
+      return 'relpath is required when swagger is not specified.';
+    }
+
+    if (!message.operation) {
+      return 'operation is required when swagger is not specified.';
+    }
+
+    if (!message.apiname) {
+      return 'apiname is required when swagger is not specified.';
+    }
+
+    if (!message.action) {
+      return 'action is required when swagger is not specified.';
+    }
+
+    if (!message.action.backendMethod) {
+      return 'action is missing the backendMethod field.';
+    }
+
+    if (!message.action.backendUrl) {
+      return 'action is missing the backendMethod field.';
+    }
+
+    if (!message.action.namespace) {
+      return 'action is missing the namespace field.';
+    }
+
+    if(!message.action.name) {
+      return 'action is missing the name field.';
+    }
+
+    if (!message.action.authkey) {
+      return 'action is missing the authkey field.';
+    }
+
+    message.operation = message.operation.toLowerCase();
   }
 
   return '';
@@ -277,21 +328,27 @@ function getBasePath(message) {
   return message.basepath;
 }
 
+
 // Create an API document to store in the DB.
 // Assumes all message parameters have been validated already
 function makeTemplateDbApiDoc(message) {
   var dbApiDoc = {};
   dbApiDoc.namespace = message.namespace;
   dbApiDoc.gwApiActivated = false;
-  dbApiDoc.apidoc = {
-    swagger: "2.0",
-    info: {
-      title: message.apiname,
-      version: "1.0.0"
-    },
-    basePath: getBasePath(message),
-    paths: {}
-  };
+  if (message.swagger) {
+    dbApiDoc.apidoc = message.swagger;
+  } else {
+    dbApiDoc.apidoc = {
+      swagger: "2.0",
+      info: {
+        title: message.apiname,
+        version: "1.0.0"
+      },
+      basePath: getBasePath(message),
+      paths: {}
+    };
+  }
+
   return dbApiDoc;
 }
 
