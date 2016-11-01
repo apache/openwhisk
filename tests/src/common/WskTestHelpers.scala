@@ -122,7 +122,17 @@ trait WskTestHelpers extends Matchers {
         end: Long,
         duration: Long,
         cause: Option[String],
-        annotations: Option[List[JsObject]])
+        annotations: Option[List[JsObject]]) {
+        def getAnnotationValue(key: String): Option[JsValue] = {
+            Try {
+                val annotation = annotations.get.filter(x => x.getFields("key")(0) == JsString(key))
+                assert(annotation.size == 1) // only one annotation with this value
+                val value = annotation(0).getFields("value")
+                assert(value.size == 1)
+                value(0)
+            } toOption
+        }
+    }
 
     object CliActivation extends DefaultJsonProtocol {
         implicit val serdes = jsonFormat8(CliActivation.apply)

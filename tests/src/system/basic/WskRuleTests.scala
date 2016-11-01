@@ -96,8 +96,9 @@ class WskRuleTests
                         _.head.cause shouldBe Some(triggerActivation.activationId)
                     }
 
-                    withActivationsFromEntity(wsk.activation, actionName, since = Some(Instant.ofEpochMilli(triggerActivation.start))) {
-                        _.head.response.result shouldBe Some(testResult)
+                    withActivationsFromEntity(wsk.activation, actionName, since = Some(Instant.ofEpochMilli(triggerActivation.start))) { activationList =>
+                        activationList.head.response.result shouldBe Some(testResult)
+                        activationList.head.cause shouldBe None
                     }
             }
     }
