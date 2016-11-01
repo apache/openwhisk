@@ -341,28 +341,27 @@ As an alternative to writing all your action code in a single JavaScript source 
 
 First, `package.json`:
 
-  ```
-  {
-    "name": "my-action",
-    "version": "1.0.0",
-    "main": "index.js",
-    "dependencies" : {
-      "left-pad" : "1.1.3"
-    }
+```
+{
+  "name": "my-action",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies" : {
+    "left-pad" : "1.1.3"
   }
-  ```
+}
+```
 
 Then, `index.js`:
 
-  ```
-  function myAction(args) {
-      const leftPad = require("left-pad")
-      const lines = args.lines || [];
-      return { padded: lines.map(l => leftPad(l, 30, ".")) }
-  }
-
-  exports.main = myAction;
-  ```
+```
+function myAction(args) {
+    const leftPad = require("left-pad")
+    const lines = args.lines || [];
+    return { padded: lines.map(l => leftPad(l, 30, ".")) }
+}
+exports.main = myAction;
+```
 
 Note that the action is exposed through `exports.main`; the action handler itself can have any name, as long as it conforms to the usual signature of accepting an object and returning an object (or a `Promise` of an object).
 
@@ -391,7 +390,7 @@ To create an OpenWhisk action from this package:
 4. You can invoke the action like any other:
 
   ```
-  $ wsk action invoke --blocking --result packageAction --param lines '[ "and now", "for something completely", "different" ]'
+  $ wsk action invoke --blocking --result packageAction --param lines "[\"and now\", \"for something completely\", \"different\" ]"
   ```
   ```
   {
@@ -404,7 +403,7 @@ To create an OpenWhisk action from this package:
   ```
 
 Finally, note that while most `npm` packages install JavaScript sources on `npm install`, some also install and compile binary artifacts. The archive file upload currently does not support binary dependencies but rather only JavaScript dependencies. Action invocations may fail if the archive includes binary dependencies.
-  
+
 ## Creating action sequences
 
 You can create an action that chains together a sequence of actions.
@@ -616,9 +615,6 @@ $ wsk action invoke --blocking --result helloJava --param name World
 **Note:** If the JAR file has more than one class with a main method matching required signature, the CLI tool uses the first one reported by `jar -tf`.
 
 
-
-
-
 ## Creating Docker actions
 
 With OpenWhisk Docker actions, you can write your actions in any language.
@@ -709,10 +705,10 @@ For the instructions that follow, assume that the Docker user ID is `janesmith` 
   }
   ```
   
-  To update the Docker action, run buildAndPush.sh to refresh the image on Docker Hub, this will allow the next time the system pulls your Docker image to run the new code for your action. 
-  If there are no warm containers any new invocations will use the new Docker image. 
-  **Note:** If there is a warm container using a previous version of your Docker image, any new invocations will continue to use this image until you run `wsk action update` on the action. The action update forces the system to pull the Docker image again.
-  
+  To update the Docker action, run buildAndPush.sh to upload the latest image to Docker Hub. This will allow the system to pull your new Docker image the next time it runs the code for your action.
+  If there are no warm containers any new invocations will use the new Docker image.
+  However, if there is a warm container using a previous version of your Docker image, any new invocations will continue to use that image unless you run `wsk action update`. This will indicate to the system that for new invocations it should execute a docker pull to get your new Docker image.
+ 
   ```
   $ ./buildAndPush.sh janesmith/blackboxdemo
   ```
