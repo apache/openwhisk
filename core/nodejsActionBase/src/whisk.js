@@ -264,6 +264,7 @@ function post(packet, logger, acceptStatusCode) {
           logger && logger.info('[whisk]', 'response body', body);
 
           var activation = undefined;
+          var result = (body.response || {}).result;
 
           error = error || undefined;
           response = response || {};
@@ -272,11 +273,16 @@ function post(packet, logger, acceptStatusCode) {
           if (acceptStatusCode(response.statusCode)) {
               activation = {
                  activationId: body.activationId, // id always present
-                 result: (body.response || {}).result // may not exist
+                 result: result// may not exist
               };
           } else if (!error) {
               // activation failed, set error to API host error response.
-              error = body.error + ' (' + body.errorCode + ')';
+              if (!body.error) {
+                  error = result.error === undefined ? 'an error has occurred' : result.error;
+              }
+              else {
+                  error = body.error + ' (code ' + body.code + ')';
+              }
           }
 
           resolve({

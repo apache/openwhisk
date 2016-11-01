@@ -149,7 +149,7 @@ trait WskTestHelpers extends Matchers {
             check: Seq[CliActivation] => Unit)(
                 implicit wskprops: WskProps): Unit = {
 
-        val activationIds = wsk.pollFor(N, Some(entity), since = since)
+        val activationIds = wsk.pollFor(N, Some(entity), since = since, retries = (totalWait / pollPeriod).toInt, pollPeriod = pollPeriod)
         withClue(s"did not find $N activations for $entity since $since") {
             activationIds.length shouldBe N
         }

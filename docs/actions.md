@@ -120,16 +120,36 @@ Parameters can be passed to the action when it is invoked.
   ```
   $ wsk action update hello hello.js
   ```
+
+3.  Parameters can be provided explicitly on the command-line, or by supplying a file containing the desired parameters
+
+  To pass parameters directly through the command-line, supply a key/value pair to the `--param` flag:
   ```
   $ wsk action invoke --blocking --result hello --param name Bernie --param place Vermont
   ```
+
+  In order to use a file containing parameter content, create a file containing the parameters in JSON format. The
+  filename must then be passed to the `param-file` flag:
+
+  Example parameter file called parameters.json:
+  ```
+  {
+      "name": "Bernie",
+      "place": "Vermont"
+  }
+  ```
+
+  ```
+  $ wsk action invoke --blocking --result hello --param-file parameters.json
+  ```
+
   ```
   {
       "payload": "Hello, Bernie from Vermont"
   }
   ```
 
-  Notice the use of the `--param` option to specify a parameter name and value, and the `--result` option to display only the invocation result.
+  Notice the use of the `--result` option to display only the invocation result.
 
 ### Setting default parameters
 
@@ -137,10 +157,26 @@ Actions can be invoked with multiple named parameters. Recall that the `hello` a
 
 Rather than pass all the parameters to an action every time, you can bind certain parameters. The following example binds the *place* parameter so that the action defaults to the place "Vermont":
  
-1. Update the action by using the `--param` option to bind parameter values.
+1. Update the action by using the `--param` option to bind parameter values, or by passing a file that contains the parameters to `--param-file`
+
+  To specify default parameters explicitly on the command-line, provide a key/value pair to the `param` flag:
 
   ```
   $ wsk action update hello --param place Vermont
+  ```
+
+  Passing parameters from a file requires the creation of a file containing the desired content in JSON format.
+  The filename must then be passed to the `-param-file` flag:
+
+  Example parameter file called parameters.json:
+  ```
+  {
+      "place": "Vermont"
+  }
+  ```
+
+  ```
+  $ wsk action update hello --param-file parameters.json
   ```
 
 2. Invoke the action, passing only the `name` parameter this time.
@@ -158,9 +194,26 @@ Rather than pass all the parameters to an action every time, you can bind certai
 
 3. Invoke the action, passing both `name` and `place` values. The latter overwrites the value that is bound to the action.
 
+  Using the `--param` flag:
+
   ```
   $ wsk action invoke --blocking --result hello --param name Bernie --param place "Washington, DC"
   ```
+
+  Using the `--param-file` flag:
+
+  File parameters.json:
+  ```
+  {
+    "name": "Bernie",
+    "place": "Vermont"
+  }
+  ```
+
+  ```
+  $ wsk action invoke --blocking --result hello --param-file parameters.json
+  ```
+
   ```
   {  
       "payload": "Hello, Bernie from Washington, DC"

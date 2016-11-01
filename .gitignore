@@ -45,6 +45,8 @@ node_modules
 ansible/environments/mac/hosts
 ansible/db_local.ini*
 ansible/tmp/*
+ansible/roles/nginx/files/*.csr
+ansible/roles/nginx/files/*cert.pem
 
 # Action proxies copied during build
 core/swiftAction/actionproxy.py

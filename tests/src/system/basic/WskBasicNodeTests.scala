@@ -156,7 +156,9 @@ class WskBasicNodeTests
                 activation =>
                     val result = activation.response.result.get
                     result.fields.get("activationId") should not be defined
-                    result.fields.get("error") shouldBe defined
+                    result.getFieldPath("error", "message") should be(Some {
+                        "Three second rule!".toJson
+                    })
 
                     val duration = System.currentTimeMillis() - start
                     duration should be >= expectedDuration.toMillis
@@ -205,7 +207,9 @@ class WskBasicNodeTests
                 activation =>
                     val result = activation.response.result.get
                     result.fields.get("activationId") should not be defined
-                    result.fields.get("error") shouldBe defined
+                    result.getFieldPath("error", "message") should be(Some {
+                        "Three second rule!".toJson
+                    })
 
                     val duration = System.currentTimeMillis() - start
                     duration should be >= expectedDuration.toMillis

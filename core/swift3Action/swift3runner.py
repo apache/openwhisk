@@ -43,9 +43,11 @@ class Swift3Runner(ActionRunner):
 
         if o is not None:
             sys.stdout.write(o)
+            sys.stdout.flush()
 
         if e is not None:
             sys.stderr.write(e)
+            sys.stderr.flush()
 
     def env(self, message):
         env = ActionRunner.env(self, message)

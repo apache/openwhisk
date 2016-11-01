@@ -13,6 +13,8 @@ defaultLimits:
       perMinute: 120
       concurrent: 100
       concurrentInSystem: 5000
+    sequence:
+      maxLength: 10
   triggers:
     fires:
       perMinute: 60

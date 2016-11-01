@@ -17,6 +17,7 @@
 package whisk.core.entity
 
 import scala.concurrent.Future
+import scala.concurrent.ExecutionContext
 import scala.util.{ Try, Success, Failure }
 
 import akka.http.scaladsl.model.ContentType
@@ -35,6 +36,7 @@ import whisk.common.TransactionId
 import whisk.core.database.ArtifactStore
 import whisk.core.database.DocumentFactory
 import whisk.core.entity.Attachments._
+import whisk.core.entity.types.EntityStore
 
 /**
  * ActionLimitsOption mirrors ActionLimits but makes both the timeout and memory
@@ -54,7 +56,12 @@ case class WhiskActionPut(
     limits: Option[ActionLimitsOption] = None,
     version: Option[SemVer] = None,
     publish: Option[Boolean] = None,
-    annotations: Option[Parameters] = None)
+    annotations: Option[Parameters] = None) {
+
+    protected[core] def replace(exec: Exec) = {
+        WhiskActionPut(Some(exec), parameters, limits, version, publish, annotations)
+    }
+}
 
 /**
  * A WhiskAction provides an abstraction of the meta-data
@@ -168,7 +175,7 @@ object WhiskAction
     }
 
     override val cacheEnabled = true
-    override def cacheKeys(w: WhiskAction) = Set(w.docid.asDocInfo, w.docinfo)
+    override def cacheKeyForUpdate(w: WhiskAction) = w.docid.asDocInfo
 
     private val jarAttachmentName = "jarfile"
     private val jarContentType = ContentType.Binary(MediaTypes.`application/java-archive`)
@@ -231,7 +238,28 @@ object WhiskAction
                     Future.successful(action)
             }
         }
+    }
 
+    /**
+     * Resolves an action name if it is contained in a package.
+     * Look up the package to determine if it is a binding or the actual package.
+     * If it's a binding, rewrite the fully qualified name of the action using the actual package path name.
+     * If it's the actual package, use its name directly as the package path name.
+     */
+    def resolveAction(entityStore: EntityStore, fullyQualifiedName: FullyQualifiedEntityName)(
+        implicit ec: ExecutionContext, transid: TransactionId): Future[FullyQualifiedEntityName] = {
+        // first check that there is a package to be resolved
+        val entityPath = fullyQualifiedName.path
+        if (entityPath.defaultPackage) {
+            // this is the default package, nothing to resolve
+            Future.successful(fullyQualifiedName)
+        } else {
+            // there is a package to be resolved
+            val pkgDocid = fullyQualifiedName.pathToDocId
+            val actionName = fullyQualifiedName.name
+            val wp = WhiskPackage.resolveBinding(entityStore, pkgDocid)
+            wp map { resolvedPkg => FullyQualifiedEntityName(resolvedPkg.namespace.addpath(resolvedPkg.name), actionName) }
+        }
     }
 }
 

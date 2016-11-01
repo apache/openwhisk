@@ -216,10 +216,21 @@ class WskBasicUsageTests
         // override wsk props file in case it exists
         val tmpwskprops = File.createTempFile("wskprops", ".tmp")
         val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
-        val stderr = wsk.cli(Seq("list"), env = env, expectedExitCode = MISUSE_EXIT).stderr
+        val stderr = wsk.cli(Seq("list") ++ wskprops.overrides, env = env, expectedExitCode = MISUSE_EXIT).stderr
         try {
             stderr should include regex (s"usage[:.]") // Python CLI: "usage:", Go CLI: "usage."
             stderr should include("--auth is required")
+        } finally {
+            tmpwskprops.delete()
+        }
+    }
+
+    it should "reject a command when the API host is not set" in {
+        val tmpwskprops = File.createTempFile("wskprops", ".tmp")
+        try {
+            val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
+            val stderr = wsk.cli(Seq("property", "get", "-i"), env = env, expectedExitCode = ERROR_EXIT).stderr
+            stderr should include("The API host is not valid: An API host must be provided.")
         } finally {
             tmpwskprops.delete()
         }
@@ -711,12 +722,12 @@ class WskBasicUsageTests
 
         for (cmd <- paramCmds) {
             for (invalid <- invalidJSONInputs) {
-                wsk.cli(cmd ++ Seq("-p", "key", invalid), expectedExitCode = ERROR_EXIT)
+                wsk.cli(cmd ++ Seq("-p", "key", invalid) ++ wskprops.overrides, expectedExitCode = ERROR_EXIT)
                   .stderr should include("Invalid parameter argument")
             }
 
             for (invalid <- invalidJSONFiles) {
-                wsk.cli(cmd ++ Seq("-P", invalid), expectedExitCode = ERROR_EXIT)
+                wsk.cli(cmd ++ Seq("-P", invalid) ++ wskprops.overrides, expectedExitCode = ERROR_EXIT)
                   .stderr should include("Invalid parameter argument")
 
             }
@@ -724,12 +735,12 @@ class WskBasicUsageTests
 
         for (cmd <- annotCmds) {
             for (invalid <- invalidJSONInputs) {
-                wsk.cli(cmd ++ Seq("-a", "key", invalid), expectedExitCode = ERROR_EXIT)
+                wsk.cli(cmd ++ Seq("-a", "key", invalid) ++ wskprops.overrides, expectedExitCode = ERROR_EXIT)
                   .stderr should include("Invalid annotation argument")
             }
 
             for (invalid <- invalidJSONFiles) {
-                wsk.cli(cmd ++ Seq("-A", invalid), expectedExitCode = ERROR_EXIT)
+                wsk.cli(cmd ++ Seq("-A", invalid) ++ wskprops.overrides, expectedExitCode = ERROR_EXIT)
                   .stderr should include("Invalid annotation argument")
             }
         }
@@ -958,7 +969,7 @@ class WskBasicUsageTests
 
         invalidArgs foreach {
             case (cmd, err) =>
-                val stderr = wsk.cli(cmd, expectedExitCode = ERROR_EXIT).stderr
+                val stderr = wsk.cli(cmd ++ wskprops.overrides, expectedExitCode = ERROR_EXIT).stderr
                 stderr should include(err)
                 stderr should include("Run 'wsk --help' for usage.")
         }

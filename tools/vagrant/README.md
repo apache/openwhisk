@@ -181,13 +181,8 @@ wskadmin user delete <subject>
 
 ### SSL certificate configuration (Optional)
 
-OpenWhisk includes a _self-signed_ SSL certificate and the `wsk` CLI allows untrusted certificates.
-
-```
-ls ansible/roles/nginx/files/openwhisk-*
-ansible/roles/nginx/files/openwhisk-cert.pem
-ansible/roles/nginx/files/openwhisk-key.pem
-```
+OpenWhisk includes a _self-signed_ SSL certificate and the `wsk` CLI allows untrusted certificates via `-i` on the command line.
+The certificate is generated during setup and stored in `ansible/roles/nginx/files/openwhisk-cert.pem`.
 
 Do not use these certificates in production: replace with your own and modify
 the configuration to use trusted certificates instead.

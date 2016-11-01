@@ -139,5 +139,5 @@ object WhiskActivation
     override implicit val serdes = jsonFormat12(WhiskActivation.apply)
 
     override val cacheEnabled = true
-    override def cacheKeys(w: WhiskActivation) = Set(w.docid.asDocInfo, w.docinfo)
+    override def cacheKeyForUpdate(w: WhiskActivation) = w.docid.asDocInfo
 }

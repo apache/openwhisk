@@ -243,7 +243,8 @@ class WskActionTests
         (wp, assetHelper) =>
             val fullQualifiedName = s"/$guestNamespace/samples/helloWorld"
             val payload = "bob"
-            val rr = wsk.cli(Seq("action", "invoke", fullQualifiedName, payload), expectedExitCode = TestUtils.ERROR_EXIT)
+            val rr = wsk.cli(Seq("action", "invoke", fullQualifiedName, payload) ++ wskprops.overrides,
+                expectedExitCode = TestUtils.ERROR_EXIT)
             rr.stderr should include("Run 'wsk --help' for usage.")
             rr.stderr should include(s"error: Invalid argument(s): $payload")
     }

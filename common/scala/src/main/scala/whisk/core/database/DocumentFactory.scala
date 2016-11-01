@@ -120,7 +120,7 @@ trait DocumentSerializer {
  * but the get permits a datastore of its super type so that a single datastore client
  * may be used for multiple types (because the types are stored in the same database for example).
  */
-trait DocumentFactory[W] extends InMemoryCache[W] {
+trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
     /**
      * Puts a record of type W in the datastore.
      *
@@ -142,16 +142,16 @@ trait DocumentFactory[W] extends InMemoryCache[W] {
             implicit val logger = db: Logging
             implicit val ec = db.executionContext
 
-            cacheInvalidate(cacheKeys(doc))
-            db.put(doc) map { docinfo =>
+            val key = cacheKeyForUpdate(doc)
+
+            cacheUpdate(doc, key, db.put(doc) map { docinfo =>
                 doc match {
                     // if doc has a revision id, update it with new version
                     case w: DocumentRevisionProvider => w.revision[W](docinfo.rev)
                 }
-                // cache put result iff put future was successful
-                cacheUpdate(cacheKeys(doc), doc)
                 docinfo
-            }
+            })
+
         } match {
             case Success(f) => f
             case Failure(t) => Future.failed(t)
@@ -166,9 +166,15 @@ trait DocumentFactory[W] extends InMemoryCache[W] {
             require(doc != null, "doc undefined")
         } map { _ =>
             implicit val logger: Logging = db
-            cacheInvalidate(Set(doc, doc.id.asDocInfo))
-            val src = StreamConverters.fromInputStream(() => bytes)
-            db.attach(doc, attachmentName, contentType, src)
+            implicit val ec = db.executionContext
+
+            val key = doc.id.asDocInfo
+            // invalidate the key because attachments update the revision;
+            // do not cache the new attachment (controller does not need it)
+            cacheInvalidate(key, {
+                val src = StreamConverters.fromInputStream(() => bytes)
+                db.attach(doc, attachmentName, contentType, src)
+            })
         } match {
             case Success(f) => f
             case Failure(t) => Future.failed(t)
@@ -182,9 +188,10 @@ trait DocumentFactory[W] extends InMemoryCache[W] {
             require(doc != null, "doc undefined")
         } map { _ =>
             implicit val logger: Logging = db
-            // invalidate two keys: just the id, and id:rev
-            cacheInvalidate(Set(doc, doc.id.asDocInfo))
-            db.del(doc)
+            implicit val ec = db.executionContext
+
+            val key = doc.id.asDocInfo
+            cacheInvalidate(key, db.del(doc))
         } match {
             case Success(f) => f
             case Failure(t) => Future.failed(t)
@@ -192,7 +199,7 @@ trait DocumentFactory[W] extends InMemoryCache[W] {
     }
 
     /**
-     * FIXME UPDATE Fetches a raw record of type R from the datastore by its id (and revision if given)
+     * Fetches a raw record of type R from the datastore by its id (and revision if given)
      * and converts it to Success(W) or Failure(Throwable) if there is an error fetching
      * the record or deserializing it.
      *
@@ -214,8 +221,9 @@ trait DocumentFactory[W] extends InMemoryCache[W] {
             require(db != null, "db undefined")
         } map {
             implicit val logger = db: Logging
+            implicit val ec = db.executionContext
             val key = doc.asDocInfo(rev)
-            _ => cacheLookup(db, key, db.get[W](key), fromCache)
+            _ => cacheLookup(key, db.get[W](key), fromCache)
         } match {
             case Success(f) => f
             case Failure(t) => Future.failed(t)
