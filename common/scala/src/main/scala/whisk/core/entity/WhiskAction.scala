@@ -269,6 +269,35 @@ object WhiskAction
             wp map { resolvedPkg => FullyQualifiedEntityName(resolvedPkg.namespace.addpath(resolvedPkg.name), actionName) }
         }
     }
+
+    /**
+     * Resolves an action name if it is contained in a package.
+     * Look up the package to determine if it is a binding or the actual package.
+     * If it's a binding, rewrite the fully qualified name of the action using the actual package path name.
+     * If it's the actual package, use its name directly as the package path name.
+     * While traversing the package bindings, merge the parameters.
+     */
+    def resolveActionAndMergeParameters(entityStore: EntityStore, fullyQualifiedName: FullyQualifiedEntityName)(
+        implicit ec: ExecutionContext, transid: TransactionId): Future[WhiskAction] = {
+        // first check that there is a package to be resolved
+        val entityPath = fullyQualifiedName.path
+        if (entityPath.defaultPackage) {
+            // this is the default package, nothing to resolve
+            WhiskAction.get(entityStore, fullyQualifiedName.toDocId)
+        } else {
+            // there is a package to be resolved
+            val pkgDocid = fullyQualifiedName.pathToDocId
+            val actionName = fullyQualifiedName.name
+            val wp = WhiskPackage.resolveBindingAndMergeParameters(entityStore, pkgDocid)
+            wp flatMap { resolvedPkg =>
+                // fully resolved name for the action
+                val fqenAction = FullyQualifiedEntityName(resolvedPkg.namespace.addpath(resolvedPkg.name), actionName)
+                // get the whisk action associate with it and inherit the parameters from the package/binding
+                WhiskAction.get(entityStore, fqenAction.toDocId) map { _.inherit(resolvedPkg.parameters) }
+            }
+        }
+    }
+
 }
 
 object ActionLimitsOption extends DefaultJsonProtocol {
