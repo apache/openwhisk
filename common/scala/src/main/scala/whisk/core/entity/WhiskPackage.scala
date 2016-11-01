@@ -88,6 +88,14 @@ case class WhiskPackage(
     }
 
     /**
+     * Merges parameters into existing set of parameters for package.
+     * The merged parameters supersede existing ones.
+     */
+    def mergeParameters(p: Parameters) = {
+        WhiskPackage(namespace, name, binding, parameters ++ p, version, publish, annotations)
+    }
+
+    /**
      * Gets binding for package iff this is not already a package reference.
      */
     def bind = binding map { _ => None } getOrElse Some { Binding(namespace, name) }
@@ -159,6 +167,27 @@ object WhiskPackage
         WhiskPackage.get(entityStore, pkg) flatMap { wp =>
             // if there is a binding resolve it
             val resolved = wp.binding map { binding => resolveBinding(entityStore, binding.docid) }
+            resolved getOrElse Future.successful(wp)
+        }
+    }
+
+    /**
+     * Traverses a binding recursively to find the root package and merge parameters along the way
+     *
+     * @param entityStore a store containing packages
+     * @param pkg the package document id to start resolving
+     * @return the same package if there is no binding, or the actual reference package otherwise
+     */
+    def resolveBindingAndMergeParameters(entityStore: EntityStore, pkg: DocId)(
+        implicit ec: ExecutionContext, transid: TransactionId): Future[WhiskPackage] = {
+        WhiskPackage.get(entityStore, pkg) flatMap { wp =>
+            // if there is a binding resolve it
+            val resolved = wp.binding map { binding => {
+                    resolveBindingAndMergeParameters(entityStore, binding.docid) map { resolvedPackage =>
+                        resolvedPackage.mergeParameters(wp.parameters)
+                    }
+                }
+            }
             resolved getOrElse Future.successful(wp)
         }
     }
