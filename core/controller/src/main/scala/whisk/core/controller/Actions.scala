@@ -494,7 +494,9 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
             if (blocking) {
                 val duration = action.limits.timeout()
                 val timeout = (maxWaitForBlockingActivation min duration) + blockingInvokeGrace
-                waitForActivationResponse(user, message, timeout, activationResponse)
+                waitForActivationResponse(user, message, timeout, activationResponse) map {
+                    whiskActivation => (whiskActivation.activationId, Some(whiskActivation))
+                }
             } else {
                 // Duration of the non-blocking activation in Controller.
                 // We use the start time of the tid instead of a startMarker to avoid passing the start marker around.
@@ -534,9 +536,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                 pollDbForResult(docid, activationId, promise)
         }
 
-        val response = promise.future map {
-            result => (activationId, Some(result))
-        } withTimeout (totalWaitTime, new BlockingInvokeTimeout(message.activationId))
+        val response = promise.future withTimeout (totalWaitTime, new BlockingInvokeTimeout(message.activationId))
 
         response onComplete {
             case Success(_) =>
