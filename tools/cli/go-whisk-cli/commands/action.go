@@ -314,7 +314,7 @@ var actionListCmd = &cobra.Command{
   SilenceErrors: true,
   PreRunE:       setupClientConfig,
   RunE: func(cmd *cobra.Command, args []string) error {
-    var qName qualifiedName
+    var qName QualifiedName
     var err error
 
     if len(args) == 1 {
@@ -424,7 +424,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
   var shared, sharedSet bool
   var artifact string
 
-  qName := qualifiedName{}
+  qName := QualifiedName{}
   qName, err = parseQualifiedName(args[0])
   if err != nil {
     whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[0], err)
@@ -478,7 +478,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
   action := new(whisk.Action)
 
   if flags.action.copy {
-    qNameCopy := qualifiedName{}
+    qNameCopy := QualifiedName{}
     qNameCopy, err = parseQualifiedName(args[1])
     if err != nil {
       whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[1], err)

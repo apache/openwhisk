@@ -490,7 +490,7 @@ var triggerListCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        qName := qualifiedName{}
+        qName := QualifiedName{}
         if len(args) == 1 {
             qName, err = parseQualifiedName(args[0])
             if err != nil {

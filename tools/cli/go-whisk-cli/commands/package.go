@@ -416,7 +416,7 @@ var packageListCmd = &cobra.Command{
     var err error
     var shared bool
 
-    qName := qualifiedName{}
+    qName := QualifiedName{}
     if len(args) == 1 {
       qName, err = parseQualifiedName(args[0])
       if err != nil {
@@ -477,26 +477,26 @@ var packageRefreshCmd = &cobra.Command{
   PreRunE:       setupClientConfig,
   RunE: func(cmd *cobra.Command, args []string) error {
     var err error
-    var qName qualifiedName
+    var qName QualifiedName
 
     if whiskErr := checkArgs(args, 0, 1, "Package refresh",
         wski18n.T("An optional namespace is the only valid argument.")); whiskErr != nil {
       return whiskErr
     } else {
       if len(args) == 0 {
-        qName, err = parseQualifiedName("")
+        qName.namespace = getNamespace()
       } else {
         qName, err = parseQualifiedName(args[0])
-      }
 
-      if err != nil {
-        whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[0], err)
-        errMsg := fmt.Sprintf(
-          wski18n.T("'{{.name}}' is not a valid qualified name: {{.err}}",
-            map[string]interface{}{"name": args[0], "err": err}))
-        werr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-          whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
-        return werr
+        if err != nil {
+          whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[0], err)
+          errMsg := fmt.Sprintf(
+            wski18n.T("'{{.name}}' is not a valid qualified name: {{.err}}",
+              map[string]interface{}{"name": args[0], "err": err}))
+          werr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+            whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+          return werr
+        }
       }
     }
 

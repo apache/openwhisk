@@ -37,13 +37,13 @@ import (
     "sort"
 )
 
-type qualifiedName struct {
+type QualifiedName struct {
     namespace   string
     packageName string
     entityName  string
 }
 
-func (qName qualifiedName) String() string {
+func (qName QualifiedName) String() string {
     output := []string{}
 
     if len(qName.namespace) > 0 {
@@ -70,33 +70,58 @@ Examples:
       /ns/foo => qName {namespace: ns, entityName: foo}
       /ns/pkg/foo => qName {namespace: ns, entityName: pkg/foo}
 */
-func parseQualifiedName(name string) (qName qualifiedName, err error) {
+func parseQualifiedName(name string) (QualifiedName, error) {
+    var qualifiedName QualifiedName
 
     // If name has a preceding delimiter (/), it contains a namespace. Otherwise the name does not specify a namespace,
     // so default the namespace to the namespace value set in the properties file; if that is not set, use "_"
-    if len(name) > 0  && name[0] == '/' {
+    if  strings.HasPrefix(name, "/")  {
         parts := strings.Split(name, "/")
-        qName.namespace = parts[1]
+        qualifiedName.namespace = parts[1]
 
-        if len(parts) > 2 {
-            qName.entityName = strings.Join(parts[2:], "/")
-        } else {
-            qName.entityName = ""
+        if len(parts) < 2 || len(parts) > 4 {
+            whisk.Debug(whisk.DbgError, "A valid qualified name was not detected\n")
+            errStr := fmt.Sprintf(wski18n.T("A valid qualified name must be specified."))
+            err := whisk.MakeWskError(errors.New(errStr), whisk.NOT_ALLOWED, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            return qualifiedName, err
         }
+
+        for i := 1; i < len(parts); i++ {
+            if len(parts[i]) == 0 || parts[i] == "." {
+                whisk.Debug(whisk.DbgError, "A valid qualified name was not detected\n")
+                errStr := fmt.Sprintf(wski18n.T("A valid qualified name must be specified."))
+                err := whisk.MakeWskError(errors.New(errStr), whisk.NOT_ALLOWED, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                return qualifiedName, err
+            }
+        }
+
+        qualifiedName.entityName = strings.Join(parts[2:], "/")
     } else {
-        qName.entityName = name
-
-        if Properties.Namespace != "" {
-            qName.namespace = Properties.Namespace
-        } else {
-            qName.namespace = "_"
+        if len(name) == 0 || name == "." {
+            whisk.Debug(whisk.DbgError, "A valid qualified name was not detected\n")
+            errStr := fmt.Sprintf(wski18n.T("A valid qualified name must be specified."))
+            err := whisk.MakeWskError(errors.New(errStr), whisk.NOT_ALLOWED, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            return qualifiedName, err
         }
+
+        qualifiedName.entityName = name
+        qualifiedName.namespace = getNamespace()
     }
 
-    whisk.Debug(whisk.DbgInfo, "Qualified entityName: %s\n", qName.entityName)
-    whisk.Debug(whisk.DbgInfo, "Qaulified namespace: %s\n", qName.namespace)
+    whisk.Debug(whisk.DbgInfo, "Qualified entityName: %s\n", qualifiedName.entityName)
+    whisk.Debug(whisk.DbgInfo, "Qaulified namespace: %s\n", qualifiedName.namespace)
 
-    return qName, err
+    return qualifiedName, nil
+}
+
+func getNamespace() (string) {
+    namespace := "_"
+
+    if Properties.Namespace != "" {
+        namespace = Properties.Namespace
+    }
+
+    return namespace
 }
 
 /*
@@ -109,10 +134,10 @@ Examples:
       (/ns/pkg/foo, None) => /ns/pkg/foo
       (/ns/pkg/foo, otherns) => /ns/pkg/foo
 */
-func getQualifiedName(name string, namespace string) (qualifiedName string) {
-    if len(name) > 0 && name[0] == '/' {
+func getQualifiedName(name string, namespace string) (string) {
+    if strings.HasPrefix(name, "/") {
         return name
-    } else if len(namespace) > 0 && namespace[0] == '/' {
+    } else if strings.HasPrefix(namespace, "/")  {
         return fmt.Sprintf("%s/%s", namespace, name)
     } else {
         if len(namespace) == 0 {

@@ -50,7 +50,7 @@ var activationListCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        qName := qualifiedName{}
+        qName := QualifiedName{}
 
         // Specifying an activation item name filter is optional
         if len(args) == 1 {

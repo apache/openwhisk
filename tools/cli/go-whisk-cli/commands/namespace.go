@@ -67,7 +67,7 @@ var namespaceGetCmd = &cobra.Command{
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
-        var qName qualifiedName
+        var qName QualifiedName
         var err error
 
         if whiskErr := checkArgs(args, 0, 1, "Namespace get",
