@@ -99,6 +99,7 @@ var apiCreateCmd = &cobra.Command{
         }
 
         if (api.Swagger == "") {
+            baseUrl := retApi.Response.Result.BaseUrl
             fmt.Fprintf(color.Output,
                 wski18n.T("{{.ok}} created api {{.path}} {{.verb}} for action {{.name}}\n{{.fullpath}}\n",
                     map[string]interface{}{
@@ -106,7 +107,7 @@ var apiCreateCmd = &cobra.Command{
                         "path": api.GatewayRelPath,
                         "verb": api.GatewayMethod,
                         "name": boldString(api.Action.Name),
-                        "fullpath": getManagedUrl(retApi.Response.Result, api.GatewayRelPath, api.GatewayMethod),
+                        "fullpath": baseUrl+api.GatewayRelPath,
                     }))
         } else {
             whisk.Debug(whisk.DbgInfo, "Processing swagger based create API response\n")
@@ -261,37 +262,29 @@ var apiGetCmd = &cobra.Command{
             resultApi := retApi.Response.Result
             baseUrl := resultApi.BaseUrl
             fmt.Printf("%-25s %6s  %s\n", "Action", "Verb", "URL")
-            for path, _ := range resultApi.Swagger.Paths {
-                whisk.Debug(whisk.DbgInfo, "apiGetCmd: comparing api relpath: %s\n", path)
-                if ( len(api.GatewayRelPath) == 0 || path == api.GatewayRelPath) {
-                    whisk.Debug(whisk.DbgInfo, "apiGetCmd: relpath matches\n")
-                    for op, opv  := range resultApi.Swagger.Paths[path] {
-                        whisk.Debug(whisk.DbgInfo, "apiGetCmd: comparing operation: '%s'\n", op)
-                        if ( len(api.GatewayMethod) == 0 || strings.ToLower(op) == strings.ToLower(api.GatewayMethod)) {
-                            whisk.Debug(whisk.DbgInfo, "apiGetCmd: operation matches\n")
-                            whisk.Debug(whisk.DbgInfo, "apiGetCmd: operation value %#v\n", opv)
-                            fmt.Printf("%-25s %6s  %s\n",
-                                opv["x-ibm-op-ext"]["actionNamespace"].(string)+"/"+opv["x-ibm-op-ext"]["actionName"].(string),
-                                op,
-                                baseUrl+path)
+            if (resultApi.Swagger != nil && resultApi.Swagger.Paths != nil) {
+                for path, _ := range resultApi.Swagger.Paths {
+                    whisk.Debug(whisk.DbgInfo, "apiGetCmd: comparing api relpath: %s\n", path)
+                    if ( len(api.GatewayRelPath) == 0 || path == api.GatewayRelPath) {
+                        whisk.Debug(whisk.DbgInfo, "apiGetCmd: relpath matches\n")
+                        for op, opv  := range resultApi.Swagger.Paths[path] {
+                            whisk.Debug(whisk.DbgInfo, "apiGetCmd: comparing operation: '%s'\n", op)
+                            if ( len(api.GatewayMethod) == 0 || strings.ToLower(op) == strings.ToLower(api.GatewayMethod)) {
+                                whisk.Debug(whisk.DbgInfo, "apiGetCmd: operation matches\n")
+                                whisk.Debug(whisk.DbgInfo, "apiGetCmd: operation value %#v\n", opv)
+                                fmt.Printf("%-25s %6s  %s\n",
+                                    opv["x-ibm-op-ext"]["actionNamespace"].(string)+"/"+opv["x-ibm-op-ext"]["actionName"].(string),
+                                    op,
+                                    baseUrl+path)
+                            }
                         }
                     }
                 }
-            }
-            //fmt.Fprintf(color.Output,
-            //    wski18n.T("{{.ok}} api {{.path}} {{.verb}} for action {{.name}}\n{{.fullpath}}\n",
-            //        map[string]interface{}{
-            //            "ok": color.GreenString("ok:"),
-            //            "path": api.GatewayRelPath,
-            //            "verb": api.GatewayMethod,
-            //            "action": api.Action.Name,
-            //            "fullurl": getManagedUrl(retApi, api.GatewayRelPath, api.GatewayMethod),
-            //        }))
-            if (flags.common.detail) {
-                printJSON(retApi)
+                if (flags.common.detail) {
+                    printJSON(retApi)
+                }
             }
         }
-
         return nil
     },
 }
@@ -628,9 +621,9 @@ func getManagedUrl(api *whisk.RetApi, relpath string, operation string) (url str
 
 func init() {
     //apiCreateCmd.Flags().StringVarP(&flags.api.action, "action", "a", "", wski18n.T("`ACTION` to invoke when API is called"))
-    apiCreateCmd.Flags().StringVarP(&flags.api.apiname, "apiname", "n", "", wski18n.T("API collection `API_NAME` (default BASE_PATH)"))
+    apiCreateCmd.Flags().StringVarP(&flags.api.apiname, "apiname", "n", "", wski18n.T("Friendly name of the API; ignored when CFG_FILE is specified (default BASE_PATH)"))
     //apiCreateCmd.Flags().StringVarP(&flags.api.basepath, "basepath", "b", "/", wski18n.T("The API `BASE_PATH` to which the API_PATH is relative"))
-    apiCreateCmd.Flags().StringVarP(&flags.api.configfile, "config-file", "c", "", wski18n.T("`FILE` containing API configuration in swagger JSON format"))
+    apiCreateCmd.Flags().StringVarP(&flags.api.configfile, "config-file", "c", "", wski18n.T("`CFG_FILE` containing API configuration in swagger JSON format"))
 
     //apiUpdateCmd.Flags().StringVarP(&flags.api.action, "action", "a", "", wski18n.T("`ACTION` to invoke when API is called"))
     //apiUpdateCmd.Flags().StringVarP(&flags.api.path, "path", "p", "", wski18n.T("relative `PATH` of API"))
