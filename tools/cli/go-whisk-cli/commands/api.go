@@ -50,13 +50,13 @@ var apiCreateCmd = &cobra.Command{
         var api *whisk.Api
         var err error
 
-        if (len(args) == 0 && flags.api.swaggerfile == "") {
+        if (len(args) == 0 && flags.api.configfile == "") {
             whisk.Debug(whisk.DbgError, "No swagger file and no arguments\n")
             errMsg := wski18n.T("Invalid argument(s). Specify a swagger file or specify an API path, an API verb, and an action name.") // FIXME MWD add pii
             whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             return whiskErr
-        } else if (len(args) == 0 && flags.api.swaggerfile != "") {
+        } else if (len(args) == 0 && flags.api.configfile != "") {
             api, err = parseSwaggerApi()
             if err != nil {
                 whisk.Debug(whisk.DbgError, "parseSwaggerApi() error: %s\n", err)
@@ -260,6 +260,7 @@ var apiGetCmd = &cobra.Command{
                     }))
             resultApi := retApi.Response.Result
             baseUrl := resultApi.BaseUrl
+            fmt.Printf("%-25s %6s  %s\n", "Action", "Verb", "URL")
             for path, _ := range resultApi.Swagger.Paths {
                 whisk.Debug(whisk.DbgInfo, "apiGetCmd: comparing api relpath: %s\n", path)
                 if ( len(api.GatewayRelPath) == 0 || path == api.GatewayRelPath) {
@@ -269,14 +270,10 @@ var apiGetCmd = &cobra.Command{
                         if ( len(api.GatewayMethod) == 0 || strings.ToLower(op) == strings.ToLower(api.GatewayMethod)) {
                             whisk.Debug(whisk.DbgInfo, "apiGetCmd: operation matches\n")
                             whisk.Debug(whisk.DbgInfo, "apiGetCmd: operation value %#v\n", opv)
-                            fmt.Fprintf(color.Output,
-                                wski18n.T("{{.url}} {{.operation}} {{.action}} {{.activated}}\n",
-                                    map[string]interface{}{
-                                        "url": baseUrl+path,
-                                        "operation": op,
-                                        "action": opv["x-ibm-op-ext"]["actionNamespace"].(string)+"/"+opv["x-ibm-op-ext"]["actionName"].(string),
-                                        // FIXME MWD "activated": resultApi.Activated,
-                                    }))
+                            fmt.Printf("%-25s %6s  %s\n",
+                                opv["x-ibm-op-ext"]["actionNamespace"].(string)+"/"+opv["x-ibm-op-ext"]["actionName"].(string),
+                                op,
+                                baseUrl+path)
                         }
                     }
                 }
@@ -510,7 +507,7 @@ func parseApi(cmd *cobra.Command, args []string) (*whisk.Api, error) {
 }
 
 func parseSwaggerApi() (*whisk.Api, error) {
-    if ( len(flags.api.swaggerfile) == 0 ) {
+    if ( len(flags.api.configfile) == 0 ) {
         whisk.Debug(whisk.DbgError, "No swagger file is specified\n")
         errMsg := fmt.Sprintf(
             wski18n.T("Internal error.  Swagger file is missing."))   // FIXME MWD add to en_us pii
@@ -519,12 +516,12 @@ func parseSwaggerApi() (*whisk.Api, error) {
         return nil, whiskErr
     }
 
-    swagger, err:= readFile(flags.api.swaggerfile)
+    swagger, err:= readFile(flags.api.configfile)
     if ( err != nil ) {
-        whisk.Debug(whisk.DbgError, "readFile(%s) error: %s\n", flags.api.swaggerfile, err)
+        whisk.Debug(whisk.DbgError, "readFile(%s) error: %s\n", flags.api.configfile, err)
         errMsg := fmt.Sprintf(
             wski18n.T("Error reading swagger file '{{.name}}': {{.err}}",
-                map[string]interface{}{"name": flags.api.swaggerfile, "err": err}))   // FIXME MWD add to en_us pii
+                map[string]interface{}{"name": flags.api.configfile, "err": err}))   // FIXME MWD add to en_us pii
         whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
             whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
         return nil, whiskErr
@@ -534,16 +531,16 @@ func parseSwaggerApi() (*whisk.Api, error) {
     swaggerObj := new(whisk.ApiSwagger)
     err = json.Unmarshal([]byte(swagger), swaggerObj)
     if ( err != nil ) {
-        whisk.Debug(whisk.DbgError, "JSON parse of `%s' error: %s\n", flags.api.swaggerfile, err)
+        whisk.Debug(whisk.DbgError, "JSON parse of `%s' error: %s\n", flags.api.configfile, err)
         errMsg := fmt.Sprintf(
             wski18n.T("Error parsing swagger file '{{.name}}': {{.err}}",
-                map[string]interface{}{"name": flags.api.swaggerfile, "err": err}))   // FIXME MWD add to en_us pii
+                map[string]interface{}{"name": flags.api.configfile, "err": err}))   // FIXME MWD add to en_us pii
         whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
             whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
         return nil, whiskErr
     }
     if (swaggerObj.BasePath == "" || swaggerObj.SwaggerName == "" || swaggerObj.Info == nil || swaggerObj.Paths == nil) {
-        whisk.Debug(whisk.DbgError, "Swagger file is invalid.\n", flags.api.swaggerfile, err)
+        whisk.Debug(whisk.DbgError, "Swagger file is invalid.\n", flags.api.configfile, err)
         errMsg := wski18n.T("Swagger file is invalid (missing basePath, info, paths, or swagger fields")   // FIXME MWD add to en_us pii
         whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
             whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
@@ -633,7 +630,7 @@ func init() {
     //apiCreateCmd.Flags().StringVarP(&flags.api.action, "action", "a", "", wski18n.T("`ACTION` to invoke when API is called"))
     apiCreateCmd.Flags().StringVarP(&flags.api.apiname, "apiname", "n", "", wski18n.T("API collection `API_NAME` (default BASE_PATH)"))
     //apiCreateCmd.Flags().StringVarP(&flags.api.basepath, "basepath", "b", "/", wski18n.T("The API `BASE_PATH` to which the API_PATH is relative"))
-    apiCreateCmd.Flags().StringVarP(&flags.api.swaggerfile, "swagger-file", "S", "", wski18n.T("`FILE` containing API configuration in swagger JSON format"))
+    apiCreateCmd.Flags().StringVarP(&flags.api.configfile, "config-file", "c", "", wski18n.T("`FILE` containing API configuration in swagger JSON format"))
 
     //apiUpdateCmd.Flags().StringVarP(&flags.api.action, "action", "a", "", wski18n.T("`ACTION` to invoke when API is called"))
     //apiUpdateCmd.Flags().StringVarP(&flags.api.path, "path", "p", "", wski18n.T("relative `PATH` of API"))

@@ -105,12 +105,12 @@ var flags struct {
 
     // api
     api struct {
-        action       string
-        path         string
-        verb         string
-        basepath     string
-        apiname      string
-        swaggerfile  string
+        action     string
+        path       string
+        verb       string
+        basepath   string
+        apiname    string
+        configfile string
     }
 }
 

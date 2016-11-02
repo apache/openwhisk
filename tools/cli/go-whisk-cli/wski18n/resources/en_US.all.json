@@ -1240,8 +1240,8 @@
     "translation": "{{.ok}} apis\n"
   },
   {
-    "id": "{{.url}} {{.operation}} {{.action}} {{.activated}}\n",
-    "translation": "{{.url}} {{.operation}} {{.action}} {{.activated}}\n"
+    "id": "{{.url}} {{.operation}} {{.action}}\n",
+    "translation": "{{.url}} {{.operation}} {{.action}}\n"
   },
   {
     "id": "An API base path is required.  An optional API relative path and operation may also be provided.",
