@@ -442,6 +442,17 @@ class WskBasicTests
             }
 
             res.stdout shouldBe ""
+
+    }
+
+    it should "create, and get docker action get ensure exec code is omitted" in withAssetCleaner(wskprops) {
+        val name = "dockerContainer"
+        (wp, assetHelper) =>
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some("fakeContainer"), kind = Some("docker"))
+            }
+
+            wsk.action.get(name).stdout should not include (""""code"""")
     }
 
     behavior of "Wsk Trigger CLI"

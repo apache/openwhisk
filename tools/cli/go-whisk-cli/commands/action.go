@@ -387,7 +387,7 @@ var actionListCmd = &cobra.Command{
 
 func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, error) {
   var err error
-  var artifact string
+  var artifact, code string
 
   qName := QualifiedName{}
   qName, err = parseQualifiedName(args[0])
@@ -468,12 +468,13 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, error) {
     action.Exec = new(whisk.Exec)
 
     if !flags.action.docker || ext == ".zip" {
-      action.Exec.Code, err = readFile(artifact)
-    }
+      code, err = readFile(artifact)
+      action.Exec.Code = &code
 
-    if err != nil {
-      whisk.Debug(whisk.DbgError, "readFile(%s) error: %s\n", artifact, err)
-      return nil, err
+      if err != nil {
+        whisk.Debug(whisk.DbgError, "readFile(%s) error: %s\n", artifact, err)
+        return nil, err
+      }
     }
 
     if flags.action.kind == "swift:3" || flags.action.kind == "swift:3.0" || flags.action.kind == "swift:3.0.0" {
@@ -511,8 +512,8 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, error) {
       action.Exec.Kind = "python"
     } else if ext == ".jar" {
       action.Exec.Kind = "java"
-      action.Exec.Jar = base64.StdEncoding.EncodeToString([]byte(action.Exec.Code))
-      action.Exec.Code = ""
+      action.Exec.Jar = base64.StdEncoding.EncodeToString([]byte(code))
+      action.Exec.Code = nil
     } else {
       errMsg := ""
       if ext == ".zip" {
@@ -549,7 +550,8 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, error) {
     // We reach this point if the kind has already be determined. Since the extension is not js,
     // this means the kind was specified explicitly.
     if ext == ".zip" && (strings.HasPrefix(action.Exec.Kind, "nodejs") || action.Exec.Kind == "blackbox") {
-      action.Exec.Code = base64.StdEncoding.EncodeToString([]byte(action.Exec.Code))
+      code = base64.StdEncoding.EncodeToString([]byte(code))
+      action.Exec.Code = &code
     }
   }
 
