@@ -43,7 +43,7 @@ type Action struct {
 
 type Exec struct {
     Kind        string      `json:"kind,omitempty"`
-    Code        string      `json:"code"`
+    Code        *string      `json:"code,omitempty"`
     Image       string      `json:"image,omitempty"`
     Init        string      `json:"init,omitempty"`
     Jar         string      `json:"jar,omitempty"`
