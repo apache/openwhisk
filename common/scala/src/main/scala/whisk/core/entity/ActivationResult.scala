@@ -129,6 +129,11 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
     }
 
     /**
+     * Returns an ActivationResponse that is used as a placeholder for some payload
+     */
+    protected[core] def payloadPlaceholder(payload: Option[JsObject]) = ActivationResponse(ActivationResponse.Success, payload)
+
+    /**
      * Interprets response from container after running the action. This method is only called when the initialization succeeded.
      *
      * @param response an Option (HTTP Status Code, HTTP response bytes as String)

@@ -198,7 +198,7 @@ protected[controller] class RestAPIVersion_v1(
             override val entityStore: EntityStore,
             override val activationStore: ActivationStore,
             override val entitlementService: EntitlementService,
-            override val activationId: ActivationIdGenerator,
+            override val activationIdFactory: ActivationIdGenerator,
             override val loadBalancer: LoadBalancerService,
             override val consulServer: String,
             override val executionContext: ExecutionContext)
@@ -217,7 +217,7 @@ protected[controller] class RestAPIVersion_v1(
             implicit override val entityStore: EntityStore,
             override val entitlementService: EntitlementService,
             override val activationStore: ActivationStore,
-            override val activationId: ActivationIdGenerator,
+            override val activationIdFactory: ActivationIdGenerator,
             override val loadBalancer: LoadBalancerService,
             override val consulServer: String,
             override val executionContext: ExecutionContext)
@@ -233,7 +233,7 @@ protected[controller] class RestAPIVersion_v1(
             implicit override val actorSystem: ActorSystem,
             override val entityStore: EntityStore,
             override val entitlementService: EntitlementService,
-            override val activationId: ActivationIdGenerator,
+            override val activationIdFactory: ActivationIdGenerator,
             override val loadBalancer: LoadBalancerService,
             override val consulServer: String,
             override val executionContext: ExecutionContext)
@@ -259,7 +259,7 @@ protected[controller] class RestAPIVersion_v1(
         val verbosity: LogLevel)(
             implicit override val entityStore: EntityStore,
             override val entitlementService: EntitlementService,
-            override val activationId: ActivationIdGenerator,
+            override val activationIdFactory: ActivationIdGenerator,
             override val loadBalancer: LoadBalancerService,
             override val consulServer: String,
             override val executionContext: ExecutionContext)

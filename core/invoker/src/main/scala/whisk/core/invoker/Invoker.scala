@@ -37,7 +37,7 @@ import whisk.common.ConsulKV.InvokerKeys
 import whisk.connector.kafka.{ KafkaConsumerConnector, KafkaProducerConnector }
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.{ consulServer, dockerImagePrefix, dockerRegistry, edgeHost, kafkaHost, logsDir, servicePort, whiskVersion }
-import whisk.core.connector.{ ActivationMessage => Message, CompletionMessage }
+import whisk.core.connector.{ ActivationMessage, CompletionMessage }
 import whisk.core.container.{ BlackBoxContainerError, ContainerPool, Interval, RunResult, WhiskContainer, WhiskContainerError }
 import whisk.core.dispatcher.{ Dispatcher, MessageHandler }
 import whisk.core.dispatcher.ActivationFeed.{ ActivationNotification, ContainerReleased, FailedActivation }
@@ -84,7 +84,7 @@ class Invoker(
      * @param msg is the kafka message payload as Json
      * @param matches contains the regex matches
      */
-    override def onMessage(msg: Message)(implicit transid: TransactionId): Future[DocInfo] = {
+    override def onMessage(msg: ActivationMessage)(implicit transid: TransactionId): Future[DocInfo] = {
         require(msg != null, "message undefined")
         require(msg.action.version.isDefined, "action version undefined")
 
@@ -374,7 +374,7 @@ class Invoker(
      * Creates a WhiskActivation for the given action, response and duration.
      */
     private def makeWhiskActivation(
-        msg: Message,
+        msg: ActivationMessage,
         actionName: EntityPath,
         actionVersion: SemVer,
         activationResponse: ActivationResponse,
@@ -489,7 +489,7 @@ object Invoker {
         if (config.isValid) {
             SimpleExec.setVerbosity(verbosity)
 
-            val topic = Message.invoker(instance)
+            val topic = ActivationMessage.invoker(instance)
             val groupid = "invokers"
             val maxdepth = ContainerPool.getDefaultMaxActive(config)
             val consumer = new KafkaConsumerConnector(config.kafkaHost, groupid, topic, maxdepth)
@@ -514,7 +514,7 @@ object Invoker {
  *
  * See completeTransaction for why complete is needed.
  */
-private case class Transaction(msg: Message) {
+private case class Transaction(msg: ActivationMessage) {
     var result: Option[Future[DocInfo]] = None
     var initInterval: Option[Interval] = None
     var runInterval: Option[Interval] = None

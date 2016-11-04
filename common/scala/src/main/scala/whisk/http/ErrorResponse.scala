@@ -67,6 +67,9 @@ object Messages {
     val sequenceIsTooLong = "Too many actions in the sequence."
     val sequenceIsCyclic = "Sequence may not refer to itself."
     val sequenceComponentNotFound = "Sequence component does not exist."
+
+    /** Error messages for sequence activations */
+    val sequenceRetrieveActivationTimeout = "Timeout reached when retrieving activation for sequence component"
 }
 
 /** Replaces rejections with Json object containing cause and transaction id. */
