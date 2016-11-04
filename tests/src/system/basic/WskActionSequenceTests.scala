@@ -73,18 +73,7 @@ class WskActionSequenceTests
             val run = wsk.action.invoke(name, Map("payload" -> args.mkString("\n").toJson))
             withActivation(wsk.activation, run, totalWait = allowedActionDuration) {
                 activation =>
-                    activation.logs shouldBe defined
-                    // check that the logs are what they are supposed to be (activation ids)
-                    // check that the cause field is properly set for these activations
-                    activation.logs.get.size shouldBe(4) // 4 activations in this sequence
-                    for (id <- activation.logs.get) {
-                        val getComponentActivation = wsk.activation.get(id)
-                        withActivation(wsk.activation, getComponentActivation, totalWait = allowedActionDuration) {
-                            componentActivation =>
-                                componentActivation.cause shouldBe defined
-                                componentActivation.cause.get shouldBe(activation.activationId)
-                        }
-                    }
+                    checkSequenceLogs(activation, 4) // 4 activations in this sequence
                     activation.cause shouldBe None   // topmost sequence
                     val result = activation.response.result.get
                     result.fields.get("payload") shouldBe defined
@@ -98,6 +87,7 @@ class WskActionSequenceTests
             val secondrun = wsk.action.invoke(name, Map("payload" -> args.mkString("\n").toJson))
             withActivation(wsk.activation, secondrun, totalWait = allowedActionDuration) {
                 activation =>
+                    checkSequenceLogs(activation, 2) // 2 activations in this sequence
                     val result = activation.response.result.get
                     result.fields.get("length") shouldBe Some(2.toJson)
                     result.fields.get("lines") shouldBe Some(args.sortWith(_.compareTo(_) < 0).toArray.toJson)
@@ -143,5 +133,23 @@ class WskActionSequenceTests
             wsk.parseJsonString(stdout).fields("exec").asJsObject.fields("kind") shouldBe kindValue
     }
 
+    /**
+     * checks logs for the activation of a sequence (length/size and ids)
+     * checks that the cause field for composing atomic actions is set properly
+     */
+    private def checkSequenceLogs(activation: CliActivation, size: Int) = {
+        activation.logs shouldBe defined
+        // check that the logs are what they are supposed to be (activation ids)
+        // check that the cause field is properly set for these activations
+        activation.logs.get.size shouldBe(size) // the number of activations in this sequence
+        for (id <- activation.logs.get) {
+            val getComponentActivation = wsk.activation.get(id)
+            withActivation(wsk.activation, getComponentActivation, totalWait = allowedActionDuration) {
+                componentActivation =>
+                    componentActivation.cause shouldBe defined
+                    componentActivation.cause.get shouldBe(activation.activationId)
+            }
+        }
+    }
     private def resolveDefaultNamespace(actionName: String) = actionName.replace("/_/", s"/$user/")
 }
