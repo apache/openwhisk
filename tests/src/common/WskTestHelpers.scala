@@ -113,9 +113,18 @@ trait WskTestHelpers extends Matchers {
     /**
      * Activation record as it is returned by the CLI.
      */
-    case class CliActivation(activationId: String, logs: Option[List[String]], response: CliActivationResponse, start: Long, end: Long, cause: Option[String], annotations: Option[List[JsObject]])
+    case class CliActivation(
+        activationId: String,
+        logs: Option[List[String]],
+        response: CliActivationResponse,
+        start: Long,
+        end: Long,
+        duration: Long,
+        cause: Option[String],
+        annotations: Option[List[JsObject]])
+
     object CliActivation extends DefaultJsonProtocol {
-        implicit val serdes = jsonFormat7(CliActivation.apply)
+        implicit val serdes = jsonFormat8(CliActivation.apply)
     }
 
     /**
