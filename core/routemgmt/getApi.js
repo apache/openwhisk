@@ -25,7 +25,7 @@
  *   username   Required. The database user name used to access the database
  *   password   Required. The database user password
  *   namespace  Required. Namespace of API author
- *   basepath   Required. Base path of the API
+ *   basepath   Required. Base path or API name of the API
  *   relpath    Optional. Must be defined with 'operation'.  Filters API result to path/operation
  *   operation  Optional. Must be defined with 'relpath'.  Filters API result to path/operation
  *
@@ -41,29 +41,59 @@ function main(message) {
     return whisk.error(badArgMsg);
   }
   var dbname = message.dbname;
-  var docid = "API:"+message.namespace+":"+message.basepath
 
   // Log parameter values
-  console.log('DB host    : '+message.host);
-  console.log('DB port    : '+message.port);
-  console.log('DB protocol: '+message.protocol);
-  console.log('DB username: '+message.username);
-  console.log('DB database: '+message.dbname);
-  console.log('namespace  : '+message.namespace);
-  console.log('basepath   : '+message.basepath);
-  console.log('relpath    : '+message.relpath);
-  console.log('operation  : '+message.operation);
-  console.log('docid      : '+docid);
+  console.log('DB host      : '+message.host);
+  console.log('DB port      : '+message.port);
+  console.log('DB protocol  : '+message.protocol);
+  console.log('DB username  : '+message.username);
+  console.log('DB database  : '+message.dbname);
+  console.log('namespace    : '+message.namespace);
+  console.log('basepath/name: '+message.basepath);
+  //console.log('apiname    : "'+message.apiname+'"')
+  console.log('relpath      : '+message.relpath);
+  console.log('operation    : '+message.operation);
 
   var cloudantOrError = getCloudantAccount(message);
   if (typeof cloudantOrError !== 'object') {
     console.error('CloudantAccount returned an unexpected object type: '+(typeof cloudantOrError));
-    return whisk.error('Internal error.  An unexpected object type was obtained.');
+    return Promise.reject('Internal error.  An unexpected object type was obtained.');
   }
   var cloudant = cloudantOrError;
   var cloudantDb = cloudant.use(message.dbname);
 
-  return readApiDocument(cloudantDb, docid, {});
+  var readDbPromise;
+  if (!message.basepath) {
+    console.log('basepath not provided; getting all APIs for namespace');
+    var params = {key: message.namespace};
+    readDbPromise = readFilteredApiDocument(cloudantDb, 'gwapis', 'routes-by-namespace', params);
+  } else if (message.basepath.indexOf('/') != 0) {
+    console.log('basepath prefix is not /, so treating value as the api name');
+    var params = {key: [message.namespace, message.basepath]};
+    readDbPromise = readFilteredApiDocument(cloudantDb, 'gwapis', 'routes-by-api-name', params);
+  } else {
+    var docid = "API:"+message.namespace+":"+message.basepath;
+    console.log('docid      : '+docid);
+    readDbPromise = readApiDocument(cloudantDb, docid, {});
+  }
+
+  return readDbPromise
+  .then(function(dbresults) {
+    if (dbresults.rows) {
+      console.log('DB results is an array of '+dbresults.rows.length);
+      if (dbresults.rows.length == 0) {
+        console.log('DB result entry has 0 rows');
+        return {};
+      }
+      return { apis: dbresults.rows };
+    } else {
+      return { apis: [ {value: dbresults} ] };  // Consistently return an array of results
+    }
+  })
+  .catch(function(reason) {
+    console.error('DB failure: '+reason);
+    return Promise.reject(reason);
+  });
 }
 
 function readApiDocument(cloudantDb, docId, params) {
@@ -148,10 +178,6 @@ function validateArgs(message) {
 
   if(!message.namespace) {
     return 'namespace is required.';
-  }
-
-  if(!message.basepath) {
-    return 'basepath is required.';
   }
 
   return '';

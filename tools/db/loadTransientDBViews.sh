@@ -86,17 +86,11 @@ function view_gwapis() {
         "routes-by-path": {
           "map": "function (doc) {\n  var PATHSEP = \"/\";\n\n  if (doc.namespace && doc.gatewayPath) {\n    emit([doc.namespace, doc.gatewayPath], {\"gatewayMethod\":doc.gatewayMethod, \"gatewayPath\":doc.gatewayPath, \"action\":doc.action, \"route-collection\":doc[\"route-collection\"], \"apidoc\":doc.apidoc});\n  }\n}"
         },
-        "routes-by-collection": {
-          "map": "function (doc) {\n  var PATHSEP = \"/\";\n\n  if (doc.namespace && doc[\"route-collection\"]) {\n    emit([doc.namespace, doc[\"route-collection\"]], {\"gatewayMethod\":doc.gatewayMethod, \"gatewayPath\": doc.gatewayPath, \"action\":doc.action, \"route-collection\":doc[\"route-collection\"], \"apidoc\": doc.apidoc });\n  }\n}"
+        "routes-by-api-name": {
+          "map": "function (doc) {\n  var PATHSEP = \"/\";\n\n  if (doc.namespace && doc.apidoc && doc.apidoc.info && doc.apidoc.info.title) {\n    emit([doc.namespace, doc.apidoc.info.title], doc);\n  }\n}"
         },
-        "routes-by-method-and-path": {
-          "map": "function (doc) {\n  var PATHSEP = \"/\";\n\n  if (doc.namespace && doc.gatewayPath && doc.gatewayMethod) {\n    emit([doc.namespace, doc.gatewayMethod+\":\"+doc.gatewayPath], {\"gatewayMethod\":doc.gatewayMethod, \"gatewayPath\": doc.gatewayPath, \"action\":doc.action, \"route-collection\":doc[\"route-collection\"], \"apidoc\": doc.apidoc });\n  }\n}"
-        },
-        "routes-by-action": {
-          "map": "function (doc) {\n  var PATHSEP = \"/\";\n\n  if (doc.action) {\n    emit(doc.action, {\"gatewayMethod\":doc.gatewayMethod, \"gatewayPath\": doc.gatewayPath, \"action\":doc.action, \"route-collection\":doc[\"route-collection\"], \"apidoc\": doc.apidoc });\n  }\n}"
-        },
-        "route-by-ns-bp-rp-op": {
-          "map": "function (doc) {\n  var PATHSEP = \"/\";\n\n  if (doc.namespace && doc.apidoc && doc.apidoc.basePath && doc.apidoc.paths) {\n    for (var path in doc.apidoc.paths) {\n      for (var operation in doc.apidoc.paths[path]) {\n          emit([doc.namespace, doc.apidoc.basePath, path, operation], doc.apidoc.paths[path][operation]);\n      }\n    }\n  }\n}"
+        "routes-by-namespace": {
+          "map": "function (doc) {\n  var PATHSEP = \"/\";\n\n  if (doc.namespace && doc.apidoc && doc.apidoc.info && doc.apidoc.info.title) {\n    emit(doc.namespace, doc);\n  }\n}"
         }
       },
       "language": "javascript",

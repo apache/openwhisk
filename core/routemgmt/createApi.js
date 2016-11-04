@@ -25,7 +25,7 @@
  *   username   Required. The database user name used to access the database
  *   password   Required. The database user password
  *   namespace  Required. Openwhisk namespace of this request's originator
- *   basepath   Required if swagger not provided.  API base path
+ *   basepath   Required if swagger not provided.  API base path or existing API name
  *   relpath    Required if swagger not provided.  API path (relative to basepath)
  *   operation  Required if swagger not provided.  API path's operation (i.e. GET, POST, etc)
  *   action     Required if swagger not provided.  Object with the following fields
@@ -34,7 +34,7 @@
  *     name           Required if action provided. Entity name of action (incl package if specified)
  *     namespace      Required if action provided. Namespace in which the action resides
   *    authkey        Required if action provided. Authorization needed to call the action
- *   apiname    Required if swagger not provided.  API friendly title
+ *   apiname    Optional if swagger not provided.  API friendly title
  *   swagger    Required if basepath is not provided.  Entire swagger document specifying API
  *
  * NOTE: The package containing this action will be bound to the following values:
@@ -73,7 +73,7 @@ function main(message) {
   console.log('docid               : '+dbDocId);
   console.log('apiname             : '+message.apiname);
   console.log('namespace           : '+message.namespace);
-  console.log('basepath            : '+getBasePath(message));
+  console.log('basepath/name       : '+getBasePath(message));
   console.log('relpath             : '+message.relpath);
   console.log('operation           : '+message.operation);
   if (message.action) {
@@ -103,12 +103,20 @@ function main(message) {
   .then(function(dbdoc) {
     // Got document
     console.log('Got API document from DB: ', JSON.stringify(dbdoc));
+
     // If an entire swagger document is used to configure the API, then having
     // an existing configuration for the same API is unexpected
     if (message.swagger) {
       console.error('An API configuration already exists for basepath '+getBasePath(message));
       return Promise.reject('An API configuration already exists for basepath '+getBasePath(message));
     }
+
+    // If the provided API name does not match the existing API document's name,
+    // return an error
+    if (message.apiname && (message.apiname != dbdoc.apidoc.info.title)) {
+      return Promise.reject('API name \''+message.apiname+'\' does not match the existing API name \''+dbdoc.apidoc.info.title+'\'');
+    }
+    dbDocId = dbdoc._id;
     return dbdoc;
   }, function(err) {
     console.error('Got DB error: ', err);
@@ -126,8 +134,8 @@ function main(message) {
     // If a swagger file is not provided, then Check if relpath and operation are already in the API document
     if (!message.swagger) {
         if (dbApiDoc.apidoc.paths[message.relpath] && dbApiDoc.apidoc.paths[message.relpath][message.operation]) {
-          console.error('Operation '+message.operation+' already exists under path '+message.relpath+ ' under basepath '+message.basepath);
-          return Promise.reject('Operation '+message.operation+' already exists under path '+message.relpath+ ' under basepath '+message.basepath);
+          console.error('Operation '+message.operation+' already exists under path '+message.relpath+ ' under basepath '+dbApiDoc.apidoc.basePath);
+          return Promise.reject('Operation '+message.operation+' already exists under path '+message.relpath+ ' under basepath '+dbApiDoc.apidoc.basePath);
         } else {
             // Add new relpath & operation to API doc
             console.log('Adding new relpath:operation ('+message.relpath+':'+message.operation+') to document '+dbDocId);
@@ -202,10 +210,12 @@ function getDbApiDoc(namespace, basepath) {
   .then(function (activation) {
     console.log('whisk.invoke('+actionName+', '+params.namespace+', '+params.basepath+') ok');
     console.log('Results: '+JSON.stringify(activation));
-    if (activation && activation.result && activation.result._rev) {
-      return Promise.resolve(activation.result);
+    if (activation && activation.result && activation.result.apis &&
+        activation.result.apis.length > 0 && activation.result.apis[0].value &&
+        activation.result.apis[0].value._rev) {
+      return Promise.resolve(activation.result.apis[0].value);
     } else {
-      console.error('_rev value not returned!');
+      console.error('Invalid API doc returned!');
       return Promise.reject('Document for namepace \"'+namespace+'\" and basepath \"'+basepath+'\" was not located');
     }
   })
@@ -286,10 +296,6 @@ function validateArgs(message) {
       return 'operation is required when swagger is not specified.';
     }
 
-    if (!message.apiname) {
-      return 'apiname is required when swagger is not specified.';
-    }
-
     if (!message.action) {
       return 'action is required when swagger is not specified.';
     }
@@ -341,7 +347,7 @@ function makeTemplateDbApiDoc(message) {
     dbApiDoc.apidoc = {
       swagger: "2.0",
       info: {
-        title: message.apiname,
+        title: message.apiname || message.basepath,
         version: "1.0.0"
       },
       basePath: getBasePath(message),

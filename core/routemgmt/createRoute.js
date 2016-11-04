@@ -27,7 +27,7 @@
  *   gwUrl      Required. The API Gateway base path (i.e. http://gw.com)
  *   apidoc     Required. The API Gateway mapping document
  *      namespace          Required.  Namespace of user/caller
- *      apiName            Required if swagger not specified.  API descriptive name
+ *      apiName            Optional if swagger not specified.  API descriptive name
  *      gatewayBasePath    Required if swagger not specified.  API base path
  *      gatewayPath        Required if swagger not specified.  Specific API path (relative to base path)
  *      gatewayMethod      Required if swagger not specified.  API path operation
@@ -126,16 +126,16 @@ function main(message) {
  * This is a wrapper around an action invocation (createApi)
  * Parameters
  *   namespace  Required. Openwhisk namespace of this request's originator
- *   basepath   Required if apidoc not provided.  API base path
- *   relpath    Required if apidoc not provided.  API path (relative to basepath)
- *   operation  Required if apidoc not provided.  API path's operation (i.e. GET, POST, etc)
- *   action     Required if apidoc not provided.  Object with the following fields
+ *   basepath   Required if swagger not provided.  API base path
+ *   relpath    Required if swagger not provided.  API path (relative to basepath)
+ *   operation  Required if swagger not provided.  API path's operation (i.e. GET, POST, etc)
+ *   action     Required if swagger not provided.  Object with the following fields
  *     backendMethod  Required if action provided. Normally set to POST
  *     backendUrl     Required if action provided. Complete invocable URL of the action
  *     name           Required if action provided. Entity name of action (incl package if specified)
  *     namespace      Required if action provided. Namespace in which the action resides
  *     authkey        Required if action provided. Authorization needed to call the action
- *   apiname    Required if apidoc not provided.  API friendly title
+ *   apiname    Optional if swagger not provided.  API friendly title
  *   swagger    Required if basepath is not provided.  Entire swagger document specifying API
  */
 function configureApi(apiPath) {
@@ -282,9 +282,9 @@ function validateArgs(message) {
       return 'apidoc is missing the gatewayMethod field';
     }
 
-    if (!tmpdoc.apiName) {
-      return 'apidoc is missing the apiName field';
-    }
+//    if (!tmpdoc.apiName) {
+//      return 'apidoc is missing the apiName field';
+//    }
 
     if (!tmpdoc.action) {
       return 'apidoc is missing the action (action name) field.';

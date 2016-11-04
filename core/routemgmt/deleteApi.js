@@ -26,7 +26,7 @@
  *   password   Required. The database user password
  *   gwUrl      Required. The API Gateway base path (i.e. http://gw.com)
  *   namespace  Required. Namespace of API author
- *   basepath   Required. Base path of the API
+ *   basepath   Required. Base path or API name of the API
  *   relpath    Optional. Delete just this relative path from the API.  Required if operation is specified
  *   operation  Optional. Delete just this relpath's operation from the API.
  *   force      Optional. Boolean. If true, the API will be automatically deactivated when deleting the entire API
@@ -50,16 +50,16 @@ function main(message) {
   };
 
   // Log parameter values
-  console.log('DB host    : '+message.host);
-  console.log('DB port    : '+message.port);
-  console.log('DB protocol: '+message.protocol);
-  console.log('DB username: '+message.username);
-  console.log('DB database: '+message.dbname);
-  console.log('namespace  : '+message.namespace);
-  console.log('basepath   : '+message.basepath);
-  console.log('relpath    : '+message.relpath);
-  console.log('operation  : '+message.operation);
-  console.log('force      : '+message.force);
+  console.log('DB host       : '+message.host);
+  console.log('DB port       : '+message.port);
+  console.log('DB protocol   : '+message.protocol);
+  console.log('DB username   : '+message.username);
+  console.log('DB database   : '+message.dbname);
+  console.log('namespace     : '+message.namespace);
+  console.log('basepath/name : '+message.basepath);
+  console.log('relpath       : '+message.relpath);
+  console.log('operation     : '+message.operation);
+  console.log('force         : '+message.force);
 
   // If no relpath (or relpath/operation) is specified, delete the entire API
   var deleteEntireApi = !message.relpath;
@@ -86,7 +86,7 @@ function main(message) {
   //       i. Delete API from GW
   //       ii. Delete DB doc from DB
   // 2. If the API is activated, do not delete it; return an error
-  // 3. If the API is no activated, delete the document from the DB
+  // 3. If the API is not activated, delete the document from the DB
   var routeDeleted = false;
   var dbUpdated = false;
   var docRev;
@@ -197,10 +197,12 @@ function getDbApiDoc(namespace, basepath) {
   .then(function (activation) {
     console.log('whisk.invoke('+actionName+', '+params.namespace+', '+params.basepath+') ok');
     console.log('Results: '+JSON.stringify(activation));
-    if (activation && activation.result && activation.result._rev) {
-      return Promise.resolve(activation.result);
+    if (activation && activation.result && activation.result.apis &&
+        activation.result.apis.length > 0 && activation.result.apis[0].value &&
+        activation.result.apis[0].value._rev) {
+      return Promise.resolve(activation.result.apis[0].value);
     } else {
-      console.error('_rev value not returned!');
+      console.error('Invalid API doc returned!');
       return Promise.reject('Document for namepace \"'+namespace+'\" and basepath \"'+basepath+'\" was not located');
     }
   })

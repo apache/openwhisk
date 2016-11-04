@@ -57,23 +57,41 @@ type ApiOptions struct {
     ApiBasePath     string    `url:"basepath,omitempty"`
     ApiRelPath      string    `url:"relpath,omitempty"`
     ApiVerb         string    `url:"operation,omitempty"`
+    ApiName         string    `url:"apiname,omitempty"`
     Force           bool      `url:"force,omitempty"`
 }
 
 type ApiListOptions struct {
     ApiOptions
-    ApiName         string    `url:"apiname"`
     Limit           int       `url:"limit"`
     Skip            int       `url:"skip"`
     Docs            bool      `url:"docs,omitempty"`
 }
 
-type RetInsertApi struct {
+type RetApiReponse struct {
     Response        *RetResult `json:"response"`
 }
 
 type RetResult struct {
     Result          *RetApi   `json:"result"`
+}
+
+type RetApiReponseApiArray struct {
+    Response        *RetResultApiArray `json:"response"`
+}
+
+type RetResultApiArray struct {
+    ResultArray     *RetApiArray `json:"result"`
+}
+
+type RetApiArray struct {
+    Apis            []ApiItem `json:"apis,omitempty"`
+}
+
+type ApiItem struct {
+    ApiId           string    `json:"id,omitempty"`
+    QueryKey        string    `json:"key,omitempty"`
+    ApiValue        *RetApi   `json:"value,omitempty"`
 }
 
 type RetApi struct {
@@ -108,10 +126,8 @@ var ApiVerbs map[string]bool = map[string]bool {
 // Api Methods //
 ////////////////////
 
-func (s *ApiService) List(apiListOptions *ApiListOptions) ([]Api, *http.Response, error) {
+func (s *ApiService) List(apiListOptions *ApiListOptions) (*RetApiReponseApiArray, *http.Response, error) {
     var route string
-    var apiList []Api
-
     route = fmt.Sprintf("routes")
 
     routeUrl, err := addRouteOptions(route, apiListOptions)
@@ -135,16 +151,17 @@ func (s *ApiService) List(apiListOptions *ApiListOptions) ([]Api, *http.Response
         return nil, nil, whiskErr
     }
 
-    resp, err := s.client.Do(req, &apiList)
+    apiArray := new(RetApiReponseApiArray)
+    resp, err := s.client.Do(req, &apiArray)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
         return nil, resp, err
     }
 
-    return apiList, resp, err
+    return apiArray, resp, err
 }
 
-func (s *ApiService) Insert(api *SendApi, overwrite bool) (*RetInsertApi, *http.Response, error) {
+func (s *ApiService) Insert(api *SendApi, overwrite bool) (*RetApiReponse, *http.Response, error) {
     var sentAction interface{}
 
     route := fmt.Sprintf("routes")
@@ -160,7 +177,7 @@ func (s *ApiService) Insert(api *SendApi, overwrite bool) (*RetInsertApi, *http.
         return nil, nil, whiskErr
     }
 
-    retApi := new(RetInsertApi)
+    retApi := new(RetApiReponse)
     resp, err := s.client.Do(req, &retApi)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
@@ -170,7 +187,7 @@ func (s *ApiService) Insert(api *SendApi, overwrite bool) (*RetInsertApi, *http.
     return retApi, resp, nil
 }
 
-func (s *ApiService) Get(api *Api, options *ApiOptions) (*RetInsertApi, *http.Response, error) {
+func (s *ApiService) Get(api *Api, options *ApiListOptions) (*RetApiReponseApiArray, *http.Response, error) {
     // Encode resource name as a path (with no query ) before inserting it into the URI
     // This way any '?' chars in the name won't be treated as the beginning of the query params
     preEncodedApiId := api.Id
@@ -200,7 +217,7 @@ func (s *ApiService) Get(api *Api, options *ApiOptions) (*RetInsertApi, *http.Re
         return nil, nil, whiskErr
     }
 
-    retApi := new(RetInsertApi)
+    retApi := new(RetApiReponseApiArray)
     resp, err := s.client.Do(req, &retApi)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
@@ -240,7 +257,7 @@ func (s *ApiService) Delete(api *Api, options *ApiOptions) (*http.Response, erro
         return nil, whiskErr
     }
 
-    retApi := new(RetInsertApi)
+    retApi := new(RetApiReponse)
     resp, err := s.client.Do(req, &retApi)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)

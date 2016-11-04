@@ -186,58 +186,38 @@ var apiUpdateCmd = &cobra.Command{
 }
 
 var apiGetCmd = &cobra.Command{
-    Use:           "get BASE_PATH [API_PATH [API_VERB]]",
-    Short:         wski18n.T("get API"),
+    Use:           "get BASE_PATH | API_NAME",
+    Short:         wski18n.T("get API details"),
     SilenceUsage:  true,
     SilenceErrors: true,
     PreRunE:       setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
+        var isBasePathArg bool = true
 
-        if whiskErr := checkArgs(args, 1, 3, "Api get",
-            wski18n.T("An API base path is required.  An optional API relative path and operation may also be provided.")); whiskErr != nil {
+        if whiskErr := checkArgs(args, 1, 1, "Api get",
+            wski18n.T("An API base path or API name is required.")); whiskErr != nil {
             return whiskErr
         }
-
-        //api, err := parseApi(cmd, args)
-        //if err != nil {
-        //    whisk.Debug(whisk.DbgError, "parseApi(%s, %s) error: %s\n", cmd, args, err)
-        //    errMsg := fmt.Sprintf(
-        //        wski18n.T("Unable to parse api command arguments: {{.err}}",
-        //            map[string]interface{}{"err": err}))
-        //    whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-        //        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-        //    return whiskErr
-        //}
 
         api := new(whisk.Api)
-        // Is the API base path valid?
-        if whiskErr, ok := isValidBasepath(args[0]); !ok {
-            return whiskErr
-        }
-        api.GatewayBasePath = args[0]
-        if (len(args) > 1) {
-            // Is the API path valid?
-            if whiskErr, ok := isValidRelpath(args[1]); !ok {
-                return whiskErr
-            }
-            api.GatewayRelPath = args[1]
-        }
-        if (len(args) > 2) {
-            // Is the API verb valid?
-            if whiskErr, ok := IsValidApiVerb(args[2]); !ok {
-                return whiskErr
-            }
-            api.GatewayMethod = strings.ToUpper(args[2])
+        options := new(whisk.ApiListOptions)
+
+        // Is the argument a basepath (must start with /) or an API name
+        if _, ok := isValidBasepath(args[0]); !ok {
+            whisk.Debug(whisk.DbgInfo, "Treating '%s' as an API name; as it does not begin with '/'\n", args[0])
+            api.ApiName = args[0]
+            api.Id = api.ApiName
+            options.ApiBasePath = args[0]
+            options.ApiName = args[0]      // FIXME finalize controller REST/action design re: basepath/apiname
+            api.GatewayBasePath = args[0]  // FIXME Controller requiring this value in the body; it's already in the URI??
+            isBasePathArg = false
+        } else {
+            api.GatewayBasePath = args[0]
+            options.ApiBasePath = api.GatewayBasePath
+            api.Id = "API:"+api.Namespace+":"+api.GatewayBasePath
         }
         api.Namespace = client.Config.Namespace
-        api.Id = "API:"+api.Namespace+":"+api.GatewayBasePath
-
-        options := &whisk.ApiOptions{
-            ApiBasePath: api.GatewayBasePath,
-            ApiVerb: api.GatewayMethod,
-            ApiRelPath: api.GatewayRelPath,
-        }
 
         retApi, _, err := client.Apis.Get(api, options)
         if err != nil {
@@ -251,69 +231,85 @@ var apiGetCmd = &cobra.Command{
         }
         whisk.Debug(whisk.DbgInfo, "client.Apis.Get returned: %#v\n", retApi)
 
-        if flags.common.summary {
-            printSummary(api)
+        var displayResult interface{} = nil
+        if (flags.common.detail) {
+            if (retApi.Response != nil && retApi.Response.ResultArray != nil &&
+                retApi.Response.ResultArray.Apis != nil && len(retApi.Response.ResultArray.Apis) > 0 &&
+                retApi.Response.ResultArray.Apis[0].ApiValue != nil) {
+                displayResult = retApi.Response.ResultArray.Apis[0].ApiValue
+            } else {
+                whisk.Debug(whisk.DbgError, "No result object returned\n")
+            }
         } else {
-            fmt.Fprintf(color.Output,
-                wski18n.T("{{.ok}} apis\n",
-                    map[string]interface{}{
-                        "ok": color.GreenString("ok:"),
-                    }))
-            resultApi := retApi.Response.Result
-            baseUrl := resultApi.BaseUrl
-            fmt.Printf("%-25s %6s  %s\n", "Action", "Verb", "URL")
-            if (resultApi.Swagger != nil && resultApi.Swagger.Paths != nil) {
-                for path, _ := range resultApi.Swagger.Paths {
-                    whisk.Debug(whisk.DbgInfo, "apiGetCmd: comparing api relpath: %s\n", path)
-                    if ( len(api.GatewayRelPath) == 0 || path == api.GatewayRelPath) {
-                        whisk.Debug(whisk.DbgInfo, "apiGetCmd: relpath matches\n")
-                        for op, opv  := range resultApi.Swagger.Paths[path] {
-                            whisk.Debug(whisk.DbgInfo, "apiGetCmd: comparing operation: '%s'\n", op)
-                            if ( len(api.GatewayMethod) == 0 || strings.ToLower(op) == strings.ToLower(api.GatewayMethod)) {
-                                whisk.Debug(whisk.DbgInfo, "apiGetCmd: operation matches\n")
-                                whisk.Debug(whisk.DbgInfo, "apiGetCmd: operation value %#v\n", opv)
-                                fmt.Printf("%-25s %6s  %s\n",
-                                    opv["x-ibm-op-ext"]["actionNamespace"].(string)+"/"+opv["x-ibm-op-ext"]["actionName"].(string),
-                                    op,
-                                    baseUrl+path)
-                            }
-                        }
-                    }
-                }
-                if (flags.common.detail) {
-                    printJSON(retApi)
-                }
+            if (retApi.Response != nil && retApi.Response.ResultArray != nil &&
+                retApi.Response.ResultArray.Apis != nil && len(retApi.Response.ResultArray.Apis) > 0 &&
+                retApi.Response.ResultArray.Apis[0].ApiValue != nil &&
+                retApi.Response.ResultArray.Apis[0].ApiValue.Swagger != nil) {
+                  displayResult = retApi.Response.ResultArray.Apis[0].ApiValue.Swagger
+            } else {
+                  whisk.Debug(whisk.DbgError, "No swagger returned\n")
             }
         }
+        if (displayResult == nil) {
+            var errMsg string
+            if (isBasePathArg) {
+                errMsg = fmt.Sprintf(
+                    wski18n.T("API does not exist for basepath {{.basepath}}",   // FIXME PII
+                    map[string]interface{}{"basepath": args[0]}))
+            } else {
+                errMsg = fmt.Sprintf(
+                wski18n.T("API does not exist for API name {{.apiname}}",   // FIXME PII
+                    map[string]interface{}{"apiname": args[0]}))
+            }
+
+            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+                whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            return whiskErr
+        }
+        printJSON(displayResult)
+
         return nil
     },
 }
 
 var apiDeleteCmd = &cobra.Command{
-    Use:           "delete BASE_PATH [API_PATH [API_VERB]]",
+    Use:           "delete BASE_PATH | API_NAME [API_PATH [API_VERB]]",
     Short:         wski18n.T("delete an API"),
     SilenceUsage:  true,
     SilenceErrors: true,
     PreRunE:       setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
 
-        if whiskErr := checkArgs(args, 1, 3, "Api get",
-            wski18n.T("An API base path is required.  An optional API relative path and operation may also be provided.")); whiskErr != nil {
+        if whiskErr := checkArgs(args, 1, 3, "Api delete",
+            wski18n.T("An API base path or API name is required.  An optional API relative path and operation may also be provided.")); whiskErr != nil {
             return whiskErr
         }
 
         api := new(whisk.Api)
-        // Is the API base path valid?
-        if whiskErr, ok := isValidBasepath(args[0]); !ok {
-            return whiskErr
+        options := new(whisk.ApiOptions)
+        options.Force = true  // FIXME MWD revisit usage/design
+
+        // Is the argument a basepath (must start with /) or an API name
+        if _, ok := isValidBasepath(args[0]); !ok {
+            whisk.Debug(whisk.DbgInfo, "Treating '%s' as an API name; as it does not begin with '/'\n", args[0])
+            api.ApiName = args[0]
+            api.Id = api.ApiName
+            options.ApiBasePath = args[0]
+            options.ApiName = args[0]      // FIXME finalize controller REST/action design re: basepath/apiname
+            api.GatewayBasePath = args[0]  // FIXME Controller requiring this value in the body; it's already in the URI??
+        } else {
+            api.GatewayBasePath = args[0]
+            options.ApiBasePath = api.GatewayBasePath
+            api.Id = "API:"+api.Namespace+":"+api.GatewayBasePath
         }
-        api.GatewayBasePath = args[0]
+
         if (len(args) > 1) {
             // Is the API path valid?
             if whiskErr, ok := isValidRelpath(args[1]); !ok {
                 return whiskErr
             }
             api.GatewayRelPath = args[1]
+            options.ApiRelPath = api.GatewayRelPath
         }
         if (len(args) > 2) {
             // Is the API verb valid?
@@ -321,16 +317,11 @@ var apiDeleteCmd = &cobra.Command{
                 return whiskErr
             }
             api.GatewayMethod = strings.ToUpper(args[2])
+            options.ApiVerb = api.GatewayMethod
         }
         api.Namespace = client.Config.Namespace
         api.Id = "API:"+api.Namespace+":"+api.GatewayBasePath
 
-        options := &whisk.ApiOptions{
-            ApiVerb: api.GatewayMethod,
-            ApiRelPath: api.GatewayRelPath,
-            ApiBasePath: api.GatewayBasePath,
-            Force: true,    // FIXME MWD revisit
-        }
 
         _, err := client.Apis.Delete(api, options)
         if err != nil {
@@ -373,38 +364,136 @@ var apiDeleteCmd = &cobra.Command{
     },
 }
 
+var fmtString = "%-30s %6s %20s  %s\n"
 var apiListCmd = &cobra.Command{
-    Use:           "list [API_NAME]",
+    Use:           "list [[BASE_PATH | API_NAME] [API_PATH [API_VERB]]",
     Short:         wski18n.T("list APIs"),
     SilenceUsage:  true,
     SilenceErrors: true,
     PreRunE:       setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
+        var retApiOrApiArray interface{}
 
-        apiListOptions := &whisk.ApiListOptions{
-            Limit: flags.common.limit,
-            Skip: flags.common.skip,
-        }
-
-        // If the api name was specified, list only those APIs
-        if (len(args) > 0 ){
-            apiListOptions.ApiName = args[0]
-        }
-
-        apis, _, err := client.Apis.List(apiListOptions)
-        if err != nil {
-            whisk.Debug(whisk.DbgError, "client.Apis.List(%#v) error: %s\n", apiListOptions, err)
-            errMsg := wski18n.T("Unable to obtain the list of apis: {{.err}}",
-                map[string]interface{}{"err": err})
-            whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_NETWORK,
-                whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+        if whiskErr := checkArgs(args, 0, 3, "Api list",
+            wski18n.T("Optional parameters are: API base path (or API name), API relative path and operation.")); whiskErr != nil {
             return whiskErr
         }
 
-        printList(apis)
+        api := new(whisk.Api)
+        api.Namespace = client.Config.Namespace
+
+        options := new(whisk.ApiListOptions)
+        options.Limit = flags.common.limit
+        options.Skip = flags.common.skip
+
+        if (len(args) == 0) {
+            retApiOrApiArray, _, err = client.Apis.List(options)
+            if err != nil {
+                whisk.Debug(whisk.DbgError, "client.Apis.List(%s) error: %s\n", options, err)
+                errMsg := fmt.Sprintf(
+                    wski18n.T("Unable to get api: {{.err}}",
+                        map[string]interface{}{"err": err}))
+                whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+                    whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                return whiskErr
+            }
+            whisk.Debug(whisk.DbgInfo, "client.Apis.List returned: %#v (%+v)\n", retApiOrApiArray, retApiOrApiArray)
+        } else {
+            // Is the argument a basepath (must start with /) or an API name
+            if _, ok := isValidBasepath(args[0]); !ok {
+                whisk.Debug(whisk.DbgInfo, "Treating '%s' as an API name; as it does not begin with '/'\n", args[0])
+                api.ApiName = args[0]
+                api.Id = api.ApiName
+                options.ApiBasePath = api.ApiName
+                options.ApiName = api.ApiName      // FIXME finalize controller REST/action design re: basepath/apiname
+                api.GatewayBasePath = api.ApiName  // FIXME Controller requiring this value in the body; it's already in the URI??
+            } else {
+                api.GatewayBasePath = args[0]
+                options.ApiBasePath = api.GatewayBasePath
+                api.Id = "API:"+api.Namespace+":"+api.GatewayBasePath
+            }
+
+            if (len(args) > 1) {
+                // Is the API path valid?
+                if whiskErr, ok := isValidRelpath(args[1]); !ok {
+                    return whiskErr
+                }
+                api.GatewayRelPath = args[1]
+                options.ApiRelPath = api.GatewayRelPath
+            }
+            if (len(args) > 2) {
+                // Is the API verb valid?
+                if whiskErr, ok := IsValidApiVerb(args[2]); !ok {
+                    return whiskErr
+                }
+                api.GatewayMethod = strings.ToUpper(args[2])
+                options.ApiVerb = api.GatewayMethod
+            }
+            api.Id = "API:"+api.Namespace+":"+api.GatewayBasePath
+
+            retApiOrApiArray, _, err = client.Apis.Get(api, options)
+            if err != nil {
+                whisk.Debug(whisk.DbgError, "client.Apis.Get(%s) error: %s\n", api.Id, err)
+                errMsg := fmt.Sprintf(
+                    wski18n.T("Unable to get api: {{.err}}",
+                        map[string]interface{}{"err": err}))
+                whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+                    whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                return whiskErr
+            }
+            whisk.Debug(whisk.DbgInfo, "client.Apis.Get returned: %#v\n", retApiOrApiArray)
+        }
+
+        fmt.Fprintf(color.Output,
+            wski18n.T("{{.ok}} apis\n",
+                map[string]interface{}{
+                    "ok": color.GreenString("ok:"),
+                }))
+        fmt.Printf(fmtString, "Action", "Verb", "API Name", "URL")
+
+        var resultApi *whisk.RetApi
+        var retApi *whisk.RetApiReponse
+        var retApiArray *whisk.RetApiReponseApiArray
+        whisk.Debug(whisk.DbgInfo, "Type of retApi returned: %s\n", reflect.TypeOf(retApiOrApiArray).String())
+        if (reflect.TypeOf(retApiOrApiArray).String() == "*whisk.RetApiReponse") {
+            retApi = retApiOrApiArray.(*whisk.RetApiReponse)
+            resultApi = retApi.Response.Result
+            printListRow(resultApi, api)
+        } else if (reflect.TypeOf(retApiOrApiArray).String() == "*whisk.RetApiReponseApiArray") {
+            retApiArray = retApiOrApiArray.(*whisk.RetApiReponseApiArray)
+            for i:=0; i<len(retApiArray.Response.ResultArray.Apis); i++ {
+              printListRow(retApiArray.Response.ResultArray.Apis[i].ApiValue, api)
+            }
+        }
+
         return nil
     },
+}
+
+func printListRow(resultApi *whisk.RetApi, api *whisk.Api) {
+    baseUrl := resultApi.BaseUrl
+    apiName := resultApi.Swagger.Info.Title
+    if (resultApi.Swagger != nil && resultApi.Swagger.Paths != nil) {
+        for path, _ := range resultApi.Swagger.Paths {
+            whisk.Debug(whisk.DbgInfo, "apiGetCmd: comparing api relpath: %s\n", path)
+            if ( len(api.GatewayRelPath) == 0 || path == api.GatewayRelPath) {
+                whisk.Debug(whisk.DbgInfo, "apiGetCmd: relpath matches\n")
+                for op, opv  := range resultApi.Swagger.Paths[path] {
+                    whisk.Debug(whisk.DbgInfo, "apiGetCmd: comparing operation: '%s'\n", op)
+                    if ( len(api.GatewayMethod) == 0 || strings.ToLower(op) == strings.ToLower(api.GatewayMethod)) {
+                        whisk.Debug(whisk.DbgInfo, "apiGetCmd: operation matches\n")
+                        whisk.Debug(whisk.DbgInfo, "apiGetCmd: operation value %#v\n", opv)
+                        fmt.Printf(fmtString,
+                            opv["x-ibm-op-ext"]["actionNamespace"].(string)+"/"+opv["x-ibm-op-ext"]["actionName"].(string),
+                            op,
+                            apiName,
+                            baseUrl+path)
+                    }
+                }
+            }
+        }
+    }
 }
 
 /*
@@ -422,13 +511,16 @@ var apiListCmd = &cobra.Command{
 func parseApi(cmd *cobra.Command, args []string) (*whisk.Api, error) {
     var err error
     var basepath string = "/"
-    var apiname string = "/"
+    var apiname string
+    var basepathArgIsApiName = false;
 
     api := new(whisk.Api)
 
     if (len(args) > 3) {
-        if whiskErr, ok := isValidBasepath(args[0]); !ok {
-            return nil, whiskErr
+        // Is the argument a basepath (must start with /) or an API name
+        if _, ok := isValidBasepath(args[0]); !ok {
+            whisk.Debug(whisk.DbgInfo, "Treating '%s' as an API name; as it does not begin with '/'\n", args[0])
+            basepathArgIsApiName = true;
         }
         basepath = args[0]
 
@@ -479,9 +571,15 @@ func parseApi(cmd *cobra.Command, args []string) (*whisk.Api, error) {
     }
 
     if ( len(flags.api.apiname) > 0 ) {
+        if (basepathArgIsApiName) {
+            // Specifying API name as argument AND as a --apiname option value is invalid
+            whisk.Debug(whisk.DbgError, "API is specified as an argument '%s' and as a flag '%s'\n", basepath, flags.api.apiname)
+            errMsg := wski18n.T("An API name can only be specified once.")  // FIXME pii
+            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+                whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            return nil, whiskErr
+        }
         apiname = flags.api.apiname
-    } else {
-        apiname = basepath
     }
 
     api.Namespace = client.Config.Namespace
@@ -493,7 +591,7 @@ func parseApi(cmd *cobra.Command, args []string) (*whisk.Api, error) {
     api.Action.Auth = client.Config.AuthToken
     api.ApiName = apiname
     api.GatewayBasePath = basepath
-    api.Id = "API:"+api.Namespace+":"+api.GatewayBasePath
+    if (!basepathArgIsApiName) { api.Id = "API:"+api.Namespace+":"+api.GatewayBasePath }
 
     whisk.Debug(whisk.DbgInfo, "Parsed api struct: %#v\n", api)
     return api, nil
@@ -620,9 +718,7 @@ func getManagedUrl(api *whisk.RetApi, relpath string, operation string) (url str
 ///////////
 
 func init() {
-    //apiCreateCmd.Flags().StringVarP(&flags.api.action, "action", "a", "", wski18n.T("`ACTION` to invoke when API is called"))
     apiCreateCmd.Flags().StringVarP(&flags.api.apiname, "apiname", "n", "", wski18n.T("Friendly name of the API; ignored when CFG_FILE is specified (default BASE_PATH)"))
-    //apiCreateCmd.Flags().StringVarP(&flags.api.basepath, "basepath", "b", "/", wski18n.T("The API `BASE_PATH` to which the API_PATH is relative"))
     apiCreateCmd.Flags().StringVarP(&flags.api.configfile, "config-file", "c", "", wski18n.T("`CFG_FILE` containing API configuration in swagger JSON format"))
 
     //apiUpdateCmd.Flags().StringVarP(&flags.api.action, "action", "a", "", wski18n.T("`ACTION` to invoke when API is called"))
@@ -630,14 +726,7 @@ func init() {
     //apiUpdateCmd.Flags().StringVarP(&flags.api.verb, "method", "m", "", wski18n.T("API `VERB`"))
 
     apiGetCmd.Flags().BoolVarP(&flags.common.detail, "full", "f", false, wski18n.T("display full API configuration details"))
-    //apiGetCmd.Flags().StringVarP(&flags.api.apiname, "apiname", "n", "", wski18n.T("API collection `NAME` (default NAMESPACE)"))
-    //apiGetCmd.Flags().StringVarP(&flags.api.basepath, "basepath", "b", "/", wski18n.T("The API `BASE_PATH` to which the API_PATH is relative"))
 
-    apiListCmd.Flags().StringVarP(&flags.api.action, "action", "a", "", wski18n.T("`ACTION` to invoke when API is called"))
-    apiListCmd.Flags().StringVarP(&flags.api.path, "path", "p", "", wski18n.T("relative `API_PATH` of API"))
-    apiListCmd.Flags().StringVarP(&flags.api.verb, "method", "m", "", wski18n.T("API `API_VERB`"))
-    apiListCmd.Flags().StringVarP(&flags.api.apiname, "apiname", "n", "", wski18n.T("API collection `NAME` (default NAMESPACE)"))
-    apiListCmd.Flags().StringVarP(&flags.api.basepath, "basepath", "b", "/", wski18n.T("The API `BASE_PATH` to which the API_PATH is relative"))
     apiListCmd.Flags().IntVarP(&flags.common.skip, "skip", "s", 0, wski18n.T("exclude the first `SKIP` number of actions from the result"))
     apiListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, wski18n.T("only return `LIMIT` number of actions from the collection"))
 

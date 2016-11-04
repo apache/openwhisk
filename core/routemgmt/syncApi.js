@@ -95,7 +95,6 @@ function main(message) {
   })
   .then(function(gwApiDoc){
       // GW API results can be API object or null
-      console.log('Got GW API: ', gwApiDoc); //FIXME MWD
       return compareGwApiAndDbApi(dbApiDoc, gwApiDoc);
   })
   .then(function(report) {
@@ -172,10 +171,12 @@ function getDbApiDoc(namespace, basepath) {
     .then(function (activation) {
       console.log('whisk.invoke('+actionName+', '+params.namespace+', '+params.basepath+') ok');
       console.log('Results: '+JSON.stringify(activation));
-      if (activation && activation.result && activation.result._rev) {
-        return Promise.resolve(activation.result);
+    if (activation && activation.result && activation.result.apis &&
+        activation.result.apis.length > 0 && activation.result.apis[0].value &&
+        activation.result.apis[0].value._rev) {
+        return Promise.resolve(activation.result.apis[0].value);
       } else {
-        console.error('_rev value not returned!');
+        console.error('Invalid API doc returned!');
         return Promise.reject('Document for namepace \"'+namespace+'\" and basepath \"'+basepath+'\" was not located');
       }
     })

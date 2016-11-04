@@ -181,10 +181,12 @@ function getApiDoc(namespace, basepath) {
     .then(function (activation) {
       console.log('whisk.invoke('+actionName+', '+params.namespace+', '+params.basepath+') ok');
       console.log('Results: '+JSON.stringify(activation));
-      if (activation && activation.result && activation.result._rev) {
-        return Promise.resolve(activation.result);
+    if (activation && activation.result && activation.result.apis &&
+        activation.result.apis.length > 0 && activation.result.apis[0].value &&
+        activation.result.apis[0].value._rev) {
+        return Promise.resolve(activation.result.apis[0].value);
       } else {
-        console.error('_rev value not returned!');
+        console.error('Invalid API doc returned!');
         return Promise.reject('Document for namepace \"'+namespace+'\" and basepath \"'+basepath+'\" was not located');
       }
     })
