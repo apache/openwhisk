@@ -574,7 +574,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     it should "invoke an action, blocking and retrieve result via db polling" in {
         implicit val tid = transid()
         val action = WhiskAction(namespace, aname, Exec.js("??"))
-        val activation = WhiskActivation(action.namespace, action.name, creds.subject, activationId.make(),
+        val activation = WhiskActivation(action.namespace, action.name, creds.subject, activationIdFactory.make(),
             start = Instant.now,
             end = Instant.now,
             response = ActivationResponse.success(Some(JsObject("test" -> "yes".toJson))))
@@ -604,7 +604,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     it should "invoke an action, blocking and retrieve result via active ack" in {
         implicit val tid = transid()
         val action = WhiskAction(namespace, aname, Exec.js("??"))
-        val activation = WhiskActivation(action.namespace, action.name, creds.subject, activationId.make(),
+        val activation = WhiskActivation(action.namespace, action.name, creds.subject, activationIdFactory.make(),
             start = Instant.now,
             end = Instant.now,
             response = ActivationResponse.success(Some(JsObject("test" -> "yes".toJson))))
@@ -634,7 +634,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     it should "invoke a blocking action and return error response when activation fails" in {
         implicit val tid = transid()
         val action = WhiskAction(namespace, aname, Exec.js("??"))
-        val activation = WhiskActivation(action.namespace, action.name, creds.subject, activationId.make(),
+        val activation = WhiskActivation(action.namespace, action.name, creds.subject, activationIdFactory.make(),
             start = Instant.now,
             end = Instant.now,
             response = ActivationResponse.whiskError("test"))
