@@ -66,17 +66,8 @@ class WhiskContainer(
     logLevel: LogLevel)
     extends Container(originalId, dockerhost, mounted, key, Some(containerName), image, network, cpuShare, policy, limits, env, args, logLevel) {
 
-    var boundParams = JsObject() // Mutable to support pre-alloc containers
     var lastLogSize = 0L
     private implicit val emitter: PrintStreamEmitter = this
-
-    /**
-     * Merges previously bound parameters with arguments form payload.
-     */
-    def mergeParams(payload: JsObject, recurse: Boolean = true)(implicit transid: TransactionId): JsObject = {
-        //debug(this, s"merging ${boundParams.compactPrint} with ${payload.compactPrint}")
-        JsObject(boundParams.fields ++ payload.fields)
-    }
 
     /**
      * Sends initialization payload to container.

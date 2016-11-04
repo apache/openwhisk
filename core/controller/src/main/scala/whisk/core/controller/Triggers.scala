@@ -143,7 +143,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                             triggerActivationId,
                             Instant.now(Clock.systemUTC()),
                             Instant.EPOCH,
-                            response = ActivationResponse.success(payload),
+                            response = ActivationResponse.success(payload orElse Some(JsObject())),
                             version = trigger.version)
                         info(this, s"[POST] trigger activated, writing activation record to datastore")
                         val saveTriggerActivation = WhiskActivation.put(activationStore, triggerActivation) map {

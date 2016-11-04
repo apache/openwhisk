@@ -21,15 +21,8 @@ import java.time.Instant
 import scala.util.Try
 
 import spray.json.DefaultJsonProtocol
-import spray.json.DefaultJsonProtocol.JsValueFormat
-import spray.json.DefaultJsonProtocol.optionFormat
-import spray.json.JsNumber
-import spray.json.JsObject
-import spray.json.JsString
-import spray.json.JsValue
-import spray.json.RootJsonFormat
-import spray.json.deserializationError
-import spray.json.pimpAny
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 import whisk.core.database.DocumentFactory
 
 /**
@@ -86,7 +79,12 @@ case class WhiskActivation(
     def toExtendedJson = {
         val JsObject(baseFields) = WhiskActivation.serdes.write(this).asJsObject
         val newFields = (baseFields - "response") + ("response" -> response.toExtendedJson)
-        JsObject(newFields)
+        if (end != Instant.EPOCH) {
+            val duration = (end.toEpochMilli - start.toEpochMilli).toJson
+            JsObject(newFields + ("duration" -> duration))
+        } else {
+            JsObject(newFields - "end")
+        }
     }
 
     def withoutLogs = WhiskActivation(

@@ -46,6 +46,7 @@ import scala.language.postfixOps
 
 import common.WskActorSystem
 
+
 /**
  * Unit tests for ContainerPool and, by association, Container and WhiskContainer.
  *
@@ -203,8 +204,7 @@ class ContainerPoolTests extends FlatSpec
             val name = "foobar" + i
             val action = makeHelloAction(name, i)
             pool.getAction(action, defaultAuth) match {
-                case None => assert(false)
-                case Some((con, initResult)) => {
+                case (con, initResult) => {
                     val str = "QWERTY" + i.toString()
                     con.run(str, (20000 + i).toString()) // payload + activationId
                     if (i == max - 1) {
@@ -233,7 +233,7 @@ class ContainerPoolTests extends FlatSpec
         ensureClean()
         val action = makeHelloAction("foobar", 0)
         // Make a whisk container and test init and a push
-        val Some((con, initRes)) = pool.getAction(action, defaultAuth)
+        val (con, initRes) = pool.getAction(action, defaultAuth)
         Thread.sleep(1000)
         assert(con.getLogs().contains("ABCXYZ"))
         con.run("QWERTY", "55555") // payload + activationId
@@ -241,7 +241,7 @@ class ContainerPoolTests extends FlatSpec
         assert(con.getLogs().contains("QWERTY"))
         pool.putBack(con)
         // Test container reuse
-        val Some((con2, _)) = pool.getAction(action, defaultAuth)
+        val (con2, _) = pool.getAction(action, defaultAuth)
         assert(con == con2) // check re-use
         con.run("ASDFGH", "4444") // payload + activationId
         Thread.sleep(1000)
