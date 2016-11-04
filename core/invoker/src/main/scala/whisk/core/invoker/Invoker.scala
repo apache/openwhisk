@@ -169,7 +169,8 @@ class Invoker(
 
         pool.getAction(action, auth) match {
             case Some((con, initResultOpt)) => Future {
-                val params = con.mergeParams(payload)
+                val boundParams = action.parameters.toJsObject
+                val params = JsObject(boundParams.fields ++ payload.fields)
                 val timeout = action.limits.timeout.duration
                 def run() = con.run(params, msg.meta, auth.compact, timeout, action.fullyQualifiedName, msg.activationId.toString)
 

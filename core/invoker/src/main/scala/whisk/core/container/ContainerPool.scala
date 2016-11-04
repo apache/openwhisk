@@ -616,7 +616,6 @@ class ContainerPool(
 
     // We send the payload here but eventually must also handle morphing a pre-allocated container into the right state.
     private def initWhiskContainer(action: WhiskAction, con: WhiskContainer)(implicit transid: TransactionId): RunResult = {
-        con.boundParams = action.parameters.toJsObject
         // Then send it the init payload which is code for now
         val initArg = action.containerInitializer
         con.init(initArg, action.limits.timeout.duration)
