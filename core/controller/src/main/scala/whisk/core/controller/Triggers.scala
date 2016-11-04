@@ -133,7 +133,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                 getEntity(WhiskTrigger, entityStore, docid, Some {
                     trigger: WhiskTrigger =>
                         val args = trigger.parameters.merge(payload)
-                        val triggerActivationId = activationId.make()
+                        val triggerActivationId = activationIdFactory.make()
                         info(this, s"[POST] trigger activation id: ${triggerActivationId}")
 
                         val triggerActivation = WhiskActivation(
@@ -165,7 +165,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                                         namespace = user.namespace.toPath, // all activations should end up in the one space regardless trigger.namespace,
                                         ruleName.last,
                                         user.subject,
-                                        activationId.make(),
+                                        activationIdFactory.make(),
                                         Instant.now(Clock.systemUTC()),
                                         Instant.EPOCH,
                                         cause = Some(triggerActivationId),

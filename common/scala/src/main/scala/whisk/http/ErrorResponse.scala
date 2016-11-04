@@ -75,6 +75,9 @@ object Messages {
     val bindingCannotReferenceBinding = "Cannot bind to another package binding."
     val requestedBindingIsNotValid = "Cannot bind to a resource that is not a package."
     val notAllowedOnBinding = "Operation not permitted on package binding."
+
+    /** Error messages for sequence activations */
+    val sequenceRetrieveActivationTimeout = "Timeout reached when retrieving activation for sequence component"
 }
 
 /** Replaces rejections with Json object containing cause and transaction id. */
