@@ -185,18 +185,57 @@ trait DeleteFromCollection extends FullyQualifiedNames {
 }
 
 trait HasActivation {
+    /**
+     * Extracts activation id from invoke (action or trigger) or activation get
+     */
     def extractActivationId(result: RunResult): Option[String] = {
+        Try {
+            // try to interpret the run result as the result of an invoke
+            extractActivationIdFromInvoke(result) getOrElse extractActivationIdFromActivation(result).get
+        } toOption
+    }
+
+    /**
+     * Extracts activation id from 'wsk activation get' run result
+     */
+    private def extractActivationIdFromActivation(result:RunResult): Option[String] = {
+        Try {
+            // a characteristic string that comes right before the activationId
+            val idPrefix = "ok: got activation "
+            val stdout = result.stdout
+            assert(stdout.contains(idPrefix), stdout)
+            extractActivationId(idPrefix, stdout).get
+        } toOption
+    }
+
+    /**
+     * Extracts activation id from 'wsk action invoke' or 'wsk trigger invoke'
+     */
+    private def extractActivationIdFromInvoke(result:RunResult): Option[String] = {
         Try {
             val stdout = result.stdout
             assert(stdout.contains("ok: invoked") || stdout.contains("ok: triggered"), stdout)
             // a characteristic string that comes right before the activationId
-            val idPrefix = "with id ";
-            val start = result.stdout.indexOf(idPrefix) + idPrefix.length
+            val idPrefix = "with id "
+            extractActivationId(idPrefix, stdout).get
+        } toOption
+    }
+
+    /**
+     * Extracts activation id preceded by a prefix (idPrefix) from a string (stdout)
+     *
+     * @param idPrefix the prefix of the activation id
+     * @param stdout the string to be used in the extraction
+     * @return an option containing the id as a string or None if the extraction failed for any reason
+     */
+    private def extractActivationId(idPrefix: String, stdout: String): Option[String] = {
+        Try {
+            val start = stdout.indexOf(idPrefix) + idPrefix.length
             var end = start
             assert(start > 0)
             while (end < stdout.length && stdout.charAt(end) != '\n')
                 end = end + 1
-            result.stdout.substring(start, end) // a uuid
+            stdout.substring(start, end) // a uuid
         } toOption
     }
 }
