@@ -167,12 +167,12 @@ class ContainerPool(
      * Retrieves (possibly create) a container based on the subject and versioned action.
      * A flag is included to indicate whether initialization succeeded.
      * The invariant of returning the container back to the pool holds regardless of whether init succeeded or not.
-     * In case of failure to start a container, None is returned.
+     * In case of failure to start a container (or for failed docker operations e.g., pull), an exception is thrown.
      */
-    def getAction(action: WhiskAction, auth: AuthKey)(implicit transid: TransactionId): Option[(WhiskContainer, Option[RunResult])] =
+    def getAction(action: WhiskAction, auth: AuthKey)(implicit transid: TransactionId): (WhiskContainer, Option[RunResult]) = {
         if (shuttingDown) {
             info(this, s"Shutting down: Not getting container for ${action.fullyQualifiedName} with ${auth.uuid}")
-            None
+            throw new Exception("system is shutting down")
         } else {
             val key = ActionContainerId(auth.uuid, action.fullyQualifiedName, action.rev)
             val myPos = nextPosition.next()
@@ -189,15 +189,16 @@ class ContainerPool(
                 case Success(Cold(con)) =>
                     info(this, s"Obtained cold container ${con.containerId.id} - about to initialize")
                     val initResult = initWhiskContainer(action, con)
-                    Some(con, Some(initResult))
+                    (con, Some(initResult))
                 case Success(Warm(con)) =>
                     info(this, s"Obtained warm container ${con.containerId.id}")
-                    Some(con, None)
+                    (con, None)
                 case Failure(t) =>
                     error(this, s"Exception while trying to get a container: $t")
                     throw t
             }
         }
+    }
 
     /*
      * For testing by ContainerPoolTests where non whisk containers are used.

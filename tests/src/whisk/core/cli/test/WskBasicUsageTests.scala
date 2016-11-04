@@ -457,6 +457,12 @@ class WskBasicUsageTests
                 activation =>
                     activation.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ApplicationError)
                     activation.response.result.get.fields("error") shouldBe s"Failed to pull container image '$containerName'.".toJson
+                    activation.annotations shouldBe defined
+                    val limits = activation.annotations.get.filter(_.fields("key").convertTo[String] == "limits")
+                    withClue(limits) {
+                        limits.length should be > 0
+                        limits(0).fields("value") should not be JsNull
+                    }
             }
     }
 
@@ -697,8 +703,7 @@ class WskBasicUsageTests
             TestUtils.getTestActionFilename("invalidInput1.json"),
             TestUtils.getTestActionFilename("invalidInput2.json"),
             TestUtils.getTestActionFilename("invalidInput3.json"),
-            TestUtils.getTestActionFilename("invalidInput4.json")
-        )
+            TestUtils.getTestActionFilename("invalidInput4.json"))
         val paramCmds = Seq(
             Seq("action", "create", "actionName", TestUtils.getTestActionFilename("hello.js")),
             Seq("action", "update", "actionName", TestUtils.getTestActionFilename("hello.js")),
@@ -708,8 +713,7 @@ class WskBasicUsageTests
             Seq("package", "bind", "packageName", "boundPackageName"),
             Seq("trigger", "create", "triggerName"),
             Seq("trigger", "update", "triggerName"),
-            Seq("trigger", "fire", "triggerName")
-        )
+            Seq("trigger", "fire", "triggerName"))
         val annotCmds = Seq(
             Seq("action", "create", "actionName", TestUtils.getTestActionFilename("hello.js")),
             Seq("action", "update", "actionName", TestUtils.getTestActionFilename("hello.js")),
@@ -717,18 +721,17 @@ class WskBasicUsageTests
             Seq("package", "update", "packageName"),
             Seq("package", "bind", "packageName", "boundPackageName"),
             Seq("trigger", "create", "triggerName"),
-            Seq("trigger", "update", "triggerName")
-        )
+            Seq("trigger", "update", "triggerName"))
 
         for (cmd <- paramCmds) {
             for (invalid <- invalidJSONInputs) {
                 wsk.cli(cmd ++ Seq("-p", "key", invalid) ++ wskprops.overrides, expectedExitCode = ERROR_EXIT)
-                  .stderr should include("Invalid parameter argument")
+                    .stderr should include("Invalid parameter argument")
             }
 
             for (invalid <- invalidJSONFiles) {
                 wsk.cli(cmd ++ Seq("-P", invalid) ++ wskprops.overrides, expectedExitCode = ERROR_EXIT)
-                  .stderr should include("Invalid parameter argument")
+                    .stderr should include("Invalid parameter argument")
 
             }
         }
@@ -736,12 +739,12 @@ class WskBasicUsageTests
         for (cmd <- annotCmds) {
             for (invalid <- invalidJSONInputs) {
                 wsk.cli(cmd ++ Seq("-a", "key", invalid) ++ wskprops.overrides, expectedExitCode = ERROR_EXIT)
-                  .stderr should include("Invalid annotation argument")
+                    .stderr should include("Invalid annotation argument")
             }
 
             for (invalid <- invalidJSONFiles) {
                 wsk.cli(cmd ++ Seq("-A", invalid) ++ wskprops.overrides, expectedExitCode = ERROR_EXIT)
-                  .stderr should include("Invalid annotation argument")
+                    .stderr should include("Invalid annotation argument")
             }
         }
     }
@@ -753,9 +756,9 @@ class WskBasicUsageTests
         val missingFileMsg = s"File '$missingFile' is not a valid file or it does not exist"
         val invalidArgs = Seq(
             (Seq("action", "create", "actionName", TestUtils.getTestActionFilename("hello.js"), "-P", emptyFile),
-              emptyFileMsg),
+                emptyFileMsg),
             (Seq("action", "update", "actionName", TestUtils.getTestActionFilename("hello.js"), "-P", emptyFile),
-              emptyFileMsg),
+                emptyFileMsg),
             (Seq("action", "invoke", "actionName", "-P", emptyFile), emptyFileMsg),
             (Seq("action", "create", "actionName", "-P", emptyFile), emptyFileMsg),
             (Seq("action", "update", "actionName", "-P", emptyFile), emptyFileMsg),
@@ -773,9 +776,9 @@ class WskBasicUsageTests
             (Seq("trigger", "update", "triggerName", "-P", emptyFile), emptyFileMsg),
             (Seq("trigger", "fire", "triggerName", "-P", emptyFile), emptyFileMsg),
             (Seq("action", "create", "actionName", TestUtils.getTestActionFilename("hello.js"), "-A", missingFile),
-              missingFileMsg),
+                missingFileMsg),
             (Seq("action", "update", "actionName", TestUtils.getTestActionFilename("hello.js"), "-A", missingFile),
-              missingFileMsg),
+                missingFileMsg),
             (Seq("action", "invoke", "actionName", "-A", missingFile), missingFileMsg),
             (Seq("action", "create", "actionName", "-A", missingFile), missingFileMsg),
             (Seq("action", "update", "actionName", "-A", missingFile), missingFileMsg),
@@ -791,14 +794,13 @@ class WskBasicUsageTests
             (Seq("trigger", "fire", "triggerName", "-A", missingFile), missingFileMsg),
             (Seq("trigger", "create", "triggerName", "-A", missingFile), missingFileMsg),
             (Seq("trigger", "update", "triggerName", "-A", missingFile), missingFileMsg),
-            (Seq("trigger", "fire", "triggerName", "-A", missingFile), missingFileMsg)
-        )
+            (Seq("trigger", "fire", "triggerName", "-A", missingFile), missingFileMsg))
 
         invalidArgs foreach {
             case (cmd, err) =>
-            val stderr = wsk.cli(cmd, expectedExitCode = MISUSE_EXIT).stderr
-            stderr should include(err)
-            stderr should include("Run 'wsk --help' for usage.")
+                val stderr = wsk.cli(cmd, expectedExitCode = MISUSE_EXIT).stderr
+                stderr should include(err)
+                stderr should include("Run 'wsk --help' for usage.")
         }
     }
 
@@ -861,8 +863,7 @@ class WskBasicUsageTests
             (Seq("trigger", "update", "triggerName", "-A"), invalidAnnotFileMsg),
             (Seq("trigger", "fire", "triggerName", "-a"), invalidAnnotMsg),
             (Seq("trigger", "fire", "triggerName", "-a", "key"), invalidAnnotMsg),
-            (Seq("trigger", "fire", "triggerName", "-A"), invalidAnnotFileMsg)
-        )
+            (Seq("trigger", "fire", "triggerName", "-A"), invalidAnnotFileMsg))
 
         invalidArgs foreach {
             case (cmd, err) =>

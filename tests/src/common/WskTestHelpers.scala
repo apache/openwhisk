@@ -106,6 +106,7 @@ trait WskTestHelpers extends Matchers {
      * structure of "result" is not defined.
      */
     case class CliActivationResponse(result: Option[JsObject], status: String, success: Boolean)
+
     object CliActivationResponse extends DefaultJsonProtocol {
         implicit val serdes = jsonFormat3(CliActivationResponse.apply)
     }
