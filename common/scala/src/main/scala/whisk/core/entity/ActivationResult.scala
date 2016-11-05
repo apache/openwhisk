@@ -100,6 +100,7 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
             if (!init) "." else " during initialization."
         })
     }
+    protected[core] def sequenceInterruptedError(result: JsValue) = ActivationResponse(ApplicationError, Some(result))
 
     /**
      * Interprets response from container after initialization. This method is only called when the initialization failed.

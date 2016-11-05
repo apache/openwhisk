@@ -803,7 +803,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      * @param payload the dynamic arguments for the activation
      * @param blocking true iff this is a blocking invoke
      * @param components the actions in the sequence
-     * @param
+     * @param cause the id of the activation that caused this sequence (defined only for inner sequences and None for topmost sequences)
      * @param transid a transaction id for logging
      * @return a future of type (ActivationId, Some(WhiskActivation)) if blocking; else (ActivationId, None)
      */
@@ -844,6 +844,10 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                         // all activations were successful, return the result of the last one
                         Future.successful((seqActivationId, Some(wskActivations.last)))
                     // TODO distinguish between the types of failure (e.g., account for interrupted sequences)
+                    case Failure(t: SequenceInterruptedErrorException) =>
+                        // the execution of the sequence was interrupted, but pass along the result to the enclosing sequences
+                        Future.successful((seqActivationId,
+                                Some(makeUnsuccessfulSeqActivation(user, action, seqActivationId, futureWskActivations, topmost, t.activationResponse, cause))))
                     case Failure(t) => Future.failed(t)
                 }
             }
@@ -855,7 +859,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                 // the response of the sequence is the response of the very last activation
                 val activation = makeSeqActivation(user, action, seqActivationId, wskActivations, topmost, wskActivations.last.response, cause)
                 storeSequenceActivation(activation)
-            case Failure(t: SequenceRetrieveActivationTimeout) =>
+            case Failure(t: SequenceException) =>  // can be either timeout exception or sequence error interrupt
                 val activation = makeUnsuccessfulSeqActivation(user, action, seqActivationId, futureWskActivations, topmost, t.activationResponse, cause)
                 storeSequenceActivation(activation)
             case Failure(t: Throwable) =>
@@ -868,7 +872,9 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
 
         response
     }
-
+    /**
+     * store sequence activation to database
+     */
     private def storeSequenceActivation(activation: WhiskActivation)(implicit transid: TransactionId): Future[DocInfo] = {
         WhiskActivation.put(activationStore, activation) andThen {
             case Success(id) => info(this, s"recorded activation")
@@ -876,6 +882,9 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         }
     }
 
+    /**
+     * create an activation for a sequence that was not successful
+     */
     private def makeUnsuccessfulSeqActivation(
             user: Identity,
             action: WhiskAction,
@@ -896,6 +905,9 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         makeSeqActivation(user, action, seqActivationId, successfulActivations, topmost, activationResponse, cause)
     }
 
+    /**
+     * create an activation for a sequence
+     */
     private def makeSeqActivation(
             user: Identity,
             action: WhiskAction,
@@ -922,12 +934,14 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                 version = action.version,
                 publish = false,
                 // TODO: annotation on max memory?
-                annotations = Parameters("topmost", JsBoolean(topmost)) ++ Parameters("kind", "sequence") ++ Parameters("duration", JsNumber(duration)))
+                annotations = Parameters("topmost", JsBoolean(topmost)) ++
+                              Parameters("kind", "sequence") ++
+                              Parameters("duration", JsNumber(duration)))
         activation
     }
 
     /**
-     *
+     * invoke the components of a sequence in a blocking fashion
      */
     private def invokeSequenceComponents(
             user: Identity,
@@ -959,38 +973,55 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
             futureAction flatMap { action =>
                 futureActivation flatMap { activation =>
                     val payload = activation.response.result.map(_.asJsObject)
-                    // TODO deal with error in payload
                     invokeSeqOneComponent(user, action, payload, cause)
                 }
             }
         }
+        // extract memory info
+        //val memory = resolvedFutureActions map { futureAction => futureAction.map(_.limits.memory()) }
         seqComponentWskActivationFutures.drop(1) // drop the first future which contains the init value from scanLeft
     }
 
+    /**
+     * invoke one component from a sequence action
+     * check payload for 'error' field and execute either an atomic action or a sequence
+     */
     private def invokeSeqOneComponent(user: Identity, action: WhiskAction, payload: Option[JsObject], cause: Option[ActivationId])(
             implicit transid: TransactionId): Future[WhiskActivation] = {
-        // invoke the action by calling the right method depending on whether it's an atomic action or a sequence
-        val futureWhiskActivationPair = action.exec match {
-            case SequenceExec(_, components) =>
-                // invoke a sequence
-                info(this, s"sequence invoking an enclosing sequence $action")
-                // call invokeSequence to invoke the inner sequence
-                // true for blocking; false for topmost
-                invokeSequence(user, action, payload, blocking = true, topmost = false, components, cause)
-            case _ =>
-                // this is an invoke for an atomic action --- blocking
-                info(this, s"sequence invoking an enclosing atomic action $action")
-                val timeout = action.limits.timeout() + blockingInvokeGrace  // TODO: shall we have a different grace since this is used for sequence components?
-                postInvokeRequest(user, action, None, payload, timeout, true, cause) // None is for env -- TODO double-check this
+        // first check conditions on payload that may lead to interrupting the execution of the sequence
+        val payloadContent = payload getOrElse JsObject.empty
+        val errorFields = payloadContent.getFields(ActivationResponse.ERROR_FIELD)
+        val payloadFuture: Future[Unit] = if (errorFields.isEmpty) {
+            Future.successful(Unit)
+        } else {
+            // there is an error field, terminate sequence early
+            Future.failed(SequenceInterruptedErrorException(payloadContent))
         }
+        // propagate the result of the payload check
+        payloadFuture flatMap { _ =>
+            // invoke the action by calling the right method depending on whether it's an atomic action or a sequence
+            val futureWhiskActivationPair = action.exec match {
+                case SequenceExec(_, components) =>
+                    // invoke a sequence
+                    info(this, s"sequence invoking an enclosing sequence $action")
+                    // call invokeSequence to invoke the inner sequence
+                    // true for blocking; false for topmost
+                    invokeSequence(user, action, payload, blocking = true, topmost = false, components, cause)
+                case _ =>
+                    // this is an invoke for an atomic action --- blocking
+                    info(this, s"sequence invoking an enclosing atomic action $action")
+                    val timeout = action.limits.timeout() + blockingInvokeGrace  // TODO: shall we have a different grace since this is used for sequence components?
+                    postInvokeRequest(user, action, None, payload, timeout, true, cause) // None is for env -- TODO double-check this
+            }
 
-        futureWhiskActivationPair flatMap { pair =>
-            val activationId = pair._1
-            val wskActivation = pair._2
-            // the activation is None only if the activation could not be retrieve either from active ack or from db
-            wskActivation match {
-                case Some(activation) => Future.successful(activation)
-                case None => Future.failed(new SequenceRetrieveActivationTimeout(activationId))
+            futureWhiskActivationPair flatMap { pair =>
+                val activationId = pair._1
+                val wskActivation = pair._2
+                // the activation is None only if the activation could not be retrieve either from active ack or from db
+                wskActivation match {
+                    case Some(activation) => Future.successful(activation)
+                    case None => Future.failed(new SequenceRetrieveActivationTimeout(activationId))
+                }
             }
         }
     }
@@ -1015,7 +1046,16 @@ private case class TooManyActionsInSequence() extends RuntimeException
 private case class SequenceWithCycle() extends RuntimeException
 
 /** Exceptions related to the activation of sequences */
-//private case class SequenceActivationException(activationId: ActivationId)
-private case class SequenceRetrieveActivationTimeout(activationId: ActivationId) extends TimeoutException {
-    val activationResponse = ActivationResponse.whiskError(s"$sequenceRetrieveActivationTimeout activation id '$activationId'")
+
+sealed abstract class SequenceException() extends RuntimeException {
+   def activationResponse: ActivationResponse
+}
+// Exception for sequence interrupted due to special convention - coming soon
+//private case class SequenceInterruptedException() extends RuntimeException
+// Exception for sequence interrupted due to non-empty error field
+private case class SequenceInterruptedErrorException(result: JsValue) extends SequenceException {
+    override def activationResponse = ActivationResponse.sequenceInterruptedError(result)
+}
+private case class SequenceRetrieveActivationTimeout(activationId: ActivationId) extends SequenceException {
+    override def activationResponse = ActivationResponse.whiskError(s"$sequenceRetrieveActivationTimeout activation id '$activationId'")
 }
