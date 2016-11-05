@@ -97,7 +97,17 @@ trait WskTestHelpers extends Matchers {
     /**
      * Activation record as it is returned by the CLI.
      */
-    case class CliActivation(activationId: String, logs: Option[List[String]], response: CliActivationResponse, start: Long, end: Long, cause: Option[String], annotations: Option[List[JsObject]])
+    case class CliActivation(activationId: String, logs: Option[List[String]], response: CliActivationResponse, start: Long, end: Long, cause: Option[String], annotations: Option[List[JsObject]]) {
+         def getAnnotationValue(key: String): Option[JsValue] = {
+            Try {
+                val annotation = annotations.get.filter(x => x.getFields("key")(0) == JsString(key))
+                assert(annotation.size == 1) // only one annotation with this value
+                val value = annotation(0).getFields("value")
+                assert(value.size == 1)
+                value(0)
+            } toOption
+        }
+    }
     object CliActivation extends DefaultJsonProtocol {
         implicit val serdes = jsonFormat7(CliActivation.apply)
     }
