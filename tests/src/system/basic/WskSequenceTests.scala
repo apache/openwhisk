@@ -120,7 +120,7 @@ class WskSequenceTests
         // check that the cause field is properly set for these activations
         activation.logs.get.size shouldBe(size) // the number of activations in this sequence
         var totalTime: Long = 0
-        var maxMemory: Int = 0
+        var maxMemory: Long = 0
         for (id <- activation.logs.get) {
             val getComponentActivation = wsk.activation.get(id)
             withActivation(wsk.activation, getComponentActivation, totalWait = allowedActionDuration) {
@@ -129,9 +129,7 @@ class WskSequenceTests
                     componentActivation.cause.get shouldBe(activation.activationId)
                     totalTime += (componentActivation.end - componentActivation.start)
                     // extract memory
-                    val limits = componentActivation.getAnnotationValue("limits")
-                    limits shouldBe defined
-                    val mem = limits.get.asJsObject.getFields("memory")(0).convertTo[Int]
+                    val mem = extractMemoryAnnotation(componentActivation)
                     maxMemory = maxMemory max mem
             }
         }
@@ -141,8 +139,13 @@ class WskSequenceTests
         duration shouldBe defined
         duration.get.convertTo[Long] shouldBe(totalTime)
         // extract memory
-//        val memory = activation.getAnnotationValue("memory")
-//        memory shouldBe defined
-//        memory.get.convertTo[Int] shouldBe(maxMemory)
+        val memory = extractMemoryAnnotation(activation)
+        memory shouldBe(maxMemory)
+    }
+
+    private def extractMemoryAnnotation(activation: CliActivation): Long = {
+        val limits = activation.getAnnotationValue("limits")
+        limits shouldBe defined
+        limits.get.asJsObject.getFields("memory")(0).convertTo[Long]
     }
 }

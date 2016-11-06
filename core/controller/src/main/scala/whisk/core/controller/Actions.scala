@@ -23,6 +23,7 @@ import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 import scala.util.Failure
 import scala.util.Success
+import scala.util.Try
 import scala.language.postfixOps
 
 import akka.actor.ActorSystem
@@ -920,6 +921,14 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         val logs = ActivationLogs(wskActivations map { activation => activation.activationId.toString })
         // compute duration
         val duration = (wskActivations map { activation => java.time.Duration.between(activation.start, activation.end).toMillis }).sum
+        // compute max memory
+        val maxMemoryOption = Try {
+            val memoryLimits = wskActivations map { activation =>
+                activation.annotations("limits").get.asJsObject.getFields("memory")(0).convertTo[Long]
+            }
+            memoryLimits.max
+        } toOption
+        val maxMemory = maxMemoryOption getOrElse 0L
         // create the whisk activation
         val activation = WhiskActivation(
                 namespace = user.namespace.toPath,  // TODO: double-check on this
@@ -936,7 +945,8 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                 // TODO: annotation on max memory?
                 annotations = Parameters("topmost", JsBoolean(topmost)) ++
                               Parameters("kind", "sequence") ++
-                              Parameters("duration", JsNumber(duration)))
+                              Parameters("duration", JsNumber(duration)) ++
+                              Parameters("limits", JsObject("memory" -> JsNumber(maxMemory))))
         activation
     }
 
