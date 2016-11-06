@@ -163,6 +163,7 @@ protected[core] abstract class EntitlementService(config: WhiskConfig, loadBalan
             case Success(r) =>
                 info(this, if (r) "authorized" else "not authorized")
             case Failure(r: RejectRequest) =>
+                info(this, s"not authorized: ${r.message}")
             case Failure(t) =>
                 error(this, s"failed while checking entitlement: ${t.getMessage}")
         }

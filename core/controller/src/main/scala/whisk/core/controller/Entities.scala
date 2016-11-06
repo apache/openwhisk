@@ -103,10 +103,17 @@ trait WhiskCollectionAPI
                     // entitled to them which for now means they own the namespace. If the
                     // subject does not own the namespace, then exclude packages that are private
                     val checkIfSubjectOwnsResource = if (listRequiresPrivateEntityFilter) {
-                        iam.namespaces(user.subject) map {
-                            _.contains(resource.namespace.root()) == false
+                        if (resource.namespace.root() == user.subject()) {
+                            // bypass iam if namespace is owned by subject
+                            // don't need to exclude private packages owned by subject
+                            Future.successful(false)
+                        } else {
+                            iam.namespaces(user.subject) map {
+                                // don't need to exclude private packages in any namespace owned by subject
+                                _.contains(resource.namespace.root()) == false
+                            }
                         }
-                    } else Future.successful { false }
+                    } else Future.successful(false)
 
                     onComplete(checkIfSubjectOwnsResource) {
                         case Success(excludePrivate) =>
