@@ -60,6 +60,7 @@ class WskSequenceTests
                 }
             }
 
+            println(s"Sequence $actions")
             assetHelper.withCleaner(wsk.action, name) {
                 val sequence = actions.mkString (",")
                 (action, _) => action.create(name, Some(sequence), kind = Some("sequence"), timeout = Some(allowedActionDuration))
@@ -80,6 +81,7 @@ class WskSequenceTests
 
             // update action sequence and run it with normal payload
             val newSequence = Seq("split", "sort").mkString (",")
+            println(s"Update sequence to $newSequence")
             wsk.action.create(name, Some(newSequence), kind = Some("sequence"), timeout = Some(allowedActionDuration), update = true)
             val secondrun = wsk.action.invoke(name, Map("payload" -> args.mkString("\n").toJson))
             withActivation(wsk.activation, secondrun, totalWait = 2 * allowedActionDuration) {
@@ -90,6 +92,7 @@ class WskSequenceTests
                     result.fields.get("lines") shouldBe Some(args.sortWith(_.compareTo(_) < 0).toArray.toJson)
             }
 
+            println("Run sequence with error in payload")
             // run sequence with error in the payload; nothing should run
             val payload = Map("payload" -> args.mkString("\n").toJson, "error" -> JsString("irrelevant error string"))
             val thirdrun = wsk.action.invoke(name, payload)

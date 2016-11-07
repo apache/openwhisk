@@ -16,7 +16,6 @@
 
 package whisk.core.controller
 
-import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.TimeoutException
@@ -838,18 +837,10 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                     Future.successful((seqActivationId, None))
                 }
             } else {
-                // not topmost, blocking for sure, wait for the "aggregate" future to finish (no timeout)
-                val seqResult = Await.ready(futureSeqResult, Duration.Inf).value.get
-                seqResult match {
-                    case Success(wskActivations) =>
-                        // all activations were successful, return the result of the last one
-                        Future.successful((seqActivationId, Some(wskActivations.last)))
-                    // TODO distinguish between the types of failure (e.g., account for interrupted sequences)
-                    case Failure(t: SequenceInterruptedErrorException) =>
-                        // the execution of the sequence was interrupted, but pass along the result to the enclosing sequences
-                        Future.successful((seqActivationId,
-                                Some(makeUnsuccessfulSeqActivation(user, action, seqActivationId, futureWskActivations, topmost, t.activationResponse, cause))))
-                    case Failure(t) => Future.failed(t)
+                // not topmost, no need to worry about terminating incoming request
+                futureSeqResult map { wskActivations =>
+                    // all activations are successful, the result of the sequence is the result of the last activation
+                    (seqActivationId, Some(wskActivations.last))
                 }
             }
 
@@ -902,7 +893,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
             }
         }
         // all futures are done, this should return immediately
-        val successfulActivations = Await.result(Future.sequence(futureWskActivations.slice(0, failedIdx)), Duration.Inf)
+        val successfulActivations = futureWskActivations.slice(0, failedIdx) map { futureActivation => futureActivation.value.get.get }
         makeSeqActivation(user, action, seqActivationId, successfulActivations, topmost, activationResponse, cause)
     }
 
@@ -942,7 +933,6 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                 logs = logs,
                 version = action.version,
                 publish = false,
-                // TODO: annotation on max memory?
                 annotations = Parameters("topmost", JsBoolean(topmost)) ++
                               Parameters("kind", "sequence") ++
                               Parameters("duration", JsNumber(duration)) ++
