@@ -1058,14 +1058,14 @@ private case class SequenceWithCycle() extends RuntimeException
 /** Exceptions related to the activation of sequences */
 
 sealed abstract class SequenceException() extends RuntimeException {
-   def activationResponse: ActivationResponse
+   val activationResponse: ActivationResponse
 }
 // Exception for sequence interrupted due to special convention - coming soon
 //private case class SequenceInterruptedException() extends RuntimeException
 // Exception for sequence interrupted due to non-empty error field
 private case class SequenceInterruptedErrorException(result: JsValue) extends SequenceException {
-    override def activationResponse = ActivationResponse.sequenceInterruptedError(result)
+    override val activationResponse = ActivationResponse.sequenceInterruptedError(result)
 }
 private case class SequenceRetrieveActivationTimeout(activationId: ActivationId) extends SequenceException {
-    override def activationResponse = ActivationResponse.whiskError(s"$sequenceRetrieveActivationTimeout activation id '$activationId'")
+    override val activationResponse = ActivationResponse.whiskError(s"$sequenceRetrieveActivationTimeout activation id '$activationId'")
 }
