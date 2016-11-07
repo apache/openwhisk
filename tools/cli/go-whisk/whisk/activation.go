@@ -45,10 +45,10 @@ type Activation struct {
 }
 
 type Response struct {
-    Status     string `json:"status"`
-    StatusCode int    `json:"statusCode"`
-    Success    bool   `json:"success"`
-    Result     `json:"result"`
+    Status     string   `json:"status"`
+    StatusCode int      `json:"statusCode"`
+    Success    bool     `json:"success"`
+    Result     *Result  `json:"result,omitempty"`
 }
 
 type Result map[string]interface{}

@@ -192,7 +192,9 @@ var actionInvokeCmd = &cobra.Command{
     }
 
     if flags.common.blocking && flags.action.result {
-      printJSON(activation.Response.Result, outputStream)
+      if activation.Response.Result != nil {
+        printJSON(*activation.Response.Result, outputStream)
+      }
     } else if flags.common.blocking {
       fmt.Fprintf(color.Output,
         wski18n.T("{{.ok}} invoked /{{.namespace}}/{{.name}} with id {{.id}}\n",

@@ -35,6 +35,8 @@ import common.WskTestHelpers
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import spray.json.pimpAny
+import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
 
 @RunWith(classOf[JUnitRunner])
 class WskBasicTests
@@ -416,6 +418,34 @@ class WskBasicTests
             res.stdout should include(s"ok: created action $name")
     }
 
+    it should "create an action, and invoke an action that returns an empty JSON object" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "emptyJSONAction"
+
+            val res = assetHelper.withCleaner(wsk.action, name) {
+                (action, _) =>
+                    action.create(name, Some(TestUtils.getTestActionFilename("emptyJSONResult.js")))
+                    action.invoke(name, blocking = true, result = true)
+            }
+
+            res.stdout shouldBe ("{}\n")
+    }
+
+    it should "create, and invoke an action that times out to ensure the result is empty" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "sleepAction"
+            val params = Map("payload" -> "100000".toJson)
+            val allowedActionDuration = 120 seconds
+            val res = assetHelper.withCleaner(wsk.action, name) {
+                (action, _) =>
+                    action.create(name, Some(TestUtils.getTestActionFilename("timeout.js")),
+                        timeout = Some(allowedActionDuration))
+                    action.invoke(name, parameters = params, blocking = true, result = true)
+            }
+
+            res.stdout shouldBe ""
+    }
+
     behavior of "Wsk Trigger CLI"
 
     it should "create, update, get, fire and list trigger" in withAssetCleaner(wskprops) {
@@ -532,6 +562,21 @@ class WskBasicTests
             wsk.trigger.get(name, fieldFilter = Some("parameters")).stdout should include regex (s"""$successMsg parameters\n\\[\\s+\\{\\s+"key":\\s+"payload",\\s+"value":\\s+"test"\\s+\\}\\s+\\]""")
             wsk.trigger.get(name, fieldFilter = Some("limits")).stdout should include(s"""$successMsg limits\n{}""")
             wsk.trigger.get(name, fieldFilter = Some("invalid"), expectedExitCode = ERROR_EXIT).stderr should include("error: Invalid field filter 'invalid'.")
+    }
+
+    it should "create, and fire a trigger to ensure result is empty" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "emptyResultTrigger"
+            assetHelper.withCleaner(wsk.trigger, name) {
+                (trigger, _) =>
+                    trigger.create(name)
+            }
+
+            val run = wsk.trigger.fire(name)
+            withActivation(wsk.activation, run) {
+                activation =>
+                    activation.response.result shouldBe Some(JsObject())
+            }
     }
 
     behavior of "Wsk Rule CLI"
