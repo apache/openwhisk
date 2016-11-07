@@ -28,6 +28,9 @@ DB_PROTOCOL=`fgrep db.protocol= $WHISKPROPS_FILE | cut -d'=' -f2`
 DB_USERNAME=`fgrep db.username= $WHISKPROPS_FILE | cut -d'=' -f2`
 DB_PASSWORD=`fgrep db.password= $WHISKPROPS_FILE | cut -d'=' -f2`
 DB_GWAPI=`fgrep db.whisk.gwapi= $WHISKPROPS_FILE | cut -d'=' -f2`
+GW_USER=`fgrep gw.auth.user= $WHISKPROPS_FILE | cut -d'=' -f2`
+GW_PWD=`fgrep gw.auth.pwd= $WHISKPROPS_FILE | cut -d'=' -f2`
+GW_HOST=`fgrep gw.host= $WHISKPROPS_FILE | cut -d'=' -f2`
 
 # If the auth key file exists, read the key in the file. Otherwise, take the
 # first argument as the key itself.
@@ -46,7 +49,9 @@ $WSK_CLI -i --apihost "$APIHOST" package update --auth "$AUTH"  --shared no "$NA
 -p username $DB_USERNAME \
 -p password $DB_PASSWORD \
 -p dbname $DB_GWAPI \
--p gwUrl "https://api-gw.cumulus.apim.ibmcloud.com/gws/dmi/v1"
+-p gwUser "$GW_USER" \
+-p gwPwd "$GW_PWD" \
+-p gwUrl "$GW_HOST"
 
 
 echo Installing routemgmt actions

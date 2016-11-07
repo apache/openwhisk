@@ -42,10 +42,13 @@ function main(message) {
     return whisk.error(badArgMsg);
   }
   var dbname = message.dbname;
+
   var gwInfo = {
     gwUrl: message.gwUrl,
-    gwAuth: message.gwAuth
   };
+  if (message.gwUser && message.gwPwd) {
+    gwInfo.gwAuth = Buffer.from(message.gwUser+':'+message.gwPwd,'ascii').toString('base64');
+  }
 
   // Log parameter values
   console.log('DB host    : '+message.host);
@@ -187,9 +190,11 @@ function deleteApiFromGateway(gwInfo, gwApiId) {
     agentOptions: {rejectUnauthorized: false},
     headers: {
       'Accept': 'application/json'
-      //'Authorization': 'Basic ' + 'btoa(gwInfo.gwAuth)',  // FIXME MWD Authentication
     }
   };
+  if (gwInfo.gwAuth) {
+    options.headers.Authorization = 'Basic ' + gwInfo.gwAuth;
+  }
   console.log('deleteApiFromGateway: request: '+JSON.stringify(options, " ", 2));
 
   return new Promise(function(resolve, reject) {

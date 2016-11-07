@@ -111,20 +111,22 @@ function main(message) {
       return Promise.reject('An API configuration already exists for basepath '+getBasePath(message));
     }
 
-    // If the provided API name does not match the existing API document's name,
-    // return an error
+    // If the provided API name does not match the existing API document's name, return an error
     if (message.apiname && (message.apiname != dbdoc.apidoc.info.title)) {
-      return Promise.reject('API name \''+message.apiname+'\' does not match the existing API name \''+dbdoc.apidoc.info.title+'\'');
+      return Promise.reject('The existing API already has an API name of \''+dbdoc.apidoc.info.title+'\'');
     }
     dbDocId = dbdoc._id;
     return dbdoc;
   }, function(err) {
     console.error('Got DB error: ', err);
     if ( (err.error.error == "not_found" && err.error.statusCode == 404)) {  // err.error.reason == "missing" or "deleted"
-      // No document.  Create an initial one
-      console.log('API document not found; creating a new one');
-      newDoc = true;
-      return makeTemplateDbApiDoc(message);
+      // No document.  Create an initial one - but ONLY if a /basepath was provided
+      if (message.basepath.indexOf('/') == 0) {
+        console.log('API document not found; creating a new one');
+        newDoc = true;
+        return makeTemplateDbApiDoc(message);
+      }
+      console.log('API document not found. Since an API name was provided and not a basepath; a new API cannot be created');
     }
     console.error('DB request failed');
     return Promise.reject(err);
@@ -201,7 +203,6 @@ function getDbApiDoc(namespace, basepath) {
     'namespace': namespace,
     'basepath': basepath
   }
-  console.log('getDbApiDoc() for namespace:basepath: '+namespace+':'+basepath);
   return whisk.invoke({
     name: actionName,
     blocking: true,
@@ -211,12 +212,30 @@ function getDbApiDoc(namespace, basepath) {
     console.log('whisk.invoke('+actionName+', '+params.namespace+', '+params.basepath+') ok');
     console.log('Results: '+JSON.stringify(activation));
     if (activation && activation.result && activation.result.apis &&
-        activation.result.apis.length > 0 && activation.result.apis[0].value &&
+        activation.result.apis.length == 1 && activation.result.apis[0].value &&
         activation.result.apis[0].value._rev) {
       return Promise.resolve(activation.result.apis[0].value);
+    } else if (activation && activation.result && activation.result.apis &&
+               activation.result.apis.length > 1) {
+          console.error('Multiple API docs returned!');  // Only expected case is when API Name is used for >1 basepath
+          return Promise.reject({
+            error: {
+              statusCode: 409,
+              error: 'conflict',
+              msg: 'Multiple APIs have the API Name \"'+basepath+'\"; specify the basepath of the API you want to use.'
+            }
+          });
+          return Promise.reject('Multiple APIs have the API Name \"'+basepath+'\"; specify the basepath of the API you want to use.');
     } else {
+      // No API document.  Simulate the DB 'not found' error.
       console.error('Invalid API doc returned!');
-      return Promise.reject('Document for namepace \"'+namespace+'\" and basepath \"'+basepath+'\" was not located');
+      return Promise.reject({
+        error: {
+          statusCode: 404,
+          error: 'not_found',
+          msg: 'Document for namepace \"'+namespace+'\" and basepath \"'+basepath+'\" was not located'
+        }
+      });
     }
   })
   .catch(function (error) {

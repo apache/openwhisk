@@ -44,10 +44,13 @@ function main(message) {
   if (badArgMsg = validateArgs(message)) {
     return whisk.error(badArgMsg);
   }
+
   var gwInfo = {
     gwUrl: message.gwUrl,
-    gwAuth: message.gwAuth
   };
+  if (message.gwUser && message.gwPwd) {
+    gwInfo.gwAuth = Buffer.from(message.gwUser+':'+message.gwPwd,'ascii').toString('base64');
+  }
 
   // Log parameter values
   console.log('DB host       : '+message.host);
@@ -198,9 +201,13 @@ function getDbApiDoc(namespace, basepath) {
     console.log('whisk.invoke('+actionName+', '+params.namespace+', '+params.basepath+') ok');
     console.log('Results: '+JSON.stringify(activation));
     if (activation && activation.result && activation.result.apis &&
-        activation.result.apis.length > 0 && activation.result.apis[0].value &&
+        activation.result.apis.length == 1 && activation.result.apis[0].value &&
         activation.result.apis[0].value._rev) {
       return Promise.resolve(activation.result.apis[0].value);
+    } else if (activation && activation.result && activation.result.apis &&
+               activation.result.apis.length > 1) {
+          console.error('Multiple API docs returned!');  // Only expected case is when API Name is used for >1 basepath
+          return Promise.reject('Multiple APIs have the API Name \"'+basepath+'\"; specify the basepath of the API you want to delete');
     } else {
       console.error('Invalid API doc returned!');
       return Promise.reject('Document for namepace \"'+namespace+'\" and basepath \"'+basepath+'\" was not located');
@@ -264,10 +271,12 @@ function updateGatewayApi(gwInfo, apiId, payload) {
     headers: {
       'Content-Type': 'application/json',
       'Accept': 'application/json'
-      //'Authorization': 'Basic ' + 'btoa(gwInfo.gwAuth)',  // FIXME MWD Authentication
     },
     json: payload,
   };
+  if (gwInfo.gwAuth) {
+    options.headers.Authorization = 'Basic ' + gwInfo.gwAuth;
+  }
   console.log('updateGatewayRoute: request: '+JSON.stringify(options, " ", 2));
 
   return new Promise(function(resolve, reject) {
@@ -308,9 +317,11 @@ function deleteGatewayApi(gwInfo, gwApiId) {
     agentOptions: {rejectUnauthorized: false},
     headers: {
       'Accept': 'application/json'
-      //'Authorization': 'Basic ' + 'btoa(gwInfo.gwAuth)',  // FIXME MWD Authentication
     }
   };
+  if (gwInfo.gwAuth) {
+    options.headers.Authorization = 'Basic ' + gwInfo.gwAuth;
+  }
   console.log('deleteGatewayApi: request: '+JSON.stringify(options, " ", 2));
 
   return new Promise(function(resolve, reject) {

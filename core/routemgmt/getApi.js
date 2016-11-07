@@ -28,6 +28,8 @@
  *   basepath   Required. Base path or API name of the API
  *   relpath    Optional. Must be defined with 'operation'.  Filters API result to path/operation
  *   operation  Optional. Must be defined with 'relpath'.  Filters API result to path/operation
+ *   docid      Optional. If specified, this id is used to retrieve the API from the DB; otherwise
+ *                        the id is created from the namespace + basepath
  *
  * NOTE: The package containing this action will be bound to the following values:
  *         host, port, protocol, dbname, username, password
@@ -50,9 +52,9 @@ function main(message) {
   console.log('DB database  : '+message.dbname);
   console.log('namespace    : '+message.namespace);
   console.log('basepath/name: '+message.basepath);
-  //console.log('apiname    : "'+message.apiname+'"')
   console.log('relpath      : '+message.relpath);
   console.log('operation    : '+message.operation);
+  console.log('docid(param) : '+message.docid);
 
   var cloudantOrError = getCloudantAccount(message);
   if (typeof cloudantOrError !== 'object') {
@@ -62,6 +64,11 @@ function main(message) {
   var cloudant = cloudantOrError;
   var cloudantDb = cloudant.use(message.dbname);
 
+  // Issue a request to read API(s) from the DB
+  // 1. If the basepath/apiname was not provided, then obtain all APIs for the specified namespace
+  // 2. If an apiname was provided (not a basepath), then return all APIs having that API name (should be just one)
+  // 3. If a basepath was provided (not an apiname), then return the API associated with a docid - which was
+  //    either a specified parameter value or generated from the namespace+basepath
   var readDbPromise;
   if (!message.basepath) {
     console.log('basepath not provided; getting all APIs for namespace');
@@ -72,13 +79,17 @@ function main(message) {
     var params = {key: [message.namespace, message.basepath]};
     readDbPromise = readFilteredApiDocument(cloudantDb, 'gwapis', 'routes-by-api-name', params);
   } else {
-    var docid = "API:"+message.namespace+":"+message.basepath;
-    console.log('docid      : '+docid);
+    // NOTE: Couch/Cloudant does not permit a docid to start with "_", and a namespace can be "_"
+    var docid = message.docid || "API:"+message.namespace+":"+message.basepath;
+    console.log('docid(final) : '+docid);
     readDbPromise = readApiDocument(cloudantDb, docid, {});
   }
 
   return readDbPromise
   .then(function(dbresults) {
+    // The DB read may be been a query view or a specific docid request.  The former returns
+    // an array of results; the latter returns a single document.  In all cases return the
+    // results as an array - even an array of just one entry.
     if (dbresults.rows) {
       console.log('DB results is an array of '+dbresults.rows.length);
       if (dbresults.rows.length == 0) {

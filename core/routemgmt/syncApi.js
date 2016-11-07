@@ -206,9 +206,9 @@ function getGwApiDoc(gwInfo, gwApiDocId, tenantId, basepath) {
     headers: {
       'Content-Type': 'application/json',
       'Accept': 'application/json'
-      //'Authorization': 'Basic ' + 'btoa(gwInfo.gwAuth)',  // FIXME MWD Authentication
     }
   };
+
   // Query used to obtain GW API when the DB API doc does not have the GW API GUID
   // This might be due to:
   //   - the DB API not having been activated (normal), or
@@ -221,12 +221,14 @@ function getGwApiDoc(gwInfo, gwApiDocId, tenantId, basepath) {
     headers: {
       'Content-Type': 'application/json',
       'Accept': 'application/json'
-      //'Authorization': 'Basic ' + 'btoa(gwInfo.gwAuth)',  // FIXME MWD Authentication
     }
   };
 
   if (!gwApiDocId) {
     options = tenantBasepathOptions;
+  }
+  if (gwInfo.gwAuth) {
+    options.headers.Authorization = 'Basic ' + gwInfo.gwAuth;
   }
   console.log('getGwApiDoc: request: '+JSON.stringify(options, " ", 2));
 

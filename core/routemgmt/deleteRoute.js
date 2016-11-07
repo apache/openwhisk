@@ -41,10 +41,13 @@ function main(message) {
   if (badArgMsg = validateArgs(message)) {
     return whisk.error(badArgMsg);
   }
+
   var gwInfo = {
     gwUrl: message.gwUrl,
-    gwAuth: message.gwAuth
   };
+  if (message.gwUser && message.gwPwd) {
+    gwInfo.gwAuth = Buffer.from(message.gwUser+':'+message.gwPwd,'ascii').toString('base64');
+  }
 
   // Log parameter values
   console.log('DB host    : '+message.host);
@@ -177,10 +180,12 @@ function deleteRouteFromGateway(gwInfo, gwApiGuid) {
     url: gwInfo.gwUrl+'/v1/apis/'+gwApiGuid,
     agentOptions: {rejectUnauthorized: false},
     headers: {
-      'Content-Type': 'application/json',
-      //'Authorization': 'Basic ' + 'btoa(gwInfo.gwAuth)',  // FIXME MWD Authentication
+      'Content-Type': 'application/json'
     }
   };
+  if (gwInfo.gwAuth) {
+    options.headers.Authorization = 'Basic ' + gwInfo.gwAuth;
+  }
   console.log('deleteRouteFromGateway: request: '+JSON.stringify(options));
 
   return new Promise(function(resolve, reject) {

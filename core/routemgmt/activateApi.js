@@ -29,11 +29,12 @@
  *   basepath   Required. The basepath of the API to be activated
  *
  * NOTE: The package containing this action will be bound to the following values:
- *         host, port, protocol, dbname, username, password
+ *         host, port, protocol, dbname, username, password, gwUrl, gwUser, gwPwd
  *       As such, the caller to this action should normally avoid explicitly setting
  *       these values
  **/
  var request = require('request');
+ var url = require('url');
 
 function main(message) {
   var badArgMsg = '';
@@ -41,10 +42,13 @@ function main(message) {
     return whisk.error(badArgMsg);
   }
   var dbname = message.dbname;
+
   var gwInfo = {
     gwUrl: message.gwUrl,
-    gwAuth: message.gwAuth
   };
+  if (message.gwUser && message.gwPwd) {
+    gwInfo.gwAuth = Buffer.from(message.gwUser+':'+message.gwPwd,'ascii').toString('base64');
+  }
 
   // Log parameter values
   console.log('DB host    : '+message.host);
@@ -53,7 +57,9 @@ function main(message) {
   console.log('DB username: '+message.username);
   console.log('DB database: '+message.dbname);
   console.log('GW URL     : '+message.gwUrl);
-  console.log('GW Auth API: '+message.gwAuth);
+  console.log('GW User    : '+message.gwUser);
+  console.log('GW Pwd     : '+message.gwPwd);
+  console.log('GW Auth    : '+gwInfo.gwAuth);
   console.log('namespace  : '+message.namespace);
   console.log('basepath   : '+message.basepath);
 
@@ -107,6 +113,8 @@ function main(message) {
       }
       gwApiActivated = true;
       dbApiDoc.gwApiUrl = gwApiResponse.managedUrl;
+      var gwUrl = url.parse(gwApiResponse.managedUrl);
+      dbApiDoc.apidoc.host = gwUrl.host;
       dbApiDoc.gwApiGuid = gwApiResponse.id;
       dbApiDoc.tenantId = tenantGuid;
       dbApiDoc.gwApiActivated = true;
@@ -203,13 +211,15 @@ function addTenantToGateway(gwInfo, namespace) {
     headers: {
       'Content-Type': 'application/json',
       'Accept': 'application/json'
-      //'Authorization': 'Basic ' + 'btoa(gwInfo.gwAuth)',  // FIXME MWD Authentication
     },
     json: {
       instance: 'openwhisk',    // Use a fixed instance so all openwhisk tenants have a common instance
       namespace: namespace
     }
   };
+  if (gwInfo.gwAuth) {
+    options.headers.Authorization = 'Basic ' + gwInfo.gwAuth;
+  }
   console.log('addTenantToGateway: request: '+JSON.stringify(options));
 
   return new Promise(function(resolve, reject) {
@@ -262,10 +272,13 @@ function addRouteToGateway(gwInfo, gwApiDoc) {
     headers: {
       'Content-Type': 'application/json',
       'Accept': 'application/json'
-      //'Authorization': 'Basic ' + 'btoa(gwInfo.gwAuth)',  // FIXME MWD Authentication
     },
     json: gwApiDoc,
   };
+  if (gwInfo.gwAuth) {
+    options.headers.Authorization = 'Basic ' + gwInfo.gwAuth;
+  }
+
   if (gwApiDoc.id) {
     console.log("addRouteToGateway: Updating existing API");
     options.url = gwInfo.gwUrl+'/apis/'+gwApiDoc.id;
