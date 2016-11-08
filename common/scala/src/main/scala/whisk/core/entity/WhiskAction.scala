@@ -288,7 +288,7 @@ object WhiskAction
             // there is a package to be resolved
             val pkgDocid = fullyQualifiedName.pathToDocId
             val actionName = fullyQualifiedName.name
-            val wp = WhiskPackage.resolveBindingAndMergeParameters(entityStore, pkgDocid)
+            val wp = WhiskPackage.resolveBinding(entityStore, pkgDocid, mergeParameters = true)
             wp flatMap { resolvedPkg =>
                 // fully resolved name for the action
                 val fqenAction = FullyQualifiedEntityName(resolvedPkg.namespace.addpath(resolvedPkg.name), actionName)

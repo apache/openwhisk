@@ -100,7 +100,14 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
             if (!init) "." else " during initialization."
         })
     }
-    protected[core] def sequenceInterruptedError(result: JsValue) = ActivationResponse(ApplicationError, Some(result))
+
+    /**
+     * Returns an ActivationResponse that is used as a placeholder for payload
+     * Used as a feed for starting a sequence.
+     * NOTE: the code is application error (since this response could be used as a response for the sequence
+     * if the payload contains an error)
+     */
+    protected[core] def payloadPlaceholder(payload: Option[JsObject]) = ActivationResponse(ApplicationError, payload)
 
     /**
      * Interprets response from container after initialization. This method is only called when the initialization failed.
@@ -128,11 +135,6 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
             containerError(abnormalInitialization)
         }
     }
-
-    /**
-     * Returns an ActivationResponse that is used as a placeholder for some payload
-     */
-    protected[core] def payloadPlaceholder(payload: Option[JsObject]) = ActivationResponse(ActivationResponse.Success, payload)
 
     /**
      * Interprets response from container after running the action. This method is only called when the initialization succeeded.

@@ -398,6 +398,7 @@ class Invoker(
         activationResponse: ActivationResponse,
         interval: Interval,
         limits: Option[ActionLimits]) = {
+        val causedBy = if (msg.isCausedBySequence) Parameters("causedBy", "sequence".toJson) else Parameters()
         WhiskActivation(
             namespace = msg.activationNamespace,
             name = actionName.last,
@@ -412,8 +413,10 @@ class Invoker(
             logs = ActivationLogs(),
             annotations = {
                 limits.map(l => Parameters("limits", l.toJson)).getOrElse(Parameters()) ++
-                    Parameters("path", actionName.toJson)
-            })
+                    Parameters("path", actionName.toJson) ++ causedBy
+            },
+            duration = Some(interval.duration.toMillis))
+
     }
 
     /**
