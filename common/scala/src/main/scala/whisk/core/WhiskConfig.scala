@@ -25,7 +25,6 @@ import scala.util.Try
 
 import akka.actor.ActorSystem
 import whisk.common.Config
-import whisk.common.Config.Settings
 import whisk.common.ConsulClient
 import whisk.common.ConsulKV
 import whisk.common.Logging
@@ -35,28 +34,28 @@ import whisk.common.Logging
  * in scala.
  *
  * @param requiredProperties a Map whose keys define properties that must be bound to
- * a value, and whose values are default values.   A null value in the Map means there is
- * no default value specified, so it must appear in the properties file
- * @param whiskPropertiesFile a File object, the whisk.properties file
+ * a value, and whose values are default values. A null value in the Map means there is
+ * no default value specified, so it must appear in the properties file.
+ * @param optionalProperties a set of optional properties (which may not be defined).
+ * @param whiskPropertiesFile a File object, the whisk.properties file, which if given contains the property values.
  */
 
 class WhiskConfig(
     requiredProperties: Map[String, String],
     optionalProperties: Set[String] = Set(),
     propertiesFile: File = null)(implicit val system: ActorSystem)
-    extends Config(requiredProperties, optionalProperties) {
+    extends Config(requiredProperties, optionalProperties)(sys.env) {
 
     /**
      * Loads the properties as specified above.
      *
      * @return a pair which is the Map defining the properties, and a boolean indicating whether validation succeeded.
      */
-    override protected def getProperties(): (Map[String, String], Boolean) = {
-        val properties = scala.collection.mutable.Map[String, String]() ++= requiredProperties
-        Config.readPropertiesFromEnvironment(properties)
+    override protected def getProperties() = {
+        val properties = super.getProperties()
         WhiskConfig.readPropertiesFromFile(properties, Option(propertiesFile) getOrElse (WhiskConfig.whiskPropertiesFile))
-        WhiskConfig.readPropertiesFromConsul(properties, optionalProperties)
-        (properties.toMap, Config.validateProperties(requiredProperties, properties))
+        WhiskConfig.readPropertiesFromConsul(properties)
+        properties
     }
 
     val logsDir = this(WhiskConfig.logsDir)
@@ -99,6 +98,7 @@ class WhiskConfig(
     val dbPrefix = this(WhiskConfig.dbPrefix)
 
     val entitlementHost = this(WhiskConfig.entitlementHostName) + ":" + this(WhiskConfig.entitlementHostPort)
+
     val routerHost = this(WhiskConfig.routerHost)
     val cliApiHost = this(WhiskConfig.cliApiHost)
 
@@ -139,7 +139,7 @@ object WhiskConfig extends Logging {
      * Reads a Map of key-value pairs from the Consul service -- store them in the
      * mutable properties object.
      */
-    def readPropertiesFromConsul(properties: Settings, optionalProperties: Set[String])(implicit system: ActorSystem) = {
+    def readPropertiesFromConsul(properties: scala.collection.mutable.Map[String, String])(implicit system: ActorSystem) = {
         //try to get consulServer prop
         val consulString = for {
             server <- properties.get(consulServerHost)
@@ -152,7 +152,7 @@ object WhiskConfig extends Logging {
                 val consul = new ConsulClient(consulServer)
 
                 val whiskProps = Await.result(consul.kv.getRecurse(ConsulKV.WhiskProps.whiskProps), 1.minute)
-                (properties.keys ++ optionalProperties) foreach { p =>
+                properties.keys foreach { p =>
                     val kvp = ConsulKV.WhiskProps.whiskProps + "/" + p.replace('.', '_').toUpperCase
                     whiskProps.get(kvp) foreach { properties += p -> _ }
                 }
@@ -165,7 +165,7 @@ object WhiskConfig extends Logging {
      * Reads a Map of key-value pairs from the environment (sys.env) -- store them in the
      * mutable properties object.
      */
-    def readPropertiesFromFile(properties: Settings, file: File) = {
+    def readPropertiesFromFile(properties: scala.collection.mutable.Map[String, String], file: File) = {
         if (file != null && file.exists) {
             info(this, s"reading properties from file $file")
             for (line <- Source.fromFile(file).getLines if line.trim != "") {
