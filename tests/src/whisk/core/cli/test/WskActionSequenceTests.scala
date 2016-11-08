@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package system.basic
+package whisk.core.cli.test
 
 import java.util.Date
 
