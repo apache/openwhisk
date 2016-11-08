@@ -666,7 +666,7 @@ func init() {
   actionGetCmd.Flags().BoolVarP(&flags.common.summary, "summary", "s", false, wski18n.T("summarize action details"))
 
   actionListCmd.Flags().IntVarP(&flags.common.skip, "skip", "s", 0, wski18n.T("exclude the first `SKIP` number of actions from the result"))
-  actionListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, wski18n.T("the maximum log size `LIMIT` in MB for the action"))
+  actionListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, wski18n.T("only return `LIMIT` number of actions from the collection"))
 
   actionCmd.AddCommand(
     actionCreateCmd,
