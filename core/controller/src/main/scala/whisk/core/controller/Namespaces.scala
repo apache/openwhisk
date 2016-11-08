@@ -40,7 +40,7 @@ import whisk.core.entity.types.EntityStore
 import whisk.http.ErrorResponse.terminate
 import whisk.core.entity.WhiskEntityQueries.listEntitiesInNamespace
 import whisk.core.entity.Identity
-import whisk.core.iam.Identities
+import whisk.core.iam.NamespaceProvider
 
 object WhiskNamespacesApi {
     def requiredProperties = WhiskEntityStore.requiredProperties
@@ -64,7 +64,7 @@ trait WhiskNamespacesApi
     protected val entityStore: EntityStore
 
     /** An identity provider. */
-    protected val iam: Identities
+    protected val iam: NamespaceProvider
 
     /**
      * Rest API for managing namespaces. Defines all the routes handled by this API. They are:
@@ -80,7 +80,7 @@ trait WhiskNamespacesApi
             (collectionOps & requestMethod) { m =>
                 getNamespaces(user.subject)
             } ~ (entityOps & entityPrefix & pathEndOrSingleSlash & requestMethod) { (segment, m) =>
-                namespace(user.subject, segment) { ns =>
+                namespace(user, segment) { ns =>
                     val resource = Resource(ns, collection, None)
                     authorizeAndDispatch(m, user, resource)
                 }

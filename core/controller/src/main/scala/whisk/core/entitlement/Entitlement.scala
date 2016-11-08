@@ -38,7 +38,7 @@ import whisk.core.entity.EntityPath
 import whisk.core.entity.Identity
 import whisk.core.entity.Parameters
 import whisk.core.entity.Subject
-import whisk.core.iam.Identities
+import whisk.core.iam.NamespaceProvider
 import whisk.core.loadBalancer.LoadBalancer
 import whisk.http.ErrorResponse
 import whisk.http.Messages._
@@ -84,7 +84,7 @@ protected[core] object EntitlementService {
  * A trait that implements entitlements to resources. It performs checks for CRUD and Acivation requests.
  * This is where enforcement of activation quotas takes place, in additional to basic authorization.
  */
-protected[core] abstract class EntitlementService(config: WhiskConfig, loadBalancer: LoadBalancer, iam: Identities)(
+protected[core] abstract class EntitlementService(config: WhiskConfig, loadBalancer: LoadBalancer, iam: NamespaceProvider)(
     implicit actorSystem: ActorSystem) extends Logging {
 
     private implicit val executionContext = actorSystem.dispatcher
@@ -153,7 +153,7 @@ protected[core] abstract class EntitlementService(config: WhiskConfig, loadBalan
                 checkUserThrottle(subject, right, resource)
             } orElse {
                 checkConcurrentUserThrottle(subject, right, resource)
-            } getOrElse checkPrivilege(subject, right, resource)
+            } getOrElse checkPrivilege(user, right, resource)
         } else if (right != REJECT) {
             info(this, s"supplied authkey for user '$subject' does not have privilege '$right' for '$resource'")
             Future.failed(OperationNotAllowed(Forbidden, Some(ErrorResponse(notAuthorizedtoOperateOnResource, transid))))
@@ -174,26 +174,26 @@ protected[core] abstract class EntitlementService(config: WhiskConfig, loadBalan
     // and the references package are both either implicitly or explicitly granted; this is
     // accepted for the time being however because there exists no external mechanism to create
     // explicit grants
-    protected def checkPrivilege(subject: Subject, right: Privilege, resource: Resource)(
+    protected def checkPrivilege(user: Identity, right: Privilege, resource: Resource)(
         implicit transid: TransactionId): Future[Boolean] = {
         // check the default namespace first, bypassing additional checks if permitted
-        val defaultNamespaces = Identities.defaultNamespaces(subject)
+        val defaultNamespaces = Set(user.namespace())
         resource.collection.implicitRights(defaultNamespaces, right, resource) flatMap {
             case true => Future successful true
             case false =>
                 // currently allow subject to work across any of their namespaces
                 // but this feature will be removed in future iterations, thereby removing
                 // the iam entanglement with entitlement
-                iam.namespaces(subject) flatMap {
-                additionalNamespaces =>
-                    val newNamespacesToCheck = additionalNamespaces -- defaultNamespaces
-                    if (newNamespacesToCheck nonEmpty) {
-                        resource.collection.implicitRights(newNamespacesToCheck, right, resource) flatMap {
-                            case true  => Future.successful(true)
-                            case false => entitled(subject, right, resource)
-                        }
-                    } else entitled(subject, right, resource)
-            }
+                iam.namespaces(user.subject) flatMap {
+                    additionalNamespaces =>
+                        val newNamespacesToCheck = additionalNamespaces -- defaultNamespaces
+                        if (newNamespacesToCheck nonEmpty) {
+                            resource.collection.implicitRights(newNamespacesToCheck, right, resource) flatMap {
+                                case true  => Future.successful(true)
+                                case false => entitled(user.subject, right, resource)
+                            }
+                        } else entitled(user.subject, right, resource)
+                }
         }
     }
 

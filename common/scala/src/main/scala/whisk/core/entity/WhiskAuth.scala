@@ -98,7 +98,6 @@ object WhiskAuth extends DocumentFactory[WhiskAuth] {
         // hence it is safe to cache the result of this query result since a put
         // on the auth record will invalidate the cached query result as well
         cacheLookup(uuid, {
-            implicit val ec = datastore.executionContext
             list(datastore, uuid) map { list =>
                 list.length match {
                     case 1 =>

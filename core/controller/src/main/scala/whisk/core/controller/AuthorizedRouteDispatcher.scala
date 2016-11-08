@@ -25,7 +25,6 @@ import spray.routing.Directive1
 import spray.http.HttpMethod
 import whisk.common.TransactionId
 import whisk.core.entity.EntityPath
-import whisk.core.entity.Subject
 import whisk.core.entitlement.EntitlementService
 import whisk.core.entitlement.Collection
 import whisk.core.entitlement.Privilege.Privilege
@@ -97,9 +96,9 @@ trait BasicAuthorizedRouteProvider extends Directives with Logging {
             implicit transid: TransactionId): RequestContext => Unit
 
     /** Extracts namespace for user from the matched path segment. */
-    protected def namespace(user: Subject, ns: String) = {
+    protected def namespace(user: Identity, ns: String) = {
         validate(isNamespace(ns), "namespace contains invalid characters") &
-            extract(_ => EntityPath(if (EntityPath(ns) == EntityPath.DEFAULT) user() else ns))
+            extract(_ => EntityPath(if (EntityPath(ns) == EntityPath.DEFAULT) user.namespace() else ns))
     }
 
     /** Extracts the HTTP method which is used to determine privilege for resource. */
@@ -139,7 +138,7 @@ trait AuthorizedRouteProvider extends BasicAuthorizedRouteProvider {
      */
     def routes(user: Identity)(implicit transid: TransactionId) = {
         collectionPrefix { segment =>
-            namespace(user.subject, segment) { ns =>
+            namespace(user, segment) { ns =>
                 (collectionOps & requestMethod) {
                     // matched /namespace/collection
                     authorizeAndDispatch(_, user, Resource(ns, collection, None))

@@ -31,7 +31,7 @@ import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.entity.Subject
 
-object Identities {
+object NamespaceProvider {
     /**
      * An identity provider host (optional).
      * Note: using entitlement host now for compatibility but will need to change to an iam provider in the future
@@ -44,7 +44,7 @@ object Identities {
     protected[core] def defaultNamespaces(subject: Subject) = Set(subject())
 }
 
-protected[core] class Identities(config: WhiskConfig, timeout: FiniteDuration = 5 seconds, forceLocal: Boolean = false)(
+protected[core] class NamespaceProvider(config: WhiskConfig, timeout: FiniteDuration = 5 seconds, forceLocal: Boolean = false)(
     implicit actorSystem: ActorSystem)
     extends Logging {
 
@@ -75,7 +75,7 @@ protected[core] class Identities(config: WhiskConfig, timeout: FiniteDuration = 
             pipeline(Get(url))
         } else {
             info(this, s"assuming default namespaces")
-            Future.successful(Identities.defaultNamespaces(subject))
+            Future.successful(NamespaceProvider.defaultNamespaces(subject))
         }
     }
 }

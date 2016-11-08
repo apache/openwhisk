@@ -39,8 +39,7 @@ import whisk.core.database.test.DbUtils
 import whisk.core.entitlement.{ Collection, EntitlementService, LocalEntitlementService }
 import whisk.core.entity._
 import whisk.core.loadBalancer.LoadBalancer
-import whisk.core.iam.Identities
-
+import whisk.core.iam.NamespaceProvider
 
 protected trait ControllerTestCommon
     extends FlatSpec
@@ -64,7 +63,7 @@ protected trait ControllerTestCommon
     assert(whiskConfig.isValid)
 
     override val loadBalancer = new DegenerateLoadBalancerService(whiskConfig, InfoLevel)
-    override val iam = new Identities(whiskConfig, forceLocal = true)
+    override val iam = new NamespaceProvider(whiskConfig, forceLocal = true)
     override val entitlementService: EntitlementService = new LocalEntitlementService(whiskConfig, loadBalancer, iam)
 
     override val activationId = new ActivationId.ActivationIdGenerator() {
@@ -174,8 +173,8 @@ class DegenerateLoadBalancerService(config: WhiskConfig, verbosity: LogLevel)
 
     override def publish(msg: ActivationMessage, timeout: FiniteDuration)(implicit transid: TransactionId): (Future[Unit], Future[WhiskActivation]) =
         (Future.successful {},
-         whiskActivationStub map {
-            activation => Future.successful(activation)
-        } getOrElse Future.failed(new IllegalArgumentException("Unit test does not need fast path")))
+            whiskActivationStub map {
+                activation => Future.successful(activation)
+            } getOrElse Future.failed(new IllegalArgumentException("Unit test does not need fast path")))
 
 }

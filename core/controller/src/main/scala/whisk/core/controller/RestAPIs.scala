@@ -41,7 +41,7 @@ import whisk.core.entity.types.{ ActivationStore, EntityStore }
 import whisk.core.loadBalancer.LoadBalancerService
 import akka.event.Logging.LogLevel
 import whisk.core.entity.ActivationId.ActivationIdGenerator
-import whisk.core.iam.Identities
+import whisk.core.iam.NamespaceProvider
 
 /**
  * Abstract class which provides basic Directives which are used to construct route structures
@@ -187,7 +187,7 @@ protected[controller] class RestAPIVersion_v1(
         val apiversion: String,
         val verbosity: LogLevel)(
             implicit override val entityStore: EntityStore,
-            override val iam: Identities,
+            override val iam: NamespaceProvider,
             override val entitlementService: EntitlementService,
             override val executionContext: ExecutionContext)
         extends WhiskNamespacesApi {
@@ -201,7 +201,7 @@ protected[controller] class RestAPIVersion_v1(
             implicit override val actorSystem: ActorSystem,
             override val entityStore: EntityStore,
             override val activationStore: ActivationStore,
-            override val iam: Identities,
+            override val iam: NamespaceProvider,
             override val entitlementService: EntitlementService,
             override val activationId: ActivationIdGenerator,
             override val loadBalancer: LoadBalancerService,
@@ -220,7 +220,7 @@ protected[controller] class RestAPIVersion_v1(
         val verbosity: LogLevel)(
             implicit override val actorSystem: ActorSystem,
             implicit override val entityStore: EntityStore,
-            override val iam: Identities,
+            override val iam: NamespaceProvider,
             override val entitlementService: EntitlementService,
             override val activationStore: ActivationStore,
             override val activationId: ActivationIdGenerator,
@@ -238,7 +238,7 @@ protected[controller] class RestAPIVersion_v1(
         val verbosity: LogLevel)(
             implicit override val actorSystem: ActorSystem,
             override val entityStore: EntityStore,
-            override val iam: Identities,
+            override val iam: NamespaceProvider,
             override val entitlementService: EntitlementService,
             override val activationId: ActivationIdGenerator,
             override val loadBalancer: LoadBalancerService,
@@ -265,7 +265,7 @@ protected[controller] class RestAPIVersion_v1(
         val apiversion: String,
         val verbosity: LogLevel)(
             implicit override val entityStore: EntityStore,
-            override val iam: Identities,
+            override val iam: NamespaceProvider,
             override val entitlementService: EntitlementService,
             override val activationId: ActivationIdGenerator,
             override val loadBalancer: LoadBalancerService,

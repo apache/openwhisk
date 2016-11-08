@@ -28,9 +28,9 @@ import whisk.core.entity.AuthKey
 import whisk.core.entity.Identity
 import whisk.core.entity.Secret
 import whisk.core.entity.UUID
-import whisk.core.entity.WhiskAuth
 import whisk.core.entity.WhiskAuthStore
 import whisk.core.entity.types.AuthStore
+import whisk.core.entity.Identities
 
 object Authenticate {
     /** Required properties for this component */
@@ -56,10 +56,10 @@ trait Authenticate extends Logging {
                 // authkey deserialization is wrapped in a try to guard against malformed values
                 val authkey = AuthKey(UUID(pw.user), Secret(pw.pass))
                 info(this, s"authenticate: ${authkey.uuid}")
-                val future = WhiskAuth.get(authStore, authkey.uuid) map { result =>
+                val future = Identities.get(authStore, authkey) map { result =>
                     if (authkey == result.authkey) {
                         info(this, s"authentication valid")
-                        Some(result.subject.toIdentity(result.authkey))
+                        Some(result)
                     } else {
                         info(this, s"authentication not valid")
                         None

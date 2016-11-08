@@ -25,7 +25,7 @@ import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.entity.Subject
 import whisk.core.loadBalancer.LoadBalancer
-import whisk.core.iam.Identities
+import whisk.core.iam.NamespaceProvider
 
 private object LocalEntitlementService {
     /** Poor mans entitlement matrix. Must persist to datastore eventually. */
@@ -35,7 +35,7 @@ private object LocalEntitlementService {
 protected[core] class LocalEntitlementService(
     private val config: WhiskConfig,
     private val loadBalancer: LoadBalancer,
-    private val iam: Identities)(
+    private val iam: NamespaceProvider)(
         implicit actorSystem: ActorSystem)
     extends EntitlementService(config, loadBalancer, iam) {
 

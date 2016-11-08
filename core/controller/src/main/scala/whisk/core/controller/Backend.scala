@@ -28,7 +28,7 @@ import whisk.core.entitlement.RemoteEntitlementService
 import whisk.core.loadBalancer.{ LoadBalancer, LoadBalancerService }
 import scala.language.postfixOps
 import whisk.core.entity.ActivationId.ActivationIdGenerator
-import whisk.core.iam.Identities
+import whisk.core.iam.NamespaceProvider
 
 object WhiskServices {
 
@@ -39,7 +39,7 @@ object WhiskServices {
     /**
      * Creates instance of an entitlement service.
      */
-    def entitlementService(config: WhiskConfig, loadBalancer: LoadBalancer, iam: Identities, timeout: FiniteDuration = 5 seconds)(
+    def entitlementService(config: WhiskConfig, loadBalancer: LoadBalancer, iam: NamespaceProvider, timeout: FiniteDuration = 5 seconds)(
         implicit as: ActorSystem) = {
         // remote entitlement service requires a host:port definition. If not given,
         // i.e., the value equals ":" or ":xxxx", use a local entitlement flow.
@@ -54,7 +54,7 @@ object WhiskServices {
      * Creates instance of an identity provider.
      */
     def iamProvider(config: WhiskConfig, timeout: FiniteDuration = 5 seconds)(implicit as: ActorSystem) = {
-        new Identities(config, timeout)
+        new NamespaceProvider(config, timeout)
     }
 
     /**
@@ -78,7 +78,7 @@ trait WhiskServices {
     protected val entitlementService: EntitlementService
 
     /** An identity provider. */
-    protected val iam: Identities
+    protected val iam: NamespaceProvider
 
     /** A generator for new activation ids. */
     protected val activationId: ActivationIdGenerator

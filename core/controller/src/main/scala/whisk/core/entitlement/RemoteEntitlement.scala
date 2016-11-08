@@ -39,12 +39,12 @@ import whisk.core.WhiskConfig
 import whisk.core.controller.RejectRequest
 import whisk.core.entity.Subject
 import whisk.core.loadBalancer.LoadBalancer
-import whisk.core.iam.Identities
+import whisk.core.iam.NamespaceProvider
 
 protected[core] class RemoteEntitlementService(
     private val config: WhiskConfig,
     private val loadBalancer: LoadBalancer,
-    private val iam: Identities,
+    private val iam: NamespaceProvider,
     private val timeout: FiniteDuration = 5 seconds)(
         private implicit val actorSystem: ActorSystem)
     extends EntitlementService(config, loadBalancer, iam) {
