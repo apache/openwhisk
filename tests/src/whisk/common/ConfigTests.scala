@@ -25,12 +25,23 @@ import org.scalatest.junit.JUnitRunner
 class ConfigTests extends FlatSpec with Matchers {
 
     "Config" should "gets default value" in {
-        val config = new Config(Map("a" -> "A"))
+        val config = new Config(Map("a" -> "A"))(Map())
         assert(config.isValid && config("a") == "A")
     }
 
-    it should "not be valid when environment and prop file is not provided" in {
-        val config = new Config(Map("a" -> null))
+    it should "get value from environemnt" in {
+        val config = new Config(Map("a" -> null))(Map("A" -> "xyz"))
+        assert(config.isValid && config("a") == "xyz")
+    }
+
+    it should "not be valid when environment does not provide value" in {
+        val config = new Config(Map("a" -> null))(Map())
         assert(!config.isValid && config("a") == null)
     }
+
+    it should "read optional value" in {
+        val config = new Config(Map("a" -> "A"), Set("b", "c"))(Map("B" -> "xyz"))
+        assert(config.isValid && config("a") == "A" && config("b") == "xyz" && config("c") == null)
+    }
+
 }
