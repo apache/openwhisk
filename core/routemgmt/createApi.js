@@ -33,9 +33,12 @@
  *     backendUrl     Required if action provided. Complete invocable URL of the action
  *     name           Required if action provided. Entity name of action (incl package if specified)
  *     namespace      Required if action provided. Namespace in which the action resides
-  *    authkey        Required if action provided. Authorization needed to call the action
+ *     authkey        Required if action provided. Authorization needed to call the action
  *   apiname    Optional if swagger not provided.  API friendly title
  *   swagger    Required if basepath is not provided.  Entire swagger document specifying API
+ *   stagedId   Optional. Used to create a "staged" DB document that will be committed later.
+ *              Staged DB documents use "stagedId" as a document id prefix.  The committed
+ *              DB doc's id does not have this prefix.
  *
  * NOTE: The package containing this action will be bound to the following values:
  *         host, port, protocol, dbname, username, password
@@ -62,6 +65,7 @@ function main(message) {
   message.swagger = swaggerObj;
 
   var dbDocId = "API:"+message.namespace+":"+getBasePath(message);
+  var dbStagedDocId;
 
   // Log parameter values
   console.log('DB host             : '+message.host);
@@ -71,6 +75,7 @@ function main(message) {
   console.log('DB database         : '+message.dbname);
   console.log('DB database         : '+message.dbname);
   console.log('docid               : '+dbDocId);
+  console.log('stagedId            : '+message.stagedId);
   console.log('apiname             : '+message.apiname);
   console.log('namespace           : '+message.namespace);
   console.log('basepath/name       : '+getBasePath(message));
@@ -118,7 +123,7 @@ function main(message) {
     dbDocId = dbdoc._id;
     return dbdoc;
   }, function(err) {
-    console.error('Got DB error: ', err);
+    console.error('Got API DB error: ', err);
     if ( (err.error.error == "not_found" && err.error.statusCode == 404)) {  // err.error.reason == "missing" or "deleted"
       // No document.  Create an initial one - but ONLY if a /basepath was provided
       if (message.basepath.indexOf('/') == 0) {
@@ -133,6 +138,50 @@ function main(message) {
   })
   .then(function(dbApiDoc) {
     console.log('Got DB API document: ', JSON.stringify(dbApiDoc));
+
+    // If the API is to be saved in a staged doc, take the current API doc and convert it to a "staged" doc
+    //   If the API's staged doc exists in the DB
+    //     - Retrieve the existing staged doc's _id and _rev values
+    //     - Replace the current API doc's _id and _rev values with the staged doc values (_rev needed to update existing doc)
+    //   If the staged doc does not exist
+    //     - Replace the current API doc's _id value with the associated staged doc id (_rev not needed)
+    if (message.stagedId) {
+      dbStagedDocId = message.stagedId+dbDocId;
+      return getDbApiDoc(message.namespace, getBasePath(message), dbStagedDocId)
+      .then(function(stageddbApiDoc) {
+        console.log('Got staged DB API document: ', JSON.stringify(stageddbApiDoc));
+        // If the committed API document exists, use it's contents instead of the staged document contents.
+        // BUT, be sure use the staged _id and _rev
+        if (dbApiDoc._rev) {
+          console.log('Converting DB API document to staged');
+          dbApiDoc._id = stageddbApiDoc._id;
+          dbApiDoc._rev = stageddbApiDoc._rev;
+          return(dbApiDoc);
+        }
+        console.log('No existing DB API document. Existing staged DB API document. Use existing staged _id and _rev on a replacement doc');
+        var tempStagedDbApiDoc = makeTemplateDbApiDoc(message);
+        tempStagedDbApiDoc._id = stageddbApiDoc._id;
+        tempStagedDbApiDoc._rev = stageddbApiDoc._rev;
+        return(tempStagedDbApiDoc);
+      }, function(err) {
+        console.error('Got DB error while retrieving staged DB API document: ', err);
+        if ( (err.error.error == "not_found" && err.error.statusCode == 404)) {  // err.error.reason == "missing" or "deleted"
+          // No staged API document.
+          console.log('Staged API document not found; converting committed DB API doc to staged');
+          if (dbApiDoc._rev) {
+            delete dbApiDoc._rev;
+            dbApiDoc._id = dbStagedDocId;
+          }
+          dbDocId = dbStagedDocId;
+          return (dbApiDoc);
+        }
+        console.error('Internal error.  DB failure occured while looking for staging API document.');
+        return Promise.reject(err);
+      })
+    }
+    return(dbApiDoc);
+  })
+  .then(function(dbApiDoc) {
     // If a swagger file is not provided, then Check if relpath and operation are already in the API document
     if (!message.swagger) {
         if (dbApiDoc.apidoc.paths[message.relpath] && dbApiDoc.apidoc.paths[message.relpath][message.operation]) {
@@ -149,7 +198,12 @@ function main(message) {
   .then(function(dbApiDoc) {
     // API doc is updated and ready to write out to the DB
     console.log('API document ready to write to DB: ', JSON.stringify(dbApiDoc));
-    return updateApiDocInDb(cloudantDb, dbApiDoc, dbDocId);
+
+    // If the document already exists (i.e. has _rev), update it; otherwise create
+    if (dbApiDoc._rev)
+      return updateDbApiDoc(cloudantDb, dbApiDoc);
+    else
+      return createDbApiDoc(cloudantDb, dbApiDoc, dbDocId);
   })
   .catch(function(reason) {
     console.error('API configuration failure: '+JSON.stringify(reason));
@@ -197,12 +251,13 @@ function getCloudantAccount(message) {
 
 // Retrieve the specific API document from the DB
 // This is a wrapper around an action invocation (getApi)
-function getDbApiDoc(namespace, basepath) {
+function getDbApiDoc(namespace, basepath, docid) {
   var actionName = '/whisk.system/routemgmt/getApi';
   var params = {
     'namespace': namespace,
     'basepath': basepath
   }
+  if (docid) params.docid = docid;
   return whisk.invoke({
     name: actionName,
     blocking: true,
@@ -247,14 +302,35 @@ function getDbApiDoc(namespace, basepath) {
 /**
  * Create document in database.
  */
-function updateApiDocInDb(cloudantDb, doc, docid) {
+function createDbApiDoc(cloudantDb, doc, docid) {
   return new Promise( function(resolve, reject) {
     cloudantDb.insert(doc, docid, function(error, response) {
       if (!error) {
-        console.log("success", response);
-        resolve(response);
+        console.log("createDbApiDoc: success", response);
+        doc._id = response.id;
+        doc._rev = response.rev;
+        resolve(doc);
       } else {
-        console.log("error", JSON.stringify(error))
+        console.log("createDbApiDoc: error", JSON.stringify(error))
+        reject(error);
+      }
+    });
+  });
+}
+
+/**
+ * Update the existing document in database.
+ */
+function updateDbApiDoc(cloudantDb, doc) {
+  return new Promise( function(resolve, reject) {
+    cloudantDb.insert(doc, function(error, response) {
+      if (!error) {
+        console.log("updateDbApiDoc: success", response);
+        doc._id = response.id;
+        doc._rev = response.rev;
+        resolve(doc);
+      } else {
+        console.log("updateDbApiDoc: error", JSON.stringify(error))
         reject(error);
       }
     });
@@ -324,7 +400,7 @@ function validateArgs(message) {
     }
 
     if (!message.action.backendUrl) {
-      return 'action is missing the backendMethod field.';
+      return 'action is missing the backendUrl field.';
     }
 
     if (!message.action.namespace) {

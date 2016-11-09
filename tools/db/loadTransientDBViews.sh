@@ -87,30 +87,16 @@ function view_gwapis() {
           "map": "function (doc) {\n  var PATHSEP = \"/\";\n\n  if (doc.namespace && doc.gatewayPath) {\n    emit([doc.namespace, doc.gatewayPath], {\"gatewayMethod\":doc.gatewayMethod, \"gatewayPath\":doc.gatewayPath, \"action\":doc.action, \"route-collection\":doc[\"route-collection\"], \"apidoc\":doc.apidoc});\n  }\n}"
         },
         "routes-by-api-name": {
-          "map": "function (doc) {\n  var PATHSEP = \"/\";\n\n  if (doc.namespace && doc.apidoc && doc.apidoc.info && doc.apidoc.info.title) {\n    emit([doc.namespace, doc.apidoc.info.title], doc);\n  }\n}"
+          "map": "function (doc) {\n  var PATHSEP = \"/\";\n\n  if (doc.namespace && doc.apidoc && doc.apidoc.info && doc.apidoc.info.title) {\n    if (! (doc._id.indexOf(\"STAGED_\") == 0) ) {\n      emit([doc.namespace, doc.apidoc.info.title], doc);\n    }\n  }\n}"
         },
         "routes-by-namespace": {
-          "map": "function (doc) {\n  var PATHSEP = \"/\";\n\n  if (doc.namespace && doc.apidoc && doc.apidoc.info && doc.apidoc.info.title) {\n    emit(doc.namespace, doc);\n  }\n}"
+          "map": "function (doc) {\n  var PATHSEP = \"/\";\n\n  if (doc.namespace && doc.apidoc && doc.apidoc.info && doc.apidoc.info.title) {\n    if (! (doc._id.indexOf(\"STAGED_\") == 0) ) {\n        emit(doc.namespace, doc);\n    }\n  }\n}"
         }
       },
       "language": "javascript",
       "indexes": {}
     }'
 }
-
-# routes-by-swagger-path
-#function (doc) {
-#  var PATHSEP = "/";
-#
-#  if (doc.namespace && doc.apidoc && doc.apidoc.paths) {
-#    for (var path in doc.apidoc.paths) {
-#      for (var operation in doc.apidoc.paths[path]) {
-#          //emit([doc.namespace, path], {"gatewayPath":path, "gatewayMethod":operation, "action":doc.action, "route-collection":doc.info.title});
-#          emit([doc.namespace, path], {"apiname": doc.apidoc.info.title, "basepath":doc.apidoc.basePath, "gatewayPath":path, "gatewayMethod":operation, "action":doc.action});
-#      }
-#    }
-#  }
-#}
 
 DB_WHISK_ACTIONS=$(getProperty "$PROPERTIES_FILE" "db.whisk.actions")
 

@@ -27,6 +27,7 @@
  *   gwUrl      Required. The API Gateway base path (i.e. http://gw.com)
  *   namespace  Required. The namespace of the API to be activated
  *   basepath   Required. The basepath of the API to be activated
+ *   docid      Optional. If specified, use this docid to retrieve API doc from DB
  *
  * NOTE: The package containing this action will be bound to the following values:
  *         host, port, protocol, dbname, username, password, gwUrl, gwUser, gwPwd
@@ -62,6 +63,7 @@ function main(message) {
   console.log('GW Auth    : '+gwInfo.gwAuth);
   console.log('namespace  : '+message.namespace);
   console.log('basepath   : '+message.basepath);
+  console.log('docid      : '+message.docid);
 
   var cloudantOrError = getCloudantAccount(message);
   if (typeof cloudantOrError !== 'object') {
@@ -84,7 +86,7 @@ function main(message) {
   var gwApiDoc;
   var dbApiDoc;
 
-  return getApiDoc(message.namespace, message.basepath)
+  return getApiDoc(message.namespace, message.basepath, message.docid)
   .then(function(dbdoc) {
     dbApiDoc = dbdoc;
     gwApiDoc = makeGwApiDoc(dbdoc);
@@ -174,13 +176,14 @@ function getCloudantAccount(message) {
 
 // Retrieve the specific API document from the DB
 // This is a wrapper around an action invocation (getApi)
-function getApiDoc(namespace, basepath) {
+function getApiDoc(namespace, basepath, docid) {
   var actionName = '/whisk.system/routemgmt/getApi';
   var params = {
     'namespace': namespace,
     'basepath': basepath
   }
-  console.log('getApiDoc() for namespace:basepath: '+namespace+':'+basepath);
+  if (docid) params.docid = docid;
+  console.log('getApiDoc() for: ', params);
     return whisk.invoke({
       name: actionName,
       blocking: true,

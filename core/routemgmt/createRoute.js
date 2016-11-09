@@ -108,13 +108,30 @@ function main(message) {
   }
   console.log('apidoc     :\n'+JSON.stringify(doc , null, 2));
 
+  var cloudantOrError = getCloudantAccount(message);
+  if (typeof cloudantOrError !== 'object') {
+    console.error('CloudantAccount returned an unexpected object type: '+(typeof cloudantOrError));
+    return Promise.reject('Internal error.  An unexpected object type was obtained.');
+  }
+  var cloudant = cloudantOrError;
+  var cloudantDb = cloudant.use(message.dbname);
+
   // Create and activate a new API path
   // 1. Create or update the API configuration in the DB
   // 2. Activate the entire API
-  return configureApi(message.apidoc)
-  .then(function(api) {
-    console.log('API route configured successfully')
-    return activateApi(doc.namespace, basepath)
+  var stagedApiCreated = false;
+  return createStagedApi(message.apidoc)
+  .then(function(stagedApiDbDoc) {
+    console.log('Staged API successfully added to DB')
+    console.log('Staged API DB Doc: ', stagedApiDbDoc);
+    stagedApiCreated = true;
+    return activateApi(doc.namespace, getBasePath(doc), stagedApiDbDoc._id);
+  })
+  .then(function(stagedApiDbDoc) {
+    console.log('API activated!');
+    // The staged API configuration is now active on the API GW
+    // So, "commit" the API document
+    return commitStagedApi(cloudantDb, doc, stagedApiDbDoc)
   })
   .catch(function(reason) {
     console.error('API route creation failure: '+JSON.stringify(reason))
@@ -122,7 +139,7 @@ function main(message) {
   });
 }
 
-/* Create/update the API in the DB
+/* Create/update a "staged" (i.e. not comitted until sent to API GW) the API in the DB
  * This is a wrapper around an action invocation (createApi)
  * Parameters
  *   namespace  Required. Openwhisk namespace of this request's originator
@@ -138,31 +155,32 @@ function main(message) {
  *   apiname    Optional if swagger not provided.  API friendly title
  *   swagger    Required if basepath is not provided.  Entire swagger document specifying API
  */
-function configureApi(apiPath) {
+function createStagedApi(apiConfig) {
   var actionName = '/whisk.system/routemgmt/createApi';
   var params;
-  if (!apiPath.swagger) {
+  if (!apiConfig.swagger) {
     params = {
-      'namespace': apiPath.namespace,
-      'basepath': apiPath.gatewayBasePath,
-      'relpath': apiPath.gatewayPath,
-      'operation': apiPath.gatewayMethod,
-      'apiname': apiPath.apiName,
+      'namespace': apiConfig.namespace,
+      'basepath': apiConfig.gatewayBasePath,
+      'relpath': apiConfig.gatewayPath,
+      'operation': apiConfig.gatewayMethod,
+      'apiname': apiConfig.apiName,
       'action': {
-        'backendMethod': apiPath.action.backendMethod,
-        'backendUrl': apiPath.action.backendUrl,
-        'name': apiPath.action.name,
-        'namespace': apiPath.action.namespace,
-        'authkey': apiPath.action.authkey
+        'backendMethod': apiConfig.action.backendMethod,
+        'backendUrl': apiConfig.action.backendUrl,
+        'name': apiConfig.action.name,
+        'namespace': apiConfig.action.namespace,
+        'authkey': apiConfig.action.authkey
       }
     }
   } else {
       params = {
-        'namespace': apiPath.namespace,
-        'swagger': apiPath.swagger
+        'namespace': apiConfig.namespace,
+        'swagger': apiConfig.swagger
       }
   }
-  console.log('configureApi() params: ', params);
+  params.stagedId = 'STAGED_';  // Causes createApi to generate a staged API document in DB
+  console.log('createStagedApi() params: ', params);
   return whisk.invoke({
       name: actionName,
       blocking: true,
@@ -184,13 +202,15 @@ function configureApi(apiPath) {
  * Parameters
  *   namespace  Required. Openwhisk namespace of this request's originator
  *   basepath   Required if apidoc not provided.  API base path
+ *   docid      Optional. If specified, use it to identify the API DB document
  */
-function activateApi(namespace, basepath) {
+function activateApi(namespace, basepath, docid) {
   var actionName = '/whisk.system/routemgmt/activateApi';
   var params = {
     'namespace': namespace,
     'basepath': basepath
   }
+  if (docid) params.docid = docid;
   console.log('activateApi() params: ', params);
   return whisk.invoke({
       name: actionName,
@@ -208,6 +228,105 @@ function activateApi(namespace, basepath) {
   });
 }
 
+/*
+ * Copy the staged API DB document into a commited API DB document.
+ */
+function commitStagedApi(cloudantDb, apiConfig, stagedApiDbDoc) {
+  var options = {};
+  var srcDoc = stagedApiDbDoc._id;
+  var destDoc = "API:"+apiConfig.namespace+":"+getBasePath(apiConfig);
+  console.log('commitStagedApi() Copying staged API doc '+srcDoc+' to committed doc '+destDoc);
+  return getApiDoc(apiConfig.namespace, getBasePath(apiConfig))
+  .then(function(dbApiDoc) {
+    options.overwrite = true;
+    return(destDoc);
+  }, function(err) {
+    if ((err.error.error == "not_found" && err.error.statusCode == 404)) {  // err.error.reason == "missing" or "deleted"
+      console.log('No committed API document found');
+    } else {
+      console.log('DB error while retrieving committed API document');
+      return Promise.reject(err);
+    }
+    return(destDoc);
+  })
+  .then(function(destDoc) {
+    console.log('Copying staged API doc to commited doc');
+    return copyApiDocument(cloudantDb, srcDoc, destDoc, options);
+  })
+  .then(function(copyResp) {
+    console.log('Staged API doc is now committed');
+    dbApiDoc = JSON.parse(JSON.stringify(stagedApiDbDoc));  // clone
+    dbApiDoc._id = copyResp.id;
+    dbApiDoc._rev = copyResp.rev;
+    return Promise.resolve(dbApiDoc);
+  })
+  .catch(function(err) {
+    console.log('commitStagedApi(): error: ',err);
+    return Promise.reject(err);
+  })
+}
+
+function getBasePath(apidoc) {
+  if (apidoc.swagger) {
+    return apidoc.swagger.basePath;
+  }
+  return apidoc.gatewayBasePath;
+}
+
+function copyApiDocument(cloudantDb, srcDoc, dstDoc, options) {
+  console.log('copyApiDocument: srcDoc '+srcDoc+' dstDoc '+dstDoc+' copy options: ', options);
+  cloudantDb.head(dstDoc, function(err, _, headers) {   // FIXME MWD DELETE
+    if (!err) {
+      console.log('DB dstdoc headers: ', headers);
+    } else {
+      console.log('DB head err: ', err);
+    }
+  });
+  return new Promise (function(resolve,reject) {
+    cloudantDb.copy(srcDoc, dstDoc, options, function(error, response) {
+      if (!error) {
+        console.log('DB doc copy success', JSON.stringify(response));
+        resolve(response);
+      } else {
+        console.error("DB doc copy error: ",error.name, error.error, error.reason, error.headers.statusCode);
+        reject(error);
+      }
+    });
+  });
+}
+
+// Retrieve the specific API document from the DB
+// This is a wrapper around an action invocation (getApi)
+function getApiDoc(namespace, basepath, docid) {
+  var actionName = '/whisk.system/routemgmt/getApi';
+  var params = {
+    'namespace': namespace,
+    'basepath': basepath
+  }
+  if (docid) params.docid = docid;
+  console.log('getApiDoc() for: ', params);
+    return whisk.invoke({
+      name: actionName,
+      blocking: true,
+      parameters: params
+    })
+    .then(function (activation) {
+      console.log('whisk.invoke('+actionName+', '+params.namespace+', '+params.basepath+') ok');
+      console.log('Results: '+JSON.stringify(activation));
+    if (activation && activation.result && activation.result.apis &&
+        activation.result.apis.length > 0 && activation.result.apis[0].value &&
+        activation.result.apis[0].value._rev) {
+        return Promise.resolve(activation.result.apis[0].value);
+      } else {
+        console.error('Invalid API doc returned!');
+        return Promise.reject('Document for namepace \"'+namespace+'\" and basepath \"'+basepath+'\" was not located');
+      }
+    })
+    .catch(function (error) {
+      console.error('whisk.invoke('+actionName+', '+params.namespace+', '+params.basepath+') error: '+JSON.stringify(error));
+      return Promise.reject(error);
+    });
+}
 
 function validateArgs(message) {
   var tmpdoc;
@@ -282,10 +401,6 @@ function validateArgs(message) {
       return 'apidoc is missing the gatewayMethod field';
     }
 
-//    if (!tmpdoc.apiName) {
-//      return 'apidoc is missing the apiName field';
-//    }
-
     if (!tmpdoc.action) {
       return 'apidoc is missing the action (action name) field.';
     }
@@ -312,4 +427,42 @@ function validateArgs(message) {
   }
 
   return '';
+}
+
+function getCloudantAccount(message) {
+  // full cloudant URL - Cloudant NPM package has issues creating valid URLs
+  // when the username contains dashes (common in Bluemix scenarios)
+  var cloudantUrl;
+
+  if (message.url) {
+    // use bluemix binding
+    cloudantUrl = message.url;
+  } else {
+    if (!message.host) {
+      whisk.error('cloudant account host is required.');
+      return;
+    }
+    if (!message.username) {
+      whisk.error('cloudant account username is required.');
+      return;
+    }
+    if (!message.password) {
+      whisk.error('cloudant account password is required.');
+      return;
+    }
+    if (!message.port) {
+      whisk.error('cloudant account port is required.');
+      return;
+    }
+    if (!message.protocol) {
+      whisk.error('cloudant account protocol is required.');
+      return;
+    }
+
+    cloudantUrl = message.protocol + "://" + message.username + ":" + message.password + "@" + message.host + ":" + message.port;
+  }
+
+  return require('cloudant')({
+    url: cloudantUrl
+  });
 }
