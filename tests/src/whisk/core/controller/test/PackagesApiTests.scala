@@ -19,33 +19,14 @@ package whisk.core.controller.test
 import scala.language.postfixOps
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-import spray.http.StatusCodes.BadRequest
-import spray.http.StatusCodes.Forbidden
-import spray.http.StatusCodes.Conflict
-import spray.http.StatusCodes.NotFound
-import spray.http.StatusCodes.OK
-import spray.http.StatusCodes.RequestEntityTooLarge
-import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
-import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
-import spray.json.DefaultJsonProtocol.RootJsObjectFormat
-import spray.json.DefaultJsonProtocol.listFormat
-import spray.json.DefaultJsonProtocol.RootJsObjectFormat
-import spray.json.JsObject
-import spray.json.pimpString
-import whisk.core.entity.Exec
-import whisk.core.entity.EntityPath
-import whisk.core.entity.Parameters
-import whisk.core.entity.WhiskAction
-import whisk.core.entity.AuthKey
-import whisk.core.entity.WhiskAuth
-import whisk.core.entity.Subject
-import whisk.core.entity.WhiskPackage
-import whisk.core.entity.Binding
+import spray.http.StatusCodes._
+import spray.httpx.SprayJsonSupport._
+import spray.json.DefaultJsonProtocol._
+import spray.json._
+import whisk.core.entity._
 import whisk.core.controller.WhiskPackagesApi
-import whisk.core.entity.WhiskPackagePut
 import whisk.http.ErrorResponse
-import whisk.core.entity.WhiskPackageWithActions
-import spray.json.JsArray
+import whisk.http.Messages
 
 /**
  * Tests Packages API.
@@ -246,7 +227,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
         }
     }
 
-    it should "get package reference" in {
+    it should "get package reference for private package in same namespace" in {
         implicit val tid = transid()
         val provider = WhiskPackage(namespace, aname, None, Parameters("a", "A") ++ Parameters("b", "B"))
         val reference = WhiskPackage(namespace, aname, provider.bind, Parameters("b", "b") ++ Parameters("c", "C"))
@@ -261,14 +242,26 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
         }
     }
 
+    it should "not get package reference for a private package in other namespace" in {
+        implicit val tid = transid()
+        val privateCreds = WhiskAuth(Subject(), AuthKey()).toIdentity
+        val privateNamespace = EntityPath(privateCreds.subject())
+
+        val provider = WhiskPackage(privateNamespace, aname)
+        val reference = WhiskPackage(namespace, aname, provider.bind)
+        put(entityStore, provider)
+        put(entityStore, reference)
+        Get(s"$collectionPath/${reference.name}") ~> sealRoute(routes(creds)) ~> check {
+            status should be(Forbidden)
+        }
+    }
+
     it should "get package with its actions and feeds" in {
         implicit val tid = transid()
         val provider = WhiskPackage(namespace, aname)
-        val reference = WhiskPackage(namespace, aname, provider.bind)
         val action = WhiskAction(provider.namespace.addpath(provider.name), aname, Exec.js("??"))
         val feed = WhiskAction(provider.namespace.addpath(provider.name), aname, Exec.js("??"), annotations = Parameters(Parameters.Feed, "true"))
         put(entityStore, provider)
-        put(entityStore, reference)
         put(entityStore, action)
         put(entityStore, feed)
 
@@ -306,6 +299,30 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
             status should be(OK)
             val response = responseAs[WhiskPackageWithActions]
             response should be(reference withActions (List(action, feed)))
+        }
+    }
+
+    it should "not get package reference with its actions and feeds from private package" in {
+        implicit val tid = transid()
+        val privateCreds = WhiskAuth(Subject(), AuthKey()).toIdentity
+        val privateNamespace = EntityPath(privateCreds.subject())
+        val provider = WhiskPackage(privateNamespace, aname)
+        val reference = WhiskPackage(namespace, aname, provider.bind)
+        val action = WhiskAction(provider.namespace.addpath(provider.name), aname, Exec.js("??"))
+        val feed = WhiskAction(provider.namespace.addpath(provider.name), aname, Exec.js("??"), annotations = Parameters(Parameters.Feed, "true"))
+        put(entityStore, provider)
+        put(entityStore, reference)
+        put(entityStore, action)
+        put(entityStore, feed)
+
+        // it should "reject get package reference from other subject" in {
+        val auser = WhiskAuth(Subject(), AuthKey()).toIdentity
+        Get(s"/$namespace/${collection.path}/${reference.name}") ~> sealRoute(routes(auser)) ~> check {
+            status should be(Forbidden)
+        }
+
+        Get(s"$collectionPath/${reference.name}") ~> sealRoute(routes(creds)) ~> check {
+            status should be(Forbidden)
         }
     }
 
@@ -347,6 +364,22 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
         }
     }
 
+    it should "not create package reference from private package in another namespace" in {
+        implicit val tid = transid()
+        val privateCreds = WhiskAuth(Subject(), AuthKey()).toIdentity
+        val privateNamespace = EntityPath(privateCreds.subject())
+
+        val provider = WhiskPackage(privateNamespace, aname)
+        val reference = WhiskPackage(namespace, aname, provider.bind)
+        // binding annotation should be removed and set by controller
+        val content = WhiskPackagePut(reference.binding)
+        put(entityStore, provider)
+
+        Put(s"/$namespace/${collection.path}/${reference.name}", content) ~> sealRoute(routes(creds)) ~> check {
+            status should be(Forbidden)
+        }
+    }
+
     it should "create package reference with implicit namespace" in {
         implicit val tid = transid()
         val provider = WhiskPackage(namespace, aname)
@@ -364,13 +397,25 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
         }
     }
 
-    it should "reject create package reference when referencing non-existent package" in {
+    it should "reject create package reference when referencing non-existent package in same namespace" in {
         implicit val tid = transid()
         val binding = Some(Binding(namespace, aname))
         val content = WhiskPackagePut(binding)
         Put(s"$collectionPath/$aname", content) ~> sealRoute(routes(creds)) ~> check {
-            status should be(BadRequest)
-            responseAs[ErrorResponse].error should include("binding references a package that does not exist")
+            status should be(NotFound)
+            responseAs[ErrorResponse].error should include(Messages.bindingDoesNotExist)
+        }
+    }
+
+    it should "reject create package reference when referencing non-existent package in another namespace" in {
+        implicit val tid = transid()
+        val privateCreds = WhiskAuth(Subject(), AuthKey()).toIdentity
+        val privateNamespace = EntityPath(privateCreds.subject())
+
+        val binding = Some(Binding(privateNamespace, aname))
+        val content = WhiskPackagePut(binding)
+        Put(s"$collectionPath/$aname", content) ~> sealRoute(routes(creds)) ~> check {
+            status should be(Forbidden)
         }
     }
 
@@ -379,10 +424,11 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
         val provider = WhiskPackage(namespace, aname)
         val reference = WhiskPackage(namespace, aname, provider.bind)
         val content = WhiskPackagePut(Some(Binding(reference.namespace, reference.name)))
+        put(entityStore, provider)
         put(entityStore, reference)
         Put(s"$collectionPath/$aname", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
-            responseAs[ErrorResponse].error should include("cannot bind to another package binding")
+            responseAs[ErrorResponse].error should include(Messages.bindingCannotReferenceBinding)
         }
     }
 
@@ -486,14 +532,43 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
         }
     }
 
-    it should "reject update package reference when new binding refers to non-existent package" in {
+    it should "reject update package reference when new binding refers to non-existent package in same namespace" in {
         implicit val tid = transid()
         val provider = WhiskPackage(namespace, aname)
         val reference = WhiskPackage(namespace, aname, provider.bind)
         val content = WhiskPackagePut(reference.binding)
         put(entityStore, reference)
         Put(s"$collectionPath/${reference.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
-            status should be(BadRequest)
+            status should be(NotFound)
+        }
+    }
+
+    it should "reject update package reference when new binding refers to non-existent package in another namespace" in {
+        implicit val tid = transid()
+        val privateCreds = WhiskAuth(Subject(), AuthKey()).toIdentity
+        val privateNamespace = EntityPath(privateCreds.subject())
+
+        val provider = WhiskPackage(privateNamespace, aname)
+        val reference = WhiskPackage(namespace, aname, provider.bind)
+        val content = WhiskPackagePut(reference.binding)
+        put(entityStore, reference)
+        Put(s"$collectionPath/${reference.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
+            status should be(Forbidden)
+        }
+    }
+
+    it should "reject update package reference when new binding refers to private package in another namespace" in {
+        implicit val tid = transid()
+        val privateCreds = WhiskAuth(Subject(), AuthKey()).toIdentity
+        val privateNamespace = EntityPath(privateCreds.subject())
+
+        val provider = WhiskPackage(privateNamespace, aname)
+        val reference = WhiskPackage(namespace, aname, provider.bind)
+        val content = WhiskPackagePut(reference.binding)
+        put(entityStore, provider)
+        put(entityStore, reference)
+        Put(s"$collectionPath/${reference.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
+            status should be(Forbidden)
         }
     }
 
