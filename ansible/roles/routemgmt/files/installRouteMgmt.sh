@@ -28,9 +28,9 @@ DB_PROTOCOL=`fgrep db.protocol= $WHISKPROPS_FILE | cut -d'=' -f2`
 DB_USERNAME=`fgrep db.username= $WHISKPROPS_FILE | cut -d'=' -f2`
 DB_PASSWORD=`fgrep db.password= $WHISKPROPS_FILE | cut -d'=' -f2`
 DB_GWAPI=`fgrep db.whisk.gwapi= $WHISKPROPS_FILE | cut -d'=' -f2`
-GW_USER=`fgrep gw.auth.user= $WHISKPROPS_FILE | cut -d'=' -f2`
-GW_PWD=`fgrep gw.auth.pwd= $WHISKPROPS_FILE | cut -d'=' -f2`
-GW_HOST=`fgrep gw.host= $WHISKPROPS_FILE | cut -d'=' -f2`
+GW_USER=`fgrep apigw.auth.user= $WHISKPROPS_FILE | cut -d'=' -f2`
+GW_PWD=`fgrep apigw.auth.pwd= $WHISKPROPS_FILE | cut -d'=' -f2`
+GW_HOST=`fgrep apigw.host= $WHISKPROPS_FILE | cut -d'=' -f2`
 
 # If the auth key file exists, read the key in the file. Otherwise, take the
 # first argument as the key itself.
