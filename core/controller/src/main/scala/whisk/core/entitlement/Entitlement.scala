@@ -26,7 +26,6 @@ import Privilege.Privilege
 import Privilege.REJECT
 import akka.actor.ActorSystem
 import akka.event.Logging.LogLevel
-import spray.http.StatusCodes.ClientError
 import spray.http.StatusCodes.Forbidden
 import spray.http.StatusCodes.TooManyRequests
 import whisk.common.ConsulClient
@@ -40,7 +39,6 @@ import whisk.core.entity.Parameters
 import whisk.core.entity.Subject
 import whisk.core.iam.NamespaceProvider
 import whisk.core.loadBalancer.LoadBalancer
-import whisk.http.ErrorResponse
 import whisk.http.Messages._
 
 package object types {
@@ -175,7 +173,7 @@ protected[core] abstract class EntitlementService(config: WhiskConfig, loadBalan
             } getOrElse checkPrivilege(user, right, resources)
         } else if (right != REJECT) {
             info(this, s"supplied authkey for user '$subject' does not have privilege '$right' for '${resources.mkString(",")}'")
-            Future.failed(OperationNotAllowed(Forbidden, Some(ErrorResponse(notAuthorizedtoOperateOnResource, transid))))
+            Future.failed(RejectRequest(Forbidden))
         } else {
             Future.successful(false)
         }
@@ -184,7 +182,7 @@ protected[core] abstract class EntitlementService(config: WhiskConfig, loadBalan
             case Success(r) =>
                 info(this, if (r) "authorized" else "not authorized")
             case Failure(r: RejectRequest) =>
-                info(this, s"not authorized: ${r.message}")
+                info(this, s"not authorized: $r")
             case Failure(t) =>
                 error(this, s"failed while checking entitlement: ${t.getMessage}")
         }
@@ -233,7 +231,7 @@ protected[core] abstract class EntitlementService(config: WhiskConfig, loadBalan
         val systemOverload = right == ACTIVATE && concurrentInvokeThrottler.isOverloaded
         if (systemOverload) {
             error(this, "system is overloaded")
-            Some(Future failed ThrottleRejectRequest(TooManyRequests, Some(ErrorResponse(systemOverloaded, transid))))
+            Some(Future.failed(RejectRequest(TooManyRequests, systemOverloaded)))
         } else None
     }
 
@@ -251,7 +249,7 @@ protected[core] abstract class EntitlementService(config: WhiskConfig, loadBalan
         }
 
         if (right == ACTIVATE && userThrottled) {
-            Some(Future failed ThrottleRejectRequest(TooManyRequests, Some(ErrorResponse(tooManyRequests, transid))))
+            Some(Future.failed(RejectRequest(TooManyRequests, tooManyRequests)))
         } else None
     }
 
@@ -268,13 +266,7 @@ protected[core] abstract class EntitlementService(config: WhiskConfig, loadBalan
         }
 
         if (right == ACTIVATE && userThrottled) {
-            Some(Future failed ThrottleRejectRequest(TooManyRequests, Some(ErrorResponse(tooManyConcurrentRequests, transid))))
+            Some(Future.failed(RejectRequest(TooManyRequests, tooManyConcurrentRequests)))
         } else None
     }
 }
-
-/** An exception to throw signaling the request is rejected due to load reasons. */
-case class ThrottleRejectRequest(code: ClientError, message: Option[ErrorResponse]) extends Throwable
-
-/** An exception for authkey that does not have sufficient rights. */
-case class OperationNotAllowed(code: ClientError, message: Option[ErrorResponse]) extends Throwable

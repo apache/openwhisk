@@ -20,6 +20,8 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
 import Privilege.Privilege
+import spray.http.StatusCodes.Conflict
+import spray.http.StatusCodes.InternalServerError
 import spray.http.StatusCodes.NotFound
 import whisk.common.TransactionId
 import whisk.core.controller.RejectRequest
@@ -29,6 +31,8 @@ import whisk.core.entity.EntityName
 import whisk.core.entity.WhiskEntity
 import whisk.core.entity.WhiskPackage
 import whisk.core.entity.types.EntityStore
+import whisk.core.database.DocumentTypeMismatchException
+import whisk.http.Messages
 
 class PackageCollection(entityStore: EntityStore) extends Collection(Collection.PACKAGES) {
 
@@ -100,7 +104,7 @@ class PackageCollection(entityStore: EntityStore) extends Collection(Collection.
                 }
         } recoverWith {
             case t: NoDocumentException =>
-                info(this, s"the package does not exist")
+                info(this, s"the package does not exist (owner? $isOwner)")
                 // if owner, reject with not found, otherwise fail the future to reject with
                 // unauthorized (this prevents information leaks about packages in other namespaces)
                 if (isOwner) {
@@ -108,9 +112,21 @@ class PackageCollection(entityStore: EntityStore) extends Collection(Collection.
                 } else {
                     Future.successful(false)
                 }
+            case t: DocumentTypeMismatchException =>
+                info(this, s"the requested binding is not a package (owner? $isOwner)")
+                // if owner, reject with not found, otherwise fail the future to reject with
+                // unauthorized (this prevents information leaks about packages in other namespaces)
+                if (isOwner) {
+                    Future.failed(RejectRequest(Conflict, Messages.requestedBindingIsNotValid))
+                } else {
+                    Future.successful(false)
+                }
+            case t: RejectRequest =>
+                error(this, s"entitlement check on package failed: $t")
+                Future.failed(t)
             case t =>
                 error(this, s"entitlement check on package failed: ${t.getMessage}")
-                Future.successful(false)
+                Future.failed(RejectRequest(InternalServerError))
         }
     }
 }

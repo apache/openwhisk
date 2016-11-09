@@ -25,18 +25,17 @@ import org.scalatest.junit.JUnitRunner
 
 import whisk.core.controller.Authenticate
 import whisk.core.controller.RejectRequest
+import whisk.core.entitlement.Privilege
 import whisk.core.entitlement.Privilege.ACTIVATE
 import whisk.core.entitlement.Privilege.DELETE
 import whisk.core.entitlement.Privilege.PUT
 import whisk.core.entitlement.Privilege.READ
 import whisk.core.entitlement.Privilege.REJECT
 import whisk.core.entitlement.Resource
-import whisk.core.entity.Subject
 import whisk.core.entity.AuthKey
-import whisk.core.entitlement.Privilege
 import whisk.core.entity.EntityName
 import whisk.core.entity.Identity
-import whisk.core.entitlement.OperationNotAllowed
+import whisk.core.entity.Subject
 
 /**
  * Tests authorization handler which guards resources.
@@ -110,13 +109,13 @@ class AuthorizeTests extends ControllerTestCommon with Authenticate {
         val collections = Seq(ACTIONS, RULES, TRIGGERS)
         val resources = collections map { Resource(someUser.namespace.toPath, _, Some("xyz")) }
         resources foreach { r =>
-            an[OperationNotAllowed] should be thrownBy {
+            a[RejectRequest] should be thrownBy {
                 Await.result(entitlementService.check(someUser, READ, r), requestTimeout)
             }
-            an[OperationNotAllowed] should be thrownBy {
+            a[RejectRequest] should be thrownBy {
                 Await.result(entitlementService.check(someUser, PUT, r), requestTimeout)
             }
-            an[OperationNotAllowed] should be thrownBy {
+            a[RejectRequest] should be thrownBy {
                 Await.result(entitlementService.check(someUser, DELETE, r), requestTimeout)
             }
             Await.result(entitlementService.check(someUser, ACTIVATE, r), requestTimeout) should be(true)

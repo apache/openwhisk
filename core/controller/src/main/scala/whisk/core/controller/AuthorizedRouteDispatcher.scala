@@ -17,25 +17,28 @@
 package whisk.core.controller
 
 import scala.concurrent.ExecutionContext
+import scala.language.postfixOps
+import scala.util.Failure
+import scala.util.Success
 import scala.util.Try
-import spray.routing.RequestContext
-import spray.http.StatusCodes.InternalServerError
-import spray.routing.Directives
-import spray.routing.Directive1
+
 import spray.http.HttpMethod
+import spray.http.StatusCodes.Forbidden
+import spray.http.StatusCodes.InternalServerError
+import spray.routing.Directive1
+import spray.routing.Directives
+import spray.routing.RequestContext
+import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.entity.EntityPath
 import whisk.core.entitlement.EntitlementService
 import whisk.core.entitlement.Collection
+import whisk.core.entitlement.EntitlementService
 import whisk.core.entitlement.Privilege.Privilege
 import whisk.core.entitlement.Resource
-import whisk.core.entitlement.ThrottleRejectRequest
-import whisk.common.Logging
-import scala.util.Failure
-import scala.util.Success
-import whisk.http.ErrorResponse.terminate
-import scala.language.postfixOps
+import whisk.core.entity.EntityPath
 import whisk.core.entity.Identity
+import whisk.http.ErrorResponse.terminate
 
 /** A trait for routes that require entitlement checks. */
 trait BasicAuthorizedRouteProvider extends Directives with Logging {
@@ -72,19 +75,17 @@ trait BasicAuthorizedRouteProvider extends Directives with Logging {
         right: Privilege,
         user: Identity,
         resource: Resource,
-        next: () => RequestContext => Unit)(
+        next: () => RequestContext => Unit,
+        recover: Option[Throwable => RequestContext => Unit] = None)(
             implicit transid: TransactionId): RequestContext => Unit = {
         onComplete(entitlementService.check(user, right, resource)) {
-            case Success(entitlement) =>
-                authorize(entitlement) {
-                    next()
-                }
-            case Failure(r: RejectRequest) =>
-                terminate(r.code, r.message)
-            case Failure(r: ThrottleRejectRequest) =>
-                terminate(r.code, r.message)
-            case Failure(t) =>
-                terminate(InternalServerError, t.getMessage)
+            // do not use "authorize" directive here because it does not compose
+            // hence for nested authorizations the rejection list will end up empty
+            case Success(true)                       => next()
+            case Success(false)                      => recover.map(_(RejectRequest(Forbidden))) getOrElse terminate(Forbidden)
+            case Failure(t) if recover.isDefined     => recover.get(t)
+            case Failure(r: RejectRequest)           => terminate(r.code, r.message)
+            case Failure(t)                          => terminate(InternalServerError, t.getMessage)
         }
     }
 
