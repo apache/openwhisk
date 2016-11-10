@@ -81,7 +81,7 @@ protected[core] case class Collection protected (
      * is permitted on the resource.
      */
     protected[core] def implicitRights(user: Identity, namespaces: Set[String], right: Privilege, resource: Resource)(
-        implicit es: EntitlementService, ec: ExecutionContext, transid: TransactionId): Future[Boolean] = Future.successful {
+        implicit ep: EntitlementProvider, ec: ExecutionContext, transid: TransactionId): Future[Boolean] = Future.successful {
         // if the resource root namespace is in any of the allowed namespaces
         // then this is an owner of the resource
         val self = namespaces.contains(resource.namespace.root())

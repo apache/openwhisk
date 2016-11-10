@@ -23,12 +23,11 @@ import Privilege.Privilege
 import spray.http.StatusCodes._
 import whisk.common.TransactionId
 import whisk.core.controller.RejectRequest
+import whisk.core.database.DocumentTypeMismatchException
 import whisk.core.database.NoDocumentException
 import whisk.core.entity._
 import whisk.core.entity.types.EntityStore
-import whisk.core.database.DocumentTypeMismatchException
 import whisk.http.Messages
-import whisk.core.entity.Identity
 
 class PackageCollection(entityStore: EntityStore) extends Collection(Collection.PACKAGES) {
 
@@ -50,7 +49,7 @@ class PackageCollection(entityStore: EntityStore) extends Collection(Collection.
      * All assets that are not in an explicit package are private because the default package is private.
      */
     protected[core] override def implicitRights(user: Identity, namespaces: Set[String], right: Privilege, resource: Resource)(
-        implicit es: EntitlementService, ec: ExecutionContext, transid: TransactionId) = {
+        implicit ep: EntitlementProvider, ec: ExecutionContext, transid: TransactionId) = {
         resource.entity map {
             pkgname =>
                 val isOwner = namespaces.contains(resource.namespace.root())
@@ -58,7 +57,7 @@ class PackageCollection(entityStore: EntityStore) extends Collection(Collection.
                     case Privilege.READ =>
                         // must determine if this is a public or owned package
                         // or, for a binding, that it references a public or owned package
-                        val docid = DocId(WhiskEntity.qualifiedName(resource.namespace.root, EntityName(pkgname)))
+                        val docid = FullyQualifiedEntityName(resource.namespace.root.toPath, EntityName(pkgname)).toDocId
                         checkPackageReadPermission(namespaces, isOwner, docid)
                     case _ => Future.successful(isOwner && allowedEntityRights.contains(right))
                 }

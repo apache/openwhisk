@@ -28,9 +28,9 @@ import scala.util.{ Failure, Success, Try }
 import akka.actor.{ ActorRef, ActorSystem, actorRef2Scala }
 import akka.event.Logging.{ InfoLevel, LogLevel }
 import akka.japi.Creator
-import spray.json.{ JsArray, JsObject, pimpAny, pimpString }
-import spray.json.DefaultJsonProtocol._
+import spray.json._
 import spray.json.DefaultJsonProtocol
+import spray.json.DefaultJsonProtocol._
 import whisk.common.{ ConsulKVReporter, Counter, Logging, LoggingMarkers, PrintStreamEmitter, SimpleExec, TransactionId }
 import whisk.common.ConsulClient
 import whisk.common.ConsulKV.InvokerKeys
@@ -91,7 +91,7 @@ class Invoker(
         val start = transid.started(this, LoggingMarkers.INVOKER_ACTIVATION)
         val namespace = msg.action.path
         val name = msg.action.name
-        val actionid = DocId(WhiskEntity.qualifiedName(namespace, name)).asDocInfo(msg.revision)
+        val actionid = FullyQualifiedEntityName(namespace, name).toDocId.asDocInfo(msg.revision)
         val tran = Transaction(msg)
         val subject = msg.subject
 
@@ -222,7 +222,7 @@ class Invoker(
             val boundParams = action.parameters.toJsObject
             val params = JsObject(boundParams.fields ++ payload.fields)
             val timeout = action.limits.timeout.duration
-            con.run(params, msg.meta, auth.compact, timeout, action.fullyQualifiedName(true), msg.activationId.toString)
+            con.run(params, msg.meta, auth.compact, timeout, action.fullyQualifiedName(true).toString, msg.activationId.toString)
         }
 
         initResultOpt match {

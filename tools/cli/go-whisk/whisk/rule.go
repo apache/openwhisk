@@ -35,8 +35,8 @@ type Rule struct {
     Version   string    `json:"version,omitempty"`
     Publish   bool      `json:"publish,omitempty"`
     Status  string      `json:"status"`
-    Trigger string      `json:"trigger"`
-    Action  string      `json:"action"`
+    Trigger interface{} `json:"trigger"`
+    Action  interface{} `json:"action"`
 }
 
 type RuleListOptions struct {

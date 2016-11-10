@@ -21,36 +21,16 @@ import scala.language.postfixOps
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import spray.http.StatusCodes._
-import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
-import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
-import spray.json.DefaultJsonProtocol.listFormat
-import spray.json.DefaultJsonProtocol.RootJsObjectFormat
-import spray.json.DefaultJsonProtocol.listFormat
+import spray.httpx.SprayJsonSupport._
+import spray.json.DefaultJsonProtocol._
 import spray.json.JsObject
 import spray.json.pimpString
 import whisk.core.controller.WhiskRulesApi
-import whisk.core.entity.EntityName
-import whisk.core.entity.Exec
-import whisk.core.entity.EntityPath
-import whisk.core.entity.Parameters
-import whisk.core.entity.SemVer
-import whisk.core.entity.Status
-import whisk.core.entity.AuthKey
-import whisk.core.entity.WhiskAuth
-import whisk.core.entity.Subject
-import whisk.core.entity.WhiskAction
-import whisk.core.entity.WhiskEntity
-import whisk.core.entity.WhiskRule
-import whisk.core.entity.WhiskRulePut
-import whisk.core.entity.WhiskTrigger
+import whisk.core.entity._
+import whisk.core.entity.test.OldWhiskTrigger
 import whisk.http.ErrorResponse
 import scala.language.postfixOps
-import whisk.core.entity.WhiskRuleResponse
-import whisk.core.entity.ReducedRule
 import whisk.core.entity.test.OldWhiskRule
-import whisk.core.entity.test.OldWhiskTrigger
-import whisk.core.entity.WhiskPackage
-import whisk.http.ErrorResponse
 import whisk.http.Messages
 
 /**
@@ -74,6 +54,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
     val creds = WhiskAuth(Subject(), AuthKey()).toIdentity
     val namespace = EntityPath(creds.subject())
     def aname() = MakeName.next("rules_tests")
+    def afullname(namespace: EntityPath, name: String) = FullyQualifiedEntityName(namespace, EntityName(name))
     val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
     val activeStatus = s"""{"status":"${Status.ACTIVE}"}""".parseJson.asJsObject
     val inactiveStatus = s"""{"status":"${Status.INACTIVE}"}""".parseJson.asJsObject
@@ -83,8 +64,9 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
     //// GET /rules
     it should "list rules by default/explicit namespace" in {
         implicit val tid = transid()
+
         val rules = (1 to 2).map { i =>
-            WhiskRule(namespace, aname(), EntityName("bogus trigger"), EntityName("bogus action"))
+            WhiskRule(namespace, aname(), afullname(namespace, "bogus trigger"), afullname(namespace, "bogus action"))
         }.toList
         rules foreach { put(entityStore, _) }
         waitOnView(entityStore, WhiskRule, namespace, 2)
@@ -113,8 +95,9 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
     //?docs disabled
     ignore should "list rules by default namespace with full docs" in {
         implicit val tid = transid()
+
         val rules = (1 to 2).map { i =>
-            WhiskRule(namespace, aname(), EntityName("bogus trigger"), EntityName("bogus action"))
+            WhiskRule(namespace, aname(), afullname(namespace, "bogus trigger"), afullname(namespace, "bogus action"))
         }.toList
         rules foreach { put(entityStore, _) }
         waitOnView(entityStore, WhiskRule, namespace, 2)
@@ -129,7 +112,8 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
     //// GET /rule/name
     it should "get rule by name in default/explicit namespace" in {
         implicit val tid = transid()
-        val rule = WhiskRule(namespace, aname(), EntityName("bogus trigger"), EntityName("bogus action"))
+
+        val rule = WhiskRule(namespace, aname(), afullname(namespace, "bogus trigger"), afullname(namespace, "bogus action"))
         put(entityStore, rule)
         Get(s"$collectionPath/${rule.name}") ~> sealRoute(routes(creds)) ~> check {
             status should be(OK)
@@ -153,6 +137,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
 
     it should "reject get of non existent rule" in {
         implicit val tid = transid()
+
         Get(s"$collectionPath/xxx") ~> sealRoute(routes(creds)) ~> check {
             status should be(NotFound)
         }
@@ -160,10 +145,11 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
 
     it should "get rule with active state in trigger" in {
         implicit val tid = transid()
-        val ruleName = EntityName("get_active_rule")
-        val triggerName = EntityName("get_active_rule trigger")
-        val rule = WhiskRule(namespace, ruleName, triggerName, EntityName("an action"))
-        val trigger = WhiskTrigger(namespace, triggerName, rules = Some(Map(EntityPath(WhiskEntity.qualifiedName(namespace, ruleName)) -> ReducedRule(namespace, Status.ACTIVE))))
+
+        val rule = WhiskRule(namespace, EntityName("get_active_rule"), afullname(namespace, "get_active_rule trigger"), afullname(namespace, "an action"))
+        val trigger = WhiskTrigger(rule.trigger.path, rule.trigger.name, rules = Some {
+            Map(rule.fullyQualifiedName(false) -> ReducedRule(rule.action, Status.ACTIVE))
+        })
 
         put(entityStore, trigger)
         put(entityStore, rule)
@@ -177,10 +163,9 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
 
     it should "get rule with no rule-entries in trigger" in {
         implicit val tid = transid()
-        val ruleName = EntityName("get_rule_with_empty_trigger")
-        val triggerName = EntityName("get_rule_with_empty_trigger trigger")
-        val rule = WhiskRule(namespace, ruleName, triggerName, EntityName("an action"))
-        val trigger = WhiskTrigger(namespace, triggerName)
+
+        val trigger = WhiskTrigger(namespace, EntityName("get_rule_with_empty_trigger trigger"))
+        val rule = WhiskRule(namespace, EntityName("get_rule_with_empty_trigger"), trigger.fullyQualifiedName(false), afullname(namespace, "an action"))
 
         put(entityStore, trigger)
         put(entityStore, rule)
@@ -194,8 +179,11 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
 
     it should "report Conflict if the name was of a different type" in {
         implicit val tid = transid()
+
         val trigger = WhiskTrigger(namespace, aname())
+
         put(entityStore, trigger)
+
         Get(s"/$namespace/${collection.path}/${trigger.name}") ~> sealRoute(routes(creds)) ~> check {
             status should be(Conflict)
         }
@@ -204,12 +192,15 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
     // DEL /rules/name
     it should "reject delete rule in state active" in {
         implicit val tid = transid()
-        val ruleName = EntityName("reject_delete_rule_active")
-        val triggerName = aname()
-        val trigger = WhiskTrigger(namespace, triggerName, rules = Some(Map(EntityPath(WhiskEntity.qualifiedName(namespace, ruleName)) -> ReducedRule(namespace, Status.ACTIVE))))
-        val rule = WhiskRule(namespace, ruleName, triggerName, EntityName("an action"))
+
+        val rule = WhiskRule(namespace, EntityName("reject_delete_rule_active"), FullyQualifiedEntityName(namespace, aname()), afullname(namespace, "an action"))
+        val trigger = WhiskTrigger(namespace, rule.trigger.name, rules = Some {
+            Map(rule.fullyQualifiedName(false) -> ReducedRule(rule.action, Status.ACTIVE))
+        })
+
         put(entityStore, trigger)
         put(entityStore, rule)
+
         Delete(s"$collectionPath/${rule.name}") ~> sealRoute(routes(creds)) ~> check {
             status should be(Conflict)
             val response = responseAs[ErrorResponse]
@@ -220,22 +211,20 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
 
     it should "delete rule in state inactive" in {
         implicit val tid = transid()
-        val ruleName = aname()
-        val ruleNameQualified = EntityPath(WhiskEntity.qualifiedName(namespace, ruleName))
-        val triggerName = aname()
-        val actionName = aname()
-        val actionNameQualified = EntityPath(WhiskEntity.qualifiedName(namespace, actionName))
-        val triggerLink = ReducedRule(actionNameQualified, Status.INACTIVE)
-        val trigger = WhiskTrigger(namespace, triggerName, rules = Some(Map(ruleNameQualified -> triggerLink)))
-        val rule = WhiskRule(namespace, ruleName, triggerName, actionName)
+
+        val rule = WhiskRule(namespace, aname(), FullyQualifiedEntityName(namespace, aname()), FullyQualifiedEntityName(namespace, aname()))
+        val triggerLink = ReducedRule(rule.action, Status.INACTIVE)
+        val trigger = WhiskTrigger(rule.trigger.path, rule.trigger.name, rules = Some(Map(rule.fullyQualifiedName(false) -> triggerLink)))
+
         put(entityStore, trigger, false)
         put(entityStore, rule)
+
         Delete(s"$collectionPath/${rule.name}") ~> sealRoute(routes(creds)) ~> check {
             val t = get(entityStore, trigger.docid, WhiskTrigger)
             deleteTrigger(t.docid)
 
             status should be(OK)
-            t.rules.get.get(ruleNameQualified) shouldBe None
+            t.rules.get.get(rule.fullyQualifiedName(false)) shouldBe None
             val response = responseAs[WhiskRuleResponse]
             response should be(rule.withStatus(Status.INACTIVE))
         }
@@ -243,8 +232,11 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
 
     it should "delete rule in state inactive even if the trigger has been deleted" in {
         implicit val tid = transid()
-        val rule = WhiskRule(namespace, EntityName("delete_rule_inactive"), EntityName("a trigger"), EntityName("an action"))
+
+        val rule = WhiskRule(namespace, EntityName("delete_rule_inactive"), afullname(namespace, "a trigger"), afullname(namespace, "an action"))
+
         put(entityStore, rule)
+
         Delete(s"$collectionPath/${rule.name}") ~> sealRoute(routes(creds)) ~> check {
             status should be(OK)
             val response = responseAs[WhiskRuleResponse]
@@ -254,13 +246,13 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
 
     it should "delete rule in state inactive even if the trigger has no reference to the rule" in {
         implicit val tid = transid()
-        val ruleName = aname()
-        val ruleNameQualified = EntityPath(WhiskEntity.qualifiedName(namespace, ruleName))
-        val triggerName = aname()
-        val trigger = WhiskTrigger(namespace, triggerName)
-        val rule = WhiskRule(namespace, ruleName, triggerName, EntityName("an action"))
+
+        val rule = WhiskRule(namespace, aname(), FullyQualifiedEntityName(namespace, aname()), afullname(namespace, "an action"))
+        val trigger = WhiskTrigger(rule.trigger.path, rule.trigger.name)
+
         put(entityStore, trigger, false)
         put(entityStore, rule)
+
         Delete(s"$collectionPath/${rule.name}") ~> sealRoute(routes(creds)) ~> check {
             deleteTrigger(trigger.docid)
 
@@ -274,74 +266,66 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
     it should "create rule" in {
         implicit val tid = transid()
 
-        val ruleName = aname()
-        val ruleNameQualified = EntityPath(WhiskEntity.qualifiedName(namespace, ruleName))
-        val triggerName = aname()
-        val actionName = aname()
-        val actionNameQualified = EntityPath(WhiskEntity.qualifiedName(namespace, actionName))
-        val trigger = WhiskTrigger(namespace, triggerName)
-        val rule = WhiskRule(namespace, ruleName, triggerName, actionName)
-        val action = WhiskAction(namespace, actionName, Exec.js("??"))
-        val content = WhiskRulePut(Some(trigger.name), Some(action.name))
+        val rule = WhiskRule(namespace, aname(), FullyQualifiedEntityName(namespace, aname()), FullyQualifiedEntityName(namespace, aname()))
+        val trigger = WhiskTrigger(rule.trigger.path, rule.trigger.name)
+        val action = WhiskAction(rule.action.path, rule.action.name, Exec.js("??"))
+        val content = WhiskRulePut(Some(rule.trigger), Some(rule.action))
+
         put(entityStore, trigger, false)
         put(entityStore, action)
+
         Put(s"$collectionPath/${rule.name}", content) ~> sealRoute(routes(creds)) ~> check {
             val t = get(entityStore, trigger.docid, WhiskTrigger)
             deleteTrigger(t.docid)
             deleteRule(rule.docid)
 
             status should be(OK)
-            t.rules.get(ruleNameQualified) shouldBe ReducedRule(actionNameQualified, Status.ACTIVE)
             val response = responseAs[WhiskRuleResponse]
             response should be(rule.withStatus(Status.ACTIVE))
+            t.rules.get(rule.fullyQualifiedName(false)) shouldBe ReducedRule(action.fullyQualifiedName(false), Status.ACTIVE)
         }
     }
 
-    ignore should "create rule with an action in a package" in {
+    it should "create rule with an action in a package" in {
         implicit val tid = transid()
 
-        val provider = WhiskPackage(namespace, aname())
+        val provider = WhiskPackage(namespace, aname(), publish = true)
+        val action = WhiskAction(provider.path, aname(), Exec.js("??"))
+        val trigger = WhiskTrigger(namespace, aname())
+        val rule = WhiskRule(namespace, aname(), trigger.fullyQualifiedName(false), action.fullyQualifiedName(false))
+        val content = WhiskRulePut(Some(rule.trigger), Some(rule.action))
+
         put(entityStore, provider)
-
-        val actionName = aname()
-        val action = WhiskAction(provider.path, actionName, Exec.js("??"))
-        // TODO: this should be an EntityQName, not an EntityPath
-        val actionNameQualified = EntityPath(WhiskEntity.qualifiedName(namespace, action.name))
-
-        val triggerName = aname()
-        val trigger = WhiskTrigger(namespace, triggerName)
-
-        val ruleName = aname()
-        val ruleNameQualified = EntityPath(WhiskEntity.qualifiedName(namespace, ruleName))
-
-        val rule = WhiskRule(namespace, ruleName, triggerName, actionName)
-        val content = WhiskRulePut(Some(trigger.name), Some(action.name))
-
         put(entityStore, trigger, false)
         put(entityStore, action)
+
         Put(s"$collectionPath/${rule.name}", content) ~> sealRoute(routes(creds)) ~> check {
             val t = get(entityStore, trigger.docid, WhiskTrigger)
             deleteTrigger(t.docid)
             deleteRule(rule.docid)
 
             status should be(OK)
-            t.rules.get(ruleNameQualified) shouldBe ReducedRule(actionNameQualified, Status.ACTIVE)
             val response = responseAs[WhiskRuleResponse]
             response should be(rule.withStatus(Status.ACTIVE))
+            t.rules.get(rule.fullyQualifiedName(false)) shouldBe ReducedRule(action.fullyQualifiedName(false), Status.ACTIVE)
         }
     }
 
     it should "reject create rule with annotations which are too big" in {
         implicit val tid = transid()
+
+        val trigger = WhiskTrigger(namespace, aname())
+        val action = WhiskAction(namespace, aname(), Exec.js("??"))
+
         val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (Parameters.sizeLimit.toBytes / 2 / 20 + Math.pow(10, 9) + 2) toLong)
         val parameters = keys map { key =>
             Parameters(key.toString, "a" * 10)
         } reduce (_ ++ _)
-        val trigger = WhiskTrigger(namespace, aname())
-        val action = WhiskAction(namespace, aname(), Exec.js("??"))
         val content = s"""{"trigger":"${trigger.name}","action":"${action.name}","annotations":$parameters}""".parseJson.asJsObject
+
         put(entityStore, trigger, false)
         put(entityStore, action)
+
         Put(s"$collectionPath/${aname()}", content) ~> sealRoute(routes(creds)) ~> check {
             val t = get(entityStore, trigger.docid, WhiskTrigger)
             deleteTrigger(t.docid)
@@ -353,17 +337,21 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
 
     it should "reject update rule with annotations which are too big" in {
         implicit val tid = transid()
+
+        val trigger = WhiskTrigger(namespace, aname())
+        val action = WhiskAction(namespace, aname(), Exec.js("??"))
+        val rule = WhiskRule(namespace, aname(), trigger.fullyQualifiedName(false), action.fullyQualifiedName(false))
+
         val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (Parameters.sizeLimit.toBytes / 2 / 20 + Math.pow(10, 9) + 2) toLong)
         val parameters = keys map { key =>
             Parameters(key.toString, "a" * 10)
         } reduce (_ ++ _)
-        val trigger = WhiskTrigger(namespace, aname())
-        val action = WhiskAction(namespace, aname(), Exec.js("??"))
-        val rule = WhiskRule(namespace, aname(), trigger.name, action.name)
         val content = s"""{"trigger":"${trigger.name}","action":"${action.name}","annotations":$parameters}""".parseJson.asJsObject
+
         put(entityStore, trigger, false)
         put(entityStore, action)
         put(entityStore, rule)
+
         Put(s"$collectionPath/${rule.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
             val t = get(entityStore, trigger.docid, WhiskTrigger)
             deleteTrigger(t.docid)
@@ -375,29 +363,37 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
 
     it should "reject rule if action does not exist" in {
         implicit val tid = transid()
+
         val trigger = WhiskTrigger(namespace, aname())
-        val content = WhiskRulePut(Some(trigger.name), Some(EntityName("bogus action")))
+        val content = WhiskRulePut(Some(trigger.fullyQualifiedName(false)), Some(afullname(namespace, "bogus action")))
+
         put(entityStore, trigger)
+
         Put(s"$collectionPath/xxx", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
-            responseAs[String] === s"${WhiskEntity.qualifiedName(namespace, content.action.get)} does not exist"
+            responseAs[String] === s"${content.action.get.qualifiedNameWithLeadingSlash} does not exist"
         }
     }
 
     it should "reject rule if trigger does not exist" in {
         implicit val tid = transid()
+
         val action = WhiskAction(namespace, aname(), Exec.js("??"))
-        val content = WhiskRulePut(Some(EntityName("bogus trigger")), Some(action.name))
+        val content = WhiskRulePut(Some(afullname(namespace, "bogus trigger")), Some(action.fullyQualifiedName(false)))
+
         put(entityStore, action)
+
         Put(s"$collectionPath/xxx", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
-            responseAs[String] === s"${WhiskEntity.qualifiedName(namespace, content.trigger.get)} does not exist"
+            responseAs[String] === s"${content.trigger.get.qualifiedNameWithLeadingSlash} does not exist"
         }
     }
 
     it should "reject rule if neither action or trigger do not exist" in {
         implicit val tid = transid()
-        val content = WhiskRulePut(Some(EntityName("bogus trigger")), Some(EntityName("bogus action")))
+
+        val content = WhiskRulePut(Some(afullname(namespace, "bogus trigger")), Some(afullname(namespace, "bogus action")))
+
         Put(s"$collectionPath/xxx", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
             responseAs[String].contains("does not exist") should be(true)
@@ -406,13 +402,16 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
 
     it should "update rule updating trigger and action at once" in {
         implicit val tid = transid()
+
         val trigger = WhiskTrigger(namespace, aname())
         val action = WhiskAction(namespace, aname(), Exec.js("??"))
-        val rule = WhiskRule(namespace, aname(), EntityName("bogus trigger"), EntityName("bogus action"))
+        val rule = WhiskRule(namespace, aname(), afullname(namespace, "bogus trigger"), afullname(namespace, "bogus action"))
+        val content = WhiskRulePut(Some(trigger.fullyQualifiedName(false)), Some(action.fullyQualifiedName(false)))
+
         put(entityStore, trigger, false)
         put(entityStore, action)
         put(entityStore, rule, false)
-        val content = WhiskRulePut(Some(trigger.name), Some(action.name))
+
         Put(s"$collectionPath/${rule.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
             val t = get(entityStore, trigger.docid, WhiskTrigger)
             deleteTrigger(t.docid)
@@ -420,72 +419,81 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
 
             status should be(OK)
 
-            t.rules.get(EntityPath(WhiskEntity.qualifiedName(namespace, rule.name))).action should be(EntityPath(WhiskEntity.qualifiedName(namespace, action.name)))
+            t.rules.get(rule.fullyQualifiedName(false)).action should be(action.fullyQualifiedName(false))
             val response = responseAs[WhiskRuleResponse]
-            response should be(WhiskRuleResponse(namespace, rule.name, Status.ACTIVE, trigger.name, action.name, version = SemVer().upPatch))
+            response should be(WhiskRuleResponse(namespace, rule.name, Status.ACTIVE, trigger.fullyQualifiedName(false), action.fullyQualifiedName(false), version = SemVer().upPatch))
         }
     }
 
     it should "update rule with a new action while passing the same trigger" in {
         implicit val tid = transid()
+
         val trigger = WhiskTrigger(namespace, aname())
         val action = WhiskAction(namespace, aname(), Exec.js("??"))
-        val rule = WhiskRule(namespace, aname(), trigger.name, EntityName("bogus action"))
+        val rule = WhiskRule(namespace, aname(), trigger.fullyQualifiedName(false), afullname(namespace, "bogus action"))
+        val content = WhiskRulePut(Some(trigger.fullyQualifiedName(false)), Some(action.fullyQualifiedName(false)))
+
         put(entityStore, trigger, false)
         put(entityStore, action)
         put(entityStore, rule, false)
-        val content = WhiskRulePut(Some(trigger.name), Some(action.name))
+
         Put(s"$collectionPath/${rule.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
             val t = get(entityStore, trigger.docid, WhiskTrigger)
             deleteTrigger(t.docid)
             deleteRule(rule.docid)
 
             status should be(OK)
-            t.rules.get(EntityPath(WhiskEntity.qualifiedName(namespace, rule.name))).action should be(EntityPath(WhiskEntity.qualifiedName(namespace, action.name)))
+            t.rules.get(rule.fullyQualifiedName(false)).action should be(action.fullyQualifiedName(false))
             val response = responseAs[WhiskRuleResponse]
-            response should be(WhiskRuleResponse(namespace, rule.name, Status.ACTIVE, trigger.name, action.name, version = SemVer().upPatch))
+            response should be(WhiskRuleResponse(namespace, rule.name, Status.ACTIVE, trigger.fullyQualifiedName(false), action.fullyQualifiedName(false), version = SemVer().upPatch))
         }
     }
 
     it should "update rule with just a new action" in {
         implicit val tid = transid()
+
         val trigger = WhiskTrigger(namespace, aname())
         val action = WhiskAction(namespace, aname(), Exec.js("??"))
-        val rule = WhiskRule(namespace, aname(), trigger.name, EntityName("bogus action"))
+        val rule = WhiskRule(namespace, aname(), trigger.fullyQualifiedName(false), afullname(namespace, "bogus action"))
+        val content = WhiskRulePut(action = Some(action.fullyQualifiedName(false)))
+
         put(entityStore, trigger, false)
         put(entityStore, action)
         put(entityStore, rule, false)
-        val content = WhiskRulePut(action = Some(action.name))
+
         Put(s"$collectionPath/${rule.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
             val t = get(entityStore, trigger.docid, WhiskTrigger)
             deleteTrigger(t.docid)
             deleteRule(rule.docid)
 
             status should be(OK)
-            t.rules.map { rules => rules(EntityPath(WhiskEntity.qualifiedName(namespace, rule.name))).action }.get should be(EntityPath(WhiskEntity.qualifiedName(namespace, action.name)))
+            t.rules.get(rule.fullyQualifiedName(false)).action should be(action.fullyQualifiedName(false))
             val response = responseAs[WhiskRuleResponse]
-            response should be(WhiskRuleResponse(namespace, rule.name, Status.ACTIVE, trigger.name, action.name, version = SemVer().upPatch))
+            response should be(WhiskRuleResponse(namespace, rule.name, Status.ACTIVE, trigger.fullyQualifiedName(false), action.fullyQualifiedName(false), version = SemVer().upPatch))
         }
     }
 
     it should "update rule with just a new trigger" in {
         implicit val tid = transid()
+
         val trigger = WhiskTrigger(namespace, aname())
         val action = WhiskAction(namespace, aname(), Exec.js("??"))
-        val rule = WhiskRule(namespace, aname(), trigger.name, action.name)
+        val rule = WhiskRule(namespace, aname(), trigger.fullyQualifiedName(false), action.fullyQualifiedName(false))
+        val content = WhiskRulePut(trigger = Some(trigger.fullyQualifiedName(false)))
+
         put(entityStore, trigger, false)
         put(entityStore, action)
         put(entityStore, rule, false)
-        val content = WhiskRulePut(trigger = Some(trigger.name))
+
         Put(s"$collectionPath/${rule.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
             val t = get(entityStore, trigger.docid, WhiskTrigger)
             deleteTrigger(t.docid)
             deleteRule(rule.docid)
 
             status should be(OK)
-            t.rules.get.get(EntityPath(WhiskEntity.qualifiedName(namespace, rule.name))) shouldBe a[Some[_]]
+            t.rules.get.get(rule.fullyQualifiedName(false)) shouldBe a[Some[_]]
             val response = responseAs[WhiskRuleResponse]
-            response should be(WhiskRuleResponse(namespace, rule.name, Status.ACTIVE, trigger.name, action.name, version = SemVer().upPatch))
+            response should be(WhiskRuleResponse(namespace, rule.name, Status.ACTIVE, trigger.fullyQualifiedName(false), action.fullyQualifiedName(false), version = SemVer().upPatch))
         }
     }
 
@@ -493,67 +501,83 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         implicit val tid = transid()
         val trigger = WhiskTrigger(namespace, aname())
         val action = WhiskAction(namespace, aname(), Exec.js("??"))
-        val rule = WhiskRule(namespace, aname(), trigger.name, action.name)
+        val rule = WhiskRule(namespace, aname(), trigger.fullyQualifiedName(false), action.fullyQualifiedName(false))
+        val content = WhiskRulePut(None, None, None, None, None)
+
         put(entityStore, trigger, false)
         put(entityStore, action)
         put(entityStore, rule, false)
-        val content = WhiskRulePut(None, None, None, None, None)
+
         Put(s"$collectionPath/${rule.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
             deleteTrigger(trigger.docid)
             deleteRule(rule.docid)
 
             status should be(OK)
             val response = responseAs[WhiskRuleResponse]
-            response should be(WhiskRuleResponse(namespace, rule.name, Status.ACTIVE, trigger.name, action.name, version = SemVer().upPatch))
+            response should be(WhiskRuleResponse(namespace, rule.name, Status.ACTIVE, trigger.fullyQualifiedName(false), action.fullyQualifiedName(false), version = SemVer().upPatch))
         }
     }
 
     it should "reject update rule if trigger does not exist" in {
         implicit val tid = transid()
+
         val action = WhiskAction(namespace, aname(), Exec.js("??"))
-        val rule = WhiskRule(namespace, aname(), EntityName("bogus trigger"), action.name)
+        val rule = WhiskRule(namespace, aname(), afullname(namespace, "bogus trigger"), action.fullyQualifiedName(false))
+        val content = WhiskRulePut(action = Some(action.fullyQualifiedName(false)))
+
         put(entityStore, action)
         put(entityStore, rule)
-        val content = WhiskRulePut(action = Some(action.name))
+
         Put(s"$collectionPath/${rule.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
-            responseAs[String] === s"${WhiskEntity.qualifiedName(namespace, EntityName(rule.trigger.name))} does not exist"
+            responseAs[String] === s"${rule.trigger.qualifiedNameWithLeadingSlash} does not exist"
         }
     }
 
     it should "reject update rule if action does not exist" in {
         implicit val tid = transid()
+
         val trigger = WhiskTrigger(namespace, aname())
-        val rule = WhiskRule(namespace, aname(), trigger.name, EntityName("bogus action"))
+        val rule = WhiskRule(namespace, aname(), trigger.fullyQualifiedName(false), afullname(namespace, "bogus action"))
+        val content = WhiskRulePut(trigger = Some(trigger.fullyQualifiedName(false)))
+
         put(entityStore, trigger)
         put(entityStore, rule)
-        val content = WhiskRulePut(trigger = Some(trigger.name))
+
         Put(s"$collectionPath/${rule.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
-            responseAs[String] === s"${WhiskEntity.qualifiedName(namespace, EntityName(rule.action.name))} does not exist"
+            responseAs[String] === s"${rule.action.qualifiedNameWithLeadingSlash} does not exist"
         }
     }
 
     it should "reject update rule if neither trigger or action exist" in {
         implicit val tid = transid()
-        val rule = WhiskRule(namespace, aname(), EntityName("bogus trigger"), EntityName("bogus action"))
-        put(entityStore, rule)
+        val rule = WhiskRule(namespace, aname(), afullname(namespace, "bogus trigger"), afullname(namespace, "bogus action"))
         val content = WhiskRulePut(None, None, None, None, None)
+
+        put(entityStore, rule)
+
         Put(s"$collectionPath/${rule.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
-            responseAs[String].contains("does not exist") should be(true)
+            responseAs[String] should {
+                include(s"${rule.action.qualifiedNameWithLeadingSlash} does not exist") or
+                    include(s"${rule.trigger.qualifiedNameWithLeadingSlash} does not exist")
+            }
         }
     }
 
     it should "reject update rule in state active" in {
         implicit val tid = transid()
-        val triggerName = EntityName("a trigger")
-        val ruleName = aname()
-        val trigger = WhiskTrigger(namespace, triggerName, rules = Some(Map(EntityPath(WhiskEntity.qualifiedName(namespace, ruleName)) -> ReducedRule(namespace, Status.ACTIVE))))
-        val rule = WhiskRule(namespace, ruleName, triggerName, EntityName("an action"))
+
+        val rule = WhiskRule(namespace, aname(), afullname(namespace, "a trigger"), afullname(namespace, "an action"))
+        val trigger = WhiskTrigger(namespace, rule.trigger.name, rules = Some {
+            Map(rule.fullyQualifiedName(false) -> ReducedRule(rule.action, Status.ACTIVE))
+        })
+        val content = WhiskRulePut(publish = Some(!rule.publish))
+
         put(entityStore, trigger)
         put(entityStore, rule)
-        val content = WhiskRulePut(publish = Some(!rule.publish))
+
         Put(s"$collectionPath/${rule.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(Conflict)
         }
@@ -562,8 +586,11 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
     //// POST /rules/name
     it should "do nothing to disable already disabled rule" in {
         implicit val tid = transid()
-        val rule = WhiskRule(namespace, aname(), EntityName("a trigger"), EntityName("an action"))
+
+        val rule = WhiskRule(namespace, aname(), afullname(namespace, "a trigger"), afullname(namespace, "an action"))
+
         put(entityStore, rule)
+
         Post(s"$collectionPath/${rule.name}", inactiveStatus) ~> sealRoute(routes(creds)) ~> check {
             status should be(OK)
         }
@@ -571,12 +598,15 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
 
     it should "do nothing to enable already enabled rule" in {
         implicit val tid = transid()
-        val ruleName = aname()
-        val triggerName = aname()
-        val trigger = WhiskTrigger(namespace, triggerName, rules = Some(Map(EntityPath(WhiskEntity.qualifiedName(namespace, ruleName)) -> ReducedRule(namespace, Status.ACTIVE))))
-        val rule = WhiskRule(namespace, ruleName, triggerName, EntityName("an action"))
+
+        val rule = WhiskRule(namespace, aname(), afullname(namespace, aname().name), afullname(namespace, "an action"))
+        val trigger = WhiskTrigger(namespace, rule.trigger.name, rules = Some {
+            Map(rule.fullyQualifiedName(false) -> ReducedRule(rule.action, Status.ACTIVE))
+        })
+
         put(entityStore, trigger)
         put(entityStore, rule)
+
         Post(s"$collectionPath/${rule.name}", activeStatus) ~> sealRoute(routes(creds)) ~> check {
             status should be(OK)
         }
@@ -584,6 +614,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
 
     it should "reject post with status undefined" in {
         implicit val tid = transid()
+
         Post(s"$collectionPath/xyz") ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
         }
@@ -591,7 +622,9 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
 
     it should "reject post with invalid status" in {
         implicit val tid = transid()
+
         val badStatus = s"""{"status":"xxx"}""".parseJson.asJsObject
+
         Post(s"$collectionPath/xyz", badStatus) ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
         }
@@ -599,48 +632,50 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
 
     it should "activate rule" in {
         implicit val tid = transid()
-        val ruleName = aname()
-        val ruleNameQualified = EntityPath(WhiskEntity.qualifiedName(namespace, ruleName))
-        val triggerName = aname()
-        val rule = WhiskRule(namespace, ruleName, triggerName, EntityName("an action"))
-        val trigger = WhiskTrigger(namespace, triggerName, rules = Some(Map(ruleNameQualified -> ReducedRule(namespace, Status.INACTIVE))))
+
+        val rule = WhiskRule(namespace, aname(), afullname(namespace, aname().name), afullname(namespace, "an action"))
+        val trigger = WhiskTrigger(namespace, rule.trigger.name, rules = Some {
+            Map(rule.fullyQualifiedName(false) -> ReducedRule(rule.action, Status.INACTIVE))
+        })
+
         put(entityStore, trigger, false)
         put(entityStore, rule)
+
         Post(s"$collectionPath/${rule.name}", activeStatus) ~> sealRoute(routes(creds)) ~> check {
             val t = get(entityStore, trigger.docid, WhiskTrigger)
             deleteTrigger(t.docid)
 
             status should be(OK)
 
-            t.rules.get(ruleNameQualified).status should be(Status.ACTIVE)
+            t.rules.get(rule.fullyQualifiedName(false)).status should be(Status.ACTIVE)
         }
     }
 
     it should "activate rule without rule in trigger" in {
         implicit val tid = transid()
-        val ruleName = aname()
-        val ruleNameQualified = EntityPath(WhiskEntity.qualifiedName(namespace, ruleName))
-        val triggerName = aname()
-        val rule = WhiskRule(namespace, ruleName, triggerName, EntityName("an action"))
-        val trigger = WhiskTrigger(namespace, triggerName)
+
+        val rule = WhiskRule(namespace, aname(), afullname(namespace, aname().name), afullname(namespace, "an action"))
+        val trigger = WhiskTrigger(namespace, rule.trigger.name)
+
         put(entityStore, trigger, false)
         put(entityStore, rule)
+
         Post(s"$collectionPath/${rule.name}", activeStatus) ~> sealRoute(routes(creds)) ~> check {
             val t = get(entityStore, trigger.docid, WhiskTrigger)
             deleteTrigger(t.docid)
 
             status should be(OK)
-            t.rules.get(ruleNameQualified).status should be(Status.ACTIVE)
+            t.rules.get(rule.fullyQualifiedName(false)).status should be(Status.ACTIVE)
         }
     }
 
     it should "reject rule activation, if the trigger is absent" in {
         implicit val tid = transid()
-        val ruleName = aname()
-        val ruleNameQualified = EntityPath(WhiskEntity.qualifiedName(namespace, ruleName))
-        val triggerName = aname()
-        val rule = WhiskRule(namespace, ruleName, triggerName, EntityName("an action"))
+
+        val rule = WhiskRule(namespace, aname(), afullname(namespace, aname().name), afullname(namespace, "an action"))
+
         put(entityStore, rule)
+
         Post(s"$collectionPath/${rule.name}", activeStatus) ~> sealRoute(routes(creds)) ~> check {
             status should be(NotFound)
         }
@@ -648,27 +683,32 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
 
     it should "deactivate rule" in {
         implicit val tid = transid()
-        val ruleName = aname()
-        val ruleNameQualified = EntityPath(WhiskEntity.qualifiedName(namespace, ruleName))
-        val triggerName = aname()
-        val rule = WhiskRule(namespace, ruleName, triggerName, EntityName("an action"))
-        val trigger = WhiskTrigger(namespace, triggerName, rules = Some(Map(ruleNameQualified -> ReducedRule(namespace, Status.ACTIVE))))
+
+        val rule = WhiskRule(namespace, aname(), afullname(namespace, aname().name), afullname(namespace, "an action"))
+        val trigger = WhiskTrigger(namespace, rule.trigger.name, rules = Some {
+            Map(rule.fullyQualifiedName(false) -> ReducedRule(rule.action, Status.ACTIVE))
+        })
+
         put(entityStore, trigger, false)
         put(entityStore, rule)
+
         Post(s"$collectionPath/${rule.name}", inactiveStatus) ~> sealRoute(routes(creds)) ~> check {
             val t = get(entityStore, trigger.docid, WhiskTrigger)
             deleteTrigger(t.docid)
 
             status should be(OK)
-            t.rules.get(ruleNameQualified).status should be(Status.INACTIVE)
+            t.rules.get(rule.fullyQualifiedName(false)).status should be(Status.INACTIVE)
         }
     }
 
     // invalid resource
     it should "reject invalid resource" in {
         implicit val tid = transid()
-        val rule = WhiskRule(namespace, aname(), EntityName("a trigger"), EntityName("an action"))
+
+        val rule = WhiskRule(namespace, aname(), afullname(namespace, "a trigger"), afullname(namespace, "an action"))
+
         put(entityStore, rule)
+
         Get(s"$collectionPath/${rule.name}/bar") ~> sealRoute(routes(creds)) ~> check {
             status should be(NotFound)
         }
@@ -677,8 +717,11 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
     // migration path
     it should "handle a rule with the old schema gracefully" in {
         implicit val tid = transid()
+
         val rule = OldWhiskRule(namespace, aname(), EntityName("a trigger"), EntityName("an action"), Status.ACTIVE)
+
         put(entityStore, rule)
+
         Get(s"$collectionPath/${rule.name}") ~> sealRoute(routes(creds)) ~> check {
             status should be(OK)
             val response = responseAs[WhiskRuleResponse]
@@ -689,24 +732,22 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
     it should "create rule even if the attached trigger has the old schema" in {
         implicit val tid = transid()
 
-        val ruleName = aname()
-        val ruleNameQualified = EntityPath(WhiskEntity.qualifiedName(namespace, ruleName))
-        val triggerName = aname()
-        val actionName = aname()
-        val actionNameQualified = EntityPath(WhiskEntity.qualifiedName(namespace, actionName))
-        val trigger = OldWhiskTrigger(namespace, triggerName)
-        val rule = WhiskRule(namespace, ruleName, triggerName, actionName)
-        val action = WhiskAction(namespace, actionName, Exec.js("??"))
-        val content = WhiskRulePut(Some(trigger.name), Some(action.name))
+        val rule = WhiskRule(namespace, aname(), afullname(namespace, aname().name), afullname(namespace, aname().name))
+        val trigger = OldWhiskTrigger(namespace, rule.trigger.name)
+
+        val action = WhiskAction(namespace, rule.action.name, Exec.js("??"))
+        val content = WhiskRulePut(Some(rule.trigger), Some(rule.action))
+
         put(entityStore, trigger, false)
         put(entityStore, action)
+
         Put(s"$collectionPath/${rule.name}", content) ~> sealRoute(routes(creds)) ~> check {
             val t = get(entityStore, trigger.docid, WhiskTrigger)
             deleteTrigger(t.docid)
             deleteRule(rule.docid)
 
             status should be(OK)
-            t.rules.get(ruleNameQualified) shouldBe ReducedRule(actionNameQualified, Status.ACTIVE)
+            t.rules.get(rule.fullyQualifiedName(false)) shouldBe ReducedRule(action.fullyQualifiedName(false), Status.ACTIVE)
             val response = responseAs[WhiskRuleResponse]
             response should be(rule.withStatus(Status.ACTIVE))
         }
@@ -714,13 +755,16 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
 
     it should "activate rule even if it is still in the old schema" in {
         implicit val tid = transid()
-        val ruleName = aname()
-        val ruleNameQualified = EntityPath(WhiskEntity.qualifiedName(namespace, ruleName))
+
+        val ruleNameQualified = FullyQualifiedEntityName(namespace, aname())
         val triggerName = aname()
-        val rule = OldWhiskRule(namespace, ruleName, triggerName, EntityName("an action"), Status.ACTIVE)
-        val trigger = WhiskTrigger(namespace, triggerName, rules = Some(Map(ruleNameQualified -> ReducedRule(namespace, Status.INACTIVE))))
+        val actionName = FullyQualifiedEntityName(namespace, aname())
+        val rule = OldWhiskRule(namespace, ruleNameQualified.name, triggerName, actionName.name, Status.ACTIVE)
+        val trigger = WhiskTrigger(namespace, triggerName, rules = Some(Map(ruleNameQualified -> ReducedRule(actionName, Status.INACTIVE))))
+
         put(entityStore, trigger, false)
         put(entityStore, rule)
+
         Post(s"$collectionPath/${rule.name}", activeStatus) ~> sealRoute(routes(creds)) ~> check {
             val t = get(entityStore, trigger.docid, WhiskTrigger)
             deleteTrigger(t.docid)
@@ -765,7 +809,6 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         }
     }
 
-    /*
     it should "report proper error when action record is corrupted on put" in {
         implicit val tid = transid()
         val tentity = BadEntity(namespace, aname())
@@ -797,5 +840,5 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
             status should be(BadRequest)
             responseAs[ErrorResponse].error shouldBe Messages.corruptedEntity
         }
-    }*/
+    }
 }

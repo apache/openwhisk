@@ -38,7 +38,7 @@ import whisk.core.controller.WhiskActionsApi
 import whisk.core.controller.WhiskServices
 import whisk.core.database.DocumentFactory
 import whisk.core.database.test.DbUtils
-import whisk.core.entitlement.{ Collection, EntitlementService, LocalEntitlementService }
+import whisk.core.entitlement._
 import whisk.core.entity._
 import whisk.core.iam.NamespaceProvider
 import whisk.core.loadBalancer.LoadBalancer
@@ -65,8 +65,9 @@ protected trait ControllerTestCommon
     assert(whiskConfig.isValid)
 
     override val loadBalancer = new DegenerateLoadBalancerService(whiskConfig, InfoLevel)
+
     override val iam = new NamespaceProvider(whiskConfig, forceLocal = true)
-    override val entitlementService: EntitlementService = new LocalEntitlementService(whiskConfig, loadBalancer, iam)
+    override val entitlementProvider: EntitlementProvider = new LocalEntitlementProvider(whiskConfig, loadBalancer, iam)
 
     override val activationIdFactory = new ActivationId.ActivationIdGenerator() {
         // need a static activation id to test activations api
@@ -144,7 +145,7 @@ protected trait ControllerTestCommon
     entityStore.setVerbosity(InfoLevel)
     activationStore.setVerbosity(InfoLevel)
     authStore.setVerbosity(InfoLevel)
-    entitlementService.setVerbosity(InfoLevel)
+    entitlementProvider.setVerbosity(InfoLevel)
 
     val ACTIONS = Collection(Collection.ACTIONS)
     val TRIGGERS = Collection(Collection.TRIGGERS)

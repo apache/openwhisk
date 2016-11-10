@@ -200,8 +200,9 @@ object WhiskPackage
  * namespace and package name.
  */
 case class Binding(namespace: EntityPath, name: EntityName) {
-    def docid = DocId(WhiskEntity.qualifiedName(namespace, name))
-    override def toString = WhiskEntity.qualifiedName(namespace, name)
+    private def fullyQualifiedName = FullyQualifiedEntityName(namespace, name)
+    def docid = fullyQualifiedName.toDocId
+    override def toString = fullyQualifiedName.toString
 
     /**
      * Returns a Binding namespace if it is the default namespace

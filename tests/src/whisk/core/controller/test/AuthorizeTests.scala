@@ -25,17 +25,9 @@ import org.scalatest.junit.JUnitRunner
 
 import whisk.core.controller.Authenticate
 import whisk.core.controller.RejectRequest
-import whisk.core.entitlement.Privilege
-import whisk.core.entitlement.Privilege.ACTIVATE
-import whisk.core.entitlement.Privilege.DELETE
-import whisk.core.entitlement.Privilege.PUT
-import whisk.core.entitlement.Privilege.READ
-import whisk.core.entitlement.Privilege.REJECT
-import whisk.core.entitlement.Resource
-import whisk.core.entity.AuthKey
-import whisk.core.entity.EntityName
-import whisk.core.entity.Identity
-import whisk.core.entity.Subject
+import whisk.core.entitlement._
+import whisk.core.entitlement.Privilege._
+import whisk.core.entity._
 
 /**
  * Tests authorization handler which guards resources.
@@ -64,11 +56,11 @@ class AuthorizeTests extends ControllerTestCommon with Authenticate {
         val collections = Seq(ACTIONS, RULES, TRIGGERS, PACKAGES, ACTIVATIONS, NAMESPACES)
         val resources = collections map { Resource(someUser.namespace.toPath, _, None) }
         resources foreach { r =>
-            Await.result(entitlementService.check(someUser, READ, r), requestTimeout) should be(true)
-            Await.result(entitlementService.check(someUser, PUT, r), requestTimeout) should be(false)
-            Await.result(entitlementService.check(someUser, DELETE, r), requestTimeout) should be(false)
-            Await.result(entitlementService.check(someUser, ACTIVATE, r), requestTimeout) should be(false)
-            Await.result(entitlementService.check(someUser, REJECT, r), requestTimeout) should be(false)
+            Await.result(entitlementProvider.check(someUser, READ, r), requestTimeout) should be(true)
+            Await.result(entitlementProvider.check(someUser, PUT, r), requestTimeout) should be(false)
+            Await.result(entitlementProvider.check(someUser, DELETE, r), requestTimeout) should be(false)
+            Await.result(entitlementProvider.check(someUser, ACTIVATE, r), requestTimeout) should be(false)
+            Await.result(entitlementProvider.check(someUser, REJECT, r), requestTimeout) should be(false)
         }
     }
 
@@ -81,11 +73,11 @@ class AuthorizeTests extends ControllerTestCommon with Authenticate {
             // the subject requesting access or the packages are public); that is, the entitlement is more
             // fine grained and applies to public vs private private packages (hence permit READ on PACKAGES to
             // be true
-            Await.result(entitlementService.check(guestUser, READ, r), requestTimeout) should be(r.collection == PACKAGES)
-            Await.result(entitlementService.check(guestUser, PUT, r), requestTimeout) should be(false)
-            Await.result(entitlementService.check(guestUser, DELETE, r), requestTimeout) should be(false)
-            Await.result(entitlementService.check(guestUser, ACTIVATE, r), requestTimeout) should be(false)
-            Await.result(entitlementService.check(guestUser, REJECT, r), requestTimeout) should be(false)
+            Await.result(entitlementProvider.check(guestUser, READ, r), requestTimeout) should be(r.collection == PACKAGES)
+            Await.result(entitlementProvider.check(guestUser, PUT, r), requestTimeout) should be(false)
+            Await.result(entitlementProvider.check(guestUser, DELETE, r), requestTimeout) should be(false)
+            Await.result(entitlementProvider.check(guestUser, ACTIVATE, r), requestTimeout) should be(false)
+            Await.result(entitlementProvider.check(guestUser, REJECT, r), requestTimeout) should be(false)
         }
     }
 
@@ -95,10 +87,10 @@ class AuthorizeTests extends ControllerTestCommon with Authenticate {
         val collections = Seq(ACTIONS, RULES, TRIGGERS)
         val resources = collections map { Resource(someUser.namespace.toPath, _, Some("xyz")) }
         resources foreach { r =>
-            Await.result(entitlementService.check(someUser, READ, r), requestTimeout) should be(true)
-            Await.result(entitlementService.check(someUser, PUT, r), requestTimeout) should be(true)
-            Await.result(entitlementService.check(someUser, DELETE, r), requestTimeout) should be(true)
-            Await.result(entitlementService.check(someUser, ACTIVATE, r), requestTimeout) should be(true)
+            Await.result(entitlementProvider.check(someUser, READ, r), requestTimeout) should be(true)
+            Await.result(entitlementProvider.check(someUser, PUT, r), requestTimeout) should be(true)
+            Await.result(entitlementProvider.check(someUser, DELETE, r), requestTimeout) should be(true)
+            Await.result(entitlementProvider.check(someUser, ACTIVATE, r), requestTimeout) should be(true)
         }
     }
 
@@ -110,15 +102,15 @@ class AuthorizeTests extends ControllerTestCommon with Authenticate {
         val resources = collections map { Resource(someUser.namespace.toPath, _, Some("xyz")) }
         resources foreach { r =>
             a[RejectRequest] should be thrownBy {
-                Await.result(entitlementService.check(someUser, READ, r), requestTimeout)
+                Await.result(entitlementProvider.check(someUser, READ, r), requestTimeout)
             }
             a[RejectRequest] should be thrownBy {
-                Await.result(entitlementService.check(someUser, PUT, r), requestTimeout)
+                Await.result(entitlementProvider.check(someUser, PUT, r), requestTimeout)
             }
             a[RejectRequest] should be thrownBy {
-                Await.result(entitlementService.check(someUser, DELETE, r), requestTimeout)
+                Await.result(entitlementProvider.check(someUser, DELETE, r), requestTimeout)
             }
-            Await.result(entitlementService.check(someUser, ACTIVATE, r), requestTimeout) should be(true)
+            Await.result(entitlementProvider.check(someUser, ACTIVATE, r), requestTimeout) should be(true)
         }
     }
 
@@ -127,10 +119,10 @@ class AuthorizeTests extends ControllerTestCommon with Authenticate {
         val collections = Seq(NAMESPACES, ACTIVATIONS)
         val resources = collections map { Resource(someUser.namespace.toPath, _, Some("xyz")) }
         resources foreach { r =>
-            Await.result(entitlementService.check(someUser, READ, r), requestTimeout) should be(true)
-            Await.result(entitlementService.check(someUser, PUT, r), requestTimeout) should be(false)
-            Await.result(entitlementService.check(someUser, DELETE, r), requestTimeout) should be(false)
-            Await.result(entitlementService.check(someUser, ACTIVATE, r), requestTimeout) should be(false)
+            Await.result(entitlementProvider.check(someUser, READ, r), requestTimeout) should be(true)
+            Await.result(entitlementProvider.check(someUser, PUT, r), requestTimeout) should be(false)
+            Await.result(entitlementProvider.check(someUser, DELETE, r), requestTimeout) should be(false)
+            Await.result(entitlementProvider.check(someUser, ACTIVATE, r), requestTimeout) should be(false)
         }
     }
 
@@ -139,10 +131,10 @@ class AuthorizeTests extends ControllerTestCommon with Authenticate {
         val collections = Seq(ACTIONS, RULES, TRIGGERS, PACKAGES)
         val resources = collections map { Resource(someUser.namespace.toPath, _, Some("xyz")) }
         resources foreach { r =>
-            Await.result(entitlementService.check(guestUser, READ, r), requestTimeout) should be(false)
-            Await.result(entitlementService.check(guestUser, PUT, r), requestTimeout) should be(false)
-            Await.result(entitlementService.check(guestUser, DELETE, r), requestTimeout) should be(false)
-            Await.result(entitlementService.check(guestUser, ACTIVATE, r), requestTimeout) should be(false)
+            Await.result(entitlementProvider.check(guestUser, READ, r), requestTimeout) should be(false)
+            Await.result(entitlementProvider.check(guestUser, PUT, r), requestTimeout) should be(false)
+            Await.result(entitlementProvider.check(guestUser, DELETE, r), requestTimeout) should be(false)
+            Await.result(entitlementProvider.check(guestUser, ACTIVATE, r), requestTimeout) should be(false)
         }
     }
 
@@ -153,13 +145,13 @@ class AuthorizeTests extends ControllerTestCommon with Authenticate {
         resources foreach { r =>
             a[RejectRequest] should be thrownBy {
                 // read should fail because the lookup for the package will fail
-                Await.result(entitlementService.check(someUser, READ, r), requestTimeout)
+                Await.result(entitlementProvider.check(someUser, READ, r), requestTimeout)
             }
             // create/put/delete should be allowed
-            Await.result(entitlementService.check(someUser, PUT, r), requestTimeout) should be(true)
-            Await.result(entitlementService.check(someUser, DELETE, r), requestTimeout) should be(true)
+            Await.result(entitlementProvider.check(someUser, PUT, r), requestTimeout) should be(true)
+            Await.result(entitlementProvider.check(someUser, DELETE, r), requestTimeout) should be(true)
             // activate is not allowed on a package
-            Await.result(entitlementService.check(someUser, ACTIVATE, r), requestTimeout) should be(false)
+            Await.result(entitlementProvider.check(someUser, ACTIVATE, r), requestTimeout) should be(false)
         }
     }
 
@@ -167,25 +159,25 @@ class AuthorizeTests extends ControllerTestCommon with Authenticate {
         implicit val tid = transid()
         val all = Resource(someUser.namespace.toPath, ACTIONS, None)
         val one = Resource(someUser.namespace.toPath, ACTIONS, Some("xyz"))
-        Await.result(entitlementService.check(adminUser, READ, all), requestTimeout) should not be (true)
-        Await.result(entitlementService.check(adminUser, READ, one), requestTimeout) should not be (true)
-        Await.result(entitlementService.grant(adminUser.subject, READ, all), requestTimeout) // granted
-        Await.result(entitlementService.check(adminUser, READ, all), requestTimeout) should be(true)
-        Await.result(entitlementService.check(adminUser, READ, one), requestTimeout) should be(true)
-        Await.result(entitlementService.revoke(adminUser.subject, READ, all), requestTimeout) // revoked
+        Await.result(entitlementProvider.check(adminUser, READ, all), requestTimeout) should not be (true)
+        Await.result(entitlementProvider.check(adminUser, READ, one), requestTimeout) should not be (true)
+        Await.result(entitlementProvider.grant(adminUser.subject, READ, all), requestTimeout) // granted
+        Await.result(entitlementProvider.check(adminUser, READ, all), requestTimeout) should be(true)
+        Await.result(entitlementProvider.check(adminUser, READ, one), requestTimeout) should be(true)
+        Await.result(entitlementProvider.revoke(adminUser.subject, READ, all), requestTimeout) // revoked
     }
 
     it should "grant access to specific resource to a user" in {
         implicit val tid = transid()
         val all = Resource(someUser.namespace.toPath, ACTIONS, None)
         val one = Resource(someUser.namespace.toPath, ACTIONS, Some("xyz"))
-        Await.result(entitlementService.check(adminUser, READ, all), requestTimeout) should not be (true)
-        Await.result(entitlementService.check(adminUser, READ, one), requestTimeout) should not be (true)
-        Await.result(entitlementService.check(adminUser, DELETE, one), requestTimeout) should not be (true)
-        Await.result(entitlementService.grant(adminUser.subject, READ, one), requestTimeout) // granted
-        Await.result(entitlementService.check(adminUser, READ, all), requestTimeout) should not be (true)
-        Await.result(entitlementService.check(adminUser, READ, one), requestTimeout) should be(true)
-        Await.result(entitlementService.check(adminUser, DELETE, one), requestTimeout) should not be (true)
-        Await.result(entitlementService.revoke(adminUser.subject, READ, one), requestTimeout) // revoked
+        Await.result(entitlementProvider.check(adminUser, READ, all), requestTimeout) should not be (true)
+        Await.result(entitlementProvider.check(adminUser, READ, one), requestTimeout) should not be (true)
+        Await.result(entitlementProvider.check(adminUser, DELETE, one), requestTimeout) should not be (true)
+        Await.result(entitlementProvider.grant(adminUser.subject, READ, one), requestTimeout) // granted
+        Await.result(entitlementProvider.check(adminUser, READ, all), requestTimeout) should not be (true)
+        Await.result(entitlementProvider.check(adminUser, READ, one), requestTimeout) should be(true)
+        Await.result(entitlementProvider.check(adminUser, DELETE, one), requestTimeout) should not be (true)
+        Await.result(entitlementProvider.revoke(adminUser.subject, READ, one), requestTimeout) // revoked
     }
 }

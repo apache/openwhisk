@@ -60,16 +60,10 @@ abstract class WhiskEntity protected[entity] (en: EntityName) extends WhiskDocum
      * The name of the entity qualified with its namespace and version for
      * creating unique keys in backend services.
      */
-    final def fullyQualifiedName(withVersion: Boolean) = {
-        if (!withVersion) {
-            WhiskEntity.qualifiedName(namespace, en)
-        } else {
-            WhiskEntity.fullyQualifiedName(namespace, en, version)
-        }
-    }
+    final def fullyQualifiedName(withVersion: Boolean) = FullyQualifiedEntityName(namespace, en, if (withVersion) Some(version) else None)
 
     /** The primary key for the entity in the datastore */
-    override final def docid = DocId(WhiskEntity.qualifiedName(namespace, en))
+    override final def docid = fullyQualifiedName(false).toDocId
 
     /**
      * Returns a JSON object with the fields specific to this abstract class.
@@ -108,31 +102,10 @@ object WhiskEntity {
     val sharedFieldName = "publish"
 
     /**
-     * Gets fully qualified name of an entity based on its namespace and entity name.
-     */
-    def qualifiedName(namespace: EntityPath, name: EntityName) = {
-        s"$namespace${EntityPath.PATHSEP}$name"
-    }
-
-    /**
      * Gets fully qualified name of an activation based on its namespace and activation id.
      */
     def qualifiedName(namespace: EntityPath, activationId: ActivationId) = {
         s"$namespace${EntityPath.PATHSEP}$activationId"
-    }
-
-    /**
-     * Gets fully qualified name of an entity based on its namespace, entity name and version.
-     */
-    def fullyQualifiedName(namespace: EntityPath, name: EntityName, version: SemVer) = {
-        s"$namespace${EntityPath.PATHSEP}${versionedName(name, version)}"
-    }
-
-    /**
-     * Gets versioned name of an entity based on its entity name and version.
-     */
-    def versionedName(name: EntityName, version: SemVer) = {
-        s"$name${EntityPath.PATHSEP}$version"
     }
 }
 

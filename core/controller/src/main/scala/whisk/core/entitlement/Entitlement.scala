@@ -64,7 +64,7 @@ protected[core] case class Resource(
     override def toString = id
 }
 
-protected[core] object EntitlementService {
+protected[core] object EntitlementProvider {
     val requiredProperties = WhiskConfig.consulServer ++ WhiskConfig.entitlementHost ++ Map(
         WhiskConfig.actionInvokePerMinuteDefaultLimit -> null,
         WhiskConfig.actionInvokeConcurrentDefaultLimit -> null,

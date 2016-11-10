@@ -44,12 +44,6 @@ package object types {
     type AuthStore = ArtifactStore[WhiskAuth]
     type EntityStore = ArtifactStore[WhiskEntity]
     type ActivationStore = ArtifactStore[WhiskActivation]
-
-    // A placeholder type should we change the trigger and action references
-    // to a type that more explicitly captures the namespace, name, and version
-    // which are currently encoded in one string as DocId.id
-    type Trigger = EntityName
-    type Action = EntityName
 }
 
 protected[core] trait WhiskDocument

@@ -20,25 +20,11 @@ import scala.concurrent.duration.DurationInt
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import spray.http.StatusCodes._
-import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
-import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
-import spray.json.DefaultJsonProtocol.RootJsObjectFormat
-import spray.json.DefaultJsonProtocol.listFormat
-import spray.json.DefaultJsonProtocol.RootJsObjectFormat
-import spray.json.DefaultJsonProtocol.StringJsonFormat
-import spray.json.JsObject
-import spray.json.pimpAny
+import spray.httpx.SprayJsonSupport._
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 import whisk.core.controller.WhiskActionsApi
-import whisk.core.entity.ActionLimits
-import whisk.core.entity.Exec
-import whisk.core.entity.EntityPath
-import whisk.core.entity.Parameters
-import whisk.core.entity.WhiskAction
-import whisk.core.entity.WhiskActionPut
-import whisk.core.entity.AuthKey
-import whisk.core.entity.WhiskAuth
-import whisk.core.entity.Subject
-import whisk.core.entity.WhiskPackage
+import whisk.core.entity._
 import whisk.core.entitlement.Resource
 import whisk.core.entitlement.Privilege._
 import scala.concurrent.Await
@@ -311,7 +297,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         put(entityStore, binding)
         put(entityStore, action)
         val pkgaccess = Resource(provider.namespace, PACKAGES, Some(provider.name()))
-        Await.result(entitlementService.grant(auser.subject, READ, pkgaccess), 1 second)
+        Await.result(entitlementProvider.grant(auser.subject, READ, pkgaccess), 1 second)
         Get(s"$collectionPath/${binding.name}/${action.name}") ~> sealRoute(routes(auser)) ~> check {
             status should be(OK)
             val response = responseAs[WhiskAction]
@@ -455,7 +441,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         put(entityStore, reference)
         put(entityStore, action)
         val pkgaccess = Resource(provider.namespace, PACKAGES, Some(provider.name()))
-        Await.result(entitlementService.grant(auser.subject, ACTIVATE, pkgaccess), 1 second)
+        Await.result(entitlementProvider.grant(auser.subject, ACTIVATE, pkgaccess), 1 second)
         Post(s"$collectionPath/${reference.name}/${action.name}", content) ~> sealRoute(routes(auser)) ~> check {
             status should be(Accepted)
             val response = responseAs[JsObject]
