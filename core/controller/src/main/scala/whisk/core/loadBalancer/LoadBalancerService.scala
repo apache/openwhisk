@@ -87,6 +87,10 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
 
     private implicit val emitter: PrintStreamEmitter = this
 
+    /** How many invokers are dedicated to blackbox images */
+    private val blackboxFraction : Double = config.controllerBlackboxFraction
+    info(this, s"blackboxFraction = $blackboxFraction")
+
     /**
      * Gets invoker health as a dictionary.
      */
