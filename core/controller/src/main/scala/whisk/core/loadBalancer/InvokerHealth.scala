@@ -16,30 +16,21 @@
 
 package whisk.core.loadBalancer
 
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
-import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
 import akka.actor.ActorSystem
 import akka.event.Logging.InfoLevel
-import spray.json.DefaultJsonProtocol.LongJsonFormat
 import spray.json.DefaultJsonProtocol.StringJsonFormat
-import spray.json.JsObject
-import spray.json.JsString
-import spray.json.pimpAny
-import spray.json.pimpString
+import spray.json.{ JsObject, JsString, pimpAny, pimpString }
 import whisk.common.ConsulClient
 import whisk.common.ConsulKV.InvokerKeys
-import whisk.common.ConsulKV.LoadBalancerKeys
-import whisk.common.ConsulKVReporter
 import whisk.common.DateUtil
 import whisk.common.Logging
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.consulServer
-import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.common.Scheduler
 import whisk.common.TransactionId
 
@@ -58,49 +49,21 @@ class InvokerHealth(
     getKafkaPostCount: () => Long)(
         implicit val system: ActorSystem) extends Logging {
 
+    /** We obtain the health of all invokers this often. Although we perform a recursive call,
+      * the subtree is small and does not contain voluminous information like per-user information.
+      */
+    private val healthCheckInterval = 2 seconds
+
+    /** If we do not hear from an invoker for this long, we consider it to be out of commission. */
+    private val maximumAllowedDelay = 20 seconds
+
     private implicit val executionContext = system.dispatcher
 
     setVerbosity(InfoLevel);
 
-    private val activationCountBeforeNextInvoker = 10
+    def getInvokerIndices(): Array[Int] = curStatus.get() map { _.index }
 
-    def getInvoker(msg: Message): Option[Int] = {
-        val (hash, count) = hashAndCountSubjectAction(msg)
-        val numInv = numInvokers // dynamic
-        if (numInv > 0) {
-            val globalCount = msgCount.getAndIncrement()
-            val hashCount = math.abs(hash + count / activationCountBeforeNextInvoker)
-            val choice = pickInvoker(hashCount % numInv)
-            getNext(choice, numInv)
-        } else None
-    }
-
-    /*
-     * The path contains more than the action per se but seems sufficiently
-     * isomorphic as the other parts are constant.  Extracting just the
-     * action out specifically will involve some hairy regex's that the
-     * Invoker is currently using and which is better avoid if/until
-     * these are moved to some common place (like a subclass of Message?)
-     */
-    def hashAndCountSubjectAction(msg: Message): (Int, Int) = {
-        val subject = msg.subject().toString()
-        val path = msg.action.toString
-        val hash = subject.hashCode() ^ path.hashCode()
-        val key = (subject, path)
-        val count = activationCountMap.get(key) match {
-            case Some(counter) => counter.getAndIncrement()
-            case None => {
-                activationCountMap.put(key, new AtomicInteger(0))
-                0
-            }
-        }
-        //info(this, s"getInvoker: ${subject} ${path} -> ${hash} ${count}")
-        return (hash, count)
-    }
-
-    def getInvokerIndices(): Array[Int] = {
-        curStatus.get() map { _.index }
-    }
+    def getCurStatus = curStatus.get().clone()
 
     private def getHealth(statuses: Array[Status]): Map[Int, Boolean] = {
         statuses.map { status => (status.index, status.status) }.toMap
@@ -113,7 +76,6 @@ class InvokerHealth(
         JsObject(health toMap)
     }
 
-    private val maximumAllowedDelay = 20 seconds
     def isFresh(lastDate: String) = {
         val lastDateMilli = DateUtil.parseToMilli(lastDate)
         val now = System.currentTimeMillis() // We fetch this repeatedly in case KV fetch is slow
@@ -121,17 +83,6 @@ class InvokerHealth(
     }
 
     private val consul = new ConsulClient(config.consulServer)
-    private val reporter = new ConsulKVReporter(consul, 3 seconds, 2 seconds,
-        LoadBalancerKeys.hostnameKey,
-        LoadBalancerKeys.startKey,
-        LoadBalancerKeys.statusKey,
-        { index =>
-            Map(LoadBalancerKeys.invokerHealth -> getInvokerHealthJson(),
-                LoadBalancerKeys.activationCountKey -> getKafkaPostCount().toJson)
-        })
-
-    /** query the KV store this often */
-    private val healthCheckInterval = 2 seconds
 
     Scheduler.scheduleWaitAtLeast(healthCheckInterval) { () =>
         consul.kv.getRecurse(InvokerKeys.allInvokers) map { invokerInfo =>
@@ -169,45 +120,15 @@ class InvokerHealth(
         }
     }
 
-    /**
-     * Finds an available invoker starting at current index and trying for remaining indexes.
-     */
-    private def getNext(current: Int, remain: Int): Option[Int] = {
-        if (remain > 0) {
-            val choice = curStatus.get()(current)
-            choice.status match {
-                case true  => Some(choice.index)
-                case false => getNext(nextInvoker(current), remain - 1)
-            }
-        } else {
-            error(this, s"all invokers down")
-            None
-        }
-    }
-
-    private def pickInvoker(msgCount: Int): Int = {
-        val numInv = numInvokers
-        if (numInv > 0) msgCount % numInv else 0
-    }
-
-    private def nextInvoker(i: Int): Int = {
-        val numInv = numInvokers
-        if (numInv > 0) (i + 1) % numInv else 0
-    }
-
-    private def numInvokers = curStatus.get().length
-
     /*
      * Invoker indices are 0-based.
      * curStatus maintains the status of the current instance at a particular index while oldStatus
      * tracks instances (potentially many per index) that are not longer fresh (invoker was restarted).
      */
-    private case class Status(index: Int, startDate: String, lastDate: String, status: Boolean) {
+    case class Status(index: Int, startDate: String, lastDate: String, status: Boolean) {
         override def toString = s"index: $index, healthy: $status, start: $startDate, last: $lastDate"
     }
     private lazy val curStatus = new AtomicReference(Array(): Array[Status])
     private lazy val oldStatus = new AtomicReference(Array(): Array[Status])
 
-    private val msgCount = new AtomicInteger(0)
-    private val activationCountMap = TrieMap[(String, String), AtomicInteger]()
 }
