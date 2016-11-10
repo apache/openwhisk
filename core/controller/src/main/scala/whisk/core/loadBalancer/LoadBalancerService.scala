@@ -17,6 +17,7 @@
 package whisk.core.loadBalancer
 
 import java.time.{ Clock, Instant }
+import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.ExecutionContext
@@ -32,7 +33,8 @@ import scala.util.Success
 import akka.actor.ActorSystem
 import akka.event.Logging.LogLevel
 
-import spray.json.JsObject
+import spray.json.DefaultJsonProtocol.LongJsonFormat
+import spray.json.{ JsObject, pimpAny }
 
 import whisk.common.ConsulClient
 import whisk.common.ConsulKV.LoadBalancerKeys
@@ -45,8 +47,7 @@ import whisk.common.TransactionId
 import whisk.connector.kafka.KafkaConsumerConnector
 import whisk.connector.kafka.KafkaProducerConnector
 import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig.consulServer
-import whisk.core.WhiskConfig.kafkaHost
+import whisk.core.WhiskConfig.{ consulServer, kafkaHost }
 import whisk.core.connector.ActivationMessage
 import whisk.core.connector.CompletionMessage
 import whisk.core.entity.ActivationId
@@ -73,7 +74,8 @@ trait LoadBalancer {
 
 }
 
-class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
+class LoadBalancerService(config: WhiskConfig,
+                          verbosity: LogLevel)(
     implicit val actorSystem: ActorSystem)
     extends LoadBalancer with Logging {
 
@@ -91,13 +93,6 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
      * Gets invoker health as a dictionary.
      */
     def getInvokerHealth(): JsObject = invokerHealth.getInvokerHealthJson()
-
-    /**
-     * Gets an invoker index to send request to.
-     *
-     * @return index of invoker to receive request
-     */
-    def getInvoker(message: ActivationMessage): Option[Int] = invokerHealth.getInvoker(message)
 
     /**
      * Retrieves a per subject map of counts representing in-flight activations as seen by the load balancer
@@ -150,20 +145,19 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
     private val activationBySubject = new TrieMap[String, TrieSet[ActivationEntry]]
 
     private val kv = new ConsulClient(config.consulServer)
-    private val reporter = new ConsulKVReporter(kv, 3 seconds, 2 seconds,
+    private val reporter = new ConsulKVReporter(kv, 3 seconds, 10 seconds,
         LoadBalancerKeys.hostnameKey,
         LoadBalancerKeys.startKey,
         LoadBalancerKeys.statusKey,
-        { count =>
+        { _ =>
             val activeCounts = getActiveCountByInvoker()
             val totalActiveCount = activeCounts.values.sum
             val health = invokerHealth.getInvokerHealth()
-            if (count % 10 == 0) {
-                implicit val sid = TransactionId.loadbalancer
-                info(this, s"In flight: $totalActiveCount = [${activeCounts.mkString(", ")}]")
-                info(this, s"Invoker health: [${health.mkString(", ")}]")
-            }
-            Map(LoadBalancerKeys.invokerHealth -> getInvokerHealth())
+            implicit val sid = TransactionId.loadbalancer
+            info(this, s"In flight: $totalActiveCount = [${activeCounts.mkString(", ")}]")
+            info(this, s"Invoker health: [${health.mkString(", ")}]")
+            Map(LoadBalancerKeys.invokerHealth -> getInvokerHealth(),
+                LoadBalancerKeys.activationCountKey -> producer.sentCount().toJson)
         })
 
     private val consumer = new KafkaConsumerConnector(config.kafkaHost, "completions", "completed")
@@ -245,6 +239,75 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
 
     // A count of how many activations have been posted to Kafka based on invoker index or user/subject.
     private val userActivationCounter = new TrieMap[String, Counter]
+
+
+    /**
+     * Main entry point where an invocation asks the load balancer whick invoker it should go to.
+     */
+    def getInvoker(msg: ActivationMessage): Option[Int] = {
+        val (hash, count) = hashAndCountSubjectAction(msg)
+        val numInv = numInvokers // dynamic
+        if (numInv > 0) {
+            val globalCount = msgCount.getAndIncrement()
+            val hashCount = math.abs(hash + count / activationCountBeforeNextInvoker)
+            val choice = pickInvoker(hashCount % numInv)
+            getNext(choice, numInv)
+        } else None
+    }
+
+    /**
+     * Finds an available invoker starting at current index and trying for remaining indexes.
+     */
+    private def getNext(current: Int, remain: Int): Option[Int] = {
+        if (remain > 0) {
+            val choice = invokerHealth.getCurStatus(current)
+            choice.status match {
+                case true  => Some(choice.index)
+                case false => getNext(nextInvoker(current), remain - 1)
+            }
+        } else {
+            error(this, s"all invokers down")
+            None
+        }
+    }
+
+    /*
+     * The path contains more than the action per se but seems sufficiently
+     * isomorphic as the other parts are constant.  Extracting just the
+     * action out specifically will involve some hairy regex's that the
+     * Invoker is currently using and which is better avoid if/until
+     * these are moved to some common place (like a subclass of Message?)
+     */
+    private def hashAndCountSubjectAction(msg: ActivationMessage): (Int, Int) = {
+        val subject = msg.subject().toString()
+        val path = msg.action.toString
+        val hash = subject.hashCode() ^ path.hashCode()
+        val key = (subject, path)
+        val count = activationCountMap.get(key) match {
+            case Some(counter) => counter.getAndIncrement()
+            case None => {
+                activationCountMap.put(key, new AtomicInteger(0))
+                0
+            }
+        }
+        //info(this, s"getInvoker: ${subject} ${path} -> ${hash} ${count}")
+        return (hash, count)
+    }
+
+    private def numInvokers = invokerHealth.getCurStatus.length
+
+    private def pickInvoker(msgCount: Int): Int = {
+        val numInv = numInvokers
+        if (numInv > 0) msgCount % numInv else 0
+    }
+
+    private def nextInvoker(i: Int): Int = {
+        val numInv = numInvokers
+        if (numInv > 0) (i + 1) % numInv else 0
+    }
+
+    private val msgCount = new AtomicInteger(0)
+    private val activationCountMap = TrieMap[(String, String), AtomicInteger]()
 
 }
 
