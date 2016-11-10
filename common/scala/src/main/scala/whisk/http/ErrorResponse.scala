@@ -23,15 +23,8 @@ import spray.http.StatusCodes.Forbidden
 import spray.http.StatusCodes.NotFound
 import spray.httpx.marshalling.ToResponseMarshallable.isMarshallable
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
-import spray.json.DefaultJsonProtocol.LongJsonFormat
-import spray.json.DefaultJsonProtocol.StringJsonFormat
-import spray.json.JsNumber
-import spray.json.JsObject
-import spray.json.JsString
-import spray.json.JsValue
-import spray.json.RootJsonFormat
-import spray.json.deserializationError
-import spray.json.pimpAny
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 import spray.routing.Directives
 import spray.routing.Rejection
 import spray.routing.StandardRoute

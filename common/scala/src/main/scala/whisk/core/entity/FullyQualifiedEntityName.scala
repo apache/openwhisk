@@ -30,19 +30,22 @@ import whisk.core.entity.size.SizeString
  * - Version: the semantic version of the resource
  */
 protected[core] case class FullyQualifiedEntityName(path: EntityPath, name: EntityName, version: Option[SemVer] = None) extends ByteSizeable {
-    private val qualifiedName = WhiskEntity.qualifiedName(path, name)
+    private val qualifiedName: String = path + EntityPath.PATHSEP + name
+    def resolve(namespace: EntityName) = FullyQualifiedEntityName(path.resolveNamespace(namespace), name, version)
     def toDocId = DocId(qualifiedName)
     def pathToDocId = DocId(path())
-    def qualifiedNameWithLeadingSlash = EntityPath.PATHSEP + qualifiedName
+    def qualifiedNameWithLeadingSlash: String = EntityPath.PATHSEP + qualifiedName
+    def apply() = path.addpath(name) + version.map("@" + _.toString).getOrElse("")
     override def size = qualifiedName.sizeInBytes
-    override def toString = path.addpath(name) + version.map("@" + _.toString).getOrElse("")
+    override def toString = apply()
+    override def hashCode = qualifiedName.hashCode
 }
 
 protected[core] object FullyQualifiedEntityName extends DefaultJsonProtocol {
     // must use jsonFormat with explicit field names and order because class extends a trait
     private val caseClassSerdes = jsonFormat(FullyQualifiedEntityName.apply _, "path", "name", "version")
 
-    protected[core] implicit val serdes = new RootJsonFormat[FullyQualifiedEntityName] {
+    protected[core] val serdes = new RootJsonFormat[FullyQualifiedEntityName] {
         def write(n: FullyQualifiedEntityName) = caseClassSerdes.write(n)
 
         def read(value: JsValue) = Try {
@@ -52,6 +55,21 @@ protected[core] object FullyQualifiedEntityName extends DefaultJsonProtocol {
                 // by their document id which excludes the version (hence it is just a string)
                 case JsString(name)   => EntityPath(name).toFullyQualifiedEntityName
                 case _                => deserializationError("fully qualified name malformed")
+            }
+        } match {
+            case Success(s)                           => s
+            case Failure(t: IllegalArgumentException) => deserializationError(t.getMessage)
+            case Failure(t)                           => deserializationError("fully qualified name malformed")
+        }
+    }
+
+    // alternate serializer that drops version
+    protected[entity] val serdesAsDocId = new RootJsonFormat[FullyQualifiedEntityName] {
+        def write(n: FullyQualifiedEntityName) = n.toDocId.toJson
+        def read(value: JsValue) = Try {
+            value match {
+                case JsString(name) => EntityPath(name).toFullyQualifiedEntityName
+                case _              => deserializationError("fully qualified name malformed")
             }
         } match {
             case Success(s)                           => s

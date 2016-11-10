@@ -44,9 +44,10 @@ import whisk.http.Messages
 protected[core] class EntityPath private (private val path: Seq[String]) extends AnyVal {
     def namespace: String = path.foldLeft("")((a, b) => if (a != "") a.trim + EntityPath.PATHSEP + b.trim else b.trim)
     def addpath(e: EntityName) = EntityPath(path :+ e.name)
-    def root = EntityPath(Seq(path(0)))
-    def last = EntityName(path.last)
-    def defaultPackage = path.size == 1 // if only one element in the path, then it's the namespace with a default package
+    def relpath: Option[EntityPath] = Try(EntityPath(path.drop(1))).toOption
+    def root: EntityName = EntityName(path.head)
+    def last: EntityName = EntityName(path.last)
+    def defaultPackage: Boolean = path.size == 1 // if only one element in the path, then it's the namespace with a default package
     def toJson = JsString(namespace)
     def apply() = namespace
     override def toString = namespace
@@ -57,7 +58,7 @@ protected[core] class EntityPath private (private val path: Seq[String]) extends
      */
     def resolveNamespace(newNamespace: EntityName): EntityPath = {
         // check if namespace is default
-        if (root == EntityPath.DEFAULT) {
+        if (root.toPath == EntityPath.DEFAULT) {
             val newPath = path.updated(0, newNamespace.name)
             EntityPath(newPath)
         } else this

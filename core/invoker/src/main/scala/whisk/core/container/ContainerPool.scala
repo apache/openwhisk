@@ -167,7 +167,7 @@ class ContainerPool(
             info(this, s"Shutting down: Not getting container for ${action.fullyQualifiedName(true)} with ${auth.uuid}")
             throw new Exception("system is shutting down")
         } else {
-            val key = ActionContainerId(auth.uuid, action.fullyQualifiedName(true), action.rev)
+            val key = ActionContainerId(auth.uuid, action.fullyQualifiedName(true).toString, action.rev)
             val myPos = nextPosition.next()
             info(this, s"""Getting container for ${action.fullyQualifiedName(true)} of kind ${action.exec.kind} with ${auth.uuid}:
                           | myPos = $myPos
@@ -419,7 +419,7 @@ class ContainerPool(
         ContainerCounter.containerName(invokerInstance.toString(), localName)
 
     private def makeContainerName(action: WhiskAction): ContainerName =
-        makeContainerName(action.fullyQualifiedName(true))
+        makeContainerName(action.fullyQualifiedName(true).toString)
 
     /**
      * dockerLock is a fair lock used to serialize all docker operations except pull.
@@ -552,7 +552,7 @@ class ContainerPool(
         val imageName = getDockerImageName(action)
         val limits = action.limits
         val nodeImageName = WhiskAction.containerImageName(nodejsExec, config.dockerRegistry, config.dockerImagePrefix, config.dockerImageTag)
-        val key = ActionContainerId(auth.uuid, action.fullyQualifiedName(true), action.rev)
+        val key = ActionContainerId(auth.uuid, action.fullyQualifiedName(true).toString, action.rev)
         val warmedContainer = if (limits.memory == defaultMemoryLimit && imageName == nodeImageName) getStemCellNodejsContainer(key) else None
         val containerName = makeContainerName(action)
         warmedContainer getOrElse {

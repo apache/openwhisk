@@ -132,7 +132,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
 
     it should "report Conflict if the name was of a different type" in {
         implicit val tid = transid()
-        val rule = WhiskRule(namespace, aname, aname, aname)
+        val rule = WhiskRule(namespace, aname, FullyQualifiedEntityName(namespace, aname), FullyQualifiedEntityName(namespace, aname))
         put(entityStore, rule)
         Get(s"/$namespace/${collection.path}/${rule.name}") ~> sealRoute(routes(creds)) ~> check {
             status should be(Conflict)

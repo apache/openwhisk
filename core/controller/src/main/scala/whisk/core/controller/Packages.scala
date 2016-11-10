@@ -21,37 +21,15 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
-import spray.http.StatusCodes.BadRequest
-import spray.http.StatusCodes.Conflict
-import spray.http.StatusCodes.InternalServerError
-import spray.http.StatusCodes.NotFound
-import spray.http.StatusCodes.OK
+import spray.http.StatusCodes._
 import spray.httpx.SprayJsonSupport._
-import spray.json.JsBoolean
-import spray.json.JsObject
+import spray.json._
 import spray.routing.Directive.pimpApply
 import spray.routing.RequestContext
-import spray.routing.directives.OnCompleteFutureMagnet.apply
-import spray.routing.directives.ParamDefMagnet.apply
 import whisk.common.TransactionId
-import whisk.core.database.DocumentTypeMismatchException
 import whisk.core.database.NoDocumentException
-import whisk.core.entitlement.Collection
-import whisk.core.entitlement.Privilege
-import whisk.core.entitlement.Resource
-import whisk.core.entity.Binding
-import whisk.core.entity.DocId
-import whisk.core.entity.EntityName
-import whisk.core.entity.EntityPath
-import whisk.core.entity.Identity
-import whisk.core.entity.Parameters
-import whisk.core.entity.SemVer
-import whisk.core.entity.WhiskAction
-import whisk.core.entity.WhiskEntity
-import whisk.core.entity.WhiskEntityStore
-import whisk.core.entity.WhiskPackage
-import whisk.core.entity.WhiskPackageAction
-import whisk.core.entity.WhiskPackagePut
+import whisk.core.entitlement._
+import whisk.core.entity._
 import whisk.core.entity.types.EntityStore
 import whisk.http.ErrorResponse.terminate
 import whisk.http.Messages
@@ -94,7 +72,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
     override def create(user: Identity, namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
         parameter('overwrite ? false) { overwrite =>
             entity(as[WhiskPackagePut]) { content =>
-                val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
+                val docid = FullyQualifiedEntityName(namespace, name).toDocId
 
                 def doput() = {
                     putEntity(WhiskPackage, entityStore, docid, overwrite,
@@ -110,7 +88,10 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
                     case binding =>
                         info(this, "checking if package is accessible")
                         val referencedPackage = Resource(binding.namespace, Collection(Collection.PACKAGES), Some(binding.name()))
-                        authorizeAndContinue(Privilege.READ, user, referencedPackage, next = doput, recover = Some(abort))
+                        onComplete(entitlementProvider.check(user, Privilege.READ, Set(referencedPackage))) {
+                            case Success(true) => doput()
+                            case failure       => handleEntitlementFailure(failure)
+                        }
                 } getOrElse {
                     info(this, "no binding specified")
                     doput()
@@ -140,7 +121,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
      * - 500 Internal Server Error
      */
     override def remove(namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
-        val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
+        val docid = FullyQualifiedEntityName(namespace, name).toDocId
         deleteEntity(WhiskPackage, entityStore, docid, (wp: WhiskPackage) => {
             wp.binding map {
                 // this is a binding, it is safe to remove
@@ -168,7 +149,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
      * - 500 Internal Server Error
      */
     override def fetch(namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
-        val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
+        val docid = FullyQualifiedEntityName(namespace, name).toDocId
         getEntity(WhiskPackage, entityStore, docid, Some { mergePackageWithBinding() _ })
     }
 
@@ -300,14 +281,12 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
         }
     }
 
-    private def rewriteFailure(failure: Throwable)(implicit transid: TransactionId) = {
+    override protected def handleEntitlementFailure(failure: Try[Boolean])(
+        implicit transid: TransactionId): RequestContext => Unit = {
         info(this, s"rewriting failure $failure")
         failure match {
-            case RejectRequest(NotFound, _)       => RejectRequest(NotFound, Messages.bindingDoesNotExist)
-            case RejectRequest(c, m)              => RejectRequest(c, m)
-            case _: NoDocumentException           => RejectRequest(BadRequest, Messages.bindingDoesNotExist)
-            case _: DocumentTypeMismatchException => RejectRequest(BadRequest, Messages.requestedBindingIsNotValid)
-            case _                                => RejectRequest(BadRequest, failure)
+            case Failure(RejectRequest(NotFound, _)) => terminate(NotFound, Messages.bindingDoesNotExist)
+            case _                                   => super.handleEntitlementFailure(failure)
         }
     }
 
@@ -332,7 +311,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
     private def mergePackageWithBinding(ref: Option[WhiskPackage] = None)(wp: WhiskPackage)(implicit transid: TransactionId): RequestContext => Unit = {
         wp.binding map {
             case Binding(ns, n) =>
-                val docid = DocId(WhiskEntity.qualifiedName(ns, n))
+                val docid = FullyQualifiedEntityName(ns, n).toDocId
                 info(this, s"fetching package '$docid' for reference")
                 getEntity(WhiskPackage, entityStore, docid, Some {
                     mergePackageWithBinding(Some { wp }) _

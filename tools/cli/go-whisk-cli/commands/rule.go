@@ -199,8 +199,8 @@ var ruleCreateCmd = &cobra.Command{
 
         client.Namespace = qName.namespace
         ruleName := qName.entityName
-        triggerName := args[1]
-        actionName := args[2]
+        triggerName := getQualifiedName(args[1], Properties.Namespace)
+        actionName := getQualifiedName(args[2], Properties.Namespace)
 
         rule := &whisk.Rule{
             Name:    ruleName,
@@ -257,8 +257,8 @@ var ruleUpdateCmd = &cobra.Command{
 
         client.Namespace = qName.namespace
         ruleName := qName.entityName
-        triggerName := args[1]  //MWD qualified name?
-        actionName := args[2]   //MWD qualified name?
+        triggerName := getQualifiedName(args[1], Properties.Namespace)
+        actionName := getQualifiedName(args[2], Properties.Namespace)
 
         if (flags.common.shared == "yes") {
             shared = true

@@ -87,6 +87,7 @@ object ActivationMessage extends DefaultJsonProtocol {
         serdes.read(msg.parseJson)
     }
 
+    private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
     implicit val serdes = jsonFormat9(ActivationMessage.apply)
 }
 

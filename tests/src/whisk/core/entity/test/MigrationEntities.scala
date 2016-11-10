@@ -32,8 +32,8 @@ import whisk.core.entity._
 case class OldWhiskRule(
     namespace: EntityPath,
     override val name: EntityName,
-    trigger: types.Trigger,
-    action: types.Action,
+    trigger: EntityName,
+    action: EntityName,
     status: Status,
     version: SemVer = SemVer(),
     publish: Boolean = false,
@@ -42,7 +42,12 @@ case class OldWhiskRule(
 
     def toJson = OldWhiskRule.serdes.write(this).asJsObject
 
-    def toWhiskRule = WhiskRule(namespace, name, trigger, action, version, publish, annotations)
+    def toWhiskRule = {
+        WhiskRule(namespace, name,
+            FullyQualifiedEntityName(namespace, trigger),
+            FullyQualifiedEntityName(namespace, action),
+            version, publish, annotations)
+    }
 }
 
 object OldWhiskRule

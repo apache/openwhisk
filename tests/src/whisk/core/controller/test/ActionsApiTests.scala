@@ -344,6 +344,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         }
     }
 
+    private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
     private def seqParameters(seq: Vector[FullyQualifiedEntityName]) = Parameters("_actions", seq.toJson)
 
     // this test is sneaky; the installation of the sequence is done directly in the db
