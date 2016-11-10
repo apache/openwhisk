@@ -54,7 +54,9 @@ class Config(requiredProperties: Map[String, String], optionalProperties: Set[St
      * @param overrideKey the property whose value will be returned if the map contains the override key.
      * @return value for the key or the empty string if the key does not have a value/does not exist
      */
-    def apply(key: String, overrideKey: String = ""): String = Try(settings(overrideKey)).orElse(Try(settings(key))).getOrElse("")
+    def apply(key: String, overrideKey: String = ""): String = {
+        Try(settings(overrideKey)).filter(s => s != null && s.nonEmpty).orElse(Try(settings(key))).getOrElse("")
+    }
 
     /**
      * Returns the value of a given key.

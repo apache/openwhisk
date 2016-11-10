@@ -44,4 +44,10 @@ class ConfigTests extends FlatSpec with Matchers {
         assert(config.isValid && config("a") == "A" && config("b") == "xyz" && config("c") == null)
     }
 
+    it should "override a value with optional value" in {
+        val config = new Config(Map("a" -> null), optionalProperties = Set("b", "c"))(Map("A" -> "xyz", "B" -> "zyx"))
+        assert(config.isValid && config("a") == "xyz" && config("b") == "zyx")
+        assert(config("a", "b") == "zyx")
+        assert(config("a", "c") == "xyz")
+    }
 }
