@@ -34,6 +34,7 @@ import spray.routing.RequestContext
 import spray.routing.directives.OnCompleteFutureMagnet.apply
 import spray.routing.directives.ParamDefMagnet.apply
 import whisk.common.TransactionId
+import whisk.core.database.DocumentTypeMismatchException
 import whisk.core.database.NoDocumentException
 import whisk.core.entitlement.Collection
 import whisk.core.entitlement.Privilege
@@ -53,10 +54,7 @@ import whisk.core.entity.WhiskPackageAction
 import whisk.core.entity.WhiskPackagePut
 import whisk.core.entity.types.EntityStore
 import whisk.http.ErrorResponse.terminate
-import spray.http.StatusCode
-import whisk.http.ErrorResponse
 import whisk.http.Messages
-import whisk.core.database.DocumentTypeMismatchException
 
 object WhiskPackagesApi {
     def requiredProperties = WhiskEntityStore.requiredProperties
@@ -97,24 +95,23 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
             entity(as[WhiskPackagePut]) { content =>
                 val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
 
-                def doput() = {
+                def doput = {
                     putEntity(WhiskPackage, entityStore, docid, overwrite,
                         update(content) _, () => create(content, namespace, name))
-                }
-
-                def abort(t: Throwable) = {
-                    val r = rewriteFailure(t)
-                    terminate(r.code, r.message)
                 }
 
                 content.binding.map(_.resolve(namespace)) map {
                     case binding =>
                         info(this, "checking if package is accessible")
                         val referencedPackage = Resource(binding.namespace, Collection(Collection.PACKAGES), Some(binding.name()))
-                        authorizeAndContinue(Privilege.READ, user, referencedPackage, next = doput, recover = Some(abort))
+                        authorizeAndContinue(Privilege.READ, user, Set(referencedPackage), doput) {
+                            case authorizationFailure: Throwable =>
+                                val r = rewriteFailure(authorizationFailure)
+                                terminate(r.code, r.message)
+                        }
                 } getOrElse {
                     info(this, "no binding specified")
-                    doput()
+                    doput
                 }
             }
         }

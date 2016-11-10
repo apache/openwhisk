@@ -26,7 +26,6 @@ import Privilege.Privilege
 import Privilege.REJECT
 import akka.actor.ActorSystem
 import akka.event.Logging.LogLevel
-import spray.http.StatusCodes.ClientError
 import spray.http.StatusCodes.Forbidden
 import spray.http.StatusCodes.TooManyRequests
 import whisk.common.ConsulClient
@@ -40,7 +39,6 @@ import whisk.core.entity.Parameters
 import whisk.core.entity.Subject
 import whisk.core.iam.Identities
 import whisk.core.loadBalancer.LoadBalancer
-import whisk.http.ErrorResponse
 import whisk.http.Messages._
 
 package object types {
@@ -163,7 +161,6 @@ protected[core] abstract class EntitlementService(config: WhiskConfig, loadBalan
      */
     protected[core] def check(user: Identity, right: Privilege, resources: Set[Resource])(
         implicit transid: TransactionId): Future[Boolean] = {
-
         val subject = user.subject
 
         val entitlementCheck = if (user.rights.contains(right)) {
@@ -172,7 +169,7 @@ protected[core] abstract class EntitlementService(config: WhiskConfig, loadBalan
                 checkUserThrottle(subject, right, resources)
             } orElse {
                 checkConcurrentUserThrottle(subject, right, resources)
-            } getOrElse checkPrivilege(subject, right, resources)
+            } getOrElse checkPrivilege(user, right, resources)
         } else if (right != REJECT) {
             info(this, s"supplied authkey for user '$subject' does not have privilege '$right' for '${resources.mkString(",")}'")
             Future.failed(RejectRequest(Forbidden))
@@ -196,14 +193,16 @@ protected[core] abstract class EntitlementService(config: WhiskConfig, loadBalan
      * implicitly or explicitly granted. Instead, the given resource set should include both the binding
      * and the referenced package.
      */
-    protected def checkPrivilege(subject: Subject, right: Privilege, resources: Set[Resource])(
+    protected def checkPrivilege(user: Identity, right: Privilege, resources: Set[Resource])(
         implicit transid: TransactionId): Future[Boolean] = {
         // check the default namespace first, bypassing additional checks if permitted
+        val subject = user.subject
         val defaultNamespaces = Identities.defaultNamespaces(subject)
+        implicit val es = this
 
         Future.sequence {
             resources.map { resource =>
-                resource.collection.implicitRights(defaultNamespaces, right, resource) flatMap {
+                resource.collection.implicitRights(user, defaultNamespaces, right, resource) flatMap {
                     case true => Future.successful(true)
                     case false =>
                         // currently allow subject to work across any of their namespaces
@@ -214,7 +213,7 @@ protected[core] abstract class EntitlementService(config: WhiskConfig, loadBalan
                                 val newNamespacesToCheck = additionalNamespaces -- defaultNamespaces
                                 if (newNamespacesToCheck nonEmpty) {
                                     info(this, "checking additional namespace")
-                                    resource.collection.implicitRights(newNamespacesToCheck, right, resource) flatMap {
+                                    resource.collection.implicitRights(user, newNamespacesToCheck, right, resource) flatMap {
                                         case true  => Future.successful(true)
                                         case false => entitled(subject, right, resource)
                                     }

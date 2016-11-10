@@ -20,7 +20,6 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Success
-import spray.http.StatusCodes.ClientError
 import spray.http.StatusCodes.Conflict
 import spray.http.StatusCodes.InternalServerError
 import spray.http.StatusCodes.NotFound

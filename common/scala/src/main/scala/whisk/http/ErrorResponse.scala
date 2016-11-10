@@ -74,6 +74,7 @@ object Messages {
     val packageCannotBecomeBinding = "Resource is a package and cannot be converted into a binding."
     val bindingCannotReferenceBinding = "Cannot bind to another package binding."
     val requestedBindingIsNotValid = "Cannot bind to a resource that is not a package."
+    val notAllowedOnBinding = "Operation not permitted on package binding."
 }
 
 /** Replaces rejections with Json object containing cause and transaction id. */
