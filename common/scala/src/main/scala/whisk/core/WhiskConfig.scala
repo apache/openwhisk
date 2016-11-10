@@ -77,6 +77,8 @@ class WhiskConfig(
     val invokerSerializeDockerPull = this(WhiskConfig.invokerSerializeDockerPull)
 
     val controllerHost = this(WhiskConfig.controllerHostName) + ":" + this(WhiskConfig.controllerHostPort)
+    val controllerBlackboxFraction = this.getAsDouble(WhiskConfig.controllerBlackboxFraction, 0.10)
+
     val edgeHost = this(WhiskConfig.edgeHostName) + ":" + this(WhiskConfig.edgeHostApiPort)
     val kafkaHost = this(WhiskConfig.kafkaHostName) + ":" + this(WhiskConfig.kafkaHostPort)
     val loadbalancerHost = this(WhiskConfig.loadbalancerHostName) + ":" + this(WhiskConfig.loadbalancerHostPort)
@@ -239,11 +241,13 @@ object WhiskConfig extends Logging {
     val mainDockerEndpoint = "main.docker.endpoint"
 
     private val controllerHostName = "controller.host"
+    private val controllerHostPort = "controller.host.port"
+    private val controllerBlackboxFraction = "controller.blackboxFraction"
+
     val kafkaHostName = "kafka.host"
     val loadbalancerHostName = "loadbalancer.host"
     private val zookeeperHostName = "zookeeper.host"
 
-    private val controllerHostPort = "controller.host.port"
     private val edgeHostApiPort = "edge.host.apiport"
     val kafkaHostPort = "kafka.host.port"
     private val loadbalancerHostPort = "loadbalancer.host.port"
