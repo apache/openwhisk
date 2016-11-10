@@ -31,7 +31,7 @@ import spray.routing.RequestContext
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.entitlement.Collection
-import whisk.core.entitlement.EntitlementService
+import whisk.core.entitlement.EntitlementProvider
 import whisk.core.entitlement.Privilege.Privilege
 import whisk.core.entitlement.Resource
 import whisk.core.entity.EntityPath
@@ -45,7 +45,7 @@ trait BasicAuthorizedRouteProvider extends Directives with Logging {
     protected implicit val executionContext: ExecutionContext
 
     /** An entitlement service to check access rights. */
-    protected val entitlementService: EntitlementService
+    protected val entitlementProvider: EntitlementProvider
 
     /** The collection type for this trait. */
     protected val collection: Collection
@@ -66,44 +66,20 @@ trait BasicAuthorizedRouteProvider extends Directives with Logging {
         resource: Resource)(
             implicit transid: TransactionId): RequestContext => Unit = {
         val right = collection.determineRight(method, resource.entity)
-        authorizeAndContinue(right, user, resource, dispatchOp(user, right, resource))
+
+        onComplete(entitlementProvider.check(user, right, resource)) {
+            case Success(true) => dispatchOp(user, right, resource)
+            case t             => handleEntitlementFailure(t)
+        }
     }
 
-    /** Checks entitlement and if authorized, continues with next handler. */
-    protected def authorizeAndContinue(
-        right: Privilege,
-        user: Identity,
-        resource: Resource,
-        next: RequestContext => Unit)(
-            implicit transid: TransactionId): RequestContext => Unit = {
-        authorizeAndContinue(right, user, Set(resource), next, None)
-    }
-
-    protected def authorizeAndContinue(
-        right: Privilege,
-        user: Identity,
-        resources: Set[Resource],
-        next: RequestContext => Unit)(
-            recover: Throwable => RequestContext => Unit)(
-                implicit transid: TransactionId): RequestContext => Unit = {
-        authorizeAndContinue(right, user, resources, next, Some(recover))
-    }
-
-    private def authorizeAndContinue(
-        right: Privilege,
-        user: Identity,
-        resources: Set[Resource],
-        next: RequestContext => Unit,
-        recover: Option[Throwable => RequestContext => Unit])(
-            implicit transid: TransactionId): RequestContext => Unit = {
-        onComplete(entitlementService.check(user, right, resources)) {
-            // do not use "authorize" directive here because it does not compose
-            // hence for nested authorizations the rejection list will end up empty
-            case Success(true)                   => next
-            case Success(false)                  => recover.map(_(RejectRequest(Forbidden))) getOrElse terminate(Forbidden)
-            case Failure(t) if recover.isDefined => recover.get(t)
-            case Failure(r: RejectRequest)       => terminate(r.code, r.message)
-            case Failure(t)                      => terminate(InternalServerError, t.getMessage)
+    protected def handleEntitlementFailure(failure: Try[Boolean])(
+        implicit transid: TransactionId): RequestContext => Unit = {
+        failure match {
+            case Success(false)            => terminate(Forbidden)
+            case Failure(r: RejectRequest) => terminate(r.code, r.message)
+            case Failure(t)                => terminate(InternalServerError, t.getMessage)
+            case _ /*Success(true)*/       => terminate(InternalServerError, "Should not reach here.")
         }
     }
 

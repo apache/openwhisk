@@ -22,9 +22,7 @@ import scala.concurrent.duration.FiniteDuration
 import akka.actor.ActorSystem
 import akka.event.Logging.InfoLevel
 import whisk.core.WhiskConfig
-import whisk.core.entitlement.EntitlementService
-import whisk.core.entitlement.LocalEntitlementService
-import whisk.core.entitlement.RemoteEntitlementService
+import whisk.core.entitlement._
 import whisk.core.loadBalancer.{ LoadBalancer, LoadBalancerService }
 import scala.language.postfixOps
 import whisk.core.entity.ActivationId.ActivationIdGenerator
@@ -32,7 +30,7 @@ import whisk.core.iam.Identities
 
 object WhiskServices {
 
-    def requiredProperties = WhiskConfig.loadbalancerHost ++ WhiskConfig.consulServer ++ EntitlementService.requiredProperties
+    def requiredProperties = WhiskConfig.loadbalancerHost ++ WhiskConfig.consulServer ++ EntitlementProvider.requiredProperties
 
     def consulServer(config: WhiskConfig) = config.consulServer
 
@@ -44,7 +42,7 @@ object WhiskServices {
         // remote entitlement service requires a host:port definition. If not given,
         // i.e., the value equals ":" or ":xxxx", use a local entitlement flow.
         if (config.entitlementHost.startsWith(":")) {
-            new LocalEntitlementService(config, loadBalancer, iam)
+            new LocalEntitlementProvider(config, loadBalancer, iam)
         } else {
             new RemoteEntitlementService(config, loadBalancer, iam, timeout)
         }
@@ -75,7 +73,7 @@ trait WhiskServices {
     protected val whiskConfig: WhiskConfig
 
     /** An entitlement service to check access rights. */
-    protected val entitlementService: EntitlementService
+    protected val entitlementProvider: EntitlementProvider
 
     /** An identity provider. */
     protected val iam: Identities

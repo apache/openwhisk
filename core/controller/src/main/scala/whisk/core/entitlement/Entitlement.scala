@@ -64,7 +64,7 @@ protected[core] case class Resource(
     override def toString = id
 }
 
-protected[core] object EntitlementService {
+protected[core] object EntitlementProvider {
     val requiredProperties = WhiskConfig.consulServer ++ WhiskConfig.entitlementHost ++ Map(
         WhiskConfig.actionInvokePerMinuteDefaultLimit -> null,
         WhiskConfig.actionInvokeConcurrentDefaultLimit -> null,
@@ -82,7 +82,7 @@ protected[core] object EntitlementService {
  * A trait that implements entitlements to resources. It performs checks for CRUD and Acivation requests.
  * This is where enforcement of activation quotas takes place, in additional to basic authorization.
  */
-protected[core] abstract class EntitlementService(config: WhiskConfig, loadBalancer: LoadBalancer, iam: Identities)(
+protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBalancer: LoadBalancer, iam: Identities)(
     implicit actorSystem: ActorSystem) extends Logging {
 
     private implicit val executionContext = actorSystem.dispatcher

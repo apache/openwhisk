@@ -32,17 +32,17 @@ class ActionCollection(entityStore: EntityStore) extends Collection(Collection.A
      * Computes implicit rights on an action (sequence, in package, or primitive).
      */
     protected[core] override def implicitRights(user: Identity, namespaces: Set[String], right: Privilege, resource: Resource)(
-        implicit es: EntitlementService, ec: ExecutionContext, transid: TransactionId) = {
+        implicit ep: EntitlementProvider, ec: ExecutionContext, transid: TransactionId) = {
         val isOwner = namespaces.contains(resource.namespace.root())
         resource.entity map {
             name =>
                 right match {
                     // if action is in a package, check that the user is entitled to package [binding]
                     case (Privilege.READ | Privilege.ACTIVATE) if !resource.namespace.defaultPackage =>
-                        val packageNamespace = resource.namespace.root
+                        val packageNamespace = resource.namespace.root.toPath
                         val packageName = Some(resource.namespace.last.name)
                         val packageResource = Resource(packageNamespace, Collection(Collection.PACKAGES), packageName)
-                        es.check(user, right, packageResource)
+                        ep.check(user, right, packageResource)
                     case _ => Future.successful(isOwner && allowedEntityRights.contains(right))
                 }
         } getOrElse {

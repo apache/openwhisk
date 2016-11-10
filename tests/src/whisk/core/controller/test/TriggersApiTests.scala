@@ -51,6 +51,7 @@ import whisk.core.entity.WhiskTrigger
 import whisk.core.entity.WhiskTriggerPut
 import whisk.core.entity.test.OldWhiskTrigger
 import whisk.core.entity.WhiskRule
+import whisk.core.entity.FullyQualifiedEntityName
 
 /**
  * Tests Trigger API.
@@ -123,7 +124,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
 
     it should "report Conflict if the name was of a different type" in {
         implicit val tid = transid()
-        val rule = WhiskRule(namespace, aname, aname, aname)
+        val rule = WhiskRule(namespace, aname, FullyQualifiedEntityName(namespace, aname), FullyQualifiedEntityName(namespace, aname))
         put(entityStore, rule)
         Get(s"/$namespace/${collection.path}/${rule.name}") ~> sealRoute(routes(creds)) ~> check {
             status should be(Conflict)
