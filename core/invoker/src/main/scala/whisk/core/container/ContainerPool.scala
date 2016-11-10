@@ -82,7 +82,7 @@ class ContainerPool(
     val mounted = !standalone
     val dockerhost = config.selfDockerEndpoint
     val serializeDockerOp = config.invokerSerializeDockerOp.toBoolean
-    val serializeDockerPull = config.invokerSerializeDockerOp.toBoolean
+    val serializeDockerPull = config.invokerSerializeDockerPull.toBoolean
     info(this, s"dockerhost = $dockerhost    serializeDockerOp = $serializeDockerOp   serializeDockerPull = $serializeDockerPull")
 
     // Eventually, we will have a more sophisticated warmup strategy that does multiple sizes
