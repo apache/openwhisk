@@ -236,7 +236,7 @@ func printList(collection interface{}) {
     switch collection := collection.(type) {
     case []whisk.Action:
         printActionList(collection)
-    case []whisk.TriggerFromServer:
+    case []whisk.Trigger:
         printTriggerList(collection)
     case []whisk.Package:
         printPackageList(collection)
@@ -272,7 +272,7 @@ func printSummary(collection interface{}) {
     switch collection := collection.(type) {
     case *whisk.Action:
         printActionSummary(collection)
-    case *whisk.TriggerFromServer:
+    case *whisk.Trigger:
         printTriggerSummary(collection)
     case *whisk.Package:
         printPackageSummary(collection)
@@ -288,21 +288,15 @@ func printActionList(actions []whisk.Action) {
     fmt.Fprintf(color.Output, "%s\n", boldString("actions"))
     for _, action := range actions {
         publishState := wski18n.T("private")
-        if action.Publish {
-            publishState = wski18n.T("shared")
-        }
         kind := getValueString(action.Annotations, "exec")
         fmt.Printf("%-70s %s %s\n", fmt.Sprintf("/%s/%s", action.Namespace, action.Name), publishState, kind)
     }
 }
 
-func printTriggerList(triggers []whisk.TriggerFromServer) {
+func printTriggerList(triggers []whisk.Trigger) {
     fmt.Fprintf(color.Output, "%s\n", boldString("triggers"))
     for _, trigger := range triggers {
         publishState := wski18n.T("private")
-        if trigger.Publish {
-            publishState = wski18n.T("shared")
-        }
         fmt.Printf("%-70s %s\n", fmt.Sprintf("/%s/%s", trigger.Namespace, trigger.Name), publishState)
     }
 }
@@ -311,7 +305,7 @@ func printPackageList(packages []whisk.Package) {
     fmt.Fprintf(color.Output, "%s\n", boldString("packages"))
     for _, xPackage := range packages {
         publishState := wski18n.T("private")
-        if xPackage.Publish {
+        if xPackage.Publish != nil && *xPackage.Publish {
             publishState = wski18n.T("shared")
         }
         fmt.Printf("%-70s %s\n", fmt.Sprintf("/%s/%s", xPackage.Namespace, xPackage.Name), publishState)
@@ -322,9 +316,6 @@ func printRuleList(rules []whisk.Rule) {
     fmt.Fprintf(color.Output, "%s\n", boldString("rules"))
     for _, rule := range rules {
         publishState := wski18n.T("private")
-        if rule.Publish {
-            publishState = wski18n.T("shared")
-        }
         fmt.Printf("%-70s %s\n", fmt.Sprintf("/%s/%s", rule.Namespace, rule.Name), publishState)
     }
 }
@@ -406,7 +397,7 @@ func printActionSummary(action *whisk.Action) {
         strings.Join(getChildValueStrings(action.Annotations, "parameters", "name"), ", "))
 }
 
-func printTriggerSummary(trigger *whisk.TriggerFromServer) {
+func printTriggerSummary(trigger *whisk.Trigger) {
     printEntitySummary(fmt.Sprintf("%7s", "trigger"),
         getFullName(trigger.Namespace, "", trigger.Name),
         getValueString(trigger.Annotations, "description"),
@@ -908,4 +899,29 @@ func printField(value interface{}, field string) {
     fieldValue := reflect.Indirect(structValue).FieldByNameFunc(matchFunc)
 
     printJSON(fieldValue.Interface())
+}
+
+func parseShared(shared string) (bool, bool, error) {
+    var isShared, isSet bool
+
+    if strings.ToLower(shared) == "yes" {
+        isShared = true
+        isSet = true
+    } else if strings.ToLower(shared) == "no" {
+        isShared = false
+        isSet = true
+    } else if len(shared) == 0 {
+        isSet = false
+    } else {
+        whisk.Debug(whisk.DbgError, "Cannot use value '%s' for shared.\n", shared)
+        errMsg := fmt.Sprintf(wski18n.T("Cannot use value '{{.arg}}' for shared.",
+                map[string]interface{}{"arg": shared}))
+        whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG,
+            whisk.DISPLAY_USAGE)
+        return false, false, whiskErr
+    }
+
+    whisk.Debug(whisk.DbgError, "Sharing is '%t'\n", isShared)
+
+    return isShared, isSet, nil
 }

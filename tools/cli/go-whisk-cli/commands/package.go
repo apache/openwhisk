@@ -157,14 +157,9 @@ var packageCreateCmd = &cobra.Command{
     }
     client.Namespace = qName.namespace
 
-    if flags.common.shared == "yes" {
-      shared = true
-      sharedSet = true
-    } else if flags.common.shared == "no" {
-      shared = false
-      sharedSet = true
-    } else {
-      sharedSet = false
+    if shared, sharedSet, err = parseShared(flags.common.shared); err != nil {
+      whisk.Debug(whisk.DbgError, "parseShared(%s) failed: %s\n", flags.common.shared, err)
+      return err
     }
 
     whisk.Debug(whisk.DbgInfo, "Parsing parameters: %#v\n", flags.common.param)
@@ -191,23 +186,15 @@ var packageCreateCmd = &cobra.Command{
       return werr
     }
 
-    var p whisk.PackageInterface
+    p := &whisk.Package{
+      Name:        qName.entityName,
+      Namespace:   qName.namespace,
+      Annotations: annotations.(whisk.KeyValueArr),
+      Parameters:  parameters.(whisk.KeyValueArr),
+    }
+
     if sharedSet {
-      p = &whisk.SentPackagePublish{
-        Name:        qName.entityName,
-        Namespace:   qName.namespace,
-        Publish:     shared,
-        Annotations: annotations.(whisk.KeyValueArr),
-        Parameters:  parameters.(whisk.KeyValueArr),
-      }
-    } else {
-      p = &whisk.SentPackageNoPublish{
-        Name:        qName.entityName,
-        Namespace:   qName.namespace,
-        Publish:     shared,
-        Annotations: annotations.(whisk.KeyValueArr),
-        Parameters:  parameters.(whisk.KeyValueArr),
-      }
+      p.Publish = &shared
     }
 
     p, _, err = client.Packages.Insert(p, false)
@@ -251,14 +238,9 @@ var packageUpdateCmd = &cobra.Command{
     }
     client.Namespace = qName.namespace
 
-    if flags.common.shared == "yes" {
-      shared = true
-      sharedSet = true
-    } else if flags.common.shared == "no" {
-      shared = false
-      sharedSet = true
-    } else {
-      sharedSet = false
+    if shared, sharedSet, err = parseShared(flags.common.shared); err != nil {
+      whisk.Debug(whisk.DbgError, "parseShared(%s) failed: %s\n", flags.common.shared, err)
+      return err
     }
 
     whisk.Debug(whisk.DbgInfo, "Parsing parameters: %#v\n", flags.common.param)
@@ -284,23 +266,15 @@ var packageUpdateCmd = &cobra.Command{
       return werr
     }
 
-    var p whisk.PackageInterface
+    p := &whisk.Package{
+      Name:        qName.entityName,
+      Namespace:   qName.namespace,
+      Annotations: annotations.(whisk.KeyValueArr),
+      Parameters:  parameters.(whisk.KeyValueArr),
+    }
+
     if sharedSet {
-      p = &whisk.SentPackagePublish{
-        Name:        qName.entityName,
-        Namespace:   qName.namespace,
-        Publish:     shared,
-        Annotations: annotations.(whisk.KeyValueArr),
-        Parameters:  parameters.(whisk.KeyValueArr),
-      }
-    } else {
-      p = &whisk.SentPackageNoPublish{
-        Name:        qName.entityName,
-        Namespace:   qName.namespace,
-        Publish:     shared,
-        Annotations: annotations.(whisk.KeyValueArr),
-        Parameters:  parameters.(whisk.KeyValueArr),
-      }
+      p.Publish = &shared
     }
 
     p, _, err = client.Packages.Insert(p, true)

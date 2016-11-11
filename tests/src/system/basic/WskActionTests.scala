@@ -118,7 +118,7 @@ class WskActionTests
 
             assetHelper.withCleaner(wsk.action, fullQualifiedName) {
                 val file = Some(TestUtils.getTestActionFilename("wc.js"))
-                (action, _) => action.create(fullQualifiedName, file, shared = Some(true))
+                (action, _) => action.create(fullQualifiedName, file)
             }
 
             assetHelper.withCleaner(wsk.action, name) {

@@ -1300,15 +1300,19 @@
     "translation": "API does not exist for API name {{.apiname}}"
   },
   {
-    "id":"An API name can only be specified once",
+    "id": "An API name can only be specified once",
     "translation": "An API name can only be specified once"
   },
   {
-    "id":"Specify a swagger file or specify an API base path with an API path, an API verb, and an action name.",
+    "id": "Specify a swagger file or specify an API base path with an API path, an API verb, and an action name.",
     "translation": "Specify a swagger file or specify an API base path with an API path, an API verb, and an action name."
   },
   {
-    "id":"Invalid argument(s). Specify a swagger file or specify an API base path with an API path, an API verb, and an action name.",
+    "id": "Invalid argument(s). Specify a swagger file or specify an API base path with an API path, an API verb, and an action name.",
     "translation": "Invalid argument(s). Specify a swagger file or specify an API base path with an API path, an API verb, and an action name."
+  },
+  {
+    "id": "Cannot use value '{{.arg}}' for shared.",
+    "translation": "Cannot use value '{{.arg}}' for shared."
   }
 ]

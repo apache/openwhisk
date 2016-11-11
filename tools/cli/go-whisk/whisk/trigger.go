@@ -29,34 +29,24 @@ type TriggerService struct {
 }
 
 type Trigger struct {
-    Namespace string                `json:"namespace,omitempty"`
-    Name      string                `json:"-"`
-    Version   string                `json:"version,omitempty"`
-    Publish   bool                  `json:"publish,omitempty"`
-    ActivationId string             `json:"activationId,omitempty"`
-    Annotations KeyValueArr         `json:"annotations,omitempty"`
-    Parameters  KeyValueArr         `json:"parameters,omitempty"`
-    Limits                          `json:"limits,omitempty"`
-}
+    Namespace       string          `json:"namespace,omitempty"`
+    Name            string          `json:"name,omityempty"`
+    Version         string          `json:"version,omitempty"`
+    ActivationId    string          `json:"activationId,omitempty"`
+    Annotations     KeyValueArr     `json:"annotations,omitempty"`
+    Parameters      KeyValueArr     `json:"parameters,omitempty"`
+    Limits          *Limits         `json:"limits,omitempty"`
+    Publish         *bool           `json:"publish,omitempty"`
 
-type TriggerFromServer struct {
-    Namespace string                `json:"namespace"`
-    Name      string                `json:"name"`
-    Version   string                `json:"version"`
-    Publish   bool                  `json:"publish"`
-    ActivationId string             `json:"activationId,omitempty"`
-    Annotations KeyValueArr         `json:"annotations"`
-    Parameters  KeyValueArr         `json:"parameters"`
-    Limits                          `json:"limits"`
 }
 
 type TriggerListOptions struct {
-    Limit int  `url:"limit"`
-    Skip  int  `url:"skip"`
-    Docs  bool `url:"docs,omitempty"`
+    Limit           int             `url:"limit"`
+    Skip            int             `url:"skip"`
+    Docs            bool            `url:"docs,omitempty"`
 }
 
-func (s *TriggerService) List(options *TriggerListOptions) ([]TriggerFromServer, *http.Response, error) {
+func (s *TriggerService) List(options *TriggerListOptions) ([]Trigger, *http.Response, error) {
     route := "triggers"
     routeUrl, err := addRouteOptions(route, options)
     if err != nil {
@@ -76,7 +66,7 @@ func (s *TriggerService) List(options *TriggerListOptions) ([]TriggerFromServer,
         return nil, nil, werr
     }
 
-    var triggers []TriggerFromServer
+    var triggers []Trigger
     resp, err := s.client.Do(req, &triggers)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
@@ -87,7 +77,7 @@ func (s *TriggerService) List(options *TriggerListOptions) ([]TriggerFromServer,
 
 }
 
-func (s *TriggerService) Insert(trigger *Trigger, overwrite bool) (*TriggerFromServer, *http.Response, error) {
+func (s *TriggerService) Insert(trigger *Trigger, overwrite bool) (*Trigger, *http.Response, error) {
     // Encode resource name as a path (with no query params) before inserting it into the URI
     // This way any '?' chars in the name won't be treated as the beginning of the query params
     triggerName := (&url.URL{Path:  trigger.Name}).String()
@@ -111,7 +101,7 @@ func (s *TriggerService) Insert(trigger *Trigger, overwrite bool) (*TriggerFromS
         return nil, nil, werr
     }
 
-    t := new(TriggerFromServer)
+    t := new(Trigger)
     resp, err := s.client.Do(req, &t)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
@@ -122,7 +112,7 @@ func (s *TriggerService) Insert(trigger *Trigger, overwrite bool) (*TriggerFromS
 
 }
 
-func (s *TriggerService) Get(triggerName string) (*TriggerFromServer, *http.Response, error) {
+func (s *TriggerService) Get(triggerName string) (*Trigger, *http.Response, error) {
     // Encode resource name as a path (with no query params) before inserting it into the URI
     // This way any '?' chars in the name won't be treated as the beginning of the query params
     triggerName = (&url.URL{Path: triggerName}).String()
@@ -137,7 +127,7 @@ func (s *TriggerService) Get(triggerName string) (*TriggerFromServer, *http.Resp
         return nil, nil, werr
     }
 
-    t := new(TriggerFromServer)
+    t := new(Trigger)
     resp, err := s.client.Do(req, &t)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
@@ -148,7 +138,7 @@ func (s *TriggerService) Get(triggerName string) (*TriggerFromServer, *http.Resp
 
 }
 
-func (s *TriggerService) Delete(triggerName string) (*TriggerFromServer, *http.Response, error) {
+func (s *TriggerService) Delete(triggerName string) (*Trigger, *http.Response, error) {
     // Encode resource name as a path (with no query params) before inserting it into the URI
     // This way any '?' chars in the name won't be treated as the beginning of the query params
     triggerName = (&url.URL{Path: triggerName}).String()
@@ -163,7 +153,7 @@ func (s *TriggerService) Delete(triggerName string) (*TriggerFromServer, *http.R
         return nil, nil, werr
     }
 
-    t := new(TriggerFromServer)
+    t := new(Trigger)
     resp, err := s.client.Do(req, &t)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
@@ -173,7 +163,7 @@ func (s *TriggerService) Delete(triggerName string) (*TriggerFromServer, *http.R
     return t, resp, nil
 }
 
-func (s *TriggerService) Fire(triggerName string, payload interface{}) (*TriggerFromServer, *http.Response, error) {
+func (s *TriggerService) Fire(triggerName string, payload interface{}) (*Trigger, *http.Response, error) {
     // Encode resource name as a path (with no query params) before inserting it into the URI
     // This way any '?' chars in the name won't be treated as the beginning of the query params
     triggerName = (&url.URL{Path: triggerName}).String()
@@ -188,7 +178,7 @@ func (s *TriggerService) Fire(triggerName string, payload interface{}) (*Trigger
         return nil, nil, werr
     }
 
-    t := new(TriggerFromServer)
+    t := new(Trigger)
     resp, err := s.client.Do(req, &t)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)

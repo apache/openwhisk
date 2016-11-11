@@ -173,17 +173,10 @@ var ruleCreateCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        var shared bool
 
         if whiskErr := checkArgs(args, 3, 3, "Rule create",
                 wski18n.T("A rule, trigger and action name are required.")); whiskErr != nil {
             return whiskErr
-        }
-
-        if (flags.common.shared == "yes") {
-            shared = true
-        } else {
-            shared = false
         }
 
         qName, err := parseQualifiedName(args[0])
@@ -206,7 +199,6 @@ var ruleCreateCmd = &cobra.Command{
             Name:    ruleName,
             Trigger: triggerName,
             Action:  actionName,
-            Publish: shared,
         }
 
         whisk.Debug(whisk.DbgInfo, "Inserting rule:\n%+v\n", rule)
@@ -237,7 +229,6 @@ var ruleUpdateCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        var shared bool
 
         if whiskErr := checkArgs(args, 3, 3, "Rule update",
                 wski18n.T("A rule, trigger and action name are required.")); whiskErr != nil {
@@ -260,17 +251,10 @@ var ruleUpdateCmd = &cobra.Command{
         triggerName := getQualifiedName(args[1], Properties.Namespace)
         actionName := getQualifiedName(args[2], Properties.Namespace)
 
-        if (flags.common.shared == "yes") {
-            shared = true
-        } else {
-            shared = false
-        }
-
         rule := &whisk.Rule{
             Name:    ruleName,
             Trigger: triggerName,
             Action:  actionName,
-            Publish: shared,
         }
 
         _, _, err = client.Rules.Insert(rule, true)
@@ -468,10 +452,6 @@ var ruleListCmd = &cobra.Command{
 }
 
 func init() {
-    ruleCreateCmd.Flags().StringVar(&flags.common.shared, "shared", "", wski18n.T("rule visibility `SCOPE`; yes = shared, no = private"))
-
-    ruleUpdateCmd.Flags().StringVar(&flags.common.shared, "shared", "", wski18n.T("rule visibility `SCOPE`; yes = shared, no = private"))
-
     ruleDeleteCmd.Flags().BoolVar(&flags.rule.disable, "disable", false, wski18n.T("automatically disable rule before deleting it"))
 
     ruleGetCmd.Flags().BoolVarP(&flags.rule.summary, "summary", "s", false, wski18n.T("summarize rule details"))

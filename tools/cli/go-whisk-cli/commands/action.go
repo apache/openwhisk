@@ -58,7 +58,7 @@ var actionCreateCmd = &cobra.Command{
       return whiskErr
     }
 
-    action, sharedSet, err := parseAction(cmd, args)
+    action, err := parseAction(cmd, args)
     if err != nil {
       whisk.Debug(whisk.DbgError, "parseAction(%s, %s) error: %s\n", cmd, args, err)
       errMsg := fmt.Sprintf(
@@ -69,9 +69,9 @@ var actionCreateCmd = &cobra.Command{
       return whiskErr
     }
 
-    _, _, err = client.Actions.Insert(action, sharedSet, false)
+    _, _, err = client.Actions.Insert(action, false)
     if err != nil {
-      whisk.Debug(whisk.DbgError, "client.Actions.Insert(%#v, %t, false) error: %s\n", action, sharedSet, err)
+      whisk.Debug(whisk.DbgError, "client.Actions.Insert(%#v, false) error: %s\n", action, err)
       errMsg := fmt.Sprintf(
         wski18n.T("Unable to create action: {{.err}}",
           map[string]interface{}{"err": err}))
@@ -100,7 +100,7 @@ var actionUpdateCmd = &cobra.Command{
       return whiskErr
     }
 
-    action, sharedSet, err := parseAction(cmd, args)
+    action, err := parseAction(cmd, args)
     if err != nil {
       whisk.Debug(whisk.DbgError, "parseAction(%s, %s) error: %s\n", cmd, args, err)
       errMsg := fmt.Sprintf(
@@ -111,9 +111,9 @@ var actionUpdateCmd = &cobra.Command{
       return whiskErr
     }
 
-    _, _, err = client.Actions.Insert(action, sharedSet, true)
+    _, _, err = client.Actions.Insert(action, true)
     if err != nil {
-      whisk.Debug(whisk.DbgError, "client.Actions.Insert(%#v, %t, false) error: %s\n", action, sharedSet, err)
+      whisk.Debug(whisk.DbgError, "client.Actions.Insert(%#v, %t, false) error: %s\n", action, err)
       errMsg := fmt.Sprintf(
         wski18n.T("Unable to update action: {{.err}}",
           map[string]interface{}{"err": err}))
@@ -442,9 +442,8 @@ func findMainJarClass(jarFile string) (string, error) {
   return "", whiskErr
 }
 
-func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error) {
+func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, error) {
   var err error
-  var shared, sharedSet bool
   var artifact string
 
   qName := QualifiedName{}
@@ -456,22 +455,12 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
         map[string]interface{}{"name": args[0], "err": err}))
     whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
       whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-    return nil, sharedSet, whiskErr
+    return nil, whiskErr
   }
   client.Namespace = qName.namespace
 
   if len(args) == 2 {
     artifact = args[1]
-  }
-
-  if flags.action.shared == "yes" {
-    shared = true
-    sharedSet = true
-  } else if flags.action.shared == "no" {
-    shared = false
-    sharedSet = true
-  } else {
-    sharedSet = false
   }
 
   whisk.Debug(whisk.DbgInfo, "Parsing parameters: %#v\n", flags.common.param)
@@ -483,7 +472,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
         map[string]interface{}{"param": fmt.Sprintf("%#v", flags.common.param), "err": err}))
     whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
       whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-    return nil, sharedSet, whiskErr
+    return nil, whiskErr
   }
 
   whisk.Debug(whisk.DbgInfo, "Parsing annotations: %#v\n", flags.common.annotation)
@@ -495,7 +484,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
         map[string]interface{}{"annotation": fmt.Sprintf("%#v", flags.common.annotation), "err": err}))
     whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
       whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-    return nil, sharedSet, whiskErr
+    return nil, whiskErr
   }
 
   action := new(whisk.Action)
@@ -510,7 +499,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
           map[string]interface{}{"name": args[1], "err": err}))
       whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
         whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-      return nil, sharedSet, whiskErr
+      return nil, whiskErr
     }
     client.Namespace = qNameCopy.namespace
 
@@ -522,7 +511,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
           map[string]interface{}{"name": qName.entityName, "err": err}))
       whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
         whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-      return nil, sharedSet, whiskErr
+      return nil, whiskErr
     }
 
     client.Namespace = qName.namespace
@@ -540,7 +529,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
 
     if err != nil {
       whisk.Debug(whisk.DbgError, "readFile(%s) error: %s\n", artifact, err)
-      return nil, sharedSet, err
+      return nil, err
     }
 
     if flags.action.kind == "swift:3" || flags.action.kind == "swift:3.0" || flags.action.kind == "swift:3.0.0" {
@@ -569,7 +558,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
           map[string]interface{}{"name": flags.action.kind}))
       whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG,
         whisk.DISPLAY_USAGE)
-      return nil, sharedSet, whiskErr
+      return nil, whiskErr
     } else if ext == ".swift" {
       action.Exec.Kind = "swift:default"
     } else if ext == ".js" {
@@ -583,7 +572,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
       action.Exec.Code = ""
 
       if err != nil {
-        return nil, sharedSet, err
+        return nil, err
       }
     } else {
       errMsg := ""
@@ -599,7 +588,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
       }
       whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG,
         whisk.DISPLAY_USAGE)
-      return nil, sharedSet, whiskErr
+      return nil, whiskErr
     }
 
     // For zip-encoded NodeJS action, the code needs to be base64-encoded.
@@ -612,7 +601,6 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
 
   action.Name = qName.entityName
   action.Namespace = qName.namespace
-  action.Publish = shared
   action.Annotations = annotations.(whisk.KeyValueArr)
   action.Limits = getLimits()
 
@@ -622,7 +610,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
   }
 
   whisk.Debug(whisk.DbgInfo, "Parsed action struct: %#v\n", action)
-  return action, sharedSet, nil
+  return action, nil
 }
 
 func getLimits() (*whisk.Limits) {
@@ -659,7 +647,6 @@ func init() {
   actionCreateCmd.Flags().BoolVar(&flags.action.copy, "copy", false, wski18n.T("treat ACTION as the name of an existing action"))
   actionCreateCmd.Flags().BoolVar(&flags.action.sequence, "sequence", false, wski18n.T("treat ACTION as comma separated sequence of actions to invoke"))
   actionCreateCmd.Flags().StringVar(&flags.action.kind, "kind", "", wski18n.T("the `KIND` of the action runtime (example: swift:3, nodejs:6)"))
-  actionCreateCmd.Flags().StringVar(&flags.action.shared, "shared", "no", wski18n.T("action visibility `SCOPE`; yes = shared, no = private"))
   actionCreateCmd.Flags().IntVarP(&flags.action.timeout, "timeout", "t", TIMEOUT_LIMIT, wski18n.T("the timeout `LIMIT` in milliseconds after which the action is terminated"))
   actionCreateCmd.Flags().IntVarP(&flags.action.memory, "memory", "m", MEMORY_LIMIT, wski18n.T("the maximum memory `LIMIT` in MB for the action"))
   actionCreateCmd.Flags().IntVarP(&flags.action.logsize, "logsize", "l", LOGSIZE_LIMIT, wski18n.T("the maximum log size `LIMIT` in MB for the action"))
@@ -672,7 +659,6 @@ func init() {
   actionUpdateCmd.Flags().BoolVar(&flags.action.copy, "copy", false, wski18n.T("treat ACTION as the name of an existing action"))
   actionUpdateCmd.Flags().BoolVar(&flags.action.sequence, "sequence", false, wski18n.T("treat ACTION as comma separated sequence of actions to invoke"))
   actionUpdateCmd.Flags().StringVar(&flags.action.kind, "kind", "", wski18n.T("the `KIND` of the action runtime (example: swift:3, nodejs:6)"))
-  actionUpdateCmd.Flags().StringVar(&flags.action.shared, "shared", "", wski18n.T("action visibility `SCOPE`; yes = shared, no = private"))
   actionUpdateCmd.Flags().IntVarP(&flags.action.timeout, "timeout", "t", TIMEOUT_LIMIT, wski18n.T("the timeout `LIMIT` in milliseconds after which the action is terminated"))
   actionUpdateCmd.Flags().IntVarP(&flags.action.memory, "memory", "m", MEMORY_LIMIT, wski18n.T("the maximum memory `LIMIT` in MB for the action"))
   actionUpdateCmd.Flags().IntVarP(&flags.action.logsize, "logsize", "l", LOGSIZE_LIMIT, wski18n.T("the maximum log size `LIMIT` in MB for the action"))

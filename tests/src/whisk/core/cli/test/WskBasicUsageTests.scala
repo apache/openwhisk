@@ -1041,6 +1041,7 @@ class WskBasicUsageTests
         val apiGetReqMsg = "An API base path or API name is required."
         val apiDeleteReqMsg = "An API base path or API name is required.  An optional API relative path and operation may also be provided."
         val apiListReqMsg = "Optional parameters are: API base path (or API name), API relative path and operation."
+        val invalidShared = s"Cannot use value '$invalidArg' for shared"
         val invalidArgs = Seq(
             (Seq("api-experimental", "create"), s"${tooFewArgsMsg} ${apiCreateReqMsg}"),
             (Seq("api-experimental", "create", "/basepath", "/path", "GET", "action", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${apiCreateReqMsg}"),
@@ -1077,8 +1078,10 @@ class WskBasicUsageTests
                 s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"),
             (Seq("package", "create"), s"${tooFewArgsMsg} ${packageNameReqMsg}"),
             (Seq("package", "create", "packageName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
+            (Seq("package", "create", "packageName", "--shared", invalidArg), invalidShared),
             (Seq("package", "update"), s"${tooFewArgsMsg} ${packageNameReqMsg}"),
             (Seq("package", "update", "packageName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
+            (Seq("package", "update", "packageName", "--shared", invalidArg), invalidShared),
             (Seq("package", "get"), s"${tooFewArgsMsg} ${packageNameReqMsg}"),
             (Seq("package", "get", "packageName", "namespace", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("package", "bind"), s"${tooFewArgsMsg} ${packageNameBindingReqMsg}"),
