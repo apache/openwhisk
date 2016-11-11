@@ -41,8 +41,8 @@ import whisk.http.Messages
  *
  * @param path the sequence of parts that make up a namespace path
  */
-protected[core] class EntityPath private (val path: Seq[String]) extends AnyVal {
-    def namespace = path.foldLeft("")((a, b) => if (a != "") a.trim + EntityPath.PATHSEP + b.trim else b.trim)
+protected[core] class EntityPath private (private val path: Seq[String]) extends AnyVal {
+    def namespace: String = path.foldLeft("")((a, b) => if (a != "") a.trim + EntityPath.PATHSEP + b.trim else b.trim)
     def addpath(e: EntityName) = EntityPath(path :+ e.name)
     def root = EntityPath(Seq(path(0)))
     def last = EntityName(path.last)
