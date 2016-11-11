@@ -272,7 +272,7 @@ function getDbApiDoc(namespace, basepath, docid) {
       return Promise.resolve(activation.result.apis[0].value);
     } else if (activation && activation.result && activation.result.apis &&
                activation.result.apis.length > 1) {
-          console.error('Multiple API docs returned!');  // Only expected case is when API Name is used for >1 basepath
+          console.error('Multiple API docs returned!');  // Only expected case is when >1 basepaths have the same API Name
           return Promise.reject({
             error: {
               statusCode: 409,
@@ -280,7 +280,6 @@ function getDbApiDoc(namespace, basepath, docid) {
               msg: 'Multiple APIs have the API Name \"'+basepath+'\"; specify the basepath of the API you want to use.'
             }
           });
-          return Promise.reject('Multiple APIs have the API Name \"'+basepath+'\"; specify the basepath of the API you want to use.');
     } else {
       // No API document.  Simulate the DB 'not found' error.
       console.error('Invalid API doc returned!');

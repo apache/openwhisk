@@ -120,6 +120,9 @@ var ApiVerbs map[string]bool = map[string]bool {
     "PUT": true,
     "POST": true,
     "DELETE": true,
+    "PATCH": true,
+    "HEAD": true,
+    "OPTIONS": true,
 }
 
 ////////////////////

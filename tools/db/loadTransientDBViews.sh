@@ -78,40 +78,10 @@ function view() {
     }'
 }
 
-function view_gwapis() {
-    IFS='%' # change internal field separator to preserve white space
-    echo '{
-      "_id":"_design/gwapis", PREV_REV
-      "views": {
-        "routes-by-path": {
-          "map": "function (doc) {\n  var PATHSEP = \"/\";\n\n  if (doc.namespace && doc.gatewayPath) {\n    emit([doc.namespace, doc.gatewayPath], {\"gatewayMethod\":doc.gatewayMethod, \"gatewayPath\":doc.gatewayPath, \"action\":doc.action, \"route-collection\":doc[\"route-collection\"], \"apidoc\":doc.apidoc});\n  }\n}"
-        },
-        "routes-by-api-name": {
-          "map": "function (doc) {\n  var PATHSEP = \"/\";\n\n  if (doc.namespace && doc.apidoc && doc.apidoc.info && doc.apidoc.info.title) {\n    if (! (doc._id.indexOf(\"STAGED_\") == 0) ) {\n      emit([doc.namespace, doc.apidoc.info.title], doc);\n    }\n  }\n}"
-        },
-        "routes-by-namespace": {
-          "map": "function (doc) {\n  var PATHSEP = \"/\";\n\n  if (doc.namespace && doc.apidoc && doc.apidoc.info && doc.apidoc.info.title) {\n    if (! (doc._id.indexOf(\"STAGED_\") == 0) ) {\n        emit(doc.namespace, doc);\n    }\n  }\n}"
-        }
-      },
-      "language": "javascript",
-      "indexes": {}
-    }'
-}
-
 DB_WHISK_ACTIONS=$(getProperty "$PROPERTIES_FILE" "db.whisk.actions")
 
 PREV_REV=`$CURL_ADMIN -X GET $URL_BASE/$DB_WHISK_ACTIONS/_design/whisks | awk -F"," '{print $2}'`
 RES=`$CURL_ADMIN -X POST -H 'Content-Type: application/json' -d "$(addRevision "$(view)" $PREV_REV)" $URL_BASE/$DB_WHISK_ACTIONS`
-if [[ "$RES" =~ ^\{\"ok\":true.* ]]; then
-    echo VIEWS LOADED
-else
-    echo ERROR: $RES
-    exit 1
-fi
-
-DB_GWAPI=$(getProperty "$PROPERTIES_FILE" "db.whisk.gwapi")
-PREV_REV=`$CURL_ADMIN -X GET $URL_BASE/$DB_GWAPI/_design/gwapis | awk -F"," '{print $2}'`
-RES=`$CURL_ADMIN -X POST -H 'Content-Type: application/json' -d "$(addRevision "$(view_gwapis)" $PREV_REV)" $URL_BASE/$DB_GWAPI`
 if [[ "$RES" =~ ^\{\"ok\":true.* ]]; then
     echo VIEWS LOADED
 else
@@ -126,17 +96,6 @@ fi
 if [ "$DB_PROVIDER" == "Cloudant" ]; then
     echo Create Cloudant Query search index for $DB_WHISK_ACTIONS
     RES=`$CURL_ADMIN -X POST $URL_BASE/$DB_WHISK_ACTIONS/_index -d '{ "index": {}, "type": "text"}'`
-    if [[ "$RES" =~ ^\{\"ok\":true.* ]]; then
-        echo QUERY INDEX LOADED
-    else
-       # ok if this fails
-       echo WARNING: $RES
-    fi
-fi
-
-if [ "$DB_PROVIDER" == "Cloudant" ]; then
-    echo Create Cloudant Query search index for $DB_GWAPI
-    RES=`$CURL_ADMIN -X POST $URL_BASE/$DB_GWAPI/_index -d '{ "index": {}, "type": "text"}'`
     if [[ "$RES" =~ ^\{\"ok\":true.* ]]; then
         echo QUERY INDEX LOADED
     else

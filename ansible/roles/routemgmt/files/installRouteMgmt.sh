@@ -61,9 +61,6 @@ $WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" --shared no "$NAME
 $WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" --shared no "$NAMESPACE/routemgmt/createApi" "$OPENWHISK_HOME/core/routemgmt/createApi.js" \
 -a description 'Create an API configuration'
 
-$WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" --shared no "$NAMESPACE/routemgmt/updateApi" "$OPENWHISK_HOME/core/routemgmt/updateApi.js" \
--a description 'Update the specified API configuration'
-
 $WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" --shared no "$NAMESPACE/routemgmt/deleteApi" "$OPENWHISK_HOME/core/routemgmt/deleteApi.js" \
 -a description 'Delete the specified API configuration'
 
@@ -78,9 +75,3 @@ $WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" --shared no "$NAME
 
 $WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" --shared no "$NAMESPACE/routemgmt/syncApi" "$OPENWHISK_HOME/core/routemgmt/syncApi.js" \
 -a description 'Synchronize the API configuration with the API gateway'
-
-$WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" --shared no "$NAMESPACE/routemgmt/getCollection" "$OPENWHISK_HOME/core/routemgmt/getCollection.js" \
--a description 'Retrieve all API routes configuration (in JSON format) for the specified collection'
-
-$WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" --shared no "$NAMESPACE/routemgmt/deleteCollection" "$OPENWHISK_HOME/core/routemgmt/deleteCollection.js" \
--a description 'Delete all API routes configuration (in JSON format) for the specified collection'

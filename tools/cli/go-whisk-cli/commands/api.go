@@ -364,7 +364,7 @@ var apiDeleteCmd = &cobra.Command{
     },
 }
 
-var fmtString = "%-30s %6s %20s  %s\n"
+var fmtString = "%-30s %7s %20s  %s\n"
 var apiListCmd = &cobra.Command{
     Use:           "list [[BASE_PATH | API_NAME] [API_PATH [API_VERB]]",
     Short:         wski18n.T("list APIs"),
