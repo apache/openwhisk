@@ -59,7 +59,7 @@ protected trait ControllerTestCommon
     implicit val actorSystem = system // defined in ScalatestRouteTest
     val executionContext = actorSystem.dispatcher
 
-    override val whiskConfig = new WhiskConfig(WhiskActionsApi.requiredProperties)
+    override val whiskConfig = new WhiskConfig(WhiskAuthStore.requiredProperties ++ WhiskActionsApi.requiredProperties)
     assert(whiskConfig.isValid)
 
     override val loadBalancer = new DegenerateLoadBalancerService(whiskConfig, InfoLevel)

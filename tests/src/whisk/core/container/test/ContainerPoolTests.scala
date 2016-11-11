@@ -46,7 +46,6 @@ import scala.language.postfixOps
 
 import common.WskActorSystem
 
-
 /**
  * Unit tests for ContainerPool and, by association, Container and WhiskContainer.
  *
@@ -60,13 +59,15 @@ class ContainerPoolTests extends FlatSpec
     implicit val transid = TransactionId.testing
 
     val config = new WhiskConfig(
+        WhiskEntityStore.requiredProperties ++
+        WhiskAuthStore.requiredProperties ++
+        ContainerPool.requiredProperties ++
         Map(selfDockerEndpoint -> "localhost",
             dockerEndpoint -> null,
             edgeHostName -> "localhost",
             invokerSerializeDockerOp -> "true",
-            invokerSerializeDockerPull -> "true")
-            ++ WhiskEntityStore.requiredProperties
-            ++ WhiskAuthStore.requiredProperties)
+            invokerSerializeDockerPull -> "true"))
+
     assert(config.isValid)
 
     val pool = new ContainerPool(config, 0, InfoLevel, true, true)

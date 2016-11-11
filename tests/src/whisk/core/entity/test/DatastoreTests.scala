@@ -44,7 +44,7 @@ class DatastoreTests extends FlatSpec
     with DbUtils {
 
     val namespace = EntityPath("test namespace")
-    val config = new WhiskConfig(WhiskEntityStore.requiredProperties)
+    val config = new WhiskConfig(WhiskAuthStore.requiredProperties ++ WhiskEntityStore.requiredProperties)
     val datastore = WhiskEntityStore.datastore(config)
     val authstore = WhiskAuthStore.datastore(config)
     datastore.setVerbosity(InfoLevel)

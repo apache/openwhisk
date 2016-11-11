@@ -30,8 +30,8 @@ class ConfigTests extends FlatSpec with Matchers {
     }
 
     it should "get value from environemnt" in {
-        val config = new Config(Map("a" -> null))(Map("A" -> "xyz"))
-        assert(config.isValid && config("a") == "xyz")
+        val config = new Config(Map("a" -> null, "b" -> ""))(Map("A" -> "xyz"))
+        assert(config.isValid && config("a") == "xyz" && config("b") == "")
     }
 
     it should "not be valid when environment does not provide value" in {
@@ -39,15 +39,32 @@ class ConfigTests extends FlatSpec with Matchers {
         assert(!config.isValid && config("a") == null)
     }
 
+    it should "be invalid if same property is required and optional and still not defined" in {
+        val config = new Config(Map("a" -> null), optionalProperties = Set("a"))(Map())
+        assert(!config.isValid)
+    }
+
     it should "read optional value" in {
-        val config = new Config(Map("a" -> "A"), Set("b", "c"))(Map("B" -> "xyz"))
-        assert(config.isValid && config("a") == "A" && config("b") == "xyz" && config("c") == null)
+        val config = new Config(Map("a" -> "A", "x" -> "X"), optionalProperties = Set("b", "c", "x"))(Map("B" -> "B"))
+        assert(config.isValid)
+        assert(config("a") == "A")
+        assert(config("b") == "B")
+        assert(config("c") == "")
+        assert(config("x") == "X")
     }
 
     it should "override a value with optional value" in {
-        val config = new Config(Map("a" -> null), optionalProperties = Set("b", "c"))(Map("A" -> "xyz", "B" -> "zyx"))
-        assert(config.isValid && config("a") == "xyz" && config("b") == "zyx")
-        assert(config("a", "b") == "zyx")
-        assert(config("a", "c") == "xyz")
+        val config = new Config(Map("a" -> null, "x" -> "X"), optionalProperties = Set("b", "c", "x"))(Map("A" -> "A", "B" -> "B"))
+        assert(config.isValid && config("a") == "A" && config("b") == "B")
+        assert(config("a", "b") == "B")
+        assert(config("a", "c") == "A")
+        assert(config("c") == "")
+        assert(config("x") == "X")
+        assert(config("x", "c") == "X")
+        assert(config("x", "d") == "X")
+        assert(config("d", "x") == "X")
+        assert(config("c", "x") == "X")
+        assert(config("c", "d") == "")
     }
+
 }

@@ -35,14 +35,7 @@ import whisk.common.Scheduler
 import whisk.common.TimingUtil
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig.dockerImageTag
-import whisk.core.WhiskConfig.invokerContainerNetwork
-import whisk.core.WhiskConfig.invokerContainerPolicy
-import whisk.core.WhiskConfig.invokerCoreShare
-import whisk.core.WhiskConfig.invokerNumCore
-import whisk.core.WhiskConfig.invokerSerializeDockerOp
-import whisk.core.WhiskConfig.invokerSerializeDockerPull
-import whisk.core.WhiskConfig.selfDockerEndpoint
+import whisk.core.WhiskConfig._
 import whisk.core.entity.ActionLimits
 import whisk.core.entity.MemoryLimit
 import whisk.core.entity.LogLimit
@@ -802,13 +795,17 @@ class ContainerPool(
 object ContainerPool extends Logging {
     def requiredProperties = Map(
         selfDockerEndpoint -> "localhost",
+        edgeHostName -> null,
+        dockerRegistry -> "",
+        dockerImagePrefix -> "",
         dockerImageTag -> "latest",
         invokerContainerNetwork -> "bridge",
         invokerNumCore -> "4",
         invokerCoreShare -> "2",
         invokerSerializeDockerOp -> "true",
         invokerSerializeDockerPull -> "true",
-        invokerContainerPolicy -> "")
+        invokerContainerPolicy -> "",
+        invokerContainerNetwork -> null)
 
     /*
      * Extract parameters from whisk config.  In the future, these may not be static but

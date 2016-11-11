@@ -41,9 +41,17 @@ import scala.util.Try
  * @param optionalProperties a Set of optional properties which may or not be defined.
  * @param env an optional environment to read from (defaults to sys.env).
  */
-class Config(requiredProperties: Map[String, String], optionalProperties: Set[String] = Set())(env: Map[String, String] = sys.env) extends Logging {
+class Config(
+    requiredProperties: Map[String, String],
+    optionalProperties: Set[String] = Set())(
+        env: Map[String, String] = sys.env)
+    extends Logging {
 
-    private val settings = getProperties().toMap
+    private val settings = getProperties().toMap.filter {
+        case (k, v) => requiredProperties.contains(k) ||
+            (optionalProperties.contains(k) && v != null)
+    }
+
     lazy val isValid: Boolean = Config.validateProperties(requiredProperties, settings)
 
     /**
@@ -55,7 +63,7 @@ class Config(requiredProperties: Map[String, String], optionalProperties: Set[St
      * @return value for the key or the empty string if the key does not have a value/does not exist
      */
     def apply(key: String, overrideKey: String = ""): String = {
-        Try(settings(overrideKey)).filter(s => s != null && s.nonEmpty).orElse(Try(settings(key))).getOrElse("")
+        Try(settings(overrideKey)).orElse(Try(settings(key))).getOrElse("")
     }
 
     /**
@@ -78,9 +86,15 @@ class Config(requiredProperties: Map[String, String], optionalProperties: Set[St
      * @return a pair which is the Map defining the properties, and a boolean indicating whether validation succeeded.
      */
     protected def getProperties(): scala.collection.mutable.Map[String, String] = {
-        val properties = scala.collection.mutable.Map[String, String]() ++= requiredProperties ++ optionalProperties.map { _ -> null }
-        Config.readPropertiesFromEnvironment(properties, env)
-        properties
+        val required = scala.collection.mutable.Map[String, String]() ++= requiredProperties
+        Config.readPropertiesFromEnvironment(required, env)
+
+        // for optional value, assign them a default from the required properties list
+        // to prevent loss of a default value on a required property that may not otherwise be defined
+        val optional = scala.collection.mutable.Map[String, String]() ++= optionalProperties.map { k => k -> required.getOrElse(k, null) }
+        Config.readPropertiesFromEnvironment(optional, env)
+
+        required ++ optional
     }
 }
 
@@ -98,7 +112,7 @@ object Config extends Logging {
             val envv = env.get(envp)
             if (envv.isDefined) {
                 info(this, s"environment set value for $p")
-                properties += p -> envv.get
+                properties += p -> envv.get.trim
             }
         }
     }
