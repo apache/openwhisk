@@ -242,28 +242,29 @@ class LoadBalancerService(config: WhiskConfig,
 
 
     /**
-     * Main entry point where an invocation asks the load balancer whick invoker it should go to.
+     * Determine which invoker this activation should go to.  Due to dynamic conditions, it may return no invoker.
      */
-    def getInvoker(msg: ActivationMessage): Option[Int] = {
+    private def getInvoker(msg: ActivationMessage): Option[Int] = {
         val (hash, count) = hashAndCountSubjectAction(msg)
-        val numInv = numInvokers // dynamic
-        if (numInv > 0) {
+        val invokers = invokerHealth.getCurStatus
+        val numInvokers = invokers.length // The number of known invokers - not necessarily healthy
+        if (numInvokers > 0) {
             val globalCount = msgCount.getAndIncrement()
             val hashCount = math.abs(hash + count / activationCountBeforeNextInvoker)
-            val choice = pickInvoker(hashCount % numInv)
-            getNext(choice, numInv)
+            val choice = pickInvoker(hashCount % numInvokers, numInvokers)
+            getNext(choice, numInvokers, invokers)
         } else None
     }
 
     /**
      * Finds an available invoker starting at current index and trying for remaining indexes.
      */
-    private def getNext(current: Int, remain: Int): Option[Int] = {
+    private def getNext(current: Int, remain: Int, invokers: Array[InvokerStatus]): Option[Int] = {
         if (remain > 0) {
-            val choice = invokerHealth.getCurStatus(current)
+            val choice = invokers(current)
             choice.status match {
                 case true  => Some(choice.index)
-                case false => getNext(nextInvoker(current), remain - 1)
+                case false => getNext(nextInvoker(current, invokers.length), remain - 1, invokers)
             }
         } else {
             error(this, s"all invokers down")
@@ -290,18 +291,15 @@ class LoadBalancerService(config: WhiskConfig,
                 0
             }
         }
-        //info(this, s"getInvoker: ${subject} ${path} -> ${hash} ${count}")
         return (hash, count)
     }
 
-    private def numInvokers = invokerHealth.getCurStatus.length
-
-    private def pickInvoker(msgCount: Int): Int = {
+    private def pickInvoker(msgCount: Int, numInvokers : Int): Int = {
         val numInv = numInvokers
         if (numInv > 0) msgCount % numInv else 0
     }
 
-    private def nextInvoker(i: Int): Int = {
+    private def nextInvoker(i: Int, numInvokers: Int): Int = {
         val numInv = numInvokers
         if (numInv > 0) (i + 1) % numInv else 0
     }
