@@ -90,7 +90,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
                         val referencedPackage = Resource(binding.namespace, Collection(Collection.PACKAGES), Some(binding.name()))
                         onComplete(entitlementProvider.check(user, Privilege.READ, Set(referencedPackage))) {
                             case Success(true) => doput()
-                            case failure       => handleEntitlementFailure(failure)
+                            case failure       => rewriteEntitlementFailure(failure)
                         }
                 } getOrElse {
                     info(this, "no binding specified")
@@ -205,62 +205,33 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
      * If this is a binding, confirm the referenced package exists.
      */
     private def create(content: WhiskPackagePut, namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
-        content.binding map { binding =>
-            val resolvedBinding = Some(binding.resolve(namespace))
-            WhiskPackage.get(entityStore, resolvedBinding.get.docid) recoverWith {
-                case t: NoDocumentException => Future.failed(RejectRequest(BadRequest, Messages.bindingDoesNotExist))
-                case t                      => Future.failed(RejectRequest(BadRequest, t))
-            } map { provider =>
-                if (provider.binding.isEmpty) {
-                    WhiskPackage(
-                        namespace,
-                        name,
-                        resolvedBinding,
-                        content.parameters getOrElse Parameters(),
-                        content.version getOrElse SemVer(),
-                        content.publish getOrElse false,
-                        // override any binding annotation from PUT (always set by the controller)
-                        (content.annotations getOrElse Parameters()) ++ bindingAnnotation(resolvedBinding))
-                } else {
-                    throw RejectRequest(BadRequest, Messages.bindingCannotReferenceBinding)
-                }
-            }
-        } getOrElse {
-            Future.successful {
-                WhiskPackage(
-                    namespace,
-                    name,
-                    binding = None,
-                    content.parameters getOrElse Parameters(),
-                    content.version getOrElse SemVer(),
-                    content.publish getOrElse false,
-                    // remove any binding annotation from PUT (always set by the controller)
-                    (content.annotations map { _ -- WhiskPackage.bindingFieldName }) getOrElse Parameters())
-            }
+        val validateBinding = content.binding map {
+            b => checkBinding(b.fullyQualifiedName)
+        } getOrElse Future.successful({})
+
+        validateBinding map { _ =>
+            WhiskPackage(
+                namespace,
+                name,
+                content.binding,
+                content.parameters getOrElse Parameters(),
+                content.version getOrElse SemVer(),
+                content.publish getOrElse false,
+                // remove any binding annotation from PUT (always set by the controller)
+                (content.annotations getOrElse Parameters())
+                    -- WhiskPackage.bindingFieldName
+                    ++ bindingAnnotation(content.binding))
         }
     }
 
     /** Updates a WhiskPackage from PUT content, merging old package/binding where necessary. */
     private def update(content: WhiskPackagePut)(wp: WhiskPackage)(implicit transid: TransactionId) = {
-        content.binding map { binding =>
-            if (wp.binding.isDefined) {
-                val resolvedBinding = Some(binding.resolve(wp.namespace))
-                WhiskPackage.get(entityStore, resolvedBinding.get.docid) recoverWith {
-                    case t: NoDocumentException => Future.failed(RejectRequest(BadRequest, Messages.bindingDoesNotExist))
-                    case t                      => Future.failed(RejectRequest(BadRequest, t))
-                } map { _ =>
-                    WhiskPackage(
-                        wp.namespace,
-                        wp.name,
-                        resolvedBinding,
-                        content.parameters getOrElse wp.parameters,
-                        content.version getOrElse wp.version.upPatch,
-                        content.publish getOrElse wp.publish,
-                        // override any binding annotation from PUT (always set by the controller)
-                        (content.annotations getOrElse wp.annotations) ++ bindingAnnotation(resolvedBinding)).
-                        revision[WhiskPackage](wp.docinfo.rev)
-                }
-            } else {
+        val validateBinding = content.binding map { binding =>
+            wp.binding map {
+                // pre-existing entity is a binding, check that new binding is valid
+                b => checkBinding(b.fullyQualifiedName)
+            } getOrElse {
+                // pre-existing entity is a package, cannot make it a binding
                 Future.failed(RejectRequest(Conflict, Messages.packageCannotBecomeBinding))
             }
         } getOrElse {
@@ -281,12 +252,13 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
         }
     }
 
-    override protected def handleEntitlementFailure(failure: Try[Boolean])(
+    private def rewriteEntitlementFailure(failure: Try[Boolean])(
         implicit transid: TransactionId): RequestContext => Unit = {
         info(this, s"rewriting failure $failure")
         failure match {
-            case Failure(RejectRequest(NotFound, _)) => terminate(NotFound, Messages.bindingDoesNotExist)
-            case _                                   => super.handleEntitlementFailure(failure)
+            case Failure(RejectRequest(NotFound, _)) => terminate(BadRequest, Messages.bindingDoesNotExist)
+            case Failure(RejectRequest(Conflict, _)) => terminate(Conflict, Messages.requestedBindingIsNotValid)
+            case _ => super.handleEntitlementFailure(failure)
         }
     }
 

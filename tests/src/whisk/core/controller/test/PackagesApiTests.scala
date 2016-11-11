@@ -403,7 +403,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
         val binding = Some(Binding(namespace, aname))
         val content = WhiskPackagePut(binding)
         Put(s"$collectionPath/$aname", content) ~> sealRoute(routes(creds)) ~> check {
-            status should be(NotFound)
+            status should be(BadRequest)
             responseAs[ErrorResponse].error should include(Messages.bindingDoesNotExist)
         }
     }
@@ -540,7 +540,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
         val content = WhiskPackagePut(reference.binding)
         put(entityStore, reference)
         Put(s"$collectionPath/${reference.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
-            status should be(NotFound)
+            status should be(BadRequest)
         }
     }
 
@@ -645,11 +645,9 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
         }
     }
 
-    /*
     it should "reject bind to non-package" in {
         implicit val tid = transid()
         val action = WhiskAction(namespace, aname, Exec.js("??"))
-        //val reference = WhiskPackage(namespace, aname, Some(action.fullyQualifiedName(false)))
         val reference = WhiskPackage(namespace, aname, Some(Binding(action.namespace, action.name)))
         val content = WhiskPackagePut(reference.binding)
 
@@ -659,7 +657,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
             status should be(Conflict)
             responseAs[ErrorResponse].error should include(Messages.requestedBindingIsNotValid)
         }
-    }*/
+    }
 
     it should "report proper error when record is corrupted on delete" in {
         implicit val tid = transid()

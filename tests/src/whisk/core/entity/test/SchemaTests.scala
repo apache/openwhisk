@@ -33,22 +33,7 @@ import org.scalatest.junit.JUnitRunner
 
 import spray.json.DefaultJsonProtocol._
 import spray.json._
-import whisk.core.entity.ActionLimits
-import whisk.core.entity.ActivationId
-import whisk.core.entity.AuthKey
-import whisk.core.entity.DocId
-import whisk.core.entity.DocInfo
-import whisk.core.entity.DocRevision
-import whisk.core.entity.EntityName
-import whisk.core.entity.Exec
-import whisk.core.entity.LogLimit
-import whisk.core.entity.MemoryLimit
-import whisk.core.entity.EntityPath
-import whisk.core.entity.Parameters
-import whisk.core.entity.Secret
-import whisk.core.entity.SemVer
-import whisk.core.entity.TimeLimit
-import whisk.core.entity.UUID
+import whisk.core.entity._
 import whisk.core.entity.size.SizeInt
 
 @RunWith(classOf[JUnitRunner])
@@ -150,6 +135,91 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
                 EntityName(p)
             }
         }
+    }
+
+    behavior of "FullyQualifiedEntityName"
+
+    it should "deserialize a fully qualified name without a version" in {
+
+        val names = Seq(
+            JsObject("path" -> "a".toJson, "name" -> "b".toJson),
+            JsObject("path" -> "a".toJson, "name" -> "b".toJson, "version" -> "0.0.1".toJson),
+            JsString("a/b"),
+            JsObject("namespace" -> "a".toJson, "name" -> "b".toJson))
+
+        FullyQualifiedEntityName.serdes.read(names(0)) shouldBe FullyQualifiedEntityName(EntityPath("a"), EntityName("b"))
+        FullyQualifiedEntityName.serdes.read(names(1)) shouldBe FullyQualifiedEntityName(EntityPath("a"), EntityName("b"), Some(SemVer()))
+        FullyQualifiedEntityName.serdes.read(names(2)) shouldBe FullyQualifiedEntityName(EntityPath("a"), EntityName("b"))
+
+        a[DeserializationException] should be thrownBy FullyQualifiedEntityName.serdesAsDocId.read(names(0))
+        a[DeserializationException] should be thrownBy FullyQualifiedEntityName.serdesAsDocId.read(names(1))
+        FullyQualifiedEntityName.serdesAsDocId.read(names(2)) shouldBe FullyQualifiedEntityName(EntityPath("a"), EntityName("b"))
+    }
+
+    /*behavior of "Binding"
+
+    it should "desiarilize legacy format" in {
+        val names = Seq(
+            JsObject("path" -> "a".toJson, "name" -> "b".toJson),
+            JsObject("path" -> "a".toJson, "name" -> "b".toJson, "version" -> "0.0.1".toJson),
+            JsString("a/b"),
+            JsObject("namespace" -> "a".toJson, "name" -> "b".toJson),
+            JsObject("namespace" -> "a".toJson, "path" -> "a".toJson, "name" -> "b".toJson),
+            JsObject("name" -> "b".toJson),
+            JsObject())
+
+        WhiskPackage.bindingDeserializer.read(names(0)) shouldBe Some(FullyQualifiedEntityName(EntityPath("a"), EntityName("b")))
+        WhiskPackage.bindingDeserializer.read(names(1)) shouldBe Some(FullyQualifiedEntityName(EntityPath("a"), EntityName("b"), Some(SemVer())))
+        WhiskPackage.bindingDeserializer.read(names(2)) shouldBe Some(FullyQualifiedEntityName(EntityPath("a"), EntityName("b")))
+        WhiskPackage.bindingDeserializer.read(names(3)) shouldBe Some(FullyQualifiedEntityName(EntityPath("a"), EntityName("b")))
+        WhiskPackage.bindingDeserializer.read(names(6)) shouldBe None
+        a[DeserializationException] should be thrownBy WhiskPackage.bindingDeserializer.read(names(4))
+        a[DeserializationException] should be thrownBy WhiskPackage.bindingDeserializer.read(names(5))
+    }*/
+
+    behavior of "WhiskPackagePut"
+
+    it should "deserialize empty request" in {
+        WhiskPackagePut.serdes.read(JsObject()) shouldBe WhiskPackagePut()
+        WhiskPackagePut.serdes.read(JsObject("binding" -> JsNull)) shouldBe WhiskPackagePut()
+        //WhiskPackagePut.serdes.read(JsObject("binding" -> JsObject())) shouldBe WhiskPackagePut()
+        //WhiskPackagePut.serdes.read(JsObject("binding" -> "a/b".toJson)) shouldBe WhiskPackagePut(binding = Some(Binding(EntityPath("a"), EntityName("b"))))
+    }
+
+    behavior of "WhiskPackage"
+
+    it should "not deserialize package without binding property" in {
+        val pkg = WhiskPackage(EntityPath("a"), EntityName("b"))
+        WhiskPackage.serdes.read(JsObject(pkg.toJson.fields + ("binding" -> JsObject()))) shouldBe pkg
+        a[DeserializationException] should be thrownBy WhiskPackage.serdes.read(JsObject(pkg.toJson.fields - "binding"))
+    }
+
+    it should "serialize package with empty binding property" in {
+        val pkg = WhiskPackage(EntityPath("a"), EntityName("b"))
+        WhiskPackage.serdes.write(pkg) shouldBe JsObject(
+            "namespace" -> "a".toJson,
+            "name" -> "b".toJson,
+            "binding" -> JsObject(),
+            "parameters" -> Parameters().toJson,
+            "version" -> SemVer().toJson,
+            "publish" -> JsBoolean(false),
+            "annotations" -> Parameters().toJson)
+    }
+
+    it should "serialize and deserialize package binding" in {
+        val pkg = WhiskPackage(EntityPath("a"), EntityName("b"), Some(Binding(EntityPath("x"), EntityName("y"))))
+        val pkgAsJson = JsObject(
+            "namespace" -> "a".toJson,
+            "name" -> "b".toJson,
+            "binding" -> JsObject("namespace" -> "x".toJson, "name" -> "y".toJson),
+            "parameters" -> Parameters().toJson,
+            "version" -> SemVer().toJson,
+            "publish" -> JsBoolean(false),
+            "annotations" -> Parameters().toJson)
+        //val legacyPkgAsJson = JsObject(pkgAsJson.fields + ("binding" -> JsObject("namespace" -> "x".toJson, "name" -> "y".toJson)))
+        WhiskPackage.serdes.write(pkg) shouldBe pkgAsJson
+        WhiskPackage.serdes.read(pkgAsJson) shouldBe pkg
+        //WhiskPackage.serdes.read(legacyPkgAsJson) shouldBe pkg
     }
 
     behavior of "SemVer"

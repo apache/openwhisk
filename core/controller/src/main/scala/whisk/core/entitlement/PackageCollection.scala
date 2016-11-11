@@ -112,7 +112,7 @@ class PackageCollection(entityStore: EntityStore) extends Collection(Collection.
                 // if owner, reject with not found, otherwise fail the future to reject with
                 // unauthorized (this prevents information leaks about packages in other namespaces)
                 if (isOwner) {
-                    Future.failed(RejectRequest(Conflict, Messages.requestedBindingIsNotValid))
+                    Future.failed(RejectRequest(Conflict, Messages.conformanceMessage))
                 } else {
                     Future.successful(false)
                 }
