@@ -291,7 +291,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
 
     /**
      * Constructs a "binding" annotation. This is redundant with the binding
-     * information available in WhiskPackage but necessary for some client which
+     * information available in WhiskPackage but necessary for some clients which
      * fetch package lists but cannot determine which package may be bound. An
      * alternative is to include the binding in the package list "view" but this
      * will require an API change. So using an annotation instead.
