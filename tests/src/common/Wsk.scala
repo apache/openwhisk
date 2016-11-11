@@ -811,15 +811,10 @@ sealed trait RunWskCmd extends Matchers {
         if (showCmd) println(args.mkString(" ") + " " + params.mkString(" "))
         val rr = TestUtils.runCmd(DONTCARE_EXIT, workingDir, TestUtils.logger, sys.env ++ env, args ++ params: _*)
 
-        withClue(args.mkString(" ") + " " + params.mkString(" ") + ":\n") {
+        withClue(reportFailure(args ++ params, expectedExitCode, rr)) {
             if (expectedExitCode != TestUtils.DONTCARE_EXIT) {
-                val ok = {
-                    (rr.exitCode == expectedExitCode) ||
-                        (expectedExitCode == TestUtils.ANY_ERROR_EXIT && rr.exitCode != 0)
-                }
-
+                val ok = (rr.exitCode == expectedExitCode) || (expectedExitCode == TestUtils.ANY_ERROR_EXIT && rr.exitCode != 0)
                 if (!ok) {
-                    println(s"expected exit code = $expectedExitCode\n$rr")
                     rr.exitCode shouldBe expectedExitCode
                 }
             }
@@ -834,6 +829,14 @@ sealed trait RunWskCmd extends Matchers {
      */
     def parseJsonString(jsonStr: String): JsObject = {
         jsonStr.substring(jsonStr.indexOf("\n") + 1).parseJson.asJsObject // Skip optional status line before parsing
+    }
+
+    private def reportFailure(args: Buffer[String], ec: Integer, rr: RunResult) = {
+        val s = new StringBuilder()
+        s.append(args.mkString(" ") + "\n")
+        if (rr.stdout.nonEmpty) s.append(rr.stdout + "\n")
+        if (rr.stderr.nonEmpty) s.append(rr.stderr)
+        s.append("exit code:")
     }
 }
 

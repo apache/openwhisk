@@ -37,7 +37,15 @@ case class WhiskPackagePut(
     parameters: Option[Parameters] = None,
     version: Option[SemVer] = None,
     publish: Option[Boolean] = None,
-    annotations: Option[Parameters] = None)
+    annotations: Option[Parameters] = None) {
+
+    /**
+     * Resolves the binding if it contains the default namespace.
+     */
+    protected[core] def resolve(namespace: EntityName): WhiskPackagePut = {
+        WhiskPackagePut(binding.map(_.resolve(namespace.toPath)), parameters, version, publish, annotations)
+    }
+}
 
 /**
  * A WhiskPackage provides an abstraction of the meta-data for a whisk package
@@ -200,7 +208,7 @@ object WhiskPackage
  * namespace and package name.
  */
 case class Binding(namespace: EntityPath, name: EntityName) {
-    private def fullyQualifiedName = FullyQualifiedEntityName(namespace, name)
+    def fullyQualifiedName = FullyQualifiedEntityName(namespace, name)
     def docid = fullyQualifiedName.toDocId
     override def toString = fullyQualifiedName.toString
 
