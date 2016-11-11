@@ -59,12 +59,12 @@ class WskActionSequenceTests
 
             assetHelper.withCleaner(wsk.action, fullHelloActionName) {
                 val file = Some(TestUtils.getTestActionFilename("hello.js"))
-                (action, _) => action.create(fullHelloActionName, file, shared = Some(true))(wp)
+                (action, _) => action.create(fullHelloActionName, file)(wp)
             }
 
             assetHelper.withCleaner(wsk.action, fullCatActionName) {
                 val file = Some(TestUtils.getTestActionFilename("cat.js"))
-                (action, _) => action.create(fullCatActionName, file, shared = Some(true))(wp)
+                (action, _) => action.create(fullCatActionName, file)(wp)
             }
 
             val artifacts = s"$fullHelloActionName,$fullCatActionName"

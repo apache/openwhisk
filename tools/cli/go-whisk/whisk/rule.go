@@ -33,16 +33,17 @@ type Rule struct {
     Namespace string    `json:"namespace,omitempty"`
     Name      string    `json:"name,omitempty"`
     Version   string    `json:"version,omitempty"`
-    Publish   bool      `json:"publish,omitempty"`
     Status  string      `json:"status"`
     Trigger interface{} `json:"trigger"`
     Action  interface{} `json:"action"`
+    Publish *bool       `json:"publish,omitempty"`
+
 }
 
 type RuleListOptions struct {
-    Limit int  `url:"limit"`
-    Skip  int  `url:"skip"`
-    Docs  bool `url:"docs,omitempty"`
+    Limit       int     `url:"limit"`
+    Skip        int     `url:"skip"`
+    Docs        bool    `url:"docs,omitempty"`
 }
 
 func (s *RuleService) List(options *RuleListOptions) ([]Rule, *http.Response, error) {

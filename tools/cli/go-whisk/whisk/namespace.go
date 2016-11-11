@@ -28,10 +28,10 @@ type Namespace struct {
 }
 
 type Contents struct {
-    Actions  []Action              `json:"actions"`
-    Packages []Package             `json:"packages"`
-    Triggers []TriggerFromServer   `json:"triggers"`
-    Rules    []Rule                `json:"rules"`
+    Actions  []Action       `json:"actions"`
+    Packages []Package      `json:"packages"`
+    Triggers []Trigger      `json:"triggers"`
+    Rules    []Rule         `json:"rules"`
 }
 
 type NamespaceService struct {

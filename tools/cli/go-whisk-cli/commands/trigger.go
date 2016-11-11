@@ -19,7 +19,6 @@ package commands
 import (
     "errors"
     "fmt"
-    "strings"
 
     "../../go-whisk/whisk"
     "../wski18n"
@@ -195,25 +194,9 @@ var triggerCreateCmd = &cobra.Command{
             return werr
         }
 
-        whisk.Debug(whisk.DbgInfo, "Trigger shared: %s\n", flags.common.shared)
-        shared := strings.ToLower(flags.common.shared)
-        if shared != "yes" && shared != "no" && shared != "" {  // "" means argument was not specified
-            whisk.Debug(whisk.DbgError, "Shared argument value '%s' is invalid\n", flags.common.shared)
-            errStr := fmt.Sprintf(
-                wski18n.T("Invalid --shared argument value '{{.argval}}'; valid values are 'yes' or 'no'",
-                    map[string]interface{}{"argval": flags.common.shared}))
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), nil, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
-        }
-        publish := false
-        if shared == "yes" {
-            publish = true
-        }
-
         trigger := &whisk.Trigger{
             Name:        qName.entityName,
             Annotations: annotations.(whisk.KeyValueArr),
-            Publish:     publish,
         }
 
         if !feedArgPassed {
@@ -313,34 +296,10 @@ var triggerUpdateCmd = &cobra.Command{
             return werr
         }
 
-        whisk.Debug(whisk.DbgInfo, "Trigger shared: %s\n", flags.common.shared)
-        shared := strings.ToLower(flags.common.shared)
-
-        if shared != "yes" && shared != "no" && shared != "" {  // "" means argument was not specified
-            whisk.Debug(whisk.DbgError, "Shared argument value '%s' is invalid\n", flags.common.shared)
-            errStr := fmt.Sprintf(
-                wski18n.T("Invalid --shared argument value '{{.argval}}'; valid values are 'yes' or 'no'",
-                    map[string]interface{}{"argval": flags.common.shared}))
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), nil, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return werr
-        }
-        publishSet := false
-        publish := false
-        if shared == "yes" {
-            publishSet = true
-            publish = true
-        } else if shared == "no" {
-            publishSet = true
-            publish = false
-        }
-
         trigger := &whisk.Trigger{
             Name:        qName.entityName,
             Parameters:  parameters.(whisk.KeyValueArr),
             Annotations: annotations.(whisk.KeyValueArr),
-        }
-        if publishSet {
-            trigger.Publish = publish
         }
 
         retTrigger, _, err := client.Triggers.Insert(trigger, true)
@@ -438,7 +397,7 @@ var triggerDeleteCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        var retTrigger *whisk.TriggerFromServer
+        var retTrigger *whisk.Trigger
         var fullFeedName string
 
         if whiskErr := checkArgs(args, 1, 1, "Trigger delete",
@@ -589,14 +548,12 @@ func init() {
     triggerCreateCmd.Flags().StringVarP(&flags.common.annotFile, "annotation-file", "A", "", wski18n.T("`FILE` containing annotation values in JSON format"))
     triggerCreateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, wski18n.T("parameter values in `KEY VALUE` format"))
     triggerCreateCmd.Flags().StringVarP(&flags.common.paramFile, "param-file", "P", "", wski18n.T("`FILE` containing parameter values in JSON format"))
-    triggerCreateCmd.Flags().StringVar(&flags.common.shared, "shared", "no", wski18n.T("trigger visibility `SCOPE`; yes = shared, no = private"))
     triggerCreateCmd.Flags().StringVarP(&flags.common.feed, "feed", "f", "", wski18n.T("trigger feed `ACTION_NAME`"))
 
     triggerUpdateCmd.Flags().StringSliceVarP(&flags.common.annotation, "annotation", "a", []string{}, wski18n.T("annotation values in `KEY VALUE` format"))
     triggerUpdateCmd.Flags().StringVarP(&flags.common.annotFile, "annotation-file", "A", "", wski18n.T("`FILE` containing annotation values in JSON format"))
     triggerUpdateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, wski18n.T("parameter values in `KEY VALUE` format"))
     triggerUpdateCmd.Flags().StringVarP(&flags.common.paramFile, "param-file", "P", "", wski18n.T("`FILE` containing parameter values in JSON format"))
-    triggerUpdateCmd.Flags().StringVar(&flags.common.shared, "shared", "", wski18n.T("trigger visibility `SCOPE`; yes = shared, no = private"))
 
     triggerGetCmd.Flags().BoolVarP(&flags.trigger.summary, "summary", "s", false, wski18n.T("summarize trigger details"))
 

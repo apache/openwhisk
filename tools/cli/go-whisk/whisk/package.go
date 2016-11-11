@@ -32,42 +32,16 @@ type PackageInterface interface {
     GetName() string
 }
 
-// Use this struct to create/update a package/binding with the Publish setting
-type SentPackagePublish struct {
-    Namespace   string              `json:"-"`
-    Name        string              `json:"-"`
-    Version     string              `json:"version,omitempty"`
-    Publish     bool                `json:"publish"`
-    Annotations KeyValueArr         `json:"annotations,omitempty"`
-    Parameters  KeyValueArr         `json:"parameters,omitempty"`
-}
-func (p *SentPackagePublish) GetName() string {
-    return p.Name
-}
-
-// Use this struct to update a package/binding with no change to the Publish setting
-type SentPackageNoPublish struct {
-    Namespace   string              `json:"-"`
-    Name        string              `json:"-"`
-    Version     string              `json:"version,omitempty"`
-    Publish     bool                `json:"publish,omitempty"`
-    Annotations KeyValueArr         `json:"annotations,omitempty"`
-    Parameters  KeyValueArr         `json:"parameters,omitempty"`
-}
-func (p *SentPackageNoPublish) GetName() string {
-    return p.Name
-}
-
 // Use this struct to represent the package/binding sent from the Whisk server
 // Binding is a bool ???MWD20160602 now seeing Binding as a struct???
 type Package struct {
     Namespace   string              `json:"namespace,omitempty"`
     Name        string              `json:"name,omitempty"`
     Version     string              `json:"version,omitempty"`
-    Publish     bool                `json:"publish"`
+    Publish     *bool               `json:"publish,omitempty"`
     Annotations KeyValueArr         `json:"annotations,omitempty"`
     Parameters  KeyValueArr         `json:"parameters,omitempty"`
-    Binding                         `json:"binding,omitempty"`
+    Binding     *Binding            `json:"binding,omitempty"`
     Actions     []Action            `json:"actions,omitempty"`
     Feeds       []Action            `json:"feeds,omitempty"`
 }
@@ -81,7 +55,7 @@ type BindingPackage struct {
     Namespace   string              `json:"-"`
     Name        string              `json:"-"`
     Version     string              `json:"version,omitempty"`
-    Publish     bool                `json:"publish"`
+    Publish     *bool               `json:"publish,omitempty"`
     Annotations KeyValueArr         `json:"annotations,omitempty"`
     Parameters  KeyValueArr         `json:"parameters,omitempty"`
     Binding                         `json:"binding"`
@@ -91,22 +65,22 @@ func (p *BindingPackage) GetName() string {
 }
 
 type Binding struct {
-    Namespace string `json:"namespace,omitempty"`
-    Name      string `json:"name,omitempty"`
+    Namespace   string              `json:"namespace,omitempty"`
+    Name        string              `json:"name,omitempty"`
 }
 
 type BindingUpdates struct {
-    Added   []string `json:"added,omitempty"`
-    Updated []string `json:"updated,omitempty"`
-    Deleted []string `json:"deleted,omitempty"`
+    Added       []string            `json:"added,omitempty"`
+    Updated     []string            `json:"updated,omitempty"`
+    Deleted     []string            `json:"deleted,omitempty"`
 }
 
 type PackageListOptions struct {
-    Public bool `url:"public,omitempty"`
-    Limit  int  `url:"limit"`
-    Skip   int  `url:"skip"`
-    Since  int  `url:"since,omitempty"`
-    Docs   bool `url:"docs,omitempty"`
+    Public      bool                `url:"public,omitempty"`
+    Limit       int                 `url:"limit"`
+    Skip        int                 `url:"skip"`
+    Since       int                 `url:"since,omitempty"`
+    Docs        bool                `url:"docs,omitempty"`
 }
 
 func (s *PackageService) List(options *PackageListOptions) ([]Package, *http.Response, error) {
