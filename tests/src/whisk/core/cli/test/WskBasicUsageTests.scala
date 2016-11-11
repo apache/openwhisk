@@ -30,35 +30,21 @@ import org.scalatest.junit.JUnitRunner
 
 import common.TestHelpers
 import common.TestUtils
-import common.TestUtils.ANY_ERROR_EXIT
-import common.TestUtils.DONTCARE_EXIT
-import common.TestUtils.BAD_REQUEST
-import common.TestUtils.ERROR_EXIT
-import common.TestUtils.MISUSE_EXIT
-import common.TestUtils.NOT_FOUND
-import common.TestUtils.NOT_ALLOWED
-import common.TestUtils.SUCCESS_EXIT
+import common.TestUtils._
 import common.WhiskProperties
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
 import spray.json.DefaultJsonProtocol._
 import spray.json._
-import spray.json.JsObject
-import spray.json.pimpAny
-import spray.json.pimpString
-import whisk.core.entity.ByteSize
+import whisk.core.entity._
 import whisk.core.entity.LogLimit._
 import whisk.core.entity.MemoryLimit._
 import whisk.core.entity.TimeLimit._
 import whisk.core.entity.size.SizeInt
-import whisk.core.entity.ActivationResponse
 import whisk.utils.retry
 import JsonArgsForTests._
-import whisk.core.entity.ActionLimits
-import whisk.core.entity.TimeLimit
-import whisk.core.entity.LogLimit
-import whisk.core.entity.MemoryLimit
+import whisk.http.Messages
 
 /**
  * Tests for basic CLI usage. Some of these tests require a deployed backend.
@@ -535,6 +521,25 @@ class WskBasicUsageTests
                 receivedParams should contain(expectedItem)
                 receivedAnnots should contain(expectedItem)
             }
+    }
+
+    it should "report conformance error accessing action as package" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "aAsP"
+            val file = Some(TestUtils.getTestActionFilename("hello.js"))
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, file)
+            }
+
+            wsk.pkg.get(name, expectedExitCode = CONFLICT).
+                stderr should include(Messages.conformanceMessage)
+
+            wsk.pkg.bind(name, "bogus", expectedExitCode = CONFLICT).
+                stderr should include(Messages.requestedBindingIsNotValid)
+
+            wsk.pkg.bind("bogus", "alsobogus", expectedExitCode = BAD_REQUEST).
+                stderr should include(Messages.bindingDoesNotExist)
+
     }
 
     behavior of "Wsk triggers"

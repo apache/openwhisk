@@ -33,6 +33,7 @@ import whisk.core.entity._
 import whisk.core.entity.types.EntityStore
 import whisk.http.ErrorResponse.terminate
 import whisk.http.Messages
+import whisk.core.database.DocumentTypeMismatchException
 
 object WhiskPackagesApi {
     def requiredProperties = WhiskEntityStore.requiredProperties
@@ -84,7 +85,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
                         val referencedPackage = Resource(binding.namespace, Collection(Collection.PACKAGES), Some(binding.name()))
                         onComplete(entitlementProvider.check(user, Privilege.READ, Set(referencedPackage))) {
                             case Success(true) => doput()
-                            case failure       => handleEntitlementFailure(failure)
+                            case failure       => rewriteEntitlementFailure(failure)
                         }
                 } getOrElse {
                     info(this, "no binding specified")
@@ -202,8 +203,9 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
         content.binding map { binding =>
             val resolvedBinding = Some(binding.resolve(namespace))
             WhiskPackage.get(entityStore, resolvedBinding.get.docid) recoverWith {
-                case t: NoDocumentException => Future.failed(RejectRequest(BadRequest, Messages.bindingDoesNotExist))
-                case t                      => Future.failed(RejectRequest(BadRequest, t))
+                case t: NoDocumentException           => Future.failed(RejectRequest(BadRequest, Messages.bindingDoesNotExist))
+                case t: DocumentTypeMismatchException => Future.failed(RejectRequest(Conflict, Messages.requestedBindingIsNotValid))
+                case t                                => Future.failed(RejectRequest(BadRequest, t))
             } map { provider =>
                 if (provider.binding.isEmpty) {
                     WhiskPackage(
@@ -240,8 +242,9 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
             if (wp.binding.isDefined) {
                 val resolvedBinding = Some(binding.resolve(wp.namespace))
                 WhiskPackage.get(entityStore, resolvedBinding.get.docid) recoverWith {
-                    case t: NoDocumentException => Future.failed(RejectRequest(BadRequest, Messages.bindingDoesNotExist))
-                    case t                      => Future.failed(RejectRequest(BadRequest, t))
+                    case t: NoDocumentException           => Future.failed(RejectRequest(BadRequest, Messages.bindingDoesNotExist))
+                    case t: DocumentTypeMismatchException => Future.failed(RejectRequest(Conflict, Messages.requestedBindingIsNotValid))
+                    case t                                => Future.failed(RejectRequest(BadRequest, t))
                 } map { _ =>
                     WhiskPackage(
                         wp.namespace,
@@ -275,12 +278,13 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
         }
     }
 
-    override protected def handleEntitlementFailure(failure: Try[Boolean])(
+    private def rewriteEntitlementFailure(failure: Try[Boolean])(
         implicit transid: TransactionId): RequestContext => Unit = {
         info(this, s"rewriting failure $failure")
         failure match {
-            case Failure(RejectRequest(NotFound, _)) => terminate(NotFound, Messages.bindingDoesNotExist)
-            case _                                   => super.handleEntitlementFailure(failure)
+            case Failure(RejectRequest(NotFound, _)) => terminate(BadRequest, Messages.bindingDoesNotExist)
+            case Failure(RejectRequest(Conflict, _)) => terminate(Conflict, Messages.requestedBindingIsNotValid)
+            case _ => super.handleEntitlementFailure(failure)
         }
     }
 

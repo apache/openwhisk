@@ -402,7 +402,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
         val binding = Some(Binding(namespace, aname))
         val content = WhiskPackagePut(binding)
         Put(s"$collectionPath/$aname", content) ~> sealRoute(routes(creds)) ~> check {
-            status should be(NotFound)
+            status should be(BadRequest)
             responseAs[ErrorResponse].error should include(Messages.bindingDoesNotExist)
         }
     }
@@ -539,7 +539,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
         val content = WhiskPackagePut(reference.binding)
         put(entityStore, reference)
         Put(s"$collectionPath/${reference.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
-            status should be(NotFound)
+            status should be(BadRequest)
         }
     }
 
