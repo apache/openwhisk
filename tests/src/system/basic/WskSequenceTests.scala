@@ -247,7 +247,6 @@ class WskSequenceTests
             assetHelper.withCleaner(wsk.action, sName) {
                 (action, seqName) => action.create(seqName, Some(helloWithPkg), kind = Some("sequence") )
             }
-            //val run = wsk.action.invoke(sName, Map("payload" -> args.mkString("\n").toJson))
             val run = wsk.action.invoke(sName)
             // action params trump package params
             checkLogsFirstAtomicAction(run, actionStr)
@@ -268,19 +267,56 @@ class WskSequenceTests
 
     /** checks logs of the first atomic action from a sequence contain logsStr */
     private def checkLogsFirstAtomicAction(run: RunResult, logsStr: String) {
-         withActivation(wsk.activation, run, totalWait = 2 * allowedActionDuration) {
+        withActivation(wsk.activation, run, totalWait = 2 * allowedActionDuration) {
             activation =>
-                checkSequenceLogsAndAnnotations(activation, 1)
-                val componentId = activation.logs.get(0)
-                val getComponentActivation = wsk.activation.get(componentId)
-                withActivation(wsk.activation, getComponentActivation, totalWait = allowedActionDuration) {
-                    componentActivation =>
-                        println(componentActivation)
-                        componentActivation.logs shouldBe defined
-                        componentActivation.logs.get(0).contains(logsStr) shouldBe true
-                }
+            checkSequenceLogsAndAnnotations(activation, 1)
+            val componentId = activation.logs.get(0)
+            val getComponentActivation = wsk.activation.get(componentId)
+            withActivation(wsk.activation, getComponentActivation, totalWait = allowedActionDuration) {
+                componentActivation =>
+                println(componentActivation)
+                componentActivation.logs shouldBe defined
+                componentActivation.logs.get(0).contains(logsStr) shouldBe true
+            }
         }
     }
+
+    /**
+     * s -> apperror, echo
+     * only apperror should run
+     */
+    it should "stop execution of a sequence (with no payload) on error" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val sName = "sSequence"
+            val apperror = "applicationError2"
+            val echo = "echo"
+
+            // create actions
+            val actions = Seq(apperror, echo)
+            for (actionName <- actions) {
+                val file = TestUtils.getTestActionFilename(s"$actionName.js")
+                assetHelper.withCleaner(wsk.action, actionName) { (action, actionName) =>
+                    action.create(name = actionName, artifact = Some(file), timeout = Some(allowedActionDuration))
+                }
+            }
+            // create sequence s
+            assetHelper.withCleaner(wsk.action, sName) {
+                (action, seqName) => action.create(seqName, artifact = Some(actions.mkString(",")), kind = Some("sequence"))
+            }
+            // run sequence s with no payload
+            val run = wsk.action.invoke(sName)
+            withActivation(wsk.activation, run, totalWait = 2 * allowedActionDuration) {
+                activation =>
+                    checkSequenceLogsAndAnnotations(activation, 1) // only the first action should have run
+                    activation.response.success shouldBe(false)
+                    // the status should be error
+                    activation.response.status shouldBe("application error")
+                    val result = activation.response.result.get
+                    // the result of the activation should be the payload
+                    result shouldBe(JsObject("error" -> JsString("This error thrown on purpose by the action.")))
+            }
+    }
+
     /**
      * checks logs for the activation of a sequence (length/size and ids)
      * checks that the cause field for composing atomic actions is set properly
