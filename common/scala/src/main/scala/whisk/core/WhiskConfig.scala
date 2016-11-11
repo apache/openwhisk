@@ -43,8 +43,9 @@ import whisk.common.Logging
 class WhiskConfig(
     requiredProperties: Map[String, String],
     optionalProperties: Set[String] = Set(),
-    propertiesFile: File = null)(implicit val system: ActorSystem)
-    extends Config(requiredProperties, optionalProperties)(sys.env) {
+    propertiesFile: File = null,
+    env: Map[String, String] = sys.env)(implicit val system: ActorSystem)
+    extends Config(requiredProperties, optionalProperties)(env) {
 
     /**
      * Loads the properties as specified above.
@@ -143,8 +144,8 @@ object WhiskConfig extends Logging {
     def readPropertiesFromConsul(properties: scala.collection.mutable.Map[String, String])(implicit system: ActorSystem) = {
         //try to get consulServer prop
         val consulString = for {
-            server <- properties.get(consulServerHost)
-            port <- properties.get(consulPort)
+            server <- properties.get(consulServerHost).filter(_ != null)
+            port <- properties.get(consulPort).filter(_ != null)
         } yield server + ":" + port
 
         consulString match {
@@ -174,8 +175,10 @@ object WhiskConfig extends Logging {
                 if (parts.length >= 1) {
                     val p = parts(0).trim
                     val v = if (parts.length == 2) parts(1).trim else ""
-                    properties += p -> v
-                    info(this, s"properties file set value for $p")
+                    if (properties.contains(p)) {
+                        properties += p -> v
+                        debug(this, s"properties file set value for $p")
+                    }
                 } else {
                     warn(this, s"ignoring properties $line")
                 }
