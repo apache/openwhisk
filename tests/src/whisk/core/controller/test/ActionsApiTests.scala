@@ -302,7 +302,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             deleteAction(action.docid)
             status should be(OK)
             val response = responseAs[WhiskAction]
-            response should be(action)
+            response should be(WhiskAction(action.namespace, action.name, action.exec,
+                action.parameters, action.limits, action.version,
+                action.publish, action.annotations ++ Parameters(WhiskAction.execFieldName, Exec.NODEJS)))
         }
     }
 
@@ -314,7 +316,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             deleteAction(action.docid)
             status should be(OK)
             val response = responseAs[WhiskAction]
-            response should be(action)
+            response should be(WhiskAction(action.namespace, action.name, action.exec,
+                action.parameters, action.limits, action.version,
+                action.publish, action.annotations ++ Parameters(WhiskAction.execFieldName, Exec.BLACKBOX)))
             response.exec shouldBe an[BlackBoxExec]
             response.exec.asInstanceOf[BlackBoxExec].code shouldBe empty
         }
@@ -328,7 +332,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             deleteAction(action.docid)
             status should be(OK)
             val response = responseAs[WhiskAction]
-            response should be(action)
+            response should be(WhiskAction(action.namespace, action.name, action.exec,
+                action.parameters, action.limits, action.version,
+                action.publish, action.annotations ++ Parameters(WhiskAction.execFieldName, Exec.BLACKBOX)))
             response.exec shouldBe an[BlackBoxExec]
             val bb = response.exec.asInstanceOf[BlackBoxExec]
             bb.code shouldBe Some("cc")
@@ -391,7 +397,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             deleteAction(action.docid)
             status should be(OK)
             val response = responseAs[WhiskAction]
-            response should be(action)
+            response should be(WhiskAction(action.namespace, action.name, action.exec,
+                action.parameters, action.limits, action.version,
+                action.publish, action.annotations ++ Parameters(WhiskAction.execFieldName, Exec.NODEJS)))
         }
     }
 
@@ -414,7 +422,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             deleteAction(action.docid)
             status should be(OK)
             val response = responseAs[WhiskAction]
-            response should be(action)
+            response should be(WhiskAction(action.namespace, action.name, action.exec,
+                action.parameters, action.limits, action.version,
+                action.publish, action.annotations ++ Parameters(WhiskAction.execFieldName, Exec.NODEJS)))
         }
     }
 
@@ -432,7 +442,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             Put(s"$collectionPath/$name", content) ~> sealRoute(routes(creds)(transid())) ~> check {
                 status should be(OK)
                 val response = responseAs[WhiskAction]
-                response should be(action)
+                response should be(WhiskAction(action.namespace, action.name, action.exec,
+                    action.parameters, action.limits, action.version,
+                    action.publish, action.annotations ++ Parameters(WhiskAction.execFieldName, Exec.NODEJS)))
             }
             stream.toString should include regex (s"caching*.*${action.docid.asDocInfo}")
             stream.reset()
@@ -441,7 +453,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             Get(s"$collectionPath/$name") ~> sealRoute(routes(creds)(transid())) ~> check {
                 status should be(OK)
                 val response = responseAs[WhiskAction]
-                response should be(action)
+                response should be(WhiskAction(action.namespace, action.name, action.exec,
+                    action.parameters, action.limits, action.version,
+                    action.publish, action.annotations ++ Parameters(WhiskAction.execFieldName, Exec.NODEJS)))
             }
 
             stream.toString should include regex (s"serving from cache:*.*${action.docid.asDocInfo}")
@@ -451,7 +465,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             Delete(s"$collectionPath/$name") ~> sealRoute(routes(creds)(transid())) ~> check {
                 status should be(OK)
                 val response = responseAs[WhiskAction]
-                response should be(action)
+                response should be(WhiskAction(action.namespace, action.name, action.exec,
+                    action.parameters, action.limits, action.version,
+                    action.publish, action.annotations ++ Parameters(WhiskAction.execFieldName, Exec.NODEJS)))
             }
             stream.toString should include regex (s"invalidating*.*${action.docid.asDocInfo}")
             stream.reset()
@@ -482,7 +498,8 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             status should be(OK)
             val response = responseAs[WhiskAction]
             response should be {
-                WhiskAction(action.namespace, action.name, content.exec.get, content.parameters.get, version = action.version.upPatch)
+                WhiskAction(action.namespace, action.name, content.exec.get, content.parameters.get, version = action.version.upPatch,
+                    annotations = action.annotations ++ Parameters(WhiskAction.execFieldName, Exec.NODEJS))
             }
         }
     }
@@ -497,7 +514,8 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             status should be(OK)
             val response = responseAs[WhiskAction]
             response should be {
-                WhiskAction(action.namespace, action.name, action.exec, content.parameters.get, version = action.version.upPatch)
+                WhiskAction(action.namespace, action.name, action.exec, content.parameters.get, version = action.version.upPatch,
+                    annotations = action.annotations ++ Parameters(WhiskAction.execFieldName, Exec.NODEJS))
             }
         }
     }

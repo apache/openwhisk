@@ -161,7 +161,9 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             deleteAction(action.docid)
             status should be(OK)
             val response = responseAs[WhiskAction]
-            response should be(action)
+            response should be(WhiskAction(action.namespace, action.name, action.exec,
+                action.parameters, action.limits, action.version,
+                action.publish, action.annotations ++ Parameters(WhiskAction.execFieldName, Exec.NODEJS)))
         }
     }
 
