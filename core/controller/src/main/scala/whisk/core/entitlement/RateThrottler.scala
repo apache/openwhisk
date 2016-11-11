@@ -28,9 +28,9 @@ import akka.event.Logging.InfoLevel
  *
  * For now, we throttle only at a 1-minute granularity.
  */
-class RateThrottler(maxPerMinute: Int) extends Logging {
+class RateThrottler(description: String, maxPerMinute: Int) extends Logging {
 
-    info(this, s"maxPerMinute = $maxPerMinute")
+    info(this, s"$description: maxPerMinute = $maxPerMinute")
 
     // Parameters
     private val exemptSubject = Set[Subject]() // We exempt no one.
@@ -43,31 +43,33 @@ class RateThrottler(maxPerMinute: Int) extends Logging {
         setVerbosity(InfoLevel)
         var lastMin = getCurrentMinute
         var lastMinCount = 0
-        var lastHour = getCurrentHour
-        var lastHourCount = 0
+        //var lastHour = getCurrentHour
+        //var lastHourCount = 0
+
+        def count() = lastMinCount
 
         def check()(implicit transid: TransactionId): Boolean = {
             roll()
             lastMinCount = lastMinCount + 1
-            lastHourCount = lastHourCount + 1
+            //lastHourCount = lastHourCount + 1
             lastMinCount <= maxPerMinute // Add this to check hourly rates: && lastHourCount <= maxPerHour
         }
 
         def roll()(implicit transid: TransactionId) = {
             val curMin = getCurrentMinute
-            val curHour = getCurrentHour
+            //val curHour = getCurrentHour
             if (curMin != lastMin) {
                 lastMin = curMin
                 lastMinCount = 0
             }
-            if (curHour != lastHour) {
-                lastHour = curHour
-                lastHourCount = 0
-            }
+            //if (curHour != lastHour) {
+            //    lastHour = curHour
+            //    lastHourCount = 0
+            //}
         }
 
         private def getCurrentMinute = System.currentTimeMillis / (60 * 1000)
-        private def getCurrentHour = System.currentTimeMillis / (3600 * 1000)
+        //private def getCurrentHour = System.currentTimeMillis / (3600 * 1000)
     }
 
     /**
@@ -78,8 +80,10 @@ class RateThrottler(maxPerMinute: Int) extends Logging {
         if (exemptSubject.contains(subject)) {
             true
         } else {
-            info(this, s"RateThrottler.check: subject = ${subject.toString}")
-            rateMap.getOrElseUpdate(subject, new RateInfo()).check()
+            val rate = rateMap.getOrElseUpdate(subject, new RateInfo())
+            val belowLimit = rate.check()
+            info(this, s"RateThrottler.check: subject = ${subject.toString}, rate = ${rate.count()}, below limit = $belowLimit")
+            belowLimit
         }
     }
 }

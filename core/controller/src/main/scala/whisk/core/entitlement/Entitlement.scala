@@ -87,8 +87,8 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
 
     private implicit val executionContext = actorSystem.dispatcher
 
-    private val invokeRateThrottler = new RateThrottler(config.actionInvokePerMinuteLimit.toInt)
-    private val triggerRateThrottler = new RateThrottler(config.triggerFirePerMinuteLimit.toInt)
+    private val invokeRateThrottler = new RateThrottler("actions per minute", config.actionInvokePerMinuteLimit.toInt)
+    private val triggerRateThrottler = new RateThrottler("triggers per minute", config.triggerFirePerMinuteLimit.toInt)
     private val concurrentInvokeThrottler = new ActivationThrottler(config.consulServer, loadBalancer, config.actionInvokeConcurrentLimit.toInt, config.actionInvokeSystemOverloadLimit.toInt)
 
     private val consul = new ConsulClient(config.consulServer)
@@ -246,7 +246,8 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
         def userThrottled = {
             val isInvocation = resources.exists(_.collection.path == Collection.ACTIONS)
             val isTrigger = resources.exists(_.collection.path == Collection.TRIGGERS)
-            (isInvocation && !invokeRateThrottler.check(subject)) || (isTrigger && !triggerRateThrottler.check(subject))
+            val activateThrottle = (isInvocation && !invokeRateThrottler.check(subject)) || (isTrigger && !triggerRateThrottler.check(subject))
+            activateThrottle
         }
 
         if (right == ACTIVATE && userThrottled) {
@@ -263,7 +264,8 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
     protected def checkConcurrentUserThrottle(subject: Subject, right: Privilege, resources: Set[Resource])(implicit transid: TransactionId) = {
         def userThrottled = {
             val isInvocation = resources.exists(_.collection.path == Collection.ACTIONS)
-            (isInvocation && !concurrentInvokeThrottler.check(subject))
+            val activateThrottle = (isInvocation && !concurrentInvokeThrottler.check(subject))
+            activateThrottle
         }
 
         if (right == ACTIVATE && userThrottled) {
