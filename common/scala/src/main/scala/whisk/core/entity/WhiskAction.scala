@@ -158,6 +158,7 @@ object WhiskAction
     with WhiskEntityQueries[WhiskAction]
     with DefaultJsonProtocol {
 
+    val execFieldName = "exec"
     override val collectionName = "actions"
     override implicit val serdes = jsonFormat8(WhiskAction.apply)
 

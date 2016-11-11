@@ -658,7 +658,7 @@ class WskBasicUsageTests
                     action.create(name, file)
             }
             retry({
-                wsk.action.list().stdout should include(s"$name private")
+                wsk.action.list().stdout should include(s"$name private nodejs")
             }, 5, Some(1 second))
     }
 

@@ -263,7 +263,8 @@ func printActionList(actions []whisk.Action) {
         if action.Publish {
             publishState = wski18n.T("shared")
         }
-        fmt.Printf("%-70s %s\n", fmt.Sprintf("/%s/%s", action.Namespace, action.Name), publishState)
+        kind := getValueString(action.Annotations, "exec")
+        fmt.Printf("%-70s %s %s\n", fmt.Sprintf("/%s/%s", action.Namespace, action.Name), publishState, kind)
     }
 }
 

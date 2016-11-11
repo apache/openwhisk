@@ -73,6 +73,7 @@ import whisk.core.entitlement.Privilege
 import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.core.entitlement.Resource
 import whisk.core.entity.WhiskPackage
+import whisk.core.entity.Exec
 import whisk.core.entity.Binding
 import whisk.core.entity.Subject
 import whisk.core.entity.FullyQualifiedEntityName
@@ -389,7 +390,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
             limits,
             content.version getOrElse SemVer(),
             content.publish getOrElse false,
-            content.annotations getOrElse Parameters())
+            (content.annotations getOrElse Parameters()) ++ execAnnotation(exec))
     }
 
     /** Updates a WhiskAction from PUT content, merging old action where necessary. */
@@ -443,15 +444,17 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
             }
         }
 
+        val exec = content.exec getOrElse action.exec
+
         WhiskAction(
             action.namespace,
             action.name,
-            content.exec getOrElse action.exec,
+            exec,
             parameters,
             limits,
             content.version getOrElse action.version.upPatch,
             content.publish getOrElse action.publish,
-            content.annotations getOrElse action.annotations).
+            (content.annotations getOrElse action.annotations) ++ execAnnotation(exec)).
             revision[WhiskAction](action.docinfo.rev)
     }
 
@@ -720,6 +723,17 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
             val totalActionCount = actionCountsFuture map { actionCounts => actionCounts.foldLeft(0)(_ + _) }
             totalActionCount
         }
+    }
+
+    /**
+     * Constructs an "exec" annotation. This is redundant with the exec kind
+     * information available in WhiskAction but necessary for some clients which
+     * fetch action lists but cannot determine action kinds without fetching them.
+     * An alternative is to include the exec in the action list "view" but this
+     * will require an API change. So using an annotation instead.
+     */
+    private def execAnnotation(exec: Exec): Parameters = {
+        Parameters(WhiskAction.execFieldName, exec.kind)
     }
 
     /** Grace period after action timeout limit to poll for result. */
