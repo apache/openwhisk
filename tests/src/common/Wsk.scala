@@ -37,6 +37,7 @@ import spray.json.pimpString
 import whisk.utils.retry
 import java.time.Instant
 import whisk.core.entity.ByteSize
+import org.scalatest.Matchers
 
 /**
  * Provide Scala bindings for the whisk CLI.
@@ -198,7 +199,7 @@ trait HasActivation {
     /**
      * Extracts activation id from 'wsk activation get' run result
      */
-    private def extractActivationIdFromActivation(result:RunResult): Option[String] = {
+    private def extractActivationIdFromActivation(result: RunResult): Option[String] = {
         Try {
             // a characteristic string that comes right before the activationId
             val idPrefix = "ok: got activation "
@@ -211,7 +212,7 @@ trait HasActivation {
     /**
      * Extracts activation id from 'wsk action invoke' or 'wsk trigger invoke'
      */
-    private def extractActivationIdFromInvoke(result:RunResult): Option[String] = {
+    private def extractActivationIdFromInvoke(result: RunResult): Option[String] = {
         Try {
             val stdout = result.stdout
             assert(stdout.contains("ok: invoked") || stdout.contains("ok: triggered"), stdout)
@@ -782,7 +783,7 @@ object Wsk {
         if (WhiskProperties.useCLIDownload) Buffer(getDownloadedGoCLIPath) else Buffer(WhiskProperties.getCLIPath)
 }
 
-sealed trait RunWskCmd {
+sealed trait RunWskCmd extends Matchers {
 
     /**
      * The base command to run.
@@ -804,7 +805,16 @@ sealed trait RunWskCmd {
         if (verbose) args += "--verbose"
         if (showCmd) println(args.mkString(" ") + " " + params.mkString(" "))
         val rr = TestUtils.runCmd(DONTCARE_EXIT, workingDir, TestUtils.logger, sys.env ++ env, args ++ params: _*)
-        rr.validateExitCode(expectedExitCode)
+
+        withClue(reportFailure(args ++ params, expectedExitCode, rr)) {
+            if (expectedExitCode != TestUtils.DONTCARE_EXIT) {
+                val ok = (rr.exitCode == expectedExitCode) || (expectedExitCode == TestUtils.ANY_ERROR_EXIT && rr.exitCode != 0)
+                if (!ok) {
+                    rr.exitCode shouldBe expectedExitCode
+                }
+            }
+        }
+
         rr
     }
 
@@ -814,6 +824,14 @@ sealed trait RunWskCmd {
      */
     def parseJsonString(jsonStr: String): JsObject = {
         jsonStr.substring(jsonStr.indexOf("\n") + 1).parseJson.asJsObject // Skip optional status line before parsing
+    }
+
+    private def reportFailure(args: Buffer[String], ec: Integer, rr: RunResult) = {
+        val s = new StringBuilder()
+        s.append(args.mkString(" ") + "\n")
+        if (rr.stdout.nonEmpty) s.append(rr.stdout + "\n")
+        if (rr.stderr.nonEmpty) s.append(rr.stderr)
+        s.append("exit code:")
     }
 }
 

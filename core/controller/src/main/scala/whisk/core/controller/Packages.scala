@@ -17,40 +17,23 @@
 package whisk.core.controller
 
 import scala.concurrent.Future
-import scala.concurrent.Promise
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-import spray.http.StatusCodes.BadRequest
-import spray.http.StatusCodes.Conflict
-import spray.http.StatusCodes.InternalServerError
-import spray.http.StatusCodes.OK
+
+import spray.http.StatusCodes._
 import spray.httpx.SprayJsonSupport._
-import spray.json.JsBoolean
-import spray.json.JsObject
+import spray.json._
 import spray.routing.Directive.pimpApply
 import spray.routing.RequestContext
-import spray.routing.directives.OnCompleteFutureMagnet.apply
-import spray.routing.directives.ParamDefMagnet.apply
 import whisk.common.TransactionId
 import whisk.core.database.NoDocumentException
-import whisk.core.entitlement.Collection
-import whisk.core.entity.Binding
-import whisk.core.entity.DocId
-import whisk.core.entity.EntityName
-import whisk.core.entity.EntityPath
-import whisk.core.entity.Parameters
-import whisk.core.entity.SemVer
-import whisk.core.entity.types.EntityStore
-import whisk.core.entity.WhiskAction
-import whisk.core.entity.WhiskEntity
-import whisk.core.entity.WhiskEntityStore
-import whisk.core.entity.WhiskPackage
-import whisk.core.entity.WhiskPackageAction
-import whisk.core.entity.WhiskPackagePut
+import whisk.core.entitlement._
+import whisk.core.entity._
 import whisk.core.entity.types.EntityStore
 import whisk.http.ErrorResponse.terminate
-import whisk.core.entity.Identity
+import whisk.http.Messages
+import whisk.core.database.DocumentTypeMismatchException
 
 object WhiskPackagesApi {
     def requiredProperties = WhiskEntityStore.requiredProperties
@@ -89,9 +72,25 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
     override def create(user: Identity, namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
         parameter('overwrite ? false) { overwrite =>
             entity(as[WhiskPackagePut]) { content =>
-                val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
-                putEntity(WhiskPackage, entityStore, docid, overwrite,
-                    update(content) _, () => create(content, namespace, name))
+                val docid = FullyQualifiedEntityName(namespace, name).toDocId
+
+                def doput() = {
+                    putEntity(WhiskPackage, entityStore, docid, overwrite,
+                        update(content) _, () => create(content, namespace, name))
+                }
+
+                content.binding.map(_.resolve(namespace)) map {
+                    case binding =>
+                        info(this, "checking if package is accessible")
+                        val referencedPackage = Resource(binding.namespace, Collection(Collection.PACKAGES), Some(binding.name()))
+                        onComplete(entitlementProvider.check(user, Privilege.READ, Set(referencedPackage))) {
+                            case Success(true) => doput()
+                            case failure       => rewriteEntitlementFailure(failure)
+                        }
+                } getOrElse {
+                    info(this, "no binding specified")
+                    doput()
+                }
             }
         }
     }
@@ -117,11 +116,11 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
      * - 500 Internal Server Error
      */
     override def remove(namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
-        val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
+        val docid = FullyQualifiedEntityName(namespace, name).toDocId
         deleteEntity(WhiskPackage, entityStore, docid, (wp: WhiskPackage) => {
             wp.binding map {
                 // this is a binding, it is safe to remove
-                _ => Future successful true
+                _ => Future.successful(true)
             } getOrElse {
                 // may only delete a package if all its ingredients are deleted already
                 WhiskAction.listCollectionInNamespace(entityStore, wp.namespace.addpath(wp.name), skip = 0, limit = 0) flatMap {
@@ -129,7 +128,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
                         Future failed {
                             RejectRequest(Conflict, s"Package not empty (contains ${list.size} ${if (list.size == 1) "entity" else "entities"})")
                         }
-                    case _ => Future successful true
+                    case _ => Future.successful(true)
                 }
             }
         })
@@ -145,7 +144,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
      * - 500 Internal Server Error
      */
     override def fetch(namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
-        val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
+        val docid = FullyQualifiedEntityName(namespace, name).toDocId
         getEntity(WhiskPackage, entityStore, docid, Some { mergePackageWithBinding() _ })
     }
 
@@ -201,91 +200,91 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
      * If this is a binding, confirm the referenced package exists.
      */
     private def create(content: WhiskPackagePut, namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
-        content.binding match {
-            case Some(binding) =>
-                val promise = Promise[WhiskPackage]
-                val resolvedBinding = Some(binding.resolve(namespace))
-                WhiskPackage.get(entityStore, resolvedBinding.get.docid) onComplete {
-                    case Success(doc) =>
-                        if (doc.binding.isEmpty) promise success {
-                            WhiskPackage(
-                                namespace,
-                                name,
-                                resolvedBinding,
-                                content.parameters getOrElse Parameters(),
-                                content.version getOrElse SemVer(),
-                                content.publish getOrElse false,
-                                // override any binding annotation from PUT (always set by the controller)
-                                (content.annotations getOrElse Parameters()) ++ bindingAnnotation(resolvedBinding))
-                        }
-                        else promise failure {
-                            RejectRequest(BadRequest, "cannot bind to another package binding")
-                        }
-                    case Failure(t: NoDocumentException) =>
-                        promise failure {
-                            RejectRequest(BadRequest, "binding references a package that does not exist")
-                        }
-                    case Failure(t) => promise failure RejectRequest(BadRequest, t)
-                }
-                promise.future
-            case None =>
-                Future successful {
+        content.binding map { binding =>
+            val resolvedBinding = Some(binding.resolve(namespace))
+            WhiskPackage.get(entityStore, resolvedBinding.get.docid) recoverWith {
+                case t: NoDocumentException           => Future.failed(RejectRequest(BadRequest, Messages.bindingDoesNotExist))
+                case t: DocumentTypeMismatchException => Future.failed(RejectRequest(Conflict, Messages.requestedBindingIsNotValid))
+                case t                                => Future.failed(RejectRequest(BadRequest, t))
+            } map { provider =>
+                if (provider.binding.isEmpty) {
                     WhiskPackage(
                         namespace,
                         name,
-                        binding = None,
+                        resolvedBinding,
                         content.parameters getOrElse Parameters(),
                         content.version getOrElse SemVer(),
                         content.publish getOrElse false,
-                        // remove any binding annotation from PUT (always set by the controller)
-                        (content.annotations map { _ -- WhiskPackage.bindingFieldName }) getOrElse Parameters())
+                        // override any binding annotation from PUT (always set by the controller)
+                        (content.annotations getOrElse Parameters()) ++ bindingAnnotation(resolvedBinding))
+                } else {
+                    throw RejectRequest(BadRequest, Messages.bindingCannotReferenceBinding)
                 }
+            }
+        } getOrElse {
+            Future.successful {
+                WhiskPackage(
+                    namespace,
+                    name,
+                    binding = None,
+                    content.parameters getOrElse Parameters(),
+                    content.version getOrElse SemVer(),
+                    content.publish getOrElse false,
+                    // remove any binding annotation from PUT (always set by the controller)
+                    (content.annotations map { _ -- WhiskPackage.bindingFieldName }) getOrElse Parameters())
+            }
         }
     }
 
     /** Updates a WhiskPackage from PUT content, merging old package/binding where necessary. */
     private def update(content: WhiskPackagePut)(wp: WhiskPackage)(implicit transid: TransactionId) = {
-        content.binding match {
-            case Some(binding) =>
-                if (wp.binding == None) Future failed {
-                    RejectRequest(Conflict, "resource is a package but content specifies a binding")
-                }
-                else {
-                    val promise = Promise[WhiskPackage]
-                    val resolvedBinding = Some(binding.resolve(wp.namespace))
-                    WhiskPackage.get(entityStore, binding.docid) onComplete {
-                        case Success(_) =>
-                            promise success {
-                                WhiskPackage(
-                                    wp.namespace,
-                                    wp.name,
-                                    resolvedBinding,
-                                    content.parameters getOrElse wp.parameters,
-                                    content.version getOrElse wp.version.upPatch,
-                                    content.publish getOrElse wp.publish,
-                                    // override any binding annotation from PUT (always set by the controller)
-                                    (content.annotations getOrElse wp.annotations) ++ bindingAnnotation(resolvedBinding)).
-                                    revision[WhiskPackage](wp.docinfo.rev)
-                            }
-                        case Failure(t) => promise.failure { RejectRequest(BadRequest, t) }
-                    }
-                    promise.future
-                }
-            case None =>
-                Future successful {
+        content.binding map { binding =>
+            if (wp.binding.isDefined) {
+                val resolvedBinding = Some(binding.resolve(wp.namespace))
+                WhiskPackage.get(entityStore, resolvedBinding.get.docid) recoverWith {
+                    case t: NoDocumentException           => Future.failed(RejectRequest(BadRequest, Messages.bindingDoesNotExist))
+                    case t: DocumentTypeMismatchException => Future.failed(RejectRequest(Conflict, Messages.requestedBindingIsNotValid))
+                    case t                                => Future.failed(RejectRequest(BadRequest, t))
+                } map { _ =>
                     WhiskPackage(
                         wp.namespace,
                         wp.name,
-                        wp.binding,
+                        resolvedBinding,
                         content.parameters getOrElse wp.parameters,
                         content.version getOrElse wp.version.upPatch,
                         content.publish getOrElse wp.publish,
                         // override any binding annotation from PUT (always set by the controller)
-                        (content.annotations map {
-                            _ -- WhiskPackage.bindingFieldName
-                        } getOrElse wp.annotations) ++ bindingAnnotation(wp.binding)).
+                        (content.annotations getOrElse wp.annotations) ++ bindingAnnotation(resolvedBinding)).
                         revision[WhiskPackage](wp.docinfo.rev)
                 }
+            } else {
+                Future.failed(RejectRequest(Conflict, Messages.packageCannotBecomeBinding))
+            }
+        } getOrElse {
+            Future.successful {
+                WhiskPackage(
+                    wp.namespace,
+                    wp.name,
+                    wp.binding,
+                    content.parameters getOrElse wp.parameters,
+                    content.version getOrElse wp.version.upPatch,
+                    content.publish getOrElse wp.publish,
+                    // override any binding annotation from PUT (always set by the controller)
+                    (content.annotations map {
+                        _ -- WhiskPackage.bindingFieldName
+                    } getOrElse wp.annotations) ++ bindingAnnotation(wp.binding)).
+                    revision[WhiskPackage](wp.docinfo.rev)
+            }
+        }
+    }
+
+    private def rewriteEntitlementFailure(failure: Try[Boolean])(
+        implicit transid: TransactionId): RequestContext => Unit = {
+        info(this, s"rewriting failure $failure")
+        failure match {
+            case Failure(RejectRequest(NotFound, _)) => terminate(BadRequest, Messages.bindingDoesNotExist)
+            case Failure(RejectRequest(Conflict, _)) => terminate(Conflict, Messages.requestedBindingIsNotValid)
+            case _ => super.handleEntitlementFailure(failure)
         }
     }
 
@@ -310,7 +309,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
     private def mergePackageWithBinding(ref: Option[WhiskPackage] = None)(wp: WhiskPackage)(implicit transid: TransactionId): RequestContext => Unit = {
         wp.binding map {
             case Binding(ns, n) =>
-                val docid = DocId(WhiskEntity.qualifiedName(ns, n))
+                val docid = FullyQualifiedEntityName(ns, n).toDocId
                 info(this, s"fetching package '$docid' for reference")
                 getEntity(WhiskPackage, entityStore, docid, Some {
                     mergePackageWithBinding(Some { wp }) _
@@ -319,10 +318,10 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
             val pkg = ref map { _ inherit wp.parameters } getOrElse wp
             info(this, s"fetching package actions in '${wp.path}'")
             val actions = WhiskAction.listCollectionInNamespace(entityStore, wp.path, skip = 0, limit = 0) flatMap {
-                case Left(list) => Future successful {
+                case Left(list) => Future.successful {
                     pkg withPackageActions (list map { o => WhiskPackageAction.serdes.read(o) })
                 }
-                case t => Future failed {
+                case t => Future.failed {
                     error(this, "unexpected result in package action lookup: $t")
                     new IllegalStateException(s"unexpected result in package action lookup: $t")
                 }
