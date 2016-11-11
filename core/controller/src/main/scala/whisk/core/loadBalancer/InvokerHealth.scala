@@ -65,7 +65,7 @@ class InvokerHealth(
 
     def getCurStatus = curStatus.get().clone()
 
-    private def getHealth(statuses: Array[Status]): Map[Int, Boolean] = {
+    private def getHealth(statuses: Array[InvokerStatus]): Map[Int, Boolean] = {
         statuses.map { status => (status.index, status.status) }.toMap
     }
 
@@ -96,7 +96,7 @@ class InvokerHealth(
                     val index = InvokerKeys.extractInvokerIndex(key)
                     val JsString(startDate) = inner(InvokerKeys.startKey).parseJson
                     val JsString(lastDate) = inner(InvokerKeys.statusKey).parseJson
-                    (index, Status(index, startDate, lastDate, isFresh(lastDate)))
+                    (index, InvokerStatus(index, startDate, lastDate, isFresh(lastDate)))
             }
             val newStatus = statusMap.values.toArray.sortBy(_.index)
 
@@ -107,7 +107,7 @@ class InvokerHealth(
 
             // Existing entries that have become stale require recording and a warning
             val stale = curStatus.get().filter {
-                case Status(index, startDate, _, _) =>
+                case InvokerStatus(index, startDate, _, _) =>
                     statusMap.get(index).map(startDate != _.startDate) getOrElse false
             }
             if (!stale.isEmpty) {
@@ -120,15 +120,16 @@ class InvokerHealth(
         }
     }
 
-    /*
-     * Invoker indices are 0-based.
-     * curStatus maintains the status of the current instance at a particular index while oldStatus
-     * tracks instances (potentially many per index) that are not longer fresh (invoker was restarted).
-     */
-    case class Status(index: Int, startDate: String, lastDate: String, status: Boolean) {
-        override def toString = s"index: $index, healthy: $status, start: $startDate, last: $lastDate"
-    }
-    private lazy val curStatus = new AtomicReference(Array(): Array[Status])
-    private lazy val oldStatus = new AtomicReference(Array(): Array[Status])
+    private lazy val curStatus = new AtomicReference(Array(): Array[InvokerStatus])
+    private lazy val oldStatus = new AtomicReference(Array(): Array[InvokerStatus])
 
+}
+
+/*
+ * Invoker indices are 0-based.
+ * curStatus maintains the status of the current instance at a particular index while oldStatus
+ * tracks instances (potentially many per index) that are not longer fresh (invoker was restarted).
+ */
+case class InvokerStatus(index: Int, startDate: String, lastDate: String, status: Boolean) {
+    override def toString = s"index: $index, healthy: $status, start: $startDate, last: $lastDate"
 }
