@@ -18,42 +18,26 @@ package whisk.core.entity.test
 
 import java.time.Clock
 import java.time.Instant
+
 import scala.concurrent.Await
+import scala.language.postfixOps
 import scala.util.Try
+
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfter
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
+
+import akka.event.Logging.InfoLevel
+import common.WskActorSystem
 import spray.json.JsObject
 import whisk.core.WhiskConfig
 import whisk.core.database.test.DbUtils
-import whisk.core.entity.ActivationId
-import whisk.core.entity.AuthKey
-import whisk.core.entity.Binding
-import whisk.core.entity.EntityName
-import whisk.core.entity.Exec
-import whisk.core.entity.EntityPath
-import whisk.core.entity.Subject
-import whisk.core.entity.WhiskAction
-import whisk.core.entity.WhiskActivation
-import whisk.core.entity.WhiskAuth
-import whisk.core.entity.WhiskEntity
-import whisk.core.entity.WhiskEntityQueries.listAllInNamespace
-import whisk.core.entity.WhiskEntityQueries.listEntitiesInNamespace
-import whisk.core.entity.WhiskEntityQueries.listCollectionInAnyNamespace
-import whisk.core.entity.WhiskEntityQueries.listCollectionByName
-import whisk.core.entity.WhiskEntityQueries.listCollectionInNamespace
-import whisk.core.entity.WhiskEntityStore
-import whisk.core.entity.WhiskPackage
-import whisk.core.entity.WhiskRule
-import whisk.core.entity.WhiskTrigger
-import org.scalatest.BeforeAndAfterAll
-import scala.language.postfixOps
-import akka.event.Logging.InfoLevel
-
-import common.WskActorSystem
+import whisk.core.entity._
 import whisk.core.entity.FullyQualifiedEntityName
+import whisk.core.entity.WhiskEntityQueries._
 
 @RunWith(classOf[JUnitRunner])
 class ViewTests extends FlatSpec
@@ -196,8 +180,8 @@ class ViewTests extends FlatSpec
             WhiskRule(namespace1, aname, trigger = afullname(namespace1), action = afullname(namespace1)),
             WhiskPackage(namespace1, aname),
             WhiskPackage(namespace1, aname),
-            WhiskPackage(namespace1, aname, Some(Binding(namespace2, aname))),
-            WhiskPackage(namespace1, aname, Some(Binding(namespace2, aname))),
+            WhiskPackage(namespace1, aname, Some(FullyQualifiedEntityName(namespace2, aname))),
+            WhiskPackage(namespace1, aname, Some(FullyQualifiedEntityName(namespace2, aname))),
             WhiskActivation(namespace1, aname, Subject(), ActivationId(), start = now, end = now),
             WhiskActivation(namespace1, aname, Subject(), ActivationId(), start = now, end = now),
 
@@ -213,8 +197,8 @@ class ViewTests extends FlatSpec
             WhiskRule(namespace2, aname, trigger = afullname(namespace2), action = afullname(namespace2)),
             WhiskPackage(namespace2, aname),
             WhiskPackage(namespace2, aname),
-            WhiskPackage(namespace2, aname, Some(Binding(namespace1, aname))),
-            WhiskPackage(namespace2, aname, Some(Binding(namespace1, aname))),
+            WhiskPackage(namespace2, aname, Some(FullyQualifiedEntityName(namespace1, aname))),
+            WhiskPackage(namespace2, aname, Some(FullyQualifiedEntityName(namespace1, aname))),
             WhiskActivation(namespace2, aname, Subject(), ActivationId(), start = now, end = now),
             WhiskActivation(namespace2, actionName, Subject(), ActivationId(), start = now, end = now),
             WhiskActivation(namespace2, actionName, Subject(), ActivationId(), start = now, end = now))
@@ -297,13 +281,13 @@ class ViewTests extends FlatSpec
         implicit val entities = Seq(
             WhiskPackage(namespace1, aname, publish = true),
             WhiskPackage(namespace1, aname, publish = false),
-            WhiskPackage(namespace1, aname, Some(Binding(namespace2, aname)), publish = true),
-            WhiskPackage(namespace1, aname, Some(Binding(namespace2, aname))),
+            WhiskPackage(namespace1, aname, Some(FullyQualifiedEntityName(namespace2, aname)), publish = true),
+            WhiskPackage(namespace1, aname, Some(FullyQualifiedEntityName(namespace2, aname))),
 
             WhiskPackage(namespace2, aname, publish = true),
             WhiskPackage(namespace2, aname, publish = false),
-            WhiskPackage(namespace2, aname, Some(Binding(namespace1, aname)), publish = true),
-            WhiskPackage(namespace2, aname, Some(Binding(namespace1, aname))))
+            WhiskPackage(namespace2, aname, Some(FullyQualifiedEntityName(namespace1, aname)), publish = true),
+            WhiskPackage(namespace2, aname, Some(FullyQualifiedEntityName(namespace1, aname))))
 
         entities foreach { put(datastore, _) }
         waitOnView(datastore, namespace1, entities.length / 2)

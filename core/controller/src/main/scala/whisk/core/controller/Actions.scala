@@ -598,7 +598,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         getEntity(WhiskPackage, entityStore, docid, Some { (wp: WhiskPackage) =>
             val pkgns = wp.binding map { b =>
                 info(this, s"list actions in package binding '${wp.name}' -> '$b'")
-                b.namespace.addpath(b.name)
+                b.path.addpath(b.name)
             } getOrElse {
                 info(this, s"list actions in package '${wp.name}'")
                 ns.addpath(wp.name)
@@ -620,7 +620,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
     private def mergeActionWithPackageAndDispatch(method: HttpMethod, user: Identity, action: EntityName, ref: Option[WhiskPackage] = None)(wp: WhiskPackage)(
         implicit transid: TransactionId): RequestContext => Unit = {
         wp.binding map {
-            case Binding(ns, n) =>
+            case FullyQualifiedEntityName(ns, n , _) =>
                 val docid = FullyQualifiedEntityName(ns, n).toDocId
                 info(this, s"fetching package '$docid' for reference")
                 // already checked that subject is authorized for package and binding;

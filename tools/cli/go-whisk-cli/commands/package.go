@@ -105,8 +105,8 @@ var packageBindCmd = &cobra.Command{
     }
 
     binding := whisk.Binding{
-      Name:      pkgQName.entityName,
-      Namespace: pkgQName.namespace,
+      Name: pkgQName.entityName,
+      Path: pkgQName.namespace,
     }
 
     p := &whisk.BindingPackage{

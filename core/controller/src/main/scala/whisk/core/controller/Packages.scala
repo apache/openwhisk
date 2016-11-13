@@ -79,10 +79,10 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
                         update(content) _, () => create(content, namespace, name))
                 }
 
-                content.binding.map(_.resolve(namespace)) map {
+                content.binding.map(_.resolve(namespace.root)) map {
                     case binding =>
                         info(this, "checking if package is accessible")
-                        val referencedPackage = Resource(binding.namespace, Collection(Collection.PACKAGES), Some(binding.name()))
+                        val referencedPackage = Resource(binding.path, Collection(Collection.PACKAGES), Some(binding.name()))
                         onComplete(entitlementProvider.check(user, Privilege.READ, Set(referencedPackage))) {
                             case Success(true) => doput()
                             case failure       => rewriteEntitlementFailure(failure)
@@ -201,8 +201,8 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
      */
     private def create(content: WhiskPackagePut, namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
         content.binding map { binding =>
-            val resolvedBinding = Some(binding.resolve(namespace))
-            WhiskPackage.get(entityStore, resolvedBinding.get.docid) recoverWith {
+            val resolvedBinding = Some(binding.resolve(namespace.root))
+            WhiskPackage.get(entityStore, resolvedBinding.get.toDocId) recoverWith {
                 case t: NoDocumentException           => Future.failed(RejectRequest(BadRequest, Messages.bindingDoesNotExist))
                 case t: DocumentTypeMismatchException => Future.failed(RejectRequest(Conflict, Messages.requestedBindingIsNotValid))
                 case t                                => Future.failed(RejectRequest(BadRequest, t))
@@ -240,8 +240,8 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
     private def update(content: WhiskPackagePut)(wp: WhiskPackage)(implicit transid: TransactionId) = {
         content.binding map { binding =>
             if (wp.binding.isDefined) {
-                val resolvedBinding = Some(binding.resolve(wp.namespace))
-                WhiskPackage.get(entityStore, resolvedBinding.get.docid) recoverWith {
+                val resolvedBinding = Some(binding.resolve(wp.path.root))
+                WhiskPackage.get(entityStore, resolvedBinding.get.toDocId) recoverWith {
                     case t: NoDocumentException           => Future.failed(RejectRequest(BadRequest, Messages.bindingDoesNotExist))
                     case t: DocumentTypeMismatchException => Future.failed(RejectRequest(Conflict, Messages.requestedBindingIsNotValid))
                     case t                                => Future.failed(RejectRequest(BadRequest, t))
@@ -295,9 +295,9 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
      * alternative is to include the binding in the package list "view" but this
      * will require an API change. So using an annotation instead.
      */
-    private def bindingAnnotation(binding: Option[Binding]): Parameters = {
+    private def bindingAnnotation(binding: Option[FullyQualifiedEntityName]): Parameters = {
         binding map {
-            b => Parameters(WhiskPackage.bindingFieldName, Binding.serdes.write(b))
+            b => Parameters(WhiskPackage.bindingFieldName, FullyQualifiedEntityName.serdes.write(b))
         } getOrElse Parameters()
     }
 
@@ -308,7 +308,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
      */
     private def mergePackageWithBinding(ref: Option[WhiskPackage] = None)(wp: WhiskPackage)(implicit transid: TransactionId): RequestContext => Unit = {
         wp.binding map {
-            case Binding(ns, n) =>
+            case FullyQualifiedEntityName(ns, n, _) =>
                 val docid = FullyQualifiedEntityName(ns, n).toDocId
                 info(this, s"fetching package '$docid' for reference")
                 getEntity(WhiskPackage, entityStore, docid, Some {

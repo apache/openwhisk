@@ -91,7 +91,7 @@ func (p *BindingPackage) GetName() string {
 }
 
 type Binding struct {
-    Namespace string `json:"namespace,omitempty"`
+    Path      string `json:"path,omitempty"`
     Name      string `json:"name,omitempty"`
 }
 
