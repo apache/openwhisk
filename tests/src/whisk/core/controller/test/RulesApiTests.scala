@@ -59,7 +59,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
     val parametersLimit = Parameters.sizeLimit
 
     //// GET /rules
-    it should "list rules by default namespace" in {
+    it should "list rules by default/explicit namespace" in {
         implicit val tid = transid()
 
         val rules = (1 to 2).map { i =>
@@ -72,6 +72,20 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
             val response = responseAs[List[JsObject]]
             rules.length should be(response.length)
             rules forall { r => response contains r.summaryAsJson } should be(true)
+        }
+
+        // it should "list trirulesggers with explicit namespace owned by subject" in {
+        Get(s"/$namespace/${collection.path}") ~> sealRoute(routes(creds)) ~> check {
+            status should be(OK)
+            val response = responseAs[List[JsObject]]
+            rules.length should be(response.length)
+            rules forall { r => response contains r.summaryAsJson } should be(true)
+        }
+
+        // it should "reject list rules with explicit namespace not owned by subject" in {
+        val auser = WhiskAuth(Subject(), AuthKey()).toIdentity
+        Get(s"/$namespace/${collection.path}") ~> sealRoute(routes(auser)) ~> check {
+            status should be(Forbidden)
         }
     }
 
@@ -93,7 +107,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
     }
 
     //// GET /rule/name
-    it should "get rule" in {
+    it should "get rule by name in default/explicit namespace" in {
         implicit val tid = transid()
 
         val rule = WhiskRule(namespace, aname(), afullname(namespace, "bogus trigger"), afullname(namespace, "bogus action"))
@@ -102,6 +116,19 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
             status should be(OK)
             val response = responseAs[WhiskRuleResponse]
             response should be(rule.withStatus(Status.INACTIVE))
+        }
+
+        // it should "get trigger by name in explicit namespace owned by subject" in
+        Get(s"/$namespace/${collection.path}/${rule.name}") ~> sealRoute(routes(creds)) ~> check {
+            status should be(OK)
+            val response = responseAs[WhiskRuleResponse]
+            response should be(rule.withStatus(Status.INACTIVE))
+        }
+
+        // it should "reject get trigger by name in explicit namespace not owned by subject" in
+        val auser = WhiskAuth(Subject(), AuthKey()).toIdentity
+        Get(s"/$namespace/${collection.path}/${rule.name}") ~> sealRoute(routes(auser)) ~> check {
+            status should be(Forbidden)
         }
     }
 
