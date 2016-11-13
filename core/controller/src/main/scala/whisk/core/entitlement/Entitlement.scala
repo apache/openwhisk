@@ -33,10 +33,7 @@ import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.controller.RejectRequest
-import whisk.core.entity.EntityPath
-import whisk.core.entity.Identity
-import whisk.core.entity.Parameters
-import whisk.core.entity.Subject
+import whisk.core.entity._
 import whisk.core.iam.Identities
 import whisk.core.loadBalancer.LoadBalancer
 import whisk.http.Messages._
@@ -164,12 +161,14 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
         val subject = user.subject
 
         val entitlementCheck = if (user.rights.contains(right)) {
-            info(this, s"checking user '$subject' has privilege '$right' for '${resources.mkString(",")}'")
-            checkSystemOverload(subject, right) orElse {
-                checkUserThrottle(subject, right, resources)
-            } orElse {
-                checkConcurrentUserThrottle(subject, right, resources)
-            } getOrElse checkPrivilege(user, right, resources)
+            if (resources.nonEmpty) {
+                info(this, s"checking user '$subject' has privilege '$right' for '${resources.mkString(",")}'")
+                checkSystemOverload(subject, right) orElse {
+                    checkUserThrottle(subject, right, resources)
+                } orElse {
+                    checkConcurrentUserThrottle(subject, right, resources)
+                } getOrElse checkPrivilege(user, right, resources)
+            } else Future.successful(true)
         } else if (right != REJECT) {
             info(this, s"supplied authkey for user '$subject' does not have privilege '$right' for '${resources.mkString(",")}'")
             Future.failed(RejectRequest(Forbidden))
@@ -178,7 +177,7 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
         }
 
         entitlementCheck andThen {
-            case Success(r) =>
+            case Success(r) if resources.nonEmpty =>
                 info(this, if (r) "authorized" else "not authorized")
             case Failure(r: RejectRequest) =>
                 info(this, s"not authorized: $r")
@@ -271,5 +270,16 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
         if (right == ACTIVATE && userThrottled) {
             Some(Future.failed(RejectRequest(TooManyRequests, tooManyConcurrentRequests)))
         } else None
+    }
+}
+
+trait ReferencedEntities {
+
+    def referencedEntities(reference: Any): Set[Resource] = {
+        reference match {
+            case WhiskPackagePut(Some(binding), _, _, _, _) =>
+                Set(Resource(binding.path, Collection(Collection.PACKAGES), Some(binding.name())))
+            case _ => Set()
+        }
     }
 }
