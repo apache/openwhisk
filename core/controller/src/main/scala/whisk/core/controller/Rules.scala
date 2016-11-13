@@ -45,7 +45,7 @@ object WhiskRulesApi {
 }
 
 /** A trait implementing the rules API */
-trait WhiskRulesApi extends WhiskCollectionAPI {
+trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
     services: WhiskServices =>
 
     protected override val collection = Collection(Collection.RULES)
@@ -98,16 +98,6 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
                 }
             }
         }
-    }
-
-    private def referencedEntities(content: WhiskRulePut) = {
-        val triggerResource = content.trigger.map {
-            t => Resource(t.path, Collection(Collection.TRIGGERS), Some(t.name()))
-        }
-        val actionResource = content.action map {
-            a => Resource(a.path, Collection(Collection.ACTIONS), Some(a.name()))
-        }
-        Set(triggerResource, actionResource).flatten
     }
 
     /**
