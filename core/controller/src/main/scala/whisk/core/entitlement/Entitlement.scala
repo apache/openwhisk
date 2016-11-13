@@ -273,8 +273,25 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
     }
 }
 
+/**
+ * A trait to consolidate gathering of referenced entities for various types.
+ * Current entities that refer to others: action sequences, rules, and package bindings.
+ */
 trait ReferencedEntities {
 
+    /**
+     * Gathers referenced resources for types knows to refer to others.
+     * This is usually done on a PUT request, hence the types are not one of the
+     * canonical datastore types. Hence this method accepts Any reference but is
+     * only defined for WhiskPackagePut, WhiskRulePut, and SequenceExec.
+     *
+     * It is plausible to lift these disambiguation below to a new trait which is
+     * implemented by these types - however this will require exposing the Resource
+     * type outside of the controller which is not yet desirable (although this could
+     * cause further consolidation of the WhiskEntity and Resource types).
+     *
+     * @return Set of Resource instances if there are referenced entities.
+     */
     def referencedEntities(reference: Any): Set[Resource] = {
         reference match {
             case WhiskPackagePut(Some(binding), _, _, _, _) =>
@@ -283,6 +300,10 @@ trait ReferencedEntities {
                 val triggerResource = r.trigger.map { t => Resource(t.path, Collection(Collection.TRIGGERS), Some(t.name())) }
                 val actionResource = r.action map { a => Resource(a.path, Collection(Collection.ACTIONS), Some(a.name())) }
                 Set(triggerResource, actionResource).flatten
+            case e: SequenceExec =>
+                e.components.map {
+                    c => Resource(c.path, Collection(Collection.ACTIONS), Some(c.name()))
+                }.toSet
             case _ => Set()
         }
     }

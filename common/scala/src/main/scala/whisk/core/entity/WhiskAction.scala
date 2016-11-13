@@ -61,6 +61,21 @@ case class WhiskActionPut(
     protected[core] def replace(exec: Exec) = {
         WhiskActionPut(Some(exec), parameters, limits, version, publish, annotations)
     }
+
+    /**
+     * Resolves sequence components if they contain default namespace.
+     */
+    protected[core] def resolve(namespace: EntityName): WhiskActionPut = {
+        val newExec = exec map {
+            case SequenceExec(code, components) =>
+                SequenceExec(code, components map {
+                    c => FullyQualifiedEntityName(c.path.resolveNamespace(namespace), c.name)
+                })
+            case e => e
+        }
+
+        WhiskActionPut(newExec, parameters, limits, version, publish, annotations)
+    }
 }
 
 /**

@@ -65,7 +65,7 @@ object WhiskActionsApi {
 }
 
 /** A trait implementing the actions API. */
-trait WhiskActionsApi extends WhiskCollectionAPI {
+trait WhiskActionsApi extends WhiskCollectionAPI with ReferencedEntities {
     services: WhiskServices =>
 
     protected override val collection = Collection(Collection.ACTIONS)
@@ -188,11 +188,12 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         parameter('overwrite ? false) { overwrite =>
             entity(as[WhiskActionPut]) { content =>
                 val docid = FullyQualifiedEntityName(namespace, name).toDocId
+                val request = content.resolve(namespace.root)
 
-                onComplete(entitleReferencedEntities(user, Privilege.READ, content.exec)) {
+                onComplete(entitleReferencedEntities(user, Privilege.READ, request.exec)) {
                     case Success(true) =>
                         putEntity(WhiskAction, entityStore, docid, overwrite,
-                            update(user, content)_, () => { make(user, namespace, content, name) })
+                            update(user, request)_, () => { make(user, namespace, request, name) })
 
                     case failure => super.handleEntitlementFailure(failure)
                 }
@@ -322,43 +323,6 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         }
     }
 
-    /** Replaces default namespaces in an action sequence with appropriate namespace. */
-    private def resolveDefaultNamespace(seq: SequenceExec, user: Identity)(implicit transid: TransactionId): SequenceExec = {
-        // if components are part of the default namespace, they contain `_`; replace it!
-        val resolvedComponents = seq.components map { c => FullyQualifiedEntityName(c.path.resolveNamespace(user.namespace), c.name) }
-        new SequenceExec(seq.code, resolvedComponents)
-    }
-
-    /** For a sequence action, gather referenced entities and authorize access. */
-    private def entitleReferencedEntities(user: Identity, right: Privilege, exec: Option[Exec])(
-        implicit transid: TransactionId) = {
-        exec match {
-            case Some(seq @ SequenceExec(_, components)) =>
-                info(this, "checking if sequence components are accessible")
-                val referencedEntities = resolveDefaultNamespace(seq, user).components.map {
-                    c => Resource(c.path, Collection(Collection.ACTIONS), Some(c.name()))
-                }.toSet
-
-                entitlementProvider.check(user, right, referencedEntities)
-
-            case _ => Future.successful(true)
-        }
-    }
-
-    /** Creates a WhiskAction from PUT content, generating default values where necessary. */
-    private def make(user: Identity, namespace: EntityPath, content: WhiskActionPut, name: EntityName)(implicit transid: TransactionId) = {
-        content.exec map {
-            case seq: SequenceExec =>
-                // if this is a sequence, rewrite the action names in the sequence to resolve the namespace if necessary
-                // and check that the sequence conforms to max length and no recursion rules
-                val fixedExec = resolveDefaultNamespace(seq, user)
-                checkSequenceActionLimits(FullyQualifiedEntityName(namespace, name), fixedExec.components) map {
-                    _ => makeWhiskAction(content.replace(fixedExec), namespace, name)
-                }
-            case _ => Future successful { makeWhiskAction(content, namespace, name) }
-        } getOrElse Future.failed(RejectRequest(BadRequest, "exec undefined"))
-    }
-
     /**
      * Creates a WhiskAction instance from the PUT request.
      */
@@ -391,15 +355,36 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
             content.annotations getOrElse Parameters())
     }
 
+    /** For a sequence action, gather referenced entities and authorize access. */
+    private def entitleReferencedEntities(user: Identity, right: Privilege, exec: Option[Exec])(
+        implicit transid: TransactionId) = {
+        exec match {
+            case Some(seq @ SequenceExec(_, components)) =>
+                info(this, "checking if sequence components are accessible")
+                entitlementProvider.check(user, right, referencedEntities(seq))
+            case _ => Future.successful(true)
+        }
+    }
+
+    /** Creates a WhiskAction from PUT content, generating default values where necessary. */
+    private def make(user: Identity, namespace: EntityPath, content: WhiskActionPut, name: EntityName)(implicit transid: TransactionId) = {
+        content.exec map {
+            case seq: SequenceExec =>
+                // check that the sequence conforms to max length and no recursion rules
+                checkSequenceActionLimits(FullyQualifiedEntityName(namespace, name), seq.components) map {
+                    _ => makeWhiskAction(content.replace(seq), namespace, name)
+                }
+            case _ => Future successful { makeWhiskAction(content, namespace, name) }
+        } getOrElse Future.failed(RejectRequest(BadRequest, "exec undefined"))
+    }
+
     /** Updates a WhiskAction from PUT content, merging old action where necessary. */
     private def update(user: Identity, content: WhiskActionPut)(action: WhiskAction)(implicit transid: TransactionId) = {
         content.exec map {
             case seq: SequenceExec =>
-                // if this is a sequence, rewrite the action names in the sequence to resolve the namespace if necessary
-                // and check that the sequence conforms to max length and no recursion rules
-                val fixedExec = resolveDefaultNamespace(seq, user)
-                checkSequenceActionLimits(FullyQualifiedEntityName(action.namespace, action.name), fixedExec.components) map {
-                    _ => updateWhiskAction(content.replace(fixedExec), action)
+                // check that the sequence conforms to max length and no recursion rules
+                checkSequenceActionLimits(FullyQualifiedEntityName(action.namespace, action.name), seq.components) map {
+                    _ => updateWhiskAction(content.replace(seq), action)
                 }
             case _ => Future successful { updateWhiskAction(content, action) }
         } getOrElse {
@@ -620,7 +605,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
     private def mergeActionWithPackageAndDispatch(method: HttpMethod, user: Identity, action: EntityName, ref: Option[WhiskPackage] = None)(wp: WhiskPackage)(
         implicit transid: TransactionId): RequestContext => Unit = {
         wp.binding map {
-            case FullyQualifiedEntityName(ns, n , _) =>
+            case FullyQualifiedEntityName(ns, n, _) =>
                 val docid = FullyQualifiedEntityName(ns, n).toDocId
                 info(this, s"fetching package '$docid' for reference")
                 // already checked that subject is authorized for package and binding;
