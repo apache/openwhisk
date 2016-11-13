@@ -32,7 +32,6 @@ import spray.http.HttpMethod
 import spray.http.HttpMethods._
 import spray.http.StatusCodes._
 import spray.httpx.SprayJsonSupport._
-import spray.json.DefaultJsonProtocol._
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import spray.routing.RequestContext
@@ -52,7 +51,6 @@ import whisk.http.ErrorResponse.terminate
 import whisk.http.Messages._
 import whisk.http.Messages
 import whisk.utils.ExecutionContextFactory.FutureExtensions
-import whisk.core.database.DocumentTypeMismatchException
 
 /**
  * A singleton object which defines the properties that must be present in a configuration
@@ -72,7 +70,7 @@ object WhiskActionsApi {
 }
 
 /** A trait implementing the actions API. */
-trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions {
+trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions with ReferencedEntities {
     services: WhiskServices =>
 
     protected override val collection = Collection(Collection.ACTIONS)
@@ -139,6 +137,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions {
                         // this is an action in a named package
                         val packageDocId = FullyQualifiedEntityName(ns, EntityName(outername)).toDocId
                         val packageResource = Resource(ns, Collection(Collection.PACKAGES), Some(outername))
+
                         val right = if (m == GET || m == POST) Privilege.READ else collection.determineRight(m, Some(innername))
                         onComplete(entitlementProvider.check(user, right, packageResource)) {
                             case Success(true) =>
@@ -194,11 +193,12 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions {
         parameter('overwrite ? false) { overwrite =>
             entity(as[WhiskActionPut]) { content =>
                 val docid = FullyQualifiedEntityName(namespace, name).toDocId
+                val request = content.resolve(namespace.root)
 
-                onComplete(entitleReferencedEntities(user, Privilege.READ, content.exec)) {
+                onComplete(entitleReferencedEntities(user, Privilege.READ, request.exec)) {
                     case Success(true) =>
                         putEntity(WhiskAction, entityStore, docid, overwrite,
-                            update(user, content)_, () => { make(user, namespace, content, name) })
+                            update(user, request)_, () => { make(user, namespace, request, name) })
 
                     case failure => super.handleEntitlementFailure(failure)
                 }
@@ -356,22 +356,6 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions {
         new SequenceExec(seq.code, resolvedComponents)
     }
 
-    /** For a sequence action, gather referenced entities and authorize access. */
-    private def entitleReferencedEntities(user: Identity, right: Privilege, exec: Option[Exec])(
-        implicit transid: TransactionId) = {
-        exec match {
-            case Some(seq @ SequenceExec(_, components)) =>
-                info(this, "checking if sequence components are accessible")
-                val referencedEntities = resolveDefaultNamespace(seq, user).components.map {
-                    c => Resource(c.path, Collection(Collection.ACTIONS), Some(c.name()))
-                }.toSet
-
-                entitlementProvider.check(user, right, referencedEntities)
-
-            case _ => Future.successful(true)
-        }
-    }
-
     /**
      * Creates a WhiskAction instance from the PUT request.
      */
@@ -404,14 +388,24 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions {
             (content.annotations getOrElse Parameters()) ++ execAnnotation(exec))
     }
 
+    /** For a sequence action, gather referenced entities and authorize access. */
+    private def entitleReferencedEntities(user: Identity, right: Privilege, exec: Option[Exec])(
+        implicit transid: TransactionId) = {
+        exec match {
+            case Some(seq @ SequenceExec(_, components)) =>
+                info(this, "checking if sequence components are accessible")
+                entitlementProvider.check(user, right, referencedEntities(seq))
+            case _ => Future.successful(true)
+        }
+    }
+
     /** Creates a WhiskAction from PUT content, generating default values where necessary. */
     private def make(user: Identity, namespace: EntityPath, content: WhiskActionPut, name: EntityName)(implicit transid: TransactionId) = {
         content.exec map {
             case seq: SequenceExec =>
                 // check that the sequence conforms to max length and no recursion rules
-                val fixedExec = resolveDefaultNamespace(seq, user)
-                checkSequenceActionLimits(FullyQualifiedEntityName(namespace, name), fixedExec.components) map {
-                    _ => makeWhiskAction(content.replace(fixedExec), namespace, name)
+                checkSequenceActionLimits(FullyQualifiedEntityName(namespace, name), seq.components) map {
+                    _ => makeWhiskAction(content.replace(seq), namespace, name)
                 }
             case _ => Future successful { makeWhiskAction(content, namespace, name) }
         } getOrElse Future.failed(RejectRequest(BadRequest, "exec undefined"))
@@ -421,11 +415,9 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions {
     private def update(user: Identity, content: WhiskActionPut)(action: WhiskAction)(implicit transid: TransactionId) = {
         content.exec map {
             case seq: SequenceExec =>
-                // if this is a sequence, rewrite the action names in the sequence to resolve the namespace if necessary
-                // and check that the sequence conforms to max length and no recursion rules
-                val fixedExec = resolveDefaultNamespace(seq, user)
-                checkSequenceActionLimits(FullyQualifiedEntityName(action.namespace, action.name), fixedExec.components) map {
-                    _ => updateWhiskAction(content.replace(fixedExec), action)
+                // check that the sequence conforms to max length and no recursion rules
+                checkSequenceActionLimits(FullyQualifiedEntityName(action.namespace, action.name), seq.components) map {
+                    _ => updateWhiskAction(content.replace(seq), action)
                 }
             case _ => Future successful { updateWhiskAction(content, action) }
         } getOrElse {
@@ -771,17 +763,6 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions {
         Parameters(WhiskAction.execFieldName, exec.kind)
     }
 
-    private def rewriteFailure(failure: Throwable)(implicit transid: TransactionId) = {
-        info(this, s"rewriting failure $failure")
-        failure match {
-            case RejectRequest(NotFound, _)       => RejectRequest(NotFound)
-            case RejectRequest(c, m)              => RejectRequest(c, m)
-            case _: NoDocumentException           => RejectRequest(BadRequest)
-            case _: DocumentTypeMismatchException => RejectRequest(BadRequest)
-            case _                                => RejectRequest(BadRequest, failure)
-        }
-    }
-
     /** Max duration for active ack. */
     private val activeAckTimeout = 30 seconds
 
@@ -792,4 +773,3 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions {
 private case class BlockingInvokeTimeout(activationId: ActivationId) extends TimeoutException
 private case class TooManyActionsInSequence() extends RuntimeException
 private case class SequenceWithCycle() extends RuntimeException
-

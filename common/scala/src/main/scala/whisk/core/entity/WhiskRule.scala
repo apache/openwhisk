@@ -43,7 +43,7 @@ case class WhiskRulePut(
     /**
      * Resolves the trigger and action name if they contains the default namespace.
      */
-    def resolve(namespace: EntityName): WhiskRulePut = {
+    protected[core] def resolve(namespace: EntityName): WhiskRulePut = {
         val t = trigger map { _.resolve(namespace) }
         val a = action map { _.resolve(namespace) }
         WhiskRulePut(t, a, version, publish, annotations)

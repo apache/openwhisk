@@ -33,11 +33,8 @@ import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.controller.RejectRequest
-import whisk.core.entity.EntityPath
-import whisk.core.entity.Identity
-import whisk.core.entity.Parameters
-import whisk.core.entity.Subject
 import whisk.core.iam.NamespaceProvider
+import whisk.core.entity._
 import whisk.core.loadBalancer.LoadBalancer
 import whisk.http.Messages._
 
@@ -82,7 +79,7 @@ protected[core] object EntitlementProvider {
  * A trait that implements entitlements to resources. It performs checks for CRUD and Acivation requests.
  * This is where enforcement of activation quotas takes place, in additional to basic authorization.
  */
-protected[core] abstract class EntitlementService(config: WhiskConfig, loadBalancer: LoadBalancer, iam: NamespaceProvider)(
+protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBalancer: LoadBalancer, iam: NamespaceProvider)(
     implicit actorSystem: ActorSystem) extends Logging {
 
     private implicit val executionContext = actorSystem.dispatcher
@@ -164,12 +161,14 @@ protected[core] abstract class EntitlementService(config: WhiskConfig, loadBalan
         val subject = user.subject
 
         val entitlementCheck = if (user.rights.contains(right)) {
-            info(this, s"checking user '$subject' has privilege '$right' for '${resources.mkString(",")}'")
-            checkSystemOverload(subject, right) orElse {
-                checkUserThrottle(subject, right, resources)
-            } orElse {
-                checkConcurrentUserThrottle(subject, right, resources)
-            } getOrElse checkPrivilege(user, right, resources)
+            if (resources.nonEmpty) {
+                info(this, s"checking user '$subject' has privilege '$right' for '${resources.mkString(",")}'")
+                checkSystemOverload(subject, right) orElse {
+                    checkUserThrottle(subject, right, resources)
+                } orElse {
+                    checkConcurrentUserThrottle(subject, right, resources)
+                } getOrElse checkPrivilege(user, right, resources)
+            } else Future.successful(true)
         } else if (right != REJECT) {
             info(this, s"supplied authkey for user '$subject' does not have privilege '$right' for '${resources.mkString(",")}'")
             Future.failed(RejectRequest(Forbidden))
@@ -178,7 +177,7 @@ protected[core] abstract class EntitlementService(config: WhiskConfig, loadBalan
         }
 
         entitlementCheck andThen {
-            case Success(r) =>
+            case Success(r) if resources.nonEmpty =>
                 info(this, if (r) "authorized" else "not authorized")
             case Failure(r: RejectRequest) =>
                 info(this, s"not authorized: $r")
@@ -197,7 +196,6 @@ protected[core] abstract class EntitlementService(config: WhiskConfig, loadBalan
         implicit transid: TransactionId): Future[Boolean] = {
         // check the default namespace first, bypassing additional checks if permitted
         val defaultNamespaces = Set(user.namespace())
-        val subject = user.subject
         implicit val es = this
 
         Future.sequence {
@@ -269,5 +267,41 @@ protected[core] abstract class EntitlementService(config: WhiskConfig, loadBalan
         if (right == ACTIVATE && userThrottled) {
             Some(Future.failed(RejectRequest(TooManyRequests, tooManyConcurrentRequests)))
         } else None
+    }
+}
+
+/**
+ * A trait to consolidate gathering of referenced entities for various types.
+ * Current entities that refer to others: action sequences, rules, and package bindings.
+ */
+trait ReferencedEntities {
+
+    /**
+     * Gathers referenced resources for types knows to refer to others.
+     * This is usually done on a PUT request, hence the types are not one of the
+     * canonical datastore types. Hence this method accepts Any reference but is
+     * only defined for WhiskPackagePut, WhiskRulePut, and SequenceExec.
+     *
+     * It is plausible to lift these disambiguation below to a new trait which is
+     * implemented by these types - however this will require exposing the Resource
+     * type outside of the controller which is not yet desirable (although this could
+     * cause further consolidation of the WhiskEntity and Resource types).
+     *
+     * @return Set of Resource instances if there are referenced entities.
+     */
+    def referencedEntities(reference: Any): Set[Resource] = {
+        reference match {
+            case WhiskPackagePut(Some(binding), _, _, _, _) =>
+                Set(Resource(binding.namespace, Collection(Collection.PACKAGES), Some(binding.name())))
+            case r: WhiskRulePut =>
+                val triggerResource = r.trigger.map { t => Resource(t.path, Collection(Collection.TRIGGERS), Some(t.name())) }
+                val actionResource = r.action map { a => Resource(a.path, Collection(Collection.ACTIONS), Some(a.name())) }
+                Set(triggerResource, actionResource).flatten
+            case e: SequenceExec =>
+                e.components.map {
+                    c => Resource(c.path, Collection(Collection.ACTIONS), Some(c.name()))
+                }.toSet
+            case _ => Set()
+        }
     }
 }
