@@ -31,9 +31,7 @@ import spray.routing.RequestContext
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.entity.EntityPath
-import whisk.core.entitlement.EntitlementService
-import whisk.core.entitlement.Collection
-import whisk.core.entitlement.EntitlementService
+import whisk.core.entitlement._
 import whisk.core.entitlement.Privilege.Privilege
 import whisk.core.entitlement.Resource
 import whisk.core.entity.EntityPath

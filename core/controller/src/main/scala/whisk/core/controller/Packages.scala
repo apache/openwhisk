@@ -27,19 +27,19 @@ import spray.json._
 import spray.routing.Directive.pimpApply
 import spray.routing.RequestContext
 import whisk.common.TransactionId
+import whisk.core.database.DocumentTypeMismatchException
 import whisk.core.database.NoDocumentException
 import whisk.core.entitlement._
 import whisk.core.entity._
 import whisk.core.entity.types.EntityStore
 import whisk.http.ErrorResponse.terminate
 import whisk.http.Messages
-import whisk.core.database.DocumentTypeMismatchException
 
 object WhiskPackagesApi {
     def requiredProperties = WhiskEntityStore.requiredProperties
 }
 
-trait WhiskPackagesApi extends WhiskCollectionAPI {
+trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
     services: WhiskServices =>
 
     protected override val collection = Collection(Collection.PACKAGES)
@@ -73,28 +73,16 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
         parameter('overwrite ? false) { overwrite =>
             entity(as[WhiskPackagePut]) { content =>
                 val docid = FullyQualifiedEntityName(namespace, name).toDocId
+                val request = content.resolve(namespace.root)
 
-                def doput() = {
-                    putEntity(WhiskPackage, entityStore, docid, overwrite,
-                        update(content) _, () => create(content, namespace, name))
-                }
+                request.binding.map { b => info(this, "checking if package is accessible") }
+                val referencedentities = referencedEntities(request)
 
-                def abort(t: Throwable) = {
-                    val r = rewriteFailure(t)
-                    terminate(r.code, r.message)
-                }
-
-                content.binding.map(_.resolve(namespace)) map {
-                    case binding =>
-                        info(this, "checking if package is accessible")
-                        val referencedPackage = Resource(binding.namespace, Collection(Collection.PACKAGES), Some(binding.name()))
-                        onComplete(entitlementProvider.check(user, Privilege.READ, Set(referencedPackage))) {
-                            case Success(true) => doput()
-                            case failure       => rewriteEntitlementFailure(failure)
-                        }
-                } getOrElse {
-                    info(this, "no binding specified")
-                    doput()
+                onComplete(entitlementProvider.check(user, Privilege.READ, referencedentities)) {
+                    case Success(true) =>
+                        putEntity(WhiskPackage, entityStore, docid, overwrite,
+                            update(request) _, () => create(request, namespace, name))
+                    case failure => rewriteEntitlementFailure(failure)
                 }
             }
         }
@@ -201,6 +189,22 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
     }
 
     /**
+     * Validates that a referenced binding exists.
+     */
+    private def checkBinding(binding: FullyQualifiedEntityName)(implicit transid: TransactionId): Future[Unit] = {
+        WhiskPackage.get(entityStore, binding.toDocId) recoverWith {
+            case t: NoDocumentException           => Future.failed(RejectRequest(BadRequest, Messages.bindingDoesNotExist))
+            case t: DocumentTypeMismatchException => Future.failed(RejectRequest(Conflict, Messages.requestedBindingIsNotValid))
+            case t                                => Future.failed(RejectRequest(BadRequest, t))
+        } flatMap {
+            // trying to create a new package binding that refers to another binding
+            case provider if provider.binding.nonEmpty => Future.failed(RejectRequest(BadRequest, Messages.bindingCannotReferenceBinding))
+            // or creating a package binding that refers to a package
+            case _                                     => Future.successful({})
+        }
+    }
+
+    /**
      * Creates a WhiskPackage from PUT content, generating default values where necessary.
      * If this is a binding, confirm the referenced package exists.
      */
@@ -234,21 +238,21 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
                 // pre-existing entity is a package, cannot make it a binding
                 Future.failed(RejectRequest(Conflict, Messages.packageCannotBecomeBinding))
             }
-        } getOrElse {
-            Future.successful {
-                WhiskPackage(
-                    wp.namespace,
-                    wp.name,
-                    wp.binding,
-                    content.parameters getOrElse wp.parameters,
-                    content.version getOrElse wp.version.upPatch,
-                    content.publish getOrElse wp.publish,
-                    // override any binding annotation from PUT (always set by the controller)
-                    (content.annotations map {
-                        _ -- WhiskPackage.bindingFieldName
-                    } getOrElse wp.annotations) ++ bindingAnnotation(wp.binding)).
-                    revision[WhiskPackage](wp.docinfo.rev)
-            }
+        } getOrElse Future.successful({})
+
+        validateBinding map { _ =>
+            WhiskPackage(
+                wp.namespace,
+                wp.name,
+                content.binding orElse wp.binding,
+                content.parameters getOrElse wp.parameters,
+                content.version getOrElse wp.version.upPatch,
+                content.publish getOrElse wp.publish,
+                // override any binding annotation from PUT (always set by the controller)
+                (content.annotations getOrElse wp.annotations)
+                    -- WhiskPackage.bindingFieldName
+                    ++ bindingAnnotation(content.binding orElse wp.binding)).
+                revision[WhiskPackage](wp.docinfo.rev)
         }
     }
 
@@ -258,7 +262,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI {
         failure match {
             case Failure(RejectRequest(NotFound, _)) => terminate(BadRequest, Messages.bindingDoesNotExist)
             case Failure(RejectRequest(Conflict, _)) => terminate(Conflict, Messages.requestedBindingIsNotValid)
-            case _ => super.handleEntitlementFailure(failure)
+            case _                                   => super.handleEntitlementFailure(failure)
         }
     }
 

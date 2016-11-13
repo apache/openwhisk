@@ -530,6 +530,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
         put(entityStore, provider)
         Put(s"$collectionPath/${provider.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(Conflict)
+            responseAs[ErrorResponse].error should include(Messages.packageCannotBecomeBinding)
         }
     }
 
@@ -541,6 +542,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
         put(entityStore, reference)
         Put(s"$collectionPath/${reference.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
+            responseAs[ErrorResponse].error should include(Messages.bindingDoesNotExist)
         }
     }
 
@@ -614,10 +616,8 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     it should "reject delete non-empty package" in {
         implicit val tid = transid()
         val provider = WhiskPackage(namespace, aname)
-        val reference = WhiskPackage(namespace, aname, provider.bind)
         val action = WhiskAction(provider.namespace.addpath(provider.name), aname, Exec.js("??"))
         put(entityStore, provider)
-        put(entityStore, reference)
         put(entityStore, action)
         whisk.utils.retry {
             Get(s"$collectionPath/${provider.name}") ~> sealRoute(routes(creds)) ~> check {
