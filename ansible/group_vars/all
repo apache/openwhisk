@@ -54,7 +54,7 @@ nginx:
     api: 443
     adminportal: 8443
 
-db_gwapi: "{{ db_prefix }}gwapis"
+db_apigw: "{{ db_prefix }}gwapis"
 db:
   immortal: subjects
   authkeys:

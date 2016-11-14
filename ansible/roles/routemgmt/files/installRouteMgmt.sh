@@ -27,7 +27,7 @@ DB_PORT=`fgrep db.port= $WHISKPROPS_FILE | cut -d'=' -f2`
 DB_PROTOCOL=`fgrep db.protocol= $WHISKPROPS_FILE | cut -d'=' -f2`
 DB_USERNAME=`fgrep db.username= $WHISKPROPS_FILE | cut -d'=' -f2`
 DB_PASSWORD=`fgrep db.password= $WHISKPROPS_FILE | cut -d'=' -f2`
-DB_GWAPI=`fgrep db.whisk.gwapi= $WHISKPROPS_FILE | cut -d'=' -f2`
+DB_APIGW=`fgrep db.whisk.apigw= $WHISKPROPS_FILE | cut -d'=' -f2`
 GW_USER=`fgrep apigw.auth.user= $WHISKPROPS_FILE | cut -d'=' -f2`
 GW_PWD=`fgrep apigw.auth.pwd= $WHISKPROPS_FILE | cut -d'=' -f2`
 GW_HOST=`fgrep apigw.host= $WHISKPROPS_FILE | cut -d'=' -f2`
@@ -48,7 +48,7 @@ $WSK_CLI -i --apihost "$APIHOST" package update --auth "$AUTH"  --shared no "$NA
 -p protocol $DB_PROTOCOL \
 -p username $DB_USERNAME \
 -p password $DB_PASSWORD \
--p dbname $DB_GWAPI \
+-p dbname $DB_APIGW \
 -p gwUser "$GW_USER" \
 -p gwPwd "$GW_PWD" \
 -p gwUrl "$GW_HOST"

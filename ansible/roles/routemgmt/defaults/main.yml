@@ -1,0 +1,3 @@
+apigw_auth_user: ""
+apigw_auth_pwd: ""
+apigw_host: "http://{{ groups['edge']|first }}:3100/v1"

@@ -1,9 +1,9 @@
 ---
 # This creates the immortal api gateway configuration (gwapis) database, only if it doesn't exist yet
 
-- name: "check if gwapis database already exists"
+- name: check if API Gateway database already exists
   uri:
-    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db_gwapi }}"
+    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db_apigw }}"
     method: GET
     status_code: 200,404
     user: "{{ db_username }}"
@@ -11,9 +11,9 @@
     force_basic_auth: yes
   register: result
 
-- name: create immortal gwapis database
+- name: create immortal API Gateway database
   uri:
-    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db_gwapi }}"
+    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db_apigw }}"
     method: PUT
     status_code: 200,201
     user: "{{ db_username }}"
@@ -21,11 +21,11 @@
     force_basic_auth: yes
   when: result.status == 404
 
-- name: create the gwapis query views for the gwapis database
+- name: create the API Gateway query views for the API Gateway database
   vars:
     gwapis_views: "{{ lookup('file', 'gwapis_views.json') }}"
   uri:
-    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db_gwapi }}"
+    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db_apigw }}"
     method: POST
     status_code: 200,201
     body_format: json
@@ -35,11 +35,11 @@
     force_basic_auth: yes
   when: result.status == 404
 
-- name: create the gwapis index (Cloudant only)
+- name: create the API Gateway index (Cloudant only)
   vars:
     gwapis_index: "{ \"index\": {}, \"type\": \"text\"}"
   uri:
-    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db_gwapi }}//_index"
+    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db_apigw }}//_index"
     method: POST
     status_code: 200,201
     body_format: json
