@@ -36,7 +36,7 @@ type Trigger struct {
     ActivationId string             `json:"activationId,omitempty"`
     Annotations KeyValueArr         `json:"annotations,omitempty"`
     Parameters  KeyValueArr         `json:"parameters,omitempty"`
-    //Limits                        `json:"limits,omitempty"`
+    Limits                          `json:"limits,omitempty"`
 }
 
 type TriggerFromServer struct {

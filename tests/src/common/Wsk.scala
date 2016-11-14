@@ -546,9 +546,11 @@ class WskActivation()
      */
     def get(
         activationId: String,
-        expectedExitCode: Int = SUCCESS_EXIT)(
+        expectedExitCode: Int = SUCCESS_EXIT,
+        fieldFilter: Option[String] = None)(
             implicit wp: WskProps): RunResult = {
-        cli(wp.overrides ++ Seq(noun, "get", "--auth", wp.authKey, activationId), expectedExitCode)
+        val params = { fieldFilter map { f => Seq(f) } getOrElse Seq() }
+        cli(wp.overrides ++ Seq(noun, "get", "--auth", wp.authKey, activationId) ++ params, expectedExitCode)
     }
 
     /**

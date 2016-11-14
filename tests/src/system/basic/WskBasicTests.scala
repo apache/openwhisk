@@ -315,6 +315,7 @@ class WskBasicTests
             wsk.action.get(name, fieldFilter = Some("publish")).stdout should include (s"""$successMsg publish\nfalse""")
             wsk.action.get(name, fieldFilter = Some("exec")).stdout should include regex (s"""$successMsg exec\n\\{\\s+"kind":\\s+"nodejs:6",\\s+"code":\\s+"\\/\\*\\*\\\\n \\* Hello, world.\\\\n \\*\\/\\\\nfunction main\\(params\\) \\{\\\\n    console.log\\('hello', params.payload\\+'!'\\);\\\\n\\}\\\\n"\n\\}""")
             wsk.action.get(name, fieldFilter = Some("parameters")).stdout should include regex (s"""$successMsg parameters\n\\[\\s+\\{\\s+"key":\\s+"payload",\\s+"value":\\s+"test"\\s+\\}\\s+\\]""")
+            wsk.action.get(name, fieldFilter = Some("annotations")).stdout should include regex (s"""$successMsg annotations\n\\[\\]""")
             wsk.action.get(name, fieldFilter = Some("limits")).stdout should include regex (s"""$successMsg limits\n\\{\\s+"timeout":\\s+60000,\\s+"memory":\\s+256,\\s+"logs":\\s+10\\s+\\}""")
             wsk.action.get(name, fieldFilter = Some("namespace")).stdout should include regex (s"""(?i)$successMsg namespace\n$ns_regex_list""")
             wsk.action.get(name, fieldFilter = Some("invalid"), expectedExitCode = ERROR_EXIT).stderr should include ("error: Invalid field filter 'invalid'.")
@@ -530,8 +531,9 @@ class WskBasicTests
             wsk.trigger.get(name, fieldFilter = Some("name")).stdout should include (s"""$successMsg name\n"$name"""")
             wsk.trigger.get(name, fieldFilter = Some("version")).stdout should include (s"""$successMsg version\n"0.0.1"""")
             wsk.trigger.get(name, fieldFilter = Some("publish")).stdout should include (s"""$successMsg publish\nfalse""")
-            wsk.trigger.get(name, fieldFilter = Some("annotations")).stdout should include regex (s"""\\[\\]""")
-            wsk.trigger.get(name, fieldFilter = Some("limits")).stdout should include regex (s"""\\{\\}""")
+            wsk.trigger.get(name, fieldFilter = Some("annotations")).stdout should include (s"""$successMsg annotations\n[]""")
+            wsk.trigger.get(name, fieldFilter = Some("parameters")).stdout should include regex (s"""$successMsg parameters\n\\[\\s+\\{\\s+"key":\\s+"payload",\\s+"value":\\s+"test"\\s+\\}\\s+\\]""")
+            wsk.trigger.get(name, fieldFilter = Some("limits")).stdout should include  (s"""$successMsg limits\n{}""")
             wsk.trigger.get(name, fieldFilter = Some("invalid"), expectedExitCode = ERROR_EXIT).stderr should include ("error: Invalid field filter 'invalid'.")
     }
 
@@ -612,6 +614,34 @@ class WskBasicTests
             stdout should include regex (s"(?i)rule /${ns_regex_list}/${ruleName}\\s*\\(status: active\\)")
     }
 
+    it should "create a rule, and get its individual fields" in withAssetCleaner(wskprops) {
+        val ruleName = "ruleFields"
+        val triggerName = "ruleTriggerFields"
+        val actionName = "ruleActionFields";val paramInput = Map("payload" -> "test".toJson)
+        val successMsg = s"ok: got rule $ruleName, displaying field"
+
+        (wp, assetHelper) =>
+
+            assetHelper.withCleaner(wsk.trigger, triggerName) {
+                (trigger, name) => trigger.create(name)
+            }
+            assetHelper.withCleaner(wsk.action, actionName) {
+                (action, name) => action.create(name, defaultAction)
+            }
+            assetHelper.withCleaner(wsk.rule, ruleName) {
+                (rule, name) => rule.create(name, trigger = triggerName, action = actionName)
+            }
+
+            val ns_regex_list = wsk.namespace.list().stdout.trim.replace('\n', '|')
+
+            wsk.rule.get(ruleName, fieldFilter = Some("namespace")).stdout should include regex (s"""(?i)$successMsg namespace\n$ns_regex_list""")
+            wsk.rule.get(ruleName, fieldFilter = Some("name")).stdout should include (s"""$successMsg name\n"$ruleName"""")
+            wsk.rule.get(ruleName, fieldFilter = Some("version")).stdout should include (s"""$successMsg version\n"0.0.1"""")
+            wsk.rule.get(ruleName, fieldFilter = Some("status")).stdout should include (s"""$successMsg status\n"active"""")
+            wsk.rule.get(ruleName, fieldFilter = Some("trigger")).stdout should include regex (s"""$successMsg trigger\n"$triggerName"""")
+            wsk.rule.get(ruleName, fieldFilter = Some("action")).stdout should include regex (s"""$successMsg action\n"$actionName"""")
+    }
+
     behavior of "Wsk Namespace CLI"
 
     it should "list namespaces" in {
@@ -631,5 +661,35 @@ class WskBasicTests
         val stderr = wsk.namespace.get(Some(s"/${namespace}"), expectedExitCode = FORBIDDEN).stderr
 
         stderr should include(s"Unable to obtain the list of entities for namespace '${namespace}'")
+    }
+
+    behavior of "Wsk Activation CLI"
+
+    it should "create a trigger, and fire a trigger to get its individual fields from an activation" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "activationFields"
+
+            assetHelper.withCleaner(wsk.trigger, name) {
+                (trigger, _) =>
+                    trigger.create(name)
+            }
+
+            val ns_regex_list = wsk.namespace.list().stdout.trim.replace('\n', '|')
+
+            val run = wsk.trigger.fire(name)
+            withActivation(wsk.activation, run) {
+                activation =>
+                    val successMsg = s"ok: got activation ${activation.activationId}, displaying field"
+                    wsk.activation.get(activation.activationId, fieldFilter = Some("namespace")).stdout should include regex (s"""(?i)$successMsg namespace\n$ns_regex_list""")
+                    wsk.activation.get(activation.activationId, fieldFilter = Some("name")).stdout should include (s"""$successMsg name\n"$name"""")
+                    wsk.activation.get(activation.activationId, fieldFilter = Some("version")).stdout should include (s"""$successMsg version\n"0.0.1"""")
+                    wsk.activation.get(activation.activationId, fieldFilter = Some("publish")).stdout should include (s"""$successMsg publish\nfalse""")
+                    wsk.activation.get(activation.activationId, fieldFilter = Some("subject")).stdout should include regex (s"""(?i)$successMsg subject\n$ns_regex_list""")
+                    wsk.activation.get(activation.activationId, fieldFilter = Some("activationid")).stdout should include (s"""$successMsg activationid\n"${activation.activationId}""")
+                    wsk.activation.get(activation.activationId, fieldFilter = Some("start")).stdout should include regex (s"""$successMsg start\n\\d""")
+                    wsk.activation.get(activation.activationId, fieldFilter = Some("end")).stdout should include regex (s"""$successMsg end\n\\d""")
+                    wsk.activation.get(activation.activationId, fieldFilter = Some("duration")).stdout should include regex (s"""$successMsg duration\n\\d""")
+                    wsk.activation.get(activation.activationId, fieldFilter = Some("annotations")).stdout should include (s"""$successMsg annotations\n[]""")
+            }
     }
 }

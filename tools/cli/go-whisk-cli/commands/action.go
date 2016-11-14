@@ -233,8 +233,7 @@ var actionGetCmd = &cobra.Command{
     if len(args) > 1 {
       field = args[1]
 
-      if field != "namespace" && field != "name" && field != "version" && field != "publish" && field != "exec" &&
-        field != "annotations" && field != "parameters" && field != "limits" {
+      if !fieldExists(&whisk.Action{}, field) {
         errMsg := fmt.Sprintf(
           wski18n.T("Invalid field filter '{{.arg}}'.", map[string]interface{}{"arg": field}))
         whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
@@ -274,24 +273,7 @@ var actionGetCmd = &cobra.Command{
         fmt.Fprintf(color.Output, wski18n.T("{{.ok}} got action {{.name}}, displaying field {{.field}}\n",
           map[string]interface{}{"ok": color.GreenString("ok:"), "name": boldString(qName.entityName),
           "field": boldString(field)}))
-
-        if field == "namespace" {
-          printJSON(action.Namespace)
-        } else if field == "name" {
-          printJSON(action.Name)
-        } else if field == "version" {
-          printJSON(action.Version)
-        } else if field == "publish" {
-          printJSON(action.Publish)
-        } else if field == "exec" {
-          printJSON(action.Exec)
-        } else if field == "annotations" {
-          printJSON(action.Annotations)
-        } else if field == "parameters" {
-          printJSON(action.Parameters)
-        } else if field == "limits" {
-          printJSON(action.Limits)
-        }
+        printField(action, field)
       } else {
         fmt.Fprintf(color.Output,
           wski18n.T("{{.ok}} got action {{.name}}\n", map[string]interface{}{"ok": color.GreenString("ok:"),

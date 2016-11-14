@@ -307,10 +307,9 @@ var ruleGetCmd = &cobra.Command{
         if len(args) > 1 {
             field = args[1]
 
-            if field != "namespace" && field != "name" && field != "version" && field != "publish" && field != "status"&&
-              field != "trigger" && field != "action" {
+            if !fieldExists(&whisk.Rule{}, field){
                 errMsg := fmt.Sprintf(
-                    wski18n.T("Invalid projection field '{{.arg}}'.", map[string]interface{}{"arg": field}))
+                    wski18n.T("Invalid field filter '{{.arg}}'.", map[string]interface{}{"arg": field}))
                 whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
                     whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return whiskErr
@@ -345,27 +344,10 @@ var ruleGetCmd = &cobra.Command{
             printRuleSummary(rule)
         } else {
             if len(field) > 0 {
-                fmt.Fprintf(color.Output, wski18n.T("{{.ok}} got rule {{.name}}, projecting {{.field}}\n",
+                fmt.Fprintf(color.Output, wski18n.T("{{.ok}} got rule {{.name}}, displaying field {{.field}}\n",
                     map[string]interface{}{"ok": color.GreenString("ok:"), "name": boldString(ruleName),
                         "field": field}))
-
-                if field == "namespace" {
-                    printJSON(rule.Namespace)
-                } else if field == "name" {
-                    printJSON(rule.Name)
-                } else if field == "version" {
-                    printJSON(rule.Version)
-                } else if field == "publish" {
-                    printJSON(rule.Publish)
-                } else if field == "status" {
-                    printJSON(rule.Status)
-                } else if field == "trigger" {
-                    printJSON(rule.Trigger)
-                } else if field == "action" {
-                    printJSON(rule.Action)
-                } else {
-                    printJSON(rule)
-                }
+                printField(rule, field)
             } else {
                 fmt.Fprintf(color.Output, wski18n.T("{{.ok}} got rule {{.name}}\n",
                         map[string]interface{}{"ok": color.GreenString("ok:"), "name": boldString(ruleName)}))

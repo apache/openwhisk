@@ -378,8 +378,7 @@ var triggerGetCmd = &cobra.Command{
         if len(args) > 1 {
             field = args[1]
 
-            if field != "namespace" && field != "name" && field != "version" && field != "publish" &&
-              field != "activationid" && field != "annotations" && field != "parameters" && field != "limits" {
+            if !fieldExists(&whisk.Trigger{}, field) {
                 errMsg := fmt.Sprintf(
                     wski18n.T("Invalid field filter '{{.arg}}'.", map[string]interface{}{"arg": field}))
                 whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
@@ -419,24 +418,7 @@ var triggerGetCmd = &cobra.Command{
                 fmt.Fprintf(color.Output, wski18n.T("{{.ok}} got trigger {{.name}}, displaying field {{.field}}\n",
                     map[string]interface{}{"ok": color.GreenString("ok:"), "name": boldString(qName.entityName),
                     "field": boldString(field)}))
-
-                if field == "namespace" {
-                    printJSON(retTrigger.Namespace)
-                } else if field == "name" {
-                    printJSON(retTrigger.Name)
-                } else if field == "version" {
-                    printJSON(retTrigger.Version)
-                } else if field == "publish" {
-                    printJSON(retTrigger.Publish)
-                } else if field == "activationid" {
-                    printJSON(retTrigger.ActivationId)
-                } else if field == "annotations" {
-                    printJSON(retTrigger.Annotations)
-                } else if field == "parameters" {
-                    printJSON(retTrigger.Parameters)
-                } else if field == "limits" {
-                    printJSON(retTrigger.Limits)
-                }
+                printField(retTrigger, field)
             } else {
                 fmt.Fprintf(color.Output, wski18n.T("{{.ok}} got trigger {{.name}}\n",
                         map[string]interface{}{"ok": color.GreenString("ok:"), "name": boldString(qName.entityName)}))
