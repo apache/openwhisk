@@ -20,7 +20,6 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Success
-import spray.http.StatusCodes.ClientError
 import spray.http.StatusCodes.Conflict
 import spray.http.StatusCodes.InternalServerError
 import spray.http.StatusCodes.NotFound
@@ -49,24 +48,27 @@ import whisk.core.entity.WhiskEntity
 import whisk.http.ErrorResponse
 import whisk.http.ErrorResponse.terminate
 import whisk.http.Messages._
+import spray.http.StatusCode
 
 
 /** An exception to throw inside a Predicate future. */
-protected[core] case class RejectRequest(code: ClientError, message: Option[ErrorResponse]) extends Throwable
+protected[core] case class RejectRequest(code: StatusCode, message: Option[ErrorResponse]) extends Throwable {
+    override def toString = s"RejectRequest($code)" + message.map(" "+_.error).getOrElse("")
+}
 
 protected[core] object RejectRequest {
     /** Creates rejection with default message for status code. */
-    protected[core] def apply(code: ClientError)(implicit transid: TransactionId): RejectRequest = {
+    protected[core] def apply(code: StatusCode)(implicit transid: TransactionId): RejectRequest = {
         RejectRequest(code, Some(ErrorResponse.response(code)(transid)))
     }
 
     /** Creates rejection with custom message for status code. */
-    protected[core] def apply(code: ClientError, m: String)(implicit transid: TransactionId): RejectRequest = {
+    protected[core] def apply(code: StatusCode, m: String)(implicit transid: TransactionId): RejectRequest = {
         RejectRequest(code, Some(ErrorResponse(m, transid)))
     }
 
     /** Creates rejection with custom message for status code derived from reason for throwable. */
-    protected[core] def apply(code: ClientError, t: Throwable)(implicit transid: TransactionId): RejectRequest = {
+    protected[core] def apply(code: StatusCode, t: Throwable)(implicit transid: TransactionId): RejectRequest = {
         val reason = t.getMessage
         RejectRequest(code, if (reason != null) reason else "Rejected")
     }

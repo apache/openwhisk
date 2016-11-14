@@ -21,6 +21,7 @@ import scala.util.Success
 import scala.util.Try
 
 import spray.json.DefaultJsonProtocol
+import spray.json.DeserializationException
 import spray.json.JsObject
 import spray.json.JsString
 import spray.json.JsValue
@@ -33,11 +34,21 @@ import whisk.core.database.DocumentFactory
  * that are auto-assigned or derived from URI: namespace, name, status.
  */
 case class WhiskRulePut(
-    trigger: Option[EntityName] = None,
-    action: Option[EntityName] = None,
+    trigger: Option[FullyQualifiedEntityName] = None,
+    action: Option[FullyQualifiedEntityName] = None,
     version: Option[SemVer] = None,
     publish: Option[Boolean] = None,
-    annotations: Option[Parameters] = None)
+    annotations: Option[Parameters] = None) {
+
+    /**
+     * Resolves the trigger and action name if they contains the default namespace.
+     */
+    protected[core] def resolve(namespace: EntityName): WhiskRulePut = {
+        val t = trigger map { _.resolve(namespace) }
+        val a = action map { _.resolve(namespace) }
+        WhiskRulePut(t, a, version, publish, annotations)
+    }
+}
 
 /**
  * A WhiskRule provides an abstraction of the meta-data for a whisk rule.
@@ -61,8 +72,8 @@ case class WhiskRulePut(
 case class WhiskRule(
     namespace: EntityPath,
     override val name: EntityName,
-    trigger: types.Trigger,
-    action: types.Action,
+    trigger: FullyQualifiedEntityName,
+    action: FullyQualifiedEntityName,
     version: SemVer = SemVer(),
     publish: Boolean = false,
     annotations: Parameters = Parameters())
@@ -91,8 +102,8 @@ case class WhiskRuleResponse(
     namespace: EntityPath,
     name: EntityName,
     status: Status,
-    trigger: types.Trigger,
-    action: types.Action,
+    trigger: FullyQualifiedEntityName,
+    action: FullyQualifiedEntityName,
     version: SemVer = SemVer(),
     publish: Boolean = false,
     annotations: Parameters = Parameters()) {
@@ -189,16 +200,47 @@ object WhiskRule
     with DefaultJsonProtocol {
 
     override val collectionName = "rules"
-    override implicit val serdes = jsonFormat7(WhiskRule.apply)
+
+    private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
+    private val caseClassSerdes = jsonFormat7(WhiskRule.apply)
+
+    override implicit val serdes = new RootJsonFormat[WhiskRule] {
+        def write(r: WhiskRule) = caseClassSerdes.write(r)
+
+        def read(value: JsValue) = Try {
+            caseClassSerdes.read(value)
+        } recover {
+            case DeserializationException(_, _, List("trigger")) | DeserializationException(_, _, List("action")) =>
+                val namespace = value.asJsObject.fields("namespace").convertTo[EntityPath]
+                val actionName = value.asJsObject.fields("action")
+                val triggerName = value.asJsObject.fields("trigger")
+
+                val refs = Seq(actionName, triggerName).map { name =>
+                    Try {
+                        FullyQualifiedEntityName(namespace, EntityName.serdes.read(name))
+                    } match {
+                        case Success(n) => n
+                        case Failure(t) => deserializationError(t.getMessage)
+                    }
+                }
+                val fields = value.asJsObject.fields + ("action" -> refs(0).toDocId.toJson) + ("trigger" -> refs(1).toDocId.toJson)
+                caseClassSerdes.read(JsObject(fields))
+        } match {
+            case Success(r) => r
+            case Failure(t) => deserializationError(t.getMessage)
+        }
+    }
 
     override val cacheEnabled = false
     override def cacheKeyForUpdate(w: WhiskRule) = w.docid.asDocInfo
 }
 
 object WhiskRuleResponse extends DefaultJsonProtocol {
+    private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
     implicit val serdes = jsonFormat8(WhiskRuleResponse.apply)
 }
 
 object WhiskRulePut extends DefaultJsonProtocol {
+    private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
     implicit val serdes = jsonFormat5(WhiskRulePut.apply)
 }

@@ -21,37 +21,17 @@ import scala.util.Failure
 import scala.util.Success
 
 import akka.actor.ActorSystem
-import spray.http.StatusCodes.BadRequest
-import spray.http.StatusCodes.Conflict
-import spray.http.StatusCodes.InternalServerError
-import spray.http.StatusCodes.OK
-import spray.http.StatusCodes.NotFound
-import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
-import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
-import spray.httpx.marshalling.ToResponseMarshallable.isMarshallable
+import spray.http.StatusCodes._
+import spray.httpx.SprayJsonSupport._
+import spray.json.DeserializationException
 import spray.routing.Directive.pimpApply
 import spray.routing.RequestContext
-import spray.routing.directives.OnCompleteFutureMagnet.apply
-import spray.routing.directives.ParamDefMagnet.apply
 import whisk.common.TransactionId
 import whisk.core.database.DocumentConflictException
 import whisk.core.database.NoDocumentException
-import whisk.core.entitlement.Collection
-import whisk.core.entity.DocId
-import whisk.core.entity.EntityName
-import whisk.core.entity.EntityPath
-import whisk.core.entity.Parameters
-import whisk.core.entity.ReducedRule
-import whisk.core.entity.SemVer
-import whisk.core.entity.Status
-import whisk.core.entity.WhiskAction
-import whisk.core.entity.WhiskEntity
-import whisk.core.entity.WhiskEntityStore
-import whisk.core.entity.WhiskRule
-import whisk.core.entity.WhiskRulePut
-import whisk.core.entity.WhiskTrigger
+import whisk.core.entitlement._
+import whisk.core.entity._
 import whisk.core.entity.types.EntityStore
-import whisk.core.entity.Identity
 import whisk.http.ErrorResponse.terminate
 import whisk.http.Messages._
 
@@ -65,7 +45,7 @@ object WhiskRulesApi {
 }
 
 /** A trait implementing the rules API */
-trait WhiskRulesApi extends WhiskCollectionAPI {
+trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
     services: WhiskServices =>
 
     protected override val collection = Collection(Collection.RULES)
@@ -105,11 +85,17 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
     override def create(user: Identity, namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
         parameter('overwrite ? false) { overwrite =>
             entity(as[WhiskRulePut]) { content =>
-                val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
-                putEntity(WhiskRule, entityStore, docid, overwrite, update(content) _, () => { create(content, namespace, name) },
-                    postProcess = Some { rule: WhiskRule =>
-                        completeAsRuleResponse(rule, Status.ACTIVE)
-                    })
+                val request = content.resolve(namespace.root)
+                onComplete(entitlementProvider.check(user, Privilege.READ, referencedEntities(request))) {
+                    case Success(true) =>
+                        val docid = FullyQualifiedEntityName(namespace, name).toDocId
+                        putEntity(WhiskRule, entityStore, docid, overwrite,
+                            update(request) _, () => { create(request, namespace, name) },
+                            postProcess = Some { rule: WhiskRule =>
+                                completeAsRuleResponse(rule, Status.ACTIVE)
+                            })
+                    case failure => handleEntitlementFailure(failure)
+                }
             }
         }
     }
@@ -128,14 +114,13 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
      */
     override def activate(user: Identity, namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
         extractStatusRequest { requestedState =>
-            val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
+            val docid = FullyQualifiedEntityName(namespace, name).toDocId
 
             getEntity(WhiskRule, entityStore, docid, Some {
                 rule: WhiskRule =>
-                    val tid = DocId(WhiskEntity.qualifiedName(namespace, rule.trigger))
-                    val ruleName = EntityPath(WhiskEntity.qualifiedName(rule.namespace, rule.name))
+                    val ruleName = rule.fullyQualifiedName(false)
 
-                    val changeStatus = getTrigger(tid) map { trigger =>
+                    val changeStatus = getTrigger(rule.trigger) map { trigger =>
                         getStatus(trigger, ruleName)
                     } flatMap { oldStatus =>
                         if (requestedState != oldStatus) {
@@ -148,12 +133,9 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
                     } flatMap {
                         case (newStatus) =>
                             info(this, s"[POST] attempting to set rule state to: ${newStatus}")
-
-                            val actionName = EntityPath(WhiskEntity.qualifiedName(namespace, rule.action))
-
-                            WhiskTrigger.get(entityStore, tid) flatMap { trigger =>
+                            WhiskTrigger.get(entityStore, rule.trigger.toDocId) flatMap { trigger =>
                                 val newTrigger = trigger.removeRule(ruleName)
-                                val triggerLink = ReducedRule(actionName, newStatus)
+                                val triggerLink = ReducedRule(rule.action, newStatus)
                                 WhiskTrigger.put(entityStore, newTrigger.addRule(ruleName, triggerLink))
                             }
                     }
@@ -171,6 +153,9 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
                             case _: NoDocumentException =>
                                 info(this, s"[POST] the trigger attached to the rule doesn't exist")
                                 terminate(NotFound, "Only rules with existing triggers can be activated")
+                            case _: DeserializationException =>
+                                error(this, s"[POST] rule update failed: ${t.getMessage}")
+                                terminate(InternalServerError, corruptedEntity)
                             case _: Throwable =>
                                 error(this, s"[POST] rule update failed: ${t.getMessage}")
                                 terminate(InternalServerError, t.getMessage)
@@ -190,11 +175,10 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
      * - 500 Internal Server Error
      */
     override def remove(namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
-        val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
+        val docid = FullyQualifiedEntityName(namespace, name).toDocId
         deleteEntity(WhiskRule, entityStore, docid, (r: WhiskRule) => {
-            val tid = DocId(WhiskEntity.qualifiedName(namespace, r.trigger))
-            val ruleName = EntityPath(WhiskEntity.qualifiedName(r.namespace, r.name))
-            getTrigger(tid) map { trigger =>
+            val ruleName = FullyQualifiedEntityName(r.namespace, r.name)
+            getTrigger(r.trigger) map { trigger =>
                 (getStatus(trigger, ruleName), trigger)
             } flatMap {
                 case (status, triggerOpt) =>
@@ -220,14 +204,10 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
      * - 500 Internal Server Error
      */
     override def fetch(namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
-        val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
-        getEntity(WhiskRule, entityStore, docid, Some { rule: WhiskRule =>
-            val ruleName = WhiskEntity.qualifiedName(namespace, name)
-            val triggerName = WhiskEntity.qualifiedName(namespace, rule.trigger)
-            val tid = DocId(triggerName)
-
-            val getRuleWithStatus = getTrigger(tid) map { trigger =>
-                getStatus(trigger, EntityPath(ruleName))
+        val ruleName = FullyQualifiedEntityName(namespace, name)
+        getEntity(WhiskRule, entityStore, ruleName.toDocId, Some { rule: WhiskRule =>
+            val getRuleWithStatus = getTrigger(rule.trigger) map { trigger =>
+                getStatus(trigger, ruleName)
             } map { status =>
                 rule.withStatus(status)
             }
@@ -269,14 +249,11 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
     /** Creates a WhiskRule from PUT content, generating default values where necessary. */
     private def create(content: WhiskRulePut, namespace: EntityPath, name: EntityName)(implicit transid: TransactionId): Future[WhiskRule] = {
         if (content.trigger.isDefined && content.action.isDefined) {
-            val ruleName = WhiskEntity.qualifiedName(namespace, name)
-            val triggerName = WhiskEntity.qualifiedName(namespace, content.trigger.get)
-            val actionName = WhiskEntity.qualifiedName(namespace, content.action.get)
+            val ruleName = FullyQualifiedEntityName(namespace, name)
+            val triggerName = content.trigger.get
+            val actionName = content.action.get
 
-            val tid = DocId(triggerName)
-            val aid = DocId(actionName)
-
-            checkTriggerAndActionExist(tid, aid) recoverWith {
+            checkTriggerAndActionExist(triggerName, actionName) recoverWith {
                 case t => Future.failed(RejectRequest(BadRequest, t))
             } flatMap {
                 case (trigger, action) =>
@@ -289,32 +266,30 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
                         content.publish getOrElse false,
                         content.annotations getOrElse Parameters())
 
-                    val triggerLink = ReducedRule(EntityPath(actionName), Status.ACTIVE)
-                    WhiskTrigger.put(entityStore, trigger.addRule(EntityPath(ruleName), triggerLink)).map(_ => rule)
+                    val triggerLink = ReducedRule(actionName, Status.ACTIVE)
+                    info(this, s"about to put ${trigger.addRule(ruleName, triggerLink)}")
+                    WhiskTrigger.put(entityStore, trigger.addRule(ruleName, triggerLink)) map { _ => rule }
             }
         } else Future.failed(RejectRequest(BadRequest, "rule requires a valid trigger and a valid action"))
     }
 
     /** Updates a WhiskTrigger from PUT content, merging old trigger where necessary. */
     private def update(content: WhiskRulePut)(rule: WhiskRule)(implicit transid: TransactionId): Future[WhiskRule] = {
-        val ruleName = WhiskEntity.qualifiedName(rule.namespace, rule.name)
-        val oldTriggerName = WhiskEntity.qualifiedName(rule.namespace, rule.trigger)
-        val oldTid = DocId(oldTriggerName)
+        val ruleName = FullyQualifiedEntityName(rule.namespace, rule.name)
+        val oldTriggerName = rule.trigger
 
-        getTrigger(oldTid) map {
-            trigger => (getStatus(trigger, EntityPath(ruleName)), trigger)
+        getTrigger(oldTriggerName) map {
+            trigger => (getStatus(trigger, ruleName), trigger)
         } flatMap {
             case (status, oldTriggerOpt) => status match {
                 case Status.INACTIVE =>
                     val newTriggerEntity = content.trigger getOrElse rule.trigger
-                    val newTriggerName = WhiskEntity.qualifiedName(rule.namespace, newTriggerEntity)
-                    val tid = DocId(newTriggerName)
+                    val newTriggerName = newTriggerEntity
 
                     val actionEntity = content.action getOrElse rule.action
-                    val actionName = WhiskEntity.qualifiedName(rule.namespace, actionEntity)
-                    val aid = DocId(actionName)
+                    val actionName = actionEntity
 
-                    checkTriggerAndActionExist(tid, aid) recoverWith {
+                    checkTriggerAndActionExist(newTriggerName, actionName) recoverWith {
                         case t => Future.failed(RejectRequest(BadRequest, t))
                     } flatMap {
                         case (newTrigger, newAction) =>
@@ -333,12 +308,11 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
                                 isDifferentTrigger <- content.trigger.filter(_ => newTriggerName != oldTriggerName)
                                 oldTrigger <- oldTriggerOpt
                             } yield {
-                                WhiskTrigger.put(entityStore, oldTrigger.removeRule(EntityPath(ruleName)))
+                                WhiskTrigger.put(entityStore, oldTrigger.removeRule(ruleName))
                             }
 
-                            val triggerLink = ReducedRule(EntityPath(actionName), Status.INACTIVE)
-                            val update = WhiskTrigger.put(entityStore, newTrigger.addRule(EntityPath(ruleName), triggerLink))
-
+                            val triggerLink = ReducedRule(actionName, Status.INACTIVE)
+                            val update = WhiskTrigger.put(entityStore, newTrigger.addRule(ruleName, triggerLink))
                             Future.sequence(Seq(deleteOldLink.getOrElse(Future.successful(true)), update)).map(_ => r)
                     }
                 case _ => Future.failed(RejectRequest(Conflict, s"rule may not be updated while status is ${status}"))
@@ -352,11 +326,11 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
      * @param tid DocInfo defining the trigger to get
      * @return a WhiskTrigger iff found, else None
      */
-    private def getTrigger(tid: DocId)(implicit transid: TransactionId): Future[Option[WhiskTrigger]] = {
-        WhiskTrigger.get(entityStore, tid) map {
+    private def getTrigger(t: FullyQualifiedEntityName)(implicit transid: TransactionId): Future[Option[WhiskTrigger]] = {
+        WhiskTrigger.get(entityStore, t.toDocId) map {
             trigger => Some(trigger)
         } recover {
-            case _: NoDocumentException => None
+            case _: NoDocumentException | DeserializationException(_, _, _) => None
         }
     }
 
@@ -368,7 +342,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
      * @param ruleName Namespace the name of the rule being worked on
      * @return Status of the rule
      */
-    private def getStatus(triggerOpt: Option[WhiskTrigger], ruleName: EntityPath)(implicit transid: TransactionId): Status = {
+    private def getStatus(triggerOpt: Option[WhiskTrigger], ruleName: FullyQualifiedEntityName)(implicit transid: TransactionId): Status = {
         val statusFromTrigger = for {
             trigger <- triggerOpt
             rules <- trigger.rules
@@ -396,13 +370,26 @@ trait WhiskRulesApi extends WhiskCollectionAPI {
      * @param action the action id
      * @return future that completes with references trigger and action if they exist
      */
-    private def checkTriggerAndActionExist(trigger: DocId, action: DocId)(implicit transid: TransactionId): Future[(WhiskTrigger, WhiskAction)] = {
+    private def checkTriggerAndActionExist(trigger: FullyQualifiedEntityName, action: FullyQualifiedEntityName)(
+        implicit transid: TransactionId): Future[(WhiskTrigger, WhiskAction)] = {
+
         for {
-            triggerExists <- WhiskTrigger.get(entityStore, trigger) recoverWith {
-                case _: NoDocumentException => Future.failed(new NoDocumentException(s"trigger $trigger does not exist"))
+            triggerExists <- WhiskTrigger.get(entityStore, trigger.toDocId) recoverWith {
+                case _: NoDocumentException => Future.failed {
+                    new NoDocumentException(s"trigger ${trigger.qualifiedNameWithLeadingSlash} does not exist")
+                }
+                case _: DeserializationException => Future.failed {
+                    new DeserializationException(s"trigger ${trigger.qualifiedNameWithLeadingSlash} is corrupted")
+                }
             }
-            actionExists <- WhiskAction.get(entityStore, action) recoverWith {
-                case _: NoDocumentException => Future.failed(new NoDocumentException(s"action $action does not exist"))
+
+            actionExists <- WhiskAction.get(entityStore, action.toDocId) recoverWith {
+                case _: NoDocumentException => Future.failed {
+                    new NoDocumentException(s"action ${action.qualifiedNameWithLeadingSlash} does not exist")
+                }
+                case _: DeserializationException => Future.failed {
+                    new DeserializationException(s"action ${action.qualifiedNameWithLeadingSlash} is corrupted")
+                }
             }
         } yield (triggerExists, actionExists)
     }

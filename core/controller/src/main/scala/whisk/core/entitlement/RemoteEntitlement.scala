@@ -47,7 +47,7 @@ protected[core] class RemoteEntitlementService(
     private val iam: Identities,
     private val timeout: FiniteDuration = 5 seconds)(
         private implicit val actorSystem: ActorSystem)
-    extends EntitlementService(config, loadBalancer, iam) {
+    extends EntitlementProvider(config, loadBalancer, iam) {
 
     private implicit val executionContext = actorSystem.dispatcher
 

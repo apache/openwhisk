@@ -215,6 +215,22 @@ class WskEntitlementTests
             }
     }
 
+    it should "not create a package binding for private package" in withAssetCleaner(guestWskProps) {
+        (wp, assetHelper) =>
+            assetHelper.withCleaner(wsk.pkg, samplePackage) {
+                (pkg, _) => pkg.create(samplePackage, shared = Some(false))(wp)
+            }
+
+            val name = "bindPackage"
+            val provider = s"/$guestNamespace/$samplePackage"
+            withAssetCleaner(defaultWskProps) {
+                (wp, assetHelper) =>
+                    assetHelper.withCleaner(wsk.pkg, name, confirmDelete = false) {
+                        (pkg, _) => pkg.bind(provider, name, expectedExitCode = FORBIDDEN)(wp)
+                    }
+            }
+    }
+
     behavior of "Wsk Package Action"
 
     it should "get and invoke an action from package" in withAssetCleaner(guestWskProps) {

@@ -21,8 +21,6 @@ import scala.concurrent.Future
 import scala.language.postfixOps
 import scala.util.Try
 
-import spray.json.DefaultJsonProtocol
-import spray.json.DefaultJsonProtocol._
 import spray.json._
 import whisk.common.TransactionId
 import whisk.core.database.DocumentFactory
@@ -33,11 +31,19 @@ import whisk.core.entity.types.EntityStore
  * that are auto-assigned or derived from URI: namespace and name.
  */
 case class WhiskPackagePut(
-    binding: Option[Binding] = None,
+    binding: Option[FullyQualifiedEntityName] = None,
     parameters: Option[Parameters] = None,
     version: Option[SemVer] = None,
     publish: Option[Boolean] = None,
-    annotations: Option[Parameters] = None)
+    annotations: Option[Parameters] = None) {
+
+    /**
+     * Resolves the binding if it contains the default namespace.
+     */
+    protected[core] def resolve(namespace: EntityName): WhiskPackagePut = {
+        WhiskPackagePut(binding.map(_.resolve(namespace)), parameters, version, publish, annotations)
+    }
+}
 
 /**
  * A WhiskPackage provides an abstraction of the meta-data for a whisk package
@@ -59,7 +65,7 @@ case class WhiskPackagePut(
 case class WhiskPackage(
     namespace: EntityPath,
     override val name: EntityName,
-    binding: Option[Binding] = None,
+    binding: Option[FullyQualifiedEntityName] = None,
     parameters: Parameters = Parameters(),
     version: SemVer = SemVer(),
     publish: Boolean = false,
@@ -82,7 +88,7 @@ case class WhiskPackage(
     /**
      * Gets binding for package iff this is not already a package reference.
      */
-    def bind = binding map { _ => None } getOrElse Some { Binding(namespace, name) }
+    def bind = binding map { _ => None } getOrElse Some { FullyQualifiedEntityName(namespace, name) }
 
     /**
      * Adds actions to package. The actions list is filtered so that only actions that
@@ -90,7 +96,7 @@ case class WhiskPackage(
      */
     def withActions(actions: List[WhiskAction] = List()) = {
         withPackageActions(actions filter { a =>
-            val pkgns = binding map { b => b.namespace.addpath(b.name) } getOrElse { namespace.addpath(name) }
+            val pkgns = binding map { b => b.path.addpath(b.name) } getOrElse { namespace.addpath(name) }
             a.namespace == pkgns
         } map { a =>
             WhiskPackageAction(a.name, a.version, a.annotations)
@@ -115,7 +121,7 @@ case class WhiskPackage(
 
     override def summaryAsJson = {
         val JsObject(fields) = super.summaryAsJson
-        JsObject(fields + (WhiskPackage.bindingFieldName -> binding.isDefined.toJson))
+        JsObject(fields + (WhiskPackage.bindingFieldName -> JsBoolean(binding.isDefined)))
     }
 }
 
@@ -150,28 +156,48 @@ object WhiskPackage
         implicit ec: ExecutionContext, transid: TransactionId): Future[WhiskPackage] = {
         WhiskPackage.get(db, pkg) flatMap { wp =>
             // if there is a binding resolve it
-            val resolved = wp.binding map { binding => resolveBinding(db, binding.docid) }
+            val resolved = wp.binding map { binding => resolveBinding(db, binding.toDocId) }
             resolved getOrElse Future.successful(wp)
         }
     }
 
-    override implicit val serdes = {
-        // This is to conform to the old style where {} represents None.
-        val tolerantOptionBindingFormat: JsonFormat[Option[Binding]] = {
-            val bs = Binding.serdes // helps the compiler
-            val base = implicitly[JsonFormat[Option[Binding]]]
-            new JsonFormat[Option[Binding]] {
-                override def write(ob: Option[Binding]) = ob match {
-                    case None => JsObject()
-                    case _    => base.write(ob)
-                }
-                override def read(js: JsValue) = {
-                    if (js == JsObject()) None else base.read(js)
-                }
-            }
+    /**
+     * Custom serdes for a binding - this property must be present in the datastore records for
+     * packages so that views can map over packages vs bindings.
+     */
+    val bindingSerializer = new JsonWriter[Option[FullyQualifiedEntityName]] {
+        override def write(b: Option[FullyQualifiedEntityName]) = b match {
+            case None    => JsObject()
+            case Some(n) => FullyQualifiedEntityName.serdes.write(n)
         }
+    }
 
-        implicit val bindingOverride = tolerantOptionBindingFormat
+    val bindingDeserializer = new JsonReader[Option[FullyQualifiedEntityName]] {
+        override def read(js: JsValue) = js match {
+            case JsObject(fields) =>
+                if (fields.isEmpty) None else {
+                    // in previous schema, Binding(namespace, name)
+                    // in new schema, FullyQualifiedEntityName(path, name, [version])
+                    // cannot have both defined
+                    val hasPath = fields.contains("path")
+                    val hasNamespace = fields.contains("namespace")
+                    if (hasPath && !hasNamespace) {
+                        Some(FullyQualifiedEntityName.serdes.read(js))
+                    } else if (hasNamespace && !hasPath) {
+                        val path = fields.get("namespace")
+                        Some(FullyQualifiedEntityName.serdes.read(JsObject(fields - "namespace" + ("path" -> path.toJson))))
+                    } else deserializationError("binding is malformed")
+                }
+            case JsNull => None
+            case _      => Some(FullyQualifiedEntityName.serdes.read(js))
+        }
+    }
+
+    override implicit val serdes = {
+        implicit val br = new JsonFormat[Option[FullyQualifiedEntityName]] {
+            override def write(b: Option[FullyQualifiedEntityName]) = bindingSerializer.write(b)
+            override def read(js: JsValue) = bindingDeserializer.read(js)
+        }
         jsonFormat7(WhiskPackage.apply)
     }
 
@@ -179,32 +205,16 @@ object WhiskPackage
     override def cacheKeyForUpdate(w: WhiskPackage) = w.docid.asDocInfo
 }
 
-/**
- * A package binding holds a reference to the providing package
- * namespace and package name.
- */
-case class Binding(namespace: EntityPath, name: EntityName) {
-    def docid = DocId(WhiskEntity.qualifiedName(namespace, name))
-    override def toString = WhiskEntity.qualifiedName(namespace, name)
-
-    /**
-     * Returns a Binding namespace if it is the default namespace
-     * to the given one, otherwise this is an identity.
-     */
-    def resolve(ns: EntityPath): Binding = {
-        namespace match {
-            case EntityPath.DEFAULT => Binding(ns, name)
-            case _                  => this
-        }
-    }
-}
-
-object Binding extends ArgNormalizer[Binding] with DefaultJsonProtocol {
-    override protected[core] implicit val serdes = jsonFormat2(Binding.apply)
-}
-
 object WhiskPackagePut extends DefaultJsonProtocol {
-    implicit val serdes = jsonFormat5(WhiskPackagePut.apply)
+    implicit val serdes = {
+        implicit val base = FullyQualifiedEntityName.serdes
+        implicit val bindingSerdes = new OptionFormat[FullyQualifiedEntityName] {
+            override def write(n: Option[FullyQualifiedEntityName]) = WhiskPackage.bindingSerializer.write(n)
+            override def read(js: JsValue) = WhiskPackage.bindingDeserializer.read(js)
+        }
+
+        jsonFormat5(WhiskPackagePut.apply)
+    }
 }
 
 object WhiskPackageAction extends DefaultJsonProtocol {

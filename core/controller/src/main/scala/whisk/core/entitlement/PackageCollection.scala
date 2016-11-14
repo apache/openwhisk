@@ -20,15 +20,15 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
 import Privilege.Privilege
+import spray.http.StatusCodes.Conflict
 import spray.http.StatusCodes.NotFound
 import whisk.common.TransactionId
 import whisk.core.controller.RejectRequest
+import whisk.core.database.DocumentTypeMismatchException
 import whisk.core.database.NoDocumentException
-import whisk.core.entity.DocId
-import whisk.core.entity.EntityName
-import whisk.core.entity.WhiskEntity
-import whisk.core.entity.WhiskPackage
+import whisk.core.entity._
 import whisk.core.entity.types.EntityStore
+import whisk.http.Messages
 
 class PackageCollection(entityStore: EntityStore) extends Collection(Collection.PACKAGES) {
 
@@ -49,8 +49,8 @@ class PackageCollection(entityStore: EntityStore) extends Collection(Collection.
      * A published package makes all its assets public regardless of their shared bit.
      * All assets that are not in an explicit package are private because the default package is private.
      */
-    protected[core] override def implicitRights(namespaces: Set[String], right: Privilege, resource: Resource)(
-        implicit ec: ExecutionContext, transid: TransactionId) = {
+    protected[core] override def implicitRights(user: Identity, namespaces: Set[String], right: Privilege, resource: Resource)(
+        implicit ep: EntitlementProvider, ec: ExecutionContext, transid: TransactionId) = {
         resource.entity map {
             pkgname =>
                 val isOwner = namespaces.contains(resource.namespace.root())
@@ -58,7 +58,7 @@ class PackageCollection(entityStore: EntityStore) extends Collection(Collection.
                     case Privilege.READ =>
                         // must determine if this is a public or owned package
                         // or, for a binding, that it references a public or owned package
-                        val docid = DocId(WhiskEntity.qualifiedName(resource.namespace.root, EntityName(pkgname)))
+                        val docid = FullyQualifiedEntityName(resource.namespace.root.toPath, EntityName(pkgname)).toDocId
                         checkPackageReadPermission(namespaces, isOwner, docid)
                     case _ => Future.successful(isOwner && allowedEntityRights.contains(right))
                 }
@@ -90,8 +90,8 @@ class PackageCollection(entityStore: EntityStore) extends Collection(Collection.
             case wp =>
                 if (isOwner) {
                     val binding = wp.binding.get
-                    val pkgOwner = namespaces.contains(binding.namespace.root())
-                    val pkgDocid = binding.docid
+                    val pkgOwner = namespaces.contains(binding.path.root())
+                    val pkgDocid = binding.toDocId
                     info(this, s"checking subject has privilege '$right' for bound package '$pkgDocid'")
                     checkPackageReadPermission(namespaces, pkgOwner, pkgDocid)
                 } else {
@@ -100,7 +100,7 @@ class PackageCollection(entityStore: EntityStore) extends Collection(Collection.
                 }
         } recoverWith {
             case t: NoDocumentException =>
-                info(this, s"the package does not exist")
+                info(this, s"the package does not exist (owner? $isOwner)")
                 // if owner, reject with not found, otherwise fail the future to reject with
                 // unauthorized (this prevents information leaks about packages in other namespaces)
                 if (isOwner) {
@@ -108,9 +108,21 @@ class PackageCollection(entityStore: EntityStore) extends Collection(Collection.
                 } else {
                     Future.successful(false)
                 }
+            case t: DocumentTypeMismatchException =>
+                info(this, s"the requested binding is not a package (owner? $isOwner)")
+                // if owner, reject with not found, otherwise fail the future to reject with
+                // unauthorized (this prevents information leaks about packages in other namespaces)
+                if (isOwner) {
+                    Future.failed(RejectRequest(Conflict, Messages.conformanceMessage))
+                } else {
+                    Future.successful(false)
+                }
+            case t: RejectRequest =>
+                error(this, s"entitlement check on package failed: $t")
+                Future.failed(t)
             case t =>
                 error(this, s"entitlement check on package failed: ${t.getMessage}")
-                Future.successful(false)
+                Future.failed(t)
         }
     }
 }
