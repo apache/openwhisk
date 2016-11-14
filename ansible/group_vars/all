@@ -58,6 +58,7 @@ nginx:
     api: 443
     adminportal: 8443
 
+db_apigw: "{{ db_prefix }}gwapis"
 db:
   immortal: subjects
   authkeys:
@@ -67,6 +68,7 @@ db:
 apigateway:
   port:
     api: 9000
+    api_secure: 443
     mgmt: 9001
 
 redis:
