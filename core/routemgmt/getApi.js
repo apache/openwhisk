@@ -25,7 +25,8 @@
  *   username   Required. The database user name used to access the database
  *   password   Required. The database user password
  *   namespace  Required. Namespace of API author
- *   basepath   Required. Base path or API name of the API
+ *   basepath   Optional. Base path or API name of the API.
+ *                        If not provided, all APIs for the namespace are returned
  *   relpath    Optional. Must be defined with 'operation'.  Filters API result to path/operation
  *   operation  Optional. Must be defined with 'relpath'.  Filters API result to path/operation
  *   docid      Optional. If specified, this id is used to retrieve the API from the DB; otherwise

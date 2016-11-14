@@ -346,16 +346,16 @@ function validateArgs(message) {
   if(!message.apidoc) {
     return 'apidoc is required.';
   }
-  if (typeof message.apidoc !== 'object') {
-    return 'apidoc field is ' + (typeof apidoc) + ' and should be an object or a JSON string.';
+  if (typeof message.apidoc == 'object') {
+    tmpdoc = message.apidoc;
   } else if (typeof message.apidoc === 'string') {
     try {
-      var tmpdoc = JSON.parse(message.apidoc);
+      tmpdoc = JSON.parse(message.apidoc);
     } catch (e) {
       return 'apidoc field cannot be parsed. Ensure it is valid JSON.';
     }
   } else {
-    tmpdoc = message.apidoc;
+    return 'apidoc field is of type ' + (typeof message.apidoc) + ' and should be a JSON object or a JSON string.';
   }
 
   if (!tmpdoc.namespace) {
@@ -364,8 +364,8 @@ function validateArgs(message) {
 
  var tmpSwaggerDoc
   if(tmpdoc.swagger) {
-    if (tmpdoc.basepath) {
-      return 'swagger and basepath are mutually exclusive and cannot be specified together.';
+    if (tmpdoc.gatewayBasePath) {
+      return 'swagger and gatewayBasePath are mutually exclusive and cannot be specified together.';
     }
     if (typeof tmpdoc.swagger == 'object') {
       tmpSwaggerDoc = tmpdoc.swagger;
@@ -402,7 +402,7 @@ function validateArgs(message) {
     }
 
     if (!tmpdoc.action) {
-      return 'apidoc is missing the action (action name) field.';
+      return 'apidoc is missing the action field.';
     }
 
     if (!tmpdoc.action.backendMethod) {
@@ -410,7 +410,7 @@ function validateArgs(message) {
     }
 
     if (!tmpdoc.action.backendUrl) {
-      return 'action is missing the backendMethod field.';
+      return 'action is missing the backendUrl field.';
     }
 
     if (!tmpdoc.action.namespace) {
