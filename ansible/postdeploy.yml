@@ -3,6 +3,8 @@
 
 - include: properties.yml
 
+- include: routemgmt.yml
+
 - hosts: ansible
   tasks:
     - include: tasks/installOpenwhiskCatalog.yml
