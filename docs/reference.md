@@ -449,7 +449,12 @@ The OpenWhisk API supports request-response calls from web clients. OpenWhisk re
 ## System limits
 
 ### Actions
-OpenWhisk has a few system limits, including how much memory an action uses and how many action invocations are allowed per hour. The following table lists the default limits for actions.
+OpenWhisk has a few system limits, including how much memory an action can use and how many action invocations are allowed per minute.
+
+**Note:** This default limits are for the open source distribution; production deployments like Bluemix likely have higher limits.
+As an operator or developer you can change some of the limits using [ansible inventory variables](../ansible/README.md#changing-limits).
+
+The following table lists the default limits for actions.
 
 | limit | description | configurable | unit | default |
 | ----- | ----------- | ------------ | -----| ------- |
@@ -510,12 +515,11 @@ OpenWhisk has a few system limits, including how much memory an action uses and 
 
 ### Triggers
 
-Triggers are subject to a firing rate per minute and per hour as documented in the table below.
+Triggers are subject to a firing rate per minute as documented in the table below.
 
 | limit | description | configurable | unit | default |
 | ----- | ----------- | ------------ | -----| ------- |
 | minuteRate | a user cannot fire more than this many triggers per minute | per user | number | 60 |
-| hourRate | a user cannot fire more than this many triggers per hour | per user | number | 720 |
 
 ### Triggers per minute (Fixed: 60)
 * The rate limit N is set to 60 and limits the number of triggers that may be fired in one minute windows.
