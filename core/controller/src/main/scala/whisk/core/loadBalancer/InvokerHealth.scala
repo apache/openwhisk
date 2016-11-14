@@ -66,7 +66,7 @@ class InvokerHealth(
     def getCurStatus = curStatus.get().clone()
 
     private def getHealth(statuses: Array[InvokerStatus]): Map[Int, Boolean] = {
-        statuses.map { status => (status.index, status.status) }.toMap
+        statuses.map { status => (status.index, status.isUp) }.toMap
     }
 
     def getInvokerHealth(): Map[Int, Boolean] = getHealth(curStatus.get())
@@ -130,6 +130,6 @@ class InvokerHealth(
  * curStatus maintains the status of the current instance at a particular index while oldStatus
  * tracks instances (potentially many per index) that are not longer fresh (invoker was restarted).
  */
-case class InvokerStatus(index: Int, startDate: String, lastDate: String, status: Boolean) {
-    override def toString = s"index: $index, healthy: $status, start: $startDate, last: $lastDate"
+case class InvokerStatus(index: Int, startDate: String, lastDate: String, isUp: Boolean) {
+    override def toString = s"index: $index, healthy: $isUp, start: $startDate, last: $lastDate"
 }

@@ -463,6 +463,132 @@ trait WhiskActionsApi
     }
 
     /**
+     * Gets document from datastore to confirm a valid action activation then posts request to loadbalancer.
+     * If the loadbalancer accepts the requests with an activation id, then wait for the result of the activation
+     * if this is a blocking invoke, else return the activation id.
+     *
+     * @param subject the subject invoking the action
+     * @param docid the action document id
+     * @param env the merged parameters from the package/reference if any
+     * @param payload the dynamic arguments for the activation
+     * @param blocking true iff this is a blocking invoke
+     * @param transid a transaction id for logging
+     * @return a promise that completes with (ActivationId, Some(WhiskActivation)) if blocking else (ActivationId, None)
+     */
+    private def postInvokeRequest(
+        user: Identity,
+        action: WhiskAction,
+        env: Option[Parameters],
+        payload: Option[JsObject],
+        blocking: Boolean)(
+            implicit transid: TransactionId): Future[(ActivationId, Option[WhiskActivation])] = {
+        // merge package parameters with action (action parameters supersede), then merge in payload
+        val args = { env map { _ ++ action.parameters } getOrElse action.parameters } merge payload
+        val message = Message(
+            transid,
+            FullyQualifiedEntityName(action.namespace, action.name, Some(action.version)),
+            action.rev,
+            user.subject,
+            user.authkey,
+            activationId.make(),
+            activationNamespace = user.namespace.toPath,
+            args)
+
+        val start = transid.started(this, LoggingMarkers.CONTROLLER_LOADBALANCER, s"[POST] action activation id: ${message.activationId}")
+        val (postedFuture, activationResponse) = loadBalancer.publish(action, message, activeAckTimeout)
+        postedFuture flatMap { _ =>
+            transid.finished(this, start)
+            if (blocking) {
+                val duration = action.limits.timeout()
+                val timeout = (maxWaitForBlockingActivation min duration) + blockingInvokeGrace
+                waitForActivationResponse(user, message, timeout, activationResponse)
+            } else {
+                // Duration of the non-blocking activation in Controller.
+                // We use the start time of the tid instead of a startMarker to avoid passing the start marker around.
+                transid.finished(this, StartMarker(transid.meta.start, LoggingMarkers.CONTROLLER_ACTIVATION))
+                Future.successful { (message.activationId, None) }
+            }
+        }
+    }
+
+    /**
+     * This is a fast path used for blocking calls in which we do not need the full WhiskActivation record from the DB.
+     * Polls for the activation response from an underlying data structure populated from Kafka active acknowledgements.
+     * If this mechanism fails to produce an answer quickly, the future will switch to polling the database for the response
+     * record.
+     */
+    private def waitForActivationResponse(user: Identity, message: Message, totalWaitTime: FiniteDuration, activationResponse: Future[WhiskActivation])(implicit transid: TransactionId) = {
+        // this is the promise which active ack or db polling will try to complete in one of four ways:
+        // 1. active ack response
+        // 2. failing active ack (due to active ack timeout), fall over to db polling
+        // 3. timeout on db polling => converts activation to non-blocking (returns activation id only)
+        // 4. internal error
+        val promise = Promise[WhiskActivation]
+        val docid = DocId(WhiskEntity.qualifiedName(user.namespace.toPath, message.activationId))
+        val activationId = message.activationId
+
+        info(this, s"[POST] action activation will block on result up to $totalWaitTime")
+
+        // the active ack will timeout after specified duration, causing the db polling to kick in
+        activationResponse map {
+            activation => promise.trySuccess(activation)
+        } onFailure {
+            case t: TimeoutException =>
+                info(this, s"[POST] switching to poll db, active ack expired")
+                pollDbForResult(docid, activationId, promise)
+            case t: Throwable =>
+                error(this, s"[POST] switching to poll db, active ack exception: ${t.getMessage}")
+                pollDbForResult(docid, activationId, promise)
+        }
+
+        val response = promise.future map {
+            result => (activationId, Some(result))
+        } withTimeout (totalWaitTime, new BlockingInvokeTimeout(message.activationId))
+
+        response onComplete {
+            case Success(_) =>
+                // Duration of the blocking activation in Controller.
+                // We use the start time of the tid instead of a startMarker to avoid passing the start marker around.
+                transid.finished(this, StartMarker(transid.meta.start, LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING))
+            case Failure(t) =>
+                // short circuits db polling
+                promise.tryFailure(t)
+        }
+
+        response // will either complete with activation or fail with timeout
+    }
+
+    /**
+     * Polls for activation record. It is assumed that an activation record is created atomically and never updated.
+     * Fetch the activation record by its id. If it exists, complete the promise. Otherwise recursively poll until
+     * either there is an error in the get, or the promise has completed because it timed out. The promise MUST
+     * complete in the caller to terminate the polling.
+     */
+    private def pollDbForResult(
+        docid: DocId,
+        activationId: ActivationId,
+        promise: Promise[WhiskActivation])(
+            implicit transid: TransactionId): Unit = {
+        // check if promise already completed due to timeout expiration (abort polling if so)
+        if (!promise.isCompleted) {
+            WhiskActivation.get(activationStore, docid) map {
+                activation => promise.trySuccess(activation.withoutLogs) // Logs always not provided on blocking call
+            } onFailure {
+                case e: NoDocumentException =>
+                    Thread.sleep(500)
+                    debug(this, s"[POST] action activation not yet timed out, will poll for result")
+                    pollDbForResult(docid, activationId, promise)
+                case t: Throwable =>
+                    error(this, s"[POST] action activation failed while waiting on result: ${t.getMessage}")
+                    promise.tryFailure(t)
+            }
+        } else {
+            error(this, s"[POST] action activation timed out, terminated polling for result")
+        }
+    }
+
+    /**
+>>>>>>> Separate invokers into those that only run blackbox containers and those that run managed ones.
      * Lists actions in package or binding. The router authorized the subject for the package
      * (if binding, then authorized subject for both the binding and the references package)
      * and iff authorized, this method is reached to lists actions.
