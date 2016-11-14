@@ -253,3 +253,10 @@ fatal: [ansible]: FAILED! => {"failed": true, "msg": "need more than 1 value to 
 
 the path to your OpenWhisk `ansible` directory contains spaces. To fix this, please copy the source tree to a path
 without spaces as there is no current fix available to this problem.
+
+#### Changing limits
+The following limits can be changed for your enviroment by modifying the values in group_vars (i.e. [./environments/mac/group_vars/all](./environments/mac/group_vars/all))
+- Per namespace concurrent invocations
+- Per namespace invocations per minute
+- Per namespace triggers per minute
+- Total system concurrent invocations
