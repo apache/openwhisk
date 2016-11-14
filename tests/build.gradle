@@ -18,6 +18,7 @@ sourceSets {
 }
 
 test {
+    exclude '**/apigw/**'
     systemProperty 'testthreads', System.getProperty('testthreads', '1')
     testLogging {
         events "passed", "skipped", "failed"

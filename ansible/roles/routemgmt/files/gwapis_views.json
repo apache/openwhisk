@@ -1,0 +1,13 @@
+{
+  "_id": "_design/gwapis",
+  "views": {
+    "routes-by-api-name": {
+      "map": "function (doc) {\n  var PATHSEP = \"/\";\n\n  if (doc.namespace && doc.apidoc && doc.apidoc.info && doc.apidoc.info.title) {\n    if (! (doc._id.indexOf(\"STAGED_\") == 0) ) {\n      emit([doc.namespace, doc.apidoc.info.title], doc);\n    }\n  }\n}"
+    },
+    "routes-by-namespace": {
+      "map": "function (doc) {\n  var PATHSEP = \"/\";\n\n  if (doc.namespace && doc.apidoc && doc.apidoc.info && doc.apidoc.info.title) {\n    if (! (doc._id.indexOf(\"STAGED_\") == 0) ) {\n        emit(doc.namespace, doc);\n    }\n  }\n}"
+    }
+  },
+  "language": "javascript",
+  "indexes": {}
+}

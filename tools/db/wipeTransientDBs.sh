@@ -55,6 +55,20 @@ do
     fi
 done
 
+## drop the API Gateway routes database (recreated via routemgmt.yml)
+DB_APIGW=$(getProperty "$PROPERTIES_FILE" "db.whisk.apigw")
+echo "dropping database: '$DB_APIGW'"
+
+# drop the database
+CMD="$CURL_ADMIN -X DELETE $URL_BASE/$DB_APIGW"
+RES=$($CMD)
+if [[ "$RES" == '{"ok":true}' ]]; then
+    echo DELETED
+else
+    # table may not exist
+    echo WARNING: $RES
+fi
+
 # recreate views required by whisk.core.entity.WhiskStore
 echo "loading views"
 source "$SCRIPTDIR/loadTransientDBViews.sh"
