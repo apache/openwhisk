@@ -9,7 +9,7 @@ If you want to deploy OpenWhisk locally using Ansible, you first need to install
 #### Ubuntu users
 ```
 sudo apt-get install python-pip
-sudo pip install ansible==2.1.2.0
+sudo pip install ansible==2.2.1.0
 ```
 
 #### Vagrant users
@@ -22,7 +22,7 @@ It is assumed that a VM has been provisioned using [Docker Machine](../tools/mac
 
 ```
 brew install python
-pip install ansible==2.1.2.0
+pip install ansible==2.2.1.0
 
 cd ansible
 ansible-playbook -i environments/mac setup.yml [-e docker_machine_name=whisk]

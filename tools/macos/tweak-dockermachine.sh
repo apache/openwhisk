@@ -24,7 +24,7 @@ fi
 su - docker -c \"tce-load -wi python\"
 if ! [ -x /usr/local/bin/pip ]; then
     curl -k https://bootstrap.pypa.io/get-pip.py | sudo python
-    sudo pip install \"docker-py==1.9.0\"
+    sudo pip install \"docker-py==1.10.6\"
     sudo pip install \"httplib2==0.9.2\"
 fi
 ' | sudo tee /var/lib/boot2docker/bootsync.sh > /dev/null"

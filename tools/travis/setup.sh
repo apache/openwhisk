@@ -17,4 +17,4 @@ pip install --user jsonschema
 pip install --user couchdb
 
 # Ansible
-pip install --user ansible==2.1.2.0
+pip install --user ansible==2.2.1.0
