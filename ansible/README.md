@@ -256,7 +256,22 @@ without spaces as there is no current fix available to this problem.
 
 #### Changing limits
 The following limits can be changed for your enviroment by modifying the values in group_vars (i.e. [./environments/mac/group_vars/all](./environments/mac/group_vars/all))
-- Per namespace concurrent invocations
-- Per namespace invocations per minute
-- Per namespace triggers per minute
-- Total system concurrent invocations
+
+Here is an example of the configuration override for mac: 
+```
+limits:
+  actions:
+    invokes:
+      perMinute: 60
+      concurrent: 30
+      concurrentInSystem: 5000
+  triggers:
+    fires:
+      perMinute: 60
+```
+- The `perMinute` under `limits->actions->invokes` represent the namespace invocations per minute
+- The `concurrent` under `limits->actions->invokes` represent the concurrent invocations per namespace
+- The `concurrentInSystem` under `limits->actions->invokes` represent the concurrent invocations across all namespaces
+- The `perMinute` under `limits->triggers-fires` represent the namespace trigger fires per minute
+
+
