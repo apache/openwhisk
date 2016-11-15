@@ -225,7 +225,8 @@ The `/whisk.system/alarms/alarm` feed configures the Alarm service to fire a tri
 
   - `* * * * * *`: every second.
   - `0 * * * * *`: top of every minute.
-  - `* 0 * * * *`: top of every hour.
+  - `0 0 * * * *`: top of every hour.
+  - `0 0 */2 * * *`: every 2 hours (i.e. 02:00:00, 04:00:00, ...)
   - `0 0 9 8 * *`: at 9:00:00AM (UTC) on the eighth day of every month
 
 - `trigger_payload`: The value of this parameter becomes the content of the trigger every time the trigger is fired.
