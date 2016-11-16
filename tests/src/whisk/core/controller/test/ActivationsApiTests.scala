@@ -16,32 +16,22 @@
 
 package whisk.core.controller.test
 
+import java.time.Clock
+import java.time.Instant
+
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-import spray.http.StatusCodes.BadRequest
-import spray.http.StatusCodes.NotFound
-import spray.http.StatusCodes.MethodNotAllowed
-import spray.http.StatusCodes.OK
-import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
-import spray.json.DefaultJsonProtocol.RootJsObjectFormat
-import spray.json.DefaultJsonProtocol.listFormat
-import spray.json.JsObject
+
+import spray.http.StatusCodes._
+import spray.httpx.SprayJsonSupport._
+import spray.json._
+import spray.json.DefaultJsonProtocol._
 import whisk.core.controller.WhiskActivationsApi
-import whisk.core.entity.ActivationId
-import whisk.core.entity.EntityName
-import whisk.core.entity.EntityPath
-import whisk.core.entity.AuthKey
-import whisk.core.entity.WhiskAuth
-import whisk.core.entity.Subject
-import whisk.core.entity.WhiskActivation
-import spray.json.JsString
-import whisk.core.entity.ActivationResponse
-import java.time.Instant
-import java.time.Clock
-import spray.json.JsNumber
+import whisk.core.entity._
+import whisk.http.ErrorResponse
 
 /**
- * UNDER CONSTRUCTION: tests for new scala controller
+ * Tests Activations API.
  *
  * Unit tests of the controller service as a standalone component.
  * These tests exercise a fresh instance of the service object in memory -- these
@@ -87,6 +77,24 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
                 activations forall { a => response contains a.summaryAsJson } should be(true)
                 rawResponse forall { a => a.getFields("for") match { case Seq(JsString(n)) => n == actionName() case _ => false } }
             }
+        }
+
+        // it should "list activations with explicit namespace owned by subject" in {
+        whisk.utils.retry {
+            Get(s"/$namespace/${collection.path}") ~> sealRoute(routes(creds)) ~> check {
+                status should be(OK)
+                val rawResponse = responseAs[List[JsObject]]
+                val response = responseAs[List[JsObject]]
+                activations.length should be(response.length)
+                activations forall { a => response contains a.summaryAsJson } should be(true)
+                rawResponse forall { a => a.getFields("for") match { case Seq(JsString(n)) => n == actionName() case _ => false } }
+            }
+        }
+
+        // it should "reject list activations with explicit namespace not owned by subject" in {
+        val auser = WhiskAuth(Subject(), AuthKey()).toIdentity
+        Get(s"/$namespace/${collection.path}") ~> sealRoute(routes(auser)) ~> check {
+            status should be(Forbidden)
         }
     }
 
@@ -232,6 +240,19 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
             val response = responseAs[JsObject]
             response should be(activation.toExtendedJson)
         }
+
+        // it should "get activation by name in explicit namespace owned by subject" in
+        Get(s"/$namespace/${collection.path}/${activation.activationId()}") ~> sealRoute(routes(creds)) ~> check {
+            status should be(OK)
+            val response = responseAs[JsObject]
+            response should be(activation.toExtendedJson)
+        }
+
+        // it should "reject get activation by name in explicit namespace not owned by subject" in
+        val auser = WhiskAuth(Subject(), AuthKey()).toIdentity
+        Get(s"/$namespace/${collection.path}/${activation.activationId()}") ~> sealRoute(routes(auser)) ~> check {
+            status should be(Forbidden)
+        }
     }
 
     //// GET /activations/id/result
@@ -311,6 +332,21 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         implicit val tid = transid()
         Delete(s"$collectionPath/${ActivationId()}") ~> sealRoute(routes(creds)) ~> check {
             status should be(MethodNotAllowed)
+        }
+    }
+
+    it should "report proper error when record is corrupted on get" in {
+        implicit val tid = transid()
+        val entity = BadEntity(namespace, EntityName(ActivationId().toString))
+        put(entityStore, entity)
+
+        Get(s"$collectionPath/${entity.name}") ~> sealRoute(routes(creds)) ~> check {
+            status should be(InternalServerError)
+            val error = responseAs[ErrorResponse].error
+            error should include("missing required member")
+            Seq(entity.name(), "annotations", "parameters", "exec", "trigger", "action", "rules", "binding", "response").map {
+                error should not include (_)
+            }
         }
     }
 }

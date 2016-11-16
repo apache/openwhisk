@@ -23,34 +23,16 @@ import scala.language.postfixOps
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
-import spray.http.StatusCodes.BadRequest
-import spray.http.StatusCodes.Conflict
-import spray.http.StatusCodes.NotFound
-import spray.http.StatusCodes.OK
-import spray.http.StatusCodes.RequestEntityTooLarge
-import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
-import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
-import spray.json.DefaultJsonProtocol.listFormat
-import spray.json.DefaultJsonProtocol.RootJsObjectFormat
-import spray.json.DefaultJsonProtocol.StringJsonFormat
-import spray.json.JsObject
-import spray.json.JsString
-import spray.json.pimpAny
-import spray.json.pimpString
+import spray.http.StatusCodes._
+import spray.httpx.SprayJsonSupport._
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 import whisk.core.controller.WhiskTriggersApi
-import whisk.core.entity.ActivationId
-import whisk.core.entity.AuthKey
-import whisk.core.entity.DocId
-import whisk.core.entity.EntityPath
-import whisk.core.entity.Parameters
-import whisk.core.entity.Subject
-import whisk.core.entity.WhiskActivation
-import whisk.core.entity.WhiskAuth
-import whisk.core.entity.WhiskEntity
-import whisk.core.entity.WhiskTrigger
-import whisk.core.entity.WhiskTriggerPut
+import whisk.core.entity._
 import whisk.core.entity.test.OldWhiskTrigger
 import whisk.core.entity.WhiskRule
+import whisk.http.ErrorResponse
+import whisk.http.Messages
 
 /**
  * Tests Trigger API.
@@ -78,7 +60,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     val parametersLimit = Parameters.sizeLimit
 
     //// GET /triggers
-    it should "list triggers by default namespace" in {
+    it should "list triggers by default/explicit namespace" in {
         implicit val tid = transid()
         val triggers = (1 to 2).map { i =>
             WhiskTrigger(namespace, aname, Parameters("x", "b"))
@@ -90,6 +72,20 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
             val response = responseAs[List[JsObject]]
             triggers.length should be(response.length)
             triggers forall { a => response contains a.summaryAsJson } should be(true)
+        }
+
+        // it should "list triggers with explicit namespace owned by subject" in {
+        Get(s"/$namespace/${collection.path}") ~> sealRoute(routes(creds)) ~> check {
+            status should be(OK)
+            val response = responseAs[List[JsObject]]
+            triggers.length should be(response.length)
+            triggers forall { a => response contains a.summaryAsJson } should be(true)
+        }
+
+        // it should "reject list triggers with explicit namespace not owned by subject" in {
+        val auser = WhiskAuth(Subject(), AuthKey()).toIdentity
+        Get(s"/$namespace/${collection.path}") ~> sealRoute(routes(auser)) ~> check {
+            status should be(Forbidden)
         }
     }
 
@@ -110,7 +106,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     }
 
     //// GET /triggers/name
-    it should "get trigger by name in default namespace" in {
+    it should "get trigger by name in default/explicit namespace" in {
         implicit val tid = transid()
         val trigger = WhiskTrigger(namespace, aname, Parameters("x", "b"))
         put(entityStore, trigger)
@@ -118,6 +114,19 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
             status should be(OK)
             val response = responseAs[WhiskTrigger]
             response should be(trigger.withoutRules)
+        }
+
+        // it should "get trigger by name in explicit namespace owned by subject" in
+        Get(s"/$namespace/${collection.path}/${trigger.name}") ~> sealRoute(routes(creds)) ~> check {
+            status should be(OK)
+            val response = responseAs[WhiskTrigger]
+            response should be(trigger.withoutRules)
+        }
+
+        // it should "reject get trigger by name in explicit namespace not owned by subject" in
+        val auser = WhiskAuth(Subject(), AuthKey()).toIdentity
+        Get(s"/$namespace/${collection.path}/${trigger.name}") ~> sealRoute(routes(auser)) ~> check {
+            status should be(Forbidden)
         }
     }
 
@@ -313,6 +322,40 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
             status should be(OK)
 
             response should be(trigger.toWhiskTrigger)
+        }
+    }
+
+    it should "report proper error when record is corrupted on delete" in {
+        implicit val tid = transid()
+        val entity = BadEntity(namespace, aname)
+        put(entityStore, entity)
+
+        Delete(s"$collectionPath/${entity.name}") ~> sealRoute(routes(creds)) ~> check {
+            status should be(InternalServerError)
+            responseAs[ErrorResponse].error shouldBe Messages.corruptedEntity
+        }
+    }
+
+    it should "report proper error when record is corrupted on get" in {
+        implicit val tid = transid()
+        val entity = BadEntity(namespace, aname)
+        put(entityStore, entity)
+
+        Get(s"$collectionPath/${entity.name}") ~> sealRoute(routes(creds)) ~> check {
+            status should be(InternalServerError)
+            responseAs[ErrorResponse].error shouldBe Messages.corruptedEntity
+        }
+    }
+
+    it should "report proper error when record is corrupted on put" in {
+        implicit val tid = transid()
+        val entity = BadEntity(namespace, aname)
+        put(entityStore, entity)
+
+        val content = WhiskTriggerPut()
+        Put(s"$collectionPath/${entity.name}", content) ~> sealRoute(routes(creds)) ~> check {
+            status should be(InternalServerError)
+            responseAs[ErrorResponse].error shouldBe Messages.corruptedEntity
         }
     }
 }

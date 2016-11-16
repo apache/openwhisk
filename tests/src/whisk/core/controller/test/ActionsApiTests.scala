@@ -57,6 +57,8 @@ import akka.event.Logging.InfoLevel
 import whisk.core.entity.WhiskTrigger
 import whisk.core.entity.FullyQualifiedEntityName
 import whisk.core.entity.BlackBoxExec
+import whisk.http.ErrorResponse
+import whisk.http.Messages
 
 /**
  * Tests Actions API.
@@ -654,4 +656,39 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         }
     }
 
+    it should "report proper error when record is corrupted on delete" in {
+        implicit val tid = transid()
+        val entity = BadEntity(namespace, aname)
+        put(entityStore, entity)
+
+        Delete(s"$collectionPath/${entity.name}") ~> sealRoute(routes(creds)) ~> check {
+            status should be(InternalServerError)
+            responseAs[ErrorResponse].error shouldBe Messages.corruptedEntity
+        }
+    }
+
+    it should "report proper error when record is corrupted on get" in {
+        implicit val tid = transid()
+        val entity = BadEntity(namespace, aname)
+        put(entityStore, entity)
+
+        Get(s"$collectionPath/${entity.name}") ~> sealRoute(routes(creds)) ~> check {
+            status should be(InternalServerError)
+            responseAs[ErrorResponse].error shouldBe Messages.corruptedEntity
+        }
+    }
+
+    it should "report proper error when record is corrupted on put" in {
+        implicit val tid = transid()
+        val entity = BadEntity(namespace, aname)
+        put(entityStore, entity)
+
+        val sequence = Vector(stringToFullyQualifiedName(s"$namespace/${entity.name}"))
+        val content = WhiskActionPut(Some(Exec.sequence(sequence)))
+
+        Put(s"$collectionPath/${aname()}", content) ~> sealRoute(routes(creds)) ~> check {
+            status should be(InternalServerError)
+            responseAs[ErrorResponse].error shouldBe Messages.corruptedEntity
+        }
+    }
 }

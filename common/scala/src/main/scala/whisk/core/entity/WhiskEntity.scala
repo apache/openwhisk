@@ -19,12 +19,11 @@ package whisk.core.entity
 import java.time.Clock
 import java.time.Instant
 
-import scala.language.postfixOps
 import scala.Stream
+import scala.language.postfixOps
 import scala.util.Try
 
 import spray.json.DefaultJsonProtocol
-import spray.json.DeserializationException
 import spray.json.JsBoolean
 import spray.json.JsNumber
 import spray.json.JsObject
@@ -32,6 +31,7 @@ import spray.json.JsString
 import spray.json.JsValue
 import spray.json.RootJsonFormat
 import whisk.core.entity.size.SizeInt
+import whisk.http.Messages
 
 /**
  * An abstract superclass that encapsulates properties common to all whisk entities (actions, rules, triggers).
@@ -60,7 +60,13 @@ abstract class WhiskEntity protected[entity] (en: EntityName) extends WhiskDocum
      * The name of the entity qualified with its namespace and version for
      * creating unique keys in backend services.
      */
-    final def fullyQualifiedName = WhiskEntity.fullyQualifiedName(namespace, en, version)
+    final def fullyQualifiedName(withVersion: Boolean) = {
+        if (!withVersion) {
+            WhiskEntity.qualifiedName(namespace, en)
+        } else {
+            WhiskEntity.fullyQualifiedName(namespace, en, version)
+        }
+    }
 
     /** The primary key for the entity in the datastore */
     override final def docid = DocId(WhiskEntity.qualifiedName(namespace, en))
@@ -83,7 +89,7 @@ abstract class WhiskEntity protected[entity] (en: EntityName) extends WhiskDocum
     /**
      * @return the primary key (name) of the entity as a pithy description
      */
-    override def toString = s"${this.getClass.getSimpleName}/$fullyQualifiedName"
+    override def toString = s"${this.getClass.getSimpleName}/${fullyQualifiedName(true)}"
 
     /**
      * A JSON view of the entity, that should match the result returned in a list operation.
@@ -135,7 +141,7 @@ object WhiskEntity {
  * avoid multiple implicit alternatives when working with one of the subtypes.
  */
 object WhiskEntityJsonFormat extends RootJsonFormat[WhiskEntity] {
-    // THE ORDER MATTERS! E.g. all triggers can deserialize as packages, but not
+    // THE ORDER MATTERS! E.g. some triggers can deserialize as packages, but not
     // the other way around. Try most specific first!
     private def readers: Stream[JsValue => WhiskEntity] = Stream(
         WhiskAction.serdes.read,
@@ -148,9 +154,8 @@ object WhiskEntityJsonFormat extends RootJsonFormat[WhiskEntity] {
     // a more precise type is known, this method shouldn't be used.
     override def read(js: JsValue): WhiskEntity = {
         val successes: Stream[WhiskEntity] = readers.flatMap(r => Try(r(js)).toOption)
-
         successes.headOption.getOrElse {
-            throw new DeserializationException("Cannot deserialize to any known WhiskEntity: " + js.toString)
+            throw new IllegalStateException(Messages.corruptedEntity)
         }
     }
 
