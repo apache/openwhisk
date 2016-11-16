@@ -233,6 +233,14 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions with Refer
                                         case SequenceExec(_, components) =>
                                             val futureSeqTuple = invokeSequence(user, action, payload, blocking, topmost = true, components, cause = None, 0)
                                             futureSeqTuple map { case (activationId, wskActivation, _) => (activationId, wskActivation) }
+                                        case exec: Exec =>
+                                            if (isDeprecated(exec)) {
+                                                Future.failed(RejectRequest(BadRequest, "selected runtime deprecated"))
+                                            } else {
+                                                val duration = action.limits.timeout()
+                                                val timeout = (maxWaitForBlockingActivation min duration) + blockingInvokeGrace
+                                                invokeSingleAction(user, action, env, payload, timeout, blocking)
+                                            }
                                         case _ => {
                                             val duration = action.limits.timeout()
                                             val timeout = (maxWaitForBlockingActivation min duration) + blockingInvokeGrace
@@ -273,7 +281,6 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions with Refer
                                         error(this, s"[POST] action activation failed: ${t.getMessage}")
                                         terminate(InternalServerError, t.getMessage)
                                 }
-
                             case failure => super.handleEntitlementFailure(failure)
                         }
                 })
@@ -407,9 +414,16 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions with Refer
                 checkSequenceActionLimits(FullyQualifiedEntityName(namespace, name), seq.components) map {
                     _ => makeWhiskAction(content.replace(seq), namespace, name)
                 }
+            case exec:Exec =>
+                if (isDeprecated(exec)) {
+                    Future.failed(RejectRequest(BadRequest, "selected runtime deprecated"))
+                } else {
+                    Future successful { makeWhiskAction(content, namespace, name) }
+                }
             case _ => Future successful { makeWhiskAction(content, namespace, name) }
         } getOrElse Future.failed(RejectRequest(BadRequest, "exec undefined"))
     }
+
 
     /** Updates a WhiskAction from PUT content, merging old action where necessary. */
     private def update(user: Identity, content: WhiskActionPut)(action: WhiskAction)(implicit transid: TransactionId) = {
@@ -418,6 +432,12 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions with Refer
                 // check that the sequence conforms to max length and no recursion rules
                 checkSequenceActionLimits(FullyQualifiedEntityName(action.namespace, action.name), seq.components) map {
                     _ => updateWhiskAction(content.replace(seq), action)
+                }
+            case exec: Exec =>
+                if (isDeprecated(exec)) {
+                    Future.failed(RejectRequest(BadRequest, "selected runtime deprecated"))
+                } else {
+                    Future successful { updateWhiskAction(content, action) }
                 }
             case _ => Future successful { updateWhiskAction(content, action) }
         } getOrElse {
