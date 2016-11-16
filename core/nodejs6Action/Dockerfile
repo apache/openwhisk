@@ -58,7 +58,7 @@ superagent@1.8.3 \
 swagger-tools@0.10.1 \
 tmp@0.0.28 \
 twilio@2.9.1 \
-watson-developer-cloud@1.12.4 \
+watson-developer-cloud@2.9.0 \
 when@3.7.7 \
 ws@1.1.0 \
 xml2js@0.4.16 \
