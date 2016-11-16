@@ -43,10 +43,13 @@ import whisk.core.entity.size.SizeOptionString
  *   code  : code to execute if kind is supported,
  *   image : container name when kind is "blackbox",
  *   binary: for some runtimes that allow binary attachments,
- *   main  : name of the entrypoint function, when using a non-default value (for Java, the name of the main class)" }
+ *   main  : name of the entry point function, when using a non-default value (for Java, the name of the main class)" }
  */
 sealed abstract class Exec(val kind: String) extends ByteSizeable {
     override def toString = Exec.serdes.write(this).compactPrint
+
+    // Whether the exec kind is deprecated (once deprecated, code may not be executed or updated).
+    val deprecated: Boolean = false
 }
 
 /**
@@ -92,7 +95,9 @@ protected[core] abstract class CodeExecAsString(kind: String) extends CodeExec[S
 protected[core] case class NodeJSExec(code: String, override val entryPoint: Option[String]) extends CodeExecAsString(Exec.NODEJS)
 protected[core] case class NodeJS6Exec(code: String, override val entryPoint: Option[String]) extends CodeExecAsString(Exec.NODEJS6)
 
-protected[core] case class SwiftExec(code: String, override val entryPoint: Option[String]) extends CodeExecAsString(Exec.SWIFT)
+protected[core] case class SwiftExec(code: String, override val entryPoint: Option[String]) extends CodeExecAsString(Exec.SWIFT) {
+    override val deprecated = true
+}
 
 protected[core] case class Swift3Exec(code: String, override val entryPoint: Option[String]) extends CodeExecAsString(Exec.SWIFT3)
 

@@ -34,6 +34,7 @@ import spray.routing.StandardRoute
 import whisk.common.TransactionId
 import whisk.core.entity.SizeError
 import whisk.core.entity.ByteSize
+import whisk.core.entity.Exec
 
 object Messages {
     /** Standard message for reporting resource conflicts. */
@@ -46,7 +47,10 @@ object Messages {
     val conformanceMessage = "Resource by this name exists but is not in this collection."
     val corruptedEntity = "Resource is corrupted and cannot be read."
 
-    val systemOverloaded = "System is overloaded, try again later."
+    /**
+     * Standard message for reporting deprecated runtimes.
+     */
+    def runtimeDeprecated(e: Exec) = s"The '${e.kind}' runtime is no longer supported. You may read and delete but not update or invoke this action."
 
     /** Standard message for resource not found. */
     val resourceDoesNotExist = "The requested resource does not exist."
@@ -56,6 +60,9 @@ object Messages {
 
     /** Standard message for too many concurrent activation requests within a time window. */
     val tooManyConcurrentRequests = "Too many concurrent requests in flight for namespace."
+
+    /** System overload message. */
+    val systemOverloaded = "System is overloaded, try again later."
 
     /** Standard message when supplied authkey is not authorized for an operation. */
     val notAuthorizedtoOperateOnResource = "The supplied authentication is not authorized to access this resource."

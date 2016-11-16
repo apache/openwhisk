@@ -742,4 +742,54 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             responseAs[ErrorResponse].error shouldBe Messages.corruptedEntity
         }
     }
+
+    // get and delete allowed, create/update with deprecated exec not allowed, post/invoke not allowed
+    it should "report proper error when runtime is deprecated" in {
+        implicit val tid = transid()
+        val action = WhiskAction(namespace, aname, Exec.swift("??"))
+        val okUpdate = WhiskActionPut(Some(Exec.swift3("_")))
+        val badUpdate = WhiskActionPut(Some(Exec.swift("_")))
+
+        Put(s"$collectionPath/${action.name}", WhiskActionPut(Some(action.exec))) ~> sealRoute(routes(creds)) ~> check {
+            status shouldBe BadRequest
+            responseAs[ErrorResponse].error shouldBe Messages.runtimeDeprecated(action.exec)
+        }
+
+        Put(s"$collectionPath/${action.name}?overwrite=true", WhiskActionPut(Some(action.exec))) ~> sealRoute(routes(creds)) ~> check {
+            status shouldBe BadRequest
+            responseAs[ErrorResponse].error shouldBe Messages.runtimeDeprecated(action.exec)
+        }
+
+        put(entityStore, action)
+
+        Put(s"$collectionPath/${action.name}?overwrite=true", JsObject()) ~> sealRoute(routes(creds)) ~> check {
+            status shouldBe BadRequest
+            responseAs[ErrorResponse].error shouldBe Messages.runtimeDeprecated(action.exec)
+        }
+
+        Put(s"$collectionPath/${action.name}?overwrite=true", badUpdate) ~> sealRoute(routes(creds)) ~> check {
+            status shouldBe BadRequest
+            responseAs[ErrorResponse].error shouldBe Messages.runtimeDeprecated(action.exec)
+        }
+
+        Post(s"$collectionPath/${action.name}") ~> sealRoute(routes(creds)) ~> check {
+            status shouldBe BadRequest
+            responseAs[ErrorResponse].error shouldBe Messages.runtimeDeprecated(action.exec)
+        }
+
+        Get(s"$collectionPath/${action.name}") ~> sealRoute(routes(creds)) ~> check {
+            status shouldBe OK
+        }
+
+        Delete(s"$collectionPath/${action.name}") ~> sealRoute(routes(creds)) ~> check {
+            status shouldBe OK
+        }
+
+        put(entityStore, action)
+
+        Put(s"$collectionPath/${action.name}?overwrite=true", okUpdate) ~> sealRoute(routes(creds)) ~> check {
+            deleteAction(action.docid)
+            status shouldBe OK
+        }
+    }
 }
