@@ -20,16 +20,11 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
 import Privilege.Privilege
-import spray.http.StatusCodes.Conflict
-import spray.http.StatusCodes.InternalServerError
-import spray.http.StatusCodes.NotFound
+import spray.http.StatusCodes._
 import whisk.common.TransactionId
 import whisk.core.controller.RejectRequest
 import whisk.core.database.NoDocumentException
-import whisk.core.entity.DocId
-import whisk.core.entity.EntityName
-import whisk.core.entity.WhiskEntity
-import whisk.core.entity.WhiskPackage
+import whisk.core.entity._
 import whisk.core.entity.types.EntityStore
 import whisk.core.database.DocumentTypeMismatchException
 import whisk.http.Messages
@@ -127,7 +122,11 @@ class PackageCollection(entityStore: EntityStore) extends Collection(Collection.
                 Future.failed(t)
             case t =>
                 error(this, s"entitlement check on package failed: ${t.getMessage}")
-                Future.failed(RejectRequest(InternalServerError))
+                if (isOwner) {
+                    Future.failed(RejectRequest(InternalServerError, Messages.corruptedEntity))
+                } else {
+                    Future.successful(false)
+                }
         }
     }
 }

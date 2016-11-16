@@ -16,13 +16,11 @@
 
 package whisk.core.controller.test
 
+import scala.language.postfixOps
+
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-import spray.http.StatusCodes.BadRequest
-import spray.http.StatusCodes.Conflict
-import spray.http.StatusCodes.OK
-import spray.http.StatusCodes.NotFound
-import spray.http.StatusCodes.RequestEntityTooLarge
+import spray.http.StatusCodes._
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
 import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
 import spray.json.DefaultJsonProtocol.listFormat
@@ -52,6 +50,8 @@ import whisk.core.entity.ReducedRule
 import whisk.core.entity.test.OldWhiskRule
 import whisk.core.entity.test.OldWhiskTrigger
 import whisk.core.entity.WhiskPackage
+import whisk.http.ErrorResponse
+import whisk.http.Messages
 
 /**
  * Tests Rules API.
@@ -81,7 +81,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
     val parametersLimit = Parameters.sizeLimit
 
     //// GET /rules
-    it should "list rules by default namespace" in {
+    it should "list rules by default/explicit namespace" in {
         implicit val tid = transid()
         val rules = (1 to 2).map { i =>
             WhiskRule(namespace, aname(), EntityName("bogus trigger"), EntityName("bogus action"))
@@ -93,6 +93,20 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
             val response = responseAs[List[JsObject]]
             rules.length should be(response.length)
             rules forall { r => response contains r.summaryAsJson } should be(true)
+        }
+
+        // it should "list trirulesggers with explicit namespace owned by subject" in {
+        Get(s"/$namespace/${collection.path}") ~> sealRoute(routes(creds)) ~> check {
+            status should be(OK)
+            val response = responseAs[List[JsObject]]
+            rules.length should be(response.length)
+            rules forall { r => response contains r.summaryAsJson } should be(true)
+        }
+
+        // it should "reject list rules with explicit namespace not owned by subject" in {
+        val auser = WhiskAuth(Subject(), AuthKey()).toIdentity
+        Get(s"/$namespace/${collection.path}") ~> sealRoute(routes(auser)) ~> check {
+            status should be(Forbidden)
         }
     }
 
@@ -113,7 +127,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
     }
 
     //// GET /rule/name
-    it should "get rule" in {
+    it should "get rule by name in default/explicit namespace" in {
         implicit val tid = transid()
         val rule = WhiskRule(namespace, aname(), EntityName("bogus trigger"), EntityName("bogus action"))
         put(entityStore, rule)
@@ -121,6 +135,19 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
             status should be(OK)
             val response = responseAs[WhiskRuleResponse]
             response should be(rule.withStatus(Status.INACTIVE))
+        }
+
+        // it should "get trigger by name in explicit namespace owned by subject" in
+        Get(s"/$namespace/${collection.path}/${rule.name}") ~> sealRoute(routes(creds)) ~> check {
+            status should be(OK)
+            val response = responseAs[WhiskRuleResponse]
+            response should be(rule.withStatus(Status.INACTIVE))
+        }
+
+        // it should "reject get trigger by name in explicit namespace not owned by subject" in
+        val auser = WhiskAuth(Subject(), AuthKey()).toIdentity
+        Get(s"/$namespace/${collection.path}/${rule.name}") ~> sealRoute(routes(auser)) ~> check {
+            status should be(Forbidden)
         }
     }
 
@@ -703,4 +730,72 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
             t.rules.get(ruleNameQualified).status should be(Status.ACTIVE)
         }
     }
+
+    it should "report proper error when record is corrupted on delete" in {
+        implicit val tid = transid()
+        val entity = BadEntity(namespace, aname())
+        put(entityStore, entity)
+
+        Delete(s"$collectionPath/${entity.name}") ~> sealRoute(routes(creds)) ~> check {
+            status should be(InternalServerError)
+            responseAs[ErrorResponse].error shouldBe Messages.corruptedEntity
+        }
+    }
+
+    it should "report proper error when record is corrupted on get" in {
+        implicit val tid = transid()
+        val entity = BadEntity(namespace, aname())
+        put(entityStore, entity)
+
+        Get(s"$collectionPath/${entity.name}") ~> sealRoute(routes(creds)) ~> check {
+            status should be(InternalServerError)
+            responseAs[ErrorResponse].error shouldBe Messages.corruptedEntity
+        }
+    }
+
+    it should "report proper error when record is corrupted on put" in {
+        implicit val tid = transid()
+        val entity = BadEntity(namespace, aname())
+        put(entityStore, entity)
+
+        val content = WhiskRulePut()
+        Put(s"$collectionPath/${entity.name}", content) ~> sealRoute(routes(creds)) ~> check {
+            status should be(InternalServerError)
+            responseAs[ErrorResponse].error shouldBe Messages.corruptedEntity
+        }
+    }
+
+    /*
+    it should "report proper error when action record is corrupted on put" in {
+        implicit val tid = transid()
+        val tentity = BadEntity(namespace, aname())
+        val aentity = BadEntity(namespace, aname())
+        val rule = WhiskRule(namespace, aname(), afullname(namespace, aname().name), afullname(namespace, aname().name))
+        val trigger = WhiskTrigger(namespace, rule.trigger.name)
+        val action = WhiskAction(namespace, rule.action.name, Exec.js("??"))
+
+        val contenta = WhiskRulePut(Some(tentity.fullyQualifiedName(false)), Some(aentity.fullyQualifiedName(false)))
+        val contentb = WhiskRulePut(Some(trigger.fullyQualifiedName(false)), Some(aentity.fullyQualifiedName(false)))
+        val contentc = WhiskRulePut(Some(tentity.fullyQualifiedName(false)), Some(action.fullyQualifiedName(false)))
+
+        put(entityStore, tentity)
+        put(entityStore, aentity)
+        put(entityStore, trigger)
+        put(entityStore, action)
+
+        Put(s"$collectionPath/${aname()}", contenta) ~> sealRoute(routes(creds)) ~> check {
+            status should be(BadRequest)
+            responseAs[ErrorResponse].error shouldBe Messages.corruptedEntity
+        }
+
+        Put(s"$collectionPath/${aname()}", contentb) ~> sealRoute(routes(creds)) ~> check {
+            status should be(BadRequest)
+            responseAs[ErrorResponse].error shouldBe Messages.corruptedEntity
+        }
+
+        Put(s"$collectionPath/${aname()}", contentc) ~> sealRoute(routes(creds)) ~> check {
+            status should be(BadRequest)
+            responseAs[ErrorResponse].error shouldBe Messages.corruptedEntity
+        }
+    }*/
 }

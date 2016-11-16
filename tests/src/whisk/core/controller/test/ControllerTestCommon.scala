@@ -27,6 +27,7 @@ import org.scalatest.Matchers
 
 import akka.event.Logging.{ InfoLevel, LogLevel }
 import spray.http.BasicHttpCredentials
+import spray.json.DefaultJsonProtocol
 import spray.json.JsString
 import spray.routing.HttpService
 import spray.testkit.ScalatestRouteTest
@@ -35,11 +36,12 @@ import whisk.core.WhiskConfig
 import whisk.core.connector.ActivationMessage
 import whisk.core.controller.WhiskActionsApi
 import whisk.core.controller.WhiskServices
+import whisk.core.database.DocumentFactory
 import whisk.core.database.test.DbUtils
 import whisk.core.entitlement.{ Collection, EntitlementService, LocalEntitlementService }
 import whisk.core.entity._
-import whisk.core.loadBalancer.LoadBalancer
 import whisk.core.iam.NamespaceProvider
+import whisk.core.loadBalancer.LoadBalancer
 
 protected trait ControllerTestCommon
     extends FlatSpec
@@ -160,6 +162,24 @@ protected trait ControllerTestCommon
         entityStore.shutdown()
         activationStore.shutdown()
         authStore.shutdown()
+    }
+
+    protected case class BadEntity(
+        namespace: EntityPath,
+        override val name: EntityName,
+        version: SemVer = SemVer(),
+        publish: Boolean = false,
+        annotations: Parameters = Parameters())
+        extends WhiskEntity(name) {
+        override def toJson = BadEntity.serdes.write(this).asJsObject
+    }
+
+    protected object BadEntity
+        extends DocumentFactory[BadEntity]
+        with DefaultJsonProtocol {
+        implicit val serdes = jsonFormat5(BadEntity.apply)
+        override val cacheEnabled = true
+        override def cacheKeyForUpdate(w: BadEntity) = w.docid.asDocInfo
     }
 }
 

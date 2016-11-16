@@ -16,31 +16,24 @@
 
 package whisk.core.controller.test
 
+import java.io.PrintStream
+
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
-import java.io.PrintStream
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
+import akka.event.Logging.DebugLevel
 import spray.http.StatusCodes._
 import spray.httpx.SprayJsonSupport._
-import spray.json.DefaultJsonProtocol._
 import spray.json._
+import spray.json.DefaultJsonProtocol._
 import whisk.common.TransactionId
 import whisk.core.controller.WhiskActionsApi
-import whisk.core.entity.AuthKey
-import whisk.core.entity.EntityName
-import whisk.core.entity.EntityPath
-import whisk.core.entity.Exec
-import whisk.core.entity.Subject
-import whisk.core.entity.WhiskAction
-import whisk.core.entity.WhiskActionPut
-import whisk.core.entity.WhiskAuth
-import whisk.core.entity.WhiskPackage
-import whisk.http.Messages._
-
-import akka.event.Logging.DebugLevel
+import whisk.core.entity._
+import whisk.http.ErrorResponse
+import whisk.http.Messages
 
 /**
  * Tests Sequence API - stand-alone tests that require only the controller to be up
@@ -76,7 +69,7 @@ class SequenceApiTests
         // create an action sequence
         Put(s"$collectionPath/${seqName.name}", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
-            response.entity.toString should include(sequenceIsTooLong)
+            responseAs[ErrorResponse].error shouldBe Messages.sequenceIsTooLong
         }
     }
 
@@ -91,7 +84,7 @@ class SequenceApiTests
         // create an action sequence
         Put(s"$collectionPath/${seqName.name}", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
-            response.entity.toString should include(sequenceComponentNotFound)
+            responseAs[ErrorResponse].error shouldBe Messages.sequenceComponentNotFound
         }
     }
 
@@ -104,7 +97,7 @@ class SequenceApiTests
         val content = WhiskActionPut(Some(sSeq.exec))
         Put(s"$collectionPath/$seqName", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
-            response.entity.toString should include(sequenceIsCyclic)
+            responseAs[ErrorResponse].error shouldBe Messages.sequenceIsCyclic
         }
     }
 
@@ -122,7 +115,7 @@ class SequenceApiTests
         val content = WhiskActionPut(Some(sSeq.exec))
         Put(s"$collectionPath/$seqName", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
-            response.entity.toString should include(sequenceIsCyclic)
+            responseAs[ErrorResponse].error shouldBe Messages.sequenceIsCyclic
         }
     }
 
@@ -149,7 +142,7 @@ class SequenceApiTests
         // update the sequence
         Put(s"$collectionPath/${seqName.name}?overwrite=true", updatedContent) ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
-            response.entity.toString should include(sequenceIsCyclic)
+            responseAs[ErrorResponse].error shouldBe Messages.sequenceIsCyclic
         }
     }
 
@@ -235,35 +228,32 @@ class SequenceApiTests
         // update the sequence
         Put(s"$collectionPath/$pkg/${seqName.name}?overwrite=true", updatedContent) ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
-            response.entity.toString should include(sequenceIsCyclic)
+            responseAs[ErrorResponse].error shouldBe Messages.sequenceIsCyclic
         }
     }
 
     it should "reject creation of a sequence with components that don't have at least namespace and action name" in {
         implicit val tid = transid()
-        val content = """{"exec":{"kind":"sequence","code":"","components":["a","b"]}}""".parseJson.asJsObject
+        val content = JsObject("exec" -> JsObject("kind" -> Exec.SEQUENCE.toJson, "components" -> Vector("a", "b").toJson))
 
-        // create an action sequence
         Put(s"$collectionPath/${aname()}", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
-            response.entity.toString should include(malformedFullyQualifiedEntityName)
+            // the content will fail to deserialize on the route directive,
+            // and without a custom rejection, the response will be a string
+            responseAs[String] shouldBe s"The request content was malformed:\nrequirement failed: ${Messages.malformedFullyQualifiedEntityName}"
         }
     }
 
     it should "reject update of a sequence with components that don't have at least namespace and action name" in {
         implicit val tid = transid()
-        val name = s"${aname()}_bogus"
-        val bogusAct = WhiskAction(namespace, EntityName(name), Exec.js("??"))
-        // put the action in the entity store so it's found
-        put(entityStore, bogusAct)
-
-        val updatedContent = """{"exec":{"kind":"sequence","code":"","components":["a","b"]}}""".parseJson.asJsObject
+        val content = JsObject("exec" -> JsObject("kind" -> Exec.SEQUENCE.toJson, "components" -> Vector("a", "b").toJson))
 
         // update an action sequence
-        Put(s"$collectionPath/$name?overwrite=true", updatedContent) ~> sealRoute(routes(creds)) ~> check {
-            deleteAction(bogusAct.docid)
+        Put(s"$collectionPath/${aname()}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
-            response.entity.toString should include(malformedFullyQualifiedEntityName)
+            // the content will fail to deserialize on the route directive,
+            // and without a custom rejection, the response will be a string
+            responseAs[String] shouldBe s"The request content was malformed:\nrequirement failed: ${Messages.malformedFullyQualifiedEntityName}"
         }
     }
 
@@ -345,7 +335,7 @@ class SequenceApiTests
             val zUpdateContent = WhiskActionPut(Some(zUpdate.exec))
             Put(s"$collectionPath/$zAct?overwrite=true", zUpdateContent) ~> sealRoute(routes(creds)) ~> check {
                 status should be(BadRequest)
-                response.entity.toString should include(sequenceIsCyclic)
+                responseAs[ErrorResponse].error shouldBe Messages.sequenceIsCyclic
             }
 
             // update action s to point to a, s, b --- should be rejected
@@ -353,7 +343,7 @@ class SequenceApiTests
             val sUpdateContent = WhiskActionPut(Some(sUpdate.exec))
             Put(s"$collectionPath/$sAct?overwrite=true", sUpdateContent) ~> sealRoute(routes(creds)) ~> check {
                 status should be(BadRequest)
-                response.entity.toString should include(sequenceIsCyclic)
+                responseAs[ErrorResponse].error shouldBe Messages.sequenceIsCyclic
             }
 
             // update action z to point to y

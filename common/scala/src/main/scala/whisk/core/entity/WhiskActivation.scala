@@ -128,7 +128,7 @@ object WhiskActivation
             value match {
                 case JsString(t) => Instant.parse(t)
                 case JsNumber(i) => Instant.ofEpochMilli(i.bigDecimal.longValue)
-                case _           => deserializationError("timetsamp malformed 1")
+                case _           => deserializationError("timetsamp malformed")
             }
         } getOrElse deserializationError("timetsamp malformed 2")
     }

@@ -19,12 +19,7 @@ package whisk.core.controller.test
 import scala.concurrent.duration.DurationInt
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-import spray.http.StatusCodes.Accepted
-import spray.http.StatusCodes.BadRequest
-import spray.http.StatusCodes.Forbidden
-import spray.http.StatusCodes.Conflict
-import spray.http.StatusCodes.NotFound
-import spray.http.StatusCodes.OK
+import spray.http.StatusCodes._
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
 import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
 import spray.json.DefaultJsonProtocol.RootJsObjectFormat
@@ -48,6 +43,8 @@ import whisk.core.entitlement.Resource
 import whisk.core.entitlement.Privilege._
 import scala.concurrent.Await
 import scala.language.postfixOps
+import whisk.http.ErrorResponse
+import whisk.http.Messages
 
 /**
  * Tests Packages API.
@@ -514,6 +511,91 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         put(entityStore, action)
         Post(s"$collectionPath/${reference.name}/${action.name}", content) ~> sealRoute(routes(auser)) ~> check {
             status should be(Forbidden)
+        }
+    }
+
+    it should "report proper error when provider record is corrupted on delete" in {
+        implicit val tid = transid()
+        val provider = BadEntity(namespace, aname)
+        val entity = BadEntity(provider.namespace.addpath(provider.name), aname)
+        put(entityStore, provider)
+        put(entityStore, entity)
+
+        Delete(s"$collectionPath/${provider.name}/${entity.name}") ~> sealRoute(routes(creds)) ~> check {
+            responseAs[ErrorResponse].error shouldBe Messages.corruptedEntity
+        }
+    }
+
+    it should "report proper error when record is corrupted on delete" in {
+        implicit val tid = transid()
+        val provider = WhiskPackage(namespace, aname)
+        val entity = BadEntity(provider.path, aname)
+        put(entityStore, provider, false)
+        put(entityStore, entity, false)
+
+        Delete(s"$collectionPath/${provider.name}/${entity.name}") ~> sealRoute(routes(creds)) ~> check {
+            status should be(InternalServerError)
+            responseAs[ErrorResponse].error shouldBe Messages.corruptedEntity
+        }
+    }
+
+    it should "report proper error when provider record is corrupted on get" in {
+        implicit val tid = transid()
+        val provider = BadEntity(namespace, aname)
+        val entity = BadEntity(provider.namespace.addpath(provider.name), aname)
+        put(entityStore, provider)
+        put(entityStore, entity)
+
+        Get(s"$collectionPath/${provider.name}/${entity.name}") ~> sealRoute(routes(creds)) ~> check {
+            status should be(InternalServerError)
+            responseAs[ErrorResponse].error shouldBe Messages.corruptedEntity
+        }
+
+        val auser = WhiskAuth(Subject(), AuthKey()).toIdentity
+        Get(s"/${provider.namespace}/${collection.path}/${provider.name}/${entity.name}") ~> sealRoute(routes(auser)) ~> check {
+            status should be(Forbidden)
+            responseAs[ErrorResponse].error shouldBe Messages.notAuthorizedtoOperateOnResource
+        }
+    }
+
+    it should "report proper error when record is corrupted on get" in {
+        implicit val tid = transid()
+        val provider = WhiskPackage(namespace, aname)
+        val entity = BadEntity(provider.path, aname)
+        put(entityStore, provider)
+        put(entityStore, entity)
+
+        Get(s"$collectionPath/${provider.name}/${entity.name}") ~> sealRoute(routes(creds)) ~> check {
+            status should be(InternalServerError)
+            responseAs[ErrorResponse].error shouldBe Messages.corruptedEntity
+        }
+    }
+
+    it should "report proper error when provider record is corrupted on put" in {
+        implicit val tid = transid()
+        val provider = BadEntity(namespace, aname)
+        val entity = BadEntity(provider.namespace.addpath(provider.name), aname)
+        put(entityStore, provider)
+        put(entityStore, entity)
+
+        val content = WhiskActionPut()
+        Put(s"$collectionPath/${provider.name}/${entity.name}", content) ~> sealRoute(routes(creds)) ~> check {
+            status should be(InternalServerError)
+            responseAs[ErrorResponse].error shouldBe Messages.corruptedEntity
+        }
+    }
+
+    it should "report proper error when record is corrupted on put" in {
+        implicit val tid = transid()
+        val provider = WhiskPackage(namespace, aname)
+        val entity = BadEntity(provider.path, aname)
+        put(entityStore, provider)
+        put(entityStore, entity)
+
+        val content = WhiskActionPut()
+        Put(s"$collectionPath/${provider.name}/${entity.name}", content) ~> sealRoute(routes(creds)) ~> check {
+            status should be(InternalServerError)
+            responseAs[ErrorResponse].error shouldBe Messages.corruptedEntity
         }
     }
 }
