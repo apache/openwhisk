@@ -52,7 +52,7 @@ var apiCreateCmd = &cobra.Command{
 
         if (len(args) == 0 && flags.api.configfile == "") {
             whisk.Debug(whisk.DbgError, "No swagger file and no arguments\n")
-            errMsg := wski18n.T("Invalid argument(s). Specify a swagger file or specify an API path, an API verb, and an action name.") // FIXME MWD add pii
+            errMsg := wski18n.T("Invalid argument(s). Specify a swagger file or specify an API base path with an API path, an API verb, and an action name.") // FIXME MWD add pii
             whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             return whiskErr
@@ -69,7 +69,7 @@ var apiCreateCmd = &cobra.Command{
             }
         } else {
             if whiskErr := checkArgs(args, 3, 4, "Api create",
-                wski18n.T("An API base path is optional.  An API path, API verb, and action name are required.")); whiskErr != nil {  // FIXME PII
+                wski18n.T("Specify a swagger file or specify an API base path with an API path, an API verb, and an action name.")); whiskErr != nil {  // FIXME PII
                 return whiskErr
             }
             api, err = parseApi(cmd, args)
@@ -553,7 +553,7 @@ func parseApi(cmd *cobra.Command, args []string) (*whisk.Api, error) {
         if err != nil {
             whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[2], err)
             errMsg := fmt.Sprintf(
-                wski18n.T("''{{.name}}' is not a valid action name: {{.err}}",
+                wski18n.T("'{{.name}}' is not a valid action name: {{.err}}",
                     map[string]interface{}{"name": args[2], "err": err}))
             whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
@@ -598,10 +598,11 @@ func parseApi(cmd *cobra.Command, args []string) (*whisk.Api, error) {
 }
 
 func parseSwaggerApi() (*whisk.Api, error) {
+    // Test is for completeness, but this situation should only arise due to an internal error
     if ( len(flags.api.configfile) == 0 ) {
         whisk.Debug(whisk.DbgError, "No swagger file is specified\n")
         errMsg := fmt.Sprintf(
-            wski18n.T("Internal error.  Swagger file is missing."))   // FIXME MWD add to en_us pii
+            wski18n.T("A configuration file was not specified."))
         whiskErr := whisk.MakeWskError(errors.New(errMsg),whisk.EXITCODE_ERR_GENERAL,
             whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
         return nil, whiskErr
@@ -612,7 +613,7 @@ func parseSwaggerApi() (*whisk.Api, error) {
         whisk.Debug(whisk.DbgError, "readFile(%s) error: %s\n", flags.api.configfile, err)
         errMsg := fmt.Sprintf(
             wski18n.T("Error reading swagger file '{{.name}}': {{.err}}",
-                map[string]interface{}{"name": flags.api.configfile, "err": err}))   // FIXME MWD add to en_us pii
+                map[string]interface{}{"name": flags.api.configfile, "err": err}))
         whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
             whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
         return nil, whiskErr

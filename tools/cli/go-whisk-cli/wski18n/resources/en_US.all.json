@@ -1250,5 +1250,25 @@
   {
     "id": "'{{.path}}' must begin with '/'.",
     "translation": "'{{.path}}' must begin with '/'."
+  },
+  {
+    "id": "Unable to parse swagger file: {{.err}}",
+    "translation": "Unable to parse swagger file: {{.err}}"
+  },
+  {
+    "id": "Error reading swagger file '{{.name}}': {{.err}}",
+    "translation": "Error reading swagger file '{{.name}}': {{.err}}"
+  },
+  {
+    "id": "A configuration file was not specified.",
+    "translation": "A configuration file was not specified."
+  },
+  {
+    "id": "Error parsing swagger file '{{.name}}': {{.err}}",
+    "translation": "Error parsing swagger file '{{.name}}': {{.err}}"
+  },
+  {
+    "id": "Swagger file is invalid (missing basePath, info, paths, or swagger fields",
+    "translation": "Swagger file is invalid (missing basePath, info, paths, or swagger fields"
   }
 ]
