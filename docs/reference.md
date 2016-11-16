@@ -264,6 +264,7 @@ The following packages are available to be used in the Node.js 6.2.0 environment
 - express v4.13.4
 - express-session v1.12.1
 - gm v1.22.0
+- lodash v4.17.2
 - log4js v0.6.36
 - iconv-lite v0.4.13
 - merge v1.2.0
@@ -277,6 +278,7 @@ The following packages are available to be used in the Node.js 6.2.0 environment
 - process v0.11.3
 - pug v2.0.0
 - request v2.72.0
+- request-promise v4.1.1
 - rimraf v2.5.2
 - semver v5.1.0
 - sendgrid v3.0.11

@@ -33,6 +33,7 @@ errorhandler@1.4.3 \
 express@4.13.4 \
 express-session@1.12.1 \
 gm@1.22.0 \
+lodash@4.17.2 \
 log4js@0.6.36 \
 iconv-lite@0.4.13 \
 merge@1.2.0 \
@@ -46,6 +47,7 @@ pkgcloud@1.3.0 \
 process@0.11.3 \
 pug@">2.0.0-alpha <2.0.1" \
 request@2.72.0 \
+request-promise@4.1.1 \
 rimraf@2.5.2 \
 semver@5.1.0 \
 sendgrid@3.0.11 \
