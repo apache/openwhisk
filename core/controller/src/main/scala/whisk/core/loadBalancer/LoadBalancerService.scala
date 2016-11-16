@@ -88,7 +88,7 @@ class LoadBalancerService(config: WhiskConfig,
     private implicit val emitter: PrintStreamEmitter = this
 
     /** How many invokers are dedicated to blackbox images.  We range bound to something sensical regardless of configuration. */
-    private val blackboxFraction : Double = Math.min(0.0, Math.max(1.0, config.controllerBlackboxFraction))
+    private val blackboxFraction : Double = Math.max(0.0, Math.min(1.0, config.controllerBlackboxFraction))
     info(this, s"blackboxFraction = $blackboxFraction")
 
     /** We run this often on an invoker before going onto the next. */
@@ -249,7 +249,7 @@ class LoadBalancerService(config: WhiskConfig,
     /** Return a sorted list of available invokers. */
     private def getAvailableInvokers(): Array[Int] = invokerHealth.getCurStatus.filter( _.isUp).sortBy(_.index).map(_.index)
 
-    /** Compute the number of blackbox-dedicted invokers by applying a rounded down fraction of all invokers (but at least 1). */
+    /** Compute the number of blackbox-dedicated invokers by applying a rounded down fraction of all invokers (but at least 1). */
     private def numBlackbox(totalInvokers: Int) = Math.max(1, (totalInvokers.toDouble * blackboxFraction).toInt)
 
     /** Return invokers (almost) dedicated to running blackbox actions. */

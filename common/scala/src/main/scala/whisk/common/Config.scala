@@ -77,7 +77,7 @@ class Config(
 
     /**
      * Returns the value of a given key parsed as a double.
-     * If parsing fails, return the default alue.
+     * If parsing fails, return the default value.
      *
      * @param key the property that has to be returned.
      */
