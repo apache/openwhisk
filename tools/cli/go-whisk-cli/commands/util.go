@@ -220,6 +220,8 @@ func printList(collection interface{}) {
         printNamespaceList(collection)
     case []whisk.Activation:
         printActivationList(collection)
+    case []whisk.Api:
+        printApiList(collection)
     }
 }
 
@@ -318,6 +320,20 @@ func printFullActivationList(activations []whisk.Activation) {
     fmt.Fprintf(color.Output, "%s\n", boldString("activations"))
     for _, activation := range activations {
         printJSON(activation)
+    }
+}
+
+func printApiList(apis []whisk.Api) {
+    fmt.Fprintf(color.Output, "%s\n", boldString("apis"))
+    for _, api := range apis {
+        fmt.Printf("%s %20s %20s\n", api.ApiName, api.GatewayBasePath, api.GatewayFullPath)
+    }
+}
+
+func printFullApiList(apis []whisk.Api) {
+    fmt.Fprintf(color.Output, "%s\n", boldString("apis"))
+    for _, api := range apis {
+        printJSON(api)
     }
 }
 

@@ -49,6 +49,7 @@ var flags struct {
         full        bool // return full records (docs=true for client request)
         summary     bool
         feed        string  // name of feed
+        detail      bool
     }
 
     property struct {
@@ -100,6 +101,16 @@ var flags struct {
     // trigger
     trigger struct {
         summary bool
+    }
+
+    // api
+    api struct {
+        action     string
+        path       string
+        verb       string
+        basepath   string
+        apiname    string
+        configfile string
     }
 }
 

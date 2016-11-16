@@ -55,6 +55,7 @@ func setupClientConfig(cmd *cobra.Command, args []string) (error){
         BaseURL:    baseURL,
         Version:    Properties.APIVersion,
         Insecure:   flags.global.insecure,
+        Host:       Properties.APIHost,
     }
 
     // Setup client
