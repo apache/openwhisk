@@ -29,9 +29,10 @@ RUN wget --no-verbose -O - https://swift.org/keys/all-keys.asc | gpg --import - 
     gpg --keyserver hkp://pool.sks-keyservers.net --refresh-keys Swift
 
 # Install Swift Ubuntu 14.04 Snapshot
-#https://swift.org/builds/swift-3.0.1-preview-1/ubuntu1404/swift-3.0.1-PREVIEW-1/swift-3.0.1-PREVIEW-1-ubuntu14.04.tar.gz
+#https://swift.org/builds/swift-3.0.1-release/ubuntu1404/swift-3.0.1-RELEASE/swift-3.0.1-RELEASE-ubuntu14.04.tar.gz
+
 ENV SWIFT_VERSION 3.0.1
-ENV SWIFT_RELEASE_TYPE PREVIEW-3
+ENV SWIFT_RELEASE_TYPE RELEASE
 ENV SWIFT_PLATFORM ubuntu14.04
 
 RUN SWIFT_ARCHIVE_NAME=swift-$SWIFT_VERSION-$SWIFT_RELEASE_TYPE-$SWIFT_PLATFORM && \
