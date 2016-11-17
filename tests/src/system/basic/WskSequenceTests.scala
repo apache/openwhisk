@@ -355,6 +355,44 @@ class WskSequenceTests
     }
 
     /**
+     * s -> echo, sleep
+     * sleep sleeps for 90s, timeout set at 120s
+     * should run both, the blocking call should be transformed into a non-blocking call, but finish executing
+     */
+    it should "execute a sequence in blocking fashion and finish execution even if longer than blocking response timeout" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val sName = "sSequence"
+            val sleep = "timeout"
+            val echo = "echo"
+
+            // create actions
+            val actions = Seq(echo, sleep)
+            for (actionName <- actions) {
+                val file = TestUtils.getTestActionFilename(s"$actionName.js")
+                assetHelper.withCleaner(wsk.action, actionName) { (action, actionName) =>
+                    action.create(name = actionName, artifact = Some(file), timeout = Some(allowedActionDuration))
+                }
+            }
+            // create sequence s
+            assetHelper.withCleaner(wsk.action, sName) {
+                (action, seqName) => action.create(seqName, artifact = Some(actions.mkString(",")), kind = Some("sequence"))
+            }
+            // run sequence s with payload 90000
+            val payload = 90000
+            val run = wsk.action.invoke(sName, parameters = Map("payload" -> JsNumber(payload)), blocking = true)
+            withActivation(wsk.activation, run, totalWait = 3 * allowedActionDuration) {
+                activation =>
+                    checkSequenceLogsAndAnnotations(activation, 2) // 2 actions
+                    activation.response.success shouldBe(true)
+                    // the status should be error
+                    //activation.response.status shouldBe("application error")
+                    val result = activation.response.result.get
+                    // the result of the activation should be timeout
+                    result shouldBe(JsObject("msg" -> JsString(s"[OK] message terminated successfully after $payload milliseconds.")))
+            }
+    }
+
+    /**
      * checks logs for the activation of a sequence (length/size and ids)
      * checks that the cause field for composing atomic actions is set properly
      * checks duration
