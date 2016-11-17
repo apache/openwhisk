@@ -34,6 +34,7 @@ import spray.routing.RequestContext
 import spray.routing.directives.OnCompleteFutureMagnet.apply
 import spray.routing.directives.ParamDefMagnet.apply
 import whisk.common.TransactionId
+import whisk.core.database.DocumentTypeMismatchException
 import whisk.core.database.NoDocumentException
 import whisk.core.entitlement.Collection
 import whisk.core.entitlement.Privilege

@@ -34,6 +34,7 @@ import spray.http.HttpMethods.PUT
 import spray.http.StatusCodes.BadGateway
 import spray.http.StatusCodes.BadRequest
 import spray.http.StatusCodes.InternalServerError
+import spray.http.StatusCodes.NotFound
 import spray.http.StatusCodes.OK
 import spray.http.StatusCodes.Accepted
 import spray.http.StatusCodes.RequestEntityTooLarge
@@ -82,6 +83,8 @@ import whisk.core.WhiskConfig
 import whisk.http.ErrorResponse.terminate
 import whisk.http.Messages._
 import whisk.utils.ExecutionContextFactory.FutureExtensions
+import whisk.http.Messages
+import whisk.core.database.DocumentTypeMismatchException
 
 /**
  * A singleton object which defines the properties that must be present in a configuration
@@ -152,9 +155,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                     // matched GET /namespace/collection/package-name/
                     // list all actions in package iff subject is entitled to READ package
                     val resource = Resource(ns, Collection(Collection.PACKAGES), Some(outername))
-                    authorizeAndContinue(Privilege.READ, user, resource, next = () => {
-                        listPackageActions(user.subject, ns, EntityName(outername))
-                    })
+                    authorizeAndContinue(Privilege.READ, user, resource, next = () => listPackageActions(user.subject, ns, EntityName(outername)))
                 } ~ (entityPrefix & pathEnd) { segment =>
                     entityname(segment) { innername =>
                         // matched /namespace/collection/package-name/action-name
@@ -187,7 +188,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                                 authorizeAndContinue(right, user, packageResource, next = () => {
                                     getEntity(WhiskPackage, entityStore, packageDocId, Some { wp: WhiskPackage =>
                                         wp.binding map {
-                                            _ => terminate(BadRequest, "Operation not permitted on package binding")
+                                            _ => terminate(BadRequest, Messages.notAllowedOnBinding)
                                         } getOrElse {
                                             val actionResource = Resource(wp.path, collection, Some { innername })
                                             dispatchOp(user, right, actionResource)
@@ -218,7 +219,24 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
         parameter('overwrite ? false) { overwrite =>
             entity(as[WhiskActionPut]) { content =>
                 val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
-                putEntity(WhiskAction, entityStore, docid, overwrite, update(user, content)_, () => { make(user, namespace, content, name) })
+                def doput = {
+                    putEntity(WhiskAction, entityStore, docid, overwrite,
+                        update(user, content)_, () => { make(user, namespace, content, name) })
+                }
+
+                content.exec match {
+                    case Some(seq @ SequenceExec(_, components)) =>
+                        info(this, "checking if sequence components are accessible")
+                        val referencedEntities = resolveDefaultNamespace(seq, user).components.map {
+                            c => Resource(c.path, Collection(Collection.ACTIONS), Some(c.name()))
+                        }.toSet
+                        authorizeAndContinue(Privilege.READ, user, referencedEntities, doput) {
+                            case authorizationFailure: Throwable =>
+                                val r = rewriteFailure(authorizationFailure)
+                                terminate(r.code, r.message)
+                        }
+                    case _ => doput
+                }
             }
         }
     }
@@ -240,39 +258,55 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
                 val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
                 getEntity(WhiskAction, entityStore, docid, Some {
                     action: WhiskAction =>
-                        transid.started(this, if (blocking) LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING else LoggingMarkers.CONTROLLER_ACTIVATION)
-                        val postToLoadBalancer = postInvokeRequest(user, action, env, payload, blocking)
-                        onComplete(postToLoadBalancer) {
-                            case Success((activationId, None)) =>
-                                // non-blocking invoke or blocking invoke which got queued instead
-                                complete(Accepted, activationId.toJsObject)
-                            case Success((activationId, Some(activation))) =>
-                                val response = if (result) activation.resultAsJson else activation.toExtendedJson
+                        def doActivate = {
+                            transid.started(this, if (blocking) LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING else LoggingMarkers.CONTROLLER_ACTIVATION)
+                            val postToLoadBalancer = postInvokeRequest(user, action, env, payload, blocking)
+                            onComplete(postToLoadBalancer) {
+                                case Success((activationId, None)) =>
+                                    // non-blocking invoke or blocking invoke which got queued instead
+                                    complete(Accepted, activationId.toJsObject)
+                                case Success((activationId, Some(activation))) =>
+                                    val response = if (result) activation.resultAsJson else activation.toExtendedJson
 
-                                if (activation.response.isSuccess) {
-                                    complete(OK, response)
-                                } else if (activation.response.isApplicationError) {
-                                    // actions that result is ApplicationError status are considered a 'success'
-                                    // and will have an 'error' property in the result - the HTTP status is OK
-                                    // and clients must check the response status if it exists
-                                    // NOTE: response status will not exist in the JSON object if ?result == true
-                                    // and instead clients must check if 'error' is in the JSON
-                                    // PRESERVING OLD BEHAVIOR and will address defect in separate change
-                                    complete(BadGateway, response)
-                                } else if (activation.response.isContainerError) {
-                                    complete(BadGateway, response)
-                                } else {
-                                    complete(InternalServerError, response)
+                                    if (activation.response.isSuccess) {
+                                        complete(OK, response)
+                                    } else if (activation.response.isApplicationError) {
+                                        // actions that result is ApplicationError status are considered a 'success'
+                                        // and will have an 'error' property in the result - the HTTP status is OK
+                                        // and clients must check the response status if it exists
+                                        // NOTE: response status will not exist in the JSON object if ?result == true
+                                        // and instead clients must check if 'error' is in the JSON
+                                        // PRESERVING OLD BEHAVIOR and will address defect in separate change
+                                        complete(BadGateway, response)
+                                    } else if (activation.response.isContainerError) {
+                                        complete(BadGateway, response)
+                                    } else {
+                                        complete(InternalServerError, response)
+                                    }
+                                case Failure(t: BlockingInvokeTimeout) =>
+                                    info(this, s"[POST] action activation waiting period expired")
+                                    complete(Accepted, t.activationId.toJsObject)
+                                case Failure(t: RecordTooLargeException) =>
+                                    info(this, s"[POST] action payload was too large")
+                                    terminate(RequestEntityTooLarge)
+                                case Failure(t: Throwable) =>
+                                    error(this, s"[POST] action activation failed: ${t.getMessage}")
+                                    terminate(InternalServerError, t.getMessage)
+                            }
+                        }
+
+                        action.exec match {
+                            case seq @ SequenceExec(_, components) =>
+                                info(this, "checking if sequence components are accessible")
+                                val referencedEntities = resolveDefaultNamespace(seq, user).components.map {
+                                    c => Resource(c.path, Collection(Collection.ACTIONS), Some(c.name()))
+                                }.toSet
+                                authorizeAndContinue(Privilege.ACTIVATE, user, referencedEntities, doActivate) {
+                                    case authorizationFailure: Throwable =>
+                                        val r = rewriteFailure(authorizationFailure)
+                                        terminate(r.code, r.message)
                                 }
-                            case Failure(t: BlockingInvokeTimeout) =>
-                                info(this, s"[POST] action activation waiting period expired")
-                                complete(Accepted, t.activationId.toJsObject)
-                            case Failure(t: RecordTooLargeException) =>
-                                info(this, s"[POST] action payload was too large")
-                                terminate(RequestEntityTooLarge)
-                            case Failure(t: Throwable) =>
-                                error(this, s"[POST] action activation failed: ${t.getMessage}")
-                                terminate(InternalServerError, t.getMessage)
+                            case _ => doActivate
                         }
                 })
             }
@@ -734,6 +768,17 @@ trait WhiskActionsApi extends WhiskCollectionAPI {
      */
     private def execAnnotation(exec: Exec): Parameters = {
         Parameters(WhiskAction.execFieldName, exec.kind)
+    }
+
+    private def rewriteFailure(failure: Throwable)(implicit transid: TransactionId) = {
+        info(this, s"rewriting failure $failure")
+        failure match {
+            case RejectRequest(NotFound, _)       => RejectRequest(NotFound)
+            case RejectRequest(c, m)              => RejectRequest(c, m)
+            case _: NoDocumentException           => RejectRequest(BadRequest)
+            case _: DocumentTypeMismatchException => RejectRequest(BadRequest)
+            case _                                => RejectRequest(BadRequest, failure)
+        }
     }
 
     /** Grace period after action timeout limit to poll for result. */
