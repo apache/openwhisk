@@ -15,10 +15,8 @@ Login to your bootstrapper VM. Your local machine can act as the bootstrapping m
 This installs modules and packages to manage cloud instances via Ansible.
 
 ```
-sudo apt-get -y install python-setuptools python-dev libssl-dev
-sudo pip install shade pytz positional appdirs monotonic rfc3986
-sudo apt-get install python-novaclient
-sudo pip install six --upgrade
+sudo apt-get -y install python-setuptools python-dev libssl-dev build-essential libssl-dev libffi-dev python-dev python-novaclient
+sudo pip install shade pytz positional appdirs monotonic rfc3986 pyparsing stevedore debtcollector netaddr oslo.config futures warlock six
 ```
 If you would like the environment instances and hosts file to be generated and managed by Ansible, set values for the following keys using environment variables. Some of these values can be pulled from the Openstack UI (`https://${openstack_dashboard_url}/project/access_and_security/`) as an [RC](http://docs.openstack.org/user-guide/common/cli-set-environment-variables-using-openstack-rc.html) file.
 
@@ -67,6 +65,12 @@ Ensure that the Ansible VM can authenticate to the OpenWhisk VMs via SSH using t
 
 ```
 ansible all -i environments/distributed -m ping
+```
+
+Generate config files
+
+```
+ansible-playbook -i environments/distributed setup.yml
 ```
 
 Install prerequisites on OpenWhisk nodes.
