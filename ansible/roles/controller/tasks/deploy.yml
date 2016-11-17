@@ -5,6 +5,13 @@
   shell: "docker pull {{ docker_registry }}{{ docker_image_prefix }}/controller:{{ docker_image_tag }}"
   when: docker_registry != ""
 
+- name: ensure controller log directory is created with permissions
+  file:
+    path: "{{ whisk_logs_dir }}/controller"
+    state: directory
+    mode: 0777
+  become: true
+
 - name: (re)start controller
   docker_container:
     name: controller
