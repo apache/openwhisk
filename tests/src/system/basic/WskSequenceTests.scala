@@ -51,6 +51,7 @@ class WskSequenceTests
     implicit val wskprops = WskProps()
     val wsk = new Wsk
     val allowedActionDuration = 120 seconds
+    val shortDuration = 10 seconds
     val defaultNamespace = wskprops.namespace
 
     val whiskConfig = new WhiskConfig(Map(WhiskConfig.actionSequenceDefaultLimit -> null))
@@ -159,7 +160,7 @@ class WskSequenceTests
                     val result = activation.response.result.get
                     result.fields.get("payload") shouldBe Some(argsJson)
             }
-            // update x with 10 echo
+            // update x with limit echo
             val limit = whiskConfig.actionSequenceLimit.toInt
             val manyEcho = for (i <- 1 to limit) yield echo
 
@@ -249,31 +250,29 @@ class WskSequenceTests
             }
             val run = wsk.action.invoke(sName)
             // action params trump package params
-            checkLogsFirstAtomicAction(run, actionStr)
+            checkLogsAtomicAction(0, run, actionStr)
             // run with some parameters
             val sequenceStr = "AlmightySequence"
             val sequenceParamRun = wsk.action.invoke(sName, parameters = Map("payload" -> JsString(sequenceStr)))
             // sequence param should be passed to the first atomic action and trump the action params
-            checkLogsFirstAtomicAction(sequenceParamRun, sequenceStr)
+            checkLogsAtomicAction(0, sequenceParamRun, sequenceStr)
             // update action and remove the params by sending an unused param that overrides previous params
             wsk.action.create(name = helloWithPkg, artifact = Some(file), timeout = Some(allowedActionDuration), parameters = Map("param" -> JsString("irrelevant")), update = true)
             val sequenceParamSecondRun = wsk.action.invoke(sName, parameters = Map("payload" -> JsString(sequenceStr)))
             // sequence param should be passed to the first atomic action and trump the package params
-            checkLogsFirstAtomicAction(sequenceParamSecondRun, sequenceStr)
+            checkLogsAtomicAction(0, sequenceParamSecondRun, sequenceStr)
             val pkgParamRun = wsk.action.invoke(sName)
             // no sequence params, no atomic action params used, the pkg params should show up
-            checkLogsFirstAtomicAction(pkgParamRun, pkgStr)
+            checkLogsAtomicAction(0, pkgParamRun, pkgStr)
     }
 
-    /** checks logs of the first atomic action from a sequence contain logsStr */
-    private def checkLogsFirstAtomicAction(run: RunResult, logsStr: String) {
-        withActivation(wsk.activation, run, totalWait = 2 * allowedActionDuration) {
-            activation =>
+    /** checks that the first line in the logs of the idx-th atomic action from a sequence contains logsStr */
+    private def checkLogsAtomicAction(atomicActionIdx:Int, run: RunResult, logsStr: String) {
+        withActivation(wsk.activation, run, totalWait = 2 * allowedActionDuration) { activation =>
             checkSequenceLogsAndAnnotations(activation, 1)
-            val componentId = activation.logs.get(0)
+            val componentId = activation.logs.get(atomicActionIdx)
             val getComponentActivation = wsk.activation.get(componentId)
-            withActivation(wsk.activation, getComponentActivation, totalWait = allowedActionDuration) {
-                componentActivation =>
+            withActivation(wsk.activation, getComponentActivation, totalWait = allowedActionDuration) { componentActivation =>
                 println(componentActivation)
                 componentActivation.logs shouldBe defined
                 componentActivation.logs.get(0).contains(logsStr) shouldBe true
@@ -312,8 +311,46 @@ class WskSequenceTests
                     // the status should be error
                     activation.response.status shouldBe("application error")
                     val result = activation.response.result.get
-                    // the result of the activation should be the payload
+                    // the result of the activation should be the application error
                     result shouldBe(JsObject("error" -> JsString("This error thrown on purpose by the action.")))
+            }
+    }
+
+    /**
+     * s -> echo, initforever
+     * should run both, but error
+     */
+    it should "propagate execution error (timeout) from atomic action to sequence" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val sName = "sSequence"
+            val initforever = "initforever"
+            val echo = "echo"
+
+            // create actions
+            val actions = Seq(echo, initforever)
+            // timeouts for the action; make the one for initforever short
+            val timeout = Map(echo -> allowedActionDuration, initforever -> shortDuration)
+            for (actionName <- actions) {
+                val file = TestUtils.getTestActionFilename(s"$actionName.js")
+                assetHelper.withCleaner(wsk.action, actionName) { (action, actionName) =>
+                    action.create(name = actionName, artifact = Some(file), timeout = Some(timeout(actionName)))
+                }
+            }
+            // create sequence s
+            assetHelper.withCleaner(wsk.action, sName) {
+                (action, seqName) => action.create(seqName, artifact = Some(actions.mkString(",")), kind = Some("sequence"))
+            }
+            // run sequence s with no payload
+            val run = wsk.action.invoke(sName)
+            withActivation(wsk.activation, run, totalWait = 2 * allowedActionDuration) {
+                activation =>
+                    checkSequenceLogsAndAnnotations(activation, 2) // 2 actions
+                    activation.response.success shouldBe(false)
+                    // the status should be error
+                    //activation.response.status shouldBe("application error")
+                    val result = activation.response.result.get
+                    // the result of the activation should be timeout
+                    result shouldBe(JsObject("error" -> JsString("The action exceeded its time limits of 10000 milliseconds during initialization.")))
             }
     }
 
