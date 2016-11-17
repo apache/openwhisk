@@ -315,7 +315,7 @@ class WskBasicTests
             wsk.action.get(name, fieldFilter = Some("publish")).stdout should include (s"""$successMsg publish\nfalse""")
             wsk.action.get(name, fieldFilter = Some("exec")).stdout should include regex (s"""$successMsg exec\n\\{\\s+"kind":\\s+"nodejs:6",\\s+"code":\\s+"\\/\\*\\*\\\\n \\* Hello, world.\\\\n \\*\\/\\\\nfunction main\\(params\\) \\{\\\\n    console.log\\('hello', params.payload\\+'!'\\);\\\\n\\}\\\\n"\n\\}""")
             wsk.action.get(name, fieldFilter = Some("parameters")).stdout should include regex (s"""$successMsg parameters\n\\[\\s+\\{\\s+"key":\\s+"payload",\\s+"value":\\s+"test"\\s+\\}\\s+\\]""")
-            wsk.action.get(name, fieldFilter = Some("annotations")).stdout should include regex (s"""$successMsg annotations\n\\[\\]""")
+            wsk.action.get(name, fieldFilter = Some("annotations")).stdout should include regex (s"""$successMsg annotations\n\\[\\s+\\{\\s+"key":\\s+"exec",\\s+"value":\\s+"nodejs:6"\\s+\\}\\s+\\]""")
             wsk.action.get(name, fieldFilter = Some("limits")).stdout should include regex (s"""$successMsg limits\n\\{\\s+"timeout":\\s+60000,\\s+"memory":\\s+256,\\s+"logs":\\s+10\\s+\\}""")
             wsk.action.get(name, fieldFilter = Some("namespace")).stdout should include regex (s"""(?i)$successMsg namespace\n$ns_regex_list""")
             wsk.action.get(name, fieldFilter = Some("invalid"), expectedExitCode = ERROR_EXIT).stderr should include ("error: Invalid field filter 'invalid'.")
