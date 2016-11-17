@@ -161,7 +161,6 @@ protected[core] abstract class EntitlementService(config: WhiskConfig, loadBalan
      */
     protected[core] def check(user: Identity, right: Privilege, resources: Set[Resource])(
         implicit transid: TransactionId): Future[Boolean] = {
-
         val subject = user.subject
 
         val entitlementCheck = if (user.rights.contains(right)) {
@@ -198,10 +197,12 @@ protected[core] abstract class EntitlementService(config: WhiskConfig, loadBalan
         implicit transid: TransactionId): Future[Boolean] = {
         // check the default namespace first, bypassing additional checks if permitted
         val defaultNamespaces = Set(user.namespace())
+        val subject = user.subject
+        implicit val es = this
 
         Future.sequence {
             resources.map { resource =>
-                resource.collection.implicitRights(defaultNamespaces, right, resource) flatMap {
+                resource.collection.implicitRights(user, defaultNamespaces, right, resource) flatMap {
                     case true => Future.successful(true)
                     case false =>
                         // currently allow subject to work across any of their namespaces
@@ -212,7 +213,7 @@ protected[core] abstract class EntitlementService(config: WhiskConfig, loadBalan
                                 val newNamespacesToCheck = additionalNamespaces -- defaultNamespaces
                                 if (newNamespacesToCheck nonEmpty) {
                                     info(this, "checking additional namespace")
-                                    resource.collection.implicitRights(newNamespacesToCheck, right, resource) flatMap {
+                                    resource.collection.implicitRights(user, newNamespacesToCheck, right, resource) flatMap {
                                         case true  => Future.successful(true)
                                         case false => entitled(user.subject, right, resource)
                                     }
