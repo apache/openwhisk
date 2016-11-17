@@ -1,0 +1,37 @@
+---
+# This role will install redis and apigateway
+
+- name: (re)start redis
+  docker_container:
+    name: redis
+    image: redis
+    state: started
+    recreate: true
+    restart_policy: "{{ docker.restart.policy }}"
+    ports:
+      - "{{ redis.port }}:6379"
+
+- name: (re)start apigateway
+  docker_container:
+    name: apigateway
+    image: openwhisk/apigateway
+    state: started
+    recreate: true
+    restart_policy: "{{ docker.restart.policy }}"
+    hostname: apigateway
+    env:
+      "REDIS_HOST": "{{ groups['redis'] | first }}"
+      "REDIS_PORT": "{{ redis.port }}"
+      "PUBLIC_MANAGEDURL_HOST": "{{ groups['apigateway'] | first }}"
+      "PUBLIC_MANAGEDURL_PORT": "{{ apigateway.port.mgmt }}"
+    ports:
+      - "{{ apigateway.port.mgmt }}:8080"
+      - "{{ apigateway.port.api }}:9000"
+
+- name: wait until the API Gateway in this host is up and running
+  uri:
+    url: "http://{{ groups['apigateway'] | first }}:{{ apigateway.port.api }}/v1/apis"
+  register: result
+  until: result.status == 200
+  retries: 12
+  delay: 5

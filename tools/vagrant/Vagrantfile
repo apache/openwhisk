@@ -140,6 +140,7 @@ $script_end = <<SCRIPT
   su vagrant -c 'ansible-playbook -i environments/local wipe.yml'
   su vagrant -c 'ansible-playbook -i environments/local openwhisk.yml'
   su vagrant -c 'ansible-playbook -i environments/local postdeploy.yml'
+  su vagrant -c 'ansible-playbook -i environments/local apigateway.yml'
   
   # Setup OpenWhisk CLI
   su vagrant -c 'mkdir ${HOME}/bin'

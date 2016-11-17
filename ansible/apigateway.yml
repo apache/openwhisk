@@ -1,0 +1,5 @@
+
+- hosts: all:!ansible
+  roles:
+  - apigateway
+

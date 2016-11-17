@@ -26,6 +26,7 @@ cd $ROOTDIR/ansible
 
 $ANSIBLE_CMD wipe.yml
 $ANSIBLE_CMD openwhisk.yml
+$ANSIBLE_CMD apigateway.yml
 
 cd $ROOTDIR
 cat whisk.properties
