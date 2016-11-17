@@ -43,10 +43,11 @@ class ExtendedCouchDbRestClient(protocol: String, host: String, port: Int, usern
         requestJson(mkRequest(HttpMethods.DELETE, uri(db)))
 
     // http://docs.couchdb.org/en/1.6.1/api/database/bulk-api.html#get--db-_all_docs
-    def getAllDocs(skip: Option[Int] = None, limit: Option[Int] = None): Future[Either[StatusCode, JsObject]] = {
+    def getAllDocs(skip: Option[Int] = None, limit: Option[Int] = None, includeDocs: Option[Boolean] = None): Future[Either[StatusCode, JsObject]] = {
         val args = Seq[(String, Option[String])](
             "skip" -> skip.filter(_ > 0).map(_.toString),
-            "limit" -> limit.filter(_ > 0).map(_.toString))
+            "limit" -> limit.filter(_ > 0).map(_.toString),
+            "include_docs" -> includeDocs.map(_.toString))
 
         // Throw out all undefined arguments.
         val argMap: Map[String, String] = args.collect({
