@@ -451,7 +451,8 @@ The OpenWhisk API supports request-response calls from web clients. OpenWhisk re
 ### Actions
 OpenWhisk has a few system limits, including how much memory an action can use and how many action invocations are allowed per minute.
 
-**Note:** This default limits are for the open source distribution, production deployments like Bluemix likely have higher limits. As an operator or developer you can change some of the limits using ansible inventory variables.
+**Note:** This default limits are for the open source distribution; production deployments like Bluemix likely have higher limits.
+As an operator or developer you can change some of the limits using [ansible inventory variables](../ansible/README.md#changing-limits).
 
 The following table lists the default limits for actions.
 
