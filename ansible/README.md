@@ -255,9 +255,8 @@ the path to your OpenWhisk `ansible` directory contains spaces. To fix this, ple
 without spaces as there is no current fix available to this problem.
 
 #### Changing limits
-The following limits can be changed for your enviroment by modifying the values in group_vars (i.e. [./environments/mac/group_vars/all](./environments/mac/group_vars/all))
-
-Here is an example of the configuration override for mac: 
+The system throttling limits can be changed by modifying the `group_vars` for your environment. For example,
+mac users will fill the limits in this file [./environments/mac/group_vars/all](./environments/mac/group_vars/all):
 ```
 limits:
   actions:
@@ -273,5 +272,4 @@ limits:
 - The `concurrent` under `limits->actions->invokes` represent the concurrent invocations per namespace
 - The `concurrentInSystem` under `limits->actions->invokes` represent the concurrent invocations across all namespaces
 - The `perMinute` under `limits->triggers-fires` represent the namespace trigger fires per minute
-
 
