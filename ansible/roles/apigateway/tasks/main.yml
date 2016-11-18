@@ -1,7 +1,7 @@
 ---
-# This role will install controller in group 'controllers' in the environment inventory
-# In deploy mode it will deploy controllers.
-# In clean mode it will remove the controller containers.
+# This role will install apigateway in the group 'apigateway' in the environment inventory
+# In deploy mode it will deploy apigateway.
+# In clean mode it will remove the apigateway containers.
 
 - include: deploy.yml
   when: mode == "deploy"

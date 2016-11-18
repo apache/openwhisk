@@ -1,19 +1,8 @@
 ---
-# Remove redis and apigateway containers.
+# Remove apigateway container.
 
 - name: remove apigateway
   docker_container:
     name: apigateway
-    state: absent
-  ignore_errors: True
-
-- name: remove apigateway docker image
-  docker_image:
-    name: apigateway
-    state: absent
-
-- name: remove redis
-  docker_container:
-    name: redis
     state: absent
   ignore_errors: True

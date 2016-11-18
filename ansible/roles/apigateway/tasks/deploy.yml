@@ -1,15 +1,5 @@
 ---
-# This role will install redis and apigateway
-
-- name: (re)start redis
-  docker_container:
-    name: redis
-    image: redis
-    state: started
-    recreate: true
-    restart_policy: "{{ docker.restart.policy }}"
-    ports:
-      - "{{ redis.port }}:6379"
+# This role will install apigateway
 
 - name: (re)start apigateway
   docker_container:
@@ -22,7 +12,7 @@
     env:
       "REDIS_HOST": "{{ groups['redis'] | first }}"
       "REDIS_PORT": "{{ redis.port }}"
-      "PUBLIC_MANAGEDURL_HOST": "{{ groups['apigateway'] | first }}"
+      "PUBLIC_MANAGEDURL_HOST": "{{ inventory_hostname }}"
       "PUBLIC_MANAGEDURL_PORT": "{{ apigateway.port.mgmt }}"
     ports:
       - "{{ apigateway.port.mgmt }}:8080"

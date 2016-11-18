@@ -1,0 +1,19 @@
+---
+# This role will install redis
+
+- name: (re)start redis
+  docker_container:
+    name: redis
+    image: redis
+    state: started
+    recreate: true
+    restart_policy: "{{ docker.restart.policy }}"
+    ports:
+      - "{{ redis.port }}:6379"
+
+- name: wait until redis is up and running
+  action: shell echo PING | nc -w 3 {{ inventory_hostname }} {{ redis.port }}
+  register: result
+  until: (result.rc == 0) and (result.stdout == '+PONG')
+  retries: 12
+  delay: 5

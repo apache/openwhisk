@@ -1,5 +1,8 @@
 
-- hosts: all:!ansible
+- hosts: redis
+  roles:
+  - redis
+
+- hosts: apigateway
   roles:
   - apigateway
-
