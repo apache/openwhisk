@@ -108,8 +108,8 @@ trait SequenceActions extends Logging {
                         val atomicActionCnt = wskActivationTuples.last._2
                         (seqActivationId, seqActivation, atomicActionCnt)
                     } andThen {
-                        case Success((_, id, _)) => seqActivationPromise.success(id)
-                        case Failure(t)          => seqActivationPromise.success(None)
+                        case Success((_, seqActivation, _)) => seqActivationPromise.success(seqActivation)
+                        case Failure(t)                     => seqActivationPromise.success(None)
                     }
                 } else {
                     // non-blocking sequence execution, return activation id
@@ -127,8 +127,8 @@ trait SequenceActions extends Logging {
                     val atomicActionCnt = wskActivationTuples.last._2
                     (seqActivationId, seqActivation, atomicActionCnt)
                 } andThen {
-                    case Success((_, id, _)) => seqActivationPromise.success(id)
-                    case Failure(t)          => seqActivationPromise.success(None)
+                    case Success((_, seqActivation, _)) => seqActivationPromise.success(seqActivation)
+                    case Failure(t)                     => seqActivationPromise.success(None)
                 }
             }
 
@@ -150,7 +150,7 @@ trait SequenceActions extends Logging {
                 // consider this whisk error
                 // TODO shall we attempt storing the activation if it exists or even inspect the futures?
                 // this should be a pretty serious whisk errror if it gets here
-                error(this, s"Sequence activation 'seqActivationId' failed: ${t.getMessage}")
+                error(this, s"Sequence activation failed: ${t.getMessage}")
         }
 
         response
@@ -160,6 +160,7 @@ trait SequenceActions extends Logging {
      * Stores sequence activation to database.
      */
     private def storeSequenceActivation(activation: WhiskActivation)(implicit transid: TransactionId): Unit = {
+        info(this, s"recording activation '${activation.activationId}'")
         WhiskActivation.put(activationStore, activation) onComplete {
             case Success(id) => info(this, s"recorded activation")
             case Failure(t)  => error(this, s"failed to record activation")
@@ -270,7 +271,7 @@ trait SequenceActions extends Logging {
         cause: Option[ActivationId],
         atomicActionCnt: Int)(
             implicit transid: TransactionId): Vector[Future[(Either[ActivationResponse, WhiskActivation], Int)]] = {
-        info(this, s"invoke sequence $seqAction with components $components")
+        info(this, s"invoke sequence $seqAction ($seqActivationId) with components $components")
 
         // first retrieve the information/entities on all actions
         // do not wait to successfully retrieve all the actions before starting the execution
