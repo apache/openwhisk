@@ -158,7 +158,22 @@ trait WskTestHelpers extends Matchers {
             activationId shouldBe a[Some[_]]
         }
 
-        val id = activationId.get
+        withActivation(wsk, activationId.get, initialWait, pollPeriod, totalWait)(check)
+    }
+
+    /**
+     * Polls activations until one matching id is found. If found, pass
+     * the activation to the post processor which then check for expected values.
+     */
+    def withActivation(
+        wsk: WskActivation,
+        activationId: String,
+        initialWait: Duration,
+        pollPeriod: Duration,
+        totalWait: Duration)(
+            check: CliActivation => Unit)(
+                implicit wskprops: WskProps): Unit = {
+        val id = activationId
         val activation = wsk.waitForActivation(id, initialWait, pollPeriod, totalWait)
         if (activation.isLeft) {
             assert(false, s"error waiting for activation $id: ${activation.left.get}")

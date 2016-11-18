@@ -392,8 +392,7 @@ class WskSequenceTests
         var totalTime: Long = 0
         var maxMemory: Long = 0
         for (id <- activation.logs.get) {
-            val getComponentActivation = wsk.activation.get(id)
-            withActivation(wsk.activation, getComponentActivation, totalWait = allowedActionDuration) {
+            withActivation(wsk.activation, id, initialWait = 1 second, pollPeriod = 60 seconds, totalWait = allowedActionDuration) {
                 componentActivation =>
                     componentActivation.cause shouldBe defined
                     componentActivation.cause.get shouldBe (activation.activationId)
