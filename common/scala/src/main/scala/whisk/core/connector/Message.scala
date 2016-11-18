@@ -74,7 +74,8 @@ case class ActivationMessage(
         val value = (content getOrElse JsObject()).compactPrint
         s"$action?message=$value"
     }
-    def isCausedBySequence(): Boolean = cause.isDefined
+
+    def causedBySequence: Boolean = cause.isDefined
 }
 
 object ActivationMessage extends DefaultJsonProtocol {

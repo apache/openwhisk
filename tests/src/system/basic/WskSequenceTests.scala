@@ -72,7 +72,7 @@ class WskSequenceTests
 
             println(s"Sequence $actions")
             assetHelper.withCleaner(wsk.action, name) {
-                val sequence = actions.mkString (",")
+                val sequence = actions.mkString(",")
                 (action, _) => action.create(name, Some(sequence), kind = Some("sequence"), timeout = Some(allowedActionDuration))
             }
 
@@ -82,7 +82,7 @@ class WskSequenceTests
             withActivation(wsk.activation, run, totalWait = 4 * allowedActionDuration) {
                 activation =>
                     checkSequenceLogsAndAnnotations(activation, 4) // 4 activations in this sequence
-                    activation.cause shouldBe None   // topmost sequence
+                    activation.cause shouldBe None // topmost sequence
                     val result = activation.response.result.get
                     result.fields.get("payload") shouldBe defined
                     result.fields.get("length") should not be defined
@@ -90,7 +90,7 @@ class WskSequenceTests
             }
 
             // update action sequence and run it with normal payload
-            val newSequence = Seq("split", "sort").mkString (",")
+            val newSequence = Seq("split", "sort").mkString(",")
             println(s"Update sequence to $newSequence")
             wsk.action.create(name, Some(newSequence), kind = Some("sequence"), timeout = Some(allowedActionDuration), update = true)
             val secondrun = wsk.action.invoke(name, Map("payload" -> args.mkString("\n").toJson))
@@ -110,13 +110,13 @@ class WskSequenceTests
                 activation =>
                     activation.logs shouldBe defined
                     // no activations should have run
-                    activation.logs.get.size shouldBe(0)
-                    activation.response.success shouldBe(false)
+                    activation.logs.get.size shouldBe (0)
+                    activation.response.success shouldBe (false)
                     // the status should be error
-                    activation.response.status shouldBe("application error")
+                    activation.response.status shouldBe ("application error")
                     val result = activation.response.result.get
                     // the result of the activation should be the payload
-                    result shouldBe(JsObject(payload))
+                    result shouldBe (JsObject(payload))
 
             }
     }
@@ -169,7 +169,7 @@ class WskSequenceTests
             val updateRun = wsk.action.invoke(sName, Map("payload" -> argsJson))
             withActivation(wsk.activation, updateRun, totalWait = 2 * allowedActionDuration) {
                 activation =>
-                    activation.response.status shouldBe("application error")
+                    activation.response.status shouldBe ("application error")
                     checkSequenceLogsAndAnnotations(activation, 2)
                     val result = activation.response.result.get
                     result.fields.get("error") shouldBe Some(JsString(sequenceIsTooLong))
@@ -178,9 +178,9 @@ class WskSequenceTests
                     val getInnerSeq = wsk.activation.get(innerSeq)
                     withActivation(wsk.activation, getInnerSeq, totalWait = allowedActionDuration) {
                         innerSeqActivation =>
-                            innerSeqActivation.logs.get.size shouldBe(limit - 1)
+                            innerSeqActivation.logs.get.size shouldBe (limit - 1)
                             innerSeqActivation.cause shouldBe defined
-                            innerSeqActivation.cause.get shouldBe(activation.activationId)
+                            innerSeqActivation.cause.get shouldBe (activation.activationId)
                     }
             }
     }
@@ -201,7 +201,7 @@ class WskSequenceTests
 
             // create inner sequence
             assetHelper.withCleaner(wsk.action, inner_name) {
-                val inner_sequence = inner_actions.mkString (",")
+                val inner_sequence = inner_actions.mkString(",")
                 (action, _) => action.create(inner_name, Some(inner_sequence), kind = Some("sequence"))
             }
 
@@ -217,7 +217,7 @@ class WskSequenceTests
             withActivation(wsk.activation, run, totalWait = 4 * allowedActionDuration) {
                 activation =>
                     checkSequenceLogsAndAnnotations(activation, 3) // 3 activations in this sequence
-                    activation.cause shouldBe None   // topmost sequence
+                    activation.cause shouldBe None // topmost sequence
                     val result = activation.response.result.get
                     result.fields.get("payload") shouldBe defined
                     result.fields.get("length") should not be defined
@@ -246,7 +246,7 @@ class WskSequenceTests
             }
             // create s
             assetHelper.withCleaner(wsk.action, sName) {
-                (action, seqName) => action.create(seqName, Some(helloWithPkg), kind = Some("sequence") )
+                (action, seqName) => action.create(seqName, Some(helloWithPkg), kind = Some("sequence"))
             }
             val run = wsk.action.invoke(sName)
             // action params trump package params
@@ -264,20 +264,6 @@ class WskSequenceTests
             val pkgParamRun = wsk.action.invoke(sName)
             // no sequence params, no atomic action params used, the pkg params should show up
             checkLogsAtomicAction(0, pkgParamRun, pkgStr)
-    }
-
-    /** checks that the first line in the logs of the idx-th atomic action from a sequence contains logsStr */
-    private def checkLogsAtomicAction(atomicActionIdx:Int, run: RunResult, logsStr: String) {
-        withActivation(wsk.activation, run, totalWait = 2 * allowedActionDuration) { activation =>
-            checkSequenceLogsAndAnnotations(activation, 1)
-            val componentId = activation.logs.get(atomicActionIdx)
-            val getComponentActivation = wsk.activation.get(componentId)
-            withActivation(wsk.activation, getComponentActivation, totalWait = allowedActionDuration) { componentActivation =>
-                println(componentActivation)
-                componentActivation.logs shouldBe defined
-                componentActivation.logs.get(0).contains(logsStr) shouldBe true
-            }
-        }
     }
 
     /**
@@ -307,12 +293,12 @@ class WskSequenceTests
             withActivation(wsk.activation, run, totalWait = 2 * allowedActionDuration) {
                 activation =>
                     checkSequenceLogsAndAnnotations(activation, 1) // only the first action should have run
-                    activation.response.success shouldBe(false)
+                    activation.response.success shouldBe (false)
                     // the status should be error
-                    activation.response.status shouldBe("application error")
+                    activation.response.status shouldBe ("application error")
                     val result = activation.response.result.get
                     // the result of the activation should be the application error
-                    result shouldBe(JsObject("error" -> JsString("This error thrown on purpose by the action.")))
+                    result shouldBe (JsObject("error" -> JsString("This error thrown on purpose by the action.")))
             }
     }
 
@@ -345,12 +331,12 @@ class WskSequenceTests
             withActivation(wsk.activation, run, totalWait = 2 * allowedActionDuration) {
                 activation =>
                     checkSequenceLogsAndAnnotations(activation, 2) // 2 actions
-                    activation.response.success shouldBe(false)
+                    activation.response.success shouldBe (false)
                     // the status should be error
                     //activation.response.status shouldBe("application error")
                     val result = activation.response.result.get
                     // the result of the activation should be timeout
-                    result shouldBe(JsObject("error" -> JsString("The action exceeded its time limits of 10000 milliseconds during initialization.")))
+                    result shouldBe (JsObject("error" -> JsString("The action exceeded its time limits of 10000 milliseconds during initialization.")))
             }
     }
 
@@ -377,18 +363,18 @@ class WskSequenceTests
             assetHelper.withCleaner(wsk.action, sName) {
                 (action, seqName) => action.create(seqName, artifact = Some(actions.mkString(",")), kind = Some("sequence"))
             }
-            // run sequence s with payload 90000
-            val payload = 90000
+            // run sequence s with sleep equal to payload
+            val payload = 65000
             val run = wsk.action.invoke(sName, parameters = Map("payload" -> JsNumber(payload)), blocking = true)
-            withActivation(wsk.activation, run, totalWait = 3 * allowedActionDuration) {
+            withActivation(wsk.activation, run, initialWait = 5 seconds, totalWait = 3 * allowedActionDuration) {
                 activation =>
                     checkSequenceLogsAndAnnotations(activation, 2) // 2 actions
-                    activation.response.success shouldBe(true)
+                    activation.response.success shouldBe (true)
                     // the status should be error
                     //activation.response.status shouldBe("application error")
                     val result = activation.response.result.get
                     // the result of the activation should be timeout
-                    result shouldBe(JsObject("msg" -> JsString(s"[OK] message terminated successfully after $payload milliseconds.")))
+                    result shouldBe (JsObject("msg" -> JsString(s"[OK] message terminated successfully after $payload milliseconds.")))
             }
     }
 
@@ -402,7 +388,7 @@ class WskSequenceTests
         activation.logs shouldBe defined
         // check that the logs are what they are supposed to be (activation ids)
         // check that the cause field is properly set for these activations
-        activation.logs.get.size shouldBe(size) // the number of activations in this sequence
+        activation.logs.get.size shouldBe (size) // the number of activations in this sequence
         var totalTime: Long = 0
         var maxMemory: Long = 0
         for (id <- activation.logs.get) {
@@ -410,11 +396,11 @@ class WskSequenceTests
             withActivation(wsk.activation, getComponentActivation, totalWait = allowedActionDuration) {
                 componentActivation =>
                     componentActivation.cause shouldBe defined
-                    componentActivation.cause.get shouldBe(activation.activationId)
+                    componentActivation.cause.get shouldBe (activation.activationId)
                     // check causedBy
                     val causedBy = componentActivation.getAnnotationValue("causedBy")
                     causedBy shouldBe defined
-                    causedBy.get shouldBe(JsString("sequence"))
+                    causedBy.get shouldBe (JsString("sequence"))
                     totalTime += componentActivation.duration
                     // extract memory
                     val mem = extractMemoryAnnotation(componentActivation)
@@ -422,11 +408,25 @@ class WskSequenceTests
             }
         }
         // extract duration
-        activation.duration shouldBe(totalTime)
+        activation.duration shouldBe (totalTime)
         // extract memory
         activation.annotations shouldBe defined
         val memory = extractMemoryAnnotation(activation)
-        memory shouldBe(maxMemory)
+        memory shouldBe (maxMemory)
+    }
+
+    /** checks that the first line in the logs of the idx-th atomic action from a sequence contains logsStr */
+    private def checkLogsAtomicAction(atomicActionIdx: Int, run: RunResult, logsStr: String) {
+        withActivation(wsk.activation, run, totalWait = 2 * allowedActionDuration) { activation =>
+            checkSequenceLogsAndAnnotations(activation, 1)
+            val componentId = activation.logs.get(atomicActionIdx)
+            val getComponentActivation = wsk.activation.get(componentId)
+            withActivation(wsk.activation, getComponentActivation, totalWait = allowedActionDuration) { componentActivation =>
+                println(componentActivation)
+                componentActivation.logs shouldBe defined
+                componentActivation.logs.get(0).contains(logsStr) shouldBe true
+            }
+        }
     }
 
     private def extractMemoryAnnotation(activation: CliActivation): Long = {

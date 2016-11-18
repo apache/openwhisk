@@ -81,7 +81,7 @@ case class WhiskPackage(
 
     /**
      * Merges parameters into existing set of parameters for package.
-     * The p parameters supersede this.parameters
+     * The parameters from p supersede parameters from this.
      */
     def mergeParameters(p: Parameters) = {
         WhiskPackage(namespace, name, binding, parameters ++ p, version, publish, annotations)
@@ -162,11 +162,10 @@ object WhiskPackage
             // if there is a binding resolve it
             val resolved = wp.binding map { binding =>
                 if (mergeParameters) {
-                   resolveBinding(db, binding.docid, true) map { resolvedPackage =>
-                        resolvedPackage.mergeParameters(wp.parameters)
+                    resolveBinding(db, binding.docid, true) map {
+                        resolvedPackage => resolvedPackage.mergeParameters(wp.parameters)
                     }
-                }
-                else resolveBinding(db, binding.docid)
+                } else resolveBinding(db, binding.docid)
             }
             resolved getOrElse Future.successful(wp)
         }

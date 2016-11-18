@@ -123,6 +123,7 @@ trait WskTestHelpers extends Matchers {
         duration: Long,
         cause: Option[String],
         annotations: Option[List[JsObject]]) {
+
         def getAnnotationValue(key: String): Option[JsValue] = {
             Try {
                 val annotation = annotations.get.filter(x => x.getFields("key")(0) == JsString(key))
