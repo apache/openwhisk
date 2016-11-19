@@ -31,6 +31,8 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
 
     lazy val nodejsContainerImageName = "nodejsaction"
 
+    val hasDeprecationWarnings = true
+
     override def withActionContainer(env: Map[String, String] = Map.empty)(code: ActionContainer => Unit) = {
         withContainer(nodejsContainerImageName, env)(code)
     }
@@ -66,6 +68,14 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
           |    return args
           |}
           """.stripMargin)
+    })
+
+    testEnv(Seq {
+        ("node", """
+         |function main(args) {
+         |    return { "auth": process.env['AUTH_KEY'], "edge": process.env['EDGE_HOST'] }
+         }
+         """.stripMargin.trim)
     })
 
     it should "fail to initialize with bad code" in {
@@ -158,7 +168,7 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
         checkStreams(out, err, {
             case (o, e) =>
                 o shouldBe empty
-                e shouldBe empty
+                if (!hasDeprecationWarnings) e shouldBe empty
         })
     }
 
@@ -180,7 +190,58 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
         checkStreams(out, err, {
             case (o, e) =>
                 o shouldBe empty
-                e shouldBe empty
+                if (!hasDeprecationWarnings) e shouldBe empty
+        })
+    }
+
+    it should "warn when using deperecated whisk object methods" in {
+        val (out, err) = withNodeJsContainer { c =>
+            val code = """
+                | function main(args) {
+                |     whisk.getAuthKey(whisk.setAuthKey('xxx'));
+                |     try { whisk.invoke(); } catch (e) {}
+                |     try { whisk.trigger();  } catch (e) {}
+                |     setTimeout(function () { whisk.done(); }, 1000);
+                |     return whisk.async();
+                | }
+            """.stripMargin
+
+            c.init(initPayload(code))._1 should be(200)
+
+            val (runCode, runRes) = c.run(runPayload(JsObject()))
+            runCode should be(200)
+        }
+
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe empty
+                e should not be empty
+                val lines = e.split("\n")
+                lines.filter { l => l.startsWith("[WARN] \"whisk.") && l.contains("deprecated") }.length shouldBe 8
+        })
+    }
+
+    it should "warn when using deperecated whisk.error" in {
+        val (out, err) = withNodeJsContainer { c =>
+            val code = """
+                | function main(args) {
+                |     whisk.error("{warnme: true}");
+                | }
+            """.stripMargin
+
+            c.init(initPayload(code))._1 should be(200)
+
+            val (runCode, runRes) = c.run(runPayload(JsObject()))
+            runCode should be(200)
+        }
+
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe empty
+                e should not be empty
+                val lines = e.split("\n")
+                lines.length shouldBe 1
+                lines.forall { l => l.startsWith("[WARN] \"whisk.") && l.contains("deprecated") }
         })
     }
 
@@ -205,7 +266,7 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
         checkStreams(out, err, {
             case (o, e) =>
                 o should include("more than once")
-                e shouldBe empty
+                if (!hasDeprecationWarnings) e shouldBe empty
         })
     }
 
@@ -243,7 +304,7 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
         checkStreams(out, err, {
             case (o, e) =>
                 o shouldBe empty
-                e shouldBe empty
+                if (!hasDeprecationWarnings) e shouldBe empty
         }, 3)
     }
 
@@ -268,7 +329,7 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
         checkStreams(out, err, {
             case (o, e) =>
                 o shouldBe empty
-                e shouldBe empty
+                if (!hasDeprecationWarnings) e shouldBe empty
         })
     }
 
@@ -302,7 +363,7 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
         checkStreams(out, err, {
             case (o, e) =>
                 o shouldBe empty
-                e shouldBe empty
+                if (!hasDeprecationWarnings) e shouldBe empty
         }, 2)
     }
 

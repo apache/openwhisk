@@ -244,7 +244,7 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
     }
 
     /** Runs tests for code samples which are expected to return the expected standard environment {auth, edge}. */
-    def testEnv(stdEnvSamples: Seq[(String, String)], enforceEmptyOutputStream: Boolean = true) = {
+    def testEnv(stdEnvSamples: Seq[(String, String)], enforceEmptyOutputStream: Boolean = true, enforceEmptyErrorStream: Boolean = true) = {
         for (s <- stdEnvSamples) {
             it should s"run a ${s._1} script and confirm expected environment variables" in {
                 val auth = JsString("abc")
@@ -258,14 +258,14 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
                     val (runCode, out) = c.run(runPayload(JsObject(), Some(JsObject("authKey" -> auth))))
                     runCode should be(200)
                     out shouldBe defined
-                    out.get.fields("auth") shouldBe auth
                     out.get.fields("edge") shouldBe JsString(edge)
+                    out.get.fields("auth") shouldBe auth
                 }
 
                 checkStreams(out, err, {
                     case (o, e) =>
                         if (enforceEmptyOutputStream) o shouldBe empty
-                        e shouldBe empty
+                        if (enforceEmptyErrorStream) e shouldBe empty
                 })
             }
         }

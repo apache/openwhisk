@@ -26,7 +26,7 @@ var fs = require('fs');
 var path = require('path');
 
 function NodeActionRunner(whisk) {
-    // Use this ref inside lambdas etc.
+    // Use this ref inside closures etc.
     var thisRunner = this;
 
     this.userScriptName = undefined;
@@ -101,7 +101,7 @@ function NodeActionRunner(whisk) {
                     reject(e);
                 }
 
-                if (result !== thisRunner.whisk.async()) {
+                if (result !== thisRunner.whisk.async(false)) {
                     // This branch handles all direct (non-async) returns, as well
                     // as returned Promises.
 

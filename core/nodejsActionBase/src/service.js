@@ -148,7 +148,7 @@ function NodeActionService(config, logger) {
         var ids = (req.body || {}).meta;
         var args = (req.body || {}).value;
         var authKey = (req.body || {}).authKey;
-        userCodeRunner.whisk.setAuthKey(authKey)
+        userCodeRunner.whisk.setAuthKey(authKey, false)
 
         return userCodeRunner.run(args).then(function(response) {
             writeMarkers();
@@ -167,15 +167,7 @@ function NodeActionService(config, logger) {
 }
 
 function newWhiskContext(config, logger) {
-    var apihost = undefined;
-
-    if (config.edgeHost) {
-        var edgeHostParts = config.edgeHost.split(':');
-        var protocol = (edgeHostParts.length >= 2  &&  edgeHostParts[1] == '443') ? 'https' : 'http';
-        apihost = protocol + '://' + config.edgeHost;
-    }
-
-    return new whisk(apihost, logger);
+    return new whisk(config.edgeHost, logger);
 }
 
 NodeActionService.getService = function(config, logger) {
