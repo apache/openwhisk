@@ -222,7 +222,7 @@ class Invoker(
             val boundParams = action.parameters.toJsObject
             val params = JsObject(boundParams.fields ++ payload.fields)
             val timeout = action.limits.timeout.duration
-            con.run(params, msg.meta, auth.compact, timeout, action.fullyQualifiedName(true).toString, msg.activationId.toString)
+            con.run(msg, params,  timeout)
         }
 
         initResultOpt match {

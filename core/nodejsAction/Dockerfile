@@ -34,6 +34,7 @@ mustache@2.1.3 \
 nano@5.10.0 \
 node-uuid@1.4.2 \
 oauth2-server@2.4.0 \
+openwhisk@2.6.0 \
 process@0.11.0 \
 request@2.79.0 \
 rimraf@2.5.1 \

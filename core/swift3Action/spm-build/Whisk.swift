@@ -65,16 +65,16 @@ class Whisk {
     
     /*
      * Initialize with host, port and authKey determined from environment variables
-     * EDGE_HOST and AUTH_KEY, respectively
+     * __OW_API_HOST and __OW_API_KEY, respectively
      */
     private class func initializeCommunication() -> (host : String, port : Int16, authKey : String) {
         let env = ProcessInfo.processInfo.environment
         
         var edgeHost : String!
-        if let edgeHostEnv : String = env["EDGE_HOST"] {
+        if let edgeHostEnv : String = env["__OW_API_HOST"] {
             edgeHost = "\(edgeHostEnv)"
         } else {
-            fatalError("EDGE_HOST environment variable was not set.")
+            fatalError("__OW_API_HOST environment variable was not set.")
         }
         
         let hostComponents = edgeHost.components(separatedBy: ":")
@@ -86,11 +86,11 @@ class Whisk {
         }
         
         var authKey = "authKey"
-        if let authKeyEnv : String = env["AUTH_KEY"] {
+        if let authKeyEnv : String = env["__OW_API_KEY"] {
             authKey = authKeyEnv
         }
         
-        return (host, port ,authKey)
+        return (host, port, authKey)
     }
     
     // actually do the POST call to the specified OpenWhisk URI path

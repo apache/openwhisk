@@ -27,20 +27,8 @@ class Swift3ActionContainerTests extends SwiftActionContainerTests {
 
     override val enforceEmptyOutputStream = false
     override lazy val swiftContainerImageName = "swift3action"
-    override lazy val envCode =  """
-         |func main(args: [String: Any]) -> [String: Any] {
-         |     let env = ProcessInfo.processInfo.environment
-         |     var auth = "???"
-         |     var edge = "???"
-         |     if let authKey : String = env["AUTH_KEY"] {
-         |         auth = "\(authKey)"
-         |     }
-         |     if let edgeHost : String = env["EDGE_HOST"] {
-         |         edge = "\(edgeHost)"
-         |     }
-         |     return ["auth": auth, "edge": edge]
-         |}
-         """.stripMargin
+    override lazy val envCode = makeEnvCode("ProcessInfo.processInfo")
+
     override lazy val errorCode = """
                 | // You need an indirection, or swiftc detects the div/0
                 | // at compile-time. Smart.

@@ -91,13 +91,14 @@ class ActionRunner:
         return (os.path.isfile(self.binary) and os.access(self.binary, os.X_OK))
 
     # constructs an environment for the action to run in
-    # @param message is a JSON object received from invoker (should contain 'value' and 'authKey')
+    # @param message is a JSON object received from invoker (should contain 'value' and 'api_key' and other metadata)
     # @return an environment dictionary for the action process
     def env(self, message):
         # make sure to include all the env vars passed in by the invoker
         env = os.environ
-        if 'authKey' in message:
-            env['AUTH_KEY'] = message['authKey']
+        for p in [ 'api_key', 'namespace', 'action_name', 'activation_id', 'deadline' ]:
+             if p in message:
+                env['__OW_%s' % p.upper()] = message[p]
         return env
 
     # runs the action, called iff self.verify() is True.

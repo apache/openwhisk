@@ -20,6 +20,7 @@ import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
+import spray.json.DefaultJsonProtocol._
 import spray.json._
 
 import ActionContainer.withContainer
@@ -28,18 +29,61 @@ import ResourceHelpers.JarBuilder
 import common.WskActorSystem
 
 @RunWith(classOf[JUnitRunner])
-class JavaActionContainerTests extends FlatSpec with Matchers with WskActorSystem {
+class JavaActionContainerTests extends FlatSpec with Matchers with WskActorSystem with ActionProxyContainerTestUtils {
 
     // Helpers specific to javaaction
-    def withJavaContainer(code: ActionContainer => Unit) = withContainer("javaaction")(code)
+    def withJavaContainer(code: ActionContainer => Unit, env: Map[String, String] = Map.empty) = withContainer("javaaction", env)(code)
     def initPayload(mainClass: String, jar64: String) = JsObject(
         "value" -> JsObject(
             "name" -> JsString("dummyAction"),
             "main" -> JsString(mainClass),
             "jar" -> JsString(jar64)))
-    def runPayload(args: JsValue) = JsObject("value" -> args)
 
     behavior of "Java action"
+
+    it should s"run a java snippet and confirm expected environment variables" in {
+        val props = Seq("api_host" -> "xyz",
+            "api_key" -> "abc",
+            "namespace" -> "zzz",
+            "action_name" -> "xxx",
+            "activation_id" -> "iii",
+            "deadline" -> "123")
+        val env = props.map { case (k, v) => s"__OW_${k.toUpperCase}" -> v }
+        val (out, err) = withJavaContainer({ c =>
+            val jar = JarBuilder.mkBase64Jar(
+                Seq("example", "HelloWhisk.java") -> """
+                    | package example;
+                    |
+                    | import com.google.gson.JsonObject;
+                    |
+                    | public class HelloWhisk {
+                    |     public static JsonObject main(JsonObject args) {
+                    |         JsonObject response = new JsonObject();
+                    |         response.addProperty("api_host", System.getenv("__OW_API_HOST"));
+                    |         response.addProperty("api_key", System.getenv("__OW_API_KEY"));
+                    |         response.addProperty("namespace", System.getenv("__OW_NAMESPACE"));
+                    |         response.addProperty("action_name", System.getenv("__OW_ACTION_NAME"));
+                    |         response.addProperty("activation_id", System.getenv("__OW_ACTIVATION_ID"));
+                    |         response.addProperty("deadline", System.getenv("__OW_DEADLINE"));
+                    |         return response;
+                    |     }
+                    | }
+                """.stripMargin.trim)
+
+            val (initCode, _) = c.init(initPayload("example.HelloWhisk", jar))
+            initCode should be(200)
+
+            val (runCode, out) = c.run(runPayload(JsObject(), Some(props.toMap.toJson.asJsObject)))
+            runCode should be(200)
+            props.map {
+                case (k, v) => out.get.fields(k) shouldBe JsString(v)
+
+            }
+        }, env.take(1).toMap)
+
+        out.trim shouldBe empty
+        err.trim shouldBe empty
+    }
 
     it should "support valid flows" in {
         val (out, err) = withJavaContainer { c =>

@@ -141,7 +141,7 @@ function main(params) {
   } else if (params.payload == 1) {
      return {payload: 'Hello, World!'};
   } else if (params.payload == 2) {
-    return whisk.error();   // indicates abnormal completion
+    return {error: 'payload must be 0 or 1'};
   }
 }
 ```
@@ -193,57 +193,6 @@ It is possible for an action to be synchronous on some inputs and asynchronous o
 ```
 
 Notice that regardless of whether an activation is synchronous or asynchronous, the invocation of the action can be blocking or non-blocking.
-
-### Additional SDK methods
-
-The `whisk.invoke()` function invokes another action and returns a Promise for the resulting activation. It takes as an argument a dictionary that defines the following parameters:
-
-- *name*: The fully qualified name of the action to invoke,
-- *parameters*: A JSON object that represents the input to the invoked action. If omitted, defaults to an empty object.
-- *apiKey*: The authorization key with which to invoke the action. Defaults to `whisk.getAuthKey()`.
-- *blocking*: Whether the action should be invoked in blocking or non-blocking mode. When `blocking` is true, invoke will wait for the result of the invoked action before resolving the returned Promise. Defaults to `false`, indicating a non-blocking invocation.
-
-`whisk.invoke()` returns a Promise. In order to make the OpenWhisk system wait for the invoke to finish, you must return this Promise from your action's `main` function.
-- If the invocation fails, the promise will reject with an object describing the failed invocation. It will potentially have two fields:
-  - *error*: An object describing the error - usually a string.
-  - *activation*: An optional dictionary that may or may not be present depending on the nature of the invocation failure. If present, it will have the following fields:
-    - *activationId*: The activation ID:
-    - *result*: If the action was invoked in blocking mode: The action result as a JSON object, else `undefined`.
-- If the invocation succeeds, the promise will resolve with a dictionary describing the activation with fields *activationId* and *result* as described above.
-
-Below is an example of a blocking invocation that utilizes the returned promise:
-```javascript
-return whisk.invoke({
-  name: 'myAction',
-  blocking: true
-})
-.then(function (activation) {
-    // activation completed successfully, activation contains the result
-    console.log('Activation ' + activation.activationId + ' completed successfully and here is the result ' + activation.result);
-})
-.catch(function (reason) {
-    console.log('An error has occured ' + reason.error);
-
-    if(reason.activation) {
-      console.log('Please check activation ' + reason.activation.activationId + ' for details.');
-    } else {
-      console.log('Failed to create activation.');
-    }
-});
-```
-
-The `whisk.trigger()` function fires a trigger and returns a Promise for the resulting activation. It takes as an argument a JSON object with the following parameters:
-
-- *name*: The fully qualified name of trigger to invoke.
-- *parameters*: A JSON object that represents the input to the trigger. If omitted, defaults to an empty object.
-- *apiKey*: The authorization key with which to fire the trigger. Defaults to `whisk.getAuthKey()`.
-
-`whisk.trigger()` returns a Promise. If you require the OpenWhisk system to wait for the trigger to complete, you should return this Promise from your action's `main` function.
-
-- If the trigger fails, the promise will reject with an object describing the error.
-- If the trigger succeeds, the promise will resolve with a dictionary with an `activationId` field containing the activation ID.
-
-The `whisk.getAuthKey()` function returns the authorization key under which the action is running. Usually, you do not need to invoke this function directly because it is used implicitly by the `whisk.invoke()` and `whisk.trigger()` functions.
 
 ### JavaScript runtime environments
 
