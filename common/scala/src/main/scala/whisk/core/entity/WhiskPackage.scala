@@ -180,22 +180,14 @@ object WhiskPackage
     }
 
     override implicit val serdes = {
-        // This is to conform to the old style where {} represents None.
-        val tolerantOptionBindingFormat: JsonFormat[Option[Binding]] = {
-            val bs = Binding.serdes // helps the compiler
-            val base = implicitly[JsonFormat[Option[Binding]]]
-            new JsonFormat[Option[Binding]] {
-                override def write(ob: Option[Binding]) = ob match {
-                    case None => JsObject()
-                    case _    => base.write(ob)
-                }
-                override def read(js: JsValue) = {
-                    if (js == JsObject()) None else base.read(js)
-                }
-            }
+        /**
+         * Custom serdes for a binding - this property must be present in the datastore records for
+         * packages so that views can map over packages vs bindings.
+         */
+        implicit val bindingOverride = new JsonFormat[Option[Binding]] {
+            override def write(b: Option[Binding]) = Binding.optionalBindingSerializer.write(b)
+            override def read(js: JsValue) = Binding.optionalBindingDeserializer.read(js)
         }
-
-        implicit val bindingOverride = tolerantOptionBindingFormat
         jsonFormat7(WhiskPackage.apply)
     }
 
@@ -225,11 +217,33 @@ case class Binding(namespace: EntityPath, name: EntityName) {
 }
 
 object Binding extends ArgNormalizer[Binding] with DefaultJsonProtocol {
-    override protected[core] implicit val serdes = jsonFormat2(Binding.apply)
+
+    override protected[core] val serdes = jsonFormat2(Binding.apply)
+
+    protected[entity] val optionalBindingDeserializer = new JsonReader[Option[Binding]] {
+        override def read(js: JsValue) = {
+            if (js == JsObject()) None else Some(serdes.read(js))
+        }
+
+    }
+
+    protected[entity] val optionalBindingSerializer = new JsonWriter[Option[Binding]] {
+        override def write(b: Option[Binding]) = b match {
+            case None    => JsObject()
+            case Some(n) => Binding.serdes.write(n)
+        }
+    }
 }
 
 object WhiskPackagePut extends DefaultJsonProtocol {
-    implicit val serdes = jsonFormat5(WhiskPackagePut.apply)
+    implicit val serdes = {
+        implicit val bindingSerdes = Binding.serdes
+        implicit val optionalBindingSerdes = new OptionFormat[Binding] {
+            override def read(js: JsValue) = Binding.optionalBindingDeserializer.read(js)
+            override def write(n: Option[Binding]) = Binding.optionalBindingSerializer.write(n)
+        }
+        jsonFormat5(WhiskPackagePut.apply)
+    }
 }
 
 object WhiskPackageAction extends DefaultJsonProtocol {

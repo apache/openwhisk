@@ -156,7 +156,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
         FullyQualifiedEntityName.serdesAsDocId.read(names(2)) shouldBe FullyQualifiedEntityName(EntityPath("a"), EntityName("b"))
     }
 
-    /*behavior of "Binding"
+    behavior of "Binding"
 
     it should "desiarilize legacy format" in {
         val names = Seq(
@@ -166,24 +166,31 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
             JsObject("namespace" -> "a".toJson, "name" -> "b".toJson),
             JsObject("namespace" -> "a".toJson, "path" -> "a".toJson, "name" -> "b".toJson),
             JsObject("name" -> "b".toJson),
-            JsObject())
+            JsObject(),
+            JsNull)
 
-        WhiskPackage.bindingDeserializer.read(names(0)) shouldBe Some(FullyQualifiedEntityName(EntityPath("a"), EntityName("b")))
-        WhiskPackage.bindingDeserializer.read(names(1)) shouldBe Some(FullyQualifiedEntityName(EntityPath("a"), EntityName("b"), Some(SemVer())))
-        WhiskPackage.bindingDeserializer.read(names(2)) shouldBe Some(FullyQualifiedEntityName(EntityPath("a"), EntityName("b")))
-        WhiskPackage.bindingDeserializer.read(names(3)) shouldBe Some(FullyQualifiedEntityName(EntityPath("a"), EntityName("b")))
-        WhiskPackage.bindingDeserializer.read(names(6)) shouldBe None
-        a[DeserializationException] should be thrownBy WhiskPackage.bindingDeserializer.read(names(4))
-        a[DeserializationException] should be thrownBy WhiskPackage.bindingDeserializer.read(names(5))
-    }*/
+        //Binding.optionalBindingDeserializer.read(names(0)) shouldBe Some(Binding(EntityPath("a"), EntityName("b")))
+        //Binding.optionalBindingDeserializer.read(names(1)) shouldBe Some(Binding(EntityPath("a"), EntityName("b"), Some(SemVer())))
+        //Binding.optionalBindingDeserializer.read(names(2)) shouldBe Some(Binding(EntityPath("a"), EntityName("b")))
+        Binding.optionalBindingDeserializer.read(names(3)) shouldBe Some(Binding(EntityPath("a"), EntityName("b")))
+        Binding.optionalBindingDeserializer.read(names(6)) shouldBe None
+        //a[DeserializationException] should be thrownBy Binding.optionalBindingDeserializer.read(names(4))
+        a[DeserializationException] should be thrownBy Binding.optionalBindingDeserializer.read(names(5))
+        a[DeserializationException] should be thrownBy Binding.optionalBindingDeserializer.read(names(7))
+    }
+
+    it should "serialize optional binding to empty object" in {
+        Binding.optionalBindingSerializer.write(None) shouldBe JsObject()
+    }
 
     behavior of "WhiskPackagePut"
 
     it should "deserialize empty request" in {
         WhiskPackagePut.serdes.read(JsObject()) shouldBe WhiskPackagePut()
-        WhiskPackagePut.serdes.read(JsObject("binding" -> JsNull)) shouldBe WhiskPackagePut()
-        //WhiskPackagePut.serdes.read(JsObject("binding" -> JsObject())) shouldBe WhiskPackagePut()
+        //WhiskPackagePut.serdes.read(JsObject("binding" -> JsNull)) shouldBe WhiskPackagePut()
+        WhiskPackagePut.serdes.read(JsObject("binding" -> JsObject())) shouldBe WhiskPackagePut()
         //WhiskPackagePut.serdes.read(JsObject("binding" -> "a/b".toJson)) shouldBe WhiskPackagePut(binding = Some(Binding(EntityPath("a"), EntityName("b"))))
+        a[DeserializationException] should be thrownBy WhiskPackagePut.serdes.read(JsObject("binding" -> JsNull))
     }
 
     behavior of "WhiskPackage"
