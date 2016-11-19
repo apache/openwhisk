@@ -452,6 +452,24 @@ class WskBasicUsageTests
             }
     }
 
+    it should "invoke an action using npm openwhisk" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "hello npm openwhisk"
+            assetHelper.withCleaner(wsk.action, name, confirmDelete = false) {
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("helloOpenwhiskPackage.js")))
+            }
+
+            val run = wsk.action.invoke(name, Map("ignore_certs" -> true.toJson, "name" -> name.toJson))
+            withActivation(wsk.activation, run) {
+                activation =>
+                    activation.response.status shouldBe "success"
+                    activation.response.result shouldBe Some(JsObject("delete" -> true.toJson))
+                    activation.logs.get.mkString(" ") should include("action list has this many actions")
+            }
+
+            wsk.action.delete(name, expectedExitCode = TestUtils.NOT_FOUND)
+    }
+
     behavior of "Wsk packages"
 
     it should "create, and get a package to verify parameter and annotation parsing" in withAssetCleaner(wskprops) {
