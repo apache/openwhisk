@@ -28,18 +28,51 @@ import ResourceHelpers.JarBuilder
 import common.WskActorSystem
 
 @RunWith(classOf[JUnitRunner])
-class JavaActionContainerTests extends FlatSpec with Matchers with WskActorSystem {
+class JavaActionContainerTests extends FlatSpec with Matchers with WskActorSystem with ActionProxyContainerTestUtils {
 
     // Helpers specific to javaaction
-    def withJavaContainer(code: ActionContainer => Unit) = withContainer("javaaction")(code)
+    def withJavaContainer(code: ActionContainer => Unit, env: Map[String, String] = Map.empty) = withContainer("javaaction", env)(code)
     def initPayload(mainClass: String, jar64: String) = JsObject(
         "value" -> JsObject(
             "name" -> JsString("dummyAction"),
             "main" -> JsString(mainClass),
             "jar" -> JsString(jar64)))
-    def runPayload(args: JsValue) = JsObject("value" -> args)
 
     behavior of "Java action"
+
+    it should s"run a java snippet and confirm expected environment variables" in {
+        val auth = JsString("abc")
+        val edge = "xyz"
+        val env = Map("EDGE_HOST" -> edge)
+        val (out, err) = withJavaContainer({ c =>
+            val jar = JarBuilder.mkBase64Jar(
+                Seq("example", "HelloWhisk.java") -> """
+                    | package example;
+                    |
+                    | import com.google.gson.JsonObject;
+                    |
+                    | public class HelloWhisk {
+                    |     public static JsonObject main(JsonObject args) {
+                    |         JsonObject response = new JsonObject();
+                    |         response.addProperty("edge", System.getenv("EDGE_HOST"));
+                    |         response.addProperty("auth", System.getenv("AUTH_KEY"));
+                    |         return response;
+                    |     }
+                    | }
+                """.stripMargin.trim)
+
+            val (initCode, _) = c.init(initPayload("example.HelloWhisk", jar))
+            initCode should be(200)
+
+            val (runCode, out) = c.run(runPayload(JsObject(), Some(JsObject("authKey" -> auth))))
+            runCode should be(200)
+            out.get.fields("edge") shouldBe JsString(edge)
+            out.get.fields("auth") shouldBe auth
+        }, env)
+
+        out.trim shouldBe empty
+        err.trim shouldBe empty
+    }
 
     it should "support valid flows" in {
         val (out, err) = withJavaContainer { c =>
