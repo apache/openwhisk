@@ -124,7 +124,7 @@ public class Proxy {
                 HashMap<String, String> env = new HashMap<String, String>();
                 try {
                     String authKey = ie.getAsJsonObject().getAsJsonPrimitive("authKey").getAsString();
-                    env.put("AUTH_KEY", authKey);
+                    env.put("__OW_APIKEY", authKey);
                 } catch (Exception e) {}
 
                 Thread.currentThread().setContextClassLoader(loader);

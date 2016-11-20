@@ -81,19 +81,19 @@ class ActionProxyContainerTests extends BasicActionRunnerTests with WskActorSyst
     val stdEnvSamples = {
         val bash = """
                 |#!/bin/bash
-                |echo "{ \"auth\": \"$AUTH_KEY\", \"edge\": \"$EDGE_HOST\" }"
+                |echo "{ \"auth\": \"$__OW_APIKEY\", \"edge\": \"$__OW_APIHOST\" }"
             """.stripMargin.trim
 
         val python = """
                 |#!/usr/bin/env python
                 |import os
-                |print '{ "auth": "%s", "edge": "%s" }' % (os.environ['AUTH_KEY'], os.environ['EDGE_HOST'])
+                |print '{ "auth": "%s", "edge": "%s" }' % (os.environ['__OW_APIKEY'], os.environ['__OW_APIHOST'])
             """.stripMargin.trim
 
         val perl = """
                 |#!/usr/bin/env perl
-                |$a = $ENV{'AUTH_KEY'};
-                |$e = $ENV{'EDGE_HOST'};
+                |$a = $ENV{'__OW_APIKEY'};
+                |$e = $ENV{'__OW_APIHOST'};
                 |print "{ \"auth\": \"$a\", \"edge\": \"$e\" }";
             """.stripMargin.trim
 
@@ -249,7 +249,7 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
             it should s"run a ${s._1} script and confirm expected environment variables" in {
                 val auth = JsString("abc")
                 val edge = "xyz"
-                val env = Map("EDGE_HOST" -> edge)
+                val env = Map("__OW_APIHOST" -> edge)
 
                 val (out, err) = withActionContainer(env) { c =>
                     val (initCode, _) = c.init(initPayload(s._2))

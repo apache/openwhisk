@@ -53,7 +53,7 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
         ("python", """
          |import os
          |def main(dict):
-         |    return { "auth": os.environ['AUTH_KEY'], "edge": os.environ['EDGE_HOST'] }
+         |    return { "auth": os.environ['__OW_APIKEY'], "edge": os.environ['__OW_APIHOST'] }
          """.stripMargin.trim)
     })
 

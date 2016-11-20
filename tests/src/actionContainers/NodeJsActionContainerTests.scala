@@ -73,7 +73,7 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
     testEnv(Seq {
         ("node", """
          |function main(args) {
-         |    return { "auth": process.env['AUTH_KEY'], "edge": process.env['EDGE_HOST'] }
+         |    return { "auth": process.env['__OW_APIKEY'], "edge": process.env['__OW_APIHOST'] }
          }
          """.stripMargin.trim)
     })

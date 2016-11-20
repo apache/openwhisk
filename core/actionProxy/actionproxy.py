@@ -97,7 +97,7 @@ class ActionRunner:
         # make sure to include all the env vars passed in by the invoker
         env = os.environ
         if 'authKey' in message:
-            env['AUTH_KEY'] = message['authKey']
+            env['__OW_APIKEY'] = message['authKey']
         return env
 
     # runs the action, called iff self.verify() is True.

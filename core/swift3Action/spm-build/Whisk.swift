@@ -65,16 +65,16 @@ class Whisk {
     
     /*
      * Initialize with host, port and authKey determined from environment variables
-     * EDGE_HOST and AUTH_KEY, respectively
+     * __OW_APIHOST and __OW_APIKEY, respectively
      */
     private class func initializeCommunication() -> (host : String, port : Int16, authKey : String) {
         let env = ProcessInfo.processInfo.environment
         
         var edgeHost : String!
-        if let edgeHostEnv : String = env["EDGE_HOST"] {
+        if let edgeHostEnv : String = env["__OW_APIHOST"] {
             edgeHost = "\(edgeHostEnv)"
         } else {
-            fatalError("EDGE_HOST environment variable was not set.")
+            fatalError("__OW_APIHOST environment variable was not set.")
         }
         
         let hostComponents = edgeHost.components(separatedBy: ":")
@@ -86,7 +86,7 @@ class Whisk {
         }
         
         var authKey = "authKey"
-        if let authKeyEnv : String = env["AUTH_KEY"] {
+        if let authKeyEnv : String = env["__OW_APIKEY"] {
             authKey = authKeyEnv
         }
         

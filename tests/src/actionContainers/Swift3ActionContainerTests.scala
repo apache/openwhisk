@@ -32,10 +32,10 @@ class Swift3ActionContainerTests extends SwiftActionContainerTests {
          |     let env = ProcessInfo.processInfo.environment
          |     var auth = "???"
          |     var edge = "???"
-         |     if let authKey : String = env["AUTH_KEY"] {
+         |     if let authKey : String = env["__OW_APIKEY"] {
          |         auth = "\(authKey)"
          |     }
-         |     if let edgeHost : String = env["EDGE_HOST"] {
+         |     if let edgeHost : String = env["__OW_APIHOST"] {
          |         edge = "\(edgeHost)"
          |     }
          |     return ["auth": auth, "edge": edge]

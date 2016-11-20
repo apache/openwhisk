@@ -43,7 +43,7 @@ class JavaActionContainerTests extends FlatSpec with Matchers with WskActorSyste
     it should s"run a java snippet and confirm expected environment variables" in {
         val auth = JsString("abc")
         val edge = "xyz"
-        val env = Map("EDGE_HOST" -> edge)
+        val env = Map("__OW_APIHOST" -> edge)
         val (out, err) = withJavaContainer({ c =>
             val jar = JarBuilder.mkBase64Jar(
                 Seq("example", "HelloWhisk.java") -> """
@@ -54,8 +54,8 @@ class JavaActionContainerTests extends FlatSpec with Matchers with WskActorSyste
                     | public class HelloWhisk {
                     |     public static JsonObject main(JsonObject args) {
                     |         JsonObject response = new JsonObject();
-                    |         response.addProperty("edge", System.getenv("EDGE_HOST"));
-                    |         response.addProperty("auth", System.getenv("AUTH_KEY"));
+                    |         response.addProperty("edge", System.getenv("__OW_APIHOST"));
+                    |         response.addProperty("auth", System.getenv("__OW_APIKEY"));
                     |         return response;
                     |     }
                     | }

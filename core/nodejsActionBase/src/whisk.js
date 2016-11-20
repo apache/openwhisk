@@ -28,10 +28,10 @@ var request = require('request');
  */
 function Whisk(apihost, logger) {
 
-    // export EDGE_HOST to environment
+    // export __OW_APIHOST to environment
     {
         apihost = apihost || '';
-        process.env['EDGE_HOST'] = apihost;
+        process.env['__OW_APIHOST'] = apihost;
         var edgeHostParts = apihost.split(':');
         var protocol = (edgeHostParts.length >= 2  &&  edgeHostParts[1] == '443') ? 'https' : 'http';
         apihost = protocol + '://' + apihost;
@@ -75,8 +75,8 @@ function Whisk(apihost, logger) {
      * Gets the authorization key under which this action is running.
      */
     this.setAuthKey = function(key, warn) {
-        // export key to environment as AUTH_KEY
-        process.env['AUTH_KEY'] = key;
+        // export key to environment as __OW_APIKEY
+        process.env['__OW_APIKEY'] = key;
         if (warn !== false) {
             console.warn('[WARN] "whisk.setAuthKey" is deprecated. Use "openwhisk" package instead.');
         }
