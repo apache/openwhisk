@@ -148,7 +148,7 @@ function NodeActionRunner(whisk) {
             );
         }).then(function (zipFile) {
             return exec(mkTempCmd).then(function (tmpDir2) {
-                return exec("unzip " + zipFile + " -d " + tmpDir2).then(function (res) {
+                return exec("unzip -qq " + zipFile + " -d " + tmpDir2).then(function (res) {
                    return path.resolve(tmpDir2);
                 }).catch(function (error) {
                    return Promise.reject("There was an error uncompressing the action archive.");
