@@ -39,13 +39,13 @@ func _whisk_json2dict(txt: String) -> [String:Any]? {
 }
 
 
-func _run_main() -> Void {
+func _run_main(mainFunction: ([String: Any]) -> [String: Any]) -> Void {
     //let env = NSProcessInfo.processInfo.environment
     let env = ProcessInfo.processInfo.environment
     let inputStr: String = env["WHISK_INPUT"] ?? "{}"
     
     if let parsed = _whisk_json2dict(txt: inputStr) {
-        let result = main(args:parsed)
+        let result = mainFunction(parsed)
         
         if result is [String:Any] {
             do {
@@ -76,7 +76,5 @@ func _run_main() -> Void {
         #endif
     }
 }
-
-_run_main()
 
 

@@ -125,12 +125,12 @@ class _Whisk_JSONSerialization {
     }
 }
 
-func _run_main() -> Void {
+func _run_main(mainFunction: [String: Any] -> [String: Any]) -> Void {
     let env = NSProcessInfo.processInfo().environment
     let inputStr: String = env["WHISK_INPUT"] ?? "{}"
 
     if let parsed = _whisk_json2dict(inputStr) {
-        let result = main(parsed)
+        let result = mainFunction(parsed)
         do {
             try print(_Whisk_JSONSerialization.serialize(result))
         } catch {
@@ -141,4 +141,3 @@ func _run_main() -> Void {
     }
 }
 
-_run_main()
