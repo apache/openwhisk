@@ -33,7 +33,8 @@ class JavaActionContainerTests extends FlatSpec with Matchers with WskActorSyste
 
     // Helpers specific to javaaction
     def withJavaContainer(code: ActionContainer => Unit, env: Map[String, String] = Map.empty) = withContainer("javaaction", env)(code)
-    def initPayload(mainClass: String, jar64: String) = JsObject(
+
+    override def initPayload(mainClass: String, jar64: String) = JsObject(
         "value" -> JsObject(
             "name" -> JsString("dummyAction"),
             "main" -> JsString(mainClass),
