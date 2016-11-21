@@ -52,7 +52,9 @@ class ActionRunner:
                     with codecs.open(self.source, 'w', 'utf-8') as fp:
                         fp.write(str(message['code']))
                         # write source epilogue if any
-                        self.epilogue(fp)
+                        # the message is passed along as it may contain other
+                        # fields relevant to a specific container.
+                        self.epilogue(fp, message)
                     return True
                 else:
                     try:
@@ -79,7 +81,7 @@ class ActionRunner:
 
     # optionally appends source to the loaded code during <init>
     # @param fp the file stream writer
-    def epilogue(self, fp):
+    def epilogue(self, fp, init_arguments):
         return
 
     # optionally builds the source code loaded during <init> into an executable

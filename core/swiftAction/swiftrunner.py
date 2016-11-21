@@ -31,9 +31,16 @@ class SwiftRunner(ActionRunner):
     def __init__(self):
         ActionRunner.__init__(self, DEST_SCRIPT_FILE, DEST_BIN_FILE)
 
-    def epilogue(self, fp):
+    def epilogue(self, fp, init_message):
+        if "main" in init_message:
+            main_function = init_message["main"]
+        else:
+            main_function = "main"
+
         with codecs.open(SRC_EPILOGUE_FILE, "r", "utf-8") as ep:
             fp.write(ep.read())
+
+        fp.write("_run_main(%s)\n" % main_function)
 
     def build(self):
         p = subprocess.Popen(BUILD_PROCESS)
