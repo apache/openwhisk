@@ -864,6 +864,10 @@
     "translation": "creating an action from a .zip artifact requires specifying the action kind explicitly"
   },
   {
+    "id": "Java actions require --main to specify the fully-qualified name of the main class",
+    "translation": "Java actions require --main to specify the fully-qualified name of the main class"
+  },
+  {
     "id": "treat ACTION as docker image path on dockerhub",
     "translation": "treat ACTION as docker image path on dockerhub"
   },
@@ -878,6 +882,10 @@
   {
     "id": "the `KIND` of the action runtime (example: swift:3, nodejs:6)",
     "translation": "the `KIND` of the action runtime (example: swift:3, nodejs:6)"
+  },
+  {
+    "id": "the name of the action entry point (function or fully-qualified method name when applicable)",
+    "translation": "the name of the action entry point (function or fully-qualified method name when applicable)"
   },
   {
     "id": "action visibility `SCOPE`; yes = shared, no = private",

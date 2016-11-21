@@ -20,7 +20,6 @@ import (
   "encoding/base64"
   "errors"
   "fmt"
-  "os/exec"
   "path/filepath"
   "strings"
 
@@ -386,62 +385,6 @@ var actionListCmd = &cobra.Command{
   },
 }
 
-func getJavaClasses(classes []string) []string {
-  var res []string
-
-  for i := 0; i < len(classes); i++ {
-    if strings.HasSuffix(classes[i], ".class") {
-      classes[i] = classes[i][0 : len(classes[i])-6]
-      classes[i] = strings.Replace(classes[i], "/", ".", -1)
-      res = append(res, classes[i])
-    }
-  }
-
-  return res
-}
-
-func findMainJarClass(jarFile string) (string, error) {
-  signature := "public static com.google.gson.JsonObject main(com.google.gson.JsonObject);"
-
-  whisk.Debug(whisk.DbgInfo, "unjaring '%s'\n", jarFile)
-  stdOut, err := exec.Command("jar", "-tf", jarFile).Output()
-  if err != nil {
-    whisk.Debug(whisk.DbgError, "unjar of '%s' failed: %s\n", jarFile, err)
-    return "", err
-  }
-
-  whisk.Debug(whisk.DbgInfo, "jar stdout:\n%s\n", stdOut)
-  output := string(stdOut[:])
-  output = strings.Replace(output, "\r", "", -1) // Windows jar adds \r chars that needs removing
-  outputArr := strings.Split(output, "\n")
-  classes := getJavaClasses(outputArr)
-
-  whisk.Debug(whisk.DbgInfo, "jar '%s' has %d classes\n", jarFile, len(classes))
-  for i := 0; i < len(classes); i++ {
-    whisk.Debug(whisk.DbgInfo, "javap -public -cp '%s'\n", classes[i])
-    stdOut, err = exec.Command("javap", "-public", "-cp", jarFile, classes[i]).Output()
-    if err != nil {
-      whisk.Debug(whisk.DbgError, "javap of class '%s' in jar '%s' failed: %s\n", classes[i], jarFile, err)
-      return "", err
-    }
-
-    output := string(stdOut[:])
-    whisk.Debug(whisk.DbgInfo, "javap '%s' output:\n%s\n", classes[i], output)
-
-    if strings.Contains(output, signature) {
-      return classes[i], nil
-    }
-  }
-
-  errMsg := fmt.Sprintf(
-    wski18n.T("Could not find 'main' method in '{{.name}}'",
-      map[string]interface{}{"name": jarFile}))
-  whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
-    whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-
-  return "", whiskErr
-}
-
 func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, error) {
   var err error
   var artifact string
@@ -523,6 +466,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, error) {
   } else if artifact != "" {
     ext := filepath.Ext(artifact)
     action.Exec = new(whisk.Exec)
+
     if !flags.action.docker || ext == ".zip" {
       action.Exec.Code, err = readFile(artifact)
     }
@@ -567,13 +511,17 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, error) {
       action.Exec.Kind = "python"
     } else if ext == ".jar" {
       action.Exec.Kind = "java"
-      action.Exec.Jar = base64.StdEncoding.EncodeToString([]byte(action.Exec.Code))
-      action.Exec.Main, err = findMainJarClass(artifact)
-      action.Exec.Code = ""
 
-      if err != nil {
-        return nil, err
+      if len(flags.action.main) == 0 {
+        errMsg := wski18n.T("Java actions require --main to specify the fully-qualified name of the main class")
+        whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG,
+          whisk.DISPLAY_USAGE)
+        return nil, whiskErr
       }
+
+      action.Exec.Jar = base64.StdEncoding.EncodeToString([]byte(action.Exec.Code))
+      action.Exec.Main = flags.action.main
+      action.Exec.Code = ""
     } else {
       errMsg := ""
       if ext == ".zip" {
@@ -647,6 +595,8 @@ func init() {
   actionCreateCmd.Flags().BoolVar(&flags.action.copy, "copy", false, wski18n.T("treat ACTION as the name of an existing action"))
   actionCreateCmd.Flags().BoolVar(&flags.action.sequence, "sequence", false, wski18n.T("treat ACTION as comma separated sequence of actions to invoke"))
   actionCreateCmd.Flags().StringVar(&flags.action.kind, "kind", "", wski18n.T("the `KIND` of the action runtime (example: swift:3, nodejs:6)"))
+  actionCreateCmd.Flags().StringVar(&flags.action.main, "main", "", wski18n.T("the name of the action entry point (function or fully-qualified method name when applicable)"))
+  actionCreateCmd.Flags().StringVar(&flags.action.shared, "shared", "no", wski18n.T("action visibility `SCOPE`; yes = shared, no = private"))
   actionCreateCmd.Flags().IntVarP(&flags.action.timeout, "timeout", "t", TIMEOUT_LIMIT, wski18n.T("the timeout `LIMIT` in milliseconds after which the action is terminated"))
   actionCreateCmd.Flags().IntVarP(&flags.action.memory, "memory", "m", MEMORY_LIMIT, wski18n.T("the maximum memory `LIMIT` in MB for the action"))
   actionCreateCmd.Flags().IntVarP(&flags.action.logsize, "logsize", "l", LOGSIZE_LIMIT, wski18n.T("the maximum log size `LIMIT` in MB for the action"))
@@ -659,6 +609,8 @@ func init() {
   actionUpdateCmd.Flags().BoolVar(&flags.action.copy, "copy", false, wski18n.T("treat ACTION as the name of an existing action"))
   actionUpdateCmd.Flags().BoolVar(&flags.action.sequence, "sequence", false, wski18n.T("treat ACTION as comma separated sequence of actions to invoke"))
   actionUpdateCmd.Flags().StringVar(&flags.action.kind, "kind", "", wski18n.T("the `KIND` of the action runtime (example: swift:3, nodejs:6)"))
+  actionUpdateCmd.Flags().StringVar(&flags.action.main, "main", "", wski18n.T("the name of the action entry point (function or fully-qualified method name when applicable)"))
+  actionUpdateCmd.Flags().StringVar(&flags.action.shared, "shared", "", wski18n.T("action visibility `SCOPE`; yes = shared, no = private"))
   actionUpdateCmd.Flags().IntVarP(&flags.action.timeout, "timeout", "t", TIMEOUT_LIMIT, wski18n.T("the timeout `LIMIT` in milliseconds after which the action is terminated"))
   actionUpdateCmd.Flags().IntVarP(&flags.action.memory, "memory", "m", MEMORY_LIMIT, wski18n.T("the maximum memory `LIMIT` in MB for the action"))
   actionUpdateCmd.Flags().IntVarP(&flags.action.logsize, "logsize", "l", LOGSIZE_LIMIT, wski18n.T("the maximum log size `LIMIT` in MB for the action"))

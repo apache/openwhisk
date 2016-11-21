@@ -18,7 +18,7 @@ The following sections guide you through working with actions in JavaScript. You
 Review the following steps and examples to create your first JavaScript action.
 
 1. Create a JavaScript file with the following content. For this example, the file name is 'hello.js'.
-  
+
   ```
   function main() {
       return {payload: 'Hello world'};
@@ -37,7 +37,7 @@ Review the following steps and examples to create your first JavaScript action.
   ```
 
 3. List the actions that you have created:
-  
+
   ```
   $ wsk action list
   ```
@@ -106,7 +106,7 @@ Review the following steps and examples to create your first JavaScript action.
 Parameters can be passed to the action when it is invoked.
 
 1. Use parameters in the action. For example, update the 'hello.js' file with the following content:
-  
+
   ```
   function main(params) {
       return {payload:  'Hello, ' + params.name + ' from ' + params.place};
@@ -116,7 +116,7 @@ Parameters can be passed to the action when it is invoked.
   The input parameters are passed as a JSON object parameter to the `main` function. Notice how the `name` and `place` parameters are retrieved from the `params` object in this example.
 
 2. Update the `hello` action and invoke the action, while passing it `name` and `place` parameter values. See the following example:
-  
+
   ```
   $ wsk action update hello hello.js
   ```
@@ -156,7 +156,7 @@ Parameters can be passed to the action when it is invoked.
 Actions can be invoked with multiple named parameters. Recall that the `hello` action from the previous example expects two parameters: the *name* of a person, and the *place* where they're from.
 
 Rather than pass all the parameters to an action every time, you can bind certain parameters. The following example binds the *place* parameter so that the action defaults to the place "Vermont":
- 
+
 1. Update the action by using the `--param` option to bind parameter values, or by passing a file that contains the parameters to `--param-file`
 
   To specify default parameters explicitly on the command-line, provide a key/value pair to the `param` flag:
@@ -288,17 +288,17 @@ JavaScript functions that run asynchronously may need to return the activation r
 
 The examples so far have been self-contained JavaScript functions. You can also create an action that calls an external API.
 
-This example invokes a Yahoo Weather service to get the current conditions at a specific location. 
+This example invokes a Yahoo Weather service to get the current conditions at a specific location.
 
 1. Save the following content in a file called `weather.js`.
-  
+
   ```
   var request = require('request');
-  
+
   function main(params) {
       var location = params.location || 'Vermont';
       var url = 'https://query.yahooapis.com/v1/public/yql?q=select item.condition from weather.forecast where woeid in (select woeid from geo.places(1) where text="' + location + '")&format=json';
-  
+
       return new Promise(function(resolve, reject) {
           request.get(url, function(error, response, body) {
               if (error) {
@@ -315,13 +315,13 @@ This example invokes a Yahoo Weather service to get the current conditions at a 
       });
   }
   ```
-  
+
   Note that the action in the example uses the JavaScript `request` library to make an HTTP request to the Yahoo Weather API, and extracts fields from the JSON result. The [References](./reference.md#javascript-runtime-environments) detail the Node.js packages that you can use in your actions.
-  
+
   This example also shows the need for asynchronous actions. The action returns a Promise to indicate that the result of this action is not available yet when the function returns. Instead, the result is available in the `request` callback after the HTTP call completes, and is passed as an argument to the `resolve()` function.
-  
+
 2. Run the following commands to create the action and invoke it:
-  
+
   ```
   $ wsk action create weather weather.js
   ```
@@ -410,7 +410,7 @@ You can create an action that chains together a sequence of actions.
 Several utility actions are provided in a package called `/whisk.system/utils` that you can use to create your first sequence. You can learn more about packages in the [Packages](./packages.md) section.
 
 1. Display the actions in the `/whisk.system/utils` package.
-  
+
   ```
   $ wsk package get --summary /whisk.system/utils
   ```
@@ -423,19 +423,19 @@ Several utility actions are provided in a package called `/whisk.system/utils` t
    action /whisk.system/utils/date: Current date and time
    action /whisk.system/utils/cat: Concatenates input into a string
   ```
-  
+
   You will be using the `split` and `sort` actions in this example.
-  
+
 2. Create an action sequence so that the result of one action is passed as an argument to the next action.
-  
+
   ```
   $ wsk action create sequenceAction --sequence /whisk.system/utils/split,/whisk.system/utils/sort
   ```
-  
+
   This action sequence converts some lines of text to an array, and sorts the lines.
-  
+
 3. Invoke the action:
-  
+
   ```
   $ wsk action invoke --blocking --result sequenceAction --param payload "Over-ripe sushi,\nThe Master\nIs full of regret."
   ```
@@ -449,7 +449,7 @@ Several utility actions are provided in a package called `/whisk.system/utils` t
       ]
   }
   ```
-  
+
   In the result, you see that the lines are sorted.
 
 **Note**: Parameters passed between actions in the sequence are explicit, except for default parameters.
@@ -592,12 +592,17 @@ You can create a OpenWhisk action called `helloJava` from this JAR file as
 follows:
 
 ```
-$ wsk action create helloJava hello.jar
+$ wsk action create helloJava hello.jar --main Hello
 ```
 
 When you use the command line and a `.jar` source file, you do not need to
 specify that you are creating a Java action;
 the tool determines that from the file extension.
+
+You need to specify the name of the main class using `--main`. An eligible main
+class is one that implements a static `main` method as described above. If the
+class is not in the default package, use the Java fully-qualified class name,
+e.g., `--main com.example.MyMain`.
 
 Action invocation is the same for Java actions as it is for Swift and JavaScript actions:
 
@@ -610,9 +615,6 @@ $ wsk action invoke --blocking --result helloJava --param name World
       "greeting": "Hello World!"
   }
 ```
-
-**Note:** If the JAR file has more than one class with a main method matching required signature, the CLI tool uses the first one reported by `jar -tf`.
-
 
 ## Creating Docker actions
 
@@ -665,7 +667,7 @@ For the instructions that follow, assume that the Docker user ID is `janesmith` 
   By convention, the last line of output _must_ be a stringified JSON object which represents the result of the action.
 
 3. Build the Docker image and upload it using a supplied script. You must first run `docker login` to authenticate, and then run the script with a chosen image name.
-  
+
   ```
   $ docker login -u janesmith -p janes_password
   ```
@@ -678,20 +680,20 @@ For the instructions that follow, assume that the Docker user ID is `janesmith` 
   ```
   $ ./buildAndPush.sh janesmith/blackboxdemo
   ```
-  
+
   Notice that part of the example.c file is compiled as part of the Docker image build process, so you do not need C compiled on your machine.
   In fact, unless you are compiling the binary on a compatible host machine, it may not run inside the container since formats will not match.
-  
+
   Your Docker container may now be used as an OpenWhisk action.
-  
-  
+
+
   ```
   $ wsk action create --docker example janesmith/blackboxdemo
   ```
-  
+
   Notice the use of `--docker` when creating an action. Currently all Docker images are assumed to be hosted on Docker Hub.
   The action may be invoked as any other OpenWhisk action.
-  
+
   ```
   $ wsk action invoke --blocking --result example --param payload Rey
   ```
@@ -703,18 +705,18 @@ For the instructions that follow, assume that the Docker user ID is `janesmith` 
       "msg": "Hello from arbitrary C program!"
   }
   ```
-  
+
   To update the Docker action, run buildAndPush.sh to upload the latest image to Docker Hub. This will allow the system to pull your new Docker image the next time it runs the code for your action.
   If there are no warm containers any new invocations will use the new Docker image.
   However, if there is a warm container using a previous version of your Docker image, any new invocations will continue to use that image unless you run `wsk action update`. This will indicate to the system that for new invocations it should execute a docker pull to get your new Docker image.
- 
+
   ```
   $ ./buildAndPush.sh janesmith/blackboxdemo
   ```
   ```
   $ wsk action update --docker example janesmith/blackboxdemo
   ```
-  
+
   You can find more information about creating Docker actions in the [References](./reference.md#docker-actions) section.
 
 ## Watching action output

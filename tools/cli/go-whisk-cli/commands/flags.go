@@ -78,6 +78,7 @@ var flags struct {
         logsize     int
         result      bool
         kind        string
+        main        string
     }
 
     activation struct {
@@ -121,4 +122,3 @@ func IsVerbose() bool {
 func IsDebug() bool {
     return len(cliDebug) > 0 || flags.global.debug
 }
-

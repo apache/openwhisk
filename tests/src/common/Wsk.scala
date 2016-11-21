@@ -264,6 +264,7 @@ class WskAction()
         name: String,
         artifact: Option[String],
         kind: Option[String] = None, // one of docker, copy, sequence or none for autoselect else an explicit type
+        main: Option[String] = None,
         parameters: Map[String, JsValue] = Map(),
         annotations: Map[String, JsValue] = Map(),
         parameterFile: Option[String] = None,
@@ -283,6 +284,7 @@ class WskAction()
                     else Seq("--kind", k)
                 } getOrElse Seq()
             } ++
+            { main.toSeq flatMap { p => Seq("--main", p) } } ++
             { parameters flatMap { p => Seq("-p", p._1, p._2.compactPrint) } } ++
             { annotations flatMap { p => Seq("-a", p._1, p._2.compactPrint) } } ++
             { parameterFile map { pf => Seq("-P", pf) } getOrElse Seq() } ++
