@@ -64,6 +64,21 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
          """.stripMargin.trim)
     })
 
+    it should "support actions using non-default entry points" in {
+        withActionContainer() { c =>
+            val code = """
+                |def niam(dict):
+                |  return { "result": "it works" }
+                |""".stripMargin
+
+            val (initCode, initRes) = c.init(initPayload(code, main = "niam"))
+            initCode should be(200)
+
+            val (_, runRes) = c.run(runPayload(JsObject()))
+            runRes.get.fields.get("result") shouldBe Some(JsString("it works"))
+        }
+    }
+
     it should "return on action error when action fails" in {
         val (out, err) = withActionContainer() { c =>
             val code = """
