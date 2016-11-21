@@ -28,9 +28,13 @@ class PythonRunner(ActionRunner):
     def __init__(self):
         ActionRunner.__init__(self)
         self.fn = None
+        self.mainFn = "main"
 
     def init(self, message):
         if 'code' in message:
+            if 'main' in message:
+                self.mainFn = message["main"]
+
             try:
                 self.fn = compile(message["code"], filename = 'action', mode = 'exec')
             except Exception:
@@ -48,7 +52,7 @@ class PythonRunner(ActionRunner):
             os.environ = env
             namespace['param'] = args
             exec(self.fn, namespace)
-            exec("fun = main(param)", namespace)
+            exec("fun = %s(param)" % self.mainFn, namespace)
             result = namespace['fun']
         except Exception:
             traceback.print_exc(file = sys.stderr)
