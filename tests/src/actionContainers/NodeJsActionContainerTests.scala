@@ -41,14 +41,14 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
 
     def exec(code: String): NodeJSAbstractExec = NodeJSExec(code)
 
-    override def initPayload(code: String) = {
+    override def initPayload(code: String, main: String = "main") = {
         val e = exec(code)
         JsObject(
             "value" -> JsObject(
                 "name" -> JsString("dummyAction"),
                 "code" -> JsString(e.code),
                 "binary" -> JsBoolean(e.binary),
-                "main" -> JsString("main")))
+                "main" -> JsString(main)))
     }
 
     behavior of nodejsContainerImageName
@@ -513,18 +513,20 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
         })
     }
 
+    val examplePackageDotJson: String = """
+        | {
+        |   "name": "wskaction",
+        |   "version": "1.0.0",
+        |   "description": "An OpenWhisk action as an npm package.",
+        |   "main": "index.js",
+        |   "author": "info@openwhisk.org",
+        |   "license": "Apache-2.0"
+        | }
+    """.stripMargin
+
     it should "support zip-encoded npm package actions" in {
         val srcs = Seq(
-            Seq("package.json") -> """
-                | {
-                |   "name": "wskaction",
-                |   "version": "1.0.0",
-                |   "description": "An OpenWhisk action as an npm package.",
-                |   "main": "index.js",
-                |   "author": "info@openwhisk.org",
-                |   "license": "Apache-2.0"
-                | }
-            """.stripMargin,
+            Seq("package.json") -> examplePackageDotJson,
             Seq("index.js") -> """
                 | exports.main = function (args) {
                 |     var name = typeof args["name"] === "string" ? args["name"] : "stranger";
@@ -586,5 +588,38 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
                 (o + e).toLowerCase should include("error")
                 (o + e).toLowerCase should include("module_not_found")
         })
+    }
+
+    it should "support actions using non-default entry point" in {
+        val (out, err) = withNodeJsContainer { c =>
+            val code = """
+            | function niam(args) {
+            |     return { result: "it works" };
+            | }
+            """.stripMargin
+
+            c.init(initPayload(code, main = "niam"))._1 should be(200)
+            val (runCode, runRes) = c.run(runPayload(JsObject()))
+            runRes.get.fields.get("result") shouldBe Some(JsString("it works"))
+        }
+    }
+
+    it should "support zipped actions using non-default entry point" in {
+        val srcs = Seq(
+            Seq("package.json") -> examplePackageDotJson,
+            Seq("index.js") -> """
+                | exports.niam = function (args) {
+                |     return { result: "it works" };
+                | }
+            """.stripMargin)
+
+        val code = ZipBuilder.mkBase64Zip(srcs)
+
+        val (out, err) = withNodeJsContainer { c =>
+            c.init(initPayload(code, main = "niam"))._1 should be(200)
+
+            val (runCode, runRes) = c.run(runPayload(JsObject()))
+            runRes.get.fields.get("result") shouldBe Some(JsString("it works"))
+        }
     }
 }
