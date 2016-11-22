@@ -72,7 +72,7 @@ class CLIPythonTests
 
     it should "invoke an invalid action and get error back" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val name = "basicInvoke"
+            val name = "bad code"
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("malformed.py")))
             }

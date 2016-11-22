@@ -125,7 +125,7 @@ function NodeActionRunner(whisk) {
                 }
             }
         );
-    };
+    }
 
     // Helper function to copy a base64-encoded zip file to a temporary location,
     // decompress it into temporary directory, and return the name of that directory.

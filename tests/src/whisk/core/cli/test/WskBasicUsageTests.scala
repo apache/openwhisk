@@ -45,6 +45,8 @@ import whisk.core.entity.size.SizeInt
 import whisk.utils.retry
 import JsonArgsForTests._
 import whisk.http.Messages
+import common.WskAdmin
+import java.time.Clock
 
 /**
  * Tests for basic CLI usage. Some of these tests require a deployed backend.
@@ -468,6 +470,45 @@ class WskBasicUsageTests
             }
 
             wsk.action.delete(name, expectedExitCode = TestUtils.NOT_FOUND)
+    }
+
+    it should "invoke an action receiving context properties" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val user = WskAdmin.getUser(wskprops.authKey)
+            val name = "context"
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("helloContext.js")))
+            }
+
+            val start = Instant.now(Clock.systemUTC()).toEpochMilli
+            val run = wsk.action.invoke(name)
+            withActivation(wsk.activation, run) {
+                activation =>
+                    activation.response.status shouldBe "success"
+                    val fields = activation.response.result.get.convertTo[Map[String, String]]
+                    fields("apihost") shouldBe WhiskProperties.getEdgeHost + ":" + WhiskProperties.getEdgeHostApiPort
+                    fields("apikey") shouldBe wskprops.authKey
+                    fields("namespace") shouldBe user
+                    fields("action_name") shouldBe s"/$user/$name"
+                    fields("activation_id") shouldBe activation.activationId
+                    fields("deadline").toLong should be >= start
+            }
+    }
+
+    it should s"invoke an action that returns a result by the deadline" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "deadline"
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("helloDeadline.js")), timeout = Some(3 seconds))
+            }
+
+            val start = Instant.now(Clock.systemUTC()).toEpochMilli
+            val run = wsk.action.invoke(name)
+            withActivation(wsk.activation, run) {
+                activation =>
+                    activation.response.status shouldBe "success"
+                    activation.response.result shouldBe Some(JsObject("timedout" -> true.toJson))
+            }
     }
 
     behavior of "Wsk packages"

@@ -26,12 +26,8 @@ import org.scalatest.junit.JUnitRunner
 import ActionContainer.withContainer
 import common.TestUtils
 import common.WskActorSystem
-import spray.json.JsArray
-import spray.json.JsNull
-import spray.json.JsNumber
-import spray.json.JsObject
-import spray.json.JsString
-import spray.json.JsBoolean
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 
 @RunWith(classOf[JUnitRunner])
 class ActionProxyContainerTests extends BasicActionRunnerTests with WskActorSystem {
@@ -81,20 +77,31 @@ class ActionProxyContainerTests extends BasicActionRunnerTests with WskActorSyst
     val stdEnvSamples = {
         val bash = """
                 |#!/bin/bash
-                |echo "{ \"auth\": \"$__OW_APIKEY\", \"edge\": \"$__OW_APIHOST\" }"
+                |echo "{ \
+                |\"apihost\": \"$__OW_APIHOST\", \"apikey\": \"$__OW_APIKEY\", \
+                |\"namespace\": \"$__OW_NAMESPACE\", \"action_name\": \"$__OW_ACTION_NAME\", \
+                |\"activation_id\": \"$__OW_ACTIVATION_ID\", \"deadline\": \"$__OW_DEADLINE\" }"
             """.stripMargin.trim
 
         val python = """
                 |#!/usr/bin/env python
                 |import os
-                |print '{ "auth": "%s", "edge": "%s" }' % (os.environ['__OW_APIKEY'], os.environ['__OW_APIHOST'])
+                |
+                |print '{ "apihost": "%s", "apikey": "%s", "namespace": "%s", "action_name" : "%s", "activation_id": "%s", "deadline": "%s" }' % (
+                |  os.environ['__OW_APIHOST'], os.environ['__OW_APIKEY'],
+                |  os.environ['__OW_NAMESPACE'], os.environ['__OW_ACTION_NAME'],
+                |  os.environ['__OW_ACTIVATION_ID'], os.environ['__OW_DEADLINE'])
             """.stripMargin.trim
 
         val perl = """
                 |#!/usr/bin/env perl
-                |$a = $ENV{'__OW_APIKEY'};
-                |$e = $ENV{'__OW_APIHOST'};
-                |print "{ \"auth\": \"$a\", \"edge\": \"$e\" }";
+                |$a = $ENV{'__OW_APIHOST'};
+                |$b = $ENV{'__OW_APIKEY'};
+                |$c = $ENV{'__OW_NAMESPACE'};
+                |$d = $ENV{'__OW_ACTION_NAME'};
+                |$e = $ENV{'__OW_ACTIVATION_ID'};
+                |$f = $ENV{'__OW_DEADLINE'};
+                |print "{ \"apihost\": \"$a\", \"apikey\": \"$b\", \"namespace\": \"$c\", \"action_name\": \"$d\", \"activation_id\": \"$e\", \"deadline\": \"$f\" }";
             """.stripMargin.trim
 
         // excluding perl as it not installed in alpine based image
@@ -247,19 +254,28 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
     def testEnv(stdEnvSamples: Seq[(String, String)], enforceEmptyOutputStream: Boolean = true, enforceEmptyErrorStream: Boolean = true) = {
         for (s <- stdEnvSamples) {
             it should s"run a ${s._1} script and confirm expected environment variables" in {
-                val auth = JsString("abc")
-                val edge = "xyz"
-                val env = Map("__OW_APIHOST" -> edge)
+                val props = Seq(
+                    "apihost" -> "xyz",
+                    "apikey" -> "abc",
+                    "namespace" -> "zzz",
+                    "action_name" -> "xxx",
+                    "activation_id" -> "iii",
+                    "deadline" -> "123")
+                val env = props.map { case (k, v) => s"__OW_${k.toUpperCase()}" -> v }
 
-                val (out, err) = withActionContainer(env) { c =>
+                val (out, err) = withActionContainer(env.take(1).toMap) { c =>
                     val (initCode, _) = c.init(initPayload(s._2))
                     initCode should be(200)
 
-                    val (runCode, out) = c.run(runPayload(JsObject(), Some(JsObject("authKey" -> auth))))
+                    val (runCode, out) = c.run(runPayload(JsObject(), Some(props.toMap.toJson.asJsObject)))
                     runCode should be(200)
                     out shouldBe defined
-                    out.get.fields("edge") shouldBe JsString(edge)
-                    out.get.fields("auth") shouldBe auth
+                    props.map {
+                        case (k, v) => withClue(k) {
+                            out.get.fields(k) shouldBe JsString(v)
+                        }
+
+                    }
                 }
 
                 checkStreams(out, err, {

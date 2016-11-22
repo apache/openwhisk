@@ -145,12 +145,15 @@ function NodeActionService(config, logger) {
     }
 
     function doRun(req) {
-        var ids = (req.body || {}).meta;
-        var args = (req.body || {}).value;
-        var authKey = (req.body || {}).authKey;
-        userCodeRunner.whisk.setAuthKey(authKey, false)
+        var msg = req.body || {};
 
-        return userCodeRunner.run(args).then(function(response) {
+        userCodeRunner.whisk.setAuthKey(msg['apikey'], false);
+        var props = [ 'apikey', 'namespace', 'action_name', 'activation_id', 'deadline' ];
+        props.map(function (p) {
+            process.env['__OW_' + p.toUpperCase()] = msg[p];
+        });
+
+        return userCodeRunner.run(msg.value).then(function(response) {
             writeMarkers();
             return response;
         }).catch(function (error) {

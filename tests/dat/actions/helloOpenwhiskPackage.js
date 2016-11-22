@@ -1,7 +1,7 @@
 var openwhisk = require('openwhisk')
 
 function main(args) {
-    var wsk = openwhisk({namespace: '_', ignore_certs: args.ignore_certs})
+    var wsk = openwhisk({ignore_certs: args.ignore_certs})
 
     return new Promise(function (resolve, reject) {
         return wsk.actions.list().then(list => {

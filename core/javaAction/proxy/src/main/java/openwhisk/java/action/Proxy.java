@@ -122,10 +122,12 @@ public class Proxy {
                 JsonObject inputObject = ie.getAsJsonObject().getAsJsonObject("value");
 
                 HashMap<String, String> env = new HashMap<String, String>();
-                try {
-                    String authKey = ie.getAsJsonObject().getAsJsonPrimitive("authKey").getAsString();
-                    env.put("__OW_APIKEY", authKey);
-                } catch (Exception e) {}
+                for (String p : new String[] { "apikey", "namespace", "action_name", "activation_id", "deadline" }) {
+                    try {
+                        String val = ie.getAsJsonObject().getAsJsonPrimitive(p).getAsString();
+                        env.put(String.format("__OW_%s", p.toUpperCase()), val);
+                    } catch (Exception e) {}
+                }
 
                 Thread.currentThread().setContextClassLoader(loader);
                 System.setSecurityManager(new WhiskSecurityManager());
