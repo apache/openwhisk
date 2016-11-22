@@ -28,9 +28,8 @@ import spray.json._
  * This class only handles the basic communication to the proper endpoints
  *  ("JSON in, JSON out"). It is up to its clients to interpret the results.
  */
-class CloudantRestClient(protocol: String, host: String, port: Int, username: String, password: String, db: String)(implicit system: ActorSystem)
-    extends CouchDbRestClient(protocol, host, port, username, password, db) {
-    require(protocol == "https", "For Cloudant, protocol must be https.")
+class CloudantRestClient(host: String, port: Int, username: String, password: String, db: String)(implicit system: ActorSystem)
+    extends CouchDbRestClient("https", host, port, username, password, db) {
 
     // https://cloudant.com/blog/cloudant-query-grows-up-to-handle-ad-hoc-queries/#.VvllCD-0z2C
     def simpleQuery(doc: JsObject): Future[Either[StatusCode, JsObject]] = {
