@@ -208,25 +208,30 @@ The package includes the following feed.
 
 The `/whisk.system/alarms/alarm` feed configures the Alarm service to fire a trigger event at a specified frequency. The parameters are as follows:
 
-- `cron`: A string, based on the UNIX crontab syntax, that indicates when to fire the trigger in Coordinated Universal Time (UTC). The string is a sequence of six fields that are separated by spaces: `X X X X X X `. For more details about using cron syntax, see: https://github.com/ncb000gt/node-cron. Following are some examples of the frequency that is indicated by the string:
+- `cron`: A string, based on the UNIX crontab syntax, that indicates when to fire the trigger in Coordinated Universal Time (UTC). The string is a sequence of five fields that are separated by spaces: `X X X X X`.
+For more details about using cron syntax, see: http://crontab.org. Following are some examples of the frequency that is indicated by the string:
 
-  - `* * * * * *`: every second.
-  - `0 * * * * *`: top of every minute.
-  - `* 0 * * * *`: top of every hour.
-  - `0 0 9 8 * *`: at 9:00:00AM (UTC) on the eighth day of every month
+  - `* * * * *`: top of every minute.
+  - `0 * * * *`: top of every hour.
+  - `0 */2 * * *`: every 2 hours (i.e. 02:00:00, 04:00:00, ...)
+  - `0 9 8 * *`: at 9:00:00AM (UTC) on the eighth day of every month
 
 - `trigger_payload`: The value of this parameter becomes the content of the trigger every time the trigger is fired.
 
 - `maxTriggers`: Stop firing triggers when this limit is reached. Defaults to 1000. You can set it to maximum 10,000. If you try to set more than 10,000, the request is rejected.
 
-The following is an example of creating a trigger that will be fired once every 20 seconds with `name` and `place` values in the trigger event.
+The following is an example of creating a trigger that will be fired once every 2 minutes with `name` and `place` values in the trigger event.
 
   ```
-  $ wsk trigger create periodic --feed /whisk.system/alarms/alarm --param cron "*/20 * * * * *" --param trigger_payload "{\"name\":\"Odin\",\"place\":\"Asgard\"}"
+  $ wsk trigger create periodic --feed /whisk.system/alarms/alarm --param cron "*/2 * * * *" --param trigger_payload "{\"name\":\"Odin\",\"place\":\"Asgard\"}"
   ```
 
 Each generated event will include as parameters the properties specified in the `trigger_payload` value. In this case, each trigger event will have parameters `name=Odin` and `place=Asgard`.
 
+**Note**: The parameter `cron` also supports a custom syntax of six fields, were the first field represents seconds. 
+For more details about using this custom cron syntax, see: https://github.com/ncb000gt/node-cron. 
+Here is an example using six fields notation:
+  - `*/30 * * * * *`: every thirty seconds.
 
 ## Using the Weather package
 
