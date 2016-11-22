@@ -1,0 +1,43 @@
+---
+# This role will install kafka trigger service in group 'serviceprovider' in the environment inventory
+- name: "pull the {{ docker_image_tag }} image of kafkatrigger"
+  shell: "docker pull {{ docker_registry }}{{ docker_image_prefix }}/serviceprovider_kafkatrigger:{{ docker_image_tag }}"
+  when: docker_registry != ""
+
+- name: ensure kafkaTrigger log directory is created with permissions
+  file:
+    path: "{{ whisk_logs_dir }}/kafkaTrigger"
+    state: directory
+    mode: 0777
+  become: true
+
+- name: (re)start kafka trigger
+  docker_container:
+    name: serviceprovider_kafkatrigger
+    image: "{{ docker_registry }}{{ docker_image_prefix }}/serviceprovider_kafkatrigger:{{ docker_image_tag }}"
+    state: started
+    recreate: true
+    restart_policy: "{{ docker.restart.policy }}"
+    hostname: kafkatrigger
+    env:
+      "PORT": 5000
+      "DB_PREFIX": "{{ db_prefix }}"
+      "DB_USERNAME": "{{ db_username }}"
+      "DB_PASSWORD": "{{ db_password }}"
+      "DB_HOST": "{{ db_host }}"
+      "DB_PORT": "{{ db_port }}"
+      "DB_PROVIDER": "{{ db_provider }}"
+      "DB_PROTOCOL": "{{ db_protocol }}"
+      "CLOUDANT_USER": "houshengbo"
+      "CLOUDANT_PASS": "000000000"
+    ports:
+      - "{{ serviceprovider.kafkatrigger.port }}:5000"
+    volumes:
+      - "{{ whisk_logs_dir }}/kafkaTrigger:/logs"
+
+- name: wait until kafka trigger in this host is up and running
+  wait_for:
+    delay: 2
+    host: "{{ inventory_hostname }}"
+    port: "{{ serviceprovider.kafkatrigger.port }}"
+    timeout: 60

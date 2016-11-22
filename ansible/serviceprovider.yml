@@ -1,0 +1,10 @@
+---
+# This playbook builds and deploys the cloudant trigger service, the alarms trigger serivce and the kafka trigger service
+
+- hosts: ansible
+  tasks:
+    - include: tasks/buildProviders.yml
+      with_dict: "{{ provider_repos }}"
+      when: mode == "deploy"
+
+- include: kafkatrigger.yml

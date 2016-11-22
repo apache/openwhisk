@@ -1,0 +1,27 @@
+---
+# This task will download the provider repositories and build them
+
+- set_fact:
+    provider_location={{ item.value.location }}
+    provider_repo_url={{ item.value.url }}
+    version="HEAD"
+    repo_update="yes"
+    registry={{ docker_registry | regex_replace('/$', '') }}
+
+- set_fact:
+    version={{ item.value.version }}
+  when: item.value.version is defined
+
+- set_fact:
+    repo_update={{ item.value.repo_update }}
+  when: item.value.repo_update is defined
+
+- name: download the provider repository to the provider location if necessary
+  git:
+    repo: "{{ provider_repo_url }}"
+    dest: "{{ provider_location }}"
+    update: "{{ repo_update }}"
+    version: "{{ version }}"
+
+- name: build the service provider from the provider location
+  shell: ./gradlew :distDocker -PdockerImageTag={{ docker_image_tag }} -PdockerRegistry={{ registry }} chdir={{ provider_location }}

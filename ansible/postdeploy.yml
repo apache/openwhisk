@@ -8,3 +8,9 @@
     - include: tasks/installOpenwhiskCatalog.yml
       when: (mode == "deploy")
       with_dict: "{{ catalog_repos }}"
+
+- hosts: ansible
+  tasks:
+    - include: tasks/installProviders.yml
+      when: (mode == "deploy")
+      with_dict: "{{ provider_repos }}"

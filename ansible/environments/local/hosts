@@ -31,3 +31,5 @@ ansible ansible_connection=local
 [apigateway]
 172.17.0.1 ansible_connection=local
 
+[serviceprovider]
+172.17.0.1 ansible_connection=local

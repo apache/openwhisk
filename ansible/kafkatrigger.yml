@@ -1,0 +1,7 @@
+---
+# This playbook deploys the kafka trigger service
+
+# Deploy kafka trigger
+- hosts: serviceprovider
+  roles:
+  - kafkatrigger

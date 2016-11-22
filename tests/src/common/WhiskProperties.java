@@ -274,7 +274,18 @@ public class WhiskProperties {
      * @return the path to a file holding the VCAP_SERVICES used during junit testing
      */
     public static File getVCAPServicesFile() {
-        String vcapServices = whiskProperties.getProperty("vcap.services.file");
+        return getFile("vcap.services.file");
+    }
+
+    /**
+     * @return the path to a file holding the jaas configuration used during unit testing
+     */
+    public static String getJAASFile() {
+        return getFile("jaas.conf").toString();
+    }
+
+    public static File getFile(String fileIndicator) {
+        String vcapServices = whiskProperties.getProperty(fileIndicator);
         if (vcapServices.startsWith(File.separator)) {
             return new File(vcapServices);
         } else {

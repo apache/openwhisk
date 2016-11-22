@@ -1,0 +1,31 @@
+---
+# This task will download the provider repositories and install their actions
+
+- set_fact:
+    provider_location={{ item.value.location }}
+    provider_repo_url={{ item.value.url }}
+    api_host={{ groups['edge'] | first }}
+    serviceprovider_host={{ groups['serviceprovider'] | first }}
+    serviceprovider_port={{ item.value.trigger_port }}
+    version="HEAD"
+    repo_update="yes"
+
+- set_fact:
+    version={{ item.value.version }}
+  when: item.value.version is defined
+
+- set_fact:
+    repo_update={{ item.value.repo_update }}
+  when: item.value.repo_update is defined
+
+- name: download the provider repository to the provider location if necessary
+  git:
+    repo: "{{ provider_repo_url }}"
+    dest: "{{ provider_location }}"
+    update: "{{ repo_update }}"
+    version: "{{ version }}"
+
+- name: install the actions from the provider location
+  shell: ./installCatalog.sh {{ catalog_auth_key }} {{ api_host }} {{ serviceprovider_host }} {{ serviceprovider_port }} chdir={{ provider_location }}
+  environment:
+    OPENWHISK_HOME: "{{ openwhisk_home }}"

@@ -1,0 +1,10 @@
+---
+# This role will install kafka trigger service in group 'serviceprovider' in the environment inventory
+# In deploy mode it will deploy the kafka trigger service.
+# In clean mode it will remove the kafka trigger service container.
+
+- include: deploy.yml
+  when: mode == "deploy"
+
+- include: clean.yml
+  when: mode == "clean"
