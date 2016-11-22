@@ -145,5 +145,15 @@ As an example, create a rule that calls the hello action whenever a location upd
   You see that the hello action received the event payload and returned the expected string.
 
 You can create multiple rules that associate the same trigger with different actions.
-The trigger and action that make a rule must be in the same namespace and cannot belong to a package.
-If you want to use an action that belongs to a package, you can copy the action into your namespace. For example: `wsk action create echo --copy /whisk.system/utils/echo`.
+Triggers and rules cannot belong to a package. The rule may be associated with an action
+that belongs to a package however, for example:
+```
+$ wsk rule create recordLocation locationUpdate /whisk.system/utils/echo
+```
+
+You can also use rules with sequences. For example, one can create an action
+sequence `recordLocationAndHello` that is activated by the rule `anotherRule`.
+```
+$ wsk action create recordLocationAndHello --sequence /whisk.system/utils/echo,hello
+$ wsk rule create anotherRule locationUpdate recordLocationAndHello
+```
