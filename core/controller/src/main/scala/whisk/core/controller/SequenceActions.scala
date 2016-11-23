@@ -239,6 +239,7 @@ trait SequenceActions extends Logging {
             version = action.version,
             publish = false,
             annotations = Parameters("topmost", JsBoolean(topmost)) ++
+                Parameters("path", action.fullyQualifiedName(false).toString) ++
                 Parameters("kind", "sequence") ++
                 causedBy ++
                 sequenceLimits.map(l => Parameters("limits", l.toJson)).getOrElse(Parameters()),
