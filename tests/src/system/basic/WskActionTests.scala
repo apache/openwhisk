@@ -185,7 +185,7 @@ class WskActionTests
             wsk.parseJsonString(rr.stdout).getFieldPath("exec", "code") shouldBe Some(JsString(""))
     }
 
-    it should "blocking invoke nested blocking actions" in withAssetCleaner(wskprops) {
+    it should "blocking invoke of nested blocking actions" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "nestedBlockingAction"
             val child = "wc"
