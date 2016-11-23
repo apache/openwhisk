@@ -252,7 +252,7 @@ class Invoker(
         val msg = tran.msg
         val activationInterval = computeActivationInterval(tran)
         val activationResponse = getActivationResponse(activationInterval, action.limits.timeout.duration, result.response, failedInit)
-        val activationResult = makeWhiskActivation(msg, EntityPath(action.docid.id), action.version, activationResponse, activationInterval, Some(action.limits))
+        val activationResult = makeWhiskActivation(msg, EntityPath(action.fullyQualifiedName(false).toString), action.version, activationResponse, activationInterval, Some(action.limits))
         val completeMsg = CompletionMessage(transid, activationResult)
 
         producer.send("completed", completeMsg) map { status =>
