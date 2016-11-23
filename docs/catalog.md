@@ -12,7 +12,7 @@ The `/whisk.system/cloudant` package enables you to work with a Cloudant databas
 
 | Entity | Type | Parameters | Description |
 | --- | --- | --- | --- |
-| `/whisk.system/cloudant` | package | BluemixServiceName, host, username, password, dbname, includeDoc, overwrite | Work with a Cloudant database |
+| `/whisk.system/cloudant` | package | BluemixServiceName, host, username, password, dbname, overwrite | Work with a Cloudant database |
 | `/whisk.system/cloudant/read` | action | dbname, includeDoc, id | Read a document from a database |
 | `/whisk.system/cloudant/write` | action | dbname, overwrite, doc | Write a document to a database |
 | `/whisk.system/cloudant/changes` | feed | dbname, maxTriggers | Fire trigger events on changes to a database |
