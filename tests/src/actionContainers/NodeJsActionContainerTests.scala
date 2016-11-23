@@ -201,7 +201,7 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
         })
     }
 
-    it should "warn when using deperecated whisk object methods" in {
+    it should "warn when using deprecated whisk object methods" in {
         val (out, err) = withNodeJsContainer { c =>
             val code = """
                 | function main(args) {
@@ -228,7 +228,7 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
         })
     }
 
-    it should "warn when using deperecated whisk.error" in {
+    it should "warn when using deprecated whisk.error" in {
         val (out, err) = withNodeJsContainer { c =>
             val code = """
                 | function main(args) {

@@ -113,6 +113,7 @@ class WskBasicNodeTests
             }
     }
 
+    // TODO: remove this tests and its assets when "whisk.js" is removed entirely as it is no longer necessary
     it should "Ensure that whisk.invoke() returns a promise" in withAssetCleaner(wskprops) {
         val expectedDuration = 3.seconds
 
@@ -165,6 +166,7 @@ class WskBasicNodeTests
             }
     }
 
+    // TODO: remove this tests and its assets when "whisk.js" is removed entirely as it is no longer necessary
     it should "Ensure that whisk.invoke() still uses a callback when provided one" in withAssetCleaner(wskprops) {
         val expectedDuration = 3.seconds
 
@@ -216,6 +218,7 @@ class WskBasicNodeTests
             }
     }
 
+    // TODO: remove this tests and its assets when "whisk.js" is removed entirely as it is no longer necessary
     it should "Ensure that whisk.trigger() still uses a callback when provided one" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             // this action supplies a 'next' callback to whisk.trigger()
@@ -251,6 +254,7 @@ class WskBasicNodeTests
             }
     }
 
+    // TODO: remove this tests and its assets when "whisk.js" is removed entirely as it is no longer necessary
     it should "Ensure that whisk.trigger() returns a promise" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             // this action supplies a 'next' callback to whisk.trigger()
