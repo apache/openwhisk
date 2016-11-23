@@ -186,6 +186,18 @@ class WskBasicTests
             wsk.pkg.get(name, fieldFilter = Some("invalid"), expectedExitCode = ERROR_EXIT).stderr should include("error: Invalid field filter 'invalid'.")
     }
 
+    it should "create a package with a name that contains spaces" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "package with spaces"
+
+            val res = assetHelper.withCleaner(wsk.pkg, name) {
+                (pkg, _) =>
+                   pkg.create(name)
+            }
+
+            res.stdout should include(s"ok: created package $name")
+    }
+
     behavior of "Wsk Action CLI"
 
     it should "create the same action twice with different cases" in withAssetCleaner(wskprops) {
@@ -532,6 +544,18 @@ class WskBasicTests
             wsk.trigger.get(name, fieldFilter = Some("parameters")).stdout should include regex (s"""$successMsg parameters\n\\[\\s+\\{\\s+"key":\\s+"payload",\\s+"value":\\s+"test"\\s+\\}\\s+\\]""")
             wsk.trigger.get(name, fieldFilter = Some("limits")).stdout should include(s"""$successMsg limits\n{}""")
             wsk.trigger.get(name, fieldFilter = Some("invalid"), expectedExitCode = ERROR_EXIT).stderr should include("error: Invalid field filter 'invalid'.")
+    }
+
+    it should "create a trigger with a name that contains spaces" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "trigger with spaces"
+
+            val res = assetHelper.withCleaner(wsk.trigger, name) {
+                (trigger, _) =>
+                    trigger.create(name)
+            }
+
+            res.stdout should include regex(s"ok: created trigger $name")
     }
 
     behavior of "Wsk Rule CLI"
