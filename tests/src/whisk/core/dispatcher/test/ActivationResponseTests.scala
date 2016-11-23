@@ -27,6 +27,7 @@ import spray.json.pimpAny
 import spray.json.pimpString
 import whisk.common.Logging
 import whisk.core.entity.ActivationResponse._
+import whisk.http.Messages._
 
 @RunWith(classOf[JUnitRunner])
 class ActivationResponseTests extends FlatSpec with Matchers {
@@ -38,14 +39,14 @@ class ActivationResponseTests extends FlatSpec with Matchers {
     it should "interpret failed init that does not response" in {
         val ar = processInitResponseContent(None, logger)
         ar.statusCode shouldBe ContainerError
-        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe abnormalInitialization
+        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe abnormalInitialization.toJson
     }
 
     it should "interpret failed init that responds with null string" in {
         val response = Some(500, null)
         val ar = processInitResponseContent(response, logger)
         ar.statusCode shouldBe ContainerError
-        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidInitResponse(response.get._2)
+        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidInitResponse(response.get._2).toJson
         ar.result.get.toString should not include regex("null")
     }
 
@@ -53,7 +54,7 @@ class ActivationResponseTests extends FlatSpec with Matchers {
         val response = Some(500, "")
         val ar = processInitResponseContent(response, logger)
         ar.statusCode shouldBe ContainerError
-        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidInitResponse(response.get._2)
+        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidInitResponse(response.get._2).toJson
         ar.result.get.asJsObject.fields(ERROR_FIELD).toString.endsWith(".\"") shouldBe true
     }
 
@@ -61,7 +62,7 @@ class ActivationResponseTests extends FlatSpec with Matchers {
         val response = Some(500, "true")
         val ar = processInitResponseContent(response, logger)
         ar.statusCode shouldBe ContainerError
-        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidInitResponse(response.get._2)
+        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidInitResponse(response.get._2).toJson
         ar.result.get.toString should include(response.get._2)
     }
 
@@ -69,7 +70,7 @@ class ActivationResponseTests extends FlatSpec with Matchers {
         val response = Some(500, Vector(1).toJson.compactPrint)
         val ar = processInitResponseContent(response, logger)
         ar.statusCode shouldBe ContainerError
-        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidInitResponse(response.get._2)
+        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidInitResponse(response.get._2).toJson
         ar.result.get.toString should include(response.get._2)
     }
 
@@ -84,7 +85,7 @@ class ActivationResponseTests extends FlatSpec with Matchers {
         val response = Some(500, Map("foobar" -> "baz").toJson.compactPrint)
         val ar = processInitResponseContent(response, logger)
         ar.statusCode shouldBe ContainerError
-        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidInitResponse(response.get._2)
+        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidInitResponse(response.get._2).toJson
         ar.result.get.toString should include("baz")
     }
 
@@ -98,14 +99,14 @@ class ActivationResponseTests extends FlatSpec with Matchers {
     it should "interpret failed run that does not response" in {
         val ar = processRunResponseContent(None, logger)
         ar.statusCode shouldBe ContainerError
-        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe abnormalRun
+        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe abnormalRun.toJson
     }
 
     it should "interpret failed run that responds with null string" in {
         val response = Some(500, null)
         val ar = processRunResponseContent(response, logger)
         ar.statusCode shouldBe ContainerError
-        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidRunResponse(response.get._2)
+        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidRunResponse(response.get._2).toJson
         ar.result.get.toString should not include regex("null")
     }
 
@@ -113,7 +114,7 @@ class ActivationResponseTests extends FlatSpec with Matchers {
         val response = Some(500, "")
         val ar = processRunResponseContent(response, logger)
         ar.statusCode shouldBe ContainerError
-        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidRunResponse(response.get._2)
+        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidRunResponse(response.get._2).toJson
         ar.result.get.asJsObject.fields(ERROR_FIELD).toString.endsWith(".\"") shouldBe true
     }
 
@@ -121,7 +122,7 @@ class ActivationResponseTests extends FlatSpec with Matchers {
         val response = Some(500, "true")
         val ar = processRunResponseContent(response, logger)
         ar.statusCode shouldBe ContainerError
-        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidRunResponse(response.get._2)
+        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidRunResponse(response.get._2).toJson
         ar.result.get.toString should include(response.get._2)
     }
 
@@ -129,7 +130,7 @@ class ActivationResponseTests extends FlatSpec with Matchers {
         val response = Some(500, Vector(1).toJson.compactPrint)
         val ar = processRunResponseContent(response, logger)
         ar.statusCode shouldBe ContainerError
-        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidRunResponse(response.get._2)
+        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidRunResponse(response.get._2).toJson
         ar.result.get.toString should include(response.get._2)
     }
 
@@ -144,7 +145,7 @@ class ActivationResponseTests extends FlatSpec with Matchers {
         val response = Some(500, Map("foobar" -> "baz").toJson.compactPrint)
         val ar = processRunResponseContent(response, logger)
         ar.statusCode shouldBe ContainerError
-        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidRunResponse(response.get._2)
+        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidRunResponse(response.get._2).toJson
         ar.result.get.toString should include("baz")
     }
 

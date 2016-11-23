@@ -344,7 +344,7 @@ class WskBasicUsageTests
             withActivation(wsk.activation, wsk.action.invoke(name)) {
                 activation =>
                     val response = activation.response
-                    response.result.get.fields("error") shouldBe ActivationResponse.abnormalInitialization
+                    response.result.get.fields("error") shouldBe Messages.abnormalInitialization.toJson
                     response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ContainerError)
             }
     }
@@ -363,7 +363,7 @@ class WskBasicUsageTests
             withActivation(wsk.activation, wsk.action.invoke(name)) {
                 activation =>
                     val response = activation.response
-                    response.result.get.fields("error") shouldBe ActivationResponse.timedoutActivation(3 seconds, true)
+                    response.result.get.fields("error") shouldBe Messages.timedoutActivation(3 seconds, true).toJson
                     response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ApplicationError)
             }
     }
@@ -378,7 +378,7 @@ class WskBasicUsageTests
             withActivation(wsk.activation, wsk.action.invoke(name)) {
                 activation =>
                     val response = activation.response
-                    response.result.get.fields("error") shouldBe ActivationResponse.abnormalRun
+                    response.result.get.fields("error") shouldBe Messages.abnormalRun.toJson
                     response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ContainerError)
             }
     }
@@ -508,6 +508,37 @@ class WskBasicUsageTests
             val run = wsk.action.invoke(name)
             withActivation(wsk.activation, run) {
                 activation =>
+                    activation.response.status shouldBe "success"
+                    activation.response.result shouldBe Some(JsObject("timedout" -> true.toJson))
+            }
+    }
+
+    it should s"invoke an action twice, where the first times out but the second does not and should succeed" in withAssetCleaner(wskprops) {
+        // this test issues two activations: the first is forced to time out and not return a result by its deadline (ie it does not resolve
+        // its promise). The invoker should reclaim its container so that a second activation of the same action (which must happen within a
+        // short period of time (seconds, not minutes) is allocated a fresh container and hence runs as expected (vs. hitting in the container
+        // cache and reusing a bad container).
+        (wp, assetHelper) =>
+            val name = "timeout"
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("helloDeadline.js")), timeout = Some(3 seconds))
+            }
+
+            val start = Instant.now(Clock.systemUTC()).toEpochMilli
+            val hungRun = wsk.action.invoke(name, Map("forceHang" -> true.toJson))
+            withActivation(wsk.activation, hungRun) {
+                activation =>
+                    // the first action must fail with a timeout error
+                    activation.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ApplicationError)
+                    activation.response.result shouldBe Some(JsObject("error" -> Messages.timedoutActivation(3 seconds, false).toJson))
+            }
+
+            // run the action again, this time without forcing it to timeout
+            // it should succeed because it ran in a fresh container
+            val goodRun = wsk.action.invoke(name, Map("forceHang" -> false.toJson))
+            withActivation(wsk.activation, goodRun) {
+                activation =>
+                    // the first action must fail with a timeout error
                     activation.response.status shouldBe "success"
                     activation.response.result shouldBe Some(JsObject("timedout" -> true.toJson))
             }
@@ -713,38 +744,38 @@ class WskBasicUsageTests
         val badpath = "badpath"
 
         var rr = wsk.cli(Seq("api-experimental", "create", "/basepath", badpath, "GET", "action", "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
-        rr.stderr should include (s"'${badpath}' must begin with '/'")
+        rr.stderr should include(s"'${badpath}' must begin with '/'")
 
         rr = wsk.cli(Seq("api-experimental", "delete", "/basepath", badpath, "GET", "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
-        rr.stderr should include (s"'${badpath}' must begin with '/'")
+        rr.stderr should include(s"'${badpath}' must begin with '/'")
 
         rr = wsk.cli(Seq("api-experimental", "list", "/basepath", badpath, "GET", "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
-        rr.stderr should include (s"'${badpath}' must begin with '/'")
+        rr.stderr should include(s"'${badpath}' must begin with '/'")
     }
 
     it should "reject an api commands with an invalid verb parameter" in {
         val badverb = "badverb"
 
         var rr = wsk.cli(Seq("api-experimental", "create", "/basepath", "/path", badverb, "action", "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
-        rr.stderr should include (s"'${badverb}' is not a valid API verb.  Valid values are:")
+        rr.stderr should include(s"'${badverb}' is not a valid API verb.  Valid values are:")
 
         rr = wsk.cli(Seq("api-experimental", "delete", "/basepath", "/path", badverb, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
-        rr.stderr should include (s"'${badverb}' is not a valid API verb.  Valid values are:")
+        rr.stderr should include(s"'${badverb}' is not a valid API verb.  Valid values are:")
 
         rr = wsk.cli(Seq("api-experimental", "list", "/basepath", "/path", badverb, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
-        rr.stderr should include (s"'${badverb}' is not a valid API verb.  Valid values are:")
+        rr.stderr should include(s"'${badverb}' is not a valid API verb.  Valid values are:")
     }
 
     it should "reject an api create command with an API name argument and an API name option" in {
         val apiName = "An API Name"
         val rr = wsk.cli(Seq("api-experimental", "create", apiName, "/path", "GET", "action", "-n", apiName, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
-        rr.stderr should include (s"An API name can only be specified once.")
+        rr.stderr should include(s"An API name can only be specified once.")
     }
 
     it should "reject an api create command that specifies a nonexistent configuration file" in {
         val configfile = "/nonexistent/file"
         val rr = wsk.cli(Seq("api-experimental", "create", "-c", configfile, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
-        rr.stderr should include (s"Error reading swagger file '${configfile}':")
+        rr.stderr should include(s"Error reading swagger file '${configfile}':")
     }
 
     it should "reject an api create command specifying a non-JSON configuration file" in {
@@ -757,7 +788,7 @@ class WskBasicUsageTests
         bw.close()
 
         val rr = wsk.cli(Seq("api-experimental", "create", "-c", filename, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
-        rr.stderr should include (s"Error parsing swagger file '${filename}':")
+        rr.stderr should include(s"Error parsing swagger file '${filename}':")
     }
 
     it should "reject an api create command specifying a non-swagger JSON configuration file" in {
@@ -778,12 +809,11 @@ class WskBasicUsageTests
                     |       "get":{}
                     |     }
                     |   }
-                    |}""".stripMargin
-        )
+                    |}""".stripMargin)
         bw.close()
 
         val rr = wsk.cli(Seq("api-experimental", "create", "-c", filename, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
-        rr.stderr should include (s"Swagger file is invalid (missing basePath, info, paths, or swagger fields")
+        rr.stderr should include(s"Swagger file is invalid (missing basePath, info, paths, or swagger fields")
     }
 
     behavior of "Wsk entity list formatting"

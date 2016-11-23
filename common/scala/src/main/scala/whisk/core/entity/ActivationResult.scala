@@ -19,13 +19,9 @@ package whisk.core.entity
 import scala.util.Try
 
 import spray.json.DefaultJsonProtocol
-import spray.json.JsBoolean
-import spray.json.JsObject
-import spray.json.JsString
-import spray.json.JsValue
-import spray.json.pimpString
+import spray.json._
 import whisk.common.Logging
-import scala.concurrent.duration.Duration
+import whisk.http.Messages._
 
 protected[core] case class ActivationResponse private (
     val statusCode: Int, val result: Option[JsValue]) {
@@ -83,24 +79,6 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
     protected[core] def whiskError(errorValue: JsValue)       = error(WhiskError, errorValue)
     protected[core] def whiskError(errorMsg: String)          = error(WhiskError, JsString(errorMsg))
 
-    protected[core] def abnormalInitialization = JsString("The action did not initialize and exited unexpectedly.")
-    protected[core] def abnormalRun = JsString("The action did not produce a valid response and exited unexpectedly.")
-    protected[core] def invalidInitResponse(actualResponse: String) = {
-        JsString("The action failed during initialization" + {
-            Option(actualResponse) filter { _.nonEmpty } map { s => s": $s" } getOrElse "."
-        })
-    }
-    protected[core] def invalidRunResponse(actualResponse: String) = {
-        JsString("The action did not produce a valid JSON response" + {
-            Option(actualResponse) filter { _.nonEmpty } map { s => s": $s" } getOrElse "."
-        })
-    }
-    protected[core] def timedoutActivation(timeout: Duration, init: Boolean) = {
-        JsString(s"The action exceeded its time limits of ${timeout.toMillis} milliseconds" + {
-            if (!init) "." else " during initialization."
-        })
-    }
-
     /**
      * Returns an ActivationResponse that is used as a placeholder for payload
      * Used as a feed for starting a sequence.
@@ -125,7 +103,7 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
                     case scala.util.Success(result @ JsObject(fields)) =>
                         // If the response is a JSON object container an error field, accept it as the response error.
                         val errorOpt = fields.get(ERROR_FIELD)
-                        val errorContent = errorOpt getOrElse invalidInitResponse(contents)
+                        val errorContent = errorOpt getOrElse invalidInitResponse(contents).toJson
                         containerError(errorContent)
                     case _ =>
                         containerError(invalidInitResponse(contents))
@@ -161,7 +139,7 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
                         } else {
                             // Any non-200 code is treated as a container failure. We still need to check whether
                             // there was a useful error message in there.
-                            val errorContent = errorOpt getOrElse invalidRunResponse(contents)
+                            val errorContent = errorOpt getOrElse invalidRunResponse(contents).toJson
                             containerError(errorContent)
                         }
 

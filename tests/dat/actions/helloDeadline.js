@@ -1,4 +1,4 @@
-function main() {
+function main(args) {
 
     var deadline = process.env['__OW_DEADLINE']
     var timeleft = deadline - new Date().getTime()
@@ -13,7 +13,11 @@ function main() {
     return new Promise(function(resolve, reject) {
        setTimeout(function() {
           clearInterval(alarm);
-          resolve({ timedout: true });
+          if (args.forceHang) {
+              // do not resolve the promise and make the action timeout
+          } else {
+              resolve({ timedout: true });
+          }
        }, timeleft - 500);
     })
 
