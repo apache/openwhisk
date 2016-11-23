@@ -158,6 +158,8 @@ object WhiskConfig extends Logging {
                     val kvp = ConsulKV.WhiskProps.whiskProps + "/" + p.replace('.', '_').toUpperCase
                     whiskProps.get(kvp) foreach { properties += p -> _ }
                 }
+            } recover {
+                case ex => warn(this, s"failed to read properties from consul: ${ex.getMessage}")
             }
             case _ => info(this, "no consul server defined")
         }
