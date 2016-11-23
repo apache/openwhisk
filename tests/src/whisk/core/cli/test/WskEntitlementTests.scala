@@ -292,18 +292,19 @@ class WskEntitlementTests
     }
 
     it should "not allow invoke an action sequence with more than one component from package after entitlement change" in withAssetCleaner(guestWskProps) {
-        (gwp, assetHelper) =>
+        (guestwp, assetHelper) =>
+            val privateSamplePackage = samplePackage + "prv"
             assetHelper.withCleaner(wsk.pkg, samplePackage) {
                 (pkg, _) =>
-                    pkg.create(samplePackage, parameters = Map("a" -> "A".toJson), shared = Some(true))(gwp)
-                    pkg.create(samplePackage + "prv", parameters = Map("a" -> "A".toJson), shared = Some(true))(gwp)
+                    pkg.create(samplePackage, parameters = Map("a" -> "A".toJson), shared = Some(true))(guestwp)
+                    pkg.create(privateSamplePackage, parameters = Map("a" -> "A".toJson), shared = Some(true))(guestwp)
             }
 
             assetHelper.withCleaner(wsk.action, fullSampleActionName) {
                 val file = Some(TestUtils.getTestActionFilename("hello.js"))
                 (action, _) =>
-                    action.create(fullSampleActionName, file)(gwp)
-                    action.create(s"${samplePackage}prv/$sampleAction", file)(gwp)
+                    action.create(fullSampleActionName, file)(guestwp)
+                    action.create(s"$privateSamplePackage/$sampleAction", file)(guestwp)
             }
 
             withAssetCleaner(defaultWskProps) {
@@ -311,13 +312,13 @@ class WskEntitlementTests
                     assetHelper.withCleaner(wsk.action, "sequence") {
                         (action, name) =>
                             val fullyQualifiedActionName = s"/$guestNamespace/$fullSampleActionName"
-                            val fullyQualifiedActionName2 = s"/$guestNamespace/${samplePackage}prv/$sampleAction"
+                            val fullyQualifiedActionName2 = s"/$guestNamespace/$privateSamplePackage/$sampleAction"
                             action.create(name, Some(s"$fullyQualifiedActionName,$fullyQualifiedActionName2"),
                                 kind = Some("sequence"))(dwp)
                     }
 
                     // change package visibility
-                    wsk.pkg.create(samplePackage + "prv", update = true, shared = Some(false))(gwp)
+                    wsk.pkg.create(privateSamplePackage, update = true, shared = Some(false))(guestwp)
                     wsk.action.invoke("sequence", expectedExitCode = FORBIDDEN)(defaultWskProps)
             }
     }
