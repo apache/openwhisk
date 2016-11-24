@@ -24,7 +24,7 @@ async@1.5.2 \
 body-parser@1.15.1 \
 btoa@1.1.2 \
 cheerio@0.20.0 \
-cloudant@1.4.1 \
+cloudant@1.6.2 \
 commander@2.9.0 \
 consul@0.25.0 \
 cookie-parser@1.4.2 \
