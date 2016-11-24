@@ -12,7 +12,7 @@
       - "{{ zookeeper.port }}:2181"
 
 - name: wait until the Zookeeper in this host is up and running
-  action: shell echo ruok | nc -w 3 {{ inventory_hostname }} {{ zookeeper.port }}
+  action: shell echo ruok | nc -w 3 -q 3 {{ inventory_hostname }} {{ zookeeper.port }}
   register: result
   until: (result.rc == 0) and (result.stdout == 'imok')
   retries: 36
