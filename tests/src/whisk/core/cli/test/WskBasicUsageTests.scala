@@ -486,8 +486,8 @@ class WskBasicUsageTests
                 activation =>
                     activation.response.status shouldBe "success"
                     val fields = activation.response.result.get.convertTo[Map[String, String]]
-                    fields("apihost") shouldBe WhiskProperties.getEdgeHost + ":" + WhiskProperties.getEdgeHostApiPort
-                    fields("apikey") shouldBe wskprops.authKey
+                    fields("api_host") shouldBe WhiskProperties.getEdgeHost + ":" + WhiskProperties.getEdgeHostApiPort
+                    fields("api_key") shouldBe wskprops.authKey
                     fields("namespace") shouldBe user
                     fields("action_name") shouldBe s"/$user/$name"
                     fields("activation_id") shouldBe activation.activationId

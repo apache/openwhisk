@@ -78,7 +78,7 @@ class ActionProxyContainerTests extends BasicActionRunnerTests with WskActorSyst
         val bash = """
                 |#!/bin/bash
                 |echo "{ \
-                |\"apihost\": \"$__OW_APIHOST\", \"apikey\": \"$__OW_APIKEY\", \
+                |\"api_host\": \"$__OW_API_HOST\", \"api_key\": \"$__OW_API_KEY\", \
                 |\"namespace\": \"$__OW_NAMESPACE\", \"action_name\": \"$__OW_ACTION_NAME\", \
                 |\"activation_id\": \"$__OW_ACTIVATION_ID\", \"deadline\": \"$__OW_DEADLINE\" }"
             """.stripMargin.trim
@@ -87,21 +87,21 @@ class ActionProxyContainerTests extends BasicActionRunnerTests with WskActorSyst
                 |#!/usr/bin/env python
                 |import os
                 |
-                |print '{ "apihost": "%s", "apikey": "%s", "namespace": "%s", "action_name" : "%s", "activation_id": "%s", "deadline": "%s" }' % (
-                |  os.environ['__OW_APIHOST'], os.environ['__OW_APIKEY'],
+                |print '{ "api_host": "%s", "api_key": "%s", "namespace": "%s", "action_name" : "%s", "activation_id": "%s", "deadline": "%s" }' % (
+                |  os.environ['__OW_API_HOST'], os.environ['__OW_API_KEY'],
                 |  os.environ['__OW_NAMESPACE'], os.environ['__OW_ACTION_NAME'],
                 |  os.environ['__OW_ACTIVATION_ID'], os.environ['__OW_DEADLINE'])
             """.stripMargin.trim
 
         val perl = """
                 |#!/usr/bin/env perl
-                |$a = $ENV{'__OW_APIHOST'};
-                |$b = $ENV{'__OW_APIKEY'};
+                |$a = $ENV{'__OW_API_HOST'};
+                |$b = $ENV{'__OW_API_KEY'};
                 |$c = $ENV{'__OW_NAMESPACE'};
                 |$d = $ENV{'__OW_ACTION_NAME'};
                 |$e = $ENV{'__OW_ACTIVATION_ID'};
                 |$f = $ENV{'__OW_DEADLINE'};
-                |print "{ \"apihost\": \"$a\", \"apikey\": \"$b\", \"namespace\": \"$c\", \"action_name\": \"$d\", \"activation_id\": \"$e\", \"deadline\": \"$f\" }";
+                |print "{ \"api_host\": \"$a\", \"api_key\": \"$b\", \"namespace\": \"$c\", \"action_name\": \"$d\", \"activation_id\": \"$e\", \"deadline\": \"$f\" }";
             """.stripMargin.trim
 
         // excluding perl as it not installed in alpine based image
@@ -255,8 +255,8 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
         for (s <- stdEnvSamples) {
             it should s"run a ${s._1} script and confirm expected environment variables" in {
                 val props = Seq(
-                    "apihost" -> "xyz",
-                    "apikey" -> "abc",
+                    "api_host" -> "xyz",
+                    "api_key" -> "abc",
                     "namespace" -> "zzz",
                     "action_name" -> "xxx",
                     "activation_id" -> "iii",

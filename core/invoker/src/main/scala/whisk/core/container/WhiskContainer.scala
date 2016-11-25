@@ -81,7 +81,7 @@ class WhiskContainer(
     private def constructActivationMetadata(msg: ActivationMessage, args: JsObject, timeout: FiniteDuration): JsObject = {
         JsObject(
             "value" -> args,
-            "apikey" -> msg.authkey.compact.toJson,
+            "api_key" -> msg.authkey.compact.toJson,
             "namespace" -> msg.action.path.root.toJson,
             "action_name" -> msg.action.qualifiedNameWithLeadingSlash.toJson,
             "activation_id" -> msg.activationId.toString.toJson,

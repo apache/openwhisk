@@ -776,8 +776,8 @@ or set an internal alarm when the action is about to use up its allotted time bu
 The properties are accessible via the system environment for all supported runtimes:
 Node.js, Python, Swift, Java and Docker actions when using the OpenWhisk Docker skeleton.
 
-* `__OW_APIHOST` the API host for the OpenWhisk deployment running this action
-* `__OW_APIKEY` the API key for the subject invoking the action, this key may be a restricted API key
+* `__OW_API_HOST` the API host for the OpenWhisk deployment running this action
+* `__OW_API_KEY` the API key for the subject invoking the action, this key may be a restricted API key
 * `__OW_NAMESPACE` the namespace for the _activation_ (this may not be the same as the namespace for the action)
 * `__OW_ACTION_NAME` the fully qualified name of the running action
 * `__OW_ACTIVATION_ID` the activation id for this running action instance

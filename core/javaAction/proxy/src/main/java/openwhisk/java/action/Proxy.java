@@ -122,7 +122,7 @@ public class Proxy {
                 JsonObject inputObject = ie.getAsJsonObject().getAsJsonObject("value");
 
                 HashMap<String, String> env = new HashMap<String, String>();
-                for (String p : new String[] { "apikey", "namespace", "action_name", "activation_id", "deadline" }) {
+                for (String p : new String[] { "api_key", "namespace", "action_name", "activation_id", "deadline" }) {
                     try {
                         String val = ie.getAsJsonObject().getAsJsonPrimitive(p).getAsString();
                         env.put(String.format("__OW_%s", p.toUpperCase()), val);

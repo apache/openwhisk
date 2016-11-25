@@ -147,8 +147,8 @@ function NodeActionService(config, logger) {
     function doRun(req) {
         var msg = req.body || {};
 
-        userCodeRunner.whisk.setAuthKey(msg['apikey'], false);
-        var props = [ 'apikey', 'namespace', 'action_name', 'activation_id', 'deadline' ];
+        userCodeRunner.whisk.setAuthKey(msg['api_key'], false);
+        var props = [ 'api_key', 'namespace', 'action_name', 'activation_id', 'deadline' ];
         props.map(function (p) {
             process.env['__OW_' + p.toUpperCase()] = msg[p];
         });

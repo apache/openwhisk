@@ -43,10 +43,10 @@ class SwiftActionContainerTests extends BasicActionRunnerTests with WskActorSyst
          |     var d = "???"
          |     var e = "???"
          |     var f = "???"
-         |     if let v : String = env["__OW_APIHOST"] {
+         |     if let v : String = env["__OW_API_HOST"] {
          |         a = "\(v)"
          |     }
-         |     if let v : String = env["__OW_APIKEY"] {
+         |     if let v : String = env["__OW_API_KEY"] {
          |         b = "\(v)"
          |     }
          |     if let v : String = env["__OW_NAMESPACE"] {
@@ -61,7 +61,7 @@ class SwiftActionContainerTests extends BasicActionRunnerTests with WskActorSyst
          |     if let v : String = env["__OW_DEADLINE"] {
          |         f = "\(v)"
          |     }
-         |     return ["apihost": a, "apikey": b, "namespace": c, "action_name": d, "activation_id": e, "deadline": f]
+         |     return ["api_host": a, "api_key": b, "namespace": c, "action_name": d, "activation_id": e, "deadline": f]
          |}
          """).stripMargin
 

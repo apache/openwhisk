@@ -1,4 +1,4 @@
 import os
 
 def main(dict):
-    return { "auth": os.environ['__OW_APIKEY'], "edge": os.environ['__OW_APIHOST'] }
+    return { "auth": os.environ['__OW_API_KEY'], "edge": os.environ['__OW_API_HOST'] }

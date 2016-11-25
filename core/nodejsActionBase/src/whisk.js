@@ -28,7 +28,7 @@ var request = require('request');
  */
 function Whisk(apihost, logger) {
 
-    // export __OW_APIHOST to environment
+    // export __OW_API_HOST to environment
     {
         apihost = apihost || '';
         var edgeHostParts = apihost.split(':');
