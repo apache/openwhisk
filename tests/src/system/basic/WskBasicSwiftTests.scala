@@ -28,6 +28,7 @@ import common.WskTestHelpers
 import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json.pimpAny
 import spray.json.pimpString
+import spray.json.JsString
 import common.TestUtils.RunResult
 import spray.json.JsObject
 
@@ -58,6 +59,24 @@ class WskBasicSwiftTests
                 () =>
                     val action = convertRunResultToJsObject(result)
                     action.getFieldPath("exec", "kind") should be(Some(currentSwiftDefaultKind.toJson))
+            }
+    }
+
+    it should "Ensure that Swift actions can have a non-default entrypoint" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "niamSwiftAction"
+            val file = Some(TestUtils.getTestActionFilename("niam.swift"))
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) =>
+                    action.create(name, file, main = Some("niam"))
+            }
+
+            withActivation(wsk.activation, wsk.action.invoke(name)) {
+                activation =>
+                    val response = activation.response
+                    response.result.get.fields.get("error") shouldBe empty
+                    response.result.get.fields.get("greetings") should be(Some(JsString("Hello from a non-standard entrypoint.")))
             }
     }
 

@@ -54,6 +54,18 @@ class CLIPythonTests
             }
     }
 
+    it should "invoke an action with a non-default entry point" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "nonDefaultEntryPoint"
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("niam.py")), main = Some("niam"))
+            }
+
+            withActivation(wsk.activation, wsk.action.invoke(name, Map())) {
+                _.response.result.get.fields.get("greetings") should be(Some(JsString("Hello from a non-standard entrypoint.")))
+            }
+    }
+
     it should "invoke an action and confirm expected environment is defined" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "stdenv"

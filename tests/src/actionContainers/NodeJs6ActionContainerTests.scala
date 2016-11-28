@@ -29,7 +29,7 @@ class NodeJs6ActionContainerTests extends NodeJsActionContainerTests {
 
     override lazy val nodejsContainerImageName = "nodejs6action"
 
-    override def exec(code: String) = NodeJS6Exec(code)
+    override def exec(code: String) = NodeJS6Exec(code, None)
 
     behavior of nodejsContainerImageName
 
