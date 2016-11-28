@@ -399,7 +399,7 @@ class ContainerPool(
     // TODO: Generalize across language by storing image name when we generalize to other languages
     //       Better heuristic for # of containers to keep warm - make sensitive to idle capacity
     private val stemCellNodejsKey = StemCellNodeJsActionContainerId
-    private val nodejsExec = NodeJS6Exec("")
+    private val nodejsExec = NodeJS6Exec("", main = None)
     private val WARM_NODEJS_CONTAINERS = 2
 
     // This parameter controls how many outstanding un-removed containers there are before

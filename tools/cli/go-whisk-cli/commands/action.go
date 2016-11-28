@@ -511,16 +511,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, error) {
       action.Exec.Kind = "python"
     } else if ext == ".jar" {
       action.Exec.Kind = "java"
-
-      if len(flags.action.main) == 0 {
-        errMsg := wski18n.T("Java actions require --main to specify the fully-qualified name of the main class")
-        whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG,
-          whisk.DISPLAY_USAGE)
-        return nil, whiskErr
-      }
-
       action.Exec.Jar = base64.StdEncoding.EncodeToString([]byte(action.Exec.Code))
-      action.Exec.Main = flags.action.main
       action.Exec.Code = ""
     } else {
       errMsg := ""
@@ -537,6 +528,21 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, error) {
       whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG,
         whisk.DISPLAY_USAGE)
       return nil, whiskErr
+    }
+
+    // Determining the entrypoint.
+    if len(flags.action.main) != 0 {
+      // The --main flag was specified.
+      action.Exec.Main = flags.action.main
+    } else {
+      // The flag was not specified. For now, the only kind where it makes
+      // a difference is "java", for which the flag is expected.
+      if action.Exec.Kind == "java" {
+        errMsg := wski18n.T("Java actions require --main to specify the fully-qualified name of the main class")
+        whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG,
+          whisk.DISPLAY_USAGE)
+        return nil, whiskErr
+      }
     }
 
     // For zip-encoded NodeJS action, the code needs to be base64-encoded.
