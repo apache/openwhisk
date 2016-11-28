@@ -13,7 +13,7 @@ function main(params) {
         console.log('Happy New Year!');
     } else if (n > 0) {
         return wsk.actions.invoke({
-            actionName: process.env['__OW_ACTION_NAME'].split('/')[2],
+            actionName: process.env['__OW_ACTION_NAME'],
             params: { n: n - 1 }
         });
     }
