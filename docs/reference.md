@@ -255,7 +255,7 @@ The following packages are available to be used in the Node.js 6.2.0 environment
 - body-parser v1.15.1
 - btoa v1.1.2
 - cheerio v0.20.0
-- cloudant v1.4.1
+- cloudant v1.6.2
 - commander v2.9.0
 - consul v0.25.0
 - cookie-parser v1.4.2
