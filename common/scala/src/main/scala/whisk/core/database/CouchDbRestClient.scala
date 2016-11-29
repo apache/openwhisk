@@ -68,7 +68,8 @@ class CouchDbRestClient(protocol: String, host: String, port: Int, username: Str
     // Additional queue in case all connections are busy. Should hardly ever be
     // filled in practice but can be useful, e.g., in tests starting many
     // asynchronous requests in a very short period of time.
-    private val requestQueue = Source.queue(128, OverflowStrategy.dropNew)
+    private val QUEUE_SIZE = 16* 1024;
+    private val requestQueue = Source.queue(QUEUE_SIZE, OverflowStrategy.dropNew)
         .via(pool.mapMaterializedValue { x => poolPromise.success(x); x })
         .toMat(Sink.foreach({
             case ((Success(response), p)) => p.success(response)
