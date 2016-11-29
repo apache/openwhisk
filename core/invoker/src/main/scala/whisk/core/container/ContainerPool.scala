@@ -652,7 +652,7 @@ class ContainerPool(
     }
 
     private def getContainerEnvironment(): Map[String, String] = {
-        Map(WhiskConfig.asEnvVar(WhiskConfig.edgeHostName) -> config.edgeHost)
+        Map("__OW_API_HOST" -> config.edgeHost)
     }
 
     private val defaultMaxIdle = 10

@@ -16,19 +16,15 @@
 
 package system.basic
 
-import java.time.Instant
 import java.io.File
+import java.time.Instant
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
 import common.TestHelpers
 import common.TestUtils
-import common.TestUtils.CONFLICT
-import common.TestUtils.SUCCESS_EXIT
-import common.TestUtils.UNAUTHORIZED
-import common.TestUtils.FORBIDDEN
-import common.TestUtils.ERROR_EXIT
+import common.TestUtils._
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
@@ -361,15 +357,17 @@ class WskBasicTests
             }
     }
 
-    it should "create and invoke a blocking action resulting in an error response object" in withAssetCleaner(wskprops) {
+    it should "create and invoke a blocking action resulting in an failed promise" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "errorResponseObject"
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("asyncError.js")))
             }
 
-            wsk.action.invoke(name, blocking = true, expectedExitCode = 246)
-                .stderr should include regex (""""error": "name '!' contains illegal characters \(code \d+\)"""")
+            val stderr = wsk.action.invoke(name, blocking = true, expectedExitCode = 246).stderr
+            CliActivation.serdes.read(stderr.parseJson).response.result shouldBe Some {
+                JsObject("error" -> JsObject("msg" -> "failed activation on purpose".toJson))
+            }
     }
 
     it should "invoke a blocking action and get only the result" in withAssetCleaner(wskprops) {

@@ -28,6 +28,14 @@ var request = require('request');
  */
 function Whisk(apihost, logger) {
 
+    // export __OW_API_HOST to environment
+    {
+        apihost = apihost || '';
+        var edgeHostParts = apihost.split(':');
+        var protocol = (edgeHostParts.length >= 2  &&  edgeHostParts[1] == '443') ? 'https' : 'http';
+        apihost = protocol + '://' + apihost;
+    }
+
     this.apikey = "uninit_apikey";
 
     var asyncSentinel = new function Async(){ async: true; };
@@ -58,13 +66,17 @@ function Whisk(apihost, logger) {
      * Gets the authorization key under which this action is running.
      */
     this.getAuthKey = function() {
+        console.warn('[WARN] "whisk.getAuthKey" is deprecated. Use "openwhisk" package instead.');
         return this.apikey;
     }
 
     /**
      * Gets the authorization key under which this action is running.
      */
-    this.setAuthKey = function(key) {
+    this.setAuthKey = function(key, warn) {
+        if (warn !== false) {
+            console.warn('[WARN] "whisk.setAuthKey" is deprecated. Use "openwhisk" package instead.');
+        }
         this.apikey = key;
     }
 
@@ -82,6 +94,7 @@ function Whisk(apihost, logger) {
      *             when error is not a falsey depending on invoke failure mode.
      */
     this.invoke = function(params) {
+        console.warn('[WARN] "whisk.invoke" is deprecated. Use "openwhisk" package instead.');
         var args = params || {};
         var action = parseQName(args.name || '');
         var parameters = args.parameters || {};
@@ -132,6 +145,7 @@ function Whisk(apihost, logger) {
      *             Activation, if defined, is an object { activationId: String }.
      */
     this.trigger = function(params) {
+        console.warn('[WARN] "whisk.trigger" is deprecated. Use "openwhisk" package instead.');
         var args = params || {};
         var event = parseQName(args.name || '');
         var parameters = args.parameters || {};
@@ -172,6 +186,7 @@ function Whisk(apihost, logger) {
      * Call `whisk.done` or `whisk.error` from your action instead.
      */
     this._terminate = function(response) {
+        console.warn('[WARN] "whisk._terminate" is deprecated. Actions should return Promises.');
         return response;
     }
 
@@ -186,6 +201,7 @@ function Whisk(apihost, logger) {
      * setting a value is equivalent to setting the empty object.
      */
     this.done = function(value) {
+        console.warn('[WARN] "whisk.done" is deprecated. Actions should return Promises.');
         var response = value;
 
         // All non-truthy responses are converted to the empty object.
@@ -211,6 +227,7 @@ function Whisk(apihost, logger) {
      * the value is not set, a generic error message is returned instead.
      */
     this.error = function(value) {
+        console.warn('[WARN] "whisk.error" is deprecated. Actions should return Promises.');
         var errorValue = value === undefined ? 'an error has occurred' : value;
         var response = { error: errorValue };
         logger && logger.info('[whisk]', 'error()', response);
@@ -218,7 +235,10 @@ function Whisk(apihost, logger) {
     }
 
     /** A sentinel to denote asynchronous activation. */
-    this.async = function() {
+    this.async = function(warn) {
+        if (warn !== false) {
+            console.warn('[WARN] "whisk.async" is deprecated. Actions should return Promises.');
+        }
         return asyncSentinel;
     }
 }
@@ -259,7 +279,7 @@ function post(packet, logger, acceptStatusCode) {
           logger && logger.info('[whisk]', 'post status:', response ? response.statusCode : undefined);
           // print the error to console.error to help post-mortem debugging
           // and inform the user if for example they neglected to check for error
-          error  && console.log('Warning: whisk activation request failed with the following error', error);
+          error  && console.warn('[WARN] whisk activation request failed with the following error', error);
 
           logger && logger.info('[whisk]', 'response body', body);
 

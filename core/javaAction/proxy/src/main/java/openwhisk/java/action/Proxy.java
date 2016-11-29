@@ -25,6 +25,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.HashMap;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -120,11 +121,19 @@ public class Proxy {
                 JsonElement ie = parser.parse(new BufferedReader(new InputStreamReader(is, "UTF-8")));
                 JsonObject inputObject = ie.getAsJsonObject().getAsJsonObject("value");
 
+                HashMap<String, String> env = new HashMap<String, String>();
+                for (String p : new String[] { "api_key", "namespace", "action_name", "activation_id", "deadline" }) {
+                    try {
+                        String val = ie.getAsJsonObject().getAsJsonPrimitive(p).getAsString();
+                        env.put(String.format("__OW_%s", p.toUpperCase()), val);
+                    } catch (Exception e) {}
+                }
+
                 Thread.currentThread().setContextClassLoader(loader);
                 System.setSecurityManager(new WhiskSecurityManager());
 
                 // User code starts running here.
-                JsonObject output = loader.invokeMain(inputObject);
+                JsonObject output = loader.invokeMain(inputObject, env);
                 // User code finished running here.
 
                 if(output == null) {

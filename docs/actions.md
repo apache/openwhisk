@@ -284,7 +284,6 @@ JavaScript functions that run asynchronously may need to return the activation r
 
   Comparing the `start` and `end` time stamps in the activation record, you can see that this activation took slightly over two seconds to complete.
 
-
 ### Using actions to call an external API
 
 The examples so far have been self-contained JavaScript functions. You can also create an action that calls an external API.
@@ -768,3 +767,18 @@ You can clean up by deleting actions that you do not want to use.
   ```
   actions
   ```
+  
+## Accessing action metadata within the action body
+
+The action environment contains several properties that are specific to the running action.
+These allow the action to programmatically work with OpenWhisk assets via the REST API,
+or set an internal alarm when the action is about to use up its allotted time budget.
+The properties are accessible via the system environment for all supported runtimes:
+Node.js, Python, Swift, Java and Docker actions when using the OpenWhisk Docker skeleton.
+
+* `__OW_API_HOST` the API host for the OpenWhisk deployment running this action
+* `__OW_API_KEY` the API key for the subject invoking the action, this key may be a restricted API key
+* `__OW_NAMESPACE` the namespace for the _activation_ (this may not be the same as the namespace for the action)
+* `__OW_ACTION_NAME` the fully qualified name of the running action
+* `__OW_ACTIVATION_ID` the activation id for this running action instance
+* `__OW_DEADLINE` the approximate time when this action will have consumed its entire duration quota (measured in epoch milliseconds)

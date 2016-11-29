@@ -43,6 +43,7 @@ nano@6.2.0 \
 node-uuid@1.4.7 \
 nodemailer@2.5.0 \
 oauth2-server@2.4.1 \
+openwhisk@2.6.0 \
 pkgcloud@1.3.0 \
 process@0.11.3 \
 pug@">2.0.0-alpha <2.0.1" \

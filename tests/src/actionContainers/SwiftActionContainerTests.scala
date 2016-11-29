@@ -32,21 +32,38 @@ class SwiftActionContainerTests extends BasicActionRunnerTests with WskActorSyst
     // prints status messages and there doesn't seem to be a way to quiet them
     val enforceEmptyOutputStream = true
     lazy val swiftContainerImageName = "swiftaction"
+    lazy val envCode = makeEnvCode("NSProcessInfo.processInfo()")
 
-    lazy val envCode = """
+    def makeEnvCode(processInfo: String) = ("""
          |func main(args: [String: Any]) -> [String: Any] {
-         |     let env = NSProcessInfo.processInfo().environment
-         |     var auth = "???"
-         |     var edge = "???"
-         |     if let authKey : String = env["AUTH_KEY"] {
-         |         auth = "\(authKey)"
+         |     let env = """+processInfo+""".environment
+         |     var a = "???"
+         |     var b = "???"
+         |     var c = "???"
+         |     var d = "???"
+         |     var e = "???"
+         |     var f = "???"
+         |     if let v : String = env["__OW_API_HOST"] {
+         |         a = "\(v)"
          |     }
-         |     if let edgeHost : String = env["EDGE_HOST"] {
-         |         edge = "\(edgeHost)"
+         |     if let v : String = env["__OW_API_KEY"] {
+         |         b = "\(v)"
          |     }
-         |     return ["auth": auth, "edge": edge]
+         |     if let v : String = env["__OW_NAMESPACE"] {
+         |         c = "\(v)"
+         |     }
+         |     if let v : String = env["__OW_ACTION_NAME"] {
+         |         d = "\(v)"
+         |     }
+         |     if let v : String = env["__OW_ACTIVATION_ID"] {
+         |         e = "\(v)"
+         |     }
+         |     if let v : String = env["__OW_DEADLINE"] {
+         |         f = "\(v)"
+         |     }
+         |     return ["api_host": a, "api_key": b, "namespace": c, "action_name": d, "activation_id": e, "deadline": f]
          |}
-         """.stripMargin
+         """).stripMargin
 
     lazy val errorCode = """
                 | // You need an indirection, or swiftc detects the div/0
