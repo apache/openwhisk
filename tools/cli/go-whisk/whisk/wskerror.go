@@ -32,6 +32,7 @@ const DISPLAY_USAGE     bool = true
 const NO_DISPLAY_USAGE  bool = false
 const NO_MSG_DISPLAYED  bool = false
 const APPLICATION_ERR   bool = true
+const BLOCKING_TIMEOUT  bool = true
 
 type WskError struct {
     RootErr             error   // Parent error
@@ -40,6 +41,7 @@ type WskError struct {
     MsgDisplayed        bool    // When true, the error message has already been displayed, don't display it again
     DisplayUsage        bool    // When true, the CLI usage should be displayed before exiting
     ApplicationError    bool    // When true, the error is a result of an application failure
+    BlockingTimeout     bool
 }
 
 /*
@@ -71,12 +73,14 @@ func MakeWskError (err error, exitCode int, flags ...bool ) (resWhiskError *WskE
         DisplayUsage: false,
         MsgDisplayed: false,
         ApplicationError: false,
+        BlockingTimeout: false,
     }
 
     if len(flags) > 0 { resWhiskError.DisplayMsg = flags[0] }
     if len(flags) > 1 { resWhiskError.DisplayUsage = flags[1] }
     if len(flags) > 2 { resWhiskError.MsgDisplayed = flags[2] }
     if len(flags) > 3 { resWhiskError.ApplicationError = flags[3] }
+    if len(flags) > 4 { resWhiskError.BlockingTimeout = flags[4] }
 
     return resWhiskError
 }
@@ -146,6 +150,12 @@ func getWhiskErrorProperties(whiskError *WskError, flags ...bool) (int, []bool) 
         flags[3] = whiskError.ApplicationError || flags[3]
     } else {
         flags = append(flags, whiskError.ApplicationError)
+    }
+
+    if len(flags) > 4 {
+        flags[4] = whiskError.BlockingTimeout || flags[4]
+    } else {
+        flags = append(flags, whiskError.BlockingTimeout)
     }
 
     return whiskError.ExitCode, flags

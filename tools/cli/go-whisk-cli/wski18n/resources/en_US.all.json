@@ -1150,5 +1150,13 @@
   {
     "id": "{{.ok}} got trigger {{.name}}, displaying field {{.field}}\n",
     "translation": "{{.ok}} got trigger {{.name}}, displaying field {{.field}}\n"
+  },
+  {
+    "id": "{{.ok}} invoked /{{.namespace}}/{{.name}} with id {{.id}}, blocking action exceeded maximum time limit.\n",
+    "translation": "{{.ok}} invoked /{{.namespace}}/{{.name}} with id {{.id}}, blocking action exceeded maximum time limit.\n"
+  },
+  {
+    "id": "Blocking call exceeded the maximum time limit.",
+    "translation": "Blocking call exceeded the maximum time limit."
   }
 ]

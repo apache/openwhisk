@@ -177,17 +177,31 @@ var actionInvokeCmd = &cobra.Command{
     if err != nil {
       whiskErr, isWhiskErr := err.(*whisk.WskError)
 
-      if (isWhiskErr && whiskErr.ApplicationError != true) || !isWhiskErr {
+      fmt.Printf("asdfasdf %t\n", whiskErr.BlockingTimeout)
+      if (isWhiskErr && (whiskErr.ApplicationError != true && whiskErr.BlockingTimeout != true)) || !isWhiskErr {
+
         whisk.Debug(whisk.DbgError, "client.Actions.Invoke(%s, %s, %t) error: %s\n", qName.entityName, parameters,
           flags.common.blocking, err)
-        errMsg := fmt.Sprintf(
-          wski18n.T("Unable to invoke action '{{.name}}': {{.err}}",
-            map[string]interface{}{"name": qName.entityName, "err": err}))
+        errMsg := wski18n.T("Unable to invoke action '{{.name}}': {{.err}}",
+          map[string]interface{}{"name":qName.entityName, "err": err})
         whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
           whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return whiskErr
       } else {
         outputStream = colorable.NewColorableStderr()
+
+        if whiskErr.BlockingTimeout == true {
+          fmt.Fprintf(color.Output,
+            wski18n.T("{{.ok}} invoked /{{.namespace}}/{{.name}} with id {{.id}}, blocking action exceeded maximum time limit.\n",
+              map[string]interface{}{
+                "ok": color.GreenString("ok:"),
+                "namespace": boldString(qName.namespace),
+                "name": boldString(qName.entityName),
+                "id": boldString(activation.ActivationID)}))
+
+          return err
+        }
+
       }
     }
 
