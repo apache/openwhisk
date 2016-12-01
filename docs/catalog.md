@@ -191,6 +191,42 @@ You can use an action to fetch a document from a Cloudant database called `testd
   }
   ```
 
+### Using an action sequence and a change trigger to process a document from a Cloudant database
+
+You can use an action sequence in a rule to fetch and process the document associated with a Cloudant change event.
+
+Here is a sample code of an action that handles a document:
+```
+function main(doc){
+  return { "isWalter:" : doc.name === "Walter White"};
+}
+```
+
+Create the action to process the document from Cloudant:
+```
+$ wsk action create myAction myAction.js
+```
+
+To read a document from the database, you can use the `read` action from the Cloudant package.
+The `read` action may be composed with `myAction` to create an action sequence.
+```
+$ wsk action create sequenceAction --sequence /myNamespace/myCloudant/read,myAction
+```
+
+The action `sequenceAction` may be used in a rule that activates the action on new Cloudant trigger events.
+```
+$ wsk rule create myRule myCloudantTrigger sequenceAction
+```
+
+**Note** The Cloudant `changes` trigger used to support the parameter `includeDoc` which is not longer supported.
+  You will need to recreate triggers previously created with `includeDoc`. Follow these steps to recreate the trigger:
+  ```
+  $ wsk trigger delete myCloudantTrigger
+  $ wsk trigger create myCloudantTrigger --feed /myNamespace/myCloudant/changes --param dbname testdb
+  ```
+
+  The example illustrated above may be used to create an action sequence to read the changed document and call your existing actions.
+  Remember to disable any rules that may no longer be valid and create new ones using the action sequence pattern.
 
 ## Using the Alarm package
 
