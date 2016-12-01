@@ -70,6 +70,7 @@ apigateway:
     mgmt: 9001
 
 redis:
+  version: 3.2
   port: 6379
 
 linux:
