@@ -1,6 +1,9 @@
 ---
 # This role will install Kafka with Zookeeper in group 'kafka' in the environment inventory
 
+- name: "pull the zookeeper:3.4 image"
+  shell: "docker pull zookeeper:3.4"
+
 - name: (re)start zookeeper
   docker_container:
     name: zookeeper
@@ -17,6 +20,9 @@
   until: (result.rc == 0) and (result.stdout == 'imok')
   retries: 36
   delay: 5
+
+- name: "pull the ches/kafka:0.10.0.1 image"
+  shell: "docker pull ches/kafka:0.10.0.1"
 
 - name: (re)start kafka
   docker_container:

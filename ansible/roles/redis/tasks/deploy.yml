@@ -1,6 +1,9 @@
 ---
 # This role will install redis
 
+- name: "pull the redis image"
+  shell: "docker pull redis"
+
 - name: (re)start redis
   docker_container:
     name: redis

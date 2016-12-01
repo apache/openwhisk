@@ -23,6 +23,9 @@
     mode: 0777
   become: true
 
+- name: "pull the nginx image"
+  shell: "docker pull nginx"
+
 - name: (re)start nginx
   docker_container:
     name: nginx

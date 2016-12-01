@@ -24,6 +24,9 @@
     mode: 0777
   become: true
 
+- name: "pull the consul image"
+  shell: "docker pull consul:v0.7.0"
+
 - name: (re)start consul server/agent
   docker_container:
     name: consul
