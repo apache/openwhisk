@@ -22,18 +22,13 @@ import spray.json.JsString
 import spray.json.JsValue
 import spray.json.RootJsonFormat
 import spray.json.deserializationError
-
 import whisk.http.Messages
 
 /**
  * EntityPath is a path string of allowed characters. The path consists of parts each of which
  * must be a valid EntityName, separated by the EntityPath separator character. The private
  * constructor accepts a validated sequence of path parts and can reconstruct the path
- * from it.
- *
- * N. B.   The qualified name of an entity is intended to be a pair of an (EntityPath,EntityName)
- * However, right now lots of code abuses the EntityPath to mean qualified name.
- * TODO This needs to be fixed.
+ * from it. The path cannot be empty.
  *
  * It is a value type (hence == is .equals, immutable and cannot be assigned null).
  * The constructor is private so that argument requirements are checked and normalized
@@ -44,6 +39,7 @@ import whisk.http.Messages
 protected[core] class EntityPath private (private val path: Seq[String]) extends AnyVal {
     def namespace: String = path.foldLeft("")((a, b) => if (a != "") a.trim + EntityPath.PATHSEP + b.trim else b.trim)
     def addpath(e: EntityName) = EntityPath(path :+ e.name)
+    def addpath(p: EntityPath) = EntityPath(path ++ p.path)
     def relpath: Option[EntityPath] = Try(EntityPath(path.drop(1))).toOption
     def root: EntityName = EntityName(path.head)
     def last: EntityName = EntityName(path.last)

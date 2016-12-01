@@ -23,8 +23,7 @@ import org.scalatest.junit.JUnitRunner
 import spray.http.StatusCodes._
 import spray.httpx.SprayJsonSupport._
 import spray.json.DefaultJsonProtocol._
-import spray.json.JsObject
-import spray.json.pimpString
+import spray.json._
 import whisk.core.controller.WhiskRulesApi
 import whisk.core.entity._
 import whisk.core.entity.test.OldWhiskTrigger
@@ -283,6 +282,49 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
             val response = responseAs[WhiskRuleResponse]
             response should be(rule.withStatus(Status.ACTIVE))
             t.rules.get(rule.fullyQualifiedName(false)) shouldBe ReducedRule(action.fullyQualifiedName(false), Status.ACTIVE)
+        }
+    }
+
+    it should "create rule without fully qualifying name" in {
+        implicit val tid = transid()
+
+        val rule = WhiskRule(namespace, aname(), FullyQualifiedEntityName(namespace, aname()), FullyQualifiedEntityName(namespace, aname()))
+        val trigger = WhiskTrigger(rule.trigger.path, rule.trigger.name)
+        val action = WhiskAction(rule.action.path, rule.action.name, Exec.js("??"))
+        val content = JsObject("trigger" -> JsString(s"/_/${trigger.name()}"), "action" -> JsString(s"/_/${action.name()}"))
+
+        put(entityStore, trigger, false)
+        put(entityStore, action)
+
+        Put(s"$collectionPath/${rule.name}", content) ~> sealRoute(routes(creds)) ~> check {
+            val t = get(entityStore, trigger.docid, WhiskTrigger)
+            deleteTrigger(t.docid)
+            deleteRule(rule.docid)
+
+            status should be(OK)
+            val response = responseAs[WhiskRuleResponse]
+            response should be(rule.withStatus(Status.ACTIVE))
+            t.rules.get(rule.fullyQualifiedName(false)) shouldBe ReducedRule(action.fullyQualifiedName(false), Status.ACTIVE)
+        }
+    }
+
+    it should "reject create rule without namespace in referenced entities" in {
+        implicit val tid = transid()
+
+        val rule = WhiskRule(namespace, aname(), FullyQualifiedEntityName(namespace, aname()), FullyQualifiedEntityName(namespace, aname()))
+        val trigger = WhiskTrigger(rule.trigger.path, rule.trigger.name)
+        val action = WhiskAction(rule.action.path, rule.action.name, Exec.js("??"))
+        val contentT = JsObject("trigger" -> trigger.name.toJson, "action" -> action.fullyQualifiedName(false).toDocId.toJson)
+        val contentA = JsObject("action" -> action.name.toJson, "trigger" -> trigger.fullyQualifiedName(false).toDocId.toJson)
+
+        Put(s"$collectionPath/${rule.name}", contentT) ~> sealRoute(routes(creds)) ~> check {
+            status should be(BadRequest)
+            responseAs[String] shouldBe s"The request content was malformed:\nrequirement failed: ${Messages.malformedFullyQualifiedEntityName}"
+        }
+
+        Put(s"$collectionPath/${rule.name}", contentA) ~> sealRoute(routes(creds)) ~> check {
+            status should be(BadRequest)
+            responseAs[String] shouldBe s"The request content was malformed:\nrequirement failed: ${Messages.malformedFullyQualifiedEntityName}"
         }
     }
 

@@ -52,10 +52,8 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
     }
 
     it should "reject malformed ids" in {
-        Seq(null, "", " ", ":", " : ", " :", ": ", "a:b").foreach { i =>
-            intercept[IllegalArgumentException] {
-                AuthKey(i)
-            }
+        Seq(null, "", " ", ":", " : ", " :", ": ", "a:b").foreach {
+            i => an[IllegalArgumentException] should be thrownBy AuthKey(i)
         }
     }
 
@@ -79,43 +77,38 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
         DocRevision.serdes.read(JsString("a")) shouldBe DocRevision("a")
         DocRevision.serdes.read(JsString(" a")) shouldBe DocRevision("a")
         DocRevision.serdes.read(JsString("a ")) shouldBe DocRevision("a")
-        intercept[DeserializationException] {
-            DocRevision.serdes.read(JsNumber(1))
-        }
+        a[DeserializationException] should be thrownBy DocRevision.serdes.read(JsNumber(1))
     }
 
     it should "reject malformed doc info" in {
-        Seq(null, "", " ").foreach { i =>
-            intercept[IllegalArgumentException] {
-                DocInfo(i)
-            }
+        Seq(null, "", " ").foreach {
+            i => an[IllegalArgumentException] should be thrownBy DocInfo(i)
         }
     }
 
     it should "reject malformed doc ids" in {
-        Seq(null, "", " ").foreach { i =>
-            intercept[IllegalArgumentException] {
-                DocId(i)
-            }
+        Seq(null, "", " ").foreach {
+            i => an[IllegalArgumentException] should be thrownBy DocId(i)
         }
     }
 
-    behavior of "Namespace"
+    behavior of "EntityPath"
 
     it should "accept well formed paths" in {
         val paths = Seq("/a", "//a", "//a//", "//a//b//c", "//a//b/c//", "a", "a/b", "a/b/", "a@b.c", "a@b.c/", "a@b.c/d", "_a/", "_ _", "a/b/c")
         val expected = Seq("a", "a", "a", "a/b/c", "a/b/c", "a", "a/b", "a/b", "a@b.c", "a@b.c", "a@b.c/d", "_a", "_ _", "a/b/c")
-        val spaces = paths.zip(expected).foreach { p =>
-            assert(EntityPath(p._1).namespace == p._2)
+        val spaces = paths.zip(expected).foreach {
+            p => EntityPath(p._1).namespace shouldBe p._2
         }
+
+        EntityPath.DEFAULT.addpath(EntityPath("a")).toString shouldBe "_/a"
+        EntityPath.DEFAULT.addpath(EntityPath("a/b")).toString shouldBe "_/a/b"
     }
 
     it should "reject malformed paths" in {
         val paths = Seq(null, "", " ", "a/ ", "a/b/c ", " xxx", "xxx ", " xxx", "xxx/ ", "/", " /", "/ ", "//", "///", " / / / ", "a/b/ c", "a/ /b", " a/ b")
-        paths.foreach { p =>
-            val thrown = intercept[IllegalArgumentException] {
-                EntityPath(p)
-            }
+        paths.foreach {
+            p => an[IllegalArgumentException] should be thrownBy EntityPath(p)
         }
     }
 
@@ -130,10 +123,8 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
 
     it should "reject malformed names" in {
         val paths = Seq(null, "", " ", " xxx", "xxx ", "/", " /", "/ ", "0 ", "_ ", "a  ", "a \t", "a\n")
-        paths.foreach { p =>
-            val thrown = intercept[IllegalArgumentException] {
-                EntityName(p)
-            }
+        paths.foreach {
+            p => an[IllegalArgumentException] should be thrownBy EntityName(p)
         }
     }
 
@@ -145,15 +136,26 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
             JsObject("path" -> "a".toJson, "name" -> "b".toJson),
             JsObject("path" -> "a".toJson, "name" -> "b".toJson, "version" -> "0.0.1".toJson),
             JsString("a/b"),
-            JsObject("namespace" -> "a".toJson, "name" -> "b".toJson))
+            JsString("n/a/b"),
+            JsString("/a/b"),
+            JsString("/n/a/b"),
+            JsString("b")) //JsObject("namespace" -> "a".toJson, "name" -> "b".toJson))
 
         FullyQualifiedEntityName.serdes.read(names(0)) shouldBe FullyQualifiedEntityName(EntityPath("a"), EntityName("b"))
         FullyQualifiedEntityName.serdes.read(names(1)) shouldBe FullyQualifiedEntityName(EntityPath("a"), EntityName("b"), Some(SemVer()))
         FullyQualifiedEntityName.serdes.read(names(2)) shouldBe FullyQualifiedEntityName(EntityPath("a"), EntityName("b"))
+        FullyQualifiedEntityName.serdes.read(names(3)) shouldBe FullyQualifiedEntityName(EntityPath("n/a"), EntityName("b"))
+        FullyQualifiedEntityName.serdes.read(names(4)) shouldBe FullyQualifiedEntityName(EntityPath("a"), EntityName("b"))
+        FullyQualifiedEntityName.serdes.read(names(5)) shouldBe FullyQualifiedEntityName(EntityPath("n/a"), EntityName("b"))
+        a[DeserializationException] should be thrownBy FullyQualifiedEntityName.serdes.read(names(6))
 
         a[DeserializationException] should be thrownBy FullyQualifiedEntityName.serdesAsDocId.read(names(0))
         a[DeserializationException] should be thrownBy FullyQualifiedEntityName.serdesAsDocId.read(names(1))
         FullyQualifiedEntityName.serdesAsDocId.read(names(2)) shouldBe FullyQualifiedEntityName(EntityPath("a"), EntityName("b"))
+        FullyQualifiedEntityName.serdesAsDocId.read(names(3)) shouldBe FullyQualifiedEntityName(EntityPath("n/a"), EntityName("b"))
+        FullyQualifiedEntityName.serdesAsDocId.read(names(4)) shouldBe FullyQualifiedEntityName(EntityPath("a"), EntityName("b"))
+        FullyQualifiedEntityName.serdesAsDocId.read(names(5)) shouldBe FullyQualifiedEntityName(EntityPath("n/a"), EntityName("b"))
+        a[DeserializationException] should be thrownBy FullyQualifiedEntityName.serdesAsDocId.read(names(6))
     }
 
     behavior of "Binding"
@@ -259,18 +261,10 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
     }
 
     it should "reject negative values" in {
-        intercept[IllegalArgumentException] {
-            SemVer(-1, 0, 0)
-        }
-        intercept[IllegalArgumentException] {
-            SemVer(0, -1, 0)
-        }
-        intercept[IllegalArgumentException] {
-            SemVer(0, 0, -1)
-        }
-        intercept[IllegalArgumentException] {
-            SemVer(0, 0, 0)
-        }
+        an[IllegalArgumentException] should be thrownBy SemVer(-1, 0, 0)
+        an[IllegalArgumentException] should be thrownBy SemVer(0, -1, 0)
+        an[IllegalArgumentException] should be thrownBy SemVer(0, 0, -1)
+        an[IllegalArgumentException] should be thrownBy SemVer(0, 0, 0)
     }
 
     behavior of "Exec"
@@ -337,15 +331,9 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
     }
 
     it should "reject null code/image arguments" in {
-        intercept[IllegalArgumentException] {
-            Exec.serdes.read(null)
-        }
-        intercept[DeserializationException] {
-            Exec.serdes.read("{}" parseJson)
-        }
-        intercept[DeserializationException] {
-            Exec.serdes.read(JsString(""))
-        }
+        an[IllegalArgumentException] should be thrownBy Exec.serdes.read(null)
+        a[DeserializationException] should be thrownBy Exec.serdes.read("{}" parseJson)
+        a[DeserializationException] should be thrownBy Exec.serdes.read(JsString(""))
     }
 
     it should "serialize to json" in {
@@ -385,35 +373,20 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
             JsObject("KEY" -> "k".toJson, "VALUE" -> "v".toJson),
             JsObject("key" -> "k".toJson, "value" -> 0.toJson))
 
-        params.foreach { p =>
-            val thrown = intercept[DeserializationException] {
-                Parameters.serdes.read(p)
-            }
+        params.foreach {
+            p => a[DeserializationException] should be thrownBy Parameters.serdes.read(p)
         }
     }
 
     it should "reject undefined key" in {
-        intercept[DeserializationException] {
-            Parameters.serdes.read(null: JsValue)
-        }
-        intercept[IllegalArgumentException] {
-            Parameters(null, null: String)
-        }
-        intercept[IllegalArgumentException] {
-            Parameters("", null: JsValue)
-        }
-        intercept[IllegalArgumentException] {
-            Parameters(" ", null: String)
-        }
-        intercept[IllegalArgumentException] {
-            Parameters(null, "")
-        }
-        intercept[IllegalArgumentException] {
-            Parameters(null, " ")
-        }
-        intercept[IllegalArgumentException] {
-            Parameters(null)
-        }
+        a[DeserializationException] should be thrownBy Parameters.serdes.read(null: JsValue)
+        an[IllegalArgumentException] should be thrownBy Parameters(null, null: String)
+        an[IllegalArgumentException] should be thrownBy Parameters("", null: JsValue)
+        an[IllegalArgumentException] should be thrownBy Parameters(" ", null: String)
+        an[IllegalArgumentException] should be thrownBy Parameters(null, "")
+        an[IllegalArgumentException] should be thrownBy Parameters(null, " ")
+        an[IllegalArgumentException] should be thrownBy Parameters(null)
+
     }
 
     it should "serialize to json" in {
@@ -453,10 +426,8 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
             JsObject("timeout" -> JsNull, "memory" -> JsNull),
             JsObject("timeout" -> TimeLimit.STD_DURATION.toMillis.toString.toJson, "memory" -> MemoryLimit.STD_MEMORY.toMB.toInt.toString.toJson))
 
-        limits.foreach { p =>
-            val thrown = intercept[DeserializationException] {
-                ActionLimits.serdes.read(p)
-            }
+        limits.foreach {
+            p => a[DeserializationException] should be thrownBy ActionLimits.serdes.read(p)
         }
     }
 
