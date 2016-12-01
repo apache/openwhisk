@@ -21,13 +21,13 @@
   retries: 36
   delay: 5
 
-- name: "pull the ches/kafka:0.10.0.1 image"
-  shell: "docker pull ches/kafka:0.10.0.1"
+- name: "pull the ches/kafka:{{ kafka.version }} image"
+  shell: "docker pull ches/kafka:{{ kafka.version }}"
 
 - name: (re)start kafka
   docker_container:
     name: kafka
-    image: ches/kafka:0.10.0.1
+    image: ches/kafka:{{ kafka.version }}
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
