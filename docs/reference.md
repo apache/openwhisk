@@ -247,61 +247,69 @@ The `whisk.getAuthKey()` function returns the authorization key under which the 
 
 ### JavaScript runtime environments
 
-JavaScript actions are executed by default in a Node.js version 6.2.0 environment.  The 6.2.0 environment will also be used for an action if the `--kind` flag is explicitly specified with a value of 'nodejs:6' when creating/updating the action.
-The following packages are available to be used in the Node.js 6.2.0 environment:
+JavaScript actions are executed by default in a Node.js version 6.9.1 environment.  The 6.9.1 environment will also be used for an action if the `--kind` flag is explicitly specified with a value of 'nodejs:6' when creating/updating the action.
+The following packages are available to be used in the Node.js 6.9.1 environment:
 
-- apn v1.7.5
-- async v1.5.2
-- body-parser v1.15.1
+- apn v2.1.2
+- async v2.1.4
+- body-parser v1.15.2
 - btoa v1.1.2
-- cheerio v0.20.0
-- cloudant v1.4.1
+- cheerio v0.22.0
+- cloudant v1.6.2
 - commander v2.9.0
-- consul v0.25.0
-- cookie-parser v1.4.2
+- consul v0.27.0
+- cookie-parser v1.4.3
 - cradle v0.7.1
-- errorhandler v1.4.3
-- express v4.13.4
-- express-session v1.12.1
-- gm v1.22.0
+- errorhandler v1.5.0
+- express v4.14.0
+- express-session v1.14.2
+- glob v7.1.1
+- gm v1.23.0
 - lodash v4.17.2
-- log4js v0.6.36
-- iconv-lite v0.4.13
+- log4js v0.6.38
+- iconv-lite v0.4.15
+- marked v0.3.6
 - merge v1.2.0
-- moment v2.13.0
-- mustache v2.2.1
+- moment v2.17.0
+- mongodb v2.2.11
+- mustache v2.3.0
 - nano v6.2.0
 - node-uuid v1.4.7
-- nodemailer v2.5.0
+- nodemailer v2.6.4
 - oauth2-server v2.4.1
-- pkgcloud v1.3.0
-- process v0.11.3
-- pug v2.0.0
-- request v2.72.0
+- pkgcloud v1.4.0
+- process v0.11.9
+- pug v2.0.0-beta6
+- redis v2.6.3
+- request v2.79.0
 - request-promise v4.1.1
-- rimraf v2.5.2
-- semver v5.1.0
-- sendgrid v3.0.11
-- serve-favicon v2.3.0
-- socket.io v1.4.6
-- socket.io-client v1.4.6
-- superagent v1.8.3
+- rimraf v2.5.4
+- semver v5.3.0
+- sendgrid v4.7.1
+- serve-favicon v2.3.2
+- socket.io v1.6.0
+- socket.io-client v1.6.0
+- superagent v3.0.0
 - swagger-tools v0.10.1
-- tmp v0.0.28
-- twilio v2.9.1
-- watson-developer-cloud v1.12.4
+- tmp v0.0.31
+- twilio v2.11.1
+- underscore v1.8.3
+- uuid v3.0.0
+- validator v6.1.0
+- watson-developer-cloud v2.9.0
 - when v3.7.7
-- ws v1.1.0
-- xml2js v0.4.16
+- winston v2.3.0
+- ws v1.1.1
+- xml2js v0.4.17
 - xmlhttprequest v1.8.0
-- yauzl v2.4.2
+- yauzl v2.7.0
 
-The Node.js version 0.12.14 environment will be used for an action if the `--kind` flag is explicitly specified with a value of 'nodejs' when creating/updating the action.
-The following packages are available to be used in the Node.js 0.12.14 environment:
+The Node.js version 0.12.17 environment will be used for an action if the `--kind` flag is explicitly specified with a value of 'nodejs' when creating/updating the action.
+The following packages are available to be used in the Node.js 0.12.17 environment:
 
 - apn v1.7.4
 - async v1.5.2
-- body-parser v1.12.0
+- body-parser v1.15.2
 - btoa v1.1.2
 - cheerio v0.20.0
 - cloudant v1.4.1
@@ -310,11 +318,11 @@ The following packages are available to be used in the Node.js 0.12.14 environme
 - cookie-parser v1.3.4
 - cradle v0.6.7
 - errorhandler v1.3.5
-- express v4.12.2
+- express v4.14.0
 - express-session v1.11.1
 - gm v1.20.0
 - jade v1.9.2
-- log4js v0.6.25
+- log4js v0.6.38
 - merge v1.2.0
 - moment v2.8.1
 - mustache v2.1.3
@@ -322,7 +330,7 @@ The following packages are available to be used in the Node.js 0.12.14 environme
 - node-uuid v1.4.2
 - oauth2-server v2.4.0
 - process v0.11.0
-- request v2.60.0
+- request v2.79.0
 - rimraf v2.5.1
 - semver v4.3.6
 - serve-favicon v2.2.0
