@@ -25,6 +25,7 @@ controller:
   port: 10001
 
 consul:
+  version: 0.7.0
   port:
     server: 8300
     serf_lan: 8301
