@@ -41,6 +41,7 @@ kafka:
     port: 9093
 
 zookeeper:
+  version: 3.4
   port: 2181
 
 invoker:
