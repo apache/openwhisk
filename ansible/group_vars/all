@@ -73,6 +73,9 @@ redis:
 linux:
   version: 4.4.0-31
 
+couchdb:
+  version: 1.6
+
 docker_image_prefix: whisk
 docker_image_tag: latest
 docker:
