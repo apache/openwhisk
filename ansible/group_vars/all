@@ -49,6 +49,7 @@ invoker:
   serializeDockerPull: true
 
 nginx:
+  version: 1.11
   port:
     http: 80
     api: 443
@@ -74,7 +75,7 @@ linux:
 docker_image_prefix: whisk
 docker_image_tag: latest
 docker:
-  # The user to install docker for. Defaults to the ansible user if not set. This will be the user who is able to run 
+  # The user to install docker for. Defaults to the ansible user if not set. This will be the user who is able to run
   # docker commands on a machine setup with prereq_build.yml
   #user:
   version: 1.12.0-0~trusty
@@ -121,4 +122,3 @@ catalog_repos:
     location: "{{ openwhisk_home }}/../openwhisk-catalog"
     version: "HEAD"
     repo_update: "yes"
-
