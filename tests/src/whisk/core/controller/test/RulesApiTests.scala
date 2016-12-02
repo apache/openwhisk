@@ -311,6 +311,34 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         }
     }
 
+    it should "create rule with an action in a binding" in {
+        implicit val tid = transid()
+
+        val provider = WhiskPackage(namespace, aname(), publish = true)
+        val reference = WhiskPackage(namespace, aname(), provider.bind)
+        val action = WhiskAction(provider.path, aname(), Exec.js("??"))
+        val trigger = WhiskTrigger(namespace, aname())
+        val actionReference = reference.binding.map(b => b.namespace.addpath(b.name)).get
+        val rule = WhiskRule(namespace, aname(), trigger.fullyQualifiedName(false), FullyQualifiedEntityName(actionReference, action.name))
+        val content = WhiskRulePut(Some(rule.trigger), Some(rule.action))
+
+        put(entityStore, provider)
+        put(entityStore, reference)
+        put(entityStore, trigger, false)
+        put(entityStore, action)
+
+        Put(s"$collectionPath/${rule.name}", content) ~> sealRoute(routes(creds)) ~> check {
+            val t = get(entityStore, trigger.docid, WhiskTrigger)
+            deleteTrigger(t.docid)
+            deleteRule(rule.docid)
+
+            status should be(OK)
+            val response = responseAs[WhiskRuleResponse]
+            response should be(rule.withStatus(Status.ACTIVE))
+            t.rules.get(rule.fullyQualifiedName(false)) shouldBe ReducedRule(action.fullyQualifiedName(false), Status.ACTIVE)
+        }
+    }
+
     it should "reject create rule with annotations which are too big" in {
         implicit val tid = transid()
 

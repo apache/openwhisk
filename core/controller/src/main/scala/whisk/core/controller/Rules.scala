@@ -383,7 +383,9 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
                 }
             }
 
-            actionExists <- WhiskAction.get(entityStore, action.toDocId) recoverWith {
+            actionExists <- WhiskAction.resolveAction(entityStore, action) flatMap {
+                resolvedName => WhiskAction.get(entityStore, resolvedName.toDocId)
+            } recoverWith {
                 case _: NoDocumentException => Future.failed {
                     new NoDocumentException(s"action ${action.qualifiedNameWithLeadingSlash} does not exist")
                 }
