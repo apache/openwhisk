@@ -100,6 +100,9 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
         val spaces = paths.zip(expected).foreach {
             p => EntityPath(p._1).namespace shouldBe p._2
         }
+
+        EntityPath.DEFAULT.addpath(EntityPath("a")).toString shouldBe "_/a"
+        EntityPath.DEFAULT.addpath(EntityPath("a/b")).toString shouldBe "_/a/b"
     }
 
     it should "reject malformed paths" in {
@@ -144,6 +147,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
         FullyQualifiedEntityName.serdes.read(names(3)) shouldBe FullyQualifiedEntityName(EntityPath("n/a"), EntityName("b"))
         FullyQualifiedEntityName.serdes.read(names(4)) shouldBe FullyQualifiedEntityName(EntityPath("a"), EntityName("b"))
         FullyQualifiedEntityName.serdes.read(names(5)) shouldBe FullyQualifiedEntityName(EntityPath("n/a"), EntityName("b"))
+        a[DeserializationException] should be thrownBy FullyQualifiedEntityName.serdes.read(names(6))
 
         a[DeserializationException] should be thrownBy FullyQualifiedEntityName.serdesAsDocId.read(names(0))
         a[DeserializationException] should be thrownBy FullyQualifiedEntityName.serdesAsDocId.read(names(1))
@@ -151,6 +155,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
         FullyQualifiedEntityName.serdesAsDocId.read(names(3)) shouldBe FullyQualifiedEntityName(EntityPath("n/a"), EntityName("b"))
         FullyQualifiedEntityName.serdesAsDocId.read(names(4)) shouldBe FullyQualifiedEntityName(EntityPath("a"), EntityName("b"))
         FullyQualifiedEntityName.serdesAsDocId.read(names(5)) shouldBe FullyQualifiedEntityName(EntityPath("n/a"), EntityName("b"))
+        a[DeserializationException] should be thrownBy FullyQualifiedEntityName.serdesAsDocId.read(names(6))
     }
 
     behavior of "Binding"
