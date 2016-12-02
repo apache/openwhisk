@@ -46,9 +46,12 @@ class WskRuleTests
      * Sets up trigger -> rule -> action triplets. Deduplicates triggers and rules
      * and links it all up.
      *
-     * @param rules Tuple3s containing (rule, trigger, (actionName, actionFile))
+     * @param rules Tuple3s containing
+     *   (rule, trigger, (action name for created action, action name for the rule binding, actionFile))
+     *   where the action name for the created action is allowed to differ from that used by the rule binding
+     *   for cases that reference actions in a package binding.
      */
-    def ruleSetup(rules: Seq[(String, String, (String, String))], assetHelper: AssetCleaner) = {
+    def ruleSetup(rules: Seq[(String, String, (String, String, String))], assetHelper: AssetCleaner) = {
         val triggers = rules.map(_._2).distinct
         val actions = rules.map(_._3).distinct
 
@@ -59,7 +62,7 @@ class WskRuleTests
         }
 
         actions.foreach {
-            case (actionName, file) =>
+            case (actionName, _, file) =>
                 assetHelper.withCleaner(wsk.action, actionName) {
                     (action, name) => action.create(name, Some(file))
                 }
@@ -68,7 +71,7 @@ class WskRuleTests
         rules.foreach {
             case (ruleName, triggerName, action) =>
                 assetHelper.withCleaner(wsk.rule, ruleName) {
-                    (rule, name) => rule.create(name, triggerName, action._1)
+                    (rule, name) => rule.create(name, triggerName, action._2)
                 }
         }
     }
@@ -82,7 +85,7 @@ class WskRuleTests
             val actionName = "a1 to 1" // spaces in name intended for greater test coverage
 
             ruleSetup(Seq(
-                (ruleName, triggerName, (actionName, defaultAction))),
+                (ruleName, triggerName, (actionName, actionName, defaultAction))),
                 assetHelper)
 
             val now = Instant.now
@@ -116,7 +119,45 @@ class WskRuleTests
             }
 
             ruleSetup(Seq(
-                (ruleName, triggerName, (pkgActionName, defaultAction))),
+                (ruleName, triggerName, (pkgActionName, pkgActionName, defaultAction))),
+                assetHelper)
+
+            val now = Instant.now
+            val run = wsk.trigger.fire(triggerName, Map("payload" -> testString.toJson))
+
+            withActivation(wsk.activation, run) {
+                triggerActivation =>
+                    triggerActivation.cause shouldBe None
+
+                    withActivationsFromEntity(wsk.activation, ruleName, since = Some(Instant.ofEpochMilli(triggerActivation.start))) {
+                        _.head.cause shouldBe Some(triggerActivation.activationId)
+                    }
+
+                    withActivationsFromEntity(wsk.activation, actionName, since = Some(Instant.ofEpochMilli(triggerActivation.start))) {
+                        _.head.response.result shouldBe Some(testResult)
+                    }
+            }
+    }
+
+    it should "invoke the action from a package binding attached on trigger fire, creating an activation for each entity including the cause" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val ruleName = "pr1to1"
+            val triggerName = "pt1to1"
+            val pkgName = "rule pkg" // spaces in name intended to test uri path encoding
+            val pkgBindingName = "rule pkg binding"
+            val actionName = "a1 to 1"
+            val pkgActionName = s"$pkgName/$actionName"
+
+            assetHelper.withCleaner(wsk.pkg, pkgName) {
+                (pkg, name) => pkg.create(name)
+            }
+
+            assetHelper.withCleaner(wsk.pkg, pkgBindingName) {
+                (pkg, name) => pkg.bind(pkgName, pkgBindingName)
+            }
+
+            ruleSetup(Seq(
+                (ruleName, triggerName, (pkgActionName, s"$pkgBindingName/$actionName", defaultAction))),
                 assetHelper)
 
             val now = Instant.now
@@ -172,7 +213,7 @@ class WskRuleTests
             val actionName = "ruleDisableAction"
 
             ruleSetup(Seq(
-                (ruleName, triggerName, (actionName, defaultAction))),
+                (ruleName, triggerName, (actionName, actionName, defaultAction))),
                 assetHelper)
 
             val first = wsk.trigger.fire(triggerName, Map("payload" -> testString.toJson))
@@ -233,8 +274,8 @@ class WskRuleTests
             val actionName = "a2to1"
 
             ruleSetup(Seq(
-                ("r2to1a", triggerName1, (actionName, defaultAction)),
-                ("r2to1b", triggerName2, (actionName, defaultAction))),
+                ("r2to1a", triggerName1, (actionName, actionName, defaultAction)),
+                ("r2to1b", triggerName2, (actionName, actionName, defaultAction))),
                 assetHelper)
 
             val testPayloads = Seq("got three words", "got four words, period")
@@ -263,8 +304,8 @@ class WskRuleTests
             val actionName2 = "a1to2b"
 
             ruleSetup(Seq(
-                ("r1to2a", triggerName, (actionName1, defaultAction)),
-                ("r1to2b", triggerName, (actionName2, secondAction))),
+                ("r1to2a", triggerName, (actionName1, actionName1, defaultAction)),
+                ("r1to2b", triggerName, (actionName2, actionName2, secondAction))),
                 assetHelper)
 
             val run = wsk.trigger.fire(triggerName, Map("payload" -> testString.toJson))
@@ -288,10 +329,10 @@ class WskRuleTests
             val actionName2 = "a1to1b"
 
             ruleSetup(Seq(
-                ("r2to2a", triggerName1, (actionName1, defaultAction)),
-                ("r2to2b", triggerName1, (actionName2, secondAction)),
-                ("r2to2c", triggerName2, (actionName1, defaultAction)),
-                ("r2to2d", triggerName2, (actionName2, secondAction))),
+                ("r2to2a", triggerName1, (actionName1, actionName1, defaultAction)),
+                ("r2to2b", triggerName1, (actionName2, actionName2, secondAction)),
+                ("r2to2c", triggerName2, (actionName1, actionName1, defaultAction)),
+                ("r2to2d", triggerName2, (actionName2, actionName2, secondAction))),
                 assetHelper)
 
             val testPayloads = Seq("got three words", "got four words, period")
