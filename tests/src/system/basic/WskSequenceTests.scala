@@ -37,6 +37,8 @@ import spray.testkit.ScalatestRouteTest
 import whisk.core.WhiskConfig
 import whisk.http.Messages.sequenceIsTooLong
 
+import scala.util.matching.Regex
+
 /**
  * Tests sequence execution
  */
@@ -250,22 +252,53 @@ class WskSequenceTests
             }
             val run = wsk.action.invoke(sName)
             // action params trump package params
-            checkLogsAtomicAction(0, run, actionStr)
+            checkLogsAtomicAction(0, run, new Regex(actionStr))
             // run with some parameters
             val sequenceStr = "AlmightySequence"
             val sequenceParamRun = wsk.action.invoke(sName, parameters = Map("payload" -> JsString(sequenceStr)))
             // sequence param should be passed to the first atomic action and trump the action params
-            checkLogsAtomicAction(0, sequenceParamRun, sequenceStr)
+            checkLogsAtomicAction(0, sequenceParamRun, new Regex(sequenceStr))
             // update action and remove the params by sending an unused param that overrides previous params
             wsk.action.create(name = helloWithPkg, artifact = Some(file), timeout = Some(allowedActionDuration), parameters = Map("param" -> JsString("irrelevant")), update = true)
             val sequenceParamSecondRun = wsk.action.invoke(sName, parameters = Map("payload" -> JsString(sequenceStr)))
             // sequence param should be passed to the first atomic action and trump the package params
-            checkLogsAtomicAction(0, sequenceParamSecondRun, sequenceStr)
+            checkLogsAtomicAction(0, sequenceParamSecondRun, new Regex(sequenceStr))
             val pkgParamRun = wsk.action.invoke(sName)
             // no sequence params, no atomic action params used, the pkg params should show up
-            checkLogsAtomicAction(0, pkgParamRun, pkgStr)
+            checkLogsAtomicAction(0, pkgParamRun, new Regex(pkgStr))
     }
 
+    it should "run a sequence with an action in a package binding with parameters" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val packageName = s"/$defaultNamespace/package1"
+            val bindName = s"/$defaultNamespace/package2"
+            val actionName = "print"
+            val packageActionName = packageName + "/" + actionName
+            val bindActionName = bindName + "/" + actionName
+            val packageParams = Map("key1a" -> "value1a".toJson, "key1b" -> "value1b".toJson)
+            val bindParams = Map("key2a" -> "value2a".toJson, "key1b" -> "value2b".toJson)
+            val actionParams = Map("key0" -> "value0".toJson)
+            val file = TestUtils.getTestActionFilename("printParams.js")
+            assetHelper.withCleaner(wsk.pkg, packageName) { (pkg, _) =>
+                pkg.create(packageName, packageParams)
+            }
+            assetHelper.withCleaner(wsk.action, packageActionName) { (action, _) =>
+                action.create(packageActionName, Some(file), parameters = actionParams)
+            }
+            assetHelper.withCleaner(wsk.pkg, bindName) { (pkg, _) =>
+                pkg.bind(packageName, bindName, bindParams)
+            }
+            // sequence
+            val sName = "sequenceWithBindingParams"
+            assetHelper.withCleaner(wsk.action, sName) {
+                (action, seqName) => action.create(seqName, Some(bindActionName), kind = Some("sequence"))
+            }
+            // Check that inherited parameters are passed to the action.
+            val now = new Date().toString()
+            val run = wsk.action.invoke(sName, Map("payload" -> now.toJson))
+            // action params trump package params
+            checkLogsAtomicAction(0, run, new Regex(String.format(".*key0: value0.*key1a: value1a.*key1b: value2b.*key2a: value2a.*payload: %s", now)))
+    }
     /**
      * s -> apperror, echo
      * only apperror should run
@@ -414,8 +447,8 @@ class WskSequenceTests
         memory shouldBe (maxMemory)
     }
 
-    /** checks that the first line in the logs of the idx-th atomic action from a sequence contains logsStr */
-    private def checkLogsAtomicAction(atomicActionIdx: Int, run: RunResult, logsStr: String) {
+    /** checks that the logs of the idx-th atomic action from a sequence contains logsStr */
+    private def checkLogsAtomicAction(atomicActionIdx: Int, run: RunResult, regex: Regex) {
         withActivation(wsk.activation, run, totalWait = 2 * allowedActionDuration) { activation =>
             checkSequenceLogsAndAnnotations(activation, 1)
             val componentId = activation.logs.get(atomicActionIdx)
@@ -423,7 +456,8 @@ class WskSequenceTests
             withActivation(wsk.activation, getComponentActivation, totalWait = allowedActionDuration) { componentActivation =>
                 println(componentActivation)
                 componentActivation.logs shouldBe defined
-                componentActivation.logs.get(0).contains(logsStr) shouldBe true
+                val logs = componentActivation.logs.get.mkString(" ")
+                regex.findFirstIn(logs) shouldBe defined
             }
         }
     }
