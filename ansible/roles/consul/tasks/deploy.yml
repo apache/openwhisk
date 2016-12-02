@@ -24,13 +24,13 @@
     mode: 0777
   become: true
 
-- name: "pull the consul image"
-  shell: "docker pull consul:v0.7.0"
+- name: "pull the consul:{{ consul.version }} image"
+  shell: "docker pull consul:{{ consul.version }}"
 
 - name: (re)start consul server/agent
   docker_container:
     name: consul
-    image: consul:v0.7.0
+    image: consul:{{ consul.version }}
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
