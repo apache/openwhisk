@@ -294,45 +294,80 @@ The following is an example of creating a package binding and then getting a 10-
   }
   ```
 
+## Using the Watson Translator package
 
-## Using the Watson package
-
-The `/whisk.system/watson` package offers a convenient way to call various Watson APIs.
+The `/whisk.system/watson-translator` package offers a convenient way to call Watson APIs to translate.
 
 The package includes the following actions.
 
 | Entity | Type | Parameters | Description |
 | --- | --- | --- | --- |
-| `/whisk.system/watson` | package | username, password | Actions for the Watson analytics APIs |
-| `/whisk.system/watson/translate` | action | translateFrom, translateTo, translateParam, username, password | Translate text |
-| `/whisk.system/watson/languageId` | action | payload, username, password | Identify language |
-| `/whisk.system/watson/speechToText` | action | payload, content_type, encoding, username, password, continuous, inactivity_timeout, interim_results, keywords, keywords_threshold, max_alternatives, model, timestamps, watson-token, word_alternatives_threshold, word_confidence, X-Watson-Learning-Opt-Out | Convert audio into text |
-| `/whisk.system/watson/textToSpeech` | action | payload, voice, accept, encoding, username, password | Convert text into audio |
+| `/whisk.system/watson-translator` | package | username, password | Actions for the Watson APIs to translate |
+| `/whisk.system/watson-translator/translator` | action | payload, translateFrom, translateTo, translateParam, username, password | Translate text |
+| `/whisk.system/watson-translator/languageId` | action | payload, username, password | Identify language |
 
-Creating a package binding with the `username` and `password` values is suggested. This way, you don't need to specify these credentials every time you invoke the actions in the package.
+
+### Setting up the Watson Translator package in Bluemix
+
+If you're using OpenWhisk from Bluemix, OpenWhisk automatically creates package bindings for your Bluemix Watson service instances.
+
+1. Create a Watson Translator service instance in your Bluemix [dashboard](http://console.ng.Bluemix.net).
+
+  Be sure to remember the name of the service instance and the Bluemix organization and space you're in.
+
+2. Make sure your OpenWhisk CLI is in the namespace corresponding to the Bluemix organization and space that you used in the previous step.
+
+  ```
+  $ wsk property set --namespace myBluemixOrg_myBluemixSpace
+  ```
+
+  Alternatively, you can use `wsk property set --namespace` to set a namespace from a list of those accessible to you.
+
+3. Refresh the packages in your namespace. The refresh automatically creates a package binding for the Watson service instance that you created.
+
+  ```
+  $ wsk package refresh
+  ```
+  ```
+  created bindings:
+  Bluemix_Watson_Translator_Credentials-1
+  ```
+
+  ```
+  $ wsk package list
+  ```
+  ```
+  packages
+  /myBluemixOrg_myBluemixSpace/Bluemix_Watson_Translator_Credentials-1 private
+  ```
+
+
+### Setting up a Watson Translator package outside Bluemix
+
+If you're not using OpenWhisk in Bluemix or if you want to set up your Watson Translator outside of Bluemix, you must manually create a package binding for your Watson Translator service. You need the Watson Translator service user name, and password.
+
+- Create a package binding that is configured for your Watson Translator service.
+
+  ```
+  $ wsk package bind /whisk.system/watson-translator myWatsonTranslator -p username MYUSERNAME -p password MYPASSWORD
+  ```
+
 
 ### Translating text
 
-The `/whisk.system/watson/translate` action translates text from one language to another. The parameters are as follows:
+The `/whisk.system/watson-translator/translator` action translates text from one language to another. The parameters are as follows:
 
 - `username`: The Watson API user name.
 - `password`: The Watson API password.
+- `payload`: The text to be translated.
 - `translateParam`: The input parameter indicating the text to translate. For example, if `translateParam=payload`, then the value of the `payload` parameter that is passed to the action is translated.
 - `translateFrom`: A two-digit code of the source language.
 - `translateTo`: A two-digit code of the target language.
 
-The following is an example of creating a package binding and translating some text.
-
-1. Create a package binding with your Watson credentials.
+- Invoke the `translator` action in your package binding to translate some text from English to French.
 
   ```
-  $ wsk package bind /whisk.system/watson myWatson --param username MY_WATSON_USERNAME --param password MY_WATSON_PASSWORD
-  ```
-
-2. Invoke the `translate` action in your package binding to translate some text from English to French.
-
-  ```
-  $ wsk action invoke myWatson/translate --blocking --result --param payload "Blue skies ahead" --param translateParam payload --param translateFrom en --param translateTo fr
+  $ wsk action invoke myWatsonTranslator/translator --blocking --result --param payload 'Blue skies ahead' --param translateFrom 'en' --param translateTo 'fr'
   ```
 
   ```
@@ -344,24 +379,16 @@ The following is an example of creating a package binding and translating some t
 
 ### Identifying the language of some text
 
-The `/whisk.system/watson/languageId` action identifies the language of some text. The parameters are as follows:
+The `/whisk.system/watson-translator/languageId` action identifies the language of some text. The parameters are as follows:
 
 - `username`: The Watson API user name.
 - `password`: The Watson API password.
 - `payload`: The text to identify.
 
-The following is an example of creating a package binding and identifying the language of some text.
-
-1. Create a package binding with your Watson credentials.
+- Invoke the `languageId` action in your package binding to identify the language.
 
   ```
-  $ wsk package bind /whisk.system/watson myWatson -p username MY_WATSON_USERNAME -p password MY_WATSON_PASSWORD
-  ```
-
-2. Invoke the `languageId` action in your package binding to identify the language.
-
-  ```
-  $ wsk action invoke myWatson/languageId --blocking --result --param payload "Ciel bleu a venir"
+  $ wsk action invoke myWatsonTranslator/languageId --blocking --result --param payload 'Ciel bleu a venir'
   ```
   ```
   {
@@ -372,9 +399,68 @@ The following is an example of creating a package binding and identifying the la
   ```
 
 
+## Using the Watson Text to Speech package
+
+The `/whisk.system/watson-textToSpeech` package offers a convenient way to call Watson APIs to convert the text into speech.
+
+
+The package includes the following actions.
+
+| Entity | Type | Parameters | Description |
+| --- | --- | --- | --- |
+| `/whisk.system/watson-textToSpeech` | package | username, password | Actions for the Watson APIs to convert the text into speech |
+| `/whisk.system/watson-textToSpeech/textToSpeech` | action | payload, voice, accept, encoding, username, password | Convert text into audio |
+
+
+### Setting up the Watson Text to Speech package in Bluemix
+
+If you're using OpenWhisk from Bluemix, OpenWhisk automatically creates package bindings for your Bluemix Watson service instances.
+
+1. Create a Watson Text to Speech service instance in your Bluemix [dashboard](http://console.ng.Bluemix.net).
+
+  Be sure to remember the name of the service instance and the Bluemix organization and space you're in.
+
+2. Make sure your OpenWhisk CLI is in the namespace corresponding to the Bluemix organization and space that you used in the previous step.
+
+  ```
+  $ wsk property set --namespace myBluemixOrg_myBluemixSpace
+  ```
+
+  Alternatively, you can use `wsk property set --namespace` to set a namespace from a list of those accessible to you.
+
+3. Refresh the packages in your namespace. The refresh automatically creates a package binding for the Watson service instance that you created.
+
+  ```
+  $ wsk package refresh
+  ```
+  ```
+  created bindings:
+  Bluemix_Watson_TextToSpeech_Credentials-1
+  ```
+
+  ```
+  $ wsk package list
+  ```
+  ```
+  packages
+  /myBluemixOrg_myBluemixSpace/Bluemix_Watson_TextToSpeec_Credentials-1 private
+  ```
+
+
+### Setting up a Watson Text to Speech package outside Bluemix
+
+If you're not using OpenWhisk in Bluemix or if you want to set up your Watson Text to Speech outside of Bluemix, you must manually create a package binding for your Watson Text to Speech service. You need the Watson Text to Speech service user name, and password.
+
+- Create a package binding that is configured for your Watson Speech to Text service.
+
+  ```
+  $ wsk package bind /whisk.system/watson-speechToText myWatsonTextToSpeech -p username MYUSERNAME -p password MYPASSWORD
+  ```
+
+
 ### Converting some text to speech
 
-The `/whisk.system/watson/textToSpeech` action converts some text into an audio speech. The parameters are as follows:
+The `/whisk.system/watson-speechToText/textToSpeech` action converts some text into an audio speech. The parameters are as follows:
 
 - `username`: The Watson API user name.
 - `password`: The Watson API password.
@@ -383,18 +469,11 @@ The `/whisk.system/watson/textToSpeech` action converts some text into an audio 
 - `accept`: The format of the speech file.
 - `encoding`: The encoding of the speech binary data.
 
-The following is an example of creating a package binding and converting some text to speech.
 
-1. Create a package binding with your Watson credentials.
-
-  ```
-  $ wsk package bind /whisk.system/watson myWatson -p username MY_WATSON_USERNAME -p password MY_WATSON_PASSWORD
-  ```
-
-2. Invoke the `textToSpeech` action in your package binding to convert the text.
+- Invoke the `textToSpeech` action in your package binding to convert the text.
 
   ```
-  $ wsk action invoke myWatson/textToSpeech --blocking --result --param payload Hey. --param voice en-US_MichaelVoice --param accept audio/wav --param encoding base64
+  $ wsk action invoke myWatsonTextToSpeech/textToSpeech --blocking --result --param payload 'Hey.' --param voice 'en-US_MichaelVoice' --param accept 'audio/wav' --param encoding 'base64'
   ```
   ```
   {
@@ -403,9 +482,67 @@ The following is an example of creating a package binding and converting some te
   ```
 
 
+## Using the Watson Speech to Text package
+
+The `/whisk.system/watson-speechToText` package offers a convenient way to call Watson APIs to convert the speech into text.
+
+The package includes the following actions.
+
+| Entity | Type | Parameters | Description |
+| --- | --- | --- | --- |
+| `/whisk.system/watson-speechToText` | package | username, password | Actions for the Watson APIs to convert the speech into text |
+| `/whisk.system/watson-speechToText/speechToText` | action | payload, content_type, encoding, username, password, continuous, inactivity_timeout, interim_results, keywords, keywords_threshold, max_alternatives, model, timestamps, watson-token, word_alternatives_threshold, word_confidence, X-Watson-Learning-Opt-Out | Convert audio into text |
+
+
+### Setting up the Watson Speech to Text package in Bluemix
+
+If you're using OpenWhisk from Bluemix, OpenWhisk automatically creates package bindings for your Bluemix Watson service instances.
+
+1. Create a Watson Speech to Text service instance in your Bluemix [dashboard](http://console.ng.Bluemix.net).
+
+  Be sure to remember the name of the service instance and the Bluemix organization and space you're in.
+
+2. Make sure your OpenWhisk CLI is in the namespace corresponding to the Bluemix organization and space that you used in the previous step.
+
+  ```
+  $ wsk property set --namespace myBluemixOrg_myBluemixSpace
+  ```
+
+  Alternatively, you can use `wsk property set --namespace` to set a namespace from a list of those accessible to you.
+
+3. Refresh the packages in your namespace. The refresh automatically creates a package binding for the Watson service instance that you created.
+
+  ```
+  $ wsk package refresh
+  ```
+  ```
+  created bindings:
+  Bluemix_Watson_SpeechToText_Credentials-1
+  ```
+
+  ```
+  $ wsk package list
+  ```
+  ```
+  packages
+  /myBluemixOrg_myBluemixSpace/Bluemix_Watson_SpeechToText_Credentials-1 private
+  ```
+
+
+### Setting up a Watson Speech to Text package outside Bluemix
+
+If you're not using OpenWhisk in Bluemix or if you want to set up your Watson Speech to Text outside of Bluemix, you must manually create a package binding for your Watson Speech to Text service. You need the Watson Speech to Text service user name, and password.
+
+- Create a package binding that is configured for your Watson Speech to Text service.
+
+  ```
+  $ wsk package bind /whisk.system/watson-speechToText myWatsonSpeechToText -p username MYUSERNAME -p password MYPASSWORD
+  ```
+
+
 ### Converting speech to text
 
-The `/whisk.system/watson/speechToText` action converts audio speech into text. The parameters are as follows:
+The `/whisk.system/watson-speechToText/speechToText` action converts audio speech into text. The parameters are as follows:
 
 - `username`: The Watson API user name.
 - `password`: The Watson API password.
@@ -425,25 +562,18 @@ The `/whisk.system/watson/speechToText` action converts audio speech into text. 
 - `word_confidence`: Indicates whether a confidence measure in the range of 0 to 1 is to be returned for each word.
 - `X-Watson-Learning-Opt-Out`: Indicates whether to opt out of data collection for the call.
  
-The following is an example of creating a package binding and converting speech to text.
 
-1. Create a package binding with your Watson credentials.
-
-  ```
-  $ wsk package bind /whisk.system/watson myWatson -p username MY_WATSON_USERNAME -p password MY_WATSON_PASSWORD
-  ```
-
-2. Invoke the `speechToText` action in your package binding to convert the encoded audio.
+- Invoke the `speechToText` action in your package binding to convert the encoded audio.
 
   ```
-  $ wsk action invoke myWatson/speechToText --blocking --result --param payload <base64 encoding of a .wav file> --param content_type audio/wav --param encoding base64
+  $ wsk action invoke myWatsonSpeechToText/speechToText --blocking --result --param payload <base64 encoding of a .wav file> --param content_type 'audio/wav' --param encoding 'base64'
   ```
   ```
   {
     "data": "Hello Watson"
   }
   ```
-  
+ 
  
 ## Using the Slack package
 
