@@ -476,7 +476,7 @@ class WskBasicUsageTests
 
     it should "invoke an action receiving context properties" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val user = WskAdmin.getUser(wskprops.authKey)
+            val (user, namespace) = WskAdmin.getUser(wskprops.authKey)
             val name = "context"
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("helloContext.js")))
@@ -490,8 +490,8 @@ class WskBasicUsageTests
                     val fields = activation.response.result.get.convertTo[Map[String, String]]
                     fields("api_host") shouldBe WhiskProperties.getEdgeHost + ":" + WhiskProperties.getEdgeHostApiPort
                     fields("api_key") shouldBe wskprops.authKey
-                    fields("namespace") shouldBe user
-                    fields("action_name") shouldBe s"/$user/$name"
+                    fields("namespace") shouldBe namespace
+                    fields("action_name") shouldBe s"/$namespace/$name"
                     fields("activation_id") shouldBe activation.activationId
                     fields("deadline").toLong should be >= start
             }

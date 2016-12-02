@@ -858,11 +858,13 @@ object WskAdmin {
     /**
      * returns user given the auth key
      */
-    def getUser(authKey: String): String = {
+    def getUser(authKey: String): (String, String) = {
         val wskadmin = new RunWskAdminCmd {}
         val user = wskadmin.cli(Seq("user", "whois", authKey)).stdout.trim
         assert(!user.contains("Subject id is not recognized"), s"failed to retrieve user from authkey '$authKey'")
-        user
+
+        val Seq(rawSubject, rawNamespace) = user.lines.toSeq
+        (rawSubject.replaceFirst("subject: ", ""), rawNamespace.replaceFirst("namespace: ", ""))
     }
 }
 

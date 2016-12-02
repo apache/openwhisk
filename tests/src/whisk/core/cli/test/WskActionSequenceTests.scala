@@ -40,7 +40,7 @@ class WskActionSequenceTests
     implicit val wskprops = WskProps()
     val wsk = new Wsk
     val defaultNamespace = wskprops.namespace
-    val user = WskAdmin.getUser(wskprops.authKey)
+    val (user, namespace) = WskAdmin.getUser(wskprops.authKey)
 
     behavior of "Wsk Action Sequence"
 
@@ -83,5 +83,5 @@ class WskActionSequenceTests
             wsk.parseJsonString(stdout).fields("exec").asJsObject.fields("kind") shouldBe kindValue
     }
 
-    private def resolveDefaultNamespace(actionName: String) = actionName.replace("/_/", s"/$user/")
+    private def resolveDefaultNamespace(actionName: String) = actionName.replace("/_/", s"/$namespace/")
 }

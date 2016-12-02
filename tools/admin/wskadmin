@@ -307,7 +307,8 @@ def whoisUserCmd(args, props):
         if 'rows' in doc and len(doc['rows']) > 0:
             for row in doc['rows']:
                 if 'id' in row:
-                    print row['id']
+                    print 'subject: %s' % row['id']
+                    print 'namespace: %s' % row['value']['namespace']
         else:
             print 'Subject id is not recognized'
         return 0
