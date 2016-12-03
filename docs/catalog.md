@@ -222,9 +222,9 @@ Set a parameter on the trigger for `dbname`
 $ wsk trigger update myCloudantTrigger --param dbname testdb
 ```
 
-**Note** The Cloudant change trigger used to support the parameter `includeDocs`, this is not longer supported.
-  You will need to recreate triggers previously created with `includeDocs`:
-  Recreate the trigger without the `includeDocs` parameter
+**Note** The Cloudant change trigger used to support the parameter `includeDoc`, this is not longer supported.
+  You will need to recreate triggers previously created with `includeDoc`:
+  Recreate the trigger without the `includeDoc` parameter
   ```
   $ wsk trigger delete myCloudantTrigger
   $ wsk trigger create myCloudantTrigger --feed /myNamespace/myCloudant/changes --param dbname testdb
