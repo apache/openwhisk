@@ -46,7 +46,10 @@ class WskRuleTests
      * Sets up trigger -> rule -> action triplets. Deduplicates triggers and rules
      * and links it all up.
      *
-     * @param rules Tuple3s containing (rule, trigger, (actionName, actionFile))
+     * @param rules Tuple3s containing
+     *   (rule, trigger, (action name for created action, action name for the rule binding, actionFile))
+     *   where the action name for the created action is allowed to differ from that used by the rule binding
+     *   for cases that reference actions in a package binding.
      */
     def ruleSetup(rules: Seq[(String, String, (String, String, String))], assetHelper: AssetCleaner) = {
         val triggers = rules.map(_._2).distinct
