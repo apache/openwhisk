@@ -34,6 +34,7 @@
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
+    command: "consul agent -config-dir /consul/config"
     volumes:
       - "{{ whisk_logs_dir }}/consul:/logs"
       - "{{ consul_conf_dir }}:/consul/config"
