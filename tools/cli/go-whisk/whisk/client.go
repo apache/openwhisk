@@ -266,7 +266,16 @@ func (c *Client) Do(req *http.Request, v interface{}) (*http.Response, error) {
     // Handle 1. HTTP Success + Valid body matching request expectations
     // Handle 3. HTTP Success + Body does NOT match request expectations
     if IsHttpRespSuccess(resp) && v != nil {
-        return parseSuccessResponse(resp, data, v), nil
+
+        if resp.StatusCode == 202 {
+            Debug(DbgInfo, "Detected that a blocking call exceeded the maximum time limit.\n")
+            errMsg := wski18n.T("Blocking call exceeded the maximum time limit.")
+            whiskErr := MakeWskError(errors.New(errMsg), resp.StatusCode - 256, NO_DISPLAY_MSG, NO_DISPLAY_USAGE,
+                NO_MSG_DISPLAYED, false, BLOCKING_TIMEOUT)
+            return parseSuccessResponse(resp, data, v), whiskErr
+        } else {
+            return parseSuccessResponse(resp, data, v), nil
+        }
     }
 
     // We should never get here, but just in case return failure
