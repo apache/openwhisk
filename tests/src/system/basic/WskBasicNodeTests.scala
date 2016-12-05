@@ -224,6 +224,7 @@ class WskBasicNodeTests
             // this action supplies a 'next' callback to whisk.trigger()
             val nameOfActionThatTriggers = "triggerAction"
             val actionThatTriggers = Some(TestUtils.getTestActionFilename("triggerCallback.js"))
+            val triggerName = "UnitTestTrigger-" + System.currentTimeMillis()
 
             assetHelper.withCleaner(wsk.action, nameOfActionThatTriggers) {
                 (action, _) =>
@@ -231,14 +232,12 @@ class WskBasicNodeTests
             }
 
             // this is expected to fail this time because we have not yet created the trigger
-            val runReject = wsk.action.invoke(nameOfActionThatTriggers)
+            val runReject = wsk.action.invoke(nameOfActionThatTriggers, Map("triggerName" -> triggerName.toJson))
             withActivation(wsk.activation, runReject) {
                 activation =>
                     activation.response.success shouldBe false
                     activation.response.result.get.fields.get("error") shouldBe defined
             }
-
-            val triggerName = "UnitTestTrigger"
 
             assetHelper.withCleaner(wsk.trigger, triggerName) {
                 (trigger, _) =>
@@ -246,7 +245,7 @@ class WskBasicNodeTests
             }
 
             // now that we've created the trigger, running the action should succeed
-            val runResolve = wsk.action.invoke(nameOfActionThatTriggers)
+            val runResolve = wsk.action.invoke(nameOfActionThatTriggers, Map("triggerName" -> triggerName.toJson))
             withActivation(wsk.activation, runResolve) {
                 activation =>
                     activation.response.success shouldBe true
@@ -260,6 +259,7 @@ class WskBasicNodeTests
             // this action supplies a 'next' callback to whisk.trigger()
             val nameOfActionThatTriggers = "triggerAction"
             val actionThatTriggers = Some(TestUtils.getTestActionFilename("triggerPromise.js"))
+            val triggerName = "UnitTestTrigger-" + System.currentTimeMillis()
 
             assetHelper.withCleaner(wsk.action, nameOfActionThatTriggers) {
                 (action, _) =>
@@ -267,14 +267,12 @@ class WskBasicNodeTests
             }
 
             // this is expected to fail this time because we have not yet created the trigger
-            val runReject = wsk.action.invoke(nameOfActionThatTriggers)
+            val runReject = wsk.action.invoke(nameOfActionThatTriggers, Map("triggerName" -> triggerName.toJson))
             withActivation(wsk.activation, runReject) {
                 activation =>
                     activation.response.success shouldBe false
                     activation.response.result.get.fields.get("error") shouldBe defined
             }
-
-            val triggerName = "UnitTestTrigger"
 
             assetHelper.withCleaner(wsk.trigger, triggerName) {
                 (trigger, _) =>
@@ -282,7 +280,7 @@ class WskBasicNodeTests
             }
 
             // now that we've created the trigger, running the action should succeed
-            val runResolve = wsk.action.invoke(nameOfActionThatTriggers)
+            val runResolve = wsk.action.invoke(nameOfActionThatTriggers, Map("triggerName" -> triggerName.toJson))
             withActivation(wsk.activation, runResolve) {
                 activation =>
                     activation.response.success shouldBe true
