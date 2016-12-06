@@ -128,12 +128,13 @@ protected case class TransactionMetadata(val id: Long, val start: Instant)
 
 object TransactionId {
     val unknown = TransactionId(0)
-    val testing = TransactionId(-1) // a common id for for unit testing
+    val testing = TransactionId(-1)         // Common id for for unit testing
     val invoker = TransactionId(-100)       // Invoker startup/shutdown or GC activity
     val invokerWarmup = TransactionId(-101) // Invoker warmup thread that makes stem-cell containers
     val invokerNanny = TransactionId(-102)  // Invoker nanny thread
     val dispatcher = TransactionId(-110)    // Kafka message dispatcher
     val loadbalancer = TransactionId(-120)  // Loadbalancer thread
+    val controller = TransactionId(-130)    // Controller startup
 
     def apply(tid: BigDecimal): TransactionId = {
         Try {

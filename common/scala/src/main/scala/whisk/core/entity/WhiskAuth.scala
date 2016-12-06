@@ -85,8 +85,9 @@ object WhiskAuth extends DocumentFactory[WhiskAuth] {
     override def cacheKeyForUpdate(w: WhiskAuth) = w.uuid
 
     def get(datastore: ArtifactStore[WhiskAuth], subject: Subject, fromCache: Boolean)(
-        implicit transid: TransactionId): Future[WhiskAuth] = {
-        super.get(datastore, DocId(subject()), fromCache = fromCache)
+        implicit transid: TransactionId): Future[Identity] = {
+        implicit val ec = datastore.executionContext
+        super.get(datastore, DocId(subject()), fromCache = fromCache).map(_.toIdentity)
     }
 
     def get(datastore: ArtifactStore[WhiskAuth], uuid: UUID)(

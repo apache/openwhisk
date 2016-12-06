@@ -16,12 +16,9 @@
 
 package whisk.core.controller
 
-import scala.concurrent._
-import spray.json._
-import spray.http._
 import akka.actor.ActorSystem
 import scala.concurrent.ExecutionContext
-import spray.http.StatusCodes.OK
+
 import spray.http.AllOrigins
 import spray.http.HttpHeaders.`Access-Control-Allow-Origin`
 import spray.http.HttpHeaders.`Access-Control-Allow-Headers`
@@ -38,14 +35,11 @@ import whisk.core.WhiskConfig.whiskVersionDate
 import whisk.core.WhiskConfig.whiskVersionBuildno
 import whisk.core.entitlement._
 import whisk.core.entity._
-import whisk.core.entity.types.{ ActivationStore, EntityStore }
+import whisk.core.entity.types._
 import whisk.core.loadBalancer.LoadBalancerService
 import akka.event.Logging.LogLevel
 import whisk.core.entity.ActivationId.ActivationIdGenerator
 import whisk.core.iam.NamespaceProvider
-
-import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
-import spray.httpx.marshalling.ToResponseMarshallable.isMarshallable
 
 /**
  * Abstract class which provides basic Directives which are used to construct route structures
@@ -144,9 +138,8 @@ protected[controller] class RestAPIVersion_v1(
                                     triggers.routes(user) ~
                                     rules.routes(user) ~
                                     activations.routes(user) ~
-                                    packages.routes(user) ~
-                                    gatewayRoutesApi.routes(user)
-                            }
+                                    packages.routes(user)
+                            } ~ meta.routes(user)
                 } ~ pathPrefix(swaggeruipath) {
                     getFromDirectory("/swagger-ui/")
                 } ~ path(swaggeruipath) {
@@ -186,7 +179,7 @@ protected[controller] class RestAPIVersion_v1(
     private val rules = new RulesApi(apipath, apiversion, verbosity)
     private val activations = new ActivationsApi(apipath, apiversion, verbosity)
     private val packages = new PackagesApi(apipath, apiversion, verbosity)
-    private val gatewayRoutesApi = new gatewayRoutesApi(apipath, apiversion, verbosity,config,actorSystem)
+    private val meta = new MetasApi(apipath, apiversion, verbosity)
 
     class NamespacesApi(
         val apipath: String,
@@ -278,6 +271,25 @@ protected[controller] class RestAPIVersion_v1(
             override val consulServer: String,
             override val executionContext: ExecutionContext)
         extends WhiskPackagesApi with WhiskServices {
+        override val whiskConfig = config
+        setVerbosity(verbosity)
+    }
+
+    class MetasApi(
+        override val apipath: String,
+        override val apiversion: String,
+        val verbosity: LogLevel)(
+            implicit override val authStore: AuthStore,
+            implicit val entityStore: EntityStore,
+            override val activationStore: ActivationStore,
+            override val iam: NamespaceProvider,
+            override val entitlementProvider: EntitlementProvider,
+            override val activationIdFactory: ActivationIdGenerator,
+            override val loadBalancer: LoadBalancerService,
+            override val consulServer: String,
+            override val actorSystem: ActorSystem,
+            override val executionContext: ExecutionContext)
+        extends WhiskMetaApi with WhiskServices {
         override val whiskConfig = config
         setVerbosity(verbosity)
     }
