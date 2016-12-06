@@ -106,7 +106,7 @@ An activation record contains the following fields:
 
 ### Function prototype
 
-OpenWhisk JavaScript actions run in a Node.js runtime, currently version 6.2.0.
+OpenWhisk JavaScript actions run in a Node.js runtime.
 
 Actions written in JavaScript must be confined to a single file. The file can contain multiple functions but by convention a function called `main` must exist and is the one called when the action is invoked. For example, the following is an example of an action with multiple functions.
 
@@ -201,7 +201,6 @@ The following packages are available to be used in the Node.js 6.9.1 environment
 
 - apn v2.1.2
 - async v2.1.4
-- body-parser v1.15.2
 - btoa v1.1.2
 - cheerio v0.22.0
 - cloudant v1.6.2
@@ -210,8 +209,6 @@ The following packages are available to be used in the Node.js 6.9.1 environment
 - cookie-parser v1.4.3
 - cradle v0.7.1
 - errorhandler v1.5.0
-- express v4.14.0
-- express-session v1.14.2
 - glob v7.1.1
 - gm v1.23.0
 - lodash v4.17.2
@@ -256,9 +253,10 @@ The following packages are available to be used in the Node.js 6.9.1 environment
 The Node.js version 0.12.17 environment will be used for an action if the `--kind` flag is explicitly specified with a value of 'nodejs' when creating/updating the action.
 The following packages are available to be used in the Node.js 0.12.17 environment:
 
+**Note**: The Node.js version 0.12.x is deprecated, migrate all your Node.js action to use Node.js version 6.x.
+
 - apn v1.7.4
 - async v1.5.2
-- body-parser v1.15.2
 - btoa v1.1.2
 - cheerio v0.20.0
 - cloudant v1.4.1
@@ -267,8 +265,6 @@ The following packages are available to be used in the Node.js 0.12.17 environme
 - cookie-parser v1.3.4
 - cradle v0.6.7
 - errorhandler v1.3.5
-- express v4.14.0
-- express-session v1.11.1
 - gm v1.20.0
 - jade v1.9.2
 - log4js v0.6.38

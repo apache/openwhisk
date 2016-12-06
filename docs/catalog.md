@@ -294,7 +294,21 @@ The following is an example of creating a package binding and then getting a 10-
   }
   ```
 
-## Using the Watson Translator package
+## Using the Watson packages
+
+The Watson packages offer a convenient way to call various Watson APIs.
+
+The following Watson packages are provided:
+
+| Package | Description |
+| --- | --- |
+| `/whisk.system/watson-translator`   | Actions for the Watson APIs to translate text and language identification |
+| `/whisk.system/watson-textToSpeech` | Actions for the Watson APIs to convert the text into speech |
+| `/whisk.system/watson-speechToText` | Actions for the Watson APIs to convert the speech into text |
+
+**Note** The package `/whisk.system/watson` is currently deprecated, migrate to the new packages mentioned above, the new actions provide the same interface.
+
+### Using the Watson Translator package
 
 The `/whisk.system/watson-translator` package offers a convenient way to call Watson APIs to translate.
 
@@ -306,8 +320,9 @@ The package includes the following actions.
 | `/whisk.system/watson-translator/translator` | action | payload, translateFrom, translateTo, translateParam, username, password | Translate text |
 | `/whisk.system/watson-translator/languageId` | action | payload, username, password | Identify language |
 
+**Note**: The package `/whisk.system/watson` is depracted including the actions `/whisk.system/watson/translate` and `/whisk.system/watson/languageId`.
 
-### Setting up the Watson Translator package in Bluemix
+#### Setting up the Watson Translator package in Bluemix
 
 If you're using OpenWhisk from Bluemix, OpenWhisk automatically creates package bindings for your Bluemix Watson service instances.
 
@@ -342,7 +357,7 @@ If you're using OpenWhisk from Bluemix, OpenWhisk automatically creates package 
   ```
 
 
-### Setting up a Watson Translator package outside Bluemix
+#### Setting up a Watson Translator package outside Bluemix
 
 If you're not using OpenWhisk in Bluemix or if you want to set up your Watson Translator outside of Bluemix, you must manually create a package binding for your Watson Translator service. You need the Watson Translator service user name, and password.
 
@@ -353,7 +368,7 @@ If you're not using OpenWhisk in Bluemix or if you want to set up your Watson Tr
   ```
 
 
-### Translating text
+#### Translating text
 
 The `/whisk.system/watson-translator/translator` action translates text from one language to another. The parameters are as follows:
 
@@ -377,7 +392,7 @@ The `/whisk.system/watson-translator/translator` action translates text from one
   ```
 
 
-### Identifying the language of some text
+#### Identifying the language of some text
 
 The `/whisk.system/watson-translator/languageId` action identifies the language of some text. The parameters are as follows:
 
@@ -399,7 +414,7 @@ The `/whisk.system/watson-translator/languageId` action identifies the language 
   ```
 
 
-## Using the Watson Text to Speech package
+### Using the Watson Text to Speech package
 
 The `/whisk.system/watson-textToSpeech` package offers a convenient way to call Watson APIs to convert the text into speech.
 
@@ -411,8 +426,9 @@ The package includes the following actions.
 | `/whisk.system/watson-textToSpeech` | package | username, password | Actions for the Watson APIs to convert the text into speech |
 | `/whisk.system/watson-textToSpeech/textToSpeech` | action | payload, voice, accept, encoding, username, password | Convert text into audio |
 
+**Note**: The package `/whisk.system/watson` is depracted including the action `/whisk.system/watson/textToSpeech`.
 
-### Setting up the Watson Text to Speech package in Bluemix
+#### Setting up the Watson Text to Speech package in Bluemix
 
 If you're using OpenWhisk from Bluemix, OpenWhisk automatically creates package bindings for your Bluemix Watson service instances.
 
@@ -447,7 +463,7 @@ If you're using OpenWhisk from Bluemix, OpenWhisk automatically creates package 
   ```
 
 
-### Setting up a Watson Text to Speech package outside Bluemix
+#### Setting up a Watson Text to Speech package outside Bluemix
 
 If you're not using OpenWhisk in Bluemix or if you want to set up your Watson Text to Speech outside of Bluemix, you must manually create a package binding for your Watson Text to Speech service. You need the Watson Text to Speech service user name, and password.
 
@@ -458,7 +474,7 @@ If you're not using OpenWhisk in Bluemix or if you want to set up your Watson Te
   ```
 
 
-### Converting some text to speech
+#### Converting some text to speech
 
 The `/whisk.system/watson-speechToText/textToSpeech` action converts some text into an audio speech. The parameters are as follows:
 
@@ -482,7 +498,7 @@ The `/whisk.system/watson-speechToText/textToSpeech` action converts some text i
   ```
 
 
-## Using the Watson Speech to Text package
+### Using the Watson Speech to Text package
 
 The `/whisk.system/watson-speechToText` package offers a convenient way to call Watson APIs to convert the speech into text.
 
@@ -493,8 +509,9 @@ The package includes the following actions.
 | `/whisk.system/watson-speechToText` | package | username, password | Actions for the Watson APIs to convert the speech into text |
 | `/whisk.system/watson-speechToText/speechToText` | action | payload, content_type, encoding, username, password, continuous, inactivity_timeout, interim_results, keywords, keywords_threshold, max_alternatives, model, timestamps, watson-token, word_alternatives_threshold, word_confidence, X-Watson-Learning-Opt-Out | Convert audio into text |
 
+**Note**: The package `/whisk.system/watson` is depracted including the action `/whisk.system/watson/speechToText`.
 
-### Setting up the Watson Speech to Text package in Bluemix
+#### Setting up the Watson Speech to Text package in Bluemix
 
 If you're using OpenWhisk from Bluemix, OpenWhisk automatically creates package bindings for your Bluemix Watson service instances.
 
@@ -529,7 +546,7 @@ If you're using OpenWhisk from Bluemix, OpenWhisk automatically creates package 
   ```
 
 
-### Setting up a Watson Speech to Text package outside Bluemix
+#### Setting up a Watson Speech to Text package outside Bluemix
 
 If you're not using OpenWhisk in Bluemix or if you want to set up your Watson Speech to Text outside of Bluemix, you must manually create a package binding for your Watson Speech to Text service. You need the Watson Speech to Text service user name, and password.
 
@@ -540,7 +557,7 @@ If you're not using OpenWhisk in Bluemix or if you want to set up your Watson Sp
   ```
 
 
-### Converting speech to text
+#### Converting speech to text
 
 The `/whisk.system/watson-speechToText/speechToText` action converts audio speech into text. The parameters are as follows:
 
