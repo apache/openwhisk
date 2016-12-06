@@ -158,7 +158,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
                                 terminate(InternalServerError, corruptedEntity)
                             case _: Throwable =>
                                 error(this, s"[POST] rule update failed: ${t.getMessage}")
-                                terminate(InternalServerError, t.getMessage)
+                                terminate(InternalServerError)
                         }
                     }
             })
@@ -212,7 +212,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
 
             onComplete(getRuleWithStatus) {
                 case Success(r) => complete(OK, r)
-                case Failure(t) => terminate(InternalServerError, t.getMessage)
+                case Failure(t) => terminate(InternalServerError)
             }
         })
     }

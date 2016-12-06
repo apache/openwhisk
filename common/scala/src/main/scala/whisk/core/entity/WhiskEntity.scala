@@ -23,13 +23,8 @@ import scala.Stream
 import scala.language.postfixOps
 import scala.util.Try
 
-import spray.json.DefaultJsonProtocol
-import spray.json.JsBoolean
-import spray.json.JsNumber
-import spray.json.JsObject
-import spray.json.JsString
-import spray.json.JsValue
-import spray.json.RootJsonFormat
+import spray.json._
+import whisk.core.database.DocumentUnreadable
 import whisk.core.entity.size.SizeInt
 import whisk.http.Messages
 
@@ -128,7 +123,7 @@ object WhiskEntityJsonFormat extends RootJsonFormat[WhiskEntity] {
     override def read(js: JsValue): WhiskEntity = {
         val successes: Stream[WhiskEntity] = readers.flatMap(r => Try(r(js)).toOption)
         successes.headOption.getOrElse {
-            throw new IllegalStateException(Messages.corruptedEntity)
+            throw DocumentUnreadable(Messages.corruptedEntity)
         }
     }
 

@@ -116,7 +116,7 @@ trait WhiskNamespacesApi
             }
             case Failure(t) =>
                 error(this, s"[GET] namespaces failed: ${t.getMessage}")
-                terminate(InternalServerError, t.getMessage)
+                terminate(InternalServerError)
         }
     }
 
@@ -138,7 +138,7 @@ trait WhiskNamespacesApi
                 terminate(r.code, r.message)
             case Failure(t) =>
                 error(this, s"[GET] namespaces failed: ${t.getMessage}")
-                terminate(InternalServerError, t.getMessage)
+                terminate(InternalServerError)
         }
     }
 }

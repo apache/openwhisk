@@ -74,7 +74,7 @@ trait BasicAuthorizedRouteProvider extends Directives with Logging {
         implicit transid: TransactionId): RequestContext => Unit = {
         failure match {
             case (r: RejectRequest) => terminate(r.code, r.message)
-            case t                  => terminate(InternalServerError, t.getMessage)
+            case t                  => terminate(InternalServerError)
         }
     }
 

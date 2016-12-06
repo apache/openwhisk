@@ -201,7 +201,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                                 complete(OK, activationId.toJsObject)
                             case Failure(t: Throwable) =>
                                 error(this, s"[POST] storing trigger activation failed: ${t.getMessage}")
-                                terminate(InternalServerError, t.getMessage)
+                                terminate(InternalServerError)
                         }
                 })
         }

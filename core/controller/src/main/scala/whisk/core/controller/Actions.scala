@@ -257,7 +257,7 @@ trait WhiskActionsApi
                                         terminate(RequestEntityTooLarge)
                                     case Failure(t: Throwable) =>
                                         error(this, s"[POST] action activation failed: ${t.getMessage}")
-                                        terminate(InternalServerError, t.getMessage)
+                                        terminate(InternalServerError)
                                 }
 
                             case Failure(f) =>

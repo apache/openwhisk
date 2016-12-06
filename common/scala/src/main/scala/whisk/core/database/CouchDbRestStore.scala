@@ -25,15 +25,14 @@ import akka.event.Logging.ErrorLevel
 import akka.http.scaladsl.model._
 import akka.stream.scaladsl._
 import akka.util.ByteString
-
 import spray.json._
-
 import whisk.common.LoggingMarkers
 import whisk.common.PrintStreamEmitter
 import whisk.common.TransactionId
-import whisk.core.entity.DocRevision
 import whisk.core.entity.DocInfo
+import whisk.core.entity.DocRevision
 import whisk.core.entity.WhiskDocument
+import whisk.http.Messages
 
 /**
  * Basic client to put and delete artifacts in a data store.
@@ -169,6 +168,8 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
                     transid.finished(this, start, s"[GET] '$dbName' failed to get document: '${doc}'; http status: '${code}'")
                     throw new Exception("Unexpected http response code: " + code)
             }
+        } recoverWith {
+            case e: DeserializationException => throw DocumentUnreadable(Messages.corruptedEntity)
         }
 
         reportFailure(f, failure => transid.failed(this, start, s"[GET] '$dbName' internal error, doc: '$doc', failure: '${failure.getMessage}'", ErrorLevel))

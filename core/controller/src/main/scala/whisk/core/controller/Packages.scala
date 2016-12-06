@@ -309,7 +309,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
                     complete(OK, p)
                 case Failure(t) =>
                     error(this, s"[GET] failed: ${t.getMessage}")
-                    terminate(InternalServerError, t.getMessage)
+                    terminate(InternalServerError)
             }
         }
     }
