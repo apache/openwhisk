@@ -36,6 +36,8 @@ const (
     defaultBaseURL = "openwhisk.ng.bluemix.net"
     AuthRequired = true
     AuthOptional = false
+    IncludeNamespaceInUrl = true
+    DoNotIncludeNamespaceInUrl = false
 )
 
 type Client struct {
@@ -126,11 +128,15 @@ func NewClient(httpClient *http.Client, config *Config) (*Client, error) {
 // Request/Utility Functions //
 ///////////////////////////////
 
-func (c *Client) NewRequest(method, urlStr string, body interface{}) (*http.Request, error) {
-    if c.Config.Namespace != "" {
-        urlStr = fmt.Sprintf("%s/namespaces/%s/%s", c.Config.Version, c.Config.Namespace, urlStr)
+func (c *Client) NewRequest(method, urlStr string, body interface{}, includeNamespaceInUrl bool) (*http.Request, error) {
+    if (includeNamespaceInUrl) {
+        if c.Config.Namespace != "" {
+            urlStr = fmt.Sprintf("%s/namespaces/%s/%s", c.Config.Version, c.Config.Namespace, urlStr)
+        } else {
+            urlStr = fmt.Sprintf("%s/namespaces", c.Config.Version)
+        }
     } else {
-        urlStr = fmt.Sprintf("%s/namespaces", c.Config.Version)
+        urlStr = fmt.Sprintf("%s/%s", c.Config.Version, urlStr)
     }
 
     rel, err := url.Parse(urlStr)
@@ -155,6 +161,7 @@ func (c *Client) NewRequest(method, urlStr string, body interface{}) (*http.Requ
             return nil, werr
         }
     }
+
     req, err := http.NewRequest(method, u.String(), buf)
     if err != nil {
         Debug(DbgError, "http.NewRequest(%v, %s, buf) error: %s\n", method, u.String(), err)
@@ -419,17 +426,24 @@ func IsResponseResultSuccess(data []byte) bool {
 //   method         - HTTP verb (i.e. "GET", "PUT", etc)
 //   urlRelResource - *url.URL structure representing the relative resource URL, including query params
 //   body           - optional. Object whose contents will be JSON encoded and placed in HTTP request body
-func (c *Client) NewRequestUrl(method string, urlRelResource *url.URL, body interface{}) (*http.Request, error) {
+//   includeNamespaceInUrl - when true "/namespaces/NAMESPACE" is included in the final URL; otherwise not included.
+func (c *Client) NewRequestUrl(method string, urlRelResource *url.URL, body interface{}, includeNamespaceInUrl bool) (*http.Request, error) {
     var urlVerNamespaceStr string
-    if c.Config.Namespace != "" {
-        // Encode path parts before inserting them into the URI so that any '?' is correctly encoded
-        // as part of the path and not the start of the query params
-        verPathEncoded := (&url.URL{Path: c.Config.Version}).String()
-        verNamespaceEncoded := (&url.URL{Path: c.Config.Namespace}).String()
-        urlVerNamespaceStr = fmt.Sprintf("%s/namespaces/%s/", verPathEncoded, verNamespaceEncoded)
+    var verPathEncoded = (&url.URL{Path: c.Config.Version}).String()
+
+    if (includeNamespaceInUrl) {
+        if c.Config.Namespace != "" {
+            // Encode path parts before inserting them into the URI so that any '?' is correctly encoded
+            // as part of the path and not the start of the query params
+            verNamespaceEncoded := (&url.URL{Path: c.Config.Namespace}).String()
+            urlVerNamespaceStr = fmt.Sprintf("%s/namespaces/%s/", verPathEncoded, verNamespaceEncoded)
+        } else {
+            urlVerNamespaceStr = fmt.Sprintf("%s/namespaces/", c.Config.Version)
+        }
     } else {
-        urlVerNamespaceStr = fmt.Sprintf("%s/namespaces/", c.Config.Version)
+        urlVerNamespaceStr = fmt.Sprintf("%s/", verPathEncoded)
     }
+
     urlVerNamespace, err := url.Parse(urlVerNamespaceStr)
     if err != nil {
         Debug(DbgError, "url.Parse(%s) error: %s\n", urlVerNamespaceStr, err)

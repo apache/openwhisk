@@ -85,7 +85,7 @@ func (s *ActionService) List(packageName string, options *ActionListOptions) ([]
     }
     Debug(DbgError, "Action list route with options: %s\n", route)
 
-    req, err := s.client.NewRequestUrl("GET", routeUrl, nil)
+    req, err := s.client.NewRequestUrl("GET", routeUrl, nil, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s, nil) error: '%s'\n", routeUrl, err)
         errMsg := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
@@ -111,7 +111,7 @@ func (s *ActionService) Insert(action *Action, overwrite bool) (*Action, *http.R
     route := fmt.Sprintf("actions/%s?overwrite=%t", actionName, overwrite)
     Debug(DbgInfo, "Action insert route: %s\n", route)
 
-    req, err := s.client.NewRequest("PUT", route, action)
+    req, err := s.client.NewRequest("PUT", route, action, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(PUT, %s, %#v) error: '%s'\n", route, err, action)
         errMsg := wski18n.T("Unable to create HTTP request for PUT '{{.route}}': {{.err}}",
@@ -137,7 +137,7 @@ func (s *ActionService) Get(actionName string) (*Action, *http.Response, error) 
     actionName = (&url.URL{Path: actionName}).String()
     route := fmt.Sprintf("actions/%s", actionName)
 
-    req, err := s.client.NewRequest("GET", route, nil)
+    req, err := s.client.NewRequest("GET", route, nil, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s, nil) error: '%s'\n", route, err)
         errMsg := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
@@ -164,7 +164,7 @@ func (s *ActionService) Delete(actionName string) (*http.Response, error) {
     route := fmt.Sprintf("actions/%s", actionName)
     Debug(DbgInfo, "HTTP route: %s\n", route)
 
-    req, err := s.client.NewRequest("DELETE", route, nil)
+    req, err := s.client.NewRequest("DELETE", route, nil, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(DELETE, %s, nil) error: '%s'\n", route, err)
         errMsg := wski18n.T("Unable to create HTTP request for DELETE '{{.route}}': {{.err}}",
@@ -191,7 +191,7 @@ func (s *ActionService) Invoke(actionName string, payload interface{}, blocking 
     route := fmt.Sprintf("actions/%s?blocking=%t", actionName, blocking)
     Debug(DbgInfo, "HTTP route: %s\n", route)
 
-    req, err := s.client.NewRequest("POST", route, payload)
+    req, err := s.client.NewRequest("POST", route, payload, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(POST, %s, %#v) error: '%s'\n", route, payload, err)
         errMsg := wski18n.T("Unable to create HTTP request for POST '{{.route}}': {{.err}}",

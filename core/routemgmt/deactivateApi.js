@@ -14,8 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Create an API Gateway to action mapping document in database:
- * https://docs.cloudant.com/document.html#documentCreate
+ * Deactivate an API from the API Gateway
  *
  * Parameters (all as fields in the message JSON object)
  *   host       Required. The database dns host name
@@ -51,7 +50,7 @@ function main(message) {
   }
 
   // Log parameter values
-  console.log('DB host    : '+message.host);
+  console.log('DB host    : '+confidentialPrint(message.host));
   console.log('DB port    : '+message.port);
   console.log('DB protocol: '+message.protocol);
   console.log('DB username: '+confidentialPrint(message.username));

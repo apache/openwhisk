@@ -61,11 +61,11 @@ function main(message) {
   }
 
   // Log parameter values
-  console.log('DB host    : '+message.host);
+  console.log('DB host    : '+confidentialPrint(message.host));
   console.log('DB port    : '+message.port);
   console.log('DB protocol: '+message.protocol);
-  console.log('DB username: '+message.username);
-  console.log('DB database: '+message.dbname);
+  console.log('DB username: '+confidentialPrint(message.username));
+  console.log('DB database: '+confidentialPrint(message.dbname));
   console.log('GW URL     : '+message.gwUrl);
   console.log('GW User    : '+confidentialPrint(message.gwUser));
   console.log('GW Pwd     : '+confidentialPrint(message.gwPwd));

@@ -99,23 +99,23 @@ var apiCreateCmd = &cobra.Command{
         }
 
         if (api.Swagger == "") {
-            baseUrl := retApi.Response.Result.BaseUrl
+            baseUrl := retApi.BaseUrl
             fmt.Fprintf(color.Output,
                 wski18n.T("{{.ok}} created API {{.path}} {{.verb}} for action {{.name}}\n{{.fullpath}}\n",
                     map[string]interface{}{
                         "ok": color.GreenString("ok:"),
-                        "path": api.GatewayRelPath,
+                        "path": api.GatewayBasePath+api.GatewayRelPath,
                         "verb": api.GatewayMethod,
-                        "name": boldString(api.Action.Name),
+                        "name": boldString(api.Action.Namespace+"/"+api.Action.Name),
                         "fullpath": baseUrl+api.GatewayRelPath,
                     }))
         } else {
             whisk.Debug(whisk.DbgInfo, "Processing swagger based create API response\n")
-            baseUrl := retApi.Response.Result.BaseUrl
-            for path, _ := range retApi.Response.Result.Swagger.Paths {
+            baseUrl := retApi.BaseUrl
+            for path, _ := range retApi.Swagger.Paths {
                 managedUrl := baseUrl+path
                 whisk.Debug(whisk.DbgInfo, "Managed path: %s\n",managedUrl)
-                for op, _  := range retApi.Response.Result.Swagger.Paths[path] {
+                for op, _  := range retApi.Swagger.Paths[path] {
                     whisk.Debug(whisk.DbgInfo, "Path operation: %s\n", op)
                     fmt.Fprintf(color.Output,
                         wski18n.T("{{.ok}} created api {{.path}} {{.verb}} for action {{.name}}\n{{.fullpath}}\n",
@@ -123,7 +123,7 @@ var apiCreateCmd = &cobra.Command{
                                 "ok": color.GreenString("ok:"),
                                 "path": path,
                                 "verb": op,
-                                "name": boldString(retApi.Response.Result.Swagger.Paths[path][op]["x-ibm-op-ext"]["actionName"]),
+                                "name": boldString(retApi.Swagger.Paths[path][op]["x-ibm-op-ext"]["actionName"]),
                                 "fullpath": managedUrl,
                             }))
                 }
@@ -179,7 +179,7 @@ var apiUpdateCmd = &cobra.Command{
                     "path": api.GatewayRelPath,
                     "verb": api.GatewayMethod,
                     "name": boldString(api.Action.Name),
-                    "fullpath": getManagedUrl(retApi.Response.Result, api.GatewayRelPath, api.GatewayMethod),
+                    "fullpath": getManagedUrl(retApi, api.GatewayRelPath, api.GatewayMethod),
                 }))
         return nil
     },
@@ -203,21 +203,7 @@ var apiGetCmd = &cobra.Command{
         api := new(whisk.Api)
         options := new(whisk.ApiListOptions)
 
-        // Is the argument a basepath (must start with /) or an API name
-        if _, ok := isValidBasepath(args[0]); !ok {
-            whisk.Debug(whisk.DbgInfo, "Treating '%s' as an API name; as it does not begin with '/'\n", args[0])
-            api.ApiName = args[0]
-            api.Id = api.ApiName
-            options.ApiBasePath = args[0]
-            options.ApiName = args[0]      // FIXME finalize controller REST/action design re: basepath/apiname
-            api.GatewayBasePath = args[0]  // FIXME Controller requiring this value in the body; it's already in the URI??
-            isBasePathArg = false
-        } else {
-            api.GatewayBasePath = args[0]
-            options.ApiBasePath = api.GatewayBasePath
-            api.Id = "API:"+api.Namespace+":"+api.GatewayBasePath
-        }
-        api.Namespace = client.Config.Namespace
+        options.ApiBasePath = args[0]
 
         retApi, _, err := client.Apis.Get(api, options)
         if err != nil {
@@ -233,19 +219,17 @@ var apiGetCmd = &cobra.Command{
 
         var displayResult interface{} = nil
         if (flags.common.detail) {
-            if (retApi.Response != nil && retApi.Response.ResultArray != nil &&
-                retApi.Response.ResultArray.Apis != nil && len(retApi.Response.ResultArray.Apis) > 0 &&
-                retApi.Response.ResultArray.Apis[0].ApiValue != nil) {
-                displayResult = retApi.Response.ResultArray.Apis[0].ApiValue
+            if (retApi.Apis != nil && len(retApi.Apis) > 0 &&
+                retApi.Apis[0].ApiValue != nil) {
+                displayResult = retApi.Apis[0].ApiValue
             } else {
                 whisk.Debug(whisk.DbgError, "No result object returned\n")
             }
         } else {
-            if (retApi.Response != nil && retApi.Response.ResultArray != nil &&
-                retApi.Response.ResultArray.Apis != nil && len(retApi.Response.ResultArray.Apis) > 0 &&
-                retApi.Response.ResultArray.Apis[0].ApiValue != nil &&
-                retApi.Response.ResultArray.Apis[0].ApiValue.Swagger != nil) {
-                  displayResult = retApi.Response.ResultArray.Apis[0].ApiValue.Swagger
+            if (retApi.Apis != nil && len(retApi.Apis) > 0 &&
+                retApi.Apis[0].ApiValue != nil &&
+                retApi.Apis[0].ApiValue.Swagger != nil) {
+                  displayResult = retApi.Apis[0].ApiValue.Swagger
             } else {
                   whisk.Debug(whisk.DbgError, "No swagger returned\n")
             }
@@ -287,20 +271,14 @@ var apiDeleteCmd = &cobra.Command{
 
         api := new(whisk.Api)
         options := new(whisk.ApiOptions)
-        options.Force = true  // FIXME MWD revisit usage/design
+        options.Force = true
 
         // Is the argument a basepath (must start with /) or an API name
         if _, ok := isValidBasepath(args[0]); !ok {
             whisk.Debug(whisk.DbgInfo, "Treating '%s' as an API name; as it does not begin with '/'\n", args[0])
-            api.ApiName = args[0]
-            api.Id = api.ApiName
             options.ApiBasePath = args[0]
-            options.ApiName = args[0]      // FIXME finalize controller REST/action design re: basepath/apiname
-            api.GatewayBasePath = args[0]  // FIXME Controller requiring this value in the body; it's already in the URI??
         } else {
-            api.GatewayBasePath = args[0]
-            options.ApiBasePath = api.GatewayBasePath
-            api.Id = "API:"+api.Namespace+":"+api.GatewayBasePath
+            options.ApiBasePath = args[0]
         }
 
         if (len(args) > 1) {
@@ -308,20 +286,15 @@ var apiDeleteCmd = &cobra.Command{
             if whiskErr, ok := isValidRelpath(args[1]); !ok {
                 return whiskErr
             }
-            api.GatewayRelPath = args[1]
-            options.ApiRelPath = api.GatewayRelPath
+            options.ApiRelPath = args[1]
         }
         if (len(args) > 2) {
             // Is the API verb valid?
             if whiskErr, ok := IsValidApiVerb(args[2]); !ok {
                 return whiskErr
             }
-            api.GatewayMethod = strings.ToUpper(args[2])
-            options.ApiVerb = api.GatewayMethod
+            options.ApiVerb = strings.ToUpper(args[2])
         }
-        api.Namespace = client.Config.Namespace
-        api.Id = "API:"+api.Namespace+":"+api.GatewayBasePath
-
 
         _, err := client.Apis.Delete(api, options)
         if err != nil {
@@ -339,24 +312,24 @@ var apiDeleteCmd = &cobra.Command{
                 wski18n.T("{{.ok}} deleted API {{.basepath}}\n",
                     map[string]interface{}{
                         "ok": color.GreenString("ok:"),
-                        "basepath": api.GatewayBasePath,
+                        "basepath": options.ApiBasePath,
                     }))
         } else if (len(args) == 2 ) {
             fmt.Fprintf(color.Output,
                 wski18n.T("{{.ok}} deleted {{.path}} from {{.basepath}}\n",
                     map[string]interface{}{
                         "ok": color.GreenString("ok:"),
-                        "path": api.GatewayRelPath,
-                        "basepath": api.GatewayBasePath,
+                        "path": options.ApiRelPath,
+                        "basepath": options.ApiBasePath,
                     }))
         } else {
             fmt.Fprintf(color.Output,
                 wski18n.T("{{.ok}} deleted {{.path}} {{.verb}} from {{.basepath}}\n",
                     map[string]interface{}{
                         "ok": color.GreenString("ok:"),
-                        "path": api.GatewayRelPath,
-                        "verb": api.GatewayMethod,
-                        "basepath": api.GatewayBasePath,
+                        "path": options.ApiRelPath,
+                        "verb": options.ApiVerb,
+                        "basepath": options.ApiBasePath,
                     }))
         }
 
@@ -373,7 +346,7 @@ var apiListCmd = &cobra.Command{
     PreRunE:       setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        var retApiArray *whisk.RetApiReponseApiArray
+        var retApiArray *whisk.RetApiArray
 
         if whiskErr := checkArgs(args, 0, 3, "Api list",
             wski18n.T("Optional parameters are: API base path (or API name), API relative path and operation.")); whiskErr != nil {
@@ -400,37 +373,22 @@ var apiListCmd = &cobra.Command{
             }
             whisk.Debug(whisk.DbgInfo, "client.Apis.List returned: %#v (%+v)\n", retApiArray, retApiArray)
         } else {
-            // Is the argument a basepath (must start with /) or an API name
-            if _, ok := isValidBasepath(args[0]); !ok {
-                whisk.Debug(whisk.DbgInfo, "Treating '%s' as an API name; as it does not begin with '/'\n", args[0])
-                api.ApiName = args[0]
-                api.Id = api.ApiName
-                options.ApiBasePath = api.ApiName
-                options.ApiName = api.ApiName      // FIXME finalize controller REST/action design re: basepath/apiname
-                api.GatewayBasePath = api.ApiName  // FIXME Controller requiring this value in the body; it's already in the URI??
-            } else {
-                api.GatewayBasePath = args[0]
-                options.ApiBasePath = api.GatewayBasePath
-                api.Id = "API:"+api.Namespace+":"+api.GatewayBasePath
-            }
-
+            // The first argument is either a basepath (must start with /) or an API name
+            options.ApiBasePath = args[0]
             if (len(args) > 1) {
                 // Is the API path valid?
                 if whiskErr, ok := isValidRelpath(args[1]); !ok {
                     return whiskErr
                 }
-                api.GatewayRelPath = args[1]
-                options.ApiRelPath = api.GatewayRelPath
+                options.ApiRelPath = args[1]
             }
             if (len(args) > 2) {
                 // Is the API verb valid?
                 if whiskErr, ok := IsValidApiVerb(args[2]); !ok {
                     return whiskErr
                 }
-                api.GatewayMethod = strings.ToUpper(args[2])
-                options.ApiVerb = api.GatewayMethod
+                options.ApiVerb = strings.ToUpper(args[2])
             }
-            api.Id = "API:"+api.Namespace+":"+api.GatewayBasePath
 
             retApiArray, _, err = client.Apis.Get(api, options)
             if err != nil {
@@ -452,8 +410,8 @@ var apiListCmd = &cobra.Command{
                 }))
         fmt.Printf(fmtString, "Action", "Verb", "API Name", "URL")
 
-        for i:=0; i<len(retApiArray.Response.ResultArray.Apis); i++ {
-            printFilteredListRow(retApiArray.Response.ResultArray.Apis[i].ApiValue, api)
+        for i:=0; i<len(retApiArray.Apis); i++ {
+            printFilteredListRow(retApiArray.Apis[i].ApiValue, api)
         }
 
         return nil
