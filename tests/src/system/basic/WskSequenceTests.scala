@@ -270,8 +270,8 @@ class WskSequenceTests
 
     it should "run a sequence with an action in a package binding with parameters" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val packageName = s"/$defaultNamespace/package1"
-            val bindName = s"/$defaultNamespace/package2"
+            val packageName = "package1"
+            val bindName = "package2"
             val actionName = "print"
             val packageActionName = packageName + "/" + actionName
             val bindActionName = bindName + "/" + actionName
