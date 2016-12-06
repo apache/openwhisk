@@ -803,7 +803,7 @@ sealed trait RunWskCmd extends Matchers {
     def cli(params: Seq[String],
             expectedExitCode: Int = SUCCESS_EXIT,
             verbose: Boolean = false,
-            env: Map[String, String] = Map[String, String](),
+            env: Map[String, String] = Map("WSK_CONFIG_FILE" -> ""),
             workingDir: File = new File("."),
             showCmd: Boolean = false): RunResult = {
         val args = baseCommand
