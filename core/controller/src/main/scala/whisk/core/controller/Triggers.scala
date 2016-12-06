@@ -79,16 +79,16 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
 
     protected override val collection = Collection(Collection.TRIGGERS)
 
-    /** An actor system for timed based futures */
+    /** An actor system for timed based futures. */
     protected implicit val actorSystem: ActorSystem
 
-    /** Database service to CRUD triggers */
+    /** Database service to CRUD triggers. */
     protected val entityStore: EntityStore
 
     /** Database service to get activations. */
     protected val activationStore: ActivationStore
 
-    /** Path to Triggers REST API */
+    /** Path to Triggers REST API. */
     protected val triggersPath = "triggers"
 
     /**

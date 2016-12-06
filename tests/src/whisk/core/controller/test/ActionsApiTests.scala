@@ -16,47 +16,24 @@
 
 package whisk.core.controller.test
 
-import scala.language.postfixOps
-import scala.concurrent.duration.DurationInt
-
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
+import java.time.Instant
+
+import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
+
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-import spray.http.StatusCodes.Accepted
-import spray.http.StatusCodes.BadRequest
-import spray.http.StatusCodes.Conflict
-import spray.http.StatusCodes.Forbidden
-import spray.http.StatusCodes.InternalServerError
-import spray.http.StatusCodes.MethodNotAllowed
-import spray.http.StatusCodes.NotFound
-import spray.http.StatusCodes.OK
-import spray.http.StatusCodes.RequestEntityTooLarge
+
+import akka.event.Logging.InfoLevel
+import spray.http.StatusCodes._
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
 import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
-import spray.json.DefaultJsonProtocol._
 import spray.json._
+import spray.json.DefaultJsonProtocol._
 import whisk.core.controller.WhiskActionsApi
-import whisk.core.entity.ActionLimits
-import whisk.core.entity.ActionLimitsOption
-import whisk.core.entity.ActivationResponse
-import whisk.core.entity.AuthKey
-import whisk.core.entity.Exec
-import whisk.core.entity.MemoryLimit
-import whisk.core.entity.LogLimit
-import whisk.core.entity.EntityPath
-import whisk.core.entity.Parameters
-import whisk.core.entity.Subject
-import whisk.core.entity.TimeLimit
-import whisk.core.entity.WhiskAction
-import whisk.core.entity.WhiskActionPut
-import whisk.core.entity.WhiskActivation
-import whisk.core.entity.WhiskAuth
-import java.time.Instant
-import akka.event.Logging.InfoLevel
-import whisk.core.entity.WhiskTrigger
-import whisk.core.entity.FullyQualifiedEntityName
-import whisk.core.entity.BlackBoxExec
+import whisk.core.entity._
 import whisk.http.ErrorResponse
 import whisk.http.Messages
 
