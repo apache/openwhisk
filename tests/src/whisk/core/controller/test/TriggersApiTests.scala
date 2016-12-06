@@ -19,6 +19,7 @@ package whisk.core.controller.test
 import java.time.Instant
 
 import scala.language.postfixOps
+import common.WhiskProperties
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
@@ -58,6 +59,42 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     def aname = MakeName.next("triggers_tests")
     val entityTooBigRejectionMessage = "request entity too large"
     val parametersLimit = Parameters.sizeLimit
+    
+    //// POST route for api gateway TODO: IN PROGRESS, add body to simulate cli and test uri
+    it should "create gateway api routes by default namespace" in {
+        implicit val tid = transid()
+        val routePath =  "namespaces/_/routes";
+        Post(s"routePath") ~> sealRoute(routes(creds)) ~> check
+        {
+            status should be(OK)
+            val response = responseAs[List[JsObject]] 
+            //response should be(response) //TODO test response
+        }
+    }
+    
+    //// get routes for api gateway TODO: IN PROGRESS testing needed on uri
+    it should "get gateway routes by default namespace" in {
+    implicit val tid = transid()
+    val apihost = s"http://${WhiskProperties.getControllerHost}:${WhiskProperties.getControllerPort}"
+    val routePath =  "namespaces/_/routes?limit=30&skip=0";
+    Get(s"$routePath") ~> sealRoute(routes(creds)) ~> check
+    {
+            status should be(OK)
+            val response = responseAs[List[JsObject]]
+            //response should be() //TODO test response
+        }
+    }
+    //// Delete routes for api gateway TODO: IN PROGRESS testing needed on uri
+    it should "delete gateway routes by default namespace" in {
+        implicit val tid = transid()
+        val routePath = "namespaces/_/routes"
+        Delete(routePath) ~> sealRoute(routes(creds)) ~> check
+        {
+            status should be(OK)
+            val response = responseAs[List[JsObject]]
+            //response should be() //TODO test response
+        }
+    }
 
     //// GET /triggers
     it should "list triggers by default/explicit namespace" in {
