@@ -16,6 +16,7 @@
 
 package system.basic
 
+import java.time.Instant
 import java.util.Date
 
 import scala.concurrent.duration.DurationInt
@@ -408,6 +409,65 @@ class WskSequenceTests
                     val result = activation.response.result.get
                     // the result of the activation should be timeout
                     result shouldBe (JsObject("msg" -> JsString(s"[OK] message terminated successfully after $payload milliseconds.")))
+            }
+    }
+
+    /**
+     * sequence s -> echo
+     * t trigger with payload
+     * rule r: t -> s
+     */
+    it should "execute a sequence that is part of a rule and pass the trigger parameters to the sequence" in withAssetCleaner(wskprops){
+        (wp, assetHelper) =>
+            val seqName = "seqRule"
+            val actionName = "echo"
+            val triggerName = "trigSeq"
+            val ruleName = "ruleSeq"
+
+            val itIsNow = "it is now " + new Date()
+            // set up all entities
+            // trigger
+            val triggerPayload: Map[String, JsValue] = Map("payload" -> JsString(itIsNow))
+            assetHelper.withCleaner(wsk.trigger, triggerName) {
+                (trigger, name) => trigger.create(name, parameters = triggerPayload)
+            }
+            // action
+            val file = TestUtils.getTestActionFilename(s"$actionName.js")
+            assetHelper.withCleaner(wsk.action, actionName) { (action, actionName) =>
+                action.create(name = actionName, artifact = Some(file), timeout = Some(allowedActionDuration))
+            }
+            // sequence
+            assetHelper.withCleaner(wsk.action, seqName) {
+                (action, seqName) => action.create(seqName, artifact = Some(actionName), kind = Some("sequence"))
+            }
+            // rule
+            assetHelper.withCleaner(wsk.rule, ruleName) {
+                (rule, name) => rule.create(name, triggerName, seqName)
+            }
+            // fire trigger
+            val run = wsk.trigger.fire(triggerName)
+            // check that the sequence was invoked and that the echo action produced the expected result
+            checkEchoSeqRuleResult(run, seqName, JsObject(triggerPayload))
+            // fire trigger with new payload
+            val now = "this is now: " + Instant.now
+            val newPayload = Map("payload" -> JsString(now))
+            val newRun = wsk.trigger.fire(triggerName, newPayload)
+            checkEchoSeqRuleResult(newRun, seqName, JsObject(newPayload))
+    }
+
+    /**
+     * checks the result of an echo sequence connected to a trigger through a rule
+     * @param triggerFireRun the run result of firing the trigger
+     * @param seqName the sequence name
+     * @param triggerPayload the payload used for the trigger (that should be reflected in the sequence result)
+     */
+    private def checkEchoSeqRuleResult(triggerFireRun: RunResult, seqName: String, triggerPayload: JsObject) = {
+         withActivation(wsk.activation, triggerFireRun) {
+            triggerActivation =>
+                withActivationsFromEntity(wsk.activation, seqName, since = Some(Instant.ofEpochMilli(triggerActivation.start))) { activationList =>
+                    activationList.head.response.result shouldBe Some(triggerPayload)
+                    activationList.head.cause shouldBe None
+                }
             }
     }
 
