@@ -21,6 +21,7 @@ import scala.util.Failure
 import scala.util.Success
 
 import spray.http._
+import spray.http.HttpMethods._
 import spray.http.StatusCodes._
 import spray.httpx.SprayJsonSupport._
 import spray.json._
@@ -53,50 +54,64 @@ trait WhiskMetaApi extends Directives with PostActionActivation {
     /** Allowed verbs. */
     private lazy val allowedOperations = get | delete | post
 
-    /** Extracts the HTTP method and query params. */
-    private val requestMethodAndParams = {
-        extract(ctx => (ctx.request.method, ctx.request.message.uri.query.toMap))
+    /** Extracts the HTTP method, query params and unmatched (remaining) path. */
+    private val requestMethodParamsAndPath = {
+        extract { ctx =>
+            val method = ctx.request.method
+            val params = ctx.request.message.uri.query.toMap
+            val path = ctx.unmatchedPath.toString
+            (method, params, path)
+        }
     }
 
     def routes(user: Identity)(implicit transid: TransactionId) = {
         (routePrefix & pathPrefix(EntityName.REGEX.r) & allowedOperations) { s =>
             val metaPackage = EntityName(s)
-            requestMethodAndParams {
-                case (method, params) =>
-                    // before checking if package exists, first check that subject has right
-                    // to post an activation explicitly (i.e., there is no check on the package/action
-                    // resource since the package is expected to be private)
-                    def precheck = entitlementProvider.checkThrottles(user) flatMap {
-                        _ => confirmMetaPackage(pkgLookup(metaPackage), method)
-                    } flatMap {
-                        case (actionName, pkgParams) => actionLookup(metaPackage, actionName) map {
-                            _.inherit(pkgParams)
+
+            entity(as[Option[JsObject]]) { body =>
+                requestMethodParamsAndPath {
+                    case (method, params, restofPath) =>
+
+                        // before checking if package exists, first check that subject has right
+                        // to post an activation explicitly (i.e., there is no check on the package/action
+                        // resource since the package is expected to be private)
+                        def precheck = entitlementProvider.checkThrottles(user) flatMap {
+                            _ => confirmMetaPackage(pkgLookup(metaPackage), method)
+                        } flatMap {
+                            case (actionName, pkgParams) => actionLookup(metaPackage, actionName) map {
+                                _.inherit(pkgParams)
+                            }
                         }
-                    }
 
-                    def activate(action: WhiskAction) = {
-                        systemKey flatMap {
-                            val content = params + ("namespace" -> user.namespace())
-                            invokeAction(_, action, Some(content.toJson.asJsObject), blocking = true, waitOverride = true)
+                        def activate(action: WhiskAction) = {
+                            // precedence order for parameters:
+                            // package.params -> action.params -> query.params -> request.entity (body) -> augment arguments (namespace, path)
+                            systemKey flatMap {
+                                val content = params.toJson.asJsObject.fields ++ { body.map(_.fields) getOrElse Map() } ++ Map(
+                                    "__ow_meta_verb" -> method.value.toLowerCase.toJson,
+                                    "__ow_meta_path" -> restofPath.toJson,
+                                    "__ow_meta_namespace" -> user.namespace.toJson)
+                                invokeAction(_, action, Some(JsObject(content)), blocking = true, waitOverride = true)
+                            }
                         }
-                    }
 
-                    onComplete(precheck flatMap (activate(_))) {
-                        case Success((activationId, Some(activation))) =>
-                            val code = if (activation.response.isSuccess) OK else BadRequest
-                            // if activation error'ed, treat it as a bad request regardless of failure reason
-                            complete(code, activation.resultAsJson)
-                        case Success((activationId, None)) =>
-                            // blocking invoke which got queued instead
-                            complete(Accepted)
+                        onComplete(precheck flatMap (activate(_))) {
+                            case Success((activationId, Some(activation))) =>
+                                val code = if (activation.response.isSuccess) OK else BadRequest
+                                // if activation error'ed, treat it as a bad request regardless of failure reason
+                                complete(code, activation.resultAsJson)
+                            case Success((activationId, None)) =>
+                                // blocking invoke which got queued instead
+                                complete(Accepted)
 
-                        case Failure(t: RejectRequest) =>
-                            terminate(t.code, t.message)
+                            case Failure(t: RejectRequest) =>
+                                terminate(t.code, t.message)
 
-                        case Failure(t) =>
-                            error(this, s"exception in meta api handler: $t")
-                            terminate(InternalServerError)
-                    }
+                            case Failure(t) =>
+                                error(this, s"exception in meta api handler: $t")
+                                terminate(InternalServerError)
+                        }
+                }
             }
         }
     }

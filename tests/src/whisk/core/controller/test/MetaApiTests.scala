@@ -88,6 +88,11 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
         WhiskPackage(
             EntityPath(systemId),
             EntityName("partialmeta"),
+            annotations = Parameters("meta", JsBoolean(true)) ++
+                Parameters("get", JsString("getApi"))),
+        WhiskPackage(
+            EntityPath(systemId),
+            EntityName("packagemeta"),
             parameters = Parameters("x", JsString("X")) ++ Parameters("z", JsString("z")),
             annotations = Parameters("meta", JsBoolean(true)) ++
                 Parameters("get", JsString("getApi"))),
@@ -100,7 +105,16 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
 
     override protected[controller] def invokeAction(user: Identity, action: WhiskAction, payload: Option[JsObject], blocking: Boolean, waitOverride: Boolean = false)(
         implicit transid: TransactionId): Future[(ActivationId, Option[WhiskActivation])] = {
-        val result = JsObject("pkg" -> action.namespace.toJson, "action" -> action.name.toJson, "content" -> payload.get)
+
+        // construct a result stub that includes:
+        // 1. the package name for the action (to confirm that this resolved to systemId)
+        // 2. the action name (to confirm that this resolved to the expected meta action)
+        // 3. the payload received by the action which consists of the action.params + payload
+        val result = JsObject(
+            "pkg" -> action.namespace.toJson,
+            "action" -> action.name.toJson,
+            "content" -> action.parameters.merge(payload).get)
+
         val activation = WhiskActivation(
             action.namespace,
             action.name,
@@ -120,10 +134,12 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
         Future.successful(activation.activationId, Some(activation))
     }
 
+    protected def pkgLookup(pkgName: String) = packages.find(_.name == EntityName(pkgName))
+
     override protected def pkgLookup(pkgName: EntityName)(
         implicit transid: TransactionId) = {
         Future {
-            packages.filter(_.name == pkgName).head
+            packages.find(_.name == pkgName).get
         } recoverWith {
             case t => Future.failed(NoDocumentException("doesn't exist"))
         }
@@ -140,6 +156,19 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
         } else {
             Future.failed(NoDocumentException("doesn't exist"))
         }
+    }
+
+    def metaPayload(method: String, params: Map[String, String], namespace: String, path: String = "", body: Option[JsObject] = None, pkg: Option[WhiskPackage] = None) = {
+        (pkg.map(_.parameters).getOrElse(Parameters()) ++ defaultActionParameters).merge {
+            Some {
+                JsObject(
+                    params.toJson.asJsObject.fields ++
+                        body.map(_.fields).getOrElse(Map()) ++
+                        Map("__ow_meta_verb" -> method.toLowerCase.toJson,
+                            "__ow_meta_path" -> path.toJson,
+                            "__ow_meta_namespace" -> namespace.toJson))
+            }
+        }.get
     }
 
     var failActionLookup = false // toggle to cause action lookup to fail
@@ -187,10 +216,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
                     response shouldBe JsObject(
                         "pkg" -> "heavymeta".toJson,
                         "action" -> name.toJson,
-                        "content" -> JsObject(
-                            "namespace" -> creds.namespace.toJson, //namespace overriden by API
-                            "a" -> "b".toJson,
-                            "c" -> "d".toJson))
+                        "content" -> metaPayload(m.method.value, Map("a" -> "b", "c" -> "d", "namespace" -> "xyz"), creds.namespace.name))
                 }
         }
     }
@@ -200,21 +226,88 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
 
         val methods = Seq((Get, OK), (Post, MethodNotAllowed), (Delete, MethodNotAllowed))
         methods.map {
-            case (m, status) =>
-                m("/experimental/partialmeta?a=b&c=d&namespace=xyz") ~> sealRoute(routes(creds)) ~> check {
-                    status should be(status)
+            case (m, code) =>
+                m("/experimental/partialmeta?a=b&c=d") ~> sealRoute(routes(creds)) ~> check {
+                    status should be(code)
                     if (status == OK) {
                         val response = responseAs[JsObject]
                         response shouldBe JsObject(
                             "pkg" -> "partialmeta".toJson,
                             "action" -> "getApi".toJson,
-                            "content" -> JsObject(
-                                "namespace" -> creds.namespace.toJson, //namespace overriden by API
-                                "a" -> "b".toJson,
-                                "c" -> "d".toJson))
+                            "content" -> metaPayload(m.method.value, Map("a" -> "b", "c" -> "d"), creds.namespace.name))
                     }
                 }
         }
+    }
+
+    it should "invoke action for allowed verbs on meta handler and pass unmatched path to action" in {
+        implicit val tid = transid()
+
+        val paths = Seq("", "/", "/foo", "/foo/bar", "/foo/bar/", "/foo%20bar")
+        paths.map { p =>
+            withClue(s"failed on path: '$p'") {
+                Get(s"/experimental/partialmeta$p?a=b&c=d") ~> sealRoute(routes(creds)) ~> check {
+                    status should be(OK)
+                    val response = responseAs[JsObject]
+                    response shouldBe JsObject(
+                        "pkg" -> "partialmeta".toJson,
+                        "action" -> "getApi".toJson,
+                        "content" -> metaPayload("get", Map("a" -> "b", "c" -> "d"), creds.namespace.name, p))
+                }
+            }
+        }
+    }
+
+    it should "merge package parameters with action, query params and content payload (overriding clashed properties)" in {
+        implicit val tid = transid()
+
+        val body = JsObject("foo" -> "bar".toJson)
+        Get("/experimental/packagemeta/extra/path?a=b&c=d&__ow_meta_path=XXX&__ow_meta_namespace=YYY", body) ~> sealRoute(routes(creds)) ~> check {
+            status should be(OK)
+            val response = responseAs[JsObject]
+            response shouldBe JsObject(
+                "pkg" -> "packagemeta".toJson,
+                "action" -> "getApi".toJson,
+                "content" -> metaPayload(
+                    "get",
+                    Map("a" -> "b", "c" -> "d"),
+                    creds.namespace.name,
+                    path = "/extra/path",
+                    body = Some(body),
+                    pkg = pkgLookup("packagemeta")))
+        }
+    }
+
+    it should "invoke action and pass content body as string to action" in {
+        implicit val tid = transid()
+
+        val content = JsObject("extra" -> "read all about it".toJson, "yummy" -> true.toJson)
+        Post(s"/experimental/heavymeta?a=b&c=d", content) ~> sealRoute(routes(creds)) ~> check {
+            status should be(OK)
+            val response = responseAs[JsObject]
+            response shouldBe JsObject(
+                "pkg" -> "heavymeta".toJson,
+                "action" -> "createRoute".toJson,
+                "content" -> metaPayload("post", Map("a" -> "b", "c" -> "d"), creds.namespace.name, body = Some(content)))
+        }
+    }
+
+    it should "rejection invoke action when receiving entity that is not a JsObject" in {
+        implicit val tid = transid()
+
+        Post(s"/experimental/heavymeta?a=b&c=d", "1,2,3") ~> sealRoute(routes(creds)) ~> check {
+            status should be(UnsupportedMediaType)
+            responseAs[String] should include("application/json")
+        }
+
+        Post(s"/experimental/heavymeta?a=b&c=d") ~> sealRoute(routes(creds)) ~> check {
+            status should be(OK)
+        }
+
+        Post(s"/experimental/heavymeta?a=b&c=d", JsObject()) ~> sealRoute(routes(creds)) ~> check {
+            status should be(OK)
+        }
+
     }
 
     it should "warn if meta package is public" in {
