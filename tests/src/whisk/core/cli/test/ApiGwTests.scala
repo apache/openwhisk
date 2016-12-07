@@ -68,7 +68,7 @@ class ApiGwTests
             rr.stdout should include("ok: created API")
             rr = wsk.api.list(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
             rr.stdout should include("ok: APIs")
-            rr.stdout should include regex (s"/${wskprops.namespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+            rr.stdout should include regex (s"/guest/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
             rr.stdout should include(testbasepath + testrelpath)
         }
         finally {
