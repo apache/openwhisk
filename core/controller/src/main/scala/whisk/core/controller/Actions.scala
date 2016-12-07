@@ -163,7 +163,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions with Refer
                                             wp.binding map {
                                                 _ => terminate(BadRequest, Messages.notAllowedOnBinding)
                                             } getOrElse {
-                                                val actionResource = Resource(wp.path, collection, Some(innername))
+                                                val actionResource = Resource(wp.fullPath, collection, Some(innername))
                                                 dispatchOp(user, right, actionResource)
                                             }
                                     }
@@ -631,10 +631,10 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions with Refer
         getEntity(WhiskPackage, entityStore, docid, Some { (wp: WhiskPackage) =>
             val pkgns = wp.binding map { b =>
                 info(this, s"list actions in package binding '${wp.name}' -> '$b'")
-                b.namespace.addpath(b.name)
+                b.namespace.addPath(b.name)
             } getOrElse {
                 info(this, s"list actions in package '${wp.name}'")
-                ns.addpath(wp.name)
+                ns.addPath(wp.name)
             }
             // list actions in resolved namespace
             // NOTE: excludePrivate is false since the subject is authorize to access
@@ -665,7 +665,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions with Refer
             // a subject has implied rights to all resources in a package, so dispatch
             // operation without further entitlement checks
             val params = { ref map { _ inherit wp.parameters } getOrElse wp } parameters
-            val ns = wp.namespace.addpath(wp.name) // the package namespace
+            val ns = wp.namespace.addPath(wp.name) // the package namespace
             val resource = Resource(ns, collection, Some { action() }, Some { params })
             val right = collection.determineRight(method, resource.entity)
             info(this, s"merged package parameters and rebased action to '$ns")

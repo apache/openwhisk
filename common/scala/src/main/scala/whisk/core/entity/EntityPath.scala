@@ -38,15 +38,37 @@ import whisk.http.Messages
  */
 protected[core] class EntityPath private (private val path: Seq[String]) extends AnyVal {
     def namespace: String = path.foldLeft("")((a, b) => if (a != "") a.trim + EntityPath.PATHSEP + b.trim else b.trim)
-    def addpath(e: EntityName) = EntityPath(path :+ e.name)
-    def addpath(p: EntityPath) = EntityPath(path ++ p.path)
-    def relpath: Option[EntityPath] = Try(EntityPath(path.drop(1))).toOption
+
+    /**
+     * Adds segment to path.
+     */
+    def addPath(e: EntityName) = EntityPath(path :+ e.name)
+
+    /**
+     * Concatenates given path to existin path.
+     */
+    def addPath(p: EntityPath) = EntityPath(path ++ p.path)
+
+    /**
+     * Computes the relative path by dropping the leftmost segment. The return is an option
+     * since dropping a singleton results in an invalid path.
+     */
+    def relativePath: Option[EntityPath] = Try(EntityPath(path.drop(1))).toOption
+
+    /**
+     * @return the root of the path (the first segment).
+     */
     def root: EntityName = EntityName(path.head)
+
+    /**
+     * @return the last segment of the path.
+     */
     def last: EntityName = EntityName(path.last)
-    def defaultPackage: Boolean = path.size == 1 // if only one element in the path, then it's the namespace with a default package
-    def toJson = JsString(namespace)
-    def apply() = namespace
-    override def toString = namespace
+
+    /**
+     * @return true iff the path contains exactly one segment (i.e., the namespace)
+     */
+    def defaultPackage: Boolean = path.size == 1
 
     /**
      * Replaces root of this path with given namespace iff the root is
@@ -72,6 +94,11 @@ protected[core] class EntityPath private (private val path: Seq[String]) extends
         val newPath = EntityPath(path.dropRight(1))
         FullyQualifiedEntityName(newPath, name)
     }
+
+    def toDocId = DocId(namespace)
+    def toJson = JsString(namespace)
+    def apply() = namespace
+    override def toString = namespace
 }
 
 protected[core] object EntityPath {

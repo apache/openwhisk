@@ -76,9 +76,6 @@ case class WhiskPackage(
 
     require(binding != null || (binding map { _ != null } getOrElse true), "binding undefined")
 
-    /** The full path to the package (namespace + name). */
-    def path = namespace.addpath(name)
-
     /**
      * Merges parameters into existing set of parameters for package.
      * Existing parameters supersede those in p.
@@ -96,6 +93,12 @@ case class WhiskPackage(
     }
 
     /**
+     * Gets the full path for the package.
+     * This is equivalent to calling this this.fullyQualifiedName(withVersion = false).fullPath.
+     */
+    def fullPath = namespace.addPath(name)
+
+    /**
      * Gets binding for package iff this is not already a package reference.
      */
     def bind = binding map { _ => None } getOrElse Some { Binding(namespace, name) }
@@ -106,7 +109,7 @@ case class WhiskPackage(
      */
     def withActions(actions: List[WhiskAction] = List()) = {
         withPackageActions(actions filter { a =>
-            val pkgns = binding map { b => b.namespace.addpath(b.name) } getOrElse { namespace.addpath(name) }
+            val pkgns = binding map { b => b.namespace.addPath(b.name) } getOrElse { namespace.addPath(name) }
             a.namespace == pkgns
         } map { a =>
             WhiskPackageAction(a.name, a.version, a.annotations)
