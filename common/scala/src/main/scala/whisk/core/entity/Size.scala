@@ -16,6 +16,8 @@
 
 package whisk.core.entity
 
+import java.nio.charset.StandardCharsets
+
 object SizeUnits extends Enumeration {
 
     sealed abstract class Unit() {
@@ -98,11 +100,15 @@ object size {
     }
 
     implicit class SizeString(n: String) extends SizeConversion {
-        def sizeIn(unit: SizeUnits.Unit): ByteSize = ByteSize(n.length * 2, unit)
+        def sizeIn(unit: SizeUnits.Unit): ByteSize = ByteSize(n.getBytes(StandardCharsets.UTF_8).length, unit)
     }
 
     implicit class SizeOptionString(n: Option[String]) extends SizeConversion {
-        def sizeIn(unit: SizeUnits.Unit): ByteSize = n map { s => ByteSize(s.length * 2, unit) } getOrElse ByteSize(0, unit)
+        def sizeIn(unit: SizeUnits.Unit): ByteSize = n map { s =>
+            s.sizeIn(unit)
+        } getOrElse {
+            ByteSize(0, unit)
+        }
     }
 }
 

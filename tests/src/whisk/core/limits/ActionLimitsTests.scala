@@ -146,7 +146,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
             val actionCode = new File(s"$testActionsDir${File.separator}$name.js")
             actionCode.createNewFile()
             val pw = new PrintWriter(actionCode)
-            pw.write("a" * ((actionCodeLimit.toBytes / 2) + 1).toInt)
+            pw.write("a" * (actionCodeLimit.toBytes + 1).toInt)
             pw.close
 
             assetHelper.withCleaner(wsk.action, name, confirmDelete = false) {
