@@ -17,7 +17,7 @@ Available Ports:
 - `9092` for Kafka
 - `8400`, `8500`, `8600`, `8302` for Consul
 - `8888` for OpenWhisk's Controller
-- `8081` for OpenWhisk's Invoker
+- `8085` for OpenWhisk's Invoker
 - `80` and `443` for the API Gateway
 
 # Quick Start
