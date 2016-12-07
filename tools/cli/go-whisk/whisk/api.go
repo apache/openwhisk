@@ -231,12 +231,7 @@ func (s *ApiService) Get(api *Api, options *ApiListOptions) (*RetApiArray, *http
 }
 
 func (s *ApiService) Delete(api *Api, options *ApiOptions) (*http.Response, error) {
-    // Encode resource name as a path (with no query ) before inserting it into the URI
-    // This way any '?' chars in the name won't be treated as the beginning of the query params
-    preEncodedApiId := api.Id
-    encodedApiId := url.QueryEscape(preEncodedApiId) // Escape ':' and '/' characters typical in this id string
-    apiId := (&url.URL{Path: encodedApiId}).String()
-    route := fmt.Sprintf("routes/%s", apiId)
+    route := "experimental/routemgmt"
     Debug(DbgInfo, "Api DELETE route: %s\n", route)
 
     routeUrl, err := addRouteOptions(route, options)

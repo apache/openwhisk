@@ -25,7 +25,7 @@
  *   username   Required. The database user name used to access the database
  *   password   Required. The database user password
  *   gwUrl      Required. The API Gateway base path (i.e. http://gw.com)
- *   namespace  Required. Namespace of API author
+ *   __ow_meta_namespace  Required. Namespace of API author
  *   basepath   Required. Base path or API name of the API
  *   relpath    Optional. Delete just this relative path from the API.  Required if operation is specified
  *   operation  Optional. Delete just this relpath's operation from the API.
@@ -62,7 +62,7 @@ function main(message) {
   console.log('GW URL        : '+message.gwUrl);
   console.log('GW User       : '+confidentialPrint(message.gwUser));
   console.log('GW Pwd        : '+confidentialPrint(message.gwPwd));
-  console.log('namespace     : '+message.namespace);
+  console.log('__ow_meta_namespace : '+message.__ow_meta_namespace);
   console.log('basepath/name : '+message.basepath);
   console.log('relpath       : '+message.relpath);
   console.log('operation     : '+message.operation);
@@ -100,7 +100,7 @@ function main(message) {
   var gwApiGuid;
   var updatedDbDocOrErrMsg
 
-  return getDbApiDoc(message.namespace, message.basepath)
+  return getDbApiDoc(message.__ow_meta_namespace, message.basepath)
   .then(function(dbdoc) {
       console.log('Found API doc in db: '+JSON.stringify(dbdoc));
       if (!deleteEntireApi) {
@@ -116,6 +116,9 @@ function main(message) {
               if (dbdoc.gwApiActivated) {
                   console.log('API configuration is active; updating gateway');
                   var gwdoc = makeGwApiDoc(updatedDbDocOrErrMsg);
+                  // Since this is an update, add the API guid and Tenant guid
+                  gwdoc.id = dbdoc.gwApiGuid;
+                  gwdoc.tenantId = dbdoc.tenantId;
                   console.log('Updated API GW configuration: '+JSON.stringify(gwdoc));
                   return updateGatewayApi(gwInfo, updatedDbDocOrErrMsg.gwApiGuid, gwdoc);
               } else {
@@ -202,7 +205,7 @@ function getDbApiDoc(namespace, basepath) {
     parameters: params
   })
   .then(function (activation) {
-    console.log('whisk.invoke('+actionName+', '+params.namespace+', '+params.basepath+') ok');
+    console.log('whisk.invoke('+actionName+', '+params.__ow_meta_namespace+', '+params.basepath+') ok');
     console.log('Results: '+JSON.stringify(activation));
     if (activation && activation.result && activation.result.apis &&
         activation.result.apis.length == 1 && activation.result.apis[0].value &&
@@ -218,7 +221,7 @@ function getDbApiDoc(namespace, basepath) {
     }
   })
   .catch(function (error) {
-    console.error('whisk.invoke('+actionName+', '+params.namespace+', '+params.basepath+') error: '+JSON.stringify(error));
+    console.error('whisk.invoke('+actionName+', '+params.__ow_meta_namespace+', '+params.basepath+') error: '+JSON.stringify(error));
     return Promise.reject(error);
   });
 }
@@ -427,8 +430,8 @@ function validateArgs(message) {
     return 'gwUrl is required.';
   }
 
-  if (!message.namespace) {
-    return 'namespace is required.';
+  if (!message.__ow_meta_namespace) {
+    return '__ow_meta_namespace is required.';
   }
 
   if (!message.basepath) {
@@ -439,7 +442,7 @@ function validateArgs(message) {
     return 'When specifying an operation, the relpath is required.';
   }
 
-  if (message.force && (message.force != true) && (message.force != false)) {
+  if (message.force && (message.force != true) && (message.force != false) && (message.force != 'true') && (message.force != 'false')) {
     return 'Valid force values are true or false.';
   }
 

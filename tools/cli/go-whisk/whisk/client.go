@@ -161,8 +161,7 @@ func (c *Client) NewRequest(method, urlStr string, body interface{}, includeName
             return nil, werr
         }
     }
-    fmt.Println("xxxxxxxxxxxx BODY")
-    fmt.Printf("%q\n", buf)
+
     req, err := http.NewRequest(method, u.String(), buf)
     if err != nil {
         Debug(DbgError, "http.NewRequest(%v, %s, buf) error: %s\n", method, u.String(), err)
@@ -173,8 +172,6 @@ func (c *Client) NewRequest(method, urlStr string, body interface{}, includeName
     if req.Body != nil {
         req.Header.Add("Content-Type", "application/json")
     }
-    fmt.Println("xxxxxxxxxxxx REQ BODY")
-    fmt.Printf("%q\n", req.Body)
 
     err = c.addAuthHeader(req, AuthRequired)
     if err != nil {

@@ -285,20 +285,14 @@ var apiDeleteCmd = &cobra.Command{
 
         api := new(whisk.Api)
         options := new(whisk.ApiOptions)
-        options.Force = true  // FIXME MWD revisit usage/design
+        options.Force = true
 
         // Is the argument a basepath (must start with /) or an API name
         if _, ok := isValidBasepath(args[0]); !ok {
             whisk.Debug(whisk.DbgInfo, "Treating '%s' as an API name; as it does not begin with '/'\n", args[0])
-            api.ApiName = args[0]
-            api.Id = api.ApiName
             options.ApiBasePath = args[0]
-            options.ApiName = args[0]      // FIXME finalize controller REST/action design re: basepath/apiname
-            api.GatewayBasePath = args[0]  // FIXME Controller requiring this value in the body; it's already in the URI??
         } else {
-            api.GatewayBasePath = args[0]
-            options.ApiBasePath = api.GatewayBasePath
-            api.Id = "API:"+api.Namespace+":"+api.GatewayBasePath
+            options.ApiBasePath = args[0]
         }
 
         if (len(args) > 1) {
@@ -306,20 +300,15 @@ var apiDeleteCmd = &cobra.Command{
             if whiskErr, ok := isValidRelpath(args[1]); !ok {
                 return whiskErr
             }
-            api.GatewayRelPath = args[1]
-            options.ApiRelPath = api.GatewayRelPath
+            options.ApiRelPath = args[1]
         }
         if (len(args) > 2) {
             // Is the API verb valid?
             if whiskErr, ok := IsValidApiVerb(args[2]); !ok {
                 return whiskErr
             }
-            api.GatewayMethod = strings.ToUpper(args[2])
-            options.ApiVerb = api.GatewayMethod
+            options.ApiVerb = strings.ToUpper(args[2])
         }
-        api.Namespace = client.Config.Namespace
-        api.Id = "API:"+api.Namespace+":"+api.GatewayBasePath
-
 
         _, err := client.Apis.Delete(api, options)
         if err != nil {
@@ -337,24 +326,24 @@ var apiDeleteCmd = &cobra.Command{
                 wski18n.T("{{.ok}} deleted API {{.basepath}}\n",
                     map[string]interface{}{
                         "ok": color.GreenString("ok:"),
-                        "basepath": api.GatewayBasePath,
+                        "basepath": options.ApiBasePath,
                     }))
         } else if (len(args) == 2 ) {
             fmt.Fprintf(color.Output,
                 wski18n.T("{{.ok}} deleted {{.path}} from {{.basepath}}\n",
                     map[string]interface{}{
                         "ok": color.GreenString("ok:"),
-                        "path": api.GatewayRelPath,
-                        "basepath": api.GatewayBasePath,
+                        "path": options.ApiRelPath,
+                        "basepath": options.ApiBasePath,
                     }))
         } else {
             fmt.Fprintf(color.Output,
                 wski18n.T("{{.ok}} deleted {{.path}} {{.verb}} from {{.basepath}}\n",
                     map[string]interface{}{
                         "ok": color.GreenString("ok:"),
-                        "path": api.GatewayRelPath,
-                        "verb": api.GatewayMethod,
-                        "basepath": api.GatewayBasePath,
+                        "path": options.ApiRelPath,
+                        "verb": options.ApiVerb,
+                        "basepath": options.ApiBasePath,
                     }))
         }
 

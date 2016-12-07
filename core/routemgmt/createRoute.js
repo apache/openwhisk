@@ -25,6 +25,9 @@
  *   username   Required. The database user name used to access the database
  *   password   Required. The database user password
  *   gwUrl      Required. The API Gateway base path (i.e. http://gw.com)
+ *   __ow_meta_namespace  Required. Namespace of API author; set by controller
+ *                        Use this value to override namespace values in the apidoc
+ *                        Don't override namespace values in the swagger though
  *   apidoc     Required. The API Gateway mapping document
  *      namespace          Required.  Namespace of user/caller
  *      apiName            Optional if swagger not specified.  API descriptive name
@@ -58,6 +61,9 @@ function main(message) {
     gwUrl: message.gwUrl,
     gwAuth: message.gwAuth
   };
+
+  // Replace the CLI provided namespace valuse with the controller provided namespace value
+  updateNamespace(message.apidoc, message.__ow_meta_namespace);
 
   // message.apidoc already validated; creating shortcut to it
   var doc;
@@ -328,6 +334,36 @@ function getApiDoc(namespace, basepath, docid) {
     });
 }
 
+/*
+ * Replace the namespace values that are used in the apidoc with the
+ * specified namespace
+ */
+function updateNamespace(apidoc, namespace) {
+  if (apidoc) {
+    apidoc.namespace = namespace;
+    if (apidoc.action) {
+      apidoc.action.namespace = namespace;
+      apidoc.action.backendUrl = replaceNamespaceInUrl(apidoc.action.backendUrl, namespace);
+    }
+  }
+}
+
+/*
+ * Take an OpenWhisk URL (i.e. action invocation URL) and replace the namespace
+ * path parameter value with the provided namespace value
+ */
+function replaceNamespaceInUrl(url, namespace) {
+  var namespacesPattern = /\/namespaces\/([\w@.-]+)\//;
+  console.log('replaceNamespaceInUrl: url before - '+url);
+  matchResult = url.match(namespacesPattern);
+  if (matchResult != null) {
+    console.log('replaceNamespaceInUrl: replacing namespace \''+matchResult[1]+'\' with \''+namespace+'\'');
+    url = url.replace(namespacesPattern, '/namespaces/'+namespace+'/');
+  }
+  console.log('replaceNamespaceInUrl: url after - '+url);
+  return url;
+}
+
 function validateArgs(message) {
   var tmpdoc;
   if(!message) {
@@ -341,6 +377,10 @@ function validateArgs(message) {
 
   if (!message.gwUrl) {
     return 'gwUrl is required.';
+  }
+
+  if (!message.__ow_meta_namespace) {
+    return '__ow_meta_namespace is required.'
   }
 
   if(!message.apidoc) {
