@@ -124,7 +124,7 @@ trait PrintStreamEmitter {
  * @param deltaToTransactionStart the time difference between now and the start of the Transaction
  * @param deltaToMarkerStart if this is an end marker, this is the time difference to the start marker
  */
-protected case class LogMarker(token: LogMarkerToken, deltaToTransactionStart: Long, deltaToMarkerStart: Option[Long] = None) {
+case class LogMarker(token: LogMarkerToken, deltaToTransactionStart: Long, deltaToMarkerStart: Option[Long] = None) {
     override def toString() = {
         val parts = Seq("marker", token.toString, deltaToTransactionStart) ++ deltaToMarkerStart
         "[" + parts.mkString(":") + "]"
