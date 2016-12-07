@@ -73,6 +73,9 @@ object Messages {
     /** Error messages for sequence activations. */
     val sequenceRetrieveActivationTimeout = "Timeout reached when retrieving activation for sequence component."
     val sequenceActivationFailure = "Sequence failed."
+
+    /** Error messages for bad requests where parameters do not conform. */
+    val parametersNotAllowed = "Request defines parameters that are not allowed (e.g., reserved properties)."
 }
 
 /** Replaces rejections with Json object containing cause and transaction id. */

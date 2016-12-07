@@ -21,7 +21,6 @@ import java.io.PrintStream
 import java.time.Instant
 
 import scala.concurrent.Future
-import scala.language.postfixOps
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
@@ -32,13 +31,14 @@ import spray.httpx.SprayJsonSupport._
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
 import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
 import spray.json._
-import spray.json.DefaultJsonProtocol
 import spray.json.DefaultJsonProtocol._
 import whisk.common.TransactionId
 import whisk.core.controller.WhiskMetaApi
 import whisk.core.entity._
 import whisk.core.database.NoDocumentException
 import org.scalatest.BeforeAndAfterEach
+import whisk.http.ErrorResponse
+import whisk.http.Messages
 
 /**
  * Tests Meta API.
@@ -106,40 +106,46 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
     override protected[controller] def invokeAction(user: Identity, action: WhiskAction, payload: Option[JsObject], blocking: Boolean, waitOverride: Boolean = false)(
         implicit transid: TransactionId): Future[(ActivationId, Option[WhiskActivation])] = {
 
-        // construct a result stub that includes:
-        // 1. the package name for the action (to confirm that this resolved to systemId)
-        // 2. the action name (to confirm that this resolved to the expected meta action)
-        // 3. the payload received by the action which consists of the action.params + payload
-        val result = JsObject(
-            "pkg" -> action.namespace.toJson,
-            "action" -> action.name.toJson,
-            "content" -> action.parameters.merge(payload).get)
+        if (failActivation == 0) {
+            // construct a result stub that includes:
+            // 1. the package name for the action (to confirm that this resolved to systemId)
+            // 2. the action name (to confirm that this resolved to the expected meta action)
+            // 3. the payload received by the action which consists of the action.params + payload
+            val result = JsObject(
+                "pkg" -> action.namespace.toJson,
+                "action" -> action.name.toJson,
+                "content" -> action.parameters.merge(payload).get)
 
-        val activation = WhiskActivation(
-            action.namespace,
-            action.name,
-            user.subject,
-            ActivationId(),
-            start = Instant.now,
-            end = Instant.now,
-            response = ActivationResponse.success(Some(result)))
+            val activation = WhiskActivation(
+                action.namespace,
+                action.name,
+                user.subject,
+                ActivationId(),
+                start = Instant.now,
+                end = Instant.now,
+                response = ActivationResponse.success(Some(result)))
 
-        // check that action parameters were merged with package
-        // all actions have default parameters (see actionLookup stub)
-        pkgLookup(action.namespace.last) map { pkg =>
-            action.parameters shouldBe (pkg.parameters ++ defaultActionParameters)
-            action.parameters("z") shouldBe defaultActionParameters("z")
+            // check that action parameters were merged with package
+            // all actions have default parameters (see actionLookup stub)
+            pkgLookup(resolvePackageName(action.namespace.last)) map { pkg =>
+                action.parameters shouldBe (pkg.parameters ++ defaultActionParameters)
+                action.parameters("z") shouldBe defaultActionParameters("z")
+            }
+
+            Future.successful(activation.activationId, Some(activation))
+        } else if (failActivation == 1) {
+            Future.successful(ActivationId(), None)
+        } else {
+            Future.failed(new IllegalStateException("bad activation"))
         }
-
-        Future.successful(activation.activationId, Some(activation))
     }
 
     protected def pkgLookup(pkgName: String) = packages.find(_.name == EntityName(pkgName))
 
-    override protected def pkgLookup(pkgName: EntityName)(
+    override protected def pkgLookup(pkgName: FullyQualifiedEntityName)(
         implicit transid: TransactionId) = {
         Future {
-            packages.find(_.name == pkgName).get
+            packages.find(_.name == pkgName.name).get
         } recoverWith {
             case t => Future.failed(NoDocumentException("doesn't exist"))
         }
@@ -147,11 +153,11 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
 
     val defaultActionParameters = Parameters("y", JsString("Y")) ++ Parameters("z", JsString("Z"))
 
-    override protected def actionLookup(pkgName: EntityName, actionName: EntityName)(
+    override protected def actionLookup(pkgName: FullyQualifiedEntityName, actionName: EntityName)(
         implicit transid: TransactionId) = {
         if (!failActionLookup) {
             Future.successful {
-                WhiskAction(pkgName.toPath, actionName, Exec.js("??"), defaultActionParameters)
+                WhiskAction(pkgName.fullPath, actionName, Exec.js("??"), defaultActionParameters)
             }
         } else {
             Future.failed(NoDocumentException("doesn't exist"))
@@ -172,9 +178,27 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
     }
 
     var failActionLookup = false // toggle to cause action lookup to fail
+    var failActivation = 0 // toggle to cause action to fail
 
     override def afterEach() = {
         failActionLookup = false
+        failActivation = 0
+    }
+
+    it should "resolve a meta package into the systemId namespace" in {
+        resolvePackageName(EntityName("foo")).fullPath() shouldBe s"$systemId/foo"
+    }
+
+    it should "reject unsupported http verbs" in {
+        implicit val tid = transid()
+
+        val methods = Seq((Put, MethodNotAllowed))
+        methods.map {
+            case (m, code) =>
+                m("/experimental/partialmeta") ~> sealRoute(routes(creds)) ~> check {
+                    status should be(code)
+                }
+        }
     }
 
     it should "reject access to unknown package or missing package action" in {
@@ -214,7 +238,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
                     status should be(OK)
                     val response = responseAs[JsObject]
                     response shouldBe JsObject(
-                        "pkg" -> "heavymeta".toJson,
+                        "pkg" -> s"$systemId/heavymeta".toJson,
                         "action" -> name.toJson,
                         "content" -> metaPayload(m.method.value, Map("a" -> "b", "c" -> "d", "namespace" -> "xyz"), creds.namespace.name))
                 }
@@ -232,7 +256,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
                     if (status == OK) {
                         val response = responseAs[JsObject]
                         response shouldBe JsObject(
-                            "pkg" -> "partialmeta".toJson,
+                            "pkg" -> s"$systemId/partialmeta".toJson,
                             "action" -> "getApi".toJson,
                             "content" -> metaPayload(m.method.value, Map("a" -> "b", "c" -> "d"), creds.namespace.name))
                     }
@@ -250,7 +274,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
                     status should be(OK)
                     val response = responseAs[JsObject]
                     response shouldBe JsObject(
-                        "pkg" -> "partialmeta".toJson,
+                        "pkg" -> s"$systemId/partialmeta".toJson,
                         "action" -> "getApi".toJson,
                         "content" -> metaPayload("get", Map("a" -> "b", "c" -> "d"), creds.namespace.name, p))
                 }
@@ -258,15 +282,42 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
         }
     }
 
-    it should "merge package parameters with action, query params and content payload (overriding clashed properties)" in {
+    it should "invoke action that times out and provide a code" in {
+        implicit val tid = transid()
+
+        failActivation = 1
+        Get(s"/experimental/partialmeta?a=b&c=d") ~> sealRoute(routes(creds)) ~> check {
+            status should be(Accepted)
+            val response = responseAs[JsObject]
+            response.fields.size shouldBe 1
+            response.fields.get("code") shouldBe defined
+            response.fields.get("code").get shouldBe an[JsNumber]
+        }
+    }
+
+    it should "invoke action that errors and response with error and code" in {
+        implicit val tid = transid()
+
+        failActivation = 2
+        Get(s"/experimental/partialmeta?a=b&c=d") ~> sealRoute(routes(creds)) ~> check {
+            status should be(InternalServerError)
+            val response = responseAs[JsObject]
+            response.fields.size shouldBe 2
+            response.fields.get("error") shouldBe defined
+            response.fields.get("code") shouldBe defined
+            response.fields.get("code").get shouldBe an[JsNumber]
+        }
+    }
+
+    it should "merge package parameters with action, query params and content payload" in {
         implicit val tid = transid()
 
         val body = JsObject("foo" -> "bar".toJson)
-        Get("/experimental/packagemeta/extra/path?a=b&c=d&__ow_meta_path=XXX&__ow_meta_namespace=YYY", body) ~> sealRoute(routes(creds)) ~> check {
+        Get("/experimental/packagemeta/extra/path?a=b&c=d", body) ~> sealRoute(routes(creds)) ~> check {
             status should be(OK)
             val response = responseAs[JsObject]
             response shouldBe JsObject(
-                "pkg" -> "packagemeta".toJson,
+                "pkg" -> s"$systemId/packagemeta".toJson,
                 "action" -> "getApi".toJson,
                 "content" -> metaPayload(
                     "get",
@@ -278,6 +329,26 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
         }
     }
 
+    it should "reject request that defined reserved properties" in {
+        implicit val tid = transid()
+
+        val methods = Seq(Get, Post, Delete)
+
+        methods.map { m =>
+            reservedProperties.map { p =>
+                m(s"/experimental/packagemeta/?$p=YYY") ~> sealRoute(routes(creds)) ~> check {
+                    status should be(BadRequest)
+                    responseAs[ErrorResponse].error shouldBe Messages.parametersNotAllowed
+                }
+
+                m("/experimental/packagemeta", JsObject(p -> "YYY".toJson)) ~> sealRoute(routes(creds)) ~> check {
+                    status should be(BadRequest)
+                    responseAs[ErrorResponse].error shouldBe Messages.parametersNotAllowed
+                }
+            }
+        }
+    }
+
     it should "invoke action and pass content body as string to action" in {
         implicit val tid = transid()
 
@@ -286,7 +357,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
             status should be(OK)
             val response = responseAs[JsObject]
             response shouldBe JsObject(
-                "pkg" -> "heavymeta".toJson,
+                "pkg" -> s"$systemId/heavymeta".toJson,
                 "action" -> "createRoute".toJson,
                 "content" -> metaPayload("post", Map("a" -> "b", "c" -> "d"), creds.namespace.name, body = Some(content)))
         }
