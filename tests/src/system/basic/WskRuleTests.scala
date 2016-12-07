@@ -88,7 +88,6 @@ class WskRuleTests
                 (ruleName, triggerName, (actionName, actionName, defaultAction))),
                 assetHelper)
 
-            val now = Instant.now
             val run = wsk.trigger.fire(triggerName, Map("payload" -> testString.toJson))
 
             withActivation(wsk.activation, run) {
@@ -160,7 +159,6 @@ class WskRuleTests
                 (ruleName, triggerName, (pkgActionName, s"$pkgBindingName/$actionName", defaultAction))),
                 assetHelper)
 
-            val now = Instant.now
             val run = wsk.trigger.fire(triggerName, Map("payload" -> testString.toJson))
 
             withActivation(wsk.activation, run) {
