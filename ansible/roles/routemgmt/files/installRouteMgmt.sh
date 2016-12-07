@@ -20,13 +20,13 @@ AUTH="$1"
 APIHOST="$2"
 NAMESPACE="$3"
 WSK_CLI="$4"
+DB_USERNAME="$5"
+DB_PASSWORD="$6"
 
 WHISKPROPS_FILE="$OPENWHISK_HOME/whisk.properties"
 DB_HOST=`fgrep db.host= $WHISKPROPS_FILE | cut -d'=' -f2`
 DB_PORT=`fgrep db.port= $WHISKPROPS_FILE | cut -d'=' -f2`
 DB_PROTOCOL=`fgrep db.protocol= $WHISKPROPS_FILE | cut -d'=' -f2`
-DB_USERNAME=`fgrep db.username= $WHISKPROPS_FILE | cut -d'=' -f2`
-DB_PASSWORD=`fgrep db.password= $WHISKPROPS_FILE | cut -d'=' -f2`
 DB_APIGW=`fgrep db.whisk.apigw= $WHISKPROPS_FILE | cut -d'=' -f2`
 GW_USER=`fgrep apigw.auth.user= $WHISKPROPS_FILE | cut -d'=' -f2`
 GW_PWD=`fgrep apigw.auth.pwd= $WHISKPROPS_FILE | cut -d'=' -f2-`
