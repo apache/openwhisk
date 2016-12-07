@@ -99,7 +99,7 @@ var apiCreateCmd = &cobra.Command{
         }
 
         if (api.Swagger == "") {
-            baseUrl := retApi.Response.Result.BaseUrl
+            baseUrl := retApi.BaseUrl
             fmt.Fprintf(color.Output,
                 wski18n.T("{{.ok}} created API {{.path}} {{.verb}} for action {{.name}}\n{{.fullpath}}\n",
                     map[string]interface{}{
@@ -111,11 +111,11 @@ var apiCreateCmd = &cobra.Command{
                     }))
         } else {
             whisk.Debug(whisk.DbgInfo, "Processing swagger based create API response\n")
-            baseUrl := retApi.Response.Result.BaseUrl
-            for path, _ := range retApi.Response.Result.Swagger.Paths {
+            baseUrl := retApi.BaseUrl
+            for path, _ := range retApi.Swagger.Paths {
                 managedUrl := baseUrl+path
                 whisk.Debug(whisk.DbgInfo, "Managed path: %s\n",managedUrl)
-                for op, _  := range retApi.Response.Result.Swagger.Paths[path] {
+                for op, _  := range retApi.Swagger.Paths[path] {
                     whisk.Debug(whisk.DbgInfo, "Path operation: %s\n", op)
                     fmt.Fprintf(color.Output,
                         wski18n.T("{{.ok}} created api {{.path}} {{.verb}} for action {{.name}}\n{{.fullpath}}\n",
@@ -123,7 +123,7 @@ var apiCreateCmd = &cobra.Command{
                                 "ok": color.GreenString("ok:"),
                                 "path": path,
                                 "verb": op,
-                                "name": boldString(retApi.Response.Result.Swagger.Paths[path][op]["x-ibm-op-ext"]["actionName"]),
+                                "name": boldString(retApi.Swagger.Paths[path][op]["x-ibm-op-ext"]["actionName"]),
                                 "fullpath": managedUrl,
                             }))
                 }
@@ -179,7 +179,7 @@ var apiUpdateCmd = &cobra.Command{
                     "path": api.GatewayRelPath,
                     "verb": api.GatewayMethod,
                     "name": boldString(api.Action.Name),
-                    "fullpath": getManagedUrl(retApi.Response.Result, api.GatewayRelPath, api.GatewayMethod),
+                    "fullpath": getManagedUrl(retApi, api.GatewayRelPath, api.GatewayMethod),
                 }))
         return nil
     },
@@ -233,19 +233,17 @@ var apiGetCmd = &cobra.Command{
 
         var displayResult interface{} = nil
         if (flags.common.detail) {
-            if (retApi.Response != nil && retApi.Response.ResultArray != nil &&
-                retApi.Response.ResultArray.Apis != nil && len(retApi.Response.ResultArray.Apis) > 0 &&
-                retApi.Response.ResultArray.Apis[0].ApiValue != nil) {
-                displayResult = retApi.Response.ResultArray.Apis[0].ApiValue
+            if (retApi.Apis != nil && len(retApi.Apis) > 0 &&
+                retApi.Apis[0].ApiValue != nil) {
+                displayResult = retApi.Apis[0].ApiValue
             } else {
                 whisk.Debug(whisk.DbgError, "No result object returned\n")
             }
         } else {
-            if (retApi.Response != nil && retApi.Response.ResultArray != nil &&
-                retApi.Response.ResultArray.Apis != nil && len(retApi.Response.ResultArray.Apis) > 0 &&
-                retApi.Response.ResultArray.Apis[0].ApiValue != nil &&
-                retApi.Response.ResultArray.Apis[0].ApiValue.Swagger != nil) {
-                  displayResult = retApi.Response.ResultArray.Apis[0].ApiValue.Swagger
+            if (retApi.Apis != nil && len(retApi.Apis) > 0 &&
+                retApi.Apis[0].ApiValue != nil &&
+                retApi.Apis[0].ApiValue.Swagger != nil) {
+                  displayResult = retApi.Apis[0].ApiValue.Swagger
             } else {
                   whisk.Debug(whisk.DbgError, "No swagger returned\n")
             }
@@ -373,7 +371,7 @@ var apiListCmd = &cobra.Command{
     PreRunE:       setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        var retApiArray *whisk.RetApiReponseApiArray
+        var retApiArray *whisk.RetApiArray
 
         if whiskErr := checkArgs(args, 0, 3, "Api list",
             wski18n.T("Optional parameters are: API base path (or API name), API relative path and operation.")); whiskErr != nil {
@@ -452,8 +450,8 @@ var apiListCmd = &cobra.Command{
                 }))
         fmt.Printf(fmtString, "Action", "Verb", "API Name", "URL")
 
-        for i:=0; i<len(retApiArray.Response.ResultArray.Apis); i++ {
-            printFilteredListRow(retApiArray.Response.ResultArray.Apis[i].ApiValue, api)
+        for i:=0; i<len(retApiArray.Apis); i++ {
+            printFilteredListRow(retApiArray.Apis[i].ApiValue, api)
         }
 
         return nil

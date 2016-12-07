@@ -45,7 +45,7 @@ func (s *NamespaceService) List() ([]Namespace, *http.Response, error) {
     // Create the request against the namespaces resource
     s.client.Config.Namespace = ""
     route := ""
-    req, err := s.client.NewRequest("GET", route, nil)
+    req, err := s.client.NewRequest("GET", route, nil, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "s.client.NewRequest(GET) error: %s\n", err)
         errStr := wski18n.T("Unable to create HTTP request for GET: {{.err}}",
@@ -84,7 +84,7 @@ func (s *NamespaceService) Get(namespace string) (*Namespace, *http.Response, er
         Name: namespace,
     }
 
-    req, err := s.client.NewRequest("GET", "", nil)
+    req, err := s.client.NewRequest("GET", "", nil, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "s.client.NewRequest(GET) error: %s\n", err)
         errStr := wski18n.T("Unable to create HTTP request for GET: {{.err}}", map[string]interface{}{"err": err})
