@@ -88,7 +88,7 @@ var actionCreateCmd = &cobra.Command{
 
 var actionUpdateCmd = &cobra.Command{
   Use:           "update ACTION_NAME [ACTION]",
-  Short:         wski18n.T("update an existing action"),
+  Short:         wski18n.T("update an existing action, or create an action if it does not exist"),
   SilenceUsage:  true,
   SilenceErrors: true,
   PreRunE:       setupClientConfig,

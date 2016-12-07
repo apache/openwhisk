@@ -242,7 +242,7 @@ var triggerCreateCmd = &cobra.Command{
 
 var triggerUpdateCmd = &cobra.Command{
     Use:   "update TRIGGER_NAME",
-    Short: wski18n.T("update existing trigger"),
+    Short: wski18n.T("update an existing trigger, or create a trigger if it does not exist"),
     SilenceUsage:   true,
     SilenceErrors:  true,
     PreRunE: setupClientConfig,

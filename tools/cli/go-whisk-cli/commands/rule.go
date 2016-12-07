@@ -223,7 +223,7 @@ var ruleCreateCmd = &cobra.Command{
 
 var ruleUpdateCmd = &cobra.Command{
     Use:   "update RULE_NAME TRIGGER_NAME ACTION_NAME",
-    Short: wski18n.T("update existing rule"),
+    Short: wski18n.T("update an existing rule, or create a rule if it does not exist"),
     SilenceUsage:   true,
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
