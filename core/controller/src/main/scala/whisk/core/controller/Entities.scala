@@ -45,8 +45,12 @@ import whisk.core.entity.Parameters
 import whisk.http.ErrorResponse.terminate
 
 protected[controller] trait ValidateEntitySize extends Directives {
-    protected def validateSize(check: ⇒ Boolean)(implicit tid: TransactionId) = new Directive0 {
-        def happly(f: HNil ⇒ Route) = if (check) f(HNil) else terminate(RequestEntityTooLarge, "request entity too large")
+    protected def validateSize(check: => Boolean)(implicit tid: TransactionId) = new Directive0 {
+        def happly(f: HNil => Route) = if (check) {
+            f(HNil)
+        } else {
+            terminate(RequestEntityTooLarge, "request entity too large")
+        }
     }
 }
 

@@ -196,7 +196,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
 
     it should "reject create with parameters which are too big" in {
         implicit val tid = transid()
-        val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (parametersLimit.toBytes / 2 / 20 + Math.pow(10, 9) + 2) toLong)
+        val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (parametersLimit.toBytes / 20 + Math.pow(10, 9) + 2) toLong)
         val parameters = keys map { key =>
             Parameters(key.toString, "a" * 10)
         } reduce (_ ++ _)
@@ -209,7 +209,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
 
     it should "reject create with annotations which are too big" in {
         implicit val tid = transid()
-        val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (parametersLimit.toBytes / 2 / 20 + Math.pow(10, 9) + 2) toLong)
+        val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (parametersLimit.toBytes / 20 + Math.pow(10, 9) + 2) toLong)
         val parameters = keys map { key =>
             Parameters(key.toString, "a" * 10)
         } reduce (_ ++ _)
@@ -223,7 +223,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     it should "reject update with parameters which are too big" in {
         implicit val tid = transid()
         val trigger = WhiskTrigger(namespace, aname)
-        val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (parametersLimit.toBytes / 2 / 20 + Math.pow(10, 9) + 2) toLong)
+        val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (parametersLimit.toBytes / 20 + Math.pow(10, 9) + 2) toLong)
         val parameters = keys map { key =>
             Parameters(key.toString, "a" * 10)
         } reduce (_ ++ _)

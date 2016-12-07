@@ -435,7 +435,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
 
     it should "reject create package reference when annotations are too big" in {
         implicit val tid = transid()
-        val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (parametersLimit.toBytes / 2 / 20 + Math.pow(10, 9) + 2) toLong)
+        val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (parametersLimit.toBytes / 20 + Math.pow(10, 9) + 2) toLong)
         val parameters = keys map { key =>
             Parameters(key.toString, "a" * 10)
         } reduce (_ ++ _)
@@ -448,7 +448,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
 
     it should "reject create package reference when parameters are too big" in {
         implicit val tid = transid()
-        val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (parametersLimit.toBytes / 2 / 20 + Math.pow(10, 9) + 2) toLong)
+        val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (parametersLimit.toBytes / 20 + Math.pow(10, 9) + 2) toLong)
         val parameters = keys map { key =>
             Parameters(key.toString, "a" * 10)
         } reduce (_ ++ _)
@@ -461,7 +461,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
 
     it should "reject update package reference when parameters are too big" in {
         implicit val tid = transid()
-        val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (parametersLimit.toBytes / 2 / 20 + Math.pow(10, 9) + 2) toLong)
+        val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (parametersLimit.toBytes / 20 + Math.pow(10, 9) + 2) toLong)
         val parameters = keys map { key =>
             Parameters(key.toString, "a" * 10)
         } reduce (_ ++ _)

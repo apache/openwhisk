@@ -387,7 +387,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         val trigger = WhiskTrigger(namespace, aname())
         val action = WhiskAction(namespace, aname(), Exec.js("??"))
 
-        val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (Parameters.sizeLimit.toBytes / 2 / 20 + Math.pow(10, 9) + 2) toLong)
+        val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (Parameters.sizeLimit.toBytes / 20 + Math.pow(10, 9) + 2) toLong)
         val parameters = keys map { key =>
             Parameters(key.toString, "a" * 10)
         } reduce (_ ++ _)
@@ -412,7 +412,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         val action = WhiskAction(namespace, aname(), Exec.js("??"))
         val rule = WhiskRule(namespace, aname(), trigger.fullyQualifiedName(false), action.fullyQualifiedName(false))
 
-        val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (Parameters.sizeLimit.toBytes / 2 / 20 + Math.pow(10, 9) + 2) toLong)
+        val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (Parameters.sizeLimit.toBytes / 20 + Math.pow(10, 9) + 2) toLong)
         val parameters = keys map { key =>
             Parameters(key.toString, "a" * 10)
         } reduce (_ ++ _)
