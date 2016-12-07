@@ -13,6 +13,7 @@ whisk.version.buildno={{ docker_image_tag }}
 whisk.ssl.cert={{ openwhisk_home }}/ansible/roles/nginx/files/openwhisk-cert.pem
 whisk.ssl.key={{ openwhisk_home }}/ansible/roles/nginx/files/openwhisk-key.pem
 whisk.ssl.challenge=openwhisk
+whisk.api.host={{ whisk_api_host | default('https://' + (groups['edge'] | first)) }}
 
 defaultLimits.actions.invokes.perMinute={{ defaultLimits.actions.invokes.perMinute }}
 defaultLimits.actions.invokes.concurrent={{ defaultLimits.actions.invokes.concurrent }}
@@ -36,7 +37,6 @@ entitlement.host={{ groups["entitlement_servers"] | first }}
 kafka.host={{ groups["kafka"]|first }}
 loadbalancer.host={{ groups["controllers"]|first }}
 router.host={{ groups["edge"]|first }}
-cli.api.host={{ cli_api_host | default(groups['edge'] | first) }}
 zookeeper.host={{ groups["kafka"]|first }}
 invoker.hosts={{ groups["invokers"] | join(",") }}
 

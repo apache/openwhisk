@@ -652,7 +652,7 @@ class ContainerPool(
     }
 
     private def getContainerEnvironment(): Map[String, String] = {
-        Map("__OW_API_HOST" -> config.edgeHost)
+        Map("__OW_API_HOST" -> config.wskApiHost)
     }
 
     private val defaultMaxIdle = 10
@@ -795,7 +795,7 @@ class ContainerPool(
 object ContainerPool extends Logging {
     def requiredProperties = Map(
         selfDockerEndpoint -> "localhost",
-        edgeHostName -> null,
+        wskApiHost -> null,
         dockerRegistry -> "",
         dockerImagePrefix -> "",
         dockerImageTag -> "latest",

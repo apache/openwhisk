@@ -36,7 +36,7 @@ import whisk.common.ConsulClient
 import whisk.common.ConsulKV.InvokerKeys
 import whisk.connector.kafka.{ KafkaConsumerConnector, KafkaProducerConnector }
 import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig.{ consulServer, dockerImagePrefix, dockerRegistry, edgeHost, kafkaHost, logsDir, servicePort, whiskVersion }
+import whisk.core.WhiskConfig.{ consulServer, dockerImagePrefix, dockerRegistry, kafkaHost, logsDir, servicePort, whiskVersion }
 import whisk.core.connector.{ ActivationMessage, CompletionMessage }
 import whisk.core.container.{ BlackBoxContainerError, ContainerPool, Interval, RunResult, WhiskContainer, WhiskContainerError }
 import whisk.core.dispatcher.{ Dispatcher, MessageHandler }
@@ -484,7 +484,6 @@ object Invoker {
         WhiskActivationStore.requiredProperties ++
         ContainerPool.requiredProperties ++
         kafkaHost ++
-        edgeHost ++
         consulServer ++
         whiskVersion
 

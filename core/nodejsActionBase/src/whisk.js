@@ -28,14 +28,6 @@ var request = require('request');
  */
 function Whisk(apihost, logger) {
 
-    // export __OW_API_HOST to environment
-    {
-        apihost = apihost || '';
-        var edgeHostParts = apihost.split(':');
-        var protocol = (edgeHostParts.length >= 2  &&  edgeHostParts[1] == '443') ? 'https' : 'http';
-        apihost = protocol + '://' + apihost;
-    }
-
     this.apikey = "uninit_apikey";
 
     var asyncSentinel = new function Async(){ async: true; };
