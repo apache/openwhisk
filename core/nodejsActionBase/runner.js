@@ -115,7 +115,13 @@ function NodeActionRunner(whisk) {
                     }).catch(function (error) {
                         // A rejected Promise from the user code maps into a
                         // successful promise wrapping a whisk-encoded error.
-                        resolve({ error: error });
+
+                        // Special case if the user just called `reject()`.
+                        if (!error) {
+                            resolve({ error: {}})
+                        } else {
+                            resolve({ error: error });
+                        }
                     });
                 } else {
                     // Nothing to do in this 'else' branch. The user code returned the
