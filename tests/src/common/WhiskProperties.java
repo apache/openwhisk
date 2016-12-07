@@ -211,6 +211,10 @@ public class WhiskProperties {
         return whiskProperties.getProperty("router.host");
     }
 
+    public static String getApiHost() {
+        return whiskProperties.getProperty("whisk.api.host");
+    }
+
     public static int getEdgeHostApiPort() {
         return Integer.parseInt(whiskProperties.getProperty("edge.host.apiport"));
     }

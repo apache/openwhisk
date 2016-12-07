@@ -76,6 +76,7 @@ class WhiskConfig(
     val invokerSerializeDockerOp = this(WhiskConfig.invokerSerializeDockerOp)
     val invokerSerializeDockerPull = this(WhiskConfig.invokerSerializeDockerPull)
 
+    val wskApiHost = this(WhiskConfig.wskApiHost)
     val controllerHost = this(WhiskConfig.controllerHostName) + ":" + this(WhiskConfig.controllerHostPort)
     val controllerBlackboxFraction = this.getAsDouble(WhiskConfig.controllerBlackboxFraction, 0.10)
 
@@ -102,9 +103,6 @@ class WhiskConfig(
 
     val entitlementHost = this(WhiskConfig.entitlementHostName) + ":" + this(WhiskConfig.entitlementHostPort)
     val iamProviderHost = this(WhiskConfig.iamProviderHostName) + ":" + this(WhiskConfig.iamProviderHostPort)
-
-    val routerHost = this(WhiskConfig.routerHost)
-    val cliApiHost = this(WhiskConfig.cliApiHost)
 
     val edgeDockerEndpoint = this(WhiskConfig.edgeDockerEndpoint)
     val kafkaDockerEndpoint = this(WhiskConfig.kafkaDockerEndpoint)
@@ -233,8 +231,7 @@ object WhiskConfig extends Logging {
     val invokerSerializeDockerOp = "invoker.serializeDockerOp"
     val invokerSerializeDockerPull = "invoker.serializeDockerPull"
 
-    val routerHost = "router.host"
-    val cliApiHost = "cli.api.host"
+    val wskApiHost = "whisk.api.host"
 
     val edgeDockerEndpoint = "edge.docker.endpoint"
     val kafkaDockerEndpoint = "kafka.docker.endpoint"

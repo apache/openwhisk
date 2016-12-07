@@ -170,7 +170,7 @@ function NodeActionService(config, logger) {
 }
 
 function newWhiskContext(config, logger) {
-    return new whisk(config.edgeHost, logger);
+    return new whisk(config.apiHost, logger);
 }
 
 NodeActionService.getService = function(config, logger) {
