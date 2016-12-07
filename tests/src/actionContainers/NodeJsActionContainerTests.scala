@@ -481,6 +481,21 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
         })
     }
 
+    it should "support rejected promises with no message" in {
+        val (out, err) = withNodeJsContainer { c =>
+            val code = """
+                | function main(args) {
+                |     return new Promise(function (resolve, reject) {
+                |         reject();
+                |     });
+                | }""".stripMargin
+
+            c.init(initPayload(code))._1 should be(200)
+            val (runCode, runRes) = c.run(runPayload(JsObject()))
+            runRes.get.fields.get("error") shouldBe defined
+        }
+    }
+
     it should "support large-ish actions" in {
         val thought = " I took the one less traveled by, and that has made all the difference."
         val assignment = "    x = \"" + thought + "\";\n"
