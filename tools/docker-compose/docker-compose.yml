@@ -1,7 +1,7 @@
 version: '2'
 services:
   db:
-    image: couchdb:1.6.1
+    image: couchdb:1.6
     ports:
       - "5984:5984"
     environment:
@@ -126,6 +126,7 @@ services:
     volumes:
       - ~/tmp/openwhisk/invoker/logs:/logs
       - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/docker/containers:/containers
     ports:
       - "8085:8085"
 

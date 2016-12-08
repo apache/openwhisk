@@ -9,6 +9,7 @@ OPEN_WHISK_DB_USERNAME ?= whisk_admin
 OPEN_WHISK_DB_PASSWORD ?= some_passw0rd
 DB_IMMORTAL_DBS ?= subjects
 OPEN_WHISK_DB_ACTIONS ?= whisk_actions
+OPEN_WHISK_DB_GW ?= whisk_gateway
 
 # Quick-Start is a simple way to get started with OpenWhisk locally
 #   1. at start it builds the project and the docker containers
@@ -39,6 +40,7 @@ run: setup start-docker-compose init-couchdb init-couchdb-actions init-whisk-cli
 .PHONY: setup
 setup:
 	mkdir -p ~/tmp/openwhisk/apigateway/ssl
+	cd $(PROJECT_HOME)/ansible/roles/nginx/files/ && ./genssl.sh localhost
 	cp $(PROJECT_HOME)/ansible/roles/nginx/files/*.pem ~/tmp/openwhisk/apigateway/ssl
 	mkdir -p ~/tmp/openwhisk/apigateway/conf
 	cp $(PROJECT_HOME)/tools/apigateway/whisk-docker-compose.conf ~/tmp/openwhisk/apigateway/conf/
@@ -78,6 +80,7 @@ init-couchdb-actions:
 	echo db.username=$(OPEN_WHISK_DB_USERNAME) >> $(PROJECT_HOME)/whisk.properties
 	echo db.password=$(OPEN_WHISK_DB_PASSWORD) >> $(PROJECT_HOME)/whisk.properties
 	echo db.whisk.actions=$(OPEN_WHISK_DB_ACTIONS) >> $(PROJECT_HOME)/whisk.properties
+	echo db.whisk.apigw=$(OPEN_WHISK_DB_GW) >> $(PROJECT_HOME)/whisk.properties
 	cd $(PROJECT_HOME)/ && tools/db/wipeTransientDBs.sh
 	rm $(PROJECT_HOME)/whisk.properties
 
