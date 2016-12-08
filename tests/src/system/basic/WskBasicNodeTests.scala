@@ -147,6 +147,25 @@ class WskBasicNodeTests
             }
     }
 
+    it should "Ensure that UTF-8 in supported in source files, input params, logs, and output results" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "unicodeGalore"
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) =>
+                    action.create(name, Some(TestUtils.getTestActionFilename("unicode.js")))
+            }
+
+            withActivation(wsk.activation, wsk.action.invoke(name, parameters = Map("delimiter" -> JsString("❄")))) {
+                activation =>
+                    val response = activation.response
+                    response.result.get.fields.get("error") shouldBe empty
+                    response.result.get.fields.get("winter") should be(Some(JsString("❄ ☃ ❄")))
+
+                    activation.logs.toList.flatten.mkString(" ") should include("❄ ☃ ❄")
+            }
+    }
+
     // TODO: remove this tests and its assets when "whisk.js" is removed entirely as it is no longer necessary
     it should "Ensure that whisk.invoke() returns a promise" in withAssetCleaner(wskprops) {
         val expectedDuration = 3.seconds
