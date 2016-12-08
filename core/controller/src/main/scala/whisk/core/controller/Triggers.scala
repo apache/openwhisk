@@ -145,7 +145,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                             response = ActivationResponse.success(payload orElse Some(JsObject())),
                             version = trigger.version,
                             duration = None)
-                        info(this, s"[POST] trigger activated, writing activation record to datastore")
+                        info(this, s"[POST] trigger activated, writing activation record to datastore: $triggerActivationId")
                         val saveTriggerActivation = WhiskActivation.put(activationStore, triggerActivation) map {
                             _ => triggerActivationId
                         }
