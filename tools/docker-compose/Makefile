@@ -20,7 +20,7 @@ quick-start: docker run quick-start-pause hello-world quick-start-info
 .PHONY: quick-start-pause
 quick-start-pause:
 	echo "waiting for the Whisk invoker to come up ... "
-	until $$(curl --output /dev/null --silent --head --fail http://localhost:8081/ping); do printf '.'; sleep 5; done
+	until $$(curl --output /dev/null --silent --head --fail http://localhost:8085/ping); do printf '.'; sleep 5; done
 	sleep 30
 
 .PHONY: quick-start-info

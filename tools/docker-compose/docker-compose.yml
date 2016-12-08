@@ -102,7 +102,7 @@ services:
     environment:
       COMPONENT_NAME: invoker
       SERVICE_NAME: invoker0
-      PORT: 8081
+      PORT: 8085
 
       CONSULSERVER_HOST: consul.docker
       CONSUL_HOST_PORT4: 8500
@@ -127,7 +127,7 @@ services:
       - ~/tmp/openwhisk/invoker/logs:/logs
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
-      - "8081:8081"
+      - "8085:8085"
 
   # The API Gateway is currently used to expose the Controller API
   #   see tools/apigateway/whisk-docker-compose.conf
