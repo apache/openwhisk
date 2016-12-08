@@ -81,12 +81,7 @@ done
 
 # recreate the "full" index on the "auth" database
 $CURL_ADMIN -X POST -H 'Content-Type: application/json' \
-        -d '{
-            "_id":"_design/subjects",
-            "views": { "uuids": { "map": "function (doc) {\n  emit([doc.uuid], {secret: doc.key});\n}" } },
-            "language":"javascript",
-            "indexes": {}
-         }' \
+        -d @$SCRIPTDIR/../../ansible/files/auth_index.json \
     $URL_BASE/$DB_WHISK_AUTHS;
 
 # recreate necessary "auth" keys
