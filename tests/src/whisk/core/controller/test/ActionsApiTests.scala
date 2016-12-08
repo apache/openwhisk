@@ -326,7 +326,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     // this test is sneaky; the installation of the sequence is done directly in the db
     // and api checks are skipped
-    it should "reset parameters when changing sequence action to non sequence" in {
+    it should "preserve parameters when changing sequence action to non sequence with no parameters" in {
         implicit val tid = transid()
         val sequence = Vector("x/a", "x/b").map(stringToFullyQualifiedName(_))
         val action = WhiskAction(namespace, aname, Exec.sequence(sequence), seqParameters(sequence))
@@ -339,7 +339,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             status should be(OK)
             val response = responseAs[WhiskAction]
             response.exec.kind should be(Exec.NODEJS)
-            response.parameters shouldBe Parameters()
+            response.parameters shouldBe seqParameters(sequence)
         }
     }
 

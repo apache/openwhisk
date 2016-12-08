@@ -112,7 +112,7 @@ class SequenceActionApiMigrationTests extends ControllerTestCommon
     }
 
     // this test is a repeat from ActionsApiTest BUT with old style sequence
-    it should "reset parameters when changing old-style sequence action to non sequence" in {
+    it should "preserve parameters when changing old-style sequence action to non sequence with no parameters" in {
         implicit val tid = transid()
         val components = Vector("/_/a", "/_/x/b", "/n/a", "/n/x/c")
         val sequence = components.map(stringToFullyQualifiedName(_))
@@ -126,7 +126,7 @@ class SequenceActionApiMigrationTests extends ControllerTestCommon
             status should be(OK)
             val response = responseAs[WhiskAction]
             response.exec.kind should be(Exec.NODEJS)
-            response.parameters shouldBe Parameters()
+            response.parameters shouldBe seqParameters(components)
         }
     }
 
