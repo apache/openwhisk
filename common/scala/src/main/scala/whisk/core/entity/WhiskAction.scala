@@ -67,8 +67,7 @@ case class WhiskActionPut(
      */
     protected[core] def resolve(userNamespace: EntityName): WhiskActionPut = {
         exec map {
-            case SequenceExec(code, components) =>
-                val newExec = SequenceExec(code, components map {
+                val newExec = SequenceExec(components map {
                     c => FullyQualifiedEntityName(c.path.resolveNamespace(userNamespace), c.name)
                 })
                 WhiskActionPut(Some(newExec), parameters, limits, version, publish, annotations)
@@ -104,7 +103,7 @@ case class WhiskAction(
     version: SemVer = SemVer(),
     publish: Boolean = false,
     annotations: Parameters = Parameters())
-    extends WhiskEntity(name) {
+    extends WhiskEntity(name) /* with Logging */ {
 
     require(exec != null, "exec undefined")
     require(limits != null, "limits undefined")
@@ -143,7 +142,6 @@ case class WhiskAction(
 
         exec match {
             case n: NodeJSAbstractExec          => getNodeInitializer(n.code, n.binary, n.main)
-            case SequenceExec(code, components) => getNodeInitializer(code, false, None)
             case s: SwiftAbstractExec =>
                 JsObject(
                     "name" -> name.toJson,
@@ -163,6 +161,9 @@ case class WhiskAction(
                 code map {
                     c => JsObject("code" -> c.toJson, "binary" -> JsBoolean(b.binary))
                 } getOrElse JsObject()
+            case SequenceExec(components) =>
+                //error(this, "Container initializer not supported for sequences")
+                JsObject()
         }
     }
 

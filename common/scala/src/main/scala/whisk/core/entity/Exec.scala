@@ -122,9 +122,9 @@ protected[core] case class BlackBoxExec(override val image: String, code: Option
     override val pull = image != Exec.BLACKBOX_SKELETON
 }
 
-protected[core] case class SequenceExec(code: String, components: Vector[FullyQualifiedEntityName]) extends Exec(Exec.SEQUENCE) {
-    val image = Exec.imagename(Exec.NODEJS)
-    def size = components.map(c => c.size).reduce(_ + _)
+protected[core] case class SequenceExec(components: Vector[FullyQualifiedEntityName]) extends Exec(Exec.SEQUENCE) {
+    override val image = ""  // image does not have a meaning for sequences anymore
+    override def size = components.map(c => c.size).reduce(_ + _)
 }
 
 protected[core] object Exec
@@ -154,7 +154,7 @@ protected[core] object Exec
     protected[core] def swift(code: String, main: Option[String] = None): Exec = SwiftExec(trim(code), main.map(_.trim))
     protected[core] def swift3(code: String, main: Option[String] = None): Exec = Swift3Exec(trim(code), main.map(_.trim))
     protected[core] def java(jar: String, main: String): Exec = JavaExec(Inline(trim(jar)), trim(main))
-    protected[core] def sequence(components: Vector[FullyQualifiedEntityName]): Exec = SequenceExec(Pipecode.code, components)
+    protected[core] def sequence(components: Vector[FullyQualifiedEntityName]): Exec = SequenceExec(components)
     protected[core] def bb(image: String): Exec = BlackBoxExec(trim(image), None)
     protected[core] def bb(image: String, code: String): Exec = BlackBoxExec(trim(image), Some(trim(code)).filter(_.nonEmpty))
 
@@ -177,8 +177,8 @@ protected[core] object Exec
                 val base = Map("kind" -> JsString(Exec.PYTHON), "code" -> JsString(code), "binary" -> JsBoolean(p.binary))
                 main.map(m => JsObject(base + ("main" -> JsString(m)))).getOrElse(JsObject(base))
 
-            case SequenceExec(code, comp) =>
-                JsObject("kind" -> JsString(Exec.SEQUENCE), "code" -> JsString(code), "components" -> comp.map(_.qualifiedNameWithLeadingSlash).toJson)
+            case SequenceExec(comp) =>
+                JsObject("kind" -> JsString(Exec.SEQUENCE), "components" -> comp.map(_.qualifiedNameWithLeadingSlash).toJson)
 
             case b: BlackBoxExec =>
                 val base = Map("kind" -> JsString(Exec.BLACKBOX), "image" -> JsString(b.image), "binary" -> JsBoolean(b.binary))
@@ -218,7 +218,7 @@ protected[core] object Exec
                         case Seq(_)                   => throw new DeserializationException(s"'components' must be an array")
                         case _                        => throw new DeserializationException(s"'components' must be defined for sequence kind")
                     }
-                    SequenceExec(Pipecode.code, comp)
+                    SequenceExec(comp)
 
                 case Exec.SWIFT | Exec.SWIFT3 =>
                     val code: String = obj.getFields("code") match {

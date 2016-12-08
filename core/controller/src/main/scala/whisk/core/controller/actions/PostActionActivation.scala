@@ -42,7 +42,7 @@ protected[core] trait PostActionActivation extends PrimitiveActions with Sequenc
         implicit transid: TransactionId): Future[(ActivationId, Option[WhiskActivation])] = {
         action.exec match {
             // this is a topmost sequence
-            case SequenceExec(_, components) =>
+            case SequenceExec(components) =>
                 val futureSeqTuple = invokeSequence(user, action, payload, blocking, topmost = true, components, cause = None, 0)
                 futureSeqTuple map { case (activationId, wskActivation, _) => (activationId, wskActivation) }
             case _ => {
