@@ -21,6 +21,7 @@ db_port: "{{ lookup('ini', 'db_port section=db_creds file={{ playbook_dir }}/db_
 db_apigw_username: "{{ db_username }}"
 db_apigw_password: "{{ db_password }}"
 db_apigw: "{{ db_prefix }}gwapis"
+apigw_initdb: true
 
 limits:
   actions:
