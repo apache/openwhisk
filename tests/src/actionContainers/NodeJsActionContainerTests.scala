@@ -630,11 +630,32 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
 
         val code = ZipBuilder.mkBase64Zip(srcs)
 
-        val (out, err) = withNodeJsContainer { c =>
+        withNodeJsContainer { c =>
             c.init(initPayload(code, main = "niam"))._1 should be(200)
 
             val (runCode, runRes) = c.run(runPayload(JsObject()))
             runRes.get.fields.get("result") shouldBe Some(JsString("it works"))
         }
+    }
+
+    it should "handle unicode in source, input params, logs, and result" in {
+        val (out, err) = withNodeJsContainer { c =>
+            val code = """
+                | function main(args) {
+                |   var str = args.delimiter + " ☃ " + args.delimiter;
+                |   console.log(str);
+                |   return { "winter": str };
+                | }
+            """.stripMargin
+
+            c.init(initPayload(code))._1 should be(200)
+            val (runCode, runRes) = c.run(runPayload(JsObject("delimiter" -> JsString("❄"))))
+            runRes.get.fields.get("winter") shouldBe Some(JsString("❄ ☃ ❄"))
+        }
+
+        checkStreams(out, err, {
+            case (o, _) =>
+                o.toLowerCase should include("❄ ☃ ❄")
+        })
     }
 }

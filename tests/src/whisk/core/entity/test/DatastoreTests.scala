@@ -141,7 +141,7 @@ class DatastoreTests extends FlatSpec
         }
     }
 
-    ignore should "CRD activation with utf8 characters" in {
+    it should "CRD activation with utf8 characters" in {
         implicit val tid = transid()
         implicit val basename = EntityName("create action blackbox")
         val activations = Seq(
