@@ -148,7 +148,8 @@ case class WhiskAction(
         }
 
         exec match {
-            case n: NodeJSAbstractExec => Some(getNodeInitializer(n.code, n.binary, n.main))
+            case n: NodeJSAbstractExec =>
+                Some(getNodeInitializer(n.code, n.binary, n.main))
             case s: SwiftAbstractExec =>
                 Some(JsObject(
                     "name" -> name.toJson,
@@ -257,7 +258,7 @@ object WhiskAction
         }
     }
 
-    // Overriden to retrieve attached Java `exec` fields.
+    // Overriden to retrieve attached Java exec fields.
     override def get[A >: WhiskAction](db: ArtifactStore[A], doc: DocId, rev: DocRevision = DocRevision(), fromCache: Boolean)(
         implicit transid: TransactionId, mw: Manifest[WhiskAction]): Future[WhiskAction] = {
 
