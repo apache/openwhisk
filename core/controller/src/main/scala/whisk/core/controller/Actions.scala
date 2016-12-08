@@ -193,7 +193,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions with Refer
         parameter('overwrite ? false) { overwrite =>
             entity(as[WhiskActionPut]) { content =>
                 val docid = FullyQualifiedEntityName(namespace, name).toDocId
-                val request = content.resolve(namespace.root)
+                val request = content.resolve(user.namespace)
 
                 onComplete(entitleReferencedEntities(user, Privilege.READ, request.exec)) {
                     case Success(true) =>
@@ -222,7 +222,9 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions with Refer
             entity(as[Option[JsObject]]) { payload =>
                 val docid = FullyQualifiedEntityName(namespace, name).toDocId
                 getEntity(WhiskAction, entityStore, docid, Some {
-                    action: WhiskAction =>
+                    act: WhiskAction =>
+                        // resolve the action --- special case for sequences that may contain components with '_' as default package
+                        val action = act.resolve(user.namespace)
                         onComplete(entitleReferencedEntities(user, Privilege.ACTIVATE, Some(action.exec))) {
                             case Success(true) =>
                                 transid.started(this, if (blocking) LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING else LoggingMarkers.CONTROLLER_ACTIVATION)

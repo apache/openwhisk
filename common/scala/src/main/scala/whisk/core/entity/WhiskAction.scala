@@ -65,11 +65,11 @@ case class WhiskActionPut(
     /**
      * Resolves sequence components if they contain default namespace.
      */
-    protected[core] def resolve(namespace: EntityName): WhiskActionPut = {
+    protected[core] def resolve(userNamespace: EntityName): WhiskActionPut = {
         exec map {
             case SequenceExec(code, components) =>
                 val newExec = SequenceExec(code, components map {
-                    c => FullyQualifiedEntityName(c.path.resolveNamespace(namespace), c.name)
+                    c => FullyQualifiedEntityName(c.path.resolveNamespace(userNamespace), c.name)
                 })
                 WhiskActionPut(Some(newExec), parameters, limits, version, publish, annotations)
             case _ => this
@@ -166,6 +166,19 @@ case class WhiskAction(
         }
     }
 
+    /**
+     * Resolves sequence components if they contain default namespace.
+     */
+    protected[core] def resolve(userNamespace: EntityName): WhiskAction = {
+        exec match {
+            case SequenceExec(code, components) =>
+                val newExec = SequenceExec(code, components map {
+                    c => FullyQualifiedEntityName(c.path.resolveNamespace(userNamespace), c.name)
+                })
+                WhiskAction(namespace, name, newExec, parameters, limits, version, publish, annotations)
+            case _ => this
+        }
+    }
     def toJson = WhiskAction.serdes.write(this).asJsObject
 }
 
