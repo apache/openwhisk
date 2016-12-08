@@ -355,21 +355,12 @@ trait WhiskActionsApi
                 l.memory getOrElse MemoryLimit(),
                 l.logs getOrElse LogLimit())
         } getOrElse ActionLimits()
-        // This is temporary while we are making sequencing directly supported in the controller.
-        // The parameter override allows this to work with Pipecode.code. Any parameters other
-        // than the action sequence itself are discarded and have no effect.
-        // Note: While changing the implementation of sequences, components now store the fully qualified entity names
-        // (which loses the leading "/"). Adding it back while both versions of the code are in place.
-        val parameters = exec match {
-            case seq: SequenceExec => Parameters("_actions", JsArray(seq.components map { _.qualifiedNameWithLeadingSlash.toJson }))
-            case _                 => content.parameters getOrElse Parameters()
-        }
 
         WhiskAction(
             namespace,
             name,
             exec,
-            parameters,
+            content.parameters getOrElse Parameters(),
             limits,
             content.version getOrElse SemVer(),
             content.publish getOrElse false,
@@ -421,33 +412,7 @@ trait WhiskActionsApi
             ActionLimits(l.timeout getOrElse action.limits.timeout, l.memory getOrElse action.limits.memory, l.logs getOrElse action.limits.logs)
         } getOrElse action.limits
 
-        // This is temporary while we are making sequencing directly supported in the controller.
-        // Actions that are updated with a sequence will have their parameter property overridden.
-        // Actions that are updated with non-sequence actions will either set the parameter property according to
-        // the content provided, or if that is not defined, and iff the previous version of the action was not a
-        // sequence, inherit previous parameters. This is because sequence parameters are special and should not
-        // leak to non-sequence actions.
-        // If updating an action but not specifying a new exec type, then preserve the previous parameters if the
-        // existing type of the action is a sequence (regardless of what parameters may be defined in the content)
-        // otherwise, parameters are inferred from the content or previous values.
-        // Note: While changing the implementation of sequences, components now store the fully qualified entity names
-        // (which loses the leading "/"). Adding it back while both versions of the code are in place. This will disappear completely
-        // once the version of sequences with "pipe.js" is removed.
-        val parameters = content.exec map {
-            case seq: SequenceExec => Parameters("_actions", JsArray(seq.components map { c => JsString("/" + c.toString) }))
-            case _ => content.parameters getOrElse {
-                action.exec match {
-                    case seq: SequenceExec => Parameters()
-                    case _                 => action.parameters
-                }
-            }
-        } getOrElse {
-            action.exec match {
-                case seq: SequenceExec => action.parameters // discard content.parameters
-                case _                 => content.parameters getOrElse action.parameters
-            }
-        }
-
+        val parameters = content.parameters getOrElse action.parameters
         val exec = content.exec getOrElse action.exec
 
         WhiskAction(
