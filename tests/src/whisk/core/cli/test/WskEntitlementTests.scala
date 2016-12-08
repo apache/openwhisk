@@ -86,7 +86,13 @@ class WskEntitlementTests
                 (wp, assetHelper) =>
                     assetHelper.withCleaner(wsk.action, fullyQualifiedActionName, confirmDelete = false) {
                         (action, name) =>
-                            val rr = action.create(name, None, shared = Some(true), update = true, expectedExitCode = FORBIDDEN)(wp)
+                            val rr = action.create(name, None, update = true, expectedExitCode = FORBIDDEN)(wp)
+                            rr.stderr should include("not authorized")
+                            rr
+                    }
+                    assetHelper.withCleaner(wsk.action, "unauthorized sequence", confirmDelete = false) {
+                        (action, name) =>
+                            val rr = action.create(name, Some(fullyQualifiedActionName), kind = Some("sequence"), update = true, expectedExitCode = FORBIDDEN)(wp)
                             rr.stderr should include("not authorized")
                             rr
                     }
@@ -107,7 +113,7 @@ class WskEntitlementTests
 
             assetHelper.withCleaner(wsk.action, fullSampleActionName) {
                 val file = Some(TestUtils.getTestActionFilename("empty.js"))
-                (action, _) => action.create(fullSampleActionName, file, shared = Some(true))(wp)
+                (action, _) => action.create(fullSampleActionName, file)(wp)
             }
 
             val fullyQualifiedActionName = s"/$guestNamespace/$fullSampleActionName"
@@ -140,7 +146,7 @@ class WskEntitlementTests
 
             assetHelper.withCleaner(wsk.action, fullSampleActionName) {
                 val file = Some(TestUtils.getTestActionFilename("empty.js"))
-                (action, _) => action.create(fullSampleActionName, file, shared = Some(true))(wp)
+                (action, _) => action.create(fullSampleActionName, file)(wp)
             }
 
             val fullyQualifiedActionName = s"/$guestNamespace/$fullSampleActionName"
@@ -179,13 +185,13 @@ class WskEntitlementTests
 
             assetHelper.withCleaner(wsk.action, fullSampleActionName) {
                 val file = Some(TestUtils.getTestActionFilename("empty.js"))
-                (action, _) => action.create(fullSampleActionName, file, kind = Some("nodejs"), shared = Some(true))(wp)
+                (action, _) => action.create(fullSampleActionName, file, kind = Some("nodejs"))(wp)
             }
 
             val fullyQualifiedPackageName = s"/$guestNamespace/$samplePackage"
             val fullyQualifiedActionName = s"/$guestNamespace/$fullSampleActionName"
             val result = wsk.action.list(Some(fullyQualifiedPackageName))(defaultWskProps).stdout
-            result should include regex (fullyQualifiedActionName + """\s+shared""")
+            result should include regex (fullyQualifiedActionName)
     }
 
     behavior of "Wsk Package Binding"
@@ -215,6 +221,22 @@ class WskEntitlementTests
             }
     }
 
+    it should "not create a package binding for private package" in withAssetCleaner(guestWskProps) {
+        (wp, assetHelper) =>
+            assetHelper.withCleaner(wsk.pkg, samplePackage) {
+                (pkg, _) => pkg.create(samplePackage, shared = Some(false))(wp)
+            }
+
+            val name = "bindPackage"
+            val provider = s"/$guestNamespace/$samplePackage"
+            withAssetCleaner(defaultWskProps) {
+                (wp, assetHelper) =>
+                    assetHelper.withCleaner(wsk.pkg, name, confirmDelete = false) {
+                        (pkg, _) => pkg.bind(provider, name, expectedExitCode = FORBIDDEN)(wp)
+                    }
+            }
+    }
+
     behavior of "Wsk Package Action"
 
     it should "get and invoke an action from package" in withAssetCleaner(guestWskProps) {
@@ -225,7 +247,7 @@ class WskEntitlementTests
 
             assetHelper.withCleaner(wsk.action, fullSampleActionName) {
                 val file = Some(TestUtils.getTestActionFilename("hello.js"))
-                (action, _) => action.create(fullSampleActionName, file, shared = Some(true))(wp)
+                (action, _) => action.create(fullSampleActionName, file)(wp)
             }
 
             val fullyQualifiedActionName = s"/$guestNamespace/$fullSampleActionName"
@@ -243,6 +265,64 @@ class WskEntitlementTests
             })(defaultWskProps)
     }
 
+    it should "invoke an action sequence from package" in withAssetCleaner(guestWskProps) {
+        (wp, assetHelper) =>
+            assetHelper.withCleaner(wsk.pkg, samplePackage) {
+                (pkg, _) => pkg.create(samplePackage, parameters = Map("a" -> "A".toJson), shared = Some(true))(wp)
+            }
+
+            assetHelper.withCleaner(wsk.action, fullSampleActionName) {
+                val file = Some(TestUtils.getTestActionFilename("hello.js"))
+                (action, _) => action.create(fullSampleActionName, file)(wp)
+            }
+
+            withAssetCleaner(defaultWskProps) {
+                (wp, assetHelper) =>
+                    assetHelper.withCleaner(wsk.action, "sequence") {
+                        (action, name) =>
+                            val fullyQualifiedActionName = s"/$guestNamespace/$fullSampleActionName"
+                            action.create(name, Some(fullyQualifiedActionName), kind = Some("sequence"), update = true)(wp)
+                    }
+
+                    val run = wsk.action.invoke("sequence")(defaultWskProps)
+                    withActivation(wsk.activation, run)({
+                        _.response.success shouldBe true
+                    })(defaultWskProps)
+            }
+    }
+
+    it should "not allow invoke an action sequence with more than one component from package after entitlement change" in withAssetCleaner(guestWskProps) {
+        (guestwp, assetHelper) =>
+            val privateSamplePackage = samplePackage + "prv"
+            assetHelper.withCleaner(wsk.pkg, samplePackage) {
+                (pkg, _) =>
+                    pkg.create(samplePackage, parameters = Map("a" -> "A".toJson), shared = Some(true))(guestwp)
+                    pkg.create(privateSamplePackage, parameters = Map("a" -> "A".toJson), shared = Some(true))(guestwp)
+            }
+
+            assetHelper.withCleaner(wsk.action, fullSampleActionName) {
+                val file = Some(TestUtils.getTestActionFilename("hello.js"))
+                (action, _) =>
+                    action.create(fullSampleActionName, file)(guestwp)
+                    action.create(s"$privateSamplePackage/$sampleAction", file)(guestwp)
+            }
+
+            withAssetCleaner(defaultWskProps) {
+                (dwp, assetHelper) =>
+                    assetHelper.withCleaner(wsk.action, "sequence") {
+                        (action, name) =>
+                            val fullyQualifiedActionName = s"/$guestNamespace/$fullSampleActionName"
+                            val fullyQualifiedActionName2 = s"/$guestNamespace/$privateSamplePackage/$sampleAction"
+                            action.create(name, Some(s"$fullyQualifiedActionName,$fullyQualifiedActionName2"),
+                                kind = Some("sequence"))(dwp)
+                    }
+
+                    // change package visibility
+                    wsk.pkg.create(privateSamplePackage, update = true, shared = Some(false))(guestwp)
+                    wsk.action.invoke("sequence", expectedExitCode = FORBIDDEN)(defaultWskProps)
+            }
+    }
+
     behavior of "Wsk Trigger Feed"
 
     it should "not create a trigger with timeout error when feed fails to initialize" in withAssetCleaner(guestWskProps) {
@@ -254,7 +334,7 @@ class WskEntitlementTests
             val sampleFeed = s"$samplePackage/sampleFeed"
             assetHelper.withCleaner(wsk.action, sampleFeed) {
                 val file = Some(TestUtils.getTestActionFilename("empty.js"))
-                (action, _) => action.create(sampleFeed, file, kind = Some("nodejs"), shared = Some(true))(wp)
+                (action, _) => action.create(sampleFeed, file, kind = Some("nodejs"))(wp)
             }
 
             val fullyQualifiedFeedName = s"/$guestNamespace/$sampleFeed"

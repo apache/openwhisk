@@ -24,6 +24,7 @@ const EXITCODE_ERR_GENERAL      int = 1
 const EXITCODE_ERR_USAGE        int = 2
 const EXITCODE_ERR_NETWORK      int = 3
 const EXITCODE_ERR_HTTP_RESP    int = 4
+const NOT_ALLOWED               int = 149
 
 const DISPLAY_MSG       bool = true
 const NO_DISPLAY_MSG    bool = false

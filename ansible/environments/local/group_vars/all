@@ -17,6 +17,11 @@ db_protocol: "{{ lookup('ini', 'db_protocol section=db_creds file={{ playbook_di
 db_host: "{{ lookup('ini', 'db_host section=db_creds file={{ playbook_dir }}/db_local.ini') }}"
 db_port: "{{ lookup('ini', 'db_port section=db_creds file={{ playbook_dir }}/db_local.ini') }}"
 
+# apigw db credentials minimum read/write
+db_apigw_username: "{{ db_username }}"
+db_apigw_password: "{{ db_password }}"
+db_apigw: "{{ db_prefix }}gwapis"
+
 limits:
   actions:
     invokes:
@@ -26,3 +31,9 @@ limits:
   triggers:
     fires:
       perMinute: 60
+
+# API GW connection configuration
+apigw_auth_user: ""
+apigw_auth_pwd: ""
+apigw_host: "http://{{ groups['apigateway']|first }}:{{apigateway.port.api}}/v1"
+

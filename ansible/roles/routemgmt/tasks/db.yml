@@ -1,0 +1,36 @@
+---
+# This creates the immortal api gateway configuration (gwapis) database, only if it doesn't exist yet
+
+- name: check if API Gateway database already exists
+  uri:
+    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db_apigw }}"
+    method: GET
+    status_code: 200,404
+    user: "{{ db_username }}"
+    password: "{{ db_password }}"
+    force_basic_auth: yes
+  register: result
+
+- name: create immortal API Gateway database
+  uri:
+    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db_apigw }}"
+    method: PUT
+    status_code: 200,201
+    user: "{{ db_username }}"
+    password: "{{ db_password }}"
+    force_basic_auth: yes
+  when: result.status == 404
+
+- name: create the API Gateway query views for the API Gateway database
+  vars:
+    gwapis_views: "{{ lookup('file', 'gwapis_views.json') }}"
+  uri:
+    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db_apigw }}"
+    method: POST
+    status_code: 200,201
+    body_format: json
+    body: "{{ gwapis_views }}"
+    user: "{{ db_username }}"
+    password: "{{ db_password }}"
+    force_basic_auth: yes
+  when: result.status == 404

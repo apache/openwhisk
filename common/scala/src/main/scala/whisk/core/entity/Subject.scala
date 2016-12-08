@@ -23,7 +23,6 @@ import spray.json.JsValue
 import spray.json.RootJsonFormat
 import spray.json.deserializationError
 import whisk.core.entitlement.Privilege
-import whisk.core.entitlement.Privilege.Privilege
 
 protected[core] class Subject private (private val subject: String) extends AnyVal {
     protected[core] def apply() = subject
@@ -69,5 +68,3 @@ protected[core] object Subject extends ArgNormalizer[Subject] {
 
     private val rand = new scala.util.Random()
 }
-
-protected[core] case class Identity(subject: Subject, namespace: EntityName, authkey: AuthKey, rights: Set[Privilege])

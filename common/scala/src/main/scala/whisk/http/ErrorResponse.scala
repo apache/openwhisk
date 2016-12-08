@@ -19,18 +19,12 @@ package whisk.http
 import scala.util.Try
 
 import spray.http.StatusCode
+import spray.http.StatusCodes.Forbidden
 import spray.http.StatusCodes.NotFound
 import spray.httpx.marshalling.ToResponseMarshallable.isMarshallable
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
-import spray.json.DefaultJsonProtocol.LongJsonFormat
-import spray.json.DefaultJsonProtocol.StringJsonFormat
-import spray.json.JsNumber
-import spray.json.JsObject
-import spray.json.JsString
-import spray.json.JsValue
-import spray.json.RootJsonFormat
-import spray.json.deserializationError
-import spray.json.pimpAny
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 import spray.routing.Directives
 import spray.routing.Rejection
 import spray.routing.StandardRoute
@@ -44,7 +38,8 @@ object Messages {
      * Standard message for reporting resource conformance error when trying to access
      * a resource from a different collection.
      */
-    val conformanceMessage = "Resource by this name already exists but is not in this collection."
+    val conformanceMessage = "Resource by this name exists but is not in this collection."
+    val corruptedEntity = "Resource is corrupted and cannot be read."
 
     val systemOverloaded = "System is overloaded, try again later."
 
@@ -58,7 +53,26 @@ object Messages {
     val tooManyConcurrentRequests = "The user has sent too many concurrent requests."
 
     /** Standard message when supplied authkey is not authorized for an operation. */
-    val notAuthorizedtoOperateOnResource = "The supplied authentication token is not authorized to perform operation resource."
+    val notAuthorizedtoOperateOnResource = "The supplied authentication is not authorized to access this resource."
+
+    /** Standard error message for malformed fully qualified entity names. */
+    val malformedFullyQualifiedEntityName = "The fully qualified name of the entity must contain at least the namespace and the name of the entity."
+
+    /** Error messages for sequence actions. */
+    val sequenceIsTooLong = "Too many actions in the sequence."
+    val sequenceIsCyclic = "Sequence may not refer to itself."
+    val sequenceComponentNotFound = "Sequence component does not exist."
+
+    /** Error message for packages. */
+    val bindingDoesNotExist = "Binding references a package that does not exist."
+    val packageCannotBecomeBinding = "Resource is a package and cannot be converted into a binding."
+    val bindingCannotReferenceBinding = "Cannot bind to another package binding."
+    val requestedBindingIsNotValid = "Cannot bind to a resource that is not a package."
+    val notAllowedOnBinding = "Operation not permitted on package binding."
+
+    /** Error messages for sequence activations. */
+    val sequenceRetrieveActivationTimeout = "Timeout reached when retrieving activation for sequence component."
+    val sequenceActivationFailure = "Sequence failed."
 }
 
 /** Replaces rejections with Json object containing cause and transaction id. */
@@ -80,8 +94,9 @@ object ErrorResponse extends Directives {
     }
 
     def response(status: StatusCode)(implicit transid: TransactionId): ErrorResponse = status match {
-        case NotFound => ErrorResponse(Messages.resourceDoesNotExist, transid)
-        case _        => ErrorResponse(status.defaultMessage, transid)
+        case NotFound  => ErrorResponse(Messages.resourceDoesNotExist, transid)
+        case Forbidden => ErrorResponse(Messages.notAuthorizedtoOperateOnResource, transid)
+        case _         => ErrorResponse(status.defaultMessage, transid)
     }
 
     implicit val serializer = new RootJsonFormat[ErrorResponse] {

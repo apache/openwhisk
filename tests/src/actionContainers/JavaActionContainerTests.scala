@@ -20,26 +20,71 @@ import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
+import spray.json.DefaultJsonProtocol._
 import spray.json._
 
 import ActionContainer.withContainer
+import ResourceHelpers.JarBuilder
+
 import common.WskActorSystem
 
-import collection.JavaConverters._
-
 @RunWith(classOf[JUnitRunner])
-class JavaActionContainerTests extends FlatSpec with Matchers with WskActorSystem {
+class JavaActionContainerTests extends FlatSpec with Matchers with WskActorSystem with ActionProxyContainerTestUtils {
 
     // Helpers specific to javaaction
-    def withJavaContainer(code: ActionContainer => Unit) = withContainer("javaaction")(code)
-    def initPayload(mainClass: String, jar64: String) = JsObject(
+    def withJavaContainer(code: ActionContainer => Unit, env: Map[String, String] = Map.empty) = withContainer("javaaction", env)(code)
+
+    override def initPayload(mainClass: String, jar64: String) = JsObject(
         "value" -> JsObject(
             "name" -> JsString("dummyAction"),
             "main" -> JsString(mainClass),
             "jar" -> JsString(jar64)))
-    def runPayload(args: JsValue) = JsObject("value" -> args)
 
     behavior of "Java action"
+
+    it should s"run a java snippet and confirm expected environment variables" in {
+        val props = Seq("api_host" -> "xyz",
+            "api_key" -> "abc",
+            "namespace" -> "zzz",
+            "action_name" -> "xxx",
+            "activation_id" -> "iii",
+            "deadline" -> "123")
+        val env = props.map { case (k, v) => s"__OW_${k.toUpperCase}" -> v }
+        val (out, err) = withJavaContainer({ c =>
+            val jar = JarBuilder.mkBase64Jar(
+                Seq("example", "HelloWhisk.java") -> """
+                    | package example;
+                    |
+                    | import com.google.gson.JsonObject;
+                    |
+                    | public class HelloWhisk {
+                    |     public static JsonObject main(JsonObject args) {
+                    |         JsonObject response = new JsonObject();
+                    |         response.addProperty("api_host", System.getenv("__OW_API_HOST"));
+                    |         response.addProperty("api_key", System.getenv("__OW_API_KEY"));
+                    |         response.addProperty("namespace", System.getenv("__OW_NAMESPACE"));
+                    |         response.addProperty("action_name", System.getenv("__OW_ACTION_NAME"));
+                    |         response.addProperty("activation_id", System.getenv("__OW_ACTIVATION_ID"));
+                    |         response.addProperty("deadline", System.getenv("__OW_DEADLINE"));
+                    |         return response;
+                    |     }
+                    | }
+                """.stripMargin.trim)
+
+            val (initCode, _) = c.init(initPayload("example.HelloWhisk", jar))
+            initCode should be(200)
+
+            val (runCode, out) = c.run(runPayload(JsObject(), Some(props.toMap.toJson.asJsObject)))
+            runCode should be(200)
+            props.map {
+                case (k, v) => out.get.fields(k) shouldBe JsString(v)
+
+            }
+        }, env.take(1).toMap)
+
+        out.trim shouldBe empty
+        err.trim shouldBe empty
+    }
 
     it should "support valid flows" in {
         val (out, err) = withJavaContainer { c =>
@@ -271,136 +316,5 @@ class JavaActionContainerTests extends FlatSpec with Matchers with WskActorSyste
 
     it should "support loading classes from the Thread classloader" in {
         classLoaderTest("thread")
-    }
-}
-
-/**
- * A convenience object to compile and package Java sources into a JAR, and to
- * encode that JAR as a base 64 string. The compilation options include the
- * current classpath, which is why Google GSON is readily available (though not
- * packaged in the JAR).
- */
-object JarBuilder {
-    import java.net.URI
-    import java.net.URLClassLoader
-    import java.nio.file.Files
-    import java.nio.file.Path
-    import java.nio.file.Paths
-    import java.nio.file.SimpleFileVisitor
-    import java.nio.file.FileVisitResult
-    import java.nio.file.FileSystems
-    import java.nio.file.attribute.BasicFileAttributes
-    import java.nio.charset.StandardCharsets
-    import java.util.Base64
-
-    import javax.tools.ToolProvider
-
-    def mkBase64Jar(sources: Seq[(Seq[String], String)]): String = {
-        // Note that this pipeline doesn't delete any of the temporary files.
-        val binDir = compile(sources)
-        val jarPath = makeJar(binDir)
-        val base64 = toBase64(jarPath)
-        base64
-    }
-
-    def mkBase64Jar(source: (Seq[String], String)): String = {
-        mkBase64Jar(Seq(source))
-    }
-
-    private def compile(sources: Seq[(Seq[String], String)]): Path = {
-        require(!sources.isEmpty)
-
-        // A temporary directory for the source files.
-        val srcDir = Files.createTempDirectory("src").toAbsolutePath()
-
-        // The absolute paths of the source file
-        val srcAbsPaths = for ((sourceName, sourceContent) <- sources) yield {
-            // The relative path of the source file
-            val srcRelPath = Paths.get(sourceName.head, sourceName.tail: _*)
-            // The absolute path of the source file
-            val srcAbsPath = srcDir.resolve(srcRelPath)
-            // Create parent directories if needed.
-            Files.createDirectories(srcAbsPath.getParent)
-            // Writing contents
-            Files.write(srcAbsPath, sourceContent.getBytes(StandardCharsets.UTF_8))
-
-            srcAbsPath
-        }
-
-        // A temporary directory for the destination files.
-        val binDir = Files.createTempDirectory("bin").toAbsolutePath()
-
-        // Preparing the compiler
-        val compiler = ToolProvider.getSystemJavaCompiler()
-        val fileManager = compiler.getStandardFileManager(null, null, StandardCharsets.UTF_8)
-
-        // Collecting all files to be compiled
-        val compUnit = fileManager.getJavaFileObjectsFromFiles(srcAbsPaths.map(_.toFile).asJava)
-
-        // Setting the options
-        val compOptions = Seq(
-            "-d", binDir.toAbsolutePath().toString(),
-            "-classpath", buildClassPath())
-        val compTask = compiler.getTask(null, fileManager, null, compOptions.asJava, null, compUnit)
-
-        // ...and off we go.
-        compTask.call()
-
-        binDir
-    }
-
-    private def buildClassPath(): String = {
-        val bcp = System.getProperty("java.class.path")
-
-        val list = this.getClass().getClassLoader() match {
-            case ucl: URLClassLoader =>
-                bcp :: ucl.getURLs().map(_.getFile().toString()).toList
-
-            case _ =>
-                List(bcp)
-        }
-
-        list.mkString(System.getProperty("path.separator"))
-    }
-
-    private def makeJar(binDir: Path): Path = {
-        // Any temporary file name for the jar.
-        val jarPath = Files.createTempFile("output", ".jar").toAbsolutePath()
-        val jarUri = new URI("jar:" + jarPath.toUri().getScheme(), jarPath.toAbsolutePath().toString(), null)
-
-        // OK, that's a hack. Doing this because newFileSystem wants to create that file.
-        jarPath.toFile().delete()
-
-        // We "mount" it as a zip filesystem, so we can just copy files to it.
-        val fs = FileSystems.newFileSystem(jarUri, Map(("create" -> "true")).asJava)
-
-        // Traversing all files in the bin directory...
-        Files.walkFileTree(binDir, new SimpleFileVisitor[Path]() {
-            override def visitFile(path: Path, attributes: BasicFileAttributes) = {
-                // The path relative to the bin dir
-                val relPath = binDir.relativize(path)
-                // The corresponding path in the jar
-                val jarRelPath = fs.getPath(relPath.toString())
-
-                // Creating the directory structure if it doesn't exist.
-                if (!Files.exists(jarRelPath.getParent())) {
-                    Files.createDirectories(jarRelPath.getParent())
-                }
-
-                // Finally we can copy that file.
-                Files.copy(path, jarRelPath)
-
-                FileVisitResult.CONTINUE
-            }
-        })
-
-        fs.close()
-
-        jarPath
-    }
-
-    private def toBase64(path: Path): String = {
-        val encoder = Base64.getEncoder()
-        new String(encoder.encode(Files.readAllBytes(path)), StandardCharsets.UTF_8)
     }
 }

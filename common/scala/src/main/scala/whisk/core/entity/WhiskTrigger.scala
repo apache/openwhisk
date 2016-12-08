@@ -18,6 +18,7 @@ package whisk.core.entity
 
 import spray.json.DefaultJsonProtocol
 import whisk.core.database.DocumentFactory
+import spray.json._
 
 /**
  * WhiskTriggerPut is a restricted WhiskTrigger view that eschews properties
@@ -39,7 +40,7 @@ case class WhiskTriggerPut(
  * @param status status of the rule
  */
 case class ReducedRule(
-    action: EntityPath,
+    action: FullyQualifiedEntityName,
     status: Status)
 
 /**
@@ -68,7 +69,7 @@ case class WhiskTrigger(
     version: SemVer = SemVer(),
     publish: Boolean = false,
     annotations: Parameters = Parameters(),
-    rules: Option[Map[EntityPath, ReducedRule]] = None)
+    rules: Option[Map[FullyQualifiedEntityName, ReducedRule]] = None)
     extends WhiskEntity(name) {
 
     require(limits != null, "limits undefined")
@@ -84,9 +85,9 @@ case class WhiskTrigger(
      * @param rule The rule, that will be fired by this trigger. It's from type ReducedRule. This type
      * contains the fully qualified name of the action to be fired by the rule and the status of the rule.
      */
-    def addRule(rulename: EntityPath, rule: ReducedRule) = {
+    def addRule(rulename: FullyQualifiedEntityName, rule: ReducedRule) = {
         val entry = rulename -> rule
-        val links = rules getOrElse Map[EntityPath, ReducedRule]()
+        val links = rules getOrElse Map[FullyQualifiedEntityName, ReducedRule]()
         WhiskTrigger(namespace, name, parameters, limits, version, publish, annotations, Some(links + entry)).revision[WhiskTrigger](docinfo.rev)
     }
 
@@ -96,12 +97,13 @@ case class WhiskTrigger(
      * @param rule The fully qualified name of the rule, that should be removed from the
      * trigger. After removing the rule, it won't be fired anymore by this trigger.
      */
-    def removeRule(rule: EntityPath) = {
+    def removeRule(rule: FullyQualifiedEntityName) = {
         WhiskTrigger(namespace, name, parameters, limits, version, publish, annotations, rules.map(_ - rule)).revision[WhiskTrigger](docinfo.rev)
     }
 }
 
 object ReducedRule extends DefaultJsonProtocol {
+    private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
     implicit val serdes = jsonFormat2(ReducedRule.apply)
 }
 
@@ -111,10 +113,12 @@ object WhiskTrigger
     with DefaultJsonProtocol {
 
     override val collectionName = "triggers"
+
+    private implicit val fqnSerdesAsDocId = FullyQualifiedEntityName.serdesAsDocId
     override implicit val serdes = jsonFormat8(WhiskTrigger.apply)
 
-    override val cacheEnabled = false //disabled for now until redis in place
-    override def cacheKeys(w: WhiskTrigger) = Set(w.docid.asDocInfo, w.docinfo)
+    override val cacheEnabled = true
+    override def cacheKeyForUpdate(w: WhiskTrigger) = w.docid.asDocInfo
 }
 
 object WhiskTriggerPut extends DefaultJsonProtocol {

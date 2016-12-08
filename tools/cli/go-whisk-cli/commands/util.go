@@ -35,15 +35,16 @@ import (
     "net/url"
     "io/ioutil"
     "sort"
+    "reflect"
 )
 
-type qualifiedName struct {
+type QualifiedName struct {
     namespace   string
     packageName string
     entityName  string
 }
 
-func (qName qualifiedName) String() string {
+func (qName QualifiedName) String() string {
     output := []string{}
 
     if len(qName.namespace) > 0 {
@@ -70,33 +71,58 @@ Examples:
       /ns/foo => qName {namespace: ns, entityName: foo}
       /ns/pkg/foo => qName {namespace: ns, entityName: pkg/foo}
 */
-func parseQualifiedName(name string) (qName qualifiedName, err error) {
+func parseQualifiedName(name string) (QualifiedName, error) {
+    var qualifiedName QualifiedName
 
     // If name has a preceding delimiter (/), it contains a namespace. Otherwise the name does not specify a namespace,
     // so default the namespace to the namespace value set in the properties file; if that is not set, use "_"
-    if len(name) > 0  && name[0] == '/' {
+    if  strings.HasPrefix(name, "/")  {
         parts := strings.Split(name, "/")
-        qName.namespace = parts[1]
+        qualifiedName.namespace = parts[1]
 
-        if len(parts) > 2 {
-            qName.entityName = strings.Join(parts[2:], "/")
-        } else {
-            qName.entityName = ""
+        if len(parts) < 2 || len(parts) > 4 {
+            whisk.Debug(whisk.DbgError, "A valid qualified name was not detected\n")
+            errStr := fmt.Sprintf(wski18n.T("A valid qualified name must be specified."))
+            err := whisk.MakeWskError(errors.New(errStr), whisk.NOT_ALLOWED, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            return qualifiedName, err
         }
+
+        for i := 1; i < len(parts); i++ {
+            if len(parts[i]) == 0 || parts[i] == "." {
+                whisk.Debug(whisk.DbgError, "A valid qualified name was not detected\n")
+                errStr := fmt.Sprintf(wski18n.T("A valid qualified name must be specified."))
+                err := whisk.MakeWskError(errors.New(errStr), whisk.NOT_ALLOWED, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                return qualifiedName, err
+            }
+        }
+
+        qualifiedName.entityName = strings.Join(parts[2:], "/")
     } else {
-        qName.entityName = name
-
-        if Properties.Namespace != "" {
-            qName.namespace = Properties.Namespace
-        } else {
-            qName.namespace = "_"
+        if len(name) == 0 || name == "." {
+            whisk.Debug(whisk.DbgError, "A valid qualified name was not detected\n")
+            errStr := fmt.Sprintf(wski18n.T("A valid qualified name must be specified."))
+            err := whisk.MakeWskError(errors.New(errStr), whisk.NOT_ALLOWED, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            return qualifiedName, err
         }
+
+        qualifiedName.entityName = name
+        qualifiedName.namespace = getNamespace()
     }
 
-    whisk.Debug(whisk.DbgInfo, "Qualified entityName: %s\n", qName.entityName)
-    whisk.Debug(whisk.DbgInfo, "Qaulified namespace: %s\n", qName.namespace)
+    whisk.Debug(whisk.DbgInfo, "Qualified entityName: %s\n", qualifiedName.entityName)
+    whisk.Debug(whisk.DbgInfo, "Qaulified namespace: %s\n", qualifiedName.namespace)
 
-    return qName, err
+    return qualifiedName, nil
+}
+
+func getNamespace() (string) {
+    namespace := "_"
+
+    if Properties.Namespace != "" {
+        namespace = Properties.Namespace
+    }
+
+    return namespace
 }
 
 /*
@@ -109,10 +135,10 @@ Examples:
       (/ns/pkg/foo, None) => /ns/pkg/foo
       (/ns/pkg/foo, otherns) => /ns/pkg/foo
 */
-func getQualifiedName(name string, namespace string) (qualifiedName string) {
-    if len(name) > 0 && name[0] == '/' {
+func getQualifiedName(name string, namespace string) (string) {
+    if strings.HasPrefix(name, "/") {
         return name
-    } else if len(namespace) > 0 && namespace[0] == '/' {
+    } else if strings.HasPrefix(namespace, "/")  {
         return fmt.Sprintf("%s/%s", namespace, name)
     } else {
         if len(namespace) == 0 {
@@ -210,7 +236,7 @@ func printList(collection interface{}) {
     switch collection := collection.(type) {
     case []whisk.Action:
         printActionList(collection)
-    case []whisk.TriggerFromServer:
+    case []whisk.Trigger:
         printTriggerList(collection)
     case []whisk.Package:
         printPackageList(collection)
@@ -220,6 +246,8 @@ func printList(collection interface{}) {
         printNamespaceList(collection)
     case []whisk.Activation:
         printActivationList(collection)
+    case []whisk.Api:
+        printApiList(collection)
     }
 }
 
@@ -244,7 +272,7 @@ func printSummary(collection interface{}) {
     switch collection := collection.(type) {
     case *whisk.Action:
         printActionSummary(collection)
-    case *whisk.TriggerFromServer:
+    case *whisk.Trigger:
         printTriggerSummary(collection)
     case *whisk.Package:
         printPackageSummary(collection)
@@ -260,20 +288,15 @@ func printActionList(actions []whisk.Action) {
     fmt.Fprintf(color.Output, "%s\n", boldString("actions"))
     for _, action := range actions {
         publishState := wski18n.T("private")
-        if action.Publish {
-            publishState = wski18n.T("shared")
-        }
-        fmt.Printf("%-70s %s\n", fmt.Sprintf("/%s/%s", action.Namespace, action.Name), publishState)
+        kind := getValueString(action.Annotations, "exec")
+        fmt.Printf("%-70s %s %s\n", fmt.Sprintf("/%s/%s", action.Namespace, action.Name), publishState, kind)
     }
 }
 
-func printTriggerList(triggers []whisk.TriggerFromServer) {
+func printTriggerList(triggers []whisk.Trigger) {
     fmt.Fprintf(color.Output, "%s\n", boldString("triggers"))
     for _, trigger := range triggers {
         publishState := wski18n.T("private")
-        if trigger.Publish {
-            publishState = wski18n.T("shared")
-        }
         fmt.Printf("%-70s %s\n", fmt.Sprintf("/%s/%s", trigger.Namespace, trigger.Name), publishState)
     }
 }
@@ -282,7 +305,7 @@ func printPackageList(packages []whisk.Package) {
     fmt.Fprintf(color.Output, "%s\n", boldString("packages"))
     for _, xPackage := range packages {
         publishState := wski18n.T("private")
-        if xPackage.Publish {
+        if xPackage.Publish != nil && *xPackage.Publish {
             publishState = wski18n.T("shared")
         }
         fmt.Printf("%-70s %s\n", fmt.Sprintf("/%s/%s", xPackage.Namespace, xPackage.Name), publishState)
@@ -293,9 +316,6 @@ func printRuleList(rules []whisk.Rule) {
     fmt.Fprintf(color.Output, "%s\n", boldString("rules"))
     for _, rule := range rules {
         publishState := wski18n.T("private")
-        if rule.Publish {
-            publishState = wski18n.T("shared")
-        }
         fmt.Printf("%-70s %s\n", fmt.Sprintf("/%s/%s", rule.Namespace, rule.Name), publishState)
     }
 }
@@ -318,6 +338,20 @@ func printFullActivationList(activations []whisk.Activation) {
     fmt.Fprintf(color.Output, "%s\n", boldString("activations"))
     for _, activation := range activations {
         printJSON(activation)
+    }
+}
+
+func printApiList(apis []whisk.Api) {
+    fmt.Fprintf(color.Output, "%s\n", boldString("apis"))
+    for _, api := range apis {
+        fmt.Printf("%s %20s %20s\n", api.ApiName, api.GatewayBasePath, api.GatewayFullPath)
+    }
+}
+
+func printFullApiList(apis []whisk.Api) {
+    fmt.Fprintf(color.Output, "%s\n", boldString("apis"))
+    for _, api := range apis {
+        printJSON(api)
     }
 }
 
@@ -363,7 +397,7 @@ func printActionSummary(action *whisk.Action) {
         strings.Join(getChildValueStrings(action.Annotations, "parameters", "name"), ", "))
 }
 
-func printTriggerSummary(trigger *whisk.TriggerFromServer) {
+func printTriggerSummary(trigger *whisk.Trigger) {
     printEntitySummary(fmt.Sprintf("%7s", "trigger"),
         getFullName(trigger.Namespace, "", trigger.Name),
         getValueString(trigger.Annotations, "description"),
@@ -787,6 +821,13 @@ func checkArgs(args []string, minimumArgNumber int, maximumArgNumber int, comman
 }
 
 func getURLBase(host string) (*url.URL, error)  {
+    if len(host) == 0 {
+        errMsg := wski18n.T("An API host must be provided.")
+        whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+            whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+        return nil, whiskErr
+    }
+
     urlBase := fmt.Sprintf("%s/api/", host)
     url, err := url.Parse(urlBase)
 
@@ -835,4 +876,52 @@ func readFile(filename string) (string, error) {
     }
 
     return string(file), nil
+}
+
+func fieldExists(value interface{}, field string) (bool) {
+    element := reflect.ValueOf(value).Elem()
+
+    for i := 0; i < element.NumField(); i++ {
+        if strings.ToLower(element.Type().Field(i).Name) == strings.ToLower(field) {
+            return true
+        }
+    }
+
+    return false
+}
+
+func printField(value interface{}, field string) {
+    var matchFunc = func(structField string) bool {
+        return strings.ToLower(structField) == strings.ToLower(field)
+    }
+
+    structValue := reflect.ValueOf(value)
+    fieldValue := reflect.Indirect(structValue).FieldByNameFunc(matchFunc)
+
+    printJSON(fieldValue.Interface())
+}
+
+func parseShared(shared string) (bool, bool, error) {
+    var isShared, isSet bool
+
+    if strings.ToLower(shared) == "yes" {
+        isShared = true
+        isSet = true
+    } else if strings.ToLower(shared) == "no" {
+        isShared = false
+        isSet = true
+    } else if len(shared) == 0 {
+        isSet = false
+    } else {
+        whisk.Debug(whisk.DbgError, "Cannot use value '%s' for shared.\n", shared)
+        errMsg := fmt.Sprintf(wski18n.T("Cannot use value '{{.arg}}' for shared.",
+                map[string]interface{}{"arg": shared}))
+        whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG,
+            whisk.DISPLAY_USAGE)
+        return false, false, whiskErr
+    }
+
+    whisk.Debug(whisk.DbgError, "Sharing is '%t'\n", isShared)
+
+    return isShared, isSet, nil
 }

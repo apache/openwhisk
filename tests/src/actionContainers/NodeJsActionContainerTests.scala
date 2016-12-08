@@ -18,7 +18,11 @@ package actionContainers
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
+import whisk.core.entity.{ NodeJSAbstractExec, NodeJSExec }
+
 import ActionContainer.withContainer
+import ResourceHelpers.ZipBuilder
+
 import common.WskActorSystem
 import spray.json._
 
@@ -27,17 +31,25 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
 
     lazy val nodejsContainerImageName = "nodejsaction"
 
+    val hasDeprecationWarnings = true
+
     override def withActionContainer(env: Map[String, String] = Map.empty)(code: ActionContainer => Unit) = {
         withContainer(nodejsContainerImageName, env)(code)
     }
 
     def withNodeJsContainer(code: ActionContainer => Unit) = withActionContainer()(code)
 
-    override def initPayload(code: String) = JsObject(
-        "value" -> JsObject(
-            "name" -> JsString("dummyAction"),
-            "code" -> JsString(code),
-            "main" -> JsString("main")))
+    def exec(code: String): NodeJSAbstractExec = NodeJSExec(code, None)
+
+    override def initPayload(code: String, main: String = "main") = {
+        val e = exec(code)
+        JsObject(
+            "value" -> JsObject(
+                "name" -> JsString("dummyAction"),
+                "code" -> JsString(e.code),
+                "binary" -> JsBoolean(e.binary),
+                "main" -> JsString(main)))
+    }
 
     behavior of nodejsContainerImageName
 
@@ -56,6 +68,21 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
           |    return args
           |}
           """.stripMargin)
+    })
+
+    testEnv(Seq {
+        ("node", """
+         |function main(args) {
+         |    return {
+         |       "api_host": process.env['__OW_API_HOST'],
+         |       "api_key": process.env['__OW_API_KEY'],
+         |       "namespace": process.env['__OW_NAMESPACE'],
+         |       "action_name": process.env['__OW_ACTION_NAME'],
+         |       "activation_id": process.env['__OW_ACTIVATION_ID'],
+         |       "deadline": process.env['__OW_DEADLINE']
+         |    }
+         |}
+         """.stripMargin.trim)
     })
 
     it should "fail to initialize with bad code" in {
@@ -148,7 +175,7 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
         checkStreams(out, err, {
             case (o, e) =>
                 o shouldBe empty
-                e shouldBe empty
+                if (!hasDeprecationWarnings) e shouldBe empty
         })
     }
 
@@ -170,7 +197,58 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
         checkStreams(out, err, {
             case (o, e) =>
                 o shouldBe empty
-                e shouldBe empty
+                if (!hasDeprecationWarnings) e shouldBe empty
+        })
+    }
+
+    it should "warn when using deprecated whisk object methods" in {
+        val (out, err) = withNodeJsContainer { c =>
+            val code = """
+                | function main(args) {
+                |     whisk.getAuthKey(whisk.setAuthKey('xxx'));
+                |     try { whisk.invoke(); } catch (e) {}
+                |     try { whisk.trigger();  } catch (e) {}
+                |     setTimeout(function () { whisk.done(); }, 1000);
+                |     return whisk.async();
+                | }
+            """.stripMargin
+
+            c.init(initPayload(code))._1 should be(200)
+
+            val (runCode, runRes) = c.run(runPayload(JsObject()))
+            runCode should be(200)
+        }
+
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe empty
+                e should not be empty
+                val lines = e.split("\n")
+                lines.filter { l => l.startsWith("[WARN] \"whisk.") && l.contains("deprecated") }.length shouldBe 8
+        })
+    }
+
+    it should "warn when using deprecated whisk.error" in {
+        val (out, err) = withNodeJsContainer { c =>
+            val code = """
+                | function main(args) {
+                |     whisk.error("{warnme: true}");
+                | }
+            """.stripMargin
+
+            c.init(initPayload(code))._1 should be(200)
+
+            val (runCode, runRes) = c.run(runPayload(JsObject()))
+            runCode should be(200)
+        }
+
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe empty
+                e should not be empty
+                val lines = e.split("\n")
+                lines.length shouldBe 1
+                lines.forall { l => l.startsWith("[WARN] \"whisk.") && l.contains("deprecated") }
         })
     }
 
@@ -195,7 +273,7 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
         checkStreams(out, err, {
             case (o, e) =>
                 o should include("more than once")
-                e shouldBe empty
+                if (!hasDeprecationWarnings) e shouldBe empty
         })
     }
 
@@ -233,7 +311,7 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
         checkStreams(out, err, {
             case (o, e) =>
                 o shouldBe empty
-                e shouldBe empty
+                if (!hasDeprecationWarnings) e shouldBe empty
         }, 3)
     }
 
@@ -258,7 +336,7 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
         checkStreams(out, err, {
             case (o, e) =>
                 o shouldBe empty
-                e shouldBe empty
+                if (!hasDeprecationWarnings) e shouldBe empty
         })
     }
 
@@ -292,7 +370,7 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
         checkStreams(out, err, {
             case (o, e) =>
                 o shouldBe empty
-                e shouldBe empty
+                if (!hasDeprecationWarnings) e shouldBe empty
         }, 2)
     }
 
@@ -433,5 +511,115 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
                 o shouldBe empty
                 e shouldBe empty
         })
+    }
+
+    val examplePackageDotJson: String = """
+        | {
+        |   "name": "wskaction",
+        |   "version": "1.0.0",
+        |   "description": "An OpenWhisk action as an npm package.",
+        |   "main": "index.js",
+        |   "author": "info@openwhisk.org",
+        |   "license": "Apache-2.0"
+        | }
+    """.stripMargin
+
+    it should "support zip-encoded npm package actions" in {
+        val srcs = Seq(
+            Seq("package.json") -> examplePackageDotJson,
+            Seq("index.js") -> """
+                | exports.main = function (args) {
+                |     var name = typeof args["name"] === "string" ? args["name"] : "stranger";
+                |
+                |     return {
+                |         greeting: "Hello " + name + ", from an npm package action."
+                |     };
+                | }
+            """.stripMargin)
+
+        val code = ZipBuilder.mkBase64Zip(srcs)
+
+        val (out, err) = withNodeJsContainer { c =>
+            c.init(initPayload(code))._1 should be(200)
+
+            val (runCode, runRes) = c.run(runPayload(JsObject()))
+
+            runCode should be(200)
+            runRes.get.fields.get("greeting") shouldBe Some(JsString("Hello stranger, from an npm package action."))
+        }
+
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe empty
+                e shouldBe empty
+        })
+    }
+
+    it should "fail gracefully on invalid zip files" in {
+        // Some text-file encoded to base64.
+        val code = "Q2VjaSBuJ2VzdCBwYXMgdW4gemlwLgo="
+
+        val (out, err) = withNodeJsContainer { c =>
+            c.init(initPayload(code))._1 should not be (200)
+        }
+
+        // Somewhere, the logs should mention the connection to the archive.
+        checkStreams(out, err, {
+            case (o, e) =>
+                (o + e).toLowerCase should include("error")
+                (o + e).toLowerCase should include("uncompressing")
+        })
+    }
+
+    it should "fail gracefully on valid zip files that are not actions" in {
+        val srcs = Seq(
+            Seq("hello") -> """
+                | Hello world!
+            """.stripMargin)
+
+        val code = ZipBuilder.mkBase64Zip(srcs)
+
+        val (out, err) = withNodeJsContainer { c =>
+            c.init(initPayload(code))._1 should not be (200)
+        }
+
+        checkStreams(out, err, {
+            case (o, e) =>
+                (o + e).toLowerCase should include("error")
+                (o + e).toLowerCase should include("module_not_found")
+        })
+    }
+
+    it should "support actions using non-default entry point" in {
+        val (out, err) = withNodeJsContainer { c =>
+            val code = """
+            | function niam(args) {
+            |     return { result: "it works" };
+            | }
+            """.stripMargin
+
+            c.init(initPayload(code, main = "niam"))._1 should be(200)
+            val (runCode, runRes) = c.run(runPayload(JsObject()))
+            runRes.get.fields.get("result") shouldBe Some(JsString("it works"))
+        }
+    }
+
+    it should "support zipped actions using non-default entry point" in {
+        val srcs = Seq(
+            Seq("package.json") -> examplePackageDotJson,
+            Seq("index.js") -> """
+                | exports.niam = function (args) {
+                |     return { result: "it works" };
+                | }
+            """.stripMargin)
+
+        val code = ZipBuilder.mkBase64Zip(srcs)
+
+        val (out, err) = withNodeJsContainer { c =>
+            c.init(initPayload(code, main = "niam"))._1 should be(200)
+
+            val (runCode, runRes) = c.run(runPayload(JsObject()))
+            runRes.get.fields.get("result") shouldBe Some(JsString("it works"))
+        }
     }
 }

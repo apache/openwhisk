@@ -196,7 +196,7 @@ Feeds offer a convenient way to configure an external event source to fire these
 2. Create a trigger that fires every eight seconds.
 
   ```
-  $ wsk trigger create everyEightSeconds --feed /whisk.system/alarms/alarm -p cron '*/8 * * * * *' -p trigger_payload '{"name":"Mork", "place":"Ork"}'
+  $ wsk trigger create everyEightSeconds --feed /whisk.system/alarms/alarm -p cron "*/8 * * * * *" -p trigger_payload "{\"name\":\"Mork\", \"place\":\"Ork\"}"
   ```
   ```
   ok: created trigger feed everyEightSeconds
@@ -315,11 +315,12 @@ You can set default parameters for all the entities in a package. You do this by
 2. Display the parameters in the package and action, and see how the `identity` action in the package inherits parameters from the package.
 
   ```
-  $ wsk package get custom parameters
+  $ wsk package get custom
   ```
   ```
-  ok: got package custom, projecting parameters
-  [
+  ok: got package custom
+  ...
+  "parameters": [
       {
           "key": "city",
           "value": "Austin"
@@ -329,14 +330,16 @@ You can set default parameters for all the entities in a package. You do this by
           "value": "USA"
       }
   ]
+  ...
   ```
 
   ```
-  $ wsk action get custom/identity parameters
+  $ wsk action get custom/identity
   ```
   ```
-  ok: got action custom/identity, projecting parameters
-  [
+  ok: got action custom/identity
+  ...
+  "parameters": [
       {
           "key": "city",
           "value": "Austin"
@@ -346,6 +349,7 @@ You can set default parameters for all the entities in a package. You do this by
           "value": "USA"
       }
   ]
+  ...
   ```
 
 3. Invoke the identity action without any parameters to verify that the action indeed inherits the parameters.
@@ -390,11 +394,13 @@ After the actions and feeds that comprise a package are debugged and tested, the
 2. Display the `publish` property of the package to verify that it is now true.
 
   ```
-  $ wsk package get custom publish
+  $ wsk package get custom
   ```
   ```
-  ok: got package custom, projecting publish
-  true
+  ok: got package custom
+  ...
+  "publish": true,
+  ...
   ```
 
 

@@ -25,7 +25,6 @@ import scala.util.Try
 
 import akka.actor.ActorSystem
 import whisk.common.Config
-import whisk.common.Config.Settings
 import whisk.common.ConsulClient
 import whisk.common.ConsulKV
 import whisk.common.Logging
@@ -35,28 +34,29 @@ import whisk.common.Logging
  * in scala.
  *
  * @param requiredProperties a Map whose keys define properties that must be bound to
- * a value, and whose values are default values.   A null value in the Map means there is
- * no default value specified, so it must appear in the properties file
- * @param whiskPropertiesFile a File object, the whisk.properties file
+ * a value, and whose values are default values. A null value in the Map means there is
+ * no default value specified, so it must appear in the properties file.
+ * @param optionalProperties a set of optional properties (which may not be defined).
+ * @param whiskPropertiesFile a File object, the whisk.properties file, which if given contains the property values.
  */
 
 class WhiskConfig(
     requiredProperties: Map[String, String],
     optionalProperties: Set[String] = Set(),
-    propertiesFile: File = null)(implicit val system: ActorSystem)
-    extends Config(requiredProperties, optionalProperties) {
+    propertiesFile: File = null,
+    env: Map[String, String] = sys.env)(implicit val system: ActorSystem)
+    extends Config(requiredProperties, optionalProperties)(env) {
 
     /**
      * Loads the properties as specified above.
      *
      * @return a pair which is the Map defining the properties, and a boolean indicating whether validation succeeded.
      */
-    override protected def getProperties(): (Map[String, String], Boolean) = {
-        val properties = scala.collection.mutable.Map[String, String]() ++= requiredProperties
-        Config.readPropertiesFromEnvironment(properties)
+    override protected def getProperties() = {
+        val properties = super.getProperties()
         WhiskConfig.readPropertiesFromFile(properties, Option(propertiesFile) getOrElse (WhiskConfig.whiskPropertiesFile))
-        WhiskConfig.readPropertiesFromConsul(properties, optionalProperties)
-        (properties.toMap, Config.validateProperties(requiredProperties, properties))
+        WhiskConfig.readPropertiesFromConsul(properties)
+        properties
     }
 
     val logsDir = this(WhiskConfig.logsDir)
@@ -99,6 +99,8 @@ class WhiskConfig(
     val dbPrefix = this(WhiskConfig.dbPrefix)
 
     val entitlementHost = this(WhiskConfig.entitlementHostName) + ":" + this(WhiskConfig.entitlementHostPort)
+    val iamProviderHost = this(WhiskConfig.iamProviderHostName) + ":" + this(WhiskConfig.iamProviderHostPort)
+
     val routerHost = this(WhiskConfig.routerHost)
     val cliApiHost = this(WhiskConfig.cliApiHost)
 
@@ -110,6 +112,7 @@ class WhiskConfig(
     val actionInvokeConcurrentLimit = this(WhiskConfig.actionInvokeConcurrentDefaultLimit, WhiskConfig.actionInvokeConcurrentLimit)
     val triggerFirePerMinuteLimit = this(WhiskConfig.triggerFirePerMinuteDefaultLimit, WhiskConfig.triggerFirePerMinuteLimit)
     val actionInvokeSystemOverloadLimit = this(WhiskConfig.actionInvokeSystemOverloadDefaultLimit, WhiskConfig.actionInvokeSystemOverloadLimit)
+    val actionSequenceLimit = this(WhiskConfig.actionSequenceDefaultLimit)
 }
 
 object WhiskConfig extends Logging {
@@ -138,11 +141,11 @@ object WhiskConfig extends Logging {
      * Reads a Map of key-value pairs from the Consul service -- store them in the
      * mutable properties object.
      */
-    def readPropertiesFromConsul(properties: Settings, optionalProperties: Set[String])(implicit system: ActorSystem) = {
+    def readPropertiesFromConsul(properties: scala.collection.mutable.Map[String, String])(implicit system: ActorSystem) = {
         //try to get consulServer prop
         val consulString = for {
-            server <- properties.get(consulServerHost)
-            port <- properties.get(consulPort)
+            server <- properties.get(consulServerHost).filter(_ != null)
+            port <- properties.get(consulPort).filter(_ != null)
         } yield server + ":" + port
 
         consulString match {
@@ -151,10 +154,12 @@ object WhiskConfig extends Logging {
                 val consul = new ConsulClient(consulServer)
 
                 val whiskProps = Await.result(consul.kv.getRecurse(ConsulKV.WhiskProps.whiskProps), 1.minute)
-                (properties.keys ++ optionalProperties) foreach { p =>
+                properties.keys foreach { p =>
                     val kvp = ConsulKV.WhiskProps.whiskProps + "/" + p.replace('.', '_').toUpperCase
                     whiskProps.get(kvp) foreach { properties += p -> _ }
                 }
+            } recover {
+                case ex => warn(this, s"failed to read properties from consul: ${ex.getMessage}")
             }
             case _ => info(this, "no consul server defined")
         }
@@ -164,7 +169,7 @@ object WhiskConfig extends Logging {
      * Reads a Map of key-value pairs from the environment (sys.env) -- store them in the
      * mutable properties object.
      */
-    def readPropertiesFromFile(properties: Settings, file: File) = {
+    def readPropertiesFromFile(properties: scala.collection.mutable.Map[String, String], file: File) = {
         if (file != null && file.exists) {
             info(this, s"reading properties from file $file")
             for (line <- Source.fromFile(file).getLines if line.trim != "") {
@@ -172,8 +177,10 @@ object WhiskConfig extends Logging {
                 if (parts.length >= 1) {
                     val p = parts(0).trim
                     val v = if (parts.length == 2) parts(1).trim else ""
-                    properties += p -> v
-                    info(this, s"properties file set value for $p")
+                    if (properties.contains(p)) {
+                        properties += p -> v
+                        debug(this, s"properties file set value for $p")
+                    }
                 } else {
                     warn(this, s"ignoring properties $line")
                 }
@@ -249,6 +256,10 @@ object WhiskConfig extends Logging {
     private val entitlementHostName = "entitlement.host"
     private val entitlementHostPort = "entitlement.host.port"
 
+    // using same values as entitlement service
+    private val iamProviderHostName = "entitlement.host"
+    private val iamProviderHostPort = "entitlement.host.port"
+
     val edgeHost = Map(edgeHostName -> null, edgeHostApiPort -> null)
     val consulServer = Map(consulServerHost -> null, consulPort -> null)
     val invokerHosts = Map(invokerHostsList -> null)
@@ -256,19 +267,19 @@ object WhiskConfig extends Logging {
     val controllerHost = Map(controllerHostName -> null, controllerHostPort -> null)
     val loadbalancerHost = Map(loadbalancerHostName -> null, loadbalancerHostPort -> null)
 
-    // use empty string as default for entitlement host as this is an optional service
+    // use empty string as default for entitlement/iam host as this is an optional service
     // and the way to prevent the configuration checker from failing is to provide a value;
     // an empty string is permitted but null is not
     val entitlementHost = Map(entitlementHostName -> "", entitlementHostPort -> "")
+    val iamProviderHost = Map(iamProviderHostName -> "", iamProviderHostPort -> "")
 
     val actionInvokePerMinuteDefaultLimit = "defaultLimits.actions.invokes.perMinute"
     val actionInvokeConcurrentDefaultLimit = "defaultLimits.actions.invokes.concurrent"
     val actionInvokeSystemOverloadDefaultLimit = "defaultLimits.actions.invokes.concurrentInSystem"
     val triggerFirePerMinuteDefaultLimit = "defaultLimits.triggers.fires.perMinute"
-
+    val actionSequenceDefaultLimit = "defaultLimits.actions.sequence.maxLength"
     val actionInvokePerMinuteLimit = "limits.actions.invokes.perMinute"
     val actionInvokeConcurrentLimit = "limits.actions.invokes.concurrent"
     val actionInvokeSystemOverloadLimit = "limits.actions.invokes.concurrentInSystem"
     val triggerFirePerMinuteLimit = "limits.triggers.fires.perMinute"
-
 }

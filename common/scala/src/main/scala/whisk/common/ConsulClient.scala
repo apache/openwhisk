@@ -271,14 +271,6 @@ object ConsulKV {
         val startKey = "start"
         def start(instance: Int) = s"${instancePath(instance)}/$startKey"
 
-        // Invokers store how many activations they have processed here.
-        val activationCountKey = "activationCount"
-        def activationCount(instance: Int) = s"${instancePath(instance)}/$activationCountKey"
-
-        // Invokers store how many activations they have processed per user here.
-        private val userActivationCountKey = "userActivationCount"
-        def userActivationCount(instance: Int) = s"${instanceDataPath(instance)}/${userActivationCountKey}"
-
         // Invokers store their most recent check in time here
         val statusKey = "status"
         def status(instance: Int) = s"${instancePath(instance)}/${statusKey}"

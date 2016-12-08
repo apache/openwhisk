@@ -27,6 +27,8 @@ import org.scalatest.Matchers
 
 import akka.event.Logging.{ InfoLevel, LogLevel }
 import spray.http.BasicHttpCredentials
+import spray.json.DefaultJsonProtocol
+import spray.json.JsString
 import spray.routing.HttpService
 import spray.testkit.ScalatestRouteTest
 import whisk.common.{ Logging, TransactionCounter, TransactionId }
@@ -34,9 +36,11 @@ import whisk.core.WhiskConfig
 import whisk.core.connector.ActivationMessage
 import whisk.core.controller.WhiskActionsApi
 import whisk.core.controller.WhiskServices
+import whisk.core.database.DocumentFactory
 import whisk.core.database.test.DbUtils
-import whisk.core.entitlement.{ Collection, EntitlementService, LocalEntitlementService }
+import whisk.core.entitlement._
 import whisk.core.entity._
+import whisk.core.iam.NamespaceProvider
 import whisk.core.loadBalancer.LoadBalancer
 
 protected trait ControllerTestCommon
@@ -57,13 +61,15 @@ protected trait ControllerTestCommon
     implicit val actorSystem = system // defined in ScalatestRouteTest
     val executionContext = actorSystem.dispatcher
 
-    override val whiskConfig = new WhiskConfig(WhiskActionsApi.requiredProperties)
+    override val whiskConfig = new WhiskConfig(WhiskAuthStore.requiredProperties ++ WhiskActionsApi.requiredProperties)
     assert(whiskConfig.isValid)
 
     override val loadBalancer = new DegenerateLoadBalancerService(whiskConfig, InfoLevel)
-    override val entitlementService: EntitlementService = new LocalEntitlementService(whiskConfig, loadBalancer)
 
-    override val activationId = new ActivationId.ActivationIdGenerator() {
+    override val iam = new NamespaceProvider(whiskConfig, forceLocal = true)
+    override val entitlementProvider: EntitlementProvider = new LocalEntitlementProvider(whiskConfig, loadBalancer, iam)
+
+    override val activationIdFactory = new ActivationId.ActivationIdGenerator() {
         // need a static activation id to test activations api
         private val fixedId = ActivationId()
         override def make = fixedId
@@ -124,6 +130,8 @@ protected trait ControllerTestCommon
         }, dbOpTimeout)
     }
 
+    def stringToFullyQualifiedName(s: String) = FullyQualifiedEntityName.serdes.read(JsString(s))
+
     object MakeName {
         @volatile var counter = 1
         def next(prefix: String = "test")(): EntityName = {
@@ -137,7 +145,7 @@ protected trait ControllerTestCommon
     entityStore.setVerbosity(InfoLevel)
     activationStore.setVerbosity(InfoLevel)
     authStore.setVerbosity(InfoLevel)
-    entitlementService.setVerbosity(InfoLevel)
+    entitlementProvider.setVerbosity(InfoLevel)
 
     val ACTIONS = Collection(Collection.ACTIONS)
     val TRIGGERS = Collection(Collection.TRIGGERS)
@@ -156,6 +164,24 @@ protected trait ControllerTestCommon
         activationStore.shutdown()
         authStore.shutdown()
     }
+
+    protected case class BadEntity(
+        namespace: EntityPath,
+        override val name: EntityName,
+        version: SemVer = SemVer(),
+        publish: Boolean = false,
+        annotations: Parameters = Parameters())
+        extends WhiskEntity(name) {
+        override def toJson = BadEntity.serdes.write(this).asJsObject
+    }
+
+    protected object BadEntity
+        extends DocumentFactory[BadEntity]
+        with DefaultJsonProtocol {
+        implicit val serdes = jsonFormat5(BadEntity.apply)
+        override val cacheEnabled = true
+        override def cacheKeyForUpdate(w: BadEntity) = w.docid.asDocInfo
+    }
 }
 
 class DegenerateLoadBalancerService(config: WhiskConfig, verbosity: LogLevel)
@@ -164,12 +190,12 @@ class DegenerateLoadBalancerService(config: WhiskConfig, verbosity: LogLevel)
     // unit tests that need an activation via active ack/fast path should set this to value expected
     var whiskActivationStub: Option[WhiskActivation] = None
 
-    override def getUserActivationCounts: Map[String, Long] = Map()
+    override def getActiveUserActivationCounts: Map[String, Long] = Map()
 
     override def publish(msg: ActivationMessage, timeout: FiniteDuration)(implicit transid: TransactionId): (Future[Unit], Future[WhiskActivation]) =
         (Future.successful {},
-         whiskActivationStub map {
-            activation => Future.successful(activation)
-        } getOrElse Future.failed(new IllegalArgumentException("Unit test does not need fast path")))
+            whiskActivationStub map {
+                activation => Future.successful(activation)
+            } getOrElse Future.failed(new IllegalArgumentException("Unit test does not need fast path")))
 
 }

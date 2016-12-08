@@ -57,7 +57,7 @@ function addPackageAnnotation() {
 function addActionAnnotation() {
     ACTION_NAME=$1
     REST=("${@:2}")
-    CMD_ARRAY=("$OPENWHISK_HOME/bin/wsk" -i --apihost "$API_HOST" action update --auth "$CATALOG_AUTH_KEY" --shared yes "$WHISK_NAMESPACE/$ACTION_NAME" "${REST[@]}")
+    CMD_ARRAY=("$OPENWHISK_HOME/bin/wsk" -i --apihost "$API_HOST" action update --auth "$CATALOG_AUTH_KEY" "$WHISK_NAMESPACE/$ACTION_NAME" "${REST[@]}")
     export WSK_CONFIG_FILE= # override local property file to avoid namespace clashes
     "${CMD_ARRAY[@]}" &
     PID=$!

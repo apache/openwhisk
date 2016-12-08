@@ -17,6 +17,7 @@ $ANSIBLE_CMD setup.yml
 $ANSIBLE_CMD prereq.yml
 $ANSIBLE_CMD couchdb.yml
 $ANSIBLE_CMD initdb.yml
+$ANSIBLE_CMD apigateway.yml
 
 cd $ROOTDIR
 

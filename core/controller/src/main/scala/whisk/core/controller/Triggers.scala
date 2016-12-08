@@ -46,7 +46,6 @@ import spray.routing.RequestContext
 import whisk.common.TransactionId
 import whisk.core.entitlement.Collection
 import whisk.core.entity.ActivationResponse
-import whisk.core.entity.DocId
 import whisk.core.entity.EntityName
 import whisk.core.entity.EntityPath
 import whisk.core.entity.Parameters
@@ -54,7 +53,6 @@ import whisk.core.entity.SemVer
 import whisk.core.entity.Status
 import whisk.core.entity.TriggerLimits
 import whisk.core.entity.WhiskActivation
-import whisk.core.entity.WhiskEntity
 import whisk.core.entity.WhiskEntityStore
 import whisk.core.entity.WhiskTrigger
 import whisk.core.entity.WhiskTriggerPut
@@ -64,6 +62,7 @@ import whisk.http.ErrorResponse.terminate
 import spray.httpx.UnsuccessfulResponseException
 import spray.http.StatusCodes
 import whisk.core.entity.Identity
+import whisk.core.entity.FullyQualifiedEntityName
 
 /**
  * A singleton object which defines the properties that must be present in a configuration
@@ -105,10 +104,10 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
      * - 409 Conflict
      * - 500 Internal Server Error
      */
-    override def create(namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
+    override def create(user: Identity, namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
         parameter('overwrite ? false) { overwrite =>
             entity(as[WhiskTriggerPut]) { content =>
-                val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
+                val docid = FullyQualifiedEntityName(namespace, name).toDocId
                 putEntity(WhiskTrigger, entityStore, docid, overwrite, update(content) _, () => { create(content, namespace, name) }, postProcess = Some { trigger =>
                     completeAsTriggerResponse(trigger)
                 })
@@ -129,11 +128,11 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
 
         entity(as[Option[JsObject]]) {
             payload =>
-                val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
+                val docid = FullyQualifiedEntityName(namespace, name).toDocId
                 getEntity(WhiskTrigger, entityStore, docid, Some {
                     trigger: WhiskTrigger =>
                         val args = trigger.parameters.merge(payload)
-                        val triggerActivationId = activationId.make()
+                        val triggerActivationId = activationIdFactory.make()
                         info(this, s"[POST] trigger activation id: ${triggerActivationId}")
 
                         val triggerActivation = WhiskActivation(
@@ -143,8 +142,9 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                             triggerActivationId,
                             Instant.now(Clock.systemUTC()),
                             Instant.EPOCH,
-                            response = ActivationResponse.success(payload),
-                            version = trigger.version)
+                            response = ActivationResponse.success(payload orElse Some(JsObject())),
+                            version = trigger.version,
+                            duration = None)
                         info(this, s"[POST] trigger activated, writing activation record to datastore")
                         val saveTriggerActivation = WhiskActivation.put(activationStore, triggerActivation) map {
                             _ => triggerActivationId
@@ -163,19 +163,30 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                                 case (ruleName, rule) =>
                                     val ruleActivation = WhiskActivation(
                                         namespace = user.namespace.toPath, // all activations should end up in the one space regardless trigger.namespace,
-                                        ruleName.last,
+                                        ruleName.name,
                                         user.subject,
-                                        activationId.make(),
+                                        activationIdFactory.make(),
                                         Instant.now(Clock.systemUTC()),
                                         Instant.EPOCH,
                                         cause = Some(triggerActivationId),
                                         response = ActivationResponse.success(),
-                                        version = trigger.version)
+                                        version = trigger.version,
+                                        duration = None)
                                     info(this, s"[POST] rule ${ruleName} activated, writing activation record to datastore")
                                     WhiskActivation.put(activationStore, ruleActivation)
 
-                                    val actionPath = Path("/api/v1") / "namespaces" / rule.action.root.toString / "actions" / rule.action.last.toString
-                                    pipeline(Post(url.withPath(actionPath), args)) onComplete {
+                                    val actionNamespace = rule.action.path.root()
+                                    val actionPath = {
+                                        rule.action.path.relpath.map {
+                                            pkg => (Path.SingleSlash + pkg.namespace) / rule.action.name()
+                                        } getOrElse {
+                                            Path.SingleSlash + rule.action.name()
+                                        }
+                                    }.toString
+
+                                    val actionUrl = Path("/api/v1") / "namespaces" / actionNamespace / "actions"
+
+                                    pipeline(Post(url.withPath(actionUrl + actionPath), args)) onComplete {
                                         case Success(o) =>
                                             info(this, s"successfully invoked ${rule.action} -> ${o.fields("activationId")}")
                                         case Failure(usr: UnsuccessfulResponseException) if usr.response.status == StatusCodes.NotFound =>
@@ -207,7 +218,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
      * - 500 Internal Server Error
      */
     override def remove(namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
-        val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
+        val docid = FullyQualifiedEntityName(namespace, name).toDocId
         deleteEntity(WhiskTrigger, entityStore, docid, (t: WhiskTrigger) => Future successful true, postProcess = Some { trigger =>
             completeAsTriggerResponse(trigger)
         })
@@ -222,7 +233,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
      * - 500 Internal Server Error
      */
     override def fetch(namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
-        val docid = DocId(WhiskEntity.qualifiedName(namespace, name))
+        val docid = FullyQualifiedEntityName(namespace, name).toDocId
         getEntity(WhiskTrigger, entityStore, docid, Some { trigger =>
             completeAsTriggerResponse(trigger)
         })

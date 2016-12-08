@@ -1,5 +1,6 @@
 ext.dockerImageName = "cli"
 ext.dockerContainerName = "cli"
+ext.dockerBuildArgs = getDockerBuildArgs()
 apply from: '../../gradle/docker.gradle'
 
 
@@ -42,10 +43,17 @@ pushImage.finalizedBy copyCLIShortcut
 
 // Returns the Go CLI docker build args
 def getDockerBuildArgs() {
-    java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ")
-    String envDateStr = "$System.env.WHISK_BUILD_TIMESTAMP"
-    String dateStr = ((envDateStr != "null") ? envDateStr : sdf.format(new Date()))
-    return "BUILDTIME="+dateStr
+    String local_os = mapOsNameToGoName(getOsName())
+    String local_arch = mapOsArchToGoArch(getOsArch())
+    def res = []
+
+    if(!project.hasProperty('crossCompileCLI') || project.crossCompileCLI == "false") {
+        res = ["CLI_OS=${local_os}", "CLI_ARCH=${local_arch}"]
+    } else {
+        res = ["CLI_OS=mac linux windows", "CLI_ARCH=386 amd64"]
+    }
+
+    return res
 }
 
 def run(cmd, ignoreError = false) {

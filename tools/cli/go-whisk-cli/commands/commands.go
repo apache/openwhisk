@@ -20,7 +20,6 @@ import (
     "errors"
     "fmt"
     "net/http"
-    "net/url"
     "os"
 
     "../../go-whisk/whisk"
@@ -34,22 +33,20 @@ var client *whisk.Client
 func setupClientConfig(cmd *cobra.Command, args []string) (error){
     baseURL, err := getURLBase(Properties.APIHost)
 
-    // Don't display the 'invalid apihost' error if this CLI invocation is setting that value
-    isApiHostPropSetCmd := cmd.Parent().Name() == "property" && cmd.Name() == "set" && len(flags.property.apihostSet) > 0
-    if err != nil && !isApiHostPropSetCmd {
-        whisk.Debug(whisk.DbgError, "getURLBase(%s) error: %s\n", Properties.APIHost, err)
-        errMsg := fmt.Sprintf(
-            wski18n.T("error: The configured API host property value '{{.apihost}}' is invalid : {{.err}}",
-                map[string]interface{}{"apihost": Properties.APIHost, "err": err}))
-        fmt.Fprintln(os.Stderr, errMsg)
-        errMsg = fmt.Sprintf(
-            wski18n.T("A default API host value of 'localhost' will be used"))
-        fmt.Fprintln(os.Stderr, errMsg)
-        errMsg = fmt.Sprintf(
-            wski18n.T("Run 'wsk property set --apihost HOST' to set a valid API host value"))
-        fmt.Fprintln(os.Stderr, errMsg)
+    // Determine if the parent command will require the API host to be set
+    apiHostRequired := (cmd.Parent().Name() == "property" && cmd.Name() == "get" && (flags.property.auth ||
+      flags.property.apihost || flags.property.namespace || flags.property.apiversion || flags.property.cliversion)) ||
+      (cmd.Parent().Name() == "property" && cmd.Name() == "set" && (len(flags.property.apihostSet) > 0 ||
+        len(flags.property.apiversionSet) > 0 || len(flags.global.auth) > 0)) ||
+      (cmd.Parent().Name() == "sdk" && cmd.Name() == "install" && len(args) > 0 && args[0] == "bashauto")
 
-        baseURL, _ = url.Parse("https://localhost/api/")
+    // Display an error if the parent command requires an API host to be set, and the current API host is not valid
+    if err != nil && !apiHostRequired {
+        whisk.Debug(whisk.DbgError, "getURLBase(%s) error: %s\n", Properties.APIHost, err)
+        errMsg := wski18n.T("The API host is not valid: {{.err}}", map[string]interface{}{"err": err})
+        whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+            whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+        return whiskErr
     }
 
     clientConfig := &whisk.Config{
@@ -58,6 +55,7 @@ func setupClientConfig(cmd *cobra.Command, args []string) (error){
         BaseURL:    baseURL,
         Version:    Properties.APIVersion,
         Insecure:   flags.global.insecure,
+        Host:       Properties.APIHost,
     }
 
     // Setup client

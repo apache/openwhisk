@@ -173,17 +173,10 @@ var ruleCreateCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        var shared bool
 
         if whiskErr := checkArgs(args, 3, 3, "Rule create",
                 wski18n.T("A rule, trigger and action name are required.")); whiskErr != nil {
             return whiskErr
-        }
-
-        if (flags.common.shared == "yes") {
-            shared = true
-        } else {
-            shared = false
         }
 
         qName, err := parseQualifiedName(args[0])
@@ -199,14 +192,13 @@ var ruleCreateCmd = &cobra.Command{
 
         client.Namespace = qName.namespace
         ruleName := qName.entityName
-        triggerName := args[1]
-        actionName := args[2]
+        triggerName := getQualifiedName(args[1], Properties.Namespace)
+        actionName := getQualifiedName(args[2], Properties.Namespace)
 
         rule := &whisk.Rule{
             Name:    ruleName,
             Trigger: triggerName,
             Action:  actionName,
-            Publish: shared,
         }
 
         whisk.Debug(whisk.DbgInfo, "Inserting rule:\n%+v\n", rule)
@@ -237,7 +229,6 @@ var ruleUpdateCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        var shared bool
 
         if whiskErr := checkArgs(args, 3, 3, "Rule update",
                 wski18n.T("A rule, trigger and action name are required.")); whiskErr != nil {
@@ -257,20 +248,13 @@ var ruleUpdateCmd = &cobra.Command{
 
         client.Namespace = qName.namespace
         ruleName := qName.entityName
-        triggerName := args[1]  //MWD qualified name?
-        actionName := args[2]   //MWD qualified name?
-
-        if (flags.common.shared == "yes") {
-            shared = true
-        } else {
-            shared = false
-        }
+        triggerName := getQualifiedName(args[1], Properties.Namespace)
+        actionName := getQualifiedName(args[2], Properties.Namespace)
 
         rule := &whisk.Rule{
             Name:    ruleName,
             Trigger: triggerName,
             Action:  actionName,
-            Publish: shared,
         }
 
         _, _, err = client.Rules.Insert(rule, true)
@@ -298,9 +282,22 @@ var ruleGetCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
+        var field string
 
-        if whiskErr := checkArgs(args, 1, 1, "Rule get", wski18n.T("A rule name is required.")); whiskErr != nil {
+        if whiskErr := checkArgs(args, 1, 2, "Rule get", wski18n.T("A rule name is required.")); whiskErr != nil {
             return whiskErr
+        }
+
+        if len(args) > 1 {
+            field = args[1]
+
+            if !fieldExists(&whisk.Rule{}, field){
+                errMsg := fmt.Sprintf(
+                    wski18n.T("Invalid field filter '{{.arg}}'.", map[string]interface{}{"arg": field}))
+                whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+                    whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                return whiskErr
+            }
         }
 
         qName, err := parseQualifiedName(args[0])
@@ -330,10 +327,16 @@ var ruleGetCmd = &cobra.Command{
         if (flags.rule.summary) {
             printRuleSummary(rule)
         } else {
-            fmt.Fprintf(color.Output,
-                wski18n.T("{{.ok}} got rule {{.name}}\n",
-                    map[string]interface{}{"ok": color.GreenString("ok:"), "name": boldString(ruleName)}))
-            printJSON(rule)
+            if len(field) > 0 {
+                fmt.Fprintf(color.Output, wski18n.T("{{.ok}} got rule {{.name}}, displaying field {{.field}}\n",
+                    map[string]interface{}{"ok": color.GreenString("ok:"), "name": boldString(ruleName),
+                        "field": field}))
+                printField(rule, field)
+            } else {
+                fmt.Fprintf(color.Output, wski18n.T("{{.ok}} got rule {{.name}}\n",
+                        map[string]interface{}{"ok": color.GreenString("ok:"), "name": boldString(ruleName)}))
+                printJSON(rule)
+            }
         }
 
         return nil
@@ -404,7 +407,7 @@ var ruleListCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        qName := qualifiedName{}
+        qName := QualifiedName{}
 
         if len(args) == 1 {
             qName, err = parseQualifiedName(args[0])
@@ -449,10 +452,6 @@ var ruleListCmd = &cobra.Command{
 }
 
 func init() {
-    ruleCreateCmd.Flags().StringVar(&flags.common.shared, "shared", "", wski18n.T("rule visibility `SCOPE`; yes = shared, no = private"))
-
-    ruleUpdateCmd.Flags().StringVar(&flags.common.shared, "shared", "", wski18n.T("rule visibility `SCOPE`; yes = shared, no = private"))
-
     ruleDeleteCmd.Flags().BoolVar(&flags.rule.disable, "disable", false, wski18n.T("automatically disable rule before deleting it"))
 
     ruleGetCmd.Flags().BoolVarP(&flags.rule.summary, "summary", "s", false, wski18n.T("summarize rule details"))

@@ -23,12 +23,14 @@ import org.scalatest.junit.JUnitRunner
 import common.JsHelpers
 import common.TestHelpers
 import common.TestUtils
+import common.TestUtils.ANY_ERROR_EXIT
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
 import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json.pimpAny
 import spray.json.pimpString
+import spray.json.JsString
 import common.TestUtils.RunResult
 import spray.json.JsObject
 
@@ -62,10 +64,60 @@ class WskBasicNodeTests
             }
     }
 
+    it should "Ensure that NodeJS actions can have a non-default entrypoint" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "niamNpmAction"
+            val file = Some(TestUtils.getTestActionFilename("niam.js"))
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) =>
+                    action.create(name, file, main = Some("niam"))
+            }
+
+            withActivation(wsk.activation, wsk.action.invoke(name)) {
+                activation =>
+                    val response = activation.response
+                    response.result.get.fields.get("error") shouldBe empty
+                    response.result.get.fields.get("greetings") should be(Some(JsString("Hello from a non-standard entrypoint.")))
+            }
+    }
+
+    it should "Ensure that zipped actions are encoded and uploaded as NodeJS actions" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "zippedNpmAction"
+            val file = Some(TestUtils.getTestActionFilename("zippedaction.zip"))
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) =>
+                    action.create(name, file, kind = Some("nodejs:default"))
+            }
+
+            withActivation(wsk.activation, wsk.action.invoke(name)) {
+                activation =>
+                    val response = activation.response
+                    response.result.get.fields.get("error") shouldBe empty
+                    response.result.get.fields.get("author") shouldBe defined
+            }
+    }
+
+    it should "Ensure that zipped actions cannot be created without a kind specified" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "zippedNpmActionWithNoKindSpecified"
+            val file = Some(TestUtils.getTestActionFilename("zippedaction.zip"))
+
+            val createResult = assetHelper.withCleaner(wsk.action, name, confirmDelete = false) {
+                (action, _) =>
+                    action.create(name, file, expectedExitCode = ANY_ERROR_EXIT)
+            }
+
+            val output = s"${createResult.stdout}\n${createResult.stderr}"
+
+            output should include("kind")
+    }
+
     it should "Ensure that JS actions created with no explicit kind use the current default NodeJS runtime" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "jsWithNoKindSpecified"
-            val file = Some(TestUtils.getTestActionFilename("hello.js"))
 
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) =>
@@ -80,6 +132,7 @@ class WskBasicNodeTests
             }
     }
 
+    // TODO: remove this tests and its assets when "whisk.js" is removed entirely as it is no longer necessary
     it should "Ensure that whisk.invoke() returns a promise" in withAssetCleaner(wskprops) {
         val expectedDuration = 3.seconds
 
@@ -123,13 +176,16 @@ class WskBasicNodeTests
                 activation =>
                     val result = activation.response.result.get
                     result.fields.get("activationId") should not be defined
-                    result.fields.get("error") shouldBe defined
+                    result.getFieldPath("error", "message") should be(Some {
+                        "Three second rule!".toJson
+                    })
 
                     val duration = System.currentTimeMillis() - start
                     duration should be >= expectedDuration.toMillis
             }
     }
 
+    // TODO: remove this tests and its assets when "whisk.js" is removed entirely as it is no longer necessary
     it should "Ensure that whisk.invoke() still uses a callback when provided one" in withAssetCleaner(wskprops) {
         val expectedDuration = 3.seconds
 
@@ -172,18 +228,22 @@ class WskBasicNodeTests
                 activation =>
                     val result = activation.response.result.get
                     result.fields.get("activationId") should not be defined
-                    result.fields.get("error") shouldBe defined
+                    result.getFieldPath("error", "message") should be(Some {
+                        "Three second rule!".toJson
+                    })
 
                     val duration = System.currentTimeMillis() - start
                     duration should be >= expectedDuration.toMillis
             }
     }
 
+    // TODO: remove this tests and its assets when "whisk.js" is removed entirely as it is no longer necessary
     it should "Ensure that whisk.trigger() still uses a callback when provided one" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             // this action supplies a 'next' callback to whisk.trigger()
             val nameOfActionThatTriggers = "triggerAction"
             val actionThatTriggers = Some(TestUtils.getTestActionFilename("triggerCallback.js"))
+            val triggerName = "UnitTestTrigger-" + System.currentTimeMillis()
 
             assetHelper.withCleaner(wsk.action, nameOfActionThatTriggers) {
                 (action, _) =>
@@ -191,14 +251,12 @@ class WskBasicNodeTests
             }
 
             // this is expected to fail this time because we have not yet created the trigger
-            val runReject = wsk.action.invoke(nameOfActionThatTriggers)
+            val runReject = wsk.action.invoke(nameOfActionThatTriggers, Map("triggerName" -> triggerName.toJson))
             withActivation(wsk.activation, runReject) {
                 activation =>
                     activation.response.success shouldBe false
                     activation.response.result.get.fields.get("error") shouldBe defined
             }
-
-            val triggerName = "UnitTestTrigger"
 
             assetHelper.withCleaner(wsk.trigger, triggerName) {
                 (trigger, _) =>
@@ -206,7 +264,7 @@ class WskBasicNodeTests
             }
 
             // now that we've created the trigger, running the action should succeed
-            val runResolve = wsk.action.invoke(nameOfActionThatTriggers)
+            val runResolve = wsk.action.invoke(nameOfActionThatTriggers, Map("triggerName" -> triggerName.toJson))
             withActivation(wsk.activation, runResolve) {
                 activation =>
                     activation.response.success shouldBe true
@@ -214,11 +272,13 @@ class WskBasicNodeTests
             }
     }
 
+    // TODO: remove this tests and its assets when "whisk.js" is removed entirely as it is no longer necessary
     it should "Ensure that whisk.trigger() returns a promise" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             // this action supplies a 'next' callback to whisk.trigger()
             val nameOfActionThatTriggers = "triggerAction"
             val actionThatTriggers = Some(TestUtils.getTestActionFilename("triggerPromise.js"))
+            val triggerName = "UnitTestTrigger-" + System.currentTimeMillis()
 
             assetHelper.withCleaner(wsk.action, nameOfActionThatTriggers) {
                 (action, _) =>
@@ -226,14 +286,12 @@ class WskBasicNodeTests
             }
 
             // this is expected to fail this time because we have not yet created the trigger
-            val runReject = wsk.action.invoke(nameOfActionThatTriggers)
+            val runReject = wsk.action.invoke(nameOfActionThatTriggers, Map("triggerName" -> triggerName.toJson))
             withActivation(wsk.activation, runReject) {
                 activation =>
                     activation.response.success shouldBe false
                     activation.response.result.get.fields.get("error") shouldBe defined
             }
-
-            val triggerName = "UnitTestTrigger"
 
             assetHelper.withCleaner(wsk.trigger, triggerName) {
                 (trigger, _) =>
@@ -241,7 +299,7 @@ class WskBasicNodeTests
             }
 
             // now that we've created the trigger, running the action should succeed
-            val runResolve = wsk.action.invoke(nameOfActionThatTriggers)
+            val runResolve = wsk.action.invoke(nameOfActionThatTriggers, Map("triggerName" -> triggerName.toJson))
             withActivation(wsk.activation, runResolve) {
                 activation =>
                     activation.response.success shouldBe true

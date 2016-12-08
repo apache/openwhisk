@@ -25,12 +25,46 @@ import org.scalatest.junit.JUnitRunner
 class ConfigTests extends FlatSpec with Matchers {
 
     "Config" should "gets default value" in {
-        val config = new Config(Map("a" -> "A"))
+        val config = new Config(Map("a" -> "A"))(Map())
         assert(config.isValid && config("a") == "A")
     }
 
-    it should "not be valid when environment and prop file is not provided" in {
-        val config = new Config(Map("a" -> null))
+    it should "get value from environemnt" in {
+        val config = new Config(Map("a" -> null, "b" -> ""))(Map("A" -> "xyz"))
+        assert(config.isValid && config("a") == "xyz" && config("b") == "")
+    }
+
+    it should "not be valid when environment does not provide value" in {
+        val config = new Config(Map("a" -> null))(Map())
         assert(!config.isValid && config("a") == null)
     }
+
+    it should "be invalid if same property is required and optional and still not defined" in {
+        val config = new Config(Map("a" -> null), optionalProperties = Set("a"))(Map())
+        assert(!config.isValid)
+    }
+
+    it should "read optional value" in {
+        val config = new Config(Map("a" -> "A", "x" -> "X"), optionalProperties = Set("b", "c", "x"))(Map("B" -> "B"))
+        assert(config.isValid)
+        assert(config("a") == "A")
+        assert(config("b") == "B")
+        assert(config("c") == "")
+        assert(config("x") == "X")
+    }
+
+    it should "override a value with optional value" in {
+        val config = new Config(Map("a" -> null, "x" -> "X"), optionalProperties = Set("b", "c", "x"))(Map("A" -> "A", "B" -> "B"))
+        assert(config.isValid && config("a") == "A" && config("b") == "B")
+        assert(config("a", "b") == "B")
+        assert(config("a", "c") == "A")
+        assert(config("c") == "")
+        assert(config("x") == "X")
+        assert(config("x", "c") == "X")
+        assert(config("x", "d") == "X")
+        assert(config("d", "x") == "X")
+        assert(config("c", "x") == "X")
+        assert(config("c", "d") == "")
+    }
+
 }

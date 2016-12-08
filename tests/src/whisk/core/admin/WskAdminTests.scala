@@ -53,7 +53,7 @@ class WskAdminTests
         authkey.split(":")(0).length should be(36)
         authkey.split(":")(1).length should be >= 64
 
-        wskadmin.cli(Seq("user", "whois", authkey)).stdout.trim should be(subject)
+        wskadmin.cli(Seq("user", "whois", authkey)).stdout.trim should be(Seq(s"subject: $subject", s"namespace: $subject").mkString("\n"))
         wskadmin.cli(Seq("user", "delete", subject)).stdout should include("Subject deleted")
 
         val recreate = wskadmin.cli(Seq("user", "create", subject, "-u", auth.authkey.compact))

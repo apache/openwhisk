@@ -16,6 +16,8 @@
 
 package whisk.core.entity.test
 
+import java.util.Base64
+
 import scala.BigInt
 import scala.Vector
 import scala.concurrent.duration.DurationInt
@@ -30,32 +32,8 @@ import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 
 import spray.json.DefaultJsonProtocol._
-import spray.json.DeserializationException
-import spray.json.JsArray
-import spray.json.JsNull
-import spray.json.JsNumber
-import spray.json.JsObject
-import spray.json.JsString
-import spray.json.JsValue
-import spray.json.pimpAny
-import spray.json.pimpString
-
-import whisk.core.entity.ActionLimits
-import whisk.core.entity.ActivationId
-import whisk.core.entity.AuthKey
-import whisk.core.entity.DocId
-import whisk.core.entity.DocInfo
-import whisk.core.entity.DocRevision
-import whisk.core.entity.EntityName
-import whisk.core.entity.Exec
-import whisk.core.entity.LogLimit
-import whisk.core.entity.MemoryLimit
-import whisk.core.entity.EntityPath
-import whisk.core.entity.Parameters
-import whisk.core.entity.Secret
-import whisk.core.entity.SemVer
-import whisk.core.entity.TimeLimit
-import whisk.core.entity.UUID
+import spray.json._
+import whisk.core.entity._
 import whisk.core.entity.size.SizeInt
 
 @RunWith(classOf[JUnitRunner])
@@ -159,6 +137,98 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
         }
     }
 
+    behavior of "FullyQualifiedEntityName"
+
+    it should "deserialize a fully qualified name without a version" in {
+
+        val names = Seq(
+            JsObject("path" -> "a".toJson, "name" -> "b".toJson),
+            JsObject("path" -> "a".toJson, "name" -> "b".toJson, "version" -> "0.0.1".toJson),
+            JsString("a/b"),
+            JsObject("namespace" -> "a".toJson, "name" -> "b".toJson))
+
+        FullyQualifiedEntityName.serdes.read(names(0)) shouldBe FullyQualifiedEntityName(EntityPath("a"), EntityName("b"))
+        FullyQualifiedEntityName.serdes.read(names(1)) shouldBe FullyQualifiedEntityName(EntityPath("a"), EntityName("b"), Some(SemVer()))
+        FullyQualifiedEntityName.serdes.read(names(2)) shouldBe FullyQualifiedEntityName(EntityPath("a"), EntityName("b"))
+
+        a[DeserializationException] should be thrownBy FullyQualifiedEntityName.serdesAsDocId.read(names(0))
+        a[DeserializationException] should be thrownBy FullyQualifiedEntityName.serdesAsDocId.read(names(1))
+        FullyQualifiedEntityName.serdesAsDocId.read(names(2)) shouldBe FullyQualifiedEntityName(EntityPath("a"), EntityName("b"))
+    }
+
+    behavior of "Binding"
+
+    it should "desiarilize legacy format" in {
+        val names = Seq(
+            JsObject("path" -> "a".toJson, "name" -> "b".toJson),
+            JsObject("path" -> "a".toJson, "name" -> "b".toJson, "version" -> "0.0.1".toJson),
+            JsString("a/b"),
+            JsObject("namespace" -> "a".toJson, "name" -> "b".toJson),
+            JsObject("namespace" -> "a".toJson, "path" -> "a".toJson, "name" -> "b".toJson),
+            JsObject("name" -> "b".toJson),
+            JsObject(),
+            JsNull)
+
+        //Binding.optionalBindingDeserializer.read(names(0)) shouldBe Some(Binding(EntityPath("a"), EntityName("b")))
+        //Binding.optionalBindingDeserializer.read(names(1)) shouldBe Some(Binding(EntityPath("a"), EntityName("b"), Some(SemVer())))
+        //Binding.optionalBindingDeserializer.read(names(2)) shouldBe Some(Binding(EntityPath("a"), EntityName("b")))
+        Binding.optionalBindingDeserializer.read(names(3)) shouldBe Some(Binding(EntityPath("a"), EntityName("b")))
+        Binding.optionalBindingDeserializer.read(names(6)) shouldBe None
+        //a[DeserializationException] should be thrownBy Binding.optionalBindingDeserializer.read(names(4))
+        a[DeserializationException] should be thrownBy Binding.optionalBindingDeserializer.read(names(5))
+        a[DeserializationException] should be thrownBy Binding.optionalBindingDeserializer.read(names(7))
+    }
+
+    it should "serialize optional binding to empty object" in {
+        Binding.optionalBindingSerializer.write(None) shouldBe JsObject()
+    }
+
+    behavior of "WhiskPackagePut"
+
+    it should "deserialize empty request" in {
+        WhiskPackagePut.serdes.read(JsObject()) shouldBe WhiskPackagePut()
+        //WhiskPackagePut.serdes.read(JsObject("binding" -> JsNull)) shouldBe WhiskPackagePut()
+        WhiskPackagePut.serdes.read(JsObject("binding" -> JsObject())) shouldBe WhiskPackagePut()
+        //WhiskPackagePut.serdes.read(JsObject("binding" -> "a/b".toJson)) shouldBe WhiskPackagePut(binding = Some(Binding(EntityPath("a"), EntityName("b"))))
+        a[DeserializationException] should be thrownBy WhiskPackagePut.serdes.read(JsObject("binding" -> JsNull))
+    }
+
+    behavior of "WhiskPackage"
+
+    it should "not deserialize package without binding property" in {
+        val pkg = WhiskPackage(EntityPath("a"), EntityName("b"))
+        WhiskPackage.serdes.read(JsObject(pkg.toJson.fields + ("binding" -> JsObject()))) shouldBe pkg
+        a[DeserializationException] should be thrownBy WhiskPackage.serdes.read(JsObject(pkg.toJson.fields - "binding"))
+    }
+
+    it should "serialize package with empty binding property" in {
+        val pkg = WhiskPackage(EntityPath("a"), EntityName("b"))
+        WhiskPackage.serdes.write(pkg) shouldBe JsObject(
+            "namespace" -> "a".toJson,
+            "name" -> "b".toJson,
+            "binding" -> JsObject(),
+            "parameters" -> Parameters().toJson,
+            "version" -> SemVer().toJson,
+            "publish" -> JsBoolean(false),
+            "annotations" -> Parameters().toJson)
+    }
+
+    it should "serialize and deserialize package binding" in {
+        val pkg = WhiskPackage(EntityPath("a"), EntityName("b"), Some(Binding(EntityPath("x"), EntityName("y"))))
+        val pkgAsJson = JsObject(
+            "namespace" -> "a".toJson,
+            "name" -> "b".toJson,
+            "binding" -> JsObject("namespace" -> "x".toJson, "name" -> "y".toJson),
+            "parameters" -> Parameters().toJson,
+            "version" -> SemVer().toJson,
+            "publish" -> JsBoolean(false),
+            "annotations" -> Parameters().toJson)
+        //val legacyPkgAsJson = JsObject(pkgAsJson.fields + ("binding" -> JsObject("namespace" -> "x".toJson, "name" -> "y".toJson)))
+        WhiskPackage.serdes.write(pkg) shouldBe pkgAsJson
+        WhiskPackage.serdes.read(pkgAsJson) shouldBe pkg
+        //WhiskPackage.serdes.read(legacyPkgAsJson) shouldBe pkg
+    }
+
     behavior of "SemVer"
 
     it should "parse semantic versions" in {
@@ -206,24 +276,41 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
     behavior of "Exec"
 
     it should "properly deserialize and reserialize JSON" in {
+        val b64Body = """ZnVuY3Rpb24gbWFpbihhcmdzKSB7IHJldHVybiBhcmdzOyB9Cg=="""
+
         val json = Seq[JsObject](
-            JsObject("kind" -> "nodejs".toJson, "code" -> "js1".toJson),
-            JsObject("kind" -> "nodejs".toJson, "code" -> "js2".toJson, "init" -> "zipfile2".toJson),
-            JsObject("kind" -> "nodejs".toJson, "code" -> "js3".toJson, "init" -> "zipfile3".toJson, "foo" -> "bar".toJson),
-            JsObject("kind" -> "blackbox".toJson, "image" -> "container1".toJson),
-            JsObject("kind" -> "swift".toJson, "code" -> "swift1".toJson))
+            JsObject("kind" -> "nodejs".toJson, "code" -> "js1".toJson, "binary" -> false.toJson),
+            JsObject("kind" -> "nodejs".toJson, "code" -> "js2".toJson, "binary" -> false.toJson, "foo" -> "bar".toJson),
+            JsObject("kind" -> "swift".toJson, "code" -> "swift1".toJson, "binary" -> false.toJson),
+            JsObject("kind" -> "nodejs".toJson, "code" -> b64Body.toJson, "binary" -> true.toJson))
 
         val execs = json.map { e => Exec.serdes.read(e) }
 
         assert(execs(0) == Exec.js("js1") && json(0).compactPrint == Exec.js("js1").toString)
-        assert(execs(1) == Exec.js("js2", "zipfile2") && json(1).compactPrint == Exec.js("js2", "zipfile2").toString)
-        assert(execs(2) == Exec.js("js3", "zipfile3") && json(2).compactPrint != Exec.js("js3", "zipfile3").toString) // ignores unknown properties
-        assert(execs(3) == Exec.bb("container1") && json(3).compactPrint == Exec.bb("container1").toString)
-        assert(execs(4) == Exec.swift("swift1") && json(4).compactPrint == Exec.swift("swift1").toString)
+        assert(execs(1) == Exec.js("js2") && json(1).compactPrint != Exec.js("js2").toString) // ignores unknown properties
+        assert(execs(2) == Exec.swift("swift1") && json(2).compactPrint == Exec.swift("swift1").toString)
+        assert(execs(3) == Exec.js(b64Body) && json(3).compactPrint == Exec.js(b64Body).toString)
+    }
 
+    it should "properly deserialize and reserialize JSON blackbox" in {
+        val b64 = Base64.getEncoder()
+        val contents = b64.encodeToString("tarball".getBytes)
+        val json = Seq[JsObject](
+            JsObject("kind" -> "blackbox".toJson, "image" -> "container1".toJson, "binary" -> false.toJson),
+            JsObject("kind" -> "blackbox".toJson, "image" -> "container1".toJson, "binary" -> true.toJson, "code" -> contents.toJson))
+
+        val execs = json.map { e => Exec.serdes.read(e) }
+
+        assert(execs(0) == Exec.bb("container1") && json(0).compactPrint == Exec.bb("container1").toString)
+        assert(execs(1) == Exec.bb("container1", contents) && json(1).compactPrint == Exec.bb("container1", contents).toString)
+        assert(execs(0) == Exec.serdes.read(JsObject("kind" -> "blackbox".toJson, "image" -> "container1".toJson, "binary" -> false.toJson, "code" -> " ".toJson)))
+        assert(execs(0) == Exec.serdes.read(JsObject("kind" -> "blackbox".toJson, "image" -> "container1".toJson, "binary" -> false.toJson, "code" -> "".toJson)))
     }
 
     it should "reject malformed JSON" in {
+        val b64 = Base64.getEncoder()
+        val contents = b64.encodeToString("tarball".getBytes)
+
         val execs = Seq[JsValue](
             null,
             JsObject(),
@@ -236,13 +323,15 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
             JsObject("kind" -> "swift".toJson, "swiftcode" -> "swift".toJson))
 
         execs.foreach { e =>
-            val thrown = intercept[Throwable] {
-                Exec.serdes.read(e)
-            }
-            thrown match {
-                case _: DeserializationException =>
-                case _: IllegalArgumentException =>
-                case t                           => assert(false, "Unexpected exception:" + t)
+            withClue(if (e != null) e else "null") {
+                val thrown = intercept[Throwable] {
+                    Exec.serdes.read(e)
+                }
+                thrown match {
+                    case _: DeserializationException =>
+                    case _: IllegalArgumentException =>
+                    case t                           => assert(false, "Unexpected exception:" + t)
+                }
             }
         }
     }
@@ -260,11 +349,11 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
     }
 
     it should "serialize to json" in {
-        val execs = Seq(Exec.bb("container"), Exec.js("js"), Exec.js("js", "zipfile"), Exec.swift("swft")).map { _.toString }
-        assert(execs(0) == JsObject("kind" -> "blackbox".toJson, "image" -> "container".toJson).compactPrint)
-        assert(execs(1) == JsObject("kind" -> "nodejs".toJson, "code" -> "js".toJson).compactPrint)
-        assert(execs(2) == JsObject("kind" -> "nodejs".toJson, "code" -> "js".toJson, "init" -> "zipfile".toJson).compactPrint)
-        assert(execs(3) == JsObject("kind" -> "swift".toJson, "code" -> "swft".toJson).compactPrint)
+        val execs = Seq(Exec.bb("container"), Exec.js("js"), Exec.js("js"), Exec.swift("swft")).map { _.toString }
+        assert(execs(0) == JsObject("kind" -> "blackbox".toJson, "image" -> "container".toJson, "binary" -> false.toJson).compactPrint)
+        assert(execs(1) == JsObject("kind" -> "nodejs".toJson, "code" -> "js".toJson, "binary" -> false.toJson).compactPrint)
+        assert(execs(2) == JsObject("kind" -> "nodejs".toJson, "code" -> "js".toJson, "binary" -> false.toJson).compactPrint)
+        assert(execs(3) == JsObject("kind" -> "swift".toJson, "code" -> "swft".toJson, "binary" -> false.toJson).compactPrint)
     }
 
     behavior of "Parameter"

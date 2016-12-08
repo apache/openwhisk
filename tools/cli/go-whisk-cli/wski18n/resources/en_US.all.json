@@ -44,10 +44,6 @@
     "translation": "bypass certificate checking"
   },
   {
-    "id": "error: The configured API host property value '{{.apihost}}' is invalid : {{.err}}",
-    "translation": "error: The configured API host property value '{{.apihost}}' is invalid : {{.err}}"
-  },
-  {
     "id": "Unable to initialize server connection: {{.err}}",
     "translation": "Unable to initialize server connection: {{.err}}"
   },
@@ -864,6 +860,14 @@
     "translation": "'{{.name}}' is not a supported action runtime"
   },
   {
+    "id": "creating an action from a .zip artifact requires specifying the action kind explicitly",
+    "translation": "creating an action from a .zip artifact requires specifying the action kind explicitly"
+  },
+  {
+    "id": "Java actions require --main to specify the fully-qualified name of the main class",
+    "translation": "Java actions require --main to specify the fully-qualified name of the main class"
+  },
+  {
     "id": "treat ACTION as docker image path on dockerhub",
     "translation": "treat ACTION as docker image path on dockerhub"
   },
@@ -880,20 +884,24 @@
     "translation": "the `KIND` of the action runtime (example: swift:3, nodejs:6)"
   },
   {
+    "id": "the name of the action entry point (function or fully-qualified method name when applicable)",
+    "translation": "the name of the action entry point (function or fully-qualified method name when applicable)"
+  },
+  {
     "id": "action visibility `SCOPE`; yes = shared, no = private",
     "translation": "action visibility `SCOPE`; yes = shared, no = private"
   },
   {
-    "id": "the timeout `LIMIT` in milliseconds when the action will be terminated",
-    "translation": "the timeout `LIMIT` in milliseconds when the action will be terminated"
+    "id": "the timeout `LIMIT` in milliseconds after which the action is terminated",
+    "translation": "the timeout `LIMIT` in milliseconds after which the action is terminated"
   },
   {
-    "id": "the memory `LIMIT` in MB of the container that runs the action",
-    "translation": "the memory `LIMIT` in MB of the container that runs the action"
+    "id": "the maximum memory `LIMIT` in MB for the action",
+    "translation": "the maximum memory `LIMIT` in MB for the action"
   },
   {
-    "id": "the log size `LIMIT` in MB of the container that runs the action (default 10MB)",
-    "translation": "the log size `LIMIT` in MB of the container that runs the action (default 10MB)"
+    "id": "the maximum log size `LIMIT` in MB for the action",
+    "translation": "the maximum log size `LIMIT` in MB for the action"
   },
   {
     "id": "blocking invoke",
@@ -1118,5 +1126,201 @@
   {
     "id": "An argument must be provided for '{{.arg}}'",
     "translation": "An argument must be provided for '{{.arg}}'"
+  },
+  {
+    "id": "The API host is not valid: {{.err}}",
+    "translation": "The API host is not valid: {{.err}}"
+  },
+  {
+    "id": "An API host must be provided.",
+    "translation": "An API host must be provided."
+  },
+  {
+    "id": "Invalid field filter '{{.arg}}'.",
+    "translation": "Invalid field filter '{{.arg}}'."
+  },
+  {
+    "id": "{{.ok}} got activation {{.id}}, displaying field {{.field}}\n",
+    "translation": "{{.ok}} got activation {{.id}}, displaying field {{.field}}\n"
+  },
+  {
+    "id": "{{.ok}} got action {{.name}}, displaying field {{.field}}\n",
+    "translation": "{{.ok}} got action {{.name}}, displaying field {{.field}}\n"
+  },
+  {
+    "id": "{{.ok}} got package {{.name}}, displaying field {{.field}}\n",
+    "translation": "{{.ok}} got package {{.name}}, displaying field {{.field}}\n"
+  },
+  {
+    "id": "{{.ok}} got rule {{.name}}, displaying field {{.field}}\n",
+    "translation": "{{.ok}} got rule {{.name}}, displaying field {{.field}}\n"
+  },
+  {
+    "id": "{{.ok}} got trigger {{.name}}, displaying field {{.field}}\n",
+    "translation": "{{.ok}} got trigger {{.name}}, displaying field {{.field}}\n"
+  },
+  {
+    "id": "An API path, an API verb, and an action name are required.",
+    "translation": "An API path, an API verb, and an action name are required."
+  },
+  {
+    "id": "An API path and an API verb are required.",
+    "translation": "An API path and an API verb are required."
+  },
+  {
+    "id":"'{{.name}}' is not a valid action name: {{.err}}",
+    "translation": "'{{.name}}' is not a valid action name: {{.err}}"
+  },
+  {
+    "id":"'{{.name}}' is not a valid action name.",
+    "translation": "'{{.name}}' is not a valid action name."
+  },
+  {
+    "id": "Unable to create API: {{.err}}",
+    "translation": "Unable to create API: {{.err}}"
+  },
+  {
+    "id": "{{.ok}} created API {{.path}} {{.verb}} for action {{.name}}\n{{.fullpath}}\n",
+    "translation": "{{.ok}} created API {{.path}} {{.verb}} for action {{.name}}\n{{.fullpath}}\n"
+  },
+  {
+    "id": "Unable to parse api command arguments: {{.err}}",
+    "translation": "Unable to parse api command arguments: {{.err}}"
+  },
+  {
+    "id": "create a new API",
+    "translation": "create a new API"
+  },
+  {
+    "id": "update an existing API",
+    "translation": "update an existing API"
+  },
+  {
+    "id": "Unable to update API: {{.err}}",
+    "translation": "Unable to update API: {{.err}}"
+  },
+  {
+    "id": "{{.ok}} updated API {{.path}} {{.verb}} for action {{.name}}\n{{.fullpath}}\n",
+    "translation": "{{.ok}} updated API {{.path}} {{.verb}} for action {{.name}}\n{{.fullpath}}\n"
+  },
+  {
+    "id": "get API",
+    "translation": "get API"
+  },
+  {
+    "id": "Unable to get API: {{.err}}",
+    "translation": "Unable to get API: {{.err}}"
+  },
+  {
+    "id": "delete an API",
+    "translation": "delete an API"
+  },
+  {
+    "id": "Unable to delete action: {{.err}}",
+    "translation": "Unable to delete action: {{.err}}"
+  },
+  {
+    "id": "{{.ok}} deleted API {{.basepath}}\n",
+    "translation": "{{.ok}} deleted API {{.basepath}}\n"
+  },
+  {
+    "id": "{{.ok}} deleted {{.path}} from {{.basepath}}\n",
+    "translation": "{{.ok}} deleted {{.path}} from {{.basepath}}\n"
+  },
+  {
+    "id": "{{.ok}} deleted {{.path}} {{.verb}} from {{.basepath}}\n",
+    "translation": "{{.ok}} deleted {{.path}} {{.verb}} from {{.basepath}}\n"
+  },
+  {
+    "id": "list APIs",
+    "translation": "list APIs"
+  },
+  {
+    "id": "Unable to obtain the API list: {{.err}}",
+    "translation": "Unable to obtain the API list: {{.err}}"
+  },
+  {
+    "id": "'{{.verb}}' is not a valid API verb.  Valid values are: {{.verbs}}",
+    "translation": "'{{.verb}}' is not a valid API verb.  Valid values are: {{.verbs}}"
+  },
+  {
+    "id": "`ACTION` to invoke when API is called",
+    "translation": "`ACTION` to invoke when API is called"
+  },
+  {
+    "id": "relative `API_PATH` of API",
+    "translation": "relative `API_PATH` of API"
+  },
+  {
+    "id": "API `API_VERB`",
+    "translation": "API `API_VERB`"
+  },
+  {
+    "id": "API collection `NAME` (default NAMESPACE)",
+    "translation": "API collection `NAME` (default NAMESPACE)"
+  },
+  {
+    "id": "The API `BASE_PATH` to which the API_PATH is relative",
+    "translation": "The API `BASE_PATH` to which the API_PATH is relative"
+  },
+  {
+    "id": "{{.ok}} APIs\n",
+    "translation": "{{.ok}} APIs\n"
+  },
+  {
+    "id": "{{.url}} {{.operation}} {{.action}}\n",
+    "translation": "{{.url}} {{.operation}} {{.action}}\n"
+  },
+  {
+    "id": "An API base path is required.  An optional API relative path and operation may also be provided.",
+    "translation": "An API base path is required.  An optional API relative path and operation may also be provided."
+  },
+  {
+    "id": "'{{.path}}' must begin with '/'.",
+    "translation": "'{{.path}}' must begin with '/'."
+  },
+  {
+    "id": "Unable to parse swagger file: {{.err}}",
+    "translation": "Unable to parse swagger file: {{.err}}"
+  },
+  {
+    "id": "Error reading swagger file '{{.name}}': {{.err}}",
+    "translation": "Error reading swagger file '{{.name}}': {{.err}}"
+  },
+  {
+    "id": "A configuration file was not specified.",
+    "translation": "A configuration file was not specified."
+  },
+  {
+    "id": "Error parsing swagger file '{{.name}}': {{.err}}",
+    "translation": "Error parsing swagger file '{{.name}}': {{.err}}"
+  },
+  {
+    "id": "Swagger file is invalid (missing basePath, info, paths, or swagger fields",
+    "translation": "Swagger file is invalid (missing basePath, info, paths, or swagger fields"
+  },
+  {
+    "id": "API does not exist for basepath {{.basepath}}",
+    "translation": "API does not exist for basepath {{.basepath}}"
+  },
+  {
+    "id": "API does not exist for API name {{.apiname}}",
+    "translation": "API does not exist for API name {{.apiname}}"
+  },
+  {
+    "id": "An API name can only be specified once",
+    "translation": "An API name can only be specified once"
+  },
+  {
+    "id": "Specify a swagger file or specify an API base path with an API path, an API verb, and an action name.",
+    "translation": "Specify a swagger file or specify an API base path with an API path, an API verb, and an action name."
+  },
+  {
+    "id": "Invalid argument(s). Specify a swagger file or specify an API base path with an API path, an API verb, and an action name.",
+    "translation": "Invalid argument(s). Specify a swagger file or specify an API base path with an API path, an API verb, and an action name."
+  },
+  {
+    "id": "Cannot use value '{{.arg}}' for shared.",
+    "translation": "Cannot use value '{{.arg}}' for shared."
   }
 ]

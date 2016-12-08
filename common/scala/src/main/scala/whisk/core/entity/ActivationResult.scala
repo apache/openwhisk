@@ -102,6 +102,14 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
     }
 
     /**
+     * Returns an ActivationResponse that is used as a placeholder for payload
+     * Used as a feed for starting a sequence.
+     * NOTE: the code is application error (since this response could be used as a response for the sequence
+     * if the payload contains an error)
+     */
+    protected[core] def payloadPlaceholder(payload: Option[JsObject]) = ActivationResponse(ApplicationError, payload)
+
+    /**
      * Interprets response from container after initialization. This method is only called when the initialization failed.
      *
      * @param response an Option (HTTP Status Code, HTTP response bytes as String)

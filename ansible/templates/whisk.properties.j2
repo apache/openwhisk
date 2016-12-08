@@ -18,6 +18,7 @@ defaultLimits.actions.invokes.perMinute={{ defaultLimits.actions.invokes.perMinu
 defaultLimits.actions.invokes.concurrent={{ defaultLimits.actions.invokes.concurrent }}
 defaultLimits.triggers.fires.perMinute={{ defaultLimits.triggers.fires.perMinute }}
 defaultLimits.actions.invokes.concurrentInSystem={{ defaultLimits.actions.invokes.concurrentInSystem }}
+defaultLimits.actions.sequence.maxLength={{ defaultLimits.actions.sequence.maxLength }}
 
 {% if limits is defined %}
 limits.actions.invokes.perMinute={{ limits.actions.invokes.perMinute }}
@@ -85,3 +86,8 @@ db.password={{ db_password }}
 db.prefix={{ db_prefix }}
 db.whisk.actions={{ db_prefix }}whisks
 db.whisk.auths={{ db_auth }}
+db.whisk.apigw={{ db_apigw }}
+
+apigw.auth.user={{apigw_auth_user}}
+apigw.auth.pwd={{apigw_auth_pwd}}
+apigw.host={{apigw_host}}

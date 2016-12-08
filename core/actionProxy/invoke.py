@@ -59,9 +59,16 @@ def content_from_args(args):
         return in_str
 
 def init(args):
-    with(codecs.open(args, "r", "utf-8")) as fp:
-        contents = fp.read()
-    r = requests.post("%s/init" % DEST, json.dumps({ "value" : { "code" : contents } }))
+    kind = "code"
+    if args.endswith(".zip"):
+        with open(args, "rb") as fp:
+            contents = fp.read().encode("base64")
+        binary = True
+    else:
+        with(codecs.open(args, "r", "utf-8")) as fp:
+            contents = fp.read()
+        binary = False
+    r = requests.post("%s/init" % DEST, json.dumps({ "value" : { kind: contents, binary: binary } }))
     print r.text
 
 def run(args):

@@ -53,9 +53,31 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
         ("python", """
          |import os
          |def main(dict):
-         |    return { "auth": os.environ['AUTH_KEY'], "edge": os.environ['EDGE_HOST'] }
+         |    return {
+         |       "api_host": os.environ['__OW_API_HOST'],
+         |       "api_key": os.environ['__OW_API_KEY'],
+         |       "namespace": os.environ['__OW_NAMESPACE'],
+         |       "action_name": os.environ['__OW_ACTION_NAME'],
+         |       "activation_id": os.environ['__OW_ACTIVATION_ID'],
+         |       "deadline": os.environ['__OW_DEADLINE']
+         |    }
          """.stripMargin.trim)
     })
+
+    it should "support actions using non-default entry points" in {
+        withActionContainer() { c =>
+            val code = """
+                |def niam(dict):
+                |  return { "result": "it works" }
+                |""".stripMargin
+
+            val (initCode, initRes) = c.init(initPayload(code, main = "niam"))
+            initCode should be(200)
+
+            val (_, runRes) = c.run(runPayload(JsObject()))
+            runRes.get.fields.get("result") shouldBe Some(JsString("it works"))
+        }
+    }
 
     it should "return on action error when action fails" in {
         val (out, err) = withActionContainer() { c =>
@@ -163,12 +185,14 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
                 |from scrapy.item import Item, Field
                 |import simplejson as json
                 |from twisted.internet import protocol, reactor, endpoints
+                |import socket
                 |
                 |def main(args):
+                |    socket.setdefaulttimeout(120)
                 |    b = BeautifulSoup('<html><head><title>python action test</title></head></html>', 'html.parser')
-                |    h = httplib2.Http().request('https://httpbin.org/status/201')[0]
+                |    h = httplib2.Http().request('https://openwhisk.ng.bluemix.net/api/v1')[0]
                 |    t = parse('2016-02-22 11:59:00 EST')
-                |    r = requests.get('https://httpbin.org/status/418')
+                |    r = requests.get('https://openwhisk.ng.bluemix.net/api/v1')
                 |    j = json.dumps({'foo':'bar'}, separators = (',', ':'))
                 |
                 |    return {
@@ -190,11 +214,11 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
             runRes shouldBe defined
             runRes should be(Some(JsObject(
                 "bs4" -> "<title>python action test</title>".toJson,
-                "httplib2" -> 201.toJson,
+                "httplib2" -> 200.toJson,
                 "dateutil" -> "Monday".toJson,
                 "lxml" -> "root".toJson,
                 "json" -> JsObject("foo" -> "bar".toJson).compactPrint.toJson,
-                "request" -> 418.toJson)))
+                "request" -> 200.toJson)))
         }
 
         checkStreams(out, err, {

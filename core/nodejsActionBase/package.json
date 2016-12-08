@@ -2,10 +2,10 @@
   "name": "nodejsAction",
   "version": "0.0.1",
   "dependencies": {
-    "body-parser": "^1.11.0",
-    "btoa": "^1.1.2",
-    "express": "^4.11.2",
-    "log4js": "^0.6.20",
-    "request": "^2.60.0"
+    "body-parser": "1.15.2",
+    "btoa": "1.1.2",
+    "express": "4.14.0",
+    "log4js": "0.6.38",
+    "request": "2.79.0"
   }
 }

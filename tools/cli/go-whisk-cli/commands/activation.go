@@ -50,7 +50,7 @@ var activationListCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        qName := qualifiedName{}
+        qName := QualifiedName{}
 
         // Specifying an activation item name filter is optional
         if len(args) == 1 {
@@ -110,16 +110,29 @@ var activationListCmd = &cobra.Command{
 }
 
 var activationGetCmd = &cobra.Command{
-    Use:   "get ACTIVATION_ID",
+    Use:   "get ACTIVATION_ID [FIELD_FILTER]",
     Short: wski18n.T("get activation"),
     SilenceUsage:   true,
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
+        var field string
 
-        if whiskErr := checkArgs(args, 1, 1, "Activation get",
+        if whiskErr := checkArgs(args, 1, 2, "Activation get",
                 wski18n.T("An activation ID is required.")); whiskErr != nil {
             return whiskErr
+        }
+
+        if len(args) > 1 {
+            field = args[1]
+
+            if !fieldExists(&whisk.Activation{}, field) {
+                errMsg := fmt.Sprintf(
+                    wski18n.T("Invalid field filter '{{.arg}}'.", map[string]interface{}{"arg": field}))
+                whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+                    whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                return whiskErr
+            }
         }
 
         id := args[0]
@@ -143,10 +156,18 @@ var activationGetCmd = &cobra.Command{
                         "time": time.Unix(activation.End/1000, 0)}))
             printJSON(activation.Response.Result)
         } else {
-            fmt.Fprintf(color.Output,
-                wski18n.T("{{.ok}} got activation {{.id}}\n",
-                    map[string]interface{}{"ok": color.GreenString("ok:"), "id": boldString(id)}))
-            printJSON(activation)
+
+            if len(field) > 0 {
+                fmt.Fprintf(color.Output,
+                    wski18n.T("{{.ok}} got activation {{.id}}, displaying field {{.field}}\n",
+                        map[string]interface{}{"ok": color.GreenString("ok:"), "id": boldString(id),
+                        "field": boldString(field)}))
+                printField(activation, field)
+            } else {
+                fmt.Fprintf(color.Output, wski18n.T("{{.ok}} got activation {{.id}}\n",
+                        map[string]interface{}{"ok": color.GreenString("ok:"), "id": boldString(id)}))
+                printJSON(activation)
+            }
         }
 
         return nil

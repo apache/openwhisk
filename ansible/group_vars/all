@@ -13,6 +13,8 @@ defaultLimits:
       perMinute: 120
       concurrent: 100
       concurrentInSystem: 5000
+    sequence:
+      maxLength: 10
   triggers:
     fires:
       perMinute: 60
@@ -23,6 +25,7 @@ controller:
   port: 10001
 
 consul:
+  version: 0.7.0
   port:
     server: 8300
     serf_lan: 8301
@@ -32,11 +35,13 @@ consul:
     dns: 8600
 
 kafka:
+  version: 0.10.0.1
   port: 9092
   ras:
     port: 9093
 
 zookeeper:
+  version: 3.4
   port: 2181
 
 invoker:
@@ -47,6 +52,7 @@ invoker:
   serializeDockerPull: true
 
 nginx:
+  version: 1.11
   port:
     http: 80
     api: 443
@@ -58,16 +64,29 @@ db:
   - guest
   - whisk.system
 
+apigateway:
+  port:
+    api: 9000
+    api_secure: 443
+    mgmt: 9001
+
+redis:
+  version: 3.2
+  port: 6379
+
 linux:
-  version: 3.19.0-25
+  version: 4.4.0-31
+
+couchdb:
+  version: 1.6
 
 docker_image_prefix: whisk
 docker_image_tag: latest
 docker:
-  # The user to install docker for. Defaults to the ansible user if not set. This will be the user who is able to run 
+  # The user to install docker for. Defaults to the ansible user if not set. This will be the user who is able to run
   # docker commands on a machine setup with prereq_build.yml
   #user:
-  version: 1.9.1-0~trusty
+  version: 1.12.0-0~trusty
   storagedriver: overlay
   port: 4243
   restart:
@@ -111,4 +130,3 @@ catalog_repos:
     location: "{{ openwhisk_home }}/../openwhisk-catalog"
     version: "HEAD"
     repo_update: "yes"
-

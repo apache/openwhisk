@@ -1,0 +1,30 @@
+---
+# This role will install apigateway
+
+- name: "pull the openwhisk/apigateway image"
+  shell: "docker pull openwhisk/apigateway"
+
+- name: (re)start apigateway
+  docker_container:
+    name: apigateway
+    image: openwhisk/apigateway
+    state: started
+    recreate: true
+    restart_policy: "{{ docker.restart.policy }}"
+    hostname: apigateway
+    env:
+      "REDIS_HOST": "{{ groups['redis'] | first }}"
+      "REDIS_PORT": "{{ redis.port }}"
+      "PUBLIC_MANAGEDURL_HOST": "{{ inventory_hostname }}"
+      "PUBLIC_MANAGEDURL_PORT": "{{ apigateway.port.mgmt }}"
+    ports:
+      - "{{ apigateway.port.mgmt }}:8080"
+      - "{{ apigateway.port.api }}:9000"
+
+- name: wait until the API Gateway in this host is up and running
+  uri:
+    url: "http://{{ groups['apigateway'] | first }}:{{ apigateway.port.api }}/v1/apis"
+  register: result
+  until: result.status == 200
+  retries: 12
+  delay: 5

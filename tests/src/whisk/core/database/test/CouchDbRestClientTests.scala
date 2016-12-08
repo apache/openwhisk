@@ -16,6 +16,7 @@
 
 package whisk.core.database.test
 
+import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.duration.DurationDouble
@@ -32,8 +33,8 @@ import org.scalatest.junit.JUnitRunner
 
 import akka.actor.Props
 import akka.http.scaladsl.model._
-import akka.util.ByteString
 import akka.stream.scaladsl._
+import akka.util.ByteString
 import common.WskActorSystem
 import spray.json._
 import spray.json.DefaultJsonProtocol._
@@ -46,7 +47,8 @@ class CouchDbRestClientTests extends FlatSpec
     with Matchers
     with ScalaFutures
     with BeforeAndAfterAll
-    with WskActorSystem {
+    with WskActorSystem
+    with DbUtils {
 
     override implicit val patienceConfig = PatienceConfig(timeout = 10.seconds, interval = 0.5.seconds)
 
@@ -175,5 +177,62 @@ class CouchDbRestClientTests extends FlatSpec
                 assert(t === ContentTypes.`text/plain(UTF-8)`)
                 assert(r === attachment)
         }
+    }
+
+    it should "fail if group=true is used together with reduce=false" in {
+        intercept[IllegalArgumentException] {
+            Await.result(client.executeView("", "")(reduce = false, group = true), 15.seconds)
+        }
+    }
+
+    it should "check group Parameter on view-execution" in {
+        assume(config.dbProvider == "Cloudant" || config.dbProvider == "CouchDB")
+
+        val ids = List("some_doc_1", "some_doc_2", "some_doc_3", "some_doc_4", "some_doc_5")
+        val docs = Map(
+            ids(0) -> JsObject("key" -> JsString("a"), "value" -> JsNumber(1)),
+            ids(1) -> JsObject("key" -> JsString("a"), "value" -> JsNumber(2)),
+            ids(2) -> JsObject("key" -> JsString("b"), "value" -> JsNumber(3)),
+            ids(3) -> JsObject("key" -> JsString("b"), "value" -> JsNumber(4)),
+            ids(4) -> JsObject("key" -> JsString("c"), "value" -> JsNumber(5)))
+        val designDocName = "testDocument"
+        val viewName = "sumOfValues"
+        val designDoc = JsObject(
+            "views" -> JsObject(viewName -> JsObject(
+                "reduce" -> JsString("_sum"),
+                "map" -> JsString("function (doc) {\n  if(doc.key && doc.value) {\n    emit([doc.key], doc.value);\n  }\n}"))),
+            "language" -> JsString("javascript"))
+
+        Await.result(client.putDoc(s"_design/$designDocName", designDoc), 15.seconds)
+        docs.map {
+            case (id, doc) =>
+                Await.result(client.putDoc(id, doc), 15.seconds)
+        }
+
+        waitOnView(client, designDocName, viewName, docs.size)
+
+        val resultGroupedTrue = Await.result(client.executeView(designDocName, viewName)(reduce = true, group = true), 15.seconds)
+        resultGroupedTrue should be('right)
+        val jsObjectTrue = resultGroupedTrue.right.get
+        var rows = jsObjectTrue.fields("rows").convertTo[List[JsObject]]
+        rows.length should equal(3)
+        rows(0) shouldBe JsObject("key" -> JsArray(JsString("a")), "value" -> JsNumber(3))
+        rows(1) shouldBe JsObject("key" -> JsArray(JsString("b")), "value" -> JsNumber(7))
+        rows(2) shouldBe JsObject("key" -> JsArray(JsString("c")), "value" -> JsNumber(5))
+
+        val resultGroupedFalse = Await.result(client.executeView(designDocName, viewName)(reduce = true, group = false), 15.seconds)
+        resultGroupedFalse should be('right)
+        val jsObjectFalse = resultGroupedFalse.right.get
+        rows = jsObjectFalse.fields("rows").convertTo[List[JsObject]]
+        rows.length should equal(1)
+        rows(0).fields("value") should equal(JsNumber(15))
+
+        val resultGroupedWithout = Await.result(client.executeView(designDocName, viewName)(reduce = true), 15.seconds)
+        resultGroupedWithout should be('right)
+        val jsObjectWithout = resultGroupedWithout.right.get
+        rows = jsObjectWithout.fields("rows").convertTo[List[JsObject]]
+        rows.length should equal(1)
+        rows(0).fields("value") should equal(JsNumber(15))
+
     }
 }

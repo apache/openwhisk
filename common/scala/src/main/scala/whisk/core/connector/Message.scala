@@ -74,6 +74,8 @@ case class ActivationMessage(
         val value = (content getOrElse JsObject()).compactPrint
         s"$action?message=$value"
     }
+
+    def causedBySequence: Boolean = cause.isDefined
 }
 
 object ActivationMessage extends DefaultJsonProtocol {
@@ -85,6 +87,7 @@ object ActivationMessage extends DefaultJsonProtocol {
         serdes.read(msg.parseJson)
     }
 
+    private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
     implicit val serdes = jsonFormat9(ActivationMessage.apply)
 }
 

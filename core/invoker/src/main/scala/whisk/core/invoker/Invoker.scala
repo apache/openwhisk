@@ -19,8 +19,8 @@ package whisk.core.invoker
 import java.time.{ Clock, Instant }
 
 import scala.Vector
-import scala.collection.concurrent.TrieMap
 import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.Promise
 import scala.concurrent.duration.{ Duration, DurationInt }
 import scala.language.postfixOps
 import scala.util.{ Failure, Success, Try }
@@ -28,20 +28,20 @@ import scala.util.{ Failure, Success, Try }
 import akka.actor.{ ActorRef, ActorSystem, actorRef2Scala }
 import akka.event.Logging.{ InfoLevel, LogLevel }
 import akka.japi.Creator
-import spray.json.{ JsArray, JsNumber, JsObject, JsValue, pimpAny, pimpString }
-import spray.json.DefaultJsonProtocol._
+import spray.json._
 import spray.json.DefaultJsonProtocol
+import spray.json.DefaultJsonProtocol._
 import whisk.common.{ ConsulKVReporter, Counter, Logging, LoggingMarkers, PrintStreamEmitter, SimpleExec, TransactionId }
 import whisk.common.ConsulClient
 import whisk.common.ConsulKV.InvokerKeys
 import whisk.connector.kafka.{ KafkaConsumerConnector, KafkaProducerConnector }
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.{ consulServer, dockerImagePrefix, dockerRegistry, edgeHost, kafkaHost, logsDir, servicePort, whiskVersion }
-import whisk.core.connector.{ ActivationMessage => Message, CompletionMessage }
+import whisk.core.connector.{ ActivationMessage, CompletionMessage }
 import whisk.core.container.{ BlackBoxContainerError, ContainerPool, Interval, RunResult, WhiskContainer, WhiskContainerError }
 import whisk.core.dispatcher.{ Dispatcher, MessageHandler }
 import whisk.core.dispatcher.ActivationFeed.{ ActivationNotification, ContainerReleased, FailedActivation }
-import whisk.core.entity.{ ActionLimits, ActivationLogs, ActivationResponse, AuthKey, DocId, DocInfo, DocRevision, EntityPath, Exec, LogLimit, Parameters, SemVer, Subject, WhiskAction, WhiskActivation, WhiskActivationStore, WhiskAuthStore, WhiskEntity, WhiskEntityStore }
+import whisk.core.entity._
 import whisk.core.entity.size.{ SizeInt, SizeString }
 import whisk.http.BasicHttpService
 import whisk.utils.ExecutionContextFactory
@@ -84,53 +84,69 @@ class Invoker(
      * @param msg is the kafka message payload as Json
      * @param matches contains the regex matches
      */
-    override def onMessage(msg: Message)(implicit transid: TransactionId): Future[DocInfo] = {
+    override def onMessage(msg: ActivationMessage)(implicit transid: TransactionId): Future[DocInfo] = {
         require(msg != null, "message undefined")
+        require(msg.action.version.isDefined, "action version undefined")
 
         val start = transid.started(this, LoggingMarkers.INVOKER_ACTIVATION)
         val namespace = msg.action.path
         val name = msg.action.name
-        val actionid = DocId(WhiskEntity.qualifiedName(namespace, name)).asDocInfo(msg.revision)
+        val actionid = FullyQualifiedEntityName(namespace, name).toDocId.asDocInfo(msg.revision)
         val tran = Transaction(msg)
         val subject = msg.subject
-        val payload = msg.content getOrElse JsObject()
 
         info(this, s"${actionid.id} $subject ${msg.activationId}")
+
+        // the activation must terminate with only one attempt to write an activation record to the datastore
+        // hence when the transaction is fully processed, this method will complete a promise with the datastore
+        // future writing back the activation record and for which there are three cases:
+        // 1. success: there were no exceptions and hence the invoke path operated normally,
+        // 2. error during invocation: an exception occurred while trying to run the action,
+        // 3. error fetching action: an exception occurred reading from the db, didn't get to run.
+        val transactionPromise = Promise[DocInfo]
 
         // caching is enabled since actions have revision id and an updated
         // action will not hit in the cache due to change in the revision id;
         // if the doc revision is missing, then bypass cache
-        WhiskAction.get(entityStore, actionid.id, actionid.rev, actionid.rev != DocRevision()) recoverWith {
-            case t =>
-                error(this, s"failed to fetch action from db: ${t.getMessage}")
-                Future.failed(ActivationException(s"Failed to fetch action."))
-        } flatMap {
-            invokeAction(_, msg.authkey, payload, tran)
-        } recoverWith {
-            case t =>
-                val failure = t match {
-                    // in case of container pull/run operations that fail to execute, assign an appropriate error response
-                    case BlackBoxContainerError(msg) => ActivationException(msg, internalError = false)
-                    case WhiskContainerError(msg)    => ActivationException(msg)
-                    case _ =>
-                        error(this, s"failed during invoke: $t")
-                        ActivationException(s"Failed to run action '${actionid.id}': ${t.getMessage}")
+        WhiskAction.get(entityStore, actionid.id, actionid.rev, fromCache = actionid.rev != DocRevision()) onComplete {
+            case Success(action) =>
+                invokeAction(tran, action) onComplete {
+                    case Success(activation) =>
+                        transactionPromise.completeWith {
+                            // this completes the successful activation case (1)
+                            completeTransaction(tran, activation, ContainerReleased(transid))
+                        }
+
+                    case Failure(t) =>
+                        info(this, s"activation failed")
+                        val failure = disambiguateActivationException(t, action)
+                        transactionPromise.completeWith {
+                            // this completes the failed activation case (2)
+                            completeTransactionWithError(action.docid, action.version, tran, failure.activationResponse, Some(action.limits))
+                        }
                 }
 
-                info(this, s"activation failed")
-                completeTransactionWithError(actionid.id, msg.action.version, tran, failure.activationResponse)
+            case Failure(t) =>
+                error(this, s"failed to fetch action from db: ${t.getMessage}")
+                val failureResponse = ActivationResponse.whiskError(s"Failed to fetch action.")
+                transactionPromise.completeWith {
+                    // this completes the failed to fetch case (3)
+                    completeTransactionWithError(actionid.id, msg.action.version.get, tran, failureResponse, None)
+                }
         }
+
+        transactionPromise.future
     }
 
     /*
      * Creates a whisk activation out of the errorMsg and finish the transaction.
      * Failing with an error can involve multiple futures but the effecting call is completeTransaction which is guarded.
      */
-    protected def completeTransactionWithError(name: DocId, version: SemVer, tran: Transaction, response: ActivationResponse)(
+    protected def completeTransactionWithError(name: DocId, version: SemVer, tran: Transaction, response: ActivationResponse, limits: Option[ActionLimits])(
         implicit transid: TransactionId): Future[DocInfo] = {
         val msg = tran.msg
         val interval = computeActivationInterval(tran)
-        val activation = makeWhiskActivation(msg, EntityPath(name.id), version, response, interval, None)
+        val activation = makeWhiskActivation(msg, EntityPath(name.id), version, response, interval, limits)
         completeTransaction(tran, activation, FailedActivation(transid))
     }
 
@@ -147,7 +163,6 @@ class Invoker(
                 case Some(res) => res
                 case None => {
                     activationCounter.next() // this is the global invoker counter
-                    incrementUserActivationCounter(tran.msg.subject)
                     // Send a message to the activation feed indicating there is a free resource to handle another activation.
                     // Since all transaction completions flow through this method and the invariant is that the transaction is
                     // completed only once, there is only one completion message sent to the feed as a result.
@@ -165,66 +180,86 @@ class Invoker(
         }
     }
 
-    protected def invokeAction(action: WhiskAction, auth: AuthKey, payload: JsObject, tran: Transaction)(
-        implicit transid: TransactionId): Future[DocInfo] = {
-        val msg = tran.msg
+    /**
+     * Executes the action: gets a container (new or recycled), initializes it if necessary, and runs the action.
+     *
+     * @return WhiskActivation
+     */
+    protected def invokeAction(tran: Transaction, action: WhiskAction)(
+        implicit transid: TransactionId): Future[WhiskActivation] = {
+        Future { pool.getAction(action, tran.msg.authkey) } map {
+            case (con, initResultOpt) => runAction(tran, action, con, initResultOpt)
+        } map {
+            case (failedInit, con, result) =>
+                // process the result and send active ack message
+                val activationResult = sendActiveAck(tran, action, failedInit, result)
 
-        pool.getAction(action, auth) match {
-            case Some((con, initResultOpt)) => Future {
-                val params = con.mergeParams(payload)
-                val timeout = action.limits.timeout.duration
-                def run() = con.run(params, msg.meta, auth.compact, timeout, action.fullyQualifiedName, msg.activationId.toString)
+                // after sending active ack, drain logs and return container
+                val contents = getContainerLogs(con, action.exec.sentinelledLogs, action.limits.logs)
 
-                initResultOpt match {
-                    // cached container
-                    case None => (false, run())
+                /* Force delete the container instead of just pausing it iff the initialization failed or the container
+                 * failed otherwise. An example of a ContainerError is the timeout of an action in which case the
+                 * container is to be removed to prevent leaking.  Since putting back the container involves pausing,
+                 * we run this in a Future so as not to block transaction completion but also return resources promptly.
+                 * Note: using infinite thread pool so using a future here for a long/blocking operation is acceptable.
+                 */
+                Future { pool.putBack(con, failedInit) }
 
-                    // new container
-                    case Some(RunResult(interval, response)) =>
-                        tran.initInterval = Some(interval)
-                        response match {
-                            // successful init
-                            case Some((200, _)) => (false, run())
-                            // unsuccessful initialization
-                            case _              => (true, initResultOpt.get)
-                        }
-                }
-            } flatMap {
-                case (failedInit, RunResult(interval, response)) =>
-                    // it is possible for response to be None if the container timed out
-                    if (!failedInit) tran.runInterval = Some(interval)
-
-                    val activationInterval = computeActivationInterval(tran)
-                    val activationResponse = getActivationResponse(activationInterval, action.limits.timeout.duration, response, failedInit)
-                    val activationResult = makeWhiskActivation(msg, EntityPath(action.docid.id), action.version, activationResponse, activationInterval, Some(action.limits))
-                    val completeMsg = CompletionMessage(transid, activationResult)
-
-                    producer.send("completed", completeMsg) map { status =>
-                        info(this, s"posted completion of activation ${msg.activationId}")
-                    }
-
-                    val contents = getContainerLogs(con, action.exec.sentinelledLogs, action.limits.logs)
-
-                    // Force delete the container instead of just pausing it iff the initialization failed or the container
-                    // failed otherwise. An example of a ContainerError is the timeout of an action in which case the
-                    // container is to be removed to prevent leaking
-                    pool.putBack(con, failedInit)
-
-                    completeTransaction(tran, activationResult withLogs ActivationLogs.serdes.read(contents), ContainerReleased(transid))
-            }
-
-            case None => { // this corresponds to the container not even starting - not /init failing
-                info(this, s"failed to start or get a container")
-                val response = if (action.exec.kind == Exec.BLACKBOX) {
-                    ActivationResponse.containerError("The container did to start.")
-                } else {
-                    ActivationResponse.whiskError("Error starting container to run action.")
-                }
-                val interval = computeActivationInterval(tran)
-                val activation = makeWhiskActivation(msg, EntityPath(action.docid.id), action.version, response, interval, Some(action.limits))
-                completeTransaction(tran, activation, FailedActivation(transid))
-            }
+                activationResult withLogs ActivationLogs.serdes.read(contents)
         }
+    }
+
+    /**
+     * Runs the action in the container if the initialization succeeded and returns a triple
+     * (initialization failed?, the container, the init result if initialization failed else the run result)
+     */
+    private def runAction(tran: Transaction, action: WhiskAction, con: WhiskContainer, initResultOpt: Option[RunResult])(
+        implicit transid: TransactionId): (Boolean, WhiskContainer, RunResult) = {
+        def run() = {
+            val msg = tran.msg
+            val auth = msg.authkey
+            val payload = msg.content getOrElse JsObject()
+            val boundParams = action.parameters.toJsObject
+            val params = JsObject(boundParams.fields ++ payload.fields)
+            val timeout = action.limits.timeout.duration
+            con.run(msg, params,  timeout)
+        }
+
+        initResultOpt match {
+            // cached container
+            case None => (false, con, run())
+
+            // new container
+            case Some(RunResult(interval, response)) =>
+                tran.initInterval = Some(interval)
+                response match {
+                    case Some((200, _)) => (false, con, run()) // successful init
+                    case _              => (true, con, initResultOpt.get) // unsuccessful initialization
+                }
+        }
+    }
+
+    /**
+     * Creates WhiskActivation for the "run result" (which could be a failed initialization) and send
+     * ActiveAck message.
+     *
+     * @return WhiskActivation
+     */
+    private def sendActiveAck(tran: Transaction, action: WhiskAction, failedInit: Boolean, result: RunResult)(
+        implicit transid: TransactionId): WhiskActivation = {
+        if (!failedInit) tran.runInterval = Some(result.interval)
+
+        val msg = tran.msg
+        val activationInterval = computeActivationInterval(tran)
+        val activationResponse = getActivationResponse(activationInterval, action.limits.timeout.duration, result.response, failedInit)
+        val activationResult = makeWhiskActivation(msg, EntityPath(action.fullyQualifiedName(false).toString), action.version, activationResponse, activationInterval, Some(action.limits))
+        val completeMsg = CompletionMessage(transid, activationResult)
+
+        producer.send("completed", completeMsg) map { status =>
+            info(this, s"posted completion of activation ${msg.activationId}")
+        }
+
+        activationResult
     }
 
     // The nodeJsAction runner inserts this line in the logs at the end
@@ -332,28 +367,11 @@ class Invoker(
         }
     }
 
-    private def incrementUserActivationCounter(user: Subject)(implicit transid: TransactionId): Long = {
-        val counter = userActivationCounter.getOrElseUpdate(user(), new Counter())
-        val count = counter.next()
-        info(this, s"'${user}' has $count activations processed")
-        count
-    }
-
-    private def getUserActivationCounts(): Map[String, JsObject] = {
-        val subjects = userActivationCounter.keySet toList
-        val groups = subjects.groupBy { user => user.substring(0, 1) } // Any sort of partitioning will be ok wrt load balancer
-        groups.keySet map { prefix =>
-            val key = InvokerKeys.userActivationCount(instance) + "/" + prefix
-            val users = groups.getOrElse(prefix, Set())
-            val items = users map { u => (u, JsNumber(userActivationCounter.get(u) map { c => c.cur } getOrElse 0L)) }
-            key -> JsObject(items toMap)
-        } toMap
-    }
-
     // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Interprets the responses from the container and maps it to an appropriate ActivationResponse.
+     * Note: it is possible for result.response to be None if the container timed out.
      */
     private def getActivationResponse(
         interval: Interval,
@@ -374,12 +392,13 @@ class Invoker(
      * Creates a WhiskActivation for the given action, response and duration.
      */
     private def makeWhiskActivation(
-        msg: Message,
+        msg: ActivationMessage,
         actionName: EntityPath,
         actionVersion: SemVer,
         activationResponse: ActivationResponse,
         interval: Interval,
         limits: Option[ActionLimits]) = {
+        val causedBy = if (msg.causedBySequence) Parameters("causedBy", "sequence".toJson) else Parameters()
         WhiskActivation(
             namespace = msg.activationNamespace,
             name = actionName.last,
@@ -392,7 +411,12 @@ class Invoker(
             end = interval.end,
             response = activationResponse,
             logs = ActivationLogs(),
-            annotations = Parameters("limits", limits.toJson) ++ Parameters("path", actionName.toJson))
+            annotations = {
+                limits.map(l => Parameters("limits", l.toJson)).getOrElse(Parameters()) ++
+                    Parameters("path", actionName.toJson) ++ causedBy
+            },
+            duration = Some(interval.duration.toMillis))
+
     }
 
     /**
@@ -413,44 +437,35 @@ class Invoker(
         }
     }
 
+    /**
+     * Rewrites exceptions during invocation into new exceptions.
+     */
+    private def disambiguateActivationException(t: Throwable, action: WhiskAction)(
+        implicit transid: TransactionId): ActivationException = {
+        t match {
+            // in case of container pull/run operations that fail to execute, assign an appropriate error response
+            case BlackBoxContainerError(msg) => ActivationException(msg, internalError = false)
+            case WhiskContainerError(msg)    => ActivationException(msg)
+            case _ =>
+                error(this, s"failed during invoke: $t")
+                ActivationException(s"Failed to run action '${action.docid}': ${t.getMessage}")
+        }
+    }
+
     private val entityStore = WhiskEntityStore.datastore(config)
     private val authStore = WhiskAuthStore.datastore(config)
     private val activationStore = WhiskActivationStore.datastore(config)
     private val pool = new ContainerPool(config, instance, verbosity)
     private val activationCounter = new Counter() // global activation counter
-    private val userActivationCounter = new TrieMap[String, Counter]
 
     private val consul = new ConsulClient(config.consulServer)
 
-    // Restore old state from the same invoker instance
-    consul.kv.getRecurse(InvokerKeys.userActivationCount(instance)).map { partitioned =>
-        val flattened = partitioned.values.map { userCounts =>
-            userCounts.parseJson.convertTo[Map[String, Int]]
-        }.reduce(_ ++ _)
-
-        val readActivationCounter = flattened.mapValues { readCount =>
-            val cnt = new Counter()
-            cnt.set(readCount)
-            cnt
-        }
-
-        info(this, s"restored old counts from consul: $flattened")
-
-        userActivationCounter.clear()
-        userActivationCounter ++= readActivationCounter
-
-        activationCounter.set(flattened.values.sum)
-    } onComplete { _ =>
-        // Repeatedly updates the KV store as to the invoker's last check-in.
-        new ConsulKVReporter(consul, 3 seconds, 2 seconds,
-            InvokerKeys.hostname(instance),
-            InvokerKeys.start(instance),
-            InvokerKeys.status(instance),
-            { index =>
-                (if (index % 5 == 0) getUserActivationCounts() else Map[String, JsValue]()) ++
-                    Map(InvokerKeys.activationCount(instance) -> activationCounter.cur.toJson)
-            })
-    }
+    // Repeatedly updates the KV store as to the invoker's last check-in.
+    new ConsulKVReporter(consul, 3 seconds, 2 seconds,
+        InvokerKeys.hostname(instance),
+        InvokerKeys.start(instance),
+        InvokerKeys.status(instance),
+        { _ => Map() })
 
     setVerbosity(verbosity)
 }
@@ -489,7 +504,7 @@ object Invoker {
         if (config.isValid) {
             SimpleExec.setVerbosity(verbosity)
 
-            val topic = Message.invoker(instance)
+            val topic = ActivationMessage.invoker(instance)
             val groupid = "invokers"
             val maxdepth = ContainerPool.getDefaultMaxActive(config)
             val consumer = new KafkaConsumerConnector(config.kafkaHost, groupid, topic, maxdepth)
@@ -514,7 +529,7 @@ object Invoker {
  *
  * See completeTransaction for why complete is needed.
  */
-private case class Transaction(msg: Message) {
+private case class Transaction(msg: ActivationMessage) {
     var result: Option[Future[DocInfo]] = None
     var initInterval: Option[Interval] = None
     var runInterval: Option[Interval] = None

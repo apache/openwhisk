@@ -31,6 +31,7 @@ import org.scalatest.junit.JUnitRunner
 import akka.actor.PoisonPill
 
 import common.WskActorSystem
+import scala.concurrent.Await
 
 @RunWith(classOf[JUnitRunner])
 class SchedulerTests extends FlatSpec with Matchers with WskActorSystem {
@@ -64,7 +65,9 @@ class SchedulerTests extends FlatSpec with Matchers with WskActorSystem {
         }
 
         waitForCalls()
-        scheduled ! PoisonPill
+        // This is equal to a scheduled ! PoisonPill
+        val shutdownTimeout = 10.seconds
+        Await.result(akka.pattern.gracefulStop(scheduled, shutdownTimeout, PoisonPill), shutdownTimeout)
 
         val countAfterKill = callCount
         callCount should be >= callsToProduce

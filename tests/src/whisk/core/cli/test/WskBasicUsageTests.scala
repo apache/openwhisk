@@ -17,6 +17,8 @@
 package whisk.core.cli.test
 
 import java.io.File
+import java.io.BufferedWriter
+import java.io.FileWriter
 import java.time.Instant
 
 import scala.language.postfixOps
@@ -30,35 +32,23 @@ import org.scalatest.junit.JUnitRunner
 
 import common.TestHelpers
 import common.TestUtils
-import common.TestUtils.ANY_ERROR_EXIT
-import common.TestUtils.DONTCARE_EXIT
-import common.TestUtils.BAD_REQUEST
-import common.TestUtils.ERROR_EXIT
-import common.TestUtils.MISUSE_EXIT
-import common.TestUtils.NOT_FOUND
-import common.TestUtils.NOT_ALLOWED
-import common.TestUtils.SUCCESS_EXIT
+import common.TestUtils._
 import common.WhiskProperties
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
 import spray.json.DefaultJsonProtocol._
 import spray.json._
-import spray.json.JsObject
-import spray.json.pimpAny
-import spray.json.pimpString
-import whisk.core.entity.ByteSize
+import whisk.core.entity._
 import whisk.core.entity.LogLimit._
 import whisk.core.entity.MemoryLimit._
 import whisk.core.entity.TimeLimit._
 import whisk.core.entity.size.SizeInt
-import whisk.core.entity.ActivationResponse
 import whisk.utils.retry
 import JsonArgsForTests._
-import whisk.core.entity.ActionLimits
-import whisk.core.entity.TimeLimit
-import whisk.core.entity.LogLimit
-import whisk.core.entity.MemoryLimit
+import whisk.http.Messages
+import common.WskAdmin
+import java.time.Clock
 
 /**
  * Tests for basic CLI usage. Some of these tests require a deployed backend.
@@ -216,10 +206,21 @@ class WskBasicUsageTests
         // override wsk props file in case it exists
         val tmpwskprops = File.createTempFile("wskprops", ".tmp")
         val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
-        val stderr = wsk.cli(Seq("list"), env = env, expectedExitCode = MISUSE_EXIT).stderr
+        val stderr = wsk.cli(Seq("list") ++ wskprops.overrides, env = env, expectedExitCode = MISUSE_EXIT).stderr
         try {
             stderr should include regex (s"usage[:.]") // Python CLI: "usage:", Go CLI: "usage."
             stderr should include("--auth is required")
+        } finally {
+            tmpwskprops.delete()
+        }
+    }
+
+    it should "reject a command when the API host is not set" in {
+        val tmpwskprops = File.createTempFile("wskprops", ".tmp")
+        try {
+            val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
+            val stderr = wsk.cli(Seq("property", "get", "-i"), env = env, expectedExitCode = ERROR_EXIT).stderr
+            stderr should include("The API host is not valid: An API host must be provided.")
         } finally {
             tmpwskprops.delete()
         }
@@ -446,6 +447,69 @@ class WskBasicUsageTests
                 activation =>
                     activation.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ApplicationError)
                     activation.response.result.get.fields("error") shouldBe s"Failed to pull container image '$containerName'.".toJson
+                    activation.annotations shouldBe defined
+                    val limits = activation.annotations.get.filter(_.fields("key").convertTo[String] == "limits")
+                    withClue(limits) {
+                        limits.length should be > 0
+                        limits(0).fields("value") should not be JsNull
+                    }
+            }
+    }
+
+    it should "invoke an action using npm openwhisk" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "hello npm openwhisk"
+            assetHelper.withCleaner(wsk.action, name, confirmDelete = false) {
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("helloOpenwhiskPackage.js")))
+            }
+
+            val run = wsk.action.invoke(name, Map("ignore_certs" -> true.toJson, "name" -> name.toJson))
+            withActivation(wsk.activation, run) {
+                activation =>
+                    activation.response.status shouldBe "success"
+                    activation.response.result shouldBe Some(JsObject("delete" -> true.toJson))
+                    activation.logs.get.mkString(" ") should include("action list has this many actions")
+            }
+
+            wsk.action.delete(name, expectedExitCode = TestUtils.NOT_FOUND)
+    }
+
+    it should "invoke an action receiving context properties" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val (user, namespace) = WskAdmin.getUser(wskprops.authKey)
+            val name = "context"
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("helloContext.js")))
+            }
+
+            val start = Instant.now(Clock.systemUTC()).toEpochMilli
+            val run = wsk.action.invoke(name)
+            withActivation(wsk.activation, run) {
+                activation =>
+                    activation.response.status shouldBe "success"
+                    val fields = activation.response.result.get.convertTo[Map[String, String]]
+                    fields("api_host") shouldBe WhiskProperties.getEdgeHost + ":" + WhiskProperties.getEdgeHostApiPort
+                    fields("api_key") shouldBe wskprops.authKey
+                    fields("namespace") shouldBe namespace
+                    fields("action_name") shouldBe s"/$namespace/$name"
+                    fields("activation_id") shouldBe activation.activationId
+                    fields("deadline").toLong should be >= start
+            }
+    }
+
+    it should s"invoke an action that returns a result by the deadline" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "deadline"
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("helloDeadline.js")), timeout = Some(3 seconds))
+            }
+
+            val start = Instant.now(Clock.systemUTC()).toEpochMilli
+            val run = wsk.action.invoke(name)
+            withActivation(wsk.activation, run) {
+                activation =>
+                    activation.response.status shouldBe "success"
+                    activation.response.result shouldBe Some(JsObject("timedout" -> true.toJson))
             }
     }
 
@@ -518,6 +582,25 @@ class WskBasicUsageTests
                 receivedParams should contain(expectedItem)
                 receivedAnnots should contain(expectedItem)
             }
+    }
+
+    it should "report conformance error accessing action as package" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "aAsP"
+            val file = Some(TestUtils.getTestActionFilename("hello.js"))
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, file)
+            }
+
+            wsk.pkg.get(name, expectedExitCode = CONFLICT).
+                stderr should include(Messages.conformanceMessage)
+
+            wsk.pkg.bind(name, "bogus", expectedExitCode = CONFLICT).
+                stderr should include(Messages.requestedBindingIsNotValid)
+
+            wsk.pkg.bind("bogus", "alsobogus", expectedExitCode = BAD_REQUEST).
+                stderr should include(Messages.bindingDoesNotExist)
+
     }
 
     behavior of "Wsk triggers"
@@ -618,6 +701,85 @@ class WskBasicUsageTests
             }
     }
 
+    behavior of "Wsk api"
+
+    it should "reject an api commands with an invalid path parameter" in {
+        val badpath = "badpath"
+
+        var rr = wsk.cli(Seq("api-experimental", "create", "/basepath", badpath, "GET", "action", "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+        rr.stderr should include (s"'${badpath}' must begin with '/'")
+
+        rr = wsk.cli(Seq("api-experimental", "delete", "/basepath", badpath, "GET", "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+        rr.stderr should include (s"'${badpath}' must begin with '/'")
+
+        rr = wsk.cli(Seq("api-experimental", "list", "/basepath", badpath, "GET", "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+        rr.stderr should include (s"'${badpath}' must begin with '/'")
+    }
+
+    it should "reject an api commands with an invalid verb parameter" in {
+        val badverb = "badverb"
+
+        var rr = wsk.cli(Seq("api-experimental", "create", "/basepath", "/path", badverb, "action", "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+        rr.stderr should include (s"'${badverb}' is not a valid API verb.  Valid values are:")
+
+        rr = wsk.cli(Seq("api-experimental", "delete", "/basepath", "/path", badverb, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+        rr.stderr should include (s"'${badverb}' is not a valid API verb.  Valid values are:")
+
+        rr = wsk.cli(Seq("api-experimental", "list", "/basepath", "/path", badverb, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+        rr.stderr should include (s"'${badverb}' is not a valid API verb.  Valid values are:")
+    }
+
+    it should "reject an api create command with an API name argument and an API name option" in {
+        val apiName = "An API Name"
+        val rr = wsk.cli(Seq("api-experimental", "create", apiName, "/path", "GET", "action", "-n", apiName, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+        rr.stderr should include (s"An API name can only be specified once.")
+    }
+
+    it should "reject an api create command that specifies a nonexistent configuration file" in {
+        val configfile = "/nonexistent/file"
+        val rr = wsk.cli(Seq("api-experimental", "create", "-c", configfile, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+        rr.stderr should include (s"Error reading swagger file '${configfile}':")
+    }
+
+    it should "reject an api create command specifying a non-JSON configuration file" in {
+        val file = File.createTempFile("api.json", ".txt")
+        file.deleteOnExit()
+        val filename = file.getAbsolutePath()
+
+        val bw = new BufferedWriter(new FileWriter(file))
+        bw.write("a=A")
+        bw.close()
+
+        val rr = wsk.cli(Seq("api-experimental", "create", "-c", filename, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+        rr.stderr should include (s"Error parsing swagger file '${filename}':")
+    }
+
+    it should "reject an api create command specifying a non-swagger JSON configuration file" in {
+        val file = File.createTempFile("api.json", ".txt")
+        file.deleteOnExit()
+        val filename = file.getAbsolutePath()
+
+        val bw = new BufferedWriter(new FileWriter(file))
+        bw.write("""|{
+                    |   "swagger": "2.0",
+                    |   "info": {
+                    |      "title": "My API",
+                    |      "version": "1.0.0"
+                    |   },
+                    |   "BADbasePath": "/bp",
+                    |   "paths": {
+                    |     "/rp": {
+                    |       "get":{}
+                    |     }
+                    |   }
+                    |}""".stripMargin
+        )
+        bw.close()
+
+        val rr = wsk.cli(Seq("api-experimental", "create", "-c", filename, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+        rr.stderr should include (s"Swagger file is invalid (missing basePath, info, paths, or swagger fields")
+    }
+
     behavior of "Wsk entity list formatting"
 
     it should "create, and list a package with a long name" in withAssetCleaner(wskprops) {
@@ -641,7 +803,7 @@ class WskBasicUsageTests
                     action.create(name, file)
             }
             retry({
-                wsk.action.list().stdout should include(s"$name private")
+                wsk.action.list().stdout should include(s"$name private nodejs")
             }, 5, Some(1 second))
     }
 
@@ -686,8 +848,7 @@ class WskBasicUsageTests
             TestUtils.getTestActionFilename("invalidInput1.json"),
             TestUtils.getTestActionFilename("invalidInput2.json"),
             TestUtils.getTestActionFilename("invalidInput3.json"),
-            TestUtils.getTestActionFilename("invalidInput4.json")
-        )
+            TestUtils.getTestActionFilename("invalidInput4.json"))
         val paramCmds = Seq(
             Seq("action", "create", "actionName", TestUtils.getTestActionFilename("hello.js")),
             Seq("action", "update", "actionName", TestUtils.getTestActionFilename("hello.js")),
@@ -697,8 +858,7 @@ class WskBasicUsageTests
             Seq("package", "bind", "packageName", "boundPackageName"),
             Seq("trigger", "create", "triggerName"),
             Seq("trigger", "update", "triggerName"),
-            Seq("trigger", "fire", "triggerName")
-        )
+            Seq("trigger", "fire", "triggerName"))
         val annotCmds = Seq(
             Seq("action", "create", "actionName", TestUtils.getTestActionFilename("hello.js")),
             Seq("action", "update", "actionName", TestUtils.getTestActionFilename("hello.js")),
@@ -706,31 +866,30 @@ class WskBasicUsageTests
             Seq("package", "update", "packageName"),
             Seq("package", "bind", "packageName", "boundPackageName"),
             Seq("trigger", "create", "triggerName"),
-            Seq("trigger", "update", "triggerName")
-        )
+            Seq("trigger", "update", "triggerName"))
 
         for (cmd <- paramCmds) {
             for (invalid <- invalidJSONInputs) {
-                wsk.cli(cmd ++ Seq("-p", "key", invalid), expectedExitCode = ERROR_EXIT)
-                  .stderr should include("Invalid parameter argument")
+                wsk.cli(cmd ++ Seq("-p", "key", invalid) ++ wskprops.overrides, expectedExitCode = ERROR_EXIT)
+                    .stderr should include("Invalid parameter argument")
             }
 
             for (invalid <- invalidJSONFiles) {
-                wsk.cli(cmd ++ Seq("-P", invalid), expectedExitCode = ERROR_EXIT)
-                  .stderr should include("Invalid parameter argument")
+                wsk.cli(cmd ++ Seq("-P", invalid) ++ wskprops.overrides, expectedExitCode = ERROR_EXIT)
+                    .stderr should include("Invalid parameter argument")
 
             }
         }
 
         for (cmd <- annotCmds) {
             for (invalid <- invalidJSONInputs) {
-                wsk.cli(cmd ++ Seq("-a", "key", invalid), expectedExitCode = ERROR_EXIT)
-                  .stderr should include("Invalid annotation argument")
+                wsk.cli(cmd ++ Seq("-a", "key", invalid) ++ wskprops.overrides, expectedExitCode = ERROR_EXIT)
+                    .stderr should include("Invalid annotation argument")
             }
 
             for (invalid <- invalidJSONFiles) {
-                wsk.cli(cmd ++ Seq("-A", invalid), expectedExitCode = ERROR_EXIT)
-                  .stderr should include("Invalid annotation argument")
+                wsk.cli(cmd ++ Seq("-A", invalid) ++ wskprops.overrides, expectedExitCode = ERROR_EXIT)
+                    .stderr should include("Invalid annotation argument")
             }
         }
     }
@@ -742,9 +901,9 @@ class WskBasicUsageTests
         val missingFileMsg = s"File '$missingFile' is not a valid file or it does not exist"
         val invalidArgs = Seq(
             (Seq("action", "create", "actionName", TestUtils.getTestActionFilename("hello.js"), "-P", emptyFile),
-              emptyFileMsg),
+                emptyFileMsg),
             (Seq("action", "update", "actionName", TestUtils.getTestActionFilename("hello.js"), "-P", emptyFile),
-              emptyFileMsg),
+                emptyFileMsg),
             (Seq("action", "invoke", "actionName", "-P", emptyFile), emptyFileMsg),
             (Seq("action", "create", "actionName", "-P", emptyFile), emptyFileMsg),
             (Seq("action", "update", "actionName", "-P", emptyFile), emptyFileMsg),
@@ -762,9 +921,9 @@ class WskBasicUsageTests
             (Seq("trigger", "update", "triggerName", "-P", emptyFile), emptyFileMsg),
             (Seq("trigger", "fire", "triggerName", "-P", emptyFile), emptyFileMsg),
             (Seq("action", "create", "actionName", TestUtils.getTestActionFilename("hello.js"), "-A", missingFile),
-              missingFileMsg),
+                missingFileMsg),
             (Seq("action", "update", "actionName", TestUtils.getTestActionFilename("hello.js"), "-A", missingFile),
-              missingFileMsg),
+                missingFileMsg),
             (Seq("action", "invoke", "actionName", "-A", missingFile), missingFileMsg),
             (Seq("action", "create", "actionName", "-A", missingFile), missingFileMsg),
             (Seq("action", "update", "actionName", "-A", missingFile), missingFileMsg),
@@ -780,14 +939,13 @@ class WskBasicUsageTests
             (Seq("trigger", "fire", "triggerName", "-A", missingFile), missingFileMsg),
             (Seq("trigger", "create", "triggerName", "-A", missingFile), missingFileMsg),
             (Seq("trigger", "update", "triggerName", "-A", missingFile), missingFileMsg),
-            (Seq("trigger", "fire", "triggerName", "-A", missingFile), missingFileMsg)
-        )
+            (Seq("trigger", "fire", "triggerName", "-A", missingFile), missingFileMsg))
 
         invalidArgs foreach {
             case (cmd, err) =>
-            val stderr = wsk.cli(cmd, expectedExitCode = MISUSE_EXIT).stderr
-            stderr should include(err)
-            stderr should include("Run 'wsk --help' for usage.")
+                val stderr = wsk.cli(cmd, expectedExitCode = MISUSE_EXIT).stderr
+                stderr should include(err)
+                stderr should include("Run 'wsk --help' for usage.")
         }
     }
 
@@ -850,8 +1008,7 @@ class WskBasicUsageTests
             (Seq("trigger", "update", "triggerName", "-A"), invalidAnnotFileMsg),
             (Seq("trigger", "fire", "triggerName", "-a"), invalidAnnotMsg),
             (Seq("trigger", "fire", "triggerName", "-a", "key"), invalidAnnotMsg),
-            (Seq("trigger", "fire", "triggerName", "-A"), invalidAnnotFileMsg)
-        )
+            (Seq("trigger", "fire", "triggerName", "-A"), invalidAnnotFileMsg))
 
         invalidArgs foreach {
             case (cmd, err) =>
@@ -880,7 +1037,19 @@ class WskBasicUsageTests
         val optPayloadMsg = "A payload is optional."
         val noArgsReqMsg = "No arguments are required."
         val invalidArg = "invalidArg"
+        val apiCreateReqMsg = "Specify a swagger file or specify an API base path with an API path, an API verb, and an action name."
+        val apiGetReqMsg = "An API base path or API name is required."
+        val apiDeleteReqMsg = "An API base path or API name is required.  An optional API relative path and operation may also be provided."
+        val apiListReqMsg = "Optional parameters are: API base path (or API name), API relative path and operation."
+        val invalidShared = s"Cannot use value '$invalidArg' for shared"
         val invalidArgs = Seq(
+            (Seq("api-experimental", "create"), s"${tooFewArgsMsg} ${apiCreateReqMsg}"),
+            (Seq("api-experimental", "create", "/basepath", "/path", "GET", "action", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${apiCreateReqMsg}"),
+            (Seq("api-experimental", "get"), s"${tooFewArgsMsg} ${apiGetReqMsg}"),
+            (Seq("api-experimental", "get", "/basepath", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${apiGetReqMsg}"),
+            (Seq("api-experimental", "delete"), s"${tooFewArgsMsg} ${apiDeleteReqMsg}"),
+            (Seq("api-experimental", "delete", "/basepath", "/path", "GET", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${apiDeleteReqMsg}"),
+            (Seq("api-experimental", "list", "/basepath", "/path", "GET", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${apiListReqMsg}"),
             (Seq("action", "create"), s"${tooFewArgsMsg} ${actionNameActionReqMsg}"),
             (Seq("action", "create", "someAction"), s"${tooFewArgsMsg} ${actionNameActionReqMsg}"),
             (Seq("action", "create", "actionName", "artifactName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
@@ -890,14 +1059,14 @@ class WskBasicUsageTests
             (Seq("action", "delete"), s"${tooFewArgsMsg} ${actionNameReqMsg}"),
             (Seq("action", "delete", "actionName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("action", "get"), s"${tooFewArgsMsg} ${actionNameReqMsg}"),
-            (Seq("action", "get", "actionName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
+            (Seq("action", "get", "actionName", "namespace", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("action", "list", "namespace", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"),
             (Seq("action", "invoke"), s"${tooFewArgsMsg} ${actionNameReqMsg}"),
             (Seq("action", "invoke", "actionName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("activation", "list", "namespace", invalidArg),
                 s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"),
             (Seq("activation", "get"), s"${tooFewArgsMsg} ${activationIdReq}"),
-            (Seq("activation", "get", "activationID", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
+            (Seq("activation", "get", "activationID", "namespace", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("activation", "logs"), s"${tooFewArgsMsg} ${activationIdReq}"),
             (Seq("activation", "logs", "activationID", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("activation", "result"), s"${tooFewArgsMsg} ${activationIdReq}"),
@@ -909,10 +1078,12 @@ class WskBasicUsageTests
                 s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"),
             (Seq("package", "create"), s"${tooFewArgsMsg} ${packageNameReqMsg}"),
             (Seq("package", "create", "packageName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
+            (Seq("package", "create", "packageName", "--shared", invalidArg), invalidShared),
             (Seq("package", "update"), s"${tooFewArgsMsg} ${packageNameReqMsg}"),
             (Seq("package", "update", "packageName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
+            (Seq("package", "update", "packageName", "--shared", invalidArg), invalidShared),
             (Seq("package", "get"), s"${tooFewArgsMsg} ${packageNameReqMsg}"),
-            (Seq("package", "get", "packageName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
+            (Seq("package", "get", "packageName", "namespace", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("package", "bind"), s"${tooFewArgsMsg} ${packageNameBindingReqMsg}"),
             (Seq("package", "bind", "packageName"), s"${tooFewArgsMsg} ${packageNameBindingReqMsg}"),
             (Seq("package", "bind", "packageName", "bindingName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
@@ -939,7 +1110,7 @@ class WskBasicUsageTests
             (Seq("rule", "update", "ruleName", "triggerName", "actionName", invalidArg),
                 s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("rule", "get"), s"${tooFewArgsMsg} ${ruleNameReqMsg}"),
-            (Seq("rule", "get", "ruleName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
+            (Seq("rule", "get", "ruleName", "namespace", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("rule", "delete"), s"${tooFewArgsMsg} ${ruleNameReqMsg}"),
             (Seq("rule", "delete", "ruleName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("rule", "list", "namespace", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"),
@@ -951,14 +1122,14 @@ class WskBasicUsageTests
             (Seq("trigger", "update"), s"${tooFewArgsMsg} ${triggerNameReqMsg}"),
             (Seq("trigger", "update", "triggerName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("trigger", "get"), s"${tooFewArgsMsg} ${triggerNameReqMsg}"),
-            (Seq("trigger", "get", "triggerName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
+            (Seq("trigger", "get", "triggerName", "namespace", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("trigger", "delete"), s"${tooFewArgsMsg} ${triggerNameReqMsg}"),
             (Seq("trigger", "delete", "triggerName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("trigger", "list", "namespace", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"))
 
         invalidArgs foreach {
             case (cmd, err) =>
-                val stderr = wsk.cli(cmd, expectedExitCode = ERROR_EXIT).stderr
+                val stderr = wsk.cli(cmd ++ wskprops.overrides, expectedExitCode = ERROR_EXIT).stderr
                 stderr should include(err)
                 stderr should include("Run 'wsk --help' for usage.")
         }

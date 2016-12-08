@@ -21,7 +21,6 @@ import java.util.UUID
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
-import scala.concurrent.Promise
 import scala.util.Failure
 import scala.util.Success
 
@@ -48,20 +47,17 @@ class KafkaProducerConnector(
     override def send(topic: String, msg: Message): Future[RecordMetadata] = {
         implicit val transid = msg.transid
         val record = new ProducerRecord[String, String](topic, "messages", msg.serialize)
-        val promise = Promise[RecordMetadata]
+
         Future {
             debug(this, s"sending to topic '$topic' msg '$msg'")
             producer.send(record).get
-        } onComplete {
+        } andThen {
             case Success(status) =>
                 info(this, s"sent message: ${status.topic()}[${status.partition()}][${status.offset()}]")
                 sentCounter.next()
-                promise.success(status)
             case Failure(t) =>
                 error(this, s"sending message on topic '$topic' failed: ${t.getMessage}")
-                promise.failure(t)
         }
-        promise.future
     }
 
     /** Closes producer. */

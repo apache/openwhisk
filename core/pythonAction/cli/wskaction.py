@@ -160,19 +160,21 @@ class Action(Item):
         return limits
 
     # creates one of:
-    # { kind: "nodejs", code: "js code", initializer: "base64 encoded string" } where initializer is optional
-    # { kind: "nodejs6", code: "js6 code", initializer: "base64 encoded string" } where initializer is optional
+    # { kind: "nodejs", code: "js code" } where initializer is optional
+    # { kind: "nodejs6", code: "js6 code" } where initializer is optional
     # { kind: "python", code: "python code" }
     # { kind: "swift", code: "swift code" }
     # { kind: "swift3", code: "swift3 code" }
     # { kind: "java", jar: "base64-encoded JAR", main: "FQN of main class" }
-    # { kind: "blackbox", image: "docker image" }
+    # { kind: "blackbox", image: "docker image", code: an optional base64 encoded zip file }
     # { kind: "sequence", components: list of fully qualified actions }
     def getExec(self, args, props):
         exe = {}
         if args.docker:
             exe['kind'] = 'blackbox'
             exe['image'] = args.artifact
+            if args.lib:
+                exe['code'] = base64.b64encode(args.lib.read())
         elif args.copy:
             existingAction = args.artifact
             exe = self.getActionExec(args, props, existingAction)
@@ -203,8 +205,6 @@ class Action(Item):
             else:
                 exe['kind'] = 'nodejs:default'
                 exe['code'] = contents
-        if args.lib:
-            exe['initializer'] = base64.b64encode(args.lib.read())
         return exe
 
     def findMainClass(self, jarPath):

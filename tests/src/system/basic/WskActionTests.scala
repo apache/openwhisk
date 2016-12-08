@@ -45,6 +45,22 @@ class WskActionTests
 
     behavior of "Whisk actions"
 
+    it should "invoke an action returning a promise" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "hello promise"
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("helloPromise.js")))
+            }
+
+            val run = wsk.action.invoke(name)
+            withActivation(wsk.activation, run) {
+                activation =>
+                    activation.response.status shouldBe "success"
+                    activation.response.result shouldBe Some(JsObject("done" -> true.toJson))
+                    activation.logs.get.mkString(" ") shouldBe empty
+            }
+    }
+
     it should "invoke an action with a space in the name" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "hello Async"
@@ -102,7 +118,7 @@ class WskActionTests
 
             assetHelper.withCleaner(wsk.action, fullQualifiedName) {
                 val file = Some(TestUtils.getTestActionFilename("wc.js"))
-                (action, _) => action.create(fullQualifiedName, file, shared = Some(true))
+                (action, _) => action.create(fullQualifiedName, file)
             }
 
             assetHelper.withCleaner(wsk.action, name) {
@@ -169,7 +185,7 @@ class WskActionTests
             wsk.parseJsonString(rr.stdout).getFieldPath("exec", "code") shouldBe Some(JsString(""))
     }
 
-    it should "blocking invoke nested blocking actions" in withAssetCleaner(wskprops) {
+    it should "blocking invoke of nested blocking actions" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "nestedBlockingAction"
             val child = "wc"
@@ -243,7 +259,8 @@ class WskActionTests
         (wp, assetHelper) =>
             val fullQualifiedName = s"/$guestNamespace/samples/helloWorld"
             val payload = "bob"
-            val rr = wsk.cli(Seq("action", "invoke", fullQualifiedName, payload), expectedExitCode = TestUtils.ERROR_EXIT)
+            val rr = wsk.cli(Seq("action", "invoke", fullQualifiedName, payload) ++ wskprops.overrides,
+                expectedExitCode = TestUtils.ERROR_EXIT)
             rr.stderr should include("Run 'wsk --help' for usage.")
             rr.stderr should include(s"error: Invalid argument(s): $payload")
     }

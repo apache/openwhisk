@@ -23,6 +23,8 @@ import akka.http.scaladsl.model.ContentType
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 
+import whisk.core.entity.size._
+
 object Attachments {
     /**
      * A marker for a field that is either inlined in an entity, or a reference
@@ -33,17 +35,22 @@ object Attachments {
      * but the attachments will always be top-level. The logic for actually retrieving
      * an attachment therefore must be separate for all use cases.
      */
-    sealed trait Attachment[+T] {
-        // Similar to Either.fold
-        def fold[U](fi: T=>U, fa: =>U) : U = this match {
-            case Inline(v) => fi(v)
-            case Attached(_, _) => fa
-        }
-    }
+    sealed trait Attachment[+T]
 
     case class Inline[T](value: T) extends Attachment[T]
 
     case class Attached(name: String, contentType: ContentType) extends Attachment[Nothing]
+
+    // FIXME attachments are free, really?
+    // This may not be an issue because the entity is create with the inlined
+    // attachments when it's (tentatively) uploaded by the user, so the proper
+    // checks should kick-in.
+    implicit class SizeAttachment[T <% SizeConversion](a: Attachment[T]) extends SizeConversion {
+        def sizeIn(unit: SizeUnits.Unit): ByteSize = a match {
+            case Inline(v) => (v: SizeConversion).sizeIn(unit)
+            case _         => 0.bytes
+        }
+    }
 
     implicit def serdes[T: JsonFormat] = new JsonFormat[Attachment[T]] {
         val sub = implicitly[JsonFormat[T]]

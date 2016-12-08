@@ -25,7 +25,7 @@ import scala.language.postfixOps
 
 import org.scalatest.Matchers
 
-import common.TestUtils.RunResult
+import TestUtils._
 import spray.json._
 import java.time.Instant
 
@@ -47,7 +47,23 @@ trait WskTestHelpers extends Matchers {
     class AssetCleaner(assetsToDeleteAfterTest: Assets, wskprops: WskProps) {
         def withCleaner[T <: DeleteFromCollection](cli: T, name: String, confirmDelete: Boolean = true)(
             cmd: (T, String) => RunResult): RunResult = {
-            cli.sanitize(name)(wskprops) // sanitize (delete) if asset exists
+            // sanitize (delete) if asset exists
+            cli match {
+                case _: WskPackage =>
+                    val rr = cli.sanitize(name)(wskprops)
+                    rr.exitCode match {
+                        case CONFLICT =>
+                            // retry sanitization on a package since there may be a list (view)
+                            // operation that requires a retry for eventual consistency
+                            whisk.utils.retry({
+                                cli.sanitize(name)(wskprops)
+                            }, 5, Some(1 second))
+                        case _ => rr
+                    }
+
+                case _ => cli.sanitize(name)(wskprops)
+            }
+
             assetsToDeleteAfterTest += ((cli, name, confirmDelete))
             cmd(cli, name)
         }
@@ -90,6 +106,7 @@ trait WskTestHelpers extends Matchers {
      * structure of "result" is not defined.
      */
     case class CliActivationResponse(result: Option[JsObject], status: String, success: Boolean)
+
     object CliActivationResponse extends DefaultJsonProtocol {
         implicit val serdes = jsonFormat3(CliActivationResponse.apply)
     }
@@ -97,9 +114,29 @@ trait WskTestHelpers extends Matchers {
     /**
      * Activation record as it is returned by the CLI.
      */
-    case class CliActivation(activationId: String, logs: Option[List[String]], response: CliActivationResponse, start: Long, end: Long, cause: Option[String], annotations: Option[List[JsObject]])
+    case class CliActivation(
+        activationId: String,
+        logs: Option[List[String]],
+        response: CliActivationResponse,
+        start: Long,
+        end: Long,
+        duration: Long,
+        cause: Option[String],
+        annotations: Option[List[JsObject]]) {
+
+        def getAnnotationValue(key: String): Option[JsValue] = {
+            Try {
+                val annotation = annotations.get.filter(x => x.getFields("key")(0) == JsString(key))
+                assert(annotation.size == 1) // only one annotation with this value
+                val value = annotation(0).getFields("value")
+                assert(value.size == 1)
+                value(0)
+            } toOption
+        }
+    }
+
     object CliActivation extends DefaultJsonProtocol {
-        implicit val serdes = jsonFormat7(CliActivation.apply)
+        implicit val serdes = jsonFormat8(CliActivation.apply)
     }
 
     /**
@@ -121,7 +158,22 @@ trait WskTestHelpers extends Matchers {
             activationId shouldBe a[Some[_]]
         }
 
-        val id = activationId.get
+        withActivation(wsk, activationId.get, initialWait, pollPeriod, totalWait)(check)
+    }
+
+    /**
+     * Polls activations until one matching id is found. If found, pass
+     * the activation to the post processor which then check for expected values.
+     */
+    def withActivation(
+        wsk: WskActivation,
+        activationId: String,
+        initialWait: Duration,
+        pollPeriod: Duration,
+        totalWait: Duration)(
+            check: CliActivation => Unit)(
+                implicit wskprops: WskProps): Unit = {
+        val id = activationId
         val activation = wsk.waitForActivation(id, initialWait, pollPeriod, totalWait)
         if (activation.isLeft) {
             assert(false, s"error waiting for activation $id: ${activation.left.get}")
@@ -149,7 +201,7 @@ trait WskTestHelpers extends Matchers {
             check: Seq[CliActivation] => Unit)(
                 implicit wskprops: WskProps): Unit = {
 
-        val activationIds = wsk.pollFor(N, Some(entity), since = since)
+        val activationIds = wsk.pollFor(N, Some(entity), since = since, retries = (totalWait / pollPeriod).toInt, pollPeriod = pollPeriod)
         withClue(s"did not find $N activations for $entity since $since") {
             activationIds.length shouldBe N
         }

@@ -34,7 +34,6 @@ import whisk.common.TransactionCounter
 import whisk.core.controller.Authenticate
 import whisk.core.controller.AuthenticatedRoute
 import whisk.core.entity.AuthKey
-import whisk.core.entity.DocId
 import whisk.core.entity.Secret
 import whisk.core.entity.Subject
 import whisk.core.entity.UUID
@@ -85,25 +84,6 @@ class AuthenticateTests extends ControllerTestCommon with Authenticate {
             cachedUser.get should be(creds.toIdentity)
             stream.toString should include regex (s"serving from cache: ${creds.uuid()}")
             stream.reset()
-
-            // revoke key and invalidate cache
-            val newCreds = {
-                implicit val tid = transid()
-                val newCreds = creds.revoke
-                val prevRecord = get(authStore, DocId(creds.subject()), WhiskAuth, false)
-                Await.result(WhiskAuth.put(authStore, newCreds.revision[WhiskAuth](prevRecord.docinfo.rev)), dbOpTimeout)
-                newCreds
-            }
-            stream.toString should include regex (s"invalidating*.*${creds.uuid()}")
-            stream.toString should include regex (s"caching*.*${creds.uuid()}")
-            stream.reset()
-
-            // repeat query, should be served from cache correctly
-            val newPass = UserPass(newCreds.uuid(), newCreds.key())
-            val refetchedUser = Await.result(validateCredentials(Some(newPass))(transid()), dbOpTimeout)
-            stream.toString should include regex (s"serving from cache: ${creds.uuid()}")
-            refetchedUser.isDefined should be(true)
-            refetchedUser.get should be(newCreds.toIdentity)
         } finally {
             authStore.outputStream = savedstream
             stream.close()

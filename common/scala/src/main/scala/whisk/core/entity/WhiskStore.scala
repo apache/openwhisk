@@ -44,12 +44,6 @@ package object types {
     type AuthStore = ArtifactStore[WhiskAuth]
     type EntityStore = ArtifactStore[WhiskEntity]
     type ActivationStore = ArtifactStore[WhiskActivation]
-
-    // A placeholder type should we change the trigger and action references
-    // to a type that more explicitly captures the namespace, name, and version
-    // which are currently encoded in one string as DocId.id
-    type Trigger = EntityName
-    type Action = EntityName
 }
 
 protected[core] trait WhiskDocument
@@ -81,8 +75,8 @@ protected[core] trait WhiskDocument
         val revOrNull = rev.rev
 
         // Building up the fields.
-        val base    = this.toJson.fields
-        val withId  = base + ("_id" -> JsString(id))
+        val base = this.toJson.fields
+        val withId = base + ("_id" -> JsString(id))
         val withRev = if (revOrNull == null) withId else { withId + ("_rev" -> JsString(revOrNull)) }
         JsObject(withRev)
     }
@@ -94,6 +88,7 @@ protected[core] object Util {
         actorSystem: ActorSystem): ArtifactStore[D] = {
         require(config != null && config.isValid, "config is undefined or not valid")
         require(config.dbProvider == "Cloudant" || config.dbProvider == "CouchDB", "Unsupported db.provider: " + config.dbProvider)
+        assume(Set(config.dbProtocol, config.dbHost, config.dbPort, config.dbUsername, config.dbPassword, name(config)).forall(_.nonEmpty), "At least one expected property is missing")
 
         new CouchDbRestStore[D](config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name(config))
     }

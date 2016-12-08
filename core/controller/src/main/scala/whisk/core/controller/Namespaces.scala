@@ -40,6 +40,7 @@ import whisk.core.entity.types.EntityStore
 import whisk.http.ErrorResponse.terminate
 import whisk.core.entity.WhiskEntityQueries.listEntitiesInNamespace
 import whisk.core.entity.Identity
+import whisk.core.iam.NamespaceProvider
 
 object WhiskNamespacesApi {
     def requiredProperties = WhiskEntityStore.requiredProperties
@@ -62,6 +63,9 @@ trait WhiskNamespacesApi
     /** Database service to lookup entities in a namespace. */
     protected val entityStore: EntityStore
 
+    /** An identity provider. */
+    protected val iam: NamespaceProvider
+
     /**
      * Rest API for managing namespaces. Defines all the routes handled by this API. They are:
      *
@@ -76,7 +80,7 @@ trait WhiskNamespacesApi
             (collectionOps & requestMethod) { m =>
                 getNamespaces(user.subject)
             } ~ (entityOps & entityPrefix & pathEndOrSingleSlash & requestMethod) { (segment, m) =>
-                namespace(user.subject, segment) { ns =>
+                namespace(user, segment) { ns =>
                     val resource = Resource(ns, collection, None)
                     authorizeAndDispatch(m, user, resource)
                 }
@@ -125,7 +129,7 @@ trait WhiskNamespacesApi
      * - 500 Internal Server Error
      */
     private def getNamespaces(user: Subject)(implicit transid: TransactionId) = {
-        onComplete(entitlementService.namespaces(user)) {
+        onComplete(iam.namespaces(user)) {
             case Success(namespaces) =>
                 info(this, s"[GET] namespaces success: $namespaces")
                 complete(OK, namespaces)

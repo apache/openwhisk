@@ -16,18 +16,17 @@
 
 package whisk.core.entity
 
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 import scala.language.postfixOps
 import scala.util.Try
+
 import spray.json.DefaultJsonProtocol
-import spray.json.DefaultJsonProtocol.BooleanJsonFormat
-import spray.json.JsArray
-import spray.json.JsObject
-import spray.json.JsValue
-import spray.json.JsonFormat
-import spray.json.RootJsonFormat
-import spray.json.deserializationError
-import spray.json.pimpAny
+import spray.json.DefaultJsonProtocol._
+import spray.json._
+import whisk.common.TransactionId
 import whisk.core.database.DocumentFactory
+import whisk.core.entity.types.EntityStore
 
 /**
  * WhiskPackagePut is a restricted WhiskPackage view that eschews properties
@@ -38,7 +37,15 @@ case class WhiskPackagePut(
     parameters: Option[Parameters] = None,
     version: Option[SemVer] = None,
     publish: Option[Boolean] = None,
-    annotations: Option[Parameters] = None)
+    annotations: Option[Parameters] = None) {
+
+    /**
+     * Resolves the binding if it contains the default namespace.
+     */
+    protected[core] def resolve(namespace: EntityName): WhiskPackagePut = {
+        WhiskPackagePut(binding.map(_.resolve(namespace.toPath)), parameters, version, publish, annotations)
+    }
+}
 
 /**
  * A WhiskPackage provides an abstraction of the meta-data for a whisk package
@@ -78,6 +85,14 @@ case class WhiskPackage(
      */
     def inherit(p: Parameters) = {
         WhiskPackage(namespace, name, binding, p ++ parameters, version, publish, annotations)
+    }
+
+    /**
+     * Merges parameters into existing set of parameters for package.
+     * The parameters from p supersede parameters from this.
+     */
+    def mergeParameters(p: Parameters) = {
+        WhiskPackage(namespace, name, binding, parameters ++ p, version, publish, annotations)
     }
 
     /**
@@ -140,28 +155,44 @@ object WhiskPackage
     val bindingFieldName = "binding"
     override val collectionName = "packages"
 
-    override implicit val serdes = {
-        // This is to conform to the old style where {} represents None.
-        val tolerantOptionBindingFormat: JsonFormat[Option[Binding]] = {
-            val bs = Binding.serdes // helps the compiler
-            val base = implicitly[JsonFormat[Option[Binding]]]
-            new JsonFormat[Option[Binding]] {
-                override def write(ob: Option[Binding]) = ob match {
-                    case None => JsObject()
-                    case _ => base.write(ob)
-                }
-                override def read(js: JsValue) = {
-                    if (js == JsObject()) None else base.read(js)
-                }
+    /**
+     * Traverses a binding recursively to find the root package and
+     * merges parameters along the way if mergeParameters flag is set.
+     *
+     * @param db the entity store containing packages
+     * @param pkg the package document id to start resolving
+     * @param mergeParameters flag that indicates whether parameters should be merged during package resolution
+     * @return the same package if there is no binding, or the actual reference package otherwise
+     */
+    def resolveBinding(db: EntityStore, pkg: DocId, mergeParameters: Boolean = false)(
+        implicit ec: ExecutionContext, transid: TransactionId): Future[WhiskPackage] = {
+        WhiskPackage.get(db, pkg) flatMap { wp =>
+            // if there is a binding resolve it
+            val resolved = wp.binding map { binding =>
+                if (mergeParameters) {
+                    resolveBinding(db, binding.docid, true) map {
+                        resolvedPackage => resolvedPackage.mergeParameters(wp.parameters)
+                    }
+                } else resolveBinding(db, binding.docid)
             }
+            resolved getOrElse Future.successful(wp)
         }
+    }
 
-        implicit val bindingOverride = tolerantOptionBindingFormat
+    override implicit val serdes = {
+        /**
+         * Custom serdes for a binding - this property must be present in the datastore records for
+         * packages so that views can map over packages vs bindings.
+         */
+        implicit val bindingOverride = new JsonFormat[Option[Binding]] {
+            override def write(b: Option[Binding]) = Binding.optionalBindingSerializer.write(b)
+            override def read(js: JsValue) = Binding.optionalBindingDeserializer.read(js)
+        }
         jsonFormat7(WhiskPackage.apply)
     }
 
     override val cacheEnabled = true
-    override def cacheKeys(w: WhiskPackage) = Set(w.docid.asDocInfo, w.docinfo)
+    override def cacheKeyForUpdate(w: WhiskPackage) = w.docid.asDocInfo
 }
 
 /**
@@ -169,8 +200,9 @@ object WhiskPackage
  * namespace and package name.
  */
 case class Binding(namespace: EntityPath, name: EntityName) {
-    def docid = DocId(WhiskEntity.qualifiedName(namespace, name))
-    override def toString = WhiskEntity.qualifiedName(namespace, name)
+    def fullyQualifiedName = FullyQualifiedEntityName(namespace, name)
+    def docid = fullyQualifiedName.toDocId
+    override def toString = fullyQualifiedName.toString
 
     /**
      * Returns a Binding namespace if it is the default namespace
@@ -179,17 +211,39 @@ case class Binding(namespace: EntityPath, name: EntityName) {
     def resolve(ns: EntityPath): Binding = {
         namespace match {
             case EntityPath.DEFAULT => Binding(ns, name)
-            case _                 => this
+            case _                  => this
         }
     }
 }
 
 object Binding extends ArgNormalizer[Binding] with DefaultJsonProtocol {
-    override protected[core] implicit val serdes = jsonFormat2(Binding.apply)
+
+    override protected[core] val serdes = jsonFormat2(Binding.apply)
+
+    protected[entity] val optionalBindingDeserializer = new JsonReader[Option[Binding]] {
+        override def read(js: JsValue) = {
+            if (js == JsObject()) None else Some(serdes.read(js))
+        }
+
+    }
+
+    protected[entity] val optionalBindingSerializer = new JsonWriter[Option[Binding]] {
+        override def write(b: Option[Binding]) = b match {
+            case None    => JsObject()
+            case Some(n) => Binding.serdes.write(n)
+        }
+    }
 }
 
 object WhiskPackagePut extends DefaultJsonProtocol {
-    implicit val serdes = jsonFormat5(WhiskPackagePut.apply)
+    implicit val serdes = {
+        implicit val bindingSerdes = Binding.serdes
+        implicit val optionalBindingSerdes = new OptionFormat[Binding] {
+            override def read(js: JsValue) = Binding.optionalBindingDeserializer.read(js)
+            override def write(n: Option[Binding]) = Binding.optionalBindingSerializer.write(n)
+        }
+        jsonFormat5(WhiskPackagePut.apply)
+    }
 }
 
 object WhiskPackageAction extends DefaultJsonProtocol {

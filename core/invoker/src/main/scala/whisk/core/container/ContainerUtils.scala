@@ -16,17 +16,15 @@
 
 package whisk.core.container
 
-import whisk.common.Logging
-import whisk.common.SimpleExec
-import whisk.common.TransactionId
-import whisk.core.entity.ActionLimits
-import java.io.File
-import java.io.FileNotFoundException
+import akka.event.Logging.ErrorLevel
+import java.io.{ File, FileNotFoundException }
 import scala.util.Try
 import scala.language.postfixOps
-import whisk.common.LoggingMarkers
-import akka.event.Logging.ErrorLevel
-import whisk.common.PrintStreamEmitter
+import spray.json._
+import DefaultJsonProtocol._
+
+import whisk.common.{ Logging, SimpleExec, TransactionId, LoggingMarkers, PrintStreamEmitter }
+import whisk.core.entity.ActionLimits
 
 /**
  * Information from docker ps.
@@ -50,10 +48,10 @@ trait ContainerUtils extends Logging {
      * @param image the docker image to run
      * @return container id and container host
      */
-    def bringup(name: Option[ContainerName], image: String, network: String, cpuShare: Int, env: Map[String, String], args: Array[String], limits: ActionLimits, policy: Option[String])(implicit transid: TransactionId): (ContainerHash, Option[ContainerAddr]) = {
+    def bringup(mounted: Boolean, name: Option[ContainerName], image: String, network: String, cpuShare: Int, env: Map[String, String], args: Array[String], limits: ActionLimits, policy: Option[String])(implicit transid: TransactionId): (ContainerHash, Option[ContainerAddr]) = {
         val id = makeContainer(name, image, network, cpuShare, env, args, limits, policy)
-        val host = getContainerHostAndPort(id)
-        (id, host)
+        val host = getContainerIpAddr(id, mounted, network)
+        (id, host map { ContainerAddr(_, 8080) })
     }
 
     /**
@@ -68,11 +66,11 @@ trait ContainerUtils extends Logging {
     def makeContainer(name: Option[ContainerName], image: String, network: String, cpuShare: Int, env: Map[String, String], args: Seq[String], limits: ActionLimits, policy: Option[String])(implicit transid: TransactionId): ContainerHash = {
         val nameOption = name.map(n => Array("--name", n.name)).getOrElse(Array.empty[String])
         val cpuArg = Array("-c", cpuShare.toString)
-        val memoryArg = Array("-m", s"${limits.memory()}m")
+        val memoryArg = Array("-m", s"${limits.memory()}m", "--memory-swap", s"${limits.memory()}m")
         val capabilityArg = Array("--cap-drop", "NET_RAW", "--cap-drop", "NET_ADMIN")
         val consulServiceIgnore = Array("-e", "SERVICE_IGNORE=true")
         val fileHandleLimit = Array("--ulimit", "nofile=64:64")
-        val processLimit = Array("--ulimit", "nproc=512:512")
+        val processLimit = Array("--pids-limit", "64")
         val securityOpts = policy map { p => Array("--security-opt", s"apparmor:${p}") } getOrElse (Array.empty[String])
         val containerNetwork = Array("--net", network)
 
@@ -95,11 +93,11 @@ trait ContainerUtils extends Logging {
     }
 
     def pauseContainer(container: ContainerIdentifier)(implicit transid: TransactionId): DockerOutput = {
-        runDockerCmd(true, Seq("pause", container.id))
+        runDockerCmd("pause", container.id)
     }
 
     def unpauseContainer(container: ContainerIdentifier)(implicit transid: TransactionId): DockerOutput = {
-        runDockerCmd(true, Seq("unpause", container.id))
+        runDockerCmd("unpause", container.id)
     }
 
     /**
@@ -159,12 +157,35 @@ trait ContainerUtils extends Logging {
 
     }
 
-    def getContainerHostAndPort(container: ContainerIdentifier)(implicit transid: TransactionId): Option[ContainerAddr] = {
-        // FIXME it would be good if this could return ContainerAddr and fail loudly instead.
-        runDockerCmd("inspect", "--format", "'{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'", container.id).toOption.map { output =>
-            ContainerAddr(output.substring(1, output.length - 1), 8080)
+    /**
+     * Obtain IP addr by looking at config file but fall back to inspect when in testing mode (where there is no root access)
+     * or as a general fallback if the config file path fails.
+     */
+    def getContainerIpAddr(container: ContainerHash, mounted: Boolean, network: String)(implicit transid: TransactionId): Option[String] =
+        if (!mounted) {
+            getContainerIpAddrViaInspect(container)
+        } else {
+            getContainerIpAddrViaConfig(container, network).toOption orElse {
+                warn(this, "Failed to obtain IP address of container via config file.  Falling back to inspect.")
+                getContainerIpAddrViaInspect(container)
+            }
+        }
+
+    /**
+     * Obtain container IP address with docker inspect.
+     */
+    def getContainerIpAddrViaInspect(container: ContainerHash)(implicit transid: TransactionId): Option[String] = {
+        val inspectFormat = "'{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'"
+        runDockerCmd("inspect", "--format", inspectFormat, container.id).toOption.map { output =>
+            output.substring(1, output.length - 1)
         }
     }
+
+    /**
+     * Obtain container IP address by reading docker config file.
+     */
+    def getContainerIpAddrViaConfig(container: ContainerHash, network: String)(implicit transid: TransactionId): Try[String] =
+        getIpAddr(getDockerConfig(container, true), network)
 
     private def runDockerCmd(args: String*)(implicit transid: TransactionId): DockerOutput = runDockerCmd(false, args)
 
@@ -174,18 +195,41 @@ trait ContainerUtils extends Logging {
     private def runDockerCmd(skipLogError: Boolean, args: Seq[String])(implicit transid: TransactionId): DockerOutput =
         ContainerUtils.runDockerCmd(dockerhost, skipLogError, args)(transid)
 
-    // If running outside a container, then logs files are in docker's own
-    // /var/lib/docker/containers.  If running inside a container, is mounted at /containers.
-    // Root access is needed when running outside the container.
-    private def dockerContainerDir(mounted: Boolean) = {
-        if (mounted) "/containers" else "/var/lib/docker/containers"
+    /**
+     * Obtain the per container directory Docker maintains for each container.
+     *
+     * If this component is running outside a container, then logs files are in docker's own
+     * /var/lib/docker/containers.  If running inside a container, is mounted at /containers.
+     * Root access is needed when running outside the container.
+     */
+    private def dockerContainerDir(mounted: Boolean, containerId: ContainerHash) = {
+        (if (mounted) "/containers/" else "/var/lib/docker/containers/") + containerId.hash.toString
     }
 
     /**
      * Gets the filename of the docker logs of other containers that is mapped back into the invoker.
      */
     private def getDockerLogFile(containerId: ContainerHash, mounted: Boolean) = {
-        new java.io.File(s"""${dockerContainerDir(mounted)}/${containerId.hash}/${containerId.hash}-json.log""").getCanonicalFile()
+        new java.io.File(s"""${dockerContainerDir(mounted, containerId)}/${containerId.hash}-json.log""").getCanonicalFile()
+    }
+
+    /**
+     * Return docker config as a JsObject by reading the config.v2.json file for the given container.
+     */
+    private def getDockerConfig(containerId: ContainerHash, mounted: Boolean): JsObject = {
+        val configFile = s"${dockerContainerDir(mounted, containerId)}/config.v2.json"
+        val contents = scala.io.Source.fromFile(configFile).mkString
+        contents.parseJson.asJsObject
+    }
+
+    /**
+     * Extracts the IP addr from the docker config object with projection rather than converting the entire config.
+     */
+    private def getIpAddr(config: JsObject, network: String): Try[String] = Try {
+        val networks = config.fields("NetworkSettings").asJsObject.fields("Networks").asJsObject
+        val userland = networks.fields(network).asJsObject
+        val ipAddr = userland.fields("IPAddress")
+        ipAddr.convertTo[String]
     }
 
     private def parsePsOutput(line: String): ContainerState = {

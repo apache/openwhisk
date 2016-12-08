@@ -37,7 +37,9 @@ if(project.hasProperty('dockerHost')) {
 }
 
 if(project.hasProperty('dockerBuildArgs')) {
-    dockerBuildArg += ['--build-arg', project.dockerBuildArgs]
+    dockerBuildArgs.each { arg  ->
+        dockerBuildArg += ['--build-arg', arg]
+    }
 }
 
 task distDocker << {

@@ -17,16 +17,14 @@
 package whisk.core.entity
 
 import scala.concurrent.Future
+import scala.concurrent.ExecutionContext
 import scala.util.{ Try, Success, Failure }
 
 import akka.http.scaladsl.model.ContentType
 import akka.http.scaladsl.model.MediaTypes
 
-import spray.json.DefaultJsonProtocol
-import spray.json.DefaultJsonProtocol.StringJsonFormat
-import spray.json.JsObject
-import spray.json.JsString
-import spray.json.pimpAny
+import spray.json._
+import spray.json.DefaultJsonProtocol._
 
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -38,6 +36,7 @@ import whisk.common.TransactionId
 import whisk.core.database.ArtifactStore
 import whisk.core.database.DocumentFactory
 import whisk.core.entity.Attachments._
+import whisk.core.entity.types.EntityStore
 
 /**
  * ActionLimitsOption mirrors ActionLimits but makes both the timeout and memory
@@ -57,7 +56,26 @@ case class WhiskActionPut(
     limits: Option[ActionLimitsOption] = None,
     version: Option[SemVer] = None,
     publish: Option[Boolean] = None,
-    annotations: Option[Parameters] = None)
+    annotations: Option[Parameters] = None) {
+
+    protected[core] def replace(exec: Exec) = {
+        WhiskActionPut(Some(exec), parameters, limits, version, publish, annotations)
+    }
+
+    /**
+     * Resolves sequence components if they contain default namespace.
+     */
+    protected[core] def resolve(namespace: EntityName): WhiskActionPut = {
+        exec map {
+            case SequenceExec(code, components) =>
+                val newExec = SequenceExec(code, components map {
+                    c => FullyQualifiedEntityName(c.path.resolveNamespace(namespace), c.name)
+                })
+                WhiskActionPut(Some(newExec), parameters, limits, version, publish, annotations)
+            case _ => this
+        } getOrElse this
+    }
+}
 
 /**
  * A WhiskAction provides an abstraction of the meta-data
@@ -115,39 +133,36 @@ case class WhiskAction(
      * { name, main, code, lib } required to run the action.
      */
     def containerInitializer: JsObject = {
-        def getNodeInitializer(code: String, optInit: Option[String]) = {
-            val init = JsObject(
+        def getNodeInitializer(code: String, binary: Boolean, main: Option[String]) = {
+            JsObject(
                 "name" -> name.toJson,
-                "main" -> JsString("main"),
+                "binary" -> JsBoolean(binary),
+                "main" -> JsString(main.getOrElse("main")),
                 "code" -> JsString(code))
-            optInit map {
-                lib => JsObject(init.fields + "lib" -> lib.toJson)
-            } getOrElse init
         }
 
         exec match {
-            case NodeJSExec(code, optInit)      => getNodeInitializer(code, optInit)
-            case NodeJS6Exec(code, optInit)     => getNodeInitializer(code, optInit)
-            case SequenceExec(code, components) => getNodeInitializer(code, None)
-            case SwiftExec(code) =>
+            case n: NodeJSAbstractExec          => getNodeInitializer(n.code, n.binary, n.main)
+            case SequenceExec(code, components) => getNodeInitializer(code, false, None)
+            case s: SwiftAbstractExec =>
                 JsObject(
                     "name" -> name.toJson,
-                    "code" -> code.toJson)
-            case PythonExec(code) =>
-                JsObject(
-                    "name" -> name.toJson,
-                    "code" -> code.toJson)
+                    "code" -> s.code.toJson,
+                    "main" -> s.main.getOrElse("main").toJson)
             case JavaExec(jar, main) =>
                 JsObject(
                     "name" -> name.toJson,
                     "jar" -> jar.toJson,
                     "main" -> main.toJson)
-            case Swift3Exec(code) =>
+            case PythonExec(code, main) =>
                 JsObject(
                     "name" -> name.toJson,
-                    "code" -> code.toJson)
-            case _: BlackBoxExec =>
-                JsObject()
+                    "code" -> code.toJson,
+                    "main" -> main.getOrElse("main").toJson)
+            case b @ BlackBoxExec(image, code) =>
+                code map {
+                    c => JsObject("code" -> c.toJson, "binary" -> JsBoolean(b.binary))
+                } getOrElse JsObject()
         }
     }
 
@@ -159,23 +174,32 @@ object WhiskAction
     with WhiskEntityQueries[WhiskAction]
     with DefaultJsonProtocol {
 
+    val execFieldName = "exec"
     override val collectionName = "actions"
     override implicit val serdes = jsonFormat8(WhiskAction.apply)
 
     def containerImageName(exec: Exec, registry: String, prefix: String, tag: String): String = {
         exec match {
-            case BlackBoxExec(image) => image
-            case _ =>
-                val r = Option(registry).filter(_.nonEmpty).map { reg =>
-                    if (reg.endsWith("/")) reg else reg + "/"
-                }.getOrElse("")
-                val p = Option(prefix).filter(_.nonEmpty).map(_ + "/").getOrElse("")
-                r + p + exec.image + ":" + tag
+            case b @ BlackBoxExec(image, _) =>
+                if (b.pull) {
+                    image
+                } else {
+                    localImageName(registry, prefix, image.split("/")(1), tag)
+                }
+            case _ => localImageName(registry, prefix, exec.image, tag)
         }
     }
 
+    private def localImageName(registry: String, prefix: String, image: String, tag: String): String = {
+        val r = Option(registry).filter(_.nonEmpty).map { reg =>
+            if (reg.endsWith("/")) reg else reg + "/"
+        }.getOrElse("")
+        val p = Option(prefix).filter(_.nonEmpty).map(_ + "/").getOrElse("")
+        r + p + image + ":" + tag
+    }
+
     override val cacheEnabled = true
-    override def cacheKeys(w: WhiskAction) = Set(w.docid.asDocInfo, w.docinfo)
+    override def cacheKeyForUpdate(w: WhiskAction) = w.docid.asDocInfo
 
     private val jarAttachmentName = "jarfile"
     private val jarContentType = ContentType.Binary(MediaTypes.`application/java-archive`)
@@ -238,8 +262,58 @@ object WhiskAction
                     Future.successful(action)
             }
         }
-
     }
+
+    /**
+     * Resolves an action name if it is contained in a package.
+     * Look up the package to determine if it is a binding or the actual package.
+     * If it's a binding, rewrite the fully qualified name of the action using the actual package path name.
+     * If it's the actual package, use its name directly as the package path name.
+     */
+    def resolveAction(db: EntityStore, fullyQualifiedName: FullyQualifiedEntityName)(
+        implicit ec: ExecutionContext, transid: TransactionId): Future[FullyQualifiedEntityName] = {
+        // first check that there is a package to be resolved
+        val entityPath = fullyQualifiedName.path
+        if (entityPath.defaultPackage) {
+            // this is the default package, nothing to resolve
+            Future.successful(fullyQualifiedName)
+        } else {
+            // there is a package to be resolved
+            val pkgDocid = fullyQualifiedName.pathToDocId
+            val actionName = fullyQualifiedName.name
+            val wp = WhiskPackage.resolveBinding(db, pkgDocid)
+            wp map { resolvedPkg => FullyQualifiedEntityName(resolvedPkg.namespace.addpath(resolvedPkg.name), actionName) }
+        }
+    }
+
+    /**
+     * Resolves an action name if it is contained in a package.
+     * Look up the package to determine if it is a binding or the actual package.
+     * If it's a binding, rewrite the fully qualified name of the action using the actual package path name.
+     * If it's the actual package, use its name directly as the package path name.
+     * While traversing the package bindings, merge the parameters.
+     */
+    def resolveActionAndMergeParameters(entityStore: EntityStore, fullyQualifiedName: FullyQualifiedEntityName)(
+        implicit ec: ExecutionContext, transid: TransactionId): Future[WhiskAction] = {
+        // first check that there is a package to be resolved
+        val entityPath = fullyQualifiedName.path
+        if (entityPath.defaultPackage) {
+            // this is the default package, nothing to resolve
+            WhiskAction.get(entityStore, fullyQualifiedName.toDocId)
+        } else {
+            // there is a package to be resolved
+            val pkgDocid = fullyQualifiedName.pathToDocId
+            val actionName = fullyQualifiedName.name
+            val wp = WhiskPackage.resolveBinding(entityStore, pkgDocid, mergeParameters = true)
+            wp flatMap { resolvedPkg =>
+                // fully resolved name for the action
+                val fqenAction = FullyQualifiedEntityName(resolvedPkg.namespace.addpath(resolvedPkg.name), actionName)
+                // get the whisk action associate with it and inherit the parameters from the package/binding
+                WhiskAction.get(entityStore, fqenAction.toDocId) map { _.inherit(resolvedPkg.parameters) }
+            }
+        }
+    }
+
 }
 
 object ActionLimitsOption extends DefaultJsonProtocol {

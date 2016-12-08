@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package actionContainers
 
 import java.io.ByteArrayOutputStream
@@ -55,7 +54,7 @@ trait ActionContainer {
 trait ActionProxyContainerTestUtils extends FlatSpec with Matchers {
     import ActionContainer.{ filterSentinel, sentinel }
 
-    def initPayload(code: String) = JsObject("value" -> JsObject("code" -> JsString(code)))
+    def initPayload(code: String, main: String = "main") = JsObject("value" -> JsObject("code" -> JsString(code), "main" -> JsString(main)))
     def runPayload(args: JsValue, other: Option[JsObject] = None) = {
         JsObject(Map("value" -> args) ++ (other map { _.fields } getOrElse Map()))
     }

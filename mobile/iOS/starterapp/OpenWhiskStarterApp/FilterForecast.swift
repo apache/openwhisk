@@ -17,11 +17,11 @@
 
 import Foundation
 
-func main(params:[String:Any]) -> [String:Any] {
+func main(args:[String:Any]) -> [String:Any] {
     let NumDays = 2
     var filteredForecasts = [[String:Any]]()
     #if os(Linux)
-        if let forecasts = params["forecasts"] as? [Any] {
+        if let forecasts = args["forecasts"] as? [Any] {
             for day in 0...(NumDays - 1) {
                 if let forecast = forecasts[day] as? [String:Any] {
                     var terse = [String:Any]()
@@ -34,7 +34,7 @@ func main(params:[String:Any]) -> [String:Any] {
             }
         }
     #else
-        if let forecasts = params["forecasts"] as? [[String:AnyObject]] {
+        if let forecasts = args["forecasts"] as? [[String:AnyObject]] {
             for day in 0...(NumDays - 1) {
                 let forecast = forecasts[day] as [String:AnyObject]
                 var terse = [String:Any]()

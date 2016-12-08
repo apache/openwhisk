@@ -17,26 +17,26 @@
 package whisk.core.controller
 
 import scala.concurrent.ExecutionContext
-import scala.util.Try
-import spray.routing.RequestContext
-import spray.http.StatusCodes.InternalServerError
-import spray.routing.Directives
-import spray.routing.Directive1
-import spray.http.HttpMethod
-import whisk.common.TransactionId
-import whisk.core.entity.EntityPath
-import whisk.core.entity.Subject
-import whisk.core.entitlement.EntitlementService
-import whisk.core.entitlement.Collection
-import whisk.core.entitlement.Privilege.Privilege
-import whisk.core.entitlement.Resource
-import whisk.core.entitlement.ThrottleRejectRequest
-import whisk.common.Logging
+import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
-import whisk.http.ErrorResponse.terminate
-import scala.language.postfixOps
+import scala.util.Try
+
+import spray.http.HttpMethod
+import spray.http.StatusCodes.Forbidden
+import spray.http.StatusCodes.InternalServerError
+import spray.routing.Directive1
+import spray.routing.Directives
+import spray.routing.RequestContext
+import whisk.common.Logging
+import whisk.common.TransactionId
+import whisk.core.entity.EntityPath
+import whisk.core.entitlement._
+import whisk.core.entitlement.Privilege.Privilege
+import whisk.core.entitlement.Resource
+import whisk.core.entity.EntityPath
 import whisk.core.entity.Identity
+import whisk.http.ErrorResponse.terminate
 
 /** A trait for routes that require entitlement checks. */
 trait BasicAuthorizedRouteProvider extends Directives with Logging {
@@ -44,7 +44,7 @@ trait BasicAuthorizedRouteProvider extends Directives with Logging {
     protected implicit val executionContext: ExecutionContext
 
     /** An entitlement service to check access rights. */
-    protected val entitlementService: EntitlementService
+    protected val entitlementProvider: EntitlementProvider
 
     /** The collection type for this trait. */
     protected val collection: Collection
@@ -65,27 +65,20 @@ trait BasicAuthorizedRouteProvider extends Directives with Logging {
         resource: Resource)(
             implicit transid: TransactionId): RequestContext => Unit = {
         val right = collection.determineRight(method, resource.entity)
-        authorizeAndContinue(right, user, resource, () => dispatchOp(user, right, resource))
+
+        onComplete(entitlementProvider.check(user, right, resource)) {
+            case Success(true) => dispatchOp(user, right, resource)
+            case t             => handleEntitlementFailure(t)
+        }
     }
 
-    /** Checks entitlement and if authorized, continues with next handler. */
-    protected def authorizeAndContinue(
-        right: Privilege,
-        user: Identity,
-        resource: Resource,
-        next: () => RequestContext => Unit)(
-            implicit transid: TransactionId): RequestContext => Unit = {
-        onComplete(entitlementService.check(user, right, resource)) {
-            case Success(entitlement) =>
-                authorize(entitlement) {
-                    next()
-                }
-            case Failure(r: RejectRequest) =>
-                terminate(r.code, r.message)
-            case Failure(r: ThrottleRejectRequest) =>
-                terminate(r.code, r.message)
-            case Failure(t) =>
-                terminate(InternalServerError, t.getMessage)
+    protected def handleEntitlementFailure(failure: Try[Boolean])(
+        implicit transid: TransactionId): RequestContext => Unit = {
+        failure match {
+            case Success(false)            => terminate(Forbidden)
+            case Failure(r: RejectRequest) => terminate(r.code, r.message)
+            case Failure(t)                => terminate(InternalServerError, t.getMessage)
+            case _ /*Success(true)*/       => terminate(InternalServerError, "Should not reach here.")
         }
     }
 
@@ -97,9 +90,9 @@ trait BasicAuthorizedRouteProvider extends Directives with Logging {
             implicit transid: TransactionId): RequestContext => Unit
 
     /** Extracts namespace for user from the matched path segment. */
-    protected def namespace(user: Subject, ns: String) = {
+    protected def namespace(user: Identity, ns: String) = {
         validate(isNamespace(ns), "namespace contains invalid characters") &
-            extract(_ => EntityPath(if (EntityPath(ns) == EntityPath.DEFAULT) user() else ns))
+            extract(_ => EntityPath(if (EntityPath(ns) == EntityPath.DEFAULT) user.namespace() else ns))
     }
 
     /** Extracts the HTTP method which is used to determine privilege for resource. */
@@ -139,7 +132,7 @@ trait AuthorizedRouteProvider extends BasicAuthorizedRouteProvider {
      */
     def routes(user: Identity)(implicit transid: TransactionId) = {
         collectionPrefix { segment =>
-            namespace(user.subject, segment) { ns =>
+            namespace(user, segment) { ns =>
                 (collectionOps & requestMethod) {
                     // matched /namespace/collection
                     authorizeAndDispatch(_, user, Resource(ns, collection, None))

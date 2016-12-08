@@ -1,7 +1,7 @@
 import SwiftyJSON
 
 func main(args: [String:Any]) -> [String:Any] {
-  let invokeResult = Whisk.invoke(actionNamed: "/whisk.system/util/date", withParameters: [:])
+  let invokeResult = Whisk.invoke(actionNamed: "/whisk.system/utils/date", withParameters: [:])
   let dateActivation = JSON(invokeResult)
 
   // the date we are looking for is the result inside the date activation

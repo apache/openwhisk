@@ -25,21 +25,23 @@ import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.entity.Subject
 import whisk.core.loadBalancer.LoadBalancer
+import whisk.core.iam.NamespaceProvider
 
-private object LocalEntitlementService {
+private object LocalEntitlementProvider {
     /** Poor mans entitlement matrix. Must persist to datastore eventually. */
     private val matrix = TrieMap[(Subject, String), Set[Privilege]]()
 }
 
-protected[core] class LocalEntitlementService(
+protected[core] class LocalEntitlementProvider(
     private val config: WhiskConfig,
-    private val loadBalancer: LoadBalancer)(
+    private val loadBalancer: LoadBalancer,
+    private val iam: NamespaceProvider)(
         implicit actorSystem: ActorSystem)
-    extends EntitlementService(config, loadBalancer) {
+    extends EntitlementProvider(config, loadBalancer, iam) {
 
     private implicit val executionContext = actorSystem.dispatcher
 
-    private val matrix = LocalEntitlementService.matrix
+    private val matrix = LocalEntitlementProvider.matrix
 
     /** Grants subject right to resource by adding them to the entitlement matrix. */
     protected[core] override def grant(subject: Subject, right: Privilege, resource: Resource)(implicit transid: TransactionId) = Future {

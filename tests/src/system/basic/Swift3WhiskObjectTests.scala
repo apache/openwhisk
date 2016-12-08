@@ -62,7 +62,7 @@ class Swift3WhiskObjectTests
                     activation.response.result.get.fields("activationId").toString.length should be >= 32
 
                     // check for "date" field that comes from invoking the date action
-                    activation.response.result.get.fieldPathExists("response", "result", "date") should be(true)
+                    //activation.response.result.get.fieldPathExists("response", "result", "date") should be(true)
             }
     }
 

@@ -16,8 +16,7 @@
 
 var config = {
         'port': 8080,
-        'edgeHost': process.env.EDGE_HOST,
-        'authKey' : process.env.AUTH_KEY
+        'edgeHost': process.env.__OW_API_HOST
 };
 
 var bodyParser = require('body-parser');

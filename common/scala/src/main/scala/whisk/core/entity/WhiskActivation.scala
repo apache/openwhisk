@@ -21,15 +21,8 @@ import java.time.Instant
 import scala.util.Try
 
 import spray.json.DefaultJsonProtocol
-import spray.json.DefaultJsonProtocol.JsValueFormat
-import spray.json.DefaultJsonProtocol.optionFormat
-import spray.json.JsNumber
-import spray.json.JsObject
-import spray.json.JsString
-import spray.json.JsValue
-import spray.json.RootJsonFormat
-import spray.json.deserializationError
-import spray.json.pimpAny
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 import whisk.core.database.DocumentFactory
 
 /**
@@ -51,6 +44,7 @@ import whisk.core.database.DocumentFactory
  * @param version the semantic version (usually matches the activated entity)
  * @param publish true to share the activation or false otherwise
  * @param annotation the set of annotations to attribute to the activation
+ * @param duration of the activation in milliseconds
  * @throws IllegalArgumentException if any required argument is undefined
  */
 @throws[IllegalArgumentException]
@@ -66,7 +60,8 @@ case class WhiskActivation(
     logs: ActivationLogs = ActivationLogs(),
     version: SemVer = SemVer(),
     publish: Boolean = false,
-    annotations: Parameters = Parameters())
+    annotations: Parameters = Parameters(),
+    duration: Option[Long] = None)
     extends WhiskEntity(EntityName(activationId())) {
 
     require(cause != null, "cause undefined")
@@ -86,7 +81,12 @@ case class WhiskActivation(
     def toExtendedJson = {
         val JsObject(baseFields) = WhiskActivation.serdes.write(this).asJsObject
         val newFields = (baseFields - "response") + ("response" -> response.toExtendedJson)
-        JsObject(newFields)
+        if (end != Instant.EPOCH) {
+            val durationValue = (duration getOrElse (end.toEpochMilli - start.toEpochMilli)).toJson
+            JsObject(newFields + ("duration" -> durationValue))
+        } else {
+            JsObject(newFields - "end")
+        }
     }
 
     def withoutLogs = WhiskActivation(
@@ -101,7 +101,8 @@ case class WhiskActivation(
         logs = ActivationLogs(),
         version = version,
         publish = publish,
-        annotations = annotations)
+        annotations = annotations,
+        duration = duration)
 
     def withLogs(logs: ActivationLogs) = WhiskActivation(
         namespace = namespace,
@@ -115,7 +116,8 @@ case class WhiskActivation(
         logs = logs,
         version = version,
         publish = publish,
-        annotations = annotations)
+        annotations = annotations,
+        duration = duration)
 }
 
 object WhiskActivation
@@ -130,14 +132,14 @@ object WhiskActivation
             value match {
                 case JsString(t) => Instant.parse(t)
                 case JsNumber(i) => Instant.ofEpochMilli(i.bigDecimal.longValue)
-                case _           => deserializationError("timetsamp malformed 1")
+                case _           => deserializationError("timetsamp malformed")
             }
         } getOrElse deserializationError("timetsamp malformed 2")
     }
 
     override val collectionName = "activations"
-    override implicit val serdes = jsonFormat12(WhiskActivation.apply)
+    override implicit val serdes = jsonFormat13(WhiskActivation.apply)
 
     override val cacheEnabled = true
-    override def cacheKeys(w: WhiskActivation) = Set(w.docid.asDocInfo, w.docinfo)
+    override def cacheKeyForUpdate(w: WhiskActivation) = w.docid.asDocInfo
 }

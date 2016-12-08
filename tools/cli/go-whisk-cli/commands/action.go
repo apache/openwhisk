@@ -20,7 +20,6 @@ import (
   "encoding/base64"
   "errors"
   "fmt"
-  "os/exec"
   "path/filepath"
   "strings"
 
@@ -31,6 +30,10 @@ import (
   "github.com/spf13/cobra"
   "github.com/mattn/go-colorable"
 )
+
+const MEMORY_LIMIT = 256
+const TIMEOUT_LIMIT = 60000
+const LOGSIZE_LIMIT = 10
 
 //////////////
 // Commands //
@@ -54,7 +57,7 @@ var actionCreateCmd = &cobra.Command{
       return whiskErr
     }
 
-    action, sharedSet, err := parseAction(cmd, args)
+    action, err := parseAction(cmd, args)
     if err != nil {
       whisk.Debug(whisk.DbgError, "parseAction(%s, %s) error: %s\n", cmd, args, err)
       errMsg := fmt.Sprintf(
@@ -65,9 +68,9 @@ var actionCreateCmd = &cobra.Command{
       return whiskErr
     }
 
-    _, _, err = client.Actions.Insert(action, sharedSet, false)
+    _, _, err = client.Actions.Insert(action, false)
     if err != nil {
-      whisk.Debug(whisk.DbgError, "client.Actions.Insert(%#v, %t, false) error: %s\n", action, sharedSet, err)
+      whisk.Debug(whisk.DbgError, "client.Actions.Insert(%#v, false) error: %s\n", action, err)
       errMsg := fmt.Sprintf(
         wski18n.T("Unable to create action: {{.err}}",
           map[string]interface{}{"err": err}))
@@ -96,7 +99,7 @@ var actionUpdateCmd = &cobra.Command{
       return whiskErr
     }
 
-    action, sharedSet, err := parseAction(cmd, args)
+    action, err := parseAction(cmd, args)
     if err != nil {
       whisk.Debug(whisk.DbgError, "parseAction(%s, %s) error: %s\n", cmd, args, err)
       errMsg := fmt.Sprintf(
@@ -107,9 +110,9 @@ var actionUpdateCmd = &cobra.Command{
       return whiskErr
     }
 
-    _, _, err = client.Actions.Insert(action, sharedSet, true)
+    _, _, err = client.Actions.Insert(action, true)
     if err != nil {
-      whisk.Debug(whisk.DbgError, "client.Actions.Insert(%#v, %t, false) error: %s\n", action, sharedSet, err)
+      whisk.Debug(whisk.DbgError, "client.Actions.Insert(%#v, %t, false) error: %s\n", action, err)
       errMsg := fmt.Sprintf(
         wski18n.T("Unable to update action: {{.err}}",
           map[string]interface{}{"err": err}))
@@ -188,7 +191,9 @@ var actionInvokeCmd = &cobra.Command{
     }
 
     if flags.common.blocking && flags.action.result {
-      printJSON(activation.Response.Result, outputStream)
+      if activation.Response.Result != nil {
+        printJSON(*activation.Response.Result, outputStream)
+      }
     } else if flags.common.blocking {
       fmt.Fprintf(color.Output,
         wski18n.T("{{.ok}} invoked /{{.namespace}}/{{.name}} with id {{.id}}\n",
@@ -213,16 +218,29 @@ var actionInvokeCmd = &cobra.Command{
 }
 
 var actionGetCmd = &cobra.Command{
-  Use:           "get ACTION_NAME",
+  Use:           "get ACTION_NAME [FIELD_FILTER]",
   Short:         wski18n.T("get action"),
   SilenceUsage:  true,
   SilenceErrors: true,
   PreRunE:       setupClientConfig,
   RunE: func(cmd *cobra.Command, args []string) error {
     var err error
+    var field string
 
-    if whiskErr := checkArgs(args, 1, 1, "Action get", wski18n.T("An action name is required.")); whiskErr != nil {
+    if whiskErr := checkArgs(args, 1, 2, "Action get", wski18n.T("An action name is required.")); whiskErr != nil {
       return whiskErr
+    }
+
+    if len(args) > 1 {
+      field = args[1]
+
+      if !fieldExists(&whisk.Action{}, field) {
+        errMsg := fmt.Sprintf(
+          wski18n.T("Invalid field filter '{{.arg}}'.", map[string]interface{}{"arg": field}))
+        whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+          whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+        return whiskErr
+      }
     }
 
     qName, err := parseQualifiedName(args[0])
@@ -251,10 +269,18 @@ var actionGetCmd = &cobra.Command{
     if flags.common.summary {
       printSummary(action)
     } else {
-      fmt.Fprintf(color.Output,
-        wski18n.T("{{.ok}} got action {{.name}}\n",
-          map[string]interface{}{"ok": color.GreenString("ok:"), "name": boldString(qName.entityName)}))
-      printJSON(action)
+
+      if len(field) > 0 {
+        fmt.Fprintf(color.Output, wski18n.T("{{.ok}} got action {{.name}}, displaying field {{.field}}\n",
+          map[string]interface{}{"ok": color.GreenString("ok:"), "name": boldString(qName.entityName),
+          "field": boldString(field)}))
+        printField(action, field)
+      } else {
+        fmt.Fprintf(color.Output,
+          wski18n.T("{{.ok}} got action {{.name}}\n", map[string]interface{}{"ok": color.GreenString("ok:"),
+            "name": boldString(qName.entityName)}))
+        printJSON(action)
+      }
     }
 
     return nil
@@ -310,7 +336,7 @@ var actionListCmd = &cobra.Command{
   SilenceErrors: true,
   PreRunE:       setupClientConfig,
   RunE: func(cmd *cobra.Command, args []string) error {
-    var qName qualifiedName
+    var qName QualifiedName
     var err error
 
     if len(args) == 1 {
@@ -359,69 +385,11 @@ var actionListCmd = &cobra.Command{
   },
 }
 
-func getJavaClasses(classes []string) []string {
-  var res []string
-
-  for i := 0; i < len(classes); i++ {
-    if strings.HasSuffix(classes[i], ".class") {
-      classes[i] = classes[i][0 : len(classes[i])-6]
-      classes[i] = strings.Replace(classes[i], "/", ".", -1)
-      res = append(res, classes[i])
-    }
-  }
-
-  return res
-}
-
-func findMainJarClass(jarFile string) (string, error) {
-  signature := "public static com.google.gson.JsonObject main(com.google.gson.JsonObject);"
-
-  whisk.Debug(whisk.DbgInfo, "unjaring '%s'\n", jarFile)
-  stdOut, err := exec.Command("jar", "-tf", jarFile).Output()
-  if err != nil {
-    whisk.Debug(whisk.DbgError, "unjar of '%s' failed: %s\n", jarFile, err)
-    return "", err
-  }
-
-  whisk.Debug(whisk.DbgInfo, "jar stdout:\n%s\n", stdOut)
-  output := string(stdOut[:])
-  output = strings.Replace(output, "\r", "", -1) // Windows jar adds \r chars that needs removing
-  outputArr := strings.Split(output, "\n")
-  classes := getJavaClasses(outputArr)
-
-  whisk.Debug(whisk.DbgInfo, "jar '%s' has %d classes\n", jarFile, len(classes))
-  for i := 0; i < len(classes); i++ {
-    whisk.Debug(whisk.DbgInfo, "javap -public -cp '%s'\n", classes[i])
-    stdOut, err = exec.Command("javap", "-public", "-cp", jarFile, classes[i]).Output()
-    if err != nil {
-      whisk.Debug(whisk.DbgError, "javap of class '%s' in jar '%s' failed: %s\n", classes[i], jarFile, err)
-      return "", err
-    }
-
-    output := string(stdOut[:])
-    whisk.Debug(whisk.DbgInfo, "javap '%s' output:\n%s\n", classes[i], output)
-
-    if strings.Contains(output, signature) {
-      return classes[i], nil
-    }
-  }
-
-  errMsg := fmt.Sprintf(
-    wski18n.T("Could not find 'main' method in '{{.name}}'",
-      map[string]interface{}{"name": jarFile}))
-  whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
-    whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-
-  return "", whiskErr
-}
-
-func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error) {
+func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, error) {
   var err error
-  var shared, sharedSet bool
   var artifact string
-  var limits *whisk.Limits
 
-  qName := qualifiedName{}
+  qName := QualifiedName{}
   qName, err = parseQualifiedName(args[0])
   if err != nil {
     whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[0], err)
@@ -430,7 +398,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
         map[string]interface{}{"name": args[0], "err": err}))
     whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
       whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-    return nil, sharedSet, whiskErr
+    return nil, whiskErr
   }
   client.Namespace = qName.namespace
 
@@ -438,63 +406,34 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
     artifact = args[1]
   }
 
-  if flags.action.shared == "yes" {
-    shared = true
-    sharedSet = true
-  } else if flags.action.shared == "no" {
-    shared = false
-    sharedSet = true
-  } else {
-    sharedSet = false
+  whisk.Debug(whisk.DbgInfo, "Parsing parameters: %#v\n", flags.common.param)
+  parameters, err := getJSONFromStrings(flags.common.param, true)
+  if err != nil {
+    whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, true) failed: %s\n", flags.common.param, err)
+    errMsg := fmt.Sprintf(
+      wski18n.T("Invalid parameter argument '{{.param}}': {{.err}}",
+        map[string]interface{}{"param": fmt.Sprintf("%#v", flags.common.param), "err": err}))
+    whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+      whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+    return nil, whiskErr
   }
 
-    whisk.Debug(whisk.DbgInfo, "Parsing parameters: %#v\n", flags.common.param)
-    parameters, err := getJSONFromStrings(flags.common.param, true)
-    if err != nil {
-        whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, true) failed: %s\n", flags.common.param, err)
-      errMsg := fmt.Sprintf(
-        wski18n.T("Invalid parameter argument '{{.param}}': {{.err}}",
-          map[string]interface{}{"param": fmt.Sprintf("%#v", flags.common.param), "err": err}))
-        whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-            whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-        return nil, sharedSet, whiskErr
-    }
-
-    whisk.Debug(whisk.DbgInfo, "Parsing annotations: %#v\n", flags.common.annotation)
-    annotations, err := getJSONFromStrings(flags.common.annotation, true)
-    if err != nil {
-        whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, true) failed: %s\n", flags.common.annotation, err)
-      errMsg := fmt.Sprintf(
-        wski18n.T("Invalid annotation argument '{{.annotation}}': {{.err}}",
-          map[string]interface{}{"annotation": fmt.Sprintf("%#v", flags.common.annotation), "err": err}))
-        whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-            whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-        return nil, sharedSet, whiskErr
-    }
-
-  // Only include the memory and timeout limit if set
-  if flags.action.memory > -1 || flags.action.timeout > -1 || flags.action.logsize > -1 {
-    limits = new(whisk.Limits)
-    if flags.action.memory > -1 {
-      limits.Memory = &flags.action.memory
-    }
-    if flags.action.timeout > -1 {
-      limits.Timeout = &flags.action.timeout
-    }
-    if flags.action.logsize > -1 {
-      limits.Logsize = &flags.action.logsize
-    }
-    whisk.Debug(whisk.DbgInfo, "Action limits: %+v\n", limits)
+  whisk.Debug(whisk.DbgInfo, "Parsing annotations: %#v\n", flags.common.annotation)
+  annotations, err := getJSONFromStrings(flags.common.annotation, true)
+  if err != nil {
+    whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, true) failed: %s\n", flags.common.annotation, err)
+    errMsg := fmt.Sprintf(
+      wski18n.T("Invalid annotation argument '{{.annotation}}': {{.err}}",
+        map[string]interface{}{"annotation": fmt.Sprintf("%#v", flags.common.annotation), "err": err}))
+    whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+      whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+    return nil, whiskErr
   }
 
   action := new(whisk.Action)
 
-  if flags.action.docker {
-    action.Exec = new(whisk.Exec)
-    action.Exec.Image = artifact
-    action.Exec.Kind = "blackbox"
-  } else if flags.action.copy {
-    qNameCopy := qualifiedName{}
+  if flags.action.copy {
+    qNameCopy := QualifiedName{}
     qNameCopy, err = parseQualifiedName(args[1])
     if err != nil {
       whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[1], err)
@@ -503,7 +442,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
           map[string]interface{}{"name": args[1], "err": err}))
       whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
         whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-      return nil, sharedSet, whiskErr
+      return nil, whiskErr
     }
     client.Namespace = qNameCopy.namespace
 
@@ -515,7 +454,7 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
           map[string]interface{}{"name": qName.entityName, "err": err}))
       whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
         whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-      return nil, sharedSet, whiskErr
+      return nil, whiskErr
     }
 
     client.Namespace = qName.namespace
@@ -527,11 +466,14 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
   } else if artifact != "" {
     ext := filepath.Ext(artifact)
     action.Exec = new(whisk.Exec)
-    action.Exec.Code, err = readFile(artifact)
+
+    if !flags.action.docker || ext == ".zip" {
+      action.Exec.Code, err = readFile(artifact)
+    }
 
     if err != nil {
       whisk.Debug(whisk.DbgError, "readFile(%s) error: %s\n", artifact, err)
-      return nil, sharedSet, err
+      return nil, err
     }
 
     if flags.action.kind == "swift:3" || flags.action.kind == "swift:3.0" || flags.action.kind == "swift:3.0.0" {
@@ -540,10 +482,19 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
       action.Exec.Kind = "nodejs:6"
     } else if flags.action.kind == "nodejs:default" {
       action.Exec.Kind = "nodejs:default"
+    } else if flags.action.kind == "swift:default" {
+      action.Exec.Kind = "swift:default"
     } else if flags.action.kind == "nodejs" {
       action.Exec.Kind = "nodejs"
     } else if flags.action.kind == "swift" {
       action.Exec.Kind = "swift"
+    } else if flags.action.docker {
+      action.Exec.Kind = "blackbox"
+      if ext != ".zip" {
+        action.Exec.Image = artifact
+      } else {
+        action.Exec.Image = "openwhisk/dockerskeleton"
+      }
     } else if len(flags.action.kind) > 0 {
       whisk.Debug(whisk.DbgError, "--kind argument '%s' is not supported\n", flags.action.kind)
       errMsg := fmt.Sprintf(
@@ -551,9 +502,9 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
           map[string]interface{}{"name": flags.action.kind}))
       whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG,
         whisk.DISPLAY_USAGE)
-      return nil, sharedSet, whiskErr
+      return nil, whiskErr
     } else if ext == ".swift" {
-      action.Exec.Kind = "swift"
+      action.Exec.Kind = "swift:default"
     } else if ext == ".js" {
       action.Exec.Kind = "nodejs:6"
     } else if ext == ".py" {
@@ -561,28 +512,51 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
     } else if ext == ".jar" {
       action.Exec.Kind = "java"
       action.Exec.Jar = base64.StdEncoding.EncodeToString([]byte(action.Exec.Code))
-      action.Exec.Main, err = findMainJarClass(artifact)
       action.Exec.Code = ""
-
-      if err != nil {
-        return nil, sharedSet, err
-      }
     } else {
-      whisk.Debug(whisk.DbgError, "Action runtime extension '%s' is not supported\n", ext)
-      errMsg := fmt.Sprintf(
-        wski18n.T("'{{.name}}' is not a supported action runtime",
-          map[string]interface{}{"name": ext}))
+      errMsg := ""
+      if ext == ".zip" {
+        // This point is reached if the extension was .zip and the kind was not specifically set to nodejs:*.
+        whisk.Debug(whisk.DbgError, "The extension .zip is only supported with an explicit kind flag\n", ext)
+        errMsg = wski18n.T("creating an action from a .zip artifact requires specifying the action kind explicitly")
+      } else {
+        whisk.Debug(whisk.DbgError, "Action runtime extension '%s' is not supported\n", ext)
+        errMsg = fmt.Sprintf(
+          wski18n.T("'{{.name}}' is not a supported action runtime",
+            map[string]interface{}{"name": ext}))
+      }
       whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG,
         whisk.DISPLAY_USAGE)
-      return nil, sharedSet, whiskErr
+      return nil, whiskErr
+    }
+
+    // Determining the entrypoint.
+    if len(flags.action.main) != 0 {
+      // The --main flag was specified.
+      action.Exec.Main = flags.action.main
+    } else {
+      // The flag was not specified. For now, the only kind where it makes
+      // a difference is "java", for which the flag is expected.
+      if action.Exec.Kind == "java" {
+        errMsg := wski18n.T("Java actions require --main to specify the fully-qualified name of the main class")
+        whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG,
+          whisk.DISPLAY_USAGE)
+        return nil, whiskErr
+      }
+    }
+
+    // For zip-encoded NodeJS action, the code needs to be base64-encoded.
+    // We reach this point if the kind has already be determined. Since the extension is not js,
+    // this means the kind was specified explicitly.
+    if ext == ".zip" && (strings.HasPrefix(action.Exec.Kind, "nodejs") || action.Exec.Kind == "blackbox") {
+      action.Exec.Code = base64.StdEncoding.EncodeToString([]byte(action.Exec.Code))
     }
   }
 
   action.Name = qName.entityName
   action.Namespace = qName.namespace
-  action.Publish = shared
   action.Annotations = annotations.(whisk.KeyValueArr)
-  action.Limits = limits
+  action.Limits = getLimits()
 
   // If the action sequence is not already the Parameters value, set it to the --param parameter values
   if action.Parameters == nil && parameters != nil {
@@ -590,7 +564,32 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, bool, error)
   }
 
   whisk.Debug(whisk.DbgInfo, "Parsed action struct: %#v\n", action)
-  return action, sharedSet, nil
+  return action, nil
+}
+
+func getLimits() (*whisk.Limits) {
+  var limits *whisk.Limits
+
+  if flags.action.memory != MEMORY_LIMIT || flags.action.timeout != TIMEOUT_LIMIT ||
+    flags.action.logsize != LOGSIZE_LIMIT {
+    limits = new(whisk.Limits)
+
+    if flags.action.memory != MEMORY_LIMIT {
+      limits.Memory = &flags.action.memory
+    }
+
+    if flags.action.timeout != TIMEOUT_LIMIT {
+      limits.Timeout = &flags.action.timeout
+    }
+
+    if flags.action.logsize != LOGSIZE_LIMIT {
+      limits.Logsize = &flags.action.logsize
+    }
+
+    whisk.Debug(whisk.DbgInfo, "Action limits: %+v\n", limits)
+  }
+
+  return limits
 }
 
 ///////////
@@ -602,10 +601,11 @@ func init() {
   actionCreateCmd.Flags().BoolVar(&flags.action.copy, "copy", false, wski18n.T("treat ACTION as the name of an existing action"))
   actionCreateCmd.Flags().BoolVar(&flags.action.sequence, "sequence", false, wski18n.T("treat ACTION as comma separated sequence of actions to invoke"))
   actionCreateCmd.Flags().StringVar(&flags.action.kind, "kind", "", wski18n.T("the `KIND` of the action runtime (example: swift:3, nodejs:6)"))
+  actionCreateCmd.Flags().StringVar(&flags.action.main, "main", "", wski18n.T("the name of the action entry point (function or fully-qualified method name when applicable)"))
   actionCreateCmd.Flags().StringVar(&flags.action.shared, "shared", "no", wski18n.T("action visibility `SCOPE`; yes = shared, no = private"))
-  actionCreateCmd.Flags().IntVarP(&flags.action.timeout, "timeout", "t", -1, wski18n.T("the timeout `LIMIT` in milliseconds when the action will be terminated"))
-  actionCreateCmd.Flags().IntVarP(&flags.action.memory, "memory", "m", -1, wski18n.T("the memory `LIMIT` in MB of the container that runs the action"))
-  actionCreateCmd.Flags().IntVarP(&flags.action.logsize, "logsize", "l", -1, wski18n.T("the log size `LIMIT` in MB of the container that runs the action (default 10MB)"))
+  actionCreateCmd.Flags().IntVarP(&flags.action.timeout, "timeout", "t", TIMEOUT_LIMIT, wski18n.T("the timeout `LIMIT` in milliseconds after which the action is terminated"))
+  actionCreateCmd.Flags().IntVarP(&flags.action.memory, "memory", "m", MEMORY_LIMIT, wski18n.T("the maximum memory `LIMIT` in MB for the action"))
+  actionCreateCmd.Flags().IntVarP(&flags.action.logsize, "logsize", "l", LOGSIZE_LIMIT, wski18n.T("the maximum log size `LIMIT` in MB for the action"))
   actionCreateCmd.Flags().StringSliceVarP(&flags.common.annotation, "annotation", "a", nil, wski18n.T("annotation values in `KEY VALUE` format"))
   actionCreateCmd.Flags().StringVarP(&flags.common.annotFile, "annotation-file", "A", "", wski18n.T("`FILE` containing annotation values in JSON format"))
   actionCreateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", nil, wski18n.T("parameter values in `KEY VALUE` format"))
@@ -615,10 +615,11 @@ func init() {
   actionUpdateCmd.Flags().BoolVar(&flags.action.copy, "copy", false, wski18n.T("treat ACTION as the name of an existing action"))
   actionUpdateCmd.Flags().BoolVar(&flags.action.sequence, "sequence", false, wski18n.T("treat ACTION as comma separated sequence of actions to invoke"))
   actionUpdateCmd.Flags().StringVar(&flags.action.kind, "kind", "", wski18n.T("the `KIND` of the action runtime (example: swift:3, nodejs:6)"))
+  actionUpdateCmd.Flags().StringVar(&flags.action.main, "main", "", wski18n.T("the name of the action entry point (function or fully-qualified method name when applicable)"))
   actionUpdateCmd.Flags().StringVar(&flags.action.shared, "shared", "", wski18n.T("action visibility `SCOPE`; yes = shared, no = private"))
-  actionUpdateCmd.Flags().IntVarP(&flags.action.timeout, "timeout", "t", -1, wski18n.T("the timeout `LIMIT` in milliseconds when the action will be terminated"))
-  actionUpdateCmd.Flags().IntVarP(&flags.action.memory, "memory", "m", -1, wski18n.T("the memory `LIMIT` in MB of the container that runs the action"))
-  actionUpdateCmd.Flags().IntVarP(&flags.action.logsize, "logsize", "l", -1, wski18n.T("the log size `LIMIT` in MB of the container that runs the action (default 10MB)"))
+  actionUpdateCmd.Flags().IntVarP(&flags.action.timeout, "timeout", "t", TIMEOUT_LIMIT, wski18n.T("the timeout `LIMIT` in milliseconds after which the action is terminated"))
+  actionUpdateCmd.Flags().IntVarP(&flags.action.memory, "memory", "m", MEMORY_LIMIT, wski18n.T("the maximum memory `LIMIT` in MB for the action"))
+  actionUpdateCmd.Flags().IntVarP(&flags.action.logsize, "logsize", "l", LOGSIZE_LIMIT, wski18n.T("the maximum log size `LIMIT` in MB for the action"))
   actionUpdateCmd.Flags().StringSliceVarP(&flags.common.annotation, "annotation", "a", []string{}, wski18n.T("annotation values in `KEY VALUE` format"))
   actionUpdateCmd.Flags().StringVarP(&flags.common.annotFile, "annotation-file", "A", "", wski18n.T("`FILE` containing annotation values in JSON format"))
   actionUpdateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, wski18n.T("parameter values in `KEY VALUE` format"))

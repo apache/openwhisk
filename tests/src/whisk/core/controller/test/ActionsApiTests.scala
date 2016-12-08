@@ -34,13 +34,8 @@ import spray.http.StatusCodes.OK
 import spray.http.StatusCodes.RequestEntityTooLarge
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
 import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
-import spray.json.DefaultJsonProtocol.RootJsObjectFormat
-import spray.json.DefaultJsonProtocol.listFormat
-import spray.json.DefaultJsonProtocol.StringJsonFormat
-import spray.json.DefaultJsonProtocol.vectorFormat
-import spray.json.JsObject
-import spray.json.pimpAny
-import spray.json.pimpString
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 import whisk.core.controller.WhiskActionsApi
 import whisk.core.entity.ActionLimits
 import whisk.core.entity.ActionLimitsOption
@@ -58,10 +53,12 @@ import whisk.core.entity.WhiskActionPut
 import whisk.core.entity.WhiskActivation
 import whisk.core.entity.WhiskAuth
 import java.time.Instant
-import whisk.core.entity.SequenceExec
-import whisk.core.entity.Pipecode
 import akka.event.Logging.InfoLevel
 import whisk.core.entity.WhiskTrigger
+import whisk.core.entity.FullyQualifiedEntityName
+import whisk.core.entity.BlackBoxExec
+import whisk.http.ErrorResponse
+import whisk.http.Messages
 
 /**
  * Tests Actions API.
@@ -307,98 +304,54 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             deleteAction(action.docid)
             status should be(OK)
             val response = responseAs[WhiskAction]
-            response should be(action)
+            response should be(WhiskAction(action.namespace, action.name, action.exec,
+                action.parameters, action.limits, action.version,
+                action.publish, action.annotations ++ Parameters(WhiskAction.execFieldName, Exec.NODEJS)))
         }
     }
 
-    private def seqParameters(seq: Vector[String]) = Parameters("_actions", seq.toJson)
-
-    it should "create an action sequence" in {
+    it should "put should accept blackbox exec with empty code property" in {
         implicit val tid = transid()
-        val sequence = Vector("a", "b")
-        val action = WhiskAction(namespace, aname, Exec.sequence(sequence))
-        val content = WhiskActionPut(Some(action.exec))
-
-        // create an action sequence
+        val action = WhiskAction(namespace, aname, Exec.bb("??"))
+        val content = Map("exec" -> Map("kind" -> "blackbox", "code" -> "", "image" -> "??")).toJson.asJsObject
         Put(s"$collectionPath/${action.name}", content) ~> sealRoute(routes(creds)) ~> check {
             deleteAction(action.docid)
             status should be(OK)
             val response = responseAs[WhiskAction]
-            response.exec shouldBe a[SequenceExec]
-            response.exec.kind should be(Exec.SEQUENCE)
-            val seq = response.exec.asInstanceOf[SequenceExec]
-            seq.code should be(Pipecode.code)
-            seq.components should be(sequence)
-            response.parameters shouldBe seqParameters(sequence)
+            response should be(WhiskAction(action.namespace, action.name, action.exec,
+                action.parameters, action.limits, action.version,
+                action.publish, action.annotations ++ Parameters(WhiskAction.execFieldName, Exec.BLACKBOX)))
+            response.exec shouldBe an[BlackBoxExec]
+            response.exec.asInstanceOf[BlackBoxExec].code shouldBe empty
         }
     }
 
-    it should "create an action sequence ignoring parameters" in {
+    it should "put should accept blackbox exec with non-empty code property" in {
         implicit val tid = transid()
-        val sequence = Vector("a", "b")
-        val action = WhiskAction(namespace, aname, Exec.sequence(sequence))
-        val content = WhiskActionPut(Some(action.exec), parameters = Some(Parameters("x", "X")))
-
-        // create an action sequence
+        val action = WhiskAction(namespace, aname, Exec.bb("??", "cc"))
+        val content = Map("exec" -> Map("kind" -> "blackbox", "code" -> "cc", "image" -> "??")).toJson.asJsObject
         Put(s"$collectionPath/${action.name}", content) ~> sealRoute(routes(creds)) ~> check {
             deleteAction(action.docid)
             status should be(OK)
             val response = responseAs[WhiskAction]
-            response.exec shouldBe a[SequenceExec]
-            response.exec.kind should be(Exec.SEQUENCE)
-            val seq = response.exec.asInstanceOf[SequenceExec]
-            seq.code should be(Pipecode.code)
-            seq.components should be(sequence)
-            response.parameters shouldBe seqParameters(sequence)
+            response should be(WhiskAction(action.namespace, action.name, action.exec,
+                action.parameters, action.limits, action.version,
+                action.publish, action.annotations ++ Parameters(WhiskAction.execFieldName, Exec.BLACKBOX)))
+            response.exec shouldBe an[BlackBoxExec]
+            val bb = response.exec.asInstanceOf[BlackBoxExec]
+            bb.code shouldBe Some("cc")
+            bb.binary shouldBe false
         }
     }
 
-    it should "update an action sequence with a new sequence" in {
-        implicit val tid = transid()
-        val sequence = Vector("a", "b")
-        val newSequence = Vector("c", "d")
-        val action = WhiskAction(namespace, aname, Exec.sequence(sequence), seqParameters(sequence))
-        val content = WhiskActionPut(Some(Exec.sequence(newSequence)))
-        put(entityStore, action, false)
+    private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
+    private def seqParameters(seq: Vector[FullyQualifiedEntityName]) = Parameters("_actions", seq.toJson)
 
-        // create an action sequence
-        Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
-            deleteAction(action.docid)
-            status should be(OK)
-            val response = responseAs[WhiskAction]
-            response.exec shouldBe a[SequenceExec]
-            response.exec.kind should be(Exec.SEQUENCE)
-            val seq = response.exec.asInstanceOf[SequenceExec]
-            seq.code should be(Pipecode.code)
-            seq.components should be(newSequence)
-            response.parameters shouldBe seqParameters(newSequence)
-        }
-    }
-
-    it should "update an action sequence ignoring parameters" in {
-        implicit val tid = transid()
-        val sequence = Vector("a", "b")
-        val action = WhiskAction(namespace, aname, Exec.sequence(sequence), seqParameters(sequence))
-        val content = WhiskActionPut(parameters = Some(Parameters("a", "A")))
-        put(entityStore, action, false)
-
-        // create an action sequence
-        Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
-            deleteAction(action.docid)
-            status should be(OK)
-            val response = responseAs[WhiskAction]
-            response.exec shouldBe a[SequenceExec]
-            response.exec.kind should be(Exec.SEQUENCE)
-            val seq = response.exec.asInstanceOf[SequenceExec]
-            seq.code should be(Pipecode.code)
-            seq.components should be(sequence)
-            response.parameters shouldBe seqParameters(sequence)
-        }
-    }
-
+    // this test is sneaky; the installation of the sequence is done directly in the db
+    // and api checks are skipped
     it should "reset parameters when changing sequence action to non sequence" in {
         implicit val tid = transid()
-        val sequence = Vector("a", "b")
+        val sequence = Vector("x/a", "x/b").map(stringToFullyQualifiedName(_))
         val action = WhiskAction(namespace, aname, Exec.sequence(sequence), seqParameters(sequence))
         val content = WhiskActionPut(Some(Exec.js("")))
         put(entityStore, action, false)
@@ -413,9 +366,11 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         }
     }
 
+    // this test is sneaky; the installation of the sequence is done directly in the db
+    // and api checks are skipped
     it should "preserve new parameters when changing sequence action to non sequence" in {
         implicit val tid = transid()
-        val sequence = Vector("a", "b")
+        val sequence = Vector("x/a", "x/b").map(stringToFullyQualifiedName(_))
         val action = WhiskAction(namespace, aname, Exec.sequence(sequence), seqParameters(sequence))
         val content = WhiskActionPut(Some(Exec.js("")), parameters = Some(Parameters("a", "A")))
         put(entityStore, action, false)
@@ -445,7 +400,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             deleteAction(action.docid)
             status should be(OK)
             val response = responseAs[WhiskAction]
-            response should be(action)
+            response should be(WhiskAction(action.namespace, action.name, action.exec,
+                action.parameters, action.limits, action.version,
+                action.publish, action.annotations ++ Parameters(WhiskAction.execFieldName, Exec.NODEJS)))
         }
     }
 
@@ -468,7 +425,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             deleteAction(action.docid)
             status should be(OK)
             val response = responseAs[WhiskAction]
-            response should be(action)
+            response should be(WhiskAction(action.namespace, action.name, action.exec,
+                action.parameters, action.limits, action.version,
+                action.publish, action.annotations ++ Parameters(WhiskAction.execFieldName, Exec.NODEJS)))
         }
     }
 
@@ -486,7 +445,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             Put(s"$collectionPath/$name", content) ~> sealRoute(routes(creds)(transid())) ~> check {
                 status should be(OK)
                 val response = responseAs[WhiskAction]
-                response should be(action)
+                response should be(WhiskAction(action.namespace, action.name, action.exec,
+                    action.parameters, action.limits, action.version,
+                    action.publish, action.annotations ++ Parameters(WhiskAction.execFieldName, Exec.NODEJS)))
             }
             stream.toString should include regex (s"caching*.*${action.docid.asDocInfo}")
             stream.reset()
@@ -495,7 +456,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             Get(s"$collectionPath/$name") ~> sealRoute(routes(creds)(transid())) ~> check {
                 status should be(OK)
                 val response = responseAs[WhiskAction]
-                response should be(action)
+                response should be(WhiskAction(action.namespace, action.name, action.exec,
+                    action.parameters, action.limits, action.version,
+                    action.publish, action.annotations ++ Parameters(WhiskAction.execFieldName, Exec.NODEJS)))
             }
 
             stream.toString should include regex (s"serving from cache:*.*${action.docid.asDocInfo}")
@@ -505,7 +468,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             Delete(s"$collectionPath/$name") ~> sealRoute(routes(creds)(transid())) ~> check {
                 status should be(OK)
                 val response = responseAs[WhiskAction]
-                response should be(action)
+                response should be(WhiskAction(action.namespace, action.name, action.exec,
+                    action.parameters, action.limits, action.version,
+                    action.publish, action.annotations ++ Parameters(WhiskAction.execFieldName, Exec.NODEJS)))
             }
             stream.toString should include regex (s"invalidating*.*${action.docid.asDocInfo}")
             stream.reset()
@@ -536,7 +501,8 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             status should be(OK)
             val response = responseAs[WhiskAction]
             response should be {
-                WhiskAction(action.namespace, action.name, content.exec.get, content.parameters.get, version = action.version.upPatch)
+                WhiskAction(action.namespace, action.name, content.exec.get, content.parameters.get, version = action.version.upPatch,
+                    annotations = action.annotations ++ Parameters(WhiskAction.execFieldName, Exec.NODEJS))
             }
         }
     }
@@ -551,7 +517,8 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             status should be(OK)
             val response = responseAs[WhiskAction]
             response should be {
-                WhiskAction(action.namespace, action.name, action.exec, content.parameters.get, version = action.version.upPatch)
+                WhiskAction(action.namespace, action.name, action.exec, content.parameters.get, version = action.version.upPatch,
+                    annotations = action.annotations ++ Parameters(WhiskAction.execFieldName, Exec.NODEJS))
             }
         }
     }
@@ -610,7 +577,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     it should "invoke an action, blocking and retrieve result via db polling" in {
         implicit val tid = transid()
         val action = WhiskAction(namespace, aname, Exec.js("??"))
-        val activation = WhiskActivation(action.namespace, action.name, creds.subject, activationId.make(),
+        val activation = WhiskActivation(action.namespace, action.name, creds.subject, activationIdFactory.make(),
             start = Instant.now,
             end = Instant.now,
             response = ActivationResponse.success(Some(JsObject("test" -> "yes".toJson))))
@@ -640,7 +607,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     it should "invoke an action, blocking and retrieve result via active ack" in {
         implicit val tid = transid()
         val action = WhiskAction(namespace, aname, Exec.js("??"))
-        val activation = WhiskActivation(action.namespace, action.name, creds.subject, activationId.make(),
+        val activation = WhiskActivation(action.namespace, action.name, creds.subject, activationIdFactory.make(),
             start = Instant.now,
             end = Instant.now,
             response = ActivationResponse.success(Some(JsObject("test" -> "yes".toJson))))
@@ -670,7 +637,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     it should "invoke a blocking action and return error response when activation fails" in {
         implicit val tid = transid()
         val action = WhiskAction(namespace, aname, Exec.js("??"))
-        val activation = WhiskActivation(action.namespace, action.name, creds.subject, activationId.make(),
+        val activation = WhiskActivation(action.namespace, action.name, creds.subject, activationIdFactory.make(),
             start = Instant.now,
             end = Instant.now,
             response = ActivationResponse.whiskError("test"))
@@ -680,14 +647,49 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         // the one generated by the api handler
         put(activationStore, activation)
         try {
-        Post(s"$collectionPath/${action.name}?blocking=true") ~> sealRoute(routes(creds)) ~> check {
-            status should be(InternalServerError)
-            val response = responseAs[JsObject]
-            response should be(activation.toExtendedJson)
-        }
+            Post(s"$collectionPath/${action.name}?blocking=true") ~> sealRoute(routes(creds)) ~> check {
+                status should be(InternalServerError)
+                val response = responseAs[JsObject]
+                response should be(activation.toExtendedJson)
+            }
         } finally {
             deleteActivation(activation.docid)
         }
     }
 
+    it should "report proper error when record is corrupted on delete" in {
+        implicit val tid = transid()
+        val entity = BadEntity(namespace, aname)
+        put(entityStore, entity)
+
+        Delete(s"$collectionPath/${entity.name}") ~> sealRoute(routes(creds)) ~> check {
+            status should be(InternalServerError)
+            responseAs[ErrorResponse].error shouldBe Messages.corruptedEntity
+        }
+    }
+
+    it should "report proper error when record is corrupted on get" in {
+        implicit val tid = transid()
+        val entity = BadEntity(namespace, aname)
+        put(entityStore, entity)
+
+        Get(s"$collectionPath/${entity.name}") ~> sealRoute(routes(creds)) ~> check {
+            status should be(InternalServerError)
+            responseAs[ErrorResponse].error shouldBe Messages.corruptedEntity
+        }
+    }
+
+    it should "report proper error when record is corrupted on put" in {
+        implicit val tid = transid()
+        val entity = BadEntity(namespace, aname)
+        put(entityStore, entity)
+
+        val sequence = Vector(stringToFullyQualifiedName(s"$namespace/${entity.name}"))
+        val content = WhiskActionPut(Some(Exec.sequence(sequence)))
+
+        Put(s"$collectionPath/${aname()}", content) ~> sealRoute(routes(creds)) ~> check {
+            status should be(InternalServerError)
+            responseAs[ErrorResponse].error shouldBe Messages.corruptedEntity
+        }
+    }
 }

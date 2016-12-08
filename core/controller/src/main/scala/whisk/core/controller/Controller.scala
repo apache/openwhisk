@@ -29,7 +29,7 @@ import spray.routing.Route
 import akka.actor.ActorContext
 import akka.event.Logging.InfoLevel
 import akka.event.Logging.LogLevel
-import whisk.core.entitlement.EntitlementService
+import whisk.core.entitlement.EntitlementProvider
 
 /**
  * The Controller is the service that provides the REST API for OpenWhisk.
@@ -90,9 +90,9 @@ object Controller {
     def requiredProperties = Map(WhiskConfig.servicePort -> 8080.toString) ++
         RestAPIVersion_v1.requiredProperties ++
         LoadBalancerService.requiredProperties ++
-        EntitlementService.requiredProperties
+        EntitlementProvider.requiredProperties
 
-    def optionalProperties = EntitlementService.optionalProperties
+    def optionalProperties = EntitlementProvider.optionalProperties
 
     // akka-style factory to create a Controller object
     private class ServiceBuilder(config: WhiskConfig, instance: Int) extends Creator[Controller] {

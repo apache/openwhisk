@@ -38,10 +38,10 @@ func convertReply(input: [String:AnyObject]) -> [String:Any] {
     return output
 }
 
-func filterForecast(params:[String:Any]) -> [String:Any] {
+func filterForecast(args:[String:Any]) -> [String:Any] {
     let NumDays = 2
     var filteredForecasts = [[String:Any]]()
-    if let forecasts = params["forecasts"] as? [[String:Any]] {
+    if let forecasts = args["forecasts"] as? [[String:Any]] {
         for day in 0...(NumDays - 1) {
             let forecast = forecasts[day] as [String:Any]
             var terse = [String:Any]()

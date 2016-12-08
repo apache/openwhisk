@@ -96,6 +96,40 @@ class WskRuleTests
                         _.head.cause shouldBe Some(triggerActivation.activationId)
                     }
 
+                    withActivationsFromEntity(wsk.activation, actionName, since = Some(Instant.ofEpochMilli(triggerActivation.start))) { activationList =>
+                        activationList.head.response.result shouldBe Some(testResult)
+                        activationList.head.cause shouldBe None
+                    }
+            }
+    }
+
+    it should "invoke the action from a package attached on trigger fire, creating an activation for each entity including the cause" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val ruleName = "pr1to1"
+            val triggerName = "pt1to1"
+            val pkgName = "rule pkg" // spaces in name intended to test uri path encoding
+            val actionName = "a1 to 1"
+            val pkgActionName = s"$pkgName/$actionName"
+
+            assetHelper.withCleaner(wsk.pkg, pkgName) {
+                (pkg, name) => pkg.create(name)
+            }
+
+            ruleSetup(Seq(
+                (ruleName, triggerName, (pkgActionName, defaultAction))),
+                assetHelper)
+
+            val now = Instant.now
+            val run = wsk.trigger.fire(triggerName, Map("payload" -> testString.toJson))
+
+            withActivation(wsk.activation, run) {
+                triggerActivation =>
+                    triggerActivation.cause shouldBe None
+
+                    withActivationsFromEntity(wsk.activation, ruleName, since = Some(Instant.ofEpochMilli(triggerActivation.start))) {
+                        _.head.cause shouldBe Some(triggerActivation.activationId)
+                    }
+
                     withActivationsFromEntity(wsk.activation, actionName, since = Some(Instant.ofEpochMilli(triggerActivation.start))) {
                         _.head.response.result shouldBe Some(testResult)
                     }
@@ -252,7 +286,6 @@ class WskRuleTests
             val triggerName2 = "t1to1b"
             val actionName1 = "a1to1a"
             val actionName2 = "a1to1b"
-
 
             ruleSetup(Seq(
                 ("r2to2a", triggerName1, (actionName1, defaultAction)),

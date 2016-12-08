@@ -35,14 +35,7 @@ import whisk.common.Scheduler
 import whisk.common.TimingUtil
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig.dockerImageTag
-import whisk.core.WhiskConfig.invokerContainerNetwork
-import whisk.core.WhiskConfig.invokerContainerPolicy
-import whisk.core.WhiskConfig.invokerCoreShare
-import whisk.core.WhiskConfig.invokerNumCore
-import whisk.core.WhiskConfig.invokerSerializeDockerOp
-import whisk.core.WhiskConfig.invokerSerializeDockerPull
-import whisk.core.WhiskConfig.selfDockerEndpoint
+import whisk.core.WhiskConfig._
 import whisk.core.entity.ActionLimits
 import whisk.core.entity.MemoryLimit
 import whisk.core.entity.LogLimit
@@ -54,7 +47,6 @@ import whisk.core.entity.NodeJS6Exec
 import akka.event.Logging.LogLevel
 import akka.event.Logging.InfoLevel
 import whisk.core.entity.AuthKey
-import whisk.core.entity.Exec
 
 /**
  * A thread-safe container pool that internalizes container creation/teardown and allows users
@@ -80,9 +72,10 @@ class ContainerPool(
     private val authStore = WhiskAuthStore.datastore(config)
     setVerbosity(verbosity)
 
+    val mounted = !standalone
     val dockerhost = config.selfDockerEndpoint
     val serializeDockerOp = config.invokerSerializeDockerOp.toBoolean
-    val serializeDockerPull = config.invokerSerializeDockerOp.toBoolean
+    val serializeDockerPull = config.invokerSerializeDockerPull.toBoolean
     info(this, s"dockerhost = $dockerhost    serializeDockerOp = $serializeDockerOp   serializeDockerPull = $serializeDockerPull")
 
     // Eventually, we will have a more sophisticated warmup strategy that does multiple sizes
@@ -167,16 +160,16 @@ class ContainerPool(
      * Retrieves (possibly create) a container based on the subject and versioned action.
      * A flag is included to indicate whether initialization succeeded.
      * The invariant of returning the container back to the pool holds regardless of whether init succeeded or not.
-     * In case of failure to start a container, None is returned.
+     * In case of failure to start a container (or for failed docker operations e.g., pull), an exception is thrown.
      */
-    def getAction(action: WhiskAction, auth: AuthKey)(implicit transid: TransactionId): Option[(WhiskContainer, Option[RunResult])] =
+    def getAction(action: WhiskAction, auth: AuthKey)(implicit transid: TransactionId): (WhiskContainer, Option[RunResult]) = {
         if (shuttingDown) {
-            info(this, s"Shutting down: Not getting container for ${action.fullyQualifiedName} with ${auth.uuid}")
-            None
+            info(this, s"Shutting down: Not getting container for ${action.fullyQualifiedName(true)} with ${auth.uuid}")
+            throw new Exception("system is shutting down")
         } else {
-            val key = ActionContainerId(auth.uuid, action.fullyQualifiedName, action.rev)
+            val key = ActionContainerId(auth.uuid, action.fullyQualifiedName(true).toString, action.rev)
             val myPos = nextPosition.next()
-            info(this, s"""Getting container for ${action.fullyQualifiedName} of kind ${action.exec.kind} with ${auth.uuid}:
+            info(this, s"""Getting container for ${action.fullyQualifiedName(true)} of kind ${action.exec.kind} with ${auth.uuid}:
                           | myPos = $myPos
                           | completed = ${completedPosition.cur}
                           | slack = ${slack()}
@@ -189,15 +182,16 @@ class ContainerPool(
                 case Success(Cold(con)) =>
                     info(this, s"Obtained cold container ${con.containerId.id} - about to initialize")
                     val initResult = initWhiskContainer(action, con)
-                    Some(con, Some(initResult))
+                    (con, Some(initResult))
                 case Success(Warm(con)) =>
                     info(this, s"Obtained warm container ${con.containerId.id}")
-                    Some(con, None)
+                    (con, None)
                 case Failure(t) =>
                     error(this, s"Exception while trying to get a container: $t")
                     throw t
             }
         }
+    }
 
     /*
      * For testing by ContainerPoolTests where non whisk containers are used.
@@ -222,8 +216,12 @@ class ContainerPool(
     final def getContainer(tryCount: Int, position: Long, key: ActionContainerId, conMaker: () => WhiskContainer)(implicit transid: TransactionId): ContainerResult = {
         val positionInLine = position - completedPosition.cur // Indicates queue position.  1 means front of the line
         val available = slack()
-        if (tryCount % 100 == 0) {
-            warn(this, s"""getImpl possibly stuck because still in line:
+        // Warn at 10 seconds and then once a minute after that.
+        val waitDur = 50.millis
+        val warnAtCount = 10.seconds.toMillis / waitDur.toMillis
+        val warnPeriodic = 60.seconds.toMillis / waitDur.toMillis
+        if (tryCount == warnAtCount || tryCount % warnPeriodic == 0) {
+            warn(this, s"""getContainer has been waiting about ${warnAtCount * waitDur.toMillis} ms:
                           | position = $position
                           | completed = ${completedPosition.cur}
                           | slack = $available
@@ -237,7 +235,7 @@ class ContainerPool(
                 case None     => getContainer(tryCount + 1, position, key, conMaker)
             }
         } else { // It's not our turn in line yet.
-            Thread.sleep(50) // TODO: Replace with wait/notify but tricky because of desire for maximal concurrency
+            Thread.sleep(waitDur.toMillis) // TODO: Replace with wait/notify but tricky because of desire for maximal concurrency
             getContainer(tryCount + 1, position, key, conMaker)
         }
     }
@@ -401,7 +399,7 @@ class ContainerPool(
     // TODO: Generalize across language by storing image name when we generalize to other languages
     //       Better heuristic for # of containers to keep warm - make sensitive to idle capacity
     private val stemCellNodejsKey = StemCellNodeJsActionContainerId
-    private val nodejsExec = NodeJS6Exec("", None)
+    private val nodejsExec = NodeJS6Exec("", main = None)
     private val WARM_NODEJS_CONTAINERS = 2
 
     // This parameter controls how many outstanding un-removed containers there are before
@@ -421,7 +419,7 @@ class ContainerPool(
         ContainerCounter.containerName(invokerInstance.toString(), localName)
 
     private def makeContainerName(action: WhiskAction): ContainerName =
-        makeContainerName(action.fullyQualifiedName)
+        makeContainerName(action.fullyQualifiedName(true).toString)
 
     /**
      * dockerLock is a fair lock used to serialize all docker operations except pull.
@@ -443,7 +441,7 @@ class ContainerPool(
     private def nannyThread(allContainers: Seq[ContainerState]) = new Thread {
         override def run {
             implicit val tid = TransactionId.invokerNanny
-            if (!standalone) {
+            if (mounted) {
                 killStragglers(allContainers)
                 // Create a new stem cell if the number of warm containers is less than the count allowed
                 // as long as there is slack so that any actions that may be waiting to create a container
@@ -554,14 +552,14 @@ class ContainerPool(
         val imageName = getDockerImageName(action)
         val limits = action.limits
         val nodeImageName = WhiskAction.containerImageName(nodejsExec, config.dockerRegistry, config.dockerImagePrefix, config.dockerImageTag)
-        val key = ActionContainerId(auth.uuid, action.fullyQualifiedName, action.rev)
+        val key = ActionContainerId(auth.uuid, action.fullyQualifiedName(true).toString, action.rev)
         val warmedContainer = if (limits.memory == defaultMemoryLimit && imageName == nodeImageName) getStemCellNodejsContainer(key) else None
         val containerName = makeContainerName(action)
         warmedContainer getOrElse {
             try {
                 info(this, s"making new container because none available")
                 startingCounter.next()
-                makeGeneralContainer(key, containerName, imageName, limits, action.exec.kind == Exec.BLACKBOX)
+                makeGeneralContainer(key, containerName, imageName, limits, action.exec.pull)
             } finally {
                 val newCount = startingCounter.prev()
                 info(this, s"finished trying to make container, $newCount more containers to start")
@@ -604,14 +602,14 @@ class ContainerPool(
                 // because of the docker lock, by the time the container gets around to be started
                 // there could be a container to reuse (from a previous run of the same action, or
                 // from a stem cell container); should revisit this logic
-                new WhiskContainer(transid, this.dockerhost, key, containerName, imageName, network, cpuShare, policy, env, limits, isBlackbox = pull, logLevel = this.getVerbosity())
+                new WhiskContainer(transid, this.dockerhost, mounted, key, containerName, imageName,
+                    network, cpuShare, policy, env, limits, logLevel = this.getVerbosity())
             }
         }
     }
 
     // We send the payload here but eventually must also handle morphing a pre-allocated container into the right state.
     private def initWhiskContainer(action: WhiskAction, con: WhiskContainer)(implicit transid: TransactionId): RunResult = {
-        con.boundParams = action.parameters.toJsObject
         // Then send it the init payload which is code for now
         val initArg = action.containerInitializer
         con.init(initArg, action.limits.timeout.duration)
@@ -622,9 +620,9 @@ class ContainerPool(
      */
     private def makeContainer(key: ActionContainerId, imageName: String, args: Array[String])(implicit transid: TransactionId): WhiskContainer = {
         val con = runDockerOp {
-            new WhiskContainer(transid, this.dockerhost, key, makeContainerName("testContainer"), imageName,
+            new WhiskContainer(transid, this.dockerhost, mounted, key, makeContainerName("testContainer"), imageName,
                 config.invokerContainerNetwork, ContainerPool.cpuShare(config),
-                config.invokerContainerPolicy, Map(), ActionLimits(), args, false,
+                config.invokerContainerPolicy, Map(), ActionLimits(), args,
                 this.getVerbosity())
         }
         con.setVerbosity(getVerbosity())
@@ -654,7 +652,7 @@ class ContainerPool(
     }
 
     private def getContainerEnvironment(): Map[String, String] = {
-        Map(WhiskConfig.asEnvVar(WhiskConfig.edgeHostName) -> config.edgeHost)
+        Map("__OW_API_HOST" -> config.edgeHost)
     }
 
     private val defaultMaxIdle = 10
@@ -741,14 +739,15 @@ class ContainerPool(
     private def teardownContainer(removeJob: RemoveJob)(implicit transid: TransactionId) = try {
         val container = removeJob.containerInfo.container
         if (saveContainerLog) {
-            val size = this.getLogSize(container, !standalone)
+            val size = this.getLogSize(container, mounted)
             val rawLogBytes = container.synchronized {
-                this.getDockerLogContent(container.containerId, 0, size, !standalone)
+                this.getDockerLogContent(container.containerId, 0, size, mounted)
             }
             val filename = s"${_logDir}/${container.nameAsString}.log"
             Files.write(Paths.get(filename), rawLogBytes)
             info(this, s"teardownContainers: wrote docker logs to $filename")
         }
+        container.transid = transid
         runDockerOp { container.remove(removeJob.needUnpause) }
     } catch {
         case t: Throwable => warn(this, s"teardownContainer encountered an exception: ${t.getMessage}")
@@ -779,7 +778,7 @@ class ContainerPool(
     }
 
     nannyThread(listAll()(TransactionId.invokerWarmup)).start
-    if (!standalone) {
+    if (mounted) {
         sys addShutdownHook {
             warn(this, "Shutdown hook activated.  Starting container shutdown")
             shutdown()
@@ -796,13 +795,17 @@ class ContainerPool(
 object ContainerPool extends Logging {
     def requiredProperties = Map(
         selfDockerEndpoint -> "localhost",
+        edgeHostName -> null,
+        dockerRegistry -> "",
+        dockerImagePrefix -> "",
         dockerImageTag -> "latest",
         invokerContainerNetwork -> "bridge",
         invokerNumCore -> "4",
         invokerCoreShare -> "2",
         invokerSerializeDockerOp -> "true",
         invokerSerializeDockerPull -> "true",
-        invokerContainerPolicy -> "")
+        invokerContainerPolicy -> "",
+        invokerContainerNetwork -> null)
 
     /*
      * Extract parameters from whisk config.  In the future, these may not be static but

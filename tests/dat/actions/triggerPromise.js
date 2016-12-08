@@ -1,7 +1,7 @@
-function main() {
+function main(params) {
     return new Promise(function (resolve, reject) {
         whisk.trigger({
-                name: 'UnitTestTrigger'
+                name: params.triggerName
             })
             .then(function (result) {
                 resolve(result);

@@ -20,6 +20,7 @@ trait DefaultRuntimeVersions {
     def resolveDefaultRuntime(kind: String): String = {
         kind match {
             case "nodejs:default" => "nodejs:6"
+            case "swift:default" => "swift:3"
             case anyOther => anyOther
         }
     }

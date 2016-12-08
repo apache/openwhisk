@@ -20,32 +20,30 @@ import java.time.Clock
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 
-import scala.concurrent.duration.DurationInt
-
 import scala.concurrent.Await
 import scala.concurrent.Future
-import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.duration.DurationInt
-
+import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 
 import akka.actor.ActorSystem
 import akka.event.Logging.LogLevel
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.model._
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling._
+import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling._
 import akka.stream.ActorMaterializer
-
-import spray.json.JsObject
-import spray.json.JsString
-import whisk.common.TransactionId
-import whisk.core.entity.ActionLimits
-import whisk.common.LoggingMarkers
-import whisk.common.PrintStreamEmitter
+import spray.json._
+import spray.json.DefaultJsonProtocol._
 import whisk.common.HttpUtils
+import whisk.common.LoggingMarkers
 import whisk.common.NewHttpUtils
+import whisk.common.PrintStreamEmitter
+import whisk.common.TransactionId
+import whisk.core.connector.ActivationMessage
+import whisk.core.entity._
+import whisk.core.entity.ActionLimits
 
 /**
  * Reifies a whisk container - one that respects the whisk container API.
@@ -53,6 +51,7 @@ import whisk.common.NewHttpUtils
 class WhiskContainer(
     originalId: TransactionId,
     dockerhost: String,
+    mounted: Boolean,
     key: ActionContainerId,
     containerName: ContainerName,
     image: String,
@@ -62,21 +61,11 @@ class WhiskContainer(
     env: Map[String, String],
     limits: ActionLimits,
     args: Array[String] = Array(),
-    val isBlackbox: Boolean,
     logLevel: LogLevel)
-    extends Container(originalId, dockerhost, key, Some(containerName), image, network, cpuShare, policy, limits, env, args, logLevel) {
+    extends Container(originalId, dockerhost, mounted, key, Some(containerName), image, network, cpuShare, policy, limits, env, args, logLevel) {
 
-    var boundParams = JsObject() // Mutable to support pre-alloc containers
     var lastLogSize = 0L
     private implicit val emitter: PrintStreamEmitter = this
-
-    /**
-     * Merges previously bound parameters with arguments form payload.
-     */
-    def mergeParams(payload: JsObject, recurse: Boolean = true)(implicit transid: TransactionId): JsObject = {
-        //debug(this, s"merging ${boundParams.compactPrint} with ${payload.compactPrint}")
-        JsObject(boundParams.fields ++ payload.fields)
-    }
 
     /**
      * Sends initialization payload to container.
@@ -89,18 +78,30 @@ class WhiskContainer(
         result
     }
 
+    private def constructActivationMetadata(msg: ActivationMessage, args: JsObject, timeout: FiniteDuration): JsObject = {
+        JsObject(
+            "value" -> args,
+            "api_key" -> msg.authkey.compact.toJson,
+            "namespace" -> msg.action.path.root.toJson,
+            "action_name" -> msg.action.qualifiedNameWithLeadingSlash.toJson,
+            "activation_id" -> msg.activationId.toString.toJson,
+            // compute deadline on invoker side avoids discrepancies inside container
+            // but potentially under-estimates actual deadline
+            "deadline" -> (Instant.now(Clock.systemUTC()).toEpochMilli + timeout.toMillis).toString.toJson)
+    }
+
     /**
      * Sends a run command to action container to run once.
      *
      * @param state the value of the status to compare the actual state against
      * @return triple of start time, end time, response for user action.
      */
-    def run(args: JsObject, meta: JsObject, authKey: String, timeout: FiniteDuration, actionName: String, activationId: String)(implicit system: ActorSystem, transid: TransactionId): RunResult = {
-        val startMarker = transid.started("Invoker", LoggingMarkers.INVOKER_ACTIVATION_RUN, s"sending arguments to $actionName $details")
-        val result = sendPayload("/run", JsObject(meta.fields + ("value" -> args) + ("authKey" -> JsString(authKey))), timeout)
+    def run(msg: ActivationMessage, args: JsObject, timeout: FiniteDuration)(implicit system: ActorSystem, transid: TransactionId): RunResult = {
+        val startMarker = transid.started("Invoker", LoggingMarkers.INVOKER_ACTIVATION_RUN, s"sending arguments to ${msg.action} $details")
+        val result = sendPayload("/run", constructActivationMetadata(msg, args, timeout), timeout)
         // Use start and end time of the activation
         val RunResult(Interval(startActivation, endActivation), _) = result
-        transid.finished("Invoker", startMarker.copy(startActivation), s"finished running activation id: $activationId", endTime = endActivation)
+        transid.finished("Invoker", startMarker.copy(startActivation), s"finished running activation id: $msg.activationId", endTime = endActivation)
         result
     }
 
@@ -110,7 +111,16 @@ class WhiskContainer(
     def run(payload: String, activationId: String)(implicit system: ActorSystem): RunResult = {
         val params = JsObject("payload" -> JsString(payload))
         val meta = JsObject("activationId" -> JsString(activationId))
-        run(params, meta, "no_auth_key", 30000.milliseconds, "no_action", "no_activation_id")(system, TransactionId.testing)
+        val msg = ActivationMessage(
+            TransactionId.testing,
+            FullyQualifiedEntityName(EntityPath("no_namespace"), EntityName("no_action")),
+            DocRevision(),
+            Subject(),
+            AuthKey(),
+            ActivationId(),
+            EntityPath("no_namespace"),
+            None)
+        run(msg, params, 30000.milliseconds)(system, TransactionId.testing)
     }
 
     /**

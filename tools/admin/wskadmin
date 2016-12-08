@@ -94,8 +94,8 @@ def parseArgs():
     subcmd = subparser.add_parser('get', help='get authorization key for user')
     subcmd.add_argument('subject', help='the subject to get key for')
 
-    subcmd = subparser.add_parser('whois', help='identify user from UUID (for convenience you can provide the entire authorization key')
-    subcmd.add_argument('uuid', help='the user UUID to lookup')
+    subcmd = subparser.add_parser('whois', help='identify user from an authorization key')
+    subcmd.add_argument('authkey', help='the credentials to look up')
 
     propmenu = subparsers.add_parser('db', help='work with dbs')
     subparser = propmenu.add_subparsers(title='available commands', dest='subcmd')
@@ -282,15 +282,19 @@ def whoisUserCmd(args, props):
     username = props[DB_USERNAME]
     password = props[DB_PASSWORD]
     database = props[DB_WHISK_AUTHS]
-    uuid     = args.uuid.split(':')[0]
 
-    url = '%(protocol)s://%(host)s:%(port)s/%(database)s/_design/subjects/_view/uuids?key=["%(uuid)s"]' % {
+    authParts = args.authkey.split(':')
+    uuid      = authParts[0]
+    key       = authParts[1]
+
+    url = '%(protocol)s://%(host)s:%(port)s/%(database)s/_design/subjects/_view/identities?key=["%(uuid)s","%(key)s"]' % {
         'protocol': protocol,
         'host'    : host,
         'port'    : port,
         'username': username,
         'database': database,
-        'uuid'    : uuid
+        'uuid'    : uuid,
+        'key'     : key
     }
 
     headers = {
@@ -303,11 +307,12 @@ def whoisUserCmd(args, props):
         if 'rows' in doc and len(doc['rows']) > 0:
             for row in doc['rows']:
                 if 'id' in row:
-                    print row['id']
+                    print 'subject: %s' % row['id']
+                    print 'namespace: %s' % row['value']['namespace']
         else:
             print 'Subject id is not recognized'
         return 0
-    print 'Failed to delete subject (%s)' % res.read().strip()
+    print 'Failed to get subject (%s)' % res.read().strip()
     return 1
 
 def getDbCmd(args, props):

@@ -1,0 +1,8 @@
+---
+# Remove apigateway container.
+
+- name: remove apigateway
+  docker_container:
+    name: apigateway
+    state: absent
+  ignore_errors: True

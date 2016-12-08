@@ -82,7 +82,7 @@ function NodeActionService(config, logger) {
                 }).catch(function (error) {
                     // this writes to the activation logs visible to the user
                     console.error('Error during initialization:', error);
-                    var errStr = String(error.stack);
+                    var errStr = error.stack ? String(error.stack) : error;
                     return Promise.reject(errorMessage(502, "Initialization has failed due to: " + errStr));
                 });
             } else {
@@ -145,12 +145,15 @@ function NodeActionService(config, logger) {
     }
 
     function doRun(req) {
-        var ids = (req.body || {}).meta;
-        var args = (req.body || {}).value;
-        var authKey = (req.body || {}).authKey;
-        userCodeRunner.whisk.setAuthKey(authKey)
+        var msg = req.body || {};
 
-        return userCodeRunner.run(args).then(function(response) {
+        userCodeRunner.whisk.setAuthKey(msg['api_key'], false);
+        var props = [ 'api_key', 'namespace', 'action_name', 'activation_id', 'deadline' ];
+        props.map(function (p) {
+            process.env['__OW_' + p.toUpperCase()] = msg[p];
+        });
+
+        return userCodeRunner.run(msg.value).then(function(response) {
             writeMarkers();
             return response;
         }).catch(function (error) {
@@ -167,15 +170,7 @@ function NodeActionService(config, logger) {
 }
 
 function newWhiskContext(config, logger) {
-    var apihost = undefined;
-
-    if (config.edgeHost) {
-        var edgeHostParts = config.edgeHost.split(':');
-        var protocol = (edgeHostParts.length >= 2  &&  edgeHostParts[1] == '443') ? 'https' : 'http';
-        apihost = protocol + '://' + config.edgeHost;
-    }
-
-    return new whisk(apihost, logger);
+    return new whisk(config.edgeHost, logger);
 }
 
 NodeActionService.getService = function(config, logger) {

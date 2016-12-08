@@ -36,14 +36,23 @@ import scala.util.Try
  * After loading the properties, this validates that all required properties are defined.
  *
  * @param requiredProperties a Map whose keys define properties that must be bound to
- * a value, and whose values are default values.   A null value in the Map means there is
- * no default value specified, so it must appear in the properties file
- *
- * @param propertiesFile a file which defines the properties
+ * a value, and whose values are default values. A null value in the Map means there is
+ * no default value specified.
+ * @param optionalProperties a Set of optional properties which may or not be defined.
+ * @param env an optional environment to read from (defaults to sys.env).
  */
-class Config(requiredProperties: Map[String, String], optionalProperties: Set[String] = Set()) extends Logging {
+class Config(
+    requiredProperties: Map[String, String],
+    optionalProperties: Set[String] = Set())(
+        env: Map[String, String] = sys.env)
+    extends Logging {
 
-    def isValid: Boolean = valid
+    private val settings = getProperties().toMap.filter {
+        case (k, v) => requiredProperties.contains(k) ||
+            (optionalProperties.contains(k) && v != null)
+    }
+
+    lazy val isValid: Boolean = Config.validateProperties(requiredProperties, settings)
 
     /**
      * Gets value for key if it exists else the empty string.
@@ -53,7 +62,9 @@ class Config(requiredProperties: Map[String, String], optionalProperties: Set[St
      * @param overrideKey the property whose value will be returned if the map contains the override key.
      * @return value for the key or the empty string if the key does not have a value/does not exist
      */
-    def apply(key: String, overrideKey: String = ""): String = Try(settings(overrideKey)).orElse(Try(settings(key))).getOrElse("")
+    def apply(key: String, overrideKey: String = ""): String = {
+        Try(settings(overrideKey)).orElse(Try(settings(key))).getOrElse("")
+    }
 
     /**
      * Returns the value of a given key.
@@ -64,23 +75,27 @@ class Config(requiredProperties: Map[String, String], optionalProperties: Set[St
         this(key)
     }
 
-    /*
+    /**
      * Converts the set of property to a string for debugging.
      */
     def mkString: String = settings.mkString("\n")
 
     /**
-     * Loads the properties as specified above.
+     * Loads the properties from the environment into a mutable map.
      *
      * @return a pair which is the Map defining the properties, and a boolean indicating whether validation succeeded.
      */
-    protected def getProperties(): (Map[String, String], Boolean) = {
-        val properties = scala.collection.mutable.Map[String, String]() ++= requiredProperties
-        Config.readPropertiesFromEnvironment(properties)
-        (properties.toMap, Config.validateProperties(requiredProperties, properties))
-    }
+    protected def getProperties(): scala.collection.mutable.Map[String, String] = {
+        val required = scala.collection.mutable.Map[String, String]() ++= requiredProperties
+        Config.readPropertiesFromEnvironment(required, env)
 
-    private val (settings, valid) = getProperties()
+        // for optional value, assign them a default from the required properties list
+        // to prevent loss of a default value on a required property that may not otherwise be defined
+        val optional = scala.collection.mutable.Map[String, String]() ++= optionalProperties.map { k => k -> required.getOrElse(k, null) }
+        Config.readPropertiesFromEnvironment(optional, env)
+
+        required ++ optional
+    }
 }
 
 /**
@@ -88,16 +103,16 @@ class Config(requiredProperties: Map[String, String], optionalProperties: Set[St
  */
 object Config extends Logging {
     /**
-     * Reads a Map of key-value pairs from the environment (sys.env) -- store them in the
+     * Reads a Map of key-value pairs from the environment -- store them in the
      * mutable properties object.
      */
-    def readPropertiesFromEnvironment(properties: Settings) = {
+    def readPropertiesFromEnvironment(properties: scala.collection.mutable.Map[String, String], env: Map[String, String]) = {
         for (p <- properties.keys) {
             val envp = p.replace('.', '_').toUpperCase
-            val envv = sys.env.get(envp)
+            val envv = env.get(envp)
             if (envv.isDefined) {
                 info(this, s"environment set value for $p")
-                properties += p -> envv.get
+                properties += p -> envv.get.trim
             }
         }
     }
@@ -108,13 +123,11 @@ object Config extends Logging {
      * @param required a key-value map where the keys are required properties
      * @param properties a set of properties to check
      */
-    def validateProperties(required: Map[String, String], properties: Settings): Boolean = {
+    def validateProperties(required: Map[String, String], properties: Map[String, String]): Boolean = {
         required.keys.forall { key =>
             val value = properties(key)
             if (value == null) error(this, s"required property $key still not set")
             value != null
         }
     }
-
-    type Settings = scala.collection.mutable.Map[String, String]
 }

@@ -82,7 +82,7 @@ object WhiskAuth extends DocumentFactory[WhiskAuth] {
     }
 
     override val cacheEnabled = true
-    override def cacheKeys(w: WhiskAuth) = Set(w.docid.asDocInfo, w.docinfo, w.uuid)
+    override def cacheKeyForUpdate(w: WhiskAuth) = w.uuid
 
     def get(datastore: ArtifactStore[WhiskAuth], subject: Subject, fromCache: Boolean)(
         implicit transid: TransactionId): Future[WhiskAuth] = {
@@ -92,11 +92,12 @@ object WhiskAuth extends DocumentFactory[WhiskAuth] {
     def get(datastore: ArtifactStore[WhiskAuth], uuid: UUID)(
         implicit transid: TransactionId): Future[WhiskAuth] = {
         implicit val logger: Logging = datastore
+        implicit val ec = datastore.executionContext
+
         // it is assumed that there exists at most one record matching the uuid
         // hence it is safe to cache the result of this query result since a put
         // on the auth record will invalidate the cached query result as well
-        cacheLookup(datastore, uuid, {
-            implicit val ec = datastore.executionContext
+        cacheLookup(uuid, {
             list(datastore, uuid) map { list =>
                 list.length match {
                     case 1 =>

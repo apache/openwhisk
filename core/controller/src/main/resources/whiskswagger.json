@@ -1578,6 +1578,7 @@
                         "python",
                         "swift",
                         "swift:3",
+                        "swift:default",
                         "java",
                         "blackbox"
                     ],

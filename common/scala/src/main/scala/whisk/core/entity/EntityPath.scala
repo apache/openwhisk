@@ -22,7 +22,8 @@ import spray.json.JsString
 import spray.json.JsValue
 import spray.json.RootJsonFormat
 import spray.json.deserializationError
-import spray.json.DefaultJsonProtocol
+
+import whisk.http.Messages
 
 /**
  * EntityPath is a path string of allowed characters. The path consists of parts each of which
@@ -40,14 +41,41 @@ import spray.json.DefaultJsonProtocol
  *
  * @param path the sequence of parts that make up a namespace path
  */
-protected[core] class EntityPath private (val path: Seq[String]) extends AnyVal {
-    def namespace = path.foldLeft("")((a, b) => if (a != "") a.trim + EntityPath.PATHSEP + b.trim else b.trim)
+protected[core] class EntityPath private (private val path: Seq[String]) extends AnyVal {
+    def namespace: String = path.foldLeft("")((a, b) => if (a != "") a.trim + EntityPath.PATHSEP + b.trim else b.trim)
     def addpath(e: EntityName) = EntityPath(path :+ e.name)
-    def root = EntityPath(Seq(path(0)))
-    def last = EntityName(path.last)
+    def relpath: Option[EntityPath] = Try(EntityPath(path.drop(1))).toOption
+    def root: EntityName = EntityName(path.head)
+    def last: EntityName = EntityName(path.last)
+    def defaultPackage: Boolean = path.size == 1 // if only one element in the path, then it's the namespace with a default package
     def toJson = JsString(namespace)
     def apply() = namespace
     override def toString = namespace
+
+    /**
+     * Replaces root of this path with given namespace iff the root is
+     * the default namespace.
+     */
+    def resolveNamespace(newNamespace: EntityName): EntityPath = {
+        // check if namespace is default
+        if (root.toPath == EntityPath.DEFAULT) {
+            val newPath = path.updated(0, newNamespace.name)
+            EntityPath(newPath)
+        } else this
+    }
+
+    /**
+     * Converts the path to a fully qualified name. The path must contains at least 2 parts.
+     *
+     * @throws IllegalArgumentException if the path does not conform to schema (at least namespace and entity name must be present0
+     */
+    @throws[IllegalArgumentException]
+    def toFullyQualifiedEntityName = {
+        require(path.size > 1, Messages.malformedFullyQualifiedEntityName)
+        val name = last
+        val newPath = EntityPath(path.dropRight(1))
+        FullyQualifiedEntityName(newPath, name)
+    }
 }
 
 protected[core] object EntityPath {
@@ -154,18 +182,4 @@ protected[core] object EntityName {
             EntityName(name)
         } getOrElse deserializationError("entity name malformed")
     }
-}
-
-/**
- * A FullyQualifiedEntityName (qualified name) is a triple consisting of
- * - EntityPath: the namespace and package where the entity is located
- * - EntityName: the name of the entity
- * - Version: the semantic version of the resource
- */
-protected[core] case class FullyQualifiedEntityName(path: EntityPath, name: EntityName, version: SemVer) {
-    override def toString = path.addpath(name) + "@" + version.toString
-}
-
-protected[core] object FullyQualifiedEntityName extends DefaultJsonProtocol {
-    implicit val serdes = jsonFormat3(FullyQualifiedEntityName.apply)
 }
