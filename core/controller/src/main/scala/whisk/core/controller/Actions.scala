@@ -337,7 +337,7 @@ trait WhiskActionsApi
     private def resolveDefaultNamespace(seq: SequenceExec, user: Identity): SequenceExec = {
         // if components are part of the default namespace, they contain `_`; replace it!
         val resolvedComponents = resolveDefaultNamespace(seq.components, user)
-        new SequenceExec(seq.code, resolvedComponents)
+        new SequenceExec(resolvedComponents)
     }
 
     /**
@@ -376,7 +376,7 @@ trait WhiskActionsApi
     private def entitleReferencedEntities(user: Identity, right: Privilege, exec: Option[Exec])(
         implicit transid: TransactionId) = {
         exec match {
-            case Some(seq @ SequenceExec(_, components)) =>
+            case Some(seq: SequenceExec) =>
                 info(this, "checking if sequence components are accessible")
                 entitlementProvider.check(user, right, referencedEntities(seq))
             case _ => Future.successful(true)
@@ -582,7 +582,7 @@ trait WhiskActionsApi
                         // if the component does not exist, the future will fail with appropriate error
                         WhiskAction.get(entityStore, resolvedComponent.toDocId) flatMap { wskComponent =>
                             wskComponent.exec match {
-                                case SequenceExec(_, seqComponents) =>
+                                case SequenceExec(seqComponents) =>
                                     // sequence action, count the number of atomic actions in this sequence
                                     countAtomicActionsAndCheckCycle(origSequence, seqComponents)
                                 case _ => Future successful 1 // atomic action count is one

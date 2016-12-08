@@ -67,8 +67,8 @@ case class WhiskActionPut(
      */
     protected[core] def resolve(userNamespace: EntityName): WhiskActionPut = {
         exec map {
-            case SequenceExec(code, components) =>
-                val newExec = SequenceExec(code, components map {
+            case SequenceExec(components) =>
+                val newExec = SequenceExec(components map {
                     c => FullyQualifiedEntityName(c.path.resolveNamespace(userNamespace), c.name)
                 })
                 WhiskActionPut(Some(newExec), parameters, limits, version, publish, annotations)
@@ -118,21 +118,27 @@ case class WhiskAction(
     }
 
     /**
-     * Gets the container image name for the action.
+     * Gets the container image name for the action (if one is required).
      * If the action is a black box action, return the image name. Otherwise
-     * return a standard image name for running Javascript or Swift actions.
+     * return a standard image name for running Javascript or Swift actions for example.
      *
-     * @return container image name for action
+     * @returns Some(image name) for container to run action Exec if one is required else None.
      */
-    def containerImageName(registry: String, prefix: String, tag: String) = WhiskAction.containerImageName(exec, registry, prefix, tag)
+    def containerImageName(registry: String, prefix: String, tag: String): Option[String] = {
+        exec match {
+            case e: CodeExec[_] => Some(WhiskAction.containerImageName(e, registry, prefix, tag))
+            case _              => None
+        }
+
+    }
 
     /**
-     * Gets initializer for action.
-     * If the action is a black box action, return an empty initializer since
-     * init on a black box container is not yet supported. Otherwise, return
-     * { name, main, code, lib } required to run the action.
+     * Gets initializer for action if it is supported. This typically includes
+     * the code to execute, or a zip file containing the executable artifacts.
+     * Some actions (i.e., sequences) have no initializers since they are not executed
+     * explicitly inside containers.
      */
-    def containerInitializer: JsObject = {
+    def containerInitializer: Option[JsObject] = {
         def getNodeInitializer(code: String, binary: Boolean, main: Option[String]) = {
             JsObject(
                 "name" -> name.toJson,
@@ -142,27 +148,28 @@ case class WhiskAction(
         }
 
         exec match {
-            case n: NodeJSAbstractExec          => getNodeInitializer(n.code, n.binary, n.main)
-            case SequenceExec(code, components) => getNodeInitializer(code, false, None)
+            case n: NodeJSAbstractExec =>
+                Some(getNodeInitializer(n.code, n.binary, n.main))
             case s: SwiftAbstractExec =>
-                JsObject(
+                Some(JsObject(
                     "name" -> name.toJson,
                     "code" -> s.code.toJson,
-                    "main" -> s.main.getOrElse("main").toJson)
+                    "main" -> s.main.getOrElse("main").toJson))
             case JavaExec(jar, main) =>
-                JsObject(
+                Some(JsObject(
                     "name" -> name.toJson,
                     "jar" -> jar.toJson,
-                    "main" -> main.toJson)
+                    "main" -> main.toJson))
             case PythonExec(code, main) =>
-                JsObject(
+                Some(JsObject(
                     "name" -> name.toJson,
                     "code" -> code.toJson,
-                    "main" -> main.getOrElse("main").toJson)
+                    "main" -> main.getOrElse("main").toJson))
             case b @ BlackBoxExec(image, code) =>
-                code map {
+                Some(code map {
                     c => JsObject("code" -> c.toJson, "binary" -> JsBoolean(b.binary))
-                } getOrElse JsObject()
+                } getOrElse JsObject())
+            case _ => None
         }
     }
 
@@ -171,8 +178,8 @@ case class WhiskAction(
      */
     protected[core] def resolve(userNamespace: EntityName): WhiskAction = {
         exec match {
-            case SequenceExec(code, components) =>
-                val newExec = SequenceExec(code, components map {
+            case SequenceExec(components) =>
+                val newExec = SequenceExec(components map {
                     c => FullyQualifiedEntityName(c.path.resolveNamespace(userNamespace), c.name)
                 })
                 WhiskAction(namespace, name, newExec, parameters, limits, version, publish, annotations)
@@ -191,7 +198,7 @@ object WhiskAction
     override val collectionName = "actions"
     override implicit val serdes = jsonFormat8(WhiskAction.apply)
 
-    def containerImageName(exec: Exec, registry: String, prefix: String, tag: String): String = {
+    def containerImageName(exec: CodeExec[_], registry: String, prefix: String, tag: String): String = {
         exec match {
             case b @ BlackBoxExec(image, _) =>
                 if (b.pull) {
@@ -199,7 +206,9 @@ object WhiskAction
                 } else {
                     localImageName(registry, prefix, image.split("/")(1), tag)
                 }
-            case _ => localImageName(registry, prefix, exec.image, tag)
+
+            case e =>
+                localImageName(registry, prefix, e.image, tag)
         }
     }
 
@@ -249,7 +258,7 @@ object WhiskAction
         }
     }
 
-    // Overriden to retrieve attached Java `exec` fields.
+    // Overriden to retrieve attached Java exec fields.
     override def get[A >: WhiskAction](db: ArtifactStore[A], doc: DocId, rev: DocRevision = DocRevision(), fromCache: Boolean)(
         implicit transid: TransactionId, mw: Manifest[WhiskAction]): Future[WhiskAction] = {
 

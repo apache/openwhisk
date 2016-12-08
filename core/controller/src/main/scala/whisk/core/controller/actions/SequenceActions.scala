@@ -370,7 +370,7 @@ protected[actions] trait SequenceActions extends Logging {
         // invoke the action by calling the right method depending on whether it's an atomic action or a sequence
         // the tuple contains activationId, wskActivation, atomicActionCount (up till this point in execution)
         val futureWhiskActivationTuple = action.exec match {
-            case SequenceExec(_, components) =>
+            case SequenceExec(components) =>
                 // invoke a sequence
                 info(this, s"sequence invoking an enclosed sequence $action")
                 // call invokeSequence to invoke the inner sequence
