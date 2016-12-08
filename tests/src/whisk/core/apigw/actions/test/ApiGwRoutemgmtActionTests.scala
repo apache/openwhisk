@@ -31,6 +31,7 @@ import common.TestUtils.DONTCARE_EXIT
 import common.TestUtils.SUCCESS_EXIT
 import common.TestUtils.RunResult
 import common.Wsk
+import common.WskAdmin
 import common.WskActorSystem
 import common.WskProps
 import common.WskTestHelpers
@@ -71,6 +72,7 @@ class ApiGwRoutemgmtActionTests
 
     implicit val wskprops = WskProps()
     val wsk = new Wsk
+    val (cliuser, clinamespace) = WskAdmin.getUser(wskprops.authKey)
 
     // Use the whisk.system authentication id and pwd for invoking whisk.system private actions
     val config = new WhiskConfig(WhiskAuthStore.requiredProperties ++ WhiskEntityStore.requiredProperties)
@@ -115,7 +117,7 @@ class ApiGwRoutemgmtActionTests
     }
 
     def createApi(
-               namespace: Option[String] = Some("guest"),
+               namespace: Option[String] = Some("_"),
                basepath: Option[String] = Some("/"),
                relpath: Option[String],
                operation: Option[String],
@@ -142,7 +144,7 @@ class ApiGwRoutemgmtActionTests
     }
 
     def createRoute(
-                   namespace: Option[String] = Some("guest"),
+                   namespace: Option[String] = Some("_"),
                    basepath: Option[String] = Some("/"),
                    relpath: Option[String],
                    operation: Option[String],
@@ -171,7 +173,7 @@ class ApiGwRoutemgmtActionTests
     }
 
     def deleteApi(
-                   namespace: Option[String] = Some("guest"),
+                   namespace: Option[String] = Some("_"),
                    basepath: Option[String] = Some("/"),
                    relpath: Option[String] = None,
                    operation: Option[String] = None,
@@ -255,13 +257,14 @@ class ApiGwRoutemgmtActionTests
         val testurlop = "get"
         val testapiname = testName+" API Name"
         val actionName = testName+"_action"
-        val actionNamespace = "guest"
+        val actionNamespace = clinamespace
         val actionUrl = "http://some.whisk.host/api/v1/namespaces/"+actionNamespace+"/actions/"+actionName
         val actionAuthKey = testName+"_authkey"
         val testaction = ApiAction(name = actionName, namespace = actionNamespace, backendUrl = actionUrl, authkey = actionAuthKey)
 
+
         try {
-            val createResult = createRoute(namespace = Some("guest"), basepath = Some(testbasepath), relpath = Some(testrelpath),
+            val createResult = createRoute(namespace = Some(clinamespace), basepath = Some(testbasepath), relpath = Some(testrelpath),
                 operation = Some(testurlop), apiname = Some(testapiname), action = Some(testaction))
             JsObjectHelper(createResult.stdout.parseJson.asJsObject).fieldPathExists("apidoc") should be(true)
             val apiVector = getApis(bpOrName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
@@ -269,7 +272,7 @@ class ApiGwRoutemgmtActionTests
             apiMatch(apiVector, testbasepath, testrelpath, testurlop, testapiname, testaction) should be(true)
         }
         finally {
-            val deleteResult = deleteApi(namespace = Some("guest"), basepath = Some(testbasepath), force = true, expectedExitCode = DONTCARE_EXIT)
+            val deleteResult = deleteApi(namespace = Some(clinamespace), basepath = Some(testbasepath), force = true, expectedExitCode = DONTCARE_EXIT)
         }
     }
 
@@ -280,24 +283,24 @@ class ApiGwRoutemgmtActionTests
         val testurlop = "get"
         val testapiname = testName+" API Name"
         val actionName = testName+"_action"
-        val actionNamespace = "guest"
+        val actionNamespace = clinamespace
         val actionUrl = "http://some.whisk.host/api/v1/namespaces/"+actionNamespace+"/actions/"+actionName
         val actionAuthKey = testName+"_authkey"
         val testaction = ApiAction(name = actionName, namespace = actionNamespace, backendUrl = actionUrl, authkey = actionAuthKey)
 
         try {
-            val createResult = createRoute(namespace = Some("guest"), basepath = Some(testbasepath), relpath = Some(testrelpath),
+            val createResult = createRoute(namespace = Some(clinamespace), basepath = Some(testbasepath), relpath = Some(testrelpath),
                 operation = Some(testurlop), apiname = Some(testapiname), action = Some(testaction))
             JsObjectHelper(createResult.stdout.parseJson.asJsObject).fieldPathExists("apidoc") should be(true)
             var apiVector = getApis(bpOrName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
             apiVector.size should be > 0
             apiMatch(apiVector, testbasepath, testrelpath, testurlop, testapiname, testaction) should be(true)
-            val deleteResult = deleteApi(namespace = Some("guest"), basepath = Some(testbasepath), force = true)
+            val deleteResult = deleteApi(namespace = Some(clinamespace), basepath = Some(testbasepath), force = true)
             apiVector = getApis(bpOrName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
             apiMatch(apiVector, testbasepath, testrelpath, testurlop, testapiname, testaction) should be(false)
         }
         finally {
-            val deleteResult = deleteApi(namespace = Some("guest"), basepath = Some(testbasepath), force = true, expectedExitCode = DONTCARE_EXIT)
+            val deleteResult = deleteApi(namespace = Some(clinamespace), basepath = Some(testbasepath), force = true, expectedExitCode = DONTCARE_EXIT)
         }
     }
 
@@ -310,15 +313,15 @@ class ApiGwRoutemgmtActionTests
         val testnewurlop = "delete"
         val testapiname = testName+" API Name"
         val actionName = testName+"_action"
-        val actionNamespace = "guest"
+        val actionNamespace = clinamespace
         val actionUrl = "http://some.whisk.host/api/v1/namespaces/"+actionNamespace+"/actions/"+actionName
         val actionAuthKey = testName+"_authkey"
         val testaction = ApiAction(name = actionName, namespace = actionNamespace, backendUrl = actionUrl, authkey = actionAuthKey)
 
         try {
-            var createResult = createRoute(namespace = Some("guest"), basepath = Some(testbasepath), relpath = Some(testrelpath),
+            var createResult = createRoute(namespace = Some(clinamespace), basepath = Some(testbasepath), relpath = Some(testrelpath),
                 operation = Some(testurlop), apiname = Some(testapiname), action = Some(testaction))
-            createResult = createRoute(namespace = Some("guest"), basepath = Some(testbasepath), relpath = Some(testnewrelpath),
+            createResult = createRoute(namespace = Some(clinamespace), basepath = Some(testbasepath), relpath = Some(testnewrelpath),
                 operation = Some(testnewurlop), apiname = Some(testapiname), action = Some(testaction))
             JsObjectHelper(createResult.stdout.parseJson.asJsObject).fieldPathExists("apidoc") should be(true)
             var apiVector = getApis(bpOrName = Some(testbasepath))
@@ -327,7 +330,7 @@ class ApiGwRoutemgmtActionTests
             apiMatch(apiVector, testbasepath, testnewrelpath, testnewurlop, testapiname, testaction) should be(true)
         }
         finally {
-            val deleteResult = deleteApi(namespace = Some("guest"), basepath = Some(testbasepath), force = true, expectedExitCode = DONTCARE_EXIT)
+            val deleteResult = deleteApi(namespace = Some(clinamespace), basepath = Some(testbasepath), force = true, expectedExitCode = DONTCARE_EXIT)
         }
     }
 
