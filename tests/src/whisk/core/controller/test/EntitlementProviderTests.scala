@@ -21,13 +21,15 @@ import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
 import org.junit.runner.RunWith
+import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
 
-import whisk.core.controller.Authenticate
+import spray.http.StatusCodes._
 import whisk.core.controller.RejectRequest
 import whisk.core.entitlement._
 import whisk.core.entitlement.Privilege._
 import whisk.core.entity._
+import whisk.http.Messages
 
 /**
  * Tests authorization handler which guards resources.
@@ -42,7 +44,9 @@ import whisk.core.entity._
  * "using Specs2RouteTest DSL to chain HTTP requests for unit testing, as in ~>"
  */
 @RunWith(classOf[JUnitRunner])
-class EntitlementProviderTests extends ControllerTestCommon {
+class EntitlementProviderTests
+    extends ControllerTestCommon
+    with ScalaFutures {
 
     behavior of "Entitlement Provider"
 
@@ -180,4 +184,240 @@ class EntitlementProviderTests extends ControllerTestCommon {
         Await.result(entitlementProvider.check(adminUser, DELETE, one), requestTimeout) should not be (true)
         Await.result(entitlementProvider.revoke(adminUser.subject, READ, one), requestTimeout) // revoked
     }
+
+    behavior of "Package Collection"
+
+    it should "only allow read access for listing package collection" in {
+        implicit val tid = transid()
+        implicit val ep = entitlementProvider
+
+        val paths = Seq(
+            (READ, someUser, Right(true)),
+            (PUT, someUser, Right(false)),
+            (DELETE, someUser, Right(false)),
+            (ACTIVATE, someUser, Right(false)),
+            (REJECT, someUser, Right(false)),
+
+            (READ, guestUser, Right(true)),
+            (PUT, guestUser, Right(false)),
+            (DELETE, guestUser, Right(false)),
+            (ACTIVATE, guestUser, Right(false)),
+            (REJECT, guestUser, Right(false)))
+
+        paths.map {
+            case (priv, who, expected) =>
+                val check = new PackageCollection(entityStore).implicitRights(
+                    who,
+                    Set(who.namespace()),
+                    priv,
+                    // any user can list any namespace packages
+                    // (because this performs a db view lookup which is later filtered)
+                    Resource(someUser.namespace.toPath, PACKAGES, None))
+                Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
+        }
+    }
+
+    it should "reject entitlement if package doesn't exist" in {
+        implicit val tid = transid()
+        implicit val ep = entitlementProvider
+
+        val paths = Seq(
+            (READ, someUser, Left(RejectRequest(NotFound))), // for owner, give more information
+            (PUT, someUser, Right(true)),
+            (DELETE, someUser, Right(true)),
+            (ACTIVATE, someUser, Right(false)),
+            (REJECT, someUser, Right(false)),
+
+            (READ, guestUser, Right(false)),
+            (PUT, guestUser, Right(false)),
+            (DELETE, guestUser, Right(false)),
+            (ACTIVATE, guestUser, Right(false)),
+            (REJECT, guestUser, Right(false)))
+
+        paths.map {
+            case (priv, who, expected) =>
+                val check = new PackageCollection(entityStore).implicitRights(
+                    who,
+                    Set(who.namespace()),
+                    priv,
+                    Resource(someUser.namespace.toPath, PACKAGES, Some("xyz")))
+                Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
+        }
+    }
+
+    it should "reject entitlement if package doesn't deserialize" in {
+        implicit val tid = transid()
+        implicit val ep = entitlementProvider
+
+        val paths = Seq(
+            (READ, someUser, Left(RejectRequest(Conflict, Messages.conformanceMessage))), // for owner, give more information
+            (PUT, someUser, Right(true)),
+            (DELETE, someUser, Right(true)),
+            (ACTIVATE, someUser, Right(false)),
+            (REJECT, someUser, Right(false)),
+
+            (READ, guestUser, Right(false)),
+            (PUT, guestUser, Right(false)),
+            (DELETE, guestUser, Right(false)),
+            (ACTIVATE, guestUser, Right(false)),
+            (REJECT, guestUser, Right(false)))
+
+        // this forces a doc mismatch error
+        val action = WhiskAction(someUser.namespace.toPath, MakeName.next(), Exec.js(""))
+        put(entityStore, action)
+        paths.map {
+            case (priv, who, expected) =>
+                val check = new PackageCollection(entityStore).implicitRights(
+                    who,
+                    Set(who.namespace()),
+                    priv,
+                    Resource(someUser.namespace.toPath, PACKAGES, Some(action.name())))
+                Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
+        }
+    }
+
+    it should "not allow guest access to private package" in {
+        implicit val tid = transid()
+        implicit val ep = entitlementProvider
+
+        val provider = WhiskPackage(someUser.namespace.toPath, MakeName.next())
+        put(entityStore, provider)
+
+        val paths = Seq(
+            (READ, someUser, Right(true)),
+            (PUT, someUser, Right(true)),
+            (DELETE, someUser, Right(true)),
+            (ACTIVATE, someUser, Right(false)),
+            (REJECT, someUser, Right(false)),
+
+            (READ, guestUser, Right(false)),
+            (PUT, guestUser, Right(false)),
+            (DELETE, guestUser, Right(false)),
+            (ACTIVATE, guestUser, Right(false)),
+            (REJECT, guestUser, Right(false)))
+
+        paths.map {
+            case (priv, who, expected) =>
+                val check = new PackageCollection(entityStore).implicitRights(
+                    who,
+                    Set(who.namespace()),
+                    priv,
+                    Resource(someUser.namespace.toPath, PACKAGES, Some(provider.name())))
+                Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
+        }
+    }
+
+    it should "not allow guest access to binding of private package" in {
+        implicit val tid = transid()
+        implicit val ep = entitlementProvider
+
+        // simulate entitlement change on package for which binding was once entitled
+        val provider = WhiskPackage(someUser.namespace.toPath, MakeName.next())
+        val binding = WhiskPackage(guestUser.namespace.toPath, MakeName.next(), provider.bind)
+        put(entityStore, provider, false)
+        put(entityStore, binding)
+
+        val paths = Seq(
+            (READ, someUser, Right(false)),
+            (PUT, someUser, Right(false)),
+            (DELETE, someUser, Right(false)),
+            (ACTIVATE, someUser, Right(false)),
+            (REJECT, someUser, Right(false)),
+
+            (READ, guestUser, Right(false)), // not allowed to read referenced package
+            (PUT, guestUser, Right(true)), // can update
+            (DELETE, guestUser, Right(true)), // and delete the binding however
+            (ACTIVATE, guestUser, Right(false)),
+            (REJECT, guestUser, Right(false)))
+
+        paths.map {
+            case (priv, who, expected) =>
+                val check = new PackageCollection(entityStore).implicitRights(
+                    who,
+                    Set(who.namespace()),
+                    priv,
+                    Resource(guestUser.namespace.toPath, PACKAGES, Some(binding.name())))
+                Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
+        }
+
+        // simulate package deletion for which binding was once entitled
+        deletePackage(provider.docid)
+        paths.map {
+            case (priv, who, expected) =>
+                val check = new PackageCollection(entityStore).implicitRights(
+                    who,
+                    Set(who.namespace()),
+                    priv,
+                    Resource(guestUser.namespace.toPath, PACKAGES, Some(binding.name())))
+                Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
+        }
+    }
+
+    it should "not allow guest access to public binding of package" in {
+        implicit val tid = transid()
+        implicit val ep = entitlementProvider
+
+        // simulate entitlement change on package for which binding was once entitled
+        val provider = WhiskPackage(someUser.namespace.toPath, MakeName.next(), None, publish = true)
+        val binding = WhiskPackage(guestUser.namespace.toPath, MakeName.next(), provider.bind, publish = true)
+        put(entityStore, provider)
+        put(entityStore, binding)
+
+        val paths = Seq(
+            (READ, someUser, Right(false)), // cannot access a public binding
+            (PUT, someUser, Right(false)),
+            (DELETE, someUser, Right(false)),
+            (ACTIVATE, someUser, Right(false)),
+            (REJECT, someUser, Right(false)),
+
+            (READ, guestUser, Right(true)), // can read
+            (PUT, guestUser, Right(true)), // can update
+            (DELETE, guestUser, Right(true)), // and delete the binding
+            (ACTIVATE, guestUser, Right(false)),
+            (REJECT, guestUser, Right(false)))
+
+        paths.map {
+            case (priv, who, expected) =>
+                val check = new PackageCollection(entityStore).implicitRights(
+                    who,
+                    Set(who.namespace()),
+                    priv,
+                    Resource(guestUser.namespace.toPath, PACKAGES, Some(binding.name())))
+                Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
+        }
+    }
+
+    it should "allow guest access to binding of public package" in {
+        implicit val tid = transid()
+        implicit val ep = entitlementProvider
+
+        val provider = WhiskPackage(someUser.namespace.toPath, MakeName.next(), None, publish = true)
+        val binding = WhiskPackage(guestUser.namespace.toPath, MakeName.next(), provider.bind)
+        put(entityStore, provider)
+        put(entityStore, binding)
+
+        val paths = Seq(
+            (READ, someUser, Right(false)),
+            (PUT, someUser, Right(false)),
+            (DELETE, someUser, Right(false)),
+            (ACTIVATE, someUser, Right(false)),
+            (REJECT, someUser, Right(false)),
+
+            (READ, guestUser, Right(true)), // can read package + binding
+            (PUT, guestUser, Right(true)), // can update
+            (DELETE, guestUser, Right(true)), // and delete the binding
+            (ACTIVATE, guestUser, Right(false)),
+            (REJECT, guestUser, Right(false)))
+
+        paths.map {
+            case (priv, who, expected) =>
+                val check = new PackageCollection(entityStore).implicitRights(
+                    who,
+                    Set(who.namespace()),
+                    priv,
+                    Resource(guestUser.namespace.toPath, PACKAGES, Some(binding.name())))
+                Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
+        }
+    }
+
 }

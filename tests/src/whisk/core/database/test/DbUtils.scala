@@ -47,6 +47,12 @@ import whisk.core.entity.WhiskEntityQueries
 import whisk.core.entity.types.AuthStore
 import whisk.core.entity.types.EntityStore
 
+/**
+ * WARNING: the put/get/del operations in this trait operate directly on the datastore,
+ * and in the presence of a cache, there will be inconsistencies if one mixes these
+ * operations with those that flow through the cache. To mitigate this, use unique asset
+ * names in tests, and defer all cleanup to the end of a test suite.
+ */
 trait DbUtils extends TransactionCounter {
     implicit val dbOpTimeout = 15 seconds
     val docsToDelete = ListBuffer[(ArtifactStore[_], DocInfo)]()

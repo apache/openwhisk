@@ -49,7 +49,7 @@ class PackageCollection(entityStore: EntityStore) extends Collection(Collection.
      * All assets that are not in an explicit package are private because the default package is private.
      */
     protected[core] override def implicitRights(user: Identity, namespaces: Set[String], right: Privilege, resource: Resource)(
-        implicit ep: EntitlementProvider, ec: ExecutionContext, transid: TransactionId) = {
+        implicit ep: EntitlementProvider, ec: ExecutionContext, transid: TransactionId): Future[Boolean] = {
         resource.entity map {
             pkgname =>
                 val isOwner = namespaces.contains(resource.namespace.root())
