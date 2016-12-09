@@ -201,6 +201,18 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
         }
     }
 
+    it should "reject unsupported http verbs" in {
+        implicit val tid = transid()
+
+        val methods = Seq((Put, MethodNotAllowed))
+        methods.map {
+            case (m, code) =>
+                m("/experimental/partialmeta") ~> sealRoute(routes(creds)) ~> check {
+                    status should be(code)
+                }
+        }
+    }
+
     it should "reject access to unknown package or missing package action" in {
         implicit val tid = transid()
         val methods = Seq(Get, Post, Delete)

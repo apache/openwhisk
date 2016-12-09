@@ -93,7 +93,7 @@ class ApiGwRoutemgmtActionTests
                operation: Option[String] = None,
                docid: Option[String] = None): Vector[JsValue] = {
         val parms = Map[String,JsValue]() ++
-            Map("__ow_meta_namespace" -> "guest".toJson) ++
+            Map("__ow_meta_namespace" -> clinamespace.toJson) ++
             { bpOrName map { b => Map("basepath" -> b.toJson) } getOrElse Map[String,JsValue]() } ++
             { relpath map { r => Map("relpath" -> r.toJson) } getOrElse Map[String,JsValue]() } ++
             { operation map { o => Map("operation" -> o.toJson) } getOrElse Map[String,JsValue]() } ++
