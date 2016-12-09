@@ -67,6 +67,7 @@ case class WhiskActionPut(
      */
     protected[core] def resolve(userNamespace: EntityName): WhiskActionPut = {
         exec map {
+            case SequenceExec(components) =>
                 val newExec = SequenceExec(components map {
                     c => FullyQualifiedEntityName(c.path.resolveNamespace(userNamespace), c.name)
                 })
@@ -172,8 +173,8 @@ case class WhiskAction(
      */
     protected[core] def resolve(userNamespace: EntityName): WhiskAction = {
         exec match {
-            case SequenceExec(code, components) =>
-                val newExec = SequenceExec(code, components map {
+            case SequenceExec(components) =>
+                val newExec = SequenceExec(components map {
                     c => FullyQualifiedEntityName(c.path.resolveNamespace(userNamespace), c.name)
                 })
                 WhiskAction(namespace, name, newExec, parameters, limits, version, publish, annotations)
