@@ -340,11 +340,14 @@ function getApiDoc(namespace, basepath, docid) {
  */
 function updateNamespace(apidoc, namespace) {
   if (apidoc) {
-    apidoc.namespace = namespace;
     if (apidoc.action) {
-      apidoc.action.namespace = namespace;
-      apidoc.action.backendUrl = replaceNamespaceInUrl(apidoc.action.backendUrl, namespace);
+      // The action namespace does not have to match the CLI user's namespace
+      // If it is different, leave it alone; otherwise use the replacement namespace
+      if (apidoc.namespace === apidoc.action.namespace) {
+        apidoc.action.namespace = namespace;
+        apidoc.action.backendUrl = replaceNamespaceInUrl(apidoc.action.backendUrl, namespace);      }
     }
+    apidoc.namespace = namespace;
   }
 }
 

@@ -104,9 +104,9 @@ var apiCreateCmd = &cobra.Command{
                 wski18n.T("{{.ok}} created API {{.path}} {{.verb}} for action {{.name}}\n{{.fullpath}}\n",
                     map[string]interface{}{
                         "ok": color.GreenString("ok:"),
-                        "path": api.GatewayRelPath,
+                        "path": api.GatewayBasePath+api.GatewayRelPath,
                         "verb": api.GatewayMethod,
-                        "name": boldString(api.Action.Name),
+                        "name": boldString(api.Action.Namespace+"/"+api.Action.Name),
                         "fullpath": baseUrl+api.GatewayRelPath,
                     }))
         } else {
@@ -203,21 +203,7 @@ var apiGetCmd = &cobra.Command{
         api := new(whisk.Api)
         options := new(whisk.ApiListOptions)
 
-        // Is the argument a basepath (must start with /) or an API name
-        if _, ok := isValidBasepath(args[0]); !ok {
-            whisk.Debug(whisk.DbgInfo, "Treating '%s' as an API name; as it does not begin with '/'\n", args[0])
-            api.ApiName = args[0]
-            api.Id = api.ApiName
-            options.ApiBasePath = args[0]
-            options.ApiName = args[0]      // FIXME finalize controller REST/action design re: basepath/apiname
-            api.GatewayBasePath = args[0]  // FIXME Controller requiring this value in the body; it's already in the URI??
-            isBasePathArg = false
-        } else {
-            api.GatewayBasePath = args[0]
-            options.ApiBasePath = api.GatewayBasePath
-            api.Id = "API:"+api.Namespace+":"+api.GatewayBasePath
-        }
-        api.Namespace = client.Config.Namespace
+        options.ApiBasePath = args[0]
 
         retApi, _, err := client.Apis.Get(api, options)
         if err != nil {
@@ -387,37 +373,22 @@ var apiListCmd = &cobra.Command{
             }
             whisk.Debug(whisk.DbgInfo, "client.Apis.List returned: %#v (%+v)\n", retApiArray, retApiArray)
         } else {
-            // Is the argument a basepath (must start with /) or an API name
-            if _, ok := isValidBasepath(args[0]); !ok {
-                whisk.Debug(whisk.DbgInfo, "Treating '%s' as an API name; as it does not begin with '/'\n", args[0])
-                api.ApiName = args[0]
-                api.Id = api.ApiName
-                options.ApiBasePath = api.ApiName
-                options.ApiName = api.ApiName      // FIXME finalize controller REST/action design re: basepath/apiname
-                api.GatewayBasePath = api.ApiName  // FIXME Controller requiring this value in the body; it's already in the URI??
-            } else {
-                api.GatewayBasePath = args[0]
-                options.ApiBasePath = api.GatewayBasePath
-                api.Id = "API:"+api.Namespace+":"+api.GatewayBasePath
-            }
-
+            // The first argument is either a basepath (must start with /) or an API name
+            options.ApiBasePath = args[0]
             if (len(args) > 1) {
                 // Is the API path valid?
                 if whiskErr, ok := isValidRelpath(args[1]); !ok {
                     return whiskErr
                 }
-                api.GatewayRelPath = args[1]
-                options.ApiRelPath = api.GatewayRelPath
+                options.ApiRelPath = args[1]
             }
             if (len(args) > 2) {
                 // Is the API verb valid?
                 if whiskErr, ok := IsValidApiVerb(args[2]); !ok {
                     return whiskErr
                 }
-                api.GatewayMethod = strings.ToUpper(args[2])
-                options.ApiVerb = api.GatewayMethod
+                options.ApiVerb = strings.ToUpper(args[2])
             }
-            api.Id = "API:"+api.Namespace+":"+api.GatewayBasePath
 
             retApiArray, _, err = client.Apis.Get(api, options)
             if err != nil {

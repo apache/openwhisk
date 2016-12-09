@@ -17,10 +17,8 @@
 package whisk
 
 import (
-    "fmt"
     "net/http"
     "errors"
-    "net/url"
     "../wski18n"
 )
 
@@ -191,12 +189,7 @@ func (s *ApiService) Insert(api *SendApi, overwrite bool) (*RetApi, *http.Respon
 }
 
 func (s *ApiService) Get(api *Api, options *ApiListOptions) (*RetApiArray, *http.Response, error) {
-    // Encode resource name as a path (with no query ) before inserting it into the URI
-    // This way any '?' chars in the name won't be treated as the beginning of the query params
-    preEncodedApiId := api.Id
-    encodedApiId := url.QueryEscape(preEncodedApiId) // Escape ':' and '/' characters typical in this id string
-    apiId := (&url.URL{Path: encodedApiId}).String()
-    route := fmt.Sprintf("experimental/routemgmt/%s", apiId)
+    route := "experimental/routemgmt"
     Debug(DbgInfo, "Api GET route: %s\n", route)
 
     routeUrl, err := addRouteOptions(route, options)
