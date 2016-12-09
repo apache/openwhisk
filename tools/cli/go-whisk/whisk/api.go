@@ -17,10 +17,8 @@
 package whisk
 
 import (
-    "fmt"
     "net/http"
     "errors"
-    "net/url"
     "../wski18n"
 )
 
@@ -68,7 +66,7 @@ type ApiListOptions struct {
     Docs            bool      `url:"docs,omitempty"`
 }
 
-type RetApiReponse struct {
+type RetApiResponse struct {
     Response        *RetResult `json:"response"`
 }
 
@@ -129,9 +127,9 @@ var ApiVerbs map[string]bool = map[string]bool {
 // Api Methods //
 ////////////////////
 
-func (s *ApiService) List(apiListOptions *ApiListOptions) (*RetApiReponseApiArray, *http.Response, error) {
+func (s *ApiService) List(apiListOptions *ApiListOptions) (*RetApiArray, *http.Response, error) {
     var route string
-    route = "routes"
+    route = "experimental/routemgmt"
 
     routeUrl, err := addRouteOptions(route, apiListOptions)
     if err != nil {
@@ -144,7 +142,7 @@ func (s *ApiService) List(apiListOptions *ApiListOptions) (*RetApiReponseApiArra
     }
     Debug(DbgError, "Api GET/list route with api options: %s\n", routeUrl)
 
-    req, err := s.client.NewRequestUrl("GET", routeUrl, nil)
+    req, err := s.client.NewRequestUrl("GET", routeUrl, nil, DoNotIncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s, nil) error: '%s'\n", routeUrl, err)
         errMsg := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
@@ -154,7 +152,7 @@ func (s *ApiService) List(apiListOptions *ApiListOptions) (*RetApiReponseApiArra
         return nil, nil, whiskErr
     }
 
-    apiArray := new(RetApiReponseApiArray)
+    apiArray := new(RetApiArray)
     resp, err := s.client.Do(req, &apiArray)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
@@ -164,13 +162,13 @@ func (s *ApiService) List(apiListOptions *ApiListOptions) (*RetApiReponseApiArra
     return apiArray, resp, err
 }
 
-func (s *ApiService) Insert(api *SendApi, overwrite bool) (*RetApiReponse, *http.Response, error) {
+func (s *ApiService) Insert(api *SendApi, overwrite bool) (*RetApi, *http.Response, error) {
     var sentAction interface{}
 
-    route := "routes"
+    route := "experimental/routemgmt"
     Debug(DbgInfo, "Api PUT route: %s\n", route)
 
-    req, err := s.client.NewRequest("POST", route, api)
+    req, err := s.client.NewRequest("POST", route, api, DoNotIncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(POST, %s, %#v) error: '%s'\n", route, err, sentAction)
         errMsg := wski18n.T("Unable to create HTTP request for POST '{{.route}}': {{.err}}",
@@ -180,7 +178,7 @@ func (s *ApiService) Insert(api *SendApi, overwrite bool) (*RetApiReponse, *http
         return nil, nil, whiskErr
     }
 
-    retApi := new(RetApiReponse)
+    retApi := new(RetApi)
     resp, err := s.client.Do(req, &retApi)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
@@ -190,13 +188,8 @@ func (s *ApiService) Insert(api *SendApi, overwrite bool) (*RetApiReponse, *http
     return retApi, resp, nil
 }
 
-func (s *ApiService) Get(api *Api, options *ApiListOptions) (*RetApiReponseApiArray, *http.Response, error) {
-    // Encode resource name as a path (with no query ) before inserting it into the URI
-    // This way any '?' chars in the name won't be treated as the beginning of the query params
-    preEncodedApiId := api.Id
-    encodedApiId := url.QueryEscape(preEncodedApiId) // Escape ':' and '/' characters typical in this id string
-    apiId := (&url.URL{Path: encodedApiId}).String()
-    route := fmt.Sprintf("routes/%s", apiId)
+func (s *ApiService) Get(api *Api, options *ApiListOptions) (*RetApiArray, *http.Response, error) {
+    route := "experimental/routemgmt"
     Debug(DbgInfo, "Api GET route: %s\n", route)
 
     routeUrl, err := addRouteOptions(route, options)
@@ -210,7 +203,7 @@ func (s *ApiService) Get(api *Api, options *ApiListOptions) (*RetApiReponseApiAr
     }
     Debug(DbgError, "Api get route with options: %s\n", routeUrl)
 
-    req, err := s.client.NewRequestUrl("GET", routeUrl, nil)
+    req, err := s.client.NewRequestUrl("GET", routeUrl, nil, DoNotIncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequestUrl(GET, %s, nil) error: '%s'\n", route, err)
         errMsg := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
@@ -220,7 +213,7 @@ func (s *ApiService) Get(api *Api, options *ApiListOptions) (*RetApiReponseApiAr
         return nil, nil, whiskErr
     }
 
-    retApi := new(RetApiReponseApiArray)
+    retApi := new(RetApiArray)
     resp, err := s.client.Do(req, &retApi)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
@@ -231,12 +224,7 @@ func (s *ApiService) Get(api *Api, options *ApiListOptions) (*RetApiReponseApiAr
 }
 
 func (s *ApiService) Delete(api *Api, options *ApiOptions) (*http.Response, error) {
-    // Encode resource name as a path (with no query ) before inserting it into the URI
-    // This way any '?' chars in the name won't be treated as the beginning of the query params
-    preEncodedApiId := api.Id
-    encodedApiId := url.QueryEscape(preEncodedApiId) // Escape ':' and '/' characters typical in this id string
-    apiId := (&url.URL{Path: encodedApiId}).String()
-    route := fmt.Sprintf("routes/%s", apiId)
+    route := "experimental/routemgmt"
     Debug(DbgInfo, "Api DELETE route: %s\n", route)
 
     routeUrl, err := addRouteOptions(route, options)
@@ -250,7 +238,7 @@ func (s *ApiService) Delete(api *Api, options *ApiOptions) (*http.Response, erro
     }
     Debug(DbgError, "Api DELETE route with options: %s\n", routeUrl)
 
-    req, err := s.client.NewRequestUrl("DELETE", routeUrl, nil)
+    req, err := s.client.NewRequestUrl("DELETE", routeUrl, nil, DoNotIncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequestUrl(DELETE, %s, nil) error: '%s'\n", route, err)
         errMsg := wski18n.T("Unable to create HTTP request for DELETE '{{.route}}': {{.err}}",
@@ -260,7 +248,7 @@ func (s *ApiService) Delete(api *Api, options *ApiOptions) (*http.Response, erro
         return nil, whiskErr
     }
 
-    retApi := new(RetApiReponse)
+    retApi := new(RetApi)
     resp, err := s.client.Do(req, &retApi)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)

@@ -43,6 +43,10 @@ export WSK_CONFIG_FILE= # override local property file to avoid namespace clashe
 echo Installing routemgmt package.
 $WSK_CLI -i --apihost "$APIHOST" package update --auth "$AUTH"  --shared no "$NAMESPACE/routemgmt" \
 -a description "This package manages the gateway API configuration." \
+-a meta true \
+-a get getApi \
+-a post createRoute \
+-a delete deleteApi \
 -p host $DB_HOST \
 -p port $DB_PORT \
 -p protocol $DB_PROTOCOL \

@@ -24,7 +24,8 @@
  *   dbname     Required. The name of the database
  *   username   Required. The database user name used to access the database
  *   password   Required. The database user password
- *   namespace  Required. Namespace of API author
+ *   namespace            Required if __ow_meta_namespace not specified.  Namespace of API author
+ *   __ow_meta_namespace  Required if namespace not specified. Namespace of API author
  *   basepath   Optional. Base path or API name of the API.
  *                        If not provided, all APIs for the namespace are returned
  *   relpath    Optional. Must be defined with 'operation'.  Filters API result to path/operation
@@ -39,11 +40,15 @@
  **/
 
 function main(message) {
+  console.log('getApi:  params: '+JSON.stringify(message));
   var badArgMsg = '';
   if (badArgMsg = validateArgs(message)) {
     return whisk.error(badArgMsg);
   }
   var dbname = message.dbname;
+
+  // Set namespace override if provided
+  if (message.__ow_meta_namespace) message.namespace = message.__ow_meta_namespace
 
   // Log parameter values
   console.log('DB host      : '+message.host);
@@ -195,8 +200,8 @@ function validateArgs(message) {
     return 'dbname is required.';
   }
 
-  if(!message.namespace) {
-    return 'namespace is required.';
+  if(!message.__ow_meta_namespace && !message.namespace) {
+    return '__ow_meta_namespace or namespace is required.';
   }
 
   return '';

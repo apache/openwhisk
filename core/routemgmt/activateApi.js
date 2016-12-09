@@ -14,8 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Create an API Gateway to action mapping document in database:
- * https://docs.cloudant.com/document.html#documentCreate
+ * Activate an API on the API Gateway
  *
  * Parameters (all as fields in the message JSON object)
  *   host       Required. The database dns host name

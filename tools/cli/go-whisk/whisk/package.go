@@ -93,7 +93,7 @@ func (s *PackageService) List(options *PackageListOptions) ([]Package, *http.Res
         return nil, nil, werr
     }
 
-    req, err := s.client.NewRequestUrl("GET", routeUrl, nil)
+    req, err := s.client.NewRequestUrl("GET", routeUrl, nil, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s); error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create GET HTTP request for '{{.route}}': {{.err}}",
@@ -119,7 +119,7 @@ func (s *PackageService) Get(packageName string) (*Package, *http.Response, erro
     packageName = (&url.URL{Path: packageName}).String()
     route := fmt.Sprintf("packages/%s", packageName)
 
-    req, err := s.client.NewRequest("GET", route, nil)
+    req, err := s.client.NewRequest("GET", route, nil, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s); error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create GET HTTP request for '{{.route}}': {{.err}}",
@@ -145,7 +145,7 @@ func (s *PackageService) Insert(x_package PackageInterface, overwrite bool) (*Pa
     packageName := (&url.URL{Path: x_package.GetName()}).String()
     route := fmt.Sprintf("packages/%s?overwrite=%t", packageName, overwrite)
 
-    req, err := s.client.NewRequest("PUT", route, x_package)
+    req, err := s.client.NewRequest("PUT", route, x_package, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(PUT, %s); error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create PUT HTTP request for '{{.route}}': {{.err}}",
@@ -170,7 +170,7 @@ func (s *PackageService) Delete(packageName string) (*http.Response, error) {
     packageName = (&url.URL{Path: packageName}).String()
     route := fmt.Sprintf("packages/%s", packageName)
 
-    req, err := s.client.NewRequest("DELETE", route, nil)
+    req, err := s.client.NewRequest("DELETE", route, nil, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(DELETE, %s); error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create DELETE HTTP request for '{{.route}}': {{.err}}",
@@ -191,7 +191,7 @@ func (s *PackageService) Delete(packageName string) (*http.Response, error) {
 func (s *PackageService) Refresh() (*BindingUpdates, *http.Response, error) {
     route := "packages/refresh"
 
-    req, err := s.client.NewRequest("POST", route, nil)
+    req, err := s.client.NewRequest("POST", route, nil, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(POST, %s); error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create POST HTTP request for '{{.route}}': {{.err}}",

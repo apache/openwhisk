@@ -57,7 +57,7 @@ func (s *TriggerService) List(options *TriggerListOptions) ([]Trigger, *http.Res
         return nil, nil, werr
     }
 
-    req, err := s.client.NewRequestUrl("GET", routeUrl, nil)
+    req, err := s.client.NewRequestUrl("GET", routeUrl, nil, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s); error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
@@ -92,7 +92,7 @@ func (s *TriggerService) Insert(trigger *Trigger, overwrite bool) (*Trigger, *ht
         return nil, nil, werr
     }
 
-    req, err := s.client.NewRequestUrl("PUT", routeUrl, trigger)
+    req, err := s.client.NewRequestUrl("PUT", routeUrl, trigger, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(PUT, %s); error: '%s'\n", routeUrl, err)
         errStr := wski18n.T("Unable to create HTTP request for PUT '{{.route}}': {{.err}}",
@@ -118,7 +118,7 @@ func (s *TriggerService) Get(triggerName string) (*Trigger, *http.Response, erro
     triggerName = (&url.URL{Path: triggerName}).String()
     route := fmt.Sprintf("triggers/%s", triggerName)
 
-    req, err := s.client.NewRequest("GET", route, nil)
+    req, err := s.client.NewRequest("GET", route, nil, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s); error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
@@ -144,7 +144,7 @@ func (s *TriggerService) Delete(triggerName string) (*Trigger, *http.Response, e
     triggerName = (&url.URL{Path: triggerName}).String()
     route := fmt.Sprintf("triggers/%s", triggerName)
 
-    req, err := s.client.NewRequest("DELETE", route, nil)
+    req, err := s.client.NewRequest("DELETE", route, nil, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(DELETE, %s); error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create HTTP request for DELETE '{{.route}}': {{.err}}",
@@ -169,7 +169,7 @@ func (s *TriggerService) Fire(triggerName string, payload interface{}) (*Trigger
     triggerName = (&url.URL{Path: triggerName}).String()
     route := fmt.Sprintf("triggers/%s", triggerName)
 
-    req, err := s.client.NewRequest("POST", route, payload)
+    req, err := s.client.NewRequest("POST", route, payload, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError," http.NewRequest(POST, %s); error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create HTTP request for POST '{{.route}}': {{.err}}",
