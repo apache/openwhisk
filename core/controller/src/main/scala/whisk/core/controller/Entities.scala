@@ -37,6 +37,7 @@ import whisk.core.entitlement.Privilege.PUT
 import whisk.core.entitlement.Privilege.Privilege
 import whisk.core.entitlement.Privilege.READ
 import whisk.core.entitlement.Resource
+import whisk.core.entity.DeprecatedRuntimeVersions
 import whisk.core.entity.EntityName
 import whisk.core.entity.EntityPath
 import whisk.core.entity.Identity
@@ -55,6 +56,7 @@ trait WhiskCollectionAPI
     extends Directives
     with AuthenticatedRouteProvider
     with AuthorizedRouteProvider
+    with DeprecatedRuntimeVersions
     with ValidateEntitySize
     with ReadOps
     with WriteOps {

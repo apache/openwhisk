@@ -30,9 +30,9 @@ class SwiftActionContainerTests extends BasicActionRunnerTests with WskActorSyst
 
     // note: "out" will likely not be empty in some swift build as the compiler
     // prints status messages and there doesn't seem to be a way to quiet them
-    val enforceEmptyOutputStream = true
-    lazy val swiftContainerImageName = "swiftaction"
-    lazy val envCode = makeEnvCode("NSProcessInfo.processInfo()")
+    val enforceEmptyOutputStream = false
+    lazy val swiftContainerImageName = "swift3action"
+    lazy val envCode = makeEnvCode("ProcessInfo.processInfo")
 
     def makeEnvCode(processInfo: String) = ("""
          |func main(args: [String: Any]) -> [String: Any] {
@@ -68,11 +68,11 @@ class SwiftActionContainerTests extends BasicActionRunnerTests with WskActorSyst
     lazy val errorCode = """
                 | // You need an indirection, or swiftc detects the div/0
                 | // at compile-time. Smart.
-                | func div(x: Int, _ y: Int) -> Int {
+                | func div(x: Int, y: Int) -> Int {
                 |     return x/y
                 | }
                 | func main(args: [String: Any]) -> [String: Any] {
-                |     return [ "divBy0": div(5,0) ]
+                |     return [ "divBy0": div(x:5, y:0) ]
                 | }
             """.stripMargin
 
@@ -95,13 +95,21 @@ class SwiftActionContainerTests extends BasicActionRunnerTests with WskActorSyst
     */
     testEcho(Seq {
         ("swift", """
-         |import Glibc
-         |func main(args: [String: Any]) -> [String: Any] {
-         |     print("hello stdout")
-         |     fputs("hello stderr", stderr)
-         |     return args
-         |}
-         """.stripMargin)
+        |import Foundation
+        |
+        |extension FileHandle : TextOutputStream {
+        |   public func write(_ string: String) {
+        |       guard let data = string.data(using: .utf8) else { return }
+        |       self.write(data)
+        |   }
+        |}
+        |func main(args: [String: Any]) -> [String: Any] {
+        |     print("hello stdout")
+        |     var standardError = FileHandle.standardError
+        |     print("hello stderr", to: &standardError)
+        |     return args
+        |}
+        """.stripMargin)
     })
 
     testEnv(Seq {
@@ -187,6 +195,103 @@ class SwiftActionContainerTests extends BasicActionRunnerTests with WskActorSyst
         checkStreams(out, err, {
             case (o, e) =>
                 if (enforceEmptyOutputStream) o shouldBe empty
+                e shouldBe empty
+        })
+    }
+
+        it should "properly use KituraNet and Dispatch" in {
+        val (out, err) = withActionContainer() { c =>
+            val code = """
+                | import KituraNet
+                | import Foundation
+                | import Dispatch
+                | func main(args:[String: Any]) -> [String:Any] {
+                |       let retries = 3
+                |       var resp = [String:Any]()
+                |       var attempts = 0
+                |       if let url = args["getUrl"] as? String {
+                |           while attempts < retries {
+                |               let group = DispatchGroup()
+                |               let queue = DispatchQueue.global(qos: .default)
+                |               group.enter()
+                |               queue.async {
+                |                   HTTP.get(url, callback: { response in
+                |                       if let response = response {
+                |                           do {
+                |                               var jsonData = Data()
+                |                               try response.readAllData(into: &jsonData)
+                |                               if let dic = WhiskJsonUtils.jsonDataToDictionary(jsonData: jsonData) {
+                |                                   resp = dic
+                |                               } else {
+                |                                   resp = ["error":"response from server is not JSON"]
+                |                               }
+                |                           } catch {
+                |                              resp["error"] = error.localizedDescription
+                |                           }
+                |                       }
+                |                       group.leave()
+                |                   })
+                |               }
+                |            switch group.wait(timeout: DispatchTime.distantFuture) {
+                |                case DispatchTimeoutResult.success:
+                |                    resp["attempts"] = attempts
+                |                    return resp
+                |                case DispatchTimeoutResult.timedOut:
+                |                    attempts = attempts + 1
+                |            }
+                |        }
+                |     }
+                |     return ["status":"Exceeded \(retries) attempts, aborting."]
+                | }
+            """.stripMargin
+
+            val (initCode, _) = c.init(initPayload(code))
+
+            initCode should be(200)
+
+            val argss = List(
+                JsObject("getUrl" -> JsString("https://openwhisk.ng.bluemix.net/api/v1")))
+
+            for (args <- argss) {
+                val (runCode, out) = c.run(runPayload(args))
+                runCode should be(200)
+            }
+        }
+
+        // in side try catch finally print (out file)
+        // in catch block an error has occurred, get docker logs and print
+        // throw
+
+        checkStreams(out, err, {
+            case (o, e) =>
+                //o shouldBe empty
+                e shouldBe empty
+        })
+    }
+
+    it should "make Watson SDKs available to action authors" in {
+        val (out, err) = withActionContainer() { c =>
+            val code = """
+                | import RestKit
+                | import WeatherCompanyData
+                | import AlchemyVision
+                |
+                | func main(args: [String:Any]) -> [String:Any] {
+                |   return ["message": "I compiled and was able to import Watson SDKs"]
+                | }
+            """.stripMargin
+
+            val (initCode, _) = c.init(initPayload(code))
+
+            initCode should be(200)
+
+            val (runCode, out) = c.run(runPayload(JsObject()))
+            runCode should be(200)
+        }
+
+        checkStreams(out, err, {
+            case (o, e) =>
+                //o shouldBe empty
                 e shouldBe empty
         })
     }
