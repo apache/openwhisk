@@ -104,7 +104,7 @@ case class WhiskAction(
     version: SemVer = SemVer(),
     publish: Boolean = false,
     annotations: Parameters = Parameters())
-    extends WhiskEntity(name) /* with Logging */ {
+    extends WhiskEntity(name) {
 
     require(exec != null, "exec undefined")
     require(limits != null, "limits undefined")
@@ -163,8 +163,7 @@ case class WhiskAction(
                     c => JsObject("code" -> c.toJson, "binary" -> JsBoolean(b.binary))
                 } getOrElse JsObject()
             case SequenceExec(components) =>
-                //error(this, "Container initializer not supported for sequences")
-                JsObject()
+                throw new RuntimeException("Container initializer not supported for sequences")
         }
     }
 
