@@ -56,7 +56,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     behavior of "Actions API"
 
     val creds = WhiskAuth(Subject(), AuthKey()).toIdentity
-    val namespace = EntityPath(creds.subject())
+    val namespace = EntityPath(creds.subject.asString)
     val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
     def aname = MakeName.next("action_tests")
     setVerbosity(InfoLevel)
@@ -664,7 +664,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         val sequence = Vector(stringToFullyQualifiedName(s"$namespace/${entity.name}"))
         val content = WhiskActionPut(Some(Exec.sequence(sequence)))
 
-        Put(s"$collectionPath/${aname()}", content) ~> sealRoute(routes(creds)) ~> check {
+        Put(s"$collectionPath/$aname", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(InternalServerError)
             responseAs[ErrorResponse].error shouldBe Messages.corruptedEntity
         }

@@ -54,14 +54,14 @@ class NamespacesApiTests extends ControllerTestCommon with WhiskNamespacesApi {
 
     val collectionPath = s"/${collection.path}"
     val creds = WhiskAuth(Subject(), AuthKey()).toIdentity
-    val namespace = EntityPath(creds.subject())
+    val namespace = EntityPath(creds.subject.asString)
 
     it should "list namespaces for subject" in {
         implicit val tid = transid()
         Get(collectionPath) ~> sealRoute(routes(creds)) ~> check {
             status should be(OK)
             val ns = responseAs[List[EntityPath]]
-            ns should be(List(EntityPath(creds.subject())))
+            ns should be(List(EntityPath(creds.subject.asString)))
         }
     }
 
@@ -70,13 +70,13 @@ class NamespacesApiTests extends ControllerTestCommon with WhiskNamespacesApi {
         Get(s"$collectionPath/") ~> sealRoute(routes(creds)) ~> check {
             status should be(OK)
             val ns = responseAs[List[EntityPath]]
-            ns should be(List(EntityPath(creds.subject())))
+            ns should be(List(EntityPath(creds.subject.asString)))
         }
     }
 
     it should "get namespace entities for subject" in {
         implicit val tid = transid()
-        Get(s"$collectionPath/${creds.subject()}") ~> sealRoute(routes(creds)) ~> check {
+        Get(s"$collectionPath/${creds.subject}") ~> sealRoute(routes(creds)) ~> check {
             status should be(OK)
             val ns = responseAs[JsObject]
             ns should be(JsObject(Namespaces.emptyNamespace map { kv => (kv._1, JsArray()) }))
@@ -86,28 +86,28 @@ class NamespacesApiTests extends ControllerTestCommon with WhiskNamespacesApi {
     it should "reject get namespace entities for unauthorized subject" in {
         implicit val tid = transid()
         val anothercred = WhiskAuth(Subject(), AuthKey())
-        Get(s"$collectionPath/${anothercred.subject()}") ~> sealRoute(routes(creds)) ~> check {
+        Get(s"$collectionPath/${anothercred.subject}") ~> sealRoute(routes(creds)) ~> check {
             status should be(Forbidden)
         }
     }
 
     it should "reject request with put" in {
         implicit val tid = transid()
-        Put(s"$collectionPath/${creds.subject()}") ~> sealRoute(routes(creds)) ~> check {
+        Put(s"$collectionPath/${creds.subject}") ~> sealRoute(routes(creds)) ~> check {
             status should be(MethodNotAllowed)
         }
     }
 
     it should "reject request with post" in {
         implicit val tid = transid()
-        Post(s"$collectionPath/${creds.subject()}") ~> sealRoute(routes(creds)) ~> check {
+        Post(s"$collectionPath/${creds.subject}") ~> sealRoute(routes(creds)) ~> check {
             status should be(MethodNotAllowed)
         }
     }
 
     it should "reject request with delete" in {
         implicit val tid = transid()
-        Delete(s"$collectionPath/${creds.subject()}") ~> sealRoute(routes(creds)) ~> check {
+        Delete(s"$collectionPath/${creds.subject}") ~> sealRoute(routes(creds)) ~> check {
             status should be(MethodNotAllowed)
         }
     }

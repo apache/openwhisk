@@ -498,8 +498,8 @@ trait WhiskActionsApi
     private def mergeActionWithPackageAndDispatch(method: HttpMethod, user: Identity, action: EntityName, ref: Option[WhiskPackage] = None)(wp: WhiskPackage)(
         implicit transid: TransactionId): RequestContext => Unit = {
         wp.binding map {
-            case Binding(ns, n) =>
-                val docid = FullyQualifiedEntityName(ns, n).toDocId
+            case b: Binding =>
+                val docid = b.fullyQualifiedName.toDocId
                 info(this, s"fetching package '$docid' for reference")
                 // already checked that subject is authorized for package and binding;
                 // this fetch is redundant but should hit the cache to ameliorate cost
@@ -511,7 +511,7 @@ trait WhiskActionsApi
             // operation without further entitlement checks
             val params = { ref map { _ inherit wp.parameters } getOrElse wp } parameters
             val ns = wp.namespace.addPath(wp.name) // the package namespace
-            val resource = Resource(ns, collection, Some { action() }, Some { params })
+            val resource = Resource(ns, collection, Some { action.asString }, Some { params })
             val right = collection.determineRight(method, resource.entity)
             info(this, s"merged package parameters and rebased action to '$ns")
             dispatchOp(user, right, resource)

@@ -48,10 +48,10 @@ protected[core] case class FullyQualifiedEntityName(path: EntityPath, name: Enti
     def toDocId = DocId(qualifiedName)
     def namespace: EntityName = path.root
     def qualifiedNameWithLeadingSlash: String = EntityPath.PATHSEP + qualifiedName
-    def apply() = path.addPath(name) + version.map("@" + _.toString).getOrElse("")
+    def asString = path.addPath(name) + version.map("@" + _.toString).getOrElse("")
 
     override def size = qualifiedName.sizeInBytes
-    override def toString = apply()
+    override def toString = asString
     override def hashCode = qualifiedName.hashCode
 }
 

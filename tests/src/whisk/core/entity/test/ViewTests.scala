@@ -75,10 +75,10 @@ class ViewTests extends FlatSpec
     }
 
     val creds1 = WhiskAuth(Subject("s12345"), AuthKey())
-    val namespace1 = EntityPath(creds1.subject())
+    val namespace1 = EntityPath(creds1.subject.asString)
 
     val creds2 = WhiskAuth(Subject("t12345"), AuthKey())
-    val namespace2 = EntityPath(creds2.subject())
+    val namespace2 = EntityPath(creds2.subject.asString)
 
     val config = new WhiskConfig(WhiskEntityStore.requiredProperties)
     val datastore = WhiskEntityStore.datastore(config)
@@ -196,8 +196,8 @@ class ViewTests extends FlatSpec
             WhiskRule(namespace1, aname, trigger = afullname(namespace1), action = afullname(namespace1)),
             WhiskPackage(namespace1, aname),
             WhiskPackage(namespace1, aname),
-            WhiskPackage(namespace1, aname, Some(Binding(namespace2, aname))),
-            WhiskPackage(namespace1, aname, Some(Binding(namespace2, aname))),
+            WhiskPackage(namespace1, aname, Some(Binding(namespace2.root, aname))),
+            WhiskPackage(namespace1, aname, Some(Binding(namespace2.root, aname))),
             WhiskActivation(namespace1, aname, Subject(), ActivationId(), start = now, end = now),
             WhiskActivation(namespace1, aname, Subject(), ActivationId(), start = now, end = now),
 
@@ -213,8 +213,8 @@ class ViewTests extends FlatSpec
             WhiskRule(namespace2, aname, trigger = afullname(namespace2), action = afullname(namespace2)),
             WhiskPackage(namespace2, aname),
             WhiskPackage(namespace2, aname),
-            WhiskPackage(namespace2, aname, Some(Binding(namespace1, aname))),
-            WhiskPackage(namespace2, aname, Some(Binding(namespace1, aname))),
+            WhiskPackage(namespace2, aname, Some(Binding(namespace1.root, aname))),
+            WhiskPackage(namespace2, aname, Some(Binding(namespace1.root, aname))),
             WhiskActivation(namespace2, aname, Subject(), ActivationId(), start = now, end = now),
             WhiskActivation(namespace2, actionName, Subject(), ActivationId(), start = now, end = now),
             WhiskActivation(namespace2, actionName, Subject(), ActivationId(), start = now, end = now))
@@ -297,13 +297,13 @@ class ViewTests extends FlatSpec
         implicit val entities = Seq(
             WhiskPackage(namespace1, aname, publish = true),
             WhiskPackage(namespace1, aname, publish = false),
-            WhiskPackage(namespace1, aname, Some(Binding(namespace2, aname)), publish = true),
-            WhiskPackage(namespace1, aname, Some(Binding(namespace2, aname))),
+            WhiskPackage(namespace1, aname, Some(Binding(namespace2.root, aname)), publish = true),
+            WhiskPackage(namespace1, aname, Some(Binding(namespace2.root, aname))),
 
             WhiskPackage(namespace2, aname, publish = true),
             WhiskPackage(namespace2, aname, publish = false),
-            WhiskPackage(namespace2, aname, Some(Binding(namespace1, aname)), publish = true),
-            WhiskPackage(namespace2, aname, Some(Binding(namespace1, aname))))
+            WhiskPackage(namespace2, aname, Some(Binding(namespace1.root, aname)), publish = true),
+            WhiskPackage(namespace2, aname, Some(Binding(namespace1.root, aname))))
 
         entities foreach { put(datastore, _) }
         waitOnView(datastore, namespace1, entities.length / 2)

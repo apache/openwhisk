@@ -57,7 +57,7 @@ class SequenceActionApiMigrationTests extends ControllerTestCommon
     behavior of "Sequence Action API Migration"
 
     val creds = WhiskAuth(Subject(), AuthKey()).toIdentity
-    val namespace = EntityPath(creds.subject())
+    val namespace = EntityPath(creds.subject.asString)
     val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
     def aname = MakeName.next("seq_migration_tests")
 

@@ -58,7 +58,7 @@ protected[core] class RemoteEntitlementService(
         val url = Uri("http://" + apiLocation + "/grant")
 
         val form = FormData(Seq(
-            "subject" -> subject(),
+            "subject" -> subject.asString,
             "right" -> right.toString,
             "resource" -> resource.entity.getOrElse(""),
             "collection" -> resource.collection.toString,
@@ -75,7 +75,7 @@ protected[core] class RemoteEntitlementService(
         val url = Uri("http://" + apiLocation + "/revoke")
 
         val form = FormData(Seq(
-            "subject" -> subject(),
+            "subject" -> subject.asString,
             "right" -> right.toString,
             "resource" -> resource.entity.getOrElse(""),
             "collection" -> resource.collection.toString,
@@ -92,7 +92,7 @@ protected[core] class RemoteEntitlementService(
         info(this, s"checking namespace at ${apiLocation}")
 
         val url = Uri("http://" + apiLocation + "/check").withQuery(
-            "subject" -> subject(),
+            "subject" -> subject.asString,
             "right" -> right.toString,
             "resource" -> resource.entity.getOrElse(""),
             "collection" -> resource.collection.toString,

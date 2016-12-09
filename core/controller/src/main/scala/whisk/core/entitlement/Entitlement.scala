@@ -217,7 +217,7 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
     protected def checkPrivilege(user: Identity, right: Privilege, resources: Set[Resource])(
         implicit transid: TransactionId): Future[Boolean] = {
         // check the default namespace first, bypassing additional checks if permitted
-        val defaultNamespaces = Set(user.namespace())
+        val defaultNamespaces = Set(user.namespace.asString)
         implicit val es = this
 
         Future.sequence {
@@ -335,14 +335,14 @@ trait ReferencedEntities {
     def referencedEntities(reference: Any): Set[Resource] = {
         reference match {
             case WhiskPackagePut(Some(binding), _, _, _, _) =>
-                Set(Resource(binding.namespace, Collection(Collection.PACKAGES), Some(binding.name())))
+                Set(Resource(binding.namespace.toPath, Collection(Collection.PACKAGES), Some(binding.name.asString)))
             case r: WhiskRulePut =>
-                val triggerResource = r.trigger.map { t => Resource(t.path, Collection(Collection.TRIGGERS), Some(t.name())) }
-                val actionResource = r.action map { a => Resource(a.path, Collection(Collection.ACTIONS), Some(a.name())) }
+                val triggerResource = r.trigger.map { t => Resource(t.path, Collection(Collection.TRIGGERS), Some(t.name.asString)) }
+                val actionResource = r.action map { a => Resource(a.path, Collection(Collection.ACTIONS), Some(a.name.asString)) }
                 Set(triggerResource, actionResource).flatten
             case e: SequenceExec =>
                 e.components.map {
-                    c => Resource(c.path, Collection(Collection.ACTIONS), Some(c.name()))
+                    c => Resource(c.path, Collection(Collection.ACTIONS), Some(c.name.asString))
                 }.toSet
             case _ => Set()
         }

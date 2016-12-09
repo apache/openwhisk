@@ -41,7 +41,7 @@ class WskAdminTests
     it should "CRD a subject" in {
         val wskadmin = new RunWskAdminCmd {}
         val auth = WhiskAuth(Subject(), AuthKey())
-        val subject = auth.subject()
+        val subject = auth.subject.asString
 
         println(s"CRD subject: $subject")
         val create = wskadmin.cli(Seq("user", "create", subject))

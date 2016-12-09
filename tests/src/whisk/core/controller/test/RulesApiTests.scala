@@ -51,7 +51,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
     behavior of "Rules API"
 
     val creds = WhiskAuth(Subject(), AuthKey()).toIdentity
-    val namespace = EntityPath(creds.subject())
+    val namespace = EntityPath(creds.subject.asString)
     def aname() = MakeName.next("rules_tests")
     def afullname(namespace: EntityPath, name: String) = FullyQualifiedEntityName(namespace, EntityName(name))
     val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
@@ -291,7 +291,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         val rule = WhiskRule(namespace, aname(), FullyQualifiedEntityName(namespace, aname()), FullyQualifiedEntityName(namespace, aname()))
         val trigger = WhiskTrigger(rule.trigger.path, rule.trigger.name)
         val action = WhiskAction(rule.action.path, rule.action.name, Exec.js("??"))
-        val content = JsObject("trigger" -> JsString(s"/_/${trigger.name()}"), "action" -> JsString(s"/_/${action.name()}"))
+        val content = JsObject("trigger" -> JsString(s"/_/${trigger.name.asString}"), "action" -> JsString(s"/_/${action.name.asString}"))
 
         put(entityStore, trigger, false)
         put(entityStore, action)

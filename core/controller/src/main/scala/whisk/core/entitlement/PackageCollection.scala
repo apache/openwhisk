@@ -49,10 +49,10 @@ class PackageCollection(entityStore: EntityStore) extends Collection(Collection.
      * All assets that are not in an explicit package are private because the default package is private.
      */
     protected[core] override def implicitRights(user: Identity, namespaces: Set[String], right: Privilege, resource: Resource)(
-        implicit ep: EntitlementProvider, ec: ExecutionContext, transid: TransactionId) = {
+        implicit ep: EntitlementProvider, ec: ExecutionContext, transid: TransactionId): Future[Boolean] = {
         resource.entity map {
             pkgname =>
-                val isOwner = namespaces.contains(resource.namespace.root())
+                val isOwner = namespaces.contains(resource.namespace.root.asString)
                 right match {
                     case Privilege.READ =>
                         // must determine if this is a public or owned package
@@ -89,7 +89,7 @@ class PackageCollection(entityStore: EntityStore) extends Collection(Collection.
             case wp =>
                 if (isOwner) {
                     val binding = wp.binding.get
-                    val pkgOwner = namespaces.contains(binding.namespace.root())
+                    val pkgOwner = namespaces.contains(binding.namespace.asString)
                     val pkgDocid = binding.docid
                     info(this, s"checking subject has privilege '$right' for bound package '$pkgDocid'")
                     checkPackageReadPermission(namespaces, pkgOwner, pkgDocid)

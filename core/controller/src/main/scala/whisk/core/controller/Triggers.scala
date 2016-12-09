@@ -174,12 +174,12 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                                     info(this, s"[POST] rule ${ruleName} activated, writing activation record to datastore")
                                     WhiskActivation.put(activationStore, ruleActivation)
 
-                                    val actionNamespace = rule.action.path.root()
+                                    val actionNamespace = rule.action.path.root.asString
                                     val actionPath = {
                                         rule.action.path.relativePath.map {
-                                            pkg => (Path.SingleSlash + pkg.namespace) / rule.action.name()
+                                            pkg => (Path.SingleSlash + pkg.namespace) / rule.action.name.asString
                                         } getOrElse {
-                                            Path.SingleSlash + rule.action.name()
+                                            Path.SingleSlash + rule.action.name.asString
                                         }
                                     }.toString
 

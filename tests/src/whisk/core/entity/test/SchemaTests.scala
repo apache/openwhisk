@@ -33,6 +33,7 @@ import org.scalatest.junit.JUnitRunner
 
 import spray.json._
 import spray.json.DefaultJsonProtocol._
+import whisk.core.entitlement.Privilege
 import whisk.core.entity._
 import whisk.core.entity.size.SizeInt
 
@@ -57,12 +58,20 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
         }
     }
 
+    behavior of "Privilege"
+
+    it should "serdes a right" in {
+        Privilege.serdes.read("READ".toJson) shouldBe Privilege.READ
+        Privilege.serdes.read("read".toJson) shouldBe Privilege.READ
+        a[DeserializationException] should be thrownBy Privilege.serdes.read("???".toJson)
+    }
+
     behavior of "Identity"
 
     it should "serdes an identity" in {
         val i = WhiskAuth(Subject(), AuthKey()).toIdentity
         val expected = JsObject(
-            "subject" -> i.subject().toJson,
+            "subject" -> i.subject.asString.toJson,
             "namespace" -> i.namespace.toJson,
             "authkey" -> i.authkey.compact.toJson,
             "rights" -> Array("READ", "PUT", "DELETE", "ACTIVATE").toJson)
@@ -75,7 +84,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
     it should "accept well formed doc info" in {
         Seq("a", " a", "a ").foreach { i =>
             val d = DocInfo(i)
-            assert(d.id() == i.trim)
+            assert(d.id.asString == i.trim)
         }
     }
 
@@ -202,23 +211,15 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
 
     it should "desiarilize legacy format" in {
         val names = Seq(
-            JsObject("path" -> "a".toJson, "name" -> "b".toJson),
-            JsObject("path" -> "a".toJson, "name" -> "b".toJson, "version" -> "0.0.1".toJson),
-            JsString("a/b"),
             JsObject("namespace" -> "a".toJson, "name" -> "b".toJson),
-            JsObject("namespace" -> "a".toJson, "path" -> "a".toJson, "name" -> "b".toJson),
-            JsObject("name" -> "b".toJson),
             JsObject(),
+            JsObject("name" -> "b".toJson),
             JsNull)
 
-        //Binding.optionalBindingDeserializer.read(names(0)) shouldBe Some(Binding(EntityPath("a"), EntityName("b")))
-        //Binding.optionalBindingDeserializer.read(names(1)) shouldBe Some(Binding(EntityPath("a"), EntityName("b"), Some(SemVer())))
-        //Binding.optionalBindingDeserializer.read(names(2)) shouldBe Some(Binding(EntityPath("a"), EntityName("b")))
-        Binding.optionalBindingDeserializer.read(names(3)) shouldBe Some(Binding(EntityPath("a"), EntityName("b")))
-        Binding.optionalBindingDeserializer.read(names(6)) shouldBe None
-        //a[DeserializationException] should be thrownBy Binding.optionalBindingDeserializer.read(names(4))
-        a[DeserializationException] should be thrownBy Binding.optionalBindingDeserializer.read(names(5))
-        a[DeserializationException] should be thrownBy Binding.optionalBindingDeserializer.read(names(7))
+        Binding.optionalBindingDeserializer.read(names(0)) shouldBe Some(Binding(EntityName("a"), EntityName("b")))
+        Binding.optionalBindingDeserializer.read(names(1)) shouldBe None
+        a[DeserializationException] should be thrownBy Binding.optionalBindingDeserializer.read(names(2))
+        a[DeserializationException] should be thrownBy Binding.optionalBindingDeserializer.read(names(3))
     }
 
     it should "serialize optional binding to empty object" in {
@@ -256,7 +257,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
     }
 
     it should "serialize and deserialize package binding" in {
-        val pkg = WhiskPackage(EntityPath("a"), EntityName("b"), Some(Binding(EntityPath("x"), EntityName("y"))))
+        val pkg = WhiskPackage(EntityPath("a"), EntityName("b"), Some(Binding(EntityName("x"), EntityName("y"))))
         val pkgAsJson = JsObject(
             "namespace" -> "a".toJson,
             "name" -> "b".toJson,

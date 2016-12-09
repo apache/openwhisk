@@ -33,7 +33,7 @@ class ActionCollection(entityStore: EntityStore) extends Collection(Collection.A
      */
     protected[core] override def implicitRights(user: Identity, namespaces: Set[String], right: Privilege, resource: Resource)(
         implicit ep: EntitlementProvider, ec: ExecutionContext, transid: TransactionId) = {
-        val isOwner = namespaces.contains(resource.namespace.root())
+        val isOwner = namespaces.contains(resource.namespace.root.asString)
         resource.entity map {
             name =>
                 right match {

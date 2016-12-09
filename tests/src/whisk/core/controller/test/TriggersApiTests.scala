@@ -53,7 +53,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     behavior of "Triggers API"
 
     val creds = WhiskAuth(Subject(), AuthKey()).toIdentity
-    val namespace = EntityPath(creds.subject())
+    val namespace = EntityPath(creds.subject.asString)
     val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
     def aname = MakeName.next("triggers_tests")
     val entityTooBigRejectionMessage = "request entity too large"
