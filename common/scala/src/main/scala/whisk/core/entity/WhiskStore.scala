@@ -269,8 +269,8 @@ object WhiskEntityQueries {
         upto: Option[Instant] = None,
         convert: Option[JsObject => Try[T]])(
             implicit transid: TransactionId): Future[Either[List[JsObject], List[T]]] = {
-        val startKey = List(namespace.addpath(name).toString, since map { _.toEpochMilli } getOrElse 0)
-        val endKey = List(namespace.addpath(name).toString, upto map { _.toEpochMilli } getOrElse TOP, TOP)
+        val startKey = List(namespace.addPath(name).toString, since map { _.toEpochMilli } getOrElse 0)
+        val endKey = List(namespace.addPath(name).toString, upto map { _.toEpochMilli } getOrElse TOP, TOP)
         query(db, viewname(collection), startKey, endKey, skip, limit, reduce = false, convert)
     }
 

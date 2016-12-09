@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 
-package whisk.core.controller
+package whisk.core.controller.actions
 
 import java.time.Clock
 import java.time.Instant
 
+import scala.Left
+import scala.Right
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
@@ -27,24 +29,29 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
-import WhiskActionsApi._
 import akka.actor.ActorSystem
 import spray.json._
 import whisk.common.Logging
+import whisk.common.PrintStreamEmitter
 import whisk.common.TransactionId
+import whisk.core.controller.BlockingInvokeTimeout
+import whisk.core.controller.WhiskActionsApi._
+import whisk.core.controller.WhiskServices
 import whisk.core.entity._
 import whisk.core.entity.size.SizeInt
 import whisk.core.entity.types._
 import whisk.http.Messages._
 import whisk.utils.ExecutionContextFactory.FutureExtensions
 
-trait SequenceActions extends Logging {
+protected[actions] trait SequenceActions extends Logging {
+    /** The core collections require backend services to be injected in this trait. */
     services: WhiskServices =>
-
-    protected implicit val executionContext: ExecutionContext
 
     /** An actor system for timed based futures. */
     protected implicit val actorSystem: ActorSystem
+
+    /** An execution context for futures. */
+    protected implicit val executionContext: ExecutionContext
 
     /** Database service to CRUD actions. */
     protected val entityStore: EntityStore
@@ -52,10 +59,12 @@ trait SequenceActions extends Logging {
     /** Database service to get activations. */
     protected val activationStore: ActivationStore
 
-    protected def invokeSingleAction(
+    private implicit val emitter = this: PrintStreamEmitter
+
+    /** A method that knows how to invoke a single primitive action. */
+    protected[actions] def invokeSingleAction(
         user: Identity,
         action: WhiskAction,
-        env: Option[Parameters],
         payload: Option[JsObject],
         timeout: FiniteDuration,
         blocking: Boolean,
@@ -76,7 +85,7 @@ trait SequenceActions extends Logging {
      * @param transid a transaction id for logging
      * @return a future of type (ActivationId, Some(WhiskActivation), atomicActionsCount) if blocking; else (ActivationId, None, 0)
      */
-    protected def invokeSequence(
+    protected[actions] def invokeSequence(
         user: Identity,
         action: WhiskAction,
         payload: Option[JsObject],
@@ -86,6 +95,8 @@ trait SequenceActions extends Logging {
         cause: Option[ActivationId],
         atomicActionsCount: Int)(
             implicit transid: TransactionId): Future[(ActivationId, Option[WhiskActivation], Int)] = {
+        require(action.exec.kind == Exec.SEQUENCE, "this method requires an action sequence")
+
         // create new activation id that corresponds to the sequence
         val seqActivationId = activationIdFactory.make()
         info(this, s"invoking sequence $action topmost $topmost activationid '$seqActivationId'")
@@ -372,7 +383,7 @@ trait SequenceActions extends Logging {
                 // this is an invoke for an atomic action
                 info(this, s"sequence invoking an enclosed atomic action $action")
                 val timeout = action.limits.timeout() + blockingInvokeGrace
-                invokeSingleAction(user, action, env = None, payload, timeout, blocking = true, cause) map {
+                invokeSingleAction(user, action, payload, timeout, blocking = true, cause) map {
                     case (activationId, wskActivation) => (activationId, wskActivation, atomicActionCount + 1)
                 }
         }

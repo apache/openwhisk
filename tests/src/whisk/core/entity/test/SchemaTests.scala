@@ -101,8 +101,27 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
             p => EntityPath(p._1).namespace shouldBe p._2
         }
 
-        EntityPath.DEFAULT.addpath(EntityPath("a")).toString shouldBe "_/a"
-        EntityPath.DEFAULT.addpath(EntityPath("a/b")).toString shouldBe "_/a/b"
+        EntityPath.DEFAULT.addPath(EntityName("a")).toString shouldBe "_/a"
+
+        EntityPath.DEFAULT.addPath(EntityPath("a")).toString shouldBe "_/a"
+        EntityPath.DEFAULT.addPath(EntityPath("a/b")).toString shouldBe "_/a/b"
+
+        EntityPath.DEFAULT.resolveNamespace(EntityName("a")) shouldBe EntityPath("a")
+        EntityPath("a").resolveNamespace(EntityName("b")) shouldBe EntityPath("a")
+
+        EntityPath("a").defaultPackage shouldBe true
+        EntityPath("a/b").defaultPackage shouldBe false
+
+        EntityPath("a").root shouldBe EntityName("a")
+        EntityPath("a").last shouldBe EntityName("a")
+        EntityPath("a/b").root shouldBe EntityName("a")
+        EntityPath("a/b").last shouldBe EntityName("b")
+
+        EntityPath("a").relativePath shouldBe empty
+        EntityPath("a/b").relativePath shouldBe Some(EntityPath("b"))
+        EntityPath("a/b/c").relativePath shouldBe Some(EntityPath("b/c"))
+
+        EntityPath("a/b").toFullyQualifiedEntityName shouldBe FullyQualifiedEntityName(EntityPath("a"), EntityName("b"))
     }
 
     it should "reject malformed paths" in {
@@ -110,6 +129,8 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
         paths.foreach {
             p => an[IllegalArgumentException] should be thrownBy EntityPath(p)
         }
+
+        an[IllegalArgumentException] should be thrownBy EntityPath("a").toFullyQualifiedEntityName
     }
 
     behavior of "EntityName"
@@ -130,8 +151,14 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
 
     behavior of "FullyQualifiedEntityName"
 
-    it should "deserialize a fully qualified name without a version" in {
+    it should "work with paths" in {
+        FullyQualifiedEntityName(EntityPath("a"), EntityName("b")).add(EntityName("c")) shouldBe
+            FullyQualifiedEntityName(EntityPath("a/b"), EntityName("c"))
 
+        FullyQualifiedEntityName(EntityPath("a"), EntityName("b")).fullPath shouldBe EntityPath("a/b")
+    }
+
+    it should "deserialize a fully qualified name without a version" in {
         val names = Seq(
             JsObject("path" -> "a".toJson, "name" -> "b".toJson),
             JsObject("path" -> "a".toJson, "name" -> "b".toJson, "version" -> "0.0.1".toJson),

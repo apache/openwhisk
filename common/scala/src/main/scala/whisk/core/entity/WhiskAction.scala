@@ -283,19 +283,20 @@ object WhiskAction
      * If it's a binding, rewrite the fully qualified name of the action using the actual package path name.
      * If it's the actual package, use its name directly as the package path name.
      */
-    def resolveAction(db: EntityStore, fullyQualifiedName: FullyQualifiedEntityName)(
+    def resolveAction(db: EntityStore, fullyQualifiedActionName: FullyQualifiedEntityName)(
         implicit ec: ExecutionContext, transid: TransactionId): Future[FullyQualifiedEntityName] = {
         // first check that there is a package to be resolved
-        val entityPath = fullyQualifiedName.path
+        val entityPath = fullyQualifiedActionName.path
         if (entityPath.defaultPackage) {
             // this is the default package, nothing to resolve
-            Future.successful(fullyQualifiedName)
+            Future.successful(fullyQualifiedActionName)
         } else {
             // there is a package to be resolved
-            val pkgDocid = fullyQualifiedName.pathToDocId
-            val actionName = fullyQualifiedName.name
-            val wp = WhiskPackage.resolveBinding(db, pkgDocid)
-            wp map { resolvedPkg => FullyQualifiedEntityName(resolvedPkg.namespace.addpath(resolvedPkg.name), actionName) }
+            val pkgDocId = fullyQualifiedActionName.path.toDocId
+            val actionName = fullyQualifiedActionName.name
+            WhiskPackage.resolveBinding(db, pkgDocId) map {
+                _.fullyQualifiedName(withVersion = false).add(actionName)
+            }
         }
     }
 
@@ -315,14 +316,14 @@ object WhiskAction
             WhiskAction.get(entityStore, fullyQualifiedName.toDocId)
         } else {
             // there is a package to be resolved
-            val pkgDocid = fullyQualifiedName.pathToDocId
+            val pkgDocid = fullyQualifiedName.path.toDocId
             val actionName = fullyQualifiedName.name
             val wp = WhiskPackage.resolveBinding(entityStore, pkgDocid, mergeParameters = true)
             wp flatMap { resolvedPkg =>
                 // fully resolved name for the action
-                val fqenAction = FullyQualifiedEntityName(resolvedPkg.namespace.addpath(resolvedPkg.name), actionName)
+                val fqnAction = resolvedPkg.fullyQualifiedName(withVersion = false).add(actionName)
                 // get the whisk action associate with it and inherit the parameters from the package/binding
-                WhiskAction.get(entityStore, fqenAction.toDocId) map { _.inherit(resolvedPkg.parameters) }
+                WhiskAction.get(entityStore, fqnAction.toDocId) map { _.inherit(resolvedPkg.parameters) }
             }
         }
     }

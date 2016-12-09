@@ -116,7 +116,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
                 _ => Future.successful(true)
             } getOrElse {
                 // may only delete a package if all its ingredients are deleted already
-                WhiskAction.listCollectionInNamespace(entityStore, wp.namespace.addpath(wp.name), skip = 0, limit = 0) flatMap {
+                WhiskAction.listCollectionInNamespace(entityStore, wp.namespace.addPath(wp.name), skip = 0, limit = 0) flatMap {
                     case Left(list) if (list.size != 0) =>
                         Future failed {
                             RejectRequest(Conflict, s"Package not empty (contains ${list.size} ${if (list.size == 1) "entity" else "entities"})")
@@ -294,8 +294,8 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
                 })
         } getOrElse {
             val pkg = ref map { _ inherit wp.parameters } getOrElse wp
-            info(this, s"fetching package actions in '${wp.path}'")
-            val actions = WhiskAction.listCollectionInNamespace(entityStore, wp.path, skip = 0, limit = 0) flatMap {
+            info(this, s"fetching package actions in '${wp.fullPath}'")
+            val actions = WhiskAction.listCollectionInNamespace(entityStore, wp.fullPath, skip = 0, limit = 0) flatMap {
                 case Left(list) => Future.successful {
                     pkg withPackageActions (list map { o => WhiskPackageAction.serdes.read(o) })
                 }

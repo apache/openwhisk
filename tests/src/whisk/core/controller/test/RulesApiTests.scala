@@ -332,7 +332,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         implicit val tid = transid()
 
         val provider = WhiskPackage(namespace, aname(), publish = true)
-        val action = WhiskAction(provider.path, aname(), Exec.js("??"))
+        val action = WhiskAction(provider.fullPath, aname(), Exec.js("??"))
         val trigger = WhiskTrigger(namespace, aname())
         val rule = WhiskRule(namespace, aname(), trigger.fullyQualifiedName(false), action.fullyQualifiedName(false))
         val content = WhiskRulePut(Some(rule.trigger), Some(rule.action))
@@ -358,9 +358,9 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
 
         val provider = WhiskPackage(namespace, aname(), publish = true)
         val reference = WhiskPackage(namespace, aname(), provider.bind)
-        val action = WhiskAction(provider.path, aname(), Exec.js("??"))
+        val action = WhiskAction(provider.fullPath, aname(), Exec.js("??"))
         val trigger = WhiskTrigger(namespace, aname())
-        val actionReference = reference.binding.map(b => b.namespace.addpath(b.name)).get
+        val actionReference = reference.binding.map(b => b.namespace.addPath(b.name)).get
         val rule = WhiskRule(namespace, aname(), trigger.fullyQualifiedName(false), FullyQualifiedEntityName(actionReference, action.name))
         val content = WhiskRulePut(Some(rule.trigger), Some(rule.action))
 
