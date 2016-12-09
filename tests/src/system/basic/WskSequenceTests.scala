@@ -514,6 +514,7 @@ class WskSequenceTests
             val componentId = activation.logs.get(atomicActionIdx)
             val getComponentActivation = wsk.activation.get(componentId)
             withActivation(wsk.activation, getComponentActivation, totalWait = allowedActionDuration) { componentActivation =>
+                println(componentActivation)
                 componentActivation.logs shouldBe defined
                 val logs = componentActivation.logs.get.mkString(" ")
                 regex.findFirstIn(logs) shouldBe defined
