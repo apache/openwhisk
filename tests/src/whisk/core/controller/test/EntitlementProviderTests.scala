@@ -420,4 +420,202 @@ class EntitlementProviderTests
         }
     }
 
+    behavior of "Action Collection"
+
+    it should "only allow read access for listing action collection" in {
+        implicit val tid = transid()
+        implicit val ep = entitlementProvider
+
+        val paths = Seq(
+            (READ, someUser, Right(true)),
+            (PUT, someUser, Right(false)),
+            (DELETE, someUser, Right(false)),
+            (ACTIVATE, someUser, Right(false)),
+            (REJECT, someUser, Right(false)),
+
+            (READ, guestUser, Right(false)),
+            (PUT, guestUser, Right(false)),
+            (DELETE, guestUser, Right(false)),
+            (ACTIVATE, guestUser, Right(false)),
+            (REJECT, guestUser, Right(false)))
+
+        paths.map {
+            case (priv, who, expected) =>
+                val check = new ActionCollection(entityStore).implicitRights(
+                    who,
+                    Set(who.namespace()),
+                    priv,
+                    // any user can list any namespace packages
+                    // (because this performs a db view lookup which is later filtered)
+                    Resource(someUser.namespace.toPath, ACTIONS, None))
+                Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
+        }
+    }
+
+    it should "allow guest access to read or activate an action in a package if package is public" in {
+        implicit val tid = transid()
+        implicit val ep = entitlementProvider
+
+        val paths = Seq(
+            (READ, someUser, Right(true)),
+            (PUT, someUser, Right(true)),
+            (DELETE, someUser, Right(true)),
+            (ACTIVATE, someUser, Right(true)),
+            (REJECT, someUser, Right(false)),
+
+            (READ, guestUser, Right(true)),
+            (PUT, guestUser, Right(false)),
+            (DELETE, guestUser, Right(false)),
+            (ACTIVATE, guestUser, Right(true)),
+            (REJECT, guestUser, Right(false)))
+
+        val provider = WhiskPackage(someUser.namespace.toPath, MakeName.next(), None, publish = true)
+        val action = WhiskAction(provider.path, MakeName.next(), Exec.js(""))
+        put(entityStore, provider)
+        put(entityStore, action)
+
+        paths.map {
+            case (priv, who, expected) =>
+                val check = new ActionCollection(entityStore).implicitRights(
+                    who,
+                    Set(who.namespace()),
+                    priv,
+                    Resource(action.namespace, ACTIONS, Some(action.name())))
+                Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
+        }
+    }
+
+    it should "reject guest access to read or activate an action in a package if package is private" in {
+        implicit val tid = transid()
+        implicit val ep = entitlementProvider
+
+        val paths = Seq(
+            (READ, someUser, Right(true)),
+            (PUT, someUser, Right(true)),
+            (DELETE, someUser, Right(true)),
+            (ACTIVATE, someUser, Right(true)),
+            (REJECT, someUser, Right(false)),
+
+            (READ, guestUser, Right(false)),
+            (PUT, guestUser, Right(false)),
+            (DELETE, guestUser, Right(false)),
+            (ACTIVATE, guestUser, Right(false)),
+            (REJECT, guestUser, Right(false)))
+
+        val provider = WhiskPackage(someUser.namespace.toPath, MakeName.next(), None, publish = false)
+        val action = WhiskAction(provider.path, MakeName.next(), Exec.js(""))
+        put(entityStore, provider)
+        put(entityStore, action)
+
+        paths.map {
+            case (priv, who, expected) =>
+                val check = new ActionCollection(entityStore).implicitRights(
+                    who,
+                    Set(who.namespace()),
+                    priv,
+                    Resource(action.namespace, ACTIONS, Some(action.name())))
+                Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
+        }
+    }
+
+    it should "allow guest access to read or activate an action in a package binding if package is public" in {
+        implicit val tid = transid()
+        implicit val ep = entitlementProvider
+
+        val paths = Seq(
+            (READ, someUser, Right(false)),
+            (PUT, someUser, Right(false)),
+            (DELETE, someUser, Right(false)),
+            (ACTIVATE, someUser, Right(false)),
+            (REJECT, someUser, Right(false)),
+
+            (READ, guestUser, Right(true)),
+            (PUT, guestUser, Right(true)),
+            (DELETE, guestUser, Right(true)),
+            (ACTIVATE, guestUser, Right(true)),
+            (REJECT, guestUser, Right(false)))
+
+        val provider = WhiskPackage(someUser.namespace.toPath, MakeName.next(), None, publish = true)
+        val binding = WhiskPackage(guestUser.namespace.toPath, MakeName.next(), provider.bind)
+        val action = WhiskAction(binding.path, MakeName.next(), Exec.js(""))
+        put(entityStore, provider)
+        put(entityStore, binding)
+        put(entityStore, action)
+
+        paths.map {
+            case (priv, who, expected) =>
+                val check = new ActionCollection(entityStore).implicitRights(
+                    who,
+                    Set(who.namespace()),
+                    priv,
+                    Resource(action.namespace, ACTIONS, Some(action.name())))
+                Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
+        }
+    }
+
+    it should "reject guest access to read or activate an action in a package binding if package is private" in {
+        implicit val tid = transid()
+        implicit val ep = entitlementProvider
+
+        val paths = Seq(
+            (READ, someUser, Right(false)),
+            (PUT, someUser, Right(false)),
+            (DELETE, someUser, Right(false)),
+            (ACTIVATE, someUser, Right(false)),
+            (REJECT, someUser, Right(false)),
+
+            (READ, guestUser, Right(false)),
+            (PUT, guestUser, Right(true)),
+            (DELETE, guestUser, Right(true)),
+            (ACTIVATE, guestUser, Right(false)),
+            (REJECT, guestUser, Right(false)))
+
+        val provider = WhiskPackage(someUser.namespace.toPath, MakeName.next(), None, publish = false)
+        val binding = WhiskPackage(guestUser.namespace.toPath, MakeName.next(), provider.bind)
+        val action = WhiskAction(binding.path, MakeName.next(), Exec.js(""))
+        put(entityStore, provider)
+        put(entityStore, binding)
+        put(entityStore, action)
+
+        paths.map {
+            case (priv, who, expected) =>
+                val check = new ActionCollection(entityStore).implicitRights(
+                    who,
+                    Set(who.namespace()),
+                    priv,
+                    Resource(action.namespace, ACTIONS, Some(action.name())))
+                Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
+        }
+    }
+
+    it should "reject guest access to read or activate an action in default package" in {
+        implicit val tid = transid()
+        implicit val ep = entitlementProvider
+
+        val paths = Seq(
+            (READ, someUser, Right(true)),
+            (PUT, someUser, Right(true)),
+            (DELETE, someUser, Right(true)),
+            (ACTIVATE, someUser, Right(true)),
+            (REJECT, someUser, Right(false)),
+
+            (READ, guestUser, Right(false)),
+            (PUT, guestUser, Right(false)),
+            (DELETE, guestUser, Right(false)),
+            (ACTIVATE, guestUser, Right(false)),
+            (REJECT, guestUser, Right(false)))
+
+        val action = WhiskAction(someUser.namespace.toPath, MakeName.next(), Exec.js(""))
+        put(entityStore, action)
+
+        paths.map {
+            case (priv, who, expected) =>
+                val check = new ActionCollection(entityStore).implicitRights(
+                    who,
+                    Set(who.namespace()),
+                    priv,
+                    Resource(action.namespace, ACTIONS, Some(action.name())))
+                Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
+        }
+    }
 }
