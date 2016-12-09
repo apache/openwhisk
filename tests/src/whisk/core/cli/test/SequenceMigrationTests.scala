@@ -80,7 +80,7 @@ class SequenceMigrationTests
         }
     }
 
-    it should "invoke an old-style sequence and get the result" in {
+    it should "invoke an old-style sequence (original pipe.js) and get the result" in {
         val seqName = "seq_echo_word_count"
         testOldStyleSequence(seqName, s"$seqName.json")
     }
@@ -88,6 +88,17 @@ class SequenceMigrationTests
     it should "invoke an old-style type2 (kind sequence) sequence and get the result" in {
         val seqName = "seq_type_2"
         testOldStyleSequence(seqName, s"$seqName.json")
+    }
+
+    it should "not display code from an old sequence on action get" in {
+        // install sequence in db
+        val seqName = "seq_type_2"
+        installActionInDb(s"$seqName.json")
+        val stdout = wsk.action.get(seqName).stdout
+        // NOTE TODO when bug with cli displaying empty code when no code is present is fixed
+        // replace the following check with the one commented out
+        stdout.contains(""""code": """"") shouldBe true
+        //stdout.contains("code") shouldBe false
     }
 
     /**
@@ -100,29 +111,35 @@ class SequenceMigrationTests
         val echo = "echo.json"
         val wc = "word_count.json"
         val entities = Seq(echo, wc, seqFileName)
-        implicit val tid = transid() // needed for put db below
         for (entity <- entities) {
-            // read json file and add the appropriate namespace
-            val jsonFile = TestUtils.getTestActionFilename(entity)
-            val source = scala.io.Source.fromFile(jsonFile)
-            val jsonString = try source.mkString finally source.close()
-            val entityJson = jsonString.parseJson.asJsObject
-            // add default namespace (i.e., user) to the json object
-            val entityJsonWithNamespace = JsObject(entityJson.fields + ("namespace" -> JsString(namespace)))
-            val wskEntity = entityJsonWithNamespace.convertTo[WhiskAction]
-            put(entityStore, wskEntity)
+            installActionInDb(entity)
         }
         // invoke sequence
         val now = "it is now " + new Date()
         val run = wsk.action.invoke(seqName, Map("payload" -> now.mkString("\n").toJson))
-        println(run.stdout)
-        println(run.stderr)
         withActivation(wsk.activation, run, totalWait = allowedActionDuration) {
             activation =>
                 val result = activation.response.result.get
                 result.fields.get("count") shouldBe Some(JsNumber(now.split(" ").size))
         }
     }
+
+    /**
+     * helper function that takes a json file containing a whisk action (minus the namespace), adds namespace and installs in db
+     */
+    private def installActionInDb(actionJson: String) = {
+        // read json file and add the appropriate namespace
+        val jsonFile = TestUtils.getTestActionFilename(actionJson)
+        val source = scala.io.Source.fromFile(jsonFile)
+        val jsonString = try source.mkString finally source.close()
+        val entityJson = jsonString.parseJson.asJsObject
+        // add default namespace (i.e., user) to the json object
+        val entityJsonWithNamespace = JsObject(entityJson.fields + ("namespace" -> JsString(namespace)))
+        val wskEntity = entityJsonWithNamespace.convertTo[WhiskAction]
+        implicit val tid = transid() // needed for put db below
+        put(entityStore, wskEntity)
+    }
+
     after {
         cleanup() // cleanup entities from db
     }

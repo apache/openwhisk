@@ -153,7 +153,7 @@ trait ListOrGetFromCollection extends FullyQualifiedNames {
         val params = Seq(noun, "get", "--auth", wp.authKey) ++
             Seq(fqn(name)) ++
             { if (summary) Seq("--summary") else Seq() } ++
-            { fieldFilter map { f => Seq(f) } getOrElse Seq() }
+            fieldFilter
 
         cli(wp.overrides ++ params, expectedExitCode)
     }
