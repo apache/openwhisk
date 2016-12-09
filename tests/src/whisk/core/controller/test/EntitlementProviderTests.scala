@@ -42,9 +42,9 @@ import whisk.core.entity._
  * "using Specs2RouteTest DSL to chain HTTP requests for unit testing, as in ~>"
  */
 @RunWith(classOf[JUnitRunner])
-class AuthorizeTests extends ControllerTestCommon with Authenticate {
+class EntitlementProviderTests extends ControllerTestCommon {
 
-    behavior of "Authorize"
+    behavior of "Entitlement Provider"
 
     val requestTimeout = 1 second
     val someUser = Subject().toIdentity(AuthKey())
