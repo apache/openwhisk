@@ -30,7 +30,7 @@ import spray.json.pimpString
 /**
  * Utilities for REST tests
  */
-protected[rest] trait RestUtil {
+trait RestUtil {
 
     private val trustStorePassword = WhiskProperties.getSslCertificateChallenge
 
