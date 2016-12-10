@@ -629,9 +629,9 @@ The `/whisk.system/watson-speechToText/speechToText` action converts audio speec
  
 ## Using the Message Hub package
 
-This package allows you to create triggers that react when messages are posted to [IBM Message Hub](https://developer.ibm.com/messaging/message-hub/) instance.
+This package allows you to create triggers that react when messages are posted to [Message Hub](https://developer.ibm.com/messaging/message-hub/) service instance on Bluemix.
 
-### Creating a Trigger that Listens to an IBM MessageHub Instance
+### Creating a Trigger that Listens to an Message Hub Instance
 In order to create a trigger that reacts when messages are posted to a Message Hub instance, you need to use the feed named `messaging/messageHubFeed`. This feed supports the following parameters:
 
 |Name|Type|Description|
@@ -670,7 +670,7 @@ While this list of parameters may seem daunting, they can be automatically set f
 
   Your package binding now contains the credentials associated with your Message Hub instance.
 
-3. Now all you need is to create a Trigger to be fire when new messages are posted to your Bluemix Message Hub.
+3. Now all you need is to create a Trigger to be fire when new messages are posted to your Message Hub.
 
   ```
   $ wsk trigger create MyMessageHubTrigger -f /whisk.system/messaging/messageHubFeed -p topic mytopic
