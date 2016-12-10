@@ -629,7 +629,7 @@ The `/whisk.system/watson-speechToText/speechToText` action converts audio speec
  
 ## Using the Message Hub package
 
-This package allows you to create triggers that react when messages are posted to [Message Hub](https://developer.ibm.com/messaging/message-hub/) service instance on Bluemix.
+This package allows you to create triggers that react when messages are posted to a [Message Hub](https://developer.ibm.com/messaging/message-hub/) service instance on Bluemix.
 
 ### Creating a Trigger that Listens to an Message Hub Instance
 In order to create a trigger that reacts when messages are posted to a Message Hub instance, you need to use the feed named `messaging/messageHubFeed`. This feed supports the following parameters:
@@ -642,7 +642,7 @@ In order to create a trigger that reacts when messages are posted to a Message H
 |topic|String|The topic you would like the trigger to listen to|
 |kafka_admin_url|URL String|The URL of the Message Hub admin REST interface|
 |api_key|String|Your Message Hub API key|
-|isJSONData|Boolean (Optional - default=false)|When set to `true` this will cause the feed to attempt the message content as JSON before passing it along as the trigger payload.|
+|isJSONData|Boolean (Optional - default=false)|When set to `true` this will cause the feed to try to parse the message content as JSON before passing it along as the trigger payload.|
 
 While this list of parameters may seem daunting, they can be automatically set for you by using the package refresh CLI command:
 
@@ -734,7 +734,7 @@ However, if the same message content is posted with `isJSONData` set to `false`,
 }
 ```
 
-### Messages are Batched
+### Messages are batched
 You will notice that the trigger payload contains an array of messages. This means that if you are producing messages to your messaging system very quickly, the feed will attempt to batch up the posted messages into a single firing of your trigger. This allows the messages to be posted to your trigger more rapidly and efficiently.
 
 Please keep in mind when coding actions that are fired by your trigger, that the number of messages in the payload is technically unbounded, but will always be greater than 0.
