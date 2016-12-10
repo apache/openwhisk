@@ -646,14 +646,45 @@ In order to create a trigger that reacts when messages are posted to a Message H
 
 While this list of parameters may seem daunting, they can be automatically set for you by using the package refresh CLI command:
 
-```
-wsk package refresh
-```
+1. Create an instance of Message Hub service under your current organization and space that you are using for OpenWhisk.
 
-However, if you want to create the trigger manually, it would look something like:
-```
-wsk trigger create MyMessageHubTrigger -f /whisk.system/messaging/messageHubFeed -p kafka_brokers_sasl "[\"kafka01-prod01.messagehub.services.us-south.bluemix.net:9093\", \"kafka02-prod01.messagehub.services.us-south.bluemix.net:9093\", \"kafka03-prod01.messagehub.services.us-south.bluemix.net:9093\"]" -p topic mytopic -p user <your Message Hub user> -p password <your Message Hub password> -p kafka_admin_url https://kafka-admin-prod01.messagehub.services.us-south.bluemix.net:443 -p api_key <your API key> -p isJSONData true
-```
+2. Verify that the the topic you want to listen it already exists in Message Hub or create a new topic to listen for messages, like `mytopic`.
+
+2. Refresh the packages in your namespace. The refresh automatically creates a package binding for the Message Hub service instance that you created.
+
+  ```
+  $ wsk package refresh
+  ```
+  ```
+  created bindings:
+  Bluemix_Message_Hub_Credentials-1
+  ```
+
+  ```
+  $ wsk package list
+  ```
+  ```
+  packages
+  /myBluemixOrg_myBluemixSpace/Bluemix_Message_Hub_Credentials-1 private
+  ```
+
+  Your package binding now contains the credentials associated with your Message Hub instance.
+
+3. Now all you need is to create a Trigger to be fire when new messages are posted to your Bluemix Message Hub.
+
+  ```
+  $ wsk trigger create MyMessageHubTrigger -f /whisk.system/messaging/messageHubFeed -p topic mytopic
+  ```
+
+### Setting up a Message Hub package outside Bluemix
+
+If you're not using OpenWhisk in Bluemix or if you want to set up your Message Hub outside of Bluemix, you must manually create a package binding for your Message Hub service. You need the Message Hub service credentials and connection information.
+
+- Create a package binding that is configured for your Message Hub service.
+
+  ```
+  $ wsk trigger create MyMessageHubTrigger -f /whisk.system/messaging/messageHubFeed -p kafka_brokers_sasl "[\"kafka01-prod01.messagehub.services.us-south.bluemix.net:9093\", \"kafka02-prod01.messagehub.services.us-south.bluemix.net:9093\", \"kafka03-prod01.messagehub.services.us-south.bluemix.net:9093\"]" -p topic mytopic -p user <your Message Hub user> -p password <your Message Hub password> -p kafka_admin_url https://kafka-admin-prod01.messagehub.services.us-south.bluemix.net:443 -p api_key <your API key>
+  ```
 
 ### Listening for messages to a Message Hub instance
 After creating a trigger, the system will monitor the specified topic in your messaging service. When new messages are posted, the trigger will be fired.
