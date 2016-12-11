@@ -89,7 +89,7 @@ class PackageCollection(entityStore: EntityStore) extends Collection(Collection.
             case wp =>
                 if (isOwner) {
                     val binding = wp.binding.get
-                    val pkgOwner = namespaces.contains(binding.namespace.root())
+                    val pkgOwner = namespaces.contains(binding.namespace())
                     val pkgDocid = binding.docid
                     info(this, s"checking subject has privilege '$right' for bound package '$pkgDocid'")
                     checkPackageReadPermission(namespaces, pkgOwner, pkgDocid)

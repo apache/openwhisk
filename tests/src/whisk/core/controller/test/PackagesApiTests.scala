@@ -66,7 +66,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
             if (i % 2 == 0) {
                 WhiskPackage(namespace, aname, None)
             } else {
-                val binding = Some(Binding(namespace, aname))
+                val binding = Some(Binding(namespace.root, aname))
                 WhiskPackage(namespace, aname, binding)
             }
         }.toList
@@ -384,7 +384,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     it should "create package reference with implicit namespace" in {
         implicit val tid = transid()
         val provider = WhiskPackage(namespace, aname)
-        val reference = WhiskPackage(namespace, aname, Some(Binding(EntityPath.DEFAULT, provider.name)))
+        val reference = WhiskPackage(namespace, aname, Some(Binding(EntityPath.DEFAULT.root, provider.name)))
         val content = WhiskPackagePut(reference.binding)
         put(entityStore, provider)
         Put(s"$collectionPath/${reference.name}", content) ~> sealRoute(routes(creds)) ~> check {
@@ -400,7 +400,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
 
     it should "reject create package reference when referencing non-existent package in same namespace" in {
         implicit val tid = transid()
-        val binding = Some(Binding(namespace, aname))
+        val binding = Some(Binding(namespace.root, aname))
         val content = WhiskPackagePut(binding)
         Put(s"$collectionPath/$aname", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
@@ -413,7 +413,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
         val privateCreds = WhiskAuth(Subject(), AuthKey()).toIdentity
         val privateNamespace = EntityPath(privateCreds.subject())
 
-        val binding = Some(Binding(privateNamespace, aname))
+        val binding = Some(Binding(privateNamespace.root, aname))
         val content = WhiskPackagePut(binding)
         Put(s"$collectionPath/$aname", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(Forbidden)
@@ -424,7 +424,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
         implicit val tid = transid()
         val provider = WhiskPackage(namespace, aname)
         val reference = WhiskPackage(namespace, aname, provider.bind)
-        val content = WhiskPackagePut(Some(Binding(reference.namespace, reference.name)))
+        val content = WhiskPackagePut(Some(Binding(reference.namespace.root, reference.name)))
         put(entityStore, provider)
         put(entityStore, reference)
         Put(s"$collectionPath/$aname", content) ~> sealRoute(routes(creds)) ~> check {
@@ -648,7 +648,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     it should "reject bind to non-package" in {
         implicit val tid = transid()
         val action = WhiskAction(namespace, aname, Exec.js("??"))
-        val reference = WhiskPackage(namespace, aname, Some(Binding(action.namespace, action.name)))
+        val reference = WhiskPackage(namespace, aname, Some(Binding(action.namespace.root, action.name)))
         val content = WhiskPackagePut(reference.binding)
 
         put(entityStore, action)

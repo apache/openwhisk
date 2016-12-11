@@ -168,7 +168,8 @@ protected[core] object EntityPath {
 protected[core] class EntityName private (val name: String) extends AnyVal {
     def apply() = name
     def toJson = JsString(name)
-    def toPath = EntityPath(name)
+    def toPath: EntityPath = EntityPath(name)
+    def addPath(e: EntityName): EntityPath = toPath.addPath(e)
     override def toString = name
 }
 

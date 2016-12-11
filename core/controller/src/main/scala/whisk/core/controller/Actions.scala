@@ -503,8 +503,8 @@ trait WhiskActionsApi
     private def mergeActionWithPackageAndDispatch(method: HttpMethod, user: Identity, action: EntityName, ref: Option[WhiskPackage] = None)(wp: WhiskPackage)(
         implicit transid: TransactionId): RequestContext => Unit = {
         wp.binding map {
-            case Binding(ns, n) =>
-                val docid = FullyQualifiedEntityName(ns, n).toDocId
+            case b: Binding =>
+                val docid = b.fullyQualifiedName.toDocId
                 info(this, s"fetching package '$docid' for reference")
                 // already checked that subject is authorized for package and binding;
                 // this fetch is redundant but should hit the cache to ameliorate cost

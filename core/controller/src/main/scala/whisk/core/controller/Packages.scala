@@ -286,8 +286,8 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
      */
     private def mergePackageWithBinding(ref: Option[WhiskPackage] = None)(wp: WhiskPackage)(implicit transid: TransactionId): RequestContext => Unit = {
         wp.binding map {
-            case Binding(ns, n) =>
-                val docid = FullyQualifiedEntityName(ns, n).toDocId
+            case b: Binding =>
+                val docid = b.fullyQualifiedName.toDocId
                 info(this, s"fetching package '$docid' for reference")
                 getEntity(WhiskPackage, entityStore, docid, Some {
                     mergePackageWithBinding(Some { wp }) _

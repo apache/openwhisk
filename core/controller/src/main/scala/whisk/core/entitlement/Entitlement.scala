@@ -335,7 +335,7 @@ trait ReferencedEntities {
     def referencedEntities(reference: Any): Set[Resource] = {
         reference match {
             case WhiskPackagePut(Some(binding), _, _, _, _) =>
-                Set(Resource(binding.namespace, Collection(Collection.PACKAGES), Some(binding.name())))
+                Set(Resource(binding.namespace.toPath, Collection(Collection.PACKAGES), Some(binding.name())))
             case r: WhiskRulePut =>
                 val triggerResource = r.trigger.map { t => Resource(t.path, Collection(Collection.TRIGGERS), Some(t.name())) }
                 val actionResource = r.action map { a => Resource(a.path, Collection(Collection.ACTIONS), Some(a.name())) }

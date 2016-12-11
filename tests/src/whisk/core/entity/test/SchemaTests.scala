@@ -202,23 +202,15 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
 
     it should "desiarilize legacy format" in {
         val names = Seq(
-            JsObject("path" -> "a".toJson, "name" -> "b".toJson),
-            JsObject("path" -> "a".toJson, "name" -> "b".toJson, "version" -> "0.0.1".toJson),
-            JsString("a/b"),
             JsObject("namespace" -> "a".toJson, "name" -> "b".toJson),
-            JsObject("namespace" -> "a".toJson, "path" -> "a".toJson, "name" -> "b".toJson),
-            JsObject("name" -> "b".toJson),
             JsObject(),
+            JsObject("name" -> "b".toJson),
             JsNull)
 
-        //Binding.optionalBindingDeserializer.read(names(0)) shouldBe Some(Binding(EntityPath("a"), EntityName("b")))
-        //Binding.optionalBindingDeserializer.read(names(1)) shouldBe Some(Binding(EntityPath("a"), EntityName("b"), Some(SemVer())))
-        //Binding.optionalBindingDeserializer.read(names(2)) shouldBe Some(Binding(EntityPath("a"), EntityName("b")))
-        Binding.optionalBindingDeserializer.read(names(3)) shouldBe Some(Binding(EntityPath("a"), EntityName("b")))
-        Binding.optionalBindingDeserializer.read(names(6)) shouldBe None
-        //a[DeserializationException] should be thrownBy Binding.optionalBindingDeserializer.read(names(4))
-        a[DeserializationException] should be thrownBy Binding.optionalBindingDeserializer.read(names(5))
-        a[DeserializationException] should be thrownBy Binding.optionalBindingDeserializer.read(names(7))
+        Binding.optionalBindingDeserializer.read(names(0)) shouldBe Some(Binding(EntityName("a"), EntityName("b")))
+        Binding.optionalBindingDeserializer.read(names(1)) shouldBe None
+        a[DeserializationException] should be thrownBy Binding.optionalBindingDeserializer.read(names(2))
+        a[DeserializationException] should be thrownBy Binding.optionalBindingDeserializer.read(names(3))
     }
 
     it should "serialize optional binding to empty object" in {
@@ -256,7 +248,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
     }
 
     it should "serialize and deserialize package binding" in {
-        val pkg = WhiskPackage(EntityPath("a"), EntityName("b"), Some(Binding(EntityPath("x"), EntityName("y"))))
+        val pkg = WhiskPackage(EntityPath("a"), EntityName("b"), Some(Binding(EntityName("x"), EntityName("y"))))
         val pkgAsJson = JsObject(
             "namespace" -> "a".toJson,
             "name" -> "b".toJson,
