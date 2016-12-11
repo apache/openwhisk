@@ -127,8 +127,8 @@ trait WhiskActionsApi
                     // list all actions in package iff subject is entitled to READ package
                     val resource = Resource(ns, Collection(Collection.PACKAGES), Some(outername))
                     onComplete(entitlementProvider.check(user, Privilege.READ, resource)) {
-                        case Success(true) => listPackageActions(user, FullyQualifiedEntityName(ns, EntityName(outername)))
-                        case failure       => super.handleEntitlementFailure(failure)
+                        case Success(_) => listPackageActions(user, FullyQualifiedEntityName(ns, EntityName(outername)))
+                        case Failure(f) => super.handleEntitlementFailure(f)
                     }
                 } ~ (entityPrefix & pathEnd) { segment =>
                     entityname(segment) { innername =>
@@ -139,7 +139,7 @@ trait WhiskActionsApi
 
                         val right = if (m == GET || m == POST) Privilege.READ else collection.determineRight(m, Some(innername))
                         onComplete(entitlementProvider.check(user, right, packageResource)) {
-                            case Success(true) =>
+                            case Success(_) =>
                                 getEntity(WhiskPackage, entityStore, packageDocId, Some {
                                     if (right == Privilege.READ) {
                                         // need to merge package with action, hence authorize subject for package
@@ -167,7 +167,7 @@ trait WhiskActionsApi
                                             }
                                     }
                                 })
-                            case failure => super.handleEntitlementFailure(failure)
+                            case Failure(f) => super.handleEntitlementFailure(f)
                         }
                     }
                 }
@@ -194,11 +194,11 @@ trait WhiskActionsApi
                 val request = content.resolve(user.namespace)
 
                 onComplete(entitleReferencedEntities(user, Privilege.READ, request.exec)) {
-                    case Success(true) =>
+                    case Success(_) =>
                         putEntity(WhiskAction, entityStore, entityName.toDocId, overwrite,
                             update(user, request)_, () => { make(user, entityName, request) })
-
-                    case failure => super.handleEntitlementFailure(failure)
+                    case Failure(f) =>
+                        super.handleEntitlementFailure(f)
                 }
             }
         }
@@ -223,7 +223,7 @@ trait WhiskActionsApi
                         // resolve the action --- special case for sequences that may contain components with '_' as default package
                         val action = act.resolve(user.namespace)
                         onComplete(entitleReferencedEntities(user, Privilege.ACTIVATE, Some(action.exec))) {
-                            case Success(true) =>
+                            case Success(_) =>
                                 transid.started(this, if (blocking) LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING else LoggingMarkers.CONTROLLER_ACTIVATION)
 
                                 val actionWithMergedParams = env.map(action.inherit(_)) getOrElse action
@@ -260,7 +260,8 @@ trait WhiskActionsApi
                                         terminate(InternalServerError, t.getMessage)
                                 }
 
-                            case failure => super.handleEntitlementFailure(failure)
+                            case Failure(f) =>
+                                super.handleEntitlementFailure(f)
                         }
                 })
             }

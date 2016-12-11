@@ -42,7 +42,7 @@ class ActionCollection(entityStore: EntityStore) extends Collection(Collection.A
                         val packageNamespace = resource.namespace.root.toPath
                         val packageName = Some(resource.namespace.last.name)
                         val packageResource = Resource(packageNamespace, Collection(Collection.PACKAGES), packageName)
-                        ep.check(user, Privilege.READ, packageResource)
+                        ep.check(user, Privilege.READ, packageResource) map { _ => true }
                     case _ => Future.successful(isOwner && allowedEntityRights.contains(right))
                 }
         } getOrElse {
