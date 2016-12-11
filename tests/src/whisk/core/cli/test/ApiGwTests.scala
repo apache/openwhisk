@@ -66,6 +66,8 @@ class ApiGwTests
         // Action                            Verb             API Name  URL
         // /_/CLI_APIGWTEST1_action          get  CLI_APIGWTEST1 API Name  http://172.17.0.1:9001/api/ab9082cd-ea8e-465a-8a65-b491725cc4ef/CLI_APIGWTEST1_bp/path
         try {
+            println("cli user: "+cliuser+"; cli namespace: "+clinamespace)
+
             var rr = wsk.api.create(basepath = Some(testbasepath), relpath = testrelpath, operation = testurlop, action = actionName, apiname = Some(testapiname))
             rr.stdout should include("ok: created API")
             rr = wsk.api.list(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
