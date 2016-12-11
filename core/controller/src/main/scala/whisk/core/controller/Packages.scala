@@ -78,10 +78,11 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
                 val referencedentities = referencedEntities(request)
 
                 onComplete(entitlementProvider.check(user, Privilege.READ, referencedentities)) {
-                    case Success(true) =>
+                    case Success(_) =>
                         putEntity(WhiskPackage, entityStore, entityName.toDocId, overwrite,
                             update(request) _, () => create(request, entityName))
-                    case failure => rewriteEntitlementFailure(failure)
+                    case Failure(f) =>
+                        rewriteEntitlementFailure(f)
                 }
             }
         }
@@ -253,13 +254,13 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
         }
     }
 
-    private def rewriteEntitlementFailure(failure: Try[Boolean])(
+    private def rewriteEntitlementFailure(failure: Throwable)(
         implicit transid: TransactionId): RequestContext => Unit = {
         info(this, s"rewriting failure $failure")
         failure match {
-            case Failure(RejectRequest(NotFound, _)) => terminate(BadRequest, Messages.bindingDoesNotExist)
-            case Failure(RejectRequest(Conflict, _)) => terminate(Conflict, Messages.requestedBindingIsNotValid)
-            case _                                   => super.handleEntitlementFailure(failure)
+            case RejectRequest(NotFound, _) => terminate(BadRequest, Messages.bindingDoesNotExist)
+            case RejectRequest(Conflict, _) => terminate(Conflict, Messages.requestedBindingIsNotValid)
+            case _                          => super.handleEntitlementFailure(failure)
         }
     }
 

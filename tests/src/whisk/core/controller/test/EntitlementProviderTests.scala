@@ -60,11 +60,11 @@ class EntitlementProviderTests
         val collections = Seq(ACTIONS, RULES, TRIGGERS, PACKAGES, ACTIVATIONS, NAMESPACES)
         val resources = collections map { Resource(someUser.namespace.toPath, _, None) }
         resources foreach { r =>
-            Await.result(entitlementProvider.check(someUser, READ, r), requestTimeout) should be(true)
-            Await.result(entitlementProvider.check(someUser, PUT, r), requestTimeout) should be(false)
-            Await.result(entitlementProvider.check(someUser, DELETE, r), requestTimeout) should be(false)
-            Await.result(entitlementProvider.check(someUser, ACTIVATE, r), requestTimeout) should be(false)
-            Await.result(entitlementProvider.check(someUser, REJECT, r), requestTimeout) should be(false)
+            Await.ready(entitlementProvider.check(someUser, READ, r), requestTimeout).eitherValue.get shouldBe Right({})
+            Await.ready(entitlementProvider.check(someUser, PUT, r), requestTimeout).eitherValue.get shouldBe Left(RejectRequest(Forbidden))
+            Await.ready(entitlementProvider.check(someUser, DELETE, r), requestTimeout).eitherValue.get shouldBe Left(RejectRequest(Forbidden))
+            Await.ready(entitlementProvider.check(someUser, ACTIVATE, r), requestTimeout).eitherValue.get shouldBe Left(RejectRequest(Forbidden))
+            Await.ready(entitlementProvider.check(someUser, REJECT, r), requestTimeout).eitherValue.get shouldBe Left(RejectRequest(Forbidden))
         }
     }
 
@@ -77,11 +77,15 @@ class EntitlementProviderTests
             // the subject requesting access or the packages are public); that is, the entitlement is more
             // fine grained and applies to public vs private private packages (hence permit READ on PACKAGES to
             // be true
-            Await.result(entitlementProvider.check(guestUser, READ, r), requestTimeout) should be(r.collection == PACKAGES)
-            Await.result(entitlementProvider.check(guestUser, PUT, r), requestTimeout) should be(false)
-            Await.result(entitlementProvider.check(guestUser, DELETE, r), requestTimeout) should be(false)
-            Await.result(entitlementProvider.check(guestUser, ACTIVATE, r), requestTimeout) should be(false)
-            Await.result(entitlementProvider.check(guestUser, REJECT, r), requestTimeout) should be(false)
+            if ((r.collection == PACKAGES)) {
+                Await.ready(entitlementProvider.check(guestUser, READ, r), requestTimeout).eitherValue.get shouldBe Right({})
+            } else {
+                Await.ready(entitlementProvider.check(guestUser, READ, r), requestTimeout).eitherValue.get shouldBe Left(RejectRequest(Forbidden))
+            }
+            Await.ready(entitlementProvider.check(guestUser, PUT, r), requestTimeout).eitherValue.get shouldBe Left(RejectRequest(Forbidden))
+            Await.ready(entitlementProvider.check(guestUser, DELETE, r), requestTimeout).eitherValue.get shouldBe Left(RejectRequest(Forbidden))
+            Await.ready(entitlementProvider.check(guestUser, ACTIVATE, r), requestTimeout).eitherValue.get shouldBe Left(RejectRequest(Forbidden))
+            Await.ready(entitlementProvider.check(guestUser, REJECT, r), requestTimeout).eitherValue.get shouldBe Left(RejectRequest(Forbidden))
         }
     }
 
@@ -91,10 +95,10 @@ class EntitlementProviderTests
         val collections = Seq(ACTIONS, RULES, TRIGGERS)
         val resources = collections map { Resource(someUser.namespace.toPath, _, Some("xyz")) }
         resources foreach { r =>
-            Await.result(entitlementProvider.check(someUser, READ, r), requestTimeout) should be(true)
-            Await.result(entitlementProvider.check(someUser, PUT, r), requestTimeout) should be(true)
-            Await.result(entitlementProvider.check(someUser, DELETE, r), requestTimeout) should be(true)
-            Await.result(entitlementProvider.check(someUser, ACTIVATE, r), requestTimeout) should be(true)
+            Await.ready(entitlementProvider.check(someUser, READ, r), requestTimeout).eitherValue.get shouldBe Right({})
+            Await.ready(entitlementProvider.check(someUser, PUT, r), requestTimeout).eitherValue.get shouldBe Right({})
+            Await.ready(entitlementProvider.check(someUser, DELETE, r), requestTimeout).eitherValue.get shouldBe Right({})
+            Await.ready(entitlementProvider.check(someUser, ACTIVATE, r), requestTimeout).eitherValue.get shouldBe Right({})
         }
     }
 
@@ -105,16 +109,10 @@ class EntitlementProviderTests
         val collections = Seq(ACTIONS, RULES, TRIGGERS)
         val resources = collections map { Resource(someUser.namespace.toPath, _, Some("xyz")) }
         resources foreach { r =>
-            a[RejectRequest] should be thrownBy {
-                Await.result(entitlementProvider.check(someUser, READ, r), requestTimeout)
-            }
-            a[RejectRequest] should be thrownBy {
-                Await.result(entitlementProvider.check(someUser, PUT, r), requestTimeout)
-            }
-            a[RejectRequest] should be thrownBy {
-                Await.result(entitlementProvider.check(someUser, DELETE, r), requestTimeout)
-            }
-            Await.result(entitlementProvider.check(someUser, ACTIVATE, r), requestTimeout) should be(true)
+            Await.ready(entitlementProvider.check(someUser, READ, r), requestTimeout).eitherValue.get shouldBe Left(RejectRequest(Forbidden))
+            Await.ready(entitlementProvider.check(someUser, PUT, r), requestTimeout).eitherValue.get shouldBe Left(RejectRequest(Forbidden))
+            Await.ready(entitlementProvider.check(someUser, DELETE, r), requestTimeout).eitherValue.get shouldBe Left(RejectRequest(Forbidden))
+            Await.ready(entitlementProvider.check(someUser, ACTIVATE, r), requestTimeout).eitherValue.get shouldBe Right({})
         }
     }
 
@@ -123,10 +121,10 @@ class EntitlementProviderTests
         val collections = Seq(NAMESPACES, ACTIVATIONS)
         val resources = collections map { Resource(someUser.namespace.toPath, _, Some("xyz")) }
         resources foreach { r =>
-            Await.result(entitlementProvider.check(someUser, READ, r), requestTimeout) should be(true)
-            Await.result(entitlementProvider.check(someUser, PUT, r), requestTimeout) should be(false)
-            Await.result(entitlementProvider.check(someUser, DELETE, r), requestTimeout) should be(false)
-            Await.result(entitlementProvider.check(someUser, ACTIVATE, r), requestTimeout) should be(false)
+            Await.ready(entitlementProvider.check(someUser, READ, r), requestTimeout).eitherValue.get shouldBe Right({})
+            Await.ready(entitlementProvider.check(someUser, PUT, r), requestTimeout).eitherValue.get shouldBe Left(RejectRequest(Forbidden))
+            Await.ready(entitlementProvider.check(someUser, DELETE, r), requestTimeout).eitherValue.get shouldBe Left(RejectRequest(Forbidden))
+            Await.ready(entitlementProvider.check(someUser, ACTIVATE, r), requestTimeout).eitherValue.get shouldBe Left(RejectRequest(Forbidden))
         }
     }
 
@@ -135,10 +133,10 @@ class EntitlementProviderTests
         val collections = Seq(ACTIONS, RULES, TRIGGERS, PACKAGES)
         val resources = collections map { Resource(someUser.namespace.toPath, _, Some("xyz")) }
         resources foreach { r =>
-            Await.result(entitlementProvider.check(guestUser, READ, r), requestTimeout) should be(false)
-            Await.result(entitlementProvider.check(guestUser, PUT, r), requestTimeout) should be(false)
-            Await.result(entitlementProvider.check(guestUser, DELETE, r), requestTimeout) should be(false)
-            Await.result(entitlementProvider.check(guestUser, ACTIVATE, r), requestTimeout) should be(false)
+            Await.ready(entitlementProvider.check(guestUser, READ, r), requestTimeout).eitherValue.get shouldBe Left(RejectRequest(Forbidden))
+            Await.ready(entitlementProvider.check(guestUser, PUT, r), requestTimeout).eitherValue.get shouldBe Left(RejectRequest(Forbidden))
+            Await.ready(entitlementProvider.check(guestUser, DELETE, r), requestTimeout).eitherValue.get shouldBe Left(RejectRequest(Forbidden))
+            Await.ready(entitlementProvider.check(guestUser, ACTIVATE, r), requestTimeout).eitherValue.get shouldBe Left(RejectRequest(Forbidden))
         }
     }
 
@@ -147,15 +145,13 @@ class EntitlementProviderTests
         val collections = Seq(PACKAGES)
         val resources = collections map { Resource(someUser.namespace.toPath, _, Some("xyz")) }
         resources foreach { r =>
-            a[RejectRequest] should be thrownBy {
-                // read should fail because the lookup for the package will fail
-                Await.result(entitlementProvider.check(someUser, READ, r), requestTimeout)
-            }
+            // read should fail because the lookup for the package will fail
+            Await.ready(entitlementProvider.check(someUser, READ, r), requestTimeout).eitherValue.get shouldBe Left(RejectRequest(NotFound))
             // create/put/delete should be allowed
-            Await.result(entitlementProvider.check(someUser, PUT, r), requestTimeout) should be(true)
-            Await.result(entitlementProvider.check(someUser, DELETE, r), requestTimeout) should be(true)
+            Await.ready(entitlementProvider.check(someUser, PUT, r), requestTimeout).eitherValue.get shouldBe Right({})
+            Await.ready(entitlementProvider.check(someUser, DELETE, r), requestTimeout).eitherValue.get shouldBe Right({})
             // activate is not allowed on a package
-            Await.result(entitlementProvider.check(someUser, ACTIVATE, r), requestTimeout) should be(false)
+            Await.ready(entitlementProvider.check(someUser, ACTIVATE, r), requestTimeout).eitherValue.get shouldBe Left(RejectRequest(Forbidden))
         }
     }
 
@@ -163,11 +159,11 @@ class EntitlementProviderTests
         implicit val tid = transid()
         val all = Resource(someUser.namespace.toPath, ACTIONS, None)
         val one = Resource(someUser.namespace.toPath, ACTIONS, Some("xyz"))
-        Await.result(entitlementProvider.check(adminUser, READ, all), requestTimeout) should not be (true)
-        Await.result(entitlementProvider.check(adminUser, READ, one), requestTimeout) should not be (true)
+        Await.ready(entitlementProvider.check(adminUser, READ, all), requestTimeout).eitherValue.get should not be Right({})
+        Await.ready(entitlementProvider.check(adminUser, READ, one), requestTimeout).eitherValue.get should not be Right({})
         Await.result(entitlementProvider.grant(adminUser.subject, READ, all), requestTimeout) // granted
-        Await.result(entitlementProvider.check(adminUser, READ, all), requestTimeout) should be(true)
-        Await.result(entitlementProvider.check(adminUser, READ, one), requestTimeout) should be(true)
+        Await.ready(entitlementProvider.check(adminUser, READ, all), requestTimeout).eitherValue.get shouldBe Right({})
+        Await.ready(entitlementProvider.check(adminUser, READ, one), requestTimeout).eitherValue.get shouldBe Right({})
         Await.result(entitlementProvider.revoke(adminUser.subject, READ, all), requestTimeout) // revoked
     }
 
@@ -175,13 +171,13 @@ class EntitlementProviderTests
         implicit val tid = transid()
         val all = Resource(someUser.namespace.toPath, ACTIONS, None)
         val one = Resource(someUser.namespace.toPath, ACTIONS, Some("xyz"))
-        Await.result(entitlementProvider.check(adminUser, READ, all), requestTimeout) should not be (true)
-        Await.result(entitlementProvider.check(adminUser, READ, one), requestTimeout) should not be (true)
-        Await.result(entitlementProvider.check(adminUser, DELETE, one), requestTimeout) should not be (true)
+        Await.ready(entitlementProvider.check(adminUser, READ, all), requestTimeout).eitherValue.get should not be Right({})
+        Await.ready(entitlementProvider.check(adminUser, READ, one), requestTimeout).eitherValue.get should not be Right({})
+        Await.ready(entitlementProvider.check(adminUser, DELETE, one), requestTimeout).eitherValue.get should not be Right({})
         Await.result(entitlementProvider.grant(adminUser.subject, READ, one), requestTimeout) // granted
-        Await.result(entitlementProvider.check(adminUser, READ, all), requestTimeout) should not be (true)
-        Await.result(entitlementProvider.check(adminUser, READ, one), requestTimeout) should be(true)
-        Await.result(entitlementProvider.check(adminUser, DELETE, one), requestTimeout) should not be (true)
+        Await.ready(entitlementProvider.check(adminUser, READ, all), requestTimeout).eitherValue.get should not be Right({})
+        Await.ready(entitlementProvider.check(adminUser, READ, one), requestTimeout).eitherValue.get shouldBe Right({})
+        Await.ready(entitlementProvider.check(adminUser, DELETE, one), requestTimeout).eitherValue.get should not be Right({})
         Await.result(entitlementProvider.revoke(adminUser.subject, READ, one), requestTimeout) // revoked
     }
 
@@ -496,10 +492,10 @@ class EntitlementProviderTests
             (ACTIVATE, someUser, Right(true)),
             (REJECT, someUser, Right(false)),
 
-            (READ, guestUser, Right(false)),
+            (READ, guestUser, Left(RejectRequest(Forbidden))),
             (PUT, guestUser, Right(false)),
             (DELETE, guestUser, Right(false)),
-            (ACTIVATE, guestUser, Right(false)),
+            (ACTIVATE, guestUser, Left(RejectRequest(Forbidden))),
             (REJECT, guestUser, Right(false)))
 
         val provider = WhiskPackage(someUser.namespace.toPath, MakeName.next(), None, publish = false)
@@ -523,10 +519,10 @@ class EntitlementProviderTests
         implicit val ep = entitlementProvider
 
         val paths = Seq(
-            (READ, someUser, Right(false)),
+            (READ, someUser, Left(RejectRequest(Forbidden))),
             (PUT, someUser, Right(false)),
             (DELETE, someUser, Right(false)),
-            (ACTIVATE, someUser, Right(false)),
+            (ACTIVATE, someUser, Left(RejectRequest(Forbidden))),
             (REJECT, someUser, Right(false)),
 
             (READ, guestUser, Right(true)),
@@ -558,16 +554,16 @@ class EntitlementProviderTests
         implicit val ep = entitlementProvider
 
         val paths = Seq(
-            (READ, someUser, Right(false)),
+            (READ, someUser, Left(RejectRequest(Forbidden))),
             (PUT, someUser, Right(false)),
             (DELETE, someUser, Right(false)),
-            (ACTIVATE, someUser, Right(false)),
+            (ACTIVATE, someUser, Left(RejectRequest(Forbidden))),
             (REJECT, someUser, Right(false)),
 
-            (READ, guestUser, Right(false)),
+            (READ, guestUser, Left(RejectRequest(Forbidden))),
             (PUT, guestUser, Right(true)),
             (DELETE, guestUser, Right(true)),
-            (ACTIVATE, guestUser, Right(false)),
+            (ACTIVATE, guestUser, Left(RejectRequest(Forbidden))),
             (REJECT, guestUser, Right(false)))
 
         val provider = WhiskPackage(someUser.namespace.toPath, MakeName.next(), None, publish = false)

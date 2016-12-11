@@ -130,10 +130,10 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
      * Checks action activation rate throttles for subject.
      *
      * @param user the subject to check rate throttles for
-     * @return a promise that completes with true iff the subject is within their activation quota
+     * @return a promise that completes with success iff the subject is within their activation quota
      */
     protected[core] def checkThrottles(user: Identity)(
-        implicit transid: TransactionId): Future[Boolean] = {
+        implicit transid: TransactionId): Future[Unit] = {
         val subject = user.subject
         info(this, s"checking user '$subject' has not exceeded activation quota")
 
@@ -143,7 +143,7 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
             checkThrottleOverload(!concurrentInvokeThrottler.check(subject), tooManyConcurrentRequests)
         } map {
             Future.failed(_)
-        } getOrElse Future.successful(true)
+        } getOrElse Future.successful({})
     }
 
     /**
@@ -160,10 +160,10 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
      * @param user the subject to check rights for
      * @param right the privilege the subject is requesting (applies to the entire set of resources)
      * @param resource the resource the subject requests access to
-     * @return a promise that completes with true iff the subject is permitted to access the requested resource
+     * @return a promise that completes with success iff the subject is permitted to access the requested resource
      */
     protected[core] def check(user: Identity, right: Privilege, resource: Resource)(
-        implicit transid: TransactionId): Future[Boolean] = check(user, right, Set(resource))
+        implicit transid: TransactionId): Future[Unit] = check(user, right, Set(resource))
 
     /**
      * Checks if a subject has the right to access a set of resources. The entitlement may be implicit,
@@ -174,10 +174,10 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
      * @param user the subject to check rights for
      * @param right the privilege the subject is requesting (applies to the entire set of resources)
      * @param resources the set of resources the subject requests access to
-     * @return a promise that completes with true iff the subject is permitted to access all of the requested resources
+     * @return a promise that completes with success iff the subject is permitted to access all of the requested resources
      */
     protected[core] def check(user: Identity, right: Privilege, resources: Set[Resource])(
-        implicit transid: TransactionId): Future[Boolean] = {
+        implicit transid: TransactionId): Future[Unit] = {
         val subject = user.subject
 
         val entitlementCheck = if (user.rights.contains(right)) {
@@ -205,6 +205,10 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
                 info(this, s"not authorized: $r")
             case Failure(t) =>
                 error(this, s"failed while checking entitlement: ${t.getMessage}")
+        } flatMap {
+            if (_) {
+                Future.successful({})
+            } else Future.failed(RejectRequest(Forbidden))
         }
     }
 
