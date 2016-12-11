@@ -101,7 +101,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
     }
 
     override protected[database] def del(doc: DocInfo)(implicit transid: TransactionId): Future[Boolean] = {
-        require(doc != null && doc.rev() != null, "doc revision required for delete")
+        require(doc != null && doc.rev.asString != null, "doc revision required for delete")
 
         val start = transid.started(this, LoggingMarkers.DATABASE_DELETE, s"[DEL] '$dbName' deleting document: '$doc'")
 

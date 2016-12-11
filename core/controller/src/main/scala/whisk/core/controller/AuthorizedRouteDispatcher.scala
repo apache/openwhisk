@@ -92,7 +92,7 @@ trait BasicAuthorizedRouteProvider extends Directives with Logging {
     /** Extracts namespace for user from the matched path segment. */
     protected def namespace(user: Identity, ns: String) = {
         validate(isNamespace(ns), "namespace contains invalid characters") &
-            extract(_ => EntityPath(if (EntityPath(ns) == EntityPath.DEFAULT) user.namespace() else ns))
+            extract(_ => EntityPath(if (EntityPath(ns) == EntityPath.DEFAULT) user.namespace.asString else ns))
     }
 
     /** Extracts the HTTP method which is used to determine privilege for resource. */

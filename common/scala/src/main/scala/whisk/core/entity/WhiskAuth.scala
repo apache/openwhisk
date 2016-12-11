@@ -56,7 +56,7 @@ case class WhiskAuth(
             |auth: $authkey""".stripMargin.replace("\n", ", ")
     }
 
-    override def docid = DocId(subject())
+    override def docid = DocId(subject.asString)
 
     def toJson = JsObject(
         "subject" -> subject.toJson,
@@ -87,7 +87,7 @@ object WhiskAuth extends DocumentFactory[WhiskAuth] {
     def get(datastore: ArtifactStore[WhiskAuth], subject: Subject, fromCache: Boolean)(
         implicit transid: TransactionId): Future[Identity] = {
         implicit val ec = datastore.executionContext
-        super.get(datastore, DocId(subject()), fromCache = fromCache).map(_.toIdentity)
+        super.get(datastore, DocId(subject.asString), fromCache = fromCache).map(_.toIdentity)
     }
 
     def get(datastore: ArtifactStore[WhiskAuth], uuid: UUID)(

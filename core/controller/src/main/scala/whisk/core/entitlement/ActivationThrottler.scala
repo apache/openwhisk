@@ -58,7 +58,7 @@ class ActivationThrottler(consulServer: String, loadBalancer: LoadBalancer, conc
     /**
      * Checks whether the operation should be allowed to proceed.
      */
-    def check(subject: Subject): Boolean = userActivationCounter.getOrElse(subject(), 0L) < concurrencyLimit
+    def check(subject: Subject): Boolean = userActivationCounter.getOrElse(subject.asString, 0L) < concurrencyLimit
 
     /**
      * Checks whether the system is in a generally overloaded state.

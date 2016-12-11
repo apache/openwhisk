@@ -59,14 +59,14 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
     override val apiversion = "v1"
 
     val subject = Subject()
-    override val systemId = subject()
+    override val systemId = subject.asString
     override lazy val systemKey = Future.successful(WhiskAuth(subject, AuthKey()).toIdentity)
 
     /** Meta API tests */
     behavior of "Meta API"
 
     val creds = WhiskAuth(Subject(), AuthKey()).toIdentity
-    val namespace = EntityPath(creds.subject())
+    val namespace = EntityPath(creds.subject.asString)
     setVerbosity(InfoLevel)
 
     val packages = Seq(
@@ -186,7 +186,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
     }
 
     it should "resolve a meta package into the systemId namespace" in {
-        resolvePackageName(EntityName("foo")).fullPath() shouldBe s"$systemId/foo"
+        resolvePackageName(EntityName("foo")).fullPath.asString shouldBe s"$systemId/foo"
     }
 
     it should "reject unsupported http verbs" in {

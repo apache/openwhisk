@@ -52,7 +52,7 @@ class PackageCollection(entityStore: EntityStore) extends Collection(Collection.
         implicit ep: EntitlementProvider, ec: ExecutionContext, transid: TransactionId): Future[Boolean] = {
         resource.entity map {
             pkgname =>
-                val isOwner = namespaces.contains(resource.namespace.root())
+                val isOwner = namespaces.contains(resource.namespace.root.asString)
                 right match {
                     case Privilege.READ =>
                         // must determine if this is a public or owned package
@@ -89,7 +89,7 @@ class PackageCollection(entityStore: EntityStore) extends Collection(Collection.
             case wp =>
                 if (isOwner) {
                     val binding = wp.binding.get
-                    val pkgOwner = namespaces.contains(binding.namespace())
+                    val pkgOwner = namespaces.contains(binding.namespace.asString)
                     val pkgDocid = binding.docid
                     info(this, s"checking subject has privilege '$right' for bound package '$pkgDocid'")
                     checkPackageReadPermission(namespaces, pkgOwner, pkgDocid)

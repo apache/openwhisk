@@ -49,7 +49,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
     behavior of "Activations API"
 
     val creds = WhiskAuth(Subject(), AuthKey()).toIdentity
-    val namespace = EntityPath(creds.subject())
+    val namespace = EntityPath(creds.subject.asString)
     val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
     def aname = MakeName.next("activations_tests")
 
@@ -59,7 +59,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         // create two sets of activation records, and check that only one set is served back
         val creds1 = WhiskAuth(Subject(), AuthKey())
         (1 to 2).map { i =>
-            WhiskActivation(EntityPath(creds1.subject()), aname, creds1.subject, ActivationId(), start = Instant.now, end = Instant.now)
+            WhiskActivation(EntityPath(creds1.subject.asString), aname, creds1.subject, ActivationId(), start = Instant.now, end = Instant.now)
         } foreach { put(entityStore, _) }
 
         val actionName = aname
@@ -75,7 +75,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
                 val response = responseAs[List[JsObject]]
                 activations.length should be(response.length)
                 activations forall { a => response contains a.summaryAsJson } should be(true)
-                rawResponse forall { a => a.getFields("for") match { case Seq(JsString(n)) => n == actionName() case _ => false } }
+                rawResponse forall { a => a.getFields("for") match { case Seq(JsString(n)) => n == actionName.asString case _ => false } }
             }
         }
 
@@ -87,7 +87,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
                 val response = responseAs[List[JsObject]]
                 activations.length should be(response.length)
                 activations forall { a => response contains a.summaryAsJson } should be(true)
-                rawResponse forall { a => a.getFields("for") match { case Seq(JsString(n)) => n == actionName() case _ => false } }
+                rawResponse forall { a => a.getFields("for") match { case Seq(JsString(n)) => n == actionName.asString case _ => false } }
             }
         }
 
@@ -104,7 +104,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         // create two sets of activation records, and check that only one set is served back
         val creds1 = WhiskAuth(Subject(), AuthKey())
         (1 to 2).map { i =>
-            WhiskActivation(EntityPath(creds1.subject()), aname, creds1.subject, ActivationId(), start = Instant.now, end = Instant.now)
+            WhiskActivation(EntityPath(creds1.subject.asString), aname, creds1.subject, ActivationId(), start = Instant.now, end = Instant.now)
         } foreach { put(entityStore, _) }
 
         val actionName = aname
@@ -130,7 +130,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         // create two sets of activation records, and check that only one set is served back
         val creds1 = WhiskAuth(Subject(), AuthKey())
         (1 to 2).map { i =>
-            WhiskActivation(EntityPath(creds1.subject()), aname, creds1.subject, ActivationId(), start = Instant.now, end = Instant.now)
+            WhiskActivation(EntityPath(creds1.subject.asString), aname, creds1.subject, ActivationId(), start = Instant.now, end = Instant.now)
         } foreach { put(entityStore, _) }
 
         val actionName = aname
@@ -193,7 +193,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         // create two sets of activation records, and check that only one set is served back
         val creds1 = WhiskAuth(Subject(), AuthKey())
         (1 to 2).map { i =>
-            WhiskActivation(EntityPath(creds1.subject()), aname, creds1.subject, ActivationId(), start = Instant.now, end = Instant.now)
+            WhiskActivation(EntityPath(creds1.subject.asString), aname, creds1.subject, ActivationId(), start = Instant.now, end = Instant.now)
         } foreach { put(entityStore, _) }
 
         val activations = (1 to 2).map { i =>
@@ -344,7 +344,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
             status should be(InternalServerError)
             val error = responseAs[ErrorResponse].error
             error should include("missing required member")
-            Seq(entity.name(), "annotations", "parameters", "exec", "trigger", "action", "rules", "binding", "response").map {
+            Seq(entity.name.asString, "annotations", "parameters", "exec", "trigger", "action", "rules", "binding", "response").map {
                 error should not include (_)
             }
         }

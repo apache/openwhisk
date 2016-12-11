@@ -97,7 +97,7 @@ protected[core] class EntityPath private (private val path: Seq[String]) extends
 
     def toDocId = DocId(namespace)
     def toJson = JsString(namespace)
-    def apply() = namespace
+    def asString = namespace // to make explicit that this is a string conversion
     override def toString = namespace
 }
 
@@ -166,7 +166,7 @@ protected[core] object EntityPath {
  * before creating a new instance.
  */
 protected[core] class EntityName private (val name: String) extends AnyVal {
-    def apply() = name
+    def asString = name // to make explicit that this is a string conversion
     def toJson = JsString(name)
     def toPath: EntityPath = EntityPath(name)
     def addPath(e: EntityName): EntityPath = toPath.addPath(e)

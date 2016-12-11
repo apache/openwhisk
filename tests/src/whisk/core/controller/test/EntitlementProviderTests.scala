@@ -101,7 +101,7 @@ class EntitlementProviderTests
     it should "not authorize a user to CRUD an entity in a collection if authkey has no CRUD rights" in {
         implicit val tid = transid()
         val subject = Subject()
-        val someUser = Identity(subject, EntityName(subject()), AuthKey(), Set(Privilege.ACTIVATE))
+        val someUser = Identity(subject, EntityName(subject.asString), AuthKey(), Set(Privilege.ACTIVATE))
         val collections = Seq(ACTIONS, RULES, TRIGGERS)
         val resources = collections map { Resource(someUser.namespace.toPath, _, Some("xyz")) }
         resources foreach { r =>
@@ -208,7 +208,7 @@ class EntitlementProviderTests
             case (priv, who, expected) =>
                 val check = new PackageCollection(entityStore).implicitRights(
                     who,
-                    Set(who.namespace()),
+                    Set(who.namespace.asString),
                     priv,
                     // any user can list any namespace packages
                     // (because this performs a db view lookup which is later filtered)
@@ -238,7 +238,7 @@ class EntitlementProviderTests
             case (priv, who, expected) =>
                 val check = new PackageCollection(entityStore).implicitRights(
                     who,
-                    Set(who.namespace()),
+                    Set(who.namespace.asString),
                     priv,
                     Resource(someUser.namespace.toPath, PACKAGES, Some("xyz")))
                 Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
@@ -269,9 +269,9 @@ class EntitlementProviderTests
             case (priv, who, expected) =>
                 val check = new PackageCollection(entityStore).implicitRights(
                     who,
-                    Set(who.namespace()),
+                    Set(who.namespace.asString),
                     priv,
-                    Resource(someUser.namespace.toPath, PACKAGES, Some(action.name())))
+                    Resource(someUser.namespace.toPath, PACKAGES, Some(action.name.asString)))
                 Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
         }
     }
@@ -300,9 +300,9 @@ class EntitlementProviderTests
             case (priv, who, expected) =>
                 val check = new PackageCollection(entityStore).implicitRights(
                     who,
-                    Set(who.namespace()),
+                    Set(who.namespace.asString),
                     priv,
-                    Resource(someUser.namespace.toPath, PACKAGES, Some(provider.name())))
+                    Resource(someUser.namespace.toPath, PACKAGES, Some(provider.name.asString)))
                 Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
         }
     }
@@ -334,9 +334,9 @@ class EntitlementProviderTests
             case (priv, who, expected) =>
                 val check = new PackageCollection(entityStore).implicitRights(
                     who,
-                    Set(who.namespace()),
+                    Set(who.namespace.asString),
                     priv,
-                    Resource(guestUser.namespace.toPath, PACKAGES, Some(binding.name())))
+                    Resource(guestUser.namespace.toPath, PACKAGES, Some(binding.name.asString)))
                 Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
         }
 
@@ -346,9 +346,9 @@ class EntitlementProviderTests
             case (priv, who, expected) =>
                 val check = new PackageCollection(entityStore).implicitRights(
                     who,
-                    Set(who.namespace()),
+                    Set(who.namespace.asString),
                     priv,
-                    Resource(guestUser.namespace.toPath, PACKAGES, Some(binding.name())))
+                    Resource(guestUser.namespace.toPath, PACKAGES, Some(binding.name.asString)))
                 Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
         }
     }
@@ -380,9 +380,9 @@ class EntitlementProviderTests
             case (priv, who, expected) =>
                 val check = new PackageCollection(entityStore).implicitRights(
                     who,
-                    Set(who.namespace()),
+                    Set(who.namespace.asString),
                     priv,
-                    Resource(guestUser.namespace.toPath, PACKAGES, Some(binding.name())))
+                    Resource(guestUser.namespace.toPath, PACKAGES, Some(binding.name.asString)))
                 Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
         }
     }
@@ -413,9 +413,9 @@ class EntitlementProviderTests
             case (priv, who, expected) =>
                 val check = new PackageCollection(entityStore).implicitRights(
                     who,
-                    Set(who.namespace()),
+                    Set(who.namespace.asString),
                     priv,
-                    Resource(guestUser.namespace.toPath, PACKAGES, Some(binding.name())))
+                    Resource(guestUser.namespace.toPath, PACKAGES, Some(binding.name.asString)))
                 Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
         }
     }
@@ -443,7 +443,7 @@ class EntitlementProviderTests
             case (priv, who, expected) =>
                 val check = new ActionCollection(entityStore).implicitRights(
                     who,
-                    Set(who.namespace()),
+                    Set(who.namespace.asString),
                     priv,
                     // any user can list any namespace packages
                     // (because this performs a db view lookup which is later filtered)
@@ -470,7 +470,7 @@ class EntitlementProviderTests
             (REJECT, guestUser, Right(false)))
 
         val provider = WhiskPackage(someUser.namespace.toPath, MakeName.next(), None, publish = true)
-        val action = WhiskAction(provider.path, MakeName.next(), Exec.js(""))
+        val action = WhiskAction(provider.fullPath, MakeName.next(), Exec.js(""))
         put(entityStore, provider)
         put(entityStore, action)
 
@@ -478,9 +478,9 @@ class EntitlementProviderTests
             case (priv, who, expected) =>
                 val check = new ActionCollection(entityStore).implicitRights(
                     who,
-                    Set(who.namespace()),
+                    Set(who.namespace.asString),
                     priv,
-                    Resource(action.namespace, ACTIONS, Some(action.name())))
+                    Resource(action.namespace, ACTIONS, Some(action.name.asString)))
                 Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
         }
     }
@@ -503,7 +503,7 @@ class EntitlementProviderTests
             (REJECT, guestUser, Right(false)))
 
         val provider = WhiskPackage(someUser.namespace.toPath, MakeName.next(), None, publish = false)
-        val action = WhiskAction(provider.path, MakeName.next(), Exec.js(""))
+        val action = WhiskAction(provider.fullPath, MakeName.next(), Exec.js(""))
         put(entityStore, provider)
         put(entityStore, action)
 
@@ -511,9 +511,9 @@ class EntitlementProviderTests
             case (priv, who, expected) =>
                 val check = new ActionCollection(entityStore).implicitRights(
                     who,
-                    Set(who.namespace()),
+                    Set(who.namespace.asString),
                     priv,
-                    Resource(action.namespace, ACTIONS, Some(action.name())))
+                    Resource(action.namespace, ACTIONS, Some(action.name.asString)))
                 Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
         }
     }
@@ -537,7 +537,7 @@ class EntitlementProviderTests
 
         val provider = WhiskPackage(someUser.namespace.toPath, MakeName.next(), None, publish = true)
         val binding = WhiskPackage(guestUser.namespace.toPath, MakeName.next(), provider.bind)
-        val action = WhiskAction(binding.path, MakeName.next(), Exec.js(""))
+        val action = WhiskAction(binding.fullPath, MakeName.next(), Exec.js(""))
         put(entityStore, provider)
         put(entityStore, binding)
         put(entityStore, action)
@@ -546,9 +546,9 @@ class EntitlementProviderTests
             case (priv, who, expected) =>
                 val check = new ActionCollection(entityStore).implicitRights(
                     who,
-                    Set(who.namespace()),
+                    Set(who.namespace.asString),
                     priv,
-                    Resource(action.namespace, ACTIONS, Some(action.name())))
+                    Resource(action.namespace, ACTIONS, Some(action.name.asString)))
                 Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
         }
     }
@@ -572,7 +572,7 @@ class EntitlementProviderTests
 
         val provider = WhiskPackage(someUser.namespace.toPath, MakeName.next(), None, publish = false)
         val binding = WhiskPackage(guestUser.namespace.toPath, MakeName.next(), provider.bind)
-        val action = WhiskAction(binding.path, MakeName.next(), Exec.js(""))
+        val action = WhiskAction(binding.fullPath, MakeName.next(), Exec.js(""))
         put(entityStore, provider)
         put(entityStore, binding)
         put(entityStore, action)
@@ -581,9 +581,9 @@ class EntitlementProviderTests
             case (priv, who, expected) =>
                 val check = new ActionCollection(entityStore).implicitRights(
                     who,
-                    Set(who.namespace()),
+                    Set(who.namespace.asString),
                     priv,
-                    Resource(action.namespace, ACTIONS, Some(action.name())))
+                    Resource(action.namespace, ACTIONS, Some(action.name.asString)))
                 Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
         }
     }
@@ -612,9 +612,9 @@ class EntitlementProviderTests
             case (priv, who, expected) =>
                 val check = new ActionCollection(entityStore).implicitRights(
                     who,
-                    Set(who.namespace()),
+                    Set(who.namespace.asString),
                     priv,
-                    Resource(action.namespace, ACTIONS, Some(action.name())))
+                    Resource(action.namespace, ACTIONS, Some(action.name.asString)))
                 Await.ready(check, requestTimeout).eitherValue.get shouldBe expected
         }
     }

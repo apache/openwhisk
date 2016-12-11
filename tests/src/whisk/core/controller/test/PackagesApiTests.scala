@@ -48,7 +48,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     behavior of "Packages API"
 
     val creds = WhiskAuth(Subject(), AuthKey()).toIdentity
-    val namespace = EntityPath(creds.subject())
+    val namespace = EntityPath(creds.subject.asString)
     val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
     def aname = MakeName.next("packages_tests")
     val entityTooBigRejectionMessage = "request entity too large"
@@ -246,7 +246,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     it should "not get package reference for a private package in other namespace" in {
         implicit val tid = transid()
         val privateCreds = WhiskAuth(Subject(), AuthKey()).toIdentity
-        val privateNamespace = EntityPath(privateCreds.subject())
+        val privateNamespace = EntityPath(privateCreds.subject.asString)
 
         val provider = WhiskPackage(privateNamespace, aname)
         val reference = WhiskPackage(namespace, aname, provider.bind)
@@ -306,7 +306,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     it should "not get package reference with its actions and feeds from private package" in {
         implicit val tid = transid()
         val privateCreds = WhiskAuth(Subject(), AuthKey()).toIdentity
-        val privateNamespace = EntityPath(privateCreds.subject())
+        val privateNamespace = EntityPath(privateCreds.subject.asString)
         val provider = WhiskPackage(privateNamespace, aname)
         val reference = WhiskPackage(namespace, aname, provider.bind)
         val action = WhiskAction(provider.namespace.addPath(provider.name), aname, Exec.js("??"))
@@ -368,7 +368,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     it should "not create package reference from private package in another namespace" in {
         implicit val tid = transid()
         val privateCreds = WhiskAuth(Subject(), AuthKey()).toIdentity
-        val privateNamespace = EntityPath(privateCreds.subject())
+        val privateNamespace = EntityPath(privateCreds.subject.asString)
 
         val provider = WhiskPackage(privateNamespace, aname)
         val reference = WhiskPackage(namespace, aname, provider.bind)
@@ -411,7 +411,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     it should "reject create package reference when referencing non-existent package in another namespace" in {
         implicit val tid = transid()
         val privateCreds = WhiskAuth(Subject(), AuthKey()).toIdentity
-        val privateNamespace = EntityPath(privateCreds.subject())
+        val privateNamespace = EntityPath(privateCreds.subject.asString)
 
         val binding = Some(Binding(privateNamespace.root, aname))
         val content = WhiskPackagePut(binding)
@@ -549,7 +549,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     it should "reject update package reference when new binding refers to non-existent package in another namespace" in {
         implicit val tid = transid()
         val privateCreds = WhiskAuth(Subject(), AuthKey()).toIdentity
-        val privateNamespace = EntityPath(privateCreds.subject())
+        val privateNamespace = EntityPath(privateCreds.subject.asString)
 
         val provider = WhiskPackage(privateNamespace, aname)
         val reference = WhiskPackage(namespace, aname, provider.bind)
@@ -563,7 +563,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     it should "reject update package reference when new binding refers to private package in another namespace" in {
         implicit val tid = transid()
         val privateCreds = WhiskAuth(Subject(), AuthKey()).toIdentity
-        val privateNamespace = EntityPath(privateCreds.subject())
+        val privateNamespace = EntityPath(privateCreds.subject.asString)
 
         val provider = WhiskPackage(privateNamespace, aname)
         val reference = WhiskPackage(namespace, aname, provider.bind)

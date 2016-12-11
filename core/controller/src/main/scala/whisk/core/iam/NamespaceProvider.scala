@@ -41,7 +41,7 @@ object NamespaceProvider {
     /**
      * The default list of namespaces for a subject.
      */
-    protected[core] def defaultNamespaces(subject: Subject) = Set(subject())
+    protected[core] def defaultNamespaces(subject: Subject): Set[String] = Set(subject.asString)
 }
 
 protected[core] class NamespaceProvider(config: WhiskConfig, timeout: FiniteDuration = 5 seconds, forceLocal: Boolean = false)(
@@ -65,7 +65,7 @@ protected[core] class NamespaceProvider(config: WhiskConfig, timeout: FiniteDura
             info(this, s"getting namespaces from ${apiLocation}")
 
             val url = Uri("http://" + apiLocation + "/namespaces").withQuery(
-                "subject" -> subject())
+                "subject" -> subject.asString)
 
             val pipeline: HttpRequest => Future[Set[String]] = (
                 addHeader("X-Transaction-Id", transid.toString())

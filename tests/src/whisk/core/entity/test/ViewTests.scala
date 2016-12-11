@@ -75,10 +75,10 @@ class ViewTests extends FlatSpec
     }
 
     val creds1 = WhiskAuth(Subject("s12345"), AuthKey())
-    val namespace1 = EntityPath(creds1.subject())
+    val namespace1 = EntityPath(creds1.subject.asString)
 
     val creds2 = WhiskAuth(Subject("t12345"), AuthKey())
-    val namespace2 = EntityPath(creds2.subject())
+    val namespace2 = EntityPath(creds2.subject.asString)
 
     val config = new WhiskConfig(WhiskEntityStore.requiredProperties)
     val datastore = WhiskEntityStore.datastore(config)

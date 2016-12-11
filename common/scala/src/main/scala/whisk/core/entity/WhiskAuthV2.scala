@@ -52,7 +52,7 @@ case class WhiskAuthV2(
     namespaces: Set[WhiskNamespace])
     extends WhiskDocument {
 
-    override def docid = DocId(subject())
+    override def docid = DocId(subject.asString)
 
     def toJson = JsObject(
         "subject" -> subject.toJson,

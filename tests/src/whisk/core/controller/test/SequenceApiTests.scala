@@ -47,7 +47,7 @@ class SequenceApiTests
 
     val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
     val creds = WhiskAuth(Subject(), AuthKey()).toIdentity
-    val namespace = EntityPath(creds.subject())
+    val namespace = EntityPath(creds.subject.asString)
     val defaultNamespace = EntityPath.DEFAULT
     def aname() = MakeName.next("sequence_tests")
     val allowedActionDuration = 120 seconds
@@ -63,7 +63,7 @@ class SequenceApiTests
         put(entityStore, component)
         // create exec sequence that will violate max length
         val limit = whiskConfig.actionSequenceLimit.toInt + 1 // one more than allowed
-        val sequence = for (i <- 1 to limit) yield stringToFullyQualifiedName(component.docid())
+        val sequence = for (i <- 1 to limit) yield stringToFullyQualifiedName(component.docid.asString)
         val content = WhiskActionPut(Some(Exec.sequence(sequence.toVector)))
 
         // create an action sequence
@@ -109,7 +109,7 @@ class SequenceApiTests
         put(entityStore, component)
 
         val seqName = s"${aname()}_cyclic"
-        val sSeq = makeSimpleSequence(seqName, namespace, Vector(component.name(), seqName, component.name()), false)
+        val sSeq = makeSimpleSequence(seqName, namespace, Vector(component.name.asString, seqName, component.name.asString), false)
 
         // create an action sequence
         val content = WhiskActionPut(Some(sSeq.exec))
@@ -126,7 +126,7 @@ class SequenceApiTests
         val component = WhiskAction(namespace, aname(), Exec.js("??"))
         put(entityStore, component)
         // create valid exec sequence initially
-        val sequence = for (i <- 1 to 2) yield stringToFullyQualifiedName(component.docid())
+        val sequence = for (i <- 1 to 2) yield stringToFullyQualifiedName(component.docid.asString)
         val content = WhiskActionPut(Some(Exec.sequence(sequence.toVector)))
 
         // create a valid action sequence first
@@ -154,7 +154,7 @@ class SequenceApiTests
         put(entityStore, component)
         // create valid exec sequence
         val limit = whiskConfig.actionSequenceLimit.toInt
-        val sequence = for (i <- 1 to limit) yield stringToFullyQualifiedName(component.docid())
+        val sequence = for (i <- 1 to limit) yield stringToFullyQualifiedName(component.docid.asString)
         val content = WhiskActionPut(Some(Exec.sequence(sequence.toVector)))
 
         // create an action sequence
@@ -201,7 +201,7 @@ class SequenceApiTests
         // put the action in the entity store so it's found
         val component = WhiskAction(namespace, aname(), Exec.js("??"))
         put(entityStore, component)
-        val sequence = for (i <- 1 to 2) yield stringToFullyQualifiedName(component.docid())
+        val sequence = for (i <- 1 to 2) yield stringToFullyQualifiedName(component.docid.asString)
 
         // create package
         val pkg = s"${aname()}_pkg"

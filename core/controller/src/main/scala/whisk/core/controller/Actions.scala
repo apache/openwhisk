@@ -516,7 +516,7 @@ trait WhiskActionsApi
             // operation without further entitlement checks
             val params = { ref map { _ inherit wp.parameters } getOrElse wp } parameters
             val ns = wp.namespace.addPath(wp.name) // the package namespace
-            val resource = Resource(ns, collection, Some { action() }, Some { params })
+            val resource = Resource(ns, collection, Some { action.asString }, Some { params })
             val right = collection.determineRight(method, resource.entity)
             info(this, s"merged package parameters and rebased action to '$ns")
             dispatchOp(user, right, resource)

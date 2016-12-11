@@ -75,7 +75,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
     it should "accept well formed doc info" in {
         Seq("a", " a", "a ").foreach { i =>
             val d = DocInfo(i)
-            assert(d.id() == i.trim)
+            assert(d.id.asString == i.trim)
         }
     }
 

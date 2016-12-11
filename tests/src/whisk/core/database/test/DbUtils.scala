@@ -197,7 +197,7 @@ trait DbUtils extends TransactionCounter {
     def putGetCheck[A, Au >: A](db: ArtifactStore[Au], entity: A, factory: DocumentFactory[A], gc: Boolean = true)(
         implicit transid: TransactionId, timeout: Duration = 10 seconds, ma: Manifest[A]): (DocInfo, A) = {
         val doc = put(db, entity, gc)
-        assert(doc != null && doc.id() != null && doc.rev() != null)
+        assert(doc != null && doc.id.asString != null && doc.rev.asString != null)
         val future = factory.get(db, doc.id, doc.rev)
         val dbEntity = Await.result(future, timeout)
         assert(dbEntity != null)
