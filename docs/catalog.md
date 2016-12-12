@@ -631,7 +631,7 @@ The `/whisk.system/watson-speechToText/speechToText` action converts audio speec
 
 This package allows you to create triggers that react when messages are posted to a [Message Hub](https://developer.ibm.com/messaging/message-hub/) service instance on Bluemix.
 
-### Creating a Trigger that Listens to an Message Hub Instance
+### Creating a Trigger that listens to a Message Hub Instance
 In order to create a trigger that reacts when messages are posted to a Message Hub instance, you need to use the feed named `messaging/messageHubFeed`. This feed supports the following parameters:
 
 |Name|Type|Description|
@@ -673,7 +673,7 @@ While this list of parameters may seem daunting, they can be automatically set f
 3. Now all you need is to create a Trigger to be fire when new messages are posted to your Message Hub.
 
   ```
-  $ wsk trigger create MyMessageHubTrigger -f /whisk.system/messaging/messageHubFeed -p topic mytopic
+  $ wsk trigger create MyMessageHubTrigger -f /myBluemixOrg_myBluemixSpace/Bluemix_Message_Hub_Credentials-1/messageHubFeed -p topic mytopic
   ```
 
 ### Setting up a Message Hub package outside Bluemix
@@ -696,7 +696,7 @@ The payload of that trigger will contain a `messages` field which is an array of
 - key
 - value
 
-In Kafka terms, these fields should be self-evident. However, the `value` requires special consideration. If the `isJSONData` parameter was set `false` (or not set at all) when the trigger was created, the `value` field will be the raw value of the posted message. However, if `isJSONData` was set to `true` when the trigger was created, the system will make attempt to parse this value as a JSON object, on a best-effort basis. If parsing is successful, then the `value` in the trigger payload will be the resulting JSON object.
+In Kafka terms, these fields should be self-evident. However, the `value` requires special consideration. If the `isJSONData` parameter was set `false` (or not set at all) when the trigger was created, the `value` field will be the raw value of the posted message. However, if `isJSONData` was set to `true` when the trigger was created, the system will attempt to parse this value as a JSON object, on a best-effort basis. If parsing is successful, then the `value` in the trigger payload will be the resulting JSON object.
 
 For example, if a message of `{"title": "Some string", "amount": 5, "isAwesome": true}` is posted with `isJSONData` set to `true`, the trigger payload might look something like this:
 
