@@ -45,7 +45,7 @@ import whisk.core.entity.size.SizeOptionString
  *         main  : a fully-qualified class name when kind is "java" }
  */
 sealed abstract class Exec(val kind: String) extends ByteSizeable {
-    def image: String
+    def image: Option[String]
     /** Indicates if the container generates log markers to stdout/stderr once action activation completes. */
     val sentinelledLogs = true
     /** Indicates if the container images must be pulled from a registry. */
@@ -66,7 +66,7 @@ sealed abstract class CodeExec[T <% SizeConversion](kind: String) extends Exec(k
 
     // All codeexec containers have this in common that the image name is
     // fully determined by the kind.
-    val image = Exec.imagename(kind)
+    val image = Some(Exec.imagename(kind))
 
     // Whether the code is stored in a text-readable or binary format.
     def binary: Boolean = false
@@ -111,19 +111,19 @@ protected[core] case class PythonExec(code: String, main: Option[String]) extend
  * @param image the image name
  * @param code an optional script or zip archive (as base64 encoded) string
  */
-protected[core] case class BlackBoxExec(override val image: String, code: Option[String]) extends CodeExec[Option[String]](Exec.BLACKBOX) {
+protected[core] case class BlackBoxExec(override val image: Some[String], code: Option[String]) extends CodeExec[Option[String]](Exec.BLACKBOX) {
     override def size = (image sizeInBytes) + code.map(_.sizeInBytes).getOrElse(0 B)
     override val entryPoint: Option[String] = None
     // the binary bit may be read from the database but currently it is always computed
     // when the "code" is moved to an attachment this may get changed to avoid recomputing
     // the binary property
     override lazy val binary = code map { Exec.isBinaryCode(_) } getOrElse false
-    override val sentinelledLogs = image == Exec.BLACKBOX_SKELETON
-    override val pull = image != Exec.BLACKBOX_SKELETON
+    override val sentinelledLogs = image.get == Exec.BLACKBOX_SKELETON
+    override val pull = image.get != Exec.BLACKBOX_SKELETON
 }
 
 protected[core] case class SequenceExec(components: Vector[FullyQualifiedEntityName]) extends Exec(Exec.SEQUENCE) {
-    override val image = ""  // image does not have a meaning for sequences anymore
+    override val image = None  // image does not have a meaning for sequences anymore
     override def size = components.map(c => c.size).reduce(_ + _)
 }
 
@@ -155,8 +155,8 @@ protected[core] object Exec
     protected[core] def swift3(code: String, main: Option[String] = None): Exec = Swift3Exec(trim(code), main.map(_.trim))
     protected[core] def java(jar: String, main: String): Exec = JavaExec(Inline(trim(jar)), trim(main))
     protected[core] def sequence(components: Vector[FullyQualifiedEntityName]): Exec = SequenceExec(components)
-    protected[core] def bb(image: String): Exec = BlackBoxExec(trim(image), None)
-    protected[core] def bb(image: String, code: String): Exec = BlackBoxExec(trim(image), Some(trim(code)).filter(_.nonEmpty))
+    protected[core] def bb(image: String): Exec = BlackBoxExec(Some(trim(image)), None)
+    protected[core] def bb(image: String, code: String): Exec = BlackBoxExec(Some(trim(image)), Some(trim(code)).filter(_.nonEmpty))
 
     private def attFmt[T: JsonFormat] = Attachments.serdes[T]
 
@@ -181,7 +181,7 @@ protected[core] object Exec
                 JsObject("kind" -> JsString(Exec.SEQUENCE), "components" -> comp.map(_.qualifiedNameWithLeadingSlash).toJson)
 
             case b: BlackBoxExec =>
-                val base = Map("kind" -> JsString(Exec.BLACKBOX), "image" -> JsString(b.image), "binary" -> JsBoolean(b.binary))
+                val base = Map("kind" -> JsString(Exec.BLACKBOX), "image" -> JsString(b.image.get), "binary" -> JsBoolean(b.binary))
                 b.code.filter(_.trim.nonEmpty).map(c => JsObject(base + ("code" -> JsString(c)))).getOrElse(JsObject(base))
         }
 
@@ -255,7 +255,7 @@ protected[core] object Exec
                         case Seq(_)           => throw new DeserializationException(s"if defined, 'code' must a string defined in 'exec' for '${Exec.BLACKBOX}' actions")
                         case _                => None
                     }
-                    BlackBoxExec(image, code)
+                    BlackBoxExec(Some(image), code)
 
                 case _ => throw new DeserializationException(s"kind '$kind' not in $runtimes")
             }

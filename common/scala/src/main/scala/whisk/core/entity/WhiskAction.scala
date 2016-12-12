@@ -193,14 +193,16 @@ object WhiskAction
     override implicit val serdes = jsonFormat8(WhiskAction.apply)
 
     def containerImageName(exec: Exec, registry: String, prefix: String, tag: String): String = {
+        require(exec.image.isDefined, "image needs to be defined")
+        val execImage = exec.image.get
         exec match {
             case b @ BlackBoxExec(image, _) =>
                 if (b.pull) {
-                    image
+                    image.get
                 } else {
-                    localImageName(registry, prefix, image.split("/")(1), tag)
+                    localImageName(registry, prefix, image.get.split("/")(1), tag)
                 }
-            case _ => localImageName(registry, prefix, exec.image, tag)
+            case _ => localImageName(registry, prefix, execImage, tag)
         }
     }
 
