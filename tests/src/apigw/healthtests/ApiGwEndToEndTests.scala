@@ -90,7 +90,7 @@ class ApiGwEndToEndTests extends FlatSpec with Matchers with RestUtil with TestH
             println("Deleting action: "+actionName)
             val deleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
             println("Deleting API: "+testbasepath)
-            val deleteApiResult = wsk.api.delete(basepathOrApiName = testbasepath, relpath = Some(testrelpath), operation = Some(testurlop), expectedExitCode = DONTCARE_EXIT)
+            val deleteApiResult = wsk.api.delete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
         }
     }
 }
