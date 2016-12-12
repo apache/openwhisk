@@ -273,6 +273,7 @@ func (c *Client) Do(req *http.Request, v interface{}) (*http.Response, error) {
     //         these will report the same original error giving the appearance that the command failed.
     if (IsHttpRespSuccess(resp) &&                                      // HTTP Status == 200
         data!=nil &&                                                    // HTTP response body exists
+        v != nil &&
         !strings.Contains(reflect.TypeOf(v).String(), "Activation") &&  // Request is not `wsk activation get`
         !IsResponseResultSuccess(data)) {                               // HTTP response body has Whisk error result
         Debug(DbgInfo, "Got successful HTTP; but activation response reports an error\n")

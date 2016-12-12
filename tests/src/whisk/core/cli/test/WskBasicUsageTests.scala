@@ -515,6 +515,12 @@ class WskBasicUsageTests
 
     behavior of "Wsk packages"
 
+    it should "create, and delete a package" in {
+        val name = "createDeletePackage"
+        wsk.pkg.create(name).stdout should include(s"ok: created package $name")
+        wsk.pkg.delete(name).stdout should include(s"ok: deleted package $name")
+    }
+
     it should "create, and get a package to verify parameter and annotation parsing" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "packageAnnotAndParamParsing"
