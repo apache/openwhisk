@@ -76,7 +76,7 @@ class ApiGwTests
             rr.stdout should include(testbasepath + testrelpath)
         }
         finally {
-            val deleteresult = wsk.api.delete(basepathOrApiName = testbasepath, relpath = Some(testrelpath), operation = Some(testurlop), expectedExitCode = DONTCARE_EXIT)
+            val deleteresult = wsk.api.delete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
         }
     }
 }

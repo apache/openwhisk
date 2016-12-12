@@ -104,16 +104,16 @@ var apiCreateCmd = &cobra.Command{
                 wski18n.T("{{.ok}} created API {{.path}} {{.verb}} for action {{.name}}\n{{.fullpath}}\n",
                     map[string]interface{}{
                         "ok": color.GreenString("ok:"),
-                        "path": api.GatewayBasePath+api.GatewayRelPath,
+                        "path": strings.TrimSuffix(api.GatewayBasePath, "/")+api.GatewayRelPath,
                         "verb": api.GatewayMethod,
-                        "name": boldString(api.Action.Namespace+"/"+api.Action.Name),
-                        "fullpath": baseUrl+api.GatewayRelPath,
+                        "name": boldString("/"+api.Action.Namespace+"/"+api.Action.Name),
+                        "fullpath": strings.TrimSuffix(baseUrl, "/")+api.GatewayRelPath,
                     }))
         } else {
             whisk.Debug(whisk.DbgInfo, "Processing swagger based create API response\n")
             baseUrl := retApi.BaseUrl
             for path, _ := range retApi.Swagger.Paths {
-                managedUrl := baseUrl+path
+                managedUrl := strings.TrimSuffix(baseUrl, "/")+path
                 whisk.Debug(whisk.DbgInfo, "Managed path: %s\n",managedUrl)
                 for op, _  := range retApi.Swagger.Paths[path] {
                     whisk.Debug(whisk.DbgInfo, "Path operation: %s\n", op)
@@ -178,7 +178,7 @@ var apiUpdateCmd = &cobra.Command{
                     "ok": color.GreenString("ok:"),
                     "path": api.GatewayRelPath,
                     "verb": api.GatewayMethod,
-                    "name": boldString(api.Action.Name),
+                    "name": boldString("/"+api.Action.Name),
                     "fullpath": getManagedUrl(retApi, api.GatewayRelPath, api.GatewayMethod),
                 }))
         return nil
@@ -424,7 +424,7 @@ var apiListCmd = &cobra.Command{
  * on a separate line (action name, verb, api name, api gw url)
  */
 func printFilteredListRow(resultApi *whisk.RetApi, api *whisk.Api) {
-    baseUrl := resultApi.BaseUrl
+    baseUrl := strings.TrimSuffix(resultApi.BaseUrl, "/")
     apiName := resultApi.Swagger.Info.Title
     if (resultApi.Swagger != nil && resultApi.Swagger.Paths != nil) {
         for path, _ := range resultApi.Swagger.Paths {
@@ -645,7 +645,7 @@ func isValidRelpath(relpath string) (error, bool) {
  * Pull the managedUrl (external API URL) from the API configuration
  */
 func getManagedUrl(api *whisk.RetApi, relpath string, operation string) (url string) {
-    baseUrl := api.BaseUrl
+    baseUrl := strings.TrimSuffix(api.BaseUrl, "/")
     whisk.Debug(whisk.DbgInfo, "getManagedUrl: baseUrl = %s, relpath = %s, operation = %s\n", baseUrl, relpath, operation)
     for path, _ := range api.Swagger.Paths {
         whisk.Debug(whisk.DbgInfo, "getManagedUrl: comparing api relpath: %s\n", path)
@@ -660,8 +660,7 @@ func getManagedUrl(api *whisk.RetApi, relpath string, operation string) (url str
             }
         }
     }
-    // Remove possible duplicate path delimiter that can occur when the basepath ends with '/'
-    return strings.Replace(url, "//", "/", -1)
+    return url
 }
 
 ///////////
