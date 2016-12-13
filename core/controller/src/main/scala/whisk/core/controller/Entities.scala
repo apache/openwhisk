@@ -39,6 +39,7 @@ import whisk.core.entitlement.Privilege.READ
 import whisk.core.entitlement.Resource
 import whisk.core.entity.EntityName
 import whisk.core.entity.EntityPath
+import whisk.core.entity.FullyQualifiedEntityName
 import whisk.core.entity.Identity
 import whisk.core.entity.LimitedWhiskEntityPut
 import whisk.core.entity.Parameters
@@ -67,19 +68,19 @@ trait WhiskCollectionAPI
     services: WhiskServices =>
 
     /** Creates an entity, or updates an existing one, in namespace. Terminates HTTP request. */
-    protected def create(user: Identity, namespace: EntityPath, name: EntityName)(implicit transid: TransactionId): RequestContext => Unit
+    protected def create(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId): RequestContext => Unit
 
     /** Activates entity. Examples include invoking an action, firing a trigger, enabling/disabling a rule. */
-    protected def activate(user: Identity, namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId): RequestContext => Unit
+    protected def activate(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(implicit transid: TransactionId): RequestContext => Unit
 
     /** Removes entity from namespace. Terminates HTTP request. */
-    protected def remove(namespace: EntityPath, name: EntityName)(implicit transid: TransactionId): RequestContext => Unit
+    protected def remove(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId): RequestContext => Unit
 
     /** Gets entity from namespace. Terminates HTTP request. */
-    protected def fetch(namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId): RequestContext => Unit
+    protected def fetch(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(implicit transid: TransactionId): RequestContext => Unit
 
     /** Gets all entities from namespace. If necessary filter only entities that are shared. Terminates HTTP request. */
-    protected def list(namespace: EntityPath, excludePrivate: Boolean)(implicit transid: TransactionId): RequestContext => Unit
+    protected def list(user: Identity, path: EntityPath, excludePrivate: Boolean)(implicit transid: TransactionId): RequestContext => Unit
 
     /** Indicates if listing entities in collection requires filtering out private entities. */
     protected val listRequiresPrivateEntityFilter = false // currently supported on PACKAGES only
@@ -88,15 +89,15 @@ trait WhiskCollectionAPI
     protected override def dispatchOp(user: Identity, op: Privilege, resource: Resource)(implicit transid: TransactionId) = {
         resource.entity match {
             case Some(EntityName(name)) => op match {
-                case READ => fetch(resource.namespace, name, resource.env)
+                case READ => fetch(user, FullyQualifiedEntityName(resource.namespace, name), resource.env)
                 case PUT =>
                     entity(as[LimitedWhiskEntityPut]) { e =>
                         validateSize(e.isWithinSizeLimits)(transid) {
-                            create(user, resource.namespace, name)
+                            create(user, FullyQualifiedEntityName(resource.namespace, name))
                         }
                     }
-                case ACTIVATE => activate(user, resource.namespace, name, resource.env)
-                case DELETE   => remove(resource.namespace, name)
+                case ACTIVATE => activate(user, FullyQualifiedEntityName(resource.namespace, name), resource.env)
+                case DELETE   => remove(user, FullyQualifiedEntityName(resource.namespace, name))
                 case _        => reject
             }
             case None => op match {
@@ -122,7 +123,7 @@ trait WhiskCollectionAPI
                     onComplete(checkIfSubjectOwnsResource) {
                         case Success(excludePrivate) =>
                             info(this, s"[LIST] exclude private entities: required == $excludePrivate")
-                            list(resource.namespace, excludePrivate)
+                            list(user, resource.namespace, excludePrivate)
                         case Failure(r: RejectRequest) =>
                             info(this, s"[LIST] namespaces lookup failed: ${r.message}")
                             terminate(r.code, r.message)
