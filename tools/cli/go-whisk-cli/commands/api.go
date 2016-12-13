@@ -40,7 +40,7 @@ var apiCmd = &cobra.Command{
 }
 
 var apiCreateCmd = &cobra.Command{
-    Use:           "create [BASE_PATH] API_PATH API_VERB ACTION",
+    Use:           "create ([BASE_PATH] API_PATH API_VERB ACTION] | --config-file CFG_FILE) ",
     Short:         wski18n.T("create a new API"),
     SilenceUsage:  true,
     SilenceErrors: true,
@@ -118,7 +118,7 @@ var apiCreateCmd = &cobra.Command{
                 for op, _  := range retApi.Swagger.Paths[path] {
                     whisk.Debug(whisk.DbgInfo, "Path operation: %s\n", op)
                     fmt.Fprintf(color.Output,
-                        wski18n.T("{{.ok}} created api {{.path}} {{.verb}} for action {{.name}}\n{{.fullpath}}\n",
+                        wski18n.T("{{.ok}} created API {{.path}} {{.verb}} for action {{.name}}\n{{.fullpath}}\n",
                             map[string]interface{}{
                                 "ok": color.GreenString("ok:"),
                                 "path": path,
