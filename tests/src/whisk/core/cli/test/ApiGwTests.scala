@@ -60,11 +60,6 @@ class ApiGwTests
         val testurlop = "get"
         val testapiname = testName+" API Name"
         val actionName = testName+"_action"
-
-        // List result will look like:
-        // ok: APIs
-        // Action                            Verb             API Name  URL
-        // /_/CLI_APIGWTEST1_action          get  CLI_APIGWTEST1 API Name  http://172.17.0.1:9001/api/ab9082cd-ea8e-465a-8a65-b491725cc4ef/CLI_APIGWTEST1_bp/path
         try {
             println("cli user: "+cliuser+"; cli namespace: "+clinamespace)
 
@@ -76,7 +71,113 @@ class ApiGwTests
             rr.stdout should include(testbasepath + testrelpath)
         }
         finally {
-            val deleteresult = wsk.api.delete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+            val deleteresult = wsk.api.delete(basepathOrApiName = testbasepath)
+            deleteresult.stdout should include("ok: deleted API")
+        }
+    }
+    it should "verify get API name " in {
+        val testName = "CLI_APIGWTEST3"
+        val testbasepath = "/"+testName+"_bp"
+        val testrelpath = "/path"
+        val testnewrelpath = "/path_new"
+        val testurlop = "get"
+        val testapiname = testName+" API Name"
+        val actionName = testName+"_action"
+        try {
+            var rr = wsk.api.create(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+            rr.stdout should include("ok: created API")
+            rr = wsk.api.get(basepathOrApiName = Some(testapiname))
+            rr.stdout should include(testbasepath)
+            rr.stdout should include(s"${actionName}")
+        }
+        finally {
+            val deleteresult = wsk.api.delete(basepathOrApiName = testbasepath)
+            deleteresult.stdout should include("ok: deleted API")
+        }
+   }
+   it should "verify delete API name " in {
+        val testName = "CLI_APIGWTEST4"
+        val testbasepath = "/"+testName+"_bp"
+        val testrelpath = "/path"
+        val testnewrelpath = "/path_new"
+        val testurlop = "get"
+        val testapiname = testName+" API Name"
+        val actionName = testName+"_action"
+        try {
+            var rr = wsk.api.create(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+            rr.stdout should include("ok: created API")
+            rr = wsk.api.delete(basepathOrApiName = testapiname)
+            rr.stdout should include("ok: deleted API")
+        }
+        finally {
+            val deleteresult = wsk.api.delete(basepathOrApiName = testbasepath,expectedExitCode = DONTCARE_EXIT)
+        }
+    }
+
+    it should "verify delete API basepath " in {
+        val testName = "CLI_APIGWTEST5"
+        val testbasepath = "/"+testName+"_bp"
+        val testrelpath = "/path"
+        val testnewrelpath = "/path_new"
+        val testurlop = "get"
+        val testapiname = testName+" API Name"
+        val actionName = testName+"_action"
+        try {
+            var rr = wsk.api.create(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+            rr.stdout should include("ok: created API")
+            rr = wsk.api.delete(basepathOrApiName = testbasepath)
+            rr.stdout should include("ok: deleted API")
+        }
+        finally {
+            val deleteresult = wsk.api.delete(basepathOrApiName = testbasepath,expectedExitCode = DONTCARE_EXIT)
+        }
+     }
+     it should "verify adding endpoints to existing api" in {
+        val testName = "CLI_APIGWTEST6"
+        val testbasepath = "/"+testName+"_bp"
+        val testrelpath = "/path2"
+        val testnewrelpath = "/path_new"
+        val testurlop = "get"
+        val testapiname = testName+" API Name"
+        val actionName = testName+"_action"
+        val newEndpoint = "/newEndpoint"
+        try {
+            var rr = wsk.api.create(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+            rr.stdout should include("ok: created API")
+            rr = wsk.api.create(basepath = Some(testbasepath), relpath = Some(newEndpoint), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+            rr.stdout should include("ok: created API")
+            rr = wsk.api.list(basepathOrApiName = Some(testbasepath))
+            rr.stdout should include("ok: APIs")
+            rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+            rr.stdout should include(testbasepath + testrelpath)
+            rr.stdout should include(testbasepath + newEndpoint)
+        }
+        finally {
+            val deleteresult = wsk.api.delete(basepathOrApiName = testbasepath)
+            deleteresult.stdout should include("ok: deleted API")
+        }
+    }
+    it should "verify successful creation with swagger doc as input" in {
+        val testName = "CLI_APIGWTEST7"
+        val testbasepath = "/"+testName+"_bp"
+        val testrelpath = "/path"
+        val testnewrelpath = "/path_new"
+        val testurlop = "get"
+        val testapiname = testName+" API Name"
+        val actionName = testName+"_action"
+        val swaggerPath = "../../dat/apigwtestswaggerdoc1"
+        try {
+            var rr = wsk.api.create(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop),swagger= Some(swaggerPath), action = Some(actionName), apiname = Some(testapiname))
+            rr.stdout should include("ok: created API")
+            rr = wsk.api.list(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
+            rr.stdout should include("ok: APIs")
+            rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+            rr.stdout should include(testbasepath + testrelpath)
+        }
+        finally {
+            val deleteresult = wsk.api.delete(basepathOrApiName = testbasepath)
+            deleteresult.stdout should include("ok: deleted API")
         }
     }
 }
+

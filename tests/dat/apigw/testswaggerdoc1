@@ -1,0 +1,83 @@
+{
+    "swagger": "2.0",
+    "basePath": "/",
+    "info": {
+        "title": "/",
+        "version": "1.0.0"
+    },
+    "paths": {
+        "/test1": {
+            "get": {
+                "responses": {
+                    "default": {
+                        "description": "Default response"
+                    }
+                },
+                "x-ibm-op-ext": {
+                    "actionName": "utils/echo",
+                    "actionNamespace": "whisk.system",
+                    "backendMethod": "POST",
+                    "backendUrl": "https://999.999.99.999/api/v1/namespaces/whisk.system/actions/utils/echo",
+                    "policies": [
+                        {
+                            "type": "reqMapping",
+                            "value": [
+                                {
+                                    "action": "transform",
+                                    "from": {
+                                        "location": "query",
+                                        "name": "*"
+                                    },
+                                    "to": {
+                                        "location": "body",
+                                        "name": "*"
+                                    }
+                                },
+                                {
+                                    "action": "insert",
+                                    "from": {
+                                        "value": "Basic I34EJL53W3HGP64AB4E4DJ37FFGA424238GF6J"
+                                    },
+                                    "to": {
+                                        "location": "header",
+                                        "name": "Authorization"
+                                    }
+                                },
+                                {
+                                    "action": "insert",
+                                    "from": {
+                                        "value": "application/json"
+                                    },
+                                    "to": {
+                                        "location": "header",
+                                        "name": "Content-Type"
+                                    }
+                                },
+                                {
+                                    "action": "insert",
+                                    "from": {
+                                        "value": "true"
+                                    },
+                                    "to": {
+                                        "location": "query",
+                                        "name": "blocking"
+                                    }
+                                },
+                                {
+                                    "action": "insert",
+                                    "from": {
+                                        "value": "true"
+                                    },
+                                    "to": {
+                                        "location": "query",
+                                        "name": "result"
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        }
+    }
+}
