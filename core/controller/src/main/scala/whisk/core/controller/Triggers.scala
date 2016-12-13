@@ -46,7 +46,6 @@ import spray.routing.RequestContext
 import whisk.common.TransactionId
 import whisk.core.entitlement.Collection
 import whisk.core.entity.ActivationResponse
-import whisk.core.entity.EntityName
 import whisk.core.entity.EntityPath
 import whisk.core.entity.Parameters
 import whisk.core.entity.SemVer
@@ -104,13 +103,15 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
      * - 409 Conflict
      * - 500 Internal Server Error
      */
-    override def create(user: Identity, namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
+    override def create(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
         parameter('overwrite ? false) { overwrite =>
             entity(as[WhiskTriggerPut]) { content =>
-                val docid = FullyQualifiedEntityName(namespace, name).toDocId
-                putEntity(WhiskTrigger, entityStore, docid, overwrite, update(content) _, () => { create(content, namespace, name) }, postProcess = Some { trigger =>
-                    completeAsTriggerResponse(trigger)
-                })
+                putEntity(WhiskTrigger, entityStore, entityName.toDocId, overwrite,
+                    update(content) _,
+                    () => { create(content, entityName) },
+                    postProcess = Some { trigger =>
+                        completeAsTriggerResponse(trigger)
+                    })
             }
         }
     }
@@ -124,12 +125,10 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
      * - 404 Not Found
      * - 500 Internal Server Error
      */
-    override def activate(user: Identity, namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
-
+    override def activate(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
         entity(as[Option[JsObject]]) {
             payload =>
-                val docid = FullyQualifiedEntityName(namespace, name).toDocId
-                getEntity(WhiskTrigger, entityStore, docid, Some {
+                getEntity(WhiskTrigger, entityStore, entityName.toDocId, Some {
                     trigger: WhiskTrigger =>
                         val args = trigger.parameters.merge(payload)
                         val triggerActivationId = activationIdFactory.make()
@@ -137,7 +136,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
 
                         val triggerActivation = WhiskActivation(
                             namespace = user.namespace.toPath, // all activations should end up in the one space regardless trigger.namespace,
-                            name,
+                            entityName.name,
                             user.subject,
                             triggerActivationId,
                             Instant.now(Clock.systemUTC()),
@@ -217,9 +216,8 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
      * - 409 Conflict
      * - 500 Internal Server Error
      */
-    override def remove(namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
-        val docid = FullyQualifiedEntityName(namespace, name).toDocId
-        deleteEntity(WhiskTrigger, entityStore, docid, (t: WhiskTrigger) => Future successful true, postProcess = Some { trigger =>
+    override def remove(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
+        deleteEntity(WhiskTrigger, entityStore, entityName.toDocId, (t: WhiskTrigger) => Future successful true, postProcess = Some { trigger =>
             completeAsTriggerResponse(trigger)
         })
     }
@@ -232,9 +230,8 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
      * - 404 Not Found
      * - 500 Internal Server Error
      */
-    override def fetch(namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
-        val docid = FullyQualifiedEntityName(namespace, name).toDocId
-        getEntity(WhiskTrigger, entityStore, docid, Some { trigger =>
+    override def fetch(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
+        getEntity(WhiskTrigger, entityStore, entityName.toDocId, Some { trigger =>
             completeAsTriggerResponse(trigger)
         })
     }
@@ -246,7 +243,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
      * - 200 [] or [WhiskTrigger as JSON]
      * - 500 Internal Server Error
      */
-    override def list(namespace: EntityPath, excludePrivate: Boolean)(implicit transid: TransactionId) = {
+    override def list(user: Identity, namespace: EntityPath, excludePrivate: Boolean)(implicit transid: TransactionId) = {
         // for consistency, all the collections should support the same list API
         // but because supporting docs on actions is difficult, the API does not
         // offer an option to fetch entities with full docs yet; see comment in
@@ -267,10 +264,10 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
     }
 
     /** Creates a WhiskTrigger from PUT content, generating default values where necessary. */
-    private def create(content: WhiskTriggerPut, namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
+    private def create(content: WhiskTriggerPut, triggerName: FullyQualifiedEntityName)(implicit transid: TransactionId): Future[WhiskTrigger] = {
         val newTrigger = WhiskTrigger(
-            namespace,
-            name,
+            triggerName.path,
+            triggerName.name,
             content.parameters getOrElse Parameters(),
             content.limits getOrElse TriggerLimits(),
             content.version getOrElse SemVer(),
@@ -280,7 +277,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
     }
 
     /** Updates a WhiskTrigger from PUT content, merging old trigger where necessary. */
-    private def update(content: WhiskTriggerPut)(trigger: WhiskTrigger)(implicit transid: TransactionId) = {
+    private def update(content: WhiskTriggerPut)(trigger: WhiskTrigger)(implicit transid: TransactionId): Future[WhiskTrigger] = {
         val newTrigger = WhiskTrigger(
             trigger.namespace,
             trigger.name,

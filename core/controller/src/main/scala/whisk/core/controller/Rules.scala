@@ -82,15 +82,14 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
      * - 409 Conflict
      * - 500 Internal Server Error
      */
-    override def create(user: Identity, namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
+    override def create(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
         parameter('overwrite ? false) { overwrite =>
             entity(as[WhiskRulePut]) { content =>
-                val request = content.resolve(namespace.root)
+                val request = content.resolve(entityName.namespace)
                 onComplete(entitlementProvider.check(user, Privilege.READ, referencedEntities(request))) {
                     case Success(true) =>
-                        val docid = FullyQualifiedEntityName(namespace, name).toDocId
-                        putEntity(WhiskRule, entityStore, docid, overwrite,
-                            update(request) _, () => { create(request, namespace, name) },
+                        putEntity(WhiskRule, entityStore, entityName.toDocId, overwrite,
+                            update(request) _, () => { create(request, entityName) },
                             postProcess = Some { rule: WhiskRule =>
                                 completeAsRuleResponse(rule, Status.ACTIVE)
                             })
@@ -112,9 +111,9 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
      * - 409 Conflict
      * - 500 Internal Server Error
      */
-    override def activate(user: Identity, namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
+    override def activate(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
         extractStatusRequest { requestedState =>
-            val docid = FullyQualifiedEntityName(namespace, name).toDocId
+            val docid = entityName.toDocId
 
             getEntity(WhiskRule, entityStore, docid, Some {
                 rule: WhiskRule =>
@@ -174,9 +173,8 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
      * - 409 Conflict
      * - 500 Internal Server Error
      */
-    override def remove(namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
-        val docid = FullyQualifiedEntityName(namespace, name).toDocId
-        deleteEntity(WhiskRule, entityStore, docid, (r: WhiskRule) => {
+    override def remove(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
+        deleteEntity(WhiskRule, entityStore, entityName.toDocId, (r: WhiskRule) => {
             val ruleName = FullyQualifiedEntityName(r.namespace, r.name)
             getTrigger(r.trigger) map { trigger =>
                 (getStatus(trigger, ruleName), trigger)
@@ -203,11 +201,10 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
      * - 404 Not Found
      * - 500 Internal Server Error
      */
-    override def fetch(namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
-        val ruleName = FullyQualifiedEntityName(namespace, name)
-        getEntity(WhiskRule, entityStore, ruleName.toDocId, Some { rule: WhiskRule =>
+    override def fetch(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
+        getEntity(WhiskRule, entityStore, entityName.toDocId, Some { rule: WhiskRule =>
             val getRuleWithStatus = getTrigger(rule.trigger) map { trigger =>
-                getStatus(trigger, ruleName)
+                getStatus(trigger, entityName)
             } map { status =>
                 rule.withStatus(status)
             }
@@ -226,7 +223,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
      * - 200 [] or [WhiskRule as JSON]
      * - 500 Internal Server Error
      */
-    override def list(namespace: EntityPath, excludePrivate: Boolean)(implicit transid: TransactionId) = {
+    override def list(user: Identity, namespace: EntityPath, excludePrivate: Boolean)(implicit transid: TransactionId) = {
         // for consistency, all the collections should support the same list API
         // but because supporting docs on actions is difficult, the API does not
         // offer an option to fetch entities with full docs yet; see comment in
@@ -247,9 +244,8 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
     }
 
     /** Creates a WhiskRule from PUT content, generating default values where necessary. */
-    private def create(content: WhiskRulePut, namespace: EntityPath, name: EntityName)(implicit transid: TransactionId): Future[WhiskRule] = {
+    private def create(content: WhiskRulePut, ruleName: FullyQualifiedEntityName)(implicit transid: TransactionId): Future[WhiskRule] = {
         if (content.trigger.isDefined && content.action.isDefined) {
-            val ruleName = FullyQualifiedEntityName(namespace, name)
             val triggerName = content.trigger.get
             val actionName = content.action.get
 
@@ -258,8 +254,8 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
             } flatMap {
                 case (trigger, action) =>
                     val rule = WhiskRule(
-                        namespace,
-                        name,
+                        ruleName.path,
+                        ruleName.name,
                         content.trigger.get,
                         content.action.get,
                         content.version getOrElse SemVer(),

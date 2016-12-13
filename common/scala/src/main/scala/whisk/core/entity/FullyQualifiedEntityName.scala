@@ -46,6 +46,7 @@ protected[core] case class FullyQualifiedEntityName(path: EntityPath, name: Enti
     def add(n: EntityName) = FullyQualifiedEntityName(path.addPath(name), n)
 
     def toDocId = DocId(qualifiedName)
+    def namespace: EntityName = path.root
     def qualifiedNameWithLeadingSlash: String = EntityPath.PATHSEP + qualifiedName
     def apply() = path.addPath(name) + version.map("@" + _.toString).getOrElse("")
 

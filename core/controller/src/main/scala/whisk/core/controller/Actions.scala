@@ -127,7 +127,7 @@ trait WhiskActionsApi
                     // list all actions in package iff subject is entitled to READ package
                     val resource = Resource(ns, Collection(Collection.PACKAGES), Some(outername))
                     onComplete(entitlementProvider.check(user, Privilege.READ, resource)) {
-                        case Success(true) => listPackageActions(user.subject, ns, EntityName(outername))
+                        case Success(true) => listPackageActions(user, FullyQualifiedEntityName(ns, EntityName(outername)))
                         case failure       => super.handleEntitlementFailure(failure)
                     }
                 } ~ (entityPrefix & pathEnd) { segment =>
@@ -188,16 +188,15 @@ trait WhiskActionsApi
      * - 409 Conflict
      * - 500 Internal Server Error
      */
-    override def create(user: Identity, namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
+    override def create(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
         parameter('overwrite ? false) { overwrite =>
             entity(as[WhiskActionPut]) { content =>
-                val docid = FullyQualifiedEntityName(namespace, name).toDocId
                 val request = content.resolve(user.namespace)
 
                 onComplete(entitleReferencedEntities(user, Privilege.READ, request.exec)) {
                     case Success(true) =>
-                        putEntity(WhiskAction, entityStore, docid, overwrite,
-                            update(user, request)_, () => { make(user, namespace, request, name) })
+                        putEntity(WhiskAction, entityStore, entityName.toDocId, overwrite,
+                            update(user, request)_, () => { make(user, entityName, request) })
 
                     case failure => super.handleEntitlementFailure(failure)
                 }
@@ -216,11 +215,10 @@ trait WhiskActionsApi
      * - 502 Bad Gateway
      * - 500 Internal Server Error
      */
-    override def activate(user: Identity, namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
+    override def activate(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
         parameter('blocking ? false, 'result ? false) { (blocking, result) =>
             entity(as[Option[JsObject]]) { payload =>
-                val docid = FullyQualifiedEntityName(namespace, name).toDocId
-                getEntity(WhiskAction, entityStore, docid, Some {
+                getEntity(WhiskAction, entityStore, entityName.toDocId, Some {
                     act: WhiskAction =>
                         // resolve the action --- special case for sequences that may contain components with '_' as default package
                         val action = act.resolve(user.namespace)
@@ -278,9 +276,8 @@ trait WhiskActionsApi
      * - 409 Conflict
      * - 500 Internal Server Error
      */
-    override def remove(namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
-        val docid = FullyQualifiedEntityName(namespace, name).toDocId
-        deleteEntity(WhiskAction, entityStore, docid, (a: WhiskAction) => Future successful true)
+    override def remove(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
+        deleteEntity(WhiskAction, entityStore, entityName.toDocId, (a: WhiskAction) => Future successful true)
     }
 
     /**
@@ -291,9 +288,8 @@ trait WhiskActionsApi
      * - 404 Not Found
      * - 500 Internal Server Error
      */
-    override def fetch(namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
-        val docid = FullyQualifiedEntityName(namespace, name).toDocId
-        getEntity(WhiskAction, entityStore, docid, Some { action: WhiskAction =>
+    override def fetch(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
+        getEntity(WhiskAction, entityStore, entityName.toDocId, Some { action: WhiskAction =>
             val mergedAction = env map { action inherit _ } getOrElse action
             complete(OK, mergedAction)
         })
@@ -306,7 +302,7 @@ trait WhiskActionsApi
      * - 200 [] or [WhiskAction as JSON]
      * - 500 Internal Server Error
      */
-    override def list(namespace: EntityPath, excludePrivate: Boolean)(implicit transid: TransactionId) = {
+    override def list(user: Identity, namespace: EntityPath, excludePrivate: Boolean)(implicit transid: TransactionId) = {
         // for consistency, all the collections should support the same list API
         // but because supporting docs on actions is difficult, the API does not
         // offer an option to fetch entities with full docs yet.
@@ -347,7 +343,7 @@ trait WhiskActionsApi
     /**
      * Creates a WhiskAction instance from the PUT request.
      */
-    private def makeWhiskAction(content: WhiskActionPut, namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
+    private def makeWhiskAction(content: WhiskActionPut, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
         val exec = content.exec.get
         val limits = content.limits map { l =>
             ActionLimits(
@@ -366,8 +362,8 @@ trait WhiskActionsApi
         }
 
         WhiskAction(
-            namespace,
-            name,
+            entityName.path,
+            entityName.name,
             exec,
             parameters,
             limits,
@@ -388,14 +384,14 @@ trait WhiskActionsApi
     }
 
     /** Creates a WhiskAction from PUT content, generating default values where necessary. */
-    private def make(user: Identity, namespace: EntityPath, content: WhiskActionPut, name: EntityName)(implicit transid: TransactionId) = {
+    private def make(user: Identity, entityName: FullyQualifiedEntityName, content: WhiskActionPut)(implicit transid: TransactionId) = {
         content.exec map {
             case seq: SequenceExec =>
                 // check that the sequence conforms to max length and no recursion rules
-                checkSequenceActionLimits(FullyQualifiedEntityName(namespace, name), seq.components) map {
-                    _ => makeWhiskAction(content.replace(seq), namespace, name)
+                checkSequenceActionLimits(entityName, seq.components) map {
+                    _ => makeWhiskAction(content.replace(seq), entityName)
                 }
-            case _ => Future successful { makeWhiskAction(content, namespace, name) }
+            case _ => Future successful { makeWhiskAction(content, entityName) }
         } getOrElse Future.failed(RejectRequest(BadRequest, "exec undefined"))
     }
 
@@ -470,27 +466,26 @@ trait WhiskActionsApi
      * Note that when listing actions in a binding, the namespace on the actions will be that
      * of the referenced packaged, not the binding.
      */
-    private def listPackageActions(subject: Subject, ns: EntityPath, pkgname: EntityName)(implicit transid: TransactionId) = {
+    private def listPackageActions(user: Identity, pkgName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
         // get the package to determine if it is a package or reference
         // (this will set the appropriate namespace), and then list actions
         // NOTE: these fetches are redundant with those from the authorization
         // and should hit the cache to ameliorate the cost; this can be improved
         // but requires communicating back from the authorization service the
         // resolved namespace
-        val docid = FullyQualifiedEntityName(ns, pkgname).toDocId
-        getEntity(WhiskPackage, entityStore, docid, Some { (wp: WhiskPackage) =>
+        getEntity(WhiskPackage, entityStore, pkgName.toDocId, Some { (wp: WhiskPackage) =>
             val pkgns = wp.binding map { b =>
                 info(this, s"list actions in package binding '${wp.name}' -> '$b'")
                 b.namespace.addPath(b.name)
             } getOrElse {
                 info(this, s"list actions in package '${wp.name}'")
-                ns.addPath(wp.name)
+                pkgName.path.addPath(wp.name)
             }
             // list actions in resolved namespace
             // NOTE: excludePrivate is false since the subject is authorize to access
             // the package; in the future, may wish to exclude private actions in a
             // public package instead
-            list(pkgns, excludePrivate = false)
+            list(user, pkgns, excludePrivate = false)
         })
     }
 
