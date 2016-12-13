@@ -277,7 +277,7 @@ trait WhiskActionsApi
      * - 500 Internal Server Error
      */
     override def remove(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
-        deleteEntity(WhiskAction, entityStore, entityName.toDocId, (a: WhiskAction) => Future successful true)
+        deleteEntity(WhiskAction, entityStore, entityName.toDocId, (a: WhiskAction) => Future.successful({}))
     }
 
     /**

@@ -217,7 +217,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
      * - 500 Internal Server Error
      */
     override def remove(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
-        deleteEntity(WhiskTrigger, entityStore, entityName.toDocId, (t: WhiskTrigger) => Future successful true, postProcess = Some { trigger =>
+        deleteEntity(WhiskTrigger, entityStore, entityName.toDocId, (t: WhiskTrigger) => Future.successful({}), postProcess = Some { trigger =>
             completeAsTriggerResponse(trigger)
         })
     }

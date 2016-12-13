@@ -182,8 +182,8 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
                 case (status, triggerOpt) =>
                     if (status == Status.INACTIVE) {
                         triggerOpt map { trigger =>
-                            WhiskTrigger.put(entityStore, trigger.removeRule(ruleName)) map { _ => true }
-                        } getOrElse Future.successful(true)
+                            WhiskTrigger.put(entityStore, trigger.removeRule(ruleName)) map { _ => {} }
+                        } getOrElse Future.successful({})
                     } else Future failed {
                         RejectRequest(Conflict, s"rule status is '${status}', must be '${Status.INACTIVE}' to delete")
                     }

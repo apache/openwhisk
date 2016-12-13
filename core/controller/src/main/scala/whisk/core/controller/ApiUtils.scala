@@ -50,10 +50,9 @@ import whisk.http.ErrorResponse.terminate
 import whisk.http.Messages._
 import spray.http.StatusCode
 
-
 /** An exception to throw inside a Predicate future. */
 protected[core] case class RejectRequest(code: StatusCode, message: Option[ErrorResponse]) extends Throwable {
-    override def toString = s"RejectRequest($code)" + message.map(" "+_.error).getOrElse("")
+    override def toString = s"RejectRequest($code)" + message.map(" " + _.error).getOrElse("")
 }
 
 protected[core] object RejectRequest {
@@ -308,7 +307,7 @@ trait WriteOps extends Directives with Logging {
      * @param factory the factory that can fetch entity of type A from datastore
      * @param datastore the client to the database
      * @param docid the document id to delete
-     * @param confirm a function (A => Boolean) that confirms the entity is safe to delete (returns true),
+     * @param confirm a function (A => Future[Unit]) that confirms the entity is safe to delete (must fail future to abort)
      * or fails the future with an appropriate message
      *
      * Responses are one of (Code, Message)
@@ -321,7 +320,7 @@ trait WriteOps extends Directives with Logging {
         factory: DocumentFactory[A],
         datastore: ArtifactStore[Au],
         docid: DocId,
-        confirm: A => Future[Boolean],
+        confirm: A => Future[Unit],
         postProcess: Option[PostProcessEntity[A]] = None)(
             implicit transid: TransactionId,
             format: RootJsonFormat[A],
@@ -329,10 +328,7 @@ trait WriteOps extends Directives with Logging {
         onComplete(factory.get(datastore, docid) flatMap {
             entity =>
                 confirm(entity) flatMap {
-                    case true => factory.del(datastore, entity.docinfo) map { _ => entity }
-                    case false =>
-                        error(this, "confirm delete must return true or fail the future")
-                        Future.failed { new IllegalStateException("result of delete confirmation is not allowed") }
+                    case _ => factory.del(datastore, entity.docinfo) map { _ => entity }
                 }
         }) {
             case Success(entity) =>

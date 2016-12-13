@@ -111,7 +111,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
         deleteEntity(WhiskPackage, entityStore, entityName.toDocId, (wp: WhiskPackage) => {
             wp.binding map {
                 // this is a binding, it is safe to remove
-                _ => Future.successful(true)
+                _ => Future.successful({})
             } getOrElse {
                 // may only delete a package if all its ingredients are deleted already
                 WhiskAction.listCollectionInNamespace(entityStore, wp.namespace.addPath(wp.name), skip = 0, limit = 0) flatMap {
@@ -119,7 +119,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
                         Future failed {
                             RejectRequest(Conflict, s"Package not empty (contains ${list.size} ${if (list.size == 1) "entity" else "entities"})")
                         }
-                    case _ => Future.successful(true)
+                    case _ => Future.successful({})
                 }
             }
         })
