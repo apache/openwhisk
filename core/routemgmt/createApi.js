@@ -126,7 +126,7 @@ function main(message) {
     console.error('Got API DB error: ', err);
     if ( (err.error.error == "not_found" && err.error.statusCode == 404)) {  // err.error.reason == "missing" or "deleted"
       // No document.  Create an initial one - but ONLY if a /basepath was provided
-      if (message.basepath.indexOf('/') == 0) {
+      if (message.swagger || message.basepath.indexOf('/') == 0) {
         console.log('API document not found; creating a new one');
         newDoc = true;
         return makeTemplateDbApiDoc(message);
@@ -272,7 +272,7 @@ function getDbApiDoc(namespace, basepath, docid) {
       return Promise.resolve(activation.result.apis[0].value);
     } else if (activation && activation.result && activation.result.apis &&
                activation.result.apis.length > 1) {
-          console.error('Multiple API docs returned!');  // Only expected case is when >1 basepaths have the same API Name
+          console.error('Multiple API docs returned; only one expected');  // Only expected case is when >1 basepaths have the same API Name
           return Promise.reject({
             error: {
               statusCode: 409,
@@ -282,7 +282,7 @@ function getDbApiDoc(namespace, basepath, docid) {
           });
     } else {
       // No API document.  Simulate the DB 'not found' error.
-      console.error('Invalid API doc returned!');
+      console.error('API doc not found');
       return Promise.reject({
         error: {
           statusCode: 404,

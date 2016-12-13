@@ -1296,8 +1296,12 @@
     "translation": "Error parsing swagger file '{{.name}}': {{.err}}"
   },
   {
-    "id": "Swagger file is invalid (missing basePath, info, paths, or swagger fields",
-    "translation": "Swagger file is invalid (missing basePath, info, paths, or swagger fields"
+    "id": "Swagger file is invalid (missing basePath, info, paths, or swagger fields)",
+    "translation": "Swagger file is invalid (missing basePath, info, paths, or swagger fields)"
+  },
+  {
+    "id": "Swagger file basePath must start with a leading slash (/)",
+    "translation": "Swagger file basePath must start with a leading slash (/)"
   },
   {
     "id": "API does not exist for basepath {{.basepath}}",

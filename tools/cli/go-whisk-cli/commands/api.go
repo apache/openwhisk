@@ -40,7 +40,7 @@ var apiCmd = &cobra.Command{
 }
 
 var apiCreateCmd = &cobra.Command{
-    Use:           "create [BASE_PATH] API_PATH API_VERB ACTION",
+    Use:           "create ([BASE_PATH] API_PATH API_VERB ACTION] | --config-file CFG_FILE) ",
     Short:         wski18n.T("create a new API"),
     SilenceUsage:  true,
     SilenceErrors: true,
@@ -118,7 +118,7 @@ var apiCreateCmd = &cobra.Command{
                 for op, _  := range retApi.Swagger.Paths[path] {
                     whisk.Debug(whisk.DbgInfo, "Path operation: %s\n", op)
                     fmt.Fprintf(color.Output,
-                        wski18n.T("{{.ok}} created api {{.path}} {{.verb}} for action {{.name}}\n{{.fullpath}}\n",
+                        wski18n.T("{{.ok}} created API {{.path}} {{.verb}} for action {{.name}}\n{{.fullpath}}\n",
                             map[string]interface{}{
                                 "ok": color.GreenString("ok:"),
                                 "path": path,
@@ -584,6 +584,13 @@ func parseSwaggerApi() (*whisk.Api, error) {
     if (swaggerObj.BasePath == "" || swaggerObj.SwaggerName == "" || swaggerObj.Info == nil || swaggerObj.Paths == nil) {
         whisk.Debug(whisk.DbgError, "Swagger file is invalid.\n", flags.api.configfile, err)
         errMsg := wski18n.T("Swagger file is invalid (missing basePath, info, paths, or swagger fields")
+        whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+            whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+        return nil, whiskErr
+    }
+    if _, ok := isValidBasepath(swaggerObj.BasePath); !ok {
+        whisk.Debug(whisk.DbgError, "Swagger file basePath is invalid.\n", flags.api.configfile, err)
+        errMsg := wski18n.T("Swagger file basePath must start with a leading slash (/)")
         whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
             whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
         return nil, whiskErr

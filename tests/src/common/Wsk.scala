@@ -755,15 +755,19 @@ class WskApi()
       * if the code is anything but DONTCARE_EXIT, assert the code is as expected
       */
     def create(
-        basepath: Option[String] = Some("/"),
-        relpath: String,
-        operation: String,
-        action: String,
+        basepath: Option[String] = None,
+        relpath: Option[String] = None,
+        operation: Option[String] = None,
+        action: Option[String] = None,
         apiname: Option[String] = None,
         swagger: Option[String] = None,
         expectedExitCode: Int = SUCCESS_EXIT)(
             implicit wp: WskProps): RunResult = {
-        val params = Seq(noun, "create", "--auth", wp.authKey, basepath.get, relpath, operation, action) ++
+        val params = Seq(noun, "create", "--auth", wp.authKey) ++
+          { basepath map { b => Seq(b) } getOrElse Seq() } ++
+          { relpath map { r => Seq(r) } getOrElse Seq() } ++
+          { operation map { o => Seq(o) } getOrElse Seq() } ++
+          { action map { aa => Seq(aa) } getOrElse Seq() } ++
           { apiname map { a => Seq("--apiname", a) } getOrElse Seq() } ++
           { swagger map { s => Seq("--config-file", s) } getOrElse Seq() }
         cli(wp.overrides ++ params, expectedExitCode, showCmd = true)
