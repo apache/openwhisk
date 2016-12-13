@@ -1,0 +1,146 @@
+version: '2'
+services:
+  db:
+    image: couchdb:1.6
+    ports:
+      - "5984:5984"
+    environment:
+      COUCHDB_USER: whisk_admin
+      COUCHDB_PASSWORD: some_passw0rd
+    volumes:
+      - ~/tmp/openwhisk/couchdb:/usr/local/var/lib/couchdb:rw
+
+  # KAFKA SERVICES
+  zookeeper:
+    image: wurstmeister/zookeeper
+    ports:
+      - "2181:2181"
+  kafka:
+    image: wurstmeister/kafka
+    links:
+      - zookeeper
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  # CONSUL & REGISTRATOR SERVICES
+  consul:
+    image: consul:v0.7.0
+    ports:
+      - "8400:8400" # CLI
+      - "8500:8500" # HTTP
+      - "8600:8600" # DNS
+      - "8302:8302" # Serf LAN
+    environment:
+      CONSUL_LOCAL_CONFIG: '{"log_level":"warn"}'
+  registrator:
+    image: gliderlabs/registrator
+    command: [-resync, "5", "consul://consul.docker:8500"]
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock
+    links:
+      - consul:consul.docker
+    depends_on:
+      - consul
+
+  # WHISK CONTROLLER
+  controller:
+    image: whisk/controller:latest
+    links:
+      - consul:consul.docker
+      - db:db.docker
+      - kafka:kafka.docker
+    depends_on:
+      - consul
+      - db
+      - kafka
+    env_file:
+      - ./docker-whisk-controller.env
+    environment:
+      COMPONENT_NAME: controller
+      PORT: 8888
+
+      CONSULSERVER_HOST: consul.docker
+      CONSUL_HOST_PORT4: 8500
+
+      KAFKA_HOST: kafka.docker
+      KAFKA_HOST_PORT: 9092
+
+      DB_PROVIDER: CouchDB
+      DB_PROTOCOL: http
+      DB_PORT: 5984
+      DB_HOST: db.docker
+      DB_USERNAME: whisk_admin
+      DB_PASSWORD: some_passw0rd
+
+      LOADBALANCER_HOST: localhost
+      LOADBALANCER_HOST_PORT: 443
+    volumes:
+      - ~/tmp/openwhisk/controller/logs:/logs
+    ports:
+      - "8888:8888"
+
+  # WHISK INVOKER AGENT
+  invoker:
+    image: whisk/invoker:latest
+    command: /bin/sh -c "/invoker/bin/invoker 0 >> /logs/invoker-localhost_logs.log 2>&1"
+    links:
+      - consul:consul.docker
+      - db:db.docker
+      - kafka:kafka.docker
+    depends_on:
+      - consul
+      - db
+      - kafka
+    env_file:
+      - ./docker-whisk-controller.env # env vars shared
+    environment:
+      COMPONENT_NAME: invoker
+      SERVICE_NAME: invoker0
+      PORT: 8085
+
+      CONSULSERVER_HOST: consul.docker
+      CONSUL_HOST_PORT4: 8500
+
+      KAFKA_HOST: kafka.docker
+      KAFKA_HOST_PORT: 9092
+
+      DB_PROVIDER: CouchDB
+      DB_PROTOCOL: http
+      DB_PORT: 5984
+      DB_HOST: db.docker
+      DB_USERNAME: whisk_admin
+      DB_PASSWORD: some_passw0rd
+
+      EDGE_HOST: localhost
+      EDGE_HOST_APIPORT: 443
+
+      DOCKER_REGISTRY: ""
+      DOCKER_IMAGE_PREFIX: whisk
+      INVOKER_CONTAINER_NETWORK: openwhisk_default
+    volumes:
+      - ~/tmp/openwhisk/invoker/logs:/logs
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/docker/containers:/containers
+    ports:
+      - "8085:8085"
+
+  # The API Gateway is currently used to expose the Controller API
+  #   see tools/apigateway/whisk-docker-compose.conf
+  apigateway:
+    image: adobeapiplatform/apigateway:1.1.0
+    links:
+      - controller:whisk.controller
+    depends_on:
+      - controller
+    volumes:
+      - ~/tmp/openwhisk/apigateway/ssl:/etc/ssl:ro
+      - ~/tmp/openwhisk/apigateway/conf:/etc/api-gateway/generated-conf.d:ro
+    ports:
+      - "80:80"
+      - "443:443"
