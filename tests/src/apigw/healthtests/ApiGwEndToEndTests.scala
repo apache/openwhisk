@@ -16,6 +16,9 @@
 
 package apigw.healthtests
 
+import java.io.BufferedWriter
+import java.io.File
+import java.io.FileWriter
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
@@ -64,7 +67,7 @@ class ApiGwEndToEndTests extends FlatSpec with Matchers with RestUtil with TestH
             wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT)
 
             // Create the API
-            var rr = wsk.api.create(basepath = Some(testbasepath), relpath = testrelpath, operation = testurlop, action = actionName, apiname = Some(testapiname))
+            var rr = wsk.api.create(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
             rr.stdout should include("ok: created API")
             val apiurl = rr.stdout.split("\n")(1)
             println(s"apiurl: '${apiurl}'")
@@ -79,6 +82,23 @@ class ApiGwEndToEndTests extends FlatSpec with Matchers with RestUtil with TestH
             rr.stdout should include regex (s"${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
             rr.stdout should include(testbasepath + testrelpath)
 
+            // Recreate the API using a JSON swagger file
+            rr = wsk.api.get(basepathOrApiName = Some(testbasepath))
+            val swaggerfile = File.createTempFile("api", ".json")
+            swaggerfile.deleteOnExit()
+            val bw = new BufferedWriter(new FileWriter(swaggerfile))
+            bw.write(rr.stdout)
+            bw.close()
+
+            // Delete API to that it can be recreated again using the generated swagger file
+            val deleteApiResult = wsk.api.delete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+
+            // Create the API again, but use the swagger file this time
+            rr = wsk.api.create(swagger = Some(swaggerfile.getAbsolutePath()))
+            rr.stdout should include("ok: created API")
+            val swaggerapiurl = rr.stdout.split("\n")(1)
+            println(s"apiurl: '${swaggerapiurl}'")
+
             // Call the API URL and validate the results
             val response = RestAssured.given().config(sslconfig).get(s"$apiurl?$urlqueryparam=$urlqueryvalue")
             response.statusCode should be(200)
@@ -88,9 +108,9 @@ class ApiGwEndToEndTests extends FlatSpec with Matchers with RestUtil with TestH
         }
         finally {
             println("Deleting action: "+actionName)
-            val deleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
+            val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
             println("Deleting API: "+testbasepath)
-            val deleteApiResult = wsk.api.delete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+            val finallydeleteApiResult = wsk.api.delete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
         }
     }
 }

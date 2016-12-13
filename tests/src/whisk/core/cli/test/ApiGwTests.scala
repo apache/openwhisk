@@ -42,7 +42,7 @@ class ApiGwTests
     it should "reject an api commands with an invalid path parameter" in {
         val badpath = "badpath"
 
-        var rr = wsk.api.create(basepath = Some("/basepath"), relpath = badpath, operation = "GET", action = "action", expectedExitCode = ANY_ERROR_EXIT)
+        var rr = wsk.api.create(basepath = Some("/basepath"), relpath = Some(badpath), operation = Some("GET"), action = Some("action"), expectedExitCode = ANY_ERROR_EXIT)
         rr.stderr should include (s"'${badpath}' must begin with '/'")
 
         rr = wsk.api.delete(basepathOrApiName = "/basepath", relpath = Some(badpath), operation = Some("GET"), expectedExitCode = ANY_ERROR_EXIT)
@@ -68,7 +68,7 @@ class ApiGwTests
         try {
             println("cli user: "+cliuser+"; cli namespace: "+clinamespace)
 
-            var rr = wsk.api.create(basepath = Some(testbasepath), relpath = testrelpath, operation = testurlop, action = actionName, apiname = Some(testapiname))
+            var rr = wsk.api.create(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
             rr.stdout should include("ok: created API")
             rr = wsk.api.list(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
             rr.stdout should include("ok: APIs")
