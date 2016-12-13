@@ -1,0 +1,33 @@
+{
+    "annotations": [
+        {
+            "key": "exec",
+            "value": "sequence"
+        }
+    ],
+    "exec": {
+        "code": "\n/**\n * Invokes a sequence of actions, piping the output of each to the input of the next.\n *\n * @param _actions An array of action names to invoke.\n * @param <everything else> Passed as input to the first action.\n */\nfunction main(msg) {\n    // The actions to invoke sequentially.\n    var actions = msg['_actions'];\n\n    if (typeof actions === 'string') {\n        try {\n            actions = JSON.parse(actions);\n        } catch (e) {\n            return whisk.error('invalid sequence of actions');\n        }\n    }\n\n    if (!Array.isArray(actions)) {\n        return whisk.error('invalid sequence of actions');\n    }\n\n    console.log(actions.length, 'actions to invoke:', actions);\n\n    // The input to the first action.\n    var input = msg;\n    delete input['_actions'];\n    console.log('input to first action:', JSON.stringify(input));\n    invokeActions(actions, input, function(result) {\n        console.log('chain ending with result', JSON.stringify(result));\n        whisk.done(result);\n    });\n\n    return whisk.async();\n}\n\n/**\n * Invokes a sequence of actions.\n *\n * @param actions Array of action names.\n * @param input Input to the first action.\n * @param terminate Continuation to which the result from the final successful action is passed.\n */\nfunction invokeActions(actions, input, terminate) {\n    if (Array.isArray(actions) && actions.length > 0) {\n        var params = {\n           name: actions[0],\n           parameters: input,\n           blocking: true,\n           next: function(error, activation) {\n               if (!error) {\n                   console.log('invoke action', actions[0]);\n                   console.log('  id:', activation.activationId);\n                   console.log('  input:', input);\n                   console.log('  result:', activation.result);\n                   actions.shift();\n                   invokeActions(actions, activation.result, terminate);\n               } else {\n                   console.log('stopped chain at', actions[0], 'because of an error:', error);\n                   whisk.error(error);\n               }\n           }\n        };\n        whisk.invoke(params);\n    } else terminate(input);\n}\n",
+        "components": [
+            "/_/echo",
+            "/_/word_count"
+        ],
+        "kind": "sequence"
+    },
+    "limits": {
+        "logs": 10,
+        "memory": 256,
+        "timeout": 60000
+    },
+    "name": "seq_type_2",
+    "parameters": [
+        {
+            "key": "_actions",
+            "value": [
+                "/_/echo",
+                "/_/word_count"
+            ]
+        }
+    ],
+    "publish": false,
+    "version": "0.0.1"
+}

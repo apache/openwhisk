@@ -25,6 +25,9 @@
  *   username   Required. The database user name used to access the database
  *   password   Required. The database user password
  *   gwUrl      Required. The API Gateway base path (i.e. http://gw.com)
+ *   __ow_meta_namespace  Required. Namespace of API author; set by controller
+ *                        Use this value to override namespace values in the apidoc
+ *                        Don't override namespace values in the swagger though
  *   apidoc     Required. The API Gateway mapping document
  *      namespace          Required.  Namespace of user/caller
  *      apiName            Optional if swagger not specified.  API descriptive name
@@ -48,7 +51,7 @@
  var request = require('request');
 
 function main(message) {
-  console.log('createRoute:  params: '+JSON.stringify(message));
+
   var badArgMsg = '';
   if (badArgMsg = validateArgs(message)) {
     return whisk.error(badArgMsg);
@@ -58,6 +61,9 @@ function main(message) {
     gwUrl: message.gwUrl,
     gwAuth: message.gwAuth
   };
+
+  // Replace the CLI provided namespace valuse with the controller provided namespace value
+  updateNamespace(message.apidoc, message.__ow_meta_namespace);
 
   // message.apidoc already validated; creating shortcut to it
   var doc;
@@ -84,18 +90,15 @@ function main(message) {
     basepath = doc.gatewayBasePath;
   }
 
-  //doc.documentTimestamp = (new Date()).toString();
-  //var docid = doc.namespace+":"+doc.gatewayMethod.toUpperCase()+":"+doc.action;
-
   // Log parameter values
-  console.log('DB host    : '+message.host);
+  console.log('DB host    : '+confidentialPrint(message.host));
   console.log('DB port    : '+message.port);
   console.log('DB protocol: '+message.protocol);
   console.log('DB username: '+confidentialPrint(message.username));
   console.log('DB password: '+confidentialPrint(message.password));
   console.log('DB database: '+message.dbname);
   console.log('GW URL     : '+message.gwUrl);
-  console.log('GW Auth API: '+message.gwAuth);
+  console.log('GW Auth API: '+confidentialPrint(message.gwAuth));
   console.log('namespace  : '+doc.namespace);
   console.log('API name   : '+doc.apiName);
   console.log('basepath   : '+doc.gatewayBasePath);
@@ -328,6 +331,39 @@ function getApiDoc(namespace, basepath, docid) {
     });
 }
 
+/*
+ * Replace the namespace values that are used in the apidoc with the
+ * specified namespace
+ */
+function updateNamespace(apidoc, namespace) {
+  if (apidoc) {
+    if (apidoc.action) {
+      // The action namespace does not have to match the CLI user's namespace
+      // If it is different, leave it alone; otherwise use the replacement namespace
+      if (apidoc.namespace === apidoc.action.namespace) {
+        apidoc.action.namespace = namespace;
+        apidoc.action.backendUrl = replaceNamespaceInUrl(apidoc.action.backendUrl, namespace);      }
+    }
+    apidoc.namespace = namespace;
+  }
+}
+
+/*
+ * Take an OpenWhisk URL (i.e. action invocation URL) and replace the namespace
+ * path parameter value with the provided namespace value
+ */
+function replaceNamespaceInUrl(url, namespace) {
+  var namespacesPattern = /\/namespaces\/([\w@.-]+)\//;
+  console.log('replaceNamespaceInUrl: url before - '+url);
+  matchResult = url.match(namespacesPattern);
+  if (matchResult != null) {
+    console.log('replaceNamespaceInUrl: replacing namespace \''+matchResult[1]+'\' with \''+namespace+'\'');
+    url = url.replace(namespacesPattern, '/namespaces/'+namespace+'/');
+  }
+  console.log('replaceNamespaceInUrl: url after - '+url);
+  return url;
+}
+
 function validateArgs(message) {
   var tmpdoc;
   if(!message) {
@@ -341,6 +377,10 @@ function validateArgs(message) {
 
   if (!message.gwUrl) {
     return 'gwUrl is required.';
+  }
+
+  if (!message.__ow_meta_namespace) {
+    return '__ow_meta_namespace is required.'
   }
 
   if(!message.apidoc) {

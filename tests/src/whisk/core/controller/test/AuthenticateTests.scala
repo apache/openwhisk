@@ -26,18 +26,12 @@ import org.scalatest.junit.JUnitRunner
 
 import spray.http.BasicHttpCredentials
 import spray.http.StatusCodes._
-import spray.httpx.marshalling.ToResponseMarshallable.isMarshallable
-import spray.routing.Directive.pimpApply
 import spray.routing.authentication.UserPass
 import spray.routing.directives.AuthMagnet.fromContextAuthenticator
 import whisk.common.TransactionCounter
 import whisk.core.controller.Authenticate
 import whisk.core.controller.AuthenticatedRoute
-import whisk.core.entity.AuthKey
-import whisk.core.entity.Secret
-import whisk.core.entity.Subject
-import whisk.core.entity.UUID
-import whisk.core.entity.WhiskAuth
+import whisk.core.entity._
 import whisk.http.BasicHttpService
 
 /**

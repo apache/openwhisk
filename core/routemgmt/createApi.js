@@ -68,7 +68,7 @@ function main(message) {
   var dbStagedDocId;
 
   // Log parameter values
-  console.log('DB host             : '+message.host);
+  console.log('DB host             : '+confidentialPrint(message.host));
   console.log('DB port             : '+message.port);
   console.log('DB protocol         : '+message.protocol);
   console.log('DB username         : '+confidentialPrint(message.username));

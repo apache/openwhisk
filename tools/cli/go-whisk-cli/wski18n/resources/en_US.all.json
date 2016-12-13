@@ -128,8 +128,8 @@
     "translation": "{{.ok}} created package {{.name}}\n"
   },
   {
-    "id": "update an existing package",
-    "translation": "update an existing package"
+    "id": "update an existing package, or create a package if it does not exist",
+    "translation": "update an existing package, or create a package if it does not exist"
   },
   {
     "id": "Package update failed: {{.err}}",
@@ -441,8 +441,8 @@
     "translation": "{{.ok}} created rule {{.name}}\n"
   },
   {
-    "id": "update existing rule",
-    "translation": "update existing rule"
+    "id": "update an existing rule, or create a rule if it does not exist",
+    "translation": "update an existing rule, or create a rule if it does not exist"
   },
   {
     "id": "Unable to update rule '{{.name}}': {{.err}}",
@@ -611,8 +611,8 @@
     "translation": "{{.ok}} created trigger {{.name}}\n"
   },
   {
-    "id": "update existing trigger",
-    "translation": "update existing trigger"
+    "id": "update an existing trigger, or create a trigger if it does not exist",
+    "translation": "update an existing an trigger, or create a trigger if it does not exist"
   },
   {
     "id": "Unable to update trigger '{{.name}}': {{.err}}",
@@ -780,8 +780,8 @@
     "translation": "{{.ok}} created action {{.name}}\n"
   },
   {
-    "id": "update an existing action",
-    "translation": "update an existing action"
+    "id": "update an existing action, or create an action if it does not exist",
+    "translation": "update an existing action, or create an action if it does not exist"
   },
   {
     "id": "Unable to update action: {{.err}}",

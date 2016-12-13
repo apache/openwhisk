@@ -25,12 +25,12 @@ import org.scalatest.junit.JUnitRunner
 
 import spray.http.StatusCodes._
 import spray.httpx.SprayJsonSupport._
-import spray.json.DefaultJsonProtocol._
 import spray.json._
+import spray.json.DefaultJsonProtocol._
 import whisk.core.controller.WhiskTriggersApi
 import whisk.core.entity._
-import whisk.core.entity.test.OldWhiskTrigger
 import whisk.core.entity.WhiskRule
+import whisk.core.entity.test.OldWhiskTrigger
 import whisk.http.ErrorResponse
 import whisk.http.Messages
 

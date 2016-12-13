@@ -50,13 +50,13 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
 
     protected override val collection = Collection(Collection.RULES)
 
-    /** An actor system for timed based futures */
+    /** An actor system for timed based futures. */
     protected implicit val actorSystem: ActorSystem
 
-    /** Database service to CRUD rules */
+    /** Database service to CRUD rules. */
     protected val entityStore: EntityStore
 
-    /** Path to Rules REST API */
+    /** Path to Rules REST API. */
     protected val rulesPath = "rules"
 
     /**

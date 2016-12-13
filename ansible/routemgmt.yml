@@ -4,7 +4,5 @@
 - include: properties.yml
 
 - hosts: ansible
-  vars:
-    init_apigw_db: true
   roles:
   - routemgmt

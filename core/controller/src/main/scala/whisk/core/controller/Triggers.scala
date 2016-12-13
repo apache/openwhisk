@@ -79,16 +79,16 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
 
     protected override val collection = Collection(Collection.TRIGGERS)
 
-    /** An actor system for timed based futures */
+    /** An actor system for timed based futures. */
     protected implicit val actorSystem: ActorSystem
 
-    /** Database service to CRUD triggers */
+    /** Database service to CRUD triggers. */
     protected val entityStore: EntityStore
 
     /** Database service to get activations. */
     protected val activationStore: ActivationStore
 
-    /** Path to Triggers REST API */
+    /** Path to Triggers REST API. */
     protected val triggersPath = "triggers"
 
     /**
@@ -145,7 +145,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                             response = ActivationResponse.success(payload orElse Some(JsObject())),
                             version = trigger.version,
                             duration = None)
-                        info(this, s"[POST] trigger activated, writing activation record to datastore")
+                        info(this, s"[POST] trigger activated, writing activation record to datastore: $triggerActivationId")
                         val saveTriggerActivation = WhiskActivation.put(activationStore, triggerActivation) map {
                             _ => triggerActivationId
                         }
@@ -177,7 +177,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
 
                                     val actionNamespace = rule.action.path.root()
                                     val actionPath = {
-                                        rule.action.path.relpath.map {
+                                        rule.action.path.relativePath.map {
                                             pkg => (Path.SingleSlash + pkg.namespace) / rule.action.name()
                                         } getOrElse {
                                             Path.SingleSlash + rule.action.name()

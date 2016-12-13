@@ -167,8 +167,8 @@ class ViewTests extends FlatSpec
     it should "query whisk view by namespace, collection and entity name" in {
         implicit val tid = transid()
         val exec = Exec.bb("image")
-        val pkgname1 = namespace1.addpath(aname)
-        val pkgname2 = namespace2.addpath(aname)
+        val pkgname1 = namespace1.addPath(aname)
+        val pkgname2 = namespace2.addPath(aname)
         val actionName = aname
         def now = Instant.now(Clock.systemUTC())
 
@@ -185,8 +185,8 @@ class ViewTests extends FlatSpec
         implicit val entities = Seq(
             WhiskAction(namespace1, aname, exec),
             WhiskAction(namespace1, aname, exec),
-            WhiskAction(namespace1.addpath(aname), aname, exec),
-            WhiskAction(namespace1.addpath(aname), aname, exec),
+            WhiskAction(namespace1.addPath(aname), aname, exec),
+            WhiskAction(namespace1.addPath(aname), aname, exec),
             WhiskAction(pkgname1, aname, exec),
             WhiskAction(pkgname1, aname, exec),
             WhiskAction(pkgname1, actionName, exec),
@@ -203,8 +203,8 @@ class ViewTests extends FlatSpec
 
             WhiskAction(namespace2, aname, exec),
             WhiskAction(namespace2, aname, exec),
-            WhiskAction(namespace2.addpath(aname), aname, exec),
-            WhiskAction(namespace2.addpath(aname), aname, exec),
+            WhiskAction(namespace2.addPath(aname), aname, exec),
+            WhiskAction(namespace2.addPath(aname), aname, exec),
             WhiskAction(pkgname2, aname, exec),
             WhiskAction(pkgname2, aname, exec),
             WhiskTrigger(namespace2, aname),

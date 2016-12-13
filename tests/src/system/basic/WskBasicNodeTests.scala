@@ -132,6 +132,23 @@ class WskBasicNodeTests
             }
     }
 
+    it should "Ensure that returning an empty rejected Promise results in an errored activation" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "jsEmptyRejectPromise"
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) =>
+                    action.create(name, Some(TestUtils.getTestActionFilename("issue-1562.js")))
+            }
+
+            withActivation(wsk.activation, wsk.action.invoke(name)) {
+                activation =>
+                    val response = activation.response
+                    response.success should be(false)
+                    response.result.get.fields.get("error") shouldBe defined
+            }
+    }
+
     // TODO: remove this tests and its assets when "whisk.js" is removed entirely as it is no longer necessary
     it should "Ensure that whisk.invoke() returns a promise" in withAssetCleaner(wskprops) {
         val expectedDuration = 3.seconds

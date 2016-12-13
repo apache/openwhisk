@@ -83,7 +83,7 @@ func (s *ActivationService) List(options *ActivationListOptions) ([]Activation, 
         return nil, nil, werr
     }
 
-    req, err := s.client.NewRequestUrl("GET", routeUrl, nil)
+    req, err := s.client.NewRequestUrl("GET", routeUrl, nil, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s) error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
@@ -114,7 +114,7 @@ func (s *ActivationService) Get(activationID string) (*Activation, *http.Respons
     activationID = (&url.URL{Path: activationID}).String()
     route := fmt.Sprintf("activations/%s", activationID)
 
-    req, err := s.client.NewRequest("GET", route, nil)
+    req, err := s.client.NewRequest("GET", route, nil, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s) error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
@@ -143,7 +143,7 @@ func (s *ActivationService) Logs(activationID string) (*Activation, *http.Respon
     activationID = (&url.URL{Path: activationID}).String()
     route := fmt.Sprintf("activations/%s/logs", activationID)
 
-    req, err := s.client.NewRequest("GET", route, nil)
+    req, err := s.client.NewRequest("GET", route, nil, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s) error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
@@ -172,7 +172,7 @@ func (s *ActivationService) Result(activationID string) (*Response, *http.Respon
     activationID = (&url.URL{Path: activationID}).String()
     route := fmt.Sprintf("activations/%s/result", activationID)
 
-    req, err := s.client.NewRequest("GET", route, nil)
+    req, err := s.client.NewRequest("GET", route, nil, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s) error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",

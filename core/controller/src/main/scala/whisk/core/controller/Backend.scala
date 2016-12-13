@@ -81,10 +81,9 @@ trait WhiskServices {
     /** A generator for new activation ids. */
     protected val activationIdFactory: ActivationIdGenerator
 
-    /** A load balancing service that launches invocations */
-
+    /** A load balancing service that launches invocations. */
     protected val loadBalancer: LoadBalancer
 
-    /** The hostname of the consul server */
+    /** The hostname of the consul server. */
     protected val consulServer: String
 }

@@ -12,6 +12,7 @@ db_prefix: "{{ ansible_user_id }}_{{ ansible_hostname|lower }}_"
 db_apigw_username: "{{ db_username }}"
 db_apigw_password: "{{ db_password }}"
 db_apigw: "{{ db_prefix }}gwapis"
+apigw_initdb: true
 
 whisk_version_name: local
 nginx_conf_dir: /tmp/nginx

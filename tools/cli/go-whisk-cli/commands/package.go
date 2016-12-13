@@ -214,7 +214,7 @@ var packageCreateCmd = &cobra.Command{
 
 var packageUpdateCmd = &cobra.Command{
   Use:           "update PACKAGE_NAME",
-  Short:         wski18n.T("update an existing package"),
+  Short:         wski18n.T("update an existing package, or create a package if it does not exist"),
   SilenceUsage:  true,
   SilenceErrors: true,
   PreRunE:       setupClientConfig,
