@@ -588,6 +588,13 @@ func parseSwaggerApi() (*whisk.Api, error) {
             whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
         return nil, whiskErr
     }
+    if _, ok := isValidBasepath(swaggerObj.BasePath); !ok {
+        whisk.Debug(whisk.DbgError, "Swagger file basePath is invalid.\n", flags.api.configfile, err)
+        errMsg := wski18n.T("Swagger file basePath must start with a leading slash (/)")
+        whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+            whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+        return nil, whiskErr
+    }
 
     api := new(whisk.Api)
     api.Namespace = client.Config.Namespace

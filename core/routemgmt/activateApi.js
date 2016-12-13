@@ -296,7 +296,11 @@ function addRouteToGateway(gwInfo, gwApiDoc) {
         reject('Unable to configure the API Gateway: '+JSON.stringify(error));
       } else if (statusCode != 200) {
         console.error('addRouteToGateway: Response code: '+statusCode)
-        reject('Unable to configure the API Gateway: Response failure code: '+statusCode);
+        if (body) {
+          reject('Unable to configure the API Gateway (status code '+statusCode+'): '+body);
+        } else {
+          reject('Unable to configure the API Gateway: Response failure code: '+statusCode);
+        }
       } else if (!body) {
         console.error('addRouteToGateway: Unable to configure the API Gateway: No response body')
         reject('Unable to configure the API Gateway: No response received from the API Gateway');
