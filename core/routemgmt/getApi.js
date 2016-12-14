@@ -119,11 +119,11 @@ function readApiDocument(cloudantDb, docId, params) {
   return new Promise (function(resolve,reject) {
     cloudantDb.get(docId, params, function(error, response) {
       if (!error) {
-        console.log('success', JSON.stringify(response));
+        console.log('DB success', JSON.stringify(response));
         resolve(response);
       } else {
-        console.error("DB error: ",error.name, error.error, error.reason, error.headers.statusCode);
-        if (error.headers.statusCode == 404) {  // When NOT FOUND, return empty results
+        console.error('DB error: '+JSON.stringify(error))
+        if (error.headers && error.headers.statusCode == 404) {  // When NOT FOUND, return empty results
           resolve({rows: []})
         }
         reject(error);
@@ -137,11 +137,11 @@ function readFilteredApiDocument(cloudantDb, designDocId, designDocViewName, par
   return new Promise(function (resolve, reject) {
     cloudantDb.view(designDocId, designDocViewName, params, function(error, response) {
       if (!error) {
-        console.log('success', response);
+        console.log('DB view success', JSON.stringify(response));
         resolve(response);
       } else {
-        console.error('error', JSON.stringify(error));
-        if (error.headers.statusCode == 404) {  // When NOT FOUND, return empty results
+        console.error('DB view error', JSON.stringify(error));
+        if (error.headers && error.headers.statusCode == 404) {  // When NOT FOUND, return empty results
           resolve({rows: []})
         }
         reject(error);
