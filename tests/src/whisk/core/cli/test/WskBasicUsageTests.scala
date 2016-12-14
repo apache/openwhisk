@@ -344,7 +344,7 @@ class WskBasicUsageTests
             withActivation(wsk.activation, wsk.action.invoke(name)) {
                 activation =>
                     val response = activation.response
-                    response.result.get.fields("error") shouldBe ActivationResponse.abnormalInitialization
+                    response.result.get.fields("error") shouldBe Messages.abnormalInitialization.toJson
                     response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ContainerError)
             }
     }
@@ -363,7 +363,7 @@ class WskBasicUsageTests
             withActivation(wsk.activation, wsk.action.invoke(name)) {
                 activation =>
                     val response = activation.response
-                    response.result.get.fields("error") shouldBe ActivationResponse.timedoutActivation(3 seconds, true)
+                    response.result.get.fields("error") shouldBe Messages.timedoutActivation(3 seconds, true).toJson
                     response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ApplicationError)
             }
     }
@@ -378,7 +378,7 @@ class WskBasicUsageTests
             withActivation(wsk.activation, wsk.action.invoke(name)) {
                 activation =>
                     val response = activation.response
-                    response.result.get.fields("error") shouldBe ActivationResponse.abnormalRun
+                    response.result.get.fields("error") shouldBe Messages.abnormalRun.toJson
                     response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ContainerError)
             }
     }
@@ -530,7 +530,7 @@ class WskBasicUsageTests
                 activation =>
                     // the first action must fail with a timeout error
                     activation.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ApplicationError)
-                    activation.response.result shouldBe Some(JsObject("error" -> "The action exceeded its time limits of 3000 milliseconds.".toJson))
+                    activation.response.result shouldBe Some(JsObject("error" -> Messages.timedoutActivation(3 seconds, false).toJson))
             }
 
             // run the action again, this time without forcing it to timeout

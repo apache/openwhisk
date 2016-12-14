@@ -17,6 +17,7 @@
 package whisk.http
 
 import scala.util.Try
+import scala.concurrent.duration.Duration
 
 import spray.http.StatusCode
 import spray.http.StatusCodes.Forbidden
@@ -76,6 +77,28 @@ object Messages {
 
     /** Error messages for bad requests where parameters do not conform. */
     val parametersNotAllowed = "Request defines parameters that are not allowed (e.g., reserved properties)."
+
+    /** Error messages for activations. */
+    val abnormalInitialization = "The action did not initialize and exited unexpectedly."
+    val abnormalRun = "The action did not produce a valid response and exited unexpectedly."
+
+    def invalidInitResponse(actualResponse: String) = {
+        "The action failed during initialization" + {
+            Option(actualResponse) filter { _.nonEmpty } map { s => s": $s" } getOrElse "."
+        }
+    }
+
+    def invalidRunResponse(actualResponse: String) = {
+        "The action did not produce a valid JSON response" + {
+            Option(actualResponse) filter { _.nonEmpty } map { s => s": $s" } getOrElse "."
+        }
+    }
+
+    def timedoutActivation(timeout: Duration, init: Boolean) = {
+        s"The action exceeded its time limits of ${timeout.toMillis} milliseconds" + {
+            if (!init) "." else " during initialization."
+        }
+    }
 }
 
 /** Replaces rejections with Json object containing cause and transaction id. */

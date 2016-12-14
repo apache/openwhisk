@@ -44,6 +44,7 @@ import whisk.core.dispatcher.ActivationFeed.{ ActivationNotification, ContainerR
 import whisk.core.entity._
 import whisk.core.entity.size.{ SizeInt, SizeString }
 import whisk.http.BasicHttpService
+import whisk.http.Messages
 import whisk.utils.ExecutionContextFactory
 
 /**
@@ -383,7 +384,7 @@ class Invoker(
         failedInit: Boolean)(
             implicit transid: TransactionId): ActivationResponse = {
         if (interval.duration >= timeout) {
-            ActivationResponse.applicationError(ActivationResponse.timedoutActivation(timeout, failedInit))
+            ActivationResponse.applicationError(Messages.timedoutActivation(timeout, failedInit))
         } else if (!failedInit) {
             ActivationResponse.processRunResponseContent(response, this: Logging)
         } else {

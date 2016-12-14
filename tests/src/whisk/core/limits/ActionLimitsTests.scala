@@ -17,6 +17,7 @@
 package whisk.core.limits
 
 import java.io.File
+import java.io.PrintWriter
 
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
@@ -31,18 +32,14 @@ import common.WhiskProperties
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
-import spray.json.DefaultJsonProtocol._
-import spray.json.pimpAny
-import java.io.PrintWriter
-import whisk.core.entity.Exec
-import spray.json.DefaultJsonProtocol.LongJsonFormat
-import common.TestUtils
-import whisk.core.entity.size.SizeInt
-import whisk.core.entity.size.SizeString
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import whisk.core.entity.ActivationResponse
+import spray.json.pimpAny
+import whisk.core.entity.Exec
 import whisk.core.entity.LogLimit
+import whisk.core.entity.size.SizeInt
+import whisk.core.entity.size.SizeString
+import whisk.http.Messages
 
 @RunWith(classOf[JUnitRunner])
 class ActionLimitsTests extends TestHelpers with WskTestHelpers {
@@ -72,7 +69,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
             val run = wsk.action.invoke(name, Map("payload" -> allowedActionDuration.plus(1 second).toMillis.toJson))
             withActivation(wsk.activation, run) {
                 _.response.result.get.fields("error") shouldBe {
-                    ActivationResponse.timedoutActivation(allowedActionDuration, false)
+                    Messages.timedoutActivation(allowedActionDuration, false).toJson
                 }
             }
     }
