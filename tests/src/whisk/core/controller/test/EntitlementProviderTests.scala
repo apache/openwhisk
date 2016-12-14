@@ -204,7 +204,7 @@ class EntitlementProviderTests
             (ACTIVATE, guestUser, Right(false)),
             (REJECT, guestUser, Right(false)))
 
-        paths.map {
+        paths foreach {
             case (priv, who, expected) =>
                 val check = new PackageCollection(entityStore).implicitRights(
                     who,
@@ -234,7 +234,7 @@ class EntitlementProviderTests
             (ACTIVATE, guestUser, Right(false)),
             (REJECT, guestUser, Right(false)))
 
-        paths.map {
+        paths foreach {
             case (priv, who, expected) =>
                 val check = new PackageCollection(entityStore).implicitRights(
                     who,
@@ -265,7 +265,7 @@ class EntitlementProviderTests
         // this forces a doc mismatch error
         val action = WhiskAction(someUser.namespace.toPath, MakeName.next(), Exec.js(""))
         put(entityStore, action)
-        paths.map {
+        paths foreach {
             case (priv, who, expected) =>
                 val check = new PackageCollection(entityStore).implicitRights(
                     who,
@@ -296,7 +296,7 @@ class EntitlementProviderTests
             (ACTIVATE, guestUser, Right(false)),
             (REJECT, guestUser, Right(false)))
 
-        paths.map {
+        paths foreach {
             case (priv, who, expected) =>
                 val check = new PackageCollection(entityStore).implicitRights(
                     who,
@@ -330,7 +330,7 @@ class EntitlementProviderTests
             (ACTIVATE, guestUser, Right(false)),
             (REJECT, guestUser, Right(false)))
 
-        paths.map {
+        paths foreach {
             case (priv, who, expected) =>
                 val check = new PackageCollection(entityStore).implicitRights(
                     who,
@@ -342,7 +342,7 @@ class EntitlementProviderTests
 
         // simulate package deletion for which binding was once entitled
         deletePackage(provider.docid)
-        paths.map {
+        paths foreach {
             case (priv, who, expected) =>
                 val check = new PackageCollection(entityStore).implicitRights(
                     who,
@@ -376,7 +376,7 @@ class EntitlementProviderTests
             (ACTIVATE, guestUser, Right(false)),
             (REJECT, guestUser, Right(false)))
 
-        paths.map {
+        paths foreach {
             case (priv, who, expected) =>
                 val check = new PackageCollection(entityStore).implicitRights(
                     who,
@@ -409,7 +409,7 @@ class EntitlementProviderTests
             (ACTIVATE, guestUser, Right(false)),
             (REJECT, guestUser, Right(false)))
 
-        paths.map {
+        paths foreach {
             case (priv, who, expected) =>
                 val check = new PackageCollection(entityStore).implicitRights(
                     who,
@@ -439,7 +439,7 @@ class EntitlementProviderTests
             (ACTIVATE, guestUser, Right(false)),
             (REJECT, guestUser, Right(false)))
 
-        paths.map {
+        paths foreach {
             case (priv, who, expected) =>
                 val check = new ActionCollection(entityStore).implicitRights(
                     who,
@@ -474,7 +474,7 @@ class EntitlementProviderTests
         put(entityStore, provider)
         put(entityStore, action)
 
-        paths.map {
+        paths foreach {
             case (priv, who, expected) =>
                 val check = new ActionCollection(entityStore).implicitRights(
                     who,
@@ -507,7 +507,7 @@ class EntitlementProviderTests
         put(entityStore, provider)
         put(entityStore, action)
 
-        paths.map {
+        paths foreach {
             case (priv, who, expected) =>
                 val check = new ActionCollection(entityStore).implicitRights(
                     who,
@@ -542,7 +542,7 @@ class EntitlementProviderTests
         put(entityStore, binding)
         put(entityStore, action)
 
-        paths.map {
+        paths foreach {
             case (priv, who, expected) =>
                 val check = new ActionCollection(entityStore).implicitRights(
                     who,
@@ -577,7 +577,7 @@ class EntitlementProviderTests
         put(entityStore, binding)
         put(entityStore, action)
 
-        paths.map {
+        paths foreach {
             case (priv, who, expected) =>
                 val check = new ActionCollection(entityStore).implicitRights(
                     who,
@@ -608,7 +608,7 @@ class EntitlementProviderTests
         val action = WhiskAction(someUser.namespace.toPath, MakeName.next(), Exec.js(""))
         put(entityStore, action)
 
-        paths.map {
+        paths foreach {
             case (priv, who, expected) =>
                 val check = new ActionCollection(entityStore).implicitRights(
                     who,
