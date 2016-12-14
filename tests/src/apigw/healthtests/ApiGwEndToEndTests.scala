@@ -19,13 +19,13 @@ package apigw.healthtests
 import java.io.BufferedWriter
 import java.io.File
 import java.io.FileWriter
+
+import scala.concurrent.duration.DurationInt
+
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
-
-import spray.json.DefaultJsonProtocol._
-import spray.json._
 
 import com.jayway.restassured.RestAssured
 
@@ -36,13 +36,15 @@ import common.Wsk
 import common.WskAdmin
 import common.WskProps
 import common.WskTestHelpers
+import spray.json._
+import spray.json.DefaultJsonProtocol._
 import system.rest.RestUtil
 
 /**
  * Basic tests of the download link for Go CLI binaries
  */
 @RunWith(classOf[JUnitRunner])
-class ApiGwEndToEndTests extends FlatSpec with Matchers with RestUtil with TestHelpers with WskTestHelpers{
+class ApiGwEndToEndTests extends FlatSpec with Matchers with RestUtil with TestHelpers with WskTestHelpers {
 
     implicit val wskprops = WskProps()
     val wsk = new Wsk
@@ -50,17 +52,16 @@ class ApiGwEndToEndTests extends FlatSpec with Matchers with RestUtil with TestH
 
     it should s"create an API and successfully invoke that API" in {
         val testName = "APIGW_HEALTHTEST1"
-        val testbasepath = "/"+testName+"_bp"
+        val testbasepath = "/" + testName + "_bp"
         val testrelpath = "/path"
         val testurlop = "get"
-        val testapiname = testName+" API Name"
+        val testapiname = testName + " API Name"
         val actionName = "echo"
         val urlqueryparam = "name"
         val urlqueryvalue = "test"
 
-
         try {
-            println("cli user: "+cliuser+"; cli namespace: "+clinamespace)
+            println("cli user: " + cliuser + "; cli namespace: " + clinamespace)
 
             // Create the action for the API
             val file = TestUtils.getTestActionFilename(s"echo.js")
@@ -100,16 +101,19 @@ class ApiGwEndToEndTests extends FlatSpec with Matchers with RestUtil with TestH
             println(s"apiurl: '${swaggerapiurl}'")
 
             // Call the API URL and validate the results
-            val response = RestAssured.given().config(sslconfig).get(s"$apiurl?$urlqueryparam=$urlqueryvalue")
-            response.statusCode should be(200)
+            val response = whisk.utils.retry({
+                val response = RestAssured.given().config(sslconfig).get(s"$swaggerapiurl?$urlqueryparam=$urlqueryvalue")
+                response.statusCode should be(200)
+                response
+            }, 5, Some(1.second))
             val responseString = response.body.asString
-            println("URL invocation response: "+responseString)
+            println("URL invocation response: " + responseString)
             responseString.parseJson.asJsObject.fields(urlqueryparam).convertTo[String] should be(urlqueryvalue)
-        }
-        finally {
-            println("Deleting action: "+actionName)
+
+        } finally {
+            println("Deleting action: " + actionName)
             val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
-            println("Deleting API: "+testbasepath)
+            println("Deleting API: " + testbasepath)
             val finallydeleteApiResult = wsk.api.delete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
         }
     }
