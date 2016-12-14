@@ -384,7 +384,7 @@ After the actions and feeds that comprise a package are debugged and tested, the
 1. Share the package with all users:
 
   ```
-  $ wsk package update custom --shared
+  $ wsk package update custom --shared yes
   ```
   ```
   ok: updated package custom
