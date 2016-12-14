@@ -127,11 +127,11 @@ function main(message) {
   })
   .catch(function(reason) {
       if (!gwApiActivated) {
-        console.error('API activation failure: '+reason);
-        return Promise.reject('API activation failure: '+reason);
+        console.error('API activation failure: '+JSON.stringify(reason));
+        return Promise.reject('API activation failure: '+JSON.stringify(reason));
       }
-      console.error('API was activated; however, the database could not be udpated: '+reason);
-      return Promise.reject('API was activated; however, an internal error occurred after activation: '+reason);
+      console.error('API was activated; however, the database could not be updated: '+JSON.stringify(reason));
+      return Promise.reject('API was activated; however, an internal error occurred after activation: '+JSON.stringify(reason));
   });
 }
 

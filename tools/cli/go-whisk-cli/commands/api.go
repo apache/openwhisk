@@ -349,7 +349,7 @@ var apiListCmd = &cobra.Command{
             retApiArray, _, err = client.Apis.List(options)
             if err != nil {
                 whisk.Debug(whisk.DbgError, "client.Apis.List(%s) error: %s\n", options, err)
-                errMsg := wski18n.T("Unable to get api: {{.err}}", map[string]interface{}{"err": err})
+                errMsg := wski18n.T("Unable to get API: {{.err}}", map[string]interface{}{"err": err})
                 whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                     whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return whiskErr
