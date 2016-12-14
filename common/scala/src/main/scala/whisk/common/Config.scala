@@ -76,6 +76,16 @@ class Config(
     }
 
     /**
+     * Returns the value of a given key parsed as a double.
+     * If parsing fails, return the default value.
+     *
+     * @param key the property that has to be returned.
+     */
+    def getAsDouble(key: String, defaultValue: Double): Double = {
+        Try { getProperty(key).toDouble } getOrElse { defaultValue }
+    }
+
+    /**
      * Converts the set of property to a string for debugging.
      */
     def mkString: String = settings.mkString("\n")

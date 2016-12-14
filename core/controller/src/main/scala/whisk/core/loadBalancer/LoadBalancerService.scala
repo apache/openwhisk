@@ -17,6 +17,7 @@
 package whisk.core.loadBalancer
 
 import java.time.{ Clock, Instant }
+import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.ExecutionContext
@@ -32,7 +33,8 @@ import scala.util.Success
 import akka.actor.ActorSystem
 import akka.event.Logging.LogLevel
 
-import spray.json.JsObject
+import spray.json.DefaultJsonProtocol.LongJsonFormat
+import spray.json.{ JsObject, pimpAny }
 
 import whisk.common.ConsulClient
 import whisk.common.ConsulKV.LoadBalancerKeys
@@ -45,12 +47,9 @@ import whisk.common.TransactionId
 import whisk.connector.kafka.KafkaConsumerConnector
 import whisk.connector.kafka.KafkaProducerConnector
 import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig.consulServer
-import whisk.core.WhiskConfig.kafkaHost
-import whisk.core.connector.ActivationMessage
-import whisk.core.connector.CompletionMessage
-import whisk.core.entity.ActivationId
-import whisk.core.entity.WhiskActivation
+import whisk.core.WhiskConfig.{ consulServer, kafkaHost }
+import whisk.core.connector.{ ActivationMessage, CompletionMessage }
+import whisk.core.entity.{ ActivationId, WhiskAction, WhiskActivation }
 
 trait LoadBalancer {
 
@@ -69,11 +68,12 @@ trait LoadBalancer {
      * @param transid the transaction id for the request
      * @return future that provides an activation (result) if it is ready before timeout otherwise the future fails with ActiveAckTimeout
      */
-    def publish(msg: ActivationMessage, timeout: FiniteDuration)(implicit transid: TransactionId): (Future[Unit], Future[WhiskActivation])
+    def publish(action: WhiskAction, msg: ActivationMessage, timeout: FiniteDuration)(implicit transid: TransactionId): (Future[Unit], Future[WhiskActivation])
 
 }
 
-class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
+class LoadBalancerService(config: WhiskConfig,
+                          verbosity: LogLevel)(
     implicit val actorSystem: ActorSystem)
     extends LoadBalancer with Logging {
 
@@ -87,17 +87,17 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
 
     private implicit val emitter: PrintStreamEmitter = this
 
+    /** How many invokers are dedicated to blackbox images.  We range bound to something sensical regardless of configuration. */
+    private val blackboxFraction : Double = Math.max(0.0, Math.min(1.0, config.controllerBlackboxFraction))
+    info(this, s"blackboxFraction = $blackboxFraction")
+
+    /** We run this often on an invoker before going onto the next. */
+    private val activationCountBeforeNextInvoker = 10
+
     /**
      * Gets invoker health as a dictionary.
      */
     def getInvokerHealth(): JsObject = invokerHealth.getInvokerHealthJson()
-
-    /**
-     * Gets an invoker index to send request to.
-     *
-     * @return index of invoker to receive request
-     */
-    def getInvoker(message: ActivationMessage): Option[Int] = invokerHealth.getInvoker(message)
 
     /**
      * Retrieves a per subject map of counts representing in-flight activations as seen by the load balancer
@@ -113,8 +113,9 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
      * @param transid the transaction id for the request
      * @return result a pair of Futures the first indicating completion of publishing and the second the completion of the action
      */
-    def publish(msg: ActivationMessage, timeout: FiniteDuration)(implicit transid: TransactionId): (Future[Unit], Future[WhiskActivation]) = {
-        getInvoker(msg) map {
+    def publish(action: WhiskAction, msg: ActivationMessage, timeout: FiniteDuration)
+               (implicit transid: TransactionId): (Future[Unit], Future[WhiskActivation]) = {
+        getInvoker(action, msg) map {
             val start = transid.started(this, LoggingMarkers.CONTROLLER_KAFKA)
             invokerIndex =>
                 val topic = ActivationMessage.invoker(invokerIndex)
@@ -150,20 +151,19 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
     private val activationBySubject = new TrieMap[String, TrieSet[ActivationEntry]]
 
     private val kv = new ConsulClient(config.consulServer)
-    private val reporter = new ConsulKVReporter(kv, 3 seconds, 2 seconds,
+    private val reporter = new ConsulKVReporter(kv, 3 seconds, 10 seconds,
         LoadBalancerKeys.hostnameKey,
         LoadBalancerKeys.startKey,
         LoadBalancerKeys.statusKey,
-        { count =>
+        { _ =>
             val activeCounts = getActiveCountByInvoker()
             val totalActiveCount = activeCounts.values.sum
             val health = invokerHealth.getInvokerHealth()
-            if (count % 10 == 0) {
-                implicit val sid = TransactionId.loadbalancer
-                info(this, s"In flight: $totalActiveCount = [${activeCounts.mkString(", ")}]")
-                info(this, s"Invoker health: [${health.mkString(", ")}]")
-            }
-            Map(LoadBalancerKeys.invokerHealth -> getInvokerHealth())
+            implicit val sid = TransactionId.loadbalancer
+            info(this, s"In flight: $totalActiveCount = [${activeCounts.mkString(", ")}]")
+            info(this, s"Invoker health: [${health.mkString(", ")}]")
+            Map(LoadBalancerKeys.invokerHealth -> getInvokerHealth(),
+                LoadBalancerKeys.activationCountKey -> producer.sentCount().toJson)
         })
 
     private val consumer = new KafkaConsumerConnector(config.kafkaHost, "completions", "completed")
@@ -240,11 +240,74 @@ class LoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(
         userActivationCounter.getOrElseUpdate(user, new Counter()).next()
     }
 
-    // Make a new immutable map so caller cannot mess up the state
+    /** Make a new immutable map so caller cannot mess up the state */
     private def getActiveCountByInvoker(): Map[Int, Long] = activationByInvoker.toMap mapValues { _.size.toLong }
 
-    // A count of how many activations have been posted to Kafka based on invoker index or user/subject.
+    /** A count of how many activations have been posted to Kafka based on invoker index or user/subject. */
     private val userActivationCounter = new TrieMap[String, Counter]
+
+    /** Return a sorted list of available invokers. */
+    private def getAvailableInvokers(): Array[Int] = invokerHealth.getCurStatus.filter( _.isUp).sortBy(_.index).map(_.index)
+
+    /** Compute the number of blackbox-dedicated invokers by applying a rounded down fraction of all invokers (but at least 1). */
+    private def numBlackbox(totalInvokers: Int) = Math.max(1, (totalInvokers.toDouble * blackboxFraction).toInt)
+
+    /** Return invokers (almost) dedicated to running blackbox actions. */
+    private def getBlackboxInvokers(): Array[Int] = {
+        val allInvokers = getAvailableInvokers
+        allInvokers.takeRight(numBlackbox(allInvokers.length))
+    }
+
+    /** Return (at least one) invokers for running non black-box actions.  This set can overlap with the blackbox set if there is only one invoker. */
+    private def getManagedInvokers(): Array[Int] = {
+        val allInvokers = getAvailableInvokers
+        val numManaged = Math.max(1, allInvokers.length - numBlackbox(allInvokers.length))
+        allInvokers.take(numManaged)
+    }
+
+    /**
+     * Determine which invoker this activation should go to.  Due to dynamic conditions, it may return no invoker.
+     */
+    private def getInvoker(action: WhiskAction, msg: ActivationMessage): Option[Int] = {
+        val isBlackbox = action.exec.pull
+        val invokers = if (isBlackbox) getBlackboxInvokers() else getManagedInvokers()
+        val (hash, count) = hashAndCountSubjectAction(msg)
+        val numInvokers = invokers.length
+        if (numInvokers > 0) {
+            globalCount.getAndIncrement()
+            val hashCount = math.abs(hash + count / activationCountBeforeNextInvoker)
+            val invokerIndex = hashCount % numInvokers
+            Some(invokers(invokerIndex))
+        } else {
+            error(this, s"all invokers down")
+            None
+        }
+    }
+
+    /*
+     * The path contains more than the action per se but seems sufficiently
+     * isomorphic as the other parts are constant.  Extracting just the
+     * action out specifically will involve some hairy regex's that the
+     * Invoker is currently using and which is better avoid if/until
+     * these are moved to some common place (like a subclass of Message?)
+     */
+    private def hashAndCountSubjectAction(msg: ActivationMessage): (Int, Int) = {
+        val subject = msg.subject().toString()
+        val path = msg.action.toString
+        val hash = subject.hashCode() ^ path.hashCode()
+        val key = (subject, path)
+        val count = activationCountMap.get(key) match {
+            case Some(counter) => counter.getAndIncrement()
+            case None => {
+                activationCountMap.put(key, new AtomicInteger(0))
+                0
+            }
+        }
+        return (hash, count)
+    }
+
+    private val globalCount = new AtomicInteger(0)
+    private val activationCountMap = TrieMap[(String, String), AtomicInteger]()
 
 }
 

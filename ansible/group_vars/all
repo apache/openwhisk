@@ -23,6 +23,7 @@ defaultLimits:
 # port means outer port
 controller:
   port: 10001
+  blackboxFraction: 0.10
 
 consul:
   version: 0.7.0
