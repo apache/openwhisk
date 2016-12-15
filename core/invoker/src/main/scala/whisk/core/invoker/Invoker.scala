@@ -44,6 +44,7 @@ import whisk.core.dispatcher.ActivationFeed.{ ActivationNotification, ContainerR
 import whisk.core.entity._
 import whisk.core.entity.size.{ SizeInt, SizeString }
 import whisk.http.BasicHttpService
+import whisk.http.Messages
 import whisk.utils.ExecutionContextFactory
 
 /**
@@ -197,13 +198,16 @@ class Invoker(
                 // after sending active ack, drain logs and return container
                 val contents = getContainerLogs(con, action.exec.sentinelledLogs, action.limits.logs)
 
-                /* Force delete the container instead of just pausing it iff the initialization failed or the container
-                 * failed otherwise. An example of a ContainerError is the timeout of an action in which case the
-                 * container is to be removed to prevent leaking.  Since putting back the container involves pausing,
-                 * we run this in a Future so as not to block transaction completion but also return resources promptly.
-                 * Note: using infinite thread pool so using a future here for a long/blocking operation is acceptable.
-                 */
-                Future { pool.putBack(con, failedInit) }
+                Future {
+                    // Force delete the container instead of just pausing it iff the initialization failed or the container
+                    // failed otherwise. An example of a ContainerError is the timeout of an action in which case the
+                    // container is to be removed to prevent leaking of an activation across to new activations.
+                    // Since putting back the container involves pausing, run this in a Future so as not to block transaction
+                    // completion but also return resources promptly.
+                    // Note: using infinite thread pool so using a future here for a long/blocking operation is acceptable.
+                    val deleteContainer = failedInit || result.response.map(_._1 != 200).getOrElse(true)
+                    pool.putBack(con, deleteContainer)
+                }
 
                 activationResult withLogs ActivationLogs.serdes.read(contents)
         }
@@ -380,7 +384,7 @@ class Invoker(
         failedInit: Boolean)(
             implicit transid: TransactionId): ActivationResponse = {
         if (interval.duration >= timeout) {
-            ActivationResponse.applicationError(ActivationResponse.timedoutActivation(timeout, failedInit))
+            ActivationResponse.applicationError(Messages.timedoutActivation(timeout, failedInit))
         } else if (!failedInit) {
             ActivationResponse.processRunResponseContent(response, this: Logging)
         } else {
