@@ -23,6 +23,7 @@ import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
+import scala.concurrent.duration.DurationInt
 
 import spray.json.DefaultJsonProtocol._
 import spray.json._
@@ -37,6 +38,8 @@ import common.WskAdmin
 import common.WskProps
 import common.WskTestHelpers
 import system.rest.RestUtil
+//import whisk.utils.retry
+
 
 /**
  * Basic tests of the download link for Go CLI binaries
@@ -100,11 +103,15 @@ class ApiGwEndToEndTests extends FlatSpec with Matchers with RestUtil with TestH
             println(s"apiurl: '${swaggerapiurl}'")
 
             // Call the API URL and validate the results
-            val response = RestAssured.given().config(sslconfig).get(s"$apiurl?$urlqueryparam=$urlqueryvalue")
-            response.statusCode should be(200)
+            val response = whisk.utils.retry({
+                val response = RestAssured.given().config(sslconfig).get(s"$swaggerapiurl?$urlqueryparam=$urlqueryvalue")
+                response.statusCode should be(200)
+                response
+            }, 5, Some(1.second))
             val responseString = response.body.asString
-            println("URL invocation response: "+responseString)
+            println("URL invocation response: " + responseString)
             responseString.parseJson.asJsObject.fields(urlqueryparam).convertTo[String] should be(urlqueryvalue)
+
         }
         finally {
             println("Deleting action: "+actionName)
