@@ -80,7 +80,7 @@ case class WhiskPackage(
      * Merges parameters into existing set of parameters for package.
      * Existing parameters supersede those in p.
      */
-    def inherit(p: Parameters) = {
+    def inherit(p: Parameters): WhiskPackage = {
         WhiskPackage(namespace, name, binding, p ++ parameters, version, publish, annotations)
     }
 
@@ -88,7 +88,7 @@ case class WhiskPackage(
      * Merges parameters into existing set of parameters for package.
      * The parameters from p supersede parameters from this.
      */
-    def mergeParameters(p: Parameters) = {
+    def mergeParameters(p: Parameters): WhiskPackage = {
         WhiskPackage(namespace, name, binding, parameters ++ p, version, publish, annotations)
     }
 
@@ -96,18 +96,24 @@ case class WhiskPackage(
      * Gets the full path for the package.
      * This is equivalent to calling this this.fullyQualifiedName(withVersion = false).fullPath.
      */
-    def fullPath = namespace.addPath(name)
+    def fullPath: EntityPath = namespace.addPath(name)
 
     /**
      * Gets binding for package iff this is not already a package reference.
      */
-    def bind = binding map { _ => None } getOrElse Some { Binding(namespace.root, name) }
+    def bind: Option[Binding] = {
+        if (binding.isDefined) {
+            None
+        } else {
+            Some(Binding(namespace.root, name))
+        }
+    }
 
     /**
      * Adds actions to package. The actions list is filtered so that only actions that
      * match the package are included (must match package namespace/name).
      */
-    def withActions(actions: List[WhiskAction] = List()) = {
+    def withActions(actions: List[WhiskAction] = List()): WhiskPackageWithActions = {
         withPackageActions(actions filter { a =>
             val pkgns = binding map { b => b.namespace.addPath(b.name) } getOrElse { namespace.addPath(name) }
             a.namespace == pkgns
@@ -121,7 +127,7 @@ case class WhiskPackage(
      * is it defined the property "feed" in the annotation. The value of the property is ignored
      * for this check.
      */
-    def withPackageActions(actions: List[WhiskPackageAction] = List()) = {
+    def withPackageActions(actions: List[WhiskPackageAction] = List()): WhiskPackageWithActions = {
         val actionGroups = actions map { a =>
             //  group into "actions" and "feeds"
             val feed = a.annotations(Parameters.Feed) map { _ => true } getOrElse false
