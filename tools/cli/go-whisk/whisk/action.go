@@ -49,6 +49,7 @@ type Exec struct {
     Jar         string      `json:"jar,omitempty"`
     Main        string      `json:"main,omitempty"`
     Components  []string    `json:"components,omitempty"`    // List of fully qualified actions
+    Binary      bool        `json:"binary,omitempty"`
 }
 
 type ActionListOptions struct {
