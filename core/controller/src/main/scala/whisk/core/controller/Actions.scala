@@ -226,7 +226,7 @@ trait WhiskActionsApi
                         val action = act.resolve(user.namespace)
                         onComplete(entitleReferencedEntities(user, Privilege.ACTIVATE, Some(action.exec))) {
                             case Success(true) =>
-                                transid.started(this, if (blocking) LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING else LoggingMarkers.CONTROLLER_ACTIVATION)
+                                transid.started(this, if (blocking) LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING else LoggingMarkers.CONTROLLER_ACTIVATION, action.name.toString)
 
                                 val actionWithMergedParams = env.map(action.inherit(_)) getOrElse action
                                 onComplete(invokeAction(user, actionWithMergedParams, payload, blocking, waitOverride = true)) {
