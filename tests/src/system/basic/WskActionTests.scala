@@ -134,6 +134,31 @@ class WskActionTests
             }
     }
 
+    it should "copy an action and ensure exec, parameters, and annotations copied" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val origActionName = "orignAction"
+            val copiedActionName = "copiedAction"
+            val params = Map("a" -> "A".toJson)
+            val annots = Map("b" -> "B".toJson)
+
+            assetHelper.withCleaner(wsk.action, origActionName) {
+                val file = Some(TestUtils.getTestActionFilename("wc.js"))
+                (action, _) => action.create(origActionName, file, parameters = params, annotations = annots)
+            }
+
+            assetHelper.withCleaner(wsk.action, copiedActionName) {
+                (action, _) => action.create(copiedActionName, Some(origActionName), Some("copy"))
+            }
+
+            val copiedAction = getJSONFromCLIResponse(wsk.action.get(copiedActionName).stdout)
+            val origAction = getJSONFromCLIResponse(wsk.action.get(copiedActionName).stdout)
+
+            copiedAction.fields("annotations") shouldBe origAction.fields("annotations")
+            copiedAction.fields("parameters") shouldBe origAction.fields("parameters")
+            copiedAction.fields("exec") shouldBe origAction.fields("exec")
+            copiedAction.fields("version") shouldBe JsString("0.0.1")
+    }
+
     it should "recreate and invoke a new action with different code" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "recreatedAction"
