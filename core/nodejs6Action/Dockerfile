@@ -66,7 +66,7 @@ twilio@2.11.1 \
 underscore@1.8.3 \
 uuid@3.0.0 \
 validator@6.1.0 \
-watson-developer-cloud@2.9.0 \
+watson-developer-cloud@2.14.3 \
 when@3.7.7 \
 winston@2.3.0 \
 ws@1.1.1 \
