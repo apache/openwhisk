@@ -23,11 +23,10 @@ import spray.json.JsObject
 import spray.json.pimpString
 import whisk.common.TransactionId
 import whisk.core.entity.ActivationId
-import whisk.core.entity.AuthKey
 import whisk.core.entity.DocRevision
 import whisk.core.entity.EntityPath
 import whisk.core.entity.FullyQualifiedEntityName
-import whisk.core.entity.Subject
+import whisk.core.entity.Identity
 import whisk.core.entity.WhiskActivation
 
 /** Basic trait for messages that are sent on a message bus connector. */
@@ -52,8 +51,7 @@ case class ActivationMessage(
     override val transid: TransactionId,
     action: FullyQualifiedEntityName,
     revision: DocRevision,
-    subject: Subject,
-    authkey: AuthKey,
+    user: Identity,
     activationId: ActivationId,
     activationNamespace: EntityPath,
     content: Option[JsObject],
@@ -88,7 +86,7 @@ object ActivationMessage extends DefaultJsonProtocol {
     }
 
     private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
-    implicit val serdes = jsonFormat9(ActivationMessage.apply)
+    implicit val serdes = jsonFormat8(ActivationMessage.apply)
 }
 
 /**

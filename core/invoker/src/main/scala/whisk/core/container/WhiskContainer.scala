@@ -81,8 +81,8 @@ class WhiskContainer(
     private def constructActivationMetadata(msg: ActivationMessage, args: JsObject, timeout: FiniteDuration): JsObject = {
         JsObject(
             "value" -> args,
-            "api_key" -> msg.authkey.compact.toJson,
-            "namespace" -> msg.action.path.root.toJson,
+            "api_key" -> msg.user.authkey.compact.toJson,
+            "namespace" -> msg.user.namespace.toJson,
             "action_name" -> msg.action.qualifiedNameWithLeadingSlash.toJson,
             "activation_id" -> msg.activationId.toString.toJson,
             // compute deadline on invoker side avoids discrepancies inside container
@@ -115,8 +115,7 @@ class WhiskContainer(
             TransactionId.testing,
             FullyQualifiedEntityName(EntityPath("no_namespace"), EntityName("no_action")),
             DocRevision(),
-            Subject(),
-            AuthKey(),
+            WhiskAuth(Subject(), AuthKey()).toIdentity,
             ActivationId(),
             EntityPath("no_namespace"),
             None)

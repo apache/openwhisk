@@ -102,8 +102,7 @@ protected[actions] trait PrimitiveActions extends Logging {
             transid,
             FullyQualifiedEntityName(action.namespace, action.name, Some(action.version)),
             action.rev,
-            user.subject,
-            user.authkey,
+            user,
             activationIdFactory.make(), // activation id created here
             activationNamespace = user.namespace.toPath,
             args,
