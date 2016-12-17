@@ -29,12 +29,13 @@ import whisk.core.entitlement.Privilege.Privilege
 
 protected[core] case class Identity(subject: Subject, namespace: EntityName, authkey: AuthKey, rights: Set[Privilege])
 
-object Identities extends MultipleReadersSingleWriterCache[Identity, DocInfo] {
+object Identity extends MultipleReadersSingleWriterCache[Identity, DocInfo] with DefaultJsonProtocol {
 
     private val viewName = "subjects/identities"
 
     override val cacheEnabled = true
     override def cacheKeyForUpdate(i: Identity) = i.authkey
+    implicit val serdes = jsonFormat4(Identity.apply)
 
     def get(datastore: AuthStore, authkey: AuthKey)(
         implicit transid: TransactionId): Future[Identity] = {

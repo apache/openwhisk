@@ -120,7 +120,7 @@ class LoadBalancerService(
             val start = transid.started(this, LoggingMarkers.CONTROLLER_KAFKA)
             invokerIndex =>
                 val topic = ActivationMessage.invoker(invokerIndex)
-                val subject = msg.subject()
+                val subject = msg.user.subject()
                 val entry = setupActivation(msg.activationId, subject, invokerIndex, timeout, transid)
                 info(this, s"posting topic '$topic' with activation id '${msg.activationId}'")
                 (producer.send(topic, msg) map { status =>
@@ -294,7 +294,7 @@ class LoadBalancerService(
      * these are moved to some common place (like a subclass of Message?)
      */
     private def hashAndCountSubjectAction(msg: ActivationMessage): (Int, Int) = {
-        val subject = msg.subject().toString()
+        val subject = msg.user.subject()
         val path = msg.action.toString
         val hash = subject.hashCode() ^ path.hashCode()
         val key = (subject, path)
