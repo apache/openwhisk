@@ -55,7 +55,6 @@ class WskSequenceTests
     val wsk = new Wsk
     val allowedActionDuration = 120 seconds
     val shortDuration = 10 seconds
-    val defaultNamespace = wskprops.namespace
 
     val whiskConfig = new WhiskConfig(Map(WhiskConfig.actionSequenceDefaultLimit -> null))
     assert(whiskConfig.isValid)
