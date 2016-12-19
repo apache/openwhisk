@@ -31,8 +31,8 @@ import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 
-import spray.json.DefaultJsonProtocol._
 import spray.json._
+import spray.json.DefaultJsonProtocol._
 import whisk.core.entity._
 import whisk.core.entity.size.SizeInt
 
@@ -55,6 +55,19 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
         Seq(null, "", " ", ":", " : ", " :", ": ", "a:b").foreach {
             i => an[IllegalArgumentException] should be thrownBy AuthKey(i)
         }
+    }
+
+    behavior of "Identity"
+
+    it should "serdes an identity" in {
+        val i = WhiskAuth(Subject(), AuthKey()).toIdentity
+        val expected = JsObject(
+            "subject" -> i.subject().toJson,
+            "namespace" -> i.namespace.toJson,
+            "authkey" -> i.authkey.compact.toJson,
+            "rights" -> Array("READ", "PUT", "DELETE", "ACTIVATE").toJson)
+        Identity.serdes.write(i) shouldBe expected
+        Identity.serdes.read(expected) shouldBe i
     }
 
     behavior of "DocInfo"

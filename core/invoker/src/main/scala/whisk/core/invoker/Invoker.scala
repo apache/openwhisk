@@ -94,7 +94,7 @@ class Invoker(
         val name = msg.action.name
         val actionid = FullyQualifiedEntityName(namespace, name).toDocId.asDocInfo(msg.revision)
         val tran = Transaction(msg)
-        val subject = msg.subject
+        val subject = msg.user.subject
 
         info(this, s"${actionid.id} $subject ${msg.activationId}")
 
@@ -188,7 +188,7 @@ class Invoker(
      */
     protected def invokeAction(tran: Transaction, action: WhiskAction)(
         implicit transid: TransactionId): Future[WhiskActivation] = {
-        Future { pool.getAction(action, tran.msg.authkey) } map {
+        Future { pool.getAction(action, tran.msg.user.authkey) } map {
             case (con, initResultOpt) => runAction(tran, action, con, initResultOpt)
         } map {
             case (failedInit, con, result) =>
@@ -221,7 +221,7 @@ class Invoker(
         implicit transid: TransactionId): (Boolean, WhiskContainer, RunResult) = {
         def run() = {
             val msg = tran.msg
-            val auth = msg.authkey
+            val auth = msg.user.authkey
             val payload = msg.content getOrElse JsObject()
             val boundParams = action.parameters.toJsObject
             val params = JsObject(boundParams.fields ++ payload.fields)
@@ -408,7 +408,7 @@ class Invoker(
             name = actionName.last,
             version = actionVersion,
             publish = false,
-            subject = msg.subject,
+            subject = msg.user.subject,
             activationId = msg.activationId,
             cause = msg.cause,
             start = interval.start,

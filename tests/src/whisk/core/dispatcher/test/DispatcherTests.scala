@@ -39,14 +39,7 @@ import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.core.dispatcher.ActivationFeed
 import whisk.core.dispatcher.Dispatcher
 import whisk.core.dispatcher.MessageHandler
-import whisk.core.entity.ActivationId
-import whisk.core.entity.AuthKey
-import whisk.core.entity.DocRevision
-import whisk.core.entity.EntityName
-import whisk.core.entity.EntityPath
-import whisk.core.entity.FullyQualifiedEntityName
-import whisk.core.entity.SemVer
-import whisk.core.entity.Subject
+import whisk.core.entity._
 import whisk.utils.retry
 
 @RunWith(classOf[JUnitRunner])
@@ -66,10 +59,9 @@ class DispatcherTests extends FlatSpec with Matchers with WskActorSystem {
 
     def sendMessage(connector: TestConnector, count: Int) = {
         val content = JsObject("payload" -> JsNumber(count))
-        val subject = Subject()
-        val authkey = AuthKey()
+        val user = WhiskAuth(Subject(), AuthKey()).toIdentity
         val path = FullyQualifiedEntityName(EntityPath("test"), EntityName(s"count-$count"), Some(SemVer()))
-        val msg = Message(TransactionId.testing, path, DocRevision(), subject, authkey, ActivationId(), EntityPath(subject()), Some(content))
+        val msg = Message(TransactionId.testing, path, DocRevision(), user, ActivationId(), EntityPath(user.subject()), Some(content))
         connector.send(msg)
     }
 
