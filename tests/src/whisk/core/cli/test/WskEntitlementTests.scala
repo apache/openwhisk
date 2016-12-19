@@ -19,6 +19,7 @@ package whisk.core.cli.test
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.junit.JUnitRunner
+import spray.json._
 
 import common.RunWskAdminCmd
 import common.TestHelpers
@@ -321,6 +322,32 @@ class WskEntitlementTests
                     wsk.pkg.create(privateSamplePackage, update = true, shared = Some(false))(guestwp)
                     wsk.action.invoke("sequence", expectedExitCode = FORBIDDEN)(defaultWskProps)
             }
+    }
+
+    it should "invoke a packaged action not owned by the subject to get the subject's namespace" in withAssetCleaner(guestWskProps) {
+        (wp, assetHelper) =>
+            val packageName = "namespacePackage"
+            val actioName = "namespaceAction"
+            val packagedActionName = s"$packageName/$actioName"
+
+            assetHelper.withCleaner(wsk.pkg, packageName) {
+                (pkg, _) => pkg.create(packageName, shared = Some(true))(guestWskProps)
+            }
+
+            assetHelper.withCleaner(wsk.action, packagedActionName) {
+                val file = Some(TestUtils.getTestActionFilename("helloContext.js"))
+                (action, _) => action.create(packagedActionName, file)(guestWskProps)
+            }
+
+            val invokerWskProps = getAdditionalTestSubject
+            val fullyQualifiedActionName = s"/$guestNamespace/$packagedActionName"
+            val run = wsk.action.invoke(fullyQualifiedActionName)(invokerWskProps)
+
+            withActivation(wsk.activation, run) ({
+                activation =>
+                    activation.response.success shouldBe true
+                    activation.response.result.get.toString should include regex(s""""namespace":\\s*"${invokerWskProps.namespace}"""")
+            })(invokerWskProps)
     }
 
     behavior of "Wsk Trigger Feed"
