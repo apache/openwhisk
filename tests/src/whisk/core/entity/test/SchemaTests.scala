@@ -33,6 +33,7 @@ import org.scalatest.junit.JUnitRunner
 
 import spray.json._
 import spray.json.DefaultJsonProtocol._
+import whisk.core.entitlement.Privilege
 import whisk.core.entity._
 import whisk.core.entity.size.SizeInt
 
@@ -57,12 +58,20 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
         }
     }
 
+    behavior of "Privilege"
+
+    it should "serdes a right" in {
+        Privilege.serdes.read("READ".toJson) shouldBe Privilege.READ
+        Privilege.serdes.read("read".toJson) shouldBe Privilege.READ
+        a[DeserializationException] should be thrownBy Privilege.serdes.read("???".toJson)
+    }
+
     behavior of "Identity"
 
     it should "serdes an identity" in {
         val i = WhiskAuth(Subject(), AuthKey()).toIdentity
         val expected = JsObject(
-            "subject" -> i.subject().toJson,
+            "subject" -> i.subject.asString.toJson,
             "namespace" -> i.namespace.toJson,
             "authkey" -> i.authkey.compact.toJson,
             "rights" -> Array("READ", "PUT", "DELETE", "ACTIVATE").toJson)
