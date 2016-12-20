@@ -80,10 +80,12 @@ def keystorePath = new File(buildDir, 'classes/test/keystore')
 task deleteKeystore(type: Delete) {
     delete keystorePath
 }
-task createKeystore(dependsOn: deleteKeystore) << {
-    Properties props = new Properties()
-    props.load(new FileInputStream(file('../whisk.properties')))
-    def cmd = ['keytool', '-import', '-alias', 'Whisk', '-noprompt', '-trustcacerts', '-file', file(props['whisk.ssl.cert']), '-keystore', keystorePath, '-storepass', 'openwhisk']
-    cmd.execute().waitForProcessOutput(System.out, System.err)
+task createKeystore(dependsOn: deleteKeystore) {
+    doLast {
+        Properties props = new Properties()
+        props.load(new FileInputStream(file('../whisk.properties')))
+        def cmd = ['keytool', '-import', '-alias', 'Whisk', '-noprompt', '-trustcacerts', '-file', file(props['whisk.ssl.cert']), '-keystore', keystorePath, '-storepass', 'openwhisk']
+        cmd.execute().waitForProcessOutput(System.out, System.err)
+    }
 }
 compileTestScala.finalizedBy createKeystore
