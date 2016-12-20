@@ -11,22 +11,26 @@ task removeBinary(type: Delete) {
     delete "${projectDir}/../../bin/windows"
 }
 
-task distBinary(dependsOn: [removeBinary, distDocker]) << {
-    run(dockerBinary + ["rm", "-f", dockerContainerName], true)
-    run(dockerBinary + ["run", "--name", dockerContainerName, dockerTaggedImageName])
+task distBinary(dependsOn: [removeBinary, distDocker]) {
+    doLast {
+        run(dockerBinary + ["rm", "-f", dockerContainerName], true)
+        run(dockerBinary + ["run", "--name", dockerContainerName, dockerTaggedImageName])
 
-    // Copy all Go binaries from Docker into openwhisk/bin folder
-    run(dockerBinary + ["cp", dockerContainerName +
-            ":/src/github.com/go-whisk-cli/build/.", "${projectDir}/../../bin"])
+        // Copy all Go binaries from Docker into openwhisk/bin folder
+        run(dockerBinary + ["cp", dockerContainerName +
+                ":/src/github.com/go-whisk-cli/build/.", "${projectDir}/../../bin"])
 
-    run(dockerBinary + ["rm", "-f", dockerContainerName])
+        run(dockerBinary + ["rm", "-f", dockerContainerName])
+    }
 }
 
-task dumpOSInfo << {
-    println "os.name = "+getOsName()
-    println "os.arch = "+getOsArch()
-    println "go.name = "+mapOsNameToGoName(getOsName())
-    println "go.arch = "+mapOsArchToGoArch(getOsArch())
+task dumpOSInfo {
+    doLast {
+        println "os.name = "+getOsName()
+        println "os.arch = "+getOsArch()
+        println "go.name = "+mapOsNameToGoName(getOsName())
+        println "go.arch = "+mapOsArchToGoArch(getOsArch())
+    }
 }
 
 task copyCLIShortcut(type: Copy, dependsOn: [distBinary, dumpOSInfo]) {

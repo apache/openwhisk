@@ -42,29 +42,35 @@ if(project.hasProperty('dockerBuildArgs')) {
     }
 }
 
-task distDocker << {
-    def start = new Date()
-    def cmd = dockerBinary + dockerBuildArg + ['-t', dockerImageName, project.buildscript.sourceFile.getParentFile().getAbsolutePath()]
-    retry(cmd, dockerRetries, dockerTimeout)
-    println("Building '${dockerImageName}' took ${TimeCategory.minus(new Date(), start)}")
-}
-task tagImage << {
-    def versionString = (dockerBinary + ['-v']).execute().text
-    def matched = (versionString =~ /(\d+)\.(\d+)\.(\d+)/)
-
-    def major = matched[0][1] as int
-    def minor = matched[0][2] as int
-
-    def dockerCmd = ['tag']
-    if(major == 1 && minor < 12) {
-        dockerCmd += ['-f']
+task distDocker {
+    doLast {
+        def start = new Date()
+        def cmd = dockerBinary + dockerBuildArg + ['-t', dockerImageName, project.buildscript.sourceFile.getParentFile().getAbsolutePath()]
+        retry(cmd, dockerRetries, dockerTimeout)
+        println("Building '${dockerImageName}' took ${TimeCategory.minus(new Date(), start)}")
     }
-    retry(dockerBinary + dockerCmd + [dockerImageName, dockerTaggedImageName], dockerRetries, dockerTimeout)
+}
+task tagImage {
+    doLast {
+        def versionString = (dockerBinary + ['-v']).execute().text
+        def matched = (versionString =~ /(\d+)\.(\d+)\.(\d+)/)
+
+        def major = matched[0][1] as int
+        def minor = matched[0][2] as int
+
+        def dockerCmd = ['tag']
+        if(major == 1 && minor < 12) {
+            dockerCmd += ['-f']
+        }
+        retry(dockerBinary + dockerCmd + [dockerImageName, dockerTaggedImageName], dockerRetries, dockerTimeout)
+    }
 }
 
-task pushImage << {
-    def cmd = dockerBinary + ['push', dockerTaggedImageName]
-    retry(cmd, dockerRetries, dockerTimeout)
+task pushImage {
+    doLast {
+        def cmd = dockerBinary + ['push', dockerTaggedImageName]
+        retry(cmd, dockerRetries, dockerTimeout)
+    }
 }
 pushImage.dependsOn tagImage
 pushImage.onlyIf { dockerRegistry != '' }
