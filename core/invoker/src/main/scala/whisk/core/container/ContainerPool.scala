@@ -531,7 +531,7 @@ class ContainerPool(
         this.synchronized {
             introduceContainer(stemCellNodejsKey, con)
         }
-        info(this, s"Started warm nodejs container $con.id: $con.containerId")
+        info(this, s"Started warm nodejs container ${con.id}: ${con.containerId}")
     } andThen {
         case Failure(t) => warn(this, s"addStemCellNodejsContainer encountered an exception: ${t.getMessage}")
     }
