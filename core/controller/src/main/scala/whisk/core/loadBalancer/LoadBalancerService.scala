@@ -125,7 +125,7 @@ class LoadBalancerService(
                 info(this, s"posting topic '$topic' with activation id '${msg.activationId}'")
                 (producer.send(topic, msg) map { status =>
                     val counter = updateActivationCount(subject, invokerIndex)
-                    transid.finished(this, start, s"user has ${counter} activations posted. Posted to ${status.topic()}[${status.partition()}][$status.offset()}]")
+                    transid.finished(this, start, s"user has ${counter} activations posted. Posted to ${status.topic()}[${status.partition()}][${status.offset()}]")
                 }, entry.promise.future)
         } getOrElse {
             (Future.failed(new LoadBalancerException("no invokers available")),
