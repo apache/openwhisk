@@ -55,14 +55,15 @@ var flags struct {
     property struct {
         auth            bool
         apihost         bool
+        insecure        bool
         apiversion      bool
         namespace       bool
         cliversion      bool
         apibuild        bool
         apibuildno      bool
-        insecure        bool
         all             bool
         apihostSet      string
+        insecureSet     string
         apiversionSet   string
         namespaceSet    string
     }

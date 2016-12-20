@@ -34,10 +34,11 @@ func setupClientConfig(cmd *cobra.Command, args []string) (error){
     baseURL, err := getURLBase(Properties.APIHost)
 
     // Determine if the parent command will require the API host to be set
-    apiHostRequired := (cmd.Parent().Name() == "property" && cmd.Name() == "get" && (flags.property.auth ||
-      flags.property.apihost || flags.property.namespace || flags.property.apiversion || flags.property.cliversion)) ||
+    apiHostRequired := (cmd.Parent().Name() == "property" && cmd.Name() == "get" && (
+        flags.property.auth || flags.property.apihost || flags.property.insecure ||
+        flags.property.namespace || flags.property.apiversion || flags.property.cliversion)) ||
       (cmd.Parent().Name() == "property" && cmd.Name() == "set" && (len(flags.property.apihostSet) > 0 ||
-        len(flags.property.apiversionSet) > 0 || len(flags.global.auth) > 0)) ||
+        len(flags.property.insecureSet) > 0 || len(flags.property.apiversionSet) > 0 || len(flags.global.auth) > 0)) ||
       (cmd.Parent().Name() == "sdk" && cmd.Name() == "install" && len(args) > 0 && args[0] == "bashauto")
 
     // Display an error if the parent command requires an API host to be set, and the current API host is not valid
@@ -54,7 +55,7 @@ func setupClientConfig(cmd *cobra.Command, args []string) (error){
         Namespace:  Properties.Namespace,
         BaseURL:    baseURL,
         Version:    Properties.APIVersion,
-        Insecure:   flags.global.insecure,
+        Insecure:   Properties.InsecureSSL,
         Host:       Properties.APIHost,
     }
 

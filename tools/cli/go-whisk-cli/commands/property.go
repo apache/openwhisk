@@ -22,6 +22,7 @@ import (
     "fmt"
     "os"
     "strings"
+    "strconv"
 
     "github.com/mitchellh/go-homedir"
     "github.com/spf13/cobra"
@@ -32,23 +33,25 @@ import (
 )
 
 var Properties struct {
-    Auth       string
-    APIHost    string
-    APIVersion string
-    APIBuild   string
-    APIBuildNo string
-    CLIVersion string
-    Namespace  string
-    PropsFile  string
+    Auth        string
+    APIHost     string
+    InsecureSSL bool
+    APIVersion  string
+    APIBuild    string
+    APIBuildNo  string
+    CLIVersion  string
+    Namespace   string
+    PropsFile   string
 }
 
-const DefaultAuth       string = ""
-const DefaultAPIHost    string = ""
-const DefaultAPIVersion string = "v1"
-const DefaultAPIBuild   string = ""
-const DefaultAPIBuildNo string = ""
-const DefaultNamespace  string = "_"
-const DefaultPropsFile  string = "~/.wskprops"
+const DefaultAuth           string = ""
+const DefaultInsecureSSL    bool = false
+const DefaultAPIHost        string = ""
+const DefaultAPIVersion     string = "v1"
+const DefaultAPIBuild       string = ""
+const DefaultAPIBuildNo     string = ""
+const DefaultNamespace      string = "_"
+const DefaultPropsFile      string = "~/.wskprops"
 
 var propertyCmd = &cobra.Command{
     Use:   "property",
@@ -85,6 +88,14 @@ var propertySetCmd = &cobra.Command{
             okMsg += fmt.Sprintf(
                 wski18n.T("{{.ok}} whisk auth set to {{.auth}}\n",
                     map[string]interface{}{"ok": color.GreenString("ok:"), "auth": boldString(auth)}))
+        }
+
+        if insecure := flags.property.insecureSet; len(insecure) > 0 {
+            client.Config.Insecure = strings.ToLower(insecure) == "yes" || strings.ToLower(insecure) == "true"
+            props["INSECURE_SSL"] = strconv.FormatBool(client.Config.Insecure)
+            okMsg += fmt.Sprintf(
+                wski18n.T("{{.ok}} allow insecure SSL set to {{.insecure}}\n",
+                    map[string]interface{}{"ok": color.GreenString("ok:"), "insecure": boldString(client.Config.Insecure)}))
         }
 
         if apiHost := flags.property.apihostSet; len(apiHost) > 0 {
@@ -215,6 +226,16 @@ var propertyUnsetCmd = &cobra.Command{
             }
         }
 
+        if flags.property.insecure {
+            delete(props, "INSECURE_SSL")
+            okMsg += fmt.Sprintf(
+                wski18n.T("{{.ok}} allow insecure SSL unset",
+                    map[string]interface{}{"ok": color.GreenString("ok:")}))
+            okMsg += fmt.Sprintf(
+                wski18n.T("; the default value of {{.default}} will be used.\n",
+                    map[string]interface{}{"default": boldString(DefaultInsecureSSL)}))
+        }
+
         if flags.property.apihost {
             delete(props, "APIHOST")
             okMsg += fmt.Sprintf(
@@ -275,7 +296,7 @@ var propertyGetCmd = &cobra.Command{
         if !(flags.property.all || flags.property.auth ||
              flags.property.apiversion || flags.property.cliversion ||
              flags.property.namespace || flags.property.apibuild ||
-             flags.property.apihost || flags.property.apibuildno) {
+             flags.property.apihost || flags.property.apibuildno || flags.property.insecure) {
             flags.property.all = true
         }
 
@@ -285,6 +306,10 @@ var propertyGetCmd = &cobra.Command{
 
         if flags.property.all || flags.property.apihost {
             fmt.Fprintf(color.Output, "%s\t\t%s\n", wski18n.T("whisk API host"), boldString(Properties.APIHost))
+        }
+
+        if flags.property.all || flags.property.insecure {
+            fmt.Fprintf(color.Output, "%s\t\t%s\n", wski18n.T("insecure SSL"), boldString(Properties.InsecureSSL))
         }
 
         if flags.property.all || flags.property.apiversion {
@@ -336,6 +361,7 @@ func init() {
     // need to set property flags as booleans instead of strings... perhaps with boolApihost...
     propertyGetCmd.Flags().BoolVar(&flags.property.auth, "auth", false, wski18n.T("authorization key"))
     propertyGetCmd.Flags().BoolVar(&flags.property.apihost, "apihost", false, wski18n.T("whisk API host"))
+    propertyGetCmd.Flags().BoolVar(&flags.property.insecure, "insecure", false, wski18n.T("insecure SSL"))
     propertyGetCmd.Flags().BoolVar(&flags.property.apiversion, "apiversion", false, wski18n.T("whisk API version"))
     propertyGetCmd.Flags().BoolVar(&flags.property.apibuild, "apibuild", false, wski18n.T("whisk API build version"))
     propertyGetCmd.Flags().BoolVar(&flags.property.apibuildno, "apibuildno", false, wski18n.T("whisk API build number"))
@@ -345,20 +371,22 @@ func init() {
 
     propertySetCmd.Flags().StringVarP(&flags.global.auth, "auth", "u", "", wski18n.T("authorization `KEY`"))
     propertySetCmd.Flags().StringVar(&flags.property.apihostSet, "apihost", "", wski18n.T("whisk API `HOST`"))
+    propertySetCmd.Flags().StringVar(&flags.property.insecureSet, "insecure", "", wski18n.T("insecure SSL"))
     propertySetCmd.Flags().StringVar(&flags.property.apiversionSet, "apiversion", "", wski18n.T("whisk API `VERSION`"))
     propertySetCmd.Flags().StringVar(&flags.property.namespaceSet, "namespace", "", wski18n.T("whisk `NAMESPACE`"))
 
     propertyUnsetCmd.Flags().BoolVar(&flags.property.auth, "auth", false, wski18n.T("authorization key"))
     propertyUnsetCmd.Flags().BoolVar(&flags.property.apihost, "apihost", false, wski18n.T("whisk API host"))
+    propertyUnsetCmd.Flags().BoolVar(&flags.property.insecure, "insecure", false, wski18n.T("insecure SSL"))
     propertyUnsetCmd.Flags().BoolVar(&flags.property.apiversion, "apiversion", false, wski18n.T("whisk API version"))
     propertyUnsetCmd.Flags().BoolVar(&flags.property.namespace, "namespace", false, wski18n.T("whisk namespace"))
-
 }
 
 func setDefaultProperties() {
     Properties.Auth = DefaultAuth
     Properties.Namespace = DefaultNamespace
     Properties.APIHost = DefaultAPIHost
+    Properties.InsecureSSL = DefaultInsecureSSL
     Properties.APIBuild = DefaultAPIBuild
     Properties.APIBuildNo = DefaultAPIBuildNo
     Properties.APIVersion = DefaultAPIVersion
@@ -436,6 +464,10 @@ func loadProperties() error {
         Properties.APIHost = apiHost
     }
 
+    if insecure, hasProp := props["INSECURE_SSL"]; hasProp {
+        Properties.InsecureSSL = strings.ToLower(insecure) == "yes" || strings.ToLower(insecure) == "true"
+    }
+
     if apiHost := os.Getenv("WHISK_APIHOST"); len(apiHost) > 0 {
         Properties.APIHost = apiHost
     }
@@ -474,6 +506,13 @@ func parseConfigFlags(cmd *cobra.Command, args []string) error {
         }
     }
 
+    if insecure := flags.global.insecure; insecure {
+        Properties.InsecureSSL = insecure
+        if client != nil {
+            client.Config.Insecure = insecure
+        }
+    }
+
     if apiHost := flags.global.apihost; len(apiHost) > 0 {
         Properties.APIHost = apiHost
 
@@ -495,6 +534,7 @@ func parseConfigFlags(cmd *cobra.Command, args []string) error {
     if flags.global.debug {
         whisk.SetDebug(true)
     }
+
     if flags.global.verbose {
         whisk.SetVerbose(true)
     }

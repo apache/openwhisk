@@ -329,6 +329,10 @@
     "translation": "whisk API host"
   },
   {
+    "id": "insecure SSL",
+    "translation": "insecure SSL"
+  },
+  {
     "id": "whisk API version",
     "translation": "whisk API version"
   },
@@ -1354,5 +1358,13 @@
   {
     "id": "display full description of each API",
     "translation": "display full description of each API"
+  },
+  {
+    "id": "{{.ok}} allow insecure SSL unset",
+    "translation": "{{.ok}} allow insecure SSL unset"
+  },
+  {
+    "id": "{{.ok}} allow insecure SSL set to {{.insecure}}\n",
+    "translation": "{{.ok}} allow insecure SSL set to {{.insecure}}\n"
   }
 ]
