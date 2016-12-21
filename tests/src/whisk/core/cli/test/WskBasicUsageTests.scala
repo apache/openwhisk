@@ -107,6 +107,20 @@ class WskBasicUsageTests
         }
     }
 
+    it should "ensure default namespace is used when a blank namespace is set" in {
+        val tmpwskprops = File.createTempFile("wskprops", ".tmp")
+        try {
+            val writer = new BufferedWriter(new FileWriter(tmpwskprops))
+            writer.write(s"NAMESPACE=")
+            writer.close()
+            val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
+            val stdout = wsk.cli(Seq("property", "get", "-i", "--namespace"), env = env).stdout
+            stdout should include regex ("whisk namespace\\s+_")
+        } finally {
+            tmpwskprops.delete()
+        }
+    }
+
     it should "show api build version using property file" in {
         val tmpwskprops = File.createTempFile("wskprops", ".tmp")
         try {
