@@ -443,7 +443,7 @@ func loadProperties() error {
         Properties.APIHost = apiHost
     }
 
-    if namespace, hasProp := props["NAMESPACE"]; hasProp {
+    if namespace, hasProp := props["NAMESPACE"]; hasProp && len(namespace) > 0 {
         Properties.Namespace = namespace
     }
 
