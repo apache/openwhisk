@@ -9,7 +9,8 @@ You can also get the [source code](https://github.com/openwhisk/openwhisk) and r
 
 For more details about how OpenWhisk works, see [System overview](./about.md).
 
-## Setting up the OpenWhisk CLI
+## Setting up the OpenWhisk CLI 
+<a name="configure-cli" />
 
 - Building OpenWhisk from a cloned repository will result in the generation of the command line interface. The
 generated CLIs will be located in `openwhisk/bin/go-cli/`. There will be an executable CLI located in the mentioned
