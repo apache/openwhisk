@@ -72,11 +72,13 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         }.toList
         actions foreach { put(entityStore, _) }
         waitOnView(entityStore, WhiskAction, namespace, 2)
-        Get(s"$collectionPath") ~> sealRoute(routes(creds)) ~> check {
-            status should be(OK)
-            val response = responseAs[List[JsObject]]
-            actions.length should be(response.length)
-            actions forall { a => response contains a.summaryAsJson } should be(true)
+        whisk.utils.retry {
+            Get(s"$collectionPath") ~> sealRoute(routes(creds)) ~> check {
+                status should be(OK)
+                val response = responseAs[List[JsObject]]
+                actions.length should be(response.length)
+                actions forall { a => response contains a.summaryAsJson } should be(true)
+            }
         }
     }
 
@@ -88,11 +90,13 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         }.toList
         actions foreach { put(entityStore, _) }
         waitOnView(entityStore, WhiskAction, namespace, 2)
-        Get(s"$collectionPath?docs=true") ~> sealRoute(routes(creds)) ~> check {
-            status should be(OK)
-            val response = responseAs[List[WhiskAction]]
-            actions.length should be(response.length)
-            actions forall { a => response contains a } should be(true)
+        whisk.utils.retry {
+            Get(s"$collectionPath?docs=true") ~> sealRoute(routes(creds)) ~> check {
+                status should be(OK)
+                val response = responseAs[List[WhiskAction]]
+                actions.length should be(response.length)
+                actions forall { a => response contains a } should be(true)
+            }
         }
     }
 
@@ -103,11 +107,13 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         }.toList
         actions foreach { put(entityStore, _) }
         waitOnView(entityStore, WhiskAction, namespace, 2)
-        Get(s"/$namespace/${collection.path}") ~> sealRoute(routes(creds)) ~> check {
-            status should be(OK)
-            val response = responseAs[List[JsObject]]
-            actions.length should be(response.length)
-            actions forall { a => response contains a.summaryAsJson } should be(true)
+        whisk.utils.retry {
+            Get(s"/$namespace/${collection.path}") ~> sealRoute(routes(creds)) ~> check {
+                status should be(OK)
+                val response = responseAs[List[JsObject]]
+                actions.length should be(response.length)
+                actions forall { a => response contains a.summaryAsJson } should be(true)
+            }
         }
 
         // it should "reject list action with explicit namespace not owned by subject" in {

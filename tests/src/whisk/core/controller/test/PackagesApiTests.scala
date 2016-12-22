@@ -105,12 +105,14 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
         waitOnView(entityStore, WhiskPackage, namespaces(1), 1)
         waitOnView(entityStore, WhiskPackage, namespaces(2), 1)
         waitOnView(entityStore, WhiskPackage, namespaces(0), 1 + 4)
-        Get(s"$collectionPath") ~> sealRoute(routes(creds)) ~> check {
-            status should be(OK)
-            val response = responseAs[List[JsObject]]
-            val expected = providers.filter { _.namespace == namespace } ++ references
-            response.length should be >= (expected.length)
-            expected forall { p => (response contains p.summaryAsJson) } should be(true)
+        whisk.utils.retry {
+            Get(s"$collectionPath") ~> sealRoute(routes(creds)) ~> check {
+                status should be(OK)
+                val response = responseAs[List[JsObject]]
+                val expected = providers.filter { _.namespace == namespace } ++ references
+                response.length should be >= (expected.length)
+                expected forall { p => (response contains p.summaryAsJson) } should be(true)
+            }
         }
 
         val auser = WhiskAuth(Subject(), AuthKey()).toIdentity
@@ -144,12 +146,14 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
         waitOnView(entityStore, WhiskPackage, namespaces(1), 1)
         waitOnView(entityStore, WhiskPackage, namespaces(2), 1)
         waitOnView(entityStore, WhiskPackage, namespaces(0), 1 + 4)
-        Get(s"$collectionPath?public=true") ~> sealRoute(routes(creds)) ~> check {
-            status should be(OK)
-            val response = responseAs[List[JsObject]]
-            val expected = providers filter { _.publish }
-            response.length should be >= (expected.length)
-            expected forall { p => (response contains p.summaryAsJson) && p.binding == None } should be(true)
+        whisk.utils.retry {
+            Get(s"$collectionPath?public=true") ~> sealRoute(routes(creds)) ~> check {
+                status should be(OK)
+                val response = responseAs[List[JsObject]]
+                val expected = providers filter { _.publish }
+                response.length should be >= (expected.length)
+                expected forall { p => (response contains p.summaryAsJson) && p.binding == None } should be(true)
+            }
         }
     }
 
@@ -167,12 +171,14 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
         waitOnView(entityStore, WhiskPackage, namespaces(0), 1)
         waitOnView(entityStore, WhiskPackage, namespaces(1), 1)
         waitOnView(entityStore, WhiskPackage, namespaces(2), 1)
-        Get(s"$collectionPath?public=true") ~> sealRoute(routes(creds)) ~> check {
-            status should be(OK)
-            val response = responseAs[List[JsObject]]
-            val expected = providers filter { _.publish }
-            response.length should be >= (expected.length)
-            expected forall { p => (response contains p.summaryAsJson) && p.binding == None } should be(true)
+        whisk.utils.retry {
+            Get(s"$collectionPath?public=true") ~> sealRoute(routes(creds)) ~> check {
+                status should be(OK)
+                val response = responseAs[List[JsObject]]
+                val expected = providers filter { _.publish }
+                response.length should be >= (expected.length)
+                expected forall { p => (response contains p.summaryAsJson) && p.binding == None } should be(true)
+            }
         }
     }
 
@@ -192,12 +198,14 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
             waitOnView(entityStore, WhiskPackage, namespaces(0), 1)
             waitOnView(entityStore, WhiskPackage, namespaces(1), 1)
             waitOnView(entityStore, WhiskPackage, namespaces(2), 1)
-            Get(s"$collectionPath?public=true") ~> sealRoute(routes(creds)) ~> check {
-                status should be(OK)
-                val response = responseAs[List[JsObject]]
-                val expected = providers filter { _.namespace == creds.namespace.toPath }
-                response.length should be >= (expected.length)
-                expected forall { p => (response contains p.summaryAsJson) && p.binding == None } should be(true)
+            whisk.utils.retry {
+                Get(s"$collectionPath?public=true") ~> sealRoute(routes(creds)) ~> check {
+                    status should be(OK)
+                    val response = responseAs[List[JsObject]]
+                    val expected = providers filter { _.namespace == creds.namespace.toPath }
+                    response.length should be >= (expected.length)
+                    expected forall { p => (response contains p.summaryAsJson) && p.binding == None } should be(true)
+                }
             }
         }
     }
