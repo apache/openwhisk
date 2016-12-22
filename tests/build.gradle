@@ -29,6 +29,7 @@ tasks.withType(Test) {
 
 task testLean(type: Test) {
     exclude '**/*Swift*'
+    exclude '**/*Python*'
 }
 
 // Add all images needed for local testing here
