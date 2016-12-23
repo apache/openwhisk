@@ -59,7 +59,9 @@ def content_from_args(args):
         return in_str
 
 def init(args):
-    kind = "code"
+    main = args[1] if len(args) == 2 else "main"
+    args = args[0]
+
     if args.endswith(".zip"):
         with open(args, "rb") as fp:
             contents = fp.read().encode("base64")
@@ -68,17 +70,17 @@ def init(args):
         with(codecs.open(args, "r", "utf-8")) as fp:
             contents = fp.read()
         binary = False
-    r = requests.post("%s/init" % DEST, json.dumps({ "value" : { kind: contents, binary: binary } }))
+    r = requests.post("%s/init" % DEST, json = { "value" : { "code": contents, "binary": binary, "main": main } })
     print r.text
 
 def run(args):
     value = content_from_args(args)
-    print "Sending value: %s..." % json.dumps(value)[0:40]
-    r = requests.post("%s/run" % DEST, json.dumps({ "value" : value }))
+    #print "Sending value: %s..." % json.dumps(value)[0:40]
+    r = requests.post("%s/run" % DEST, json = { "value" : value })
     print r.text
 
 if sys.argv[1] == "init":
-    init(sys.argv[2])
+    init(sys.argv[2:])
 elif sys.argv[1] == "run":
     run(sys.argv[2:])
 else:
