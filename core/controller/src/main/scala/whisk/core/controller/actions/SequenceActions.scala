@@ -382,7 +382,7 @@ protected[actions] trait SequenceActions extends Logging {
             case _ =>
                 // this is an invoke for an atomic action
                 info(this, s"sequence invoking an enclosed atomic action $action")
-                val timeout = action.limits.timeout() + blockingInvokeGrace
+                val timeout = action.limits.timeout.duration + blockingInvokeGrace
                 invokeSingleAction(user, action, payload, timeout, blocking = true, cause) map {
                     case (activationId, wskActivation) => (activationId, wskActivation, atomicActionCount + 1)
                 }

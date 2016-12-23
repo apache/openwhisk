@@ -631,7 +631,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
             status should be(Conflict)
             val response = responseAs[ErrorResponse]
             response.error should include("Package not empty (contains 1 entity)")
-            response.code() should be >= 1L
+            response.code.id should be >= 1L
         }
     }
 

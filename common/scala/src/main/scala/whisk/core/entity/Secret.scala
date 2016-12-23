@@ -32,7 +32,7 @@ import spray.json.deserializationError
  * @param key the secret key, required not null or empty
  */
 protected[core] class Secret private (val key: String) extends AnyVal {
-    def apply() = key
+    protected[core] def asString = toString
     protected[entity] def toJson = JsString(toString)
     override def toString = key
 }

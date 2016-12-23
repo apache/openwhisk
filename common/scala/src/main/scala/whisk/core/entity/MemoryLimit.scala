@@ -38,7 +38,6 @@ import whisk.core.entity.size.SizeInt
  * @param megabytes the memory limit in megabytes for the action
  */
 protected[entity] class MemoryLimit private (val megabytes: Int) extends AnyVal {
-    protected[core] def apply() = megabytes
 }
 
 protected[core] object MemoryLimit extends ArgNormalizer[MemoryLimit] {

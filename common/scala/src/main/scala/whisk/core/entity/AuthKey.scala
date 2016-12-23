@@ -37,7 +37,7 @@ protected[core] class AuthKey private (private val k: (UUID, Secret)) extends An
     def key = k._2
     def revoke = new AuthKey(uuid, Secret())
     def compact = s"$uuid:$key"
-    override def toString = compact
+    override def toString = uuid.toString
 }
 
 protected[core] object AuthKey {
@@ -88,7 +88,7 @@ protected[core] object AuthKey {
     }
 
     protected[core] implicit val serdes = new RootJsonFormat[AuthKey] {
-        def write(k: AuthKey) = JsString(k.toString)
+        def write(k: AuthKey) = JsString(k.compact)
 
         def read(value: JsValue) = Try {
             val JsString(s) = value

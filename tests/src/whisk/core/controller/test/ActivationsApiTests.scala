@@ -235,14 +235,14 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         val activation = WhiskActivation(namespace, aname, creds.subject, ActivationId(), start = Instant.now, end = Instant.now)
         put(entityStore, activation)
 
-        Get(s"$collectionPath/${activation.activationId()}") ~> sealRoute(routes(creds)) ~> check {
+        Get(s"$collectionPath/${activation.activationId.asString}") ~> sealRoute(routes(creds)) ~> check {
             status should be(OK)
             val response = responseAs[JsObject]
             response should be(activation.toExtendedJson)
         }
 
         // it should "get activation by name in explicit namespace owned by subject" in
-        Get(s"/$namespace/${collection.path}/${activation.activationId()}") ~> sealRoute(routes(creds)) ~> check {
+        Get(s"/$namespace/${collection.path}/${activation.activationId.asString}") ~> sealRoute(routes(creds)) ~> check {
             status should be(OK)
             val response = responseAs[JsObject]
             response should be(activation.toExtendedJson)
@@ -250,7 +250,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
 
         // it should "reject get activation by name in explicit namespace not owned by subject" in
         val auser = WhiskAuth(Subject(), AuthKey()).toIdentity
-        Get(s"/$namespace/${collection.path}/${activation.activationId()}") ~> sealRoute(routes(auser)) ~> check {
+        Get(s"/$namespace/${collection.path}/${activation.activationId.asString}") ~> sealRoute(routes(auser)) ~> check {
             status should be(Forbidden)
         }
     }
@@ -261,7 +261,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         val activation = WhiskActivation(namespace, aname, creds.subject, ActivationId(), start = Instant.now, end = Instant.now)
         put(entityStore, activation)
 
-        Get(s"$collectionPath/${activation.activationId()}/result") ~> sealRoute(routes(creds)) ~> check {
+        Get(s"$collectionPath/${activation.activationId.asString}/result") ~> sealRoute(routes(creds)) ~> check {
             status should be(OK)
             val response = responseAs[JsObject]
             response should be(activation.response.toExtendedJson)
@@ -274,7 +274,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         val activation = WhiskActivation(namespace, aname, creds.subject, ActivationId(), start = Instant.now, end = Instant.now)
         put(entityStore, activation)
 
-        Get(s"$collectionPath/${activation.activationId()}/logs") ~> sealRoute(routes(creds)) ~> check {
+        Get(s"$collectionPath/${activation.activationId.asString}/logs") ~> sealRoute(routes(creds)) ~> check {
             status should be(OK)
             val response = responseAs[JsObject]
             response should be(activation.logs.toJsonObject)
@@ -287,7 +287,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         val activation = WhiskActivation(namespace, aname, creds.subject, ActivationId(), start = Instant.now, end = Instant.now)
         put(entityStore, activation)
 
-        Get(s"$collectionPath/${activation.activationId()}/bogus") ~> sealRoute(routes(creds)) ~> check {
+        Get(s"$collectionPath/${activation.activationId.asString}/bogus") ~> sealRoute(routes(creds)) ~> check {
             status should be(NotFound)
         }
     }

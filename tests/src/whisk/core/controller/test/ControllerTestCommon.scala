@@ -85,7 +85,7 @@ protected trait ControllerTestCommon
         val auth = WhiskAuth(Subject(), AuthKey())
         put(authStore, auth)
         waitOnView(authStore, auth.uuid, 1)
-        (auth, BasicHttpCredentials(auth.uuid(), auth.key()))
+        (auth, BasicHttpCredentials(auth.uuid.asString, auth.key.asString))
     }
 
     def deleteAction(doc: DocId)(implicit transid: TransactionId) = {

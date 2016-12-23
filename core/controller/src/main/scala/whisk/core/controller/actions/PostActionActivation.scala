@@ -46,7 +46,7 @@ protected[core] trait PostActionActivation extends PrimitiveActions with Sequenc
                 val futureSeqTuple = invokeSequence(user, action, payload, blocking, topmost = true, components, cause = None, 0)
                 futureSeqTuple map { case (activationId, wskActivation, _) => (activationId, wskActivation) }
             case _ => {
-                val duration = action.limits.timeout()
+                val duration = action.limits.timeout.duration
                 val timeout = if (waitOverride) (maxWaitForBlockingActivation min duration) else duration
                 invokeSingleAction(user, action, payload, timeout + blockingInvokeGrace, blocking)
             }

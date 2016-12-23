@@ -204,7 +204,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
             status should be(Conflict)
             val response = responseAs[ErrorResponse]
             response.error should be(s"rule status is '${Status.ACTIVE}', must be '${Status.INACTIVE}' to delete")
-            response.code() should be >= 1L
+            response.code.id should be >= 1L
         }
     }
 

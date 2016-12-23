@@ -68,7 +68,7 @@ class AuthenticateV2Tests extends ControllerTestCommon with Authenticate {
         // Try to login with each specific namespace
         namespaces.foreach { ns =>
             println(s"Trying to login to $ns")
-            val pass = UserPass(ns.authkey.uuid(), ns.authkey.key())
+            val pass = UserPass(ns.authkey.uuid.asString, ns.authkey.key.asString)
             val user = Await.result(validateCredentials(Some(pass)), dbOpTimeout)
             user.get shouldBe Identity(subject, ns.name, ns.authkey, Privilege.ALL)
         }

@@ -133,9 +133,6 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
             }
     }
 
-    /**
-     * Test an action that does not exceed the allowed execution timeout of an action.
-     */
     it should "fail on creating an action with exec which is too big" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "TestActionCausingExecTooBig"

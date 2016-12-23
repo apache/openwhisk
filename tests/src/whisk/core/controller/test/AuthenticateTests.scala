@@ -53,14 +53,14 @@ class AuthenticateTests extends ControllerTestCommon with Authenticate {
     it should "authorize a known user" in {
         implicit val tid = transid()
         val creds = createTempCredentials._1
-        val pass = UserPass(creds.uuid(), creds.key())
+        val pass = UserPass(creds.uuid.asString, creds.key.asString)
         val user = Await.result(validateCredentials(Some(pass)), dbOpTimeout)
         user.get should be(creds.toIdentity)
     }
 
     it should "authorize a known user from cache" in {
         val creds = createTempCredentials(transid())._1
-        val pass = UserPass(creds.uuid(), creds.key())
+        val pass = UserPass(creds.uuid.asString, creds.key.asString)
 
         // first query will be served from datastore
         val stream = new ByteArrayOutputStream
@@ -70,13 +70,13 @@ class AuthenticateTests extends ControllerTestCommon with Authenticate {
         try {
             val user = Await.result(validateCredentials(Some(pass))(transid()), dbOpTimeout)
             user.get should be(creds.toIdentity)
-            stream.toString should include regex (s"serving from datastore: ${creds.uuid()}")
+            stream.toString should include regex (s"serving from datastore: ${creds.uuid.asString}")
             stream.reset()
 
             // repeat query, should be served from cache
             val cachedUser = Await.result(validateCredentials(Some(pass))(transid()), dbOpTimeout)
             cachedUser.get should be(creds.toIdentity)
-            stream.toString should include regex (s"serving from cache: ${creds.uuid()}")
+            stream.toString should include regex (s"serving from cache: ${creds.uuid.asString}")
             stream.reset()
         } finally {
             authStore.outputStream = savedstream
@@ -88,7 +88,7 @@ class AuthenticateTests extends ControllerTestCommon with Authenticate {
     it should "not authorize a known user with an invalid key" in {
         implicit val tid = transid()
         val creds = createTempCredentials._1
-        val pass = UserPass(creds.uuid(), Secret().toString)
+        val pass = UserPass(creds.uuid.asString, Secret().asString)
         val user = Await.result(validateCredentials(Some(pass)), dbOpTimeout)
         user should be(None)
     }
@@ -96,7 +96,7 @@ class AuthenticateTests extends ControllerTestCommon with Authenticate {
     it should "not authorize an unknown user" in {
         implicit val tid = transid()
         val creds = WhiskAuth(Subject(), AuthKey())
-        val pass = UserPass(creds.authkey.uuid(), creds.authkey.key())
+        val pass = UserPass(creds.authkey.uuid.asString, creds.authkey.key.asString)
         val user = Await.result(validateCredentials(Some(pass)), dbOpTimeout)
         user should be(None)
     }
@@ -109,14 +109,14 @@ class AuthenticateTests extends ControllerTestCommon with Authenticate {
 
     it should "not authorize when malformed user is provided" in {
         implicit val tid = transid()
-        val pass = UserPass("x", Secret().toString)
+        val pass = UserPass("x", Secret().asString)
         val user = Await.result(validateCredentials(Some(pass)), dbOpTimeout)
         user should be(None)
     }
 
     it should "not authorize when malformed secret is provided" in {
         implicit val tid = transid()
-        val pass = UserPass(UUID().toString, "x")
+        val pass = UserPass(UUID().asString, "x")
         val user = Await.result(validateCredentials(Some(pass)), dbOpTimeout)
         user should be(None)
     }
@@ -151,14 +151,14 @@ class AuthenticatedRouteTests
 
     it should "authorize a known user" in {
         val creds = createTempCredentials(transid())._1
-        val validCredentials = BasicHttpCredentials(creds.uuid(), creds.key())
+        val validCredentials = BasicHttpCredentials(creds.uuid.asString, creds.key.asString)
         Get("/secured") ~> addCredentials(validCredentials) ~> route ~> check {
             status should be(OK)
         }
     }
 
     it should "not authorize an unknown user" in {
-        val invalidCredentials = BasicHttpCredentials(UUID().toString, Secret().toString)
+        val invalidCredentials = BasicHttpCredentials(UUID().asString, Secret().asString)
         Get("/secured") ~> addCredentials(invalidCredentials) ~> route ~> check {
             status should be(Unauthorized)
         }
@@ -173,7 +173,7 @@ class AuthenticatedRouteTests
         put(authStore, secondCreds)
         waitOnView(authStore, creds.uuid, 2)
 
-        val invalidCredentials = BasicHttpCredentials(creds.uuid(), creds.key())
+        val invalidCredentials = BasicHttpCredentials(creds.uuid.asString, creds.key.asString)
         Get("/secured") ~> addCredentials(invalidCredentials) ~> route ~> check {
             status should be(InternalServerError)
         }

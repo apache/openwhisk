@@ -44,7 +44,7 @@ import spray.json.pimpAny
  * @param id the activation id, required not null
  */
 protected[core] class ActivationId private (private val id: java.util.UUID) extends AnyVal {
-    protected[core] def apply() = toString
+    def asString = toString
     override def toString = id.toString.replaceAll("-", "")
     def toJsObject = JsObject("activationId" -> toString.toJson)
 }

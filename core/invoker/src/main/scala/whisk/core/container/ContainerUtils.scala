@@ -66,7 +66,7 @@ trait ContainerUtils extends Logging {
     def makeContainer(name: Option[ContainerName], image: String, network: String, cpuShare: Int, env: Map[String, String], args: Seq[String], limits: ActionLimits, policy: Option[String])(implicit transid: TransactionId): ContainerHash = {
         val nameOption = name.map(n => Array("--name", n.name)).getOrElse(Array.empty[String])
         val cpuArg = Array("-c", cpuShare.toString)
-        val memoryArg = Array("-m", s"${limits.memory()}m", "--memory-swap", s"${limits.memory()}m")
+        val memoryArg = Array("-m", s"${limits.memory.megabytes}m", "--memory-swap", s"${limits.memory.megabytes}m")
         val capabilityArg = Array("--cap-drop", "NET_RAW", "--cap-drop", "NET_ADMIN")
         val consulServiceIgnore = Array("-e", "SERVICE_IGNORE=true")
         val fileHandleLimit = Array("--ulimit", "nofile=64:64")

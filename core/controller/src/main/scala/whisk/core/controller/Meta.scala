@@ -124,7 +124,7 @@ trait WhiskMetaApi extends Directives with PostActionActivation {
                 complete(code, activation.resultAsJson)
             case Success((activationId, None)) =>
                 // blocking invoke which got queued instead
-                complete(Accepted, JsObject("code" -> transid().toJson))
+                complete(Accepted, JsObject("code" -> transid.id.toJson))
 
             case Failure(t: RejectRequest) =>
                 terminate(t.code, t.message)

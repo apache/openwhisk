@@ -57,7 +57,7 @@ function NodeActionRunner(whisk) {
         }
 
         // Loading the user code.
-        if(message.binary) {
+        if (message.binary) {
             // The code is a base64-encoded zip file.
             return unzipInTmpDir(message.code).then(function (moduleDir) {
                 try {

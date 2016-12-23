@@ -352,7 +352,7 @@ class Invoker(
             }
 
             val cumulativeSizes = records.scanLeft(0.bytes) { (acc, current) => acc + current.log.sizeInBytes }.tail
-            val truncatedLogs = records.zip(cumulativeSizes).takeWhile(_._2 < limit().megabytes).map(_._1).toVector
+            val truncatedLogs = records.zip(cumulativeSizes).takeWhile(_._2 < limit.asMegaBytes).map(_._1).toVector
             val isTruncated = truncatedLogs.size < records.size
 
             if (isTruncated) {
