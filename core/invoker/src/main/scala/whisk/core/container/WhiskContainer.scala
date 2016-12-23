@@ -101,7 +101,7 @@ class WhiskContainer(
         val result = sendPayload("/run", constructActivationMetadata(msg, args, timeout), timeout)
         // Use start and end time of the activation
         val RunResult(Interval(startActivation, endActivation), _) = result
-        transid.finished("Invoker", startMarker.copy(startActivation), s"finished running activation id: $msg.activationId", endTime = endActivation)
+        transid.finished("Invoker", startMarker.copy(startActivation), s"finished running activation id: ${msg.activationId}", endTime = endActivation)
         result
     }
 
