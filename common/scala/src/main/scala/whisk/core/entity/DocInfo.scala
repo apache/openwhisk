@@ -67,7 +67,13 @@ protected[core] class DocRevision private (val rev: String) extends AnyVal {
  * @param rev the document revision, optional; this is an opaque value determined by the datastore
  */
 protected[core] case class DocInfo protected[entity] (id: DocId, rev: DocRevision = DocRevision()) {
-    override def toString = s"id: $id, rev: $rev"
+    override def toString = {
+        if (rev.empty) {
+            s"id: $id"
+        } else {
+            s"id: $id, rev: $rev"
+        }
+    }
 
     override def hashCode = {
         if (rev.empty) {

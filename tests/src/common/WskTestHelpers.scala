@@ -206,7 +206,7 @@ trait WskTestHelpers extends Matchers {
                 implicit wskprops: WskProps): Unit = {
 
         val activationIds = wsk.pollFor(N, Some(entity), since = since, retries = (totalWait / pollPeriod).toInt, pollPeriod = pollPeriod)
-        withClue(s"did not find $N activations for $entity since $since") {
+        withClue(s"expecting $N activations matching '$entity' name since $since but found ${activationIds.mkString(",")} instead") {
             activationIds.length shouldBe N
         }
 

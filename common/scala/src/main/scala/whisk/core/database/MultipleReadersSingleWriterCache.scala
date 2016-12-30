@@ -265,7 +265,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
 
                     if (allowedToAssumeCompletion && actualEntry.grabWriteLock(transid, currentState, desiredEntry.unpack)) {
                         // this transaction is now responsible for updating the cache entry
-                        logger.info(this, s"write initiated on existing cache entry invalidating $key")
+                        logger.info(this, s"write initiated on existing cache entry, invalidating $key")
                         listenForWriteDone(key, actualEntry, generator)
                     } else {
                         // there is a conflicting operation in progress on this key
