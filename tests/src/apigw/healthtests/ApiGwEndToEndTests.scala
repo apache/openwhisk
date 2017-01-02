@@ -56,7 +56,7 @@ class ApiGwEndToEndTests extends FlatSpec with Matchers with RestUtil with TestH
         val testrelpath = "/path"
         val testurlop = "get"
         val testapiname = testName + " API Name"
-        val actionName = "echo"
+        val actionName = "echoForApiGW"
         val urlqueryparam = "name"
         val urlqueryvalue = "test"
 

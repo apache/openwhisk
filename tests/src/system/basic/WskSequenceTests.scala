@@ -134,10 +134,10 @@ class WskSequenceTests
         (wp, assetHelper) =>
             val xName = "xSequence"
             val sName = "sSequence"
-            val echo = "echo"
+            val echo = "echoForSequences"
 
             // create echo action
-            val file = TestUtils.getTestActionFilename(s"$echo.js")
+            val file = TestUtils.getTestActionFilename("echo.js")
             assetHelper.withCleaner(wsk.action, echo) { (action, actionName) =>
                 action.create(name = actionName, artifact = Some(file), timeout = Some(allowedActionDuration))
             }
@@ -306,20 +306,20 @@ class WskSequenceTests
     it should "stop execution of a sequence (with no payload) on error" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val sName = "sSequence"
-            val apperror = "applicationError2"
-            val echo = "echo"
+            val apperror = ("applicationError2Seq", "applicationError2")
+            val echo = ("echoForSequences", "echo")
 
             // create actions
             val actions = Seq(apperror, echo)
-            for (actionName <- actions) {
-                val file = TestUtils.getTestActionFilename(s"$actionName.js")
+            for ((actionName, fileName) <- actions) {
+                val file = TestUtils.getTestActionFilename(s"$fileName.js")
                 assetHelper.withCleaner(wsk.action, actionName) { (action, actionName) =>
                     action.create(name = actionName, artifact = Some(file), timeout = Some(allowedActionDuration))
                 }
             }
             // create sequence s
             assetHelper.withCleaner(wsk.action, sName) {
-                (action, seqName) => action.create(seqName, artifact = Some(actions.mkString(",")), kind = Some("sequence"))
+                (action, seqName) => action.create(seqName, artifact = Some(actions.map(_._1).mkString(",")), kind = Some("sequence"))
             }
             // run sequence s with no payload
             val run = wsk.action.invoke(sName)
@@ -342,22 +342,22 @@ class WskSequenceTests
     it should "propagate execution error (timeout) from atomic action to sequence" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val sName = "sSequence"
-            val initforever = "initforever"
-            val echo = "echo"
+            val initforever = ("initforever", "initforever")
+            val echo = ("echoForSequences", "echo")
 
             // create actions
             val actions = Seq(echo, initforever)
             // timeouts for the action; make the one for initforever short
-            val timeout = Map(echo -> allowedActionDuration, initforever -> shortDuration)
-            for (actionName <- actions) {
-                val file = TestUtils.getTestActionFilename(s"$actionName.js")
+            val timeout = Map(echo._1 -> allowedActionDuration, initforever._1 -> shortDuration)
+            for ((actionName, fileName) <- actions) {
+                val file = TestUtils.getTestActionFilename(s"$fileName.js")
                 assetHelper.withCleaner(wsk.action, actionName) { (action, actionName) =>
                     action.create(name = actionName, artifact = Some(file), timeout = Some(timeout(actionName)))
                 }
             }
             // create sequence s
             assetHelper.withCleaner(wsk.action, sName) {
-                (action, seqName) => action.create(seqName, artifact = Some(actions.mkString(",")), kind = Some("sequence"))
+                (action, seqName) => action.create(seqName, artifact = Some(actions.map(_._1).mkString(",")), kind = Some("sequence"))
             }
             // run sequence s with no payload
             val run = wsk.action.invoke(sName)
@@ -381,20 +381,20 @@ class WskSequenceTests
     it should "execute a sequence in blocking fashion and finish execution even if longer than blocking response timeout" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val sName = "sSequence"
-            val sleep = "timeout"
-            val echo = "echo"
+            val sleep = ("timeoutForSequences", "timeout")
+            val echo = ("echoForSequences", "echo")
 
             // create actions
             val actions = Seq(echo, sleep)
-            for (actionName <- actions) {
-                val file = TestUtils.getTestActionFilename(s"$actionName.js")
+            for ((actionName, fileName) <- actions) {
+                val file = TestUtils.getTestActionFilename(s"$fileName.js")
                 assetHelper.withCleaner(wsk.action, actionName) { (action, actionName) =>
                     action.create(name = actionName, artifact = Some(file), timeout = Some(allowedActionDuration))
                 }
             }
             // create sequence s
             assetHelper.withCleaner(wsk.action, sName) {
-                (action, seqName) => action.create(seqName, artifact = Some(actions.mkString(",")), kind = Some("sequence"))
+                (action, seqName) => action.create(seqName, artifact = Some(actions.map(_._1).mkString(",")), kind = Some("sequence"))
             }
             // run sequence s with sleep equal to payload
             val payload = 65000
@@ -416,10 +416,10 @@ class WskSequenceTests
      * t trigger with payload
      * rule r: t -> s
      */
-    it should "execute a sequence that is part of a rule and pass the trigger parameters to the sequence" in withAssetCleaner(wskprops){
+    it should "execute a sequence that is part of a rule and pass the trigger parameters to the sequence" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val seqName = "seqRule"
-            val actionName = "echo"
+            val actionName = "echoForSequences"
             val triggerName = "trigSeq"
             val ruleName = "ruleSeq"
 
@@ -431,7 +431,7 @@ class WskSequenceTests
                 (trigger, name) => trigger.create(name, parameters = triggerPayload)
             }
             // action
-            val file = TestUtils.getTestActionFilename(s"$actionName.js")
+            val file = TestUtils.getTestActionFilename("echo.js")
             assetHelper.withCleaner(wsk.action, actionName) { (action, actionName) =>
                 action.create(name = actionName, artifact = Some(file), timeout = Some(allowedActionDuration))
             }
@@ -461,13 +461,13 @@ class WskSequenceTests
      * @param triggerPayload the payload used for the trigger (that should be reflected in the sequence result)
      */
     private def checkEchoSeqRuleResult(triggerFireRun: RunResult, seqName: String, triggerPayload: JsObject) = {
-         withActivation(wsk.activation, triggerFireRun) {
+        withActivation(wsk.activation, triggerFireRun) {
             triggerActivation =>
                 withActivationsFromEntity(wsk.activation, seqName, since = Some(Instant.ofEpochMilli(triggerActivation.start))) { activationList =>
                     activationList.head.response.result shouldBe Some(triggerPayload)
                     activationList.head.cause shouldBe None
                 }
-            }
+        }
     }
 
     /**
