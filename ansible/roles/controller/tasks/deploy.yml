@@ -7,21 +7,21 @@
 
 - name: ensure controller log directory is created with permissions
   file:
-    path: "{{ whisk_logs_dir }}/controller"
+    path: "{{ whisk_logs_dir }}/controller{{play_hosts.index(inventory_hostname)}}"
     state: directory
     mode: 0777
   become: true
 
 - name: (re)start controller
   docker_container:
-    name: controller
+    name: controller{{play_hosts.index(inventory_hostname)}}
     image: "{{ docker_registry }}{{ docker_image_prefix }}/controller:{{ docker_image_tag }}"
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
-    hostname: controller
+    hostname: controller{{play_hosts.index(inventory_hostname)}}
     env:
-      "COMPONENT_NAME": "controller"
+      "COMPONENT_NAME": "controller{{play_hosts.index(inventory_hostname)}}"
       "CONSULSERVER_HOST": "{{ groups['consul_servers'] | first }}"
       "CONSUL_HOST_PORT4": "{{ consul.port.http }}"
       "PORT": 8080
@@ -33,13 +33,13 @@
       "SERVICE_CHECK_TIMEOUT": "2s"
       "SERVICE_CHECK_INTERVAL": "15s"
     volumes:
-      - "{{ whisk_logs_dir }}/controller:/logs"
+      - "{{ whisk_logs_dir }}/controller{{play_hosts.index(inventory_hostname)}}:/logs"
     ports:
-      - "{{ controller.port }}:8080"
+      - "{{ controller.port + play_hosts.index(inventory_hostname)}}:8080"
 
 - name: wait until the Controller in this host is up and running
   uri:
-    url: "http://{{ inventory_hostname }}:{{ controller.port }}/ping"
+    url: "http://{{ inventory_hostname }}:{{ controller.port + play_hosts.index(inventory_hostname)}}/ping"
   register: result
   until: result.status == 200
   retries: 12
