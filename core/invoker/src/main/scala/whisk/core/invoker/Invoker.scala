@@ -226,7 +226,7 @@ class Invoker(
             val boundParams = action.parameters.toJsObject
             val params = JsObject(boundParams.fields ++ payload.fields)
             val timeout = action.limits.timeout.duration
-            con.run(msg, params,  timeout)
+            con.run(msg, params, timeout)
         }
 
         initResultOpt match {
@@ -259,7 +259,7 @@ class Invoker(
         val activationResult = makeWhiskActivation(msg, EntityPath(action.fullyQualifiedName(false).toString), action.version, activationResponse, activationInterval, Some(action.limits))
         val completeMsg = CompletionMessage(transid, activationResult)
 
-        producer.send("completed", completeMsg) map { status =>
+        producer.send("completed0", completeMsg) map { status =>
             info(this, s"posted completion of activation ${msg.activationId}")
         }
 

@@ -74,7 +74,8 @@ trait LoadBalancer {
 
 class LoadBalancerService(
     config: WhiskConfig,
-    verbosity: LogLevel)(
+    verbosity: LogLevel,
+    instance: Int)(
         implicit val actorSystem: ActorSystem)
     extends LoadBalancer with Logging {
 
@@ -167,7 +168,7 @@ class LoadBalancerService(
                 LoadBalancerKeys.activationCountKey -> producer.sentCount().toJson)
         })
 
-    private val consumer = new KafkaConsumerConnector(config.kafkaHost, "completions", "completed")
+    private val consumer = new KafkaConsumerConnector(config.kafkaHost, "completions", s"completed$instance")
     consumer.setVerbosity(verbosity)
     consumer.onMessage((topic, partition, offset, bytes) => {
         val raw = new String(bytes, "utf-8")

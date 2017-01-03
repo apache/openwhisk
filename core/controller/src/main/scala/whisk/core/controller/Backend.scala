@@ -61,7 +61,7 @@ object WhiskServices {
      * @param config the configuration with loadbalancerHost defined
      * @return a load balancer component
      */
-    def makeLoadBalancerComponent(config: WhiskConfig)(implicit as: ActorSystem) = new LoadBalancerService(config, InfoLevel)
+    def makeLoadBalancerComponent(config: WhiskConfig, instance: Int)(implicit as: ActorSystem) = new LoadBalancerService(config, InfoLevel, instance)
 
 }
 

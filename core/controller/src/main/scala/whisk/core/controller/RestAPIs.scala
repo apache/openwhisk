@@ -111,6 +111,7 @@ protected[controller] trait RespondWithHeaders extends Directives {
 protected[controller] class RestAPIVersion_v1(
     config: WhiskConfig,
     verbosity: LogLevel,
+    instance: Int,
     implicit val actorSystem: ActorSystem)
     extends RestAPIVersion("v1", config(whiskVersionDate), config(whiskVersionBuildno))
     with Authenticate
@@ -160,7 +161,7 @@ protected[controller] class RestAPIVersion_v1(
 
     // initialize backend services
     protected implicit val consulServer = WhiskServices.consulServer(config)
-    protected implicit val loadBalancer = WhiskServices.makeLoadBalancerComponent(config)
+    protected implicit val loadBalancer = WhiskServices.makeLoadBalancerComponent(config, instance)
     protected implicit val iamProvider = WhiskServices.iamProvider(config)
     protected implicit val entitlementService = WhiskServices.entitlementService(config, loadBalancer, iamProvider)
     protected implicit val activationId = new ActivationIdGenerator {}

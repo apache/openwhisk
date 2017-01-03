@@ -75,7 +75,7 @@ class Controller(
     info(this, s"starting controller instance ${instance}")
 
     /** The REST APIs. */
-    private val apiv1 = new RestAPIVersion_v1(config, loglevel, context.system)
+    private val apiv1 = new RestAPIVersion_v1(config, loglevel, instance, context.system)
 
 }
 
