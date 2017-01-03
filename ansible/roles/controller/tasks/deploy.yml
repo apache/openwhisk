@@ -36,6 +36,7 @@
       - "{{ whisk_logs_dir }}/controller{{play_hosts.index(inventory_hostname)}}:/logs"
     ports:
       - "{{ controller.port + play_hosts.index(inventory_hostname)}}:8080"
+    command: /bin/sh -c "/controller/bin/controller {{play_hosts.index(inventory_hostname)}} >> /logs/controller{{play_hosts.index(inventory_hostname)}}_logs.log 2>&1"
 
 - name: wait until the Controller in this host is up and running
   uri:
