@@ -63,8 +63,7 @@ func setupClientConfig(cmd *cobra.Command, args []string) (error){
 
     if err != nil {
         whisk.Debug(whisk.DbgError, "whisk.NewClient(%#v, %#v) error: %s\n", http.DefaultClient, clientConfig, err)
-        errMsg := fmt.Sprintf(
-            wski18n.T("Unable to initialize server connection: {{.err}}", map[string]interface{}{"err": err}))
+        errMsg := wski18n.T("Unable to initialize server connection: {{.err}}", map[string]interface{}{"err": err})
         whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
         whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
         return whiskErr
@@ -204,8 +203,7 @@ func Execute() error {
 
     if err != nil {
         whisk.Debug(whisk.DbgError, "parseParams(%s) failed: %s\n", os.Args, err)
-        errMsg := fmt.Sprintf(
-            wski18n.T("Failed to parse arguments: {{.err}}", map[string]interface{}{"err":err}))
+        errMsg := wski18n.T("Failed to parse arguments: {{.err}}", map[string]interface{}{"err":err})
         whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
             whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
         return whiskErr

@@ -60,9 +60,7 @@ var apiCreateCmd = &cobra.Command{
             api, err = parseSwaggerApi()
             if err != nil {
                 whisk.Debug(whisk.DbgError, "parseSwaggerApi() error: %s\n", err)
-                errMsg := fmt.Sprintf(
-                    wski18n.T("Unable to parse swagger file: {{.err}}",
-                        map[string]interface{}{"err": err}))
+                errMsg := wski18n.T("Unable to parse swagger file: {{.err}}", map[string]interface{}{"err": err})
                 whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                     whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
                 return whiskErr
@@ -75,9 +73,8 @@ var apiCreateCmd = &cobra.Command{
             api, err = parseApi(cmd, args)
             if err != nil {
                 whisk.Debug(whisk.DbgError, "parseApi(%s, %s) error: %s\n", cmd, args, err)
-                errMsg := fmt.Sprintf(
-                    wski18n.T("Unable to parse api command arguments: {{.err}}",
-                        map[string]interface{}{"err": err}))
+                errMsg := wski18n.T("Unable to parse api command arguments: {{.err}}",
+                    map[string]interface{}{"err": err})
                 whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                     whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
                 return whiskErr
@@ -90,9 +87,7 @@ var apiCreateCmd = &cobra.Command{
         retApi, _, err := client.Apis.Insert(sendApi, false)
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Apis.Insert(%#v, false) error: %s\n", api, err)
-            errMsg := fmt.Sprintf(
-                wski18n.T("Unable to create API: {{.err}}",
-                    map[string]interface{}{"err": err}))
+            errMsg := wski18n.T("Unable to create API: {{.err}}", map[string]interface{}{"err": err})
             whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_NETWORK,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return whiskErr
@@ -151,9 +146,7 @@ var apiUpdateCmd = &cobra.Command{
         api, err := parseApi(cmd, args)
         if err != nil {
             whisk.Debug(whisk.DbgError, "parseApi(%s, %s) error: %s\n", cmd, args, err)
-            errMsg := fmt.Sprintf(
-                wski18n.T("Unable to parse API command arguments: {{.err}}",
-                    map[string]interface{}{"err": err}))
+            errMsg := wski18n.T("Unable to parse API command arguments: {{.err}}", map[string]interface{}{"err": err})
             whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             return whiskErr
@@ -164,9 +157,7 @@ var apiUpdateCmd = &cobra.Command{
         retApi, _, err := client.Apis.Insert(sendApi, true)
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Apis.Insert(%#v, %t, false) error: %s\n", api, err)
-            errMsg := fmt.Sprintf(
-                wski18n.T("Unable to update API: {{.err}}",
-                    map[string]interface{}{"err": err}))
+            errMsg := wski18n.T("Unable to update API: {{.err}}", map[string]interface{}{"err": err})
             whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_NETWORK,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return whiskErr
@@ -208,9 +199,7 @@ var apiGetCmd = &cobra.Command{
         retApi, _, err := client.Apis.Get(api, options)
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Apis.Get(%s) error: %s\n", api.Id, err)
-            errMsg := fmt.Sprintf(
-                wski18n.T("Unable to get API: {{.err}}",
-                    map[string]interface{}{"err": err}))
+            errMsg := wski18n.T("Unable to get API: {{.err}}", map[string]interface{}{"err": err})
             whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return whiskErr
@@ -237,13 +226,11 @@ var apiGetCmd = &cobra.Command{
         if (displayResult == nil) {
             var errMsg string
             if (isBasePathArg) {
-                errMsg = fmt.Sprintf(
-                    wski18n.T("API does not exist for basepath {{.basepath}}",
-                    map[string]interface{}{"basepath": args[0]}))
+                errMsg = wski18n.T("API does not exist for basepath {{.basepath}}",
+                    map[string]interface{}{"basepath": args[0]})
             } else {
-                errMsg = fmt.Sprintf(
-                wski18n.T("API does not exist for API name {{.apiname}}",
-                    map[string]interface{}{"apiname": args[0]}))
+                errMsg = wski18n.T("API does not exist for API name {{.apiname}}",
+                    map[string]interface{}{"apiname": args[0]})
             }
 
             whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
@@ -299,9 +286,7 @@ var apiDeleteCmd = &cobra.Command{
         _, err := client.Apis.Delete(api, options)
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Apis.Delete(%s) error: %s\n", api.Id, err)
-            errMsg := fmt.Sprintf(
-                wski18n.T("Unable to delete action: {{.err}}",
-                    map[string]interface{}{"err": err}))
+            errMsg := wski18n.T("Unable to delete action: {{.err}}", map[string]interface{}{"err": err})
             whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return whiskErr
@@ -364,9 +349,7 @@ var apiListCmd = &cobra.Command{
             retApiArray, _, err = client.Apis.List(options)
             if err != nil {
                 whisk.Debug(whisk.DbgError, "client.Apis.List(%s) error: %s\n", options, err)
-                errMsg := fmt.Sprintf(
-                    wski18n.T("Unable to get api: {{.err}}",
-                        map[string]interface{}{"err": err}))
+                errMsg := wski18n.T("Unable to get api: {{.err}}", map[string]interface{}{"err": err})
                 whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                     whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return whiskErr
@@ -393,9 +376,7 @@ var apiListCmd = &cobra.Command{
             retApiArray, _, err = client.Apis.Get(api, options)
             if err != nil {
                 whisk.Debug(whisk.DbgError, "client.Apis.Get(%s) error: %s\n", api.Id, err)
-                errMsg := fmt.Sprintf(
-                    wski18n.T("Unable to obtain the API list: {{.err}}",
-                        map[string]interface{}{"err": err}))
+                errMsg := wski18n.T("Unable to obtain the API list: {{.err}}", map[string]interface{}{"err": err})
                 whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                     whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return whiskErr
@@ -502,18 +483,15 @@ func parseApi(cmd *cobra.Command, args []string) (*whisk.Api, error) {
         qName, err = parseQualifiedName(args[2])
         if err != nil {
             whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[2], err)
-            errMsg := fmt.Sprintf(
-                wski18n.T("'{{.name}}' is not a valid action name: {{.err}}",
-                    map[string]interface{}{"name": args[2], "err": err}))
+            errMsg := wski18n.T("'{{.name}}' is not a valid action name: {{.err}}",
+                map[string]interface{}{"name": args[2], "err": err})
             whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             return nil, whiskErr
         }
         if (qName.entityName == "") {
             whisk.Debug(whisk.DbgError, "Action name '%s' is invalid\n", args[2])
-            errMsg := fmt.Sprintf(
-                wski18n.T("'{{.name}}' is not a valid action name.",
-                    map[string]interface{}{"name": args[2]}))
+            errMsg := wski18n.T("'{{.name}}' is not a valid action name.", map[string]interface{}{"name": args[2]})
             whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             return nil, whiskErr
@@ -551,8 +529,7 @@ func parseSwaggerApi() (*whisk.Api, error) {
     // Test is for completeness, but this situation should only arise due to an internal error
     if ( len(flags.api.configfile) == 0 ) {
         whisk.Debug(whisk.DbgError, "No swagger file is specified\n")
-        errMsg := fmt.Sprintf(
-            wski18n.T("A configuration file was not specified."))
+        errMsg := wski18n.T("A configuration file was not specified.")
         whiskErr := whisk.MakeWskError(errors.New(errMsg),whisk.EXITCODE_ERR_GENERAL,
             whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
         return nil, whiskErr
@@ -561,9 +538,8 @@ func parseSwaggerApi() (*whisk.Api, error) {
     swagger, err:= readFile(flags.api.configfile)
     if ( err != nil ) {
         whisk.Debug(whisk.DbgError, "readFile(%s) error: %s\n", flags.api.configfile, err)
-        errMsg := fmt.Sprintf(
-            wski18n.T("Error reading swagger file '{{.name}}': {{.err}}",
-                map[string]interface{}{"name": flags.api.configfile, "err": err}))
+        errMsg := wski18n.T("Error reading swagger file '{{.name}}': {{.err}}",
+                map[string]interface{}{"name": flags.api.configfile, "err": err})
         whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
             whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
         return nil, whiskErr
@@ -574,9 +550,8 @@ func parseSwaggerApi() (*whisk.Api, error) {
     err = json.Unmarshal([]byte(swagger), swaggerObj)
     if ( err != nil ) {
         whisk.Debug(whisk.DbgError, "JSON parse of `%s' error: %s\n", flags.api.configfile, err)
-        errMsg := fmt.Sprintf(
-            wski18n.T("Error parsing swagger file '{{.name}}': {{.err}}",
-                map[string]interface{}{"name": flags.api.configfile, "err": err}))
+        errMsg := wski18n.T("Error parsing swagger file '{{.name}}': {{.err}}",
+                map[string]interface{}{"name": flags.api.configfile, "err": err})
         whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
             whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
         return nil, whiskErr
@@ -607,11 +582,10 @@ func IsValidApiVerb(verb string) (error, bool) {
     // Is the API verb valid?
     if _, ok := whisk.ApiVerbs[strings.ToUpper(verb)]; !ok {
         whisk.Debug(whisk.DbgError, "Invalid API verb: %s\n", verb)
-        errMsg := fmt.Sprintf(
-            wski18n.T("'{{.verb}}' is not a valid API verb.  Valid values are: {{.verbs}}",
+        errMsg := wski18n.T("'{{.verb}}' is not a valid API verb.  Valid values are: {{.verbs}}",
                 map[string]interface{}{
                     "verb": verb,
-                    "verbs": reflect.ValueOf(whisk.ApiVerbs).MapKeys()}))
+                    "verbs": reflect.ValueOf(whisk.ApiVerbs).MapKeys()})
         whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
             whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
         return whiskErr, false
@@ -622,11 +596,10 @@ func IsValidApiVerb(verb string) (error, bool) {
 func hasPathPrefix(path string) (error, bool) {
     if (! strings.HasPrefix(path, "/")) {
         whisk.Debug(whisk.DbgError, "path does not begin with '/': %s\n", path)
-        errMsg := fmt.Sprintf(
-            wski18n.T("'{{.path}}' must begin with '/'.",
+        errMsg := wski18n.T("'{{.path}}' must begin with '/'.",
                 map[string]interface{}{
                     "path": path,
-                }))
+                })
         whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
             whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
         return whiskErr, false
