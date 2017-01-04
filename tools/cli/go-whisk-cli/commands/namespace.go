@@ -49,9 +49,8 @@ var namespaceListCmd = &cobra.Command{
         namespaces, _, err := client.Namespaces.List()
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Namespaces.List() error: %s\n", err)
-            errStr := fmt.Sprintf(
-                wski18n.T("Unable to obtain the list of available namespaces: {{.err}}",
-                    map[string]interface{}{"err": err}))
+            errStr := wski18n.T("Unable to obtain the list of available namespaces: {{.err}}",
+                map[string]interface{}{"err": err})
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_NETWORK, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
@@ -80,9 +79,8 @@ var namespaceGetCmd = &cobra.Command{
             qName, err = parseQualifiedName(args[0])
             if err != nil {
                 whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[0], err)
-                errMsg := fmt.Sprintf(
-                    wski18n.T("'{{.name}}' is not a valid qualified name: {{.err}}",
-                        map[string]interface{}{"name": args[0], "err": err}))
+                errMsg := wski18n.T("'{{.name}}' is not a valid qualified name: {{.err}}",
+                        map[string]interface{}{"name": args[0], "err": err})
                 werr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                     whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return werr

@@ -58,18 +58,15 @@ var activationListCmd = &cobra.Command{
             qName, err = parseQualifiedName(args[0])
             if err != nil {
                 whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[0], err)
-                errStr := fmt.Sprintf(
-                    wski18n.T("'{{.name}}' is not a valid qualified name: {{.err}}",
-                        map[string]interface{}{"name": args[0], "err": err}))
+                errStr := wski18n.T("'{{.name}}' is not a valid qualified name: {{.err}}",
+                        map[string]interface{}{"name": args[0], "err": err})
                 werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return werr
             }
             ns := qName.namespace
             if len(ns) == 0 {
                 whisk.Debug(whisk.DbgError, "Namespace '%s' is invalid\n", ns)
-                errStr := fmt.Sprintf(
-                    wski18n.T("Namespace '{{.name}}' is invalid",
-                        map[string]interface{}{"name": ns}))
+                errStr := wski18n.T("Namespace '{{.name}}' is invalid", map[string]interface{}{"name": ns})
                 werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
                 return werr
             }
@@ -127,8 +124,7 @@ var activationGetCmd = &cobra.Command{
             field = args[1]
 
             if !fieldExists(&whisk.Activation{}, field) {
-                errMsg := fmt.Sprintf(
-                    wski18n.T("Invalid field filter '{{.arg}}'.", map[string]interface{}{"arg": field}))
+                errMsg := wski18n.T("Invalid field filter '{{.arg}}'.", map[string]interface{}{"arg": field})
                 whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
                     whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return whiskErr
@@ -139,9 +135,8 @@ var activationGetCmd = &cobra.Command{
         activation, _, err := client.Activations.Get(id)
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Activations.Get(%s) failed: %s\n", id, err)
-            errStr := fmt.Sprintf(
-                wski18n.T("Unable to obtain activation record for '{{.id}}': {{.err}}",
-                    map[string]interface{}{"id": id, "err": err}))
+            errStr := wski18n.T("Unable to obtain activation record for '{{.id}}': {{.err}}",
+                    map[string]interface{}{"id": id, "err": err})
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
@@ -191,9 +186,8 @@ var activationLogsCmd = &cobra.Command{
         activation, _, err := client.Activations.Logs(id)
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Activations.Logs(%s) failed: %s\n", id, err)
-            errStr := fmt.Sprintf(
-                wski18n.T("Unable to obtain logs for activation '{{.id}}': {{.err}}",
-                    map[string]interface{}{"id": id, "err": err}))
+            errStr := wski18n.T("Unable to obtain logs for activation '{{.id}}': {{.err}}",
+                map[string]interface{}{"id": id, "err": err})
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
@@ -220,9 +214,8 @@ var activationResultCmd = &cobra.Command{
         result, _, err := client.Activations.Result(id)
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Activations.result(%s) failed: %s\n", id, err)
-            errStr := fmt.Sprintf(
-                wski18n.T("Unable to obtain result information for activation '{{.id}}': {{.err}}",
-                    map[string]interface{}{"id": id, "err": err}))
+            errStr := wski18n.T("Unable to obtain result information for activation '{{.id}}': {{.err}}",
+                    map[string]interface{}{"id": id, "err": err})
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }

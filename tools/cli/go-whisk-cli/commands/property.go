@@ -72,9 +72,7 @@ var propertySetCmd = &cobra.Command{
         props, err := readProps(Properties.PropsFile)
         if err != nil {
             whisk.Debug(whisk.DbgError, "readProps(%s) failed: %s\n", Properties.PropsFile, err)
-            errStr := fmt.Sprintf(
-                wski18n.T("Unable to set the property value: {{.err}}",
-                    map[string]interface{}{"err": err}))
+            errStr := wski18n.T("Unable to set the property value: {{.err}}", map[string]interface{}{"err": err})
             werr = whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
@@ -412,9 +410,8 @@ func loadProperties() error {
     props, err := readProps(Properties.PropsFile)
     if err != nil {
         whisk.Debug(whisk.DbgError, "readProps(%s) failed: %s\n", Properties.PropsFile, err)
-        errStr := fmt.Sprintf(
-            wski18n.T("Unable to read the properties file '{{.filename}}': {{.err}}",
-                map[string]interface{}{"filename": Properties.PropsFile, "err": err}))
+        errStr := wski18n.T("Unable to read the properties file '{{.filename}}': {{.err}}",
+                map[string]interface{}{"filename": Properties.PropsFile, "err": err})
         werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return werr
     }
@@ -486,9 +483,8 @@ func parseConfigFlags(cmd *cobra.Command, args []string) error {
 
             if err != nil {
                 whisk.Debug(whisk.DbgError, "getURLBase(%s) failed: %s\n", apiHost, err)
-                errStr := fmt.Sprintf(
-                    wski18n.T("Invalid host address '{{.host}}': {{.err}}",
-                        map[string]interface{}{"host": Properties.APIHost, "err": err}))
+                errStr := wski18n.T("Invalid host address '{{.host}}': {{.err}}",
+                        map[string]interface{}{"host": Properties.APIHost, "err": err})
                 werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return werr
             }
@@ -543,9 +539,7 @@ func writeProps(path string, props map[string]string) error {
     file, err := os.Create(path)
     if err != nil {
         whisk.Debug(whisk.DbgError, "os.Create(%s) failed: %s\n", path, err)
-        errStr := fmt.Sprintf(
-            wski18n.T("Whisk properties file write failure: {{.err}}",
-                map[string]interface{}{"err": err}))
+        errStr := wski18n.T("Whisk properties file write failure: {{.err}}", map[string]interface{}{"err": err})
         werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return werr
     }
@@ -558,9 +552,7 @@ func writeProps(path string, props map[string]string) error {
         _, err = fmt.Fprintln(writer, line)
         if err != nil {
             whisk.Debug(whisk.DbgError, "fmt.Fprintln() write to '%s' failed: %s\n", path, err)
-            errStr := fmt.Sprintf(
-                wski18n.T("Whisk properties file write failure: {{.err}}",
-                    map[string]interface{}{"err": err}))
+            errStr := wski18n.T("Whisk properties file write failure: {{.err}}", map[string]interface{}{"err": err})
             werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }

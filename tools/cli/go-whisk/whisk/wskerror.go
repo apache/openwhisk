@@ -16,10 +16,6 @@
 
 package whisk
 
-import (
-)
-import "fmt"
-
 const EXITCODE_ERR_GENERAL      int = 1
 const EXITCODE_ERR_USAGE        int = 2
 const EXITCODE_ERR_NETWORK      int = 3
@@ -50,7 +46,7 @@ Parameters:
     err     - WskError object used to display an error message from
  */
 func (whiskError WskError) Error() string {
-    return fmt.Sprintf(whiskError.RootErr.Error())
+    return whiskError.RootErr.Error()
 }
 
 /*
