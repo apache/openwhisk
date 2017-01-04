@@ -9,9 +9,9 @@ The mobile SDK is written in Swift 3.0 and supports iOS 10 and later releases. Y
 
 You can install the mobile SDK by using CocoaPods, Carthage, or from the source directory.
 
-### Installing by using CocoaPods 
+### Installing by using CocoaPods
 
-The OpenWhisk SDK for mobile is available for public distribution through CocoaPods. Assuming CocoaPods is installed, put the following lines into a file called 'Podfile' inside the starter app project directory. 
+The OpenWhisk SDK for mobile is available for public distribution through CocoaPods. Assuming CocoaPods is installed, put the following lines into a file called 'Podfile' inside the starter app project directory.
 
 ```
 install! 'cocoapods', :deterministic_uuids => false

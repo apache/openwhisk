@@ -10,7 +10,7 @@ Use the CLI to expose your OpenWhisk actions through the OpenWhisk API Gateway.
 
 ## OpenWhisk CLI configuration
 This experimental feature only works with the new OpenWhisk authentication model in which each namespace now has a unique authentication key associated with it.
-Follow instructions in [Configure CLI](../../docs/README.md#setting-up-the-openwhisk-cli) on how to set the authentication key for your specific namespace.
+Follow the instructions in [Configure CLI](../../docs/README.md#setting-up-the-openwhisk-cli) on how to set the authentication key for your specific namespace.
 
 
 ## Expose an OpenWhisk action
@@ -61,10 +61,12 @@ $ wsk api-experimental create /club /books delete deleteBooks
 
 Notice that the first action exposed with base path `/club` gets the API label with name `Book Club` any other actions exposed under `/club` will be associated with `Book Club`
 
-Lets list all the actions that we just exposed.
+Let's list all the actions that we just exposed.
 
 ```
 $ wsk api-experimental list
+```
+```
 ok: apis
 Action                   Verb          API Name        URL
 getBooks                   get         Book Club       https://2ef15285-gws.api-gw.mybluemix.net/club/books
@@ -73,9 +75,9 @@ putBooks                   put         Book Club       https://2ef15285-gws.api-
 deleteBooks             delete         Book Club       https://2ef15285-gws.api-gw.mybluemix.net/club/books
 ```
 
-Now just for fun lets add a new book `JavaScript: The Good Parts` with a HTTP __POST__
+Now just for fun let's add a new book `JavaScript: The Good Parts` with a HTTP __POST__
 ```
-$  curl -X POST -d '{"name":"JavaScript: The Good Parts", "isbn":"978-0596517748"}' https://2ef15285-gws.api-gw.mybluemix.net/club/books
+$ curl -X POST -d '{"name":"JavaScript: The Good Parts", "isbn":"978-0596517748"}' https://2ef15285-gws.api-gw.mybluemix.net/club/books
 ```
 ```
 {
@@ -83,9 +85,9 @@ $  curl -X POST -d '{"name":"JavaScript: The Good Parts", "isbn":"978-0596517748
 }
 ```
 
-Lets get a list of books using our action `getBooks` via HTTP __GET__
+Let's get a list of books using our action `getBooks` via HTTP __GET__
 ```
-$  curl -X GET https://2ef15285-gws.api-gw.mybluemix.net/club/books
+$ curl -X GET https://2ef15285-gws.api-gw.mybluemix.net/club/books
 ```
 ```
 {
@@ -93,6 +95,13 @@ $  curl -X GET https://2ef15285-gws.api-gw.mybluemix.net/club/books
 }
 ```
 
+### Exporting configuration
+Let's export API named `Book Club` into a file that we can use as a base to to re-create the APIs using a file as input. 
+```
+$ wsk api get "Book Club" > club-swagger.json
+```
+
+Let's test the swagger file by first deleting all exposed URLs under a common base path.
 You can delete all of the exposed URLs using either the base path `/club` or API name label `"Book Club"`:
 ```
 $ wsk api-experimental delete /club
@@ -101,8 +110,39 @@ $ wsk api-experimental delete /club
 ok: deleted API /club
 ```
 
+Now let's restore the API named `Book Club` by using the file `club-swagger.json`
+```
+$ wsk api create --config-file club-swagger.json
+```
+```
+ok: created api /books delete for action deleteBook
+https://2ef15285-gws.api-gw.mybluemix.net/club/books
+ok: created api /books get for action deleteBook
+https://2ef15285-gws.api-gw.mybluemix.net/club/books
+ok: created api /books post for action deleteBook
+https://2ef15285-gws.api-gw.mybluemix.net/club/books
+ok: created api /books put for action deleteBook
+https://2ef15285-gws.api-gw.mybluemix.net/club/books
+```
+
+We can verify that the API has been re-created
+```
+$ wsk api list /club
+```
+```
+ok: apis
+Action                    Verb         API Name        URL
+getBooks                   get         Book Club       https://2ef15285-gws.api-gw.mybluemix.net/club/books
+postBooks                 post         Book Club       https://2ef15285-gws.api-gw.mybluemix.net/club/books
+putBooks                   put         Book Club       https://2ef15285-gws.api-gw.mybluemix.net/club/books
+deleteBooks             delete         Book Club       https://2ef15285-gws.api-gw.mybluemix.net/club/books
+```
+
 - **Note**: This feature is currently an experimental offering that enables users an early opportunity to try it out and provide feedback. The following feedback has already been received:
-  - No ability to control HTTP access control for  Cross-Origin Resource Sharing (CORS).
+  - No ability to customize HTTP access control for Cross-Origin Resource Sharing (CORS); currently, the generated API response headers are configured to allow any HTTP verb or origin (i.e. *). The following headers are always retturned:
+    - Access-Control-Allow-Origin: *
+    - Access-Control-Allow-Headers: Authorization, Content-Type
+    - Access-Control-Allow-Methods: GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS
   - Only Content Type `application/json` is supported for request and response.
   - No programatic way to control the response from the OpenWhisk action.
   - All OpenWhisk actions are expose via public access, no ability to configure a custom API key.

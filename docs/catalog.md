@@ -105,7 +105,7 @@ If you're not using OpenWhisk in Bluemix or if you want to set up your Cloudant 
 
 You can use the `changes` feed to configure a service to fire a trigger on every change to your Cloudant database. The parameters are as follows:
 
-- `dbname`: Name of Cloudant database. 
+- `dbname`: Name of Cloudant database.
 - `maxTriggers`: Stop firing triggers when this limit is reached. Defaults to 1000. You can set it to maximum 10,000. If you try to set more than 10,000, the request is rejected.
 
 1. Create a trigger with the `changes` feed in the package binding that you created previously. Be sure to replace `/myNamespace/myCloudant` with your package name.
@@ -338,9 +338,9 @@ The following Watson packages are provided:
 
 | Package | Description |
 | --- | --- |
-| `/whisk.system/watson-translator`   | Actions for the Watson APIs to translate text and language identification |
-| `/whisk.system/watson-textToSpeech` | Actions for the Watson APIs to convert the text into speech |
-| `/whisk.system/watson-speechToText` | Actions for the Watson APIs to convert the speech into text |
+| `/whisk.system/watson-translator`   | Package for text translation and language identification |
+| `/whisk.system/watson-textToSpeech` | Package to convert text into speech |
+| `/whisk.system/watson-speechToText` | Package to convert speech into text |
 
 **Note** The package `/whisk.system/watson` is currently deprecated, migrate to the new packages mentioned above, the new actions provide the same interface.
 
@@ -352,7 +352,7 @@ The package includes the following actions.
 
 | Entity | Type | Parameters | Description |
 | --- | --- | --- | --- |
-| `/whisk.system/watson-translator` | package | username, password | Actions for the Watson APIs to translate |
+| `/whisk.system/watson-translator` | package | username, password | Package for text translation and language identification  |
 | `/whisk.system/watson-translator/translator` | action | payload, translateFrom, translateTo, translateParam, username, password | Translate text |
 | `/whisk.system/watson-translator/languageId` | action | payload, username, password | Identify language |
 
@@ -454,12 +454,11 @@ The `/whisk.system/watson-translator/languageId` action identifies the language 
 
 The `/whisk.system/watson-textToSpeech` package offers a convenient way to call Watson APIs to convert the text into speech.
 
-
 The package includes the following actions.
 
 | Entity | Type | Parameters | Description |
 | --- | --- | --- | --- |
-| `/whisk.system/watson-textToSpeech` | package | username, password | Actions for the Watson APIs to convert the text into speech |
+| `/whisk.system/watson-textToSpeech` | package | username, password | Package to convert text into speech |
 | `/whisk.system/watson-textToSpeech/textToSpeech` | action | payload, voice, accept, encoding, username, password | Convert text into audio |
 
 **Note**: The package `/whisk.system/watson` is depracted including the action `/whisk.system/watson/textToSpeech`.
@@ -542,7 +541,7 @@ The package includes the following actions.
 
 | Entity | Type | Parameters | Description |
 | --- | --- | --- | --- |
-| `/whisk.system/watson-speechToText` | package | username, password | Actions for the Watson APIs to convert the speech into text |
+| `/whisk.system/watson-speechToText` | package | username, password | Package to convert speech into text |
 | `/whisk.system/watson-speechToText/speechToText` | action | payload, content_type, encoding, username, password, continuous, inactivity_timeout, interim_results, keywords, keywords_threshold, max_alternatives, model, timestamps, watson-token, word_alternatives_threshold, word_confidence, X-Watson-Learning-Opt-Out | Convert audio into text |
 
 **Note**: The package `/whisk.system/watson` is depracted including the action `/whisk.system/watson/speechToText`.
@@ -627,6 +626,7 @@ The `/whisk.system/watson-speechToText/speechToText` action converts audio speec
   }
   ```
  
+ 
 ## Using the Message Hub package
 
 This package allows you to create triggers that react when messages are posted to a [Message Hub](https://developer.ibm.com/messaging/message-hub/) service instance on Bluemix.
@@ -700,40 +700,38 @@ In Kafka terms, these fields should be self-evident. However, the `value` requir
 
 For example, if a message of `{"title": "Some string", "amount": 5, "isAwesome": true}` is posted with `isJSONData` set to `true`, the trigger payload might look something like this:
 
-```JSON
+```
 {
-    "messages": [
-        {
-            "partition": 0,
-            "key": null,
-            "offset": 421760,
-            "topic": "mytopic",
-            "value": {
-                "amount": 5,
-                "isAwesome": true,
-                "title": "Some string"
-            }
+  "messages": [
+      {
+        "partition": 0,
+        "key": null,
+        "offset": 421760,
+        "topic": "mytopic",
+        "value": {
+            "amount": 5,
+            "isAwesome": true,
+            "title": "Some string"
         }
-    ]
+      }
+  ]
 }
 ```
-
 However, if the same message content is posted with `isJSONData` set to `false`, the trigger payload would look like this:
 
-```JSON
+```
 {
-    "messages": [
-        {
-            "partition": 0,
-            "key": null,
-            "offset": 421761,
-            "topic": "mytopic",
-            "value": "{\"title\": \"Some string\", \"amount\": 5, \"isAwesome\": true}"
-        }
-    ]
+  "messages": [
+    {
+      "partition": 0,
+      "key": null,
+      "offset": 421761,
+      "topic": "mytopic",
+      "value": "{\"title\": \"Some string\", \"amount\": 5, \"isAwesome\": true}"
+    }
+  ]
 }
 ```
-
 ### Messages are batched
 You will notice that the trigger payload contains an array of messages. This means that if you are producing messages to your messaging system very quickly, the feed will attempt to batch up the posted messages into a single firing of your trigger. This allows the messages to be posted to your trigger more rapidly and efficiently.
 

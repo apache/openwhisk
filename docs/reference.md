@@ -194,6 +194,13 @@ It is possible for an action to be synchronous on some inputs and asynchronous o
 
 Notice that regardless of whether an activation is synchronous or asynchronous, the invocation of the action can be blocking or non-blocking.
 
+### JavaScript global whisk object deprecated
+
+The global object `whisk` is currently deprecated; migrate your nodejs actions to use altenative methods.
+For the functions `whisk.invoke()` and `whisk.trigger()` use the already installed client library [openwhisk](https://www.npmjs.com/package/openwhisk).
+For the `whisk.getAuthKey()` you can get the API key value from the environment variable `__OW_API_KEY`.
+For the `whisk.error()` you can return a rejected Promise (i.e. Promise.reject).
+
 ### JavaScript runtime environments
 
 JavaScript actions are executed by default in a Node.js version 6.9.1 environment.  The 6.9.1 environment will also be used for an action if the `--kind` flag is explicitly specified with a value of 'nodejs:6' when creating/updating the action.
@@ -419,7 +426,7 @@ The following table lists the default limits for actions.
 | concurrent | no more than N activations are allowed per namespace either executing or queued for execution | per namespace | number | 100 |
 | minuteRate | a user cannot invoke more than this many actions per minute | per user | number | 120 |
 | codeSize | the maximum size of the actioncode | not configurable, limit per action | MB | 48 |
-| parameters | the maximum size of the paramters that can be attached | not configurable, limit per action/package/trigger | MB | 1 |
+| parameters | the maximum size of the parameters that can be attached | not configurable, limit per action/package/trigger | MB | 1 |
 
 ### Per action timeout (ms) (Default: 60s)
 * The timeout limit N is in the range [100ms..300000ms] and is set per action in milliseconds.
