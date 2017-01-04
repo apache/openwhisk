@@ -741,7 +741,7 @@ func unpackTar(inpath string) error {
                 return werr
             }
         case tar.TypeReg:
-            untarFile, err := os.Create(item.Name)
+            untarFile, err:= os.OpenFile(item.Name, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.FileMode(item.Mode))
             defer untarFile.Close()
             if err != nil {
                 whisk.Debug(whisk.DbgError, "os.Create(%s) failed: %s\n", item.Name, err)
