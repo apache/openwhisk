@@ -253,13 +253,15 @@ class Invoker(
         implicit transid: TransactionId): WhiskActivation = {
         if (!failedInit) tran.runInterval = Some(result.interval)
 
+        val sourceController = transid.id % config.controllerInstances.toInt
+
         val msg = tran.msg
         val activationInterval = computeActivationInterval(tran)
         val activationResponse = getActivationResponse(activationInterval, action.limits.timeout.duration, result.response, failedInit)
         val activationResult = makeWhiskActivation(msg, EntityPath(action.fullyQualifiedName(false).toString), action.version, activationResponse, activationInterval, Some(action.limits))
         val completeMsg = CompletionMessage(transid, activationResult)
 
-        producer.send("completed0", completeMsg) map { status =>
+        producer.send(s"completed$sourceController", completeMsg) map { status =>
             info(this, s"posted completion of activation ${msg.activationId}")
         }
 
@@ -482,7 +484,9 @@ object Invoker {
         servicePort -> 8080.toString(),
         logsDir -> null,
         dockerRegistry -> null,
-        dockerImagePrefix -> null) ++
+        dockerImagePrefix -> null,
+        WhiskConfig.controllerInstances -> null,
+        WhiskConfig.invokerInstances -> null) ++
         WhiskAuthStore.requiredProperties ++
         WhiskEntityStore.requiredProperties ++
         WhiskActivationStore.requiredProperties ++
@@ -493,7 +497,7 @@ object Invoker {
 
     def main(args: Array[String]): Unit = {
         require(args.length == 1, "invoker instance required")
-        val instance = args(0).toInt
+        val invokerInstance = args(0).toInt
         val verbosity = InfoLevel
 
         implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
@@ -507,19 +511,22 @@ object Invoker {
         if (config.isValid) {
             SimpleExec.setVerbosity(verbosity)
 
-            val topic = ActivationMessage.invoker(instance)
+            val topic = ActivationMessage.invoker(invokerInstance)
             val groupid = "invokers"
             val maxdepth = ContainerPool.getDefaultMaxActive(config)
             val consumer = new KafkaConsumerConnector(config.kafkaHost, groupid, topic, maxdepth)
             val dispatcher = new Dispatcher(verbosity, consumer, 500 milliseconds, 2 * maxdepth, system)
 
-            val invoker = new Invoker(config, instance, dispatcher.activationFeed, verbosity)
+            val invoker = new Invoker(config, invokerInstance, dispatcher.activationFeed, verbosity)
             dispatcher.addHandler(invoker, true)
             dispatcher.start()
 
             val port = config.servicePort.toInt
             BasicHttpService.startService(system, "invoker", "0.0.0.0", port, new Creator[InvokerServer] {
-                def create = new InvokerServer {}
+                def create = new InvokerServer {
+                    override val instance = invokerInstance
+                    override val numberOfInstances = config.invokerInstances.toInt
+                }
             })
         }
     }

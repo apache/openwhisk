@@ -75,10 +75,12 @@ class WhiskConfig(
     val invokerCoreShare = this(WhiskConfig.invokerCoreShare)
     val invokerSerializeDockerOp = this(WhiskConfig.invokerSerializeDockerOp)
     val invokerSerializeDockerPull = this(WhiskConfig.invokerSerializeDockerPull)
+    val invokerInstances = this(WhiskConfig.invokerInstances)
 
     val wskApiHost = this(WhiskConfig.wskApiHost)
     val controllerHost = this(WhiskConfig.controllerHostName) + ":" + this(WhiskConfig.controllerHostPort)
     val controllerBlackboxFraction = this.getAsDouble(WhiskConfig.controllerBlackboxFraction, 0.10)
+    val controllerInstances = this(WhiskConfig.controllerInstances)
 
     val edgeHost = this(WhiskConfig.edgeHostName) + ":" + this(WhiskConfig.edgeHostApiPort)
     val kafkaHost = this(WhiskConfig.kafkaHostName) + ":" + this(WhiskConfig.kafkaHostPort)
@@ -230,6 +232,7 @@ object WhiskConfig extends Logging {
     val invokerCoreShare = "invoker.coreshare"
     val invokerSerializeDockerOp = "invoker.serializeDockerOp"
     val invokerSerializeDockerPull = "invoker.serializeDockerPull"
+    val invokerInstances = "invoker.instances"
 
     val wskApiHost = "whisk.api.host"
 
@@ -240,6 +243,7 @@ object WhiskConfig extends Logging {
     private val controllerHostName = "controller.host"
     private val controllerHostPort = "controller.host.port"
     private val controllerBlackboxFraction = "controller.blackboxFraction"
+    val controllerInstances = "controller.instances"
 
     val kafkaHostName = "kafka.host"
     val loadbalancerHostName = "loadbalancer.host"

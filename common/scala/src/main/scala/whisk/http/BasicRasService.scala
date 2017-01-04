@@ -49,22 +49,22 @@ trait BasicRasService extends BasicHttpService {
  */
 object BasicRasService {
 
-    def startService(system: ActorSystem, name: String, interface: String, port: Integer) = {
-        BasicHttpService.startService(system, name, interface, port, new ServiceBuilder)
+    def startService(system: ActorSystem, name: String, interface: String, port: Integer, instance: Int, numberOfInstances: Int) = {
+        BasicHttpService.startService(system, name, interface, port, new ServiceBuilder(instance, numberOfInstances))
     }
 
     /**
      * In spray, we send messages to an Akka Actor. A RasService represents an Actor
      * which extends the BasicRasService trait.
      */
-    private class RasService extends BasicRasService with Actor {
+    private class RasService(override val instance: Int, override val numberOfInstances: Int) extends BasicRasService with Actor {
         override def actorRefFactory = context
     }
 
     /**
      * Akka-style factory for RasService.
      */
-    private class ServiceBuilder extends Creator[RasService] {
-        def create = new RasService
+    private class ServiceBuilder(instance: Int, numberOfInstances: Int) extends Creator[RasService] {
+        def create = new RasService(instance, numberOfInstances)
     }
 }

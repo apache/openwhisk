@@ -32,6 +32,7 @@
       "SERVICE_CHECK_HTTP": "/ping"
       "SERVICE_CHECK_TIMEOUT": "2s"
       "SERVICE_CHECK_INTERVAL": "15s"
+      "CONTROLLER_INSTANCES": "{{ controller.instances }}"
     volumes:
       - "{{ whisk_logs_dir }}/controller{{play_hosts.index(inventory_hostname)}}:/logs"
     ports:

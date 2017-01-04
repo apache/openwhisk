@@ -48,10 +48,12 @@ import whisk.core.entitlement.EntitlementProvider
  */
 class Controller(
     config: WhiskConfig,
-    instance: Int,
+    override val instance: Int,
     loglevel: LogLevel)
     extends BasicRasService
     with Actor {
+
+    override val numberOfInstances = config.controllerInstances.toInt
 
     // each akka Actor has an implicit context
     override def actorRefFactory: ActorContext = context
@@ -72,7 +74,7 @@ class Controller(
     }
 
     setVerbosity(loglevel)
-    info(this, s"starting controller instance ${instance}")
+    info(this, s"starting controller instance ${instance} of ${config.controllerInstances}")
 
     /** The REST APIs. */
     private val apiv1 = new RestAPIVersion_v1(config, loglevel, instance, context.system)
@@ -88,6 +90,7 @@ object Controller {
     // a value, and whose values are default values.   A null value in the Map means there is
     // no default value specified, so it must appear in the properties file
     def requiredProperties = Map(WhiskConfig.servicePort -> 8080.toString) ++
+        Map(WhiskConfig.controllerInstances -> 1.toString) ++
         RestAPIVersion_v1.requiredProperties ++
         LoadBalancerService.requiredProperties ++
         EntitlementProvider.requiredProperties

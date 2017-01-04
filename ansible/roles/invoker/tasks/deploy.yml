@@ -39,6 +39,8 @@
         -e SERVICE_CHECK_HTTP=/ping
         -e SERVICE_CHECK_TIMEOUT=2s
         -e SERVICE_CHECK_INTERVAL=15s
+        -e CONTROLLER_INSTANCES={{ controller.instances }}
+        -e INVOKER_INSTANCES={{ invoker.instances }}
         -v {{whisk_logs_dir}}/invoker{{play_hosts.index(inventory_hostname)}}:/logs
         -v {{dockerInfo["json"]["DockerRootDir"]}}/containers/:/containers
         -p {{invoker.port + play_hosts.index(inventory_hostname)}}:8080
