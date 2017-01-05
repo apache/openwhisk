@@ -49,8 +49,13 @@
           {
             "_id": "{{ item }}",
             "subject": "{{ item }}",
-            "uuid": "{{ key.split(":")[0] }}",
-            "key": "{{ key.split(":")[1] }}"
+            "namespaces": [
+              {
+                "name": "{{ item }}",
+                "uuid": "{{ key.split(":")[0] }}",
+                "key": "{{ key.split(":")[1] }}"
+              }
+            ]
           }
     user: "{{ db_username }}"
     password: "{{ db_password }}"
