@@ -77,16 +77,6 @@ class DatastoreTests extends FlatSpec
         putGetCheck(authstore, auth, WhiskAuth)
     }
 
-    it should "lookup key by uuid" in {
-        implicit val tid = transid()
-        val auth = WhiskAuth(Subject(), AuthKey())
-        put(authstore, auth)
-        val confirm = waitOnView(authstore, auth.uuid, 1)
-        val result = retry(() => WhiskAuth.get(authstore, auth.uuid), dbOpTimeout).get
-        assert(result != null)
-        assert(result == auth)
-    }
-
     it should "CRD action blackbox" in {
         implicit val tid = transid()
         implicit val basename = EntityName("create action blackbox")

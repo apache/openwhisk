@@ -171,7 +171,7 @@ class AuthenticatedRouteTests
         // force another key for the same uuid to cause an internal violation
         val secondCreds = WhiskAuth(Subject(), AuthKey(creds.uuid, Secret()))
         put(authStore, secondCreds)
-        waitOnView(authStore, creds.uuid, 2)
+        waitOnView(authStore, creds.authkey, 2)
 
         val invalidCredentials = BasicHttpCredentials(creds.uuid.asString, creds.key.asString)
         Get("/secured") ~> addCredentials(invalidCredentials) ~> route ~> check {
