@@ -4,6 +4,8 @@ openwhisk_home: "{{ lookup('env', 'OPENWHISK_HOME')|default(playbook_dir + '/..'
 exclude_logs_from: []
 
 whisk:
+  system:
+    key: "{{ lookup('file', 'auth.whisk.system') }}"
   version:
     date: "{{ansible_date_time.iso8601}}"
 

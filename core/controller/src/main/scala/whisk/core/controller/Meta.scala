@@ -33,6 +33,15 @@ import whisk.core.entity._
 import whisk.core.entity.types._
 import whisk.http.ErrorResponse.terminate
 import whisk.http.Messages
+import whisk.core.WhiskConfig
+
+/**
+ * A singleton object which defines the properties that must be present in a configuration
+ * in order to implement the Meta API.
+ */
+object WhiskMetaApi {
+    def requiredProperties = Map(WhiskConfig.systemKey -> null)
+}
 
 trait WhiskMetaApi extends Directives with PostActionActivation {
     services: WhiskServices =>
@@ -48,9 +57,8 @@ trait WhiskMetaApi extends Directives with PostActionActivation {
     protected val routePrefix = pathPrefix("experimental")
 
     /** The name and apikey of the system namespace. */
-    protected val systemId = "whisk.system"
-    protected lazy val systemNamespace = EntityPath(systemId)
-    protected lazy val systemKey = WhiskAuth.get(authStore, Subject(systemId), false)(TransactionId.controller)
+    protected lazy val systemKey = AuthKey(whiskConfig.systemKey)
+    protected lazy val systemIdentity = Identity.get(authStore, systemKey)(TransactionId.controller)
 
     /** Reserved parameters that requests may no defined. */
     protected lazy val reservedProperties = Set("__ow_meta_verb", "__ow_meta_path", "__ow_meta_namespace")
@@ -108,15 +116,15 @@ trait WhiskMetaApi extends Directives with PostActionActivation {
      */
     def routes(user: Identity)(implicit transid: TransactionId) = {
         (routePrefix & pathPrefix(EntityName.REGEX.r) & allowedOperations) { s =>
-            val metaPackage = resolvePackageName(EntityName(s))
-
             entity(as[Option[JsObject]]) { body =>
                 requestMethodParamsAndPath {
                     case (method, params, restofPath) =>
                         val requestParams = params.toJson.asJsObject.fields ++ { body.map(_.fields) getOrElse Map() }
 
                         if (reservedProperties.intersect(requestParams.keySet).isEmpty) {
-                            process(user, metaPackage, requestParams, restofPath, method)
+                            onSuccess(resolvePackageName(EntityName(s))) { metaPackage =>
+                                process(user, metaPackage, requestParams, restofPath, method)
+                            }
                         } else {
                             terminate(BadRequest, Messages.parametersNotAllowed)
                         }
@@ -146,7 +154,7 @@ trait WhiskMetaApi extends Directives with PostActionActivation {
         def activate(action: WhiskAction): Future[(ActivationId, Option[WhiskActivation])] = {
             // precedence order for parameters:
             // package.params -> action.params -> query.params -> request.entity (body) -> augment arguments (namespace, path)
-            systemKey flatMap { identity =>
+            systemIdentity flatMap { identity =>
                 val invokeParams = if (action.hasFinalParamsAnnotation) {
                     requestParams -- action.parameters.immutableParameters
                 } else requestParams // in the absence of immutable annotations, return the request untouched
@@ -185,7 +193,9 @@ trait WhiskMetaApi extends Directives with PostActionActivation {
      * Resolves the package into using the systemId namespace.
      */
     protected final def resolvePackageName(pkgName: EntityName) = {
-        FullyQualifiedEntityName(systemNamespace, pkgName)
+        systemIdentity.map { identity =>
+            FullyQualifiedEntityName(identity.namespace.toPath, pkgName)
+        }
     }
 
     /**
