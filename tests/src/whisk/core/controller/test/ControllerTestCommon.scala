@@ -80,12 +80,15 @@ protected trait ControllerTestCommon
     val entityStore = WhiskEntityStore.datastore(whiskConfig)
     val activationStore = WhiskActivationStore.datastore(whiskConfig)
     val authStore = WhiskAuthStore.datastore(whiskConfig)
+    val authStoreV2 = WhiskAuthV2Store.datastore(whiskConfig)
 
     def createTempCredentials(implicit transid: TransactionId) = {
-        val auth = WhiskAuth(Subject(), AuthKey())
-        put(authStore, auth)
-        waitOnView(authStore, auth.authkey, 1)
-        (auth, BasicHttpCredentials(auth.uuid.asString, auth.key.asString))
+        val subject = Subject()
+        val key = AuthKey()
+        val auth = WhiskAuthV2.withDefaultNamespace(subject, key)
+        put(authStoreV2, auth)
+        waitOnView(authStore, key, 1)
+        (subject.toIdentity(key), BasicHttpCredentials(key.uuid.asString, key.key.asString))
     }
 
     def deleteAction(doc: DocId)(implicit transid: TransactionId) = {
@@ -192,8 +195,7 @@ class DegenerateLoadBalancerService(config: WhiskConfig, verbosity: LogLevel)
 
     override def getActiveUserActivationCounts: Map[String, Long] = Map()
 
-    override def publish(action: WhiskAction, msg: ActivationMessage, timeout: FiniteDuration)
-                        (implicit transid: TransactionId): (Future[Unit], Future[WhiskActivation]) =
+    override def publish(action: WhiskAction, msg: ActivationMessage, timeout: FiniteDuration)(implicit transid: TransactionId): (Future[Unit], Future[WhiskActivation]) =
         (Future.successful {},
             whiskActivationStub map {
                 activation => Future.successful(activation)

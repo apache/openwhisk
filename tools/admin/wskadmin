@@ -93,6 +93,7 @@ def parseArgs():
 
     subcmd = subparser.add_parser('get', help='get authorization key for user')
     subcmd.add_argument('subject', help='the subject to get key for')
+    subcmd.add_argument('--namespace', help='the namespace to get the key for, defaults to "default namespace"')
 
     subcmd = subparser.add_parser('whois', help='identify user from an authorization key')
     subcmd.add_argument('authkey', help='the credentials to look up')
@@ -177,10 +178,15 @@ def createUserCmd(args, props):
         key = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(64))
 
     doc = {
-        '_id': args.subject,
-        'uuid': uid,
-        'key': key,
-        'subject': subject
+        '_id': subject,
+        'subject': subject,
+        'namespaces': [
+            {
+                'name': subject,
+                'uuid': uid,
+                'key': key
+            }
+        ]
     }
 
     url = '%(protocol)s://%(host)s:%(port)s/%(database)s' % {
@@ -196,7 +202,7 @@ def createUserCmd(args, props):
 
     res = request('POST', url, body, headers, auth='%s:%s' % (username, password), verbose=args.verbose)
     if res.status in [201, 202]:
-        print '%s:%s' % (doc['uuid'], doc['key'])
+        print '%s:%s' % (uid, key)
     else:
         print 'Failed to create subject (%s)' % res.read().strip()
         return 1
@@ -205,8 +211,16 @@ def getUserCmd(args, props):
     (doc, res) = getSubjectFromDb(args, props)
 
     if doc is not None:
-        print '%s:%s' % (doc['uuid'], doc['key'])
-        return 0
+        # try default namespace if no namespace provided
+        namespaceName = args.namespace if args.namespace is not None else args.subject
+        namespaces = filter(lambda ns: ns['name'] == namespaceName, doc['namespaces'])
+        if len(namespaces) == 1:
+            ns = namespaces[0]
+            print '%s:%s' % (ns['uuid'], ns['key'])
+            return 0
+        else:
+            print 'namespace "%s" not found for %s' % (namespaceName, args.subject)
+            return 1
     else:
         print 'Failed to get subject (%s)' % res.read().strip()
         return 1

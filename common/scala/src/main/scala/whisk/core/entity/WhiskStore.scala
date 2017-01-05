@@ -108,6 +108,20 @@ object WhiskAuthStore {
         Util.makeStore[WhiskAuth](config, _.dbAuths)
 }
 
+object WhiskAuthV2Store {
+    def requiredProperties =
+        Map(dbProvider -> null,
+            dbProtocol -> null,
+            dbUsername -> null,
+            dbPassword -> null,
+            dbHost -> null,
+            dbPort -> null,
+            dbAuths -> null)
+
+    def datastore(config: WhiskConfig)(implicit system: ActorSystem) =
+        Util.makeStore[WhiskAuthV2](config, _.dbAuths)
+}
+
 object WhiskEntityStore {
     def requiredProperties =
         Map(dbProvider -> null,
