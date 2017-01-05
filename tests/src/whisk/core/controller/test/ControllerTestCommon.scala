@@ -84,7 +84,7 @@ protected trait ControllerTestCommon
     def createTempCredentials(implicit transid: TransactionId) = {
         val auth = WhiskAuth(Subject(), AuthKey())
         put(authStore, auth)
-        waitOnView(authStore, auth.uuid, 1)
+        waitOnView(authStore, auth.authkey, 1)
         (auth, BasicHttpCredentials(auth.uuid.asString, auth.key.asString))
     }
 
