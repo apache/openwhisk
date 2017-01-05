@@ -39,6 +39,8 @@ import whisk.core.database.NoDocumentException
 import whisk.core.entity._
 import whisk.http.ErrorResponse
 import whisk.http.Messages
+import scala.concurrent.Await
+import whisk.core.entitlement.Privilege
 
 /**
  * Tests Meta API.
@@ -58,9 +60,9 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
     override val apipath = "api"
     override val apiversion = "v1"
 
-    val subject = Subject()
-    override val systemId = subject.asString
-    override lazy val systemKey = Future.successful(WhiskAuth(subject, AuthKey()).toIdentity)
+    val systemId = Subject()
+    override lazy val systemKey = AuthKey()
+    override lazy val systemIdentity = Future.successful(Identity(systemId, EntityName(systemId.asString), systemKey, Privilege.ALL))
 
     /** Meta API tests */
     behavior of "Meta API"
@@ -71,41 +73,41 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
 
     val packages = Seq(
         WhiskPackage(
-            EntityPath(systemId),
+            EntityPath(systemId.asString),
             EntityName("notmeta"),
             annotations = Parameters("meta", JsBoolean(false))),
         WhiskPackage(
-            EntityPath(systemId),
+            EntityPath(systemId.asString),
             EntityName("badmeta"),
             annotations = Parameters("meta", JsBoolean(true))),
         WhiskPackage(
-            EntityPath(systemId),
+            EntityPath(systemId.asString),
             EntityName("heavymeta"),
             annotations = Parameters("meta", JsBoolean(true)) ++
                 Parameters("get", JsString("getApi")) ++
                 Parameters("post", JsString("createRoute")) ++
                 Parameters("delete", JsString("deleteApi"))),
         WhiskPackage(
-            EntityPath(systemId),
+            EntityPath(systemId.asString),
             EntityName("partialmeta"),
             annotations = Parameters("meta", JsBoolean(true)) ++
                 Parameters("get", JsString("getApi"))),
         WhiskPackage(
-            EntityPath(systemId),
+            EntityPath(systemId.asString),
             EntityName("packagemeta"),
             parameters = Parameters("x", JsString("X")) ++ Parameters("z", JsString("z")),
             annotations = Parameters("meta", JsBoolean(true)) ++
                 Parameters("get", JsString("getApi"))),
         WhiskPackage(
-            EntityPath(systemId),
+            EntityPath(systemId.asString),
             EntityName("publicmeta"),
             publish = true,
             annotations = Parameters("meta", JsBoolean(true)) ++
                 Parameters("get", JsString("getApi"))),
         WhiskPackage(
-            EntityPath(systemId),
+            EntityPath(systemId.asString),
             EntityName("bindingmeta"),
-            Some(Binding(EntityName(systemId), EntityName("heavymeta"))),
+            Some(Binding(EntityName(systemId.asString), EntityName("heavymeta"))),
             annotations = Parameters("meta", JsBoolean(true))))
 
     override protected[controller] def invokeAction(user: Identity, action: WhiskAction, payload: Option[JsObject], blocking: Boolean, waitOverride: Boolean = false)(
@@ -131,7 +133,8 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
 
             // check that action parameters were merged with package
             // all actions have default parameters (see actionLookup stub)
-            pkgLookup(resolvePackageName(action.namespace.last)) foreach { pkg =>
+            val packageName = Await.result(resolvePackageName(action.namespace.last), dbOpTimeout)
+            pkgLookup(packageName) foreach { pkg =>
                 action.parameters shouldBe (pkg.parameters ++ defaultActionParameters)
                 action.parameters.get("z") shouldBe defaultActionParameters.get("z")
             }
@@ -193,7 +196,8 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
     }
 
     it should "resolve a meta package into the systemId namespace" in {
-        resolvePackageName(EntityName("foo")).fullPath.asString shouldBe s"$systemId/foo"
+        val packageName = Await.result(resolvePackageName(EntityName("foo")), dbOpTimeout)
+        packageName.fullPath.asString shouldBe s"$systemId/foo"
     }
 
     it should "reject unsupported http verbs" in {

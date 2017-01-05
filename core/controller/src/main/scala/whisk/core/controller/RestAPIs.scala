@@ -90,6 +90,7 @@ protected[controller] object RestAPIVersion_v1 {
             WhiskRulesApi.requiredProperties ++
             WhiskActivationsApi.requiredProperties ++
             WhiskPackagesApi.requiredProperties ++
+            WhiskMetaApi.requiredProperties ++
             Authenticate.requiredProperties ++
             Collection.requiredProperties
 }
