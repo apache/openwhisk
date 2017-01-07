@@ -109,7 +109,7 @@ case class WhiskAction(
     require(exec != null, "exec undefined")
     require(limits != null, "limits undefined")
 
-    /** @return true iIf action has appropriate annotation. */
+    /** @return true iff action has appropriate annotation. */
     def hasFinalParamsAnnotation = {
         annotations(WhiskAction.finalParamsAnnotationName) map {
             case JsBoolean(b) => b
@@ -187,6 +187,7 @@ case class WhiskAction(
             case _ => this
         }
     }
+
     def toJson = WhiskAction.serdes.write(this).asJsObject
 }
 
@@ -338,7 +339,6 @@ object WhiskAction
             }
         }
     }
-
 }
 
 object ActionLimitsOption extends DefaultJsonProtocol {
