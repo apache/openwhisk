@@ -38,24 +38,19 @@ import whisk.core.entity.size.SizeOptionString
  * For Swift actions, the source code to execute the action is required.
  * For Java actions, a base64-encoded string representing a jar file is
  * required, as well as the name of the entrypoint class.
- *
- * exec: { kind  : one of supported language runtimes
- *         code  : code to execute if kind is supported
- *         image : container name when kind is "blackbox",
- *         main  : a fully-qualified class name when kind is "java" }
+ * An example exec looks like this:
+ * { kind  : one of supported language runtimes
+ *   code  : code to execute if kind is supported
+ *   image : container name when kind is "blackbox",
+ *   main  : a fully-qualified class name when kind is "java" }
  */
 sealed abstract class Exec(val kind: String) extends ByteSizeable {
-    def image: String
-    /** Indicates if the container generates log markers to stdout/stderr once action activation completes. */
-    val sentinelledLogs = true
-    /** Indicates if the container images must be pulled from a registry. */
-    val pull = false
     override def toString = Exec.serdes.write(this).compactPrint
 }
 
 /**
  * A common super class for all action exec types that contain their executable
- * code explicitly.
+ * code explicitly (i.e., any action other than a sequence).
  */
 sealed abstract class CodeExec[T <% SizeConversion](kind: String) extends Exec(kind) {
     // The executable code
@@ -64,14 +59,23 @@ sealed abstract class CodeExec[T <% SizeConversion](kind: String) extends Exec(k
     // An entrypoint (typically name of 'main' function). 'None' means a default value will be used.
     val entryPoint: Option[String]
 
-    // All codeexec containers have this in common that the image name is
-    // fully determined by the kind.
+    /**
+     * Container image name.
+     * All codeexec containers have this in common that the image name is
+     * fully determined by the kind.
+     */
     val image = Exec.imagename(kind)
+
+    /** Indicates if the action execution generates log markers to stdout/stderr once action activation completes. */
+    val sentinelledLogs = true
+
+    /** Indicates if a container image is required from the registry to execute the action. */
+    val pull = false
 
     // Whether the code is stored in a text-readable or binary format.
     def binary: Boolean = false
 
-    def size = code.sizeInBytes
+    override def size = code.sizeInBytes
 }
 
 sealed abstract class NodeJSAbstractExec(kind: String) extends CodeExec[String](kind) {
@@ -112,7 +116,6 @@ protected[core] case class PythonExec(code: String, main: Option[String]) extend
  * @param code an optional script or zip archive (as base64 encoded) string
  */
 protected[core] case class BlackBoxExec(override val image: String, code: Option[String]) extends CodeExec[Option[String]](Exec.BLACKBOX) {
-    override def size = (image sizeInBytes) + code.map(_.sizeInBytes).getOrElse(0 B)
     override val entryPoint: Option[String] = None
     // the binary bit may be read from the database but currently it is always computed
     // when the "code" is moved to an attachment this may get changed to avoid recomputing
@@ -120,11 +123,11 @@ protected[core] case class BlackBoxExec(override val image: String, code: Option
     override lazy val binary = code map { Exec.isBinaryCode(_) } getOrElse false
     override val sentinelledLogs = image == Exec.BLACKBOX_SKELETON
     override val pull = image != Exec.BLACKBOX_SKELETON
+    override def size = (image sizeInBytes) + code.map(_.sizeInBytes).getOrElse(0 B)
 }
 
-protected[core] case class SequenceExec(code: String, components: Vector[FullyQualifiedEntityName]) extends Exec(Exec.SEQUENCE) {
-    val image = Exec.imagename(Exec.NODEJS)
-    def size = components.map(c => c.size).reduce(_ + _)
+protected[core] case class SequenceExec(components: Vector[FullyQualifiedEntityName]) extends Exec(Exec.SEQUENCE) {
+    override def size = components.map(c => c.size).reduce(_ + _)
 }
 
 protected[core] object Exec
@@ -154,7 +157,7 @@ protected[core] object Exec
     protected[core] def swift(code: String, main: Option[String] = None): Exec = SwiftExec(trim(code), main.map(_.trim))
     protected[core] def swift3(code: String, main: Option[String] = None): Exec = Swift3Exec(trim(code), main.map(_.trim))
     protected[core] def java(jar: String, main: String): Exec = JavaExec(Inline(trim(jar)), trim(main))
-    protected[core] def sequence(components: Vector[FullyQualifiedEntityName]): Exec = SequenceExec(Pipecode.code, components)
+    protected[core] def sequence(components: Vector[FullyQualifiedEntityName]): Exec = SequenceExec(components)
     protected[core] def bb(image: String): Exec = BlackBoxExec(trim(image), None)
     protected[core] def bb(image: String, code: String): Exec = BlackBoxExec(trim(image), Some(trim(code)).filter(_.nonEmpty))
 
@@ -177,8 +180,8 @@ protected[core] object Exec
                 val base = Map("kind" -> JsString(Exec.PYTHON), "code" -> JsString(code), "binary" -> JsBoolean(p.binary))
                 main.map(m => JsObject(base + ("main" -> JsString(m)))).getOrElse(JsObject(base))
 
-            case SequenceExec(code, comp) =>
-                JsObject("kind" -> JsString(Exec.SEQUENCE), "code" -> JsString(code), "components" -> comp.map(_.qualifiedNameWithLeadingSlash).toJson)
+            case SequenceExec(comp) =>
+                JsObject("kind" -> JsString(Exec.SEQUENCE), "components" -> comp.map(_.qualifiedNameWithLeadingSlash).toJson)
 
             case b: BlackBoxExec =>
                 val base = Map("kind" -> JsString(Exec.BLACKBOX), "image" -> JsString(b.image), "binary" -> JsBoolean(b.binary))
@@ -218,7 +221,7 @@ protected[core] object Exec
                         case Seq(_)                   => throw new DeserializationException(s"'components' must be an array")
                         case _                        => throw new DeserializationException(s"'components' must be defined for sequence kind")
                     }
-                    SequenceExec(Pipecode.code, comp)
+                    SequenceExec(comp)
 
                 case Exec.SWIFT | Exec.SWIFT3 =>
                     val code: String = obj.getFields("code") match {

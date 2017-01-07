@@ -49,7 +49,7 @@ import whisk.connector.kafka.KafkaProducerConnector
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.{ consulServer, kafkaHost }
 import whisk.core.connector.{ ActivationMessage, CompletionMessage }
-import whisk.core.entity.{ ActivationId, WhiskAction, WhiskActivation }
+import whisk.core.entity.{ ActivationId, CodeExec, WhiskAction, WhiskActivation }
 
 trait LoadBalancer {
 
@@ -271,7 +271,10 @@ class LoadBalancerService(
      * Determine which invoker this activation should go to.  Due to dynamic conditions, it may return no invoker.
      */
     private def getInvoker(action: WhiskAction, msg: ActivationMessage): Option[Int] = {
-        val isBlackbox = action.exec.pull
+        val isBlackbox = action.exec match {
+            case e: CodeExec[_] => e.pull
+            case _              => false
+        }
         val invokers = if (isBlackbox) getBlackboxInvokers() else getManagedInvokers()
         val (hash, count) = hashAndCountSubjectAction(msg)
         val numInvokers = invokers.length

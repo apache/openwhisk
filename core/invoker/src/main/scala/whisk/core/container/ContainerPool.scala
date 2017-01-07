@@ -47,6 +47,7 @@ import whisk.core.entity.NodeJS6Exec
 import akka.event.Logging.LogLevel
 import akka.event.Logging.InfoLevel
 import whisk.core.entity.AuthKey
+import whisk.core.entity.CodeExec
 
 /**
  * A thread-safe container pool that internalizes container creation/teardown and allows users
@@ -559,7 +560,7 @@ class ContainerPool(
             try {
                 info(this, s"making new container because none available")
                 startingCounter.next()
-                makeGeneralContainer(key, containerName, imageName, limits, action.exec.pull)
+                makeGeneralContainer(key, containerName, imageName, limits, action.exec.asInstanceOf[CodeExec[_]].pull)
             } finally {
                 val newCount = startingCounter.prev()
                 info(this, s"finished trying to make container, $newCount more containers to start")
@@ -610,8 +611,9 @@ class ContainerPool(
 
     // We send the payload here but eventually must also handle morphing a pre-allocated container into the right state.
     private def initWhiskContainer(action: WhiskAction, con: WhiskContainer)(implicit transid: TransactionId): RunResult = {
+        // only Exec instances that are subtypes of CodeExec reach the invoker
+        val Some(initArg) = action.containerInitializer
         // Then send it the init payload which is code for now
-        val initArg = action.containerInitializer
         con.init(initArg, action.limits.timeout.duration)
     }
 
@@ -646,7 +648,8 @@ class ContainerPool(
     }
 
     private def getDockerImageName(action: WhiskAction)(implicit transid: TransactionId): String = {
-        val imageName = action.containerImageName(config.dockerRegistry, config.dockerImagePrefix, config.dockerImageTag)
+        // only Exec instances that are subtypes of CodeExec reach the invoker
+        val Some(imageName) = action.containerImageName(config.dockerRegistry, config.dockerImagePrefix, config.dockerImageTag)
         debug(this, s"Using image ${imageName}")
         imageName
     }

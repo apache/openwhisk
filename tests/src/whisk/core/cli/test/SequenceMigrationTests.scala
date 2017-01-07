@@ -72,7 +72,7 @@ class SequenceMigrationTests
         val entityJsonWithNamespace = JsObject(entityJson.fields + ("namespace" -> JsString(namespace)))
         val wskEntity = entityJsonWithNamespace.convertTo[WhiskAction]
         wskEntity.exec match {
-            case SequenceExec(_, components) =>
+            case SequenceExec(components) =>
                 // check '_' is preserved
                 components.size shouldBe 2
                 assert(components.forall { _.path.namespace.contains('_') }, "default namespace lost")
