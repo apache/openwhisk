@@ -67,8 +67,8 @@ case class WhiskActionPut(
      */
     protected[core] def resolve(userNamespace: EntityName): WhiskActionPut = {
         exec map {
-            case SequenceExec(code, components) =>
-                val newExec = SequenceExec(code, components map {
+            case SequenceExec(components) =>
+                val newExec = SequenceExec(components map {
                     c => FullyQualifiedEntityName(c.path.resolveNamespace(userNamespace), c.name)
                 })
                 WhiskActionPut(Some(newExec), parameters, limits, version, publish, annotations)
@@ -143,7 +143,6 @@ case class WhiskAction(
 
         exec match {
             case n: NodeJSAbstractExec          => getNodeInitializer(n.code, n.binary, n.main)
-            case SequenceExec(code, components) => getNodeInitializer(code, false, None)
             case s: SwiftAbstractExec =>
                 JsObject(
                     "name" -> name.toJson,
@@ -163,6 +162,8 @@ case class WhiskAction(
                 code map {
                     c => JsObject("code" -> c.toJson, "binary" -> JsBoolean(b.binary))
                 } getOrElse JsObject()
+            case SequenceExec(components) =>
+                throw new RuntimeException("Container initializer not supported for sequences")
         }
     }
 
@@ -171,8 +172,8 @@ case class WhiskAction(
      */
     protected[core] def resolve(userNamespace: EntityName): WhiskAction = {
         exec match {
-            case SequenceExec(code, components) =>
-                val newExec = SequenceExec(code, components map {
+            case SequenceExec(components) =>
+                val newExec = SequenceExec(components map {
                     c => FullyQualifiedEntityName(c.path.resolveNamespace(userNamespace), c.name)
                 })
                 WhiskAction(namespace, name, newExec, parameters, limits, version, publish, annotations)
@@ -192,14 +193,16 @@ object WhiskAction
     override implicit val serdes = jsonFormat8(WhiskAction.apply)
 
     def containerImageName(exec: Exec, registry: String, prefix: String, tag: String): String = {
+        require(exec.image.isDefined, "image needs to be defined")
+        val execImage = exec.image.get
         exec match {
             case b @ BlackBoxExec(image, _) =>
                 if (b.pull) {
-                    image
+                    image.get
                 } else {
-                    localImageName(registry, prefix, image.split("/")(1), tag)
+                    localImageName(registry, prefix, image.get.split("/")(1), tag)
                 }
-            case _ => localImageName(registry, prefix, exec.image, tag)
+            case _ => localImageName(registry, prefix, execImage, tag)
         }
     }
 
