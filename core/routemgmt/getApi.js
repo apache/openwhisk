@@ -123,7 +123,7 @@ function readApiDocument(cloudantDb, docId, params) {
         resolve(response);
       } else {
         console.error('DB error: '+JSON.stringify(error))
-        if (error.headers && error.headers.statusCode === 404) {  // When NOT FOUND, return empty results
+        if (error.statusCode === 404) {  // When NOT FOUND, return empty results
           resolve({rows: []})
         }
         reject(error);
@@ -141,7 +141,7 @@ function readFilteredApiDocument(cloudantDb, designDocId, designDocViewName, par
         resolve(response);
       } else {
         console.error('DB view error', JSON.stringify(error));
-        if (error.headers && error.headers.statusCode === 404) {  // When NOT FOUND, return empty results
+        if (error.statusCode === 404) {  // When NOT FOUND, return empty results
           resolve({rows: []})
         }
         reject(error);
