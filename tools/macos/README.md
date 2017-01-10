@@ -35,10 +35,8 @@ brew cask install java
 brew install scala
 # install pip
 sudo easy_install pip
-# install ansible
-sudo -H pip install ansible==2.1.2.0
-# the following is required for running tests
-sudo -H pip install jsonschema' | bash
+# install script prerequisites
+sudo -H pip install ansible==2.1.2.0 jsonschema couchdb' | bash
 ```
 
 # Create and configure Docker machine
