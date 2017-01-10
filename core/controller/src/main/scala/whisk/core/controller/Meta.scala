@@ -68,6 +68,44 @@ trait WhiskMetaApi extends Directives with PostActionActivation {
         }
     }
 
+    /**
+     * Adds route to handle /experimental/package-name to allow a proxy activation of actions
+     * contained in package. A meta package must exist in a predefined system namespace.
+     * Such packages are self-encoding as "meta" API handlers via an annotation on the package
+     * (i.e., annotation "meta" -> true) and an explicit mapping from HTTP verbs to action names
+     * to invoke in response to incoming requests. Package bindings are not allowed.
+     *
+     * The subject making the activation request is subject to entitlement checks for activations
+     * (this is tantamount to limiting API requests from a single user) invoking actions directly.
+     *
+     * A sample meta-package looks like this:
+     * WhiskPackage(
+     *      EntityPath(systemId),
+     *      EntityName("meta-example"),
+     *      annotations =
+     *          Parameters("meta", JsBoolean(true)) ++
+     *          Parameters("get", JsString("action to run on get")) ++
+     *          Parameters("post", JsString("action to run on post")) ++
+     *          Parameters("delete", JsString("action to run on delete")))
+     *
+     * In addition, it is a good idea to mark actions in a meta package as final to prevent
+     * invoke-time parameters from overriding parameters.
+     *
+     * A sample final action looks like this:
+     * WhiskAction(
+     *      EntityPath("systemId/meta-example"),
+     *      EntityName("action to run on get"),
+     *      annotations =
+     *          Parameters("final", JsBoolean(true)))
+     *
+     * The meta API requests are handled by matching the first segment to a package name in the system
+     * namespace. If it exists and it is a valid meta package, the HTTP verb from the request is mapped
+     * to a corresponding action and that action is invoked. The action receives as arguments additional
+     * context meta data (the verb, the remaining unmatched URI path, and the namespace of the subject
+     * making the request). Query parameters and body parameters are passed to the action with the order
+     * of precedence being:
+     * package.params -> action.params -> query.params -> request.entity (body) -> augment arguments (namespace, path).
+     */
     def routes(user: Identity)(implicit transid: TransactionId) = {
         (routePrefix & pathPrefix(EntityName.REGEX.r) & allowedOperations) { s =>
             val metaPackage = resolvePackageName(EntityName(s))
@@ -105,15 +143,23 @@ trait WhiskMetaApi extends Directives with PostActionActivation {
             }
         }
 
-        def activate(action: WhiskAction) = {
+        def activate(action: WhiskAction): Future[(ActivationId, Option[WhiskActivation])] = {
             // precedence order for parameters:
             // package.params -> action.params -> query.params -> request.entity (body) -> augment arguments (namespace, path)
-            systemKey flatMap {
-                val content = requestParams ++ Map(
-                    "__ow_meta_verb" -> method.value.toLowerCase.toJson,
-                    "__ow_meta_path" -> restofPath.toJson,
-                    "__ow_meta_namespace" -> user.namespace.toJson)
-                invokeAction(_, action, Some(JsObject(content)), blocking = true, waitOverride = true)
+            systemKey flatMap { identity =>
+                val invokeParams = if (action.hasFinalParamsAnnotation) {
+                    requestParams -- action.parameters.immutableParameters
+                } else requestParams // in the absence of immutable annotations, return the request untouched
+
+                if (invokeParams.size == requestParams.size) {
+                    val content = invokeParams ++ Map(
+                        "__ow_meta_verb" -> method.value.toLowerCase.toJson,
+                        "__ow_meta_path" -> restofPath.toJson,
+                        "__ow_meta_namespace" -> user.namespace.toJson)
+                    invokeAction(identity, action, Some(JsObject(content)), blocking = true, waitOverride = true)
+                } else {
+                    Future.failed(RejectRequest(BadRequest, Messages.parametersNotAllowed))
+                }
             }
         }
 
@@ -151,7 +197,7 @@ trait WhiskMetaApi extends Directives with PostActionActivation {
     }
 
     /**
-     * Meta API handlers must be in packages and have a "meta -> true" annotation
+     * Meta API handlers must be in packages (not bindings) and have a "meta -> true" annotation
      * in addition to a mapping from http verbs to action names; fetch package to
      * ensure it exists, if it doesn't reject the request as not allowed.
      * if package exists, check that it satisfies invariants on annotations.
@@ -170,22 +216,29 @@ trait WhiskMetaApi extends Directives with PostActionActivation {
                 Future.failed(RejectRequest(MethodNotAllowed))
         } flatMap { pkg =>
             // expecting the meta handlers to be private; should it be an error? warn for now
-            if (pkg.publish) warn(this, s"'${pkg.fullyQualifiedName(true)}' is public")
+            if (pkg.publish) {
+                warn(this, s"'${pkg.fullyQualifiedName(true)}' is public")
+            }
 
-            pkg.annotations("meta") filter {
-                // does package have annotatation: meta == true
-                _ match { case JsBoolean(b) => b case _ => false }
-            } flatMap {
-                // if so, find action name for http verb
-                _ => pkg.annotations(method.name.toLowerCase)
-            } match {
-                // if action name is defined as a string, accept it, else fail request
-                case Some(JsString(actionName)) =>
-                    info(this, s"'${pkg.name}' maps '${method.name}' to action '${actionName}'")
-                    Future.successful(EntityName(actionName), pkg.parameters)
-                case _ =>
-                    info(this, s"'${pkg.name}' is missing 'meta' annotation or action name for '${method.name.toLowerCase}'")
-                    Future.failed(RejectRequest(MethodNotAllowed))
+            if (pkg.binding.isEmpty) {
+                pkg.annotations.get("meta") filter {
+                    // does package have annotation: meta == true
+                    _ match { case JsBoolean(b) => b case _ => false }
+                } flatMap {
+                    // if so, find action name for http verb
+                    _ => pkg.annotations.get(method.name.toLowerCase)
+                } match {
+                    // if action name is defined as a string, accept it, else fail request
+                    case Some(JsString(actionName)) =>
+                        info(this, s"'${pkg.name}' maps '${method.name}' to action '${actionName}'")
+                        Future.successful(EntityName(actionName), pkg.parameters)
+                    case _ =>
+                        info(this, s"'${pkg.name}' is missing 'meta' annotation or action name for '${method.name.toLowerCase}'")
+                        Future.failed(RejectRequest(MethodNotAllowed))
+                }
+            } else {
+                warn(this, s"'${pkg.fullyQualifiedName(true)}' is a binding")
+                Future.failed(RejectRequest(MethodNotAllowed))
             }
         }
     }

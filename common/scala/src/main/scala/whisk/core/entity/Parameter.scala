@@ -53,11 +53,11 @@ protected[core] class Parameters protected[entity] (
             name.size + value.size
     }.foldLeft(0 B)(_ + _)
 
-    protected[entity] def ++(p: (ParameterName, ParameterValue)) = {
+    protected[entity] def +(p: (ParameterName, ParameterValue)) = {
         Option(p) map { p => new Parameters(params + (p._1 -> p._2)) } getOrElse this
     }
 
-    protected[entity] def ++(p: ParameterName, v: ParameterValue) = {
+    protected[entity] def +(p: ParameterName, v: ParameterValue) = {
         new Parameters(params + (p -> v))
     }
 
@@ -65,14 +65,18 @@ protected[core] class Parameters protected[entity] (
     protected[core] def ++(p: Parameters) = new Parameters(params ++ p.params)
 
     /** Remove parameter by name. */
-    protected[core] def --(p: String) = {
-        Try { new ParameterName(p) } map {
-            param => new Parameters(params - param)
-        } getOrElse this
+    protected[core] def -(p: String) = {
+        // wrap with try since parameter name may throw an exception for illegal p
+        Try(new Parameters(params - new ParameterName(p))) getOrElse this
     }
 
-    protected[core] def toJsArray = JsArray(params map { p => JsObject("key" -> p._1().toJson, "value" -> p._2().toJson) } toSeq: _*)
-    protected[core] def toJsObject = JsObject(params map { p => (p._1() -> p._2().toJson) })
+    /** Gets list of immutable parameters (those with a value defined). */
+    protected[core] def immutableParameters: Set[String] = {
+        params.keySet filter (params(_).isDefined) map (_.name)
+    }
+
+    protected[core] def toJsArray = JsArray(params map { p => JsObject("key" -> p._1.name.toJson, "value" -> p._2.value.toJson) } toSeq: _*)
+    protected[core] def toJsObject = JsObject(params map { p => (p._1.name -> p._2.value.toJson) })
     override def toString = toJsArray.compactPrint
 
     /**
@@ -87,7 +91,7 @@ protected[core] class Parameters protected[entity] (
     /**
      * Retrieves parameter by name if it exists.
      */
-    protected[core] def apply(p: String) = Try { params(new ParameterName(p)) } map { _() } toOption
+    protected[core] def get(p: String) = params.get(new ParameterName(p)).map(_.value)
 }
 
 /**
@@ -101,8 +105,6 @@ protected[core] class Parameters protected[entity] (
  * @param name the name of the parameter (its key)
  */
 protected[entity] class ParameterName protected[entity] (val name: String) extends AnyVal {
-    protected[entity] def apply() = name
-
     /**
      * The size of the ParameterName entity as ByteSize.
      */
@@ -121,8 +123,12 @@ protected[entity] class ParameterName protected[entity] (val name: String) exten
  *
  * @param value the value of the parameter, may be null
  */
-protected[entity] class ParameterValue protected[entity] (private val value: JsValue) extends AnyVal {
-    protected[core] def apply() = Option(value) getOrElse JsNull
+protected[entity] class ParameterValue protected[entity] (private val v: JsValue) extends AnyVal {
+    /** @return JsValue if defined else JsNull. */
+    protected[entity] def value = Option(v) getOrElse JsNull
+
+    /** @return true iff value is not JsNull. */
+    protected[entity] def isDefined = value != JsNull
 
     /**
      * The size of the ParameterValue entity as ByteSize.
@@ -150,10 +156,9 @@ protected[core] object Parameters extends ArgNormalizer[Parameters] {
     @throws[IllegalArgumentException]
     protected[core] def apply(p: String, v: String): Parameters = {
         require(p != null && p.trim.nonEmpty, "key undefined")
-        Parameters() ++ {
-            (new ParameterName(ArgNormalizer.trim(p)),
-                new ParameterValue(Option(v) map { _.trim.toJson } getOrElse JsNull))
-        }
+        Parameters() + (
+            new ParameterName(ArgNormalizer.trim(p)),
+            new ParameterValue(Option(v) map { _.trim.toJson } getOrElse JsNull))
     }
 
     /**
@@ -167,10 +172,9 @@ protected[core] object Parameters extends ArgNormalizer[Parameters] {
     @throws[IllegalArgumentException]
     protected[core] def apply(p: String, v: JsValue): Parameters = {
         require(p != null && p.trim.nonEmpty, "key undefined")
-        Parameters() ++ {
-            (new ParameterName(ArgNormalizer.trim(p)),
-                new ParameterValue(Option(v) getOrElse JsNull))
-        }
+        Parameters() + (
+            new ParameterName(ArgNormalizer.trim(p)),
+            new ParameterValue(Option(v) getOrElse JsNull))
     }
 
     override protected[core] implicit val serdes = new RootJsonFormat[Parameters] {

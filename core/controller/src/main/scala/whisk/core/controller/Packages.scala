@@ -220,7 +220,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
                 content.publish getOrElse false,
                 // remove any binding annotation from PUT (always set by the controller)
                 (content.annotations getOrElse Parameters())
-                    -- WhiskPackage.bindingFieldName
+                    - WhiskPackage.bindingFieldName
                     ++ bindingAnnotation(content.binding))
         }
     }
@@ -247,7 +247,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
                 content.publish getOrElse wp.publish,
                 // override any binding annotation from PUT (always set by the controller)
                 (content.annotations getOrElse wp.annotations)
-                    -- WhiskPackage.bindingFieldName
+                    - WhiskPackage.bindingFieldName
                     ++ bindingAnnotation(content.binding orElse wp.binding)).
                 revision[WhiskPackage](wp.docinfo.rev)
         }

@@ -402,6 +402,11 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
         assert(params(3).toString == json(3).compactPrint) // drops unknown prop "foo"
     }
 
+    it should "filter immutable parameters" in {
+        val params = Parameters("k", "v") ++ Parameters("ns", null: String) ++ Parameters("njs", JsNull)
+        params.immutableParameters shouldBe Set("k")
+    }
+
     it should "reject malformed JSON" in {
         val params = Seq[JsValue](
             null,
