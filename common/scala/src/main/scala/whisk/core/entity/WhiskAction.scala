@@ -109,6 +109,14 @@ case class WhiskAction(
     require(exec != null, "exec undefined")
     require(limits != null, "limits undefined")
 
+    /** @return true iIf action has appropriate annotation. */
+    def hasFinalParamsAnnotation = {
+        annotations(WhiskAction.finalParamsAnnotationName) map {
+            case JsBoolean(b) => b
+            case _            => false
+        } getOrElse false
+    }
+
     /**
      * Merges parameters (usually from package) with existing action parameters.
      * Existing parameters supersede those in p.
@@ -188,7 +196,10 @@ object WhiskAction
     with DefaultJsonProtocol {
 
     val execFieldName = "exec"
+    val finalParamsAnnotationName = "final"
+
     override val collectionName = "actions"
+
     override implicit val serdes = jsonFormat8(WhiskAction.apply)
 
     def containerImageName(exec: Exec, registry: String, prefix: String, tag: String): String = {
