@@ -39,10 +39,11 @@ import whisk.core.entity.size.SizeOptionString
  * For Java actions, a base64-encoded string representing a jar file is
  * required, as well as the name of the entrypoint class.
  * An example exec looks like this:
- * { kind  : one of supported language runtimes
- *   code  : code to execute if kind is supported
+ * { kind  : one of supported language runtimes,
+ *   code  : code to execute if kind is supported,
  *   image : container name when kind is "blackbox",
- *   main  : a fully-qualified class name when kind is "java" }
+ *   binary: for some runtimes that allow binary attachments,
+ *   main  : name of the entrypoint function, when using a non-default value (for Java, the name of the main class)" }
  */
 sealed abstract class Exec(val kind: String) extends ByteSizeable {
     override def toString = Exec.serdes.write(this).compactPrint

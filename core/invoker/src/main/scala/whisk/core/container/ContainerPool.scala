@@ -560,6 +560,7 @@ class ContainerPool(
             try {
                 info(this, s"making new container because none available")
                 startingCounter.next()
+                // only Exec instances that are subtypes of CodeExec reach the invoker
                 makeGeneralContainer(key, containerName, imageName, limits, action.exec.asInstanceOf[CodeExec[_]].pull)
             } finally {
                 val newCount = startingCounter.prev()
