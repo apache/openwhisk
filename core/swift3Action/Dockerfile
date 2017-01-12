@@ -31,7 +31,7 @@ RUN wget --no-verbose -O - https://swift.org/keys/all-keys.asc | gpg --import - 
 # Install Swift Ubuntu 14.04 Snapshot
 #https://swift.org/builds/swift-3.0.1-release/ubuntu1404/swift-3.0.1-RELEASE/swift-3.0.1-RELEASE-ubuntu14.04.tar.gz
 
-ENV SWIFT_VERSION 3.0.1
+ENV SWIFT_VERSION 3.0.2
 ENV SWIFT_RELEASE_TYPE RELEASE
 ENV SWIFT_PLATFORM ubuntu14.04
 
