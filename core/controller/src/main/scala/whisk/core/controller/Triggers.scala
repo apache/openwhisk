@@ -290,7 +290,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
             revision[WhiskTrigger](trigger.docinfo.rev)
 
         // feed must be specified in create, and cannot be added as a trigger update
-        content.annotations flatMap { _(Parameters.Feed) } map { _ =>
+        content.annotations flatMap { _.get(Parameters.Feed) } map { _ =>
             Future failed {
                 RejectRequest(BadRequest, "A trigger feed is only permitted when the trigger is created")
             }
@@ -313,7 +313,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
      * or updated.
      */
     private def validateTriggerFeed(trigger: WhiskTrigger)(implicit transid: TransactionId) = {
-        trigger.annotations(Parameters.Feed) map {
+        trigger.annotations.get(Parameters.Feed) map {
             case JsString(f) if (EntityPath.validate(f)) =>
                 Future successful trigger
             case _ => Future failed {

@@ -111,7 +111,7 @@ case class WhiskAction(
 
     /** @return true iff action has appropriate annotation. */
     def hasFinalParamsAnnotation = {
-        annotations(WhiskAction.finalParamsAnnotationName) map {
+        annotations.get(WhiskAction.finalParamsAnnotationName) map {
             case JsBoolean(b) => b
             case _            => false
         } getOrElse false

@@ -133,7 +133,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
             // all actions have default parameters (see actionLookup stub)
             pkgLookup(resolvePackageName(action.namespace.last)) foreach { pkg =>
                 action.parameters shouldBe (pkg.parameters ++ defaultActionParameters)
-                action.parameters("z") shouldBe defaultActionParameters("z")
+                action.parameters.get("z") shouldBe defaultActionParameters.get("z")
             }
 
             Future.successful(activation.activationId, Some(activation))

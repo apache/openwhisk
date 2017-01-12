@@ -130,7 +130,7 @@ case class WhiskPackage(
     def withPackageActions(actions: List[WhiskPackageAction] = List()): WhiskPackageWithActions = {
         val actionGroups = actions map { a =>
             //  group into "actions" and "feeds"
-            val feed = a.annotations(Parameters.Feed) map { _ => true } getOrElse false
+            val feed = a.annotations.get(Parameters.Feed) map { _ => true } getOrElse false
             (feed, a)
         } groupBy { _._1 } mapValues { _.map(_._2) }
         WhiskPackageWithActions(this, actionGroups.getOrElse(false, List()), actionGroups.getOrElse(true, List()))

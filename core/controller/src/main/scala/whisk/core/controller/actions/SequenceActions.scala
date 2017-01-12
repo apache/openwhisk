@@ -219,7 +219,7 @@ protected[actions] trait SequenceActions extends Logging {
         // compute max memory
         val maxMemory = Try {
             val memoryLimits = wskActivations map { activation =>
-                val limits = ActionLimits.serdes.read(activation.annotations("limits").get)
+                val limits = ActionLimits.serdes.read(activation.annotations.get("limits").get)
                 limits.memory.megabytes
             }
             memoryLimits.max.MB

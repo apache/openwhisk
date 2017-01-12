@@ -221,12 +221,12 @@ trait WhiskMetaApi extends Directives with PostActionActivation {
             }
 
             if (pkg.binding.isEmpty) {
-                pkg.annotations("meta") filter {
+                pkg.annotations.get("meta") filter {
                     // does package have annotation: meta == true
                     _ match { case JsBoolean(b) => b case _ => false }
                 } flatMap {
                     // if so, find action name for http verb
-                    _ => pkg.annotations(method.name.toLowerCase)
+                    _ => pkg.annotations.get(method.name.toLowerCase)
                 } match {
                     // if action name is defined as a string, accept it, else fail request
                     case Some(JsString(actionName)) =>

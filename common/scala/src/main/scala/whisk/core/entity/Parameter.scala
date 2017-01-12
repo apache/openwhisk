@@ -91,7 +91,7 @@ protected[core] class Parameters protected[entity] (
     /**
      * Retrieves parameter by name if it exists.
      */
-    protected[core] def apply(p: String) = Try(params(new ParameterName(p)).value) toOption
+    protected[core] def get(p: String) = params.get(new ParameterName(p)).map(_.value)
 }
 
 /**
