@@ -69,7 +69,7 @@ trait ContainerUtils extends Logging {
         val memoryArg = Array("-m", s"${limits.memory.megabytes}m", "--memory-swap", s"${limits.memory.megabytes}m")
         val capabilityArg = Array("--cap-drop", "NET_RAW", "--cap-drop", "NET_ADMIN")
         val consulServiceIgnore = Array("-e", "SERVICE_IGNORE=true")
-        val fileHandleLimit = Array("--ulimit", "nofile=64:64")
+        val fileHandleLimit = Array("--ulimit", "nofile=1024:1024")
         val processLimit = Array("--pids-limit", "64")
         val securityOpts = policy map { p => Array("--security-opt", s"apparmor:${p}") } getOrElse (Array.empty[String])
         val containerNetwork = Array("--net", network)
