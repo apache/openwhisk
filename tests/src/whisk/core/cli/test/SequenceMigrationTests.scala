@@ -19,7 +19,6 @@ import java.util.Date
 import scala.concurrent.duration.DurationInt
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-import common.JsHelpers
 import common.TestHelpers
 import common.TestUtils
 import common.Wsk
@@ -45,7 +44,6 @@ class SequenceMigrationTests
     extends TestHelpers
     with BeforeAndAfter
     with DbUtils
-    with JsHelpers
     with ScalatestRouteTest
     with WskTestHelpers {
 

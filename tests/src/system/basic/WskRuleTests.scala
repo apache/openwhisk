@@ -19,7 +19,6 @@ package system.basic
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
-import common.JsHelpers
 import common.TestHelpers
 import common.TestUtils
 import common.Wsk
@@ -32,7 +31,6 @@ import java.time.Instant
 @RunWith(classOf[JUnitRunner])
 class WskRuleTests
     extends TestHelpers
-    with JsHelpers
     with WskTestHelpers {
 
     implicit val wskprops = WskProps()

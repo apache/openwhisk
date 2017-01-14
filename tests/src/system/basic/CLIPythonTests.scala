@@ -27,14 +27,12 @@ import spray.json.DefaultJsonProtocol.StringJsonFormat
 import common.TestHelpers
 import common.WskTestHelpers
 import common.WskProps
-import common.JsHelpers
 import common.WhiskProperties
 
 @RunWith(classOf[JUnitRunner])
 class CLIPythonTests
     extends TestHelpers
     with WskTestHelpers
-    with JsHelpers
     with Matchers {
 
     implicit val wskprops = WskProps()

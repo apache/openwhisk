@@ -72,7 +72,7 @@ trait Authenticate extends Logging {
                 future
             }.toOption
         } getOrElse {
-            userpass.map(_ => info(this, s"credentials are malformed"))
+            userpass.foreach(_ => info(this, s"credentials are malformed"))
             Future.successful(None)
         }
     }
