@@ -162,7 +162,7 @@ protected trait ControllerTestCommon
     }
 
     override def afterAll() {
-        println("Shutting down cloudant connections");
+        println("Shutting down db connections");
         entityStore.shutdown()
         activationStore.shutdown()
         authStore.shutdown()
