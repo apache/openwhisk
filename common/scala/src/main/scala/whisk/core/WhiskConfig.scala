@@ -146,7 +146,7 @@ object WhiskConfig extends Logging {
     def readPropertiesFromConsul(properties: scala.collection.mutable.Map[String, String])(implicit system: ActorSystem) = {
         //try to get consulServer prop
         val consulString = for {
-            server <- properties.get(consulServerHost).filter(_ != null)
+            server <- properties.get(consulServerHost).filter(s => s != null && s.trim.nonEmpty)
             port <- properties.get(consulPort).filter(_ != null)
         } yield server + ":" + port
 
