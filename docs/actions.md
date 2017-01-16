@@ -675,9 +675,6 @@ For the instructions that follow, assume that the Docker user ID is `janesmith` 
   $ cd dockerSkeleton
   ```
   ```
-  $ chmod +x buildAndPush.sh
-  ```
-  ```
   $ ./buildAndPush.sh janesmith/blackboxdemo
   ```
 
