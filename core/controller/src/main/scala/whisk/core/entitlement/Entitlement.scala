@@ -180,7 +180,7 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
         implicit transid: TransactionId): Future[Unit] = {
         val subject = user.subject
 
-        val entitlementCheck = if (user.rights.contains(right)) {
+        val entitlementCheck: Future[Boolean] = if (user.rights.contains(right)) {
             if (resources.nonEmpty) {
                 info(this, s"checking user '$subject' has privilege '$right' for '${resources.mkString(",")}'")
                 checkSystemOverload(right) orElse {
@@ -205,10 +205,9 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
                 info(this, s"not authorized: $r")
             case Failure(t) =>
                 error(this, s"failed while checking entitlement: ${t.getMessage}")
-        } flatMap {
-            if (_) {
-                Future.successful({})
-            } else Future.failed(RejectRequest(Forbidden))
+        } flatMap { isAuthorized =>
+            if (isAuthorized) Future.successful({})
+            else Future.failed(RejectRequest(Forbidden))
         }
     }
 
