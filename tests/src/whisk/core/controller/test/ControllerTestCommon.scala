@@ -25,8 +25,7 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 
-import akka.event.Logging.{ InfoLevel, LogLevel }
-import akka.event.Logging.ErrorLevel
+import akka.event.Logging.{ ErrorLevel, InfoLevel, LogLevel }
 import spray.http.BasicHttpCredentials
 import spray.json.DefaultJsonProtocol
 import spray.json.JsString
