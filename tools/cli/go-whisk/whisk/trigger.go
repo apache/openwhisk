@@ -46,6 +46,20 @@ type TriggerListOptions struct {
     Docs            bool            `url:"docs,omitempty"`
 }
 
+type TriggerArray []Trigger
+
+func (ta TriggerArray) Len() int {
+    return len(ta)
+}
+
+func (ta TriggerArray) Less(i int, j int) bool {
+    return ta[i].Name < ta[j].Name
+}
+
+func (ta TriggerArray) Swap(i int, j int) {
+    ta[i], ta[j] = ta[j], ta[i]
+}
+
 func (s *TriggerService) List(options *TriggerListOptions) ([]Trigger, *http.Response, error) {
     route := "triggers"
     routeUrl, err := addRouteOptions(route, options)

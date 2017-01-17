@@ -109,6 +109,11 @@ var flags struct {
         summary bool
     }
 
+    // namespace
+    namespace struct {
+        date bool // sort by date flag
+    }
+
     // api
     api struct {
         action     string

@@ -1326,4 +1326,43 @@ class WskBasicUsageTests
             }
             tmpProps.delete()
     }
+
+    behavior of "Wsk cli list"
+
+    it should "wsk cli list entities by name alphabetically by default" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+
+            val tmpwskprops = File.createTempFile("wskprops", ".tmp")
+            try {
+                val namespace = wsk.namespace.list().stdout.trim.split("\n").last
+                val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
+                wsk.cli(Seq("property", "set", "-i", "--apihost", wskprops.apihost, "--auth", wskprops.authKey,
+                    "--namespace", namespace), env = env)
+                val name1 = "helloTest"
+                val file1 = Some(TestUtils.getTestActionFilename("hello.js"))
+
+                assetHelper.withCleaner(wsk.action, name1) {
+                    (action, _) =>
+                        action.create(name1, file1, annotations = getValidJSONTestArgInput,
+                            parameters = getValidJSONTestArgInput)
+                }
+
+                val name2 = "echoTest"
+                val file2 = Some(TestUtils.getTestActionFilename("echo.js"))
+
+                assetHelper.withCleaner(wsk.action, name2) {
+                    (action, _) =>
+                        action.create(name2, file2, annotations = getValidJSONTestArgInput,
+                            parameters = getValidJSONTestArgInput)
+                }
+                val stdout = wsk.cli(Seq("list", "-i", "--apihost", wskprops.apihost, "--auth", wskprops.authKey), env = env).stdout
+
+                stdout should include regex ("echoTest")
+                stdout should include regex ("helloTest")
+            } finally {
+                tmpwskprops.delete()
+            }
+
+
+    }
 }

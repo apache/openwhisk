@@ -46,6 +46,20 @@ type RuleListOptions struct {
     Docs        bool    `url:"docs,omitempty"`
 }
 
+type RuleArray []Rule
+
+func (ra RuleArray) Len() int {
+    return len(ra)
+}
+
+func (ra RuleArray) Less(i int, j int) bool {
+    return ra[i].Name < ra[j].Name
+}
+
+func (ta RuleArray) Swap(i int, j int) {
+    ta[i], ta[j] = ta[j], ta[i]
+}
+
 func (s *RuleService) List(options *RuleListOptions) ([]Rule, *http.Response, error) {
     route := "rules"
     routeUrl, err := addRouteOptions(route, options)
