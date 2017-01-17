@@ -82,8 +82,9 @@ trait WskTestHelpers extends Matchers {
             test(wskprops, new AssetCleaner(assetsToDeleteAfterTest, wskprops))
         } catch {
             case t: Throwable =>
-                // log the exception that occurred in the test
+                // log the exception that occurred in the test and rethrow it
                 println(s"Exception occurred during test execution: $t")
+                throw t
         } finally {
             // delete assets in reverse order so that was created last is deleted first
             val deletedAll = assetsToDeleteAfterTest.reverse map {
