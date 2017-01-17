@@ -24,7 +24,7 @@ function NodeActionService(config, logger) {
         starting: 'starting',
         running: 'running',
         stopped: 'stopped'
-    }
+    };
 
     var status = Status.ready;
     var server = undefined;
@@ -63,7 +63,9 @@ function NodeActionService(config, logger) {
             var host = server.address().address;
             var port = server.address().port;
         });
-    }
+        //This is required as http server will auto disconnect in 2 minutes, this to not auto disconnect at all
+        server.timeout = 0;
+    };
 
     /** Returns a promise of a response to the /init invocation.
      *
@@ -92,7 +94,7 @@ function NodeActionService(config, logger) {
         } else {
             return Promise.reject(errorMessage(502, "Internal system error: system not ready."));
         }
-    }
+    };
 
     /**
      * Returns a promise of a response to the /exec invocation.
@@ -124,7 +126,7 @@ function NodeActionService(config, logger) {
             logger.info('[runCode]', 'cannot schedule runCode due to status', status);
             return Promise.reject(errorMessage(500, "Internal system error: container not ready."));
         }
-    }
+    };
 
     function doInit(message) {
         var context = newWhiskContext(config, logger);
@@ -175,6 +177,6 @@ function newWhiskContext(config, logger) {
 
 NodeActionService.getService = function(config, logger) {
     return new NodeActionService(config, logger);
-}
+};
 
 module.exports = NodeActionService;
