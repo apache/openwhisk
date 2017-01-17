@@ -56,6 +56,20 @@ type ActionListOptions struct {
     Docs        bool        `url:"docs,omitempty"`
 }
 
+type ActionArray []Action
+
+func (aa ActionArray) Len() int {
+    return len(aa)
+}
+
+func (aa ActionArray) Less(i int, j int) bool {
+    return aa[i].Name < aa[j].Name
+}
+
+func (aa ActionArray) Swap(i int, j int) {
+    aa[i], aa[j] = aa[j], aa[i]
+}
+
 ////////////////////
 // Action Methods //
 ////////////////////
