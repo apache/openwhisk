@@ -1326,5 +1326,33 @@
   {
     "id": "Cannot use value '{{.arg}}' for shared.",
     "translation": "Cannot use value '{{.arg}}' for shared."
+  },
+  {
+    "id": "Action",
+    "translation": "Action"
+  },
+  {
+    "id": "Verb",
+    "translation": "Verb"
+  },
+  {
+    "id": "API Name",
+    "translation": "API Name"
+  },
+  {
+    "id": "URL",
+    "translation": "URL"
+  },
+  {
+    "id": "Base path",
+    "translation": "Base path"
+  },
+  {
+    "id": "Path",
+    "translation": "Path"
+  },
+  {
+    "id": "display full description of each API",
+    "translation": "display full description of each API"
   }
 ]

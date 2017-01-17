@@ -782,6 +782,7 @@ class WskApi()
         operation: Option[String] = None,
         limit: Option[Int] = None,
         since: Option[Instant] = None,
+        full: Option[Boolean] = None,
         expectedExitCode: Int = SUCCESS_EXIT)(
             implicit wp: WskProps): RunResult = {
         val params = Seq(noun, "list", "--auth", wp.authKey) ++
@@ -789,7 +790,8 @@ class WskApi()
           { relpath map { r => Seq(r) } getOrElse Seq() } ++
           { operation map { o => Seq(o) } getOrElse Seq() } ++
           { limit map { l => Seq("--limit", l.toString) } getOrElse Seq() } ++
-          { since map { i => Seq("--since", i.toEpochMilli.toString) } getOrElse Seq() }
+          { since map { i => Seq("--since", i.toEpochMilli.toString) } getOrElse Seq() } ++
+          { full map { r => Seq("--full") } getOrElse Seq() }
         cli(wp.overrides ++ params, expectedExitCode, showCmd = true)
     }
 

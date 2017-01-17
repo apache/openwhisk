@@ -53,7 +53,37 @@ class ApiGwTests
         rr.stderr should include (s"'${badpath}' must begin with '/'")
     }
 
-    it should "verify successful creation of a new API" in {
+    it should "verify full list output" in {
+      val testName = "CLI_APIGWTEST_RO1"
+      val testbasepath = "/" + testName + "_bp"
+      val testrelpath = "/path"
+      val testnewrelpath = "/path_new"
+      val testurlop = "get"
+      val testapiname = testName + " API Name"
+      val actionName = testName + "_action"
+      try {
+        println("cli user: " + cliuser + "; cli namespace: " + clinamespace)
+
+        var rr = wsk.api.create(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+        println("api create: " + rr.stdout)
+        rr.stdout should include("ok: created API")
+        rr = wsk.api.list(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), full = Some(true))
+        println("api list: " + rr.stdout)
+        rr.stdout should include("ok: APIs")
+        rr.stdout should include regex (s"Action:\\s+/${clinamespace}/${actionName}\n")
+        rr.stdout should include regex (s"Verb:\\s+${testurlop}\n")
+        rr.stdout should include regex (s"Base path:\\s+${testbasepath}\n")
+        rr.stdout should include regex (s"Path:\\s+${testrelpath}\n")
+        rr.stdout should include regex (s"API Name:\\s+${testapiname}\n")
+        rr.stdout should include regex (s"URL:\\s+")
+        rr.stdout should include(testbasepath + testrelpath)
+      }
+      finally {
+        val deleteresult = wsk.api.delete(basepathOrApiName = testbasepath)
+      }
+    }
+
+    it should "verify successful creation and deletion of a new API" in {
         val testName = "CLI_APIGWTEST1"
         val testbasepath = "/"+testName+"_bp"
         val testrelpath = "/path"
@@ -227,13 +257,15 @@ class ApiGwTests
     }
 
     it should "verify successful creation of a new API using an action name using all allowed characters" in {
+      // Be aware: full action name is close to being truncated by the 'list' command
+      // e.g. /lime@us.ibm.com/CLI_APIGWTEST9a-c@t ion  is currently at the 40 char 'list' display max
       val testName = "CLI_APIGWTEST9"
       val testbasepath = "/"+testName+"_bp"
       val testrelpath = "/path"
       val testnewrelpath = "/path_new"
       val testurlop = "get"
       val testapiname = testName+" API Name"
-      val actionName = testName+"_a-c@t ion"
+      val actionName = testName+"a-c@t ion"
       try {
         println("cli user: "+cliuser+"; cli namespace: "+clinamespace)
 

@@ -20,6 +20,7 @@ import (
     "errors"
     "fmt"
     "reflect"
+    "strconv"
     "strings"
 
     "../../go-whisk/whisk"
@@ -384,15 +385,34 @@ var apiListCmd = &cobra.Command{
             whisk.Debug(whisk.DbgInfo, "client.Apis.Get returned: %#v\n", retApiArray)
         }
 
-        fmt.Fprintf(color.Output,
-            wski18n.T("{{.ok}} APIs\n",
-                map[string]interface{}{
-                    "ok": color.GreenString("ok:"),
-                }))
-        fmt.Printf(fmtString, "Action", "Verb", "API Name", "URL")
+        // Display the APIs - applying any specified filtering
+        if (flags.common.full) {
+            fmt.Fprintf(color.Output,
+                wski18n.T("{{.ok}} APIs\n",
+                    map[string]interface{}{
+                        "ok": color.GreenString("ok:"),
+                    }))
 
-        for i:=0; i<len(retApiArray.Apis); i++ {
-            printFilteredListRow(retApiArray.Apis[i].ApiValue, api)
+            for i:=0; i<len(retApiArray.Apis); i++ {
+                printFilteredListApi(retApiArray.Apis[i].ApiValue, api)
+            }
+        } else {
+            // Dynamically create the output format string based on the maximum size of the
+            // fully qualified action name and the API Name.
+            maxActionNameSize := min(40, max(len("Action"), getLargestActionNameSize(retApiArray, api)))
+            maxApiNameSize := min(30, max(len("API Name"), getLargestApiNameSize(retApiArray, api)))
+            fmtString = "%-"+strconv.Itoa(maxActionNameSize)+"s %7s %"+strconv.Itoa(maxApiNameSize+1)+"s  %s\n"
+
+            fmt.Fprintf(color.Output,
+                wski18n.T("{{.ok}} APIs\n",
+                    map[string]interface{}{
+                        "ok": color.GreenString("ok:"),
+                    }))
+            fmt.Printf(fmtString, "Action", "Verb", "API Name", "URL")
+
+            for i:=0; i<len(retApiArray.Apis); i++ {
+                printFilteredListRow(retApiArray.Apis[i].ApiValue, api, maxActionNameSize, maxApiNameSize)
+            }
         }
 
         return nil
@@ -400,11 +420,45 @@ var apiListCmd = &cobra.Command{
 }
 
 /*
- * Takes an array of API objects (each object representing a single basepath/relpath/operation triplet)
- * and some filtering configuration.  For each API matching the filtering criteria, display the API
- * on a separate line (action name, verb, api name, api gw url)
+ * Takes an API object (containing one more more single basepath/relpath/operation triplets)
+ * and some filtering configuration.  For each API endpoint matching the filtering criteria, display
+ * each endpoint's configuration - one line per configuration property (action name, verb, api name, api gw url)
  */
-func printFilteredListRow(resultApi *whisk.RetApi, api *whisk.Api) {
+func printFilteredListApi(resultApi *whisk.RetApi, api *whisk.Api) {
+    baseUrl := strings.TrimSuffix(resultApi.BaseUrl, "/")
+    apiName := resultApi.Swagger.Info.Title
+    basePath := resultApi.Swagger.BasePath
+    if (resultApi.Swagger != nil && resultApi.Swagger.Paths != nil) {
+        for path, _ := range resultApi.Swagger.Paths {
+            whisk.Debug(whisk.DbgInfo, "apiGetCmd: comparing api relpath: %s\n", path)
+            if ( len(api.GatewayRelPath) == 0 || path == api.GatewayRelPath) {
+                whisk.Debug(whisk.DbgInfo, "apiGetCmd: relpath matches\n")
+                for op, opv  := range resultApi.Swagger.Paths[path] {
+                    whisk.Debug(whisk.DbgInfo, "apiGetCmd: comparing operation: '%s'\n", op)
+                    if ( len(api.GatewayMethod) == 0 || strings.ToLower(op) == strings.ToLower(api.GatewayMethod)) {
+                        whisk.Debug(whisk.DbgInfo, "apiGetCmd: operation matches: %#v\n", opv)
+                        var actionName = "/"+opv["x-ibm-op-ext"]["actionNamespace"].(string)+"/"+opv["x-ibm-op-ext"]["actionName"].(string)
+                        fmt.Printf("%s: %s\n", wski18n.T("Action"), actionName)
+                        fmt.Printf("  %s: %s\n", wski18n.T("API Name"), apiName)
+                        fmt.Printf("  %s: %s\n", wski18n.T("Base path"), basePath)
+                        fmt.Printf("  %s: %s\n", wski18n.T("Path"), path)
+                        fmt.Printf("  %s: %s\n", wski18n.T("Verb"), op)
+                        fmt.Printf("  %s: %s\n", wski18n.T("URL"), baseUrl+path)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/*
+ * Takes an API object (containing one more more single basepath/relpath/operation triplets)
+ * and some filtering configuration.  For each API matching the filtering criteria, display the API
+ * on a single line (action name, verb, api name, api gw url).
+ *
+ * NOTE: Large action name and api name value will be truncated by their associated max size parameters.
+ */
+func printFilteredListRow(resultApi *whisk.RetApi, api *whisk.Api, maxActionNameSize int, maxApiNameSize int) {
     baseUrl := strings.TrimSuffix(resultApi.BaseUrl, "/")
     apiName := resultApi.Swagger.Info.Title
     if (resultApi.Swagger != nil && resultApi.Swagger.Paths != nil) {
@@ -416,16 +470,69 @@ func printFilteredListRow(resultApi *whisk.RetApi, api *whisk.Api) {
                     whisk.Debug(whisk.DbgInfo, "apiGetCmd: comparing operation: '%s'\n", op)
                     if ( len(api.GatewayMethod) == 0 || strings.ToLower(op) == strings.ToLower(api.GatewayMethod)) {
                         whisk.Debug(whisk.DbgInfo, "apiGetCmd: operation matches: %#v\n", opv)
+                        var actionName = "/"+opv["x-ibm-op-ext"]["actionNamespace"].(string)+"/"+opv["x-ibm-op-ext"]["actionName"].(string)
                         fmt.Printf(fmtString,
-                            "/"+opv["x-ibm-op-ext"]["actionNamespace"].(string)+"/"+opv["x-ibm-op-ext"]["actionName"].(string),
+                            actionName[0 : min(len(actionName), maxActionNameSize)],
                             op,
-                            apiName,
+                            apiName[0 : min(len(apiName), maxApiNameSize)],
                             baseUrl+path)
                     }
                 }
             }
         }
     }
+}
+
+func getLargestActionNameSize(retApiArray *whisk.RetApiArray, api *whisk.Api) int {
+    var maxNameSize = 0
+    for i:=0; i<len(retApiArray.Apis); i++ {
+        var resultApi = retApiArray.Apis[i].ApiValue
+        if (resultApi.Swagger != nil && resultApi.Swagger.Paths != nil) {
+            for path, _ := range resultApi.Swagger.Paths {
+                whisk.Debug(whisk.DbgInfo, "getLargestActionNameSize: comparing api relpath: %s\n", path)
+                if ( len(api.GatewayRelPath) == 0 || path == api.GatewayRelPath) {
+                    whisk.Debug(whisk.DbgInfo, "getLargestActionNameSize: relpath matches\n")
+                    for op, opv  := range resultApi.Swagger.Paths[path] {
+                        whisk.Debug(whisk.DbgInfo, "getLargestActionNameSize: comparing operation: '%s'\n", op)
+                        if ( len(api.GatewayMethod) == 0 || strings.ToLower(op) == strings.ToLower(api.GatewayMethod)) {
+                            whisk.Debug(whisk.DbgInfo, "getLargestActionNameSize: operation matches: %#v\n", opv)
+                            var fullActionName = "/"+opv["x-ibm-op-ext"]["actionNamespace"].(string)+"/"+opv["x-ibm-op-ext"]["actionName"].(string)
+                            if (len(fullActionName) > maxNameSize) {
+                                maxNameSize = len(fullActionName)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return maxNameSize
+}
+
+func getLargestApiNameSize(retApiArray *whisk.RetApiArray, api *whisk.Api) int {
+    var maxNameSize = 0
+    for i:=0; i<len(retApiArray.Apis); i++ {
+        var resultApi = retApiArray.Apis[i].ApiValue
+        apiName := resultApi.Swagger.Info.Title
+        if (resultApi.Swagger != nil && resultApi.Swagger.Paths != nil) {
+            for path, _ := range resultApi.Swagger.Paths {
+                whisk.Debug(whisk.DbgInfo, "getLargestActionNameSize: comparing api relpath: %s\n", path)
+                if ( len(api.GatewayRelPath) == 0 || path == api.GatewayRelPath) {
+                    whisk.Debug(whisk.DbgInfo, "getLargestActionNameSize: relpath matches\n")
+                    for op, opv  := range resultApi.Swagger.Paths[path] {
+                        whisk.Debug(whisk.DbgInfo, "getLargestActionNameSize: comparing operation: '%s'\n", op)
+                        if ( len(api.GatewayMethod) == 0 || strings.ToLower(op) == strings.ToLower(api.GatewayMethod)) {
+                            whisk.Debug(whisk.DbgInfo, "getLargestActionNameSize: operation matches: %#v\n", opv)
+                            if (len(apiName) > maxNameSize) {
+                                maxNameSize = len(apiName)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return maxNameSize
 }
 
 /*
@@ -558,7 +665,7 @@ func parseSwaggerApi() (*whisk.Api, error) {
     }
     if (swaggerObj.BasePath == "" || swaggerObj.SwaggerName == "" || swaggerObj.Info == nil || swaggerObj.Paths == nil) {
         whisk.Debug(whisk.DbgError, "Swagger file is invalid.\n", flags.api.configfile, err)
-        errMsg := wski18n.T("Swagger file is invalid (missing basePath, info, paths, or swagger fields")
+        errMsg := wski18n.T("Swagger file is invalid (missing basePath, info, paths, or swagger fields)")
         whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
             whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
         return nil, whiskErr
@@ -659,6 +766,7 @@ func init() {
 
     apiListCmd.Flags().IntVarP(&flags.common.skip, "skip", "s", 0, wski18n.T("exclude the first `SKIP` number of actions from the result"))
     apiListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, wski18n.T("only return `LIMIT` number of actions from the collection"))
+    apiListCmd.Flags().BoolVarP(&flags.common.full, "full", "f", false, wski18n.T("display full description of each API"))
 
     apiCmd.AddCommand(
         apiCreateCmd,
