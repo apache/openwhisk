@@ -46,6 +46,9 @@ class ConformanceTests extends FlatSpec
     with TransactionCounter
     with WskActorSystem {
 
+    override val numberOfInstances = 1
+    override val instance = 0
+
     implicit val defaultPatience =
         PatienceConfig(timeout = Span(1, Minutes), interval = Span(1, Seconds))
 

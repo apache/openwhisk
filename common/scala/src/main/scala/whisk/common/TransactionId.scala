@@ -128,13 +128,13 @@ protected case class TransactionMetadata(val id: Long, val start: Instant)
 
 object TransactionId {
     val unknown = TransactionId(0)
-    val testing = TransactionId(-1)         // Common id for for unit testing
-    val invoker = TransactionId(-100)       // Invoker startup/shutdown or GC activity
+    val testing = TransactionId(-1) // Common id for for unit testing
+    val invoker = TransactionId(-100) // Invoker startup/shutdown or GC activity
     val invokerWarmup = TransactionId(-101) // Invoker warmup thread that makes stem-cell containers
-    val invokerNanny = TransactionId(-102)  // Invoker nanny thread
-    val dispatcher = TransactionId(-110)    // Kafka message dispatcher
-    val loadbalancer = TransactionId(-120)  // Loadbalancer thread
-    val controller = TransactionId(-130)    // Controller startup
+    val invokerNanny = TransactionId(-102) // Invoker nanny thread
+    val dispatcher = TransactionId(-110) // Kafka message dispatcher
+    val loadbalancer = TransactionId(-120) // Loadbalancer thread
+    val controller = TransactionId(-130) // Controller startup
 
     def apply(tid: BigDecimal): TransactionId = {
         Try {
@@ -159,9 +159,12 @@ object TransactionId {
  * A thread-safe transaction counter.
  */
 trait TransactionCounter {
+    val numberOfInstances: Int
+    val instance: Int
+
     def transid(): TransactionId = {
-        TransactionId(cnt.incrementAndGet())
+        TransactionId(cnt.addAndGet(numberOfInstances))
     }
 
-    private val cnt = new AtomicInteger(1)
+    private val cnt = new AtomicInteger(instance + numberOfInstances)
 }

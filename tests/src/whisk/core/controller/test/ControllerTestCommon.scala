@@ -55,6 +55,9 @@ protected trait ControllerTestCommon
     with HttpService
     with Logging {
 
+    override val instance = 0
+    override val numberOfInstances = 1
+
     override val actorRefFactory = null
     implicit val routeTestTimeout = RouteTestTimeout(90 seconds)
 
@@ -192,8 +195,7 @@ class DegenerateLoadBalancerService(config: WhiskConfig, verbosity: LogLevel)
 
     override def getActiveUserActivationCounts: Map[String, Long] = Map()
 
-    override def publish(action: WhiskAction, msg: ActivationMessage, timeout: FiniteDuration)
-                        (implicit transid: TransactionId): (Future[Unit], Future[WhiskActivation]) =
+    override def publish(action: WhiskAction, msg: ActivationMessage, timeout: FiniteDuration)(implicit transid: TransactionId): (Future[Unit], Future[WhiskActivation]) =
         (Future.successful {},
             whiskActivationStub map {
                 activation => Future.successful(activation)

@@ -2,7 +2,7 @@
 
 events {
 {# default: 1024 #}
-    worker_connections  4096;  
+    worker_connections  4096;
 }
 
 http {
@@ -15,6 +15,13 @@ http {
         '$request $status $body_bytes_sent '
         '$http_referer $http_user_agent $upstream_addr';
     access_log /logs/nginx_access.log combined-upstream;
+
+    upstream controllers {
+      least_conn;
+{% for ip in groups['controllers'] %}
+        server {{ ip }}:{{ controller.port + groups['controllers'].index(ip)}};
+{% endfor %}
+    }
 
     server {
         listen 443 default ssl;
@@ -30,13 +37,13 @@ http {
         proxy_ssl_session_reuse off;
 
         location /docs {
-            proxy_pass http://{{ groups['controllers']|first }}:{{ controller.port }};
+            proxy_pass http://controllers;
         }
         location /api-docs {
-            proxy_pass http://{{ groups['controllers']|first }}:{{ controller.port }};
+            proxy_pass http://controllers;
         }
         location /api/v1 {
-            proxy_pass http://{{ groups['controllers']|first }}:{{ controller.port }};
+            proxy_pass http://controllers;
             proxy_read_timeout 70s; # 60+10 additional seconds to allow controller to terminate request
         }
         location /blackbox-0.1.0.tar.gz {

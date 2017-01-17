@@ -54,6 +54,9 @@ import whisk.core.entity.types.EntityStore
  * names in tests, and defer all cleanup to the end of a test suite.
  */
 trait DbUtils extends TransactionCounter {
+    override val numberOfInstances = 1
+    override val instance = 0
+
     implicit val dbOpTimeout = 15 seconds
     val docsToDelete = ListBuffer[(ArtifactStore[_], DocInfo)]()
     case class RetryOp() extends Throwable
