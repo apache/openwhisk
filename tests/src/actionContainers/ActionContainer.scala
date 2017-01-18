@@ -95,6 +95,7 @@ object ActionContainer {
     // Runs a process asynchronously. Returns a future with (exitCode,stdout,stderr)
     private def proc(cmd: String): Future[(Int, String, String)] = Future {
         blocking {
+            println(s"Running: $cmd")
             val out = new ByteArrayOutputStream
             val err = new ByteArrayOutputStream
             val outW = new PrintWriter(out)
@@ -169,6 +170,8 @@ object ActionContainer {
             scheme = "http",
             authority = Uri.Authority(host = Uri.Host(host), port = port),
             path = Uri.Path(endPoint))
+
+        println(s"POST: $uri")
 
         val f = for (
             entity <- Marshal(content).to[MessageEntity];
