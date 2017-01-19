@@ -164,7 +164,7 @@ trait WhiskMetaApi extends Directives with PostActionActivation {
                         "__ow_meta_verb" -> method.value.toLowerCase.toJson,
                         "__ow_meta_path" -> restofPath.toJson,
                         "__ow_meta_namespace" -> user.namespace.toJson)
-                    invokeAction(identity, action, Some(JsObject(content)), blocking = true, waitOverride = true)
+                    invokeAction(identity, action, Some(JsObject(content)), blocking = true, waitOverride = Some(WhiskActionsApi.maxWaitForBlockingActivation))
                 } else {
                     Future.failed(RejectRequest(BadRequest, Messages.parametersNotAllowed))
                 }

@@ -386,6 +386,13 @@
                         ]
                     },
                     {
+                        "name": "timeout",
+                        "in": "query",
+                        "description": "Wait no more than specified duration in milliseconds for a blocking response. Default value and max allowed timeout are 60000.",
+                        "required": false,
+                        "type": "integer"
+                    },
+                    {
                         "name": "payload",
                         "in": "body",
                         "description": "The parameters for the action being invoked",
