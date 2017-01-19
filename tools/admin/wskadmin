@@ -87,16 +87,23 @@ def parseArgs():
     subcmd = subparser.add_parser('create', help='create a user and show authorization key')
     subcmd.add_argument('subject', help='the subject to create')
     subcmd.add_argument('-u', '--auth', help='the uuid:key to initialize the subject authorization key with')
+    subcmd.add_argument('-ns', '--namespace', help='create key for given namespace instead (defaults to subject id')
 
     subcmd = subparser.add_parser('delete', help='delete a user')
     subcmd.add_argument('subject', help='the subject to delete')
+    subcmd.add_argument('-ns', '--namespace', help='delete key for given namespace only')
 
     subcmd = subparser.add_parser('get', help='get authorization key for user')
     subcmd.add_argument('subject', help='the subject to get key for')
-    subcmd.add_argument('--namespace', help='the namespace to get the key for, defaults to "default namespace"')
+    subcmd.add_argument('-ns', '--namespace', help='the namespace to get the key for, defaults to subject id')
 
     subcmd = subparser.add_parser('whois', help='identify user from an authorization key')
     subcmd.add_argument('authkey', help='the credentials to look up')
+
+    subcmd = subparser.add_parser('list', help='list authorization keys associated with a namespace')
+    subcmd.add_argument('namespace', help='the namespace to lookup')
+    subcmd.add_argument('-p', '--pick', metavar='N', help='show no more than N identities', type=int, default=1)
+    subcmd.add_argument('-k', '--key', help='show only the keys', action='store_true')
 
     propmenu = subparsers.add_parser('db', help='work with dbs')
     subparser = propmenu.add_subparsers(title='available commands', dest='subcmd')
@@ -126,6 +133,8 @@ def userCmd(args, props):
         return getUserCmd(args, props)
     elif args.subcmd == 'whois':
         return whoisUserCmd(args, props)
+    elif args.subcmd == 'list':
+        return listUserCmd(args, props)
     else:
         print 'unknown command'
         return 2
@@ -157,6 +166,12 @@ def createUserCmd(args, props):
         print 'Subject name must be at least 5 characters'
         return 2
 
+    if args.namespace and args.namespace.strip() == '':
+        print 'Namespace must not be empty'
+        return 2
+    else:
+        desiredNamespace = subject if not args.namespace else args.namespace.strip()
+
     if args.auth:
         try:
             parts = args.auth.split(':')
@@ -177,30 +192,32 @@ def createUserCmd(args, props):
         uid = str(uuid.uuid4())
         key = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(64))
 
-    doc = {
-        '_id': subject,
-        'subject': subject,
-        'namespaces': [
-            {
-                'name': subject,
+    (doc, res) = getSubjectFromDb(args, props)
+    if doc is None:
+        doc = {
+            '_id': subject,
+            'subject': subject,
+            'namespaces': [
+                {
+                    'name': desiredNamespace,
+                    'uuid': uid,
+                    'key': key
+                }
+            ]
+        }
+    else:
+        namespaces = filter(lambda ns: ns['name'] == desiredNamespace, doc['namespaces'])
+        if len(namespaces) == 0:
+            doc['namespaces'].append({
+                'name': desiredNamespace,
                 'uuid': uid,
                 'key': key
-            }
-        ]
-    }
+            })
+        else:
+            print 'Namespace already exists'
+            return 1
 
-    url = '%(protocol)s://%(host)s:%(port)s/%(database)s' % {
-        'protocol': protocol,
-        'host'    : host,
-        'port'    : port,
-        'database': database
-    }
-    body = json.dumps(doc)
-    headers = {
-        'Content-Type': 'application/json',
-    }
-
-    res = request('POST', url, body, headers, auth='%s:%s' % (username, password), verbose=args.verbose)
+    res = insertIntoDatabase(props, doc, args.verbose)
     if res.status in [201, 202]:
         print '%s:%s' % (uid, key)
     else:
@@ -219,10 +236,29 @@ def getUserCmd(args, props):
             print '%s:%s' % (ns['uuid'], ns['key'])
             return 0
         else:
-            print 'namespace "%s" not found for %s' % (namespaceName, args.subject)
+            print 'namespace "%s" not found for "%s"' % (namespaceName, args.subject)
             return 1
     else:
         print 'Failed to get subject (%s)' % res.read().strip()
+        return 1
+
+def listUserCmd(args, props):
+    (nslist, res) = getIdentitiesFromNamespace(args, props)
+
+    if args.pick < 1:
+        print 'pick at least 1 identity to show'
+        return 2
+
+    if nslist is not None:
+        nslist = nslist[:args.pick]
+        if len(nslist) > 0:
+            for p in nslist:
+                print '%s:%s%s' % (p['uuid'], p['key'], "\t%s" % p['subject'] if not args.key else "")
+            return 0
+        else:
+            print 'no identities found for namespace "%s"' % args.namespace
+    else:
+        print 'Failed to get namespace key (%s)' % res.read().strip()
         return 1
 
 def getSubjectFromDb(args, props):
@@ -252,6 +288,38 @@ def getSubjectFromDb(args, props):
     else:
         return (None, res)
 
+def getIdentitiesFromNamespace(args, props):
+    protocol = props[DB_PROTOCOL]
+    host     = props[DB_HOST]
+    port     = props[DB_PORT]
+    username = props[DB_USERNAME]
+    password = props[DB_PASSWORD]
+    database = props[DB_WHISK_AUTHS]
+
+    url = '%(protocol)s://%(host)s:%(port)s/%(database)s/_design/subjects/_view/identities?key=["%(ns)s"]' % {
+        'protocol': protocol,
+        'host'    : host,
+        'port'    : port,
+        'username': username,
+        'database': database,
+        'ns'      : args.namespace
+    }
+
+    headers = {
+        'Content-Type': 'application/json',
+    }
+
+    res = request('GET', url, headers=headers, auth='%s:%s' % (username, password), verbose=args.verbose)
+    nslist = None
+    if res.status == 200:
+        doc = json.loads(res.read())
+        nslist = []
+        if 'rows' in doc and len(doc['rows']) > 0:
+            for row in doc['rows']:
+                if 'id' in row:
+                    nslist.append({"subject": row["id"], "uuid": row['value']['uuid'], "key": row['value']['key']})
+    return (nslist, res)
+
 def deleteUserCmd(args, props):
     protocol = props[DB_PROTOCOL]
     host     = props[DB_HOST]
@@ -264,30 +332,49 @@ def deleteUserCmd(args, props):
         print 'Subject must not be empty'
         return 2
 
-    (rev, res) = getSubjectFromDb(args, props)
-    if rev is None:
+    if args.namespace and args.namespace.strip() == '':
+        print 'Namespace must not be empty'
+        return 2
+
+    (prev, res) = getSubjectFromDb(args, props)
+    if prev is None:
         print 'Failed to delete subject (%s)' % res.read().strip()
         return 1
 
-    url = '%(protocol)s://%(host)s:%(port)s/%(database)s/%(subject)s?rev=%(rev)s' % {
-        'protocol': protocol,
-        'host'    : host,
-        'port'    : port,
-        'database': database,
-        'subject' : args.subject,
-        'rev'     : rev['_rev']
-    }
+    if not args.namespace:
+        url = '%(protocol)s://%(host)s:%(port)s/%(database)s/%(subject)s?rev=%(rev)s' % {
+            'protocol': protocol,
+            'host'    : host,
+            'port'    : port,
+            'database': database,
+            'subject' : args.subject.strip(),
+            'rev'     : prev['_rev']
+        }
 
-    headers = {
-        'Content-Type': 'application/json',
-    }
+        headers = {
+            'Content-Type': 'application/json',
+        }
 
-    res = request('DELETE', url, headers=headers, auth='%s:%s' % (username, password), verbose=args.verbose)
-    if res.status in [200, 202]:
-        print 'Subject deleted'
+        res = request('DELETE', url, headers=headers, auth='%s:%s' % (username, password), verbose=args.verbose)
+        if res.status in [200, 202]:
+            print 'Subject deleted'
+        else:
+            print 'Failed to delete subject (%s)' % res.read().strip()
+            return 1
     else:
-        print 'Failed to delete subject (%s)' % res.read().strip()
-        return 1
+        namespaceToDelete = args.namespace.strip()
+        namespaces = filter(lambda ns: ns['name'] != namespaceToDelete, prev['namespaces'])
+        if len(prev['namespaces']) == len(namespaces):
+            print 'Namespace "%s" does not exist for "%s"' % (namespaceToDelete, prev['_id'])
+            return 1
+        else:
+            prev['namespaces'] = namespaces
+            res = insertIntoDatabase(props, prev, args.verbose)
+            if res.status in [201, 202]:
+                print 'Namespace deleted'
+            else:
+                print 'Failed to remove namespace (%s)' % res.read().strip()
+                return 1
 
 def whoisUserCmd(args, props):
     protocol = props[DB_PROTOCOL]
@@ -374,6 +461,28 @@ def getDbCmd(args, props):
         return 0
     print 'Failed to get database (%s)' % res.read().strip()
     return 1
+
+def insertIntoDatabase(props, doc, verbose = False):
+    protocol = props[DB_PROTOCOL]
+    host     = props[DB_HOST]
+    port     = props[DB_PORT]
+    username = props[DB_USERNAME]
+    password = props[DB_PASSWORD]
+    database = props[DB_WHISK_AUTHS]
+
+    url = '%(protocol)s://%(host)s:%(port)s/%(database)s' % {
+        'protocol': protocol,
+        'host'    : host,
+        'port'    : port,
+        'database': database
+    }
+    body = json.dumps(doc)
+    headers = {
+        'Content-Type': 'application/json',
+    }
+
+    res = request('POST', url, body, headers, auth='%s:%s' % (username, password), verbose=verbose)
+    return res
 
 def getLogsCmd(args, props):
     path = '%s/%s/%s_logs.log' % (props[LOGS_DIR], args.component, args.component)

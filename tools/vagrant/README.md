@@ -170,14 +170,21 @@ wskadmin user create <subject>
 
 This command will create a new *subject* with the authorization key shown on the console once you run `wskadmin`. This key is required when making API calls to OpenWhisk, or when using the command line interface (CLI). The namespace is the same as the `<subject>` name used to create the key.
 
-The same tool may be used to delete a subject.
+A namespace allows two or more subjects to share resources. Each subject will have their own authorization key to work with resources in a namespace, but will have equal rights to the namespace.
 
 ```
 vagrant ssh
-wskadmin user delete <subject>
+wskadmin user create <subject> --ns <namespace>
 ```
-  
- 
+
+The same tool may be used to remove a subject from a namespace or to delete a subject entirely.
+
+```
+vagrant ssh
+wskadmin user delete <subject> --ns <namespace>  # removes <subject> from <namespace>
+wskadmin user delete <subject>                   # deletes <subject>
+```
+
 
 ### SSL certificate configuration (Optional)
 

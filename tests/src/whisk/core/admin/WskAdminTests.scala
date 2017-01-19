@@ -16,6 +16,8 @@
 
 package whisk.core.admin
 
+import scala.concurrent.duration.DurationInt
+
 import org.junit.runner.RunWith
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
@@ -42,23 +44,42 @@ class WskAdminTests
         val wskadmin = new RunWskAdminCmd {}
         val auth = WhiskAuth(Subject(), AuthKey())
         val subject = auth.subject.asString
+        try {
+            println(s"CRD subject: $subject")
+            val create = wskadmin.cli(Seq("user", "create", subject))
+            val get = wskadmin.cli(Seq("user", "get", subject))
+            create.stdout should be(get.stdout)
 
-        println(s"CRD subject: $subject")
-        val create = wskadmin.cli(Seq("user", "create", subject))
-        val get = wskadmin.cli(Seq("user", "get", subject))
-        create.stdout should be(get.stdout)
+            val authkey = get.stdout.trim
+            authkey should include(":")
+            authkey.split(":")(0).length should be(36)
+            authkey.split(":")(1).length should be >= 64
 
-        val authkey = get.stdout.trim
-        authkey should include(":")
-        authkey.split(":")(0).length should be(36)
-        authkey.split(":")(1).length should be >= 64
+            wskadmin.cli(Seq("user", "whois", authkey)).stdout.trim should be(Seq(s"subject: $subject", s"namespace: $subject").mkString("\n"))
 
-        wskadmin.cli(Seq("user", "whois", authkey)).stdout.trim should be(Seq(s"subject: $subject", s"namespace: $subject").mkString("\n"))
-        wskadmin.cli(Seq("user", "delete", subject)).stdout should include("Subject deleted")
+            whisk.utils.retry({
+                // reverse lookup by namespace
+                wskadmin.cli(Seq("user", "list", "-k", subject)).stdout.trim should be(authkey)
+            }, 10, Some(1.second))
 
-        val recreate = wskadmin.cli(Seq("user", "create", subject, "-u", auth.authkey.compact))
-        wskadmin.cli(Seq("user", "get", subject)).stdout.trim should be(auth.authkey.compact)
-        wskadmin.cli(Seq("user", "delete", subject)).stdout should include("Subject deleted")
+            wskadmin.cli(Seq("user", "delete", subject)).stdout should include("Subject deleted")
+
+            // recreate with explicit
+            val newspace = s"${subject}.myspace"
+            wskadmin.cli(Seq("user", "create", subject, "-ns", newspace, "-u", auth.authkey.compact))
+
+            whisk.utils.retry({
+                // reverse lookup by namespace
+                wskadmin.cli(Seq("user", "list", "-k", newspace)).stdout.trim should be(auth.authkey.compact)
+            }, 10, Some(1.second))
+
+            wskadmin.cli(Seq("user", "get", subject, "-ns", newspace)).stdout.trim should be(auth.authkey.compact)
+
+            // delete namespace
+            wskadmin.cli(Seq("user", "delete", subject, "-ns", newspace)).stdout should include("Namespace deleted")
+        } finally {
+            wskadmin.cli(Seq("user", "delete", subject)).stdout should include("Subject deleted")
+        }
     }
 
 }
