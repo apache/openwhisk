@@ -18,6 +18,7 @@ package whisk.http
 
 import scala.util.Try
 import scala.concurrent.duration.Duration
+import scala.concurrent.duration.FiniteDuration
 
 import spray.http.StatusCode
 import spray.http.StatusCodes.Forbidden
@@ -77,6 +78,7 @@ object Messages {
 
     /** Error messages for bad requests where parameters do not conform. */
     val parametersNotAllowed = "Request defines parameters that are not allowed (e.g., reserved properties)."
+    def invalidTimeout(max: FiniteDuration) = s"Timeout must be number of milliseconds up to ${max.toMillis}."
 
     /** Error messages for activations. */
     val abnormalInitialization = "The action did not initialize and exited unexpectedly."

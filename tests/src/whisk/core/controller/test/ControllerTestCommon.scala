@@ -18,6 +18,7 @@ package whisk.core.controller.test
 
 import scala.concurrent.{ Await, Future }
 import scala.concurrent.duration.{ DurationInt, FiniteDuration }
+import scala.concurrent.ExecutionContext
 import scala.language.postfixOps
 
 import org.scalatest.BeforeAndAfter
@@ -187,18 +188,26 @@ protected trait ControllerTestCommon
     }
 }
 
-class DegenerateLoadBalancerService(config: WhiskConfig, verbosity: LogLevel)
+class DegenerateLoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(implicit ec: ExecutionContext)
     extends LoadBalancer {
+    import scala.concurrent.blocking
 
     // unit tests that need an activation via active ack/fast path should set this to value expected
-    var whiskActivationStub: Option[WhiskActivation] = None
+    var whiskActivationStub: Option[(FiniteDuration, WhiskActivation)] = None
 
     override def getActiveUserActivationCounts: Map[String, Long] = Map()
 
     override def publish(action: WhiskAction, msg: ActivationMessage, timeout: FiniteDuration)(implicit transid: TransactionId): (Future[Unit], Future[WhiskActivation]) =
         (Future.successful {},
             whiskActivationStub map {
-                activation => Future.successful(activation)
+                case (timeout, activation) => Future {
+                    blocking {
+                        println("waiting.....")
+                        Thread.sleep(timeout.toMillis)
+                        println(".... done waiting")
+                    }
+                    activation
+                }
             } getOrElse Future.failed(new IllegalArgumentException("Unit test does not need fast path")))
 
 }

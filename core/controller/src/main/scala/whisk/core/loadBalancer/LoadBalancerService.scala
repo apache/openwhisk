@@ -66,7 +66,9 @@ trait LoadBalancer {
      * @param msg the activation message to publish on an invoker topic
      * @param timeout the desired active ack timeout
      * @param transid the transaction id for the request
-     * @return future that provides an activation (result) if it is ready before timeout otherwise the future fails with ActiveAckTimeout
+     * @return result a pair of Futures the first indicating completion of publishing and
+     *         the second the completion of the action (i.e., the result)
+     *         if it is ready before timeout otherwise the future fails with ActiveAckTimeout
      */
     def publish(action: WhiskAction, msg: ActivationMessage, timeout: FiniteDuration)(implicit transid: TransactionId): (Future[Unit], Future[WhiskActivation])
 

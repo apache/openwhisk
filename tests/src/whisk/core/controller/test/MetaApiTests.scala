@@ -41,6 +41,7 @@ import whisk.http.ErrorResponse
 import whisk.http.Messages
 import scala.concurrent.Await
 import whisk.core.entitlement.Privilege
+import scala.concurrent.duration.FiniteDuration
 
 /**
  * Tests Meta API.
@@ -110,7 +111,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
             Some(Binding(EntityName(systemId.asString), EntityName("heavymeta"))),
             annotations = Parameters("meta", JsBoolean(true))))
 
-    override protected[controller] def invokeAction(user: Identity, action: WhiskAction, payload: Option[JsObject], blocking: Boolean, waitOverride: Boolean = false)(
+    override protected[controller] def invokeAction(user: Identity, action: WhiskAction, payload: Option[JsObject], blocking: Boolean, waitOverride: Option[FiniteDuration] = None)(
         implicit transid: TransactionId): Future[(ActivationId, Option[WhiskActivation])] = {
         if (failActivation == 0) {
             // construct a result stub that includes:

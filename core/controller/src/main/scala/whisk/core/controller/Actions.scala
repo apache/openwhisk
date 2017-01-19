@@ -22,6 +22,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
+import scala.util.Try
 
 import org.apache.kafka.common.errors.RecordTooLargeException
 
@@ -30,6 +31,7 @@ import spray.http.HttpMethod
 import spray.http.HttpMethods._
 import spray.http.StatusCodes._
 import spray.httpx.SprayJsonSupport._
+import spray.httpx.unmarshalling._
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import spray.routing.RequestContext
@@ -45,8 +47,8 @@ import whisk.core.entity._
 import whisk.core.entity.types.ActivationStore
 import whisk.core.entity.types.EntityStore
 import whisk.http.ErrorResponse.terminate
-import whisk.http.Messages._
 import whisk.http.Messages
+import whisk.http.Messages._
 
 /**
  * A singleton object which defines the properties that must be present in a configuration
@@ -216,7 +218,7 @@ trait WhiskActionsApi
      * - 500 Internal Server Error
      */
     override def activate(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
-        parameter('blocking ? false, 'result ? false) { (blocking, result) =>
+        parameter('blocking ? false, 'result ? false, 'timeout ? WhiskActionsApi.maxWaitForBlockingActivation) { (blocking, result, waitOverride) =>
             entity(as[Option[JsObject]]) { payload =>
                 getEntity(WhiskAction, entityStore, entityName.toDocId, Some {
                     act: WhiskAction =>
@@ -227,7 +229,7 @@ trait WhiskActionsApi
                                 transid.started(this, if (blocking) LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING else LoggingMarkers.CONTROLLER_ACTIVATION)
 
                                 val actionWithMergedParams = env.map(action.inherit(_)) getOrElse action
-                                onComplete(invokeAction(user, actionWithMergedParams, payload, blocking, waitOverride = true)) {
+                                onComplete(invokeAction(user, actionWithMergedParams, payload, blocking, Some(waitOverride))) {
                                     case Success((activationId, None)) =>
                                         // non-blocking invoke or blocking invoke which got queued instead
                                         complete(Accepted, activationId.toJsObject)
@@ -613,6 +615,19 @@ trait WhiskActionsApi
 
     /** Max atomic action count allowed for sequences */
     private lazy val actionSequenceLimit = whiskConfig.actionSequenceLimit.toInt
+
+    /** Custom deserializer for timeout query parameter. */
+    private implicit val stringToTimeoutDeserializer = new FromStringDeserializer[FiniteDuration] {
+        val max = WhiskActionsApi.maxWaitForBlockingActivation.toMillis
+        def apply(msecs: String): Either[DeserializationError, FiniteDuration] = {
+            Try { msecs.toInt } match {
+                case Success(i) if i > 0 && i <= max => Right(i.milliseconds)
+                case _ => Left {
+                    MalformedContent(Messages.invalidTimeout(WhiskActionsApi.maxWaitForBlockingActivation))
+                }
+            }
+        }
+    }
 }
 
 private case class BlockingInvokeTimeout(activationId: ActivationId) extends TimeoutException
