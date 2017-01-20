@@ -16,10 +16,11 @@
 
 package whisk.http
 
-import scala.util.Try
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.FiniteDuration
+import scala.util.Try
 
+import spray.http.MediaType
 import spray.http.StatusCode
 import spray.http.StatusCodes.Forbidden
 import spray.http.StatusCodes.NotFound
@@ -83,6 +84,12 @@ object Messages {
     /** Error messages for activations. */
     val abnormalInitialization = "The action did not initialize and exited unexpectedly."
     val abnormalRun = "The action did not produce a valid response and exited unexpectedly."
+
+    /** Error for meta api. */
+    val propertyNotFound = "Response does not include requested property."
+    def invalidMedia(m: MediaType) = s"Response is not valid '${m.value}'."
+    val contentTypeNotSupported = "Content type not supported."
+    val contentTypeRequired = "Content type is missing."
 
     def invalidInitResponse(actualResponse: String) = {
         "The action failed during initialization" + {

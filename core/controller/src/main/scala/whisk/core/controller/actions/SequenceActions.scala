@@ -34,7 +34,6 @@ import spray.json._
 import whisk.common.Logging
 import whisk.common.PrintStreamEmitter
 import whisk.common.TransactionId
-import whisk.core.controller.BlockingInvokeTimeout
 import whisk.core.controller.WhiskActionsApi._
 import whisk.core.controller.WhiskServices
 import whisk.core.entity._

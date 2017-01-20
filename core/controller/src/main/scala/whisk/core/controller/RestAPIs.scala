@@ -141,6 +141,8 @@ protected[controller] class RestAPIVersion_v1(
                                     activations.routes(user) ~
                                     packages.routes(user)
                             } ~ meta.routes(user)
+                } ~ {
+                    meta.routes()
                 } ~ pathPrefix(swaggeruipath) {
                     getFromDirectory("/swagger-ui/")
                 } ~ path(swaggeruipath) {

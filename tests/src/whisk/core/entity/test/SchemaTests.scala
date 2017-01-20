@@ -160,7 +160,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
 
     it should "accept well formed names" in {
         val paths = Seq("a", "a b", "a@b.c", "_a", "_", "_ _", "a0", "a 0", "a.0", "a@@", "0", "0.0", "0.0.0", "0a", "0.a")
-        val spaces = paths.foreach { n =>
+        paths.foreach { n =>
             assert(EntityName(n).toString == n)
         }
     }
@@ -405,7 +405,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
 
     it should "filter immutable parameters" in {
         val params = Parameters("k", "v") ++ Parameters("ns", null: String) ++ Parameters("njs", JsNull)
-        params.immutableParameters shouldBe Set("k")
+        params.definedParameters shouldBe Set("k")
     }
 
     it should "reject malformed JSON" in {

@@ -17,7 +17,6 @@
 package whisk.core.controller
 
 import scala.concurrent.Future
-import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.Failure
@@ -39,6 +38,7 @@ import whisk.common.LoggingMarkers
 import whisk.common.PrintStreamEmitter
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
+import whisk.core.controller.actions.BlockingInvokeTimeout
 import whisk.core.controller.actions.PostActionActivation
 import whisk.core.database.NoDocumentException
 import whisk.core.entitlement._
@@ -630,6 +630,5 @@ trait WhiskActionsApi
     }
 }
 
-private case class BlockingInvokeTimeout(activationId: ActivationId) extends TimeoutException
 private case class TooManyActionsInSequence() extends RuntimeException
 private case class SequenceWithCycle() extends RuntimeException

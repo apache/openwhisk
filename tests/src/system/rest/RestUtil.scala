@@ -35,7 +35,10 @@ trait RestUtil {
     private val trustStorePassword = WhiskProperties.getSslCertificateChallenge
 
     // force RestAssured to allow all hosts in SSL certificates
-    protected val sslconfig = new RestAssuredConfig().sslConfig(new SSLConfig().keystore("keystore", trustStorePassword).allowAllHostnames());
+    protected val sslconfig = {
+        new RestAssuredConfig().
+            sslConfig(new SSLConfig().keystore("keystore", trustStorePassword).allowAllHostnames());
+    }
 
     /**
      * @return the URL and port for the whisk service

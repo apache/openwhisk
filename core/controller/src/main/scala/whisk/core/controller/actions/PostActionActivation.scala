@@ -18,6 +18,7 @@ package whisk.core.controller.actions
 
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.TimeoutException
 
 import spray.json._
 import whisk.common.TransactionId
@@ -54,3 +55,5 @@ protected[core] trait PostActionActivation extends PrimitiveActions with Sequenc
         }
     }
 }
+
+protected[controller] case class BlockingInvokeTimeout(activationId: ActivationId) extends TimeoutException

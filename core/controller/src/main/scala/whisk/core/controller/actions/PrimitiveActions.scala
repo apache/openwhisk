@@ -34,7 +34,6 @@ import whisk.common.PrintStreamEmitter
 import whisk.common.StartMarker
 import whisk.common.TransactionId
 import whisk.core.connector.ActivationMessage
-import whisk.core.controller.BlockingInvokeTimeout
 import whisk.core.controller.WhiskServices
 import whisk.core.database.NoDocumentException
 import whisk.core.entity._

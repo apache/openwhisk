@@ -17,17 +17,8 @@
 package whisk.core.entity
 
 import scala.util.Try
-import spray.json.DefaultJsonProtocol.StringJsonFormat
-import spray.json.JsArray
-import spray.json.JsNull
-import spray.json.JsObject
-import spray.json.JsString
-import spray.json.JsValue
-import spray.json.DefaultJsonProtocol.JsValueFormat
-import spray.json.DefaultJsonProtocol.mapFormat
-import spray.json.RootJsonFormat
-import spray.json.deserializationError
-import spray.json.pimpAny
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 import scala.language.postfixOps
 import whisk.core.entity.size.SizeInt
 import whisk.core.entity.size.SizeString
@@ -70,8 +61,8 @@ protected[core] class Parameters protected[entity] (
         Try(new Parameters(params - new ParameterName(p))) getOrElse this
     }
 
-    /** Gets list of immutable parameters (those with a value defined). */
-    protected[core] def immutableParameters: Set[String] = {
+    /** Gets list all defined parameters. */
+    protected[core] def definedParameters: Set[String] = {
         params.keySet filter (params(_).isDefined) map (_.name)
     }
 
@@ -92,6 +83,28 @@ protected[core] class Parameters protected[entity] (
      * Retrieves parameter by name if it exists.
      */
     protected[core] def get(p: String) = params.get(new ParameterName(p)).map(_.value)
+
+    /**
+     * Retrieves parameter by name if it exist. If value of parameter
+     * is a boolean, return its value else false.
+     */
+    protected[core] def asBool(p: String): Option[Boolean] = {
+        get(p) flatMap {
+            case JsBoolean(b) => Some(b)
+            case _            => None
+        }
+    }
+
+    /**
+     * Retrieves parameter by name if it exist. If value of parameter
+     * is a string, return its value else none.
+     */
+    protected[core] def asString(p: String): Option[String] = {
+        get(p) flatMap {
+            case JsString(s) => Some(s)
+            case _           => None
+        }
+    }
 }
 
 /**

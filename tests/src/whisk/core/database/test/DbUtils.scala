@@ -128,7 +128,7 @@ trait DbUtils extends TransactionCounter {
     def waitOnView(db: AuthStore, authkey: AuthKey, count: Int)(
         implicit context: ExecutionContext, transid: TransactionId, timeout: Duration) = {
         val success = retry(() => {
-            Identity.list(db, authkey) map { l =>
+            Identity.list(db, List(authkey.uuid.asString, authkey.key.asString)) map { l =>
                 if (l.length != count) {
                     throw RetryOp()
                 } else true

@@ -945,7 +945,7 @@ object WskAdmin {
     }
 
     /**
-     * returns user given the auth key
+     * returns (subject, namespace) pair given the auth key
      */
     def getUser(authKey: String): (String, String) = {
         val wskadmin = new RunWskAdminCmd {}

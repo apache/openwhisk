@@ -27,6 +27,7 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.junit.JUnitRunner
 
 import akka.event.Logging.InfoLevel
+import spray.http.HttpMethods
 import spray.http.StatusCodes._
 import spray.httpx.SprayJsonSupport._
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
@@ -34,6 +35,8 @@ import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.common.TransactionId
+import whisk.core.controller.Context
+import whisk.core.controller.RejectRequest
 import whisk.core.controller.WhiskMetaApi
 import whisk.core.database.NoDocumentException
 import whisk.core.entity._
@@ -109,8 +112,59 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
             EntityPath(systemId.asString),
             EntityName("bindingmeta"),
             Some(Binding(EntityName(systemId.asString), EntityName("heavymeta"))),
-            annotations = Parameters("meta", JsBoolean(true))))
+            annotations = Parameters("meta", JsBoolean(true))),
+        WhiskPackage(
+            EntityPath(systemId.asString),
+            EntityName("proxy"),
+            parameters = Parameters("x", JsString("X")) ++ Parameters("z", JsString("z"))))
 
+    override protected def getPackage(pkgName: FullyQualifiedEntityName)(
+        implicit transid: TransactionId) = {
+        Future {
+            packages.find(_.fullyQualifiedName(false) == pkgName).get
+        } recoverWith {
+            case _: NoSuchElementException => Future.failed(NoDocumentException("does not exist"))
+        }
+    }
+
+    val defaultActionParameters = {
+        Parameters("y", JsString("Y")) ++ Parameters("z", JsString("Z"))
+    }
+
+    override protected def getAction(actionName: FullyQualifiedEntityName)(
+        implicit transid: TransactionId) = {
+        if (!failActionLookup) {
+            def theAction = {
+                val annotations = Parameters(WhiskAction.finalParamsAnnotationName, JsBoolean(true))
+
+                WhiskAction(actionName.path, actionName.name, Exec.js("??"), defaultActionParameters, annotations = {
+                    if (actionName.name.asString.startsWith("export_")) {
+                        annotations ++ Parameters("web-export", JsBoolean(true))
+                    } else annotations
+                })
+            }
+
+            if (actionName.path.defaultPackage) {
+                Future.successful(theAction)
+            } else {
+                getPackage(actionName.path.toFullyQualifiedEntityName) map (_ => theAction)
+            }
+        } else {
+            Future.failed(NoDocumentException("doesn't exist"))
+        }
+    }
+
+    override protected def getIdentity(namespace: EntityName)(
+        implicit transid: TransactionId): Future[Identity] = {
+        if (namespace.asString == systemId.asString) {
+            systemIdentity
+        } else {
+            info(this, s"namespace has no identity")
+            Future.failed(RejectRequest(BadRequest))
+        }
+    }
+
+    var actionResult: Option[JsObject] = None
     override protected[controller] def invokeAction(user: Identity, action: WhiskAction, payload: Option[JsObject], blocking: Boolean, waitOverride: Option[FiniteDuration] = None)(
         implicit transid: TransactionId): Future[(ActivationId, Option[WhiskActivation])] = {
         if (failActivation == 0) {
@@ -118,7 +172,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
             // 1. the package name for the action (to confirm that this resolved to systemId)
             // 2. the action name (to confirm that this resolved to the expected meta action)
             // 3. the payload received by the action which consists of the action.params + payload
-            val result = JsObject(
+            val result = actionResult getOrElse JsObject(
                 "pkg" -> action.namespace.toJson,
                 "action" -> action.name.toJson,
                 "content" -> action.parameters.merge(payload).get)
@@ -135,7 +189,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
             // check that action parameters were merged with package
             // all actions have default parameters (see actionLookup stub)
             val packageName = Await.result(resolvePackageName(action.namespace.last), dbOpTimeout)
-            pkgLookup(packageName) foreach { pkg =>
+            getPackage(packageName) foreach { pkg =>
                 action.parameters shouldBe (pkg.parameters ++ defaultActionParameters)
                 action.parameters.get("z") shouldBe defaultActionParameters.get("z")
             }
@@ -148,44 +202,17 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
         }
     }
 
-    protected def pkgLookup(pkgName: String) = packages.find(_.name == EntityName(pkgName))
-
-    override protected def pkgLookup(pkgName: FullyQualifiedEntityName)(
-        implicit transid: TransactionId) = {
-        Future {
-            packages.find(_.name == pkgName.name).get
-        } recoverWith {
-            case t => Future.failed(NoDocumentException("doesn't exist"))
-        }
-    }
-
-    val defaultActionParameters = {
-        Parameters("y", JsString("Y")) ++ Parameters("z", JsString("Z"))
-    }
-
-    override protected def actionLookup(pkgName: FullyQualifiedEntityName, actionName: EntityName)(
-        implicit transid: TransactionId) = {
-        if (!failActionLookup) {
-            Future.successful {
-                val annotations = Parameters(WhiskAction.finalParamsAnnotationName, JsBoolean(true))
-                WhiskAction(pkgName.fullPath, actionName, Exec.js("??"), defaultActionParameters, annotations = annotations)
-            }
-        } else {
-            Future.failed(NoDocumentException("doesn't exist"))
-        }
-    }
-
-    def metaPayload(method: String, params: Map[String, String], namespace: String, path: String = "", body: Option[JsObject] = None, pkg: Option[WhiskPackage] = None) = {
-        (pkg.map(_.parameters).getOrElse(Parameters()) ++ defaultActionParameters).merge {
-            Some {
-                JsObject(
-                    params.toJson.asJsObject.fields ++
-                        body.map(_.fields).getOrElse(Map()) ++
-                        Map("__ow_meta_verb" -> method.toLowerCase.toJson,
-                            "__ow_meta_path" -> path.toJson,
-                            "__ow_meta_namespace" -> namespace.toJson))
-            }
-        }.get
+    def metaPayload(method: String, params: Map[String, String], identity: Identity, path: String = "", body: Option[JsObject] = None, pkgName: String = null) = {
+        (Option(pkgName).filter(_ != null).flatMap(n => packages.find(_.name == EntityName(n)))
+            .map(_.parameters)
+            .getOrElse(Parameters()) ++ defaultActionParameters).merge {
+                Some {
+                    JsObject(
+                        params.toJson.asJsObject.fields ++
+                            body.map(_.fields).getOrElse(Map()) ++
+                            Context(HttpMethods.getForKey(method.toUpperCase).get, List(), path, Map()).metadata(Option(identity)))
+                }
+            }.get
     }
 
     var failActionLookup = false // toggle to cause action lookup to fail
@@ -194,6 +221,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
     override def afterEach() = {
         failActionLookup = false
         failActivation = 0
+        actionResult = None
     }
 
     it should "resolve a meta package into the systemId namespace" in {
@@ -207,7 +235,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
         val methods = Seq((Put, MethodNotAllowed))
         methods.foreach {
             case (m, code) =>
-                m("/experimental/partialmeta") ~> sealRoute(routes(creds)) ~> check {
+                m(s"/$routePath/partialmeta") ~> sealRoute(routes(creds)) ~> check {
                     status should be(code)
                 }
         }
@@ -218,29 +246,30 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
         val methods = Seq(Get, Post, Delete)
 
         methods.foreach { m =>
-            m("/experimental") ~> sealRoute(routes(creds)) ~> check {
+            m(s"/$routePath") ~> sealRoute(routes(creds)) ~> check {
                 status shouldBe NotFound
             }
         }
 
         val paths = Seq(
-            "/experimental/doesntexist",
-            "/experimental/notmeta",
-            "/experimental/badmeta",
-            "/experimental/bindingmeta")
+            (s"/$routePath/doesntexist", NotFound),
+            (s"/$routePath/notmeta", NotFound),
+            (s"/$routePath/badmeta", MethodNotAllowed), // exists but has no mapping
+            (s"/$routePath/bindingmeta", NotFound))
 
-        paths.foreach { p =>
-            methods.foreach { m =>
-                m(p) ~> sealRoute(routes(creds)) ~> check {
-                    withClue(p) {
-                        status shouldBe MethodNotAllowed
+        paths.foreach {
+            case ((p, s)) =>
+                methods.foreach { m =>
+                    m(p) ~> sealRoute(routes(creds)) ~> check {
+                        withClue(p) {
+                            status shouldBe s
+                        }
                     }
                 }
-            }
         }
 
         failActionLookup = true
-        Get("/experimental/publicmeta") ~> sealRoute(routes(creds)) ~> check {
+        Get(s"/$routePath/publicmeta") ~> sealRoute(routes(creds)) ~> check {
             status should be(InternalServerError)
         }
     }
@@ -251,13 +280,13 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
         val methods = Seq((Get, "getApi"), (Post, "createRoute"), (Delete, "deleteApi"))
         methods.foreach {
             case (m, name) =>
-                m("/experimental/heavymeta?a=b&c=d&namespace=xyz") ~> sealRoute(routes(creds)) ~> check {
+                m(s"/$routePath/heavymeta?a=b&c=d&namespace=xyz") ~> sealRoute(routes(creds)) ~> check {
                     status should be(OK)
                     val response = responseAs[JsObject]
                     response shouldBe JsObject(
                         "pkg" -> s"$systemId/heavymeta".toJson,
                         "action" -> name.toJson,
-                        "content" -> metaPayload(m.method.value, Map("a" -> "b", "c" -> "d", "namespace" -> "xyz"), creds.namespace.name))
+                        "content" -> metaPayload(m.method.value, Map("a" -> "b", "c" -> "d", "namespace" -> "xyz"), creds))
                 }
         }
     }
@@ -268,14 +297,14 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
         val methods = Seq((Get, OK), (Post, MethodNotAllowed), (Delete, MethodNotAllowed))
         methods.foreach {
             case (m, code) =>
-                m("/experimental/partialmeta?a=b&c=d") ~> sealRoute(routes(creds)) ~> check {
+                m(s"/$routePath/partialmeta?a=b&c=d") ~> sealRoute(routes(creds)) ~> check {
                     status should be(code)
                     if (status == OK) {
                         val response = responseAs[JsObject]
                         response shouldBe JsObject(
                             "pkg" -> s"$systemId/partialmeta".toJson,
                             "action" -> "getApi".toJson,
-                            "content" -> metaPayload(m.method.value, Map("a" -> "b", "c" -> "d"), creds.namespace.name))
+                            "content" -> metaPayload(m.method.value, Map("a" -> "b", "c" -> "d"), creds))
                     }
                 }
         }
@@ -287,13 +316,13 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
         val paths = Seq("", "/", "/foo", "/foo/bar", "/foo/bar/", "/foo%20bar")
         paths.foreach { p =>
             withClue(s"failed on path: '$p'") {
-                Get(s"/experimental/partialmeta$p?a=b&c=d") ~> sealRoute(routes(creds)) ~> check {
+                Get(s"/$routePath/partialmeta$p?a=b&c=d") ~> sealRoute(routes(creds)) ~> check {
                     status should be(OK)
                     val response = responseAs[JsObject]
                     response shouldBe JsObject(
                         "pkg" -> s"$systemId/partialmeta".toJson,
                         "action" -> "getApi".toJson,
-                        "content" -> metaPayload("get", Map("a" -> "b", "c" -> "d"), creds.namespace.name, p))
+                        "content" -> metaPayload("get", Map("a" -> "b", "c" -> "d"), creds, p))
                 }
             }
         }
@@ -303,7 +332,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
         implicit val tid = transid()
 
         failActivation = 1
-        Get(s"/experimental/partialmeta?a=b&c=d") ~> sealRoute(routes(creds)) ~> check {
+        Get(s"/$routePath/partialmeta?a=b&c=d") ~> sealRoute(routes(creds)) ~> check {
             status should be(Accepted)
             val response = responseAs[JsObject]
             response.fields.size shouldBe 1
@@ -316,7 +345,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
         implicit val tid = transid()
 
         failActivation = 2
-        Get(s"/experimental/partialmeta?a=b&c=d") ~> sealRoute(routes(creds)) ~> check {
+        Get(s"/$routePath/partialmeta?a=b&c=d") ~> sealRoute(routes(creds)) ~> check {
             status should be(InternalServerError)
             val response = responseAs[JsObject]
             response.fields.size shouldBe 2
@@ -328,9 +357,8 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
 
     it should "merge package parameters with action, query params and content payload" in {
         implicit val tid = transid()
-
         val body = JsObject("foo" -> "bar".toJson)
-        Get("/experimental/packagemeta/extra/path?a=b&c=d", body) ~> sealRoute(routes(creds)) ~> check {
+        Get(s"/$routePath/packagemeta/extra/path?a=b&c=d", body) ~> sealRoute(routes(creds)) ~> check {
             status should be(OK)
             val response = responseAs[JsObject]
             response shouldBe JsObject(
@@ -339,10 +367,10 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
                 "content" -> metaPayload(
                     "get",
                     Map("a" -> "b", "c" -> "d"),
-                    creds.namespace.name,
+                    creds,
                     path = "/extra/path",
                     body = Some(body),
-                    pkg = pkgLookup("packagemeta")))
+                    pkgName = "packagemeta"))
         }
     }
 
@@ -352,13 +380,13 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
         val methods = Seq(Get, Post, Delete)
 
         methods.foreach { m =>
-            reservedProperties.foreach { p =>
-                m(s"/experimental/packagemeta/?$p=YYY") ~> sealRoute(routes(creds)) ~> check {
+            WhiskMetaApi.reservedProperties.foreach { p =>
+                m(s"/$routePath/packagemeta/?$p=YYY") ~> sealRoute(routes(creds)) ~> check {
                     status should be(BadRequest)
                     responseAs[ErrorResponse].error shouldBe Messages.parametersNotAllowed
                 }
 
-                m("/experimental/packagemeta", JsObject(p -> "YYY".toJson)) ~> sealRoute(routes(creds)) ~> check {
+                m(s"/$routePath/packagemeta", JsObject(p -> "YYY".toJson)) ~> sealRoute(routes(creds)) ~> check {
                     status should be(BadRequest)
                     responseAs[ErrorResponse].error shouldBe Messages.parametersNotAllowed
                 }
@@ -370,13 +398,13 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
         implicit val tid = transid()
 
         val content = JsObject("extra" -> "read all about it".toJson, "yummy" -> true.toJson)
-        Post(s"/experimental/heavymeta?a=b&c=d", content) ~> sealRoute(routes(creds)) ~> check {
+        Post(s"/$routePath/heavymeta?a=b&c=d", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(OK)
             val response = responseAs[JsObject]
             response shouldBe JsObject(
                 "pkg" -> s"$systemId/heavymeta".toJson,
                 "action" -> "createRoute".toJson,
-                "content" -> metaPayload("post", Map("a" -> "b", "c" -> "d"), creds.namespace.name, body = Some(content)))
+                "content" -> metaPayload("post", Map("a" -> "b", "c" -> "d"), creds, body = Some(content)))
         }
     }
 
@@ -385,22 +413,22 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
         val contentX = JsObject("x" -> "overriden".toJson)
         val contentZ = JsObject("z" -> "overriden".toJson)
 
-        Get(s"/experimental/packagemeta?x=overriden") ~> sealRoute(routes(creds)) ~> check {
+        Get(s"/$routePath/packagemeta?x=overriden") ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
             responseAs[ErrorResponse].error shouldBe Messages.parametersNotAllowed
         }
 
-        Get(s"/experimental/packagemeta?y=overriden") ~> sealRoute(routes(creds)) ~> check {
+        Get(s"/$routePath/packagemeta?y=overriden") ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
             responseAs[ErrorResponse].error shouldBe Messages.parametersNotAllowed
         }
 
-        Get(s"/experimental/packagemeta", contentX) ~> sealRoute(routes(creds)) ~> check {
+        Get(s"/$routePath/packagemeta", contentX) ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
             responseAs[ErrorResponse].error shouldBe Messages.parametersNotAllowed
         }
 
-        Get(s"/experimental/packagemeta?y=overriden", contentZ) ~> sealRoute(routes(creds)) ~> check {
+        Get(s"/$routePath/packagemeta?y=overriden", contentZ) ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
             responseAs[ErrorResponse].error shouldBe Messages.parametersNotAllowed
         }
@@ -409,16 +437,16 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
     it should "rejection invoke action when receiving entity that is not a JsObject" in {
         implicit val tid = transid()
 
-        Post(s"/experimental/heavymeta?a=b&c=d", "1,2,3") ~> sealRoute(routes(creds)) ~> check {
+        Post(s"/$routePath/heavymeta?a=b&c=d", "1,2,3") ~> sealRoute(routes(creds)) ~> check {
             status should be(UnsupportedMediaType)
             responseAs[String] should include("application/json")
         }
 
-        Post(s"/experimental/heavymeta?a=b&c=d") ~> sealRoute(routes(creds)) ~> check {
+        Post(s"/$routePath/heavymeta?a=b&c=d") ~> sealRoute(routes(creds)) ~> check {
             status should be(OK)
         }
 
-        Post(s"/experimental/heavymeta?a=b&c=d", JsObject()) ~> sealRoute(routes(creds)) ~> check {
+        Post(s"/$routePath/heavymeta?a=b&c=d", JsObject()) ~> sealRoute(routes(creds)) ~> check {
             status should be(OK)
         }
 
@@ -432,7 +460,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
         this.outputStream = printstream
 
         try {
-            Get("/experimental/publicmeta") ~> sealRoute(routes(creds)) ~> check {
+            Get(s"/$routePath/publicmeta") ~> sealRoute(routes(creds)) ~> check {
                 status should be(OK)
                 stream.toString should include regex (s"""[WARN] *.*publicmeta@0.0.1' is public""")
                 stream.reset()
@@ -443,4 +471,174 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
         }
     }
 
+    it should "allow anonymous acccess to fully qualified name" in {
+        implicit val tid = transid()
+        val exports = s"/$routePath/$anonymousInvokePath"
+
+        // none of these should match a route
+        Seq("a", "a/b", "/a", s"$systemId/c", s"$systemId/export_c").
+            foreach { path =>
+                Get(s"$exports/$path") ~> sealRoute(routes()) ~> check {
+                    status should be(NotFound)
+                }
+            }
+
+        // the first of these fails in the identity lookup,
+        // the second in the package lookup (does not exist),
+        // the third and fourth fail the annotation check
+        Seq("guest/proxy/c", s"$systemId/doesnotexist/c", s"$systemId/publicmeta/c", s"$systemId/default/c").
+            foreach { path =>
+                Get(s"$exports/${path}.json") ~> sealRoute(routes()) ~> check {
+                    status should be(NotFound)
+                }
+
+                Get(s"$exports/$path") ~> sealRoute(routes()) ~> check {
+                    status should be(NotAcceptable)
+                    responseAs[String] shouldBe Messages.contentTypeRequired
+                }
+            }
+
+        // both of these should produce full result objects (trailing slash is ok)
+        // action name starting with export_ will have required annotation
+        Seq(s"$systemId/proxy/export_c.json", s"$systemId/proxy/export_c.json/").
+            foreach { path =>
+                val p = if (path.endsWith("/")) "/" else ""
+                Get(s"$exports/$path") ~> sealRoute(routes()) ~> check {
+                    status should be(OK)
+                    val response = responseAs[JsObject]
+                    response shouldBe JsObject(
+                        "pkg" -> s"$systemId/proxy".toJson,
+                        "action" -> "export_c".toJson,
+                        "content" -> metaPayload("get", Map(), null, p, pkgName = "proxy"))
+                }
+            }
+
+        // these should match action in default package
+        Seq(s"$systemId/default/export_c.json").
+            foreach { path =>
+                Get(s"$exports/$path") ~> sealRoute(routes()) ~> check {
+                    status should be(OK)
+                    val response = responseAs[JsObject]
+                    response shouldBe JsObject(
+                        "pkg" -> s"$systemId".toJson,
+                        "action" -> "export_c".toJson,
+                        "content" -> metaPayload("get", Map(), null))
+                }
+            }
+
+        // these should project a field from the result object
+        Seq(s"$systemId/proxy/export_c.json/content").
+            foreach { path =>
+                Get(s"$exports/$path") ~> sealRoute(routes()) ~> check {
+                    status should be(OK)
+                    val response = responseAs[JsObject]
+                    response shouldBe metaPayload("get", Map(), null, "/content", pkgName = "proxy")
+                }
+            }
+
+        Seq(s"$systemId/proxy/export_c.json/a").
+            foreach { path =>
+                actionResult = Some(JsObject("a" -> JsString("b")))
+                Get(s"$exports/$path") ~> sealRoute(routes()) ~> check {
+                    status should be(BadRequest)
+                }
+            }
+
+        // reset the action result
+        actionResult = None
+
+        // these test an http response
+        Seq(s"$systemId/proxy/export_c.http/content/response").
+            foreach { path =>
+                val httpResponse = JsObject("response" -> JsObject("headers" -> JsObject("location" -> "http://openwhisk.org".toJson), "code" -> Found.intValue.toJson))
+                Get(s"$exports/$path", httpResponse) ~> sealRoute(routes()) ~> check {
+                    status should be(Found)
+                    header("location").get.toString shouldBe "location: http://openwhisk.org"
+                    val response = responseAs[JsObject]
+                    response shouldBe JsObject()
+                }
+            }
+
+        // these test default projection for extension
+        Seq(s"$systemId/proxy/export_c.http").
+            foreach { path =>
+                actionResult = Some(JsObject("headers" -> JsObject("location" -> "http://openwhisk.org".toJson), "code" -> Found.intValue.toJson))
+                Get(s"$exports/$path") ~> sealRoute(routes()) ~> check {
+                    status should be(Found)
+                    header("location").get.toString shouldBe "location: http://openwhisk.org"
+                    val response = responseAs[JsObject]
+                    response shouldBe JsObject()
+                }
+            }
+
+        Seq(s"$systemId/proxy/export_c.text").
+            foreach { path =>
+                actionResult = Some(JsObject("text" -> JsString("default text")))
+                Get(s"$exports/$path") ~> sealRoute(routes()) ~> check {
+                    status should be(OK)
+                    val response = responseAs[String]
+                    response shouldBe "default text"
+                }
+            }
+
+        Seq(s"$systemId/proxy/export_c.json").
+            foreach { path =>
+                actionResult = Some(JsObject("foobar" -> JsString("foobar")))
+                Get(s"$exports/$path") ~> sealRoute(routes()) ~> check {
+                    status should be(OK)
+                    val response = responseAs[JsObject]
+                    response shouldBe actionResult.get
+                }
+            }
+
+        Seq(s"$systemId/proxy/export_c.html").
+            foreach { path =>
+                actionResult = Some(JsObject("html" -> JsString("<html>hi</htlml>")))
+                Get(s"$exports/$path") ~> sealRoute(routes()) ~> check {
+                    status should be(OK)
+                    val response = responseAs[String]
+                    response shouldBe "<html>hi</htlml>"
+                }
+            }
+
+        // reset the action result
+        actionResult = None
+
+        Seq(s"$systemId/proxy/export_c.text/content/z", s"$systemId/proxy/export_c.text/content/z/", s"$systemId/proxy/export_c.text/content/z//").
+            foreach { path =>
+                Get(s"$exports/$path") ~> sealRoute(routes()) ~> check {
+                    status should be(OK)
+                    val response = responseAs[String]
+                    response shouldBe "Z"
+                }
+            }
+
+        // these should fail because parameter override is not allowed
+        // ?x=overriden
+        Seq(s"$systemId/proxy/export_c.text/content/z?x=overriden").
+            foreach { path =>
+                Get(s"$exports/$path") ~> sealRoute(routes()) ~> check {
+                    status should be(BadRequest)
+                    responseAs[ErrorResponse].error shouldBe Messages.parametersNotAllowed
+                }
+            }
+
+        // these fail to project a field from the result object (doesn't exist)
+        Seq(s"$systemId/proxy/export_c.text/foobar", s"$systemId/proxy/export_c.text/content/z/x").
+            foreach { path =>
+                Get(s"$exports/$path") ~> sealRoute(routes()) ~> check {
+                    status should be(NotFound)
+                    responseAs[String] shouldBe Messages.propertyNotFound
+                }
+            }
+
+        // these fail with unsupported extension
+        Seq(s"$systemId/proxy/export_c.xyz", s"$systemId/proxy/export_c.xyz/", s"$systemId/proxy/export_c.xyz/content").
+            foreach { path =>
+                Get(s"$exports/$path") ~> sealRoute(routes()) ~> check {
+                    status should be(NotAcceptable)
+                    responseAs[String] shouldBe Messages.contentTypeNotSupported
+                }
+            }
+    }
 }

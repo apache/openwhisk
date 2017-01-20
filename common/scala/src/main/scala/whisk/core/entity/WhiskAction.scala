@@ -111,11 +111,13 @@ case class WhiskAction(
 
     /** @return true iff action has appropriate annotation. */
     def hasFinalParamsAnnotation = {
-        annotations.get(WhiskAction.finalParamsAnnotationName) map {
-            case JsBoolean(b) => b
-            case _            => false
-        } getOrElse false
+        annotations.asBool(WhiskAction.finalParamsAnnotationName) getOrElse false
     }
+
+    /** @return a Set of immutable parameternames */
+    def immutableParameters = if (hasFinalParamsAnnotation) {
+        parameters.definedParameters
+    } else Set.empty[String]
 
     /**
      * Merges parameters (usually from package) with existing action parameters.
