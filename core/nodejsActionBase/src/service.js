@@ -63,6 +63,7 @@ function NodeActionService(config, logger) {
             var host = server.address().address;
             var port = server.address().port;
         });
+        server.timeout = 0; // disable automatic timeouts
     }
 
     /** Returns a promise of a response to the /init invocation.

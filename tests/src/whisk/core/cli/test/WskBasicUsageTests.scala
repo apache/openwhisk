@@ -348,7 +348,7 @@ class WskBasicUsageTests
             }
     }
 
-    it should "invoke an action that exits during init and get appropriate error" in withAssetCleaner(wskprops) {
+    it should "invoke an action that exits during initialization and get appropriate error" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "abort init"
             assetHelper.withCleaner(wsk.action, name) {
@@ -511,14 +511,13 @@ class WskBasicUsageTests
             }
     }
 
-    it should s"invoke an action that returns a result by the deadline" in withAssetCleaner(wskprops) {
+    it should "invoke an action that returns a result by the deadline" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "deadline"
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("helloDeadline.js")), timeout = Some(3 seconds))
             }
 
-            val start = Instant.now(Clock.systemUTC()).toEpochMilli
             val run = wsk.action.invoke(name)
             withActivation(wsk.activation, run) {
                 activation =>
@@ -527,7 +526,7 @@ class WskBasicUsageTests
             }
     }
 
-    it should s"invoke an action twice, where the first times out but the second does not and should succeed" in withAssetCleaner(wskprops) {
+    it should "invoke an action twice, where the first times out but the second does not and should succeed" in withAssetCleaner(wskprops) {
         // this test issues two activations: the first is forced to time out and not return a result by its deadline (ie it does not resolve
         // its promise). The invoker should reclaim its container so that a second activation of the same action (which must happen within a
         // short period of time (seconds, not minutes) is allocated a fresh container and hence runs as expected (vs. hitting in the container
