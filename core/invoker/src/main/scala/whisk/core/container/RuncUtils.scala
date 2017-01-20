@@ -60,7 +60,7 @@ object RuncUtils extends Logging {
      *  Any global flags are added here.
      */
     private def getRuncCmd(): Seq[String] = {
-        val runcBin = "/usr/bin/runc"
+        val runcBin = "/usr/bin/docker-runc"
         Seq(runcBin)
     }
 

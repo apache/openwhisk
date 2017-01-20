@@ -32,7 +32,7 @@
         --userns=host
         --privileged
         -v /sys/fs/cgroup:/sys/fs/cgroup
-        -v /usr/bin/runc:/usr/bin/runc
+        -v /usr/bin/docker-runc:/usr/bin/docker-runc
         -v /run/runc:/run/runc
         --name invoker{{play_hosts.index(inventory_hostname)}}
         --hostname invoker{{play_hosts.index(inventory_hostname)}}
