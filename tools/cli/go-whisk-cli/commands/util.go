@@ -179,9 +179,11 @@ func getJSONFromStrings(content []string, keyValueFormat bool) (interface{}, err
     whisk.Debug(whisk.DbgInfo, "Convert content to JSON: %#v\n", content)
 
     for i := 0; i < len(content); i++ {
-        if err := json.Unmarshal([]byte(content[i]), &data); err != nil {
-            whisk.Debug(whisk.DbgError, "Invalid JSON detected for '%s'\n", content[i])
-            return whisk.KeyValueArr{}, err
+        dc := json.NewDecoder(strings.NewReader(content[i]))
+        dc.UseNumber()
+        if err := dc.Decode(&data); err!=nil {
+            whisk.Debug(whisk.DbgError, "Invalid JSON detected for '%s' \n", content[i])
+            return whisk.KeyValueArr{} , err
         }
 
         whisk.Debug(whisk.DbgInfo, "Created map '%v' from '%v'\n", data, content[i])
