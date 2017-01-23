@@ -38,15 +38,13 @@ class Whisk {
     private class func postSyncronish(uriPath path: String, params : [String:Any]) -> [String:Any] {
         var response : [String:Any]!
         
+        let queue = DispatchQueue.global()
         let invokeGroup = DispatchGroup()
+        
         invokeGroup.enter()
-        
-        let queue = DispatchQueue(label: "com.ibm.openwhisk.post.queue" , qos: DispatchQoS.userInitiated, attributes:.concurrent, autoreleaseFrequency: .inherit, target: nil)
-        
         queue.async {
-            post(uriPath: path, params: params) { result in
+            post(uriPath: path, params: params, group: invokeGroup) { result in
                 response = result
-                invokeGroup.leave()
             }
         }
         
@@ -67,7 +65,7 @@ class Whisk {
      * Initialize with host, port and authKey determined from environment variables
      * __OW_API_HOST and __OW_API_KEY, respectively
      */
-    private class func initializeCommunication() -> (host : String, port : Int16, authKey : String) {
+    private class func initializeCommunication() -> (httpType: String, host : String, port : Int16, authKey : String) {
         let env = ProcessInfo.processInfo.environment
         
         var edgeHost : String!
@@ -77,10 +75,27 @@ class Whisk {
             fatalError("__OW_API_HOST environment variable was not set.")
         }
         
-        let hostComponents = edgeHost.components(separatedBy: ":")
+        var protocolIndex = edgeHost.startIndex
+        
+        //default to https
+        var httpType = "https://"
+        var port : Int16 = 443
+        
+        // check if protocol is included in environment variable
+        if edgeHost.hasPrefix("https://") {
+            protocolIndex = edgeHost.index(edgeHost.startIndex, offsetBy: 8)
+        } else if edgeHost.hasPrefix("http://") {
+            protocolIndex = edgeHost.index(edgeHost.startIndex, offsetBy: 7)
+            httpType = "http://"
+            port = 80
+        }
+        
+        let hostname = edgeHost.substring(from: protocolIndex)
+        let hostComponents = hostname.components(separatedBy: ":")
+        
         let host = hostComponents[0]
         
-        var port : Int16 = 80
+        
         if hostComponents.count == 2 {
             port = Int16(hostComponents[1])!
         }
@@ -90,12 +105,14 @@ class Whisk {
             authKey = authKeyEnv
         }
         
-        return (host, port, authKey)
+        return (httpType, host, port, authKey)
     }
     
     // actually do the POST call to the specified OpenWhisk URI path
-    private class func post(uriPath: String, params : [String:Any], callback : @escaping([String:Any]) -> Void) {
+    private class func post(uriPath: String, params : [String:Any], group: DispatchGroup, callback : @escaping([String:Any]) -> Void) {
         let communicationDetails = initializeCommunication()
+        
+        print("Whisk.post: communication details \(communicationDetails)")
         
         let loginData: Data = communicationDetails.authKey.data(using: String.Encoding.utf8, allowLossyConversion: false)!
         let base64EncodedAuthKey  = loginData.base64EncodedString(options: NSData.Base64EncodingOptions(rawValue: 0))
@@ -104,7 +121,7 @@ class Whisk {
                        "Authorization" : "Basic \(base64EncodedAuthKey)"]
         
         // TODO vary the schema based on the port?
-        let requestOptions = [ClientRequest.Options.schema("https://"),
+        let requestOptions = [ClientRequest.Options.schema(communicationDetails.httpType),
                               ClientRequest.Options.method("post"),
                               ClientRequest.Options.hostname(communicationDetails.host),
                               ClientRequest.Options.port(communicationDetails.port),
@@ -113,15 +130,18 @@ class Whisk {
                               ClientRequest.Options.disableSSLVerification]
         
         let request = HTTP.request(requestOptions) { response in
+            
+            // exit group after we are done
+            defer {
+                group.leave()
+            }
+            
             if response != nil {
                 do {
                     // this is odd, but that's just how KituraNet has you get
                     // the response as NSData
                     var jsonData = Data()
                     try response!.readAllData(into: &jsonData)
-                    
-                    //let resp = try JSONSerialization.jsonObject(with: jsonData, options: [])
-                    //callback(resp as! [String:Any])
                     
                     switch WhiskJsonUtils.getJsonType(jsonData: jsonData) {
                     case .Dictionary:
@@ -141,6 +161,7 @@ class Whisk {
                     case .Undefined:
                         callback(["error": "Could not parse a valid JSON response."])
                     }
+                    
                 } catch {
                     callback(["error": "Could not parse a valid JSON response."])
                 }
@@ -155,7 +176,74 @@ class Whisk {
             request.end()
         } else {
             callback(["error": "Could not parse parameters."])
+            group.leave()
         }
+        
+    }
+    
+    /* 
+        this function is currently unused but ready when we want to switch to using URLSession instead of KituraNet
+    */
+ 
+    private class func postUrlSession(uriPath: String, params : [String:Any], group: DispatchGroup, callback : @escaping([String:Any]) -> Void) {
+        let communicationDetails = initializeCommunication()
+        
+        let urlStr = "\(communicationDetails.httpType)\(communicationDetails.host):\(communicationDetails.port)\(uriPath)"
+        
+        if let url = URL(string: urlStr) {
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            
+            do {
+                request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+                request.httpBody = try JSONSerialization.data(withJSONObject: params)
+                
+                let loginData: Data = communicationDetails.authKey.data(using: String.Encoding.utf8, allowLossyConversion: false)!
+                let base64EncodedAuthKey  = loginData.base64EncodedString(options: NSData.Base64EncodingOptions(rawValue: 0))
+                request.addValue("Basic \(base64EncodedAuthKey)", forHTTPHeaderField: "Authorization")
+                
+                let session = URLSession(configuration: URLSessionConfiguration.default)
+                
+                let task = session.dataTask(with: request, completionHandler: {data, response, error -> Void in
+                    
+                    // exit group after we are done
+                    defer {
+                        group.leave()
+                    }
+                    
+                    print("Got response")
+                    if let error = error {
+                        callback(["error":error.localizedDescription])
+                    } else {
+                        
+                        if let data = data {
+                            do {
+                                let respJson = try JSONSerialization.jsonObject(with: data)
+                                if respJson is [String:Any] {
+                                    callback(respJson as! [String:Any])
+                                } else {
+                                    callback(["error":" response from server is not a dictionary"])
+                                    
+                                }
+                            } catch {
+                                callback(["error":"Error creating json from response: \(error)"])
+                                
+                            }
+                        }
+                    }
+                    
+                    
+                })
+                
+                task.resume()
+                
+            } catch {
+                callback(["error":"Got error creating params body: \(error)"])
+                
+            }
+            
+        }
+        
         
     }
     

@@ -24,11 +24,9 @@ import spray.json.JsString
 import spray.json.JsValue
 import spray.json.RootJsonFormat
 import spray.json.deserializationError
-import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.database.ArtifactStore
 import whisk.core.database.DocumentFactory
-import whisk.core.database.NoDocumentException
 
 /**
  * A WhiskAuth provides an abstraction of the meta-data
@@ -68,8 +66,6 @@ case class WhiskAuth(
 
 object WhiskAuth extends DocumentFactory[WhiskAuth] {
 
-    private val viewName = "subjects/uuids"
-
     implicit val serdes = new RootJsonFormat[WhiskAuth] {
         def write(w: WhiskAuth) = w.toJson
 
@@ -88,51 +84,5 @@ object WhiskAuth extends DocumentFactory[WhiskAuth] {
         implicit transid: TransactionId): Future[Identity] = {
         implicit val ec = datastore.executionContext
         super.get(datastore, DocId(subject.asString), fromCache = fromCache).map(_.toIdentity)
-    }
-
-    def get(datastore: ArtifactStore[WhiskAuth], uuid: UUID)(
-        implicit transid: TransactionId): Future[WhiskAuth] = {
-        implicit val logger: Logging = datastore
-        implicit val ec = datastore.executionContext
-
-        // it is assumed that there exists at most one record matching the uuid
-        // hence it is safe to cache the result of this query result since a put
-        // on the auth record will invalidate the cached query result as well
-        cacheLookup(uuid, {
-            list(datastore, uuid) map { list =>
-                list.length match {
-                    case 1 =>
-                        val row = list(0)
-                        row.getFields("id", "value") match {
-                            case Seq(JsString(id), JsObject(key)) =>
-                                val subject = Subject(id)
-                                val JsString(secret) = key("secret")
-                                WhiskAuth(subject, AuthKey(uuid, Secret(secret)))
-                            case _ =>
-                                logger.error(this, s"$viewName[$uuid] has malformed view '${row.compactPrint}'")
-                                throw new IllegalStateException("auth view malformed")
-                        }
-                    case 0 =>
-                        logger.info(this, s"$viewName[$uuid] does not exist")
-                        throw new NoDocumentException("uuid does not exist")
-                    case _ =>
-                        logger.error(this, s"$viewName[$uuid] is not unique")
-                        throw new IllegalStateException("uuid is not unique")
-                }
-            }
-        })
-    }
-
-    def list(datastore: ArtifactStore[WhiskAuth], uuid: UUID)(
-        implicit transid: TransactionId): Future[List[JsObject]] = {
-        val key = List(uuid.toString)
-        datastore.query(viewName,
-            startKey = key,
-            endKey = key,
-            skip = 0,
-            limit = 2,
-            includeDocs = false,
-            descending = true,
-            reduce = false)
     }
 }

@@ -40,12 +40,12 @@ import whisk.core.database.NoDocumentException
 import whisk.core.entity.DocId
 import whisk.core.entity.DocInfo
 import whisk.core.entity.EntityPath
-import whisk.core.entity.UUID
-import whisk.core.entity.WhiskAuth
+import whisk.core.entity.Identity
 import whisk.core.entity.WhiskDocument
 import whisk.core.entity.WhiskEntityQueries
 import whisk.core.entity.types.AuthStore
 import whisk.core.entity.types.EntityStore
+import whisk.core.entity.AuthKey
 
 /**
  * WARNING: the put/get/del operations in this trait operate directly on the datastore,
@@ -125,10 +125,10 @@ trait DbUtils extends TransactionCounter {
      * Wait on view for the authentication table. This is like the other waitOnViews but
      * specific to the WhiskAuth records.
      */
-    def waitOnView(db: AuthStore, uuid: UUID, count: Int)(
+    def waitOnView(db: AuthStore, authkey: AuthKey, count: Int)(
         implicit context: ExecutionContext, transid: TransactionId, timeout: Duration) = {
         val success = retry(() => {
-            WhiskAuth.list(db, uuid) map { l =>
+            Identity.list(db, authkey) map { l =>
                 if (l.length != count) {
                     throw RetryOp()
                 } else true

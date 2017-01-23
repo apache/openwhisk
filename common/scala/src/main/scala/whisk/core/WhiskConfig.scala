@@ -113,6 +113,8 @@ class WhiskConfig(
     val triggerFirePerMinuteLimit = this(WhiskConfig.triggerFirePerMinuteDefaultLimit, WhiskConfig.triggerFirePerMinuteLimit)
     val actionInvokeSystemOverloadLimit = this(WhiskConfig.actionInvokeSystemOverloadDefaultLimit, WhiskConfig.actionInvokeSystemOverloadLimit)
     val actionSequenceLimit = this(WhiskConfig.actionSequenceDefaultLimit)
+
+    val systemKey = this(WhiskConfig.systemKey)
 }
 
 object WhiskConfig extends Logging {
@@ -144,7 +146,7 @@ object WhiskConfig extends Logging {
     def readPropertiesFromConsul(properties: scala.collection.mutable.Map[String, String])(implicit system: ActorSystem) = {
         //try to get consulServer prop
         val consulString = for {
-            server <- properties.get(consulServerHost).filter(_ != null)
+            server <- properties.get(consulServerHost).filter(s => s != null && s.trim.nonEmpty)
             port <- properties.get(consulPort).filter(_ != null)
         } yield server + ":" + port
 
@@ -283,4 +285,6 @@ object WhiskConfig extends Logging {
     val actionInvokeConcurrentLimit = "limits.actions.invokes.concurrent"
     val actionInvokeSystemOverloadLimit = "limits.actions.invokes.concurrentInSystem"
     val triggerFirePerMinuteLimit = "limits.triggers.fires.perMinute"
+
+    val systemKey = "whisk.system.key"
 }

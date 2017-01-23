@@ -356,7 +356,7 @@ The package includes the following actions.
 | `/whisk.system/watson-translator/translator` | action | payload, translateFrom, translateTo, translateParam, username, password | Translate text |
 | `/whisk.system/watson-translator/languageId` | action | payload, username, password | Identify language |
 
-**Note**: The package `/whisk.system/watson` is depracted including the actions `/whisk.system/watson/translate` and `/whisk.system/watson/languageId`.
+**Note**: The package `/whisk.system/watson` is deprecated including the actions `/whisk.system/watson/translate` and `/whisk.system/watson/languageId`.
 
 #### Setting up the Watson Translator package in Bluemix
 
@@ -461,7 +461,7 @@ The package includes the following actions.
 | `/whisk.system/watson-textToSpeech` | package | username, password | Package to convert text into speech |
 | `/whisk.system/watson-textToSpeech/textToSpeech` | action | payload, voice, accept, encoding, username, password | Convert text into audio |
 
-**Note**: The package `/whisk.system/watson` is depracted including the action `/whisk.system/watson/textToSpeech`.
+**Note**: The package `/whisk.system/watson` is deprecated including the action `/whisk.system/watson/textToSpeech`.
 
 #### Setting up the Watson Text to Speech package in Bluemix
 
@@ -544,7 +544,7 @@ The package includes the following actions.
 | `/whisk.system/watson-speechToText` | package | username, password | Package to convert speech into text |
 | `/whisk.system/watson-speechToText/speechToText` | action | payload, content_type, encoding, username, password, continuous, inactivity_timeout, interim_results, keywords, keywords_threshold, max_alternatives, model, timestamps, watson-token, word_alternatives_threshold, word_confidence, X-Watson-Learning-Opt-Out | Convert audio into text |
 
-**Note**: The package `/whisk.system/watson` is depracted including the action `/whisk.system/watson/speechToText`.
+**Note**: The package `/whisk.system/watson` is deprecated including the action `/whisk.system/watson/speechToText`.
 
 #### Setting up the Watson Speech to Text package in Bluemix
 

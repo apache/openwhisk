@@ -60,23 +60,29 @@ $WSK_CLI -i --apihost "$APIHOST" package update --auth "$AUTH"  --shared no "$NA
 
 echo Installing routemgmt actions
 $WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" "$NAMESPACE/routemgmt/createRoute" "$OPENWHISK_HOME/core/routemgmt/createRoute.js" \
--a description 'Create an API route'
+-a description 'Create an API route' \
+-a final true
 
 $WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" "$NAMESPACE/routemgmt/createApi" "$OPENWHISK_HOME/core/routemgmt/createApi.js" \
--a description 'Create an API configuration'
+-a description 'Create an API configuration' \
+-a final true
 
 $WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" "$NAMESPACE/routemgmt/deleteApi" "$OPENWHISK_HOME/core/routemgmt/deleteApi.js" \
--a description 'Delete the specified API configuration'
+-a description 'Delete the specified API configuration' \
+-a final true
 
 $WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" "$NAMESPACE/routemgmt/getApi" "$OPENWHISK_HOME/core/routemgmt/getApi.js" \
--a description 'Retrieve the specified API configuration (in JSON format)'
+-a description 'Retrieve the specified API configuration (in JSON format)' \
+-a final true
 
 $WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" "$NAMESPACE/routemgmt/activateApi" "$OPENWHISK_HOME/core/routemgmt/activateApi.js" \
--a description 'Activate the specified API'
+-a description 'Activate the specified API' \
+-a final true
 
 $WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" "$NAMESPACE/routemgmt/deactivateApi" "$OPENWHISK_HOME/core/routemgmt/deactivateApi.js" \
--a description 'Deactivate the specified API'
+-a description 'Deactivate the specified API' \
+-a final true
 
 $WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" "$NAMESPACE/routemgmt/syncApi" "$OPENWHISK_HOME/core/routemgmt/syncApi.js" \
--a description 'Synchronize the API configuration with the API gateway'
-
+-a description 'Synchronize the API configuration with the API gateway' \
+-a final true

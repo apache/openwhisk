@@ -82,8 +82,9 @@ trait WskTestHelpers extends Matchers {
             test(wskprops, new AssetCleaner(assetsToDeleteAfterTest, wskprops))
         } catch {
             case t: Throwable =>
-                // log the exception that occurred in the test
+                // log the exception that occurred in the test and rethrow it
                 println(s"Exception occurred during test execution: $t")
+                throw t
         } finally {
             // delete assets in reverse order so that was created last is deleted first
             val deletedAll = assetsToDeleteAfterTest.reverse map {
@@ -206,7 +207,7 @@ trait WskTestHelpers extends Matchers {
                 implicit wskprops: WskProps): Unit = {
 
         val activationIds = wsk.pollFor(N, Some(entity), since = since, retries = (totalWait / pollPeriod).toInt, pollPeriod = pollPeriod)
-        withClue(s"did not find $N activations for $entity since $since") {
+        withClue(s"expecting $N activations matching '$entity' name since $since but found ${activationIds.mkString(",")} instead") {
             activationIds.length shouldBe N
         }
 

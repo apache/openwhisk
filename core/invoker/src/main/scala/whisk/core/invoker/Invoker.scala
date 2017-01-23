@@ -111,6 +111,9 @@ class Invoker(
         // if the doc revision is missing, then bypass cache
         WhiskAction.get(entityStore, actionid.id, actionid.rev, fromCache = actionid.rev != DocRevision()) onComplete {
             case Success(action) =>
+                // only Exec instances that are subtypes of CodeExec reach the invoker
+                assume(action.exec.isInstanceOf[CodeExec[_]])
+
                 invokeAction(tran, action) onComplete {
                     case Success(activation) =>
                         transactionPromise.completeWith {
@@ -196,7 +199,7 @@ class Invoker(
                 val activationResult = sendActiveAck(tran, action, failedInit, result)
 
                 // after sending active ack, drain logs and return container
-                val contents = getContainerLogs(con, action.exec.sentinelledLogs, action.limits.logs)
+                val contents = getContainerLogs(con, action.exec.asInstanceOf[CodeExec[_]].sentinelledLogs, action.limits.logs)
 
                 Future {
                     // Force delete the container instead of just pausing it iff the initialization failed or the container
@@ -226,7 +229,7 @@ class Invoker(
             val boundParams = action.parameters.toJsObject
             val params = JsObject(boundParams.fields ++ payload.fields)
             val timeout = action.limits.timeout.duration
-            con.run(msg, params,  timeout)
+            con.run(msg, params, timeout)
         }
 
         initResultOpt match {

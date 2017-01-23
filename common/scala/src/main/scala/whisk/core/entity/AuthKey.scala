@@ -67,7 +67,7 @@ protected[core] object AuthKey {
      * @throws IllegalArgumentException if argument is not well formed
      */
     @throws[IllegalArgumentException]
-    protected[entity] def apply(str: String): AuthKey = {
+    protected[core] def apply(str: String): AuthKey = {
         val (k, v) = split(str)
         new AuthKey(UUID(k), Secret(v))
     }

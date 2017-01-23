@@ -29,6 +29,7 @@ import spray.json.DefaultJsonProtocol._
 import whisk.core.controller.WhiskActivationsApi
 import whisk.core.entity._
 import whisk.http.ErrorResponse
+import whisk.http.Messages
 
 /**
  * Tests Activations API.
@@ -342,11 +343,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
 
         Get(s"$collectionPath/${entity.name}") ~> sealRoute(routes(creds)) ~> check {
             status should be(InternalServerError)
-            val error = responseAs[ErrorResponse].error
-            error should include("missing required member")
-            Seq(entity.name.asString, "annotations", "parameters", "exec", "trigger", "action", "rules", "binding", "response").map {
-                error should not include (_)
-            }
+            responseAs[ErrorResponse].error shouldBe Messages.corruptedEntity
         }
     }
 }

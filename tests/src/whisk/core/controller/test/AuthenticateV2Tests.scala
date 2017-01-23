@@ -29,7 +29,6 @@ import whisk.core.entity.WhiskAuthV2
 import whisk.core.entity.WhiskNamespace
 import whisk.core.entitlement.Privilege
 import whisk.core.entity.Identity
-import whisk.core.entity.Util
 
 /**
  * Tests authentication handler which guards API.
@@ -45,8 +44,6 @@ import whisk.core.entity.Util
  */
 @RunWith(classOf[JUnitRunner])
 class AuthenticateV2Tests extends ControllerTestCommon with Authenticate {
-    // Interface to store WhiskAuthV2 entries
-    val authStoreV2 = Util.makeStore[WhiskAuthV2](whiskConfig, _.dbAuths)
 
     // Creates a new unique name each time its called
     def aname = MakeName.next("authenticatev2_tests")

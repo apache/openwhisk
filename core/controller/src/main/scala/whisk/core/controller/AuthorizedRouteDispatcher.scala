@@ -23,14 +23,12 @@ import scala.util.Success
 import scala.util.Try
 
 import spray.http.HttpMethod
-import spray.http.StatusCodes.Forbidden
 import spray.http.StatusCodes.InternalServerError
 import spray.routing.Directive1
 import spray.routing.Directives
 import spray.routing.RequestContext
 import whisk.common.Logging
 import whisk.common.TransactionId
-import whisk.core.entity.EntityPath
 import whisk.core.entitlement._
 import whisk.core.entitlement.Privilege.Privilege
 import whisk.core.entitlement.Resource
@@ -67,18 +65,16 @@ trait BasicAuthorizedRouteProvider extends Directives with Logging {
         val right = collection.determineRight(method, resource.entity)
 
         onComplete(entitlementProvider.check(user, right, resource)) {
-            case Success(true) => dispatchOp(user, right, resource)
-            case t             => handleEntitlementFailure(t)
+            case Success(_) => dispatchOp(user, right, resource)
+            case Failure(t) => handleEntitlementFailure(t)
         }
     }
 
-    protected def handleEntitlementFailure(failure: Try[Boolean])(
+    protected def handleEntitlementFailure(failure: Throwable)(
         implicit transid: TransactionId): RequestContext => Unit = {
         failure match {
-            case Success(false)            => terminate(Forbidden)
-            case Failure(r: RejectRequest) => terminate(r.code, r.message)
-            case Failure(t)                => terminate(InternalServerError, t.getMessage)
-            case _ /*Success(true)*/       => terminate(InternalServerError, "Should not reach here.")
+            case (r: RejectRequest) => terminate(r.code, r.message)
+            case t                  => terminate(InternalServerError)
         }
     }
 

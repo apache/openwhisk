@@ -49,6 +49,7 @@ import whisk.http.ErrorResponse
 import whisk.http.ErrorResponse.terminate
 import whisk.http.Messages._
 import spray.http.StatusCode
+import whisk.core.database.ArtifactStoreException
 
 /** An exception to throw inside a Predicate future. */
 protected[core] case class RejectRequest(code: StatusCode, message: Option[ErrorResponse]) extends Throwable {
@@ -132,7 +133,7 @@ trait ReadOps extends Directives with Logging {
                 complete(OK, entities)
             case Failure(t: Throwable) =>
                 error(this, s"[LIST] entity failed: ${t.getMessage}")
-                terminate(InternalServerError, t.getMessage)
+                terminate(InternalServerError)
         }
     }
 
@@ -168,9 +169,12 @@ trait ReadOps extends Directives with Logging {
             case Failure(t: DocumentTypeMismatchException) =>
                 info(this, s"[GET] entity conformance check failed: ${t.getMessage}")
                 terminate(Conflict, conformanceMessage)
+            case Failure(t: ArtifactStoreException) =>
+                info(this, s"[GET] entity unreadable")
+                terminate(InternalServerError, t.getMessage)
             case Failure(t: Throwable) =>
                 error(this, s"[GET] entity failed: ${t.getMessage}")
-                terminate(InternalServerError, t.getMessage)
+                terminate(InternalServerError)
         }
     }
 
@@ -205,9 +209,12 @@ trait ReadOps extends Directives with Logging {
             case Failure(t: DocumentTypeMismatchException) =>
                 info(this, s"[PROJECT] entity conformance check failed: ${t.getMessage}")
                 terminate(Conflict, conformanceMessage)
+            case Failure(t: ArtifactStoreException) =>
+                info(this, s"[PROJECT] entity unreadable")
+                terminate(InternalServerError, t.getMessage)
             case Failure(t: Throwable) =>
                 error(this, s"[PROJECT] entity failed: ${t.getMessage}")
-                terminate(InternalServerError, t.getMessage)
+                terminate(InternalServerError)
         }
     }
 }
@@ -293,9 +300,12 @@ trait WriteOps extends Directives with Logging {
             case Failure(t: DocumentTypeMismatchException) =>
                 info(this, s"[PUT] entity conformance check failed: ${t.getMessage}")
                 terminate(Conflict, conformanceMessage)
+            case Failure(t: ArtifactStoreException) =>
+                info(this, s"[PUT] entity unreadable")
+                terminate(InternalServerError, t.getMessage)
             case Failure(t: Throwable) =>
                 error(this, s"[PUT] entity failed: ${t.getMessage}")
-                terminate(InternalServerError, t.getMessage)
+                terminate(InternalServerError)
         }
     }
 
@@ -346,9 +356,12 @@ trait WriteOps extends Directives with Logging {
             case Failure(t: DocumentTypeMismatchException) =>
                 info(this, s"[DEL] entity conformance check failed: ${t.getMessage}")
                 terminate(Conflict, conformanceMessage)
+            case Failure(t: ArtifactStoreException) =>
+                info(this, s"[DEL] entity unreadable")
+                terminate(InternalServerError, t.getMessage)
             case Failure(t: Throwable) =>
                 error(this, s"[DEL] entity failed: ${t.getMessage}")
-                terminate(InternalServerError, t.getMessage)
+                terminate(InternalServerError)
         }
     }
 }

@@ -29,20 +29,18 @@ import common.WskProps
 import common.WskTestHelpers
 import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json.pimpAny
-import common.JsHelpers
 
 @RunWith(classOf[JUnitRunner])
 class Swift3WhiskObjectTests
     extends TestHelpers
-    with WskTestHelpers
-    with JsHelpers {
+    with WskTestHelpers {
 
     implicit val wskprops = WskProps()
     val wsk = new Wsk
 
     behavior of "Swift 3 Whisk backend API"
 
-    ignore should "allow Swift actions to invoke other actions" in withAssetCleaner(wskprops) {
+    it should "allow Swift actions to invoke other actions" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             // use CLI to create action from dat/actions/invokeAction.swift
             val file = TestUtils.getTestActionFilename("invoke.swift")
@@ -66,7 +64,7 @@ class Swift3WhiskObjectTests
             }
     }
 
-    ignore should "allow Swift actions to trigger events" in withAssetCleaner(wskprops) {
+    it should "allow Swift actions to trigger events" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             // create a trigger
             val triggerName = s"TestTrigger ${System.currentTimeMillis()}"

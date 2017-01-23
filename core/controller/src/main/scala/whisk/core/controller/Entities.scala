@@ -129,7 +129,7 @@ trait WhiskCollectionAPI
                             terminate(r.code, r.message)
                         case Failure(t) =>
                             error(this, s"[LIST] namespaces lookup failed: ${t.getMessage}")
-                            terminate(InternalServerError, t.getMessage)
+                            terminate(InternalServerError)
 
                     }
                 case _ => reject

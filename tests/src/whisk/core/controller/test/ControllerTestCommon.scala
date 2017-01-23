@@ -18,6 +18,7 @@ package whisk.core.controller.test
 
 import scala.concurrent.{ Await, Future }
 import scala.concurrent.duration.{ DurationInt, FiniteDuration }
+import scala.concurrent.ExecutionContext
 import scala.language.postfixOps
 
 import org.scalatest.BeforeAndAfter
@@ -25,7 +26,7 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 
-import akka.event.Logging.{ InfoLevel, LogLevel }
+import akka.event.Logging.{ ErrorLevel, InfoLevel, LogLevel }
 import spray.http.BasicHttpCredentials
 import spray.json.DefaultJsonProtocol
 import spray.json.JsString
@@ -80,12 +81,15 @@ protected trait ControllerTestCommon
     val entityStore = WhiskEntityStore.datastore(whiskConfig)
     val activationStore = WhiskActivationStore.datastore(whiskConfig)
     val authStore = WhiskAuthStore.datastore(whiskConfig)
+    val authStoreV2 = WhiskAuthV2Store.datastore(whiskConfig)
 
     def createTempCredentials(implicit transid: TransactionId) = {
-        val auth = WhiskAuth(Subject(), AuthKey())
-        put(authStore, auth)
-        waitOnView(authStore, auth.uuid, 1)
-        (auth, BasicHttpCredentials(auth.uuid.asString, auth.key.asString))
+        val subject = Subject()
+        val key = AuthKey()
+        val auth = WhiskAuthV2.withDefaultNamespace(subject, key)
+        put(authStoreV2, auth)
+        waitOnView(authStore, key, 1)
+        (subject.toIdentity(key), BasicHttpCredentials(key.uuid.asString, key.key.asString))
     }
 
     def deleteAction(doc: DocId)(implicit transid: TransactionId) = {
@@ -140,12 +144,12 @@ protected trait ControllerTestCommon
         }
     }
 
-    setVerbosity(InfoLevel)
-    Collection.initialize(entityStore, InfoLevel)
-    entityStore.setVerbosity(InfoLevel)
-    activationStore.setVerbosity(InfoLevel)
-    authStore.setVerbosity(InfoLevel)
-    entitlementProvider.setVerbosity(InfoLevel)
+    setVerbosity(ErrorLevel)
+    Collection.initialize(entityStore, ErrorLevel)
+    entityStore.setVerbosity(ErrorLevel)
+    activationStore.setVerbosity(ErrorLevel)
+    authStore.setVerbosity(ErrorLevel)
+    entitlementProvider.setVerbosity(ErrorLevel)
 
     val ACTIONS = Collection(Collection.ACTIONS)
     val TRIGGERS = Collection(Collection.TRIGGERS)
@@ -159,7 +163,7 @@ protected trait ControllerTestCommon
     }
 
     override def afterAll() {
-        println("Shutting down cloudant connections");
+        println("Shutting down db connections");
         entityStore.shutdown()
         activationStore.shutdown()
         authStore.shutdown()
@@ -184,19 +188,26 @@ protected trait ControllerTestCommon
     }
 }
 
-class DegenerateLoadBalancerService(config: WhiskConfig, verbosity: LogLevel)
+class DegenerateLoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(implicit ec: ExecutionContext)
     extends LoadBalancer {
+    import scala.concurrent.blocking
 
     // unit tests that need an activation via active ack/fast path should set this to value expected
-    var whiskActivationStub: Option[WhiskActivation] = None
+    var whiskActivationStub: Option[(FiniteDuration, WhiskActivation)] = None
 
     override def getActiveUserActivationCounts: Map[String, Long] = Map()
 
-    override def publish(action: WhiskAction, msg: ActivationMessage, timeout: FiniteDuration)
-                        (implicit transid: TransactionId): (Future[Unit], Future[WhiskActivation]) =
+    override def publish(action: WhiskAction, msg: ActivationMessage, timeout: FiniteDuration)(implicit transid: TransactionId): (Future[Unit], Future[WhiskActivation]) =
         (Future.successful {},
             whiskActivationStub map {
-                activation => Future.successful(activation)
+                case (timeout, activation) => Future {
+                    blocking {
+                        println("waiting.....")
+                        Thread.sleep(timeout.toMillis)
+                        println(".... done waiting")
+                    }
+                    activation
+                }
             } getOrElse Future.failed(new IllegalArgumentException("Unit test does not need fast path")))
 
 }

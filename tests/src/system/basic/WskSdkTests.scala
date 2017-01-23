@@ -60,6 +60,9 @@ class WskSdkTests
             // confirm that the image is correct
             lines.get(1) shouldBe "FROM openwhisk/dockerskeleton"
 
+            val buildAndPushFile = new File(sdk, "buildAndPush.sh")
+            buildAndPushFile.canExecute() should be(true)
+
             // confirm there is no other divergence from the base dockerfile
             val originalDockerfile = WhiskProperties.getFileRelativeToWhiskHome("sdk/docker/Dockerfile")
             val originalLines = FileUtils.readLines(originalDockerfile)

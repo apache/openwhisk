@@ -29,7 +29,7 @@ import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 
-import akka.event.Logging.DebugLevel
+import akka.event.Logging.ErrorLevel
 import whisk.common.TransactionId
 import whisk.connector.kafka.KafkaConsumerConnector
 import whisk.connector.kafka.KafkaProducerConnector
@@ -58,8 +58,8 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
     val producer = new KafkaProducerConnector(config.kafkaHost, ec)
     val consumer = new TestKafkaConsumerConnector(config.kafkaHost, groupid, topic, sessionTimeout = sessionTimeout)
 
-    producer.setVerbosity(DebugLevel)
-    consumer.setVerbosity(DebugLevel)
+    producer.setVerbosity(ErrorLevel)
+    consumer.setVerbosity(ErrorLevel)
 
     override def afterAll() {
         producer.close()

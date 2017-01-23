@@ -14,31 +14,25 @@
  * limitations under the License.
  */
 
+// This is a copy of the JsHelpers as a trait to allow
+// catalog tests to still work until they are migrated
 package common
-
-import scala.language.postfixOps
-import scala.util.Try
 
 import spray.json.JsObject
 import spray.json.JsValue
 
+/**
+ * @deprecated Use {@link whisk.common.JsHelpers} instead.
+ */
+@Deprecated
 trait JsHelpers {
     implicit class JsObjectHelper(js: JsObject) {
         def getFieldPath(path: String*): Option[JsValue] = {
-            if (path.size == 1) {
-                Try {
-                    js.fields(path(0))
-                } toOption
-            } else if (js.getFields(path(0)).size > 0) {
-                // current segment exists, but there are more...
-                js.fields(path(0)).asJsObject.getFieldPath(path.tail: _*)
-            } else {
-                None
-            }
+            whisk.utils.JsHelpers.getFieldPath(js, path.toList)
         }
 
         def fieldPathExists(path: String*): Boolean = {
-            !js.getFieldPath(path: _*).isEmpty
+            whisk.utils.JsHelpers.fieldPathExists(js, path.toList)
         }
     }
 }
