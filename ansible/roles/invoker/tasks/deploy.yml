@@ -32,8 +32,9 @@
         --userns=host
         --privileged
         -v /sys/fs/cgroup:/sys/fs/cgroup
-        -v /usr/bin/docker-runc:/usr/bin/docker-runc
         -v /run/runc:/run/runc
+        -v /usr/bin/docker-runc:/usr/bin/docker-runc
+        -v /usr/lib/x86_64-linux-gnu/libapparmor.so.1:/usr/lib/x86_64-linux-gnu/libapparmor.so.1
         --name invoker{{play_hosts.index(inventory_hostname)}}
         --hostname invoker{{play_hosts.index(inventory_hostname)}}
         --restart {{ docker.restart.policy }}
@@ -51,6 +52,7 @@
         --userns host
         {{docker_registry}}{{ docker_image_prefix }}/invoker:{{docker_image_tag}}
         /bin/sh -c "/invoker/bin/invoker {{play_hosts.index(inventory_hostname)}} >> /logs/invoker{{play_hosts.index(inventory_hostname)}}_logs.log 2>&1"
+  register: invokerOutput
 
 # todo: re-enable docker_container module once https://github.com/ansible/ansible-modules-core/issues/5054 is resolved
 
