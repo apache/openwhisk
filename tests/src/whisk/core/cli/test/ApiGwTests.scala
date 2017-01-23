@@ -176,7 +176,8 @@ class ApiGwTests
         println("list stdout: "+rr.stdout)
         println("list stderr: "+rr.stderr)
         rr.stdout should include("ok: APIs")
-        rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+        // Actual CLI namespace will vary from local dev to automated test environments, so don't check
+        rr.stdout should include regex (s"/[@\\w._\\-]+/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
         rr.stdout should include(testbasepath + testrelpath)
       }
       finally {
