@@ -98,6 +98,12 @@ function main(message) {
   })
   .catch(function(reason) {
     console.error('API GW failure: '+JSON.stringify(reason));
+    // Special case handling
+    // If no tenant id found, then just return an empty list of APIs
+    if ( (typeof reason === 'string') && (reason.indexOf('No Tenant found') !== -1) ) {
+      console.log('Namespace has no tenant id yet; returning empty list of APIs');
+      return Promise.resolve( { apis: utils.generateCliResponse([]) } );
+    }
     return Promise.reject(reason);
   });
 }

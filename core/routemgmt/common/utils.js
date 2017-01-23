@@ -128,7 +128,8 @@ function getTenants(gwInfo, ns, tenantInstance) {
               resolve(bodyJson);
             } else {
               console.error('getTenants: Invalid API GW response body; a JSON array was not returned');
-              reject('Internal error. Invalid API Gateway response: Not an array');
+              // FIXME MWD reject('Internal error. Invalid API Gateway response: Not an array');
+              resolve( [] );  // FIXME MWD Hack until https://github.com/openwhisk/apigateway/issues/59 is fixed
             }
           } catch(e) {
             console.error('getTenants: Invalid API GW response body; JSON.parse() failure: '+e);

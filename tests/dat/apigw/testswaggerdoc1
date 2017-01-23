@@ -1,12 +1,12 @@
 {
     "swagger": "2.0",
-    "basePath": "/",
+    "basePath": "/CLI_APIGWTEST7_bp",
     "info": {
-        "title": "/",
+        "title": "CLI_APIGWTEST7 API Name",
         "version": "1.0.0"
     },
     "paths": {
-        "/test1": {
+        "/path": {
             "get": {
                 "responses": {
                     "default": {
@@ -14,10 +14,10 @@
                     }
                 },
                 "x-ibm-op-ext": {
-                    "actionName": "utils/echo",
-                    "actionNamespace": "whisk.system",
+                    "actionName": "CLI_APIGWTEST7_action",
+                    "actionNamespace": "guest",
                     "backendMethod": "POST",
-                    "backendUrl": "https://999.999.99.999/api/v1/namespaces/whisk.system/actions/utils/echo",
+                    "backendUrl": "https://999.999.99.999/api/v1/namespaces/guest/actions/CLI_APIGWTEST7_action",
                     "policies": [
                         {
                             "type": "reqMapping",
