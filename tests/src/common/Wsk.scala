@@ -412,7 +412,7 @@ class WskRule()
     }
 
     /**
-     * Deletes rule. Attempts to disable rule first.
+     * Deletes rule.
      *
      * @param name either a fully qualified name or a simple entity name
      * @param expectedExitCode (optional) the expected exit code for the command
@@ -422,9 +422,6 @@ class WskRule()
         name: String,
         expectedExitCode: Int = SUCCESS_EXIT)(
             implicit wp: WskProps): RunResult = {
-        val disable = Try { disableRule(name, expectedExitCode) }
-        if (expectedExitCode != DONTCARE_EXIT)
-            disable.get // throws exception
         super.delete(name, expectedExitCode)
     }
 

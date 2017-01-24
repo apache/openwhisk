@@ -181,13 +181,9 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
                 (getStatus(trigger, ruleName), trigger)
             } flatMap {
                 case (status, triggerOpt) =>
-                    if (status == Status.INACTIVE) {
-                        triggerOpt map { trigger =>
-                            WhiskTrigger.put(entityStore, trigger.removeRule(ruleName)) map { _ => {} }
-                        } getOrElse Future.successful({})
-                    } else Future failed {
-                        RejectRequest(Conflict, s"rule status is '${status}', must be '${Status.INACTIVE}' to delete")
-                    }
+                    triggerOpt map { trigger =>
+                        WhiskTrigger.put(entityStore, trigger.removeRule(ruleName)) map { _ => {} }
+                    } getOrElse Future.successful({})
             }
         }, postProcess = Some { rule: WhiskRule =>
             completeAsRuleResponse(rule, Status.INACTIVE)
@@ -275,44 +271,38 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
         val ruleName = FullyQualifiedEntityName(rule.namespace, rule.name)
         val oldTriggerName = rule.trigger
 
-        getTrigger(oldTriggerName) map {
-            trigger => (getStatus(trigger, ruleName), trigger)
-        } flatMap {
-            case (status, oldTriggerOpt) => status match {
-                case Status.INACTIVE =>
-                    val newTriggerEntity = content.trigger getOrElse rule.trigger
-                    val newTriggerName = newTriggerEntity
+        getTrigger(oldTriggerName) flatMap { oldTriggerOpt =>
+            val newTriggerEntity = content.trigger getOrElse rule.trigger
+            val newTriggerName = newTriggerEntity
 
-                    val actionEntity = content.action getOrElse rule.action
-                    val actionName = actionEntity
+            val actionEntity = content.action getOrElse rule.action
+            val actionName = actionEntity
 
-                    checkTriggerAndActionExist(newTriggerName, actionName) recoverWith {
-                        case t => Future.failed(RejectRequest(BadRequest, t))
-                    } flatMap {
-                        case (newTrigger, newAction) =>
-                            val r = WhiskRule(
-                                rule.namespace,
-                                rule.name,
-                                newTriggerEntity,
-                                actionEntity,
-                                content.version getOrElse rule.version.upPatch,
-                                content.publish getOrElse rule.publish,
-                                content.annotations getOrElse rule.annotations).
-                                revision[WhiskRule](rule.docinfo.rev)
+            checkTriggerAndActionExist(newTriggerName, actionName) recoverWith {
+                case t => Future.failed(RejectRequest(BadRequest, t))
+            } flatMap {
+                case (newTrigger, newAction) =>
+                    val r = WhiskRule(
+                        rule.namespace,
+                        rule.name,
+                        newTriggerEntity,
+                        actionEntity,
+                        content.version getOrElse rule.version.upPatch,
+                        content.publish getOrElse rule.publish,
+                        content.annotations getOrElse rule.annotations).
+                        revision[WhiskRule](rule.docinfo.rev)
 
-                            // Deletes reference from the old trigger iff it is different from the new one
-                            val deleteOldLink = for {
-                                isDifferentTrigger <- content.trigger.filter(_ => newTriggerName != oldTriggerName)
-                                oldTrigger <- oldTriggerOpt
-                            } yield {
-                                WhiskTrigger.put(entityStore, oldTrigger.removeRule(ruleName))
-                            }
-
-                            val triggerLink = ReducedRule(actionName, Status.INACTIVE)
-                            val update = WhiskTrigger.put(entityStore, newTrigger.addRule(ruleName, triggerLink))
-                            Future.sequence(Seq(deleteOldLink.getOrElse(Future.successful(true)), update)).map(_ => r)
+                    // Deletes reference from the old trigger iff it is different from the new one
+                    val deleteOldLink = for {
+                        isDifferentTrigger <- content.trigger.filter(_ => newTriggerName != oldTriggerName)
+                        oldTrigger <- oldTriggerOpt
+                    } yield {
+                        WhiskTrigger.put(entityStore, oldTrigger.removeRule(ruleName))
                     }
-                case _ => Future.failed(RejectRequest(Conflict, s"rule may not be updated while status is ${status}"))
+
+                    val triggerLink = ReducedRule(actionName, Status.INACTIVE)
+                    val update = WhiskTrigger.put(entityStore, newTrigger.addRule(ruleName, triggerLink))
+                    Future.sequence(Seq(deleteOldLink.getOrElse(Future.successful(true)), update)).map(_ => r)
             }
         }
     }
