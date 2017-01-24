@@ -57,10 +57,10 @@ import spray.json.JsValue
 class HttpUtils(httpclient: CloseableHttpClient, hostname: String, apiKey: String = "") {
 
     def dopost(endpoint: String, post: JsValue, get: Map[String, String] = Map(), timeoutMsec: Integer = 30000): (Int, Array[Byte]) =
-        doPutOrPost(endpoint, new StringEntity(post.compactPrint), get, false, timeoutMsec)
+        doPutOrPost(endpoint, new StringEntity(post.compactPrint, StandardCharsets.UTF_8), get, false, timeoutMsec)
 
     def doput(endpoint: String, put: JsValue, get: Map[String, String] = Map(), timeoutMsec: Integer = 30000): (Int, Array[Byte]) =
-        doPutOrPost(endpoint, new StringEntity(put.compactPrint), get, true, timeoutMsec)
+        doPutOrPost(endpoint, new StringEntity(put.compactPrint, StandardCharsets.UTF_8), get, true, timeoutMsec)
 
     def doget(endpoint: String, get: Map[String, String] = Map(), timeoutMsec: Integer = 10000, useHttps: Boolean = false): (Int, Array[Byte]) = {
         val uri = makeUri(endpoint, get, useHttps)
