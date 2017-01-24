@@ -120,6 +120,35 @@ class JavaActionContainerTests extends FlatSpec with Matchers with WskActorSyste
         err.trim shouldBe empty
     }
 
+    it should "handle unicode in source, input params, logs, and result" in {
+        val (out, err) = withJavaContainer { c =>
+            val jar = JarBuilder.mkBase64Jar(
+                Seq("example", "HelloWhisk.java") -> """
+                    | package example;
+                    |
+                    | import com.google.gson.JsonObject;
+                    |
+                    | public class HelloWhisk {
+                    |     public static JsonObject main(JsonObject args) {
+                    |         String delimiter = args.getAsJsonPrimitive("delimiter").getAsString();
+                    |         JsonObject response = new JsonObject();
+                    |          String str = delimiter + " ☃ " + delimiter;
+                    |          System.out.println(str);
+                    |          response.addProperty("winter", str);
+                    |          return response;
+                    |     }
+                    | }
+            """.stripMargin)
+
+            val (initCode, _) = c.init(initPayload("example.HelloWhisk", jar))
+            val (runCode, runRes) = c.run(runPayload(JsObject("delimiter" -> JsString("❄"))))
+            runRes.get.fields.get("winter") shouldBe Some(JsString("❄ ☃ ❄"))
+        }
+
+        out should include("❄ ☃ ❄")
+        err.trim shouldBe empty
+    }
+
     it should "fail to initialize with bad code" in {
         val (out, err) = withJavaContainer { c =>
             // This is valid zip file containing a single file, but not a valid

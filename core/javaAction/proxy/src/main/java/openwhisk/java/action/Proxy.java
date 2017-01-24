@@ -52,9 +52,10 @@ public class Proxy {
     }
 
     private static void writeResponse(HttpExchange t, int code, String content) throws IOException {
-        t.sendResponseHeaders(code, content.length());
+        byte[] bytes = content.getBytes("UTF-8");
+        t.sendResponseHeaders(code, bytes.length);
         OutputStream os = t.getResponseBody();
-        os.write(content.getBytes());
+        os.write(bytes);
         os.close();
     }
 
