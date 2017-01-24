@@ -607,13 +607,6 @@ class WskBasicTests
                     rule.create(name, trigger = triggerName, action = actionName)
             }
 
-            // to validate that the rule was created enabled, we do an update and expect CONFLICT
-            // (because rule updates against enabled rules must fail)
-            wsk.rule.create(ruleName, trigger = triggerName, action = actionName, update = true, expectedExitCode = CONFLICT)
-
-            // now, we disable the rule, so that we can perform the actual update
-            wsk.rule.disableRule(ruleName);
-
             // finally, we perform the update, and expect success this time
             wsk.rule.create(ruleName, trigger = triggerName, action = actionName, update = true)
 

@@ -189,7 +189,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
     }
 
     // DEL /rules/name
-    it should "reject delete rule in state active" in {
+    it should "not reject delete rule in state active" in {
         implicit val tid = transid()
 
         val rule = WhiskRule(namespace, EntityName("reject_delete_rule_active"), FullyQualifiedEntityName(namespace, aname()), afullname(namespace, "an action"))
@@ -201,10 +201,11 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         put(entityStore, rule)
 
         Delete(s"$collectionPath/${rule.name}") ~> sealRoute(routes(creds)) ~> check {
-            status should be(Conflict)
-            val response = responseAs[ErrorResponse]
-            response.error should be(s"rule status is '${Status.ACTIVE}', must be '${Status.INACTIVE}' to delete")
-            response.code.id should be >= 1L
+            deleteTrigger(trigger.docid)
+
+            status should be(OK)
+            val response = responseAs[WhiskRuleResponse]
+            response should be(rule.withStatus(Status.INACTIVE))
         }
     }
 
@@ -470,7 +471,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         }
     }
 
-    it should "update rule updating trigger and action at once" in {
+    it should "update rule with new trigger and action at once" in {
         implicit val tid = transid()
 
         val trigger = WhiskTrigger(namespace, aname())
@@ -636,20 +637,29 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         }
     }
 
-    it should "reject update rule in state active" in {
+    it should "not reject update rule in state active" in {
         implicit val tid = transid()
 
         val rule = WhiskRule(namespace, aname(), afullname(namespace, "a trigger"), afullname(namespace, "an action"))
         val trigger = WhiskTrigger(namespace, rule.trigger.name, rules = Some {
             Map(rule.fullyQualifiedName(false) -> ReducedRule(rule.action, Status.ACTIVE))
         })
-        val content = WhiskRulePut(publish = Some(!rule.publish))
+        val action = WhiskAction(namespace, aname(), Exec.js("??"))
+        val content = WhiskRulePut(Some(trigger.fullyQualifiedName(false)), Some(action.fullyQualifiedName(false)))
 
-        put(entityStore, trigger)
-        put(entityStore, rule)
+        put(entityStore, trigger, false)
+        put(entityStore, action)
+        put(entityStore, rule, false)
 
         Put(s"$collectionPath/${rule.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
-            status should be(Conflict)
+            val t = get(entityStore, trigger.docid, WhiskTrigger)
+            deleteTrigger(t.docid)
+            deleteRule(rule.docid)
+
+            status should be(OK)
+            t.rules.get(rule.fullyQualifiedName(false)).action should be(action.fullyQualifiedName(false))
+            val response = responseAs[WhiskRuleResponse]
+            response should be(WhiskRuleResponse(namespace, rule.name, Status.ACTIVE, trigger.fullyQualifiedName(false), action.fullyQualifiedName(false), version = SemVer().upPatch))
         }
     }
 
