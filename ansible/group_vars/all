@@ -123,7 +123,7 @@ catalog_auth_key: "{{ openwhisk_home }}/ansible/files/auth.whisk.system"
 #     location: <local location to save the catalog>, mandatory.
 #     version: <hash of the commit>, optional, default to HEAD.
 #     repo_update: <whether to retrieve new revisions from the origin repository>,
-#                  optional, default to yes. Yes means to retrieve the new revisions, and
+#                  optional, default to no. Yes means to retrieve the new revisions, and
 #                  no means not to retrieve the new revisions.
 #
 catalog_repos:
@@ -132,4 +132,4 @@ catalog_repos:
     # Set the local location as the same level as openwhisk home, but it can be changed.
     location: "{{ openwhisk_home }}/../openwhisk-catalog"
     version: "HEAD"
-    repo_update: "yes"
+    repo_update: "no"
