@@ -106,7 +106,7 @@ If you're not using OpenWhisk in Bluemix or if you want to set up your Cloudant 
 You can use the `changes` feed to configure a service to fire a trigger on every change to your Cloudant database. The parameters are as follows:
 
 - `dbname`: Name of Cloudant database.
-- `maxTriggers`: Stop firing triggers when this limit is reached. Defaults to 1000. You can set it to maximum 10,000. If you try to set more than 10,000, the request is rejected.
+- `maxTriggers`: Stop firing triggers when this limit is reached. Defaults to infinite.
 
 1. Create a trigger with the `changes` feed in the package binding that you created previously. Be sure to replace `/myNamespace/myCloudant` with your package name.
 
@@ -254,7 +254,7 @@ For more details about using cron syntax, see: http://crontab.org. Following are
 
 - `trigger_payload`: The value of this parameter becomes the content of the trigger every time the trigger is fired.
 
-- `maxTriggers`: Stop firing triggers when this limit is reached. Defaults to 1000. You can set it to maximum 10,000. If you try to set more than 10,000, the request is rejected.
+- `maxTriggers`: Stop firing triggers when this limit is reached. Defaults to 1,000,000. You can set it to infinite (-1).
 
 The following is an example of creating a trigger that will be fired once every 2 minutes with `name` and `place` values in the trigger event.
 
