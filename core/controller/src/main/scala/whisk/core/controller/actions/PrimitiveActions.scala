@@ -150,7 +150,7 @@ protected[actions] trait PrimitiveActions extends Logging {
                 info(this, s"[POST] switching to poll db, active ack expired")
                 pollDbForResult(docid, activationId, promise)
             case t: Throwable =>
-                error(this, s"[POST] switching to poll db, active ack exception: ${t.getMessage}")
+                info(this, s"[POST] switching to poll db, active ack exception: ${t.getMessage}")
                 pollDbForResult(docid, activationId, promise)
         }
 
@@ -194,7 +194,7 @@ protected[actions] trait PrimitiveActions extends Logging {
                     promise.tryFailure(t)
             }
         } else {
-            error(this, s"[POST] action activation timed out, terminated polling for result")
+            info(this, s"[POST] action activation timed out, terminated polling for result")
         }
     }
 }
