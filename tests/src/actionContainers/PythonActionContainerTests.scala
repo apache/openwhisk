@@ -79,6 +79,30 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
         }
     }
 
+    it should "handle unicode in source, input params, logs, and result" in {
+        val (out, err) = withActionContainer() { c =>
+            val code = """
+                |def main(dict):
+                |    sep = dict['delimiter']
+                |    str = sep + " ☃ ".decode('utf-8') + sep
+                |    print(str.encode('utf-8'))
+                |    return {"winter" : str }
+            """.stripMargin
+
+            val (initCode, _) = c.init(initPayload(code))
+            initCode should be(200)
+
+            val (runCode, runRes) = c.run(runPayload(JsObject("delimiter" -> JsString("❄"))))
+            runRes.get.fields.get("winter") shouldBe Some(JsString("❄ ☃ ❄"))
+        }
+
+        checkStreams(out, err, {
+            case (o, e) =>
+                o.toLowerCase should include("❄ ☃ ❄")
+                e shouldBe empty
+        })
+    }
+
     it should "return on action error when action fails" in {
         val (out, err) = withActionContainer() { c =>
             val code = """

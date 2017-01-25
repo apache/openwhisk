@@ -50,7 +50,7 @@ class ActionRunner:
                 binary = message['binary'] if 'binary' in message else False
                 if not binary:
                     with codecs.open(self.source, 'w', 'utf-8') as fp:
-                        fp.write(str(message['code']))
+                        fp.write(message['code'])
                         # write source epilogue if any
                         # the message is passed along as it may contain other
                         # fields relevant to a specific container.

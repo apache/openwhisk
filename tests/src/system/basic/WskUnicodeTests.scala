@@ -36,7 +36,8 @@ class WskUnicodeTests
     implicit val wskprops = WskProps()
     val wsk = new Wsk
 
-    Map("node" -> "unicode.js", "java" -> "unicode.jar").foreach {
+    // the python and swift tests failed in Travis but not Jenkins; ignore those two temporarily
+    Map("node" -> "unicode.js", "java" -> "unicode.jar" /*, "python" -> "unicode.py", "swift" -> "unicode.swift"*/ ).foreach {
         case (k, file) =>
             s"$k action" should "Ensure that UTF-8 in supported in source files, input params, logs, and output results" in withAssetCleaner(wskprops) {
                 (wp, assetHelper) =>
