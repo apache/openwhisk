@@ -29,7 +29,7 @@ object RuncUtils extends Logging {
     }
 
     /**
-     * Synchronously runs the given docker command returning stdout if successful.
+     * Synchronously runs the given runc command returning stdout if successful.
      */
     def runRuncCmd(skipLogError: Boolean, args: Seq[String])(implicit transid: TransactionId): String = {
         val start = transid.started(this, LoggingMarkers.INVOKER_DOCKER_CMD("runc_" + args(0)))
