@@ -37,8 +37,8 @@ You will be using this naming scheme when you use the OpenWhisk CLI, among other
 
 The names of all entities, including actions, triggers, rules, packages, and namespaces, are a sequence of characters that follow the following format:
 
-* The first character must be an alphanumeric character, a digit, or an underscore.
-* The subsequent characters can be alphanumeric, digits, spaces, or any of the following: `_`, `@`, `.`, `-`.
+* The first character must be an alphanumeric character, or an underscore.
+* The subsequent characters can be alphanumeric, spaces, or any of the following: `_`, `@`, `.`, `-`.
 * The last character can't be a space.
 
 More precisely, a name must match the following regular expression (expressed with Java metacharacter syntax): `\A([\w]|[\w][\w@ .-]*[\w@.-]+)\z`.
