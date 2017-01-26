@@ -140,7 +140,7 @@ func (s *ApiService) List(apiListOptions *ApiListOptions) (*RetApiArray, *http.R
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
     }
-    Debug(DbgError, "Api GET/list route with api options: %s\n", routeUrl)
+    Debug(DbgInfo, "Api GET/list route with api options: %s\n", routeUrl)
 
     req, err := s.client.NewRequestUrl("GET", routeUrl, nil, DoNotIncludeNamespaceInUrl)
     if err != nil {

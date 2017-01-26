@@ -20,14 +20,8 @@ AUTH="$1"
 APIHOST="$2"
 NAMESPACE="$3"
 WSK_CLI="$4"
-DB_USERNAME="$5"
-DB_PASSWORD="$6"
 
 WHISKPROPS_FILE="$OPENWHISK_HOME/whisk.properties"
-DB_HOST=`fgrep db.host= $WHISKPROPS_FILE | cut -d'=' -f2`
-DB_PORT=`fgrep db.port= $WHISKPROPS_FILE | cut -d'=' -f2`
-DB_PROTOCOL=`fgrep db.protocol= $WHISKPROPS_FILE | cut -d'=' -f2`
-DB_APIGW=`fgrep db.whisk.apigw= $WHISKPROPS_FILE | cut -d'=' -f2`
 GW_USER=`fgrep apigw.auth.user= $WHISKPROPS_FILE | cut -d'=' -f2`
 GW_PWD=`fgrep apigw.auth.pwd= $WHISKPROPS_FILE | cut -d'=' -f2-`
 GW_HOST=`fgrep apigw.host= $WHISKPROPS_FILE | cut -d'=' -f2`
@@ -45,44 +39,29 @@ $WSK_CLI -i --apihost "$APIHOST" package update --auth "$AUTH"  --shared no "$NA
 -a description "This package manages the gateway API configuration." \
 -a meta true \
 -a get getApi \
--a post createRoute \
+-a post createApi \
 -a delete deleteApi \
--p host $DB_HOST \
--p port $DB_PORT \
--p protocol $DB_PROTOCOL \
--p username $DB_USERNAME \
--p password $DB_PASSWORD \
--p dbname $DB_APIGW \
 -p gwUser "$GW_USER" \
 -p gwPwd "$GW_PWD" \
 -p gwUrl "$GW_HOST"
 
+echo Creating NPM module .zip files
+zip -j "$OPENWHISK_HOME/core/routemgmt/getApi/getApi.zip" "$OPENWHISK_HOME/core/routemgmt/getApi/getApi.js" "$OPENWHISK_HOME/core/routemgmt/getApi/package.json" "$OPENWHISK_HOME/core/routemgmt/common/utils.js"
+zip -j "$OPENWHISK_HOME/core/routemgmt/createApi/createApi.zip" "$OPENWHISK_HOME/core/routemgmt/createApi/createApi.js" "$OPENWHISK_HOME/core/routemgmt/createApi/package.json" "$OPENWHISK_HOME/core/routemgmt/common/utils.js"
+zip -j "$OPENWHISK_HOME/core/routemgmt/deleteApi/deleteApi.zip" "$OPENWHISK_HOME/core/routemgmt/deleteApi/deleteApi.js" "$OPENWHISK_HOME/core/routemgmt/deleteApi/package.json" "$OPENWHISK_HOME/core/routemgmt/common/utils.js"
 
 echo Installing routemgmt actions
-$WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" "$NAMESPACE/routemgmt/createRoute" "$OPENWHISK_HOME/core/routemgmt/createRoute.js" \
--a description 'Create an API route' \
--a final true
-
-$WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" "$NAMESPACE/routemgmt/createApi" "$OPENWHISK_HOME/core/routemgmt/createApi.js" \
--a description 'Create an API configuration' \
--a final true
-
-$WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" "$NAMESPACE/routemgmt/deleteApi" "$OPENWHISK_HOME/core/routemgmt/deleteApi.js" \
--a description 'Delete the specified API configuration' \
--a final true
-
-$WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" "$NAMESPACE/routemgmt/getApi" "$OPENWHISK_HOME/core/routemgmt/getApi.js" \
+$WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" "$NAMESPACE/routemgmt/getApi" "$OPENWHISK_HOME/core/routemgmt/getApi/getApi.zip" \
 -a description 'Retrieve the specified API configuration (in JSON format)' \
+--kind nodejs:default \
 -a final true
 
-$WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" "$NAMESPACE/routemgmt/activateApi" "$OPENWHISK_HOME/core/routemgmt/activateApi.js" \
--a description 'Activate the specified API' \
+$WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" "$NAMESPACE/routemgmt/createApi" "$OPENWHISK_HOME/core/routemgmt/createApi/createApi.zip" \
+-a description 'Create an API' \
+--kind nodejs:default \
 -a final true
 
-$WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" "$NAMESPACE/routemgmt/deactivateApi" "$OPENWHISK_HOME/core/routemgmt/deactivateApi.js" \
--a description 'Deactivate the specified API' \
--a final true
-
-$WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" "$NAMESPACE/routemgmt/syncApi" "$OPENWHISK_HOME/core/routemgmt/syncApi.js" \
--a description 'Synchronize the API configuration with the API gateway' \
+$WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" "$NAMESPACE/routemgmt/deleteApi" "$OPENWHISK_HOME/core/routemgmt/deleteApi/deleteApi.zip" \
+-a description 'Delete the API' \
+--kind nodejs:default \
 -a final true
