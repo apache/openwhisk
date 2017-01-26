@@ -47,7 +47,7 @@ import whisk.common.TransactionId
 import whisk.connector.kafka.KafkaConsumerConnector
 import whisk.connector.kafka.KafkaProducerConnector
 import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig.{ consulServer, kafkaHost }
+import whisk.core.WhiskConfig.{ consulServer, kafkaHost, loadbalancerActivationCountBeforeNextInvoker }
 import whisk.core.connector.{ ActivationMessage, CompletionMessage }
 import whisk.core.entity.{ ActivationId, CodeExec, WhiskAction, WhiskActivation }
 
@@ -95,7 +95,8 @@ class LoadBalancerService(
     info(this, s"blackboxFraction = $blackboxFraction")
 
     /** We run this often on an invoker before going onto the next. */
-    private val activationCountBeforeNextInvoker = 10
+    private val activationCountBeforeNextInvoker = Math.max(1, config.loadbalancerActivationCountBeforeNextInvoker)
+    info(this, s"activationCountBeforeNextInvoker = $activationCountBeforeNextInvoker")
 
     /**
      * Gets invoker health as a dictionary.
@@ -321,6 +322,7 @@ class LoadBalancerService(
 object LoadBalancerService {
     def requiredProperties = kafkaHost ++
         consulServer ++
+        Map(loadbalancerActivationCountBeforeNextInvoker -> null) ++
         InvokerHealth.requiredProperties
 }
 

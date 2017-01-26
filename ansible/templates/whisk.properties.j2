@@ -91,3 +91,5 @@ db.whisk.auths={{ db_auth }}
 apigw.auth.user={{apigw_auth_user}}
 apigw.auth.pwd={{apigw_auth_pwd}}
 apigw.host={{apigw_host}}
+
+loadbalancer.activationCountBeforeNextInvoker={{ loadbalancer_activation_count_before_next_invoker | default(10) }}
