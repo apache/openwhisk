@@ -46,6 +46,7 @@ function main(message) {
   }
 
   message.outputFormat = message.outputFormat || 'swagger';
+  var tenantInstance = message.tenantInstance || 'openwhisk';
 
   var gwInfo = {
     gwUrl: message.gwUrl,
@@ -60,7 +61,7 @@ function main(message) {
   // Log parameter values
   console.log('gwUrl         : '+message.gwUrl);
   console.log('namespace     : '+message.namespace);
-  console.log('tenantInstance: '+message.tenantInstance);
+  console.log('tenantInstance: '+message.tenantInstance+' / '+tenantInstance);
   console.log('basepath/name : '+message.basepath);
   console.log('relpath       : '+message.relpath);
   console.log('operation     : '+message.operation);
@@ -70,15 +71,15 @@ function main(message) {
   // 1. Get the tenant ID associated with the specified namespace and optional tenant instance
   // 2. Get the API(s) associated with the tenant ID and optional basepath/apiname
   // 3. Format the API(s) per the outputFormat specification
-  return utils.getTenants(gwInfo, message.namespace, message.tenantInstance)
+  return utils.getTenants(gwInfo, message.namespace, tenantInstance)
   .then(function(tenants) {
     // If a non-empty tenant array was returned, pick the first one from the list
     if (tenants.length === 0) {
       console.error('No Tenant found for namespace '+message.namespace);
       return Promise.reject('No Tenant found for namespace '+message.namespace);
     } else if (tenants.length > 1 ) {
-      console.error('Multiple tenants found for namespace '+message.namespace+' and tenant instance '+message.tenantInstance);
-      return Promise.reject('Internal error. Multiple API Gateway tenants found for namespace '+message.namespace+' and tenant instance '+message.tenantInstance);
+      console.error('Multiple tenants found for namespace '+message.namespace+' and tenant instance '+tenantInstance);
+      return Promise.reject('Internal error. Multiple API Gateway tenants found for namespace '+message.namespace+' and tenant instance '+tenantInstance);
     }
     console.log('Got a tenant: '+JSON.stringify(tenants[0]));
     return Promise.resolve(tenants[0].id);

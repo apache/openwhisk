@@ -86,8 +86,8 @@ function createTenant(gwInfo, namespace, tenantInstance) {
  */
 function getTenants(gwInfo, ns, tenantInstance) {
   var qsNsOnly = { 'filter[where][namespace]' : ns };
-  var qsNsAndInstance = { 'filter[where][and][0][namespace]' : ns,
-                          'filter[where][and][1][instance]'  : tenantInstance };
+  var qsNsAndInstance = { 'filter[where][namespace]' : ns,
+                          'filter[where][instance]'  : tenantInstance };
   var qs = qsNsOnly;
   if (tenantInstance) qs = qsNsAndInstance;
   var options = {
@@ -128,7 +128,8 @@ function getTenants(gwInfo, ns, tenantInstance) {
               resolve(bodyJson);
             } else {
               console.error('getTenants: Invalid API GW response body; a JSON array was not returned');
-              // FIXME MWD reject('Internal error. Invalid API Gateway response: Not an array');
+              //FIXME MWD may happen when no tenants are found and {} is returned:  https://github.com/openwhisk/apigateway/issues/59
+              //FIXME MWD reject('Internal error. Invalid API Gateway response: Not an array');
               resolve( [] );  // FIXME MWD Hack until https://github.com/openwhisk/apigateway/issues/59 is fixed
             }
           } catch(e) {
@@ -327,8 +328,8 @@ function getApis(gwInfo, tenantId, bpOrApiName) {
             } else {
               console.error('getApis: Invalid API GW response body; a JSON array was not returned');
               //FIXME MWD may happen when no apis are found and {} is returned:  https://github.com/openwhisk/apigateway/issues/59
-              //reject('Internal error. Invalid API Gateway response: Not an array');
-              resolve( [] );
+              //FIXME MWD reject('Internal error. Invalid API Gateway response: Not an array');
+              resolve( [] );  // FIXME MWD Hack until https://github.com/openwhisk/apigateway/issues/59 is fixed
             }
           } catch(e) {
             console.error('getApis: Invalid API GW response body; JSON.parse() failure: '+e);

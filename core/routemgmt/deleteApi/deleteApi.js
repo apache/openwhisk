@@ -18,14 +18,15 @@
  * https://docs.cloudant.com/document.html#delete
  *
  * Parameters (all as fields in the message JSON object)
- *   gwUrl      Required. The API Gateway base path (i.e. http://gw.com)
- *   gwUser     Optional. The API Gateway authentication
- *   gwPwd      Optional. The API Gateway authentication
+ *   gwUrl                Required. The API Gateway base path (i.e. http://gw.com)
+ *   gwUser               Optional. The API Gateway authentication
+ *   gwPwd                Optional. The API Gateway authentication
  *   namespace            Required if __ow_meta_namespace not specified.  Namespace of API author
  *   __ow_meta_namespace  Required. Namespace of API author
- *   basepath   Required. Base path or API name of the API
- *   relpath    Optional. Delete just this relative path from the API.  Required if operation is specified
- *   operation  Optional. Delete just this relpath's operation from the API.
+ *   tenantInstance       Optional. Instance identifier used when creating the specific API GW Tenant
+ *   basepath             Required. Base path or API name of the API
+ *   relpath              Optional. Delete just this relative path from the API.  Required if operation is specified
+ *   operation            Optional. Delete just this relpath's operation from the API.
  *
  * NOTE: The package containing this action will be bound to the following values:
  *         gwUrl, gwAuth
@@ -51,12 +52,15 @@ function main(message) {
   // Set namespace override if provided
   message.namespace = message.__ow_meta_namespace || message.namespace;
 
+  var tenantInstance = message.tenantInstance || 'openwhisk';
+
   // Log parameter values
   console.log('GW URL        : '+message.gwUrl);
   console.log('GW User       : '+utils.confidentialPrint(message.gwUser));
   console.log('GW Pwd        : '+utils.confidentialPrint(message.gwPwd));
   console.log('__ow_meta_namespace : '+message.__ow_meta_namespace);
   console.log('namespace     : '+message.namespace);
+  console.log('tenantInstance: '+message.tenantInstance+' / '+tenantInstance);
   console.log('basepath/name : '+message.basepath);
   console.log('relpath       : '+message.relpath);
   console.log('operation     : '+message.operation);
@@ -73,15 +77,15 @@ function main(message) {
   // 4. If relpath or replath/operation is NOT specified (i.e. delete entire API)
   //    a. Delete entire API from API GW
   var tenantId;
-  return utils.getTenants(gwInfo, message.namespace, message.tenantInstance)
+  return utils.getTenants(gwInfo, message.namespace, tenantInstance)
   .then(function(tenants) {
     // If a non-empty tenant array was returned, pick the first one from the list
     if (tenants.length === 0) {
       console.error('No Tenant found for namespace '+message.namespace);
       return Promise.reject('No Tenant found for namespace '+message.namespace);
     } else if (tenants.length > 1 ) {
-      console.error('Multiple tenants found for namespace '+message.namespace+' and tenant instance '+message.tenantInstance);
-      return Promise.reject('Internal error. Multiple API Gateway tenants found for namespace '+message.namespace+' and tenant instance '+message.tenantInstance);
+      console.error('Multiple tenants found for namespace '+message.namespace+' and tenant instance '+tenantInstance);
+      return Promise.reject('Internal error. Multiple API Gateway tenants found for namespace '+message.namespace+' and tenant instance '+tenantInstance);
     }
     console.log('Got a tenant: '+JSON.stringify(tenants[0]));
     tenantId = tenants[0].id;

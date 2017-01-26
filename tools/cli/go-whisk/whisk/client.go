@@ -230,6 +230,10 @@ func (c *Client) Do(req *http.Request, v interface{}) (*http.Response, error) {
     defer resp.Body.Close()
     Verbose("RESPONSE:")
     Verbose("Got response with code %d\n", resp.StatusCode)
+    if (IsVerbose() && len(resp.Header) > 0) {
+        fmt.Println("Resp Headers")
+        printJSON(resp.Header)
+    }
 
     // Read the response body
     data, err := ioutil.ReadAll(resp.Body)

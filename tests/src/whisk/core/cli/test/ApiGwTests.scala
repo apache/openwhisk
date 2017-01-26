@@ -162,6 +162,7 @@ class ApiGwTests
     }
 
     it should "verify successful creation with swagger doc as input" in {
+      // NOTE: These values must match the swagger file contents
       val testName = "CLI_APIGWTEST7"
       val testbasepath = "/"+testName+"_bp"
       val testrelpath = "/path"

@@ -88,7 +88,7 @@ function main(message) {
   console.log('GW URL        : '+message.gwUrl);
   console.log('GW Auth       : '+utils.confidentialPrint(message.gwPwd));
   console.log('namespace     : '+doc.namespace);
-  console.log('tenantInstance: '+message.tenantInstance);
+  console.log('tenantInstance: '+message.tenantInstance+' / '+tenantInstance);
   console.log('API name      : '+doc.apiName);
   console.log('basepath      : '+doc.gatewayBasePath);
   console.log('relpath       : '+doc.gatewayPath);
