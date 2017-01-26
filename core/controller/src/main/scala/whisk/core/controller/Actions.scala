@@ -533,6 +533,8 @@ trait WhiskActionsApi
         // then traverses all actions in the sequence, inlining any that are sequences
         val future = if (components.size > actionSequenceLimit) {
             Future.failed(TooManyActionsInSequence())
+        } else if (components.size == 0) {
+            Future.failed(NoComponentInSequence())
         } else {
             // resolve the action document id (if it's in a package/binding);
             // this assumes that entityStore is the same for actions and packages
@@ -549,6 +551,7 @@ trait WhiskActionsApi
 
         future recoverWith {
             case _: TooManyActionsInSequence => Future failed RejectRequest(BadRequest, sequenceIsTooLong)
+            case _: NoComponentInSequence    => Future failed RejectRequest(BadRequest, sequenceNoComponent)
             case _: SequenceWithCycle        => Future failed RejectRequest(BadRequest, sequenceIsCyclic)
             case _: NoDocumentException      => Future failed RejectRequest(BadRequest, sequenceComponentNotFound)
         }
@@ -630,5 +633,6 @@ trait WhiskActionsApi
     }
 }
 
-private case class TooManyActionsInSequence() extends RuntimeException
-private case class SequenceWithCycle() extends RuntimeException
+private case class TooManyActionsInSequence() extends IllegalArgumentException
+private case class NoComponentInSequence() extends IllegalArgumentException
+private case class SequenceWithCycle() extends IllegalArgumentException

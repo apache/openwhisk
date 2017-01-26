@@ -128,7 +128,7 @@ protected[core] case class BlackBoxExec(override val image: String, code: Option
 }
 
 protected[core] case class SequenceExec(components: Vector[FullyQualifiedEntityName]) extends Exec(Exec.SEQUENCE) {
-    override def size = components.map(c => c.size).reduce(_ + _)
+    override def size = components.map(c => c.size).reduceOption(_ + _) getOrElse (0 B)
 }
 
 protected[core] object Exec
