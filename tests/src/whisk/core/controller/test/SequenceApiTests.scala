@@ -73,6 +73,19 @@ class SequenceApiTests
         }
     }
 
+    it should "reject creation of sequence with no component specified" in {
+        implicit val tid = transid()
+        val seqName = EntityName(s"${aname()}_no_component")
+        // create exec sequence with no component
+        val content = WhiskActionPut(Some(Exec.sequence(Vector())))
+
+        // create an action sequence
+        Put(s"$collectionPath/${seqName.name}", content) ~> sealRoute(routes(creds)) ~> check {
+            status should be(BadRequest)
+            responseAs[ErrorResponse].error shouldBe Messages.sequenceNoComponent
+        }
+    }
+
     it should "reject creation of sequence with non-existent action" in {
         implicit val tid = transid()
         val seqName = EntityName(s"${aname()}_componentnotfound")

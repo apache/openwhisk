@@ -64,6 +64,7 @@ object Messages {
 
     /** Error messages for sequence actions. */
     val sequenceIsTooLong = "Too many actions in the sequence."
+    val sequenceNoComponent = "No component specified for the sequence."
     val sequenceIsCyclic = "Sequence may not refer to itself."
     val sequenceComponentNotFound = "Sequence component does not exist."
 
