@@ -31,6 +31,7 @@ import spray.json.DefaultJsonProtocol._
 import spray.routing.Directives
 import spray.routing.RequestContext
 import whisk.common.TransactionId
+import whisk.core.WhiskConfig
 import whisk.core.controller.actions.BlockingInvokeTimeout
 import whisk.core.controller.actions.PostActionActivation
 import whisk.core.database._
@@ -38,7 +39,6 @@ import whisk.core.entity._
 import whisk.core.entity.types._
 import whisk.http.ErrorResponse.terminate
 import whisk.http.Messages
-import whisk.core.WhiskConfig
 import whisk.utils.JsHelpers._
 
 private case class Context(
@@ -88,12 +88,12 @@ protected[core] object WhiskMetaApi extends Directives {
 
     val supportedMediaTypes = mediaTranscoders.keySet
 
-    protected def resultAsHtml(result: JsValue): RequestContext => Unit = result match {
+    protected def resultAsHtml(result: JsValue, transid: TransactionId): RequestContext => Unit = result match {
         case JsString(html) => respondWithMediaType(`text/html`) { complete(OK, html) }
-        case _              => complete(BadRequest, Messages.invalidMedia(`text/html`))
+        case _              => terminate(BadRequest, Messages.invalidMedia(`text/html`))(transid)
     }
 
-    protected def resultAsText(result: JsValue): RequestContext => Unit = {
+    protected def resultAsText(result: JsValue, transid: TransactionId): RequestContext => Unit = {
         result match {
             case r: JsObject  => complete(OK, r.prettyPrint)
             case r: JsArray   => complete(OK, r.prettyPrint)
@@ -104,15 +104,15 @@ protected[core] object WhiskMetaApi extends Directives {
         }
     }
 
-    protected def resultAsJson(result: JsValue): RequestContext => Unit = {
+    protected def resultAsJson(result: JsValue, transid: TransactionId): RequestContext => Unit = {
         result match {
             case r: JsObject => complete(OK, r)
             case r: JsArray  => complete(OK, r)
-            case _           => complete(BadRequest, Messages.invalidMedia(`application/json`))
+            case _           => terminate(BadRequest, Messages.invalidMedia(`application/json`))(transid)
         }
     }
 
-    protected def resultAsHttp(result: JsValue): RequestContext => Unit = {
+    protected def resultAsHttp(result: JsValue, transid: TransactionId): RequestContext => Unit = {
         result match {
             case JsObject(fields) => Try {
                 val headers = fields.get("headers").map {
@@ -137,9 +137,9 @@ protected[core] object WhiskMetaApi extends Directives {
                 respondWithHeaders(headers) {
                     complete(code, JsObject())
                 }
-            } getOrElse complete(BadRequest, Messages.invalidMedia(`message/http`))
+            } getOrElse terminate(BadRequest, Messages.invalidMedia(`message/http`))(transid)
 
-            case _ => complete(BadRequest, Messages.invalidMedia(`message/http`))
+            case _ => terminate(BadRequest, Messages.invalidMedia(`message/http`))(transid)
         }
     }
 }
@@ -271,9 +271,9 @@ trait WhiskMetaApi extends Directives with PostActionActivation {
                                     val pkgName = if (pkg == "default") None else Some(EntityName(pkg))
                                     handleAnonymousMatch(EntityName(namespace), pkgName, EntityName(action), extension)
                                 } else {
-                                    complete(NotAcceptable, Messages.contentTypeNotSupported)
+                                    terminate(NotAcceptable, Messages.contentTypeNotSupported)
                                 }
-                            case _ => complete(NotAcceptable, Messages.contentTypeRequired)
+                            case _ => terminate(NotAcceptable, Messages.contentTypeRequired)
                         }
                     }
                 }
@@ -358,6 +358,10 @@ trait WhiskMetaApi extends Directives with PostActionActivation {
                 processAnonymousRequest(fullname, context, extension)
             }
         }
+
+        entity(as[Option[JsObject]]) {
+            body => process(body)
+        }
     }
 
     private def processAnonymousRequest(actionName: FullyQualifiedEntityName, context: Context, responseType: String)(
@@ -426,12 +430,12 @@ trait WhiskMetaApi extends Directives with PostActionActivation {
                     val result = getFieldPath(activation.resultAsJson, resultPath)
                     result match {
                         case Some(projection) =>
-                            val marshaler = Future(WhiskMetaApi.mediaTranscoders(responseType)(projection))
+                            val marshaler = Future(WhiskMetaApi.mediaTranscoders(responseType)(projection, transid))
                             onComplete(marshaler) {
                                 case Success(done) => done // all transcoders terminate the connection
                                 case Failure(t)    => terminate(InternalServerError)
                             }
-                        case _ => complete(NotFound, Messages.propertyNotFound)
+                        case _ => terminate(NotFound, Messages.propertyNotFound)
                     }
                 } else {
                     complete(BadRequest, result)
@@ -439,11 +443,14 @@ trait WhiskMetaApi extends Directives with PostActionActivation {
 
             case Success((activationId, None)) =>
                 // blocking invoke which got queued instead
-                complete(Accepted, JsObject("code" -> transid.id.toJson))
+                // this should not happen, instead it should be a blocking invoke timeout
+                warn(this, "activation returned an id, expecting timeout error instead")
+                terminate(Accepted, Messages.responseNotReady)
 
             case Failure(t: BlockingInvokeTimeout) =>
-                info(this, s"activation waiting period expired")
-                complete(Accepted, JsObject("code" -> transid.id.toJson))
+                // blocking invoke which timed out waiting on response
+                info(this, "activation waiting period expired")
+                terminate(Accepted, Messages.responseNotReady)
 
             case Failure(t: RejectRequest) =>
                 terminate(t.code, t.message)
