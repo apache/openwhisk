@@ -48,7 +48,6 @@ import common.WskActorSystem
 
 /**
  * Unit tests for ContainerPool and, by association, Container and WhiskContainer.
- *
  */
 @RunWith(classOf[JUnitRunner])
 class ContainerPoolTests extends FlatSpec

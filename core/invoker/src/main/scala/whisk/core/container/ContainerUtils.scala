@@ -48,7 +48,16 @@ trait ContainerUtils extends Logging {
      * @param image the docker image to run
      * @return container id and container host
      */
-    def bringup(mounted: Boolean, name: Option[ContainerName], image: String, network: String, cpuShare: Int, env: Map[String, String], args: Array[String], limits: ActionLimits, policy: Option[String])(implicit transid: TransactionId): (ContainerHash, Option[ContainerAddr]) = {
+    def bringup(mounted: Boolean,
+                name: Option[ContainerName],
+                image: String,
+                network: String,
+                cpuShare: Int,
+                env: Map[String, String],
+                args: Array[String],
+                limits: ActionLimits,
+                policy: Option[String])(
+                    implicit transid: TransactionId): (ContainerHash, Option[ContainerAddr]) = {
         val id = makeContainer(name, image, network, cpuShare, env, args, limits, policy)
         val host = getContainerIpAddr(id, mounted, network)
         (id, host map { ContainerAddr(_, 8080) })
@@ -63,7 +72,15 @@ trait ContainerUtils extends Logging {
      * TODO: The file handle and process limits should be moved to some global limits config.
      */
     @throws[ContainerError]
-    def makeContainer(name: Option[ContainerName], image: String, network: String, cpuShare: Int, env: Map[String, String], args: Seq[String], limits: ActionLimits, policy: Option[String])(implicit transid: TransactionId): ContainerHash = {
+    def makeContainer(name: Option[ContainerName],
+                      image: String,
+                      network: String,
+                      cpuShare: Int,
+                      env: Map[String, String],
+                      args: Seq[String],
+                      limits: ActionLimits,
+                      policy: Option[String])(
+                          implicit transid: TransactionId): ContainerHash = {
         val nameOption = name.map(n => Array("--name", n.name)).getOrElse(Array.empty[String])
         val cpuArg = Array("-c", cpuShare.toString)
         val memoryArg = Array("-m", s"${limits.memory.megabytes}m", "--memory-swap", s"${limits.memory.megabytes}m")

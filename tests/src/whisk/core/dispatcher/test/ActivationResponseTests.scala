@@ -28,6 +28,7 @@ import spray.json.pimpString
 import whisk.common.Logging
 import whisk.core.entity.ActivationResponse._
 import whisk.http.Messages._
+import whisk.core.entity.size.SizeInt
 
 @RunWith(classOf[JUnitRunner])
 class ActivationResponseTests extends FlatSpec with Matchers {
@@ -36,131 +37,155 @@ class ActivationResponseTests extends FlatSpec with Matchers {
 
     val logger = new Logging {}
 
+    it should "interpret truncated response" in {
+        val max = 5.B
+        Seq("abcdef", """{"msg":"abcedf"}""", """["a","b","c","d","e"]""").foreach { m =>
+            {
+                val response = ContainerResponse(okStatus = false, m.take(max.toBytes.toInt - 1), Some(m.length.B, max))
+                val init = processInitResponseContent(Right(response), logger)
+                init.statusCode shouldBe ContainerError
+                init.result.get.asJsObject.fields(ERROR_FIELD) shouldBe truncatedResponse(response.entity, m.length.B, max).toJson
+            }
+            {
+                val response = ContainerResponse(okStatus = true, m.take(max.toBytes.toInt - 1), Some(m.length.B, max))
+                val run = processRunResponseContent(Right(response), logger)
+                run.statusCode shouldBe ContainerError
+                run.result.get.asJsObject.fields(ERROR_FIELD) shouldBe truncatedResponse(response.entity, m.length.B, max).toJson
+            }
+        }
+    }
+
     it should "interpret failed init that does not response" in {
-        val ar = processInitResponseContent(None, logger)
-        ar.statusCode shouldBe ContainerError
-        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe abnormalInitialization.toJson
+        Seq(NoHost(), ConnectionError(new Throwable()), NoResponseReceived(), Timeout())
+            .map(Left(_)).foreach { e =>
+                val ar = processInitResponseContent(e, logger)
+                ar.statusCode shouldBe ContainerError
+                ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe abnormalInitialization.toJson
+            }
     }
 
     it should "interpret failed init that responds with null string" in {
-        val response = Some(500, null)
-        val ar = processInitResponseContent(response, logger)
+        val response = ContainerResponse(okStatus = false, null)
+        val ar = processInitResponseContent(Right(response), logger)
         ar.statusCode shouldBe ContainerError
-        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidInitResponse(response.get._2).toJson
+        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidInitResponse(response.entity).toJson
         ar.result.get.toString should not include regex("null")
     }
 
     it should "interpret failed init that responds with empty string" in {
-        val response = Some(500, "")
-        val ar = processInitResponseContent(response, logger)
+        val response = ContainerResponse(okStatus = false, "")
+        val ar = processInitResponseContent(Right(response), logger)
         ar.statusCode shouldBe ContainerError
-        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidInitResponse(response.get._2).toJson
+        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidInitResponse(response.entity).toJson
         ar.result.get.asJsObject.fields(ERROR_FIELD).toString.endsWith(".\"") shouldBe true
     }
 
     it should "interpret failed init that responds with non-empty string" in {
-        val response = Some(500, "true")
-        val ar = processInitResponseContent(response, logger)
+        val response = ContainerResponse(okStatus = false, "string")
+        val ar = processInitResponseContent(Right(response), logger)
         ar.statusCode shouldBe ContainerError
-        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidInitResponse(response.get._2).toJson
-        ar.result.get.toString should include(response.get._2)
+        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidInitResponse(response.entity).toJson
+        ar.result.get.toString should include(response.entity)
     }
 
     it should "interpret failed init that responds with JSON string not object" in {
-        val response = Some(500, Vector(1).toJson.compactPrint)
-        val ar = processInitResponseContent(response, logger)
+        val response = ContainerResponse(okStatus = false, Vector(1).toJson.compactPrint)
+        val ar = processInitResponseContent(Right(response), logger)
         ar.statusCode shouldBe ContainerError
-        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidInitResponse(response.get._2).toJson
-        ar.result.get.toString should include(response.get._2)
+        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidInitResponse(response.entity).toJson
+        ar.result.get.toString should include(response.entity)
     }
 
     it should "interpret failed init that responds with JSON object containing error" in {
-        val response = Some(500, Map(ERROR_FIELD -> "foobar").toJson.compactPrint)
-        val ar = processInitResponseContent(response, logger)
+        val response = ContainerResponse(okStatus = false, Map(ERROR_FIELD -> "foobar").toJson.compactPrint)
+        val ar = processInitResponseContent(Right(response), logger)
         ar.statusCode shouldBe ContainerError
-        ar.result.get shouldBe response.get._2.parseJson
+        ar.result.get shouldBe response.entity.parseJson
     }
 
     it should "interpret failed init that responds with JSON object" in {
-        val response = Some(500, Map("foobar" -> "baz").toJson.compactPrint)
-        val ar = processInitResponseContent(response, logger)
+        val response = ContainerResponse(okStatus = false, Map("foobar" -> "baz").toJson.compactPrint)
+        val ar = processInitResponseContent(Right(response), logger)
         ar.statusCode shouldBe ContainerError
-        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidInitResponse(response.get._2).toJson
+        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidInitResponse(response.entity).toJson
         ar.result.get.toString should include("baz")
     }
 
     it should "not interpret successful init" in {
-        val response = Some(200, "")
+        val response = ContainerResponse(okStatus = true, "")
         an[IllegalArgumentException] should be thrownBy {
-            processInitResponseContent(response, logger)
+            processInitResponseContent(Right(response), logger)
         }
     }
 
     it should "interpret failed run that does not response" in {
-        val ar = processRunResponseContent(None, logger)
-        ar.statusCode shouldBe ContainerError
-        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe abnormalRun.toJson
+        Seq(NoHost(), ConnectionError(new Throwable()), NoResponseReceived(), Timeout())
+            .map(Left(_)).foreach { e =>
+                val ar = processRunResponseContent(e, logger)
+                ar.statusCode shouldBe ContainerError
+                ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe abnormalRun.toJson
+            }
     }
 
     it should "interpret failed run that responds with null string" in {
-        val response = Some(500, null)
-        val ar = processRunResponseContent(response, logger)
+        val response = ContainerResponse(okStatus = false, null)
+        val ar = processRunResponseContent(Right(response), logger)
         ar.statusCode shouldBe ContainerError
-        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidRunResponse(response.get._2).toJson
+        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidRunResponse(response.entity).toJson
         ar.result.get.toString should not include regex("null")
     }
 
     it should "interpret failed run that responds with empty string" in {
-        val response = Some(500, "")
-        val ar = processRunResponseContent(response, logger)
+        val response = ContainerResponse(okStatus = false, "")
+        val ar = processRunResponseContent(Right(response), logger)
         ar.statusCode shouldBe ContainerError
-        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidRunResponse(response.get._2).toJson
+        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidRunResponse(response.entity).toJson
         ar.result.get.asJsObject.fields(ERROR_FIELD).toString.endsWith(".\"") shouldBe true
     }
 
     it should "interpret failed run that responds with non-empty string" in {
-        val response = Some(500, "true")
-        val ar = processRunResponseContent(response, logger)
+        val response = ContainerResponse(okStatus = false, "string")
+        val ar = processRunResponseContent(Right(response), logger)
         ar.statusCode shouldBe ContainerError
-        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidRunResponse(response.get._2).toJson
-        ar.result.get.toString should include(response.get._2)
+        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidRunResponse(response.entity).toJson
+        ar.result.get.toString should include(response.entity)
     }
 
     it should "interpret failed run that responds with JSON string not object" in {
-        val response = Some(500, Vector(1).toJson.compactPrint)
-        val ar = processRunResponseContent(response, logger)
+        val response = ContainerResponse(okStatus = false, Vector(1).toJson.compactPrint)
+        val ar = processRunResponseContent(Right(response), logger)
         ar.statusCode shouldBe ContainerError
-        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidRunResponse(response.get._2).toJson
-        ar.result.get.toString should include(response.get._2)
+        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidRunResponse(response.entity).toJson
+        ar.result.get.toString should include(response.entity)
     }
 
     it should "interpret failed run that responds with JSON object containing error" in {
-        val response = Some(500, Map(ERROR_FIELD -> "foobar").toJson.compactPrint)
-        val ar = processRunResponseContent(response, logger)
+        val response = ContainerResponse(okStatus = false, Map(ERROR_FIELD -> "foobar").toJson.compactPrint)
+        val ar = processRunResponseContent(Right(response), logger)
         ar.statusCode shouldBe ContainerError
-        ar.result.get shouldBe response.get._2.parseJson
+        ar.result.get shouldBe response.entity.parseJson
     }
 
     it should "interpret failed run that responds with JSON object" in {
-        val response = Some(500, Map("foobar" -> "baz").toJson.compactPrint)
-        val ar = processRunResponseContent(response, logger)
+        val response = ContainerResponse(okStatus = false, Map("foobar" -> "baz").toJson.compactPrint)
+        val ar = processRunResponseContent(Right(response), logger)
         ar.statusCode shouldBe ContainerError
-        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidRunResponse(response.get._2).toJson
+        ar.result.get.asJsObject.fields(ERROR_FIELD) shouldBe invalidRunResponse(response.entity).toJson
         ar.result.get.toString should include("baz")
     }
 
     it should "interpret successful run that responds with JSON object containing error" in {
-        val response = Some(200, Map(ERROR_FIELD -> "foobar").toJson.compactPrint)
-        val ar = processRunResponseContent(response, logger)
+        val response = ContainerResponse(okStatus = true, Map(ERROR_FIELD -> "foobar").toJson.compactPrint)
+        val ar = processRunResponseContent(Right(response), logger)
         ar.statusCode shouldBe ApplicationError
-        ar.result.get shouldBe response.get._2.parseJson
+        ar.result.get shouldBe response.entity.parseJson
     }
 
     it should "interpret successful run that responds with JSON object" in {
-        val response = Some(200, Map("foobar" -> "baz").toJson.compactPrint)
-        val ar = processRunResponseContent(response, logger)
+        val response = ContainerResponse(okStatus = true, Map("foobar" -> "baz").toJson.compactPrint)
+        val ar = processRunResponseContent(Right(response), logger)
         ar.statusCode shouldBe Success
-        ar.result.get shouldBe response.get._2.parseJson
+        ar.result.get shouldBe response.entity.parseJson
     }
 
 }

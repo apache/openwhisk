@@ -38,7 +38,7 @@ import whisk.connector.kafka.{ KafkaConsumerConnector, KafkaProducerConnector }
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.{ consulServer, dockerImagePrefix, dockerRegistry, kafkaHost, logsDir, servicePort, whiskVersion }
 import whisk.core.connector.{ ActivationMessage, CompletionMessage }
-import whisk.core.container.{ BlackBoxContainerError, ContainerPool, Interval, RunResult, WhiskContainer, WhiskContainerError }
+import whisk.core.container._
 import whisk.core.dispatcher.{ Dispatcher, MessageHandler }
 import whisk.core.dispatcher.ActivationFeed.{ ActivationNotification, ContainerReleased, FailedActivation }
 import whisk.core.entity._
@@ -208,7 +208,7 @@ class Invoker(
                     // Since putting back the container involves pausing, run this in a Future so as not to block transaction
                     // completion but also return resources promptly.
                     // Note: using infinite thread pool so using a future here for a long/blocking operation is acceptable.
-                    val deleteContainer = failedInit || result.response.map(_._1 != 200).getOrElse(true)
+                    val deleteContainer = failedInit || result.errored
                     pool.putBack(con, deleteContainer)
                 }
 
@@ -237,11 +237,12 @@ class Invoker(
             case None => (false, con, run())
 
             // new container
-            case Some(RunResult(interval, response)) =>
+            case Some(init @ RunResult(interval, response)) =>
                 tran.initInterval = Some(interval)
-                response match {
-                    case Some((200, _)) => (false, con, run()) // successful init
-                    case _              => (true, con, initResultOpt.get) // unsuccessful initialization
+                if (init.ok) {
+                    (false, con, run())
+                } else {
+                    (true, con, initResultOpt.get)
                 }
         }
     }
@@ -258,7 +259,7 @@ class Invoker(
 
         val msg = tran.msg
         val activationInterval = computeActivationInterval(tran)
-        val activationResponse = getActivationResponse(activationInterval, action.limits.timeout.duration, result.response, failedInit)
+        val activationResponse = getActivationResponse(activationInterval, action.limits.timeout.duration, result, failedInit)
         val activationResult = makeWhiskActivation(msg, EntityPath(action.fullyQualifiedName(false).toString), action.version, activationResponse, activationInterval, Some(action.limits))
         val completeMsg = CompletionMessage(transid, activationResult)
 
@@ -383,15 +384,15 @@ class Invoker(
     private def getActivationResponse(
         interval: Interval,
         timeout: Duration,
-        response: Option[(Int, String)],
+        runResult: RunResult,
         failedInit: Boolean)(
             implicit transid: TransactionId): ActivationResponse = {
         if (interval.duration >= timeout) {
             ActivationResponse.applicationError(Messages.timedoutActivation(timeout, failedInit))
         } else if (!failedInit) {
-            ActivationResponse.processRunResponseContent(response, this: Logging)
+            ActivationResponse.processRunResponseContent(runResult.response, this: Logging)
         } else {
-            ActivationResponse.processInitResponseContent(response, this: Logging)
+            ActivationResponse.processInitResponseContent(runResult.response, this: Logging)
         }
     }
 

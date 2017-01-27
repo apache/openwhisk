@@ -33,6 +33,7 @@ import spray.routing.Rejection
 import spray.routing.StandardRoute
 import whisk.common.TransactionId
 import whisk.core.entity.SizeError
+import whisk.core.entity.ByteSize
 
 object Messages {
     /** Standard message for reporting resource conflicts. */
@@ -110,6 +111,14 @@ object Messages {
         "The action did not produce a valid JSON response" + {
             Option(actualResponse) filter { _.nonEmpty } map { s => s": $s" } getOrElse "."
         }
+    }
+
+    def truncatedResponse(length: ByteSize, maxLength: ByteSize): String = {
+        s"The action produced a response that exceeded the allowed length: ${length.toBytes} > ${maxLength.toBytes} bytes."
+    }
+
+    def truncatedResponse(trunk: String, length: ByteSize, maxLength: ByteSize): String = {
+        s"${truncatedResponse(length, maxLength)} The truncated response was: $trunk"
     }
 
     def timedoutActivation(timeout: Duration, init: Boolean) = {

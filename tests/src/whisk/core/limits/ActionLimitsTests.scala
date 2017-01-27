@@ -34,10 +34,11 @@ import common.WskProps
 import common.WskTestHelpers
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import spray.json.pimpAny
+import whisk.core.entity.ActivationEntityLimit
+import whisk.core.entity.ActivationResponse
 import whisk.core.entity.Exec
 import whisk.core.entity.LogLimit
-import whisk.core.entity.size.SizeInt
+import whisk.core.entity.size._
 import whisk.core.entity.size.SizeString
 import whisk.http.Messages
 
@@ -110,6 +111,29 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
                 lines.last shouldBe LogLimit(allowedSize).truncatedLogMessage
                 // dropping 39 characters (timestamp + streamname)
                 lines.dropRight(1).map(_.drop(39)).mkString.sizeInBytes should be <= allowedSize
+            }
+    }
+
+    it should "succeed but truncate result, if result exceeds its limit" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "TestActionCausingExcessiveResult"
+            assetHelper.withCleaner(wsk.action, name) {
+                val actionName = TestUtils.getTestActionFilename("sizedResult.js")
+                (action, _) => action.create(name, Some(actionName))
+            }
+
+            val allowedSize = ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT.toBytes
+            val run = wsk.action.invoke(name, Map("size" -> (allowedSize + 1).toJson, "char" -> "a".toJson))
+            withActivation(wsk.activation, run) { activation =>
+                val response = activation.response
+                response.success shouldBe false
+                response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ContainerError)
+                val msg = response.result.get.fields(ActivationResponse.ERROR_FIELD).convertTo[String]
+                val expected = Messages.truncatedResponse((allowedSize + 10).B, allowedSize.B)
+                withClue(s"is: ${msg.take(expected.length)}\nexpected: $expected") {
+                    msg.startsWith(expected) shouldBe true
+                }
+                msg.endsWith("a") shouldBe true
             }
     }
 
