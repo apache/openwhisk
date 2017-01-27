@@ -633,6 +633,6 @@ trait WhiskActionsApi
     }
 }
 
-private case class TooManyActionsInSequence() extends RuntimeException
-private case class NoComponentInSequence() extends RuntimeException
-private case class SequenceWithCycle() extends RuntimeException
+private case class TooManyActionsInSequence() extends IllegalArgumentException
+private case class NoComponentInSequence() extends IllegalArgumentException
+private case class SequenceWithCycle() extends IllegalArgumentException
