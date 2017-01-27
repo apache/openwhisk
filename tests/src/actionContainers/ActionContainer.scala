@@ -155,7 +155,7 @@ object ActionContainer {
 
     private def syncPost(host: String, port: Int, endPoint: String, content: JsValue)(
         implicit actorSystem: ActorSystem): (Int, Option[JsObject]) = {
-        import whisk.common.NewHttpUtils
+        import whisk.core.container.AkkaHttpUtils
 
         import akka.http.scaladsl.model._
         import akka.http.scaladsl.marshalling._
@@ -173,7 +173,7 @@ object ActionContainer {
         val f = for (
             entity <- Marshal(content).to[MessageEntity];
             request = HttpRequest(method = HttpMethods.POST, uri = uri, entity = entity);
-            response <- NewHttpUtils.singleRequest(request, 30.seconds, retryOnTCPErrors = true);
+            response <- AkkaHttpUtils.singleRequest(request, 30.seconds, retryOnTCPErrors = true);
             responseBody <- Unmarshal(response.entity).to[String]
         ) yield (response.status.intValue, Try(responseBody.parseJson.asJsObject).toOption)
 

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package whisk.common
+package whisk.core.container
 
 import scala.concurrent.Await
 import scala.concurrent.Future
@@ -23,16 +23,14 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
-
 import akka.actor.ActorSystem
 import akka.http.scaladsl._
 import akka.http.scaladsl.model._
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl._
-
 import java.util.concurrent.TimeoutException
 
-object NewHttpUtils {
+object AkkaHttpUtils {
     def singleRequestBlocking(
         request: HttpRequest,
         timeout: FiniteDuration,

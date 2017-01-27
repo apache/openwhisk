@@ -20,6 +20,7 @@ import java.time.Instant
 
 import scala.concurrent.duration._
 
+import whisk.core.entity.ActivationResponse._
 import whisk.core.entity.DocRevision
 import whisk.core.entity.UUID
 
@@ -57,8 +58,11 @@ package object container {
      * Start time, End time, Some(response) from container consisting of status code and payload
      * If there is no response or an exception, then None.
      */
-    case class RunResult(interval: Interval, response: Option[(Int, String)]) {
+    case class RunResult(interval: Interval, response: Either[ContainerConnectionError, ContainerResponse]) {
         def duration = interval.duration
+        def ok = response.right.exists(_.ok)
+        def errored = !ok
+        def toBriefString = response.fold(_.toString, _.toString)
     }
 
     /**
@@ -68,7 +72,7 @@ package object container {
 
     case object CacheMiss extends CacheResult
     case object CacheBusy extends CacheResult
-    case class  CacheHit(con: WhiskContainer) extends CacheResult
+    case class CacheHit(con: WhiskContainer) extends CacheResult
 
     /**
      * The result of trying to obtain a container which is known to exist or to create one.
@@ -86,9 +90,15 @@ package object container {
         override def toString() = s"$host:$port"
     }
 
-    sealed abstract class ContainerIdentifier(val id: String)
-    class ContainerName(val name: String) extends ContainerIdentifier(name)
-    class ContainerHash(val hash: String) extends ContainerIdentifier(hash)
+    sealed abstract class ContainerIdentifier(val id: String) {
+        override def toString = id
+    }
+    class ContainerName(val name: String) extends ContainerIdentifier(name) {
+        override def toString = id
+    }
+    class ContainerHash(val hash: String) extends ContainerIdentifier(hash) {
+        override def toString = id
+    }
 
     object ContainerIdentifier {
         def fromString(str: String): ContainerIdentifier = {
