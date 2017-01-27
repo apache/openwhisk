@@ -225,5 +225,31 @@ class ApiGwTests
         deleteresult = wsk.api.delete(basepathOrApiName = testbasepath2, expectedExitCode = DONTCARE_EXIT)
       }
     }
+
+    it should "verify successful creation of a new API using an action name using all allowed characters" in {
+      val testName = "CLI_APIGWTEST9"
+      val testbasepath = "/"+testName+"_bp"
+      val testrelpath = "/path"
+      val testnewrelpath = "/path_new"
+      val testurlop = "get"
+      val testapiname = testName+" API Name"
+      val actionName = testName+"_a-c@t ion"
+      try {
+        println("cli user: "+cliuser+"; cli namespace: "+clinamespace)
+
+        var rr = wsk.api.create(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+        rr.stdout should include("ok: created API")
+        rr = wsk.api.list(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
+        rr.stdout should include("ok: APIs")
+        rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+        rr.stdout should include(testbasepath + testrelpath)
+        val deleteresult = wsk.api.delete(basepathOrApiName = testbasepath)
+        deleteresult.stdout should include("ok: deleted API")
+      }
+      finally {
+        val deleteresult = wsk.api.delete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+      }
+    }
+
 }
 
