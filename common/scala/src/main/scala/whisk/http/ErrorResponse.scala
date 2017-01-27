@@ -90,6 +90,9 @@ object Messages {
     def invalidMedia(m: MediaType) = s"Response is not valid '${m.value}'."
     val contentTypeNotSupported = "Content type not supported."
     val contentTypeRequired = "Content type is missing."
+    val responseNotReady = "Response not yet ready."
+    val httpUnknownContentType = "Response did not specify a known content-type."
+    val httpContentTypeError = "Response type in header did not match generated content type."
 
     def invalidInitResponse(actualResponse: String) = {
         "The action failed during initialization" + {
