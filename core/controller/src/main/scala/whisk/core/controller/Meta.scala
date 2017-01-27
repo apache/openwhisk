@@ -135,7 +135,7 @@ protected[core] object WhiskMetaApi extends Directives {
                 } getOrElse (OK)
 
                 respondWithHeaders(headers) {
-                    complete(code, JsObject())
+                    complete(code)
                 }
             } getOrElse terminate(BadRequest, Messages.invalidMedia(`message/http`))(transid)
 
@@ -168,7 +168,7 @@ trait WhiskMetaApi extends Directives with PostActionActivation {
     private val anonymousInvokePrefix = pathPrefix(anonymousInvokePath)
 
     /** Allowed verbs. */
-    private lazy val allowedOperations = get | delete | post
+    private lazy val allowedOperations = get | delete | post | put
 
     private lazy val validNameSegment = pathPrefix(EntityName.REGEX.r)
     private lazy val packagePrefix = pathPrefix("default".r | EntityName.REGEX.r)
@@ -261,7 +261,7 @@ trait WhiskMetaApi extends Directives with PostActionActivation {
      * Actions may be exposed to this web proxy by adding an annotation ("export" -> true).
      */
     def routes()(implicit transid: TransactionId) = {
-        (routePrefix & anonymousInvokePrefix) {
+        (allowedOperations & routePrefix & anonymousInvokePrefix) {
             validNameSegment { namespace =>
                 packagePrefix { pkg =>
                     pathPrefix(Segment) {
@@ -351,7 +351,7 @@ trait WhiskMetaApi extends Directives with PostActionActivation {
 
     private def handleAnonymousMatch(namespace: EntityName, pkg: Option[EntityName], action: EntityName, extension: String)(
         implicit transid: TransactionId) = {
-        entity(as[Option[JsObject]]) { body =>
+        def process(body: Option[JsObject]) = {
             requestMethodParamsAndPath { r =>
                 val context = r.withBody(body)
                 val fullname = namespace.addPath(pkg).addPath(action).toFullyQualifiedEntityName
@@ -361,6 +361,8 @@ trait WhiskMetaApi extends Directives with PostActionActivation {
 
         entity(as[Option[JsObject]]) {
             body => process(body)
+        } ~ entity(as[FormData]) {
+            form => process(Some(form.fields.toMap.toJson.asJsObject))
         }
     }
 

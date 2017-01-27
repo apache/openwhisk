@@ -29,6 +29,7 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.junit.JUnitRunner
 
 import akka.event.Logging.InfoLevel
+import spray.http.FormData
 import spray.http.HttpMethods
 import spray.http.StatusCodes._
 import spray.httpx.SprayJsonSupport._
@@ -602,6 +603,15 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
 
         // reset the action result
         actionResult = None
+
+        Seq(s"$systemId/proxy/export_c.text/content/field1", s"$systemId/proxy/export_c.text/content/field2").
+            foreach { path =>
+                val form = FormData(Seq("field1" -> "value1", "field2" -> "value2"))
+                Post(s"$exports/$path", form) ~> sealRoute(routes()) ~> check {
+                    status should be(OK)
+                    responseAs[String] should (be("value1") or be("value2"))
+                }
+            }
 
         Seq(s"$systemId/proxy/export_c.text/content/z", s"$systemId/proxy/export_c.text/content/z/", s"$systemId/proxy/export_c.text/content/z//").
             foreach { path =>
