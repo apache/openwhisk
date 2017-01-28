@@ -40,6 +40,8 @@ class WskWebActionsTests
     with WskTestHelpers
     with RestUtil {
 
+    val MAX_URL_LENGTH = 8192 // 8K matching nginx default
+
     implicit val wskprops = WskProps()
     val wsk = new Wsk
     val namespace = WskAdmin.getUser(wskprops.authKey)._2
@@ -56,11 +58,29 @@ class WskWebActionsTests
                     action.create(name, file, annotations = Map("web-export" -> true.toJson))
             }
 
-            val response = RestAssured.given().config(sslconfig).
-                get(getServiceURL() + s"/api/v1/experimental/web/$namespace/default/webaction.text/a?a=A")
+            val host = getServiceURL()
+            val requestPath = host + s"/api/v1/experimental/web/$namespace/default/webaction.text/a?a="
+            val padAmount = MAX_URL_LENGTH - requestPath.length
+            Seq(("A", 200),
+                ("A" * padAmount, 200),
+                // ideally the bad case is just +1 but there's some differences
+                // in how characters are counted i.e., whether these count "https://:443"
+                // or not; it seems sufficient to test right around the boundary
+                ("A" * (padAmount + 100), 414))
+                .foreach {
+                    case (pad, code) =>
+                        val url = (requestPath + pad)
+                        val response = RestAssured.given().config(sslconfig).get(url)
+                        val responseCode = response.statusCode
 
-            response.statusCode() should be(200)
-            response.body().asString() shouldBe "A"
+                        withClue(s"response code: $responseCode, url length: ${url.length}, pad amount: ${pad.length}, url: $url") {
+                            responseCode shouldBe code
+                            if (code == 200) {
+                                response.body().asString() shouldBe pad
+                            } else {
+                                response.body().asString() should include("414 Request-URI Too Large") // from nginx
+                            }
+                        }
+                }
     }
-
 }

@@ -6,7 +6,7 @@ events {
 }
 
 http {
-{# temporary hack to allow large uploads, need to thread proper limit into here #}
+{# allow large uploads, need to thread proper limit into here #}
     client_max_body_size 50M;
 
     rewrite_log on;
