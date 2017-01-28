@@ -31,26 +31,21 @@ import spray.routing.Directives
 import spray.routing.RequestContext
 import spray.routing.Route
 import whisk.common.TransactionId
-import whisk.core.entitlement.Privilege.ACTIVATE
-import whisk.core.entitlement.Privilege.DELETE
-import whisk.core.entitlement.Privilege.PUT
-import whisk.core.entitlement.Privilege.Privilege
-import whisk.core.entitlement.Privilege.READ
+import whisk.core.entitlement.Privilege._
 import whisk.core.entitlement.Resource
-import whisk.core.entity.EntityName
-import whisk.core.entity.EntityPath
-import whisk.core.entity.FullyQualifiedEntityName
-import whisk.core.entity.Identity
-import whisk.core.entity.LimitedWhiskEntityPut
-import whisk.core.entity.Parameters
+import whisk.core.entity._
+import whisk.core.entity.size._
 import whisk.http.ErrorResponse.terminate
+import whisk.http.Messages
+import whisk.core.entity.ActivationEntityLimit
 
-protected[controller] trait ValidateEntitySize extends Directives {
-    protected def validateSize(check: => Boolean)(implicit tid: TransactionId) = new Directive0 {
-        def happly(f: HNil => Route) = if (check) {
-            f(HNil)
-        } else {
-            terminate(RequestEntityTooLarge, "request entity too large")
+protected[controller] trait ValidateRequestSize extends Directives {
+    protected def validateSize(check: => Option[SizeError])(
+        implicit tid: TransactionId) = new Directive0 {
+        def happly(f: HNil => Route) = {
+            check map {
+                case e: SizeError => terminate(RequestEntityTooLarge, Messages.entityTooBig(e))
+            } getOrElse f(HNil)
         }
     }
 }
@@ -60,12 +55,15 @@ trait WhiskCollectionAPI
     extends Directives
     with AuthenticatedRouteProvider
     with AuthorizedRouteProvider
-    with ValidateEntitySize
+    with ValidateRequestSize
     with ReadOps
     with WriteOps {
 
     /** The core collections require backend services to be injected in this trait. */
     services: WhiskServices =>
+
+    protected val allowedActivationEntitySize: Long = ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT.toBytes
+    protected val fieldDescriptionForSizeError = "request"
 
     /** Creates an entity, or updates an existing one, in namespace. Terminates HTTP request. */
     protected def create(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId): RequestContext => Unit
@@ -96,9 +94,18 @@ trait WhiskCollectionAPI
                             create(user, FullyQualifiedEntityName(resource.namespace, name))
                         }
                     }
-                case ACTIVATE => activate(user, FullyQualifiedEntityName(resource.namespace, name), resource.env)
-                case DELETE   => remove(user, FullyQualifiedEntityName(resource.namespace, name))
-                case _        => reject
+                case ACTIVATE =>
+                    extract(_.request.entity.data.length) { size =>
+                        validateSize {
+                            if (size <= allowedActivationEntitySize) None
+                            else Some(SizeError(fieldDescriptionForSizeError, size.B, allowedActivationEntitySize.B))
+                        }(transid) {
+                            activate(user, FullyQualifiedEntityName(resource.namespace, name), resource.env)
+                        }
+                    }
+
+                case DELETE => remove(user, FullyQualifiedEntityName(resource.namespace, name))
+                case _      => reject
             }
             case None => op match {
                 case READ =>

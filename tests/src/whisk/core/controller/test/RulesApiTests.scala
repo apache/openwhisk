@@ -57,7 +57,6 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
     val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
     val activeStatus = s"""{"status":"${Status.ACTIVE}"}""".parseJson.asJsObject
     val inactiveStatus = s"""{"status":"${Status.INACTIVE}"}""".parseJson.asJsObject
-    val entityTooBigRejectionMessage = "request entity too large"
     val parametersLimit = Parameters.sizeLimit
 
     //// GET /rules
@@ -389,10 +388,10 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         val action = WhiskAction(namespace, aname(), Exec.js("??"))
 
         val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (Parameters.sizeLimit.toBytes / 20 + Math.pow(10, 9) + 2) toLong)
-        val parameters = keys map { key =>
+        val annotations = keys map { key =>
             Parameters(key.toString, "a" * 10)
         } reduce (_ ++ _)
-        val content = s"""{"trigger":"${trigger.name}","action":"${action.name}","annotations":$parameters}""".parseJson.asJsObject
+        val content = s"""{"trigger":"${trigger.name}","action":"${action.name}","annotations":$annotations}""".parseJson.asJsObject
 
         put(entityStore, trigger, false)
         put(entityStore, action)
@@ -402,7 +401,9 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
             deleteTrigger(t.docid)
 
             status should be(RequestEntityTooLarge)
-            response.entity.toString should include(entityTooBigRejectionMessage)
+            responseAs[String] should include {
+                Messages.entityTooBig(SizeError(WhiskEntity.annotationsFieldName, annotations.size, Parameters.sizeLimit))
+            }
         }
     }
 
@@ -414,10 +415,10 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         val rule = WhiskRule(namespace, aname(), trigger.fullyQualifiedName(false), action.fullyQualifiedName(false))
 
         val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (Parameters.sizeLimit.toBytes / 20 + Math.pow(10, 9) + 2) toLong)
-        val parameters = keys map { key =>
+        val annotations = keys map { key =>
             Parameters(key.toString, "a" * 10)
         } reduce (_ ++ _)
-        val content = s"""{"trigger":"${trigger.name}","action":"${action.name}","annotations":$parameters}""".parseJson.asJsObject
+        val content = s"""{"trigger":"${trigger.name}","action":"${action.name}","annotations":$annotations}""".parseJson.asJsObject
 
         put(entityStore, trigger, false)
         put(entityStore, action)
@@ -428,7 +429,9 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
             deleteTrigger(t.docid)
 
             status should be(RequestEntityTooLarge)
-            response.entity.toString should include(entityTooBigRejectionMessage)
+            responseAs[String] should include {
+                Messages.entityTooBig(SizeError(WhiskEntity.annotationsFieldName, annotations.size, Parameters.sizeLimit))
+            }
         }
     }
 

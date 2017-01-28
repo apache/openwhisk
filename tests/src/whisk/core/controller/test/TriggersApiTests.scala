@@ -29,6 +29,7 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.core.controller.WhiskTriggersApi
 import whisk.core.entity._
+import whisk.core.entity.size._
 import whisk.core.entity.WhiskRule
 import whisk.core.entity.test.OldWhiskTrigger
 import whisk.http.ErrorResponse
@@ -56,7 +57,6 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     val namespace = EntityPath(creds.subject.asString)
     val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
     def aname = MakeName.next("triggers_tests")
-    val entityTooBigRejectionMessage = "request entity too large"
     val parametersLimit = Parameters.sizeLimit
 
     //// GET /triggers
@@ -194,6 +194,18 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
         }
     }
 
+    it should "reject activation with entity which is too big" in {
+        implicit val tid = transid()
+        val code = "a" * (allowedActivationEntitySize.toInt + 1)
+        val content = s"""{"a":"$code"}""".stripMargin
+        Post(s"$collectionPath/${aname}", content.parseJson.asJsObject) ~> sealRoute(routes(creds)) ~> check {
+            status should be(RequestEntityTooLarge)
+            responseAs[String] should include {
+                Messages.entityTooBig(SizeError(fieldDescriptionForSizeError, (content.length + 5).B, allowedActivationEntitySize.B))
+            }
+        }
+    }
+
     it should "reject create with parameters which are too big" in {
         implicit val tid = transid()
         val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (parametersLimit.toBytes / 20 + Math.pow(10, 9) + 2) toLong)
@@ -203,20 +215,24 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
         val content = s"""{"parameters":$parameters}""".parseJson.asJsObject
         Put(s"$collectionPath/${aname}", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(RequestEntityTooLarge)
-            response.entity.toString should include(entityTooBigRejectionMessage)
+            responseAs[String] should include {
+                Messages.entityTooBig(SizeError(WhiskEntity.paramsFieldName, parameters.size, Parameters.sizeLimit))
+            }
         }
     }
 
     it should "reject create with annotations which are too big" in {
         implicit val tid = transid()
         val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (parametersLimit.toBytes / 20 + Math.pow(10, 9) + 2) toLong)
-        val parameters = keys map { key =>
+        val annotations = keys map { key =>
             Parameters(key.toString, "a" * 10)
         } reduce (_ ++ _)
-        val content = s"""{"annotations":$parameters}""".parseJson.asJsObject
+        val content = s"""{"annotations":$annotations}""".parseJson.asJsObject
         Put(s"$collectionPath/${aname}", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(RequestEntityTooLarge)
-            response.entity.toString should include(entityTooBigRejectionMessage)
+            responseAs[String] should include {
+                Messages.entityTooBig(SizeError(WhiskEntity.annotationsFieldName, annotations.size, Parameters.sizeLimit))
+            }
         }
     }
 
@@ -231,7 +247,9 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
         put(entityStore, trigger)
         Put(s"$collectionPath/${trigger.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(RequestEntityTooLarge)
-            response.entity.toString should include(entityTooBigRejectionMessage)
+            responseAs[String] should include {
+                Messages.entityTooBig(SizeError(WhiskEntity.paramsFieldName, parameters.size, Parameters.sizeLimit))
+            }
         }
     }
 
