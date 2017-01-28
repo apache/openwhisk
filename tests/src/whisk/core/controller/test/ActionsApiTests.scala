@@ -34,6 +34,7 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.core.controller.WhiskActionsApi
 import whisk.core.entity._
+import whisk.core.entity.size._
 import whisk.http.ErrorResponse
 import whisk.http.Messages
 
@@ -60,7 +61,6 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
     def aname = MakeName.next("action_tests")
     setVerbosity(InfoLevel)
-    val entityTooBigRejectionMessage = "request entity too large"
     val actionLimit = Exec.sizeLimit
     val parametersLimit = Parameters.sizeLimit
 
@@ -227,10 +227,13 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     it should "reject create with exec which is too big" in {
         implicit val tid = transid()
         val code = "a" * (actionLimit.toBytes.toInt + 1)
-        val content = s"""{"exec":{"kind":"python","code":"$code"}}""".stripMargin.parseJson.asJsObject
+        val exec = Exec.js(code)
+        val content = JsObject("exec" -> exec.toJson)
         Put(s"$collectionPath/${aname}", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(RequestEntityTooLarge)
-            response.entity.toString should include(entityTooBigRejectionMessage)
+            responseAs[String] should include {
+                Messages.entityTooBig(SizeError(WhiskAction.execFieldName, exec.size, Exec.sizeLimit))
+            }
         }
     }
 
@@ -239,11 +242,14 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         val oldCode = "function main()"
         val code = "a" * (actionLimit.toBytes.toInt + 1)
         val action = WhiskAction(namespace, aname, Exec.js("??"))
-        val content = s"""{"exec":{"kind":"python","code":"$code"}}""".stripMargin.parseJson.asJsObject
+        val exec = Exec.js(code)
+        val content = JsObject("exec" -> exec.toJson)
         put(entityStore, action)
         Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(RequestEntityTooLarge)
-            response.entity.toString should include(entityTooBigRejectionMessage)
+            responseAs[String] should include {
+                Messages.entityTooBig(SizeError(WhiskAction.execFieldName, exec.size, Exec.sizeLimit))
+            }
         }
     }
 
@@ -253,23 +259,39 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         val parameters = keys map { key =>
             Parameters(key.toString, "a" * 10)
         } reduce (_ ++ _)
-        val content = s"""{"exec":{"kind":"nodejs","code":"??"},"parameters":$parameters}""".stripMargin.parseJson.asJsObject
-        Put(s"$collectionPath/${aname}", content) ~> sealRoute(routes(creds)) ~> check {
+        val content = s"""{"exec":{"kind":"nodejs","code":"??"},"parameters":$parameters}""".stripMargin
+        Put(s"$collectionPath/${aname}", content.parseJson.asJsObject) ~> sealRoute(routes(creds)) ~> check {
             status should be(RequestEntityTooLarge)
-            response.entity.toString should include(entityTooBigRejectionMessage)
+            responseAs[String] should include {
+                Messages.entityTooBig(SizeError(WhiskEntity.paramsFieldName, parameters.size, Parameters.sizeLimit))
+            }
         }
     }
 
     it should "reject create with annotations which are too big" in {
         implicit val tid = transid()
         val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (parametersLimit.toBytes / 20 + Math.pow(10, 9) + 2) toLong)
-        val parameters = keys map { key =>
+        val annotations = keys map { key =>
             Parameters(key.toString, "a" * 10)
         } reduce (_ ++ _)
-        val content = s"""{"exec":{"kind":"nodejs","code":"??"},"annotations":$parameters}""".stripMargin.parseJson.asJsObject
-        Put(s"$collectionPath/${aname}", content) ~> sealRoute(routes(creds)) ~> check {
+        val content = s"""{"exec":{"kind":"nodejs","code":"??"},"annotations":$annotations}""".stripMargin
+        Put(s"$collectionPath/${aname}", content.parseJson.asJsObject) ~> sealRoute(routes(creds)) ~> check {
             status should be(RequestEntityTooLarge)
-            response.entity.toString should include(entityTooBigRejectionMessage)
+            responseAs[String] should include {
+                Messages.entityTooBig(SizeError(WhiskEntity.annotationsFieldName, annotations.size, Parameters.sizeLimit))
+            }
+        }
+    }
+
+    it should "reject activation with entity which is too big" in {
+        implicit val tid = transid()
+        val code = "a" * (allowedActivationEntitySize.toInt + 1)
+        val content = s"""{"a":"$code"}""".stripMargin
+        Post(s"$collectionPath/${aname}", content.parseJson.asJsObject) ~> sealRoute(routes(creds)) ~> check {
+            status should be(RequestEntityTooLarge)
+            responseAs[String] should include {
+                Messages.entityTooBig(SizeError(fieldDescriptionForSizeError, (content.length + 5).B, allowedActivationEntitySize.B))
+            }
         }
     }
 

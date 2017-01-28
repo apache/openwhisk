@@ -24,14 +24,15 @@ import spray.http.MediaType
 import spray.http.StatusCode
 import spray.http.StatusCodes.Forbidden
 import spray.http.StatusCodes.NotFound
-import spray.httpx.marshalling.ToResponseMarshallable.isMarshallable
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
-import spray.json.DefaultJsonProtocol._
+import spray.httpx.marshalling.ToResponseMarshallable.isMarshallable
 import spray.json._
+import spray.json.DefaultJsonProtocol._
 import spray.routing.Directives
 import spray.routing.Rejection
 import spray.routing.StandardRoute
 import whisk.common.TransactionId
+import whisk.core.entity.SizeError
 
 object Messages {
     /** Standard message for reporting resource conflicts. */
@@ -84,6 +85,11 @@ object Messages {
     /** Error messages for activations. */
     val abnormalInitialization = "The action did not initialize and exited unexpectedly."
     val abnormalRun = "The action did not produce a valid response and exited unexpectedly."
+
+    /** Error message for size conformance. */
+    def entityTooBig(error: SizeError) = {
+        s"${error.field} larger than allowed: ${error.is.toBytes} > ${error.allowed.toBytes} bytes."
+    }
 
     /** Error for meta api. */
     val propertyNotFound = "Response does not include requested property."
