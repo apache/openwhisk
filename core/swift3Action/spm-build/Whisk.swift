@@ -112,20 +112,23 @@ class Whisk {
     private class func post(uriPath: String, params : [String:Any], group: DispatchGroup, callback : @escaping([String:Any]) -> Void) {
         let communicationDetails = initializeCommunication()
         
-        print("Whisk.post: communication details \(communicationDetails)")
-        
         let loginData: Data = communicationDetails.authKey.data(using: String.Encoding.utf8, allowLossyConversion: false)!
         let base64EncodedAuthKey  = loginData.base64EncodedString(options: NSData.Base64EncodingOptions(rawValue: 0))
         
         let headers = ["Content-Type" : "application/json",
                        "Authorization" : "Basic \(base64EncodedAuthKey)"]
         
+        guard let encodedPath = uriPath.addingPercentEncoding(withAllowedCharacters: CharacterSet.urlQueryAllowed) else {
+            callback(["error": "Error encoding uri path to make openwhisk REST call."])
+            return
+        }
+        
         // TODO vary the schema based on the port?
         let requestOptions = [ClientRequest.Options.schema(communicationDetails.httpType),
                               ClientRequest.Options.method("post"),
                               ClientRequest.Options.hostname(communicationDetails.host),
                               ClientRequest.Options.port(communicationDetails.port),
-                              ClientRequest.Options.path(uriPath),
+                              ClientRequest.Options.path(encodedPath),
                               ClientRequest.Options.headers(headers),
                               ClientRequest.Options.disableSSLVerification]
         
@@ -188,7 +191,12 @@ class Whisk {
     private class func postUrlSession(uriPath: String, params : [String:Any], group: DispatchGroup, callback : @escaping([String:Any]) -> Void) {
         let communicationDetails = initializeCommunication()
         
-        let urlStr = "\(communicationDetails.httpType)\(communicationDetails.host):\(communicationDetails.port)\(uriPath)"
+        guard let encodedPath = uriPath.addingPercentEncoding(withAllowedCharacters: CharacterSet.urlQueryAllowed) else {
+            callback(["error": "Error encoding uri path to make openwhisk REST call."])
+            return
+        }
+        
+        let urlStr = "\(communicationDetails.httpType)\(communicationDetails.host):\(communicationDetails.port)\(encodedPath)"
         
         if let url = URL(string: urlStr) {
             var request = URLRequest(url: url)
@@ -211,7 +219,6 @@ class Whisk {
                         group.leave()
                     }
                     
-                    print("Got response")
                     if let error = error {
                         callback(["error":error.localizedDescription])
                     } else {
