@@ -235,6 +235,14 @@ public class WhiskProperties {
         return Integer.parseInt(whiskProperties.getProperty("controller.host.port"));
     }
 
+    public static int getMaxActionInvokesPerMinute() {
+        String valStr = whiskProperties.getProperty("limits.actions.invokes.perMinute");
+        if (null == valStr) {
+            valStr = whiskProperties.getProperty("defaultLimits.actions.invokes.perMinute");
+        }
+        return Integer.parseInt(valStr);
+    }
+
     /**
      * read the contents of auth key file and return as a Pair
      * <username,password>
