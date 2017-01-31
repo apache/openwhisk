@@ -20,13 +20,16 @@ import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import java.time.Instant
 
+import scala.concurrent.Await
 import scala.concurrent.Future
+import scala.concurrent.duration.FiniteDuration
 
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.junit.JUnitRunner
 
 import akka.event.Logging.InfoLevel
+import spray.http.FormData
 import spray.http.HttpMethods
 import spray.http.StatusCodes._
 import spray.httpx.SprayJsonSupport._
@@ -39,12 +42,10 @@ import whisk.core.controller.Context
 import whisk.core.controller.RejectRequest
 import whisk.core.controller.WhiskMetaApi
 import whisk.core.database.NoDocumentException
+import whisk.core.entitlement.Privilege
 import whisk.core.entity._
 import whisk.http.ErrorResponse
 import whisk.http.Messages
-import scala.concurrent.Await
-import whisk.core.entitlement.Privilege
-import scala.concurrent.duration.FiniteDuration
 
 /**
  * Tests Meta API.
@@ -215,6 +216,14 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
             }.get
     }
 
+    def confirmErrorWithTid(error: JsObject, message: Option[String] = None) = {
+        error.fields.size shouldBe 2
+        error.fields.get("error") shouldBe defined
+        message.foreach { m => error.fields.get("error").get shouldBe JsString(m) }
+        error.fields.get("code") shouldBe defined
+        error.fields.get("code").get shouldBe an[JsNumber]
+    }
+
     var failActionLookup = false // toggle to cause action lookup to fail
     var failActivation = 0 // toggle to cause action to fail
 
@@ -232,7 +241,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
     it should "reject unsupported http verbs" in {
         implicit val tid = transid()
 
-        val methods = Seq((Put, MethodNotAllowed))
+        val methods = Seq((Head, MethodNotAllowed), (Patch, MethodNotAllowed))
         methods.foreach {
             case (m, code) =>
                 m(s"/$routePath/partialmeta") ~> sealRoute(routes(creds)) ~> check {
@@ -335,9 +344,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
         Get(s"/$routePath/partialmeta?a=b&c=d") ~> sealRoute(routes(creds)) ~> check {
             status should be(Accepted)
             val response = responseAs[JsObject]
-            response.fields.size shouldBe 1
-            response.fields.get("code") shouldBe defined
-            response.fields.get("code").get shouldBe an[JsNumber]
+            confirmErrorWithTid(response, Some("Response not yet ready."))
         }
     }
 
@@ -348,10 +355,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
         Get(s"/$routePath/partialmeta?a=b&c=d") ~> sealRoute(routes(creds)) ~> check {
             status should be(InternalServerError)
             val response = responseAs[JsObject]
-            response.fields.size shouldBe 2
-            response.fields.get("error") shouldBe defined
-            response.fields.get("code") shouldBe defined
-            response.fields.get("code").get shouldBe an[JsNumber]
+            confirmErrorWithTid(response)
         }
     }
 
@@ -494,7 +498,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
 
                 Get(s"$exports/$path") ~> sealRoute(routes()) ~> check {
                     status should be(NotAcceptable)
-                    responseAs[String] shouldBe Messages.contentTypeRequired
+                    confirmErrorWithTid(responseAs[JsObject], Some(Messages.contentTypeRequired))
                 }
             }
 
@@ -554,8 +558,6 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
                 Get(s"$exports/$path", httpResponse) ~> sealRoute(routes()) ~> check {
                     status should be(Found)
                     header("location").get.toString shouldBe "location: http://openwhisk.org"
-                    val response = responseAs[JsObject]
-                    response shouldBe JsObject()
                 }
             }
 
@@ -566,8 +568,6 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
                 Get(s"$exports/$path") ~> sealRoute(routes()) ~> check {
                     status should be(Found)
                     header("location").get.toString shouldBe "location: http://openwhisk.org"
-                    val response = responseAs[JsObject]
-                    response shouldBe JsObject()
                 }
             }
 
@@ -604,6 +604,15 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
         // reset the action result
         actionResult = None
 
+        Seq(s"$systemId/proxy/export_c.text/content/field1", s"$systemId/proxy/export_c.text/content/field2").
+            foreach { path =>
+                val form = FormData(Seq("field1" -> "value1", "field2" -> "value2"))
+                Post(s"$exports/$path", form) ~> sealRoute(routes()) ~> check {
+                    status should be(OK)
+                    responseAs[String] should (be("value1") or be("value2"))
+                }
+            }
+
         Seq(s"$systemId/proxy/export_c.text/content/z", s"$systemId/proxy/export_c.text/content/z/", s"$systemId/proxy/export_c.text/content/z//").
             foreach { path =>
                 Get(s"$exports/$path") ~> sealRoute(routes()) ~> check {
@@ -628,7 +637,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
             foreach { path =>
                 Get(s"$exports/$path") ~> sealRoute(routes()) ~> check {
                     status should be(NotFound)
-                    responseAs[String] shouldBe Messages.propertyNotFound
+                    confirmErrorWithTid(responseAs[JsObject], Some(Messages.propertyNotFound))
                 }
             }
 
@@ -637,7 +646,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
             foreach { path =>
                 Get(s"$exports/$path") ~> sealRoute(routes()) ~> check {
                     status should be(NotAcceptable)
-                    responseAs[String] shouldBe Messages.contentTypeNotSupported
+                    confirmErrorWithTid(responseAs[JsObject], Some(Messages.contentTypeNotSupported))
                 }
             }
     }
