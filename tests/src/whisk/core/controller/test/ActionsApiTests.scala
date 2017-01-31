@@ -169,6 +169,32 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         }
     }
 
+    it should "reject long entity names" in {
+        implicit val tid = transid()
+        val longName = "a" * (EntityName.ENTITY_NAME_MAX_LENGTH + 1)
+        Get(s"/$longName/${collection.path}/$longName") ~> sealRoute(routes(creds)) ~> check {
+            status should be(BadRequest)
+            responseAs[String] shouldBe {
+                Messages.entityNameTooLong(
+                    SizeError(namespaceDescriptionForSizeError, longName.length.B, EntityName.ENTITY_NAME_MAX_LENGTH.B))
+            }
+        }
+
+        Seq(s"/$namespace/${collection.path}/$longName",
+            s"/$namespace/${collection.path}/pkg/$longName",
+            s"/$namespace/${collection.path}/$longName/a",
+            s"/$namespace/${collection.path}/$longName/$longName").
+            foreach { p =>
+                Get(p) ~> sealRoute(routes(creds)) ~> check {
+                    status should be(BadRequest)
+                    responseAs[String] shouldBe {
+                        Messages.entityNameTooLong(
+                            SizeError(segmentDescriptionForSizeError, longName.length.B, EntityName.ENTITY_NAME_MAX_LENGTH.B))
+                    }
+                }
+            }
+    }
+
     //// DEL /actions/name
     it should "delete action by name" in {
         implicit val tid = transid()

@@ -61,6 +61,17 @@ object Messages {
 
     /** Standard error message for malformed fully qualified entity names. */
     val malformedFullyQualifiedEntityName = "The fully qualified name of the entity must contain at least the namespace and the name of the entity."
+    def entityNameTooLong(error: SizeError) = {
+        s"${error.field} longer than allowed: ${error.is.toBytes} > ${error.allowed.toBytes}."
+    }
+    val entityNameIllegal = "The name of the entity contains illegal characters."
+    val namespaceIllegal = "The namespace contains illegal characters."
+
+    /** Standard error for malformed activation id. */
+    val activationIdIllegal = "The activation id is not valid."
+    def activationIdLengthError(error: SizeError) = {
+        s"${error.field} length is ${error.is.toBytes} but must be ${error.allowed.toBytes}."
+    }
 
     /** Error messages for sequence actions. */
     val sequenceIsTooLong = "Too many actions in the sequence."
