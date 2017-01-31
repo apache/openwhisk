@@ -289,7 +289,7 @@ var triggerUpdateCmd = &cobra.Command{
             Annotations: annotations.(whisk.KeyValueArr),
         }
 
-        retTrigger, _, err := client.Triggers.Insert(trigger, true)
+        _, _, err = client.Triggers.Insert(trigger, true)
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Triggers.Insert(%+v,true) failed: %s\n", trigger, err)
             errStr := wski18n.T("Unable to update trigger '{{.name}}': {{.err}}",
@@ -301,7 +301,6 @@ var triggerUpdateCmd = &cobra.Command{
         fmt.Fprintf(color.Output,
             wski18n.T("{{.ok}} updated trigger {{.name}}\n",
                 map[string]interface{}{"ok": color.GreenString("ok:"), "name": boldString(trigger.Name)}))
-        printJSON(retTrigger)
         return nil
     },
 }
