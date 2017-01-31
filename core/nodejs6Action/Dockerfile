@@ -7,6 +7,17 @@ RUN curl -SLO "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-
   && rm "node-v$NODE_VERSION-linux-x64.tar.gz"
 
 
+# install SASL libs
+RUN apt-get install -y \
+    g++ \
+    make \
+    python \
+    openssl \
+    libssl-dev \
+    zlib1g-dev \
+    libsasl2-dev \
+    libsasl2-modules
+
 # workaround for this: https://github.com/npm/npm/issues/9863
 RUN cd $(npm root -g)/npm \
  && npm install fs-extra \
@@ -43,6 +54,7 @@ moment@2.17.0 \
 mongodb@2.2.11 \
 mustache@2.3.0 \
 nano@6.2.0 \
+node-rdkafka@0.6.4 \
 node-uuid@1.4.7 \
 nodemailer@2.6.4 \
 oauth2-server@2.4.1 \
