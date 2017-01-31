@@ -175,12 +175,14 @@ protected[core] class EntityName private (val name: String) extends AnyVal {
 }
 
 protected[core] object EntityName {
+    protected[core] val ENTITY_NAME_MAX_LENGTH = 256
+
     /**
      * Allowed path part or entity name format (excludes path separator): first character
      * is a letter|digit|underscore, followed by one or more allowed characters in [\w@ .-].
      * The name may not have trailing white space.
      */
-    protected[core] val REGEX = """\A([\w]|[\w][\w@ .-]*[\w@.-]+)\z"""
+    protected[core] val REGEX = raw"\A([\w]|[\w][\w@ .-]{0,${ENTITY_NAME_MAX_LENGTH-2}}[\w@.-])\z"
 
     /**
      * Unapply method for convenience of case matching.

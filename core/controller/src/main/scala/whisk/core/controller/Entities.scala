@@ -151,8 +151,20 @@ trait WhiskCollectionAPI
     }
 
     /** Validates entity name from the matched path segment. */
+    protected val segmentDescriptionForSizeError = "Name segement"
+
     protected override final def entityname(s: String) = {
-        validate(isEntity(s), s"name '$s' contains illegal characters") & extract(_ => s)
+        validate(isEntity(s), {
+            if (s.length > EntityName.ENTITY_NAME_MAX_LENGTH) {
+                Messages.entityNameTooLong(
+                    SizeError(
+                        segmentDescriptionForSizeError,
+                        s.length.B,
+                        EntityName.ENTITY_NAME_MAX_LENGTH.B))
+            } else {
+                Messages.entityNameIllegal
+            }
+        }) & extract(_ => s)
     }
 
     /** Confirms that a path segment is a valid entity name. Used to reject invalid entity names. */

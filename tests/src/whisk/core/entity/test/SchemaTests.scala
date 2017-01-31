@@ -23,6 +23,7 @@ import scala.Vector
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.language.reflectiveCalls
+import scala.util.Failure
 import scala.util.Try
 
 import org.junit.runner.RunWith
@@ -36,6 +37,7 @@ import spray.json.DefaultJsonProtocol._
 import whisk.core.entitlement.Privilege
 import whisk.core.entity._
 import whisk.core.entity.size.SizeInt
+import whisk.http.Messages
 import whisk.utils.JsHelpers
 
 @RunWith(classOf[JUnitRunner])
@@ -159,14 +161,14 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
     behavior of "EntityName"
 
     it should "accept well formed names" in {
-        val paths = Seq("a", "a b", "a@b.c", "_a", "_", "_ _", "a0", "a 0", "a.0", "a@@", "0", "0.0", "0.0.0", "0a", "0.a")
+        val paths = Seq("a", "a b", "a@b.c", "_a", "_", "_ _", "a0", "a 0", "a.0", "a@@", "0", "0.0", "0.0.0", "0a", "0.a", "a"*EntityName.ENTITY_NAME_MAX_LENGTH)
         paths.foreach { n =>
             assert(EntityName(n).toString == n)
         }
     }
 
     it should "reject malformed names" in {
-        val paths = Seq(null, "", " ", " xxx", "xxx ", "/", " /", "/ ", "0 ", "_ ", "a  ", "a \t", "a\n")
+        val paths = Seq(null, "", " ", " xxx", "xxx ", "/", " /", "/ ", "0 ", "_ ", "a  ", "a \t", "a\n", "a"*(EntityName.ENTITY_NAME_MAX_LENGTH+1))
         paths.foreach {
             p => an[IllegalArgumentException] should be thrownBy EntityName(p)
         }
@@ -541,19 +543,25 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
     it should "not parse invalid activation id" in {
         val id = "213174381920559471141441e111111z"
         assert(ActivationId.unapply(id).isEmpty)
-        assert(Try { ActivationId.serdes.read(JsString(id)) }.failed.get.getMessage.contains("malformed"))
+        Try(ActivationId.serdes.read(JsString(id))) shouldBe Failure {
+            DeserializationException(Messages.activationIdIllegal)
+        }
     }
 
     it should "not parse activation id if longer than uuid" in {
         val id = "213174381920559471141441e1111111abc"
         assert(ActivationId.unapply(id).isEmpty)
-        assert(Try { ActivationId.serdes.read(JsString(id)) }.failed.get.getMessage.contains("too long"))
+        Try(ActivationId.serdes.read(JsString(id))) shouldBe Failure {
+            DeserializationException(Messages.activationIdLengthError(SizeError("Activation id", id.length.B, 32.B)))
+        }
     }
 
     it should "not parse activation id if shorter than uuid" in {
         val id = "213174381920559471141441e1"
-        assert(ActivationId.unapply(id).isEmpty)
-        assert(Try { ActivationId.serdes.read(JsString(id)) }.failed.get.getMessage.contains("too short"))
+        ActivationId.unapply(id) shouldBe empty
+        Try(ActivationId.serdes.read(JsString(id))) shouldBe Failure {
+            DeserializationException(Messages.activationIdLengthError(SizeError("Activation id", id.length.B, 32.B)))
+        }
     }
 
     behavior of "Js Helpers"

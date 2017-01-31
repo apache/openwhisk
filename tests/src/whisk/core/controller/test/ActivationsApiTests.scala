@@ -28,6 +28,7 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.core.controller.WhiskActivationsApi
 import whisk.core.entity._
+import whisk.core.entity.size._
 import whisk.http.ErrorResponse
 import whisk.http.Messages
 
@@ -302,12 +303,12 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
 
         Get(s"$collectionPath/$tooshort") ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
-            responseAs[String] should include("too short")
+            responseAs[String] shouldBe Messages.activationIdLengthError(SizeError("Activation id", tooshort.length.B, 32.B))
         }
 
         Get(s"$collectionPath/$toolong") ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
-            responseAs[String] should include("too long")
+            responseAs[String] shouldBe Messages.activationIdLengthError(SizeError("Activation id", toolong.length.B, 32.B))
         }
 
         Get(s"$collectionPath/$malformed") ~> sealRoute(routes(creds)) ~> check {
