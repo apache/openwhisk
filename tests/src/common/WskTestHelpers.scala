@@ -123,8 +123,8 @@ trait WskTestHelpers extends Matchers {
         activationId: String,
         logs: Option[List[String]],
         response: CliActivationResponse,
-        start: Long,
-        end: Long,
+        start: Instant,
+        end: Instant,
         duration: Long,
         cause: Option[String],
         annotations: Option[List[JsObject]]) {
@@ -141,6 +141,17 @@ trait WskTestHelpers extends Matchers {
     }
 
     object CliActivation extends DefaultJsonProtocol {
+        private implicit val instantSerdes = new RootJsonFormat[Instant] {
+            def write(t: Instant) = t.toEpochMilli.toJson
+
+            def read(value: JsValue) = Try {
+                value match {
+                    case JsNumber(i) => Instant.ofEpochMilli(i.bigDecimal.longValue)
+                    case _           => deserializationError("timetsamp malformed")
+                }
+            } getOrElse deserializationError("timetsamp malformed 2")
+        }
+
         implicit val serdes = jsonFormat8(CliActivation.apply)
     }
 

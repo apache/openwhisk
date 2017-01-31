@@ -408,8 +408,8 @@ class WskBasicUsageTests
             val run = wsk.action.invoke(name)
             withActivation(wsk.activation, run) {
                 activation =>
-                    activation.start should be > 0L
-                    activation.end should be > 0L
+                    activation.start should be > Instant.EPOCH
+                    activation.end should be > Instant.EPOCH
                     activation.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.Success)
                     activation.response.success shouldBe true
                     activation.response.result shouldBe Some(JsObject())

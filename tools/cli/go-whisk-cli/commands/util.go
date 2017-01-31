@@ -528,6 +528,19 @@ func getChildValueStrings(keyValueArr whisk.KeyValueArr, key string, childKey st
     return res
 }
 
+func getValueFromJSONResponse(field string, response map[string]interface {}) (interface{}) {
+    var res interface{}
+
+    for key, value := range response {
+        if key == field {
+            res = value
+            break
+        }
+    }
+
+    return res
+}
+
 func logoText() string {
     logo := `
         ____      ___                   _    _ _     _     _

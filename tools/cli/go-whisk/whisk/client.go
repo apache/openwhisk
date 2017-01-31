@@ -355,7 +355,9 @@ func parseWhiskErrorResponse(resp *http.Response, data []byte, v interface{}) (*
 func parseSuccessResponse(resp *http.Response, data []byte, v interface{}) (*http.Response) {
     Debug(DbgInfo, "Parsing HTTP response into struct type: %s\n", reflect.TypeOf(v))
 
-    err := json.Unmarshal(data, v)
+    dc := json.NewDecoder(strings.NewReader(string(data)))
+    dc.UseNumber()
+    err := dc.Decode(v)
 
     // If the decode was successful, return the response without error (#1). Otherwise, the decode did not work, so the
     // server response was unexpected (#3)

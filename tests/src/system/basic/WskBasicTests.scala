@@ -487,16 +487,16 @@ class WskBasicTests
             withActivation(wsk.activation, run) {
                 activation =>
                     activation.response.result shouldBe Some(dynamicParams.toJson)
-                    activation.duration shouldBe 0L // shouldn't exist but CLI generates it
-                    activation.end shouldBe Instant.EPOCH.toEpochMilli // shouldn't exist but CLI generates it
+                    activation.duration shouldBe 0L         // shouldn't exist but CLI generates it
+                    activation.end shouldBe Instant.EPOCH   // shouldn't exist but CLI generates it
             }
 
             val runWithNoParams = wsk.trigger.fire(name, Map())
             withActivation(wsk.activation, runWithNoParams) {
                 activation =>
                     activation.response.result shouldBe Some(JsObject())
-                    activation.duration shouldBe 0L // shouldn't exist but CLI generates it
-                    activation.end shouldBe Instant.EPOCH.toEpochMilli // shouldn't exist but CLI generates it
+                    activation.duration shouldBe 0L         // shouldn't exist but CLI generates it
+                    activation.end shouldBe Instant.EPOCH   // shouldn't exist but CLI generates it
             }
 
             wsk.trigger.list().stdout should include(name)
