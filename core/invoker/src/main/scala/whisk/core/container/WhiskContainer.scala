@@ -71,10 +71,11 @@ class WhiskContainer(
      * Sends initialization payload to container.
      */
     def init(args: JsObject, timeout: FiniteDuration)(implicit system: ActorSystem, transid: TransactionId): RunResult = {
-        info(this, s"sending initialization to ${this.details}")
+        val startMarker = transid.started("Invoker", LoggingMarkers.INVOKER_ACTIVATION_INIT, s"sending initialization to ${this.details}")
         // when invoking /init, don't wait longer than the timeout configured for this action
         val result = sendPayload("/init", JsObject("value" -> args), timeout) // this will retry
-        info(this, s"initialization result: ${result.toBriefString}")
+        val RunResult(Interval(startActivation, endActivation), _) = result
+        transid.finished("Invoker", startMarker.copy(startActivation), s"initialization result: ${result.toBriefString}", endTime = endActivation)
         result
     }
 
