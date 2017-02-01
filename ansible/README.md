@@ -17,40 +17,55 @@ Nothing to be done, Ansible is already installed during vagrant provisioning.
 You can skip setup and prereq steps as those have been done by vagrant for you.  
 You may jump directly to [Deploying Using CouchDB](#deploying-using-couchdb)
 
-#### Mac users
-It is assumed that a VM has been provisioned using [Docker Machine](../tools/macos/README.md).
+#### Docker for Mac users
+```
+sudo easy_install pip
+sudo pip install ansible==2.3.0.0
+```
+Docker for Mac does not provide any official ways to meet some requirements for OpenWhisk.
+You need to depends on the workarounds until Docker provides official methods.
+
+If you prefer [Docker-machine](https://docs.docker.com/machine/) to [Docker for mac](https://docs.docker.com/docker-for-mac/), you can follow instructions in [docker-machine/README.md](../tools/macos/docker-machine/README.md).
+
+##### Enable Docker remote API
+
+During the deployment steps, each component communicates with Docker via Docker remote API.
+Currently however, Docker for Mac does not support such a feature.
+
+There are many workarounds for this.
+One way is to use `socat` command to setup proxy for the UNIX socket.
 
 ```
-brew install python
-pip install ansible==2.3.0.0
-
-cd ansible
-ansible-playbook -i environments/mac setup.yml [-e docker_machine_name=whisk]
+docker run -d -v /var/run/docker.sock:/var/run/docker.sock -p 4243:2375 bobrik/socat TCP4-LISTEN:2375,fork,reuseaddr UNIX-CONNECT:/var/run/docker.sock
 ```
 
-**Hint:** If you omit the optional `-e docker_machine_name` parameter, it will default to "whisk".  
-If your docker-machine VM has a different name you may pass it via the `-e docker_machine_name` parameter.
+If you want to deploy OpenWhisk in distributed environment, you are required to enable Docker remote API in all Mac hosts.
 
-After this there should be a `hosts` file in the `ansible/environments/mac` directory.
+##### Activate docker0 network
+This is an optional step for local deployment.
+The OpenWhisk deployment via Ansible uses the `docker0` network interface to deploy OpenWhisk and it does not exist on Docker for Mac environment.
 
-To verify the hosts file you can do a quick ping to the docker machine:
-
-```
-cd ansible
-ansible all -i environments/mac -m ping
-```
-
-Should result in something like:
+An expedient workaround is to add alias for `docker0` network to loopback interface.
 
 ```
-ansible | SUCCESS => {
-    "changed": false,
-    "ping": "pong"
-}
-192.168.99.100 | SUCCESS => {
-    "changed": false,
-    "ping": "pong"
-}
+sudo ifconfig lo0 alias 172.17.0.1/24
+```
+
+##### Setup proxy container to run unit tests (optional)
+
+This step is only required to run tests with Docker for Mac.
+If you do not run tests locally, you can just skip this step.
+
+```
+docker run -d -p 3128:3128 style95/squid:3.5.26-p1
+```
+
+You need to configure gradle proxy settings.
+
+**~/.gradle/gradle.properties**
+```
+systemProp.http.proxyHost=localhost
+systemProp.http.proxyPort=3128
 ```
 
 ### Using Ansible
@@ -127,6 +142,7 @@ cd ansible
 ansible-playbook -i environments/<environment> couchdb.yml
 ansible-playbook -i environments/<environment> initdb.yml
 ansible-playbook -i environments/<environment> wipe.yml
+ansible-playbook -i environments/<environment> apigateway.yml
 ansible-playbook -i environments/<environment> openwhisk.yml
 ansible-playbook -i environments/<environment> postdeploy.yml
 ```
@@ -145,6 +161,7 @@ cd <openwhisk_home>
 cd ansible
 ansible-playbook -i environments/<environment> initdb.yml
 ansible-playbook -i environments/<environment> wipe.yml
+ansible-playbook -i environments/<environment> apigateway.yml
 ansible-playbook -i environments/<environment> openwhisk.yml
 ansible-playbook -i environments/<environment> postdeploy.yml
 ```
@@ -176,7 +193,7 @@ cd ansible
 ansible-playbook -i environments/<environment> invoker.yml -e docker_image_tag=myNewInvoker
 ```
 
-**Hint:** You can omit the docker image tag parameters in which case `latest` will be used implicitly.
+**Hint:** You can omit the Docker image tag parameters in which case `latest` will be used implicitly.
 
 ### Cleaning a Single Component
 You can remove a single component just as you would remove the entire deployment stack.
@@ -244,6 +261,12 @@ An expedient workaround is to create a link to the expected location:
 ln -s $(which python) /usr/local/bin/python
 ```
 
+Alternatively, you can also configure the location of Python interpreter in `environments/<environment>/group_vars`.
+
+```
+ansible_python_interpreter: "/usr/local/bin/python"
+```
+
 #### Spaces in Paths
 Ansible 2.1.0.0 and earlier versions do not support a space in file paths.
 Many file imports and roles will not work correctly when included from a path that contains spaces.
@@ -274,4 +297,3 @@ limits:
 - The `concurrent` under `limits->actions->invokes` represents the maximum concurrent invocations allowed per namespace.
 - The `concurrentInSystem` under `limits->actions->invokes` represents the maximum concurrent invocations the system will allow across all namespaces.
 - The `perMinute` under `limits->triggers-fires` represents the allowed namespace trigger firings per minute.
-
