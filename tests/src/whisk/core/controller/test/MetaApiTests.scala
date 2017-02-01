@@ -45,6 +45,7 @@ import whisk.core.controller.WhiskMetaApi
 import whisk.core.database.NoDocumentException
 import whisk.core.entitlement.Privilege
 import whisk.core.entity._
+import whisk.core.entity.size._
 import whisk.http.ErrorResponse
 import whisk.http.Messages
 
@@ -666,6 +667,32 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
 
         // reset the action result
         actionResult = None
+
+        // these reject the request because entity size exceeds allowed limit
+        Seq(s"$systemId/proxy/export_c.json").
+            foreach { path =>
+                val largeEntity = "a" * (allowedActivationEntitySize.toInt + 1)
+
+                val content = s"""{"a":"$largeEntity"}"""
+                Post(s"$exports/$path", content.parseJson.asJsObject) ~> sealRoute(routes()) ~> check {
+                    status should be(RequestEntityTooLarge)
+                    val expectedErrorMsg = Messages.entityTooBig(SizeError(
+                        fieldDescriptionForSizeError,
+                        (largeEntity.length + 13).B,
+                        allowedActivationEntitySize.B))
+                    confirmErrorWithTid(responseAs[JsObject], Some(expectedErrorMsg))
+                }
+
+                val form = FormData(Seq("a" -> largeEntity))
+                Post(s"$exports/$path", form) ~> sealRoute(routes()) ~> check {
+                    status should be(RequestEntityTooLarge)
+                    val expectedErrorMsg = Messages.entityTooBig(SizeError(
+                        fieldDescriptionForSizeError,
+                        (largeEntity.length + 2).B,
+                        allowedActivationEntitySize.B))
+                    confirmErrorWithTid(responseAs[JsObject], Some(expectedErrorMsg))
+                }
+            }
 
         Seq(s"$systemId/proxy/export_c.text/content/field1", s"$systemId/proxy/export_c.text/content/field2").
             foreach { path =>
