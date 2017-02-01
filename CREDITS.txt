@@ -9,55 +9,55 @@ the ways the OpenWhisk community pays back.
 Community Credits
 -----------------
 
-The OpenWhisk project code was originally created, designed, developed (under an 
+The OpenWhisk project code was originally created, designed, developed (under an
 IBM copyright dated 2015-2016) and donated by the IBM Corporation (http://www.ibm.com/)
-to the Apache Software Foundation (ASF). The following repositories were included in 
+to the Apache Software Foundation (ASF). The following repositories were included in
 the initial donation:
 
-* openwhisk: 
-    * Primary (core) source code repository including platform code, run books, tests and more. 
-* openwhisk-catalog: 
-    * Catalog of built-in system, utility, test and sample Actions, Feeds and provider integration tooling. 
+* openwhisk:
+    * Primary (core) source code repository including platform code, run books, tests and more.
+* openwhisk-catalog:
+    * Catalog of built-in system, utility, test and sample Actions, Feeds and provider integration tooling.
 * openwhisk-client-js:
     * JavaScript (JS) client library for the OpenWhisk platform.
 * openwhisk-client-swift:
     * Swift-based client SDK for OpenWhisk compatible with Swift 2.x and runs on iOS 9, WatchOS 2, and Darwin.
 * openwhisk-sdk-docker: 
-    * SDK that shows how to create “Black box” Docker containers that can run Action (code).  
-* openwhisk-client-go: 
-    * API Framework written in GoLang (in-progress) 
+    * SDK that shows how to create “Black box” Docker containers that can run Action (code).
+* openwhisk-client-go:
+    * API Framework written in GoLang (in-progress)
 * openwhisk-python-cli:
     * API client written in Python.
-* openwhisk-package-pushnotifications: 
+* openwhisk-package-pushnotifications:
     * Push notifications to registered devices. (in-progress)
-* openwhisk-package-alarms 
-    * Package that can be used to create periodic, time-based alarms.
+* openwhisk-package-alarms
+    * Package that can be used to create periodic, time-based alarms
 * openwhisk-package-cloudant
     * Package that can be used to store data to Cloudant object storage
-* openwhisk-package-twilio: 
+* openwhisk-package-twilio:
     * Integration with Twilio. (in-progress)
-* openwhisk-package-jira: 
+* openwhisk-package-jira:
     * Integration with JIRA events. (in-progress)
-* openwhisk-package-rss: 
-    * Integration with RSS feeds.  
+* openwhisk-package-rss:
+    * Integration with RSS feeds.
 * openwhisk-package-kafka:
     * Integration with Kafka. (in-progress)
-* openwhisk-slackbot-poc: 
-    * Deploy a Slackbot with the capability to run OpenWhisk actions.  
-* openwhisk-wskdeploy: 
+* openwhisk-slackbot-poc:
+    * Deploy a Slackbot with the capability to run OpenWhisk actions.
+* openwhisk-wskdeploy:
     * Utility for deploying and managing Apache OpenWhisk packages and projects.
-* openwhisk.github.io: 
+* openwhisk.github.io:
     * Apache OpenWhisk website code built using Jekyll.
-* openwhisk-tutorial: 
-    * Interactive tutorial framework (JavaScript) for for OpenWhisk, its CLI and packages. 
-* openwhisk-vscode: 
+* openwhisk-tutorial:
+    * Interactive tutorial framework (JavaScript) for for OpenWhisk, its CLI and packages.
+* openwhisk-vscode:
     * Visual Studio Code extension (prototype) for authoring OpenWhisk actions inside the editor.
 * openwhisk-xcode:
     * Collection of OpenWhisk tools for OS X implemented in Swift 3.
 * openwhisk-debugger
     * The OpenWhisk debugger project
 * openwhisk-podspecs: 
-    * CocoaPods Podspecs repository for ‘openwhisk-client-swift’ subproject. 
+    * CocoaPods Podspecs repository for ‘openwhisk-client-swift’ subproject.
 * openwhisk-devtools:
     * Development tools for building and deploying Apache OpenWhisk
 * openwhisk-workshop:
@@ -69,8 +69,8 @@ the initial donation:
 * openwhisk-sample-slackbot:
     * A proof-of-concept Slackbot to invoke OpenWhisk actions.
     
-The API Gateway code was a collaboration project jointly developed by both IBM Corporation 
-and Adobe Systems Incorporated (http://www.adobe.com/) and a donation to the Apache OpenWhisk 
+The API Gateway code was a collaboration project jointly developed by both IBM Corporation
+and Adobe Systems Incorporated (http://www.adobe.com/) and a donation to the Apache OpenWhisk
 project by both companies.
 
 * openwhisk-apigateway: A performant API Gateway based on Openresty and NGINX.
