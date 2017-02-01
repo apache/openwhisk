@@ -48,6 +48,18 @@ protected[controller] trait ValidateRequestSize extends Directives {
             } getOrElse f(HNil)
         }
     }
+
+    /** Checks if request entity is within allowed length range. */
+    protected def isWhithinRange(length: Long) = {
+        if (length <= allowedActivationEntitySize) {
+            None
+        } else Some {
+            SizeError(fieldDescriptionForSizeError, length.B, allowedActivationEntitySize.B)
+        }
+    }
+
+    protected val allowedActivationEntitySize: Long = ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT.toBytes
+    protected val fieldDescriptionForSizeError = "Request"
 }
 
 /** A trait implementing the basic operations on WhiskEntities in support of the various APIs. */
@@ -61,9 +73,6 @@ trait WhiskCollectionAPI
 
     /** The core collections require backend services to be injected in this trait. */
     services: WhiskServices =>
-
-    protected val allowedActivationEntitySize: Long = ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT.toBytes
-    protected val fieldDescriptionForSizeError = "request"
 
     /** Creates an entity, or updates an existing one, in namespace. Terminates HTTP request. */
     protected def create(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId): RequestContext => Unit
@@ -95,11 +104,8 @@ trait WhiskCollectionAPI
                         }
                     }
                 case ACTIVATE =>
-                    extract(_.request.entity.data.length) { size =>
-                        validateSize {
-                            if (size <= allowedActivationEntitySize) None
-                            else Some(SizeError(fieldDescriptionForSizeError, size.B, allowedActivationEntitySize.B))
-                        }(transid) {
+                    extract(_.request.entity.data.length) { length =>
+                        validateSize(isWhithinRange(length))(transid) {
                             activate(user, FullyQualifiedEntityName(resource.namespace, name), resource.env)
                         }
                     }

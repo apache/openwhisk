@@ -195,7 +195,10 @@ protected[core] object WhiskMetaApi extends Directives {
     }
 }
 
-trait WhiskMetaApi extends Directives with PostActionActivation {
+trait WhiskMetaApi
+    extends Directives
+    with ValidateRequestSize
+    with PostActionActivation {
     services: WhiskServices =>
 
     /** API path and version for posting activations directly through the host. */
@@ -278,14 +281,18 @@ trait WhiskMetaApi extends Directives with PostActionActivation {
         routePrefix {
             allowedOperations {
                 validNameSegment { pkgname =>
-                    entity(as[Option[JsObject]]) { body =>
-                        requestMethodParamsAndPath { r =>
-                            val context = r.withBody(body)
-                            if (context.overrides.isEmpty) {
-                                val metaPackage = resolvePackageName(EntityName(pkgname))
-                                processMetaRequest(user, metaPackage, context)
-                            } else {
-                                terminate(BadRequest, Messages.parametersNotAllowed)
+                    extract(_.request.entity.data.length) { length =>
+                        validateSize(isWhithinRange(length))(transid) {
+                            entity(as[Option[JsObject]]) { body =>
+                                requestMethodParamsAndPath { r =>
+                                    val context = r.withBody(body)
+                                    if (context.overrides.isEmpty) {
+                                        val metaPackage = resolvePackageName(EntityName(pkgname))
+                                        processMetaRequest(user, metaPackage, context)
+                                    } else {
+                                        terminate(BadRequest, Messages.parametersNotAllowed)
+                                    }
+                                }
                             }
                         }
                     }
@@ -410,10 +417,14 @@ trait WhiskMetaApi extends Directives with PostActionActivation {
             }
         }
 
-        entity(as[Option[JsObject]]) {
-            body => process(body)
-        } ~ entity(as[FormData]) {
-            form => process(Some(form.fields.toMap.toJson.asJsObject))
+        extract(_.request.entity.data.length) { length =>
+            validateSize(isWhithinRange(length))(transid) {
+                entity(as[Option[JsObject]]) {
+                    body => process(body)
+                } ~ entity(as[FormData]) {
+                    form => process(Some(form.fields.toMap.toJson.asJsObject))
+                }
+            }
         }
     }
 
@@ -615,5 +626,4 @@ trait WhiskMetaApi extends Directives with PostActionActivation {
             }
         }
     }
-
 }
