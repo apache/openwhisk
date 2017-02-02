@@ -489,8 +489,16 @@ trait WhiskMetaApi
             case Success((activationId, Some(activation))) =>
                 val result = activation.resultAsJson
 
-                if (activation.response.isSuccess) {
-                    val resultPath = projectResultField getOrElse List()
+                if (activation.response.isSuccess || activation.response.isApplicationError) {
+                    val resultPath = if (activation.response.isSuccess) {
+                        projectResultField getOrElse List()
+                    } else {
+                        // the activation produced an error response: therefore ignore
+                        // the requested projection and unwrap the error instead
+                        // and attempt to handle it per the desired response type (extension)
+                        List(ActivationResponse.ERROR_FIELD)
+                    }
+
                     val result = getFieldPath(activation.resultAsJson, resultPath)
                     result match {
                         case Some(projection) =>
@@ -502,7 +510,7 @@ trait WhiskMetaApi
                         case _ => terminate(NotFound, Messages.propertyNotFound)
                     }
                 } else {
-                    complete(BadRequest, result)
+                    terminate(BadRequest, Messages.errorProcessingRequest)
                 }
 
             case Success((activationId, None)) =>
