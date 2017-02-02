@@ -184,11 +184,13 @@ func (s *ActionService) Delete(actionName string) (*http.Response, error) {
     return resp, nil
 }
 
-func (s *ActionService) Invoke(actionName string, payload interface{}, blocking bool) (*Activation, *http.Response, error) {
+func (s *ActionService) Invoke(actionName string, payload interface{}, blocking bool, result bool) (interface{}, *http.Response, error) {
+    var res interface{}
+
     // Encode resource name as a path (with no query params) before inserting it into the URI
     // This way any '?' chars in the name won't be treated as the beginning of the query params
     actionName = (&url.URL{Path: actionName}).String()
-    route := fmt.Sprintf("actions/%s?blocking=%t", actionName, blocking)
+    route := fmt.Sprintf("actions/%s?blocking=%t&result=%t", actionName, blocking, result)
     Debug(DbgInfo, "HTTP route: %s\n", route)
 
     req, err := s.client.NewRequest("POST", route, payload, IncludeNamespaceInUrl)
@@ -201,12 +203,16 @@ func (s *ActionService) Invoke(actionName string, payload interface{}, blocking 
         return nil, nil, whiskErr
     }
 
-    activation := new(Activation)
-    resp, err := s.client.Do(req, &activation)
-    if err != nil {
-        Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
-        return activation, resp, err
+    if !result {
+      res = new(Activation)
     }
 
-    return activation, resp, nil
+    resp, err := s.client.Do(req, &res)
+
+    if err != nil {
+      Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
+      return res, resp, err
+    }
+
+    return res, resp, nil
 }

@@ -162,7 +162,7 @@ var actionInvokeCmd = &cobra.Command{
 
     outputStream := color.Output
 
-    activation, _, err := client.Actions.Invoke(qName.entityName, parameters, flags.common.blocking)
+    res, _, err := client.Actions.Invoke(qName.entityName, parameters, flags.common.blocking, flags.action.result)
     if err != nil {
       whiskErr, isWhiskErr := err.(*whisk.WskError)
 
@@ -180,9 +180,7 @@ var actionInvokeCmd = &cobra.Command{
     }
 
     if flags.common.blocking && flags.action.result {
-      if activation.Response.Result != nil {
-        printJSON(*activation.Response.Result, outputStream)
-      }
+        printJSON(res, outputStream)
     } else if flags.common.blocking {
       fmt.Fprintf(color.Output,
         wski18n.T("{{.ok}} invoked /{{.namespace}}/{{.name}} with id {{.id}}\n",
@@ -190,8 +188,8 @@ var actionInvokeCmd = &cobra.Command{
             "ok": color.GreenString("ok:"),
             "namespace": boldString(qName.namespace),
             "name": boldString(qName.entityName),
-            "id": boldString(activation.ActivationID)}))
-      printJSON(activation, outputStream)
+            "id": boldString(res.(*whisk.Activation).ActivationID)}))
+      printJSON(res, outputStream)
     } else {
       fmt.Fprintf(color.Output,
         wski18n.T("{{.ok}} invoked /{{.namespace}}/{{.name}} with id {{.id}}\n",
@@ -199,7 +197,7 @@ var actionInvokeCmd = &cobra.Command{
             "ok": color.GreenString("ok:"),
             "namespace": boldString(qName.namespace),
             "name": boldString(qName.entityName),
-            "id": boldString(activation.ActivationID)}))
+            "id": boldString(res.(*whisk.Activation).ActivationID)}))
     }
 
     return err

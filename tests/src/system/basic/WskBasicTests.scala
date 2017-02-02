@@ -441,8 +441,7 @@ class WskBasicTests
                     action.invoke(name, parameters = params, blocking = true, result = true)
             }
 
-            res.stdout shouldBe ""
-
+            res.stdout should include regex (s"""\\{\\s+"activationId":\\s+"[a-z0-9]{32}"\\s+\\}""")
     }
 
     it should "create, and get docker action get ensure exec code is omitted" in withAssetCleaner(wskprops) {
