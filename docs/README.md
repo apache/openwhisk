@@ -21,46 +21,28 @@ A list of downloadable CLIs for various operating systems, and CPU architectures
 location `{BASE URL}/cli/go/download`. The `{BASE URL}` is the OpenWhisk API hostname or IP address
 (e.g., openwhisk.ng.bluemix.net).
 
-There are three properties to configure the CLI with:
+There are two required properties to configure in order to use the CLI:
 
 1. **API host** (name or IP address) for the OpenWhisk deployment you want to use.
 2. **Authorization key** (username and password) which grants you access to the OpenWhisk API.
-3. **Namespace** where your OpenWhisk assets are stored.
 
-The CLI will usually have an API host already set. You can check its value with
-`wsk property get --apihost`.
-
-If you know your authorization key and namespace, you can configure the CLI to use them. Otherwise
-you will need to provide one or both for most CLI operations.
+The API host can be acquired from the `edge.host` property in `whisk.properties` file, which is generated during
+deployment of OpenWhisk. Run the following command from your `openwhisk` directory to set the API host:
 
 ```
-wsk property set [--apihost <openwhisk_baseurl>] --auth <username:password> --namespace <namespace>
+./bin/wsk property set --apihost <openwhisk_baseurl>
 ```
 
-The API host is set automatically when you build the CLI for your environment. A _guest_ account is available
-in local installations with an authorization key located in [ansible/files/auth.guest](../ansible/files/auth.guest) and the namespace `guest`.
-To configure the CLI to use the guest account, you can run the following command from your `openwhisk` directory:
+If you know your authorization key, you can configure the CLI to use it. Otherwise, you will need to obtain an
+authorization key for most CLI operations. A _guest_ account is available in local installations with an authorization
+key located in [ansible/files/auth.guest](../ansible/files/auth.guest). To configure the CLI to use the guest account,
+you can run the following command from your `openwhisk` directory:
 
 ```
-./bin/wsk property set --namespace guest --auth `cat ansible/files/auth.guest`
+./bin/wsk property set --auth `cat ansible/files/auth.guest`
 ```
 
 To verify your CLI setup, try [creating and running an action](#openwhisk-hello-world-example).
-
-## Setting up the deprecated OpenWhisk CLI (Python based)
-- The OpenWhisk command line interface (CLI) requires Python 2.7.
-
-- If you cloned the OpenWhisk repository, you will find the CLI in `openwhisk/bin/wsk`.
-
-- Otherwise, download the CLI from an existing deployment. You will need to know the base URL for the deployment you
-want to use and install it using [pip](https://pip.pypa.io/).
-
-```
-sudo pip install --upgrade https://{BASE URL}/openwhisk-0.1.0.tar.gz [--trusted-host {BASE URL}]
-```
-
-The `{BASE URL}` is the OpenWhisk API hostname or IP address (e.g., openwhisk.ng.bluemix.net).
-The `--trusted-host` option allows you to download the CLI from a host with a [self-signed (i.e., untrusted) certificate](../tools/vagrant/README.md#ssl-certificate-configuration-optional).
 
 ## Using the OpenWhisk CLI
 

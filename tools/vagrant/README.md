@@ -66,8 +66,8 @@ Call the binary directly or setup your environment variable PATH to include the 
 From your _host_, configure `wsk` to use your Vagrant-hosted OpenWhisk deployment and run the "echo" action again to test.
 The following commands assume that you have `wsk` setup correctly in your PATH.
 ```
-# Set your OpenWhisk Namespace and Authorization Key.
-wsk -i property set --apihost 192.168.33.13 --namespace guest --auth `vagrant ssh -- cat openwhisk/ansible/files/auth.guest`
+# Set your OpenWhisk Authorization Key.
+wsk -i property set --apihost 192.168.33.13 --auth `vagrant ssh -- cat openwhisk/ansible/files/auth.guest`
 
 # Run the hello sample action
 wsk -i action invoke /whisk.system/utils/echo -p message hello --blocking --result
@@ -76,7 +76,7 @@ wsk -i action invoke /whisk.system/utils/echo -p message hello --blocking --resu
 }
 ```
 **Tip:** To connect to a different host API (i.e. bluemix.net) with the CLI, you will need to 
-configure the CLI with new values for __apihost__, __namespace__, and __auth__ key.
+configure the CLI with new values for __apihost__, and __auth__ key.
  
 ### Use the wsk CLI inside the VM
 For your convenience, a `wsk` wrapper is provided inside the VM which delegates CLI commands to `$OPENWHISK_HOME/bin/linux/amd64/wsk` and adds the `-i` parameter that is required for insecure access to the local OpenWhisk deployment.
@@ -157,9 +157,8 @@ You can check that containers are running by using the docker cli with the comma
 
 ### Adding OpenWhisk users (Optional)
 
-An OpenWhisk user, also known as a *subject*, requires a valid authorization key and namespace.
+An OpenWhisk user, also known as a *subject*, requires a valid authorization key.
 OpenWhisk is preconfigured with a guest key located in `ansible/files/auth.guest`.
-The default namespace is __guest__.
 
 You may use this key if you like, or use `wskadmin` inside the VM to create a new key.
 
@@ -167,24 +166,6 @@ You may use this key if you like, or use `wskadmin` inside the VM to create a ne
 vagrant ssh
 wskadmin user create <subject>
 ```
-
-This command will create a new *subject* with the authorization key shown on the console once you run `wskadmin`. This key is required when making API calls to OpenWhisk, or when using the command line interface (CLI). The namespace is the same as the `<subject>` name used to create the key.
-
-A namespace allows two or more subjects to share resources. Each subject will have their own authorization key to work with resources in a namespace, but will have equal rights to the namespace.
-
-```
-vagrant ssh
-wskadmin user create <subject> --ns <namespace>
-```
-
-The same tool may be used to remove a subject from a namespace or to delete a subject entirely.
-
-```
-vagrant ssh
-wskadmin user delete <subject> --ns <namespace>  # removes <subject> from <namespace>
-wskadmin user delete <subject>                   # deletes <subject>
-```
-
 
 ### SSL certificate configuration (Optional)
 
