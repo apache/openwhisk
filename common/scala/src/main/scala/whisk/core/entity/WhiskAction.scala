@@ -123,9 +123,7 @@ case class WhiskAction(
      * Merges parameters (usually from package) with existing action parameters.
      * Existing parameters supersede those in p.
      */
-    def inherit(p: Parameters) = {
-        WhiskAction(namespace, name, exec, p ++ parameters, limits, version, publish, annotations)
-    }
+    def inherit(p: Parameters) = copy(parameters = p ++ parameters).revision[WhiskAction](rev)
 
     /**
      * Gets the container image name for the action (if one is required).
@@ -192,7 +190,7 @@ case class WhiskAction(
                 val newExec = SequenceExec(components map {
                     c => FullyQualifiedEntityName(c.path.resolveNamespace(userNamespace), c.name)
                 })
-                WhiskAction(namespace, name, newExec, parameters, limits, version, publish, annotations)
+                copy(exec = newExec).revision[WhiskAction](rev)
             case _ => this
         }
     }

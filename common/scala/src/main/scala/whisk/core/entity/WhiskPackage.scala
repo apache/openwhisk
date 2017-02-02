@@ -80,17 +80,13 @@ case class WhiskPackage(
      * Merges parameters into existing set of parameters for package.
      * Existing parameters supersede those in p.
      */
-    def inherit(p: Parameters): WhiskPackage = {
-        WhiskPackage(namespace, name, binding, p ++ parameters, version, publish, annotations)
-    }
+    def inherit(p: Parameters): WhiskPackage = copy(parameters = p ++ parameters).revision[WhiskPackage](rev)
 
     /**
      * Merges parameters into existing set of parameters for package.
      * The parameters from p supersede parameters from this.
      */
-    def mergeParameters(p: Parameters): WhiskPackage = {
-        WhiskPackage(namespace, name, binding, parameters ++ p, version, publish, annotations)
-    }
+    def mergeParameters(p: Parameters): WhiskPackage = copy(parameters = parameters ++ p).revision[WhiskPackage](rev)
 
     /**
      * Gets the full path for the package.

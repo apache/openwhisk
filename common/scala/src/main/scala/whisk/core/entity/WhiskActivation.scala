@@ -89,35 +89,8 @@ case class WhiskActivation(
         }
     }
 
-    def withoutLogs = WhiskActivation(
-        namespace = namespace,
-        name = name,
-        subject = subject,
-        activationId = activationId,
-        start = start,
-        end = end,
-        cause = cause,
-        response = response,
-        logs = ActivationLogs(),
-        version = version,
-        publish = publish,
-        annotations = annotations,
-        duration = duration)
-
-    def withLogs(logs: ActivationLogs) = WhiskActivation(
-        namespace = namespace,
-        name = name,
-        subject = subject,
-        activationId = activationId,
-        start = start,
-        end = end,
-        cause = cause,
-        response = response,
-        logs = logs,
-        version = version,
-        publish = publish,
-        annotations = annotations,
-        duration = duration)
+    def withoutLogs = copy(logs = ActivationLogs()).revision[WhiskActivation](rev)
+    def withLogs(logs: ActivationLogs) = copy(logs = logs).revision[WhiskActivation](rev)
 }
 
 object WhiskActivation

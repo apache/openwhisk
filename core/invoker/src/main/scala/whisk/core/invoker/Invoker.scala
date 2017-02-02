@@ -109,6 +109,9 @@ class Invoker(
         // caching is enabled since actions have revision id and an updated
         // action will not hit in the cache due to change in the revision id;
         // if the doc revision is missing, then bypass cache
+        if (actionid.rev == DocRevision()) {
+            error(this, s"revision was not provided for ${actionid.id}")
+        }
         WhiskAction.get(entityStore, actionid.id, actionid.rev, fromCache = actionid.rev != DocRevision()) onComplete {
             case Success(action) =>
                 // only Exec instances that are subtypes of CodeExec reach the invoker
