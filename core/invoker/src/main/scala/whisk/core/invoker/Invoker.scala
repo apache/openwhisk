@@ -38,7 +38,7 @@ import whisk.connector.kafka.{ KafkaConsumerConnector, KafkaProducerConnector }
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.{ consulServer, dockerImagePrefix, dockerRegistry, kafkaHost, logsDir, servicePort, whiskVersion }
 import whisk.core.connector.{ ActivationMessage, CompletionMessage }
-import whisk.core.container.{ BlackBoxContainerError, ContainerPool, Interval, RunResult, WhiskContainer, WhiskContainerError }
+import whisk.core.container.{ BlackBoxContainerError, ContainerPool, Interval, RunResult, WhiskContainer, WhiskContainerError, RuncUtils }
 import whisk.core.dispatcher.{ Dispatcher, MessageHandler }
 import whisk.core.dispatcher.ActivationFeed.{ ActivationNotification, ContainerReleased, FailedActivation }
 import whisk.core.entity._
@@ -77,6 +77,18 @@ class Invoker(
         authStore.setVerbosity(level)
         activationStore.setVerbosity(level)
         producer.setVerbosity(level)
+        checkRuncAccess()
+    }
+
+    /**
+     *  Test method that determines whether there is access from the invoker (inside a container)
+     *  to the hosts's runc binary.  Logging shows success of failure but the method returns
+     *  without exception in any case.
+     */
+    def checkRuncAccess() {
+        implicit val tid = TransactionId.invokerNanny
+        val runcListResult = RuncUtils.list()
+        info(this, s"runc list result: ${runcListResult}")
     }
 
     /**
