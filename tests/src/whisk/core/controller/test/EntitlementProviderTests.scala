@@ -18,7 +18,6 @@ package whisk.core.controller.test
 
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
-import scala.language.postfixOps
 
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
@@ -50,7 +49,7 @@ class EntitlementProviderTests
 
     behavior of "Entitlement Provider"
 
-    val requestTimeout = 1 second
+    val requestTimeout = 10.seconds
     val someUser = Subject().toIdentity(AuthKey())
     val adminUser = Subject("admin").toIdentity(AuthKey())
     val guestUser = Subject("anonym").toIdentity(AuthKey())
