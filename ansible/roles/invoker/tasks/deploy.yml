@@ -1,6 +1,8 @@
 ---
 # This role installs invokers.
 
+- include: docker_login.yml
+
 - name: "pull action images with tag {{docker_image_tag}}"
   shell: "docker pull {{docker_registry}}{{item}}:{{docker_image_tag}}"
   with_items:

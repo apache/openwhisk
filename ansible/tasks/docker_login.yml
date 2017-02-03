@@ -1,0 +1,10 @@
+---
+
+# Logs in to private registry if needed.
+
+- name: docker login
+  docker_login:
+    registry: "{{ docker_registry }}"
+    username: "{{ docker_registry_username }}"
+    password: "{{ docker_registry_password }}"
+  when: docker_registry != "" and docker_registry_password is defined
