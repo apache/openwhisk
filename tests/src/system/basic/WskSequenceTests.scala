@@ -462,7 +462,7 @@ class WskSequenceTests
     private def checkEchoSeqRuleResult(triggerFireRun: RunResult, seqName: String, triggerPayload: JsObject) = {
         withActivation(wsk.activation, triggerFireRun) {
             triggerActivation =>
-                withActivationsFromEntity(wsk.activation, seqName, since = Some(Instant.ofEpochMilli(triggerActivation.start))) { activationList =>
+                withActivationsFromEntity(wsk.activation, seqName, since = Some(triggerActivation.start)) { activationList =>
                     activationList.head.response.result shouldBe Some(triggerPayload)
                     activationList.head.cause shouldBe None
                 }

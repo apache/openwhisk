@@ -24,7 +24,7 @@ import whisk.common.Logging
 import whisk.http.Messages._
 
 protected[core] case class ActivationResponse private (
-    val statusCode: Int = 0, val result: Option[JsValue]) {
+    val statusCode: Int, val result: Option[JsValue]) {
 
     def toJsonObject = ActivationResponse.serdes.write(this).asJsObject
 
