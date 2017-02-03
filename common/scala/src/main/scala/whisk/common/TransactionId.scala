@@ -38,7 +38,11 @@ import spray.json.RootJsonFormat
  */
 case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
     def id = meta.id
-    override def toString = if (meta.id > 0) s"#tid_${meta.id}" else (if (meta.id < 0) s"#sid_${-meta.id}" else "??")
+    override def toString = {
+        if (meta.id > 0) s"#tid_${meta.id}"
+        else if (meta.id < 0) s"#sid_${-meta.id}"
+        else "??"
+    }
 
     /**
      * Method to count events.
@@ -144,6 +148,7 @@ object TransactionId {
     val invokerNanny = TransactionId(-102)  // Invoker nanny thread
     val dispatcher = TransactionId(-110)    // Kafka message dispatcher
     val loadbalancer = TransactionId(-120)  // Loadbalancer thread
+    val invokerHealth = TransactionId(-121) // Invoker supervision
     val controller = TransactionId(-130)    // Controller startup
 
     def apply(tid: BigDecimal): TransactionId = {

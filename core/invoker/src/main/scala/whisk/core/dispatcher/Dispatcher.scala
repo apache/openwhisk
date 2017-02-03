@@ -28,7 +28,7 @@ import akka.actor.actorRef2Scala
 import whisk.common.Counter
 import whisk.common.Logging
 import whisk.common.TransactionId
-import whisk.core.connector.{ ActivationMessage => Message }
+import whisk.core.connector.ActivationMessage
 import whisk.core.connector.MessageConsumer
 
 /**
@@ -68,7 +68,7 @@ class Dispatcher(
      */
     def process(topic: String, bytes: Array[Byte]) = {
         val raw = new String(bytes, "utf-8")
-        Message(raw) match {
+        ActivationMessage.parse(raw) match {
             case Success(m) =>
                 handlers foreach {
                     case (name, handler) => handleMessage(handler, m)
@@ -77,7 +77,7 @@ class Dispatcher(
         }
     }
 
-    private def handleMessage(handler: MessageHandler, msg: Message) = {
+    private def handleMessage(handler: MessageHandler, msg: ActivationMessage) = {
         implicit val tid = msg.transid
         implicit val executionContext = actorSystem.dispatcher
 
