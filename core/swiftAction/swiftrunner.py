@@ -19,6 +19,7 @@ import subprocess
 from subprocess import PIPE
 import codecs
 import json
+import datetime
 sys.path.append('../actionProxy')
 from actionproxy import ActionRunner, main, setRunner
 
@@ -44,13 +45,17 @@ class SwiftRunner(ActionRunner):
         fp.write("_run_main(%s)\n" % main_function)
 
     def build(self):
+        print datetime.datetime.now().time()
+        print "Start compilation"
         print BUILD_PROCESS
         p = subprocess.Popen(BUILD_PROCESS, stdout=PIPE)
         (o, e) = p.communicate()
-        p.wait()
 
         print o
         print e
+
+        print datetime.datetime.now().time()
+        print "Finished compilation"
 
     def env(self, message):
         env = ActionRunner.env(self, message)
