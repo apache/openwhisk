@@ -37,8 +37,7 @@ object AkkaHttpUtils {
         retryOnTCPErrors: Boolean = false,
         retryOn4xxErrors: Boolean = false,
         retryOn5xxErrors: Boolean = false,
-        retryInterval: FiniteDuration = 100.milliseconds)
-        (implicit system: ActorSystem) : Try[HttpResponse] = {
+        retryInterval: FiniteDuration = 100.milliseconds)(implicit system: ActorSystem): Try[HttpResponse] = {
 
         val f = singleRequest(
             request, timeout, retryOnTCPErrors, retryOn4xxErrors, retryOn5xxErrors, retryInterval
@@ -58,13 +57,12 @@ object AkkaHttpUtils {
         retryOnTCPErrors: Boolean = false,
         retryOn4xxErrors: Boolean = false,
         retryOn5xxErrors: Boolean = false,
-        retryInterval: FiniteDuration = 100.milliseconds)
-        (implicit system: ActorSystem) : Future[HttpResponse] = {
+        retryInterval: FiniteDuration = 100.milliseconds)(implicit system: ActorSystem): Future[HttpResponse] = {
 
         implicit val executionContext = system.dispatcher
         implicit val materializer = ActorMaterializer()
 
-        val timeoutException = new TimeoutException(s"Request to ${request.uri.authority} could not be completed in time.")
+        val timeoutException = new TimeoutException(s"Request to ${request.uri} could not be completed in time.")
 
         val authority = request.uri.authority
         val relativeRequest = request.copy(uri = request.uri.toRelative)
@@ -77,7 +75,7 @@ object AkkaHttpUtils {
             promise.tryFailure(timeoutException)
         }
 
-        def tryOnce() : Unit = if(!promise.isCompleted) {
+        def tryOnce(): Unit = if (!promise.isCompleted) {
             val f = Source.single(relativeRequest).via(flow).runWith(Sink.head)
 
             f.onSuccess {
@@ -96,11 +94,11 @@ object AkkaHttpUtils {
             }
 
             f.onFailure {
-                case s : akka.stream.StreamTcpException if retryOnTCPErrors =>
+                case s: akka.stream.StreamTcpException if retryOnTCPErrors =>
                     // TCP error (e.g. connection couldn't be opened)
                     system.scheduler.scheduleOnce(retryInterval) { tryOnce() }
 
-                case t : Throwable =>
+                case t: Throwable =>
                     // Other error. We fail the promise.
                     promise.tryFailure(t)
             }
