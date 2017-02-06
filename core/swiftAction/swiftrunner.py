@@ -16,6 +16,7 @@
 
 import sys
 import subprocess
+from subprocess import PIPE
 import codecs
 import json
 sys.path.append('../actionProxy')
@@ -24,7 +25,7 @@ from actionproxy import ActionRunner, main, setRunner
 SRC_EPILOGUE_FILE = "./epilogue.swift"
 DEST_SCRIPT_FILE = "/swiftAction/action.swift"
 DEST_BIN_FILE = "/swiftAction/action"
-BUILD_PROCESS = [ "swiftc", "-O", DEST_SCRIPT_FILE, "-o", DEST_BIN_FILE ]
+BUILD_PROCESS = [ "swiftc", "-v", "-O", DEST_SCRIPT_FILE, "-o", DEST_BIN_FILE ]
 
 class SwiftRunner(ActionRunner):
 
@@ -43,14 +44,13 @@ class SwiftRunner(ActionRunner):
         fp.write("_run_main(%s)\n" % main_function)
 
     def build(self):
-        p = subprocess.Popen(BUILD_PROCESS)
+        print BUILD_PROCESS
+        p = subprocess.Popen(BUILD_PROCESS, stdout=PIPE)
         (o, e) = p.communicate()
+        p.wait()
 
-        if o is not None:
-            sys.stdout.write(o)
-
-        if e is not None:
-            sys.stderr.write(e)
+        print o
+        print e
 
     def env(self, message):
         env = ActionRunner.env(self, message)

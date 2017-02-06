@@ -74,7 +74,9 @@ class ActionRunner:
             try:
                 # build the source
                 self.build()
-            except Exception:
+            except Exception as e:
+                print "EXCEPTION DURING BUILD"
+                print e
                 None  # do nothing, verify will signal failure if binary not executable
         # verify the binary exists and is executable
         return self.verify()
