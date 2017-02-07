@@ -45,17 +45,15 @@ class SwiftRunner(ActionRunner):
         fp.write("_run_main(%s)\n" % main_function)
 
     def build(self):
-        print datetime.datetime.now().time()
-        print "Start compilation"
+        print "%s Start compilation" % str(datetime.datetime.now().time())
         print BUILD_PROCESS
         p = subprocess.Popen(BUILD_PROCESS, stdout=PIPE)
         (o, e) = p.communicate()
 
-        print o
-        print e
+        #print o
+        #print e
 
-        print datetime.datetime.now().time()
-        print "Finished compilation"
+        print "%s Finished compilation" % str(datetime.datetime.now().time())
 
     def env(self, message):
         env = ActionRunner.env(self, message)
