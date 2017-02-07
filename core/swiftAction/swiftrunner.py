@@ -26,7 +26,7 @@ from actionproxy import ActionRunner, main, setRunner
 SRC_EPILOGUE_FILE = "./epilogue.swift"
 DEST_SCRIPT_FILE = "/swiftAction/action.swift"
 DEST_BIN_FILE = "/swiftAction/action"
-BUILD_PROCESS = [ "swiftc", "-v", "-Xfrontend", "-debug-time-function-bodies", "-O", DEST_SCRIPT_FILE, "-o", DEST_BIN_FILE ]
+BUILD_PROCESS = [ "swiftc", "-Xfrontend", "-debug-time-function-bodies", "-O", DEST_SCRIPT_FILE, "-o", DEST_BIN_FILE ]
 
 class SwiftRunner(ActionRunner):
 
@@ -47,7 +47,7 @@ class SwiftRunner(ActionRunner):
     def build(self):
         print "%s Start compilation" % str(datetime.datetime.now().time())
         print BUILD_PROCESS
-        p = subprocess.Popen(BUILD_PROCESS, stdout=PIPE)
+        p = subprocess.Popen(BUILD_PROCESS, stdout=PIPE, stderr=PIPE)
         (o, e) = p.communicate()
 
         print o
