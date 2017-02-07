@@ -26,7 +26,7 @@ from actionproxy import ActionRunner, main, setRunner
 SRC_EPILOGUE_FILE = "./epilogue.swift"
 DEST_SCRIPT_FILE = "/swiftAction/action.swift"
 DEST_BIN_FILE = "/swiftAction/action"
-BUILD_PROCESS = [ "swiftc", "-Xfrontend", "-debug-time-function-bodies", "-O", DEST_SCRIPT_FILE, "-o", DEST_BIN_FILE ]
+BUILD_PROCESS = [ "swiftc", "-g", "-Xfrontend", "-debug-time-function-bodies", DEST_SCRIPT_FILE, "-o", DEST_BIN_FILE ]
 
 class SwiftRunner(ActionRunner):
 
