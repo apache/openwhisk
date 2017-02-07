@@ -10,7 +10,7 @@ Use the CLI to expose your OpenWhisk actions through the OpenWhisk API Gateway.
 
 ## OpenWhisk CLI configuration
 This experimental feature only works with the new OpenWhisk authentication model in which each namespace now has a unique authentication key associated with it.
-Follow the instructions in [Configure CLI](../../docs/README.md#setting-up-the-openwhisk-cli) on how to set the authentication key for your specific namespace.
+Follow the instructions in [Configure CLI](./README.md#setting-up-the-openwhisk-cli) on how to set the authentication key for your specific namespace.
 
 
 ## Expose an OpenWhisk action
