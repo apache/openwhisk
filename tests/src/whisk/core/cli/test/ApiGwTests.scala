@@ -80,6 +80,7 @@ class ApiGwTests
       }
       finally {
         val deleteresult = wsk.api.delete(basepathOrApiName = testbasepath)
+        Thread.sleep(5000)  // Test suite will overrun the local dev throttling limit
       }
     }
 
@@ -105,6 +106,7 @@ class ApiGwTests
         }
         finally {
             val deleteresult = wsk.api.delete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+            Thread.sleep(5000)  // Test suite will overrun the local dev throttling limit
         }
     }
 
@@ -125,6 +127,7 @@ class ApiGwTests
         }
         finally {
             val deleteresult = wsk.api.delete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+            Thread.sleep(5000)  // Test suite will overrun the local dev throttling limit
         }
     }
 
@@ -144,6 +147,7 @@ class ApiGwTests
       }
       finally {
         val deleteresult = wsk.api.delete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        Thread.sleep(5000)  // Test suite will overrun the local dev throttling limit
       }
     }
 
@@ -163,6 +167,7 @@ class ApiGwTests
       }
       finally {
         val deleteresult = wsk.api.delete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        Thread.sleep(5000)  // Test suite will overrun the local dev throttling limit
       }
     }
 
@@ -188,6 +193,7 @@ class ApiGwTests
       }
       finally {
         val deleteresult = wsk.api.delete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        Thread.sleep(5000)  // Test suite will overrun the local dev throttling limit
       }
     }
 
@@ -213,6 +219,7 @@ class ApiGwTests
       }
       finally {
         val deleteresult = wsk.api.delete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        Thread.sleep(5000)  // Test suite will overrun the local dev throttling limit
       }
     }
 
@@ -253,6 +260,7 @@ class ApiGwTests
       finally {
         var deleteresult = wsk.api.delete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
         deleteresult = wsk.api.delete(basepathOrApiName = testbasepath2, expectedExitCode = DONTCARE_EXIT)
+        Thread.sleep(5000)  // Test suite will overrun the local dev throttling limit
       }
     }
 
@@ -280,137 +288,143 @@ class ApiGwTests
       }
       finally {
         val deleteresult = wsk.api.delete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        Thread.sleep(5000)  // Test suite will overrun the local dev throttling limit
       }
     }
 
-  it should "verify failed creation with invalid swagger doc as input" in {
-    val testName = "CLI_APIGWTEST10"
-    val testbasepath = "/" + testName + "_bp"
-    val testrelpath = "/path"
-    val testnewrelpath = "/path_new"
-    val testurlop = "get"
-    val testapiname = testName + " API Name"
-    val actionName = testName + "_action"
-    val swaggerPath = TestUtils.getTestApiGwFilename(s"testswaggerdocinvalid")
-    try {
-      var rr = wsk.api.create(swagger = Some(swaggerPath), expectedExitCode = ANY_ERROR_EXIT)
-      println("api create stdout: " + rr.stdout)
-      println("api create stderr: " + rr.stderr)
-      rr.stderr should include(s"Swagger file is invalid")
-    } finally {
-      val deleteresult = wsk.api.delete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+    it should "verify failed creation with invalid swagger doc as input" in {
+      val testName = "CLI_APIGWTEST10"
+      val testbasepath = "/" + testName + "_bp"
+      val testrelpath = "/path"
+      val testnewrelpath = "/path_new"
+      val testurlop = "get"
+      val testapiname = testName + " API Name"
+      val actionName = testName + "_action"
+      val swaggerPath = TestUtils.getTestApiGwFilename(s"testswaggerdocinvalid")
+      try {
+        var rr = wsk.api.create(swagger = Some(swaggerPath), expectedExitCode = ANY_ERROR_EXIT)
+        println("api create stdout: " + rr.stdout)
+        println("api create stderr: " + rr.stderr)
+        rr.stderr should include(s"Swagger file is invalid")
+      } finally {
+        val deleteresult = wsk.api.delete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        Thread.sleep(5000)  // Test suite will overrun the local dev throttling limit
+      }
     }
-  }
 
-  it should "verify delete basepath/path " in {
-    val testName = "CLI_APIGWTEST11"
-    val testbasepath = "/" + testName + "_bp"
-    val testrelpath = "/path"
-    val testnewrelpath = "/path_new"
-    val testurlop = "get"
-    val testapiname = testName + " API Name"
-    val actionName = testName + "_action"
-    try {
-      var rr = wsk.api.create(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
-      rr.stdout should include("ok: created API")
-      var rr2 = wsk.api.create(basepath = Some(testbasepath), relpath = Some(testnewrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
-      rr2.stdout should include("ok: created API")
-      rr = wsk.api.delete(basepathOrApiName = testbasepath, relpath = Some(testrelpath))
-      rr.stdout should include("ok: deleted " + testrelpath +" from "+ testbasepath)
-      rr2 = wsk.api.list(basepathOrApiName = Some(testbasepath), relpath = Some(testnewrelpath))
-      rr2.stdout should include("ok: APIs")
-      rr2.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
-      rr2.stdout should include(testbasepath + testrelpath)
-    } finally {
-      val deleteresult = wsk.api.delete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+    it should "verify delete basepath/path " in {
+      val testName = "CLI_APIGWTEST11"
+      val testbasepath = "/" + testName + "_bp"
+      val testrelpath = "/path"
+      val testnewrelpath = "/path_new"
+      val testurlop = "get"
+      val testapiname = testName + " API Name"
+      val actionName = testName + "_action"
+      try {
+        var rr = wsk.api.create(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+        rr.stdout should include("ok: created API")
+        var rr2 = wsk.api.create(basepath = Some(testbasepath), relpath = Some(testnewrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+        rr2.stdout should include("ok: created API")
+        rr = wsk.api.delete(basepathOrApiName = testbasepath, relpath = Some(testrelpath))
+        rr.stdout should include("ok: deleted " + testrelpath +" from "+ testbasepath)
+        rr2 = wsk.api.list(basepathOrApiName = Some(testbasepath), relpath = Some(testnewrelpath))
+        rr2.stdout should include("ok: APIs")
+        rr2.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+        rr2.stdout should include(testbasepath + testnewrelpath)
+      } finally {
+        val deleteresult = wsk.api.delete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        Thread.sleep(5000)  // Test suite will overrun the local dev throttling limit
+      }
     }
-  }
 
-  it should "verify delete single operation from existing API basepath/path/operation(s) " in {
-    val testName = "CLI_APIGWTEST12"
-    val testbasepath = "/" + testName + "_bp"
-    val testrelpath = "/path2"
-    val testnewrelpath = "/path_new"
-    val testurlop = "get"
-    val testurlop2 = "post"
-    val testapiname = testName + " API Name"
-    val actionName = testName + "_action"
-    try {
-      var rr = wsk.api.create(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
-      rr.stdout should include("ok: created API")
-      rr = wsk.api.create(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop2), action = Some(actionName), apiname = Some(testapiname))
-      rr.stdout should include("ok: created API")
-      rr = wsk.api.list(basepathOrApiName = Some(testbasepath))
-      rr.stdout should include("ok: APIs")
-      rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
-      rr.stdout should include(testbasepath + testrelpath)
-      rr = wsk.api.delete(basepathOrApiName = testbasepath,relpath = Some(testrelpath), operation = Some(testurlop2))
-      rr.stdout should include("ok: deleted " + testrelpath + " " + "POST" +" from "+ testbasepath)
-      rr = wsk.api.list(basepathOrApiName = Some(testbasepath))
-      rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
-    } finally {
-      val deleteresult = wsk.api.delete(basepathOrApiName = testbasepath)
-      deleteresult.stdout should include("ok: deleted API")
+    it should "verify delete single operation from existing API basepath/path/operation(s) " in {
+      val testName = "CLI_APIGWTEST12"
+      val testbasepath = "/" + testName + "_bp"
+      val testrelpath = "/path2"
+      val testnewrelpath = "/path_new"
+      val testurlop = "get"
+      val testurlop2 = "post"
+      val testapiname = testName + " API Name"
+      val actionName = testName + "_action"
+      try {
+        var rr = wsk.api.create(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+        rr.stdout should include("ok: created API")
+        rr = wsk.api.create(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop2), action = Some(actionName), apiname = Some(testapiname))
+        rr.stdout should include("ok: created API")
+        rr = wsk.api.list(basepathOrApiName = Some(testbasepath))
+        rr.stdout should include("ok: APIs")
+        rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+        rr.stdout should include(testbasepath + testrelpath)
+        rr = wsk.api.delete(basepathOrApiName = testbasepath,relpath = Some(testrelpath), operation = Some(testurlop2))
+        rr.stdout should include("ok: deleted " + testrelpath + " " + "POST" +" from "+ testbasepath)
+        rr = wsk.api.list(basepathOrApiName = Some(testbasepath))
+        rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+      } finally {
+        val deleteresult = wsk.api.delete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        Thread.sleep(5000)  // Test suite will overrun the local dev throttling limit
+      }
     }
-  }
-  it should "verify successful creation with complex swagger doc as input" in {
-    val testName = "CLI_APIGWTEST13"
-    val testbasepath = "/test1/v1"
-    val testrelpath = "/whisk.system/utils/echo"
-    val testrelpath2 = "/whisk.system/utils/split"
-    val testurlop = "get"
-    val testapiname = "/test1/v1"
-    val actionName = "test1a"
-    val swaggerPath = TestUtils.getTestApiGwFilename(s"testswaggerdoc2")
-    try {
-      var rr = wsk.api.create(swagger = Some(swaggerPath))
-      println("api create stdout: " + rr.stdout)
-      println("api create stderror: " + rr.stderr)
-      rr.stdout should include("ok: created API")
-      rr = wsk.api.list(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
-      rr.stdout should include("ok: APIs")
-      // Actual CLI namespace will vary from local dev to automated test environments, so don't check
-      rr.stdout should include regex (s"/[@\\w._\\-]+/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
-      rr.stdout should include(testbasepath + testrelpath)
-      rr.stdout should include(testbasepath + testrelpath2)
-    } finally {
-      val deleteresult = wsk.api.delete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
-      deleteresult.stdout should include("ok: deleted API")
+
+    it should "verify successful creation with complex swagger doc as input" in {
+      val testName = "CLI_APIGWTEST13"
+      val testbasepath = "/test1/v1"
+      val testrelpath = "/whisk.system/utils/echo"
+      val testrelpath2 = "/whisk.system/utils/split"
+      val testurlop = "get"
+      val testapiname = "/test1/v1"
+      val actionName = "test1a"
+      val swaggerPath = TestUtils.getTestApiGwFilename(s"testswaggerdoc2")
+      try {
+        var rr = wsk.api.create(swagger = Some(swaggerPath))
+        println("api create stdout: " + rr.stdout)
+        println("api create stderror: " + rr.stderr)
+        rr.stdout should include("ok: created API")
+        rr = wsk.api.list(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
+        rr.stdout should include("ok: APIs")
+        // Actual CLI namespace will vary from local dev to automated test environments, so don't check
+        rr.stdout should include regex (s"/[@\\w._\\-]+/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+        rr.stdout should include(testbasepath + testrelpath)
+        rr.stdout should include(testbasepath + testrelpath2)
+      } finally {
+        val deleteresult = wsk.api.delete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        Thread.sleep(5000)  // Test suite will overrun the local dev throttling limit
+      }
     }
-  }
-  it should "verify successful creation and deletion with multiple base paths" in {
-    val testName = "CLI_APIGWTEST14"
-    val testbasepath = "/" + testName + "_bp"
-    val testbasepath2 = "/" + testName + "_bp2"
-    val testrelpath = "/path"
-    val testnewrelpath = "/path_new"
-    val testurlop = "get"
-    val testapiname = testName + " API Name"
-    val actionName = testName + "_action"
-    try {
-      var rr = wsk.api.create(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
-      rr.stdout should include("ok: created API")
-      rr = wsk.api.list(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
-      rr.stdout should include("ok: APIs")
-      rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
-      rr.stdout should include(testbasepath + testrelpath)
-      var rr2 = wsk.api.create(basepath = Some(testbasepath2), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
-      rr2.stdout should include("ok: created API")
-      rr2 = wsk.api.list(basepathOrApiName = Some(testbasepath2), relpath = Some(testrelpath), operation = Some(testurlop))
-      rr2.stdout should include("ok: APIs")
-      rr2.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
-      rr2.stdout should include(testbasepath2 + testrelpath)
-      val deleteresult = wsk.api.delete(basepathOrApiName = testbasepath2)
-      deleteresult.stdout should include("ok: deleted API")
-      rr = wsk.api.list(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
-      rr.stdout should include("ok: APIs")
-      rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
-      rr.stdout should include(testbasepath + testrelpath)
-    } finally {
-      val deleteresult = wsk.api.delete(basepathOrApiName = testbasepath)
-      deleteresult.stdout should include("ok: deleted API")
-      val deleteresult2 = wsk.api.delete(basepathOrApiName = testbasepath2, expectedExitCode = DONTCARE_EXIT)
+
+    it should "verify successful creation and deletion with multiple base paths" in {
+      val testName = "CLI_APIGWTEST14"
+      val testbasepath = "/" + testName + "_bp"
+      val testbasepath2 = "/" + testName + "_bp2"
+      val testrelpath = "/path"
+      val testnewrelpath = "/path_new"
+      val testurlop = "get"
+      val testapiname = testName + " API Name"
+      val actionName = testName + "_action"
+      try {
+        var rr = wsk.api.create(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+        rr.stdout should include("ok: created API")
+        rr = wsk.api.list(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
+        rr.stdout should include("ok: APIs")
+        rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+        rr.stdout should include(testbasepath + testrelpath)
+        rr = wsk.api.create(basepath = Some(testbasepath2), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+        rr.stdout should include("ok: created API")
+        rr = wsk.api.list(basepathOrApiName = Some(testbasepath2), relpath = Some(testrelpath), operation = Some(testurlop))
+        rr.stdout should include("ok: APIs")
+        rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+        rr.stdout should include(testbasepath2 + testrelpath)
+        rr = wsk.api.delete(basepathOrApiName = testbasepath2)
+        rr.stdout should include("ok: deleted API")
+        rr = wsk.api.list(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
+        rr.stdout should include("ok: APIs")
+        rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+        rr.stdout should include(testbasepath + testrelpath)
+        rr = wsk.api.delete(basepathOrApiName = testbasepath)
+        rr.stdout should include("ok: deleted API")
+      } finally {
+        var deleteresult = wsk.api.delete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        deleteresult = wsk.api.delete(basepathOrApiName = testbasepath2, expectedExitCode = DONTCARE_EXIT)
+        Thread.sleep(5000)  // Test suite will overrun the local dev throttling limit
+      }
     }
-  }
 }
-
