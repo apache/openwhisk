@@ -321,11 +321,12 @@ func parseErrorResponse(resp *http.Response, data []byte, v interface{}) (*http.
             return resp, werr
         }
     } else {
-        Debug(DbgError, "HTTP response with unexpected body failed due to contents parsing error: '%v'\n", err)
-        errStr := wski18n.T("The connection failed, or timed out. (HTTP status code {{.code}})",
-            map[string]interface{}{"code": resp.StatusCode})
-        werr := MakeWskError(errors.New(errStr), resp.StatusCode - 256, DISPLAY_MSG, NO_DISPLAY_USAGE)
-        return resp, werr
+        Debug(DbgInfo, "Detected response status `%s` that an application error was returned\n")
+        errMsg := wski18n.T("The following application error was received: {{.err}}",
+            map[string]interface{}{"err": string(data)})
+        whiskErr := MakeWskError(errors.New(errMsg), resp.StatusCode - 256, NO_DISPLAY_MSG, NO_DISPLAY_USAGE,
+            NO_MSG_DISPLAYED, APPLICATION_ERR)
+        return parseSuccessResponse(resp, data, v), whiskErr
     }
 }
 
