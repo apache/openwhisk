@@ -75,6 +75,7 @@ class WhiskConfig(
     val invokerCoreShare = this(WhiskConfig.invokerCoreShare)
     val invokerSerializeDockerOp = this(WhiskConfig.invokerSerializeDockerOp)
     val invokerSerializeDockerPull = this(WhiskConfig.invokerSerializeDockerPull)
+    val invokerUseRunc = this(WhiskConfig.invokerUseRunc)
 
     val wskApiHost = this(WhiskConfig.wskApiHost)
     val controllerHost = this(WhiskConfig.controllerHostName) + ":" + this(WhiskConfig.controllerHostPort)
@@ -232,6 +233,7 @@ object WhiskConfig extends Logging {
     val invokerCoreShare = "invoker.coreshare"
     val invokerSerializeDockerOp = "invoker.serializeDockerOp"
     val invokerSerializeDockerPull = "invoker.serializeDockerPull"
+    val invokerUseRunc = "invoker.useRunc"
 
     val wskApiHost = "whisk.api.host"
 

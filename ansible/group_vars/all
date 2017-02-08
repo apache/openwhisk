@@ -53,6 +53,7 @@ invoker:
   coreshare: 2
   serializeDockerOp: true
   serializeDockerPull: true
+  useRunc: false
 
 nginx:
   version: 1.11
