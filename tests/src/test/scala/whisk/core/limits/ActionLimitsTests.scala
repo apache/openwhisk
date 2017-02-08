@@ -234,4 +234,24 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
                     }.length shouldBe 1
             }
     }
+
+    it should "be able to run memory intensive actions multiple times by running the GC in the action" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "TestNodeJsMemoryActionAbleToRunOften"
+            assetHelper.withCleaner(wsk.action, name, confirmDelete = true) {
+                val allowedMemory = 512 megabytes
+                val actionName = TestUtils.getTestActionFilename("memoryWithGC.js")
+                (action, _) => action.create(name, Some(actionName), memory = Some(allowedMemory))
+            }
+
+            for( a <- 1 to 10){
+                val run = wsk.action.invoke(name, Map("payload" -> "128".toJson))
+                withActivation(wsk.activation, run) { response =>
+                    response.response.status shouldBe "success"
+                    response.response.result shouldBe Some(JsObject(
+                        "msg" -> "OK, buffer of size 128 MB has been filled.".toJson))
+                }
+            }
+    }
+
 }
