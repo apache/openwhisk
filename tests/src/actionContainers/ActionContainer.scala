@@ -173,7 +173,7 @@ object ActionContainer {
         val f = for (
             entity <- Marshal(content).to[MessageEntity];
             request = HttpRequest(method = HttpMethods.POST, uri = uri, entity = entity);
-            response <- AkkaHttpUtils.singleRequest(request, 30.seconds, retryOnTCPErrors = true);
+            response <- AkkaHttpUtils.singleRequest(request, 60.seconds, retryOnTCPErrors = true);
             responseBody <- Unmarshal(response.entity).to[String]
         ) yield (response.status.intValue, Try(responseBody.parseJson.asJsObject).toOption)
 
