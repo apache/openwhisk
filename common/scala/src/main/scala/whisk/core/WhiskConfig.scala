@@ -44,7 +44,7 @@ class WhiskConfig(
     requiredProperties: Map[String, String],
     optionalProperties: Set[String] = Set(),
     propertiesFile: File = null,
-    env: Map[String, String] = sys.env)(implicit val system: ActorSystem)
+    env: Map[String, String] = sys.env)(implicit val system: ActorSystem, logging: Logging)
     extends Config(requiredProperties, optionalProperties)(env) {
 
     /**
@@ -118,7 +118,7 @@ class WhiskConfig(
     val systemKey = this(WhiskConfig.systemKey)
 }
 
-object WhiskConfig extends Logging {
+object WhiskConfig {
 
     private def whiskPropertiesFile: File = {
         def propfile(dir: String, recurse: Boolean = false): File =
@@ -144,7 +144,7 @@ object WhiskConfig extends Logging {
      * Reads a Map of key-value pairs from the Consul service -- store them in the
      * mutable properties object.
      */
-    def readPropertiesFromConsul(properties: scala.collection.mutable.Map[String, String])(implicit system: ActorSystem) = {
+    def readPropertiesFromConsul(properties: scala.collection.mutable.Map[String, String])(implicit system: ActorSystem, logging: Logging) = {
         //try to get consulServer prop
         val consulString = for {
             server <- properties.get(consulServerHost).filter(s => s != null && s.trim.nonEmpty)
@@ -153,7 +153,7 @@ object WhiskConfig extends Logging {
 
         consulString match {
             case Some(consulServer) => Try {
-                info(this, s"reading properties from consul at $consulServer")
+                logging.info(this, s"reading properties from consul at $consulServer")
                 val consul = new ConsulClient(consulServer)
 
                 val whiskProps = Await.result(consul.kv.getRecurse(ConsulKV.WhiskProps.whiskProps), 1.minute)
@@ -162,9 +162,9 @@ object WhiskConfig extends Logging {
                     whiskProps.get(kvp) foreach { properties += p -> _ }
                 }
             } recover {
-                case ex => warn(this, s"failed to read properties from consul: ${ex.getMessage}")
+                case ex => logging.warn(this, s"failed to read properties from consul: ${ex.getMessage}")
             }
-            case _ => info(this, "no consul server defined")
+            case _ => logging.info(this, "no consul server defined")
         }
     }
 
@@ -172,9 +172,9 @@ object WhiskConfig extends Logging {
      * Reads a Map of key-value pairs from the environment (sys.env) -- store them in the
      * mutable properties object.
      */
-    def readPropertiesFromFile(properties: scala.collection.mutable.Map[String, String], file: File) = {
+    def readPropertiesFromFile(properties: scala.collection.mutable.Map[String, String], file: File)(implicit logging: Logging) = {
         if (file != null && file.exists) {
-            info(this, s"reading properties from file $file")
+            logging.info(this, s"reading properties from file $file")
             for (line <- Source.fromFile(file).getLines if line.trim != "") {
                 val parts = line.split('=')
                 if (parts.length >= 1) {
@@ -182,10 +182,10 @@ object WhiskConfig extends Logging {
                     val v = if (parts.length == 2) parts(1).trim else ""
                     if (properties.contains(p)) {
                         properties += p -> v
-                        debug(this, s"properties file set value for $p")
+                        logging.debug(this, s"properties file set value for $p")
                     }
                 } else {
-                    warn(this, s"ignoring properties $line")
+                    logging.warn(this, s"ignoring properties $line")
                 }
             }
         }

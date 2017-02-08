@@ -21,23 +21,23 @@ import java.util.Date
 
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
+import scala.util.matching.Regex
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
+import common.StreamLogging
 import common.TestHelpers
 import common.TestUtils
 import common.TestUtils._
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
-import spray.json.DefaultJsonProtocol._
 import spray.json._
+import spray.json.DefaultJsonProtocol._
 import spray.testkit.ScalatestRouteTest
 import whisk.core.WhiskConfig
 import whisk.http.Messages.sequenceIsTooLong
-
-import scala.util.matching.Regex
 
 /**
  * Tests sequence execution
@@ -47,7 +47,8 @@ import scala.util.matching.Regex
 class WskSequenceTests
     extends TestHelpers
     with ScalatestRouteTest
-    with WskTestHelpers {
+    with WskTestHelpers
+    with StreamLogging {
 
     implicit val wskprops = WskProps()
     val wsk = new Wsk
@@ -414,7 +415,7 @@ class WskSequenceTests
      * t trigger with payload
      * rule r: t -> s
      */
-    it should "execute a sequence that is part of a rule and pass the trigger parameters to the sequence" in withAssetCleaner(wskprops){
+    it should "execute a sequence that is part of a rule and pass the trigger parameters to the sequence" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val seqName = "seqRule"
             val actionName = "echo"
@@ -459,13 +460,13 @@ class WskSequenceTests
      * @param triggerPayload the payload used for the trigger (that should be reflected in the sequence result)
      */
     private def checkEchoSeqRuleResult(triggerFireRun: RunResult, seqName: String, triggerPayload: JsObject) = {
-         withActivation(wsk.activation, triggerFireRun) {
+        withActivation(wsk.activation, triggerFireRun) {
             triggerActivation =>
                 withActivationsFromEntity(wsk.activation, seqName, since = Some(Instant.ofEpochMilli(triggerActivation.start))) { activationList =>
                     activationList.head.response.result shouldBe Some(triggerPayload)
                     activationList.head.cause shouldBe None
                 }
-            }
+        }
     }
 
     /**

@@ -16,22 +16,19 @@
 
 package whisk.core.entity
 
-import scala.concurrent.Future
-import scala.concurrent.ExecutionContext
-import scala.util.{ Try, Success, Failure }
-
-import akka.http.scaladsl.model.ContentType
-import akka.http.scaladsl.model.MediaTypes
-
-import spray.json._
-import spray.json.DefaultJsonProtocol._
-
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.nio.charset.StandardCharsets
 import java.util.Base64
 
-import whisk.common.Logging
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+import scala.util.{ Try, Success, Failure }
+
+import akka.http.scaladsl.model.ContentType
+import akka.http.scaladsl.model.MediaTypes
+import spray.json._
+import spray.json.DefaultJsonProtocol._
 import whisk.common.TransactionId
 import whisk.core.database.ArtifactStore
 import whisk.core.database.DocumentFactory
@@ -248,7 +245,7 @@ object WhiskAction
         } map { _ =>
             doc.exec match {
                 case JavaExec(Inline(jar), main) =>
-                    implicit val logger = db: Logging
+                    implicit val logger = db.logging
                     implicit val ec = db.executionContext
 
                     val newDoc = doc.copy(exec = JavaExec(Attached(jarAttachmentName, jarContentType), main))

@@ -22,15 +22,15 @@ import scala.sys.process.stringSeqToProcess
 /**
  * Utility to exec processes
  */
-object SimpleExec extends Logging {
+object SimpleExec {
     /**
      * Runs a external process.
      *
      * @param cmd an array of String -- their concatenation is the command to exec
      * @return a triple of (stdout, stderr, exitcode) from running the command
      */
-    def syncRunCmd(cmd: Seq[String])(implicit transid: TransactionId): (String, String, Int) = {
-        info(this, s"Running command: ${cmd.mkString(" ")}")
+    def syncRunCmd(cmd: Seq[String])(implicit transid: TransactionId, logging: Logging): (String, String, Int) = {
+        logging.info(this, s"Running command: ${cmd.mkString(" ")}")
         val pb = stringSeqToProcess(cmd)
 
         val outs = new StringBuilder()
@@ -46,7 +46,7 @@ object SimpleExec extends Logging {
                 errs.append("\n")
             })
 
-        info(this, s"Done running command: ${cmd.mkString(" ")}")
+        logging.info(this, s"Done running command: ${cmd.mkString(" ")}")
 
         def noLastNewLine(sb: StringBuilder) = {
             if (sb.isEmpty) "" else sb.substring(0, sb.size - 1)

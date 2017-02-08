@@ -17,19 +17,19 @@
 package whisk.core.controller
 
 import akka.actor.Actor
+import akka.actor.ActorContext
 import akka.actor.ActorSystem
 import akka.japi.Creator
 import spray.routing.Directive.pimpApply
+import spray.routing.Route
+import whisk.common.AkkaLogging
+import whisk.common.Logging
 import whisk.common.TransactionId
-import whisk.core.loadBalancer.LoadBalancerService
 import whisk.core.WhiskConfig
+import whisk.core.entitlement.EntitlementProvider
+import whisk.core.loadBalancer.LoadBalancerService
 import whisk.http.BasicHttpService
 import whisk.http.BasicRasService
-import spray.routing.Route
-import akka.actor.ActorContext
-import akka.event.Logging.InfoLevel
-import akka.event.Logging.LogLevel
-import whisk.core.entitlement.EntitlementProvider
 
 /**
  * The Controller is the service that provides the REST API for OpenWhisk.
@@ -49,7 +49,7 @@ import whisk.core.entitlement.EntitlementProvider
 class Controller(
     config: WhiskConfig,
     instance: Int,
-    loglevel: LogLevel)
+    val logging: Logging)
     extends BasicRasService
     with Actor {
 
@@ -71,11 +71,10 @@ class Controller(
         }
     }
 
-    setVerbosity(loglevel)
-    info(this, s"starting controller instance ${instance}")
+    logging.info(this, s"starting controller instance ${instance}")
 
     /** The REST APIs. */
-    private val apiv1 = new RestAPIVersion_v1(config, loglevel, context.system)
+    private val apiv1 = new RestAPIVersion_v1(config, context.system, logging)
 
 }
 
@@ -95,12 +94,13 @@ object Controller {
     def optionalProperties = EntitlementProvider.optionalProperties
 
     // akka-style factory to create a Controller object
-    private class ServiceBuilder(config: WhiskConfig, instance: Int) extends Creator[Controller] {
-        def create = new Controller(config, instance, InfoLevel)
+    private class ServiceBuilder(config: WhiskConfig, instance: Int, logging: Logging) extends Creator[Controller] {
+        def create = new Controller(config, instance, logging)
     }
 
     def main(args: Array[String]): Unit = {
         implicit val system = ActorSystem("controller-actor-system")
+        implicit val logging: Logging = new AkkaLogging(akka.event.Logging.getLogger(system, this))
 
         // extract configuration data from the environment
         val config = new WhiskConfig(requiredProperties, optionalProperties)
@@ -111,7 +111,7 @@ object Controller {
 
         if (config.isValid) {
             val port = config.servicePort.toInt
-            BasicHttpService.startService(system, "controller", "0.0.0.0", port, new ServiceBuilder(config, instance))
+            BasicHttpService.startService(system, "controller", "0.0.0.0", port, new ServiceBuilder(config, instance, logging))
         }
     }
 }

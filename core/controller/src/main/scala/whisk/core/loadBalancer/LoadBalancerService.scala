@@ -32,17 +32,14 @@ import scala.util.Success
 
 import akka.actor.ActorSystem
 import akka.event.Logging.LogLevel
-
-import spray.json.DefaultJsonProtocol.LongJsonFormat
 import spray.json.{ JsObject, pimpAny }
-
+import spray.json.DefaultJsonProtocol.LongJsonFormat
 import whisk.common.ConsulClient
 import whisk.common.ConsulKV.LoadBalancerKeys
 import whisk.common.ConsulKVReporter
 import whisk.common.Counter
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
-import whisk.common.PrintStreamEmitter
 import whisk.common.TransactionId
 import whisk.connector.kafka.KafkaConsumerConnector
 import whisk.connector.kafka.KafkaProducerConnector
@@ -77,22 +74,16 @@ trait LoadBalancer {
 class LoadBalancerService(
     config: WhiskConfig,
     verbosity: LogLevel)(
-        implicit val actorSystem: ActorSystem)
-    extends LoadBalancer with Logging {
-
-    override def setVerbosity(level: LogLevel) = {
-        super.setVerbosity(level)
-        producer.setVerbosity(level)
-    }
+        implicit val actorSystem: ActorSystem,
+        logging: Logging)
+    extends LoadBalancer {
 
     /** The execution context for futures */
     implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
-    private implicit val emitter: PrintStreamEmitter = this
-
     /** How many invokers are dedicated to blackbox images.  We range bound to something sensical regardless of configuration. */
     private val blackboxFraction: Double = Math.max(0.0, Math.min(1.0, config.controllerBlackboxFraction))
-    info(this, s"blackboxFraction = $blackboxFraction")
+    logging.info(this, s"blackboxFraction = $blackboxFraction")
 
     /** We run this often on an invoker before going onto the next. */
     private val activationCountBeforeNextInvoker = 10
@@ -124,7 +115,7 @@ class LoadBalancerService(
                 val topic = ActivationMessage.invoker(invokerIndex)
                 val subject = msg.user.subject.asString
                 val entry = setupActivation(msg.activationId, subject, invokerIndex, timeout, transid)
-                info(this, s"posting topic '$topic' with activation id '${msg.activationId}'")
+                logging.info(this, s"posting topic '$topic' with activation id '${msg.activationId}'")
                 (producer.send(topic, msg) map { status =>
                     val counter = updateActivationCount(subject, invokerIndex)
                     transid.finished(this, start, s"user has ${counter} activations posted. Posted to ${status.topic()}[${status.partition()}][${status.offset()}]")
@@ -139,9 +130,6 @@ class LoadBalancerService(
     private val producer = new KafkaProducerConnector(config.kafkaHost, executionContext)
 
     private val invokerHealth = new InvokerHealth(config, invokerChangeCallback, () => producer.sentCount())
-
-    // this must happen after certain instance members are defined
-    setVerbosity(verbosity)
 
     /**
      * A map storing current activations based on ActivationId.
@@ -163,19 +151,18 @@ class LoadBalancerService(
             val totalActiveCount = activeCounts.values.sum
             val health = invokerHealth.getInvokerHealth()
             implicit val sid = TransactionId.loadbalancer
-            info(this, s"In flight: $totalActiveCount = [${activeCounts.mkString(", ")}]")
-            info(this, s"Invoker health: [${health.mkString(", ")}]")
+            logging.info(this, s"In flight: $totalActiveCount = [${activeCounts.mkString(", ")}]")
+            logging.info(this, s"Invoker health: [${health.mkString(", ")}]")
             Map(LoadBalancerKeys.invokerHealth -> getInvokerHealth(),
                 LoadBalancerKeys.activationCountKey -> producer.sentCount().toJson)
         })
 
     private val consumer = new KafkaConsumerConnector(config.kafkaHost, "completions", "completed")
-    consumer.setVerbosity(verbosity)
     consumer.onMessage((topic, partition, offset, bytes) => {
         val raw = new String(bytes, "utf-8")
         CompletionMessage(raw) match {
             case Success(m) => processCompletion(m)
-            case Failure(t) => error(this, s"failed processing message: $raw with $t")
+            case Failure(t) => logging.error(this, s"failed processing message: $raw with $t")
         }
     })
 
@@ -188,16 +175,16 @@ class LoadBalancerService(
     private def processCompletion(msg: CompletionMessage) = {
         implicit val tid = msg.transid
         val aid = msg.response.activationId
-        info(this, s"received active ack for '$aid'")
+        logging.info(this, s"received active ack for '$aid'")
         val response = msg.response
         activationById.remove(aid) match {
             case Some(entry @ ActivationEntry(_, subject, invokerIndex, _, p)) =>
                 activationByInvoker.getOrElseUpdate(invokerIndex, new TrieSet[ActivationEntry]).remove(entry)
                 activationBySubject.getOrElseUpdate(subject, new TrieSet[ActivationEntry]).remove(entry)
                 p.trySuccess(response)
-                info(this, s"processed active response for '$aid'")
+                logging.info(this, s"processed active response for '$aid'")
             case None =>
-                warn(this, s"processed active response for '$aid' which has no entry")
+                logging.warn(this, s"processed active response for '$aid' which has no entry")
         }
     }
 
@@ -213,7 +200,7 @@ class LoadBalancerService(
             actorSystem.scheduler.scheduleOnce(timeout) {
                 activationById.get(activationId).foreach { _ =>
                     if (promise.tryFailure(new ActiveAckTimeout(activationId))) {
-                        info(this, "active response timed out")
+                        logging.info(this, "active response timed out")
                     }
                 }
             }
@@ -286,7 +273,7 @@ class LoadBalancerService(
             val invokerIndex = hashCount % numInvokers
             Some(invokers(invokerIndex))
         } else {
-            error(this, s"all invokers down")
+            logging.error(this, s"all invokers down")
             None
         }
     }

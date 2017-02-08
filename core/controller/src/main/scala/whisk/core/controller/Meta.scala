@@ -508,19 +508,19 @@ trait WhiskMetaApi
             case Success((activationId, None)) =>
                 // blocking invoke which got queued instead
                 // this should not happen, instead it should be a blocking invoke timeout
-                warn(this, "activation returned an id, expecting timeout error instead")
+                logging.warn(this, "activation returned an id, expecting timeout error instead")
                 terminate(Accepted, Messages.responseNotReady)
 
             case Failure(t: BlockingInvokeTimeout) =>
                 // blocking invoke which timed out waiting on response
-                info(this, "activation waiting period expired")
+                logging.info(this, "activation waiting period expired")
                 terminate(Accepted, Messages.responseNotReady)
 
             case Failure(t: RejectRequest) =>
                 terminate(t.code, t.message)
 
             case Failure(t) =>
-                error(this, s"exception in meta api handler: $t")
+                logging.error(this, s"exception in meta api handler: $t")
                 terminate(InternalServerError)
         }
     }
@@ -537,10 +537,10 @@ trait WhiskMetaApi
                 // if the package lookup fails or the package doesn't conform to expected invariants,
                 // fail the request with BadRequest so as not to leak information about the existence
                 // of packages that are otherwise private
-                info(this, s"meta api request for package which does not exist")
+                logging.info(this, s"meta api request for package which does not exist")
                 Future.failed(RejectRequest(NotFound))
             case _: NoSuchElementException =>
-                warn(this, s"'$pkg' is a binding")
+                logging.warn(this, s"'$pkg' is a binding")
                 Future.failed(RejectRequest(NotFound))
         }
     }
@@ -588,7 +588,7 @@ trait WhiskMetaApi
         pkgLookup flatMap { pkg =>
             // expecting the meta handlers to be private; should it be an error? warn for now
             if (pkg.publish) {
-                warn(this, s"'${pkg.fullyQualifiedName(true)}' is public")
+                logging.warn(this, s"'${pkg.fullyQualifiedName(true)}' is public")
             }
 
             // does package have annotation: meta == true and a
@@ -598,14 +598,14 @@ trait WhiskMetaApi
             if (isMetaPackage) {
                 pkg.annotations.asString(method.name.toLowerCase).map { actionName =>
                     // if action name is defined as a string, accept it, else fail request
-                    info(this, s"'${pkg.name}' maps '${method.name}' to action '${actionName}'")
+                    logging.info(this, s"'${pkg.name}' maps '${method.name}' to action '${actionName}'")
                     Future.successful(EntityName(actionName), pkg.parameters)
                 } getOrElse {
-                    info(this, s"'${pkg.name}' is missing action name for '${method.name.toLowerCase}'")
+                    logging.info(this, s"'${pkg.name}' is missing action name for '${method.name.toLowerCase}'")
                     Future.failed(RejectRequest(MethodNotAllowed))
                 }
             } else {
-                info(this, s"'${pkg.name}' is missing 'meta' annotation")
+                logging.info(this, s"'${pkg.name}' is missing 'meta' annotation")
                 Future.failed(RejectRequest(NotFound))
             }
         }
@@ -618,10 +618,10 @@ trait WhiskMetaApi
         implicit transid: TransactionId): Future[WhiskAction] = {
         actionLookup flatMap { action =>
             if (action.annotations.asBool("web-export").exists(identity)) {
-                info(this, s"${action.fullyQualifiedName(true)} is exported")
+                logging.info(this, s"${action.fullyQualifiedName(true)} is exported")
                 Future.successful(action)
             } else {
-                info(this, s"${action.fullyQualifiedName(true)} not exported")
+                logging.info(this, s"${action.fullyQualifiedName(true)} not exported")
                 Future.failed(RejectRequest(NotFound))
             }
         }

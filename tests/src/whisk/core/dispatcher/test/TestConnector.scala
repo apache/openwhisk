@@ -27,8 +27,8 @@ import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.record.Record
 
+import common.StreamLogging
 import whisk.common.Counter
-import whisk.common.Logging
 import whisk.core.connector.Message
 import whisk.core.connector.MessageConsumer
 import whisk.core.connector.MessageProducer
@@ -38,7 +38,7 @@ class TestConnector(
     override val maxPeek: Int,
     allowMoreThanMax: Boolean)
     extends MessageConsumer
-    with Logging {
+    with StreamLogging {
 
     override def peek(duration: Duration) = {
         val msgs = new ArrayList[Message]
@@ -62,7 +62,7 @@ class TestConnector(
         new Thread {
             override def run() = while (!closed) {
                 val msg = queue.take()
-                info(this, s"received message for '$topic'")
+                logging.info(this, s"received message for '$topic'")
                 process(topic, -1, -1, msg.serialize.getBytes)
                 Thread.sleep(100) // let producer get in a send if any
             }
@@ -83,10 +83,10 @@ class TestConnector(
     private val producer = new MessageProducer {
         def send(topic: String, msg: Message): Future[RecordMetadata] = {
             if (queue.offer(msg)) {
-                info(this, s"put: $msg")
+                logging.info(this, s"put: $msg")
                 Future.successful(new RecordMetadata(new TopicPartition(topic, 0), 0, queue.size, Record.NO_TIMESTAMP, -1, -1, -1))
             } else {
-                error(this, s"put failed: $msg")
+                logging.error(this, s"put failed: $msg")
                 Future.failed(new IllegalStateException("failed to write msg"))
             }
         }

@@ -19,6 +19,7 @@ package whisk.common
 import java.time.Instant
 
 import scala.collection.mutable.Buffer
+import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -29,12 +30,15 @@ import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 
 import akka.actor.PoisonPill
-
+import common.StreamLogging
 import common.WskActorSystem
-import scala.concurrent.Await
 
 @RunWith(classOf[JUnitRunner])
-class SchedulerTests extends FlatSpec with Matchers with WskActorSystem {
+class SchedulerTests
+    extends FlatSpec
+    with Matchers
+    with WskActorSystem
+    with StreamLogging {
 
     val timeBetweenCalls = 50 milliseconds
     val callsToProduce = 5

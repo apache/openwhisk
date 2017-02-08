@@ -19,16 +19,15 @@ import scala.concurrent.Future
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
-
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-
+import whisk.common.Logging
 import whisk.core.database.CouchDbRestClient
 
 /**
  * Implementation of additional endpoints that should only be used in testing.
  */
-class ExtendedCouchDbRestClient(protocol: String, host: String, port: Int, username: String, password: String, db: String)(implicit system: ActorSystem)
+class ExtendedCouchDbRestClient(protocol: String, host: String, port: Int, username: String, password: String, db: String)(implicit system: ActorSystem, logging: Logging)
     extends CouchDbRestClient(protocol, host, port, username, password, db) {
 
     // http://docs.couchdb.org/en/1.6.1/api/server/common.html#get--

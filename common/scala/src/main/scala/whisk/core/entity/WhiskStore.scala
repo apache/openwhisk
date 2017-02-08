@@ -16,29 +16,32 @@
 
 package whisk.core.entity
 
+import java.time.Instant
+
 import scala.concurrent.Future
+import scala.language.postfixOps
 import scala.util.Try
+
 import akka.actor.ActorSystem
 import spray.json.JsObject
 import spray.json.JsString
 import spray.json.RootJsonFormat
+import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig.dbProvider
-import whisk.core.WhiskConfig.dbProtocol
 import whisk.core.WhiskConfig.dbActivations
 import whisk.core.WhiskConfig.dbAuths
-import whisk.core.WhiskConfig.dbPassword
-import whisk.core.WhiskConfig.dbUsername
 import whisk.core.WhiskConfig.dbHost
+import whisk.core.WhiskConfig.dbPassword
 import whisk.core.WhiskConfig.dbPort
+import whisk.core.WhiskConfig.dbProtocol
+import whisk.core.WhiskConfig.dbProvider
+import whisk.core.WhiskConfig.dbUsername
 import whisk.core.WhiskConfig.dbWhisk
 import whisk.core.database.ArtifactStore
 import whisk.core.database.CouchDbRestStore
 import whisk.core.database.DocumentRevisionProvider
 import whisk.core.database.DocumentSerializer
-import java.time.Instant
-import scala.language.postfixOps
 
 package object types {
     type AuthStore = ArtifactStore[WhiskAuth]
@@ -85,7 +88,8 @@ protected[core] trait WhiskDocument
 protected[core] object Util {
     def makeStore[D <: DocumentSerializer](config: WhiskConfig, name: WhiskConfig => String)(
         implicit jsonFormat: RootJsonFormat[D],
-        actorSystem: ActorSystem): ArtifactStore[D] = {
+        actorSystem: ActorSystem,
+        logging: Logging): ArtifactStore[D] = {
         require(config != null && config.isValid, "config is undefined or not valid")
         require(config.dbProvider == "Cloudant" || config.dbProvider == "CouchDB", "Unsupported db.provider: " + config.dbProvider)
         assume(Set(config.dbProtocol, config.dbHost, config.dbPort, config.dbUsername, config.dbPassword, name(config)).forall(_.nonEmpty), "At least one expected property is missing")
@@ -104,7 +108,7 @@ object WhiskAuthStore {
             dbPort -> null,
             dbAuths -> null)
 
-    def datastore(config: WhiskConfig)(implicit system: ActorSystem) =
+    def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging) =
         Util.makeStore[WhiskAuth](config, _.dbAuths)
 }
 
@@ -118,7 +122,7 @@ object WhiskAuthV2Store {
             dbPort -> null,
             dbAuths -> null)
 
-    def datastore(config: WhiskConfig)(implicit system: ActorSystem) =
+    def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging) =
         Util.makeStore[WhiskAuthV2](config, _.dbAuths)
 }
 
@@ -132,8 +136,8 @@ object WhiskEntityStore {
             dbPort -> null,
             dbWhisk -> null)
 
-    def datastore(config: WhiskConfig)(implicit system: ActorSystem) =
-        Util.makeStore[WhiskEntity](config, _.dbWhisk)(WhiskEntityJsonFormat, system)
+    def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging) =
+        Util.makeStore[WhiskEntity](config, _.dbWhisk)(WhiskEntityJsonFormat, system, logging)
 }
 
 object WhiskActivationStore {
@@ -146,7 +150,7 @@ object WhiskActivationStore {
             dbPort -> null,
             dbActivations -> null)
 
-    def datastore(config: WhiskConfig)(implicit system: ActorSystem) =
+    def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging) =
         Util.makeStore[WhiskActivation](config, _.dbActivations)
 }
 

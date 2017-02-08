@@ -124,15 +124,15 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
                         getStatus(trigger, ruleName)
                     } flatMap { oldStatus =>
                         if (requestedState != oldStatus) {
-                            info(this, s"[POST] rule state change initiated: ${oldStatus} -> $requestedState")
+                            logging.info(this, s"[POST] rule state change initiated: ${oldStatus} -> $requestedState")
                             Future successful requestedState
                         } else {
-                            info(this, s"[POST] rule state will not be changed, the requested state is the same as the old state: ${oldStatus} -> $requestedState")
+                            logging.info(this, s"[POST] rule state will not be changed, the requested state is the same as the old state: ${oldStatus} -> $requestedState")
                             Future failed { IgnoredRuleActivation(requestedState == oldStatus) }
                         }
                     } flatMap {
                         case (newStatus) =>
-                            info(this, s"[POST] attempting to set rule state to: ${newStatus}")
+                            logging.info(this, s"[POST] attempting to set rule state to: ${newStatus}")
                             WhiskTrigger.get(entityStore, rule.trigger.toDocId) flatMap { trigger =>
                                 val newTrigger = trigger.removeRule(ruleName)
                                 val triggerLink = ReducedRule(rule.action, newStatus)
@@ -145,19 +145,19 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
                             complete(OK)
                         case Failure(t) => t match {
                             case _: DocumentConflictException =>
-                                info(this, s"[POST] rule update conflict")
+                                logging.info(this, s"[POST] rule update conflict")
                                 terminate(Conflict, conflictMessage)
                             case IgnoredRuleActivation(ok) =>
-                                info(this, s"[POST] rule update ignored")
+                                logging.info(this, s"[POST] rule update ignored")
                                 if (ok) complete(OK) else terminate(Conflict)
                             case _: NoDocumentException =>
-                                info(this, s"[POST] the trigger attached to the rule doesn't exist")
+                                logging.info(this, s"[POST] the trigger attached to the rule doesn't exist")
                                 terminate(NotFound, "Only rules with existing triggers can be activated")
                             case _: DeserializationException =>
-                                error(this, s"[POST] rule update failed: ${t.getMessage}")
+                                logging.error(this, s"[POST] rule update failed: ${t.getMessage}")
                                 terminate(InternalServerError, corruptedEntity)
                             case _: Throwable =>
-                                error(this, s"[POST] rule update failed: ${t.getMessage}")
+                                logging.error(this, s"[POST] rule update failed: ${t.getMessage}")
                                 terminate(InternalServerError)
                         }
                     }
@@ -260,7 +260,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
                         content.annotations getOrElse Parameters())
 
                     val triggerLink = ReducedRule(actionName, Status.ACTIVE)
-                    info(this, s"about to put ${trigger.addRule(ruleName, triggerLink)}")
+                    logging.info(this, s"about to put ${trigger.addRule(ruleName, triggerLink)}")
                     WhiskTrigger.put(entityStore, trigger.addRule(ruleName, triggerLink)) map { _ => rule }
             }
         } else Future.failed(RejectRequest(BadRequest, "rule requires a valid trigger and a valid action"))

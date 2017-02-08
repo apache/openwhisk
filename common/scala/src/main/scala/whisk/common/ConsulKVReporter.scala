@@ -16,14 +16,13 @@
 
 package whisk.common
 
+import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 
 import akka.actor.ActorSystem
-
+import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json.JsValue
 import spray.json.pimpAny
-import spray.json.DefaultJsonProtocol.StringJsonFormat
-import scala.concurrent.Future
 
 /**
  * Helper utility to periodically report values to consul's key-value store
@@ -44,13 +43,14 @@ class ConsulKVReporter(
     startKey: String,
     statusKey: String,
     updater: Int => Map[String, JsValue])(
-        implicit val system: ActorSystem) {
+        implicit val system: ActorSystem,
+        logging: Logging) {
 
     implicit val executionContext = system.dispatcher
     private var count = 0
 
     system.scheduler.scheduleOnce(initialDelay) {
-        val (selfHostname, _, _) = SimpleExec.syncRunCmd(Array("hostname", "-f"))(TransactionId.unknown)
+        val (selfHostname, _, _) = SimpleExec.syncRunCmd(Array("hostname", "-f"))(TransactionId.unknown, logging)
         consul.kv.put(hostKey, selfHostname.toJson.compactPrint)
         consul.kv.put(startKey, DateUtil.getTimeString.toJson.compactPrint)
 

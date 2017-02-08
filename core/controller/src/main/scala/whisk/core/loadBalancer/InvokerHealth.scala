@@ -22,17 +22,16 @@ import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
 import akka.actor.ActorSystem
-import akka.event.Logging.InfoLevel
-import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json.{ JsObject, JsString, pimpAny, pimpString }
+import spray.json.DefaultJsonProtocol.StringJsonFormat
 import whisk.common.ConsulClient
 import whisk.common.ConsulKV.InvokerKeys
 import whisk.common.DateUtil
 import whisk.common.Logging
-import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig.consulServer
 import whisk.common.Scheduler
 import whisk.common.TransactionId
+import whisk.core.WhiskConfig
+import whisk.core.WhiskConfig.consulServer
 
 object InvokerHealth {
     val requiredProperties = consulServer
@@ -47,19 +46,19 @@ class InvokerHealth(
     config: WhiskConfig,
     instanceChange: Array[Int] => Unit,
     getKafkaPostCount: () => Long)(
-        implicit val system: ActorSystem) extends Logging {
+        implicit val system: ActorSystem,
+        logging: Logging) {
 
-    /** We obtain the health of all invokers this often. Although we perform a recursive call,
-      * the subtree is small and does not contain voluminous information like per-user information.
-      */
+    /**
+     * We obtain the health of all invokers this often. Although we perform a recursive call,
+     * the subtree is small and does not contain voluminous information like per-user information.
+     */
     private val healthCheckInterval = 2 seconds
 
     /** If we do not hear from an invoker for this long, we consider it to be out of commission. */
     private val maximumAllowedDelay = 20 seconds
 
     private implicit val executionContext = system.dispatcher
-
-    setVerbosity(InfoLevel);
 
     def getInvokerIndices(): Array[Int] = curStatus.get() map { _.index }
 
@@ -102,7 +101,7 @@ class InvokerHealth(
 
             // Warning is issued only if up/down is changed
             if (getInvokerHealth() != getHealth(newStatus)) {
-                warn(this, s"InvokerHealth status change: ${newStatus.deep.mkString(" ")}")(TransactionId.loadbalancer)
+                logging.warn(this, s"InvokerHealth status change: ${newStatus.deep.mkString(" ")}")(TransactionId.loadbalancer)
             }
 
             // Existing entries that have become stale require recording and a warning
@@ -112,7 +111,7 @@ class InvokerHealth(
             }
             if (!stale.isEmpty) {
                 oldStatus.set(oldStatus.get() ++ stale)
-                warn(this, s"Stale invoker status has changed: ${oldStatus.get().deep.mkString(" ")}")
+                logging.warn(this, s"Stale invoker status has changed: ${oldStatus.get().deep.mkString(" ")}")
                 instanceChange(stale.map(_.index))
             }
 

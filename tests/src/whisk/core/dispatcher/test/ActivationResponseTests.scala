@@ -25,17 +25,17 @@ import org.scalatest.junit.JUnitRunner
 
 import spray.json.pimpAny
 import spray.json.pimpString
-import whisk.common.Logging
+import whisk.common.PrintStreamLogging
 import whisk.core.entity.ActivationResponse._
-import whisk.http.Messages._
 import whisk.core.entity.size.SizeInt
+import whisk.http.Messages._
 
 @RunWith(classOf[JUnitRunner])
 class ActivationResponseTests extends FlatSpec with Matchers {
 
     behavior of "ActivationResponse"
 
-    val logger = new Logging {}
+    val logger = new PrintStreamLogging()
 
     it should "interpret truncated response" in {
         val max = 5.B

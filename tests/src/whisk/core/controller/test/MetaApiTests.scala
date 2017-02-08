@@ -16,8 +16,6 @@
 
 package whisk.core.controller.test
 
-import java.io.ByteArrayOutputStream
-import java.io.PrintStream
 import java.time.Instant
 import java.util.Base64
 
@@ -29,7 +27,6 @@ import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.junit.JUnitRunner
 
-import akka.event.Logging.InfoLevel
 import spray.http.FormData
 import spray.http.HttpMethods
 import spray.http.StatusCodes._
@@ -76,7 +73,6 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
 
     val creds = WhiskAuth(Subject(), AuthKey()).toIdentity
     val namespace = EntityPath(creds.subject.asString)
-    setVerbosity(InfoLevel)
 
     val packages = Seq(
         WhiskPackage(
@@ -162,7 +158,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
         if (namespace.asString == systemId.asString) {
             systemIdentity
         } else {
-            info(this, s"namespace has no identity")
+            logging.info(this, s"namespace has no identity")
             Future.failed(RejectRequest(BadRequest))
         }
     }
@@ -460,20 +456,11 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
 
     it should "warn if meta package is public" in {
         implicit val tid = transid()
-        val stream = new ByteArrayOutputStream
-        val printstream = new PrintStream(stream)
-        val savedstream = this.outputStream
-        this.outputStream = printstream
 
-        try {
-            Get(s"/$routePath/publicmeta") ~> sealRoute(routes(creds)) ~> check {
-                status should be(OK)
-                stream.toString should include regex (s"""[WARN] *.*publicmeta@0.0.1' is public""")
-                stream.reset()
-            }
-        } finally {
-            stream.close()
-            printstream.close()
+        Get(s"/$routePath/publicmeta") ~> sealRoute(routes(creds)) ~> check {
+            status should be(OK)
+            stream.toString should include regex (s"""[WARN] *.*publicmeta@0.0.1' is public""")
+            stream.reset()
         }
     }
 

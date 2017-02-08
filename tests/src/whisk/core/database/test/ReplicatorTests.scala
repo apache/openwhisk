@@ -17,6 +17,7 @@
 package whisk.core.database.test
 
 import java.io.File
+import java.time.Instant
 
 import scala.concurrent.duration._
 import scala.language.implicitConversions
@@ -28,16 +29,16 @@ import org.scalatest.concurrent.IntegrationPatience
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
 
+import akka.http.scaladsl.model.StatusCodes
+import common.StreamLogging
 import common.TestUtils
+import common.WaitFor
 import common.WhiskProperties
 import common.WskActorSystem
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.core.WhiskConfig._
 import whisk.core.WhiskConfig
-import common.WaitFor
-import java.time.Instant
-import akka.http.scaladsl.model.StatusCodes
 import whisk.utils.retry
 
 @RunWith(classOf[JUnitRunner])
@@ -46,7 +47,8 @@ class ReplicatorTests extends FlatSpec
     with ScalaFutures
     with WskActorSystem
     with IntegrationPatience
-    with WaitFor {
+    with WaitFor
+    with StreamLogging {
 
     val config = new WhiskConfig(Map(
         dbProvider -> null,

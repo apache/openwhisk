@@ -31,7 +31,8 @@ import akka.japi.Creator
 import spray.json._
 import spray.json.DefaultJsonProtocol
 import spray.json.DefaultJsonProtocol._
-import whisk.common.{ ConsulKVReporter, Counter, Logging, LoggingMarkers, PrintStreamEmitter, SimpleExec, TransactionId }
+import whisk.common.{ ConsulKVReporter, Counter, Logging, LoggingMarkers, TransactionId }
+import whisk.common.AkkaLogging
 import whisk.common.ConsulClient
 import whisk.common.ConsulKV.InvokerKeys
 import whisk.connector.kafka.{ KafkaConsumerConnector, KafkaProducerConnector }
@@ -60,25 +61,13 @@ class Invoker(
     instance: Int,
     activationFeed: ActorRef,
     verbosity: LogLevel = InfoLevel,
-    runningInContainer: Boolean = true)(implicit actorSystem: ActorSystem)
-    extends MessageHandler(s"invoker$instance")
-    with Logging {
+    runningInContainer: Boolean = true)(implicit actorSystem: ActorSystem, logging: Logging)
+    extends MessageHandler(s"invoker$instance") {
 
     private implicit val executionContext: ExecutionContext = actorSystem.dispatcher
-    private implicit val emitter: PrintStreamEmitter = this
 
     /** This generates completion messages back to the controller */
     val producer = new KafkaProducerConnector(config.kafkaHost, executionContext)
-
-    override def setVerbosity(level: LogLevel) = {
-        super.setVerbosity(level)
-        pool.setVerbosity(level)
-        entityStore.setVerbosity(level)
-        authStore.setVerbosity(level)
-        activationStore.setVerbosity(level)
-        producer.setVerbosity(level)
-    }
-
 
     /**
      * This is the handler for the kafka message
@@ -97,7 +86,7 @@ class Invoker(
         val tran = Transaction(msg)
         val subject = msg.user.subject
 
-        info(this, s"${actionid.id} $subject ${msg.activationId}")
+        logging.info(this, s"${actionid.id} $subject ${msg.activationId}")
 
         // the activation must terminate with only one attempt to write an activation record to the datastore
         // hence when the transaction is fully processed, this method will complete a promise with the datastore
@@ -111,7 +100,7 @@ class Invoker(
         // action will not hit in the cache due to change in the revision id;
         // if the doc revision is missing, then bypass cache
         if (actionid.rev == DocRevision()) {
-            error(this, s"revision was not provided for ${actionid.id}")
+            logging.error(this, s"revision was not provided for ${actionid.id}")
         }
         WhiskAction.get(entityStore, actionid.id, actionid.rev, fromCache = actionid.rev != DocRevision()) onComplete {
             case Success(action) =>
@@ -126,7 +115,7 @@ class Invoker(
                         }
 
                     case Failure(t) =>
-                        info(this, s"activation failed")
+                        logging.info(this, s"activation failed")
                         val failure = disambiguateActivationException(t, action)
                         transactionPromise.completeWith {
                             // this completes the failed activation case (2)
@@ -135,7 +124,7 @@ class Invoker(
                 }
 
             case Failure(t) =>
-                error(this, s"failed to fetch action from db: ${t.getMessage}")
+                logging.error(this, s"failed to fetch action from db: ${t.getMessage}")
                 val failureResponse = ActivationResponse.whiskError(s"Failed to fetch action.")
                 transactionPromise.completeWith {
                     // this completes the failed to fetch case (3)
@@ -176,10 +165,10 @@ class Invoker(
                     // completed only once, there is only one completion message sent to the feed as a result.
                     activationFeed ! releaseResource
                     // Since there is no active action taken for completion from the invoker, writing activation record is it.
-                    info(this, "recording the activation result to the data store")
+                    logging.info(this, "recording the activation result to the data store")
                     val result = WhiskActivation.put(activationStore, activation) andThen {
-                        case Success(id) => info(this, s"recorded activation")
-                        case Failure(t)  => error(this, s"failed to record activation")
+                        case Success(id) => logging.info(this, s"recorded activation")
+                        case Failure(t)  => logging.error(this, s"failed to record activation")
                     }
                     tran.result = Some(result)
                     result
@@ -268,7 +257,7 @@ class Invoker(
         val completeMsg = CompletionMessage(transid, activationResult)
 
         producer.send("completed", completeMsg) map { status =>
-            info(this, s"posted completion of activation ${msg.activationId}")
+            logging.info(this, s"posted completion of activation ${msg.activationId}")
         }
 
         activationResult
@@ -301,7 +290,7 @@ class Invoker(
             val (complete, isTruncated, logs) = processJsonDriverLogContents(rawLog, sentinelled, loglimit)
 
             if (tries > 0 && !complete && !isTruncated) {
-                info(this, s"log cursor advanced but missing sentinel, trying $tries more times")
+                logging.info(this, s"log cursor advanced but missing sentinel, trying $tries more times")
                 Thread.sleep(LogRetry)
                 getContainerLogs(con, sentinelled, loglimit, tries - 1)
             } else {
@@ -315,7 +304,7 @@ class Invoker(
                 JsArray(finishedLogs.map(_.toJson))
             }
         } else {
-            info(this, s"log cursor has not advanced, trying $tries more times")
+            logging.info(this, s"log cursor has not advanced, trying $tries more times")
             Thread.sleep(LogRetry)
             getContainerLogs(con, sentinelled, loglimit, tries - 1)
         }
@@ -354,7 +343,7 @@ class Invoker(
                         case Failure(t) =>
                             // Drop lines that did not parse to JSON objects.
                             // However, should not happen since we are using the json log driver.
-                            error(this, s"log line skipped/did not parse: $t")
+                            logging.error(this, s"log line skipped/did not parse: $t")
                             None
                     }
             }
@@ -374,7 +363,7 @@ class Invoker(
                 (true, false, truncatedLogs)
             }
         } else {
-            warn(this, s"log message is empty")
+            logging.warn(this, s"log message is empty")
             (!requireSentinel, false, Vector())
         }
     }
@@ -394,9 +383,9 @@ class Invoker(
         if (interval.duration >= timeout) {
             ActivationResponse.applicationError(Messages.timedoutActivation(timeout, failedInit))
         } else if (!failedInit) {
-            ActivationResponse.processRunResponseContent(runResult.response, this: Logging)
+            ActivationResponse.processRunResponseContent(runResult.response, logging)
         } else {
-            ActivationResponse.processInitResponseContent(runResult.response, this: Logging)
+            ActivationResponse.processInitResponseContent(runResult.response, logging)
         }
     }
 
@@ -459,7 +448,7 @@ class Invoker(
             case BlackBoxContainerError(msg) => ActivationException(msg, internalError = false)
             case WhiskContainerError(msg)    => ActivationException(msg)
             case _ =>
-                error(this, s"failed during invoke: $t")
+                logging.error(this, s"failed during invoke: $t")
                 ActivationException(s"Failed to run action '${action.docid}': ${t.getMessage}")
         }
     }
@@ -478,8 +467,6 @@ class Invoker(
         InvokerKeys.start(instance),
         InvokerKeys.status(instance),
         { _ => Map() })
-
-    setVerbosity(verbosity)
 }
 
 object Invoker {
@@ -502,32 +489,32 @@ object Invoker {
     def main(args: Array[String]): Unit = {
         require(args.length == 1, "invoker instance required")
         val instance = args(0).toInt
-        val verbosity = InfoLevel
 
         implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
         implicit val system: ActorSystem = ActorSystem(
             name = "invoker-actor-system",
             defaultExecutionContext = Some(ec))
+        implicit val logger: Logging = new AkkaLogging(akka.event.Logging.getLogger(system, this))
 
         // load values for the required properties from the environment
         val config = new WhiskConfig(requiredProperties)
 
         if (config.isValid) {
-            SimpleExec.setVerbosity(verbosity)
-
             val topic = ActivationMessage.invoker(instance)
             val groupid = "invokers"
             val maxdepth = ContainerPool.getDefaultMaxActive(config)
             val consumer = new KafkaConsumerConnector(config.kafkaHost, groupid, topic, maxdepth)
-            val dispatcher = new Dispatcher(verbosity, consumer, 500 milliseconds, 2 * maxdepth, system)
+            val dispatcher = new Dispatcher(consumer, 500 milliseconds, 2 * maxdepth, system)
 
-            val invoker = new Invoker(config, instance, dispatcher.activationFeed, verbosity)
+            val invoker = new Invoker(config, instance, dispatcher.activationFeed)
             dispatcher.addHandler(invoker, true)
             dispatcher.start()
 
             val port = config.servicePort.toInt
             BasicHttpService.startService(system, "invoker", "0.0.0.0", port, new Creator[InvokerServer] {
-                def create = new InvokerServer {}
+                def create = new InvokerServer {
+                    override implicit val logging = logger
+                }
             })
         }
     }

@@ -16,15 +16,12 @@
 
 package whisk.core.controller.test
 
-import java.io.PrintStream
-
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
-import akka.event.Logging.DebugLevel
 import spray.http.StatusCodes._
 import spray.httpx.SprayJsonSupport._
 import spray.json._
@@ -51,9 +48,6 @@ class SequenceApiTests
     val defaultNamespace = EntityPath.DEFAULT
     def aname() = MakeName.next("sequence_tests")
     val allowedActionDuration = 120 seconds
-
-    // set logging level to debug
-    setVerbosity(DebugLevel)
 
     it should "reject creation of sequence with more actions than allowed limit" in {
         implicit val tid = transid()
@@ -300,19 +294,11 @@ class SequenceApiTests
         val sSeq = makeSimpleSequence(sSeqName, namespace, Vector(xSeqName, xSeqName), false) // x is installed in the db already
         val content = WhiskActionPut(Some(sSeq.exec))
 
-        implicit val stream = new java.io.ByteArrayOutputStream
-        this.outputStream = new PrintStream(stream)
-        try {
-            stream.reset()
-            Console.withOut(stream) {
-                Put(s"$collectionPath/$sSeqName", content) ~> sealRoute(routes(creds)) ~> check {
-                    status should be(OK)
-                    logContains(s"atomic action count ${2 * actionCnt}")
-                }
+        Console.withOut(stream) {
+            Put(s"$collectionPath/$sSeqName", content) ~> sealRoute(routes(creds)) ~> check {
+                status should be(OK)
+                logContains(s"atomic action count ${2 * actionCnt}")(stream)
             }
-        } finally {
-            stream.close()
-            this.outputStream.close()
         }
     }
 
@@ -348,56 +334,49 @@ class SequenceApiTests
         // create an action sequence s
         val content = WhiskActionPut(Some(sSeq.exec))
 
-        implicit val stream = new java.io.ByteArrayOutputStream
-        this.outputStream = new PrintStream(stream)
-        try {
-            stream.reset()
-            Console.withOut(stream) {
-                Put(s"$collectionPath/$sAct", content) ~> sealRoute(routes(creds)) ~> check {
-                    status should be(OK)
-                }
-                logContains("atomic action count 4")
+        stream.reset()
+        Console.withOut(stream) {
+            Put(s"$collectionPath/$sAct", content) ~> sealRoute(routes(creds)) ~> check {
+                status should be(OK)
             }
+            logContains("atomic action count 4")(stream)
+        }
 
-            // update action z to point to s --- should be rejected
-            val zUpdate = makeSimpleSequence(zAct, namespace, Vector(s"$sAct"), false) // s in the db already
-            val zUpdateContent = WhiskActionPut(Some(zUpdate.exec))
-            Put(s"$collectionPath/$zAct?overwrite=true", zUpdateContent) ~> sealRoute(routes(creds)) ~> check {
-                status should be(BadRequest)
-                responseAs[ErrorResponse].error shouldBe Messages.sequenceIsCyclic
-            }
+        // update action z to point to s --- should be rejected
+        val zUpdate = makeSimpleSequence(zAct, namespace, Vector(s"$sAct"), false) // s in the db already
+        val zUpdateContent = WhiskActionPut(Some(zUpdate.exec))
+        Put(s"$collectionPath/$zAct?overwrite=true", zUpdateContent) ~> sealRoute(routes(creds)) ~> check {
+            status should be(BadRequest)
+            responseAs[ErrorResponse].error shouldBe Messages.sequenceIsCyclic
+        }
 
-            // update action s to point to a, s, b --- should be rejected
-            val sUpdate = makeSimpleSequence(sAct, namespace, Vector(s"$aAct", s"$sAct", s"$bAct"), false) // s in the db already
-            val sUpdateContent = WhiskActionPut(Some(sUpdate.exec))
-            Put(s"$collectionPath/$sAct?overwrite=true", sUpdateContent) ~> sealRoute(routes(creds)) ~> check {
-                status should be(BadRequest)
-                responseAs[ErrorResponse].error shouldBe Messages.sequenceIsCyclic
-            }
+        // update action s to point to a, s, b --- should be rejected
+        val sUpdate = makeSimpleSequence(sAct, namespace, Vector(s"$aAct", s"$sAct", s"$bAct"), false) // s in the db already
+        val sUpdateContent = WhiskActionPut(Some(sUpdate.exec))
+        Put(s"$collectionPath/$sAct?overwrite=true", sUpdateContent) ~> sealRoute(routes(creds)) ~> check {
+            status should be(BadRequest)
+            responseAs[ErrorResponse].error shouldBe Messages.sequenceIsCyclic
+        }
 
-            // update action z to point to y
-            val zSeq = makeSimpleSequence(zAct, namespace, Vector(s"$yAct"), false) // y  in the db already
-            val updateContent = WhiskActionPut(Some(zSeq.exec))
-            stream.reset()
-            Console.withOut(stream) {
-                Put(s"$collectionPath/$zAct?overwrite=true", updateContent) ~> sealRoute(routes(creds)) ~> check {
-                    status should be(OK)
-                }
-                logContains("atomic action count 1")
+        // update action z to point to y
+        val zSeq = makeSimpleSequence(zAct, namespace, Vector(s"$yAct"), false) // y  in the db already
+        val updateContent = WhiskActionPut(Some(zSeq.exec))
+        stream.reset()
+        Console.withOut(stream) {
+            Put(s"$collectionPath/$zAct?overwrite=true", updateContent) ~> sealRoute(routes(creds)) ~> check {
+                status should be(OK)
             }
-            // update sequence s to s -> a, x, y, a, b
-            val newS = makeSimpleSequence(sAct, namespace, Vector(s"$aAct", s"$xAct", s"$yAct", s"$aAct", s"$bAct"), false) // a, x, y, b  in the db already
-            val newSContent = WhiskActionPut(Some(newS.exec))
-            stream.reset()
-            Console.withOut(stream) {
-                Put(s"${collectionPath}/$sAct?overwrite=true", newSContent) ~> sealRoute(routes(creds)) ~> check {
-                    status should be(OK)
-                }
-                logContains("atomic action count 6")
+            logContains("atomic action count 1")(stream)
+        }
+        // update sequence s to s -> a, x, y, a, b
+        val newS = makeSimpleSequence(sAct, namespace, Vector(s"$aAct", s"$xAct", s"$yAct", s"$aAct", s"$bAct"), false) // a, x, y, b  in the db already
+        val newSContent = WhiskActionPut(Some(newS.exec))
+        stream.reset()
+        Console.withOut(stream) {
+            Put(s"${collectionPath}/$sAct?overwrite=true", newSContent) ~> sealRoute(routes(creds)) ~> check {
+                status should be(OK)
             }
-        } finally {
-            stream.close()
-            this.outputStream.close()
+            logContains("atomic action count 6")(stream)
         }
     }
 

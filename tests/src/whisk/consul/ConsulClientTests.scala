@@ -31,6 +31,7 @@ import akka.http.scaladsl.marshalling._
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling._
 import akka.stream.ActorMaterializer
+import common.StreamLogging
 import common.WskActorSystem
 import spray.json._
 import spray.json.DefaultJsonProtocol._
@@ -40,7 +41,12 @@ import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.consulServer
 
 @RunWith(classOf[JUnitRunner])
-class ConsulClientTests extends FlatSpec with ScalaFutures with Matchers with WskActorSystem {
+class ConsulClientTests
+    extends FlatSpec
+    with ScalaFutures
+    with Matchers
+    with WskActorSystem
+    with StreamLogging {
 
     implicit val testConfig = PatienceConfig(5.seconds)
     implicit val materializer = ActorMaterializer()
@@ -58,12 +64,10 @@ class ConsulClientTests extends FlatSpec with ScalaFutures with Matchers with Ws
     def registerService(name: String, id: String, checkScript: Option[String] = None) = {
         val obj = Map(
             "ID" -> id.toJson,
-            "Name" -> name.toJson
-        ) ++ checkScript.map { script =>
+            "Name" -> name.toJson) ++ checkScript.map { script =>
                 "Check" -> JsObject(
                     "Script" -> script.toJson,
-                    "Interval" -> s"${checkInterval.toSeconds}s".toJson
-                )
+                    "Interval" -> s"${checkInterval.toSeconds}s".toJson)
             }
 
         Marshal(obj.toJson).to[RequestEntity].flatMap { entity =>
@@ -71,9 +75,7 @@ class ConsulClientTests extends FlatSpec with ScalaFutures with Matchers with Ws
                 HttpRequest(
                     method = HttpMethods.PUT,
                     uri = consulUri.withPath(Uri.Path("/v1/agent/service/register")),
-                    entity = entity
-                )
-            )
+                    entity = entity))
             r.flatMap { response =>
                 Unmarshal(response).to[Any]
             }
@@ -87,9 +89,7 @@ class ConsulClientTests extends FlatSpec with ScalaFutures with Matchers with Ws
         val r = Http().singleRequest(
             HttpRequest(
                 method = HttpMethods.PUT,
-                uri = consulUri.withPath(Uri.Path(s"/v1/agent/service/deregister/$id"))
-            )
-        )
+                uri = consulUri.withPath(Uri.Path(s"/v1/agent/service/deregister/$id"))))
         r.flatMap { response =>
             Unmarshal(response).to[Any]
         }

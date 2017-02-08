@@ -37,13 +37,16 @@ object Authenticate {
 }
 
 /** A trait to validate basic auth credentials */
-trait Authenticate extends Logging {
+trait Authenticate {
 
     /** An execution context for futures */
     protected implicit val executionContext: ExecutionContext
 
     /** Database service to lookup credentials */
     protected val authStore: AuthStore
+
+    /** logging */
+    protected implicit val logging: Logging
 
     /**
      * Validates credentials against the authentication database; may be used in
@@ -54,25 +57,25 @@ trait Authenticate extends Logging {
             Try {
                 // authkey deserialization is wrapped in a try to guard against malformed values
                 val authkey = AuthKey(UUID(pw.user), Secret(pw.pass))
-                info(this, s"authenticate: ${authkey.uuid}")
+                logging.info(this, s"authenticate: ${authkey.uuid}")
                 val future = Identity.get(authStore, authkey) map { result =>
                     if (authkey == result.authkey) {
-                        info(this, s"authentication valid")
+                        logging.info(this, s"authentication valid")
                         Some(result)
                     } else {
-                        info(this, s"authentication not valid")
+                        logging.info(this, s"authentication not valid")
                         None
                     }
                 } recover {
                     case _: NoDocumentException | _: IllegalArgumentException =>
-                        info(this, s"authentication not valid")
+                        logging.info(this, s"authentication not valid")
                         None
                 }
-                future onFailure { case t => error(this, s"authentication error: $t") }
+                future onFailure { case t => logging.error(this, s"authentication error: $t") }
                 future
             }.toOption
         } getOrElse {
-            userpass.foreach(_ => info(this, s"credentials are malformed"))
+            userpass.foreach(_ => logging.info(this, s"credentials are malformed"))
             Future.successful(None)
         }
     }

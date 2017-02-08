@@ -34,19 +34,21 @@ import spray.http.Uri
 import spray.httpx.UnsuccessfulResponseException
 import spray.json.DefaultJsonProtocol
 import spray.json.pimpString
+import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.controller.RejectRequest
 import whisk.core.entity.Subject
-import whisk.core.loadBalancer.LoadBalancer
 import whisk.core.iam.NamespaceProvider
+import whisk.core.loadBalancer.LoadBalancer
 
 protected[core] class RemoteEntitlementService(
     private val config: WhiskConfig,
     private val loadBalancer: LoadBalancer,
     private val iam: NamespaceProvider,
     private val timeout: FiniteDuration = 5 seconds)(
-        private implicit val actorSystem: ActorSystem)
+        private implicit val actorSystem: ActorSystem,
+        implicit val logging: Logging)
     extends EntitlementProvider(config, loadBalancer, iam) {
 
     private implicit val executionContext = actorSystem.dispatcher
@@ -89,7 +91,7 @@ protected[core] class RemoteEntitlementService(
     }
 
     protected override def entitled(subject: Subject, right: Privilege, resource: Resource)(implicit transid: TransactionId): Future[Boolean] = {
-        info(this, s"checking namespace at ${apiLocation}")
+        logging.info(this, s"checking namespace at ${apiLocation}")
 
         val url = Uri("http://" + apiLocation + "/check").withQuery(
             "subject" -> subject.asString,
@@ -114,7 +116,7 @@ protected[core] class RemoteEntitlementService(
     private def request[A](initial: Future[A])(implicit transid: TransactionId): Future[A] =
         initial recover {
             case usr: UnsuccessfulResponseException if usr.response.status == Unauthorized =>
-                info(this, s"authentication deemed invalid by the entitlement service, response: ${usr.getMessage}")
+                logging.info(this, s"authentication deemed invalid by the entitlement service, response: ${usr.getMessage}")
                 val error = Try {
                     usr.response.entity.asString.parseJson.convertTo[ErrorResponse].error
                 }.toOption

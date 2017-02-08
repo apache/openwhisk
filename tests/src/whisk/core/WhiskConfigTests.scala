@@ -28,11 +28,16 @@ import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 
+import common.StreamLogging
 import common.WskActorSystem
 import whisk.common.ConsulClient
 
 @RunWith(classOf[JUnitRunner])
-class WhiskConfigTests extends FlatSpec with Matchers with WskActorSystem {
+class WhiskConfigTests
+    extends FlatSpec
+    with Matchers
+    with WskActorSystem
+    with StreamLogging {
 
     behavior of "WhiskConfig"
 

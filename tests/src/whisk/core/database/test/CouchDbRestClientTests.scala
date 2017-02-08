@@ -35,6 +35,7 @@ import akka.actor.Props
 import akka.http.scaladsl.model._
 import akka.stream.scaladsl._
 import akka.util.ByteString
+import common.StreamLogging
 import common.WskActorSystem
 import spray.json._
 import spray.json.DefaultJsonProtocol._
@@ -48,7 +49,8 @@ class CouchDbRestClientTests extends FlatSpec
     with ScalaFutures
     with BeforeAndAfterAll
     with WskActorSystem
-    with DbUtils {
+    with DbUtils
+    with StreamLogging {
 
     override implicit val patienceConfig = PatienceConfig(timeout = 10.seconds, interval = 0.5.seconds)
 

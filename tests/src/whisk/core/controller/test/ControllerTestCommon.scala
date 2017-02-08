@@ -17,8 +17,8 @@
 package whisk.core.controller.test
 
 import scala.concurrent.{ Await, Future }
-import scala.concurrent.duration.{ DurationInt, FiniteDuration }
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.{ DurationInt, FiniteDuration }
 import scala.language.postfixOps
 
 import org.scalatest.BeforeAndAfter
@@ -26,13 +26,14 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 
-import akka.event.Logging.{ ErrorLevel, InfoLevel, LogLevel }
+import common.StreamLogging
 import spray.http.BasicHttpCredentials
 import spray.json.DefaultJsonProtocol
 import spray.json.JsString
 import spray.routing.HttpService
 import spray.testkit.ScalatestRouteTest
-import whisk.common.{ Logging, TransactionCounter, TransactionId }
+import whisk.common.TransactionCounter
+import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.connector.ActivationMessage
 import whisk.core.controller.WhiskActionsApi
@@ -54,7 +55,7 @@ protected trait ControllerTestCommon
     with DbUtils
     with WhiskServices
     with HttpService
-    with Logging {
+    with StreamLogging {
 
     override val actorRefFactory = null
     implicit val routeTestTimeout = RouteTestTimeout(90 seconds)
@@ -65,7 +66,7 @@ protected trait ControllerTestCommon
     override val whiskConfig = new WhiskConfig(WhiskAuthStore.requiredProperties ++ WhiskActionsApi.requiredProperties)
     assert(whiskConfig.isValid)
 
-    override val loadBalancer = new DegenerateLoadBalancerService(whiskConfig, InfoLevel)
+    override val loadBalancer = new DegenerateLoadBalancerService(whiskConfig)
 
     override val iam = new NamespaceProvider(whiskConfig, forceLocal = true)
     override val entitlementProvider: EntitlementProvider = new LocalEntitlementProvider(whiskConfig, loadBalancer, iam)
@@ -94,42 +95,42 @@ protected trait ControllerTestCommon
 
     def deleteAction(doc: DocId)(implicit transid: TransactionId) = {
         Await.result(WhiskAction.get(entityStore, doc) flatMap { doc =>
-            info(this, s"deleting ${doc.docinfo}")
+            logging.info(this, s"deleting ${doc.docinfo}")
             WhiskAction.del(entityStore, doc.docinfo)
         }, dbOpTimeout)
     }
 
     def deleteActivation(doc: DocId)(implicit transid: TransactionId) = {
         Await.result(WhiskActivation.get(entityStore, doc) flatMap { doc =>
-            info(this, s"deleting ${doc.docinfo}")
+            logging.info(this, s"deleting ${doc.docinfo}")
             WhiskActivation.del(entityStore, doc.docinfo)
         }, dbOpTimeout)
     }
 
     def deleteTrigger(doc: DocId)(implicit transid: TransactionId) = {
         Await.result(WhiskTrigger.get(entityStore, doc) flatMap { doc =>
-            info(this, s"deleting ${doc.docinfo}")
+            logging.info(this, s"deleting ${doc.docinfo}")
             WhiskAction.del(entityStore, doc.docinfo)
         }, dbOpTimeout)
     }
 
     def deleteRule(doc: DocId)(implicit transid: TransactionId) = {
         Await.result(WhiskRule.get(entityStore, doc) flatMap { doc =>
-            info(this, s"deleting ${doc.docinfo}")
+            logging.info(this, s"deleting ${doc.docinfo}")
             WhiskRule.del(entityStore, doc.docinfo)
         }, dbOpTimeout)
     }
 
     def deleteAuth(doc: DocId)(implicit transid: TransactionId) = {
         Await.result(WhiskAuth.get(authStore, doc) flatMap { doc =>
-            info(this, s"deleting ${doc.docinfo}")
+            logging.info(this, s"deleting ${doc.docinfo}")
             WhiskAuth.del(authStore, doc.docinfo)
         }, dbOpTimeout)
     }
 
     def deletePackage(doc: DocId)(implicit transid: TransactionId) = {
         Await.result(WhiskPackage.get(entityStore, doc) flatMap { doc =>
-            info(this, s"deleting ${doc.docinfo}")
+            logging.info(this, s"deleting ${doc.docinfo}")
             WhiskPackage.del(entityStore, doc.docinfo)
         }, dbOpTimeout)
     }
@@ -144,12 +145,7 @@ protected trait ControllerTestCommon
         }
     }
 
-    setVerbosity(ErrorLevel)
-    Collection.initialize(entityStore, ErrorLevel)
-    entityStore.setVerbosity(ErrorLevel)
-    activationStore.setVerbosity(ErrorLevel)
-    authStore.setVerbosity(ErrorLevel)
-    entitlementProvider.setVerbosity(ErrorLevel)
+    Collection.initialize(entityStore)
 
     val ACTIONS = Collection(Collection.ACTIONS)
     val TRIGGERS = Collection(Collection.TRIGGERS)
@@ -188,7 +184,7 @@ protected trait ControllerTestCommon
     }
 }
 
-class DegenerateLoadBalancerService(config: WhiskConfig, verbosity: LogLevel)(implicit ec: ExecutionContext)
+class DegenerateLoadBalancerService(config: WhiskConfig)(implicit ec: ExecutionContext)
     extends LoadBalancer {
     import scala.concurrent.blocking
 

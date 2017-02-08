@@ -21,8 +21,13 @@ import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 
+import common.StreamLogging
+
 @RunWith(classOf[JUnitRunner])
-class ConfigTests extends FlatSpec with Matchers {
+class ConfigTests
+    extends FlatSpec
+    with Matchers
+    with StreamLogging {
 
     "Config" should "gets default value" in {
         val config = new Config(Map("a" -> "A"))(Map())
