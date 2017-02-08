@@ -300,41 +300,46 @@ protected[actions] trait SequenceActions {
         val fakeEnd = Instant.now()
         val fakeResponse = ActivationResponse.payloadPlaceholder(payload)
 
-        // NOTE: the init value is a fake activation to bootstrap the invocations of actions; in case of error, the previous activation response is used; for this reason,
-        // the fake init activation has as activation response application error - useful in the case the payload itself contains an error field, unused otherwise
-        val initFakeWhiskActivation: Future[(Either[ActivationResponse, WhiskActivation], Int)] = Future successful {
-            (Right(WhiskActivation(seqAction.namespace, seqAction.name, user.subject, seqActivationId, fakeStart, fakeEnd, response = fakeResponse, duration = None)), atomicActionCnt)
+        // NOTE: the init value is a fake (unused) activation to bootstrap the invocations of actions
+        val initFakeWhiskActivation: Future[(Either[ActivationResponse, WhiskActivation], Int, Boolean)] = Future successful {
+            // use boolean in tuple to indicate first/incoming payload
+            (Right(WhiskActivation(seqAction.namespace, seqAction.name, user.subject, seqActivationId, fakeStart, fakeEnd, response = fakeResponse, duration = None)), atomicActionCnt, true)
         }
 
         // seqComponentWskActivationFutures contains a fake activation on the first position in the vector; the rest of the vector is the result of each component execution/activation
         val seqComponentWskActivationFutures = resolvedFutureActions.scanLeft(initFakeWhiskActivation) {
-            (futureActivationAtomicCntPair, futureAction) =>
+            (futureActivationAtomicCntTuple, futureAction) =>
                 futureAction flatMap {
                     action =>
-                        futureActivationAtomicCntPair flatMap {
-                            case (activationEither, atomicActionCount) =>
+                        futureActivationAtomicCntTuple flatMap {
+                            case (activationEither, atomicActionCount, first) =>
                                 activationEither match {
                                     case Right(activation) =>
                                         val payload = activation.response.result.map(_.asJsObject)
                                         // first check conditions on payload that may lead to interrupting the execution of the sequence
                                         val payloadContent = payload getOrElse JsObject.empty
                                         val errorFields = payloadContent.getFields(ActivationResponse.ERROR_FIELD)
-                                        if (errorFields.isEmpty) {
+                                        // short-circuit the execution of the sequence iff the payload contains an error field and is the result of an action return, not the initial payload
+                                        val errorShortcircuit = !errorFields.isEmpty && !first
+                                        if (!errorShortcircuit) {
                                             // second check the atomic action count for sequence action limit)
                                             if (atomicActionCount >= actionSequenceLimit) {
                                                 val activationResponse = ActivationResponse.applicationError(s"$sequenceIsTooLong")
-                                                Future.successful(Left(activationResponse), atomicActionCount) // dynamic action count doesn't matter anymore
+                                                Future.successful(Left(activationResponse), atomicActionCount, false) // dynamic action count and first don't really matter anymore
                                             } else {
-                                                invokeSeqOneComponent(user, action, payload, cause, atomicActionCount)
+                                                val compResultFuture : Future[(Either[ActivationResponse, WhiskActivation], Int)] = invokeSeqOneComponent(user, action, payload, cause, atomicActionCount)
+                                                compResultFuture map {
+                                                    activationDynamicCountPair => (activationDynamicCountPair._1, activationDynamicCountPair._2, false) // it's not first payload anymore
+                                                }
                                             }
                                         } else {
                                             // there is an error field, terminate sequence early
                                             // propagate the activation response
-                                            Future.successful(Left(activation.response), atomicActionCount) // dynamic action count doesn't matter anymore
+                                            Future.successful(Left(activation.response), atomicActionCount, false) // dynamic action count and first don't really matter anymore
                                         }
                                     case Left(activationResponse) =>
                                         // the sequence is interrupted, no more processing
-                                        Future.successful(Left(activationResponse), 0) // dynamic action count does not matter from now on
+                                        Future.successful(Left(activationResponse), 0, false) // dynamic action count and first do not matter from now on
                                 }
                         }
                 } recover {
@@ -342,11 +347,14 @@ protected[actions] trait SequenceActions {
                     case t: Throwable =>
                         // consider this failure a whisk error
                         val activationResponse = ActivationResponse.whiskError(sequenceActivationFailure)
-                        (Left(activationResponse), 0)
+                        (Left(activationResponse), 0, false)
                 }
         }
-
-        seqComponentWskActivationFutures.drop(1) // drop the first future which contains the init value from scanLeft
+        // drop the first future which contains the init value from scanLeft and project the first two fields from the tuples
+        // the third one was used to treat error property differently for first action vs the rest of the actions in the sequence (not useful past this point)
+        seqComponentWskActivationFutures.drop(1) map {
+            tupleFuture => tupleFuture map { tuple => (tuple._1, tuple._2) }
+        }
     }
 
     /**
