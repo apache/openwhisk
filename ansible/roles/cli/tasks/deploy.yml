@@ -24,3 +24,5 @@
 
 - name: "remove cli container after publishing"
   shell: "docker rm cli"
+
+- include: download_cli.yml
