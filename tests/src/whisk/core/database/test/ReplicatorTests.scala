@@ -74,6 +74,12 @@ class ReplicatorTests extends FlatSpec
         println(s"Creating database: $name")
         val db = new ExtendedCouchDbRestClient(config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name)
         db.createDb().futureValue shouldBe 'right
+
+        retry({
+            val list = db.dbs().futureValue.right.get
+            list should contain(name)
+        }, N = 10, waitBeforeRetry = Some(500.milliseconds))
+
         db
     }
 
@@ -82,8 +88,8 @@ class ReplicatorTests extends FlatSpec
         println(s"Removing database: $name")
         val db = new ExtendedCouchDbRestClient(config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name)
         retry({
-            val delete = db.deleteDb()
-            if (!ignoreFailure) delete.futureValue shouldBe 'right
+            val delete = db.deleteDb().futureValue
+            if (!ignoreFailure) delete shouldBe 'right
         }, N = 10, waitBeforeRetry = Some(500.milliseconds))
         db
     }

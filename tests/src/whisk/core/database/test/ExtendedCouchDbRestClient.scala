@@ -21,6 +21,7 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
 
 import spray.json._
+import spray.json.DefaultJsonProtocol._
 
 import whisk.core.database.CouchDbRestClient
 
@@ -32,15 +33,23 @@ class ExtendedCouchDbRestClient(protocol: String, host: String, port: Int, usern
 
     // http://docs.couchdb.org/en/1.6.1/api/server/common.html#get--
     def instanceInfo(): Future[Either[StatusCode, JsObject]] =
-        requestJson(mkRequest(HttpMethods.GET, Uri./))
+        requestJson[JsObject](mkRequest(HttpMethods.GET, Uri./))
+
+    // http://docs.couchdb.org/en/1.6.1/api/server/common.html#all-dbs
+    def dbs(): Future[Either[StatusCode, List[String]]] = {
+        implicit val ec = system.dispatcher
+        requestJson[JsArray](mkRequest(HttpMethods.GET, uri("_all_dbs"))).map { either =>
+            either.right.map(_.convertTo[List[String]])
+        }
+    }
 
     // http://docs.couchdb.org/en/1.6.1/api/database/common.html#put--db
     def createDb(): Future[Either[StatusCode, JsObject]] =
-        requestJson(mkRequest(HttpMethods.PUT, uri(db)))
+        requestJson[JsObject](mkRequest(HttpMethods.PUT, uri(db)))
 
     // http://docs.couchdb.org/en/1.6.1/api/database/common.html#delete--db
     def deleteDb(): Future[Either[StatusCode, JsObject]] =
-        requestJson(mkRequest(HttpMethods.DELETE, uri(db)))
+        requestJson[JsObject](mkRequest(HttpMethods.DELETE, uri(db)))
 
     // http://docs.couchdb.org/en/1.6.1/api/database/bulk-api.html#get--db-_all_docs
     def getAllDocs(skip: Option[Int] = None, limit: Option[Int] = None, includeDocs: Option[Boolean] = None): Future[Either[StatusCode, JsObject]] = {
@@ -55,6 +64,6 @@ class ExtendedCouchDbRestClient(protocol: String, host: String, port: Int, usern
         }).toMap
 
         val url = uri(db, "_all_docs").withQuery(Uri.Query(argMap))
-        requestJson(mkRequest(HttpMethods.GET, url))
+        requestJson[JsObject](mkRequest(HttpMethods.GET, url))
     }
 }
