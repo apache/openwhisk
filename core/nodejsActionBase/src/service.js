@@ -16,7 +16,6 @@
 
 var NodeActionRunner = require('../runner');
 var fs = require('fs');
-var whisk = require('./whisk');
 
 function NodeActionService(config, logger) {
     var Status = {
@@ -129,9 +128,7 @@ function NodeActionService(config, logger) {
     };
 
     function doInit(message) {
-        var context = newWhiskContext(config, logger);
-
-        userCodeRunner = new NodeActionRunner(context);
+        userCodeRunner = new NodeActionRunner();
 
         return userCodeRunner.init(message).then(function (result) {
             setStatus(Status.ready);
@@ -149,7 +146,6 @@ function NodeActionService(config, logger) {
     function doRun(req) {
         var msg = req.body || {};
 
-        userCodeRunner.whisk.setAuthKey(msg['api_key'], false);
         var props = [ 'api_key', 'namespace', 'action_name', 'activation_id', 'deadline' ];
         props.map(function (p) {
             process.env['__OW_' + p.toUpperCase()] = msg[p];
@@ -169,10 +165,6 @@ function NodeActionService(config, logger) {
         console.log('XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX');
         console.error('XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX');
     }
-}
-
-function newWhiskContext(config, logger) {
-    return new whisk(config.apiHost, logger);
 }
 
 NodeActionService.getService = function(config, logger) {

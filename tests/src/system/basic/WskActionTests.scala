@@ -248,38 +248,6 @@ class WskActionTests
             }
     }
 
-    it should "return the value of the first synchronous whisk.done()" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val name = "helloSyncDoneTwice"
-            assetHelper.withCleaner(wsk.action, name) {
-                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("helloSyncDoneTwice.js")))
-            }
-
-            val run = wsk.action.invoke(name, Map("payload" -> testString.toJson))
-            withActivation(wsk.activation, run) {
-                activation =>
-                    activation.response.status shouldBe "success"
-                    activation.response.result shouldBe Some(testResult)
-                    activation.logs.get.mkString(" ") should include(testString)
-            }
-    }
-
-    it should "return the value of the first asynchronous whisk.done()" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val name = "helloSyncDoneTwice"
-            assetHelper.withCleaner(wsk.action, name) {
-                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("helloAsyncDoneTwice.js")))
-            }
-
-            val run = wsk.action.invoke(name, Map("payload" -> testString.toJson))
-            withActivation(wsk.activation, run) {
-                activation =>
-                    activation.response.status shouldBe "success"
-                    activation.response.result shouldBe Some(testResult)
-                    activation.logs.get.mkString(" ") should include(testString)
-            }
-    }
-
     it should "reject an invoke with the wrong parameters set" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val fullQualifiedName = s"/$guestNamespace/samples/helloWorld"

@@ -31,8 +31,6 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
 
     lazy val nodejsContainerImageName = "nodejsaction"
 
-    val hasDeprecationWarnings = true
-
     override def withActionContainer(env: Map[String, String] = Map.empty)(code: ActionContainer => Unit) = {
         withContainer(nodejsContainerImageName, env)(code)
     }
@@ -157,126 +155,6 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
         }
     }
 
-    it should "not warn when using whisk.done" in {
-        val (out, err) = withNodeJsContainer { c =>
-            val code = """
-                | function main(args) {
-                |     whisk.done({ "happy": "penguins" });
-                | }
-            """.stripMargin
-
-            c.init(initPayload(code))._1 should be(200)
-
-            val (runCode, runRes) = c.run(runPayload(JsObject()))
-            runCode should be(200)
-            runRes should be(Some(JsObject("happy" -> JsString("penguins"))))
-        }
-
-        checkStreams(out, err, {
-            case (o, e) =>
-                o shouldBe empty
-                if (!hasDeprecationWarnings) e shouldBe empty
-        })
-    }
-
-    it should "not warn when returning whisk.done" in {
-        val (out, err) = withNodeJsContainer { c =>
-            val code = """
-                | function main(args) {
-                |     whisk.done({ "happy": "penguins" });
-                | }
-            """.stripMargin
-
-            c.init(initPayload(code))._1 should be(200)
-
-            val (runCode, runRes) = c.run(runPayload(JsObject()))
-            runCode should be(200)
-            runRes should be(Some(JsObject("happy" -> JsString("penguins"))))
-        }
-
-        checkStreams(out, err, {
-            case (o, e) =>
-                o shouldBe empty
-                if (!hasDeprecationWarnings) e shouldBe empty
-        })
-    }
-
-    it should "warn when using deprecated whisk object methods" in {
-        val (out, err) = withNodeJsContainer { c =>
-            val code = """
-                | function main(args) {
-                |     whisk.getAuthKey(whisk.setAuthKey('xxx'));
-                |     try { whisk.invoke(); } catch (e) {}
-                |     try { whisk.trigger();  } catch (e) {}
-                |     setTimeout(function () { whisk.done(); }, 1000);
-                |     return whisk.async();
-                | }
-            """.stripMargin
-
-            c.init(initPayload(code))._1 should be(200)
-
-            val (runCode, runRes) = c.run(runPayload(JsObject()))
-            runCode should be(200)
-        }
-
-        checkStreams(out, err, {
-            case (o, e) =>
-                o shouldBe empty
-                e should not be empty
-                val lines = e.split("\n")
-                lines.filter { l => l.startsWith("[WARN] \"whisk.") && l.contains("deprecated") }.length shouldBe 8
-        })
-    }
-
-    it should "warn when using deprecated whisk.error" in {
-        val (out, err) = withNodeJsContainer { c =>
-            val code = """
-                | function main(args) {
-                |     whisk.error("{warnme: true}");
-                | }
-            """.stripMargin
-
-            c.init(initPayload(code))._1 should be(200)
-
-            val (runCode, runRes) = c.run(runPayload(JsObject()))
-            runCode should be(200)
-        }
-
-        checkStreams(out, err, {
-            case (o, e) =>
-                o shouldBe empty
-                e should not be empty
-                val lines = e.split("\n")
-                lines.length shouldBe 1
-                lines.forall { l => l.startsWith("[WARN] \"whisk.") && l.contains("deprecated") }
-        })
-    }
-
-    it should "warn when using whisk.done twice" in {
-        val (out, err) = withNodeJsContainer { c =>
-            val code = """
-                | function main(args) {
-                |     setTimeout(function () { whisk.done(); }, 100);
-                |     setTimeout(function () { whisk.done(); }, 101);
-                |     return whisk.async();
-                | }
-            """.stripMargin
-
-            c.init(initPayload(code))._1 should be(200)
-
-            val (runCode, runRes) = c.run(runPayload(JsObject()))
-
-            runCode should be(200) // debatable, although it seems most logical
-            runRes should be(Some(JsObject()))
-        }
-
-        checkStreams(out, err, {
-            case (o, e) =>
-                o should include("more than once")
-                if (!hasDeprecationWarnings) e shouldBe empty
-        })
-    }
-
     it should "support the documentation examples (1)" in {
         val (out, err) = withNodeJsContainer { c =>
             val code = """
@@ -285,9 +163,9 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
                 |     if (params.payload == 0) {
                 |         return;
                 |     } else if (params.payload == 1) {
-                |         return whisk.done();    // indicates normal completion
+                |         return {payload: 'Hello, World!'}         // indicates normal completion
                 |     } else if (params.payload == 2) {
-                |         return whisk.error();   // indicates abnormal completion
+                |         return {error: 'payload must be 0 or 1'}  // indicates abnormal completion
                 |     }
                 | }
             """.stripMargin
@@ -302,55 +180,34 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
             r1 should be(Some(JsObject()))
 
             c2 should be(200)
-            r2 should be(Some(JsObject()))
+            r2 should be(Some(JsObject("payload" -> JsString("Hello, World!"))))
 
             c3 should be(200) // application error, not container or system
-            r3.get.fields.get("error") shouldBe defined
+            r3.get.fields.get("error") shouldBe Some(JsString("payload must be 0 or 1"))
         }
 
         checkStreams(out, err, {
             case (o, e) =>
                 o shouldBe empty
-                if (!hasDeprecationWarnings) e shouldBe empty
+                e shouldBe empty
         }, 3)
+
     }
 
     it should "support the documentation examples (2)" in {
         val (out, err) = withNodeJsContainer { c =>
             val code = """
-                | function main() {
-                |     setTimeout(function() {
-                |         return whisk.done({ done: true });
-                |     }, 100);
-                |     return whisk.async();
-                | }
-            """.stripMargin
-
-            c.init(initPayload(code))._1 should be(200)
-
-            val (runCode, runRes) = c.run(runPayload(JsObject()))
-            runCode should be(200)
-            runRes should be(Some(JsObject("done" -> JsBoolean(true))))
-        }
-
-        checkStreams(out, err, {
-            case (o, e) =>
-                o shouldBe empty
-                if (!hasDeprecationWarnings) e shouldBe empty
-        })
-    }
-
-    it should "support the documentation examples (3)" in {
-        val (out, err) = withNodeJsContainer { c =>
-            val code = """
                 | function main(params) {
                 |     if (params.payload) {
-                |         setTimeout(function() {
-                |             return whisk.done({done: true});
-                |         }, 100);
-                |         return whisk.async();  // asynchronous activation
+                |         // asynchronous activation
+                |         return new Promise(function(resolve, reject) {
+                |                setTimeout(function() {
+                |                  resolve({ done: true });
+                |                }, 100);
+                |             })
                 |     } else {
-                |         return whisk.done();   // synchronous activation
+                |         // synchronous activation
+                |         return {done: true};
                 |     }
                 | }
             """.stripMargin
@@ -361,7 +218,7 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
             val (c2, r2) = c.run(runPayload(JsObject("payload" -> JsBoolean(true))))
 
             c1 should be(200)
-            r1 should be(Some(JsObject()))
+            r1 should be(Some(JsObject("done" -> JsBoolean(true))))
 
             c2 should be(200)
             r2 should be(Some(JsObject("done" -> JsBoolean(true))))
@@ -370,7 +227,7 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
         checkStreams(out, err, {
             case (o, e) =>
                 o shouldBe empty
-                if (!hasDeprecationWarnings) e shouldBe empty
+                e shouldBe empty
         }, 2)
     }
 
