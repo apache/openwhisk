@@ -77,19 +77,8 @@ class Invoker(
         authStore.setVerbosity(level)
         activationStore.setVerbosity(level)
         producer.setVerbosity(level)
-        checkRuncAccess()
     }
 
-    /**
-     *  Test method that determines whether there is access from the invoker (inside a container)
-     *  to the hosts's runc binary.  Logging shows success of failure but the method returns
-     *  without exception in any case.
-     */
-    def checkRuncAccess() {
-        implicit val tid = TransactionId.invokerNanny
-        val runcListResult = RuncUtils.list()
-        info(this, s"runc list result: ${runcListResult}")
-    }
 
     /**
      * This is the handler for the kafka message
