@@ -78,6 +78,7 @@ class ContainerPool(
     val serializeDockerOp = config.invokerSerializeDockerOp.toBoolean
     val serializeDockerPull = config.invokerSerializeDockerPull.toBoolean
     info(this, s"dockerhost = $dockerhost    serializeDockerOp = $serializeDockerOp   serializeDockerPull = $serializeDockerPull")
+    val useRunc = checkRuncAccess(config.invokerUseRunc.toBoolean)
 
     // Eventually, we will have a more sophisticated warmup strategy that does multiple sizes
     private val defaultMemoryLimit = MemoryLimit(MemoryLimit.STD_MEMORY)
@@ -89,6 +90,26 @@ class ContainerPool(
         super.setVerbosity(level)
         datastore.setVerbosity(level)
         authStore.setVerbosity(level)
+    }
+
+    /**
+     *  Check whether we should use runc.  To do so,
+     *  1. The whisk config flag must be on.
+     *  2. Runc must be successfully accessible.  This is a failsafe in case runc is not set up correctly.
+     *     For this stage, logging shows success or failure if we get this far.
+     */
+    def checkRuncAccess(useRunc: Boolean): Boolean = {
+        if (useRunc) {
+            implicit val tid = TransactionId.invokerNanny
+            val (code, result) = RuncUtils.list()
+            val success = (code == 0)
+            info(this, if (success) s"Using runc. list result: ${result}"
+                               else s"Not using runc due to error (code = ${code}): ${result}")
+            success
+        } else {
+            info(this, s"Not using runc because of configuration flag")
+            false
+        }
     }
 
     /**
@@ -808,6 +829,7 @@ object ContainerPool extends Logging {
         invokerCoreShare -> "2",
         invokerSerializeDockerOp -> "true",
         invokerSerializeDockerPull -> "true",
+        invokerUseRunc -> "false",
         invokerContainerPolicy -> "",
         invokerContainerNetwork -> null)
 

@@ -24,14 +24,14 @@ object RuncUtils extends Logging {
 
     private implicit val emitter: PrintStreamEmitter = this
 
-    def list()(implicit transid: TransactionId): String = {
+    def list()(implicit transid: TransactionId): (Int, String) = {
         runRuncCmd(false, Seq("list"))
     }
 
     /**
      * Synchronously runs the given runc command returning stdout if successful.
      */
-    def runRuncCmd(skipLogError: Boolean, args: Seq[String])(implicit transid: TransactionId): String = {
+    def runRuncCmd(skipLogError: Boolean, args: Seq[String])(implicit transid: TransactionId): (Int, String) = {
         val start = transid.started(this, LoggingMarkers.INVOKER_DOCKER_CMD("runc_" + args(0)))
         try {
             val fullCmd = getRuncCmd() ++ args
@@ -40,19 +40,20 @@ object RuncUtils extends Logging {
 
             if (exitCode == 0) {
                 transid.finished(this, start)
-                stdout.trim
+                (exitCode, stdout.trim)
             } else {
                 if (!skipLogError) {
                     transid.failed(this, start, s"stdout:\n$stdout\nstderr:\n$stderr", ErrorLevel)
                 } else {
                     transid.failed(this, start)
                 }
-                "error"
+                (exitCode, (stdout + stderr).trim)
             }
         } catch {
             case t: Throwable =>
-                transid.failed(this, start, "error: " + t.getMessage, ErrorLevel)
-                "error"
+                val errorMsg = "error: " + t.getMessage
+                transid.failed(this, start, errorMsg, ErrorLevel)
+                (-1, errorMsg)
         }
     }
 
