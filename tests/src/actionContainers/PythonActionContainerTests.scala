@@ -210,6 +210,7 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
                 |import simplejson as json
                 |from twisted.internet import protocol, reactor, endpoints
                 |import socket
+                |from kafka import BrokerConnection
                 |
                 |def main(args):
                 |    socket.setdefaulttimeout(120)
@@ -218,6 +219,7 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
                 |    t = parse('2016-02-22 11:59:00 EST')
                 |    r = requests.get('https://openwhisk.ng.bluemix.net/api/v1')
                 |    j = json.dumps({'foo':'bar'}, separators = (',', ':'))
+                |    kafka = BrokerConnection("it works", 9093, None)
                 |
                 |    return {
                 |       "bs4": str(b.title),
@@ -225,7 +227,8 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
                 |       "dateutil": t.strftime("%A"),
                 |       "lxml": etree.Element("root").tag,
                 |       "json": j,
-                |       "request": r.status_code
+                |       "request": r.status_code,
+                |       "kafka_python": kafka.host
                 |    }
             """.stripMargin
 
@@ -242,7 +245,8 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
                 "dateutil" -> "Monday".toJson,
                 "lxml" -> "root".toJson,
                 "json" -> JsObject("foo" -> "bar".toJson).compactPrint.toJson,
-                "request" -> 200.toJson)))
+                "request" -> 200.toJson,
+                "kafka_python" -> "it works".toJson)))
         }
 
         checkStreams(out, err, {

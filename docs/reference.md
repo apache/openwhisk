@@ -321,6 +321,7 @@ In addition to the standard Python library, the following packages are also avai
 - itsdangerous v0.24
 - jinja2 v2.8
 - lxml v3.6.4
+- kafka_python v1.3.1
 - markupsafe v0.23
 - parsel v1.0.3
 - pyasn1 v0.1.9
