@@ -357,6 +357,17 @@ class WskBasicTests
             }
     }
 
+    it should "create and invoke a blocking action resulting in an application error response" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "applicationError3"
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("applicationError3.js")))
+            }
+
+            wsk.action.invoke(name, blocking = true, result = true, expectedExitCode = 246)
+              .stderr.parseJson.asJsObject shouldBe JsObject("error" -> JsBoolean(true))
+    }
+
     it should "create and invoke a blocking action resulting in an failed promise" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "errorResponseObject"
