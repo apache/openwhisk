@@ -23,6 +23,7 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.model.HttpMethods
 import akka.http.scaladsl.model.StatusCode
 import spray.json._
+import spray.json.DefaultJsonProtocol._
 
 /**
  * This class only handles the basic communication to the proper endpoints
@@ -33,6 +34,6 @@ class CloudantRestClient(host: String, port: Int, username: String, password: St
 
     // https://cloudant.com/blog/cloudant-query-grows-up-to-handle-ad-hoc-queries/#.VvllCD-0z2C
     def simpleQuery(doc: JsObject): Future[Either[StatusCode, JsObject]] = {
-        requestJson(mkJsonRequest(HttpMethods.POST, uri(db, "_find"), doc))
+        requestJson[JsObject](mkJsonRequest(HttpMethods.POST, uri(db, "_find"), doc))
     }
 }
