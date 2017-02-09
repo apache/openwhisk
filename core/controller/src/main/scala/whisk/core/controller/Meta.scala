@@ -75,30 +75,41 @@ protected[core] object WhiskMetaApi extends Directives {
         "__ow_meta_path",
         "__ow_meta_namespace")
 
-    /** Supported media types for action response. */
-    val mediaTranscoders = Map(
-        "html" -> resultAsHtml _,
-        "text" -> resultAsText _,
-        "json" -> resultAsJson _,
-        "http" -> resultAsHttp _)
-
-    /** Default media extensions for action projection. */
-    val defaultMediaProjection: Map[String, Option[List[String]]] = Map(
-        "html" -> Some(List("html")),
-        "text" -> Some(List("text")),
-        "json" -> None,
-        "http" -> None)
+    val mediaTranscoders = {
+        // extensions are expected to contain only [a-z]
+        Seq(MediaExtension("html", Some(List("html")), resultAsHtml _),
+            MediaExtension("text", Some(List("text")), resultAsText _),
+            MediaExtension("json", None, resultAsJson _),
+            MediaExtension("http", None, resultAsHttp _))
+            .map(e => e.extension -> e).toMap
+    }
 
     val supportedMediaTypes = mediaTranscoders.keySet
 
-    val extensionSplitter = EntityName.REGEX.dropRight(2).concat("""\.([a-zA-Z]{4})\z""").r
+    val extensionSplitter = {
+        val longestExtension = supportedMediaTypes.map(_.length).max
+        // the extension match is not case sensitive so allow a-z and A-Z
+        EntityName.REGEX.dropRight(2).concat(raw"\.([a-zA-Z]{$longestExtension})\z").r
+    }
 
-    protected def resultAsHtml(result: JsValue, transid: TransactionId): RequestContext => Unit = result match {
+    /**
+     * Supported extensions, their default projection and transcoder to complete a request.
+     *
+     * @param extension the supported media types for action response
+     * @param defaultProject the default media extensions for action projection
+     * @param transcoder the HTTP decoder and terminator for the extension
+     */
+    protected case class MediaExtension(
+        extension: String,
+        defaultProjection: Option[List[String]],
+        transcoder: (JsValue, TransactionId) => RequestContext => Unit)
+
+    private def resultAsHtml(result: JsValue, transid: TransactionId): RequestContext => Unit = result match {
         case JsString(html) => respondWithMediaType(`text/html`) { complete(OK, html) }
         case _              => terminate(BadRequest, Messages.invalidMedia(`text/html`))(transid)
     }
 
-    protected def resultAsText(result: JsValue, transid: TransactionId): RequestContext => Unit = {
+    private def resultAsText(result: JsValue, transid: TransactionId): RequestContext => Unit = {
         result match {
             case r: JsObject  => complete(OK, r.prettyPrint)
             case r: JsArray   => complete(OK, r.prettyPrint)
@@ -109,7 +120,7 @@ protected[core] object WhiskMetaApi extends Directives {
         }
     }
 
-    protected def resultAsJson(result: JsValue, transid: TransactionId): RequestContext => Unit = {
+    private def resultAsJson(result: JsValue, transid: TransactionId): RequestContext => Unit = {
         result match {
             case r: JsObject => complete(OK, r)
             case r: JsArray  => complete(OK, r)
@@ -117,7 +128,7 @@ protected[core] object WhiskMetaApi extends Directives {
         }
     }
 
-    protected def resultAsHttp(result: JsValue, transid: TransactionId): RequestContext => Unit = {
+    private def resultAsHttp(result: JsValue, transid: TransactionId): RequestContext => Unit = {
         result match {
             case JsObject(fields) => Try {
                 val headers = fields.get("headers").map {
@@ -458,7 +469,7 @@ trait WhiskMetaApi
             Option(context.path)
                 .filter(_.nonEmpty)
                 .map(_.split("/").filter(_.nonEmpty).toList)
-        } orElse WhiskMetaApi.defaultMediaProjection(responseType)
+        } orElse WhiskMetaApi.mediaTranscoders(responseType).defaultProjection
 
         completeRequest(
             queuedActivation = precheck flatMap {
@@ -503,7 +514,7 @@ trait WhiskMetaApi
                     val result = getFieldPath(activation.resultAsJson, resultPath)
                     result match {
                         case Some(projection) =>
-                            val marshaler = Future(WhiskMetaApi.mediaTranscoders(responseType)(projection, transid))
+                            val marshaler = Future(WhiskMetaApi.mediaTranscoders(responseType).transcoder(projection, transid))
                             onComplete(marshaler) {
                                 case Success(done) => done // all transcoders terminate the connection
                                 case Failure(t)    => terminate(InternalServerError)
