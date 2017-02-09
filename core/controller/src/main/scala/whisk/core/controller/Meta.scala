@@ -91,6 +91,8 @@ protected[core] object WhiskMetaApi extends Directives {
 
     val supportedMediaTypes = mediaTranscoders.keySet
 
+    val extensionSplitter = EntityName.REGEX.dropRight(2).concat("""\.([a-zA-Z]{4})\z""").r
+
     protected def resultAsHtml(result: JsValue, transid: TransactionId): RequestContext => Unit = result match {
         case JsString(html) => respondWithMediaType(`text/html`) { complete(OK, html) }
         case _              => terminate(BadRequest, Messages.invalidMedia(`text/html`))(transid)
@@ -226,7 +228,6 @@ trait WhiskMetaApi
 
     private lazy val validNameSegment = pathPrefix(EntityName.REGEX.r)
     private lazy val packagePrefix = pathPrefix("default".r | EntityName.REGEX.r)
-    private lazy val extensionSplitter = EntityName.REGEX.dropRight(2).concat("""\.([a-zA-Z0-9.+-]+)\z""").r
 
     /** Extracts the HTTP method, headers, query params and unmatched (remaining) path. */
     private val requestMethodParamsAndPath = {
@@ -324,14 +325,14 @@ trait WhiskMetaApi
                 packagePrefix { pkg =>
                     pathPrefix(Segment) {
                         _ match {
-                            case extensionSplitter(action, extension) =>
+                            case WhiskMetaApi.extensionSplitter(action, extension) =>
                                 if (WhiskMetaApi.supportedMediaTypes.contains(extension)) {
                                     val pkgName = if (pkg == "default") None else Some(EntityName(pkg))
                                     handleAnonymousMatch(EntityName(namespace), pkgName, EntityName(action), extension)
                                 } else {
                                     terminate(NotAcceptable, Messages.contentTypeNotSupported)
                                 }
-                            case _ => terminate(NotAcceptable, Messages.contentTypeRequired)
+                            case _ => terminate(NotAcceptable, Messages.contentTypeNotSupported)
                         }
                     }
                 }

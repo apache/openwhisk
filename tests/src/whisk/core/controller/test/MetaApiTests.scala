@@ -504,6 +504,23 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
         }
     }
 
+    it should "split action name and extenstion" in {
+        val r = WhiskMetaApi.extensionSplitter
+        Seq("t.j.http", "t.js.http", "tt.j.http", "tt.js.http").foreach { s =>
+            val r(n, e) = s
+            val i = s.lastIndexOf(".")
+            n shouldBe s.substring(0, i)
+            e shouldBe s.substring(i + 1)
+        }
+
+        Seq("t.js", "t.js.htt", "t.js.httpz").foreach { s =>
+            a[MatchError] should be thrownBy {
+                val r(n, e) = s
+            }
+        }
+
+    }
+
     it should "allow anonymous acccess to fully qualified name" in {
         implicit val tid = transid()
         val exports = s"/$routePath/$anonymousInvokePath"
@@ -527,7 +544,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
 
                 Get(s"$exports/$path") ~> sealRoute(routes()) ~> check {
                     status should be(NotAcceptable)
-                    confirmErrorWithTid(responseAs[JsObject], Some(Messages.contentTypeRequired))
+                    confirmErrorWithTid(responseAs[JsObject], Some(Messages.contentTypeNotSupported))
                 }
             }
 
@@ -811,8 +828,9 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
                 }
             }
 
-        // these fail with unsupported extension
-        Seq(s"$systemId/proxy/export_c.xyz", s"$systemId/proxy/export_c.xyz/", s"$systemId/proxy/export_c.xyz/content").
+        // these fail with content type required in known set
+        Seq(s"$systemId/proxy/export_c.xyz", s"$systemId/proxy/export_c.xyz/", s"$systemId/proxy/export_c.xyz/content",
+            s"$systemId/proxy/export_c.xyzz", s"$systemId/proxy/export_c.xyzz/", s"$systemId/proxy/export_c.xyzz/content").
             foreach { path =>
                 Get(s"$exports/$path") ~> sealRoute(routes()) ~> check {
                     status should be(NotAcceptable)
