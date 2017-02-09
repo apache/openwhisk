@@ -383,29 +383,37 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, error) {
     artifact = args[1]
   }
 
-  whisk.Debug(whisk.DbgInfo, "Parsing parameters: %#v\n", flags.common.param)
-  parameters, err := getJSONFromStrings(flags.common.param, true)
-  if err != nil {
-    whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, true) failed: %s\n", flags.common.param, err)
-    errMsg := wski18n.T("Invalid parameter argument '{{.param}}': {{.err}}",
-        map[string]interface{}{"param": fmt.Sprintf("%#v", flags.common.param), "err": err})
-    whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-      whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-    return nil, whiskErr
-  }
-
-  whisk.Debug(whisk.DbgInfo, "Parsing annotations: %#v\n", flags.common.annotation)
-  annotations, err := getJSONFromStrings(flags.common.annotation, true)
-  if err != nil {
-    whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, true) failed: %s\n", flags.common.annotation, err)
-    errMsg := wski18n.T("Invalid annotation argument '{{.annotation}}': {{.err}}",
-        map[string]interface{}{"annotation": fmt.Sprintf("%#v", flags.common.annotation), "err": err})
-    whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-      whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-    return nil, whiskErr
-  }
-
   action := new(whisk.Action)
+  action.Name = qName.entityName
+  action.Namespace = qName.namespace
+  action.Limits = getLimits()
+
+  if !flags.action.copy {
+    whisk.Debug(whisk.DbgInfo, "Parsing parameters: %#v\n", flags.common.param)
+    parameters, err := getJSONFromStrings(flags.common.param, true)
+    if err != nil {
+      whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, true) failed: %s\n", flags.common.param, err)
+      errMsg := wski18n.T("Invalid parameter argument '{{.param}}': {{.err}}",
+          map[string]interface{}{"param": fmt.Sprintf("%#v", flags.common.param), "err": err})
+      whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+      return nil, whiskErr
+    }
+
+    whisk.Debug(whisk.DbgInfo, "Parsing annotations: %#v\n", flags.common.annotation)
+    annotations, err := getJSONFromStrings(flags.common.annotation, true)
+    if err != nil {
+      whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, true) failed: %s\n", flags.common.annotation, err)
+      errMsg := wski18n.T("Invalid annotation argument '{{.annotation}}': {{.err}}",
+          map[string]interface{}{"annotation": fmt.Sprintf("%#v", flags.common.annotation), "err": err})
+      whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+      return nil, whiskErr
+    }
+
+    action.Annotations = annotations.(whisk.KeyValueArr)
+    action.Parameters = parameters.(whisk.KeyValueArr)
+  }
 
   if flags.action.copy {
     qNameCopy := QualifiedName{}
@@ -432,6 +440,8 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, error) {
 
     client.Namespace = qName.namespace
     action.Exec = existingAction.Exec
+    action.Parameters = existingAction.Parameters
+    action.Annotations = existingAction.Annotations
   } else if flags.action.sequence {
     action.Exec = new(whisk.Exec)
     action.Exec.Kind = "sequence"
@@ -525,17 +535,8 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, error) {
     }
   }
 
-  action.Name = qName.entityName
-  action.Namespace = qName.namespace
-  action.Annotations = annotations.(whisk.KeyValueArr)
-  action.Limits = getLimits()
-
-  // If the action sequence is not already the Parameters value, set it to the --param parameter values
-  if action.Parameters == nil && parameters != nil {
-    action.Parameters = parameters.(whisk.KeyValueArr)
-  }
-
   whisk.Debug(whisk.DbgInfo, "Parsed action struct: %#v\n", action)
+
   return action, nil
 }
 
