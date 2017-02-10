@@ -46,6 +46,7 @@ import whisk.core.entity.ActivationResponse._
  */
 class WhiskContainer(
     originalId: TransactionId,
+    useRunc: Boolean,
     dockerhost: String,
     mounted: Boolean,
     key: ActionContainerId,
@@ -58,7 +59,7 @@ class WhiskContainer(
     limits: ActionLimits,
     args: Array[String] = Array())(
         override implicit val logging: Logging)
-    extends Container(originalId, dockerhost, mounted, key, Some(containerName), image, network, cpuShare, policy, limits, env, args) {
+    extends Container(originalId, useRunc, dockerhost, mounted, key, Some(containerName), image, network, cpuShare, policy, limits, env, args) {
 
     var lastLogSize = 0L
 
