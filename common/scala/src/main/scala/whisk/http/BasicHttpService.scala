@@ -118,10 +118,12 @@ trait BasicHttpService extends HttpService with TransactionCounter with Logging 
             val p = req.uri.path.toString
             val l = loglevelForRoute(p)
 
+            val name = "BasicHttpService"
+
             val token = LogMarkerToken("http", s"${m.toLowerCase}.${res.status.intValue}", LoggingMarkers.count)
             val marker = LogMarker(token, tid.deltaToStart, Some(tid.deltaToStart))
 
-            Some(LogEntry(s"[$tid] $marker", l))
+            Some(LogEntry(s"[$tid] [$name] $marker", l))
         case _ => None // other kind of responses
     }
 }
