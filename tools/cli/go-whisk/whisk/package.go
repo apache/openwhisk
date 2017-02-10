@@ -103,7 +103,7 @@ func (s *PackageService) List(options *PackageListOptions) ([]Package, *http.Res
     }
 
     var packages []Package
-    resp, err := s.client.Do(req, &packages)
+    resp, err := s.client.Do(req, &packages, ExitWithSuccessOnTimeout)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
         return nil, resp, err
@@ -129,7 +129,7 @@ func (s *PackageService) Get(packageName string) (*Package, *http.Response, erro
     }
 
     p := new(Package)
-    resp, err := s.client.Do(req, &p)
+    resp, err := s.client.Do(req, &p, ExitWithSuccessOnTimeout)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
         return nil, resp, err
@@ -155,7 +155,7 @@ func (s *PackageService) Insert(x_package PackageInterface, overwrite bool) (*Pa
     }
 
     p := new(Package)
-    resp, err := s.client.Do(req, &p)
+    resp, err := s.client.Do(req, &p, ExitWithSuccessOnTimeout)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
         return nil, resp, err
@@ -179,7 +179,7 @@ func (s *PackageService) Delete(packageName string) (*http.Response, error) {
         return nil, werr
     }
 
-    resp, err := s.client.Do(req, nil)
+    resp, err := s.client.Do(req, nil, ExitWithSuccessOnTimeout)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
         return resp, err
@@ -201,7 +201,7 @@ func (s *PackageService) Refresh() (*BindingUpdates, *http.Response, error) {
     }
 
     updates := &BindingUpdates{}
-    resp, err := s.client.Do(req, updates)
+    resp, err := s.client.Do(req, updates, ExitWithSuccessOnTimeout)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
         return nil, resp, err

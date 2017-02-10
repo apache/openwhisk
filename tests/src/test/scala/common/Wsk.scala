@@ -207,9 +207,9 @@ trait HasActivation {
         Try {
             // a characteristic string that comes right before the activationId
             val idPrefix = "ok: got activation "
-            val stdout = result.stdout
-            assert(stdout.contains(idPrefix), stdout)
-            extractActivationId(idPrefix, stdout).get
+            val output = if (result.exitCode != SUCCESS_EXIT) result.stderr else result.stdout
+            assert(output.contains(idPrefix), output)
+            extractActivationId(idPrefix, output).get
         } toOption
     }
 
@@ -218,29 +218,29 @@ trait HasActivation {
      */
     private def extractActivationIdFromInvoke(result: RunResult): Option[String] = {
         Try {
-            val stdout = result.stdout
-            assert(stdout.contains("ok: invoked") || stdout.contains("ok: triggered"), stdout)
+            val output = if (result.exitCode != SUCCESS_EXIT) result.stderr else result.stdout
+            assert(output.contains("ok: invoked") || output.contains("ok: triggered"), output)
             // a characteristic string that comes right before the activationId
             val idPrefix = "with id "
-            extractActivationId(idPrefix, stdout).get
+            extractActivationId(idPrefix, output).get
         } toOption
     }
 
     /**
-     * Extracts activation id preceded by a prefix (idPrefix) from a string (stdout)
+     * Extracts activation id preceded by a prefix (idPrefix) from a string (output)
      *
      * @param idPrefix the prefix of the activation id
-     * @param stdout the string to be used in the extraction
+     * @param output the string to be used in the extraction
      * @return an option containing the id as a string or None if the extraction failed for any reason
      */
-    private def extractActivationId(idPrefix: String, stdout: String): Option[String] = {
+    private def extractActivationId(idPrefix: String, output: String): Option[String] = {
         Try {
-            val start = stdout.indexOf(idPrefix) + idPrefix.length
+            val start = output.indexOf(idPrefix) + idPrefix.length
             var end = start
             assert(start > 0)
-            while (end < stdout.length && stdout.charAt(end) != '\n')
+            while (end < output.length && output.charAt(end) != '\n')
                 end = end + 1
-            stdout.substring(start, end) // a uuid
+            output.substring(start, end) // a uuid
         } toOption
     }
 }

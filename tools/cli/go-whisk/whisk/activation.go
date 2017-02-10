@@ -95,7 +95,7 @@ func (s *ActivationService) List(options *ActivationListOptions) ([]Activation, 
     Debug(DbgInfo, "Sending HTTP request - URL '%s'; req %#v\n", req.URL.String(), req)
 
     var activations []Activation
-    resp, err := s.client.Do(req, &activations)
+    resp, err := s.client.Do(req, &activations, ExitWithSuccessOnTimeout)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
         return nil, resp, err
@@ -126,7 +126,7 @@ func (s *ActivationService) Get(activationID string) (*Activation, *http.Respons
     Debug(DbgInfo, "Sending HTTP request - URL '%s'; req %#v\n", req.URL.String(), req)
 
     a := new(Activation)
-    resp, err := s.client.Do(req, &a)
+    resp, err := s.client.Do(req, &a, ExitWithSuccessOnTimeout)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
         return nil, resp, err
@@ -155,7 +155,7 @@ func (s *ActivationService) Logs(activationID string) (*Activation, *http.Respon
     Debug(DbgInfo, "Sending HTTP request - URL '%s'; req %#v\n", req.URL.String(), req)
 
     activation := new(Activation)
-    resp, err := s.client.Do(req, &activation)
+    resp, err := s.client.Do(req, &activation, ExitWithSuccessOnTimeout)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
         return nil, resp, err
@@ -184,7 +184,7 @@ func (s *ActivationService) Result(activationID string) (*Response, *http.Respon
     Debug(DbgInfo, "Sending HTTP request - URL '%s'; req %#v\n", req.URL.String(), req)
 
     r := new(Response)
-    resp, err := s.client.Do(req, &r)
+    resp, err := s.client.Do(req, &r, ExitWithSuccessOnTimeout)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
         return nil, resp, err

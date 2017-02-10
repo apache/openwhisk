@@ -54,6 +54,7 @@ func main() {
     var displayUsage bool = false
     var displayMsg bool = false
     var msgDisplayed bool = true
+    var displayPrefix bool = true
 
     defer func() {
         if r := recover(); r != nil {
@@ -71,6 +72,7 @@ func main() {
             displayUsage = werr.DisplayUsage
             displayMsg = werr.DisplayMsg
             msgDisplayed = werr.MsgDisplayed
+            displayPrefix = werr.DisplayPrefix
             exitCode = werr.ExitCode
         } else {
             whisk.Debug(whisk.DbgError, "Got some other error: %s\n", err)
@@ -84,8 +86,10 @@ func main() {
 
         // If the err msg should be displayed to the console and it has not already been
         // displayed, display it now.
-        if displayMsg && !msgDisplayed && exitCode != 0 {
+        if displayMsg && !msgDisplayed && displayPrefix && exitCode != 0 {
             fmt.Fprintf(outputStream, "%s%s\n", color.RedString(T("error: ")), err)
+        } else if displayMsg && !msgDisplayed && !displayPrefix && exitCode != 0 {
+            fmt.Fprintf(outputStream, "%s\n", err)
         } else if displayMsg && !msgDisplayed && exitCode == 0 {
             fmt.Fprintf(outputStream, "%s\n", err)
         }

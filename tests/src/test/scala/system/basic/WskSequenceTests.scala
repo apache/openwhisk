@@ -397,7 +397,7 @@ class WskSequenceTests
             }
             // run sequence s with sleep equal to payload
             val payload = 65000
-            val run = wsk.action.invoke(sName, parameters = Map("payload" -> JsNumber(payload)), blocking = true)
+            val run = wsk.action.invoke(sName, parameters = Map("payload" -> JsNumber(payload)), blocking = true, expectedExitCode = ACCEPTED)
             withActivation(wsk.activation, run, initialWait = 5 seconds, totalWait = 3 * allowedActionDuration) {
                 activation =>
                     checkSequenceLogsAndAnnotations(activation, 2) // 2 actions
