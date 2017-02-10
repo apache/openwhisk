@@ -628,7 +628,7 @@ class ContainerPool(
                 // because of the docker lock, by the time the container gets around to be started
                 // there could be a container to reuse (from a previous run of the same action, or
                 // from a stem cell container); should revisit this logic
-                new WhiskContainer(transid, this.dockerhost, mounted, key, containerName, imageName,
+                new WhiskContainer(transid, useRunc, this.dockerhost, mounted, key, containerName, imageName,
                     network, cpuShare, policy, env, limits, logLevel = this.getVerbosity())
             }
         }
@@ -647,7 +647,8 @@ class ContainerPool(
      */
     private def makeContainer(key: ActionContainerId, imageName: String, args: Array[String])(implicit transid: TransactionId): WhiskContainer = {
         val con = runDockerOp {
-            new WhiskContainer(transid, this.dockerhost, mounted, key, makeContainerName("testContainer"), imageName,
+            new WhiskContainer(transid, useRunc, this.dockerhost, mounted,
+                key, makeContainerName("testContainer"), imageName,
                 config.invokerContainerNetwork, ContainerPool.cpuShare(config),
                 config.invokerContainerPolicy, Map(), ActionLimits(), args,
                 this.getVerbosity())

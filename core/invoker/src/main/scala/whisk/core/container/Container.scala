@@ -31,6 +31,7 @@ import whisk.common.Counter
  */
 class Container(
     originalId: TransactionId,
+    useRunc: Boolean,
     val dockerhost: String,
     mounted: Boolean,
     val key: ActionContainerId,

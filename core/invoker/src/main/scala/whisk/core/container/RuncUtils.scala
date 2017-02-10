@@ -28,6 +28,14 @@ object RuncUtils extends Logging {
         runRuncCmd(false, Seq("list"))
     }
 
+    def pause()(implicit transid: TransactionId, id: ContainerIdentifier): (Int, String) = {
+        runRuncCmd(false, Seq("pause", id.toString))
+    }
+
+    def resume()(implicit transid: TransactionId, id: ContainerIdentifier): (Int, String) = {
+        runRuncCmd(false, Seq("resume", id.toString))
+    }
+
     /**
      * Synchronously runs the given runc command returning stdout if successful.
      */
