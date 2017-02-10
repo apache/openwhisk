@@ -847,7 +847,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
         protected[core] override def checkThrottles(user: Identity)(
             implicit transid: TransactionId): Future[Unit] = {
             val subject = user.subject
-            debug(this, s"test throttle is checking user '$subject' has not exceeded activation quota")
+            logging.debug(this, s"test throttle is checking user '$subject' has not exceeded activation quota")
 
             failThrottleForSubject match {
                 case Some(subject) if subject == user.subject =>
