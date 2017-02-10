@@ -11,6 +11,8 @@ OpenWhisk actions, triggers, and rules belong in a namespace, and optionally a p
 
 Packages can contain actions and feeds. A package cannot contain another package, so package nesting is not allowed. Also, entities do not have to be contained in a package.
 
+<!-- perhaps we shall mention that packages CAN NOT contain feeds and triggers and sequences. I am not sure why is that so - in my opinion it should be possible -->
+
 In Bluemix, an organization+space pair corresponds to a OpenWhisk namespace. For example, the organization `BobsOrg` and space `dev` would correspond to the OpenWhisk namespace `/BobsOrg_dev`.
 
 You can create your own namespaces if you're entitled to do so. The `/whisk.system` namespace is reserved for entities that are distributed with the OpenWhisk system.
@@ -482,6 +484,10 @@ Triggers are subject to a firing rate per minute as documented in the table belo
 | limit | description | configurable | unit | default |
 | ----- | ----------- | ------------ | -----| ------- |
 | minuteRate | a user cannot fire more than this many triggers per minute | per user | number | 60 |
+
+<!-- perhaps we can clarify reasons for this limit and provide a forward looking statement that this limit can be removed in the future.
+
+is this also a limit for the standalone OpenWhisk install outside of Bluemix? is this configured somewhere? -->
 
 ### Triggers per minute (Fixed: 60)
 * The rate limit N is set to 60 and limits the number of triggers that may be fired in one minute windows.
