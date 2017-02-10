@@ -38,8 +38,9 @@ import whisk.core.connector.MessageProducer
 class KafkaProducerConnector(
     kafkahost: String,
     implicit val executionContext: ExecutionContext,
-    id: String = UUID.randomUUID().toString)
-    extends MessageProducer with Logging {
+    id: String = UUID.randomUUID().toString)(
+        implicit logging: Logging)
+    extends MessageProducer {
 
     override def sentCount() = sentCounter.cur
 
@@ -49,20 +50,20 @@ class KafkaProducerConnector(
         val record = new ProducerRecord[String, String](topic, "messages", msg.serialize)
 
         Future {
-            debug(this, s"sending to topic '$topic' msg '$msg'")
+            logging.debug(this, s"sending to topic '$topic' msg '$msg'")
             producer.send(record).get
         } andThen {
             case Success(status) =>
-                info(this, s"sent message: ${status.topic()}[${status.partition()}][${status.offset()}]")
+                logging.info(this, s"sent message: ${status.topic()}[${status.partition()}][${status.offset()}]")
                 sentCounter.next()
             case Failure(t) =>
-                error(this, s"sending message on topic '$topic' failed: ${t.getMessage}")
+                logging.error(this, s"sending message on topic '$topic' failed: ${t.getMessage}")
         }
     }
 
     /** Closes producer. */
     override def close() = {
-        info(this, "closing producer")
+        logging.info(this, "closing producer")
         producer.close()
     }
 

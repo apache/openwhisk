@@ -132,7 +132,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                     trigger: WhiskTrigger =>
                         val args = trigger.parameters.merge(payload)
                         val triggerActivationId = activationIdFactory.make()
-                        info(this, s"[POST] trigger activation id: ${triggerActivationId}")
+                        logging.info(this, s"[POST] trigger activation id: ${triggerActivationId}")
 
                         val triggerActivation = WhiskActivation(
                             namespace = user.namespace.toPath, // all activations should end up in the one space regardless trigger.namespace,
@@ -144,7 +144,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                             response = ActivationResponse.success(payload orElse Some(JsObject())),
                             version = trigger.version,
                             duration = None)
-                        info(this, s"[POST] trigger activated, writing activation record to datastore: $triggerActivationId")
+                        logging.info(this, s"[POST] trigger activated, writing activation record to datastore: $triggerActivationId")
                         val saveTriggerActivation = WhiskActivation.put(activationStore, triggerActivation) map {
                             _ => triggerActivationId
                         }
@@ -171,7 +171,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                                         response = ActivationResponse.success(),
                                         version = trigger.version,
                                         duration = None)
-                                    info(this, s"[POST] rule ${ruleName} activated, writing activation record to datastore")
+                                    logging.info(this, s"[POST] rule ${ruleName} activated, writing activation record to datastore")
                                     WhiskActivation.put(activationStore, ruleActivation)
 
                                     val actionNamespace = rule.action.path.root.asString
@@ -187,11 +187,11 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
 
                                     pipeline(Post(url.withPath(actionUrl + actionPath), args)) onComplete {
                                         case Success(o) =>
-                                            info(this, s"successfully invoked ${rule.action} -> ${o.fields("activationId")}")
+                                            logging.info(this, s"successfully invoked ${rule.action} -> ${o.fields("activationId")}")
                                         case Failure(usr: UnsuccessfulResponseException) if usr.response.status == StatusCodes.NotFound =>
-                                            info(this, s"action ${rule.action} could not be found")
+                                            logging.info(this, s"action ${rule.action} could not be found")
                                         case Failure(t) =>
-                                            warn(this, s"action ${rule.action} could not be invoked due to ${t.getMessage}")
+                                            logging.warn(this, s"action ${rule.action} could not be invoked due to ${t.getMessage}")
                                     }
                             }
                         }
@@ -200,7 +200,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                             case Success(activationId) =>
                                 complete(OK, activationId.toJsObject)
                             case Failure(t: Throwable) =>
-                                error(this, s"[POST] storing trigger activation failed: ${t.getMessage}")
+                                logging.error(this, s"[POST] storing trigger activation failed: ${t.getMessage}")
                                 terminate(InternalServerError)
                         }
                 })

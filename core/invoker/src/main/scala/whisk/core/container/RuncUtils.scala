@@ -17,21 +17,18 @@
 package whisk.core.container
 
 import akka.event.Logging.ErrorLevel
+import whisk.common.{ Logging, LoggingMarkers, SimpleExec, TransactionId }
 
-import whisk.common.{ Logging, SimpleExec, TransactionId, LoggingMarkers, PrintStreamEmitter }
+object RuncUtils {
 
-object RuncUtils extends Logging {
-
-    private implicit val emitter: PrintStreamEmitter = this
-
-    def list()(implicit transid: TransactionId): (Int, String) = {
+    def list()(implicit transid: TransactionId, logging: Logging): (Int, String) = {
         runRuncCmd(false, Seq("list"))
     }
 
     /**
      * Synchronously runs the given runc command returning stdout if successful.
      */
-    def runRuncCmd(skipLogError: Boolean, args: Seq[String])(implicit transid: TransactionId): (Int, String) = {
+    def runRuncCmd(skipLogError: Boolean, args: Seq[String])(implicit transid: TransactionId, logging: Logging): (Int, String) = {
         val start = transid.started(this, LoggingMarkers.INVOKER_DOCKER_CMD("runc_" + args(0)))
         try {
             val fullCmd = getRuncCmd() ++ args
@@ -64,6 +61,5 @@ object RuncUtils extends Logging {
         val runcBin = "/usr/bin/docker-runc"
         Seq(runcBin)
     }
-
 
 }

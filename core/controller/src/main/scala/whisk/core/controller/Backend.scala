@@ -18,15 +18,16 @@ package whisk.core.controller
 
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
+import scala.language.postfixOps
 
 import akka.actor.ActorSystem
 import akka.event.Logging.InfoLevel
+import whisk.common.Logging
 import whisk.core.WhiskConfig
 import whisk.core.entitlement._
-import whisk.core.loadBalancer.{ LoadBalancer, LoadBalancerService }
-import scala.language.postfixOps
 import whisk.core.entity.ActivationId.ActivationIdGenerator
 import whisk.core.iam.NamespaceProvider
+import whisk.core.loadBalancer.{ LoadBalancer, LoadBalancerService }
 
 object WhiskServices {
 
@@ -38,7 +39,7 @@ object WhiskServices {
      * Creates instance of an entitlement service.
      */
     def entitlementService(config: WhiskConfig, loadBalancer: LoadBalancer, iam: NamespaceProvider, timeout: FiniteDuration = 5 seconds)(
-        implicit as: ActorSystem) = {
+        implicit as: ActorSystem, logging: Logging) = {
         // remote entitlement service requires a host:port definition. If not given,
         // i.e., the value equals ":" or ":xxxx", use a local entitlement flow.
         if (config.entitlementHost.startsWith(":")) {
@@ -51,7 +52,7 @@ object WhiskServices {
     /**
      * Creates instance of an identity provider.
      */
-    def iamProvider(config: WhiskConfig, timeout: FiniteDuration = 5 seconds)(implicit as: ActorSystem) = {
+    def iamProvider(config: WhiskConfig, timeout: FiniteDuration = 5 seconds)(implicit as: ActorSystem, logging: Logging) = {
         new NamespaceProvider(config, timeout)
     }
 
@@ -61,7 +62,7 @@ object WhiskServices {
      * @param config the configuration with loadbalancerHost defined
      * @return a load balancer component
      */
-    def makeLoadBalancerComponent(config: WhiskConfig)(implicit as: ActorSystem) = new LoadBalancerService(config, InfoLevel)
+    def makeLoadBalancerComponent(config: WhiskConfig)(implicit as: ActorSystem, logging: Logging) = new LoadBalancerService(config, InfoLevel)
 
 }
 

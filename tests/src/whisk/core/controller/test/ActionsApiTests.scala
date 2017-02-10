@@ -16,8 +16,6 @@
 
 package whisk.core.controller.test
 
-import java.io.ByteArrayOutputStream
-import java.io.PrintStream
 import java.time.Instant
 
 import scala.concurrent.duration.DurationInt
@@ -26,7 +24,6 @@ import scala.language.postfixOps
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
-import akka.event.Logging.InfoLevel
 import spray.http.StatusCodes._
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
 import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
@@ -60,7 +57,6 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val namespace = EntityPath(creds.subject.asString)
     val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
     def aname = MakeName.next("action_tests")
-    setVerbosity(InfoLevel)
     val actionLimit = Exec.sizeLimit
     val parametersLimit = Parameters.sizeLimit
 
@@ -461,52 +457,39 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         val content = WhiskActionPut(Some(action.exec), Some(action.parameters), Some(ActionLimitsOption(Some(action.limits.timeout), Some(action.limits.memory), Some(action.limits.logs))))
         val name = action.name
 
-        val stream = new ByteArrayOutputStream
-        val printstream = new PrintStream(stream)
-        val savedstream = authStore.outputStream
-        val savedVerbosity = entityStore.getVerbosity()
-        entityStore.outputStream = printstream
-        entityStore.setVerbosity(akka.event.Logging.InfoLevel)
-        try {
-            // first request invalidates any previous entries and caches new result
-            Put(s"$collectionPath/$name", content) ~> sealRoute(routes(creds)(transid())) ~> check {
-                status should be(OK)
-                val response = responseAs[WhiskAction]
-                response should be(WhiskAction(action.namespace, action.name, action.exec,
-                    action.parameters, action.limits, action.version,
-                    action.publish, action.annotations ++ Parameters(WhiskAction.execFieldName, Exec.NODEJS)))
-            }
-            stream.toString should include regex (s"caching*.*${action.docid.asDocInfo}")
-            stream.reset()
-
-            // second request should fetch from cache
-            Get(s"$collectionPath/$name") ~> sealRoute(routes(creds)(transid())) ~> check {
-                status should be(OK)
-                val response = responseAs[WhiskAction]
-                response should be(WhiskAction(action.namespace, action.name, action.exec,
-                    action.parameters, action.limits, action.version,
-                    action.publish, action.annotations ++ Parameters(WhiskAction.execFieldName, Exec.NODEJS)))
-            }
-
-            stream.toString should include regex (s"serving from cache:*.*${action.docid.asDocInfo}")
-            stream.reset()
-
-            // delete should invalidate cache
-            Delete(s"$collectionPath/$name") ~> sealRoute(routes(creds)(transid())) ~> check {
-                status should be(OK)
-                val response = responseAs[WhiskAction]
-                response should be(WhiskAction(action.namespace, action.name, action.exec,
-                    action.parameters, action.limits, action.version,
-                    action.publish, action.annotations ++ Parameters(WhiskAction.execFieldName, Exec.NODEJS)))
-            }
-            stream.toString should include regex (s"invalidating*.*${action.docid.asDocInfo}")
-            stream.reset()
-        } finally {
-            entityStore.outputStream = savedstream
-            entityStore.setVerbosity(savedVerbosity)
-            stream.close()
-            printstream.close()
+        // first request invalidates any previous entries and caches new result
+        Put(s"$collectionPath/$name", content) ~> sealRoute(routes(creds)(transid())) ~> check {
+            status should be(OK)
+            val response = responseAs[WhiskAction]
+            response should be(WhiskAction(action.namespace, action.name, action.exec,
+                action.parameters, action.limits, action.version,
+                action.publish, action.annotations ++ Parameters(WhiskAction.execFieldName, Exec.NODEJS)))
         }
+        stream.toString should include regex (s"caching*.*${action.docid.asDocInfo}")
+        stream.reset()
+
+        // second request should fetch from cache
+        Get(s"$collectionPath/$name") ~> sealRoute(routes(creds)(transid())) ~> check {
+            status should be(OK)
+            val response = responseAs[WhiskAction]
+            response should be(WhiskAction(action.namespace, action.name, action.exec,
+                action.parameters, action.limits, action.version,
+                action.publish, action.annotations ++ Parameters(WhiskAction.execFieldName, Exec.NODEJS)))
+        }
+
+        stream.toString should include regex (s"serving from cache:*.*${action.docid.asDocInfo}")
+        stream.reset()
+
+        // delete should invalidate cache
+        Delete(s"$collectionPath/$name") ~> sealRoute(routes(creds)(transid())) ~> check {
+            status should be(OK)
+            val response = responseAs[WhiskAction]
+            response should be(WhiskAction(action.namespace, action.name, action.exec,
+                action.parameters, action.limits, action.version,
+                action.publish, action.annotations ++ Parameters(WhiskAction.execFieldName, Exec.NODEJS)))
+        }
+        stream.toString should include regex (s"invalidating*.*${action.docid.asDocInfo}")
+        stream.reset()
     }
 
     it should "reject put with conflict for pre-existing action" in {

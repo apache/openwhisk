@@ -16,30 +16,30 @@
 
 package whisk.core.controller
 
-import akka.actor.ActorSystem
 import scala.concurrent.ExecutionContext
 
+import akka.actor.ActorSystem
 import spray.http.AllOrigins
-import spray.http.HttpHeaders.`Access-Control-Allow-Origin`
 import spray.http.HttpHeaders.`Access-Control-Allow-Headers`
+import spray.http.HttpHeaders.`Access-Control-Allow-Origin`
 import spray.http.StatusCodes._
 import spray.httpx.SprayJsonSupport._
-import spray.json.DefaultJsonProtocol._
 import spray.json._
+import spray.json.DefaultJsonProtocol._
 import spray.routing.Directive.pimpApply
 import spray.routing.Directives
 import spray.routing.Route
+import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig.whiskVersionDate
 import whisk.core.WhiskConfig.whiskVersionBuildno
+import whisk.core.WhiskConfig.whiskVersionDate
 import whisk.core.entitlement._
 import whisk.core.entity._
-import whisk.core.entity.types._
-import whisk.core.loadBalancer.LoadBalancerService
-import akka.event.Logging.LogLevel
 import whisk.core.entity.ActivationId.ActivationIdGenerator
+import whisk.core.entity.types._
 import whisk.core.iam.NamespaceProvider
+import whisk.core.loadBalancer.LoadBalancerService
 
 /**
  * Abstract class which provides basic Directives which are used to construct route structures
@@ -111,8 +111,8 @@ protected[controller] trait RespondWithHeaders extends Directives {
  */
 protected[controller] class RestAPIVersion_v1(
     config: WhiskConfig,
-    verbosity: LogLevel,
-    implicit val actorSystem: ActorSystem)
+    implicit val actorSystem: ActorSystem,
+    implicit val logging: Logging)
     extends RestAPIVersion("v1", config(whiskVersionDate), config(whiskVersionBuildno))
     with Authenticate
     with AuthenticatedRoute
@@ -169,37 +169,30 @@ protected[controller] class RestAPIVersion_v1(
     protected implicit val activationId = new ActivationIdGenerator {}
 
     // register collections and set verbosities on datastores and backend services
-    Collection.initialize(entityStore, verbosity)
-    authStore.setVerbosity(verbosity)
-    entityStore.setVerbosity(verbosity)
-    activationStore.setVerbosity(verbosity)
-    iamProvider.setVerbosity(verbosity)
-    entitlementService.setVerbosity(verbosity)
+    Collection.initialize(entityStore)
 
-    private val namespaces = new NamespacesApi(apipath, apiversion, verbosity)
-    private val actions = new ActionsApi(apipath, apiversion, verbosity)
-    private val triggers = new TriggersApi(apipath, apiversion, verbosity)
-    private val rules = new RulesApi(apipath, apiversion, verbosity)
-    private val activations = new ActivationsApi(apipath, apiversion, verbosity)
-    private val packages = new PackagesApi(apipath, apiversion, verbosity)
-    private val meta = new MetasApi(apipath, apiversion, verbosity)
+    private val namespaces = new NamespacesApi(apipath, apiversion)
+    private val actions = new ActionsApi(apipath, apiversion)
+    private val triggers = new TriggersApi(apipath, apiversion)
+    private val rules = new RulesApi(apipath, apiversion)
+    private val activations = new ActivationsApi(apipath, apiversion)
+    private val packages = new PackagesApi(apipath, apiversion)
+    private val meta = new MetasApi(apipath, apiversion)
 
     class NamespacesApi(
         val apipath: String,
-        val apiversion: String,
-        val verbosity: LogLevel)(
+        val apiversion: String)(
             implicit override val entityStore: EntityStore,
             override val iam: NamespaceProvider,
             override val entitlementProvider: EntitlementProvider,
-            override val executionContext: ExecutionContext)
+            override val executionContext: ExecutionContext,
+            override val logging: Logging)
         extends WhiskNamespacesApi {
-        setVerbosity(verbosity)
     }
 
     class ActionsApi(
         val apipath: String,
-        val apiversion: String,
-        val verbosity: LogLevel)(
+        val apiversion: String)(
             implicit override val actorSystem: ActorSystem,
             override val entityStore: EntityStore,
             override val activationStore: ActivationStore,
@@ -208,18 +201,17 @@ protected[controller] class RestAPIVersion_v1(
             override val activationIdFactory: ActivationIdGenerator,
             override val loadBalancer: LoadBalancerService,
             override val consulServer: String,
-            override val executionContext: ExecutionContext)
+            override val executionContext: ExecutionContext,
+            override val logging: Logging)
         extends WhiskActionsApi with WhiskServices {
         override val whiskConfig = config
-        setVerbosity(verbosity)
-        info(this, s"actionSequenceLimit '${config.actionSequenceLimit}'")
+        logging.info(this, s"actionSequenceLimit '${config.actionSequenceLimit}'")
         assert(config.actionSequenceLimit.toInt > 0)
     }
 
     class TriggersApi(
         val apipath: String,
-        val apiversion: String,
-        val verbosity: LogLevel)(
+        val apiversion: String)(
             implicit override val actorSystem: ActorSystem,
             implicit override val entityStore: EntityStore,
             override val iam: NamespaceProvider,
@@ -228,16 +220,15 @@ protected[controller] class RestAPIVersion_v1(
             override val activationIdFactory: ActivationIdGenerator,
             override val loadBalancer: LoadBalancerService,
             override val consulServer: String,
-            override val executionContext: ExecutionContext)
+            override val executionContext: ExecutionContext,
+            override val logging: Logging)
         extends WhiskTriggersApi with WhiskServices {
         override val whiskConfig = config
-        setVerbosity(verbosity)
     }
 
     class RulesApi(
         val apipath: String,
-        val apiversion: String,
-        val verbosity: LogLevel)(
+        val apiversion: String)(
             implicit override val actorSystem: ActorSystem,
             override val entityStore: EntityStore,
             override val iam: NamespaceProvider,
@@ -245,43 +236,40 @@ protected[controller] class RestAPIVersion_v1(
             override val activationIdFactory: ActivationIdGenerator,
             override val loadBalancer: LoadBalancerService,
             override val consulServer: String,
-            override val executionContext: ExecutionContext)
+            override val executionContext: ExecutionContext,
+            override val logging: Logging)
         extends WhiskRulesApi with WhiskServices {
         override val whiskConfig = config
-        setVerbosity(verbosity)
     }
 
     class ActivationsApi(
         val apipath: String,
-        val apiversion: String,
-        val verbosity: LogLevel)(
+        val apiversion: String)(
             implicit override val activationStore: ActivationStore,
             override val entitlementProvider: EntitlementProvider,
-            override val executionContext: ExecutionContext)
+            override val executionContext: ExecutionContext,
+            override val logging: Logging)
         extends WhiskActivationsApi {
-        setVerbosity(verbosity)
     }
 
     class PackagesApi(
         val apipath: String,
-        val apiversion: String,
-        val verbosity: LogLevel)(
+        val apiversion: String)(
             implicit override val entityStore: EntityStore,
             override val iam: NamespaceProvider,
             override val entitlementProvider: EntitlementProvider,
             override val activationIdFactory: ActivationIdGenerator,
             override val loadBalancer: LoadBalancerService,
             override val consulServer: String,
-            override val executionContext: ExecutionContext)
+            override val executionContext: ExecutionContext,
+            override val logging: Logging)
         extends WhiskPackagesApi with WhiskServices {
         override val whiskConfig = config
-        setVerbosity(verbosity)
     }
 
     class MetasApi(
         override val apipath: String,
-        override val apiversion: String,
-        val verbosity: LogLevel)(
+        override val apiversion: String)(
             implicit override val authStore: AuthStore,
             implicit val entityStore: EntityStore,
             override val activationStore: ActivationStore,
@@ -291,10 +279,10 @@ protected[controller] class RestAPIVersion_v1(
             override val loadBalancer: LoadBalancerService,
             override val consulServer: String,
             override val actorSystem: ActorSystem,
-            override val executionContext: ExecutionContext)
+            override val executionContext: ExecutionContext,
+            override val logging: Logging)
         extends WhiskMetaApi with WhiskServices {
         override val whiskConfig = config
-        setVerbosity(verbosity)
     }
 
     /**

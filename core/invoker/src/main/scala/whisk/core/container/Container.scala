@@ -18,13 +18,12 @@ package whisk.core.container
 
 import scala.annotation.tailrec
 
-import akka.event.Logging.LogLevel
-
-import whisk.core.WhiskConfig.selfDockerEndpoint
-import whisk.core.WhiskConfig.invokerContainerNetwork
-import whisk.core.entity.ActionLimits
-import whisk.common.TransactionId
 import whisk.common.Counter
+import whisk.common.Logging
+import whisk.common.TransactionId
+import whisk.core.WhiskConfig.invokerContainerNetwork
+import whisk.core.WhiskConfig.selfDockerEndpoint
+import whisk.core.entity.ActionLimits
 
 /**
  * Reifies a docker container.
@@ -41,11 +40,9 @@ class Container(
     policy: Option[String],
     val limits: ActionLimits = ActionLimits(),
     env: Map[String, String] = Map(),
-    args: Array[String] = Array(),
-    logLevel: LogLevel)
+    args: Array[String] = Array())(
+        implicit val logging: Logging)
     extends ContainerUtils {
-
-    setVerbosity(logLevel)
 
     implicit var transid = originalId
 
@@ -86,12 +83,12 @@ class Container(
     @tailrec
     final def remove(needUnpause: Boolean, tryCount: Int = Container.removeContainerRetryCount)(implicit transid: TransactionId): Unit = {
         if (tryCount <= 0) {
-            error(this, s"Failed to remove container ${containerId.id}")
+            logging.error(this, s"Failed to remove container ${containerId.id}")
         } else {
             if (tryCount == Container.removeContainerRetryCount) {
-                info(this, s"Removing container ${containerId.id}")
+                logging.info(this, s"Removing container ${containerId.id}")
             } else {
-                warn(this, s"Retrying to remove container ${containerId.id}")
+                logging.warn(this, s"Retrying to remove container ${containerId.id}")
             }
             if (needUnpause) unpause() // a paused container cannot be removed
             rmContainer(containerId).toOption match {

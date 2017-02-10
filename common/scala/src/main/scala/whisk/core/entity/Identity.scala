@@ -44,7 +44,7 @@ object Identity extends MultipleReadersSingleWriterCache[Identity, DocInfo] with
      */
     def get(datastore: AuthStore, namespace: EntityName)(
         implicit transid: TransactionId): Future[Identity] = {
-        implicit val logger: Logging = datastore
+        implicit val logger: Logging = datastore.logging
         implicit val ec = datastore.executionContext
         val ns = namespace.asString
 
@@ -66,7 +66,7 @@ object Identity extends MultipleReadersSingleWriterCache[Identity, DocInfo] with
 
     def get(datastore: AuthStore, authkey: AuthKey)(
         implicit transid: TransactionId): Future[Identity] = {
-        implicit val logger: Logging = datastore
+        implicit val logger: Logging = datastore.logging
         implicit val ec = datastore.executionContext
 
         cacheLookup(authkey, {

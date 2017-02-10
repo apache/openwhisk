@@ -19,28 +19,25 @@ package whisk.core.database
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
-import scala.util.{ Success, Failure }
 import scala.concurrent.Future
 import scala.concurrent.Promise
-
-import spray.json._
-
-import whisk.common.Logging
-
-import akka.util.ByteString
-import akka.stream.ActorMaterializer
-import akka.stream.OverflowStrategy
-import akka.stream.QueueOfferResult
-import akka.stream.scaladsl._
+import scala.util.{ Success, Failure }
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.Http.HostConnectionPool
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.headers._
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling._
+import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.headers._
 import akka.http.scaladsl.unmarshalling._
+import akka.stream.ActorMaterializer
+import akka.stream.OverflowStrategy
+import akka.stream.QueueOfferResult
+import akka.stream.scaladsl._
+import akka.util.ByteString
+import spray.json._
+import whisk.common.Logging
 
 /**
  * This class only handles the basic communication to the proper endpoints
@@ -50,7 +47,7 @@ import akka.http.scaladsl.unmarshalling._
  *  up the pool corresponding to the host. It is also easier to add an extra
  *  queueing mechanism.
  */
-class CouchDbRestClient(protocol: String, host: String, port: Int, username: String, password: String, db: String)(implicit system: ActorSystem) extends Logging {
+class CouchDbRestClient(protocol: String, host: String, port: Int, username: String, password: String, db: String)(implicit system: ActorSystem, logging: Logging) {
     require(protocol == "http" || protocol == "https", "Protocol must be one of { http, https }.")
 
     private implicit val context = system.dispatcher
@@ -191,7 +188,7 @@ class CouchDbRestClient(protocol: String, host: String, port: Int, username: Str
             case f: Float   => JsNumber(f)
             case s: String  => JsString(s)
             case _ =>
-                warn(this, s"Serializing uncontrolled type '${any.getClass}' to string in JSON conversion ('${any.toString}').")
+                logging.warn(this, s"Serializing uncontrolled type '${any.getClass}' to string in JSON conversion ('${any.toString}').")
                 JsString(any.toString)
         }
 

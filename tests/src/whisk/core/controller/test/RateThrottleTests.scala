@@ -23,6 +23,7 @@ import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 
+import common.StreamLogging
 import whisk.common.TransactionId
 import whisk.core.entitlement._
 import whisk.core.entity.Subject
@@ -34,7 +35,11 @@ import whisk.core.entity.Subject
  * "using Specification DSL to write unit tests, as in should, must, not, be"
  */
 @RunWith(classOf[JUnitRunner])
-class RateThrottleTests extends FlatSpec with Matchers {
+class RateThrottleTests
+    extends FlatSpec
+    with Matchers
+    with StreamLogging {
+
     implicit val transid = TransactionId.testing
     val subject = Subject()
 

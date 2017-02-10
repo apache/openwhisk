@@ -32,6 +32,7 @@ import scala.util.Success
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 
+import common.StreamLogging
 import common.WskActorSystem
 import whisk.common.Logging
 import whisk.common.TransactionId
@@ -41,7 +42,7 @@ class MultipleReadersSingleWriterCacheTests(nIters: Int = 3) extends FlatSpec
     with Matchers
     with MultipleReadersSingleWriterCache[String, String]
     with WskActorSystem
-    with Logging {
+    with StreamLogging {
 
     "the cache" should "support simple CRUD" in {
         val inhibits = doReadWriteRead("foo").go(0 seconds)
@@ -146,14 +147,14 @@ class MultipleReadersSingleWriterCacheTests(nIters: Int = 3) extends FlatSpec
         nWriteInhibits: AtomicInteger = new AtomicInteger(0)) {
 
         def debug(from: AnyRef) = {
-            logger.debug(from, "InhibitedReads: " + nReadInhibits);
-            logger.debug(from, "InhibitedWrites: " + nWriteInhibits);
+            logging.debug(from, "InhibitedReads: " + nReadInhibits)
+            logging.debug(from, "InhibitedWrites: " + nWriteInhibits)
         }
 
         def hasInhibits: Boolean = { nReadInhibits.get > 0 || nWriteInhibits.get > 0 }
     }
 
-    private case class doReadWriteRead(key: String, inhibits: Inhibits = Inhibits(), readFirst: Boolean = true) {
+    private case class doReadWriteRead(key: String, inhibits: Inhibits = Inhibits(), readFirst: Boolean = true)(implicit logging: Logging) {
         def go(implicit delay: FiniteDuration): Inhibits = {
             val latch = new CountDownLatch(2)
 
@@ -208,6 +209,4 @@ class MultipleReadersSingleWriterCacheTests(nIters: Int = 3) extends FlatSpec
 
     /** we are using cache keys, so the update key is just the string itself */
     override protected def cacheKeyForUpdate(w: String): String = (w)
-
-    implicit private val logger = this
 }

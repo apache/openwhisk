@@ -35,7 +35,6 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 import spray.routing.RequestContext
 import whisk.common.LoggingMarkers
-import whisk.common.PrintStreamEmitter
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.controller.actions.BlockingInvokeTimeout
@@ -84,8 +83,6 @@ trait WhiskActionsApi
 
     /** Database service to get activations. */
     protected val activationStore: ActivationStore
-
-    private implicit val emitter: PrintStreamEmitter = this
 
     /**
      * Handles operations on action resources, which encompass these cases:
@@ -252,13 +249,13 @@ trait WhiskActionsApi
                                             complete(InternalServerError, response)
                                         }
                                     case Failure(t: BlockingInvokeTimeout) =>
-                                        info(this, s"[POST] action activation waiting period expired")
+                                        logging.info(this, s"[POST] action activation waiting period expired")
                                         complete(Accepted, t.activationId.toJsObject)
                                     case Failure(t: RecordTooLargeException) =>
-                                        info(this, s"[POST] action payload was too large")
+                                        logging.info(this, s"[POST] action payload was too large")
                                         terminate(RequestEntityTooLarge)
                                     case Failure(t: Throwable) =>
-                                        error(this, s"[POST] action activation failed: ${t.getMessage}")
+                                        logging.error(this, s"[POST] action activation failed: ${t.getMessage}")
                                         terminate(InternalServerError)
                                 }
 
@@ -380,7 +377,7 @@ trait WhiskActionsApi
         implicit transid: TransactionId) = {
         exec match {
             case Some(seq: SequenceExec) =>
-                info(this, "checking if sequence components are accessible")
+                logging.info(this, "checking if sequence components are accessible")
                 entitlementProvider.check(user, right, referencedEntities(seq))
             case _ => Future.successful(true)
         }
@@ -478,10 +475,10 @@ trait WhiskActionsApi
         // resolved namespace
         getEntity(WhiskPackage, entityStore, pkgName.toDocId, Some { (wp: WhiskPackage) =>
             val pkgns = wp.binding map { b =>
-                info(this, s"list actions in package binding '${wp.name}' -> '$b'")
+                logging.info(this, s"list actions in package binding '${wp.name}' -> '$b'")
                 b.namespace.addPath(b.name)
             } getOrElse {
-                info(this, s"list actions in package '${wp.name}'")
+                logging.info(this, s"list actions in package '${wp.name}'")
                 pkgName.path.addPath(wp.name)
             }
             // list actions in resolved namespace
@@ -503,7 +500,7 @@ trait WhiskActionsApi
         wp.binding map {
             case b: Binding =>
                 val docid = b.fullyQualifiedName.toDocId
-                info(this, s"fetching package '$docid' for reference")
+                logging.info(this, s"fetching package '$docid' for reference")
                 // already checked that subject is authorized for package and binding;
                 // this fetch is redundant but should hit the cache to ameliorate cost
                 getEntity(WhiskPackage, entityStore, docid, Some {
@@ -516,7 +513,7 @@ trait WhiskActionsApi
             val ns = wp.namespace.addPath(wp.name) // the package namespace
             val resource = Resource(ns, collection, Some { action.asString }, Some { params })
             val right = collection.determineRight(method, resource.entity)
-            info(this, s"merged package parameters and rebased action to '$ns")
+            logging.info(this, s"merged package parameters and rebased action to '$ns")
             dispatchOp(user, right, resource)
         }
     }
@@ -541,7 +538,7 @@ trait WhiskActionsApi
             WhiskAction.resolveAction(entityStore, sequenceAction) flatMap { resolvedSeq =>
                 val atomicActionCnt = countAtomicActionsAndCheckCycle(resolvedSeq, components)
                 atomicActionCnt map { count =>
-                    debug(this, s"sequence '$sequenceAction' atomic action count $count")
+                    logging.debug(this, s"sequence '$sequenceAction' atomic action count $count")
                     if (count > actionSequenceLimit) {
                         throw TooManyActionsInSequence()
                     }

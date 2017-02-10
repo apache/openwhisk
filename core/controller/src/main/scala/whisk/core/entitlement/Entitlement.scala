@@ -25,7 +25,6 @@ import Privilege.ACTIVATE
 import Privilege.Privilege
 import Privilege.REJECT
 import akka.actor.ActorSystem
-import akka.event.Logging.LogLevel
 import spray.http.StatusCodes.Forbidden
 import spray.http.StatusCodes.TooManyRequests
 import whisk.common.ConsulClient
@@ -33,8 +32,8 @@ import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.controller.RejectRequest
-import whisk.core.iam.NamespaceProvider
 import whisk.core.entity._
+import whisk.core.iam.NamespaceProvider
 import whisk.core.loadBalancer.LoadBalancer
 import whisk.http.Messages._
 
@@ -80,7 +79,7 @@ protected[core] object EntitlementProvider {
  * This is where enforcement of activation quotas takes place, in additional to basic authorization.
  */
 protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBalancer: LoadBalancer, iam: NamespaceProvider)(
-    implicit actorSystem: ActorSystem) extends Logging {
+    implicit actorSystem: ActorSystem, logging: Logging) {
 
     private implicit val executionContext = actorSystem.dispatcher
 
@@ -89,12 +88,6 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
     private val concurrentInvokeThrottler = new ActivationThrottler(config.consulServer, loadBalancer, config.actionInvokeConcurrentLimit.toInt, config.actionInvokeSystemOverloadLimit.toInt)
 
     private val consul = new ConsulClient(config.consulServer)
-
-    override def setVerbosity(level: LogLevel) = {
-        super.setVerbosity(level)
-        invokeRateThrottler.setVerbosity(level)
-        triggerRateThrottler.setVerbosity(level)
-    }
 
     /**
      * Grants a subject the right to access a resources.
@@ -135,7 +128,7 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
     protected[core] def checkThrottles(user: Identity)(
         implicit transid: TransactionId): Future[Unit] = {
         val subject = user.subject
-        info(this, s"checking user '$subject' has not exceeded activation quota")
+        logging.info(this, s"checking user '$subject' has not exceeded activation quota")
 
         checkSystemOverload(ACTIVATE) orElse {
             checkThrottleOverload(!invokeRateThrottler.check(subject), tooManyRequests)
@@ -182,7 +175,7 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
 
         val entitlementCheck: Future[Boolean] = if (user.rights.contains(right)) {
             if (resources.nonEmpty) {
-                info(this, s"checking user '$subject' has privilege '$right' for '${resources.mkString(",")}'")
+                logging.info(this, s"checking user '$subject' has privilege '$right' for '${resources.mkString(",")}'")
                 checkSystemOverload(right) orElse {
                     checkUserThrottle(subject, right, resources)
                 } orElse {
@@ -192,7 +185,7 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
                 } getOrElse checkPrivilege(user, right, resources)
             } else Future.successful(true)
         } else if (right != REJECT) {
-            info(this, s"supplied authkey for user '$subject' does not have privilege '$right' for '${resources.mkString(",")}'")
+            logging.info(this, s"supplied authkey for user '$subject' does not have privilege '$right' for '${resources.mkString(",")}'")
             Future.failed(RejectRequest(Forbidden))
         } else {
             Future.successful(false)
@@ -200,11 +193,11 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
 
         entitlementCheck andThen {
             case Success(r) if resources.nonEmpty =>
-                info(this, if (r) "authorized" else "not authorized")
+                logging.info(this, if (r) "authorized" else "not authorized")
             case Failure(r: RejectRequest) =>
-                info(this, s"not authorized: $r")
+                logging.info(this, s"not authorized: $r")
             case Failure(t) =>
-                error(this, s"failed while checking entitlement: ${t.getMessage}")
+                logging.error(this, s"failed while checking entitlement: ${t.getMessage}")
         } flatMap { isAuthorized =>
             if (isAuthorized) Future.successful({})
             else Future.failed(RejectRequest(Forbidden))
@@ -235,13 +228,13 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
                             additionalNamespaces =>
                                 val newNamespacesToCheck = additionalNamespaces -- defaultNamespaces
                                 if (newNamespacesToCheck nonEmpty) {
-                                    info(this, "checking additional namespace")
+                                    logging.info(this, "checking additional namespace")
                                     resource.collection.implicitRights(user, newNamespacesToCheck, right, resource) flatMap {
                                         case true  => Future.successful(true)
                                         case false => entitled(user.subject, right, resource)
                                     }
                                 } else {
-                                    info(this, "checking explicit grants")
+                                    logging.info(this, "checking explicit grants")
                                     entitled(user.subject, right, resource)
                                 }
                         }
@@ -259,7 +252,7 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
     protected def checkSystemOverload(right: Privilege)(implicit transid: TransactionId): Option[RejectRequest] = {
         val systemOverload = right == ACTIVATE && concurrentInvokeThrottler.isOverloaded
         if (systemOverload) {
-            error(this, "system is overloaded")
+            logging.error(this, "system is overloaded")
             Some(RejectRequest(TooManyRequests, systemOverloaded))
         } else None
     }

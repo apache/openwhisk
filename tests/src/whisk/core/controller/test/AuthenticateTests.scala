@@ -16,9 +16,6 @@
 
 package whisk.core.controller.test
 
-import java.io.ByteArrayOutputStream
-import java.io.PrintStream
-
 import scala.concurrent.Await
 
 import org.junit.runner.RunWith
@@ -63,29 +60,16 @@ class AuthenticateTests extends ControllerTestCommon with Authenticate {
         val pass = UserPass(creds.authkey.uuid.asString, creds.authkey.key.asString)
 
         // first query will be served from datastore
-        val stream = new ByteArrayOutputStream
-        val printstream = new PrintStream(stream)
-        val savedstream = authStore.outputStream
-        val savedVerbosity = authStore.getVerbosity()
-        authStore.outputStream = printstream
-        authStore.setVerbosity(akka.event.Logging.InfoLevel)
-        try {
-            val user = Await.result(validateCredentials(Some(pass))(transid()), dbOpTimeout)
-            user.get should be(creds)
-            stream.toString should include regex (s"serving from datastore: ${creds.authkey.uuid.asString}")
-            stream.reset()
+        val user = Await.result(validateCredentials(Some(pass))(transid()), dbOpTimeout)
+        user.get should be(creds)
+        stream.toString should include regex (s"serving from datastore: ${creds.authkey.uuid.asString}")
+        stream.reset()
 
-            // repeat query, should be served from cache
-            val cachedUser = Await.result(validateCredentials(Some(pass))(transid()), dbOpTimeout)
-            cachedUser.get should be(creds)
-            stream.toString should include regex (s"serving from cache: ${creds.authkey.uuid.asString}")
-            stream.reset()
-        } finally {
-            authStore.outputStream = savedstream
-            authStore.setVerbosity(savedVerbosity)
-            stream.close()
-            printstream.close()
-        }
+        // repeat query, should be served from cache
+        val cachedUser = Await.result(validateCredentials(Some(pass))(transid()), dbOpTimeout)
+        cachedUser.get should be(creds)
+        stream.toString should include regex (s"serving from cache: ${creds.authkey.uuid.asString}")
+        stream.reset()
     }
 
     it should "not authorize a known user with an invalid key" in {

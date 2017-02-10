@@ -32,7 +32,6 @@ import scala.util.Try
 import akka.actor.ActorSystem
 import spray.json._
 import whisk.common.Logging
-import whisk.common.PrintStreamEmitter
 import whisk.common.TransactionId
 import whisk.core.controller.WhiskActionsApi._
 import whisk.core.controller.WhiskServices
@@ -42,7 +41,7 @@ import whisk.core.entity.types._
 import whisk.http.Messages._
 import whisk.utils.ExecutionContextFactory.FutureExtensions
 
-protected[actions] trait SequenceActions extends Logging {
+protected[actions] trait SequenceActions {
     /** The core collections require backend services to be injected in this trait. */
     services: WhiskServices =>
 
@@ -52,13 +51,13 @@ protected[actions] trait SequenceActions extends Logging {
     /** An execution context for futures. */
     protected implicit val executionContext: ExecutionContext
 
+    protected implicit val logging: Logging
+
     /** Database service to CRUD actions. */
     protected val entityStore: EntityStore
 
     /** Database service to get activations. */
     protected val activationStore: ActivationStore
-
-    private implicit val emitter = this: PrintStreamEmitter
 
     /** A method that knows how to invoke a single primitive action. */
     protected[actions] def invokeSingleAction(
@@ -98,7 +97,7 @@ protected[actions] trait SequenceActions extends Logging {
 
         // create new activation id that corresponds to the sequence
         val seqActivationId = activationIdFactory.make()
-        info(this, s"invoking sequence $action topmost $topmost activationid '$seqActivationId'")
+        logging.info(this, s"invoking sequence $action topmost $topmost activationid '$seqActivationId'")
         val start = Instant.now(Clock.systemUTC())
         val seqActivationPromise = Promise[Option[WhiskActivation]]
         // the cause for the component activations is the current sequence
@@ -160,7 +159,7 @@ protected[actions] trait SequenceActions extends Logging {
                 // consider this whisk error
                 // TODO shall we attempt storing the activation if it exists or even inspect the futures?
                 // this should be a pretty serious whisk errror if it gets here
-                error(this, s"Sequence activation failed: ${t.getMessage}")
+                logging.error(this, s"Sequence activation failed: ${t.getMessage}")
         }
 
         response
@@ -170,10 +169,10 @@ protected[actions] trait SequenceActions extends Logging {
      * Stores sequence activation to database.
      */
     private def storeSequenceActivation(activation: WhiskActivation)(implicit transid: TransactionId): Unit = {
-        info(this, s"recording activation '${activation.activationId}'")
+        logging.info(this, s"recording activation '${activation.activationId}'")
         WhiskActivation.put(activationStore, activation) onComplete {
-            case Success(id) => info(this, s"recorded activation")
-            case Failure(t)  => error(this, s"failed to record activation")
+            case Success(id) => logging.info(this, s"recorded activation")
+            case Failure(t)  => logging.error(this, s"failed to record activation")
         }
     }
 
@@ -210,7 +209,7 @@ protected[actions] trait SequenceActions extends Logging {
         // compute duration
         val duration = (wskActivations map { activation =>
             activation.duration getOrElse {
-                error(this, s"duration for $activation is not defined")
+                logging.error(this, s"duration for $activation is not defined")
                 activation.end.toEpochMilli - activation.start.toEpochMilli
             }
         }).sum
@@ -282,7 +281,7 @@ protected[actions] trait SequenceActions extends Logging {
         cause: Option[ActivationId],
         atomicActionCnt: Int)(
             implicit transid: TransactionId): Vector[Future[(Either[ActivationResponse, WhiskActivation], Int)]] = {
-        info(this, s"invoke sequence $seqAction ($seqActivationId) with components $components")
+        logging.info(this, s"invoke sequence $seqAction ($seqActivationId) with components $components")
 
         // first retrieve the information/entities on all actions
         // do not wait to successfully retrieve all the actions before starting the execution
@@ -371,7 +370,7 @@ protected[actions] trait SequenceActions extends Logging {
         val futureWhiskActivationTuple = action.exec match {
             case SequenceExec(components) =>
                 // invoke a sequence
-                info(this, s"sequence invoking an enclosed sequence $action")
+                logging.info(this, s"sequence invoking an enclosed sequence $action")
                 // call invokeSequence to invoke the inner sequence
                 // true for blocking; false for topmost
                 invokeSequence(user, action, payload, blocking = true, topmost = false, components, cause, atomicActionCount) map {
@@ -380,7 +379,7 @@ protected[actions] trait SequenceActions extends Logging {
                 }
             case _ =>
                 // this is an invoke for an atomic action
-                info(this, s"sequence invoking an enclosed atomic action $action")
+                logging.info(this, s"sequence invoking an enclosed atomic action $action")
                 val timeout = action.limits.timeout.duration + blockingInvokeGrace
                 invokeSingleAction(user, action, payload, timeout, blocking = true, cause) map {
                     case (activationId, wskActivation) => (activationId, wskActivation, atomicActionCount + 1)

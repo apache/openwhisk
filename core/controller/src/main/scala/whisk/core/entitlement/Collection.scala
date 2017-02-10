@@ -20,7 +20,6 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
 import Privilege.Privilege
-import akka.event.Logging.LogLevel
 import spray.http.HttpMethod
 import spray.http.HttpMethods.DELETE
 import spray.http.HttpMethods.GET
@@ -47,8 +46,7 @@ import whisk.core.entity.types.EntityStore
  */
 protected[core] case class Collection protected (
     val path: String,
-    val listLimit: Int = 30)
-    extends Logging {
+    val listLimit: Int = 30) {
     override def toString = path
 
     /** Determines the right to request for the resources and context. */
@@ -111,7 +109,7 @@ protected[core] object Collection {
 
     protected[core] def apply(name: String) = collections.get(name).get
 
-    protected[core] def initialize(entityStore: EntityStore, verbosity: LogLevel) = {
+    protected[core] def initialize(entityStore: EntityStore)(implicit logging: Logging) = {
         register(new ActionCollection(entityStore))
         register(new Collection(TRIGGERS))
         register(new Collection(RULES))
@@ -136,7 +134,5 @@ protected[core] object Collection {
 
             protected override val allowedEntityRights = Set(Privilege.READ)
         })
-
-        collections foreach { case (n, c) => c.setVerbosity(verbosity) }
     }
 }

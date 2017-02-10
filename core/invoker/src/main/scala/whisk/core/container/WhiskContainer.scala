@@ -26,7 +26,6 @@ import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 
 import akka.actor.ActorSystem
-import akka.event.Logging.LogLevel
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling._
@@ -34,8 +33,8 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling._
 import akka.stream.ActorMaterializer
 import spray.json._
+import whisk.common.Logging
 import whisk.common.LoggingMarkers
-import whisk.common.PrintStreamEmitter
 import whisk.common.TransactionId
 import whisk.core.connector.ActivationMessage
 import whisk.core.entity._
@@ -57,12 +56,11 @@ class WhiskContainer(
     policy: Option[String],
     env: Map[String, String],
     limits: ActionLimits,
-    args: Array[String] = Array(),
-    logLevel: LogLevel)
-    extends Container(originalId, dockerhost, mounted, key, Some(containerName), image, network, cpuShare, policy, limits, env, args, logLevel) {
+    args: Array[String] = Array())(
+        override implicit val logging: Logging)
+    extends Container(originalId, dockerhost, mounted, key, Some(containerName), image, network, cpuShare, policy, limits, env, args) {
 
     var lastLogSize = 0L
-    private implicit val emitter: PrintStreamEmitter = this
 
     /** HTTP connection to container. Initialized on /init. */
     private var connection: Option[HttpUtils] = None
@@ -150,7 +148,7 @@ class WhiskContainer(
 
         f.onFailure {
             case t: Throwable =>
-                warn(this, s"Exception while posting to action container ${t.getMessage}")
+                logging.warn(this, s"Exception while posting to action container ${t.getMessage}")
         }
 
         // Should never timeout because the future has a built-in timeout.

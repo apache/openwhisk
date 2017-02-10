@@ -17,19 +17,19 @@
 package whisk.common
 
 import java.time.Clock
+import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.math.BigDecimal.int2bigDecimal
 import scala.util.Try
 
+import akka.event.Logging.{ InfoLevel, WarningLevel }
+import akka.event.Logging.LogLevel
 import spray.json.JsArray
 import spray.json.JsNumber
 import spray.json.JsValue
 import spray.json.RootJsonFormat
-import java.time.Duration
-import akka.event.Logging.LogLevel
-import akka.event.Logging.{ InfoLevel, WarningLevel }
 
 /**
  * A transaction id for tracking operations in the system that are specific to a request.
@@ -48,8 +48,8 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
      * @param message An additional message that is written into the log, together with the other information.
      * @param logLevel The Loglevel, the message should have. Default is <code>InfoLevel</code>.
      */
-    def mark(from: AnyRef, marker: LogMarkerToken, message: String = "", logLevel: LogLevel = InfoLevel)(implicit emitter: PrintStreamEmitter) = {
-        emitter.emit(logLevel, this, from, message, Some(LogMarker(marker, deltaToStart)))
+    def mark(from: AnyRef, marker: LogMarkerToken, message: String = "", logLevel: LogLevel = InfoLevel)(implicit logging: Logging) = {
+        logging.emit(logLevel, this, from, createMessageWithMarker(message, LogMarker(marker, deltaToStart)))
     }
 
     /**
@@ -63,8 +63,8 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
      *
      * @return startMarker that has to be passed to the finished or failed method to calculate the time difference.
      */
-    def started(from: AnyRef, marker: LogMarkerToken, message: String = "", logLevel: LogLevel = InfoLevel)(implicit emitter: PrintStreamEmitter): StartMarker = {
-        emitter.emit(logLevel, this, from, message, Some(LogMarker(marker, deltaToStart)))
+    def started(from: AnyRef, marker: LogMarkerToken, message: String = "", logLevel: LogLevel = InfoLevel)(implicit logging: Logging): StartMarker = {
+        logging.emit(logLevel, this, from, createMessageWithMarker(message, LogMarker(marker, deltaToStart)))
         StartMarker(Instant.now, marker)
     }
 
@@ -77,9 +77,9 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
      * @param logLevel The Loglevel, the message should have. Default is <code>InfoLevel</code>.
      * @param endTime Manually set the timestamp of the end. By default it is NOW.
      */
-    def finished(from: AnyRef, startMarker: StartMarker, message: String = "", logLevel: LogLevel = InfoLevel, endTime: Instant = Instant.now(Clock.systemUTC))(implicit emitter: PrintStreamEmitter) = {
+    def finished(from: AnyRef, startMarker: StartMarker, message: String = "", logLevel: LogLevel = InfoLevel, endTime: Instant = Instant.now(Clock.systemUTC))(implicit logging: Logging) = {
         val endMarker = LogMarkerToken(startMarker.startMarker.component, startMarker.startMarker.action, LoggingMarkers.finish)
-        emitter.emit(logLevel, this, from, message, Some(LogMarker(endMarker, deltaToStart, Some(deltaToMarker(startMarker, endTime)))))
+        logging.emit(logLevel, this, from, createMessageWithMarker(message, LogMarker(endMarker, deltaToStart, Some(deltaToMarker(startMarker, endTime)))))
     }
 
     /**
@@ -90,9 +90,9 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
      * @param message An additional message that is written into the log, together with the other information.
      * @param logLevel The <code>LogLevel</code> the message should have. Default is <code>WarningLevel</code>.
      */
-    def failed(from: AnyRef, startMarker: StartMarker, message: String = "", logLevel: LogLevel = WarningLevel)(implicit emitter: PrintStreamEmitter) = {
+    def failed(from: AnyRef, startMarker: StartMarker, message: String = "", logLevel: LogLevel = WarningLevel)(implicit logging: Logging) = {
         val endMarker = LogMarkerToken(startMarker.startMarker.component, startMarker.startMarker.action, LoggingMarkers.error)
-        emitter.emit(logLevel, this, from, message, Some(LogMarker(endMarker, deltaToStart, Some(deltaToMarker(startMarker)))))
+        logging.emit(logLevel, this, from, createMessageWithMarker(message, LogMarker(endMarker, deltaToStart, Some(deltaToMarker(startMarker)))))
     }
 
     /**
@@ -107,6 +107,16 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
      * @param endTime Manually set the endtime. By default it is NOW.
      */
     def deltaToMarker(startMarker: StartMarker, endTime: Instant = Instant.now(Clock.systemUTC)) = Duration.between(startMarker.start, endTime).toMillis
+
+    /**
+     * Formats log message to include marker.
+     *
+     * @param message: The log message without the marker
+     * @param marker: The marker to add to the message
+     */
+    private def createMessageWithMarker(message: String, marker: LogMarker): String = {
+        (Option(message).filter(_.trim.nonEmpty) ++ Some(marker)).mkString(" ")
+    }
 }
 
 /**

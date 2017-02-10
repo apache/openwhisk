@@ -27,7 +27,6 @@ import spray.http.StatusCodes.InternalServerError
 import spray.routing.Directive1
 import spray.routing.Directives
 import spray.routing.RequestContext
-import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.entitlement._
 import whisk.core.entitlement.Privilege.Privilege
@@ -38,7 +37,7 @@ import whisk.http.ErrorResponse.terminate
 import whisk.http.Messages
 
 /** A trait for routes that require entitlement checks. */
-trait BasicAuthorizedRouteProvider extends Directives with Logging {
+trait BasicAuthorizedRouteProvider extends Directives {
     /** An execution context for futures */
     protected implicit val executionContext: ExecutionContext
 

@@ -45,8 +45,7 @@ object NamespaceProvider {
 }
 
 protected[core] class NamespaceProvider(config: WhiskConfig, timeout: FiniteDuration = 5 seconds, forceLocal: Boolean = false)(
-    implicit actorSystem: ActorSystem)
-    extends Logging {
+    implicit actorSystem: ActorSystem, logging: Logging) {
 
     private implicit val executionContext = actorSystem.dispatcher
     private val apiLocation = config.iamProviderHost
@@ -62,7 +61,7 @@ protected[core] class NamespaceProvider(config: WhiskConfig, timeout: FiniteDura
      */
     protected[core] def namespaces(subject: Subject)(implicit transid: TransactionId): Future[Set[String]] = {
         if (useProvider) {
-            info(this, s"getting namespaces from ${apiLocation}")
+            logging.info(this, s"getting namespaces from ${apiLocation}")
 
             val url = Uri("http://" + apiLocation + "/namespaces").withQuery(
                 "subject" -> subject.asString)
@@ -74,7 +73,7 @@ protected[core] class NamespaceProvider(config: WhiskConfig, timeout: FiniteDura
 
             pipeline(Get(url))
         } else {
-            info(this, s"assuming default namespaces")
+            logging.info(this, s"assuming default namespaces")
             Future.successful(NamespaceProvider.defaultNamespaces(subject))
         }
     }

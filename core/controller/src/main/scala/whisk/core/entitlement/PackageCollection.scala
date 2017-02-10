@@ -21,6 +21,7 @@ import scala.concurrent.Future
 
 import Privilege.Privilege
 import spray.http.StatusCodes._
+import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.controller.RejectRequest
 import whisk.core.database.DocumentTypeMismatchException
@@ -29,7 +30,7 @@ import whisk.core.entity._
 import whisk.core.entity.types.EntityStore
 import whisk.http.Messages
 
-class PackageCollection(entityStore: EntityStore) extends Collection(Collection.PACKAGES) {
+class PackageCollection(entityStore: EntityStore)(implicit logging: Logging) extends Collection(Collection.PACKAGES) {
 
     protected override val allowedEntityRights = {
         Set(Privilege.READ, Privilege.PUT, Privilege.DELETE)
@@ -84,22 +85,22 @@ class PackageCollection(entityStore: EntityStore) extends Collection(Collection.
         WhiskPackage.get(entityStore, doc) flatMap {
             case wp if wp.binding.isEmpty =>
                 val allowed = wp.publish || isOwner
-                info(this, s"entitlement check on package, '$right' allowed?: $allowed")
+                logging.info(this, s"entitlement check on package, '$right' allowed?: $allowed")
                 Future.successful(allowed)
             case wp =>
                 if (isOwner) {
                     val binding = wp.binding.get
                     val pkgOwner = namespaces.contains(binding.namespace.asString)
                     val pkgDocid = binding.docid
-                    info(this, s"checking subject has privilege '$right' for bound package '$pkgDocid'")
+                    logging.info(this, s"checking subject has privilege '$right' for bound package '$pkgDocid'")
                     checkPackageReadPermission(namespaces, pkgOwner, pkgDocid)
                 } else {
-                    info(this, s"entitlement check on package binding, '$right' allowed?: false")
+                    logging.info(this, s"entitlement check on package binding, '$right' allowed?: false")
                     Future.successful(false)
                 }
         } recoverWith {
             case t: NoDocumentException =>
-                info(this, s"the package does not exist (owner? $isOwner)")
+                logging.info(this, s"the package does not exist (owner? $isOwner)")
                 // if owner, reject with not found, otherwise fail the future to reject with
                 // unauthorized (this prevents information leaks about packages in other namespaces)
                 if (isOwner) {
@@ -108,7 +109,7 @@ class PackageCollection(entityStore: EntityStore) extends Collection(Collection.
                     Future.successful(false)
                 }
             case t: DocumentTypeMismatchException =>
-                info(this, s"the requested binding is not a package (owner? $isOwner)")
+                logging.info(this, s"the requested binding is not a package (owner? $isOwner)")
                 // if owner, reject with not found, otherwise fail the future to reject with
                 // unauthorized (this prevents information leaks about packages in other namespaces)
                 if (isOwner) {
@@ -117,10 +118,10 @@ class PackageCollection(entityStore: EntityStore) extends Collection(Collection.
                     Future.successful(false)
                 }
             case t: RejectRequest =>
-                error(this, s"entitlement check on package failed: $t")
+                logging.error(this, s"entitlement check on package failed: $t")
                 Future.failed(t)
             case t =>
-                error(this, s"entitlement check on package failed: ${t.getMessage}")
+                logging.error(this, s"entitlement check on package failed: ${t.getMessage}")
                 if (isOwner) {
                     Future.failed(RejectRequest(InternalServerError, Messages.corruptedEntity))
                 } else {

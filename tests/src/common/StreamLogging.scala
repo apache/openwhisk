@@ -14,18 +14,22 @@
  * limitations under the License.
  */
 
-package whisk.core.invoker
+package common
 
-import akka.actor.Actor
-import whisk.http.BasicRasService
+import java.io.ByteArrayOutputStream
+import java.io.PrintStream
+
+import whisk.common.Logging
+import whisk.common.PrintStreamLogging
 
 /**
- * Implements web server to handle certain REST API calls.
- * Currently provides a health ping route, only.
+ * Logging facility, that can be used by tests.
+ *
+ * It contains the implicit Logging-instance, that is needed implicitly for some methods and classes.
+ * the logger logs to the stream, that can be accessed from your test, to check if a specific message has been written.
  */
-trait InvokerServer
-    extends BasicRasService
-    with Actor {
-
-    override def actorRefFactory = context
+trait StreamLogging {
+    val stream = new ByteArrayOutputStream
+    val printstream = new PrintStream(stream)
+    implicit val logging: Logging = new PrintStreamLogging(printstream)
 }

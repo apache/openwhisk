@@ -18,7 +18,6 @@ package whisk.core.entitlement
 
 import scala.collection.concurrent.TrieMap
 
-import akka.event.Logging.InfoLevel
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.entity.Subject
@@ -28,9 +27,9 @@ import whisk.core.entity.Subject
  *
  * For now, we throttle only at a 1-minute granularity.
  */
-class RateThrottler(description: String, maxPerMinute: Int) extends Logging {
+class RateThrottler(description: String, maxPerMinute: Int)(implicit logging: Logging) {
 
-    info(this, s"$description: maxPerMinute = $maxPerMinute")(TransactionId.controller)
+    logging.info(this, s"$description: maxPerMinute = $maxPerMinute")(TransactionId.controller)
 
     /**
      * Maintains map of subject to operations rates.
@@ -47,7 +46,7 @@ class RateThrottler(description: String, maxPerMinute: Int) extends Logging {
     def check(subject: Subject)(implicit transid: TransactionId): Boolean = {
         val rate = rateMap.getOrElseUpdate(subject, new RateInfo(maxPerMinute))
         val belowLimit = rate.check()
-        info(this, s"subject = ${subject.toString}, rate = ${rate.count()}, below limit = $belowLimit")
+        logging.info(this, s"subject = ${subject.toString}, rate = ${rate.count()}, below limit = $belowLimit")
         belowLimit
     }
 }
@@ -55,8 +54,7 @@ class RateThrottler(description: String, maxPerMinute: Int) extends Logging {
 /**
  * Tracks the activation rate of one subject at minute-granularity.
  */
-private class RateInfo(maxPerMinute: Int) extends Logging {
-    setVerbosity(InfoLevel)
+private class RateInfo(maxPerMinute: Int) {
     var lastMin = getCurrentMinute
     var lastMinCount = 0
 

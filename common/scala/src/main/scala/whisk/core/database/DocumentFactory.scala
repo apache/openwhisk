@@ -16,25 +16,22 @@
 
 package whisk.core.database
 
-import scala.concurrent.Future
-import scala.util.Try
-import scala.util.Failure
-import scala.util.Success
-
-import akka.http.scaladsl.model.ContentType
-import akka.stream.scaladsl.StreamConverters
-import akka.stream.IOResult
-
 import java.io.InputStream
 import java.io.OutputStream
 
-import whisk.common.Logging
-import whisk.core.entity.DocRevision
-import whisk.common.TransactionId
-import whisk.core.entity.DocInfo
+import scala.concurrent.Future
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
 
+import akka.http.scaladsl.model.ContentType
+import akka.stream.IOResult
+import akka.stream.scaladsl.StreamConverters
 import spray.json.JsObject
+import whisk.common.TransactionId
 import whisk.core.entity.DocId
+import whisk.core.entity.DocInfo
+import whisk.core.entity.DocRevision
 
 /**
  * A common trait for all records that are stored in the datastore requiring an _id field,
@@ -139,7 +136,7 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
             require(db != null, "db undefined")
             require(doc != null, "doc undefined")
         } map { _ =>
-            implicit val logger = db: Logging
+            implicit val logger = db.logging
             implicit val ec = db.executionContext
 
             val key = cacheKeyForUpdate(doc)
@@ -165,7 +162,7 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
             require(db != null, "db undefined")
             require(doc != null, "doc undefined")
         } map { _ =>
-            implicit val logger: Logging = db
+            implicit val logger = db.logging
             implicit val ec = db.executionContext
 
             val key = doc.id.asDocInfo
@@ -187,7 +184,7 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
             require(db != null, "db undefined")
             require(doc != null, "doc undefined")
         } map { _ =>
-            implicit val logger: Logging = db
+            implicit val logger = db.logging
             implicit val ec = db.executionContext
 
             val key = doc.id.asDocInfo
@@ -220,7 +217,7 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
         Try {
             require(db != null, "db undefined")
         } map {
-            implicit val logger = db: Logging
+            implicit val logger = db.logging
             implicit val ec = db.executionContext
             val key = doc.asDocInfo(rev)
             _ => cacheLookup(key, db.get[W](key), fromCache)

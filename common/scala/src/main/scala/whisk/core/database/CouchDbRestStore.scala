@@ -26,8 +26,8 @@ import akka.http.scaladsl.model._
 import akka.stream.scaladsl._
 import akka.util.ByteString
 import spray.json._
+import whisk.common.Logging
 import whisk.common.LoggingMarkers
-import whisk.common.PrintStreamEmitter
 import whisk.common.TransactionId
 import whisk.core.entity.DocInfo
 import whisk.core.entity.DocRevision
@@ -51,13 +51,11 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
     dbPort: Int,
     dbUsername: String,
     dbPassword: String,
-    dbName: String)(implicit system: ActorSystem, jsonFormat: RootJsonFormat[DocumentAbstraction])
+    dbName: String)(implicit system: ActorSystem, val logging: Logging, jsonFormat: RootJsonFormat[DocumentAbstraction])
     extends ArtifactStore[DocumentAbstraction]
     with DefaultJsonProtocol {
 
     protected[core] implicit val executionContext = system.dispatcher
-
-    private implicit val emitter: PrintStreamEmitter = this
 
     private val client: CouchDbRestClient = new CouchDbRestClient(dbProtocol, dbHost, dbPort.toInt, dbUsername, dbPassword, dbName)
 

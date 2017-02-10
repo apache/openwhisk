@@ -34,10 +34,10 @@ import whisk.common.TransactionId
 import whisk.core.entitlement.Privilege._
 import whisk.core.entitlement.Resource
 import whisk.core.entity._
+import whisk.core.entity.ActivationEntityLimit
 import whisk.core.entity.size._
 import whisk.http.ErrorResponse.terminate
 import whisk.http.Messages
-import whisk.core.entity.ActivationEntityLimit
 
 protected[controller] trait ValidateRequestSize extends Directives {
     protected def validateSize(check: => Option[SizeError])(
@@ -135,13 +135,13 @@ trait WhiskCollectionAPI
 
                     onComplete(checkIfSubjectOwnsResource) {
                         case Success(excludePrivate) =>
-                            info(this, s"[LIST] exclude private entities: required == $excludePrivate")
+                            logging.info(this, s"[LIST] exclude private entities: required == $excludePrivate")
                             list(user, resource.namespace, excludePrivate)
                         case Failure(r: RejectRequest) =>
-                            info(this, s"[LIST] namespaces lookup failed: ${r.message}")
+                            logging.info(this, s"[LIST] namespaces lookup failed: ${r.message}")
                             terminate(r.code, r.message)
                         case Failure(t) =>
-                            error(this, s"[LIST] namespaces lookup failed: ${t.getMessage}")
+                            logging.error(this, s"[LIST] namespaces lookup failed: ${t.getMessage}")
                             terminate(InternalServerError)
 
                     }

@@ -18,13 +18,20 @@ package whisk.core.entity.test
 
 import java.time.Clock
 import java.time.Instant
+
 import scala.concurrent.Await
+import scala.language.postfixOps
 import scala.util.Try
+
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfter
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
+
+import common.StreamLogging
+import common.WskActorSystem
 import spray.json.JsObject
 import whisk.core.WhiskConfig
 import whisk.core.database.test.DbUtils
@@ -32,28 +39,23 @@ import whisk.core.entity.ActivationId
 import whisk.core.entity.AuthKey
 import whisk.core.entity.Binding
 import whisk.core.entity.EntityName
-import whisk.core.entity.Exec
 import whisk.core.entity.EntityPath
+import whisk.core.entity.Exec
+import whisk.core.entity.FullyQualifiedEntityName
 import whisk.core.entity.Subject
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskActivation
 import whisk.core.entity.WhiskAuth
 import whisk.core.entity.WhiskEntity
 import whisk.core.entity.WhiskEntityQueries.listAllInNamespace
-import whisk.core.entity.WhiskEntityQueries.listEntitiesInNamespace
-import whisk.core.entity.WhiskEntityQueries.listCollectionInAnyNamespace
 import whisk.core.entity.WhiskEntityQueries.listCollectionByName
+import whisk.core.entity.WhiskEntityQueries.listCollectionInAnyNamespace
 import whisk.core.entity.WhiskEntityQueries.listCollectionInNamespace
+import whisk.core.entity.WhiskEntityQueries.listEntitiesInNamespace
 import whisk.core.entity.WhiskEntityStore
 import whisk.core.entity.WhiskPackage
 import whisk.core.entity.WhiskRule
 import whisk.core.entity.WhiskTrigger
-import org.scalatest.BeforeAndAfterAll
-import scala.language.postfixOps
-import akka.event.Logging.InfoLevel
-
-import common.WskActorSystem
-import whisk.core.entity.FullyQualifiedEntityName
 
 @RunWith(classOf[JUnitRunner])
 class ViewTests extends FlatSpec
@@ -61,7 +63,8 @@ class ViewTests extends FlatSpec
     with BeforeAndAfterAll
     with Matchers
     with DbUtils
-    with WskActorSystem {
+    with WskActorSystem
+    with StreamLogging {
 
     def aname = MakeName.next("viewtests")
     def afullname(namespace: EntityPath) = FullyQualifiedEntityName(namespace, aname)
@@ -82,7 +85,6 @@ class ViewTests extends FlatSpec
 
     val config = new WhiskConfig(WhiskEntityStore.requiredProperties)
     val datastore = WhiskEntityStore.datastore(config)
-    datastore.setVerbosity(InfoLevel)
 
     after {
         cleanup()

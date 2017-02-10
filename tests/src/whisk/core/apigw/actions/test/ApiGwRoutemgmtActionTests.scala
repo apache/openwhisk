@@ -19,20 +19,21 @@ package whisk.core.apigw.actions.test
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.junit.JUnitRunner
-import spray.json.DefaultJsonProtocol._
-import spray.json._
 
 import common.JsHelpers
+import common.StreamLogging
 import common.TestHelpers
 import common.TestUtils.ANY_ERROR_EXIT
 import common.TestUtils.DONTCARE_EXIT
-import common.TestUtils.SUCCESS_EXIT
 import common.TestUtils.RunResult
+import common.TestUtils.SUCCESS_EXIT
 import common.Wsk
-import common.WskAdmin
 import common.WskActorSystem
+import common.WskAdmin
 import common.WskProps
 import common.WskTestHelpers
+import spray.json._
+import spray.json.DefaultJsonProtocol._
 import whisk.core.WhiskConfig
 
 case class ApiAction(
@@ -47,8 +48,7 @@ case class ApiAction(
             "namespace" -> namespace.toJson,
             "backendMethod" -> backendMethod.toJson,
             "backendUrl" -> backendUrl.toJson,
-            "authkey" -> authkey.toJson
-        )
+            "authkey" -> authkey.toJson)
     }
 }
 
@@ -61,7 +61,8 @@ class ApiGwRoutemgmtActionTests
     with BeforeAndAfterAll
     with WskActorSystem
     with WskTestHelpers
-    with JsHelpers {
+    with JsHelpers
+    with StreamLogging {
 
     implicit val wskprops = WskProps()
     val wsk = new Wsk
@@ -297,30 +298,29 @@ class ApiGwRoutemgmtActionTests
             //createApi
             ("/whisk.system/routemgmt/createApi", ANY_ERROR_EXIT, "apidoc is required", Seq("-p", "__ow_meta_namespace", "_")),
             ("/whisk.system/routemgmt/createApi", ANY_ERROR_EXIT, "apidoc is missing the namespace field",
-              Seq("-p", "__ow_meta_namespace", "_", "-p", "apidoc", "{}")),
+                Seq("-p", "__ow_meta_namespace", "_", "-p", "apidoc", "{}")),
             ("/whisk.system/routemgmt/createApi", ANY_ERROR_EXIT, "apidoc is missing the gatewayBasePath field",
-              Seq("-p", "__ow_meta_namespace", "_", "-p", "apidoc", """{"namespace":"_"}""")),
+                Seq("-p", "__ow_meta_namespace", "_", "-p", "apidoc", """{"namespace":"_"}""")),
             ("/whisk.system/routemgmt/createApi", ANY_ERROR_EXIT, "apidoc is missing the gatewayPath field",
-              Seq("-p", "__ow_meta_namespace", "_", "-p", "apidoc", """{"namespace":"_","gatewayBasePath":"/ApiGwRoutemgmtActionTests_bp"}""")),
+                Seq("-p", "__ow_meta_namespace", "_", "-p", "apidoc", """{"namespace":"_","gatewayBasePath":"/ApiGwRoutemgmtActionTests_bp"}""")),
             ("/whisk.system/routemgmt/createApi", ANY_ERROR_EXIT, "apidoc is missing the gatewayMethod field",
-              Seq("-p", "__ow_meta_namespace", "_", "-p", "apidoc", """{"namespace":"_","gatewayBasePath":"/ApiGwRoutemgmtActionTests_bp","gatewayPath":"ApiGwRoutemgmtActionTests_rp"}""")),
+                Seq("-p", "__ow_meta_namespace", "_", "-p", "apidoc", """{"namespace":"_","gatewayBasePath":"/ApiGwRoutemgmtActionTests_bp","gatewayPath":"ApiGwRoutemgmtActionTests_rp"}""")),
             ("/whisk.system/routemgmt/createApi", ANY_ERROR_EXIT, "apidoc is missing the action field",
-              Seq("-p", "__ow_meta_namespace", "_", "-p", "apidoc", """{"namespace":"_","gatewayBasePath":"/ApiGwRoutemgmtActionTests_bp","gatewayPath":"ApiGwRoutemgmtActionTests_rp","gatewayMethod":"get"}""")),
+                Seq("-p", "__ow_meta_namespace", "_", "-p", "apidoc", """{"namespace":"_","gatewayBasePath":"/ApiGwRoutemgmtActionTests_bp","gatewayPath":"ApiGwRoutemgmtActionTests_rp","gatewayMethod":"get"}""")),
             ("/whisk.system/routemgmt/createApi", ANY_ERROR_EXIT, "action is missing the backendMethod field",
-              Seq("-p", "__ow_meta_namespace", "_", "-p", "apidoc", """{"namespace":"_","gatewayBasePath":"/ApiGwRoutemgmtActionTests_bp","gatewayPath":"ApiGwRoutemgmtActionTests_rp","gatewayMethod":"get","action":{}}""")),
+                Seq("-p", "__ow_meta_namespace", "_", "-p", "apidoc", """{"namespace":"_","gatewayBasePath":"/ApiGwRoutemgmtActionTests_bp","gatewayPath":"ApiGwRoutemgmtActionTests_rp","gatewayMethod":"get","action":{}}""")),
             ("/whisk.system/routemgmt/createApi", ANY_ERROR_EXIT, "action is missing the backendUrl field",
-              Seq("-p", "__ow_meta_namespace", "_", "-p", "apidoc", """{"namespace":"_","gatewayBasePath":"/ApiGwRoutemgmtActionTests_bp","gatewayPath":"ApiGwRoutemgmtActionTests_rp","gatewayMethod":"get","action":{"backendMethod":"post"}}""")),
+                Seq("-p", "__ow_meta_namespace", "_", "-p", "apidoc", """{"namespace":"_","gatewayBasePath":"/ApiGwRoutemgmtActionTests_bp","gatewayPath":"ApiGwRoutemgmtActionTests_rp","gatewayMethod":"get","action":{"backendMethod":"post"}}""")),
             ("/whisk.system/routemgmt/createApi", ANY_ERROR_EXIT, "action is missing the namespace field",
-              Seq("-p", "__ow_meta_namespace", "_", "-p", "apidoc", """{"namespace":"_","gatewayBasePath":"/ApiGwRoutemgmtActionTests_bp","gatewayPath":"ApiGwRoutemgmtActionTests_rp","gatewayMethod":"get","action":{"backendMethod":"post","backendUrl":"URL"}}""")),
+                Seq("-p", "__ow_meta_namespace", "_", "-p", "apidoc", """{"namespace":"_","gatewayBasePath":"/ApiGwRoutemgmtActionTests_bp","gatewayPath":"ApiGwRoutemgmtActionTests_rp","gatewayMethod":"get","action":{"backendMethod":"post","backendUrl":"URL"}}""")),
             ("/whisk.system/routemgmt/createApi", ANY_ERROR_EXIT, "action is missing the name field",
-              Seq("-p", "__ow_meta_namespace", "_", "-p", "apidoc", """{"namespace":"_","gatewayBasePath":"/ApiGwRoutemgmtActionTests_bp","gatewayPath":"ApiGwRoutemgmtActionTests_rp","gatewayMethod":"get","action":{"backendMethod":"post","backendUrl":"URL","namespace":"_"}}""")),
+                Seq("-p", "__ow_meta_namespace", "_", "-p", "apidoc", """{"namespace":"_","gatewayBasePath":"/ApiGwRoutemgmtActionTests_bp","gatewayPath":"ApiGwRoutemgmtActionTests_rp","gatewayMethod":"get","action":{"backendMethod":"post","backendUrl":"URL","namespace":"_"}}""")),
             ("/whisk.system/routemgmt/createApi", ANY_ERROR_EXIT, "action is missing the authkey field",
-              Seq("-p", "__ow_meta_namespace", "_", "-p", "apidoc", """{"namespace":"_","gatewayBasePath":"/ApiGwRoutemgmtActionTests_bp","gatewayPath":"ApiGwRoutemgmtActionTests_rp","gatewayMethod":"get","action":{"backendMethod":"post","backendUrl":"URL","namespace":"_","name":"N"}}""")),
+                Seq("-p", "__ow_meta_namespace", "_", "-p", "apidoc", """{"namespace":"_","gatewayBasePath":"/ApiGwRoutemgmtActionTests_bp","gatewayPath":"ApiGwRoutemgmtActionTests_rp","gatewayMethod":"get","action":{"backendMethod":"post","backendUrl":"URL","namespace":"_","name":"N"}}""")),
             ("/whisk.system/routemgmt/createApi", ANY_ERROR_EXIT, "swagger and gatewayBasePath are mutually exclusive and cannot be specified together",
-              Seq("-p", "__ow_meta_namespace", "_", "-p", "apidoc", """{"namespace":"_","gatewayBasePath":"/ApiGwRoutemgmtActionTests_bp","gatewayPath":"ApiGwRoutemgmtActionTests_rp","gatewayMethod":"get","action":{"backendMethod":"post","backendUrl":"URL","namespace":"_","name":"N","authkey":"XXXX"},"swagger":{}}""")),
+                Seq("-p", "__ow_meta_namespace", "_", "-p", "apidoc", """{"namespace":"_","gatewayBasePath":"/ApiGwRoutemgmtActionTests_bp","gatewayPath":"ApiGwRoutemgmtActionTests_rp","gatewayMethod":"get","action":{"backendMethod":"post","backendUrl":"URL","namespace":"_","name":"N","authkey":"XXXX"},"swagger":{}}""")),
             ("/whisk.system/routemgmt/createApi", ANY_ERROR_EXIT, "apidoc field cannot be parsed. Ensure it is valid JSON",
-              Seq("-p", "__ow_meta_namespace", "_", "-p", "apidoc", "{1:[}}}"))
-        )
+                Seq("-p", "__ow_meta_namespace", "_", "-p", "apidoc", "{1:[}}}")))
 
         invalidArgs foreach {
             case (action: String, exitcode: Int, errmsg: String, params: Seq[String]) =>
@@ -329,8 +329,7 @@ class ApiGwRoutemgmtActionTests
                     action,
                     "-i", "-b", "-r",
                     "--apihost", wskprops.apihost,
-                    "--auth", systemKey
-                ) ++ params
+                    "--auth", systemKey) ++ params
                 val rr = wsk.cli(cmd, expectedExitCode = exitcode)
                 rr.stderr should include regex (errmsg)
         }

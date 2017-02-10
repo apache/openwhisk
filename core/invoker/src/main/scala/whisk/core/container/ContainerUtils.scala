@@ -16,14 +16,16 @@
 
 package whisk.core.container
 
-import akka.event.Logging.ErrorLevel
 import java.io.{ File, FileNotFoundException }
-import scala.util.Try
-import scala.language.postfixOps
-import spray.json._
-import DefaultJsonProtocol._
 
-import whisk.common.{ Logging, SimpleExec, TransactionId, LoggingMarkers, PrintStreamEmitter }
+import scala.language.postfixOps
+import scala.util.Try
+
+import akka.event.Logging.ErrorLevel
+import spray.json._
+import spray.json.DefaultJsonProtocol._
+import whisk.common.{ Logging, SimpleExec, TransactionId, LoggingMarkers }
+import whisk.common.Logging
 import whisk.core.entity.ActionLimits
 
 /**
@@ -31,7 +33,9 @@ import whisk.core.entity.ActionLimits
  */
 case class ContainerState(id: ContainerHash, image: String, name: ContainerName)
 
-trait ContainerUtils extends Logging {
+trait ContainerUtils {
+
+    implicit val logging: Logging
 
     /** Defines the docker host, optional **/
     val dockerhost: String
@@ -141,7 +145,7 @@ trait ContainerUtils extends Logging {
             getDockerLogFile(containerId, mounted).length
         } catch {
             case e: Exception =>
-                error(this, s"getDockerLogSize failed on ${containerId.id}")
+                logging.error(this, s"getDockerLogSize failed on ${containerId.id}")
                 0
         }
     }
@@ -166,7 +170,7 @@ trait ContainerUtils extends Logging {
             buffer.array
         } catch {
             case e: Exception =>
-                error(this, s"getDockerLogContent failed on ${containerHash.hash}: ${e.getClass}: ${e.getMessage}")
+                logging.error(this, s"getDockerLogContent failed on ${containerHash.hash}: ${e.getClass}: ${e.getMessage}")
                 Array()
         } finally {
             if (fis != null) fis.close()
@@ -183,7 +187,7 @@ trait ContainerUtils extends Logging {
             getContainerIpAddrViaInspect(container)
         } else {
             getContainerIpAddrViaConfig(container, network).toOption orElse {
-                warn(this, "Failed to obtain IP address of container via config file.  Falling back to inspect.")
+                logging.warn(this, "Failed to obtain IP address of container via config file.  Falling back to inspect.")
                 getContainerIpAddrViaInspect(container)
             }
         }
@@ -210,7 +214,7 @@ trait ContainerUtils extends Logging {
      * Synchronously runs the given docker command returning stdout if successful.
      */
     private def runDockerCmd(skipLogError: Boolean, args: Seq[String])(implicit transid: TransactionId): DockerOutput =
-        ContainerUtils.runDockerCmd(dockerhost, skipLogError, args)(transid)
+        ContainerUtils.runDockerCmd(dockerhost, skipLogError, args)(transid, logging)
 
     /**
      * Obtain the per container directory Docker maintains for each container.
@@ -257,14 +261,12 @@ trait ContainerUtils extends Logging {
     }
 }
 
-object ContainerUtils extends Logging {
-
-    private implicit val emitter: PrintStreamEmitter = this
+object ContainerUtils {
 
     /**
      * Synchronously runs the given docker command returning stdout if successful.
      */
-    def runDockerCmd(dockerhost: String, skipLogError: Boolean, args: Seq[String])(implicit transid: TransactionId): DockerOutput = {
+    def runDockerCmd(dockerhost: String, skipLogError: Boolean, args: Seq[String])(implicit transid: TransactionId, logging: Logging): DockerOutput = {
         val start = transid.started(this, LoggingMarkers.INVOKER_DOCKER_CMD(args(0)))
 
         try {
@@ -311,7 +313,7 @@ object ContainerUtils extends Logging {
      * Pulls container images.
      */
     @throws[ContainerError]
-    def pullImage(dockerhost: String, image: String)(implicit transid: TransactionId): DockerOutput = {
+    def pullImage(dockerhost: String, image: String)(implicit transid: TransactionId, logging: Logging): DockerOutput = {
         val cmd = Array("pull", image)
         val result = runDockerCmd(dockerhost, false, cmd)
         if (result != DockerOutput.unavailable) {
