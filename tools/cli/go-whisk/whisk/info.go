@@ -58,7 +58,7 @@ func (s *InfoService) Get() (*Info, *http.Response, error) {
 
     Debug(DbgInfo, "Sending HTTP URL '%s'; req %#v\n", req.URL.String(), req)
     info := new(Info)
-    resp, err := s.client.Do(req, &info)
+    resp, err := s.client.Do(req, &info, ExitWithSuccessOnTimeout)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
         return nil, nil, err

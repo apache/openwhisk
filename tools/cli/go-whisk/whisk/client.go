@@ -42,6 +42,10 @@ const (
     DoNotAppendOpenWhiskPathPrefix = false
     EncodeBodyAsJson = "json"
     EncodeBodyAsFormData = "formdata"
+    ProcessTimeOut = true
+    DoNotProcessTimeOut = false
+    ExitWithErrorOnTimeout = true
+    ExitWithSuccessOnTimeout = false
 )
 
 type Client struct {
@@ -208,7 +212,9 @@ func (c *Client) addAuthHeader(req *http.Request, authRequired bool) error {
 // error if an API error has occurred.  If v implements the io.Writer
 // interface, the raw response body will be written to v, without attempting to
 // first decode it.
-func (c *Client) Do(req *http.Request, v interface{}) (*http.Response, error) {
+func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout bool) (*http.Response, error) {
+    var err error
+
     if IsVerbose() {
         fmt.Println("REQUEST:")
         fmt.Printf("[%s]\t%s\n", req.Method, req.URL)
@@ -296,11 +302,19 @@ func (c *Client) Do(req *http.Request, v interface{}) (*http.Response, error) {
     // Handle 1. HTTP Success + Valid body matching request expectations
     // Handle 3. HTTP Success + Body does NOT match request expectations
     if IsHttpRespSuccess(resp) && v != nil {
-        return parseSuccessResponse(resp, data, v), nil
+
+        // If a timeout occurs, 202 HTTP status code is returned, and the caller wishes to handle such an event, return
+        // an error corresponding with the timeout
+        if ExitWithErrorOnTimeout && resp.StatusCode == EXITCODE_TIMED_OUT {
+            errMsg :=  wski18n.T("Request accepted, but processing not completed yet.")
+            err = MakeWskError(errors.New(errMsg), EXITCODE_TIMED_OUT, NO_DISPLAY_MSG, NO_DISPLAY_USAGE,
+                NO_MSG_DISPLAYED, NO_DISPLAY_PREFIX, NO_APPLICATION_ERR, TIMED_OUT)
+        }
+
+        return parseSuccessResponse(resp, data, v), err
     }
 
-    // We should never get here, but just in case return failure
-    // to keep the compiler happy
+    // We should never get here, but just in case return failure to keep the compiler happy
     werr := MakeWskError(errors.New(wski18n.T("Command failed due to an internal failure")), EXITCODE_ERR_GENERAL,
         DISPLAY_MSG, NO_DISPLAY_USAGE)
     return resp, werr
@@ -328,7 +342,7 @@ func parseErrorResponse(resp *http.Response, data []byte, v interface{}) (*http.
         errMsg := wski18n.T("The following application error was received: {{.err}}",
             map[string]interface{}{"err": string(data)})
         whiskErr := MakeWskError(errors.New(errMsg), resp.StatusCode - 256, NO_DISPLAY_MSG, NO_DISPLAY_USAGE,
-            NO_MSG_DISPLAYED, APPLICATION_ERR)
+            NO_MSG_DISPLAYED, DISPLAY_PREFIX, APPLICATION_ERR)
         return parseSuccessResponse(resp, data, v), whiskErr
     }
 }
@@ -344,7 +358,7 @@ func parseWhiskErrorResponse(resp *http.Response, data []byte, v interface{}) (*
         errMsg := wski18n.T("The following application error was received: {{.err}}",
             map[string]interface{}{"err": *whiskErrorResponse.Response.Result})
         whiskErr := MakeWskError(errors.New(errMsg), resp.StatusCode - 256, NO_DISPLAY_MSG, NO_DISPLAY_USAGE,
-            NO_MSG_DISPLAYED, APPLICATION_ERR)
+            NO_MSG_DISPLAYED, DISPLAY_PREFIX, APPLICATION_ERR)
         return parseSuccessResponse(resp, data, v), whiskErr
     } else {
         Debug(DbgError, "HTTP response with unexpected body failed due to contents parsing error: '%v'\n", err)

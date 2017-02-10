@@ -152,7 +152,7 @@ func (s *ApiService) List(apiListOptions *ApiListOptions) (*RetApiArray, *http.R
     }
 
     apiArray := new(RetApiArray)
-    resp, err := s.client.Do(req, &apiArray)
+    resp, err := s.client.Do(req, &apiArray, ExitWithErrorOnTimeout)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
         return nil, resp, err
@@ -178,7 +178,7 @@ func (s *ApiService) Insert(api *SendApi, overwrite bool) (*RetApi, *http.Respon
     }
 
     retApi := new(RetApi)
-    resp, err := s.client.Do(req, &retApi)
+    resp, err := s.client.Do(req, &retApi, ExitWithErrorOnTimeout)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
         return nil, resp, err
@@ -213,7 +213,7 @@ func (s *ApiService) Get(api *Api, options *ApiListOptions) (*RetApiArray, *http
     }
 
     retApi := new(RetApiArray)
-    resp, err := s.client.Do(req, &retApi)
+    resp, err := s.client.Do(req, &retApi, ExitWithErrorOnTimeout)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
         return nil, resp, err
@@ -248,7 +248,7 @@ func (s *ApiService) Delete(api *Api, options *ApiOptions) (*http.Response, erro
     }
 
     retApi := new(RetApi)
-    resp, err := s.client.Do(req, &retApi)
+    resp, err := s.client.Do(req, &retApi, ExitWithErrorOnTimeout)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
         return resp, err
