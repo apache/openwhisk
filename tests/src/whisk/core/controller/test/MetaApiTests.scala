@@ -482,7 +482,6 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
             failThrottleForSubject = Some(subject)
             val content = JsObject("extra" -> "read all about it".toJson, "yummy" -> true.toJson)
             Post(s"/$routePath/heavymeta?a=b&c=d", content) ~> sealRoute(routes(creds)) ~> check {
-                println(subject)
                 status shouldBe {
                     // activations are counted against to the authenticated user's quota
                     if (subject == systemId) OK else {
@@ -798,7 +797,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
                 }
             }
 
-        // this should fail for reasong quota
+        // this should fail for exceeding quota
         Seq(s"$systemId/proxy/export_c.text/content/z").
             foreach { path =>
                 failThrottleForSubject = Some(systemId)
