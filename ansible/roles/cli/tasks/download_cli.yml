@@ -5,7 +5,7 @@
 - name: "download cli (linux) to openwhisk home at {{ openwhisk_home }}"
   local_action: >
     get_url
-    url="{{ whisk_api_host | default( 'https://' + (groups['edge'] | first) ) }}/cli/go/download/linux/amd64/wsk"
+    url="https://{{ groups['edge'] | first }}/cli/go/download/linux/amd64/wsk"
     dest="{{ openwhisk_home }}/bin/wsk"
     mode=0755
     validate_certs=False
@@ -14,7 +14,7 @@
 - name: "download cli (mac) to openwhisk home at {{ openwhisk_home }}"
   local_action: >
     get_url
-    url="{{ whisk_api_host | default( 'https://' + (groups['edge'] | first) ) }}/cli/go/download/mac/amd64/wsk"
+    url="https://{{ groups['edge'] | first }}/cli/go/download/mac/amd64/wsk"
     dest="{{ openwhisk_home }}/bin/wsk"
     mode=0755
     validate_certs=False
