@@ -21,6 +21,7 @@ const EXITCODE_ERR_USAGE        int = 2
 const EXITCODE_ERR_NETWORK      int = 3
 const EXITCODE_ERR_HTTP_RESP    int = 4
 const NOT_ALLOWED               int = 149
+const EXITCODE_TIMED_OUT        int = 202
 
 const DISPLAY_MSG       bool = true
 const NO_DISPLAY_MSG    bool = false
@@ -28,6 +29,7 @@ const DISPLAY_USAGE     bool = true
 const NO_DISPLAY_USAGE  bool = false
 const NO_MSG_DISPLAYED  bool = false
 const APPLICATION_ERR   bool = true
+const TIMED_OUT         bool = true
 
 type WskError struct {
     RootErr             error   // Parent error
@@ -36,6 +38,7 @@ type WskError struct {
     MsgDisplayed        bool    // When true, the error message has already been displayed, don't display it again
     DisplayUsage        bool    // When true, the CLI usage should be displayed before exiting
     ApplicationError    bool    // When true, the error is a result of an application failure
+    TimedOut            bool    // When True, the backend server responded with a 202 HTTP status code
 }
 
 /*
@@ -67,12 +70,14 @@ func MakeWskError (err error, exitCode int, flags ...bool ) (resWhiskError *WskE
         DisplayUsage: false,
         MsgDisplayed: false,
         ApplicationError: false,
+        TimedOut: false,
     }
 
     if len(flags) > 0 { resWhiskError.DisplayMsg = flags[0] }
     if len(flags) > 1 { resWhiskError.DisplayUsage = flags[1] }
     if len(flags) > 2 { resWhiskError.MsgDisplayed = flags[2] }
     if len(flags) > 3 { resWhiskError.ApplicationError = flags[3] }
+    if len(flags) > 4 { resWhiskError.TimedOut = flags[4] }
 
     return resWhiskError
 }
@@ -87,6 +92,7 @@ Parameters:
     bool        - DisplayUsage. If true, the command usage syntax/help should be displayed on the console
     bool        - MsgDisplayed. If true, the error message has been displayed on the console
     bool        - ApplicationError. If true, the error is a result of an application error
+    bool        - TimedOut. If true, the error resulted from a server responding with a 202 status code
 */
 func MakeWskErrorFromWskError (baseError error, whiskError error, exitCode int, flags ...bool) (resWhiskError *WskError) {
 
@@ -116,7 +122,7 @@ and DisplayPrefix.
 Parameters:
     whiskError  - WskError to examine.
     flags       - Boolean values that may override the WskError object's values for DisplayMsg, DisplayUsage,
-                    MsgDisplayed, and ApplicationError.
+                    MsgDisplayed, ApplicationError, TimedOut.
  */
 func getWhiskErrorProperties(whiskError *WskError, flags ...bool) (int, []bool) {
     if len(flags) > 0 {
@@ -137,11 +143,16 @@ func getWhiskErrorProperties(whiskError *WskError, flags ...bool) (int, []bool) 
         flags = append(flags, whiskError.MsgDisplayed)
     }
 
-
     if len(flags) > 3 {
         flags[3] = whiskError.ApplicationError || flags[3]
     } else {
         flags = append(flags, whiskError.ApplicationError)
+    }
+
+    if len(flags) > 4 {
+        flags[4] = whiskError.TimedOut || flags[3]
+    } else {
+        flags = append(flags, whiskError.TimedOut)
     }
 
     return whiskError.ExitCode, flags

@@ -165,7 +165,7 @@ var actionInvokeCmd = &cobra.Command{
     if err != nil {
       whiskErr, isWhiskErr := err.(*whisk.WskError)
 
-      if (isWhiskErr && whiskErr.ApplicationError != true) || !isWhiskErr {
+      if (isWhiskErr && !whiskErr.ApplicationError && !whiskErr.TimedOut) || !isWhiskErr {
         whisk.Debug(whisk.DbgError, "client.Actions.Invoke(%s, %s, %t) error: %s\n", qName.entityName, parameters,
           flags.common.blocking, err)
         errMsg := wski18n.T("Unable to invoke action '{{.name}}': {{.err}}",

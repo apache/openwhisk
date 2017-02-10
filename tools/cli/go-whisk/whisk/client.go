@@ -42,6 +42,8 @@ const (
     DoNotAppendOpenWhiskPathPrefix = false
     EncodeBodyAsJson = "json"
     EncodeBodyAsFormData = "formdata"
+    ProcessTimeOut = true
+    DoNotProcessTimeOut = false
 )
 
 type Client struct {
@@ -208,7 +210,9 @@ func (c *Client) addAuthHeader(req *http.Request, authRequired bool) error {
 // error if an API error has occurred.  If v implements the io.Writer
 // interface, the raw response body will be written to v, without attempting to
 // first decode it.
-func (c *Client) Do(req *http.Request, v interface{}) (*http.Response, error) {
+func (c *Client) Do(req *http.Request, v interface{}, processTimeout bool) (*http.Response, error) {
+    var err error
+
     if IsVerbose() {
         fmt.Println("REQUEST:")
         fmt.Printf("[%s]\t%s\n", req.Method, req.URL)
@@ -296,7 +300,12 @@ func (c *Client) Do(req *http.Request, v interface{}) (*http.Response, error) {
     // Handle 1. HTTP Success + Valid body matching request expectations
     // Handle 3. HTTP Success + Body does NOT match request expectations
     if IsHttpRespSuccess(resp) && v != nil {
-        return parseSuccessResponse(resp, data, v), nil
+        if processTimeout && resp.StatusCode == EXITCODE_TIMED_OUT {
+            err = MakeWskError(errors.New("Time limit exceeded."), EXITCODE_TIMED_OUT, NO_DISPLAY_MSG, NO_DISPLAY_USAGE,
+                NO_MSG_DISPLAYED, false, TIMED_OUT)
+        }
+
+        return parseSuccessResponse(resp, data, v), err
     }
 
     // We should never get here, but just in case return failure
