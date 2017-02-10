@@ -54,6 +54,9 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
     val testActionsDir = WhiskProperties.getFileRelativeToWhiskHome("tests/dat/actions")
     val actionCodeLimit = Exec.sizeLimit
 
+    val openFileAction = TestUtils.getTestActionFilename("openFiles.js")
+    val openFileLimit = 1024
+
     behavior of "Action limits"
 
     /**
@@ -173,5 +176,41 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
             }
 
             actionCode.delete
+    }
+
+    /**
+    * Test an action that does not exceed the allowed number of open files.
+    */
+    it should "successfully invoke an action when it is within nofile limit" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "TestFileLimitGood-" + System.currentTimeMillis()
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some(openFileAction))
+            }
+
+            val run = wsk.action.invoke(name, Map("numFiles" -> (openFileLimit / 2).toJson))
+            withActivation(wsk.activation, run) {
+                activation =>
+                    activation.response.status shouldBe "success"
+            }
+    }
+
+    /**
+     * Test an action that should fail to open way too many files.
+     */
+    it should "fail to invoke an action when it exceeds nofile limit" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "TestFileLimitBad-" + System.currentTimeMillis()
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some(openFileAction))
+            }
+
+            val run = wsk.action.invoke(name, Map("numFiles" -> (openFileLimit * 2).toJson))
+            withActivation(wsk.activation, run) {
+                activation =>
+                    activation.response.status should not be "success"
+                    val stderr = activation.response.result.get.fields("error").convertTo[String]
+                    stderr should include regex (".*too many open files.*")
+            }
     }
 }
