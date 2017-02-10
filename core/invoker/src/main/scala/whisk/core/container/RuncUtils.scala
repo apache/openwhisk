@@ -28,11 +28,11 @@ object RuncUtils extends Logging {
         runRuncCmd(false, Seq("list"))
     }
 
-    def pause()(implicit transid: TransactionId, id: ContainerIdentifier): (Int, String) = {
+    def pause(id: ContainerIdentifier)(implicit transid: TransactionId): (Int, String) = {
         runRuncCmd(false, Seq("pause", id.toString))
     }
 
-    def resume()(implicit transid: TransactionId, id: ContainerIdentifier): (Int, String) = {
+    def resume(id: ContainerIdentifier)(implicit transid: TransactionId): (Int, String) = {
         runRuncCmd(false, Seq("resume", id.toString))
     }
 
