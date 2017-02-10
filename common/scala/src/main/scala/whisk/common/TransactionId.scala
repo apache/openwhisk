@@ -109,7 +109,7 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
     def deltaToMarker(startMarker: StartMarker, endTime: Instant = Instant.now(Clock.systemUTC)) = Duration.between(startMarker.start, endTime).toMillis
 
     /**
-     * Include the marker into the logmessage with the right format.
+     * Formats log message to include marker.
      *
      * @param message: The log message without the marker
      * @param marker: The marker to add to the message
@@ -138,13 +138,13 @@ protected case class TransactionMetadata(val id: Long, val start: Instant)
 
 object TransactionId {
     val unknown = TransactionId(0)
-    val testing = TransactionId(-1) // Common id for for unit testing
-    val invoker = TransactionId(-100) // Invoker startup/shutdown or GC activity
+    val testing = TransactionId(-1)         // Common id for for unit testing
+    val invoker = TransactionId(-100)       // Invoker startup/shutdown or GC activity
     val invokerWarmup = TransactionId(-101) // Invoker warmup thread that makes stem-cell containers
-    val invokerNanny = TransactionId(-102) // Invoker nanny thread
-    val dispatcher = TransactionId(-110) // Kafka message dispatcher
-    val loadbalancer = TransactionId(-120) // Loadbalancer thread
-    val controller = TransactionId(-130) // Controller startup
+    val invokerNanny = TransactionId(-102)  // Invoker nanny thread
+    val dispatcher = TransactionId(-110)    // Kafka message dispatcher
+    val loadbalancer = TransactionId(-120)  // Loadbalancer thread
+    val controller = TransactionId(-130)    // Controller startup
 
     def apply(tid: BigDecimal): TransactionId = {
         Try {

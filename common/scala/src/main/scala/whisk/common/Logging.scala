@@ -33,7 +33,9 @@ trait Logging {
      * @param from Reference, where the method was called from.
      * @param message Message to write to the log
      */
-    def debug(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) = emit(DebugLevel, id, from, message)
+    def debug(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) = {
+        emit(DebugLevel, id, from, message)
+    }
 
     /**
      * Prints a message on INFO level
@@ -41,7 +43,9 @@ trait Logging {
      * @param from Reference, where the method was called from.
      * @param message Message to write to the log
      */
-    def info(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) = emit(InfoLevel, id, from, message)
+    def info(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) = {
+        emit(InfoLevel, id, from, message)
+    }
 
     /**
      * Prints a message on WARN level
@@ -49,7 +53,9 @@ trait Logging {
      * @param from Reference, where the method was called from.
      * @param message Message to write to the log
      */
-    def warn(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) = emit(WarningLevel, id, from, message)
+    def warn(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) = {
+        emit(WarningLevel, id, from, message)
+    }
 
     /**
      * Prints a message on ERROR level
@@ -57,7 +63,9 @@ trait Logging {
      * @param from Reference, where the method was called from.
      * @param message Message to write to the log
      */
-    def error(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) = emit(ErrorLevel, id, from, message)
+    def error(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) = {
+        emit(ErrorLevel, id, from, message)
+    }
 
     /**
      * Prints a message to the output.

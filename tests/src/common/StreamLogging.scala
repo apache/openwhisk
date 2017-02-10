@@ -22,6 +22,12 @@ import java.io.PrintStream
 import whisk.common.Logging
 import whisk.common.PrintStreamLogging
 
+/**
+ * Logging facility, that can be used by tests.
+ *
+ * It contains the implicit Logging-instance, that is needed implicitly for some methods and classes.
+ * the logger logs to the stream, that can be accessed from your test, to check if a specific message has been written.
+ */
 trait StreamLogging {
     val stream = new ByteArrayOutputStream
     val printstream = new PrintStream(stream)

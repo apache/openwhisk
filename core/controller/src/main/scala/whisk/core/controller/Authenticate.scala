@@ -45,7 +45,6 @@ trait Authenticate {
     /** Database service to lookup credentials */
     protected val authStore: AuthStore
 
-    /** logging */
     protected implicit val logging: Logging
 
     /**

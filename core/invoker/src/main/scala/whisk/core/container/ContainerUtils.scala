@@ -35,7 +35,6 @@ case class ContainerState(id: ContainerHash, image: String, name: ContainerName)
 
 trait ContainerUtils {
 
-    /** logging */
     implicit val logging: Logging
 
     /** Defines the docker host, optional **/

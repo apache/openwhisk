@@ -113,7 +113,6 @@ trait ReadOps extends Directives {
     /** An execution context for futures */
     protected implicit val executionContext: ExecutionContext
 
-    /** logging */
     protected implicit val logging: Logging
 
     /**
@@ -228,7 +227,6 @@ trait WriteOps extends Directives {
     /** An execution context for futures */
     protected implicit val executionContext: ExecutionContext
 
-    /** logging */
     protected implicit val logging: Logging
 
     /**
