@@ -77,8 +77,8 @@ class ContainerPool(
     val dockerhost = config.selfDockerEndpoint
     val serializeDockerOp = config.invokerSerializeDockerOp.toBoolean
     val serializeDockerPull = config.invokerSerializeDockerPull.toBoolean
-    info(this, s"dockerhost = $dockerhost    serializeDockerOp = $serializeDockerOp   serializeDockerPull = $serializeDockerPull")
     val useRunc = checkRuncAccess(config.invokerUseRunc.toBoolean)
+    info(this, s"dockerhost = $dockerhost    serializeDockerOp = $serializeDockerOp   serializeDockerPull = $serializeDockerPull   useRunC = $useRunc")
 
     // Eventually, we will have a more sophisticated warmup strategy that does multiple sizes
     private val defaultMemoryLimit = MemoryLimit(MemoryLimit.STD_MEMORY)
@@ -103,8 +103,11 @@ class ContainerPool(
             implicit val tid = TransactionId.invokerNanny
             val (code, result) = RuncUtils.list()
             val success = (code == 0)
-            info(this, if (success) s"Using runc. list result: ${result}"
-                               else s"Not using runc due to error (code = ${code}): ${result}")
+            if (success) {
+                info(this, s"Using runc. list result: ${result}")
+            } else {
+                warn(this, s"Not using runc due to error (code = ${code}): ${result}")
+            }
             success
         } else {
             info(this, s"Not using runc because of configuration flag")
