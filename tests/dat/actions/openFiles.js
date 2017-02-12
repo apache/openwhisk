@@ -1,22 +1,39 @@
 var fs = require("fs");
 
-function main(params){
+function main(params) {
 
     var numFiles = params.numFiles;
     var openFiles = [];
+    var error = undefined;
+
     try {
-        for (var i=0; i < numFiles; i++) {
+        for (var i = 0; i < numFiles; i++) {
             var fh = fs.openSync("/dev/zero", "r");
             openFiles.push(fh);
         }
     } catch (err) {
         console.log("ERROR: opened files = ", openFiles.length);
-        throw(err);
+        error = err;
     }
+
     console.log("opened files = ", openFiles.length);
 
-    openFiles.forEach(function(fh){
+    openFiles.forEach(function(fh) {
         fs.close(fh);
     })
-    return { filesToOpen: numFiles, filesOpen: openFiles.length}
+
+    if (error === undefined) {
+        return {
+            filesToOpen : numFiles,
+            filesOpen : openFiles.length,
+        }
+    } else {
+        return {
+            error : {
+                filesToOpen : numFiles,
+                filesOpen : openFiles.length,
+                message : error
+            }
+        }
+    }
 }

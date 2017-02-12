@@ -56,6 +56,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
 
     val openFileAction = TestUtils.getTestActionFilename("openFiles.js")
     val openFileLimit = 1024
+    val minExpectedOpenFiles = openFileLimit - 15 // allow for already opened files in container
 
     behavior of "Action limits"
 
@@ -179,8 +180,8 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
     }
 
     /**
-    * Test an action that does not exceed the allowed number of open files.
-    */
+     * Test an action that does not exceed the allowed number of open files.
+     */
     it should "successfully invoke an action when it is within nofile limit" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "TestFileLimitGood-" + System.currentTimeMillis()
@@ -188,10 +189,13 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
                 (action, _) => action.create(name, Some(openFileAction))
             }
 
-            val run = wsk.action.invoke(name, Map("numFiles" -> (openFileLimit / 2).toJson))
+            val run = wsk.action.invoke(name, Map("numFiles" -> minExpectedOpenFiles.toJson))
             withActivation(wsk.activation, run) {
                 activation =>
-                    activation.response.status shouldBe "success"
+                    activation.response.success shouldBe true
+                    activation.response.result.get shouldBe {
+                        JsObject("filesToOpen" -> minExpectedOpenFiles.toJson, "filesOpen" -> minExpectedOpenFiles.toJson)
+                    }
             }
     }
 
@@ -205,12 +209,29 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
                 (action, _) => action.create(name, Some(openFileAction))
             }
 
-            val run = wsk.action.invoke(name, Map("numFiles" -> (openFileLimit * 2).toJson))
+            val run = wsk.action.invoke(name, Map("numFiles" -> (openFileLimit + 1).toJson))
             withActivation(wsk.activation, run) {
                 activation =>
-                    activation.response.status should not be "success"
-                    val stderr = activation.response.result.get.fields("error").convertTo[String]
-                    stderr should include regex (".*too many open files.*")
+                    activation.response.success shouldBe false
+
+                    val error = activation.response.result.get.fields("error").asJsObject
+                    error.fields("filesToOpen") shouldBe (openFileLimit + 1).toJson
+
+                    error.fields("message") shouldBe {
+                        JsObject(
+                            "code" -> "EMFILE".toJson,
+                            "errno" -> -24.toJson,
+                            "path" -> "/dev/zero".toJson,
+                            "syscall" -> "open".toJson)
+                    }
+
+                    val JsNumber(n) = error.fields("filesOpen")
+                    n.toInt should be >= minExpectedOpenFiles
+
+                    activation.logs.getOrElse(List()).filter {
+                        // drop time stamp and stdout/err markers
+                        _.split(" ").drop(2).mkString(" ").startsWith("ERROR: opened files = ")
+                    }.length shouldBe 1
             }
     }
 }
