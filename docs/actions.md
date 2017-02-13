@@ -8,6 +8,13 @@ Actions can be explicitly invoked, or run in response to an event. In either cas
 
 Actions can be composed of calls to other actions or a defined sequence of actions.
 
+* [JavaScript](#creating-and-invoking-javascript-actions)
+* [Swift](#creating-swift-actions)
+* [Python](#creating-python-actions)
+* [Java](#creating-java-actions)
+* [Docker](#creating-docker-actions)
+
+
 ## Creating and invoking JavaScript actions
 
 The following sections guide you through working with actions in JavaScript. You begin with the creation and invocation of a simple action. Then, you move on to adding parameters to an action and invoking that action with parameters. Next is setting default parameters and invoking them. Then, you create asynchronous actions and, finally, work with action sequences.
@@ -765,7 +772,7 @@ You can clean up by deleting actions that you do not want to use.
   ```
   actions
   ```
-  
+
 ## Accessing action metadata within the action body
 
 The action environment contains several properties that are specific to the running action.
