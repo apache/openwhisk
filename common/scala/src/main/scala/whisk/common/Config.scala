@@ -86,6 +86,16 @@ class Config(
     }
 
     /**
+     * Returns the value of a given key parsed as an integer.
+     * If parsing fails, return the default value.
+     *
+     * @param key the property that has to be returned.
+     */
+    def getAsInt(key: String, defaultValue: Int): Int = {
+        Try { getProperty(key).toInt } getOrElse { defaultValue }
+    }
+
+    /**
      * Converts the set of property to a string for debugging.
      */
     def mkString: String = settings.mkString("\n")
