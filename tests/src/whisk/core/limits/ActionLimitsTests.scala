@@ -54,6 +54,10 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
     val testActionsDir = WhiskProperties.getFileRelativeToWhiskHome("tests/dat/actions")
     val actionCodeLimit = Exec.sizeLimit
 
+    val openFileAction = TestUtils.getTestActionFilename("openFiles.js")
+    val openFileLimit = 1024
+    val minExpectedOpenFiles = openFileLimit - 15 // allow for already opened files in container
+
     behavior of "Action limits"
 
     /**
@@ -173,5 +177,61 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
             }
 
             actionCode.delete
+    }
+
+    /**
+     * Test an action that does not exceed the allowed number of open files.
+     */
+    it should "successfully invoke an action when it is within nofile limit" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "TestFileLimitGood-" + System.currentTimeMillis()
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some(openFileAction))
+            }
+
+            val run = wsk.action.invoke(name, Map("numFiles" -> minExpectedOpenFiles.toJson))
+            withActivation(wsk.activation, run) {
+                activation =>
+                    activation.response.success shouldBe true
+                    activation.response.result.get shouldBe {
+                        JsObject("filesToOpen" -> minExpectedOpenFiles.toJson, "filesOpen" -> minExpectedOpenFiles.toJson)
+                    }
+            }
+    }
+
+    /**
+     * Test an action that should fail to open way too many files.
+     */
+    it should "fail to invoke an action when it exceeds nofile limit" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "TestFileLimitBad-" + System.currentTimeMillis()
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some(openFileAction))
+            }
+
+            val run = wsk.action.invoke(name, Map("numFiles" -> (openFileLimit + 1).toJson))
+            withActivation(wsk.activation, run) {
+                activation =>
+                    activation.response.success shouldBe false
+
+                    val error = activation.response.result.get.fields("error").asJsObject
+                    error.fields("filesToOpen") shouldBe (openFileLimit + 1).toJson
+
+                    error.fields("message") shouldBe {
+                        JsObject(
+                            "code" -> "EMFILE".toJson,
+                            "errno" -> -24.toJson,
+                            "path" -> "/dev/zero".toJson,
+                            "syscall" -> "open".toJson)
+                    }
+
+                    val JsNumber(n) = error.fields("filesOpen")
+                    n.toInt should be >= minExpectedOpenFiles
+
+                    activation.logs.getOrElse(List()).filter {
+                        // drop time stamp and stdout/err markers
+                        _.split(" ").drop(2).mkString(" ").startsWith("ERROR: opened files = ")
+                    }.length shouldBe 1
+            }
     }
 }
