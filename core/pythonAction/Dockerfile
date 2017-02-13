@@ -15,6 +15,7 @@ RUN apk add --no-cache \
 RUN pip install \
     beautifulsoup4==4.5.1 \
     httplib2==0.9.2 \
+    kafka_python==1.3.1 \
     lxml==3.6.4 \
     python-dateutil==2.5.3 \
     requests==2.11.1 \
