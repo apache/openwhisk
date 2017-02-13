@@ -59,9 +59,19 @@ class Container(
         s"container [$name] [$id] [$ip]"
     }
 
-    def pause(): Unit = pauseContainer(containerId)
+    def pause(): Unit =
+        if (useRunc) {
+            RuncUtils.pause(containerId)
+        } else {
+            pauseContainer(containerId)
+        }
 
-    def unpause(): Unit = unpauseContainer(containerId)
+    def unpause(): Unit =
+        if (useRunc) {
+            RuncUtils.resume(containerId)
+        } else {
+            unpauseContainer(containerId)
+        }
 
     /**
      * A prefix of the container id known to be displayed by docker ps.
