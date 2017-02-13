@@ -29,6 +29,7 @@ import org.scalatest.junit.JUnitRunner
 
 import spray.http.FormData
 import spray.http.HttpMethods
+import spray.http.MediaTypes
 import spray.http.StatusCodes._
 import spray.httpx.SprayJsonSupport._
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
@@ -36,13 +37,20 @@ import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.common.TransactionId
+import whisk.core.WhiskConfig
 import whisk.core.controller.Context
 import whisk.core.controller.RejectRequest
 import whisk.core.controller.WhiskMetaApi
 import whisk.core.database.NoDocumentException
+import whisk.core.entitlement.EntitlementProvider
 import whisk.core.entitlement.Privilege
+import whisk.core.entitlement.Privilege
+import whisk.core.entitlement.Privilege._
+import whisk.core.entitlement.Resource
 import whisk.core.entity._
 import whisk.core.entity.size._
+import whisk.core.iam.NamespaceProvider
+import whisk.core.loadBalancer.LoadBalancer
 import whisk.http.ErrorResponse
 import whisk.http.Messages
 
@@ -67,12 +75,25 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
     val systemId = Subject()
     override lazy val systemKey = AuthKey()
     override lazy val systemIdentity = Future.successful(Identity(systemId, EntityName(systemId.asString), systemKey, Privilege.ALL))
+    override lazy val entitlementProvider = new TestingEntitlementProvider(whiskConfig, loadBalancer, iam)
 
     /** Meta API tests */
     behavior of "Meta API"
 
     val creds = WhiskAuth(Subject(), AuthKey()).toIdentity
     val namespace = EntityPath(creds.subject.asString)
+
+    var failActionLookup = false // toggle to cause action lookup to fail
+    var failActivation = 0 // toggle to cause action to fail
+    var failThrottleForSubject: Option[Subject] = None // toggle to cause throttle to fail for subject
+    var actionResult: Option[JsObject] = None
+
+    override def afterEach() = {
+        failActionLookup = false
+        failActivation = 0
+        failThrottleForSubject = None
+        actionResult = None
+    }
 
     val packages = Seq(
         WhiskPackage(
@@ -163,7 +184,6 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
         }
     }
 
-    var actionResult: Option[JsObject] = None
     override protected[controller] def invokeAction(user: Identity, action: WhiskAction, payload: Option[JsObject], blocking: Boolean, waitOverride: Option[FiniteDuration] = None)(
         implicit transid: TransactionId): Future[(ActivationId, Option[WhiskActivation])] = {
         if (failActivation == 0) {
@@ -183,7 +203,17 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
                 ActivationId(),
                 start = Instant.now,
                 end = Instant.now,
-                response = ActivationResponse.success(Some(result)))
+                response = {
+                    actionResult.flatMap { r =>
+                        r.fields.get("application_error").map {
+                            e => ActivationResponse.applicationError(e)
+                        } orElse r.fields.get("developer_error").map {
+                            e => ActivationResponse.containerError(e)
+                        } orElse r.fields.get("whisk_error").map {
+                            e => ActivationResponse.whiskError(e)
+                        } orElse None // for clarity
+                    } getOrElse ActivationResponse.success(Some(result))
+                })
 
             // check that action parameters were merged with package
             // all actions have default parameters (see actionLookup stub)
@@ -220,15 +250,6 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
         message.foreach { m => error.fields.get("error").get shouldBe JsString(m) }
         error.fields.get("code") shouldBe defined
         error.fields.get("code").get shouldBe an[JsNumber]
-    }
-
-    var failActionLookup = false // toggle to cause action lookup to fail
-    var failActivation = 0 // toggle to cause action to fail
-
-    override def afterEach() = {
-        failActionLookup = false
-        failActivation = 0
-        actionResult = None
     }
 
     it should "resolve a meta package into the systemId namespace" in {
@@ -454,6 +475,24 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
 
     }
 
+    it should "throttle authenticated user" in {
+        implicit val tid = transid()
+
+        Seq(systemId, creds.subject).foreach { subject =>
+            failThrottleForSubject = Some(subject)
+            val content = JsObject("extra" -> "read all about it".toJson, "yummy" -> true.toJson)
+            Post(s"/$routePath/heavymeta?a=b&c=d", content) ~> sealRoute(routes(creds)) ~> check {
+                status shouldBe {
+                    // activations are counted against to the authenticated user's quota
+                    if (subject == systemId) OK else {
+                        confirmErrorWithTid(responseAs[JsObject], Some(Messages.tooManyRequests))
+                        TooManyRequests
+                    }
+                }
+            }
+        }
+    }
+
     it should "warn if meta package is public" in {
         implicit val tid = transid()
 
@@ -462,6 +501,23 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
             stream.toString should include regex (s"""[WARN] *.*publicmeta@0.0.1' is public""")
             stream.reset()
         }
+    }
+
+    it should "split action name and extenstion" in {
+        val r = WhiskMetaApi.extensionSplitter
+        Seq("t.j.http", "t.js.http", "tt.j.http", "tt.js.http").foreach { s =>
+            val r(n, e) = s
+            val i = s.lastIndexOf(".")
+            n shouldBe s.substring(0, i)
+            e shouldBe s.substring(i + 1)
+        }
+
+        Seq("t.js", "t.js.htt", "t.js.httpz").foreach { s =>
+            a[MatchError] should be thrownBy {
+                val r(n, e) = s
+            }
+        }
+
     }
 
     it should "allow anonymous acccess to fully qualified name" in {
@@ -487,7 +543,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
 
                 Get(s"$exports/$path") ~> sealRoute(routes()) ~> check {
                     status should be(NotAcceptable)
-                    confirmErrorWithTid(responseAs[JsObject], Some(Messages.contentTypeRequired))
+                    confirmErrorWithTid(responseAs[JsObject], Some(Messages.contentTypeNotSupported))
                 }
             }
 
@@ -529,11 +585,13 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
                 }
             }
 
+        // these project a result which does not match expected type
         Seq(s"$systemId/proxy/export_c.json/a").
             foreach { path =>
                 actionResult = Some(JsObject("a" -> JsString("b")))
                 Get(s"$exports/$path") ~> sealRoute(routes()) ~> check {
                     status should be(BadRequest)
+                    confirmErrorWithTid(responseAs[JsObject], Some(Messages.invalidMedia(MediaTypes.`application/json`)))
                 }
             }
 
@@ -616,7 +674,6 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
                     "body" -> "hello world".toJson))
 
                 Get(s"$exports/$path") ~> sealRoute(routes()) ~> check {
-                    println(responseAs[String])
                     status should be(OK)
                     responseAs[String] shouldBe "hello world"
                 }
@@ -649,6 +706,47 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
                 Get(s"$exports/$path") ~> sealRoute(routes()) ~> check {
                     status should be(BadRequest)
                     confirmErrorWithTid(responseAs[JsObject], Some(Messages.httpUnknownContentType))
+                }
+            }
+
+        // an activation that results in application error and response matches extension
+        Seq(s"$systemId/proxy/export_c.http", s"$systemId/proxy/export_c.http/ignoreme").
+            foreach { path =>
+                actionResult = Some(JsObject(
+                    "application_error" -> JsObject(
+                        "code" -> OK.intValue.toJson,
+                        "body" -> "no hello for you".toJson)))
+
+                Get(s"$exports/$path") ~> sealRoute(routes()) ~> check {
+                    status should be(OK)
+                    responseAs[String] shouldBe "no hello for you"
+                }
+            }
+
+        // an activation that results in application error but where response does not match extension
+        Seq(s"$systemId/proxy/export_c.json", s"$systemId/proxy/export_c.json/ignoreme").
+            foreach { path =>
+                actionResult = Some(JsObject("application_error" -> "bad response type".toJson))
+
+                Get(s"$exports/$path") ~> sealRoute(routes()) ~> check {
+                    status should be(BadRequest)
+                    confirmErrorWithTid(responseAs[JsObject], Some(Messages.invalidMedia(MediaTypes.`application/json`)))
+                }
+            }
+
+        // an activation that results in developer or system error
+        Seq(s"$systemId/proxy/export_c.json", s"$systemId/proxy/export_c.json/ignoreme", s"$systemId/proxy/export_c.text").
+            foreach { path =>
+                Seq("developer_error", "whisk_error").foreach { e =>
+                    actionResult = Some(JsObject(e -> "bad response type".toJson))
+                    Get(s"$exports/$path") ~> sealRoute(routes()) ~> check {
+                        status should be(BadRequest)
+                        if (e == "application_error") {
+                            confirmErrorWithTid(responseAs[JsObject], Some(Messages.invalidMedia(MediaTypes.`application/json`)))
+                        } else {
+                            confirmErrorWithTid(responseAs[JsObject], Some(Messages.errorProcessingRequest))
+                        }
+                    }
                 }
             }
 
@@ -699,6 +797,17 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
                 }
             }
 
+        // this should fail for exceeding quota
+        Seq(s"$systemId/proxy/export_c.text/content/z").
+            foreach { path =>
+                failThrottleForSubject = Some(systemId)
+                Get(s"$exports/$path") ~> sealRoute(routes()) ~> check {
+                    status should be(TooManyRequests)
+                    confirmErrorWithTid(responseAs[JsObject], Some(Messages.tooManyRequests))
+                }
+                failThrottleForSubject = None
+            }
+
         // these should fail because parameter override is not allowed
         // ?x=overriden
         Seq(s"$systemId/proxy/export_c.text/content/z?x=overriden").
@@ -718,13 +827,44 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
                 }
             }
 
-        // these fail with unsupported extension
-        Seq(s"$systemId/proxy/export_c.xyz", s"$systemId/proxy/export_c.xyz/", s"$systemId/proxy/export_c.xyz/content").
+        // these fail with content type required in known set
+        Seq(s"$systemId/proxy/export_c.xyz", s"$systemId/proxy/export_c.xyz/", s"$systemId/proxy/export_c.xyz/content",
+            s"$systemId/proxy/export_c.xyzz", s"$systemId/proxy/export_c.xyzz/", s"$systemId/proxy/export_c.xyzz/content").
             foreach { path =>
                 Get(s"$exports/$path") ~> sealRoute(routes()) ~> check {
                     status should be(NotAcceptable)
                     confirmErrorWithTid(responseAs[JsObject], Some(Messages.contentTypeNotSupported))
                 }
             }
+    }
+
+    class TestingEntitlementProvider(
+        config: WhiskConfig,
+        loadBalancer: LoadBalancer,
+        iam: NamespaceProvider)
+        extends EntitlementProvider(config, loadBalancer, iam) {
+
+        protected[core] override def checkThrottles(user: Identity)(
+            implicit transid: TransactionId): Future[Unit] = {
+            val subject = user.subject
+            logging.debug(this, s"test throttle is checking user '$subject' has not exceeded activation quota")
+
+            failThrottleForSubject match {
+                case Some(subject) if subject == user.subject =>
+                    Future.failed(RejectRequest(TooManyRequests, Messages.tooManyRequests))
+                case _ => Future.successful({})
+            }
+        }
+
+        protected[core] override def grant(subject: Subject, right: Privilege, resource: Resource)(
+            implicit transid: TransactionId) = ???
+
+        /** Revokes subject right to resource by removing them from the entitlement matrix. */
+        protected[core] override def revoke(subject: Subject, right: Privilege, resource: Resource)(
+            implicit transid: TransactionId) = ???
+
+        /** Checks if subject has explicit grant for a resource. */
+        protected override def entitled(subject: Subject, right: Privilege, resource: Resource)(
+            implicit transid: TransactionId) = ???
     }
 }

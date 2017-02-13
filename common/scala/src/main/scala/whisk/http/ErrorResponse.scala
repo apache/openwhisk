@@ -52,10 +52,10 @@ object Messages {
     val resourceDoesNotExist = "The requested resource does not exist."
 
     /** Standard message for too many activation requests within a rolling time window. */
-    val tooManyRequests = "Too many requests from user in a given amount of time."
+    val tooManyRequests = "Too many requests in a given amount of time for namespace."
 
     /** Standard message for too many concurrent activation requests within a time window. */
-    val tooManyConcurrentRequests = "The user has sent too many concurrent requests."
+    val tooManyConcurrentRequests = "Too many concurrent requests in flight for namespace."
 
     /** Standard message when supplied authkey is not authorized for an operation. */
     val notAuthorizedtoOperateOnResource = "The supplied authentication is not authorized to access this resource."
@@ -107,11 +107,12 @@ object Messages {
     /** Error for meta api. */
     val propertyNotFound = "Response does not include requested property."
     def invalidMedia(m: MediaType) = s"Response is not valid '${m.value}'."
-    val contentTypeNotSupported = "Content type not supported."
-    val contentTypeRequired = "Content type is missing."
+    val contentTypeNotSupported = """Content type must be specified and one of ["json", "html", "http", "text"]."""
+
     val responseNotReady = "Response not yet ready."
     val httpUnknownContentType = "Response did not specify a known content-type."
     val httpContentTypeError = "Response type in header did not match generated content type."
+    val errorProcessingRequest = "There was an error processing your request."
 
     def invalidInitResponse(actualResponse: String) = {
         "The action failed during initialization" + {
