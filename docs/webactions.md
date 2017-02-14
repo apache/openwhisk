@@ -53,12 +53,23 @@ function main() {
 ```
 
 Or returns an `image/png`:
-```
+```javascript
 function main() {
     let png = <base 64 encoded string>
     return { headers: { 'Content-Type': 'image/png' },
              code: 200,
              body: png };
+}
+```
+
+Or return an `application/json`:
+```javascript
+function main(params) { 
+    return {
+        'code': 200,
+        'headers':{'Content-Type':'application/json'},
+        'body' : new Buffer(JSON.stringify(params, null, 2)).toString('base64'),
+    };
 }
 ```
 
@@ -94,6 +105,28 @@ Web actions bring some additional features that include:
 3. `Query and body parameters as input`: the action receives query parameters as well as parameters in the request body. The precedence order for merging parameters is: package parameters, action parameters, query parameter, body parameters with each of these overriding any previous values in case of overlap . As an example `/guest/demo/hello.http?name=Jane` will pass the argument `{name: "Jane"}` to the action.
 4. `Form data`: in addition to the standard `application/json`, web actions may receive URL encoded from data `application/x-www-form-urlencoded data` as input.
 5. `Activation via multiple HTTP verbs`: a web action may be invoked via one of four HTTP methods: `GET`, `POST`, `PUT` or `DELETE`.
+
+With some of this additional features you could have an action like this:
+```javascript
+  function main(params) { 
+    return { 'response': params};
+  }
+```
+Invoking this action using the extension `.json`, projection `/response` and query parameter `name` you will see information about the HTTP request returned:
+```bash
+curl https://${APIHOST}/api/v1/experimental/web/guest/demo/hello.json/response?name=Jane
+{
+  "name": "Jane"
+  "__ow_meta_verb": "get",
+  "__ow_meta_headers": {
+    "accept": "*/*",
+    "user-agent": "curl/7.51.0",
+    ...
+  },
+    "__ow_meta_path": "/response"
+  }
+}
+``` 
 
 ## Content extensions
 
