@@ -8,8 +8,6 @@ This programming model is perfect match for microservices, mobile, IoT and many 
 
 For more details about how OpenWhisk works, see [System overview](./about.md). Official project [website can be found here](http://openwhisk.org).
 
-If you want to get started right away
-
 ## Setting up the OpenWhisk CLI 
 
 - Building OpenWhisk from a cloned repository will result in the generation of the command line interface. The
