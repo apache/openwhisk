@@ -12,6 +12,7 @@ The catalog is available as packages in the `/whisk.system` namespace. See [Brow
 | [/whisk.system/alarms](https://github.com/openwhisk/openwhisk-package-alarms/blob/master/README.md) | offers feed action to create periodic triggers |
 | [/whisk.system/cloudant](https://github.com/openwhisk/openwhisk-package-cloudant/blob/master/README.md) | offers feed action to create database changes triggers and other convience actions to call Cloudant APIs |
 | `/whisk.system/github` | offers a convenient way to use the [GitHub APIs](https://developer.github.com/). |
+| [/whisk.system/messaging] | offers feed action to create triggers that react when messages are posted to a Message Hub and an action to produce messages  |
 | `/whisk.system/samples` | offers sample actions in different languages |
 | `/whisk.system/slack` | offers a convenient way to use the [Slack APIs](https://api.slack.com/). |
 | `/whisk.system/utils` | offers utilities actions such as cat, echo, and etc. |
@@ -20,117 +21,6 @@ The catalog is available as packages in the `/whisk.system` namespace. See [Brow
 | [/whisk.system/watson-textToSpeech](https://github.com/openwhisk/openwhisk-catalog/blob/master/packages/watson-textToSpeech/README.md) | Package to convert text into speech |
 | [/whisk.system/weather](https://github.com/openwhisk/openwhisk-catalog/blob/master/packages/weather/README.md) | Services from the Weather Company Data for IBM Bluemix API|
  
- 
-## Using the Message Hub package
-
-This package allows you to create triggers that react when messages are posted to a [Message Hub](https://developer.ibm.com/messaging/message-hub/) service instance on Bluemix.
-
-### Creating a Trigger that listens to a Message Hub Instance
-In order to create a trigger that reacts when messages are posted to a Message Hub instance, you need to use the feed named `messaging/messageHubFeed`. This feed supports the following parameters:
-
-|Name|Type|Description|
-|---|---|---|
-|kafka_brokers_sasl|JSON Array of Strings|This parameter is an array of `<host>:<port>` strings which comprise the brokers in your Message Hub instance|
-|user|String|Your Message Hub user name|
-|password|String|Your Message Hub password|
-|topic|String|The topic you would like the trigger to listen to|
-|kafka_admin_url|URL String|The URL of the Message Hub admin REST interface|
-|api_key|String|Your Message Hub API key|
-|isJSONData|Boolean (Optional - default=false)|When set to `true` this will cause the feed to try to parse the message content as JSON before passing it along as the trigger payload.|
-
-While this list of parameters may seem daunting, they can be automatically set for you by using the package refresh CLI command:
-
-1. Create an instance of Message Hub service under your current organization and space that you are using for OpenWhisk.
-
-2. Verify that the the topic you want to listen it already exists in Message Hub or create a new topic to listen for messages, like `mytopic`.
-
-2. Refresh the packages in your namespace. The refresh automatically creates a package binding for the Message Hub service instance that you created.
-
-  ```
-  $ wsk package refresh
-  ```
-  ```
-  created bindings:
-  Bluemix_Message_Hub_Credentials-1
-  ```
-
-  ```
-  $ wsk package list
-  ```
-  ```
-  packages
-  /myBluemixOrg_myBluemixSpace/Bluemix_Message_Hub_Credentials-1 private
-  ```
-
-  Your package binding now contains the credentials associated with your Message Hub instance.
-
-3. Now all you need is to create a Trigger to be fire when new messages are posted to your Message Hub.
-
-  ```
-  $ wsk trigger create MyMessageHubTrigger -f /myBluemixOrg_myBluemixSpace/Bluemix_Message_Hub_Credentials-1/messageHubFeed -p topic mytopic
-  ```
-
-### Setting up a Message Hub package outside Bluemix
-
-If you're not using OpenWhisk in Bluemix or if you want to set up your Message Hub outside of Bluemix, you must manually create a package binding for your Message Hub service. You need the Message Hub service credentials and connection information.
-
-- Create a package binding that is configured for your Message Hub service.
-
-  ```
-  $ wsk trigger create MyMessageHubTrigger -f /whisk.system/messaging/messageHubFeed -p kafka_brokers_sasl "[\"kafka01-prod01.messagehub.services.us-south.bluemix.net:9093\", \"kafka02-prod01.messagehub.services.us-south.bluemix.net:9093\", \"kafka03-prod01.messagehub.services.us-south.bluemix.net:9093\"]" -p topic mytopic -p user <your Message Hub user> -p password <your Message Hub password> -p kafka_admin_url https://kafka-admin-prod01.messagehub.services.us-south.bluemix.net:443 -p api_key <your API key>
-  ```
-
-### Listening for messages to a Message Hub instance
-After creating a trigger, the system will monitor the specified topic in your messaging service. When new messages are posted, the trigger will be fired.
-
-The payload of that trigger will contain a `messages` field which is an array of messages that have been posted since the last time your trigger fired. Each message object in the array will contain the following fields:
-- topic
-- partition
-- offset
-- key
-- value
-
-In Kafka terms, these fields should be self-evident. However, the `value` requires special consideration. If the `isJSONData` parameter was set `false` (or not set at all) when the trigger was created, the `value` field will be the raw value of the posted message. However, if `isJSONData` was set to `true` when the trigger was created, the system will attempt to parse this value as a JSON object, on a best-effort basis. If parsing is successful, then the `value` in the trigger payload will be the resulting JSON object.
-
-For example, if a message of `{"title": "Some string", "amount": 5, "isAwesome": true}` is posted with `isJSONData` set to `true`, the trigger payload might look something like this:
-
-```
-{
-  "messages": [
-      {
-        "partition": 0,
-        "key": null,
-        "offset": 421760,
-        "topic": "mytopic",
-        "value": {
-            "amount": 5,
-            "isAwesome": true,
-            "title": "Some string"
-        }
-      }
-  ]
-}
-```
-However, if the same message content is posted with `isJSONData` set to `false`, the trigger payload would look like this:
-
-```
-{
-  "messages": [
-    {
-      "partition": 0,
-      "key": null,
-      "offset": 421761,
-      "topic": "mytopic",
-      "value": "{\"title\": \"Some string\", \"amount\": 5, \"isAwesome\": true}"
-    }
-  ]
-}
-```
-### Messages are batched
-You will notice that the trigger payload contains an array of messages. This means that if you are producing messages to your messaging system very quickly, the feed will attempt to batch up the posted messages into a single firing of your trigger. This allows the messages to be posted to your trigger more rapidly and efficiently.
-
-Please keep in mind when coding actions that are fired by your trigger, that the number of messages in the payload is technically unbounded, but will always be greater than 0.
-
 
 ## Using the Slack package
 
