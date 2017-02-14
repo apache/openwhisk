@@ -13,10 +13,15 @@ The catalog is available as packages in the `/whisk.system` namespace. See [Brow
 | [/whisk.system/cloudant](https://github.com/openwhisk/openwhisk-package-cloudant/blob/master/README.md) | offers feed action to create database changes triggers and other convience actions to call Cloudant APIs |
 | [/whisk.system/github](https://github.com/openwhisk/openwhisk-package-catalog/blob/master/packages/github/README.md) | offers a convenient way to use the [GitHub APIs](https://developer.github.com/). |
 | [/whisk.system/messaging](https://github.com/openwhisk/openwhisk-package-kafka/blob/master/README.md) | offers feed action to create triggers that react when messages are posted to a Message Hub and an action to produce messages  |
-| `/whisk.system/samples` | offers sample actions in different languages |
+<!--
+TODO: commented out since there is no README for samples 
+| [/whisk.system/samples](https://github.com/openwhisk/openwhisk-catalog/blob/master/packages/samples/README.md) | offers sample actions in different languages |
+-->
 | [/whisk.system/pushnotifications](https://github.com/openwhisk/openwhisk-package-pushnotifications/blob/master/README.md) | offers feed actions to create triggers for the Push Notification service and other convience actions  |
 | [/whisk.system/slack](https://github.com/openwhisk/openwhisk-catalog/blob/master/packages/slack/README.md) | offers a convenient way to use the [Slack APIs](https://api.slack.com/). |
-| `/whisk.system/utils` | offers utilities actions such as cat, echo, and etc. |
+<!--
+| [/whisk.system/utils](https://github.com/openwhisk/openwhisk-catalog/blob/master/packages/utils/README.md) | offers utilities actions such as cat, echo, and etc. |
+-->
 | [/whisk.system/watson-translator](https://github.com/openwhisk/openwhisk-catalog/blob/master/packages/watson-translator/README.md) | Package for text translation and language identification |
 | [/whisk.system/watson-speechToText](https://github.com/openwhisk/openwhisk-catalog/blob/master/packages/watson-speechToText/README.md) | Package to convert speech into text |
 | [/whisk.system/watson-textToSpeech](https://github.com/openwhisk/openwhisk-catalog/blob/master/packages/watson-textToSpeech/README.md) | Package to convert text into speech |
