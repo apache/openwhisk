@@ -58,4 +58,3 @@ You can also use the event-driven capabilities in OpenWhisk to invoke this actio
 ## CLI tutorial
 
 If you prefer learning while doing, consider using this [OpenWhisk Workshop](https://github.com/openwhisk/openwhisk-workshop).
-

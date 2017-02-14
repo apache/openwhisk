@@ -6,7 +6,6 @@ OpenWhisk runs application logic in response to events or direct invocations fro
 
 This programming model is a perfect match for microservices, mobile, IoT and many other apps – you get inherent auto-scaling and load balancing out of the box without having to manually configure clusters, load balancers, http plugins, etc. If you happen to run on IBM Bluemix, you also get a benefit of zero administration - meaning that all of the hardware, networking and software is maintaned by IBM. All you need to do is to provide the code you want to execute and give it to your cloud vendor. The rest is “magic”. Good introduction into the serverless programming model is available on [Martin Fowler's blog](https://martinfowler.com/articles/serverless.html).
 
-
 ## Overview
 - [How OpenWhisk works](./about.md)
 - [Common uses cases for Serverless applications](./use_cases.md)

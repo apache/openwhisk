@@ -150,5 +150,4 @@ You can find additional information about OpenWhisk in the following topics:
 * [Entity names](./reference.md#openwhisk-entities)
 * [Action semantics](./reference.md#action-semantics)
 * [Limits](./reference.md#system-limits)
-
-<!-- Common use cases moved into its own page -->
+* [REST API](./reference.md#rest-api)
