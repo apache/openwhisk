@@ -62,13 +62,13 @@ function main() {
 }
 ```
 
-Or return an `application/json`:
+Or returns `application/json`:
 ```javascript
 function main(params) { 
     return {
         'code': 200,
         'headers':{'Content-Type':'application/json'},
-        'body' : new Buffer(JSON.stringify(params, null, 2)).toString('base64'),
+        'body' : new Buffer(JSON.stringify(params)).toString('base64'),
     };
 }
 ```
@@ -84,6 +84,8 @@ An OpenWhisk action that is not a web action requires both authentication and mu
 3. `body`: a string which is either plain text or a base64 encoded string (for binary data).
 
 The controller will pass along the action-specified headers, if any, to the HTTP client when terminating the request/response. Similarly the controller will respond with the given status code when present. Lastly, the body is passed along as the body of the response. Unless a `content-type header` is declared in the action result’s `headers`, the body is passed along as is if it’s a string (or results in an error otherwise). When the `content-type` is defined, the controller will determine if the response is binary data or plain text and decode the string using a base64 decoder as needed. Should the body fail to decoded correctly, an error is returned to the caller.
+
+_Note_: A JSON object or array is treated as binary data and must be base64 encoded as shown in the example above.
 
 ## HTTP Context
 
@@ -106,25 +108,25 @@ Web actions bring some additional features that include:
 4. `Form data`: in addition to the standard `application/json`, web actions may receive URL encoded from data `application/x-www-form-urlencoded data` as input.
 5. `Activation via multiple HTTP verbs`: a web action may be invoked via one of four HTTP methods: `GET`, `POST`, `PUT` or `DELETE`.
 
-With some of this additional features you could have an action like this:
+
+The example below briefly sketches how you might use these features in a web action. Given an action `/guest/demo/hello` with the following body:
 ```javascript
-  function main(params) { 
+function main(params) { 
     return { 'response': params};
-  }
+}
 ```
-Invoking this action using the extension `.json`, projection `/response` and query parameter `name` you will see information about the HTTP request returned:
+and invoking the action with a query parameter `name`, using the `.json` extension to indicate a JSON response, and projecting the field `/response` will yield the following HTTP response:
 ```bash
-curl https://${APIHOST}/api/v1/experimental/web/guest/demo/hello.json/response?name=Jane
+$ curl https://${APIHOST}/api/v1/experimental/web/guest/demo/hello.json/response?name=Jane
 {
-  "name": "Jane"
-  "__ow_meta_verb": "get",
-  "__ow_meta_headers": {
-    "accept": "*/*",
-    "user-agent": "curl/7.51.0",
-    ...
-  },
+    "name": "Jane"
+    "__ow_meta_verb": "get",
+    "__ow_meta_headers": {
+        "accept": "*/*",
+        "user-agent": "curl/7.51.0",
+        ...
+    },
     "__ow_meta_path": "/response"
-  }
 }
 ``` 
 
