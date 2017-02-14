@@ -12,7 +12,7 @@ The catalog is available as packages in the `/whisk.system` namespace. See [Brow
 | [/whisk.system/alarms](https://github.com/openwhisk/openwhisk-package-alarms/blob/master/README.md) | offers feed action to create periodic triggers |
 | [/whisk.system/cloudant](https://github.com/openwhisk/openwhisk-package-cloudant/blob/master/README.md) | offers feed action to create database changes triggers and other convience actions to call Cloudant APIs |
 | `/whisk.system/github` | offers a convenient way to use the [GitHub APIs](https://developer.github.com/). |
-| [/whisk.system/messaging] | offers feed action to create triggers that react when messages are posted to a Message Hub and an action to produce messages  |
+| [/whisk.system/messaging](https://github.com/openwhisk/openwhisk-package-kafka/blob/master/packages/watson-translator/README.md) | offers feed action to create triggers that react when messages are posted to a Message Hub and an action to produce messages  |
 | `/whisk.system/samples` | offers sample actions in different languages |
 | `/whisk.system/slack` | offers a convenient way to use the [Slack APIs](https://api.slack.com/). |
 | `/whisk.system/utils` | offers utilities actions such as cat, echo, and etc. |
