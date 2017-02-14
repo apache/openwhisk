@@ -1,13 +1,14 @@
-
 # Getting started with OpenWhisk
 
-OpenWhisk is a distributed, event-driven compute service. 
-OpenWhisk runs application logic in response to events or direct invocations from web or mobile apps over HTTP.
-Events can be provided from Bluemix services like Cloudant and from external sources. Developers can focus on writing application logic, and creating actions that are executed on demand.
-The rate of executing actions always matches the event rate, resulting in inherent scaling and resiliency and optimal utilization. You pay for only what you use and you don't have to manage a server.
-You can also get the [source code](https://github.com/openwhisk/openwhisk) and run the system yourself.
+OpenWhisk is an [Apache Incubator Project](https://incubator.apache.org/projects/openwhisk.html). It is an open source implementation of a distributed, event-driven compute service. You can run it on your own hardware on-prem, or in the cloud. When running in the cloud you could use PaaS version of the OpenWhisk provided by IBM Bluemix cloud, or you can provision it yourself into Bluemix IaaS, or other IaaS clouds, such as Amazon AWS, Microsoft Azure, Google GCP, etc. 
 
-For more details about how OpenWhisk works, see [System overview](./about.md).
+OpenWhisk runs application logic in response to events or direct invocations from web or mobile apps over HTTP. Events can be provided from Bluemix services like Cloudant and from external sources. Developers can focus on writing application logic, and creating actions that are executed on demand. The benefits of this new paradigm are that you do not longer need to explicitly provision servers and worry about auto-scaling, high availability, updates, maintenance and pay for hours of processor time when your server is running, but not serving requests. Your code gets called whenever there is an HTTP call, database state change, or other type of event that triggers the execution of your code. You get billed by request or per millisecond of execution time, not per hour of JVM regardless whether that VM was doing useful work or not.
+
+This programming model is perfect match for microservices, mobile, IoT and many other apps – you get inherent auto-scaling and load balancing out of the box without having to manually configure clusters, load balancers, http plugins, etc. If you happen to run on IBM Bluemix cloud, you also get zero administration benefit. All you need to do is to provide the code you want to execute and give it to your cloud vendor. The rest is “magic”. Good introduction into the serverless programming model is available on [Martin Fowler's blog](https://martinfowler.com/articles/serverless.html).
+
+For more details about how OpenWhisk works, see [System overview](./about.md). Official project [website can be found here](http://openwhisk.org).
+
+If you want to get started right away
 
 ## Setting up the OpenWhisk CLI 
 
