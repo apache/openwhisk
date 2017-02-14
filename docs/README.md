@@ -1,148 +1,78 @@
 # Getting started with OpenWhisk
 
-OpenWhisk is an [Apache Incubator Project](https://incubator.apache.org/projects/openwhisk.html). It is an open source implementation of a distributed, event-driven compute service. You can run it on your own hardware on-prem, or in the cloud. When running in the cloud you could use PaaS version of the OpenWhisk provided by IBM Bluemix cloud, or you can provision it yourself into Bluemix IaaS, or other IaaS clouds, such as Amazon AWS, Microsoft Azure, Google GCP, etc. 
+OpenWhisk is an [Apache Incubator Project](https://incubator.apache.org/projects/openwhisk.html). It is an open source implementation of a distributed, event-driven compute service. You can run it on your own hardware on-prem, or in the cloud. When running in the cloud you could use a Platfrom as as Service (PaaS) version of the OpenWhisk provided by IBM Bluemix, or you can provision it yourself into Infrastructure as a Service (IaaS) clouds, such as Bluemix, Amazon EC2, Microsoft Azure, Google GCP, etc. 
 
-OpenWhisk runs application logic in response to events or direct invocations from web or mobile apps over HTTP. Events can be provided from Bluemix services like Cloudant and from external sources. Developers can focus on writing application logic, and creating actions that are executed on demand. The benefits of this new paradigm are that you do not longer need to explicitly provision servers and worry about auto-scaling, high availability, updates, maintenance and pay for hours of processor time when your server is running, but not serving requests. Your code gets called whenever there is an HTTP call, database state change, or other type of event that triggers the execution of your code. You get billed by request or per millisecond of execution time, not per hour of JVM regardless whether that VM was doing useful work or not.
+OpenWhisk runs application logic in response to events or direct invocations from web or mobile apps over HTTP. Events can be provided from Bluemix services like Cloudant and from external sources. Developers can focus on writing application logic, and creating actions that are executed on demand. The benefits of this new paradigm are that you do not explicitly provision servers and worry about auto-scaling, or worry about high availability, updates, maintenance and pay for hours of processor time when your server is running but not serving requests. Your code executes whenever there is an HTTP call, database state change, or other type of event that triggers the execution of your code. You get billed by millisecond of execution time (rounded to the nearest 100ms in case of OpenWhisk) or on some platforms per request (not supported on OpenWhisk yet), not per hour of JVM regardless whether that VM was doing useful work or not.
 
-This programming model is perfect match for microservices, mobile, IoT and many other apps – you get inherent auto-scaling and load balancing out of the box without having to manually configure clusters, load balancers, http plugins, etc. If you happen to run on IBM Bluemix cloud, you also get zero administration benefit. All you need to do is to provide the code you want to execute and give it to your cloud vendor. The rest is “magic”. Good introduction into the serverless programming model is available on [Martin Fowler's blog](https://martinfowler.com/articles/serverless.html).
-
-For more details about how OpenWhisk works, see [System overview](./about.md). Official project [website can be found here](http://openwhisk.org).
-
-## Setting up the OpenWhisk CLI 
-
-- Building OpenWhisk from a cloned repository will result in the generation of the command line interface. The
-generated CLIs will be located in `openwhisk/bin/go-cli/`. There will be an executable CLI located in the mentioned
-directory that will run on the operating system, and CPU architecture on which it was built. Executables for other
-operating system, and CPU architectures are located in the following directories: `openwhisk/bin/go-cli/mac`,
-`openwhisk/bin/go-cli/linux`, `openwhisk/bin/go-cli/windows`.
-
-- To download the CLI from an existing deployment, you will need to download the CLI using the deployment's base URL.
-A list of downloadable CLIs for various operating systems, and CPU architectures can be obtained from the following
-location `{BASE URL}/cli/go/download`. The `{BASE URL}` is the OpenWhisk API hostname or IP address
-(e.g., openwhisk.ng.bluemix.net).
-
-There are three properties to configure the CLI with:
-
-1. **API host** (name or IP address) for the OpenWhisk deployment you want to use.
-2. **Authorization key** (username and password) which grants you access to the OpenWhisk API.
-3. **Namespace** where your OpenWhisk assets are stored.
-
-The CLI will usually have an API host already set. You can check its value with
-`wsk property get --apihost`.
-
-If you know your authorization key and namespace, you can configure the CLI to use them. Otherwise
-you will need to provide one or both for most CLI operations.
-
-```
-wsk property set [--apihost <openwhisk_baseurl>] --auth <username:password> --namespace <namespace>
-```
-
-The API host is set automatically when you build the CLI for your environment. A _guest_ account is available
-in local installations with an authorization key located in [ansible/files/auth.guest](../ansible/files/auth.guest) and the namespace `guest`.
-To configure the CLI to use the guest account, you can run the following command from your `openwhisk` directory:
-
-```
-./bin/wsk property set --namespace guest --auth `cat ansible/files/auth.guest`
-```
-
-To verify your CLI setup, try [creating and running an action](#openwhisk-hello-world-example).
-
-## Setting up the deprecated OpenWhisk CLI (Python based)
-- The OpenWhisk command line interface (CLI) requires Python 2.7.
-
-- If you cloned the OpenWhisk repository, you will find the CLI in `openwhisk/bin/wsk`.
-
-- Otherwise, download the CLI from an existing deployment. You will need to know the base URL for the deployment you
-want to use and install it using [pip](https://pip.pypa.io/).
-
-```
-sudo pip install --upgrade https://{BASE URL}/openwhisk-0.1.0.tar.gz [--trusted-host {BASE URL}]
-```
-
-The `{BASE URL}` is the OpenWhisk API hostname or IP address (e.g., openwhisk.ng.bluemix.net).
-The `--trusted-host` option allows you to download the CLI from a host with a [self-signed (i.e., untrusted) certificate](../tools/vagrant/README.md#ssl-certificate-configuration-optional).
-
-## Using the OpenWhisk CLI
-
-After you have configured your environment, you can begin using the OpenWhisk CLI to do the following:
-
-* Run your code snippets, or actions, on OpenWhisk. See [Creating and invoking actions](./actions.md).
-* Use triggers and rules to enable your actions to respond to events. See [Creating triggers and rules](./triggers_rules.md).
-* Learn how packages bundle actions and configure external events sources. See [Using and creating packages](./packages.md).
-* Explore the catalog of packages and enhance your applications with external services, such as a [Cloudant event source](https://github.com/openwhisk/openwhisk-package-cloudant/blob/master/README.md). See [Using OpenWhisk-enabled services](./catalog.md).
-
-## Configure the CLI to use an HTTPS proxy
-
-The CLI can be setup to use an HTTPS proxy. To setup an HTTPS proxy, an environment variable called `HTTPS_PROXY` must
- be created. The variable must be set to the address of the HTTPS proxy, and its port using the following format:
-`{PROXY IP}:{PROXY PORT}`.
-
-## Using OpenWhisk from an iOS app
-
-You can use OpenWhisk from your iOS mobile app or Apple Watch by using the OpenWhisk iOS SDK. For more details, refer to the [iOS documentation](./mobile_sdk.md).
-
-## Using REST APIs with OpenWhisk
-
-After your OpenWhisk environment is enabled, you can use OpenWhisk with your web apps or mobile apps with REST API calls.
-For more details about the APIs for actions, activations, packages, rules, and triggers, see the [OpenWhisk API documentation](http://petstore.swagger.io/?url=https://raw.githubusercontent.com/openwhisk/openwhisk/master/core/controller/src/main/resources/whiskswagger.json).
-
-## OpenWhisk Hello World example
-To get started with OpenWhisk, try the following JavaScript code example.
-
-```
-/**
- * Hello world as an OpenWhisk action.
- */
-function main(params) {
-    var name = params.name || 'World';
-    return {payload:  'Hello, ' + name + '!'};
-}
-```
-
-To use this example, follow these steps:
-
-1. Save the code to a file. For example, *hello.js*.
-
-2. From the OpenWhisk CLI command line, create the action by entering this command:
-
-    ```
-    $ wsk action create hello hello.js
-    ```
-
-3. Then, invoke the action by entering the following commands.
-
-    ```
-    $ wsk action invoke hello --blocking --result
-    ```
-
-    This command outputs:
-
-    ```
-    {
-        "payload": "Hello, World!"
-    }
-    ```
-
-    ```
-    $ wsk action invoke hello --blocking --result --param name Fred
-    ```
-
-    This command outputs:
-
-    ```
-    {
-        "payload": "Hello, Fred!"
-    }
-    ```
-
-You can also use the event-driven capabilities in OpenWhisk to invoke this action in response to events. Follow the [alarm service example](./packages.md#creating-and-using-trigger-feeds) to configure an event source to invoke the `hello` action every time a periodic event is generated.
+This programming model is a perfect match for microservices, mobile, IoT and many other apps – you get inherent auto-scaling and load balancing out of the box without having to manually configure clusters, load balancers, http plugins, etc. If you happen to run on IBM Bluemix, you also get a benefit of zero administration - meaning that all of the hardware, networking and software is maintaned by IBM. All you need to do is to provide the code you want to execute and give it to your cloud vendor. The rest is “magic”. Good introduction into the serverless programming model is available on [Martin Fowler's blog](https://martinfowler.com/articles/serverless.html).
 
 
-## System details
+## Overview
+- [How OpenWhisk works](./about.md)
+- [Common uses cases for Serverless applications](./use_cases.md)
+- [Sample applications](./samples.md)
 
-You can find additional information about OpenWhisk in the following topics:
+<!--
+- [Is serverless a good fit for my application?](./goodfit.md)
+-->
 
-* [Entity names](./reference.md#openwhisk-entities)
-* [Action semantics](./reference.md#action-semantics)
-* [Limits](./reference.md#system-limits)
-* [REST API](./reference.md#rest-api)
+<!-- TODO - need to add the following items and pages in the future:
+- Concurrency
+- Error processing
+- Security
+- Scalability
+- Logging
+- Pricing (for Bluemix only)
+-->
+
+## Implementation guide
+- [Setting up and using OpenWhisk CLI](./cli.md)
+- [Using OpenWhisk from an iOS app](./mobile_sdk.md).
+- [Using REST APIs with OpenWhisk](./rest_api.md)
+
+<!-- TODO - need to add the following items and pages in the future:
+- Development workflow
+- IDE and toolchain
+- When OpenWhisk is a good choice and when it is not
+- Building applications from scratch
+- Extending existing applications
+- Using OpenWhisk as the integration tool
+- Integrating with API Management
+- Running OpenWhisk (PaaS versus RYO, private, public, dedicated)
+- Best practices for rules
+- Performance considerations
+- Deployment of applications
+- Debugging
+- Monitoring of applications
+- Writing applications with maximum portability
+- Publishing events
+- Out of the box services and triggers
+- CDN integration
+- Security
+- Limitations
+-->
+
+## Programming model
+- [System details](./reference.md)
+- [Catalog of OpenWhisk provided services](./catalog.md)
+- [Actions](./actions.md)
+- [Triggers and Rules](./triggers_rules.md)
+- [Feeds](./feeds.md)
+- [Packages](./packages.md)
+- [Annotations](./annotations.md)
+- [Web actions](./webactions.md)
+- [API Gateway](./apigateway.md)
+
+<!-- TODO - need to add the following items and pages in the future:
+- Concurrency
+- Error processing
+- Integration with Serverless Framework
+-->
+
+Official OpenWhisk project website [http://OpenWhisk.org](http://openwhisk.org).
+
+<!-- ## Setting up the OpenWhisk CLI - moved to cli.md -->
+
+<!-- ## Using REST APIs with OpenWhisk - moved to rest_api.md -->
+
+<!-- ## OpenWhisk Hello World example - moved to samples.md -->
