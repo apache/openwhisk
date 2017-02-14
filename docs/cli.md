@@ -67,6 +67,6 @@ After you have configured your environment, you can begin using the OpenWhisk CL
 
 ## Configure the CLI to use an HTTPS proxy
 
-The CLI can be setup to use an HTTPS proxy. To setup an HTTPS proxy, an environment variable called `HTTPS_PROXY` must
- be created. The variable must be set to the address of the HTTPS proxy, and its port using the following format:
+The CLI can be setup to use an HTTPS proxy. To setup an HTTPS proxy, an environment variable called `HTTPS_PROXY` must be created. The variable must be set to the address of the HTTPS proxy, and its port using the following format:
 `{PROXY IP}:{PROXY PORT}`.
+
