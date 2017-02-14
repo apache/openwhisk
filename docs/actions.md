@@ -2,7 +2,7 @@
 # Creating and invoking OpenWhisk actions
 
 
-Actions are stateless code snippets that run on the OpenWhisk platform. An action can be a JavaScript function, a Swift function, or a custom executable program packaged in a Docker container. For example, an action can be used to detect the faces in an image, aggregate a set of API calls, or post a Tweet.
+Actions are stateless code snippets that run on the OpenWhisk platform. An action can be written as a JavaScript, Swift, or Python function, a Java method, or a custom executable program packaged in a Docker container. For example, an action can be used to detect the faces in an image, aggregate a set of API calls, or post a Tweet.
 
 Actions can be explicitly invoked, or run in response to an event. In either case, a run of an action results in an activation record that is identified by a unique activation ID. The input to an action and the result of an action are a dictionary of key-value pairs, where the key is a string and the value a valid JSON value.
 
