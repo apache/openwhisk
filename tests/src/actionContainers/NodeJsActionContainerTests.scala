@@ -34,6 +34,7 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
     val hasDeprecationWarnings = true
 
     override def withActionContainer(env: Map[String, String] = Map.empty)(code: ActionContainer => Unit) = {
+        throw new Exception("MAYHEM")
         withContainer(nodejsContainerImageName, env)(code)
     }
 
