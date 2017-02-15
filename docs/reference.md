@@ -425,7 +425,7 @@ The following table lists the default limits for actions.
 | memory | a container is not allowed to allocate more than N MB of memory | per action | MB | 256 |
 | logs | a container is not allowed to write more than N MB to stdout | per action | MB | 10 |
 | concurrent | no more than N activations are allowed per namespace either executing or queued for execution | per namespace | number | 100 |
-| minuteRate | a user cannot invoke more than this many actions per minute | per user | number | 120 |
+| minuteRate | no more than N activations are allowed to be submitted per namespace per minute | per user | number | 120 |
 | codeSize | the maximum size of the actioncode | not configurable, limit per action | MB | 48 |
 | parameters | the maximum size of the parameters that can be attached | not configurable, limit per action/package/trigger | MB | 1 |
 
