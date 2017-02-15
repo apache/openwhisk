@@ -229,8 +229,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
                     n.toInt should be >= minExpectedOpenFiles
 
                     activation.logs.getOrElse(List()).filter {
-                        // drop time stamp and stdout/err markers
-                        _.split(" ").drop(2).mkString(" ").startsWith("ERROR: opened files = ")
+                        _.contains("ERROR: opened files = ")
                     }.length shouldBe 1
             }
     }
