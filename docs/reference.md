@@ -424,8 +424,8 @@ The following table lists the default limits for actions.
 | timeout | a container is not allowed to run longer than N milliseconds | per action |  milliseconds | 60000 |
 | memory | a container is not allowed to allocate more than N MB of memory | per action | MB | 256 |
 | logs | a container is not allowed to write more than N MB to stdout | per action | MB | 10 |
-| concurrent | no more than N activations are allowed per namespace either executing or queued for execution | per namespace | number | 100 |
-| minuteRate | a user cannot invoke more than this many actions per minute | per user | number | 120 |
+| concurrent | no more than N activations may be submitted per namespace either executing or queued for execution | per namespace | number | 100 |
+| minuteRate | no more than N activations may be submitted per namespace per minute | per user | number | 120 |
 | codeSize | the maximum size of the actioncode | not configurable, limit per action | MB | 48 |
 | parameters | the maximum size of the parameters that can be attached | not configurable, limit per action/package/trigger | MB | 1 |
 
@@ -482,7 +482,7 @@ Triggers are subject to a firing rate per minute as documented in the table belo
 
 | limit | description | configurable | unit | default |
 | ----- | ----------- | ------------ | -----| ------- |
-| minuteRate | a user cannot fire more than this many triggers per minute | per user | number | 60 |
+| minuteRate | no more than N triggers may be fired per namespace per minute | per user | number | 60 |
 
 ### Triggers per minute (Fixed: 60)
 * The rate limit N is set to 60 and limits the number of triggers that may be fired in one minute windows.
