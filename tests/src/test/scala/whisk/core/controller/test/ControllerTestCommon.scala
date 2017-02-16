@@ -191,8 +191,8 @@ class DegenerateLoadBalancerService(config: WhiskConfig)(implicit ec: ExecutionC
 
     override def getActiveUserActivationCounts: Map[String, Long] = Map()
 
-    override def publish(action: WhiskAction, msg: ActivationMessage, timeout: FiniteDuration)(implicit transid: TransactionId): (Future[Unit], Future[WhiskActivation]) =
-        (Future.successful {},
+    override def publish(action: WhiskAction, msg: ActivationMessage, timeout: FiniteDuration)(implicit transid: TransactionId): Future[Future[WhiskActivation]] =
+        Future.successful {
             whiskActivationStub map {
                 case (timeout, activation) => Future {
                     blocking {
@@ -202,6 +202,7 @@ class DegenerateLoadBalancerService(config: WhiskConfig)(implicit ec: ExecutionC
                     }
                     activation
                 }
-            } getOrElse Future.failed(new IllegalArgumentException("Unit test does not need fast path")))
+            } getOrElse Future.failed(new IllegalArgumentException("Unit test does not need fast path"))
+        }
 
 }

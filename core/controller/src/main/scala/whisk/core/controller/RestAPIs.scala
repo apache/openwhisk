@@ -284,7 +284,7 @@ protected[controller] class RestAPIVersion_v1(
     val internalInvokerHealth = {
         (path("invokers") & get) {
             complete {
-                loadBalancer.getInvokerHealth()
+                loadBalancer.invokerHealth.map(_.mapValues(_.asString).toJson.asJsObject)
             }
         }
     }

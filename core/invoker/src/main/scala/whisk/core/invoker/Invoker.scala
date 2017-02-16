@@ -31,10 +31,8 @@ import akka.japi.Creator
 import spray.json._
 import spray.json.DefaultJsonProtocol
 import spray.json.DefaultJsonProtocol._
-import whisk.common.{ ConsulKVReporter, Counter, Logging, LoggingMarkers, TransactionId }
+import whisk.common.{ Counter, Logging, LoggingMarkers, TransactionId }
 import whisk.common.AkkaLogging
-import whisk.common.ConsulClient
-import whisk.common.ConsulKV.InvokerKeys
 import whisk.connector.kafka.{ KafkaConsumerConnector, KafkaProducerConnector }
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.{ consulServer, dockerImagePrefix, dockerRegistry, kafkaHost, logsDir, servicePort, whiskVersion }
@@ -461,20 +459,11 @@ class Invoker(
     private val pool = new ContainerPool(config, instance, verbosity)
     private val activationCounter = new Counter() // global activation counter
 
-    private val consul = new ConsulClient(config.consulServer)
-
     Scheduler.scheduleWaitAtMost(1.seconds)(() => {
         producer.send("health", PingMessage(s"invoker$instance")).andThen {
             case Failure(t) => logging.error(this, s"failed to ping the controller: $t")
         }
     })
-
-    // Repeatedly updates the KV store as to the invoker's last check-in.
-    new ConsulKVReporter(consul, 3 seconds, 2 seconds,
-        InvokerKeys.hostname(instance),
-        InvokerKeys.start(instance),
-        InvokerKeys.status(instance),
-        { _ => Map() })
 }
 
 object Invoker {
