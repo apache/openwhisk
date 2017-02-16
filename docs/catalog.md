@@ -632,7 +632,9 @@ The `/whisk.system/watson-speechToText/speechToText` action converts audio speec
 This package allows you to create triggers that react when messages are posted to a [Message Hub](https://developer.ibm.com/messaging/message-hub/) service instance on Bluemix.
 
 ### Creating a Trigger that listens to a Message Hub Instance
-In order to create a trigger that reacts when messages are posted to a Message Hub instance, you need to use the feed named `messaging/messageHubFeed`. This feed supports the following parameters:
+In order to create a trigger that reacts when messages are posted to a Message Hub instance, you need to use the feed named `messageHubFeed`. This feed supports the following parameters:
+
+<!-- I removed the "messaging" from the feed name above because as you show below in the sample and I verified in the code - you do not put "messaging" in front of the feed name - instead you put credentials - see sample below -->
 
 |Name|Type|Description|
 |---|---|---|
@@ -670,7 +672,7 @@ While this list of parameters may seem daunting, they can be automatically set f
 
   Your package binding now contains the credentials associated with your Message Hub instance.
 
-3. Now all you need is to create a Trigger to be fire when new messages are posted to your Message Hub.
+3. Now all you need is to create a Trigger to be fired when new messages are posted to your Message Hub.
 
   ```
   $ wsk trigger create MyMessageHubTrigger -f /myBluemixOrg_myBluemixSpace/Bluemix_Message_Hub_Credentials-1/messageHubFeed -p topic mytopic
@@ -735,8 +737,66 @@ However, if the same message content is posted with `isJSONData` set to `false`,
 ### Messages are batched
 You will notice that the trigger payload contains an array of messages. This means that if you are producing messages to your messaging system very quickly, the feed will attempt to batch up the posted messages into a single firing of your trigger. This allows the messages to be posted to your trigger more rapidly and efficiently.
 
-Please keep in mind when coding actions that are fired by your trigger, that the number of messages in the payload is technically unbounded, but will always be greater than 0.
+Please keep in mind when coding actions that are fired by your trigger, that the number of messages in the payload is technically unbounded, but will always be greater than 0. Here is an example of a batched message (please note the change in the *offset* value):
 
+```
+{
+  "messages": [
+      {
+        "partition": 0,
+        "key": null,
+        "offset": 100,
+        "topic": "mytopic",
+        "value": {
+            "amount": 5
+        }
+      },
+      {
+        "partition": 0,
+        "key": null,
+        "offset": 101,
+        "topic": "mytopic",
+        "value": {
+            "amount": 1
+        }
+      },
+      {
+        "partition": 0,
+        "key": null,
+        "offset": 102,
+        "topic": "mytopic",
+        "value": {
+            "amount": 999
+        }
+      }
+  ]
+}
+```
+
+### Sending messages to Message Hub (or Kafka)
+
+At this time OpenWhisk does not provide pre-built action that publishes to Message Hub or Kafka topics, however you can create such action using any of the OpenWhisk supported programming languages. While creating such action, you can use Kafka Native API or REST API. It is transparent to OpenWhisk which you use, just like with any other 3rd party API or library you decide to utilize in your OpenWhisk action. See [example projects](./catalog.md#example-projects) section below to get started.
+
+### Example – OpenWhisk pulls events from an IBM Message Hub (Kafka) topic and invokes am OpenWhisk Action, publishes event to Message Hub Topic
+
+<!-- TODO - this URL for the sample app needs to be replaced with a different URL once we move the repo to an official IBM GitHub -->
+This [sample project](https://github.com/romankhar/Aqueduct) demonstrates the use of OpenWhisk for sending and receiving IBM Message Hub messages (can be used for Kafka as well). The architecture is shown on the diagram below:
+
+![Sample Architecture](/images/OpenWhisk-MessageHub-sample-architecture.png)
+
+Flow of processing goes as follows:
+
+1. External process (simulated by the script *kafka_publish.sh* puts a message into IBM Message Hub (Kafka) into the topic *in-topic*.
+2. OpenWhisk has a feed from Message Hub that starts a trigger *kafka-trigger*.
+3. The trigger starts a rule *kafka-inbound-rule*, which is configured to invoke a *kafka-sequence* sequence.
+4. That sequence invokes two actions one after another. The first action called is *consume-kafka-action*. It picks up the message from Message Hub and validates that message.
+5. The output of the first action is passed as input into the action *publish-kafka-action*. This action counts number of *events* in the input message and generates a summary JSON and then publishes it into the Message Hub topic *out-topic*. 
+6. External process (simulated by the *kafka_consume.sh* retrieves the message from Message Hub and prints it on the screen. Please note that due to latency issues, you may need to run the message consumer again if it did not get the message the first time.
+7. This completes the flow of data.
+
+For setup instructions please read GitHub Repository [instructions for this sample](https://github.com/romankhar/Aqueduct).
+
+More complete example that integrates OpenWhisk with IBM Message Hub, Node Red, IBM Watson IoT, IBM Object Storage, IBM Data Science Experience (Spark) service can be [found here](https://medium.com/openwhisk/transit-flexible-pipeline-for-iot-data-with-bluemix-and-openwhisk-4824cf20f1e0).
 
 ## Using the Slack package
 
