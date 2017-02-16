@@ -32,6 +32,7 @@ import org.scalatest.junit.JUnitRunner
 import akka.actor.PoisonPill
 import common.StreamLogging
 import common.WskActorSystem
+import scala.concurrent.Await
 
 @RunWith(classOf[JUnitRunner])
 class SchedulerTests
