@@ -10,15 +10,15 @@ The catalog is available as packages in the `/whisk.system` namespace. See [Brow
 | Package | Description |
 | --- | --- |
 | [/whisk.system/alarms](https://github.com/openwhisk/openwhisk-package-alarms/blob/master/README.md) | Package to create periodic triggers |
-| [/whisk.system/cloudant](https://github.com/openwhisk/openwhisk-package-cloudant/blob/master/README.md) | Package to create database change triggers and other convenience actions to call Cloudant APIs |
+| [/whisk.system/cloudant](https://github.com/openwhisk/openwhisk-package-cloudant/blob/master/README.md) | Package to work with [Cloudant noSQL DB](https://console.ng.bluemix.net/docs/services/Cloudant/index.html) service |
 | [/whisk.system/github](https://github.com/openwhisk/openwhisk-package-catalog/blob/master/packages/github/README.md) | Package to create webhook triggers for [GitHub](https://developer.github.com/). |
-| [/whisk.system/messaging](https://github.com/openwhisk/openwhisk-package-kafka/blob/master/README.md) | Package to create triggers that react when messages are posted to a Message Hub and an action to produce messages  |
-| [/whisk.system/pushnotifications](https://github.com/openwhisk/openwhisk-package-pushnotifications/blob/master/README.md) | Package to create triggers for the Push Notification service and an action to send push messages  |
+| [/whisk.system/messaging](https://github.com/openwhisk/openwhisk-package-kafka/blob/master/README.md) | Package to work with [Message Hub](https://console.ng.bluemix.net/docs/services/MessageHub/index.html) service |
+| [/whisk.system/pushnotifications](https://github.com/openwhisk/openwhisk-package-pushnotifications/blob/master/README.md) | Package to work with [Push Notification](https://console.ng.bluemix.net/docs/services/mobilepush/index.html) service |
 | [/whisk.system/slack](https://github.com/openwhisk/openwhisk-catalog/blob/master/packages/slack/README.md) | Package to post to the [Slack APIs](https://api.slack.com/). |
-| [/whisk.system/watson-translator](https://github.com/openwhisk/openwhisk-catalog/blob/master/packages/watson-translator/README.md) | Package for text translation and language identification |
-| [/whisk.system/watson-speechToText](https://github.com/openwhisk/openwhisk-catalog/blob/master/packages/watson-speechToText/README.md) | Package to convert speech into text |
-| [/whisk.system/watson-textToSpeech](https://github.com/openwhisk/openwhisk-catalog/blob/master/packages/watson-textToSpeech/README.md) | Package to convert text into speech |
-| [/whisk.system/weather](https://github.com/openwhisk/openwhisk-catalog/blob/master/packages/weather/README.md) | Package to get data from the Weather Company Data for IBM Bluemix API|
+| [/whisk.system/watson-translator](https://github.com/openwhisk/openwhisk-catalog/blob/master/packages/watson-translator/README.md) | Package for [text translation and language identification]((https://www.ibm.com/watson/developercloud/language-translator.html)) |
+| [/whisk.system/watson-speechToText](https://github.com/openwhisk/openwhisk-catalog/blob/master/packages/watson-speechToText/README.md) | Package to convert [speech into text](https://www.ibm.com/watson/developercloud/speech-to-text.html) |
+| [/whisk.system/watson-textToSpeech](https://github.com/openwhisk/openwhisk-catalog/blob/master/packages/watson-textToSpeech/README.md) | Package to convert [text into speech]((https://www.ibm.com/watson/developercloud/text-to-speech.html) ) |
+| [/whisk.system/weather](https://github.com/openwhisk/openwhisk-catalog/blob/master/packages/weather/README.md) | Package to work with [Weather Company Data](https://console.ng.bluemix.net/docs/services/Weather/index.html) service|
 
 <!--
 TODO: place holder until we have a README for samples 
