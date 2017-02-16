@@ -19,6 +19,7 @@ The catalog is available as packages in the `/whisk.system` namespace. See [Brow
 | [/whisk.system/watson-speechToText](https://github.com/openwhisk/openwhisk-catalog/blob/master/packages/watson-speechToText/README.md) | Package to convert [speech into text](https://www.ibm.com/watson/developercloud/speech-to-text.html) |
 | [/whisk.system/watson-textToSpeech](https://github.com/openwhisk/openwhisk-catalog/blob/master/packages/watson-textToSpeech/README.md) | Package to convert [text into speech](https://www.ibm.com/watson/developercloud/text-to-speech.html) |
 | [/whisk.system/weather](https://github.com/openwhisk/openwhisk-catalog/blob/master/packages/weather/README.md) | Package to work with [Weather Company Data](https://console.ng.bluemix.net/docs/services/Weather/index.html) service|
+| [/whisk.system/websocket](https://github.com/openwhisk/openwhisk-catalog/blob/master/packages/websocket/README.md) | Package to work with a [Web Socket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) server|
 
 <!--
 TODO: place holder until we have a README for samples 
