@@ -17,7 +17,7 @@ The catalog is available as packages in the `/whisk.system` namespace. See [Brow
 | [/whisk.system/slack](https://github.com/openwhisk/openwhisk-catalog/blob/master/packages/slack/README.md) | Package to post to the [Slack APIs](https://api.slack.com/). |
 | [/whisk.system/watson-translator](https://github.com/openwhisk/openwhisk-catalog/blob/master/packages/watson-translator/README.md) | Package for [text translation and language identification]((https://www.ibm.com/watson/developercloud/language-translator.html)) |
 | [/whisk.system/watson-speechToText](https://github.com/openwhisk/openwhisk-catalog/blob/master/packages/watson-speechToText/README.md) | Package to convert [speech into text](https://www.ibm.com/watson/developercloud/speech-to-text.html) |
-| [/whisk.system/watson-textToSpeech](https://github.com/openwhisk/openwhisk-catalog/blob/master/packages/watson-textToSpeech/README.md) | Package to convert [text into speech]((https://www.ibm.com/watson/developercloud/text-to-speech.html) ) |
+| [/whisk.system/watson-textToSpeech](https://github.com/openwhisk/openwhisk-catalog/blob/master/packages/watson-textToSpeech/README.md) | Package to convert [text into speech](https://www.ibm.com/watson/developercloud/text-to-speech.html) |
 | [/whisk.system/weather](https://github.com/openwhisk/openwhisk-catalog/blob/master/packages/weather/README.md) | Package to work with [Weather Company Data](https://console.ng.bluemix.net/docs/services/Weather/index.html) service|
 
 <!--
