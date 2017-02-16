@@ -497,7 +497,7 @@ object Invoker {
         val config = new WhiskConfig(requiredProperties)
 
         if (config.isValid) {
-            val topic = ActivationMessage.invoker(instance)
+            val topic = s"invoker$instance"
             val groupid = "invokers"
             val maxdepth = ContainerPool.getDefaultMaxActive(config)
             val consumer = new KafkaConsumerConnector(config.kafkaHost, groupid, topic, maxdepth)

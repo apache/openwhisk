@@ -52,7 +52,7 @@ trait LoadBalancer {
      *
      * @return a map where the key is the subject and the long is total issued activations by that user
      */
-    def getActiveUserActivationCounts: Map[String, Long]
+    def getActiveUserActivationCounts: Map[String, Int]
 
     /**
      * Publishes activation message on internal bus for the invoker to pick up.
@@ -81,24 +81,22 @@ class LoadBalancerService(config: WhiskConfig)(implicit val actorSystem: ActorSy
     private val activationCountBeforeNextInvoker = Math.max(1, config.loadbalancerActivationCountBeforeNextInvoker)
     logging.info(this, s"activationCountBeforeNextInvoker = $activationCountBeforeNextInvoker")
 
-    override def getActiveUserActivationCounts: Map[String, Long] = activationBySubject.toMap mapValues { _.size.toLong }
+    override def getActiveUserActivationCounts: Map[String, Int] = activationBySubject.toMap mapValues { _.size }
 
     /** Gets a producer which can publish messages to the kafka bus. */
     private val producer = new KafkaProducerConnector(config.kafkaHost, executionContext)
     override def publish(action: WhiskAction, msg: ActivationMessage, timeout: FiniteDuration)(
         implicit transid: TransactionId): Future[Future[WhiskActivation]] = {
-        chooseInvoker(action, msg).flatMap {
+        chooseInvoker(action, msg).flatMap { invokerName =>
             val start = transid.started(this, LoggingMarkers.CONTROLLER_KAFKA)
-            invokerIndex =>
-                val topic = ActivationMessage.invoker(invokerIndex)
-                val subject = msg.user.subject.asString
-                val entry = setupActivation(msg.activationId, subject, invokerIndex, timeout, transid)
-                logging.info(this, s"posting topic '$topic' with activation id '${msg.activationId}'")
-                producer.send(topic, msg).map { status =>
-                    val counter = updateActivationCount(subject, invokerIndex)
-                    transid.finished(this, start, s"user has ${counter} activations posted. Posted to ${status.topic()}[${status.partition()}][${status.offset()}]")
-                    entry.promise.future
-                }
+            val topic = invokerName
+            val subject = msg.user.subject.asString
+            val entry = setupActivation(msg.activationId, subject, invokerName, timeout, transid)
+            logging.info(this, s"posting topic '$topic' with activation id '${msg.activationId}'")
+            producer.send(topic, msg).map { status =>
+                transid.finished(this, start, s"Posted to ${status.topic()}[${status.partition()}][${status.offset()}]")
+                entry.promise.future
+            }
         }
     }
 
@@ -106,10 +104,10 @@ class LoadBalancerService(config: WhiskConfig)(implicit val actorSystem: ActorSy
      * A map storing current activations based on ActivationId.
      * The promise value represents the obligation of writing the answer back.
      */
-    case class ActivationEntry(id: ActivationId, subject: String, invokerIndex: Int, created: Instant, promise: Promise[WhiskActivation])
+    case class ActivationEntry(id: ActivationId, subject: String, invokerName: String, created: Instant, promise: Promise[WhiskActivation])
     type TrieSet[T] = TrieMap[T, Unit]
     private val activationById = new TrieMap[ActivationId, ActivationEntry]
-    private val activationByInvoker = new TrieMap[Int, TrieSet[ActivationEntry]]
+    private val activationByInvoker = new TrieMap[String, TrieSet[ActivationEntry]]
     private val activationBySubject = new TrieMap[String, TrieSet[ActivationEntry]]
 
     private val ackConsumer = new KafkaConsumerConnector(config.kafkaHost, "completions", "completed")
@@ -146,7 +144,7 @@ class LoadBalancerService(config: WhiskConfig)(implicit val actorSystem: ActorSy
     /**
      * Creates an activation entry and insert into various maps.
      */
-    private def setupActivation(activationId: ActivationId, subject: String, invokerIndex: Int, timeout: FiniteDuration, transid: TransactionId): ActivationEntry = {
+    private def setupActivation(activationId: ActivationId, subject: String, invokerName: String, timeout: FiniteDuration, transid: TransactionId): ActivationEntry = {
         // either create a new promise or reuse a previous one for this activation if it exists
         val entry = activationById.getOrElseUpdate(activationId, {
             val promise = Promise[WhiskActivation]
@@ -159,9 +157,9 @@ class LoadBalancerService(config: WhiskConfig)(implicit val actorSystem: ActorSy
                     }
                 }
             }
-            ActivationEntry(activationId, subject, invokerIndex, Instant.now(Clock.systemUTC()), promise)
+            ActivationEntry(activationId, subject, invokerName, Instant.now(Clock.systemUTC()), promise)
         })
-        activationByInvoker.getOrElseUpdate(invokerIndex, new TrieSet[ActivationEntry]).put(entry, {})
+        activationByInvoker.getOrElseUpdate(invokerName, new TrieSet[ActivationEntry]).put(entry, {})
         activationBySubject.getOrElseUpdate(subject, new TrieSet[ActivationEntry]).put(entry, {})
         entry
     }
@@ -169,8 +167,8 @@ class LoadBalancerService(config: WhiskConfig)(implicit val actorSystem: ActorSy
     /**
      * When invoker health detects a new invoker has come up, this callback is called.
      */
-    private def clearInvokerState(index: Int) = {
-        val actSet = activationByInvoker.getOrElseUpdate(index, new TrieSet[ActivationEntry])
+    private def clearInvokerState(invokerName: String) = {
+        val actSet = activationByInvoker.getOrElseUpdate(invokerName, new TrieSet[ActivationEntry])
         actSet.keySet map {
             case actEntry @ ActivationEntry(activationId, subject, invokerIndex, _, promise) =>
                 promise.tryFailure(new LoadBalancerException(s"Invoker $invokerIndex restarted"))
@@ -185,7 +183,7 @@ class LoadBalancerService(config: WhiskConfig)(implicit val actorSystem: ActorSy
     }
 
     /** Make a new immutable map so caller cannot mess up the state */
-    private def getActiveCountByInvoker(): Map[Int, Long] = activationByInvoker.toMap mapValues { _.size.toLong }
+    private def getActiveCountByInvoker(): Map[String, Int] = activationByInvoker.toMap mapValues { _.size }
 
     /** A count of how many activations have been posted to Kafka based on invoker index or user/subject. */
     private val userActivationCounter = new TrieMap[String, Counter]
@@ -205,38 +203,37 @@ class LoadBalancerService(config: WhiskConfig)(implicit val actorSystem: ActorSy
 
     private val consul = new ConsulClient(config.consulServer)
     private val invokerPool = actorSystem.actorOf(InvokerPool.props(consul.kv, invoker => {
-        val index = invoker.drop(7).toInt
-        clearInvokerState(index)
+        clearInvokerState(invoker)
         logging.info(this, s"cleared loadbalancer state of $invoker")(TransactionId.invokerHealth)
     }))
 
     def invokerHealth: Future[Map[String, InvokerState]] = invokerPool.ask(GetStatus)(Timeout(5.seconds)).mapTo[Map[String, InvokerState]]
 
     /** Return a sorted list of available invokers. */
-    private def availableInvokers: Future[Array[Int]] = invokerHealth.map { map =>
-        map.collect {
-            case (name, Healthy) => name.drop(7).toInt
-        }.toArray.sorted
+    private def availableInvokers: Future[Seq[String]] = invokerHealth.map {
+        _.collect {
+            case (name, Healthy) => name
+        }.toSeq.sortBy(_.drop(7).toInt) // Sort by the number in "invokerN"
     }.recover {
-        case _ => Array.empty[Int]
+        case _ => Seq.empty[String]
     }
 
     /** Compute the number of blackbox-dedicated invokers by applying a rounded down fraction of all invokers (but at least 1). */
     private def numBlackbox(totalInvokers: Int) = Math.max(1, (totalInvokers.toDouble * blackboxFraction).toInt)
 
     /** Return invokers (almost) dedicated to running blackbox actions. */
-    private def blackboxInvokers: Future[Array[Int]] = availableInvokers.map { allInvokers =>
+    private def blackboxInvokers: Future[Seq[String]] = availableInvokers.map { allInvokers =>
         allInvokers.takeRight(numBlackbox(allInvokers.length))
     }
 
     /** Return (at least one) invokers for running non black-box actions.  This set can overlap with the blackbox set if there is only one invoker. */
-    private def managedInvokers: Future[Array[Int]] = availableInvokers.map { allInvokers =>
+    private def managedInvokers: Future[Seq[String]] = availableInvokers.map { allInvokers =>
         val numManaged = Math.max(1, allInvokers.length - numBlackbox(allInvokers.length))
         allInvokers.take(numManaged)
     }
 
     /** Determine which invoker this activation should go to. Due to dynamic conditions, it may return no invoker. */
-    private def chooseInvoker(action: WhiskAction, msg: ActivationMessage): Future[Int] = {
+    private def chooseInvoker(action: WhiskAction, msg: ActivationMessage): Future[String] = {
         val isBlackbox = action.exec match {
             case e: CodeExec[_] => e.pull
             case _              => false

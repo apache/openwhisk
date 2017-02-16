@@ -50,7 +50,7 @@ class ActivationThrottler(consulServer: String, loadBalancer: LoadBalancer, conc
      * the number of concurrent invocations it has in the system
      */
     @volatile
-    private var userActivationCounter = Map.empty[String, Long]
+    private var userActivationCounter = Map.empty[String, Int]
 
     private val healthCheckInterval = 5.seconds
     private val consul = new ConsulClient(consulServer)
@@ -58,7 +58,7 @@ class ActivationThrottler(consulServer: String, loadBalancer: LoadBalancer, conc
     /**
      * Checks whether the operation should be allowed to proceed.
      */
-    def check(subject: Subject): Boolean = userActivationCounter.getOrElse(subject.asString, 0L) < concurrencyLimit
+    def check(subject: Subject): Boolean = userActivationCounter.getOrElse(subject.asString, 0) < concurrencyLimit
 
     /**
      * Checks whether the system is in a generally overloaded state.
