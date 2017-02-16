@@ -290,7 +290,12 @@ function post(packet, logger, acceptStatusCode) {
           } else if (!error) {
               // activation failed, set error to API host error response.
               if (!body.error) {
-                  error = result.error === undefined ? 'an error has occurred' : result.error;
+                  if (result && result.error) {
+                      error = result.error;
+                  }
+                  else {
+                      error = 'an error has occurred';
+                  }
               }
               else {
                   error = body.error + ' (code ' + body.code + ')';
