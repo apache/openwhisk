@@ -482,7 +482,7 @@ Triggers are subject to a firing rate per minute as documented in the table belo
 
 | limit | description | configurable | unit | default |
 | ----- | ----------- | ------------ | -----| ------- |
-| minuteRate | no more than N triggers may be fire per namespace per minute | per user | number | 60 |
+| minuteRate | no more than N triggers may be fired per namespace per minute | per user | number | 60 |
 
 ### Triggers per minute (Fixed: 60)
 * The rate limit N is set to 60 and limits the number of triggers that may be fired in one minute windows.
