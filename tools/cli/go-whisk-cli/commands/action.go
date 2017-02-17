@@ -181,23 +181,20 @@ var actionInvokeCmd = &cobra.Command{
 
     if flags.common.blocking && flags.action.result {
         printJSON(res, outputStream)
-    } else if flags.common.blocking {
-      fmt.Fprintf(color.Output,
-        wski18n.T("{{.ok}} invoked /{{.namespace}}/{{.name}} with id {{.id}}\n",
-          map[string]interface{}{
-            "ok": color.GreenString("ok:"),
-            "namespace": boldString(qName.namespace),
-            "name": boldString(qName.entityName),
-            "id": boldString(res.(*whisk.Activation).ActivationID)}))
-      printJSON(res, outputStream)
     } else {
+      activationID := getValueFromJSONResponse("activationId", res)
+
       fmt.Fprintf(color.Output,
         wski18n.T("{{.ok}} invoked /{{.namespace}}/{{.name}} with id {{.id}}\n",
           map[string]interface{}{
             "ok": color.GreenString("ok:"),
             "namespace": boldString(qName.namespace),
             "name": boldString(qName.entityName),
-            "id": boldString(res.(*whisk.Activation).ActivationID)}))
+            "id": boldString(activationID)}))
+
+      if flags.common.blocking {
+        printJSON(res, outputStream)
+      }
     }
 
     return err

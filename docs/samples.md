@@ -55,6 +55,6 @@ To use this example, follow these steps:
 
 You can also use the event-driven capabilities in OpenWhisk to invoke this action in response to events. Follow the [alarm service example](./packages.md#creating-and-using-trigger-feeds) to configure an event source to invoke the `hello` action every time a periodic event is generated.
 
-## CLI tutorial
+## Workshop
 
-If you prefer learning while doing, consider using this [OpenWhisk CLI Tutorial](https://github.com/openwhisk/openwhisk-tutorial).
+If you prefer learning while doing, consider using this [OpenWhisk Workshop](https://github.com/openwhisk/openwhisk-workshop).
