@@ -92,7 +92,7 @@ function NodeActionService(config, logger) {
                 return Promise.reject(errorMessage(500, "Missing main/no code to execute."));
             }
         } else {
-            return Promise.reject(errorMessage(502, "Internal system error: system not ready."));
+            return Promise.reject(errorMessage(502, "Internal system error: system not ready, status: " + status));
         }
     };
 
@@ -124,7 +124,7 @@ function NodeActionService(config, logger) {
             });
         } else {
             logger.info('[runCode]', 'cannot schedule runCode due to status', status);
-            return Promise.reject(errorMessage(500, "Internal system error: container not ready."));
+            return Promise.reject(errorMessage(500, "Internal system error: container not ready, status: " + status));
         }
     };
 
