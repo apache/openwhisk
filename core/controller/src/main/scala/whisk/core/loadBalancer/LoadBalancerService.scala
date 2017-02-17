@@ -32,7 +32,6 @@ import scala.util.Success
 import akka.actor.ActorSystem
 import akka.pattern.ask
 import whisk.common.ConsulClient
-import whisk.common.Counter
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
@@ -178,15 +177,8 @@ class LoadBalancerService(config: WhiskConfig)(implicit val actorSystem: ActorSy
         actSet.clear()
     }
 
-    private def updateActivationCount(user: String, invokerIndex: Int): Long = {
-        userActivationCounter.getOrElseUpdate(user, new Counter()).next()
-    }
-
     /** Make a new immutable map so caller cannot mess up the state */
     private def getActiveCountByInvoker(): Map[String, Int] = activationByInvoker.toMap mapValues { _.size }
-
-    /** A count of how many activations have been posted to Kafka based on invoker index or user/subject. */
-    private val userActivationCounter = new TrieMap[String, Counter]
 
     /*
      * INVOKER MANAGEMENT
@@ -244,7 +236,6 @@ class LoadBalancerService(config: WhiskConfig)(implicit val actorSystem: ActorSy
         invokers.flatMap { invokers =>
             val numInvokers = invokers.length
             if (numInvokers > 0) {
-                globalCount.getAndIncrement()
                 val hashCount = math.abs(hash + count / activationCountBeforeNextInvoker)
                 val invokerIndex = hashCount % numInvokers
                 Future.successful(invokers(invokerIndex))
@@ -277,8 +268,6 @@ class LoadBalancerService(config: WhiskConfig)(implicit val actorSystem: ActorSy
         }
         return (hash, count)
     }
-
-    private val globalCount = new AtomicInteger(0)
 }
 
 object LoadBalancerService {
