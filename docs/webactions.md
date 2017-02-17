@@ -166,3 +166,14 @@ When an OpenWhisk action fails, there are two different failure modes. The first
 
 Developers should be aware of how web actions might be used and generate error responses accordingly. For example, a web action that is used with the `.http` extension
 should return an HTTP response, for example: `{error: { code: 400 }`. Failing to do so will in a mismatch between the implied content-type from the extension and the action content-type in the error response. Special consideration must be given to web actions that are sequences, so that components that make up a sequence can generate adequate errors when necessary.
+
+## Vanity URL
+
+Web actions may be accessed via an alternate URL which treats the OpenWhisk namespace as a subdomain to the API host. This is suitable for developing web actions that use cookies or local storage so that data is not inadvertently made visible to other web actions in other namespaces. The namespaces must match the regular expression `[\w@-]+` for the edge router to rewrite the subdomain to the corresponding URI. For a conforming namespace, the URL `https://guest.openwhisk.host/public/index.html` becomes a alias for `https://openwhisk.host/api/v1/experimental/web/guest/public/index.html`.
+
+For added convenience, and to provide the equivalent of an `index.html`, the edge router will also proxy `https://guest.openwhisk.host` to `https://openwhisk.host/api/v1/experimental/web/guest/public/index.html` where `/guest/public/index.html` (i.e., action is called `index` in a package called `public`) is a web action that responds with HTML content. If the action does not exist, the API host will respond with 404 Not Found.
+
+For a local deployment, you will need to provide name resolution for the vanity URL to work. The easiest solution is to add an entry in `/etc/host` for `<namespace>.openwhisk.host`. Here is an example:
+```bash
+> grep guest /etc/hosts 192.168.99.100  guest.openwhisk.host
+```

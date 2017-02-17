@@ -19,6 +19,9 @@ http {
     server {
         listen 443 default ssl;
 
+        # match namespace, note while OpenWhisk allows a space and period, they are not permitted here
+        server_name ~^(?<namespace>[\w@-]+)\.*.*$;
+ 
         ssl_session_cache    shared:SSL:1m;
         ssl_session_timeout  10m;
         ssl_certificate      /etc/nginx/openwhisk-cert.pem;
@@ -28,6 +31,18 @@ http {
         ssl_ciphers RC4:HIGH:!aNULL:!MD5;
         ssl_prefer_server_ciphers on;
         proxy_ssl_session_reuse off;
+
+        # proxy to the web action path
+        location / {
+            rewrite    /(.*) /api/v1/experimental/web/${namespace}/$1 break;
+            proxy_pass http://{{ groups['controllers']|first }}:{{ controller.port }};
+        }
+
+        # proxy to 'public/html' web action by convention
+        location = / {
+            rewrite    ^ /api/v1/experimental/web/${namespace}/public/index.html break;
+            proxy_pass http://{{ groups['controllers']|first }}:{{ controller.port }};
+        }
 
         location /docs {
             proxy_pass http://{{ groups['controllers']|first }}:{{ controller.port }};
