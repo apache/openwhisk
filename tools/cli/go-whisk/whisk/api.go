@@ -128,8 +128,7 @@ var ApiVerbs map[string]bool = map[string]bool {
 ////////////////////
 
 func (s *ApiService) List(apiListOptions *ApiListOptions) (*RetApiArray, *http.Response, error) {
-    var route string
-    route = "experimental/routemgmt"
+    route := "experimental/web/whisk.system/routemgmt/getApi.json"
 
     routeUrl, err := addRouteOptions(route, apiListOptions)
     if err != nil {
@@ -165,7 +164,7 @@ func (s *ApiService) List(apiListOptions *ApiListOptions) (*RetApiArray, *http.R
 func (s *ApiService) Insert(api *SendApi, overwrite bool) (*RetApi, *http.Response, error) {
     var sentAction interface{}
 
-    route := "experimental/routemgmt"
+    route := "experimental/web/whisk.system/routemgmt/createApi.json"
     Debug(DbgInfo, "Api PUT route: %s\n", route)
 
     req, err := s.client.NewRequest("POST", route, api, DoNotIncludeNamespaceInUrl)
@@ -189,7 +188,7 @@ func (s *ApiService) Insert(api *SendApi, overwrite bool) (*RetApi, *http.Respon
 }
 
 func (s *ApiService) Get(api *Api, options *ApiListOptions) (*RetApiArray, *http.Response, error) {
-    route := "experimental/routemgmt"
+    route := "experimental/web/whisk.system/routemgmt/getApi.json"
     Debug(DbgInfo, "Api GET route: %s\n", route)
 
     routeUrl, err := addRouteOptions(route, options)
@@ -224,7 +223,7 @@ func (s *ApiService) Get(api *Api, options *ApiListOptions) (*RetApiArray, *http
 }
 
 func (s *ApiService) Delete(api *Api, options *ApiOptions) (*http.Response, error) {
-    route := "experimental/routemgmt"
+    route := "experimental/web/whisk.system/routemgmt/deleteApi.json"
     Debug(DbgInfo, "Api DELETE route: %s\n", route)
 
     routeUrl, err := addRouteOptions(route, options)

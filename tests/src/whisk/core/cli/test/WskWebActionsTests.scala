@@ -32,7 +32,7 @@ import spray.json.DefaultJsonProtocol._
 import system.rest.RestUtil
 
 /**
- * Tests for basic CLI usage. Some of these tests require a deployed backend.
+ * Tests web actions.
  */
 @RunWith(classOf[JUnitRunner])
 class WskWebActionsTests
@@ -48,6 +48,9 @@ class WskWebActionsTests
 
     behavior of "Wsk Web Actions"
 
+    /**
+     * Tests web actions, plus max url limit.
+     */
     it should "create a web action accessible via HTTPS" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "webaction"
@@ -82,5 +85,33 @@ class WskWebActionsTests
                             }
                         }
                 }
+    }
+
+    /**
+     * Tests web action requiring authentication.
+     */
+    it should "create a web action requiring authentication accessible via HTTPS" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "webaction"
+            val file = Some(TestUtils.getTestActionFilename("echo.js"))
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) =>
+                    action.create(name, file, annotations = Map("web-export" -> true.toJson, "require-whisk-auth" -> true.toJson))
+            }
+
+            val host = getServiceURL()
+            val url = host + s"/api/v1/experimental/web/$namespace/default/webaction.text/__ow_meta_namespace"
+
+            val unauthorizedResponse = RestAssured.given().config(sslconfig).get(url)
+            unauthorizedResponse.statusCode shouldBe 401
+
+            val authorizedResponse = RestAssured
+                .given()
+                .config(sslconfig)
+                .auth().preemptive().basic(wskprops.authKey.split(":")(0), wskprops.authKey.split(":")(1))
+                .get(url)
+            authorizedResponse.statusCode shouldBe 200
+            authorizedResponse.body().asString() shouldBe namespace
     }
 }
