@@ -70,7 +70,7 @@ After you have configured your environment, you can begin using the OpenWhisk CL
 * Run your code snippets, or actions, on OpenWhisk. See [Creating and invoking actions](./actions.md).
 * Use triggers and rules to enable your actions to respond to events. See [Creating triggers and rules](./triggers_rules.md).
 * Learn how packages bundle actions and configure external events sources. See [Using and creating packages](./packages.md).
-* Explore the catalog of packages and enhance your applications with external services, such as a [Cloudant event source](./catalog.md#using-the-cloudant-package). See [Using OpenWhisk-enabled services](./catalog.md).
+* Explore the catalog of packages and enhance your applications with external services, such as a [Cloudant event source](https://github.com/openwhisk/openwhisk-package-cloudant/blob/master/README.md). See [Using OpenWhisk-enabled services](./catalog.md).
 
 ## Configure the CLI to use an HTTPS proxy
 
