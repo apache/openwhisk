@@ -34,7 +34,6 @@ import common.WskProps
 import common.WskTestHelpers
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import whisk.core.WhiskConfig
 
 case class ApiAction(
     name: String,
@@ -64,13 +63,9 @@ class ApiGwRoutemgmtActionTests
     with JsHelpers
     with StreamLogging {
 
-    implicit val wskprops = WskProps()
+    val systemId = "whisk.system"
+    implicit val wskprops = WskProps(authKey = WskAdmin.listKeys(systemId)(0)._1, namespace = systemId)
     val wsk = new Wsk
-    val (cliuser, clinamespace) = WskAdmin.getUser(wskprops.authKey)
-
-    // Use the whisk.system authentication id and pwd for invoking whisk.system private actions
-    val config = new WhiskConfig(Map(WhiskConfig.systemKey -> null))
-    val systemKey = config.systemKey
 
     def getApis(
         bpOrName: Option[String],
@@ -78,12 +73,12 @@ class ApiGwRoutemgmtActionTests
         operation: Option[String] = None,
         docid: Option[String] = None): Vector[JsValue] = {
         val parms = Map[String, JsValue]() ++
-            Map("__ow_meta_namespace" -> clinamespace.toJson) ++
+            Map("__ow_meta_namespace" -> wskprops.namespace.toJson) ++
             { bpOrName map { b => Map("basepath" -> b.toJson) } getOrElse Map[String, JsValue]() } ++
             { relpath map { r => Map("relpath" -> r.toJson) } getOrElse Map[String, JsValue]() } ++
             { operation map { o => Map("operation" -> o.toJson) } getOrElse Map[String, JsValue]() } ++
             { docid map { d => Map("docid" -> d.toJson) } getOrElse Map[String, JsValue]() }
-        val wskprops = new WskProps(authKey = systemKey)
+
         val rr = wsk.action.invoke(
             name = "routemgmt/getApi",
             parameters = parms,
@@ -120,7 +115,7 @@ class ApiGwRoutemgmtActionTests
             { swagger map { s => Map("swagger" -> s.toJson) } getOrElse Map[String, JsValue]() }
         val parm = Map[String, JsValue]("apidoc" -> JsObject(parms)) ++
             { namespace map { n => Map("__ow_meta_namespace" -> n.toJson) } getOrElse Map[String, JsValue]() }
-        val wskprops = new WskProps(authKey = systemKey)
+
         val rr = wsk.action.invoke(
             name = "routemgmt/createApi",
             parameters = parm,
@@ -143,7 +138,7 @@ class ApiGwRoutemgmtActionTests
             { relpath map { r => Map("relpath" -> r.toJson) } getOrElse Map[String, JsValue]() } ++
             { operation map { o => Map("operation" -> o.toJson) } getOrElse Map[String, JsValue]() } ++
             { apiname map { an => Map("apiname" -> an.toJson) } getOrElse Map[String, JsValue]() }
-        val wskprops = new WskProps(authKey = systemKey)
+
         val rr = wsk.action.invoke(
             name = "routemgmt/deleteApi",
             parameters = parms,
@@ -211,20 +206,20 @@ class ApiGwRoutemgmtActionTests
         val testurlop = "get"
         val testapiname = testName + " API Name"
         val actionName = testName + "_action"
-        val actionNamespace = clinamespace
+        val actionNamespace = wskprops.namespace
         val actionUrl = "http://some.whisk.host/api/v1/namespaces/" + actionNamespace + "/actions/" + actionName
         val actionAuthKey = testName + "_authkey"
         val testaction = ApiAction(name = actionName, namespace = actionNamespace, backendUrl = actionUrl, authkey = actionAuthKey)
 
         try {
-            val createResult = createApi(namespace = Some(clinamespace), basepath = Some(testbasepath), relpath = Some(testrelpath),
+            val createResult = createApi(namespace = Some(wskprops.namespace), basepath = Some(testbasepath), relpath = Some(testrelpath),
                 operation = Some(testurlop), apiname = Some(testapiname), action = Some(testaction))
             JsObjectHelper(createResult.stdout.parseJson.asJsObject).fieldPathExists("apidoc") should be(true)
             val apiVector = getApis(bpOrName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
             apiVector.size should be > 0
             apiMatch(apiVector, testbasepath, testrelpath, testurlop, testapiname, testaction) should be(true)
         } finally {
-            val deleteResult = deleteApi(namespace = Some(clinamespace), basepath = Some(testbasepath), expectedExitCode = DONTCARE_EXIT)
+            val deleteResult = deleteApi(namespace = Some(wskprops.namespace), basepath = Some(testbasepath), expectedExitCode = DONTCARE_EXIT)
         }
     }
 
@@ -235,23 +230,23 @@ class ApiGwRoutemgmtActionTests
         val testurlop = "get"
         val testapiname = testName + " API Name"
         val actionName = testName + "_action"
-        val actionNamespace = clinamespace
+        val actionNamespace = wskprops.namespace
         val actionUrl = "http://some.whisk.host/api/v1/namespaces/" + actionNamespace + "/actions/" + actionName
         val actionAuthKey = testName + "_authkey"
         val testaction = ApiAction(name = actionName, namespace = actionNamespace, backendUrl = actionUrl, authkey = actionAuthKey)
 
         try {
-            val createResult = createApi(namespace = Some(clinamespace), basepath = Some(testbasepath), relpath = Some(testrelpath),
+            val createResult = createApi(namespace = Some(wskprops.namespace), basepath = Some(testbasepath), relpath = Some(testrelpath),
                 operation = Some(testurlop), apiname = Some(testapiname), action = Some(testaction))
             JsObjectHelper(createResult.stdout.parseJson.asJsObject).fieldPathExists("apidoc") should be(true)
             var apiVector = getApis(bpOrName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
             apiVector.size should be > 0
             apiMatch(apiVector, testbasepath, testrelpath, testurlop, testapiname, testaction) should be(true)
-            val deleteResult = deleteApi(namespace = Some(clinamespace), basepath = Some(testbasepath))
+            val deleteResult = deleteApi(namespace = Some(wskprops.namespace), basepath = Some(testbasepath))
             apiVector = getApis(bpOrName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
             apiMatch(apiVector, testbasepath, testrelpath, testurlop, testapiname, testaction) should be(false)
         } finally {
-            val deleteResult = deleteApi(namespace = Some(clinamespace), basepath = Some(testbasepath), expectedExitCode = DONTCARE_EXIT)
+            val deleteResult = deleteApi(namespace = Some(wskprops.namespace), basepath = Some(testbasepath), expectedExitCode = DONTCARE_EXIT)
         }
     }
 
@@ -264,15 +259,15 @@ class ApiGwRoutemgmtActionTests
         val testnewurlop = "delete"
         val testapiname = testName + " API Name"
         val actionName = testName + "_action"
-        val actionNamespace = clinamespace
+        val actionNamespace = wskprops.namespace
         val actionUrl = "http://some.whisk.host/api/v1/namespaces/" + actionNamespace + "/actions/" + actionName
         val actionAuthKey = testName + "_authkey"
         val testaction = ApiAction(name = actionName, namespace = actionNamespace, backendUrl = actionUrl, authkey = actionAuthKey)
 
         try {
-            var createResult = createApi(namespace = Some(clinamespace), basepath = Some(testbasepath), relpath = Some(testrelpath),
+            var createResult = createApi(namespace = Some(wskprops.namespace), basepath = Some(testbasepath), relpath = Some(testrelpath),
                 operation = Some(testurlop), apiname = Some(testapiname), action = Some(testaction))
-            createResult = createApi(namespace = Some(clinamespace), basepath = Some(testbasepath), relpath = Some(testnewrelpath),
+            createResult = createApi(namespace = Some(wskprops.namespace), basepath = Some(testbasepath), relpath = Some(testnewrelpath),
                 operation = Some(testnewurlop), apiname = Some(testapiname), action = Some(testaction))
             JsObjectHelper(createResult.stdout.parseJson.asJsObject).fieldPathExists("apidoc") should be(true)
             var apiVector = getApis(bpOrName = Some(testbasepath))
@@ -280,7 +275,7 @@ class ApiGwRoutemgmtActionTests
             apiMatch(apiVector, testbasepath, testrelpath, testurlop, testapiname, testaction) should be(true)
             apiMatch(apiVector, testbasepath, testnewrelpath, testnewurlop, testapiname, testaction) should be(true)
         } finally {
-            val deleteResult = deleteApi(namespace = Some(clinamespace), basepath = Some(testbasepath), expectedExitCode = DONTCARE_EXIT)
+            val deleteResult = deleteApi(namespace = Some(wskprops.namespace), basepath = Some(testbasepath), expectedExitCode = DONTCARE_EXIT)
         }
     }
 
@@ -324,12 +319,12 @@ class ApiGwRoutemgmtActionTests
 
         invalidArgs foreach {
             case (action: String, exitcode: Int, errmsg: String, params: Seq[String]) =>
-                var cmd: Seq[String] = Seq("action",
+                val cmd: Seq[String] = Seq("action",
                     "invoke",
                     action,
                     "-i", "-b", "-r",
                     "--apihost", wskprops.apihost,
-                    "--auth", systemKey) ++ params
+                    "--auth", wskprops.authKey) ++ params
                 val rr = wsk.cli(cmd, expectedExitCode = exitcode)
                 rr.stderr should include regex (errmsg)
         }

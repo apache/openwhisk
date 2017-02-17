@@ -33,8 +33,8 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 import spray.routing.Directives
 import spray.routing.RequestContext
+import spray.routing.Route
 import whisk.common.TransactionId
-import whisk.core.WhiskConfig
 import whisk.core.controller.actions.BlockingInvokeTimeout
 import whisk.core.controller.actions.PostActionActivation
 import whisk.core.database._
@@ -62,11 +62,6 @@ private case class Context(
 }
 
 protected[core] object WhiskMetaApi extends Directives {
-    /**
-     * Defines the properties that must be present in a configuration
-     * in order to implement the Meta API.
-     */
-    def requiredProperties = Map(WhiskConfig.systemKey -> null)
 
     /** Reserved parameters that requests may no defined. */
     val reservedProperties = Set(
@@ -77,10 +72,10 @@ protected[core] object WhiskMetaApi extends Directives {
 
     val mediaTranscoders = {
         // extensions are expected to contain only [a-z]
-        Seq(MediaExtension("html", Some(List("html")), resultAsHtml _),
-            MediaExtension("text", Some(List("text")), resultAsText _),
-            MediaExtension("json", None, resultAsJson _),
-            MediaExtension("http", None, resultAsHttp _))
+        Seq(MediaExtension("html", Some(List("html")), true, resultAsHtml _),
+            MediaExtension("text", Some(List("text")), true, resultAsText _),
+            MediaExtension("json", None, true, resultAsJson _),
+            MediaExtension("http", None, false, resultAsHttp _))
             .map(e => e.extension -> e).toMap
     }
 
@@ -102,6 +97,7 @@ protected[core] object WhiskMetaApi extends Directives {
     protected case class MediaExtension(
         extension: String,
         defaultProjection: Option[List[String]],
+        projectionAllowed: Boolean,
         transcoder: (JsValue, TransactionId) => RequestContext => Unit)
 
     private def resultAsHtml(result: JsValue, transid: TransactionId): RequestContext => Unit = result match {
@@ -224,15 +220,10 @@ trait WhiskMetaApi
     /** The route prefix e.g., /experimental. */
     protected val routePath = "experimental"
 
-    /** The prefix for anonymous invokes e.g., /experimental/web. */
-    protected val anonymousInvokePath = "web"
+    /** The prefix for web invokes e.g., /experimental/web. */
+    protected val webInvokePath = "web"
 
-    /** The name and apikey of the system namespace. */
-    protected lazy val systemKey = AuthKey(whiskConfig.systemKey)
-    protected lazy val systemIdentity = Identity.get(authStore, systemKey)(TransactionId.controller)
-
-    private val routePrefix = pathPrefix(routePath)
-    private val anonymousInvokePrefix = pathPrefix(anonymousInvokePath)
+    private val webRoutePrefix = pathPrefix(routePath / webInvokePath)
 
     /** Allowed verbs. */
     private lazy val allowedOperations = get | delete | post | put
@@ -251,67 +242,8 @@ trait WhiskMetaApi
         }
     }
 
-    /**
-     * Adds route to handle /experimental/package-name to allow a proxy activation of actions
-     * contained in package. A meta package must exist in a predefined system namespace.
-     * Such packages are self-encoding as "meta" API handlers via an annotation on the package
-     * (i.e., annotation "meta" -> true) and an explicit mapping from HTTP verbs to action names
-     * to invoke in response to incoming requests. Package bindings are not allowed.
-     *
-     * The subject making the activation request is subject to entitlement checks for activations
-     * (this is tantamount to limiting API requests from a single user) invoking actions directly.
-     *
-     * A sample meta-package looks like this:
-     * WhiskPackage(
-     *      EntityPath(systemId),
-     *      EntityName("meta-example"),
-     *      annotations =
-     *          Parameters("meta", JsBoolean(true)) ++
-     *          Parameters("get", JsString("action to run on get")) ++
-     *          Parameters("post", JsString("action to run on post")) ++
-     *          Parameters("delete", JsString("action to run on delete")))
-     *
-     * In addition, it is a good idea to mark actions in a meta package as final to prevent
-     * invoke-time parameters from overriding parameters.
-     *
-     * A sample final action looks like this:
-     * WhiskAction(
-     *      EntityPath("systemId/meta-example"),
-     *      EntityName("action to run on get"),
-     *      annotations =
-     *          Parameters("final", JsBoolean(true)))
-     *
-     * The meta API requests are handled by matching the first segment to a package name in the system
-     * namespace. If it exists and it is a valid meta package, the HTTP verb from the request is mapped
-     * to a corresponding action and that action is invoked. The action receives as arguments additional
-     * context meta data (the verb, the remaining unmatched URI path, and the namespace of the subject
-     * making the request). Query parameters and body parameters are passed to the action with the order
-     * of precedence being:
-     * package.params -> action.params -> query.params -> request.entity (body) -> augment arguments (namespace, path).
-     */
-    def routes(user: Identity)(implicit transid: TransactionId) = {
-        routePrefix {
-            allowedOperations {
-                validNameSegment { pkgname =>
-                    extract(_.request.entity.data.length) { length =>
-                        validateSize(isWhithinRange(length))(transid) {
-                            entity(as[Option[JsObject]]) { body =>
-                                requestMethodParamsAndPath { r =>
-                                    val context = r.withBody(body)
-                                    if (context.overrides.isEmpty) {
-                                        val metaPackage = resolvePackageName(EntityName(pkgname))
-                                        processMetaRequest(user, metaPackage, context)
-                                    } else {
-                                        terminate(BadRequest, Messages.parametersNotAllowed)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
+    def routes(user: Identity)(implicit transid: TransactionId): Route = routes(Some(user))
+    def routes()(implicit transid: TransactionId): Route = routes(None)
 
     /**
      * Adds route to web based activations. Actions invoked this way are anonymous in that the
@@ -330,8 +262,8 @@ trait WhiskMetaApi
      *
      * Actions may be exposed to this web proxy by adding an annotation ("export" -> true).
      */
-    def routes()(implicit transid: TransactionId) = {
-        (allowedOperations & routePrefix & anonymousInvokePrefix) {
+    def routes(user: Option[Identity])(implicit transid: TransactionId): Route = {
+        (allowedOperations & webRoutePrefix) {
             validNameSegment { namespace =>
                 packagePrefix { pkg =>
                     pathPrefix(Segment) {
@@ -339,7 +271,7 @@ trait WhiskMetaApi
                             case WhiskMetaApi.extensionSplitter(action, extension) =>
                                 if (WhiskMetaApi.supportedMediaTypes.contains(extension)) {
                                     val pkgName = if (pkg == "default") None else Some(EntityName(pkg))
-                                    handleAnonymousMatch(EntityName(namespace), pkgName, EntityName(action), extension)
+                                    handleMatch(EntityName(namespace), pkgName, EntityName(action), extension, user)
                                 } else {
                                     terminate(NotAcceptable, Messages.contentTypeNotSupported)
                                 }
@@ -349,13 +281,6 @@ trait WhiskMetaApi
                 }
             }
         }
-    }
-
-    /**
-     * Resolves the package into using the systemId namespace.
-     */
-    protected final def resolvePackageName(pkgName: EntityName): Future[FullyQualifiedEntityName] = {
-        systemIdentity map (_.namespace.addPath(pkgName).toFullyQualifiedEntityName)
     }
 
     /**
@@ -385,47 +310,17 @@ trait WhiskMetaApi
         Identity.get(authStore, namespace)
     }
 
-    private def processMetaRequest(
-        user: Identity,
-        pkgpath: Future[FullyQualifiedEntityName],
-        context: Context)(
-            implicit transid: TransactionId) = {
-        // checks that subject has right to post an activation explicitly (note there is
-        // no privilege check on the package/action resource since it is expected to be private),
-        // and the package plus action and merge their parameters.
-        def precheck: Future[(Identity, WhiskAction)] = for {
-            // need the system identity
-            identity <- systemIdentity
-
-            // the fully resolved path to the system package namespace
-            metaPackage <- pkgpath
-
-            // these are sequential, could be done in parallel; in bursts all of the lookups
-            // should be cached
-            action <- entitlementProvider.checkThrottles(user) flatMap {
-                _ => confirmMetaPackage(pkgLookup(metaPackage), context.method)
-            } flatMap {
-                case (actionName, pkgParams) =>
-                    actionLookup(metaPackage.add(actionName), failureCode = InternalServerError) map {
-                        _.inherit(pkgParams)
-                    }
-            }
-        } yield (identity, action)
-
-        completeRequest {
-            precheck flatMap {
-                case (identity, action) => activate(identity, action, context, Some(user))
-            }
-        }
-    }
-
-    private def handleAnonymousMatch(namespace: EntityName, pkg: Option[EntityName], action: EntityName, extension: String)(
+    private def handleMatch(namespace: EntityName, pkg: Option[EntityName], action: EntityName, extension: String, onBehalfOf: Option[Identity])(
         implicit transid: TransactionId) = {
         def process(body: Option[JsObject]) = {
             requestMethodParamsAndPath { r =>
                 val context = r.withBody(body)
-                val fullname = namespace.addPath(pkg).addPath(action).toFullyQualifiedEntityName
-                processAnonymousRequest(fullname, context, extension)
+                if (context.overrides.isEmpty) {
+                    val fullname = namespace.addPath(pkg).addPath(action).toFullyQualifiedEntityName
+                    processRequest(fullname, context, extension, onBehalfOf)
+                } else {
+                    terminate(BadRequest, Messages.parametersNotAllowed)
+                }
             }
         }
 
@@ -440,7 +335,7 @@ trait WhiskMetaApi
         }
     }
 
-    private def processAnonymousRequest(actionName: FullyQualifiedEntityName, context: Context, responseType: String)(
+    private def processRequest(actionName: FullyQualifiedEntityName, context: Context, responseType: String, onBehalfOf: Option[Identity])(
         implicit transid: TransactionId) = {
         // checks that subject has right to post an activation and fetch the action
         // followed by the package and merge parameters. The action is fetched first since
@@ -454,7 +349,7 @@ trait WhiskMetaApi
 
             // lookup the action - since actions are stored relative to package name
             // the lookup will fail if the package name for the action refers to a binding instead
-            action <- confirmExportedAction(actionLookup(actionName, failureCode = NotFound)) flatMap { a =>
+            action <- confirmExportedAction(actionLookup(actionName, failureCode = NotFound), onBehalfOf) flatMap { a =>
                 if (a.namespace.defaultPackage) {
                     Future.successful(a)
                 } else {
@@ -465,27 +360,29 @@ trait WhiskMetaApi
             }
         } yield (identity, action)
 
-        val projectResultField = {
+        val mediaDirectives = WhiskMetaApi.mediaTranscoders(responseType)
+        val projectResultField = if (mediaDirectives.projectionAllowed) {
             Option(context.path)
                 .filter(_.nonEmpty)
                 .map(_.split("/").filter(_.nonEmpty).toList)
-        } orElse WhiskMetaApi.mediaTranscoders(responseType).defaultProjection
+                .orElse(mediaDirectives.defaultProjection)
+        } else mediaDirectives.defaultProjection
 
         completeRequest(
             queuedActivation = precheck flatMap {
-                case (identity, action) => activate(identity, action, context)
+                case (identity, action) => activate(identity, action, context, onBehalfOf)
             },
             projectResultField,
             responseType = responseType)
     }
 
-    private def activate(identity: Identity, action: WhiskAction, context: Context, behalfOf: Option[Identity] = None)(
+    private def activate(identity: Identity, action: WhiskAction, context: Context, onBehalfOf: Option[Identity])(
         implicit transid: TransactionId): Future[(ActivationId, Option[WhiskActivation])] = {
         // precedence order for parameters:
         // package.params -> action.params -> query.params -> request.entity (body) -> augment arguments (namespace, path)
         val noOverrides = (context.requestParams.keySet intersect action.immutableParameters).isEmpty
         if (noOverrides) {
-            val content = context.requestParams ++ context.metadata(behalfOf)
+            val content = context.requestParams ++ context.metadata(onBehalfOf)
             invokeAction(identity, action, Some(JsObject(content)), blocking = true, waitOverride = Some(WhiskActionsApi.maxWaitForBlockingActivation))
         } else {
             Future.failed(RejectRequest(BadRequest, Messages.parametersNotAllowed))
@@ -594,55 +491,24 @@ trait WhiskMetaApi
     }
 
     /**
-     * Meta API handlers must be in packages (not bindings) and have a ("meta" -> true)
-     * annotation in addition to a mapping from HTTP verbs to action names; fetch package to
-     * ensure it exists and reject request if it does not. If package exists, check that
-     * it satisfies invariants on annotations.
-     *
-     * @param pkgLookup future that resolves to whisk package
-     * @param method the HTTP verb to look up corresponding action in package annotations
-     * @return future that resolves the tuple (action to invoke, package parameters to pass on to action)
-     */
-    private def confirmMetaPackage(pkgLookup: Future[WhiskPackage], method: HttpMethod)(
-        implicit transid: TransactionId): Future[(EntityName, Parameters)] = {
-        pkgLookup flatMap { pkg =>
-            // expecting the meta handlers to be private; should it be an error? warn for now
-            if (pkg.publish) {
-                logging.warn(this, s"'${pkg.fullyQualifiedName(true)}' is public")
-            }
-
-            // does package have annotation: meta == true and a
-            // mapping from HTTP verb to action name?
-            val isMetaPackage = pkg.annotations.asBool("meta").exists(identity)
-
-            if (isMetaPackage) {
-                pkg.annotations.asString(method.name.toLowerCase).map { actionName =>
-                    // if action name is defined as a string, accept it, else fail request
-                    logging.info(this, s"'${pkg.name}' maps '${method.name}' to action '${actionName}'")
-                    Future.successful(EntityName(actionName), pkg.parameters)
-                } getOrElse {
-                    logging.info(this, s"'${pkg.name}' is missing action name for '${method.name.toLowerCase}'")
-                    Future.failed(RejectRequest(MethodNotAllowed))
-                }
-            } else {
-                logging.info(this, s"'${pkg.name}' is missing 'meta' annotation")
-                Future.failed(RejectRequest(NotFound))
-            }
-        }
-    }
-
-    /**
      * Checks if an action is exported (i.e., carries the required annotation).
      */
-    private def confirmExportedAction(actionLookup: Future[WhiskAction])(
+    private def confirmExportedAction(actionLookup: Future[WhiskAction], user: Option[Identity])(
         implicit transid: TransactionId): Future[WhiskAction] = {
         actionLookup flatMap { action =>
-            if (action.annotations.asBool("web-export").exists(identity)) {
+            val requiresAuthenticatedUser = action.annotations.asBool("require-whisk-auth").exists(identity)
+            val isExported = action.annotations.asBool("web-export").exists(identity)
+
+            if ((isExported && requiresAuthenticatedUser && user.isDefined) ||
+                (isExported && !requiresAuthenticatedUser)) {
                 logging.info(this, s"${action.fullyQualifiedName(true)} is exported")
                 Future.successful(action)
-            } else {
+            } else if (!isExported) {
                 logging.info(this, s"${action.fullyQualifiedName(true)} not exported")
                 Future.failed(RejectRequest(NotFound))
+            } else {
+                logging.info(this, s"${action.fullyQualifiedName(true)} requires authentication")
+                Future.failed(RejectRequest(Unauthorized))
             }
         }
     }

@@ -36,8 +36,9 @@ object RESTProxy {
     case class UnbindFor(duration: FiniteDuration)
 }
 
-/** A simple REST proxy that can receive commands to change its behavior (e.g.
- *  simulate failures of the proxied service). Not for use in production.
+/**
+ * A simple REST proxy that can receive commands to change its behavior (e.g.
+ * simulate failures of the proxied service). Not for use in production.
  */
 class RESTProxy(val host: String, val port: Int)(val serviceAuthority: Uri.Authority, val useHTTPS: Boolean) extends Actor with ActorLogging {
     private implicit val actorSystem = context.system
