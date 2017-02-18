@@ -951,6 +951,16 @@ object WskAdmin {
         wskadmin.cli(Seq("user", "get", subject)).stdout.trim
     }
 
+    def listKeys(namespace: String, pick: Integer = 1): List[(String, String)] = {
+        val wskadmin = new RunWskAdminCmd {}
+        wskadmin.cli(Seq("user", "list", namespace, "--pick", pick.toString))
+            .stdout
+            .split("\n")
+            .map("""\s+""".r.split(_))
+            .map(parts => (parts(0), parts(1)))
+            .toList
+    }
+
     /**
      * @returns (subject, namespace) pair given the auth key
      */

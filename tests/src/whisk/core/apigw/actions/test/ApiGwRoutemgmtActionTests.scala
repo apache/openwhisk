@@ -64,7 +64,7 @@ class ApiGwRoutemgmtActionTests
     with StreamLogging {
 
     val systemId = "whisk.system"
-    implicit val wskprops = WskProps(authKey = WskAdmin.getKey(systemId), namespace = systemId)
+    implicit val wskprops = WskProps(authKey = WskAdmin.listKeys(systemId)(0)._1, namespace = systemId)
     val wsk = new Wsk
 
     def getApis(
