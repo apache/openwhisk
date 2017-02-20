@@ -235,6 +235,14 @@ public class WhiskProperties {
         return Integer.parseInt(whiskProperties.getProperty("controller.host.port"));
     }
 
+    public static String getKafkaTriggerHost() {
+        return whiskProperties.getProperty("kafkatrigger.host");
+    }
+
+    public static int getKafkaTriggerPort() {
+        return Integer.parseInt(whiskProperties.getProperty("kafkatrigger.host.port"));
+    }
+
     /**
      * read the contents of auth key file and return as a Pair
      * <username,password>
