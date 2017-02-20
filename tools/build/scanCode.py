@@ -36,7 +36,7 @@ import re
 import sys
 import textwrap
 
-VERBOSE = True
+VERBOSE = False
 
 # Translatable messages (error and general)
 ERR_LICENSE = "file does not include required license header."
