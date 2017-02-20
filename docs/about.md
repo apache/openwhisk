@@ -1,16 +1,12 @@
-
 # System overview
-
 
 The following sections provide details about OpenWhisk.
 
 ## How OpenWhisk works
 
-OpenWhisk is an event-driven compute platform also referred to as Serverless computing or as Function as a Service (FaaS) that runs code in response to events or direct invocations.
+OpenWhisk is an event-driven compute platform also referred to as Serverless computing or as Function as a Service (FaaS) that runs code in response to events or direct invocations. The following figure shows the high-level OpenWhisk architecture.
 
-The following figure shows the high-level OpenWhisk architecture.
-
-![OpenWhisk architecture](OpenWhisk.png)
+![OpenWhisk architecture](images/OpenWhisk.png)
 
 Examples of events include changes to database records, IoT sensor readings that exceed a certain temperature, new code commits to a GitHub repository, or simple HTTP requests from web or mobile apps. Events from external and internal event sources are channeled through a trigger, and rules allow actions to react to these events.
 
@@ -24,23 +20,14 @@ Integrations with additional services and event providers can be added with pack
 
 An existing catalog of packages offers a quick way to enhance applications with useful capabilities, and to access external services in the ecosystem. Examples of external services that are OpenWhisk-enabled include Cloudant, The Weather Company, Slack, and GitHub.
 
+## System details
 
-## Common use cases
+You can find additional information about OpenWhisk in the following topics:
 
-The execution model that is offered by OpenWhisk supports a variety of use cases. The following sections include typical examples.
+* [Entity names](./reference.md#openwhisk-entities)
+* [Action semantics](./reference.md#action-semantics)
+* [Limits](./reference.md#system-limits)
+* [REST API](./reference.md#rest-api)
 
-### Decomposition of applications into microservices
 
-The modular and inherently scalable nature of OpenWhisk makes it suitable for implementing granular pieces of logic in actions. For example, OpenWhisk can be useful for removing load-intensive, potentially spiky (background) tasks from front-end code and implementing these tasks as actions.
-
-### Mobile back end
-
-Many mobile applications require server-side logic. Given that mobile developers usually don’t have experience in managing server-side logic and would rather focus on the app that is running on the device, using OpenWhisk as the server-side back end is a good solution. In addition, the built-in support for Swift allows developers to reuse their existing iOS programming skills.
-
-### Data processing
-
-With the amount of data now available, application development requires the ability to process new data, and potentially react to it. This requirement includes processing both structured database records as well as unstructured documents, images, or videos.
-
-### IoT
-
-Internet of Things scenarios are often inherently sensor-driven. For example, an action in OpenWhisk might be triggered if there is a need to react to a sensor that is exceeding a particular temperature.
+<!-- Common use cases moved into its own page -->
