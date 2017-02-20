@@ -66,8 +66,8 @@ Call the binary directly or setup your environment variable PATH to include the 
 From your _host_, configure `wsk` to use your Vagrant-hosted OpenWhisk deployment and run the "echo" action again to test.
 The following commands assume that you have `wsk` setup correctly in your PATH.
 ```
-# Set your OpenWhisk Namespace and Authorization Key.
-wsk -i property set --apihost 192.168.33.13 --namespace guest --auth `vagrant ssh -- cat openwhisk/ansible/files/auth.guest`
+# Set your OpenWhisk Authorization Key.
+wsk -i property set --apihost 192.168.33.13 --auth `vagrant ssh -- cat openwhisk/ansible/files/auth.guest`
 
 # Run the hello sample action
 wsk -i action invoke /whisk.system/utils/echo -p message hello --blocking --result
@@ -76,7 +76,7 @@ wsk -i action invoke /whisk.system/utils/echo -p message hello --blocking --resu
 }
 ```
 **Tip:** To connect to a different host API (i.e. bluemix.net) with the CLI, you will need to 
-configure the CLI with new values for __apihost__, __namespace__, and __auth__ key.
+configure the CLI with new values for __apihost__, and __auth__ key.
  
 ### Use the wsk CLI inside the VM
 For your convenience, a `wsk` wrapper is provided inside the VM which delegates CLI commands to `$OPENWHISK_HOME/bin/linux/amd64/wsk` and adds the `-i` parameter that is required for insecure access to the local OpenWhisk deployment.
@@ -157,9 +157,8 @@ You can check that containers are running by using the docker cli with the comma
 
 ### Adding OpenWhisk users (Optional)
 
-An OpenWhisk user, also known as a *subject*, requires a valid authorization key and namespace.
+An OpenWhisk user, also known as a *subject*, requires a valid authorization key.
 OpenWhisk is preconfigured with a guest key located in `ansible/files/auth.guest`.
-The default namespace is __guest__.
 
 You may use this key if you like, or use `wskadmin` inside the VM to create a new key.
 
@@ -184,7 +183,6 @@ vagrant ssh
 wskadmin user delete <subject> --ns <namespace>  # removes <subject> from <namespace>
 wskadmin user delete <subject>                   # deletes <subject>
 ```
-
 
 ### SSL certificate configuration (Optional)
 
