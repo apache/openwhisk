@@ -62,7 +62,6 @@ private case class Context(
 }
 
 protected[core] object WhiskMetaApi extends Directives {
-    def requiredProperties = Map()
 
     /** Reserved parameters that requests may no defined. */
     val reservedProperties = Set(

@@ -946,11 +946,6 @@ object WskAdmin {
         Buffer(WhiskProperties.python, new File(binDir, binaryName).toString)
     }
 
-    def getKey(subject: String): String = {
-        val wskadmin = new RunWskAdminCmd {}
-        wskadmin.cli(Seq("user", "get", subject)).stdout.trim
-    }
-
     def listKeys(namespace: String, pick: Integer = 1): List[(String, String)] = {
         val wskadmin = new RunWskAdminCmd {}
         wskadmin.cli(Seq("user", "list", namespace, "--pick", pick.toString))
