@@ -48,7 +48,7 @@ def replicateDatabases(args):
             "continuous": args.continuous
         })
 
-    def isBackupDb(dbName): return re.match("backup_\d+_", dbName)
+    def isBackupDb(dbName): return re.match("^backup_\d+_" + args.dbPrefix, dbName)
     def extractTimestamp(dbName): return int(dbName.split("_")[1])
     def isExpired(timestamp): return now - args.expires > timestamp
 
