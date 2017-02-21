@@ -236,7 +236,11 @@ public class WhiskProperties {
     }
 
     public static int getMaxActionInvokesPerMinute() {
-        return Integer.parseInt(whiskProperties.getProperty("limits.actions.invokes.perMinute"));
+        String valStr = whiskProperties.getProperty("limits.actions.invokes.perMinute");
+        if (null == valStr) {
+            valStr = whiskProperties.getProperty("defaultLimits.actions.invokes.perMinute");
+        }
+        return Integer.parseInt(valStr);
     }
 
     /**
