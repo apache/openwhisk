@@ -215,7 +215,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
                 JsObject(
                     params.toJson.asJsObject.fields ++
                         body.map(_.fields).getOrElse(Map()) ++
-                        Context(HttpMethods.getForKey(method.toUpperCase).get, List(), path, Map()).metadata(identity))
+                        Context(HttpMethods.getForKey(method.toUpperCase).get, List(), path, Map(), body).metadata(identity))
             }
         }.get
     }

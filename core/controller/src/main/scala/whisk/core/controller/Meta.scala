@@ -56,7 +56,8 @@ private case class Context(
     def metadata(user: Option[Identity]): Map[String, JsValue] = {
         Map("__ow_meta_verb" -> method.value.toLowerCase.toJson,
             "__ow_meta_headers" -> headers.map(h => h.lowercaseName -> h.value).toMap.toJson,
-            "__ow_meta_path" -> path.toJson) ++
+            "__ow_meta_path" -> path.toJson,
+            "__ow_meta_body" -> body.toJson) ++
             user.map(u => "__ow_meta_namespace" -> u.namespace.asString.toJson)
     }
 }
