@@ -72,7 +72,7 @@ class WhiskContainer(
     def init(args: JsObject, timeout: FiniteDuration)(implicit system: ActorSystem, transid: TransactionId): RunResult = {
         val startMarker = transid.started("Invoker", LoggingMarkers.INVOKER_ACTIVATION_INIT, s"sending initialization to ${this.details}")
         // when invoking /init, don't wait longer than the timeout configured for this action
-        val result = sendPayload("/init", JsObject("value" -> args), timeout) // this will retry
+        val result = sendPayload("/init", JsObject("value" -> args), timeout, retry=true)
         val RunResult(Interval(startActivation, endActivation), _) = result
         transid.finished("Invoker", startMarker.copy(startActivation), s"initialization result: ${result.toBriefString}", endTime = endActivation)
         result
@@ -98,7 +98,7 @@ class WhiskContainer(
      */
     def run(msg: ActivationMessage, args: JsObject, timeout: FiniteDuration)(implicit system: ActorSystem, transid: TransactionId): RunResult = {
         val startMarker = transid.started("Invoker", LoggingMarkers.INVOKER_ACTIVATION_RUN, s"sending arguments to ${msg.action} $details")
-        val result = sendPayload("/run", constructActivationMetadata(msg, args, timeout), timeout)
+        val result = sendPayload("/run", constructActivationMetadata(msg, args, timeout), timeout, retry=false)
         // Use start and end time of the activation
         val RunResult(Interval(startActivation, endActivation), _) = result
         transid.finished("Invoker", startMarker.copy(startActivation), s"running result: ${result.toBriefString}", endTime = endActivation)
@@ -134,10 +134,11 @@ class WhiskContainer(
      * Posts a message to the container.
      *
      * @param msg the message to post
+     * @param retry whether or not to retry on connection failure
      * @return response from container if any as array of byte
      */
-    private def sendPayload(endpoint: String, msg: JsObject, timeout: FiniteDuration)(implicit system: ActorSystem): RunResult = {
-        sendPayloadApache(endpoint, msg, timeout)
+    private def sendPayload(endpoint: String, msg: JsObject, timeout: FiniteDuration, retry: Boolean)(implicit system: ActorSystem): RunResult = {
+        sendPayloadApache(endpoint, msg, timeout, retry)
     }
 
     private def sendPayloadAkka(endpoint: String, msg: JsObject, timeout: FiniteDuration)(implicit system: ActorSystem): RunResult = {
@@ -194,7 +195,7 @@ class WhiskContainer(
         }
     }
 
-    private def sendPayloadApache(endpoint: String, msg: JsObject, timeout: FiniteDuration): RunResult = {
+    private def sendPayloadApache(endpoint: String, msg: JsObject, timeout: FiniteDuration, retry: Boolean): RunResult = {
         val start = ContainerCounter.now()
 
         val result = for {
@@ -205,7 +206,7 @@ class WhiskContainer(
                 connection
             }
         } yield {
-            c.post(endpoint, msg)
+            c.post(endpoint, msg, retry)
         }
 
         val end = ContainerCounter.now()

@@ -66,9 +66,10 @@ protected[container] class HttpUtils(
      *
      * @param endpoint the path the api call relative to hostname
      * @param body the json object to post
+     * @param retry whether or not to retry on connection failure
      * @return Left(Error Message) or Right(Status Code, Response as UTF-8 String)
      */
-    def post(endpoint: String, body: JsObject): Either[ContainerConnectionError, ContainerResponse] = {
+    def post(endpoint: String, body: JsObject, retry: Boolean): Either[ContainerConnectionError, ContainerResponse] = {
         val entity = new StringEntity(body.compactPrint, StandardCharsets.UTF_8)
         entity.setContentType("application/json")
 
@@ -76,10 +77,10 @@ protected[container] class HttpUtils(
         request.addHeader(HttpHeaders.ACCEPT, "application/json")
         request.setEntity(entity)
 
-        execute(request, timeout.toMillis.toInt)
+        execute(request, timeout.toMillis.toInt, retry)
     }
 
-    private def execute(request: HttpRequestBase, timeoutMsec: Integer): Either[ContainerConnectionError, ContainerResponse] = {
+    private def execute(request: HttpRequestBase, timeoutMsec: Integer, retry: Boolean): Either[ContainerConnectionError, ContainerResponse] = {
         Try(connection.execute(request)).map { response =>
             val containerResponse = Option(response.getEntity).map { entity =>
                 val statusCode = response.getStatusLine.getStatusCode
@@ -103,11 +104,11 @@ protected[container] class HttpUtils(
             containerResponse
         } match {
             case Success(r) => r
-            case Failure(t: HttpHostConnectException) =>
+            case Failure(t: HttpHostConnectException) if retry =>
                 if (timeoutMsec > 0) {
                     Thread sleep 100
                     val newTimeout = timeoutMsec - 100
-                    execute(request, newTimeout)
+                    execute(request, newTimeout, retry)
                 } else {
                     Left(Timeout())
                 }
