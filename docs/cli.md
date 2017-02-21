@@ -1,6 +1,6 @@
 # OpenWhisk CLI
 
-OpenWhisk offers a powerfull command line interface that allows complete management of all aspects of the system.
+OpenWhisk offers a powerful command line interface that allows complete management of all aspects of the system.
 
 ## Setting up the OpenWhisk CLI 
 
