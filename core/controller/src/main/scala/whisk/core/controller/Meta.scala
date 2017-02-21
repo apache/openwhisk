@@ -222,7 +222,7 @@ trait WhiskMetaApi
     }
 
     /** Allowed verbs. */
-    private lazy val allowedOperations = get | delete | post | put
+    private lazy val allowedOperations = get | delete | post | put | head | options | patch
 
     private lazy val validNameSegment = pathPrefix(EntityName.REGEX.r)
     private lazy val packagePrefix = pathPrefix("default".r | EntityName.REGEX.r)
