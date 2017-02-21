@@ -27,10 +27,12 @@ function NodeActionService(config, logger) {
     };
 
     var status = Status.ready;
+    logger.info('[NodeActionService]', "status='" + status + "'");
     var server = undefined;
     var userCodeRunner = undefined;
 
     function setStatus(newStatus) {
+        logger.info('[setStatus]', "status='" + status + "' / newStatus='" + newStatus + "'");
         if (status !== Status.stopped) {
             status = newStatus;
         }
@@ -58,6 +60,7 @@ function NodeActionService(config, logger) {
      * @param app express app
      */
     this.start = function start(app) {
+        logger.info('[start]', "status='" + status + "'");
         var self = this;
         server = app.listen(app.get('port'), function() {
             var host = server.address().address;
@@ -72,6 +75,7 @@ function NodeActionService(config, logger) {
      *  req.body = { main: String, code: String, name: String }
      */
     this.initCode = function initCode(req) {
+        logger.info('[initCode]', "status='" + status + "'");
         if (status === Status.ready) {
             setStatus(Status.starting);
 
@@ -92,6 +96,7 @@ function NodeActionService(config, logger) {
                 return Promise.reject(errorMessage(500, "Missing main/no code to execute."));
             }
         } else {
+            logger.error('[initCode]', "Internal system error: system not ready, status: " + status);
             return Promise.reject(errorMessage(502, "Internal system error: system not ready, status: " + status));
         }
     };
@@ -105,6 +110,7 @@ function NodeActionService(config, logger) {
      * req.body = { value: Object, meta { activationId : int } }
      */
     this.runCode = function runCode(req) {
+        logger.info('[runCode]', "status='" + status + "'");
         if (status === Status.ready) {
             setStatus(Status.running);
 
@@ -123,12 +129,13 @@ function NodeActionService(config, logger) {
                 return Promise.reject(errorMessage(500, "An error has occurred: " + error));
             });
         } else {
-            logger.info('[runCode]', 'cannot schedule runCode due to status', status);
+            logger.error('[runCode]', 'cannot schedule runCode due to status', status);
             return Promise.reject(errorMessage(500, "Internal system error: container not ready, status: " + status));
         }
     };
 
     function doInit(message) {
+        logger.info('[doInit]', "status='" + status + "'");
         var context = newWhiskContext(config, logger);
 
         userCodeRunner = new NodeActionRunner(context);
@@ -147,6 +154,7 @@ function NodeActionService(config, logger) {
     }
 
     function doRun(req) {
+        logger.info('[doRun]', "status='" + status + "'");
         var msg = req.body || {};
 
         userCodeRunner.whisk.setAuthKey(msg['api_key'], false);
