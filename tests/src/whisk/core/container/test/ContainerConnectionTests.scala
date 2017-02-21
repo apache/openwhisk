@@ -93,7 +93,7 @@ class ContainerConnectionTests
         val connection = new HttpUtils(hostWithPort, timeout, 1.B)
         testHang = timeout * 2
         val start = Instant.now()
-        val result = connection.post("/init", JsObject())
+        val result = connection.post("/init", JsObject(), retry=true)
         val end = Instant.now()
         val waited = end.toEpochMilli - start.toEpochMilli
         result.isLeft shouldBe true
@@ -108,7 +108,7 @@ class ContainerConnectionTests
             Seq(null, "", "abc", """{"a":"B"}""", """["a", "b"]""").foreach { r =>
                 testStatusOK = code
                 testResponse = r
-                val result = connection.post("/init", JsObject())
+                val result = connection.post("/init", JsObject(), retry=true)
                 result shouldBe Right {
                     ContainerResponse(okStatus = testStatusOK, if (r != null) r else "", None)
                 }
@@ -125,7 +125,7 @@ class ContainerConnectionTests
             Seq("abc", """{"a":"B"}""", """["a", "b"]""").foreach { r =>
                 testStatusOK = code
                 testResponse = r
-                val result = connection.post("/init", JsObject())
+                val result = connection.post("/init", JsObject(), retry=true)
                 result shouldBe Right {
                     ContainerResponse(okStatus = testStatusOK, r.take(limit.toBytes.toInt), Some((r.length.B, limit)))
                 }
