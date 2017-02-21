@@ -10,6 +10,7 @@ rm -f docker-${DOCKER_VERSION}.tgz && \
 chmod +x /usr/bin/docker
 
 COPY build/distributions/invoker.tar ./
-RUN tar xf invoker.tar
+RUN tar xf invoker.tar && \
+rm -f invoker.tar
 
 EXPOSE 8080
