@@ -4,11 +4,7 @@ OpenWhisk offers a powerful command line interface that allows complete manageme
 
 ## Setting up the OpenWhisk CLI 
 
-- Building OpenWhisk from a cloned repository will result in the generation of the command line interface. The
-generated CLIs will be located in `openwhisk/bin/go-cli/`. There will be an executable CLI located in the mentioned
-directory that will run on the operating system, and CPU architecture on which it was built. Executables for other
-operating system, and CPU architectures are located in the following directories: `openwhisk/bin/go-cli/mac`,
-`openwhisk/bin/go-cli/linux`, `openwhisk/bin/go-cli/windows`.
+- Building OpenWhisk from a cloned repository results in the generation of the command line interface. The generated CLIs are located in `openwhisk/bin/`. The main CLI is located in `openwhisk/bin/wsk` that runs on the operating system, and CPU architecture on which it was built. Executables for other operating system, and CPU architectures are located in the following directories: `openwhisk/bin/mac/`, `openwhisk/bin/linux/`, `openwhisk/bin/windows/`.
 
 - To download the CLI from an existing deployment, you will need to download the CLI using the deployment's base URL.
 A list of downloadable CLIs for various operating systems, and CPU architectures can be obtained from the following
