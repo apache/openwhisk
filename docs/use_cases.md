@@ -39,7 +39,7 @@ Here is an example and a discussion of [using Serverless as an API backend](http
 
 ## Mobile back end
 
-Many mobile applications require server-side logic. Given that mobile developers usually don’t have experience in managing server-side logic and would rather focus on the app that is running on the device, using OpenWhisk as the server-side back end is a good solution. In addition, the built-in support for Swift allows developers to reuse their existing iOS programming skills. Mobile applications often have unpredictable load patterns and hosted OpenWhisk solution, such as IBM Bluemix can scale to meet practically any demand in workload without the need to provision resources ahead of time.
+Many mobile applications require server-side logic. For mobile developers that don't want to manage server-side logic and would rather focus on the app that is running on the device or browser, using OpenWhisk as the server-side back end is a good solution. In addition, the built-in support for Swift allows developers to reuse their existing iOS programming skills. Mobile applications often have unpredictable load patterns and hosted OpenWhisk solution, such as IBM Bluemix can scale to meet practically any demand in workload without the need to provision resources ahead of time.
 
 ## Data processing
 
