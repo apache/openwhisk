@@ -191,6 +191,7 @@ object LoggingMarkers {
     // Time in invoker
     val INVOKER_ACTIVATION = LogMarkerToken(invoker, activation, start)
     def INVOKER_DOCKER_CMD(cmd: String) = LogMarkerToken(invoker, s"docker.$cmd", start)
+    def INVOKER_RUNC_CMD(cmd: String) = LogMarkerToken(invoker, s"runc.$cmd", start)
 
     val DATABASE_CACHE_HIT = LogMarkerToken(database, "cacheHit", count)
     val DATABASE_CACHE_MISS = LogMarkerToken(database, "cacheMiss", count)

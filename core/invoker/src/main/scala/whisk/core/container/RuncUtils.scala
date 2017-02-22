@@ -37,7 +37,7 @@ object RuncUtils {
      * Synchronously runs the given runc command returning stdout if successful.
      */
     def runRuncCmd(skipLogError: Boolean, args: Seq[String])(implicit transid: TransactionId, logging: Logging): (Int, String) = {
-        val start = transid.started(this, LoggingMarkers.INVOKER_DOCKER_CMD("runc_" + args(0)))
+        val start = transid.started(this, LoggingMarkers.INVOKER_RUNC_CMD(args(0)))
         try {
             val fullCmd = getRuncCmd() ++ args
 
