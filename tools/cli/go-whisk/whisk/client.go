@@ -38,6 +38,10 @@ const (
     AuthOptional = false
     IncludeNamespaceInUrl = true
     DoNotIncludeNamespaceInUrl = false
+    AppendOpenWhiskPathPrefix = true
+    DoNotAppendOpenWhiskPathPrefix = false
+    EncodeBodyAsJson = "json"
+    EncodeBodyAsFormData = "formdata"
 )
 
 type Client struct {
@@ -139,7 +143,8 @@ func (c *Client) NewRequest(method, urlStr string, body interface{}, includeName
         urlStr = fmt.Sprintf("%s/%s", c.Config.Version, urlStr)
     }
 
-    rel, err := url.Parse(urlStr)
+    urlStr = fmt.Sprintf("%s/%s", c.BaseURL.String(), urlStr)
+    u, err := url.Parse(urlStr)
     if err != nil {
         Debug(DbgError, "url.Parse(%s) error: %s\n", urlStr, err)
         errStr := wski18n.T("Invalid request URL '{{.url}}': {{.err}}",
@@ -147,8 +152,6 @@ func (c *Client) NewRequest(method, urlStr string, body interface{}, includeName
         werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, werr
     }
-
-    u := c.BaseURL.ResolveReference(rel)
 
     var buf io.ReadWriter
     if body != nil {
@@ -435,59 +438,99 @@ func IsResponseResultSuccess(data []byte) bool {
 //   urlRelResource - *url.URL structure representing the relative resource URL, including query params
 //   body           - optional. Object whose contents will be JSON encoded and placed in HTTP request body
 //   includeNamespaceInUrl - when true "/namespaces/NAMESPACE" is included in the final URL; otherwise not included.
-func (c *Client) NewRequestUrl(method string, urlRelResource *url.URL, body interface{}, includeNamespaceInUrl bool) (*http.Request, error) {
-    var urlVerNamespaceStr string
-    var verPathEncoded = (&url.URL{Path: c.Config.Version}).String()
+func (c *Client) NewRequestUrl(
+        method string,
+        urlRelResource *url.URL,
+        body interface{},
+        includeNamespaceInUrl bool,
+        appendOpenWhiskPath bool,
+        encodeBodyAs string) (*http.Request, error) {
+    var requestUrl *url.URL
+    var err error
 
-    if (includeNamespaceInUrl) {
-        if c.Config.Namespace != "" {
-            // Encode path parts before inserting them into the URI so that any '?' is correctly encoded
-            // as part of the path and not the start of the query params
-            verNamespaceEncoded := (&url.URL{Path: c.Config.Namespace}).String()
-            urlVerNamespaceStr = fmt.Sprintf("%s/namespaces/%s/", verPathEncoded, verNamespaceEncoded)
+    if (appendOpenWhiskPath) {
+        var urlVerNamespaceStr string
+        var verPathEncoded = (&url.URL{Path: c.Config.Version}).String()
+
+        if (includeNamespaceInUrl) {
+            if c.Config.Namespace != "" {
+                // Encode path parts before inserting them into the URI so that any '?' is correctly encoded
+                // as part of the path and not the start of the query params
+                verNamespaceEncoded := (&url.URL{Path: c.Config.Namespace}).String()
+                urlVerNamespaceStr = fmt.Sprintf("%s/namespaces/%s", verPathEncoded, verNamespaceEncoded)
+            } else {
+                urlVerNamespaceStr = fmt.Sprintf("%s/namespaces", verPathEncoded)
+            }
         } else {
-            urlVerNamespaceStr = fmt.Sprintf("%s/namespaces/", c.Config.Version)
+            urlVerNamespaceStr = fmt.Sprintf("%s", verPathEncoded)
+        }
+
+        // Assemble the complete URL: base + version + [namespace] + resource_relative_path
+        Debug(DbgInfo, "basepath: %s, version/namespace path: %s, resource path: %s\n", c.BaseURL.String(), urlVerNamespaceStr, urlRelResource.String())
+        urlStr := fmt.Sprintf("%s/%s/%s", c.BaseURL.String(), urlVerNamespaceStr, urlRelResource.String())
+        requestUrl, err = url.Parse(urlStr)
+        if err != nil {
+            Debug(DbgError, "url.Parse(%s) error: %s\n", urlStr, err)
+            errStr := wski18n.T("Invalid request URL '{{.url}}': {{.err}}",
+                map[string]interface{}{"url": urlStr, "err": err})
+            werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+            return nil, werr
         }
     } else {
-        urlVerNamespaceStr = fmt.Sprintf("%s/", verPathEncoded)
-    }
-
-    urlVerNamespace, err := url.Parse(urlVerNamespaceStr)
-    if err != nil {
-        Debug(DbgError, "url.Parse(%s) error: %s\n", urlVerNamespaceStr, err)
-        errStr := wski18n.T("Invalid request URL '{{.url}}': {{.err}}",
-            map[string]interface{}{"url": urlVerNamespaceStr, "err": err})
-        werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
-        return nil, werr
-    }
-
-    // URL construction order is important so that parts of the path are not lost
-    // 1. Combine absolute Base URL path with the relative namespace path.  The creates an absolute URL
-    // 2. Combine the Base+Namespace absolute URL with the relative resource path (including query params)
-    u := c.BaseURL.ResolveReference(urlVerNamespace)
-    u = u.ResolveReference(urlRelResource)
-
-    var buf io.ReadWriter
-    if body != nil {
-        buf = new(bytes.Buffer)
-        err := json.NewEncoder(buf).Encode(body)
+        Debug(DbgInfo, "basepath: %s, resource path: %s\n", c.BaseURL.String(), urlRelResource.String())
+        urlStr := fmt.Sprintf("%s/%s", c.BaseURL.String(), urlRelResource.String())
+        requestUrl, err = url.Parse(urlStr)
         if err != nil {
-            Debug(DbgError, "json.Encode(%#v) error: %s\n", body, err)
-            errStr := wski18n.T("Error encoding request body: {{.err}}",
-                map[string]interface{}{"err": err})
+            Debug(DbgError, "url.Parse(%s) error: %s\n", urlStr, err)
+            errStr := wski18n.T("Invalid request URL '{{.url}}': {{.err}}",
+                map[string]interface{}{"url": urlStr, "err": err})
             werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
             return nil, werr
         }
     }
-    req, err := http.NewRequest(method, u.String(), buf)
+
+    var buf io.ReadWriter
+    if body != nil {
+        if (encodeBodyAs == EncodeBodyAsJson) {
+            buf = new(bytes.Buffer)
+            err := json.NewEncoder(buf).Encode(body)
+            if err != nil {
+                Debug(DbgError, "json.Encode(%#v) error: %s\n", body, err)
+                errStr := wski18n.T("Error encoding request body: {{.err}}",
+                    map[string]interface{}{"err": err})
+                werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+                return nil, werr
+            }
+        } else if (encodeBodyAs == EncodeBodyAsFormData) {
+            if values, ok := body.(url.Values); ok {
+                buf = bytes.NewBufferString(values.Encode())
+            } else {
+                Debug(DbgError, "Invalid form data body: %v\n", body)
+                errStr := wski18n.T("Internal error.  Form data encoding failure")
+                werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+                return nil, werr
+            }
+        } else {
+            Debug(DbgError, "Invalid body encode type: %s\n", encodeBodyAs)
+            errStr := wski18n.T("Internal error.  Invalid encoding type '{{.encodetype}}'",
+                map[string]interface{}{"encodetype": encodeBodyAs})
+            werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+            return nil, werr
+        }
+    }
+
+    req, err := http.NewRequest(method, requestUrl.String(), buf)
     if err != nil {
-        Debug(DbgError, "http.NewRequest(%v, %s, buf) error: %s\n", method, u.String(), err)
+        Debug(DbgError, "http.NewRequest(%v, %s, buf) error: %s\n", method, requestUrl.String(), err)
         errStr := wski18n.T("Error initializing request: {{.err}}", map[string]interface{}{"err": err})
         werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, werr
     }
-    if req.Body != nil {
+    if (req.Body != nil && encodeBodyAs == EncodeBodyAsJson) {
         req.Header.Add("Content-Type", "application/json")
+    }
+    if (req.Body != nil && encodeBodyAs == EncodeBodyAsFormData) {
+        req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
     }
 
     err = c.addAuthHeader(req, AuthRequired)
