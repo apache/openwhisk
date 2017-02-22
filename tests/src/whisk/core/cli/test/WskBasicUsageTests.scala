@@ -92,16 +92,17 @@ class WskBasicUsageTests
         stdout should include regex ("""(?i)whisk API version\s+v1""")
     }
 
-    it should "set apihost, auth, and namespace" in {
+    it should "set apihost, auth, insecure ssl" in {
         val tmpwskprops = File.createTempFile("wskprops", ".tmp")
         try {
             val namespace = wsk.namespace.list().stdout.trim.split("\n").last
             val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
-            val stdout = wsk.cli(Seq("property", "set", "-i", "--apihost", wskprops.apihost, "--auth", wskprops.authKey,
-                "--namespace", namespace), env = env).stdout
+            val stdout = wsk.cli(Seq("property", "set",
+                "--insecure", "true",
+                "--apihost", wskprops.apihost,
+                "--auth", wskprops.authKey), env = env).stdout
             stdout should include(s"ok: whisk auth set to ${wskprops.authKey}")
             stdout should include(s"ok: whisk API host set to ${wskprops.apihost}")
-            stdout should include(s"ok: whisk namespace set to ${namespace}")
         } finally {
             tmpwskprops.delete()
         }
@@ -114,7 +115,7 @@ class WskBasicUsageTests
             writer.write(s"NAMESPACE=")
             writer.close()
             val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
-            val stdout = wsk.cli(Seq("property", "get", "-i", "--namespace"), env = env).stdout
+            val stdout = wsk.cli(Seq("property", "get", "--namespace"), env = env).stdout
             stdout should include regex ("whisk namespace\\s+_")
         } finally {
             tmpwskprops.delete()
@@ -125,8 +126,8 @@ class WskBasicUsageTests
         val tmpwskprops = File.createTempFile("wskprops", ".tmp")
         try {
             val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
-            wsk.cli(Seq("property", "set", "-i") ++ wskprops.overrides, env = env)
-            val stdout = wsk.cli(Seq("property", "get", "--apibuild", "-i"), env = env).stdout
+            wsk.cli(Seq("property", "set") ++ wskprops.settings, env = env)
+            val stdout = wsk.cli(Seq("property", "get", "--apibuild"), env = env).stdout
             stdout should include regex ("""(?i)whisk API build\s+201.*""")
         } finally {
             tmpwskprops.delete()
@@ -137,8 +138,8 @@ class WskBasicUsageTests
         val tmpwskprops = File.createTempFile("wskprops", ".tmp")
         try {
             val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
-            wsk.cli(Seq("property", "set", "-i", "--apihost", "xxxx.yyyy"), env = env)
-            val rr = wsk.cli(Seq("property", "get", "--apibuild", "-i"), env = env, expectedExitCode = ANY_ERROR_EXIT)
+            wsk.cli(Seq("property", "set", "--insecure", "true", "--apihost", "xxxx.yyyy"), env = env)
+            val rr = wsk.cli(Seq("property", "get", "--apibuild"), env = env, expectedExitCode = ANY_ERROR_EXIT)
             rr.stdout should include regex ("""whisk API build\s*Unknown""")
             rr.stderr should include regex ("Unable to obtain API build information")
         } finally {
@@ -152,7 +153,7 @@ class WskBasicUsageTests
             val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
             val apihost = s"http://${WhiskProperties.getControllerHost}:${WhiskProperties.getControllerPort}"
             wsk.cli(Seq("property", "set", "--apihost", apihost), env = env)
-            val rr = wsk.cli(Seq("property", "get", "--apibuild", "-i"), env = env)
+            val rr = wsk.cli(Seq("property", "get", "--apibuild"), env = env)
             rr.stdout should not include regex("""whisk API build\s*Unknown""")
             rr.stderr should not include regex("Unable to obtain API build information")
             rr.stdout should include regex ("""(?i)whisk API build\s+201.*""")
@@ -164,15 +165,18 @@ class WskBasicUsageTests
     it should "validate default property values" in {
         val tmpwskprops = File.createTempFile("wskprops", ".tmp")
         val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
-        val stdout = wsk.cli(Seq("property", "unset", "--auth", "--apihost", "--apiversion", "--namespace"), env = env).stdout
+        val stdout = wsk.cli(Seq("property", "unset", "--auth", "--insecure", "--apihost", "--apiversion", "--namespace"), env = env).stdout
         try {
             stdout should include regex ("ok: whisk auth unset")
+            stdout should include regex ("ok: allow insecure SSL unset")
             stdout should include regex ("ok: whisk API host unset")
             stdout should include regex ("ok: whisk API version unset")
             stdout should include regex ("ok: whisk namespace unset")
 
             wsk.cli(Seq("property", "get", "--auth"), env = env).
                 stdout should include regex ("""(?i)whisk auth\s*$""") // default = empty string
+            wsk.cli(Seq("property", "get", "--insecure"), env = env).
+                stdout should include regex ("""(?i)insecure SSL\s*false$""") // default = false
             wsk.cli(Seq("property", "get", "--apihost"), env = env).
                 stdout should include regex ("""(?i)whisk API host\s*$""") // default = empty string
             wsk.cli(Seq("property", "get", "--namespace"), env = env).
@@ -182,13 +186,14 @@ class WskBasicUsageTests
         }
     }
 
-    it should "set auth in property file" in {
+    it should "set auth and insecure SSL in property file" in {
         val tmpwskprops = File.createTempFile("wskprops", ".tmp")
         val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
-        wsk.cli(Seq("property", "set", "--auth", "testKey"), env = env)
+        wsk.cli(Seq("property", "set", "--auth", "testKey", "--insecure", "true"), env = env)
         try {
             val fileContent = FileUtils.readFileToString(tmpwskprops)
             fileContent should include("AUTH=testKey")
+            fileContent should include("INSECURE_SSL=true")
         } finally {
             tmpwskprops.delete()
         }
@@ -233,7 +238,7 @@ class WskBasicUsageTests
         val tmpwskprops = File.createTempFile("wskprops", ".tmp")
         try {
             val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
-            val stderr = wsk.cli(Seq("property", "get", "-i"), env = env, expectedExitCode = ERROR_EXIT).stderr
+            val stderr = wsk.cli(Seq("property", "get"), env = env, expectedExitCode = ERROR_EXIT).stderr
             stderr should include("The API host is not valid: An API host must be provided.")
         } finally {
             tmpwskprops.delete()
@@ -1238,7 +1243,7 @@ class WskBasicUsageTests
             wsk.cli(Seq("property", "set", "--auth", wp.authKey) ++ wskprops.overrides, env = env)
             assetHelper.withCleaner(wsk.trigger, name) {
                 (trigger, _) =>
-                    wsk.cli(Seq("-i", "trigger", "create", name), env = env)
+                    wsk.cli(Seq("trigger", "create", name), env = env)
             }
             tmpProps.delete()
     }
