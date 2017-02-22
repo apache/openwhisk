@@ -21,6 +21,7 @@ import (
     "net/url"
     "errors"
     "../wski18n"
+    "fmt"
 )
 
 type Info struct {
@@ -36,17 +37,15 @@ type InfoService struct {
 
 func (s *InfoService) Get() (*Info, *http.Response, error) {
     // make a request to c.BaseURL / v1
-
-    ref, err := url.Parse(s.client.Config.Version)
+    urlStr := fmt.Sprintf("%s/%s", s.client.BaseURL.String(), s.client.Config.Version)
+    u, err := url.Parse(urlStr)
     if err != nil {
-        Debug(DbgError, "url.Parse(%s) error: %s\n", s.client.Config.Version, err)
+        Debug(DbgError, "url.Parse(%s) error: %s\n", urlStr, err)
         errStr := wski18n.T("Unable to URL parse '{{.version}}': {{.err}}",
-            map[string]interface{}{"version": s.client.Config.Version, "err": err})
+            map[string]interface{}{"version": urlStr, "err": err})
         werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
-
-    u := s.client.BaseURL.ResolveReference(ref)
 
     req, err := http.NewRequest("GET", u.String(), nil)
     if err != nil {

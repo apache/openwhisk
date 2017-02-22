@@ -35,9 +35,9 @@ import (
 // Commands //
 //////////////
 
-var apiCmd = &cobra.Command{
+var apiExperimentalCmd = &cobra.Command{
     Use:   "api-experimental",
-    Short: wski18n.T("work with APIs"),
+    Short: wski18n.T("work with APIs (experimental)"),
 }
 
 var apiCreateCmd = &cobra.Command{
@@ -250,8 +250,7 @@ var apiDeleteCmd = &cobra.Command{
     SilenceUsage:  true,
     SilenceErrors: true,
     PreRunE:       setupClientConfig,
-    RunE: func(cmd *cobra.Command, args []string) error {
-
+    RunE:          func(cmd *cobra.Command, args []string) error {
         if whiskErr := checkArgs(args, 1, 3, "Api delete",
             wski18n.T("An API base path or API name is required.  An optional API relative path and operation may also be provided.")); whiskErr != nil {
             return whiskErr
@@ -768,7 +767,7 @@ func init() {
     apiListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, wski18n.T("only return `LIMIT` number of actions from the collection"))
     apiListCmd.Flags().BoolVarP(&flags.common.full, "full", "f", false, wski18n.T("display full description of each API"))
 
-    apiCmd.AddCommand(
+    apiExperimentalCmd.AddCommand(
         apiCreateCmd,
         //apiUpdateCmd,
         apiGetCmd,

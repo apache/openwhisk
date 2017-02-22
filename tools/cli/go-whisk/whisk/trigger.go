@@ -57,9 +57,9 @@ func (s *TriggerService) List(options *TriggerListOptions) ([]Trigger, *http.Res
         return nil, nil, werr
     }
 
-    req, err := s.client.NewRequestUrl("GET", routeUrl, nil, IncludeNamespaceInUrl)
+    req, err := s.client.NewRequestUrl("GET", routeUrl, nil, IncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson)
     if err != nil {
-        Debug(DbgError, "http.NewRequest(GET, %s); error: '%s'\n", route, err)
+        Debug(DbgError, "http.NewRequestUrl(GET, %s, nil, IncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson); error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
@@ -92,9 +92,9 @@ func (s *TriggerService) Insert(trigger *Trigger, overwrite bool) (*Trigger, *ht
         return nil, nil, werr
     }
 
-    req, err := s.client.NewRequestUrl("PUT", routeUrl, trigger, IncludeNamespaceInUrl)
+    req, err := s.client.NewRequestUrl("PUT", routeUrl, trigger, IncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson)
     if err != nil {
-        Debug(DbgError, "http.NewRequest(PUT, %s); error: '%s'\n", routeUrl, err)
+        Debug(DbgError, "http.NewRequestUrl(PUT, %s, %+v, IncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson); error: '%s'\n", routeUrl, trigger, err)
         errStr := wski18n.T("Unable to create HTTP request for PUT '{{.route}}': {{.err}}",
             map[string]interface{}{"route": routeUrl, "err": err})
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)

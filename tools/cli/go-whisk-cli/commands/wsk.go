@@ -47,7 +47,7 @@ func init() {
         propertyCmd,
         namespaceCmd,
         listCmd,
-        apiCmd,
+        apiExperimentalCmd,
     )
 
     WskCmd.PersistentFlags().BoolVarP(&flags.global.verbose, "verbose", "v", false, wski18n.T("verbose output"))

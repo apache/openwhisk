@@ -93,9 +93,9 @@ func (s *PackageService) List(options *PackageListOptions) ([]Package, *http.Res
         return nil, nil, werr
     }
 
-    req, err := s.client.NewRequestUrl("GET", routeUrl, nil, IncludeNamespaceInUrl)
+    req, err := s.client.NewRequestUrl("GET", routeUrl, nil, IncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson)
     if err != nil {
-        Debug(DbgError, "http.NewRequest(GET, %s); error: '%s'\n", route, err)
+        Debug(DbgError, "http.NewRequestUrl(GET, %s, nil, IncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson); error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create GET HTTP request for '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
         werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
