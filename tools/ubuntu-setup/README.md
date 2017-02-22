@@ -6,7 +6,7 @@ The commands below should be executed on the host machine for single VM/server d
 
   ```
   # Install git if it is not installed
-  apt-get install git
+  sudo apt-get install git -y
 
   # Clone openwhisk
   git clone https://github.com/openwhisk/openwhisk.git
@@ -15,7 +15,7 @@ The commands below should be executed on the host machine for single VM/server d
   cd openwhisk
 
   # Install all required software
-  (cd tools/ubuntu-setup && source all.sh)
+  (cd tools/ubuntu-setup && ./all.sh)
   ```
 
 If you are deploying OpenWhisk in a distributed environment across multiple VMs, then follow the instructions in [ansible/README_DISTRIBUTED.md](../../ansible/README_DISTRIBUTED.md) to complete the deployment. Otherwise, continue with the instructions below.

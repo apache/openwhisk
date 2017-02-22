@@ -24,7 +24,7 @@ function NodeActionService(config, logger) {
         starting: 'starting',
         running: 'running',
         stopped: 'stopped'
-    }
+    };
 
     var status = Status.ready;
     var server = undefined;
@@ -63,7 +63,9 @@ function NodeActionService(config, logger) {
             var host = server.address().address;
             var port = server.address().port;
         });
-    }
+        //This is required as http server will auto disconnect in 2 minutes, this to not auto disconnect at all
+        server.timeout = 0;
+    };
 
     /** Returns a promise of a response to the /init invocation.
      *
@@ -90,9 +92,9 @@ function NodeActionService(config, logger) {
                 return Promise.reject(errorMessage(500, "Missing main/no code to execute."));
             }
         } else {
-            return Promise.reject(errorMessage(502, "Internal system error: system not ready."));
+            return Promise.reject(errorMessage(502, "Internal system error: system not ready, status: " + status));
         }
-    }
+    };
 
     /**
      * Returns a promise of a response to the /exec invocation.
@@ -122,9 +124,9 @@ function NodeActionService(config, logger) {
             });
         } else {
             logger.info('[runCode]', 'cannot schedule runCode due to status', status);
-            return Promise.reject(errorMessage(500, "Internal system error: container not ready."));
+            return Promise.reject(errorMessage(500, "Internal system error: container not ready, status: " + status));
         }
-    }
+    };
 
     function doInit(message) {
         var context = newWhiskContext(config, logger);
@@ -145,12 +147,15 @@ function NodeActionService(config, logger) {
     }
 
     function doRun(req) {
-        var ids = (req.body || {}).meta;
-        var args = (req.body || {}).value;
-        var authKey = (req.body || {}).authKey;
-        userCodeRunner.whisk.setAuthKey(authKey)
+        var msg = req.body || {};
 
-        return userCodeRunner.run(args).then(function(response) {
+        userCodeRunner.whisk.setAuthKey(msg['api_key'], false);
+        var props = [ 'api_key', 'namespace', 'action_name', 'activation_id', 'deadline' ];
+        props.map(function (p) {
+            process.env['__OW_' + p.toUpperCase()] = msg[p];
+        });
+
+        return userCodeRunner.run(msg.value).then(function(response) {
             writeMarkers();
             return response;
         }).catch(function (error) {
@@ -167,19 +172,11 @@ function NodeActionService(config, logger) {
 }
 
 function newWhiskContext(config, logger) {
-    var apihost = undefined;
-
-    if (config.edgeHost) {
-        var edgeHostParts = config.edgeHost.split(':');
-        var protocol = (edgeHostParts.length >= 2  &&  edgeHostParts[1] == '443') ? 'https' : 'http';
-        apihost = protocol + '://' + config.edgeHost;
-    }
-
-    return new whisk(apihost, logger);
+    return new whisk(config.apiHost, logger);
 }
 
 NodeActionService.getService = function(config, logger) {
     return new NodeActionService(config, logger);
-}
+};
 
 module.exports = NodeActionService;

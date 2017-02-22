@@ -13,6 +13,8 @@ whisk.version.buildno={{ docker_image_tag }}
 whisk.ssl.cert={{ openwhisk_home }}/ansible/roles/nginx/files/openwhisk-cert.pem
 whisk.ssl.key={{ openwhisk_home }}/ansible/roles/nginx/files/openwhisk-key.pem
 whisk.ssl.challenge=openwhisk
+whisk.api.host={{ whisk_api_host | default('https://' + (groups['edge'] | first)) }}
+whisk.system.key={{ whisk.system.key }}
 
 defaultLimits.actions.invokes.perMinute={{ defaultLimits.actions.invokes.perMinute }}
 defaultLimits.actions.invokes.concurrent={{ defaultLimits.actions.invokes.concurrent }}
@@ -36,7 +38,6 @@ entitlement.host={{ groups["entitlement_servers"] | first }}
 kafka.host={{ groups["kafka"]|first }}
 loadbalancer.host={{ groups["controllers"]|first }}
 router.host={{ groups["edge"]|first }}
-cli.api.host={{ cli_api_host | default(groups['edge'] | first) }}
 zookeeper.host={{ groups["kafka"]|first }}
 invoker.hosts={{ groups["invokers"] | join(",") }}
 
@@ -60,6 +61,7 @@ invoker.numcore={{ invoker.numcore }}
 invoker.coreshare={{ invoker.coreshare }}
 invoker.serializeDockerOp={{ invoker.serializeDockerOp }}
 invoker.serializeDockerPull={{ invoker.serializeDockerPull }}
+invoker.useRunc={{ invoker.useRunc }}
 
 consulserver.docker.endpoint={{ groups["consul_servers"]|first }}:{{ docker.port }}
 edge.docker.endpoint={{ groups["edge"]|first }}:{{ docker.port }}
@@ -86,3 +88,9 @@ db.password={{ db_password }}
 db.prefix={{ db_prefix }}
 db.whisk.actions={{ db_prefix }}whisks
 db.whisk.auths={{ db_auth }}
+
+apigw.auth.user={{apigw_auth_user}}
+apigw.auth.pwd={{apigw_auth_pwd}}
+apigw.host={{apigw_host}}
+
+loadbalancer.activationCountBeforeNextInvoker={{ loadbalancer_activation_count_before_next_invoker | default(10) }}

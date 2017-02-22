@@ -46,7 +46,6 @@ import spray.routing.RequestContext
 import whisk.common.TransactionId
 import whisk.core.entitlement.Collection
 import whisk.core.entity.ActivationResponse
-import whisk.core.entity.EntityName
 import whisk.core.entity.EntityPath
 import whisk.core.entity.Parameters
 import whisk.core.entity.SemVer
@@ -79,16 +78,16 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
 
     protected override val collection = Collection(Collection.TRIGGERS)
 
-    /** An actor system for timed based futures */
+    /** An actor system for timed based futures. */
     protected implicit val actorSystem: ActorSystem
 
-    /** Database service to CRUD triggers */
+    /** Database service to CRUD triggers. */
     protected val entityStore: EntityStore
 
     /** Database service to get activations. */
     protected val activationStore: ActivationStore
 
-    /** Path to Triggers REST API */
+    /** Path to Triggers REST API. */
     protected val triggersPath = "triggers"
 
     /**
@@ -104,13 +103,15 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
      * - 409 Conflict
      * - 500 Internal Server Error
      */
-    override def create(user: Identity, namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
+    override def create(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
         parameter('overwrite ? false) { overwrite =>
             entity(as[WhiskTriggerPut]) { content =>
-                val docid = FullyQualifiedEntityName(namespace, name).toDocId
-                putEntity(WhiskTrigger, entityStore, docid, overwrite, update(content) _, () => { create(content, namespace, name) }, postProcess = Some { trigger =>
-                    completeAsTriggerResponse(trigger)
-                })
+                putEntity(WhiskTrigger, entityStore, entityName.toDocId, overwrite,
+                    update(content) _,
+                    () => { create(content, entityName) },
+                    postProcess = Some { trigger =>
+                        completeAsTriggerResponse(trigger)
+                    })
             }
         }
     }
@@ -124,20 +125,18 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
      * - 404 Not Found
      * - 500 Internal Server Error
      */
-    override def activate(user: Identity, namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
-
+    override def activate(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
         entity(as[Option[JsObject]]) {
             payload =>
-                val docid = FullyQualifiedEntityName(namespace, name).toDocId
-                getEntity(WhiskTrigger, entityStore, docid, Some {
+                getEntity(WhiskTrigger, entityStore, entityName.toDocId, Some {
                     trigger: WhiskTrigger =>
                         val args = trigger.parameters.merge(payload)
                         val triggerActivationId = activationIdFactory.make()
-                        info(this, s"[POST] trigger activation id: ${triggerActivationId}")
+                        logging.info(this, s"[POST] trigger activation id: ${triggerActivationId}")
 
                         val triggerActivation = WhiskActivation(
                             namespace = user.namespace.toPath, // all activations should end up in the one space regardless trigger.namespace,
-                            name,
+                            entityName.name,
                             user.subject,
                             triggerActivationId,
                             Instant.now(Clock.systemUTC()),
@@ -145,7 +144,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                             response = ActivationResponse.success(payload orElse Some(JsObject())),
                             version = trigger.version,
                             duration = None)
-                        info(this, s"[POST] trigger activated, writing activation record to datastore")
+                        logging.info(this, s"[POST] trigger activated, writing activation record to datastore: $triggerActivationId")
                         val saveTriggerActivation = WhiskActivation.put(activationStore, triggerActivation) map {
                             _ => triggerActivationId
                         }
@@ -172,15 +171,15 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                                         response = ActivationResponse.success(),
                                         version = trigger.version,
                                         duration = None)
-                                    info(this, s"[POST] rule ${ruleName} activated, writing activation record to datastore")
+                                    logging.info(this, s"[POST] rule ${ruleName} activated, writing activation record to datastore")
                                     WhiskActivation.put(activationStore, ruleActivation)
 
-                                    val actionNamespace = rule.action.path.root()
+                                    val actionNamespace = rule.action.path.root.asString
                                     val actionPath = {
-                                        rule.action.path.relpath.map {
-                                            pkg => (Path.SingleSlash + pkg.namespace) / rule.action.name()
+                                        rule.action.path.relativePath.map {
+                                            pkg => (Path.SingleSlash + pkg.namespace) / rule.action.name.asString
                                         } getOrElse {
-                                            Path.SingleSlash + rule.action.name()
+                                            Path.SingleSlash + rule.action.name.asString
                                         }
                                     }.toString
 
@@ -188,11 +187,11 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
 
                                     pipeline(Post(url.withPath(actionUrl + actionPath), args)) onComplete {
                                         case Success(o) =>
-                                            info(this, s"successfully invoked ${rule.action} -> ${o.fields("activationId")}")
+                                            logging.info(this, s"successfully invoked ${rule.action} -> ${o.fields("activationId")}")
                                         case Failure(usr: UnsuccessfulResponseException) if usr.response.status == StatusCodes.NotFound =>
-                                            info(this, s"action ${rule.action} could not be found")
+                                            logging.info(this, s"action ${rule.action} could not be found")
                                         case Failure(t) =>
-                                            warn(this, s"action ${rule.action} could not be invoked due to ${t.getMessage}")
+                                            logging.warn(this, s"action ${rule.action} could not be invoked due to ${t.getMessage}")
                                     }
                             }
                         }
@@ -201,8 +200,8 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                             case Success(activationId) =>
                                 complete(OK, activationId.toJsObject)
                             case Failure(t: Throwable) =>
-                                error(this, s"[POST] storing trigger activation failed: ${t.getMessage}")
-                                terminate(InternalServerError, t.getMessage)
+                                logging.error(this, s"[POST] storing trigger activation failed: ${t.getMessage}")
+                                terminate(InternalServerError)
                         }
                 })
         }
@@ -217,9 +216,8 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
      * - 409 Conflict
      * - 500 Internal Server Error
      */
-    override def remove(namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
-        val docid = FullyQualifiedEntityName(namespace, name).toDocId
-        deleteEntity(WhiskTrigger, entityStore, docid, (t: WhiskTrigger) => Future successful true, postProcess = Some { trigger =>
+    override def remove(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
+        deleteEntity(WhiskTrigger, entityStore, entityName.toDocId, (t: WhiskTrigger) => Future.successful({}), postProcess = Some { trigger =>
             completeAsTriggerResponse(trigger)
         })
     }
@@ -232,9 +230,8 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
      * - 404 Not Found
      * - 500 Internal Server Error
      */
-    override def fetch(namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
-        val docid = FullyQualifiedEntityName(namespace, name).toDocId
-        getEntity(WhiskTrigger, entityStore, docid, Some { trigger =>
+    override def fetch(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
+        getEntity(WhiskTrigger, entityStore, entityName.toDocId, Some { trigger =>
             completeAsTriggerResponse(trigger)
         })
     }
@@ -246,7 +243,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
      * - 200 [] or [WhiskTrigger as JSON]
      * - 500 Internal Server Error
      */
-    override def list(namespace: EntityPath, excludePrivate: Boolean)(implicit transid: TransactionId) = {
+    override def list(user: Identity, namespace: EntityPath, excludePrivate: Boolean)(implicit transid: TransactionId) = {
         // for consistency, all the collections should support the same list API
         // but because supporting docs on actions is difficult, the API does not
         // offer an option to fetch entities with full docs yet; see comment in
@@ -267,10 +264,10 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
     }
 
     /** Creates a WhiskTrigger from PUT content, generating default values where necessary. */
-    private def create(content: WhiskTriggerPut, namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
+    private def create(content: WhiskTriggerPut, triggerName: FullyQualifiedEntityName)(implicit transid: TransactionId): Future[WhiskTrigger] = {
         val newTrigger = WhiskTrigger(
-            namespace,
-            name,
+            triggerName.path,
+            triggerName.name,
             content.parameters getOrElse Parameters(),
             content.limits getOrElse TriggerLimits(),
             content.version getOrElse SemVer(),
@@ -280,7 +277,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
     }
 
     /** Updates a WhiskTrigger from PUT content, merging old trigger where necessary. */
-    private def update(content: WhiskTriggerPut)(trigger: WhiskTrigger)(implicit transid: TransactionId) = {
+    private def update(content: WhiskTriggerPut)(trigger: WhiskTrigger)(implicit transid: TransactionId): Future[WhiskTrigger] = {
         val newTrigger = WhiskTrigger(
             trigger.namespace,
             trigger.name,
@@ -293,7 +290,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
             revision[WhiskTrigger](trigger.docinfo.rev)
 
         // feed must be specified in create, and cannot be added as a trigger update
-        content.annotations flatMap { _(Parameters.Feed) } map { _ =>
+        content.annotations flatMap { _.get(Parameters.Feed) } map { _ =>
             Future failed {
                 RejectRequest(BadRequest, "A trigger feed is only permitted when the trigger is created")
             }
@@ -316,7 +313,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
      * or updated.
      */
     private def validateTriggerFeed(trigger: WhiskTrigger)(implicit transid: TransactionId) = {
-        trigger.annotations(Parameters.Feed) map {
+        trigger.annotations.get(Parameters.Feed) map {
             case JsString(f) if (EntityPath.validate(f)) =>
                 Future successful trigger
             case _ => Future failed {

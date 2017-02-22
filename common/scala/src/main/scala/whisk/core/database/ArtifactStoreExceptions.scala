@@ -22,3 +22,5 @@ case class NoDocumentException(message: String) extends ArtifactStoreException(m
 case class DocumentConflictException(message: String) extends ArtifactStoreException(message)
 
 case class DocumentTypeMismatchException(message: String) extends ArtifactStoreException(message)
+
+case class DocumentUnreadable(message: String) extends ArtifactStoreException(message)

@@ -16,19 +16,15 @@
 
 package system.basic
 
-import java.time.Instant
 import java.io.File
+import java.time.Instant
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
 import common.TestHelpers
 import common.TestUtils
-import common.TestUtils.CONFLICT
-import common.TestUtils.SUCCESS_EXIT
-import common.TestUtils.UNAUTHORIZED
-import common.TestUtils.FORBIDDEN
-import common.TestUtils.ERROR_EXIT
+import common.TestUtils._
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
@@ -220,7 +216,7 @@ class WskBasicTests
             val params = Map("a" -> "A".toJson)
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) =>
-                    action.create(name, file, parameters = params, shared = Some(true))
+                    action.create(name, file, parameters = params)
                     action.create(name, None, parameters = Map("b" -> "B".toJson), update = true)
             }
             val stdout = wsk.action.get(name).stdout
@@ -228,7 +224,7 @@ class WskBasicTests
             stdout should not include regex(""""value": "A"""")
             stdout should include regex (""""key": "b""")
             stdout should include regex (""""value": "B"""")
-            stdout should include regex (""""publish": true""")
+            stdout should include regex (""""publish": false""")
             stdout should include regex (""""version": "0.0.2"""")
             wsk.action.list().stdout should include(name)
     }
@@ -312,13 +308,13 @@ class WskBasicTests
 
             wsk.action.get(name, fieldFilter = Some("name")).stdout should include(s"""$successMsg name\n"$name"""")
             wsk.action.get(name, fieldFilter = Some("version")).stdout should include(s"""$successMsg version\n"0.0.1"""")
-            wsk.action.get(name, fieldFilter = Some("publish")).stdout should include(s"""$successMsg publish\nfalse""")
             wsk.action.get(name, fieldFilter = Some("exec")).stdout should include regex (s"""$successMsg exec\n\\{\\s+"kind":\\s+"nodejs:6",\\s+"code":\\s+"\\/\\*\\*\\\\n \\* Hello, world.\\\\n \\*\\/\\\\nfunction main\\(params\\) \\{\\\\n    console.log\\('hello', params.payload\\+'!'\\);\\\\n\\}\\\\n"\n\\}""")
             wsk.action.get(name, fieldFilter = Some("parameters")).stdout should include regex (s"""$successMsg parameters\n\\[\\s+\\{\\s+"key":\\s+"payload",\\s+"value":\\s+"test"\\s+\\}\\s+\\]""")
             wsk.action.get(name, fieldFilter = Some("annotations")).stdout should include regex (s"""$successMsg annotations\n\\[\\s+\\{\\s+"key":\\s+"exec",\\s+"value":\\s+"nodejs:6"\\s+\\}\\s+\\]""")
             wsk.action.get(name, fieldFilter = Some("limits")).stdout should include regex (s"""$successMsg limits\n\\{\\s+"timeout":\\s+60000,\\s+"memory":\\s+256,\\s+"logs":\\s+10\\s+\\}""")
             wsk.action.get(name, fieldFilter = Some("namespace")).stdout should include regex (s"""(?i)$successMsg namespace\n$ns_regex_list""")
             wsk.action.get(name, fieldFilter = Some("invalid"), expectedExitCode = ERROR_EXIT).stderr should include("error: Invalid field filter 'invalid'.")
+            wsk.action.get(name, fieldFilter = Some("publish")).stdout should include(s"""$successMsg publish\nfalse""")
     }
 
     /**
@@ -361,15 +357,28 @@ class WskBasicTests
             }
     }
 
-    it should "create and invoke a blocking action resulting in an error response object" in withAssetCleaner(wskprops) {
+    it should "create and invoke a blocking action resulting in an application error response" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "applicationError3"
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("applicationError3.js")))
+            }
+
+            wsk.action.invoke(name, blocking = true, result = true, expectedExitCode = 246)
+              .stderr.parseJson.asJsObject shouldBe JsObject("error" -> JsBoolean(true))
+    }
+
+    it should "create and invoke a blocking action resulting in an failed promise" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "errorResponseObject"
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("asyncError.js")))
             }
 
-            wsk.action.invoke(name, blocking = true, expectedExitCode = 246)
-                .stderr should include regex (""""error": "name '!' contains illegal characters \(code \d+\)"""")
+            val stderr = wsk.action.invoke(name, blocking = true, expectedExitCode = 246).stderr
+            CliActivation.serdes.read(stderr.parseJson).response.result shouldBe Some {
+                JsObject("error" -> JsObject("msg" -> "failed activation on purpose".toJson))
+            }
     }
 
     it should "invoke a blocking action and get only the result" in withAssetCleaner(wskprops) {
@@ -443,7 +452,17 @@ class WskBasicTests
                     action.invoke(name, parameters = params, blocking = true, result = true)
             }
 
-            res.stdout shouldBe ""
+            res.stdout should include regex (s"""\\{\\s+"activationId":\\s+"[a-z0-9]{32}"\\s+\\}""")
+    }
+
+    it should "create, and get docker action get ensure exec code is omitted" in withAssetCleaner(wskprops) {
+        val name = "dockerContainer"
+        (wp, assetHelper) =>
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some("fakeContainer"), kind = Some("docker"))
+            }
+
+            wsk.action.get(name).stdout should not include (""""code"""")
     }
 
     behavior of "Wsk Trigger CLI"
@@ -454,13 +473,13 @@ class WskBasicTests
             val params = Map("a" -> "A".toJson)
             assetHelper.withCleaner(wsk.trigger, name) {
                 (trigger, _) =>
-                    trigger.create(name, parameters = params, shared = Some(true))
+                    trigger.create(name, parameters = params)
                     trigger.create(name, update = true)
             }
             val stdout = wsk.trigger.get(name).stdout
             stdout should include regex (""""key": "a"""")
             stdout should include regex (""""value": "A"""")
-            stdout should include regex (""""publish": true""")
+            stdout should include regex (""""publish": false""")
             stdout should include regex (""""version": "0.0.2"""")
 
             val dynamicParams = Map("t" -> "T".toJson)
@@ -468,16 +487,16 @@ class WskBasicTests
             withActivation(wsk.activation, run) {
                 activation =>
                     activation.response.result shouldBe Some(dynamicParams.toJson)
-                    activation.duration shouldBe 0L // shouldn't exist but CLI generates it
-                    activation.end shouldBe Instant.EPOCH.toEpochMilli // shouldn't exist but CLI generates it
+                    activation.duration shouldBe 0L         // shouldn't exist but CLI generates it
+                    activation.end shouldBe Instant.EPOCH   // shouldn't exist but CLI generates it
             }
 
             val runWithNoParams = wsk.trigger.fire(name, Map())
             withActivation(wsk.activation, runWithNoParams) {
                 activation =>
                     activation.response.result shouldBe Some(JsObject())
-                    activation.duration shouldBe 0L // shouldn't exist but CLI generates it
-                    activation.end shouldBe Instant.EPOCH.toEpochMilli // shouldn't exist but CLI generates it
+                    activation.duration shouldBe 0L         // shouldn't exist but CLI generates it
+                    activation.end shouldBe Instant.EPOCH   // shouldn't exist but CLI generates it
             }
 
             wsk.trigger.list().stdout should include(name)
@@ -546,7 +565,8 @@ class WskBasicTests
 
         (wp, assetHelper) =>
             assetHelper.withCleaner(wsk.trigger, name) {
-                (action, _) => action.create(name, parameters = paramInput)
+                (trigger, _) =>
+                    trigger.create(name, parameters = paramInput)
             }
 
             val expectedParam = JsObject(
@@ -596,13 +616,6 @@ class WskBasicTests
                 (rule, name) =>
                     rule.create(name, trigger = triggerName, action = actionName)
             }
-
-            // to validate that the rule was created enabled, we do an update and expect CONFLICT
-            // (because rule updates against enabled rules must fail)
-            wsk.rule.create(ruleName, trigger = triggerName, action = actionName, update = true, expectedExitCode = CONFLICT)
-
-            // now, we disable the rule, so that we can perform the actual update
-            wsk.rule.disableRule(ruleName);
 
             // finally, we perform the update, and expect success this time
             wsk.rule.create(ruleName, trigger = triggerName, action = actionName, update = true)
@@ -671,14 +684,15 @@ class WskBasicTests
                 (action, name) => action.create(name, defaultAction)
             }
             assetHelper.withCleaner(wsk.rule, ruleName) {
-                (rule, name) => rule.create(name, trigger = triggerName, action = actionName)
+                (rule, name) =>
+                    rule.create(name, trigger = triggerName, action = actionName)
             }
 
             val ns_regex_list = wsk.namespace.list().stdout.trim.replace('\n', '|')
 
             wsk.rule.get(ruleName, fieldFilter = Some("namespace")).stdout should include regex (s"""(?i)$successMsg namespace\n$ns_regex_list""")
             wsk.rule.get(ruleName, fieldFilter = Some("name")).stdout should include(s"""$successMsg name\n"$ruleName"""")
-            wsk.rule.get(ruleName, fieldFilter = Some("version")).stdout should include(s"""$successMsg version\n"0.0.1"""")
+            wsk.rule.get(ruleName, fieldFilter = Some("version")).stdout should include(s"""$successMsg version\n"0.0.1"\n""")
             wsk.rule.get(ruleName, fieldFilter = Some("status")).stdout should include(s"""$successMsg status\n"active"""")
             val trigger = wsk.rule.get(ruleName, fieldFilter = Some("trigger")).stdout
             trigger should include regex (s"""$successMsg trigger\n""")

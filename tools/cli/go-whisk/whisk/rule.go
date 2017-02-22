@@ -33,16 +33,17 @@ type Rule struct {
     Namespace string    `json:"namespace,omitempty"`
     Name      string    `json:"name,omitempty"`
     Version   string    `json:"version,omitempty"`
-    Publish   bool      `json:"publish,omitempty"`
     Status  string      `json:"status"`
     Trigger interface{} `json:"trigger"`
     Action  interface{} `json:"action"`
+    Publish *bool       `json:"publish,omitempty"`
+
 }
 
 type RuleListOptions struct {
-    Limit int  `url:"limit"`
-    Skip  int  `url:"skip"`
-    Docs  bool `url:"docs,omitempty"`
+    Limit       int     `url:"limit"`
+    Skip        int     `url:"skip"`
+    Docs        bool    `url:"docs,omitempty"`
 }
 
 func (s *RuleService) List(options *RuleListOptions) ([]Rule, *http.Response, error) {
@@ -56,7 +57,7 @@ func (s *RuleService) List(options *RuleListOptions) ([]Rule, *http.Response, er
         return nil, nil, werr
     }
 
-    req, err := s.client.NewRequestUrl("GET", routeUrl, nil)
+    req, err := s.client.NewRequestUrl("GET", routeUrl, nil, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s); error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
@@ -81,7 +82,7 @@ func (s *RuleService) Insert(rule *Rule, overwrite bool) (*Rule, *http.Response,
     ruleName := (&url.URL{Path: rule.Name}).String()
     route := fmt.Sprintf("rules/%s?overwrite=%t", ruleName, overwrite)
 
-    req, err := s.client.NewRequest("PUT", route, rule)
+    req, err := s.client.NewRequest("PUT", route, rule, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(PUT, %s); error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create HTTP request for PUT '{{.route}}': {{.err}}",
@@ -106,7 +107,7 @@ func (s *RuleService) Get(ruleName string) (*Rule, *http.Response, error) {
     ruleName = (&url.URL{Path: ruleName}).String()
     route := fmt.Sprintf("rules/%s", ruleName)
 
-    req, err := s.client.NewRequest("GET", route, nil)
+    req, err := s.client.NewRequest("GET", route, nil, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s); error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
@@ -131,7 +132,7 @@ func (s *RuleService) Delete(ruleName string) (*http.Response, error) {
     ruleName = (&url.URL{Path: ruleName}).String()
     route := fmt.Sprintf("rules/%s", ruleName)
 
-    req, err := s.client.NewRequest("DELETE", route, nil)
+    req, err := s.client.NewRequest("DELETE", route, nil, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(DELETE, %s); error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create HTTP request for DELETE '{{.route}}': {{.err}}",
@@ -165,7 +166,7 @@ func (s *RuleService) SetState(ruleName string, state string) (*Rule, *http.Resp
 
     ruleState := &Rule{ Status: state }
 
-    req, err := s.client.NewRequest("POST", route, ruleState)
+    req, err := s.client.NewRequest("POST", route, ruleState, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(POST, %s); error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create HTTP request for POST '{{.route}}': {{.err}}",

@@ -45,6 +45,22 @@ class WskActionTests
 
     behavior of "Whisk actions"
 
+    it should "invoke an action returning a promise" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "hello promise"
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("helloPromise.js")))
+            }
+
+            val run = wsk.action.invoke(name)
+            withActivation(wsk.activation, run) {
+                activation =>
+                    activation.response.status shouldBe "success"
+                    activation.response.result shouldBe Some(JsObject("done" -> true.toJson))
+                    activation.logs.get.mkString(" ") shouldBe empty
+            }
+    }
+
     it should "invoke an action with a space in the name" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "hello Async"
@@ -102,7 +118,7 @@ class WskActionTests
 
             assetHelper.withCleaner(wsk.action, fullQualifiedName) {
                 val file = Some(TestUtils.getTestActionFilename("wc.js"))
-                (action, _) => action.create(fullQualifiedName, file, shared = Some(true))
+                (action, _) => action.create(fullQualifiedName, file)
             }
 
             assetHelper.withCleaner(wsk.action, name) {
@@ -116,6 +132,31 @@ class WskActionTests
                     activation.response.result shouldBe Some(testResult)
                     activation.logs.get.mkString(" ") should include(testString)
             }
+    }
+
+    it should "copy an action and ensure exec, parameters, and annotations copied" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val origActionName = "orignAction"
+            val copiedActionName = "copiedAction"
+            val params = Map("a" -> "A".toJson)
+            val annots = Map("b" -> "B".toJson)
+
+            assetHelper.withCleaner(wsk.action, origActionName) {
+                val file = Some(TestUtils.getTestActionFilename("wc.js"))
+                (action, _) => action.create(origActionName, file, parameters = params, annotations = annots)
+            }
+
+            assetHelper.withCleaner(wsk.action, copiedActionName) {
+                (action, _) => action.create(copiedActionName, Some(origActionName), Some("copy"))
+            }
+
+            val copiedAction = getJSONFromCLIResponse(wsk.action.get(copiedActionName).stdout)
+            val origAction = getJSONFromCLIResponse(wsk.action.get(copiedActionName).stdout)
+
+            copiedAction.fields("annotations") shouldBe origAction.fields("annotations")
+            copiedAction.fields("parameters") shouldBe origAction.fields("parameters")
+            copiedAction.fields("exec") shouldBe origAction.fields("exec")
+            copiedAction.fields("version") shouldBe JsString("0.0.1")
     }
 
     it should "recreate and invoke a new action with different code" in withAssetCleaner(wskprops) {
@@ -169,7 +210,7 @@ class WskActionTests
             wsk.parseJsonString(rr.stdout).getFieldPath("exec", "code") shouldBe Some(JsString(""))
     }
 
-    it should "blocking invoke nested blocking actions" in withAssetCleaner(wskprops) {
+    it should "blocking invoke of nested blocking actions" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "nestedBlockingAction"
             val child = "wc"

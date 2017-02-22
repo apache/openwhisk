@@ -69,20 +69,20 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
      * - 409 Conflict
      * - 500 Internal Server Error
      */
-    override def create(user: Identity, namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
+    override def create(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
         parameter('overwrite ? false) { overwrite =>
             entity(as[WhiskPackagePut]) { content =>
-                val docid = FullyQualifiedEntityName(namespace, name).toDocId
-                val request = content.resolve(namespace.root)
+                val request = content.resolve(entityName.namespace)
 
-                request.binding.map { b => info(this, "checking if package is accessible") }
+                request.binding.map { b => logging.info(this, "checking if package is accessible") }
                 val referencedentities = referencedEntities(request)
 
                 onComplete(entitlementProvider.check(user, Privilege.READ, referencedentities)) {
-                    case Success(true) =>
-                        putEntity(WhiskPackage, entityStore, docid, overwrite,
-                            update(request) _, () => create(request, namespace, name))
-                    case failure => rewriteEntitlementFailure(failure)
+                    case Success(_) =>
+                        putEntity(WhiskPackage, entityStore, entityName.toDocId, overwrite,
+                            update(request) _, () => create(request, entityName))
+                    case Failure(f) =>
+                        rewriteEntitlementFailure(f)
                 }
             }
         }
@@ -94,8 +94,8 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
      * Responses are one of (Code, Message)
      * - 405 Not Allowed
      */
-    override def activate(user: Identity, namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
-        error(this, "activate is not permitted on packages")
+    override def activate(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
+        logging.error(this, "activate is not permitted on packages")
         reject
     }
 
@@ -108,20 +108,19 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
      * - 409 Conflict
      * - 500 Internal Server Error
      */
-    override def remove(namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
-        val docid = FullyQualifiedEntityName(namespace, name).toDocId
-        deleteEntity(WhiskPackage, entityStore, docid, (wp: WhiskPackage) => {
+    override def remove(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
+        deleteEntity(WhiskPackage, entityStore, entityName.toDocId, (wp: WhiskPackage) => {
             wp.binding map {
                 // this is a binding, it is safe to remove
-                _ => Future.successful(true)
+                _ => Future.successful({})
             } getOrElse {
                 // may only delete a package if all its ingredients are deleted already
-                WhiskAction.listCollectionInNamespace(entityStore, wp.namespace.addpath(wp.name), skip = 0, limit = 0) flatMap {
+                WhiskAction.listCollectionInNamespace(entityStore, wp.namespace.addPath(wp.name), skip = 0, limit = 0) flatMap {
                     case Left(list) if (list.size != 0) =>
                         Future failed {
                             RejectRequest(Conflict, s"Package not empty (contains ${list.size} ${if (list.size == 1) "entity" else "entities"})")
                         }
-                    case _ => Future.successful(true)
+                    case _ => Future.successful({})
                 }
             }
         })
@@ -136,9 +135,8 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
      * - 404 Not Found
      * - 500 Internal Server Error
      */
-    override def fetch(namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
-        val docid = FullyQualifiedEntityName(namespace, name).toDocId
-        getEntity(WhiskPackage, entityStore, docid, Some { mergePackageWithBinding() _ })
+    override def fetch(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
+        getEntity(WhiskPackage, entityStore, entityName.toDocId, Some { mergePackageWithBinding() _ })
     }
 
     /**
@@ -148,7 +146,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
      * - 200 [] or [WhiskPackage as JSON]
      * - 500 Internal Server Error
      */
-    def list(namespace: EntityPath, excludePrivate: Boolean)(implicit transid: TransactionId) = {
+    override def list(user: Identity, namespace: EntityPath, excludePrivate: Boolean)(implicit transid: TransactionId) = {
         // for consistency, all the collections should support the same list API
         // but because supporting docs on actions is difficult, the API does not
         // offer an option to fetch entities with full docs yet; see comment in
@@ -208,28 +206,28 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
      * Creates a WhiskPackage from PUT content, generating default values where necessary.
      * If this is a binding, confirm the referenced package exists.
      */
-    private def create(content: WhiskPackagePut, namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
+    private def create(content: WhiskPackagePut, pkgName: FullyQualifiedEntityName)(implicit transid: TransactionId): Future[WhiskPackage] = {
         val validateBinding = content.binding map {
             b => checkBinding(b.fullyQualifiedName)
         } getOrElse Future.successful({})
 
         validateBinding map { _ =>
             WhiskPackage(
-                namespace,
-                name,
+                pkgName.path,
+                pkgName.name,
                 content.binding,
                 content.parameters getOrElse Parameters(),
                 content.version getOrElse SemVer(),
                 content.publish getOrElse false,
                 // remove any binding annotation from PUT (always set by the controller)
                 (content.annotations getOrElse Parameters())
-                    -- WhiskPackage.bindingFieldName
+                    - WhiskPackage.bindingFieldName
                     ++ bindingAnnotation(content.binding))
         }
     }
 
     /** Updates a WhiskPackage from PUT content, merging old package/binding where necessary. */
-    private def update(content: WhiskPackagePut)(wp: WhiskPackage)(implicit transid: TransactionId) = {
+    private def update(content: WhiskPackagePut)(wp: WhiskPackage)(implicit transid: TransactionId): Future[WhiskPackage] = {
         val validateBinding = content.binding map { binding =>
             wp.binding map {
                 // pre-existing entity is a binding, check that new binding is valid
@@ -250,19 +248,19 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
                 content.publish getOrElse wp.publish,
                 // override any binding annotation from PUT (always set by the controller)
                 (content.annotations getOrElse wp.annotations)
-                    -- WhiskPackage.bindingFieldName
+                    - WhiskPackage.bindingFieldName
                     ++ bindingAnnotation(content.binding orElse wp.binding)).
                 revision[WhiskPackage](wp.docinfo.rev)
         }
     }
 
-    private def rewriteEntitlementFailure(failure: Try[Boolean])(
+    private def rewriteEntitlementFailure(failure: Throwable)(
         implicit transid: TransactionId): RequestContext => Unit = {
-        info(this, s"rewriting failure $failure")
+        logging.info(this, s"rewriting failure $failure")
         failure match {
-            case Failure(RejectRequest(NotFound, _)) => terminate(BadRequest, Messages.bindingDoesNotExist)
-            case Failure(RejectRequest(Conflict, _)) => terminate(Conflict, Messages.requestedBindingIsNotValid)
-            case _                                   => super.handleEntitlementFailure(failure)
+            case RejectRequest(NotFound, _) => terminate(BadRequest, Messages.bindingDoesNotExist)
+            case RejectRequest(Conflict, _) => terminate(Conflict, Messages.requestedBindingIsNotValid)
+            case _                          => super.handleEntitlementFailure(failure)
         }
     }
 
@@ -286,32 +284,32 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
      */
     private def mergePackageWithBinding(ref: Option[WhiskPackage] = None)(wp: WhiskPackage)(implicit transid: TransactionId): RequestContext => Unit = {
         wp.binding map {
-            case Binding(ns, n) =>
-                val docid = FullyQualifiedEntityName(ns, n).toDocId
-                info(this, s"fetching package '$docid' for reference")
+            case b: Binding =>
+                val docid = b.fullyQualifiedName.toDocId
+                logging.info(this, s"fetching package '$docid' for reference")
                 getEntity(WhiskPackage, entityStore, docid, Some {
                     mergePackageWithBinding(Some { wp }) _
                 })
         } getOrElse {
             val pkg = ref map { _ inherit wp.parameters } getOrElse wp
-            info(this, s"fetching package actions in '${wp.path}'")
-            val actions = WhiskAction.listCollectionInNamespace(entityStore, wp.path, skip = 0, limit = 0) flatMap {
+            logging.info(this, s"fetching package actions in '${wp.fullPath}'")
+            val actions = WhiskAction.listCollectionInNamespace(entityStore, wp.fullPath, skip = 0, limit = 0) flatMap {
                 case Left(list) => Future.successful {
                     pkg withPackageActions (list map { o => WhiskPackageAction.serdes.read(o) })
                 }
                 case t => Future.failed {
-                    error(this, "unexpected result in package action lookup: $t")
+                    logging.error(this, "unexpected result in package action lookup: $t")
                     new IllegalStateException(s"unexpected result in package action lookup: $t")
                 }
             }
 
             onComplete(actions) {
                 case Success(p) =>
-                    info(this, s"[GET] entity success")
+                    logging.info(this, s"[GET] entity success")
                     complete(OK, p)
                 case Failure(t) =>
-                    error(this, s"[GET] failed: ${t.getMessage}")
-                    terminate(InternalServerError, t.getMessage)
+                    logging.error(this, s"[GET] failed: ${t.getMessage}")
+                    terminate(InternalServerError)
             }
         }
     }

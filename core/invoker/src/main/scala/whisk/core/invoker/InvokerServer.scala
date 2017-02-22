@@ -17,7 +17,6 @@
 package whisk.core.invoker
 
 import akka.actor.Actor
-import whisk.common.Logging
 import whisk.http.BasicRasService
 
 /**
@@ -26,8 +25,7 @@ import whisk.http.BasicRasService
  */
 trait InvokerServer
     extends BasicRasService
-    with Actor
-    with Logging {
+    with Actor {
 
     override def actorRefFactory = context
 }

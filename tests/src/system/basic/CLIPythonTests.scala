@@ -27,14 +27,12 @@ import spray.json.DefaultJsonProtocol.StringJsonFormat
 import common.TestHelpers
 import common.WskTestHelpers
 import common.WskProps
-import common.JsHelpers
 import common.WhiskProperties
 
 @RunWith(classOf[JUnitRunner])
 class CLIPythonTests
     extends TestHelpers
     with WskTestHelpers
-    with JsHelpers
     with Matchers {
 
     implicit val wskprops = WskProps()
@@ -51,6 +49,18 @@ class CLIPythonTests
 
             withActivation(wsk.activation, wsk.action.invoke(name, Map("name" -> "Prince".toJson))) {
                 _.response.result.get.toString should include("Prince")
+            }
+    }
+
+    it should "invoke an action with a non-default entry point" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "nonDefaultEntryPoint"
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("niam.py")), main = Some("niam"))
+            }
+
+            withActivation(wsk.activation, wsk.action.invoke(name, Map())) {
+                _.response.result.get.fields.get("greetings") should be(Some(JsString("Hello from a non-standard entrypoint.")))
             }
     }
 
@@ -72,7 +82,7 @@ class CLIPythonTests
 
     it should "invoke an invalid action and get error back" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val name = "basicInvoke"
+            val name = "bad code"
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("malformed.py")))
             }

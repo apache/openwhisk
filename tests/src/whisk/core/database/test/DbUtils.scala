@@ -40,13 +40,19 @@ import whisk.core.database.NoDocumentException
 import whisk.core.entity.DocId
 import whisk.core.entity.DocInfo
 import whisk.core.entity.EntityPath
-import whisk.core.entity.UUID
-import whisk.core.entity.WhiskAuth
+import whisk.core.entity.Identity
 import whisk.core.entity.WhiskDocument
 import whisk.core.entity.WhiskEntityQueries
 import whisk.core.entity.types.AuthStore
 import whisk.core.entity.types.EntityStore
+import whisk.core.entity.AuthKey
 
+/**
+ * WARNING: the put/get/del operations in this trait operate directly on the datastore,
+ * and in the presence of a cache, there will be inconsistencies if one mixes these
+ * operations with those that flow through the cache. To mitigate this, use unique asset
+ * names in tests, and defer all cleanup to the end of a test suite.
+ */
 trait DbUtils extends TransactionCounter {
     implicit val dbOpTimeout = 15 seconds
     val docsToDelete = ListBuffer[(ArtifactStore[_], DocInfo)]()
@@ -119,10 +125,10 @@ trait DbUtils extends TransactionCounter {
      * Wait on view for the authentication table. This is like the other waitOnViews but
      * specific to the WhiskAuth records.
      */
-    def waitOnView(db: AuthStore, uuid: UUID, count: Int)(
+    def waitOnView(db: AuthStore, authkey: AuthKey, count: Int)(
         implicit context: ExecutionContext, transid: TransactionId, timeout: Duration) = {
         val success = retry(() => {
-            WhiskAuth.list(db, uuid) map { l =>
+            Identity.list(db, List(authkey.uuid.asString, authkey.key.asString)) map { l =>
                 if (l.length != count) {
                     throw RetryOp()
                 } else true
@@ -191,7 +197,7 @@ trait DbUtils extends TransactionCounter {
     def putGetCheck[A, Au >: A](db: ArtifactStore[Au], entity: A, factory: DocumentFactory[A], gc: Boolean = true)(
         implicit transid: TransactionId, timeout: Duration = 10 seconds, ma: Manifest[A]): (DocInfo, A) = {
         val doc = put(db, entity, gc)
-        assert(doc != null && doc.id() != null && doc.rev() != null)
+        assert(doc != null && doc.id.asString != null && doc.rev.asString != null)
         val future = factory.get(db, doc.id, doc.rev)
         val dbEntity = Await.result(future, timeout)
         assert(dbEntity != null)

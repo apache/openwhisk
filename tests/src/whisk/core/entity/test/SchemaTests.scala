@@ -23,6 +23,7 @@ import scala.Vector
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.language.reflectiveCalls
+import scala.util.Failure
 import scala.util.Try
 
 import org.junit.runner.RunWith
@@ -31,10 +32,13 @@ import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 
-import spray.json.DefaultJsonProtocol._
 import spray.json._
+import spray.json.DefaultJsonProtocol._
+import whisk.core.entitlement.Privilege
 import whisk.core.entity._
 import whisk.core.entity.size.SizeInt
+import whisk.http.Messages
+import whisk.utils.JsHelpers
 
 @RunWith(classOf[JUnitRunner])
 class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
@@ -52,11 +56,30 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
     }
 
     it should "reject malformed ids" in {
-        Seq(null, "", " ", ":", " : ", " :", ": ", "a:b").foreach { i =>
-            intercept[IllegalArgumentException] {
-                AuthKey(i)
-            }
+        Seq(null, "", " ", ":", " : ", " :", ": ", "a:b").foreach {
+            i => an[IllegalArgumentException] should be thrownBy AuthKey(i)
         }
+    }
+
+    behavior of "Privilege"
+
+    it should "serdes a right" in {
+        Privilege.serdes.read("READ".toJson) shouldBe Privilege.READ
+        Privilege.serdes.read("read".toJson) shouldBe Privilege.READ
+        a[DeserializationException] should be thrownBy Privilege.serdes.read("???".toJson)
+    }
+
+    behavior of "Identity"
+
+    it should "serdes an identity" in {
+        val i = WhiskAuth(Subject(), AuthKey()).toIdentity
+        val expected = JsObject(
+            "subject" -> i.subject.asString.toJson,
+            "namespace" -> i.namespace.toJson,
+            "authkey" -> i.authkey.compact.toJson,
+            "rights" -> Array("READ", "PUT", "DELETE", "ACTIVATE").toJson)
+        Identity.serdes.write(i) shouldBe expected
+        Identity.serdes.read(expected) shouldBe i
     }
 
     behavior of "DocInfo"
@@ -64,7 +87,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
     it should "accept well formed doc info" in {
         Seq("a", " a", "a ").foreach { i =>
             val d = DocInfo(i)
-            assert(d.id() == i.trim)
+            assert(d.id.asString == i.trim)
         }
     }
 
@@ -79,104 +102,127 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
         DocRevision.serdes.read(JsString("a")) shouldBe DocRevision("a")
         DocRevision.serdes.read(JsString(" a")) shouldBe DocRevision("a")
         DocRevision.serdes.read(JsString("a ")) shouldBe DocRevision("a")
-        intercept[DeserializationException] {
-            DocRevision.serdes.read(JsNumber(1))
-        }
+        a[DeserializationException] should be thrownBy DocRevision.serdes.read(JsNumber(1))
     }
 
     it should "reject malformed doc info" in {
-        Seq(null, "", " ").foreach { i =>
-            intercept[IllegalArgumentException] {
-                DocInfo(i)
-            }
+        Seq(null, "", " ").foreach {
+            i => an[IllegalArgumentException] should be thrownBy DocInfo(i)
         }
     }
 
     it should "reject malformed doc ids" in {
-        Seq(null, "", " ").foreach { i =>
-            intercept[IllegalArgumentException] {
-                DocId(i)
-            }
+        Seq(null, "", " ").foreach {
+            i => an[IllegalArgumentException] should be thrownBy DocId(i)
         }
     }
 
-    behavior of "Namespace"
+    behavior of "EntityPath"
 
     it should "accept well formed paths" in {
         val paths = Seq("/a", "//a", "//a//", "//a//b//c", "//a//b/c//", "a", "a/b", "a/b/", "a@b.c", "a@b.c/", "a@b.c/d", "_a/", "_ _", "a/b/c")
         val expected = Seq("a", "a", "a", "a/b/c", "a/b/c", "a", "a/b", "a/b", "a@b.c", "a@b.c", "a@b.c/d", "_a", "_ _", "a/b/c")
-        val spaces = paths.zip(expected).foreach { p =>
-            assert(EntityPath(p._1).namespace == p._2)
+        val spaces = paths.zip(expected).foreach {
+            p => EntityPath(p._1).namespace shouldBe p._2
         }
+
+        EntityPath.DEFAULT.addPath(EntityName("a")).toString shouldBe "_/a"
+
+        EntityPath.DEFAULT.addPath(EntityPath("a")).toString shouldBe "_/a"
+        EntityPath.DEFAULT.addPath(EntityPath("a/b")).toString shouldBe "_/a/b"
+
+        EntityPath.DEFAULT.resolveNamespace(EntityName("a")) shouldBe EntityPath("a")
+        EntityPath("a").resolveNamespace(EntityName("b")) shouldBe EntityPath("a")
+
+        EntityPath("a").defaultPackage shouldBe true
+        EntityPath("a/b").defaultPackage shouldBe false
+
+        EntityPath("a").root shouldBe EntityName("a")
+        EntityPath("a").last shouldBe EntityName("a")
+        EntityPath("a/b").root shouldBe EntityName("a")
+        EntityPath("a/b").last shouldBe EntityName("b")
+
+        EntityPath("a").relativePath shouldBe empty
+        EntityPath("a/b").relativePath shouldBe Some(EntityPath("b"))
+        EntityPath("a/b/c").relativePath shouldBe Some(EntityPath("b/c"))
+
+        EntityPath("a/b").toFullyQualifiedEntityName shouldBe FullyQualifiedEntityName(EntityPath("a"), EntityName("b"))
     }
 
     it should "reject malformed paths" in {
         val paths = Seq(null, "", " ", "a/ ", "a/b/c ", " xxx", "xxx ", " xxx", "xxx/ ", "/", " /", "/ ", "//", "///", " / / / ", "a/b/ c", "a/ /b", " a/ b")
-        paths.foreach { p =>
-            val thrown = intercept[IllegalArgumentException] {
-                EntityPath(p)
-            }
+        paths.foreach {
+            p => an[IllegalArgumentException] should be thrownBy EntityPath(p)
         }
+
+        an[IllegalArgumentException] should be thrownBy EntityPath("a").toFullyQualifiedEntityName
     }
 
     behavior of "EntityName"
 
     it should "accept well formed names" in {
-        val paths = Seq("a", "a b", "a@b.c", "_a", "_", "_ _", "a0", "a 0", "a.0", "a@@", "0", "0.0", "0.0.0", "0a", "0.a")
-        val spaces = paths.foreach { n =>
+        val paths = Seq("a", "a b", "a@b.c", "_a", "_", "_ _", "a0", "a 0", "a.0", "a@@", "0", "0.0", "0.0.0", "0a", "0.a", "a"*EntityName.ENTITY_NAME_MAX_LENGTH)
+        paths.foreach { n =>
             assert(EntityName(n).toString == n)
         }
     }
 
     it should "reject malformed names" in {
-        val paths = Seq(null, "", " ", " xxx", "xxx ", "/", " /", "/ ", "0 ", "_ ", "a  ", "a \t", "a\n")
-        paths.foreach { p =>
-            val thrown = intercept[IllegalArgumentException] {
-                EntityName(p)
-            }
+        val paths = Seq(null, "", " ", " xxx", "xxx ", "/", " /", "/ ", "0 ", "_ ", "a  ", "a \t", "a\n", "a"*(EntityName.ENTITY_NAME_MAX_LENGTH+1))
+        paths.foreach {
+            p => an[IllegalArgumentException] should be thrownBy EntityName(p)
         }
     }
 
     behavior of "FullyQualifiedEntityName"
 
-    it should "deserialize a fully qualified name without a version" in {
+    it should "work with paths" in {
+        FullyQualifiedEntityName(EntityPath("a"), EntityName("b")).add(EntityName("c")) shouldBe
+            FullyQualifiedEntityName(EntityPath("a/b"), EntityName("c"))
 
+        FullyQualifiedEntityName(EntityPath("a"), EntityName("b")).fullPath shouldBe EntityPath("a/b")
+    }
+
+    it should "deserialize a fully qualified name without a version" in {
         val names = Seq(
             JsObject("path" -> "a".toJson, "name" -> "b".toJson),
             JsObject("path" -> "a".toJson, "name" -> "b".toJson, "version" -> "0.0.1".toJson),
             JsString("a/b"),
-            JsObject("namespace" -> "a".toJson, "name" -> "b".toJson))
+            JsString("n/a/b"),
+            JsString("/a/b"),
+            JsString("/n/a/b"),
+            JsString("b")) //JsObject("namespace" -> "a".toJson, "name" -> "b".toJson))
 
         FullyQualifiedEntityName.serdes.read(names(0)) shouldBe FullyQualifiedEntityName(EntityPath("a"), EntityName("b"))
         FullyQualifiedEntityName.serdes.read(names(1)) shouldBe FullyQualifiedEntityName(EntityPath("a"), EntityName("b"), Some(SemVer()))
         FullyQualifiedEntityName.serdes.read(names(2)) shouldBe FullyQualifiedEntityName(EntityPath("a"), EntityName("b"))
+        FullyQualifiedEntityName.serdes.read(names(3)) shouldBe FullyQualifiedEntityName(EntityPath("n/a"), EntityName("b"))
+        FullyQualifiedEntityName.serdes.read(names(4)) shouldBe FullyQualifiedEntityName(EntityPath("a"), EntityName("b"))
+        FullyQualifiedEntityName.serdes.read(names(5)) shouldBe FullyQualifiedEntityName(EntityPath("n/a"), EntityName("b"))
+        a[DeserializationException] should be thrownBy FullyQualifiedEntityName.serdes.read(names(6))
 
         a[DeserializationException] should be thrownBy FullyQualifiedEntityName.serdesAsDocId.read(names(0))
         a[DeserializationException] should be thrownBy FullyQualifiedEntityName.serdesAsDocId.read(names(1))
         FullyQualifiedEntityName.serdesAsDocId.read(names(2)) shouldBe FullyQualifiedEntityName(EntityPath("a"), EntityName("b"))
+        FullyQualifiedEntityName.serdesAsDocId.read(names(3)) shouldBe FullyQualifiedEntityName(EntityPath("n/a"), EntityName("b"))
+        FullyQualifiedEntityName.serdesAsDocId.read(names(4)) shouldBe FullyQualifiedEntityName(EntityPath("a"), EntityName("b"))
+        FullyQualifiedEntityName.serdesAsDocId.read(names(5)) shouldBe FullyQualifiedEntityName(EntityPath("n/a"), EntityName("b"))
+        a[DeserializationException] should be thrownBy FullyQualifiedEntityName.serdesAsDocId.read(names(6))
     }
 
     behavior of "Binding"
 
     it should "desiarilize legacy format" in {
         val names = Seq(
-            JsObject("path" -> "a".toJson, "name" -> "b".toJson),
-            JsObject("path" -> "a".toJson, "name" -> "b".toJson, "version" -> "0.0.1".toJson),
-            JsString("a/b"),
             JsObject("namespace" -> "a".toJson, "name" -> "b".toJson),
-            JsObject("namespace" -> "a".toJson, "path" -> "a".toJson, "name" -> "b".toJson),
-            JsObject("name" -> "b".toJson),
             JsObject(),
+            JsObject("name" -> "b".toJson),
             JsNull)
 
-        //Binding.optionalBindingDeserializer.read(names(0)) shouldBe Some(Binding(EntityPath("a"), EntityName("b")))
-        //Binding.optionalBindingDeserializer.read(names(1)) shouldBe Some(Binding(EntityPath("a"), EntityName("b"), Some(SemVer())))
-        //Binding.optionalBindingDeserializer.read(names(2)) shouldBe Some(Binding(EntityPath("a"), EntityName("b")))
-        Binding.optionalBindingDeserializer.read(names(3)) shouldBe Some(Binding(EntityPath("a"), EntityName("b")))
-        Binding.optionalBindingDeserializer.read(names(6)) shouldBe None
-        //a[DeserializationException] should be thrownBy Binding.optionalBindingDeserializer.read(names(4))
-        a[DeserializationException] should be thrownBy Binding.optionalBindingDeserializer.read(names(5))
-        a[DeserializationException] should be thrownBy Binding.optionalBindingDeserializer.read(names(7))
+        Binding.optionalBindingDeserializer.read(names(0)) shouldBe Some(Binding(EntityName("a"), EntityName("b")))
+        Binding.optionalBindingDeserializer.read(names(1)) shouldBe None
+        a[DeserializationException] should be thrownBy Binding.optionalBindingDeserializer.read(names(2))
+        a[DeserializationException] should be thrownBy Binding.optionalBindingDeserializer.read(names(3))
     }
 
     it should "serialize optional binding to empty object" in {
@@ -214,7 +260,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
     }
 
     it should "serialize and deserialize package binding" in {
-        val pkg = WhiskPackage(EntityPath("a"), EntityName("b"), Some(Binding(EntityPath("x"), EntityName("y"))))
+        val pkg = WhiskPackage(EntityPath("a"), EntityName("b"), Some(Binding(EntityName("x"), EntityName("y"))))
         val pkgAsJson = JsObject(
             "namespace" -> "a".toJson,
             "name" -> "b".toJson,
@@ -259,18 +305,10 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
     }
 
     it should "reject negative values" in {
-        intercept[IllegalArgumentException] {
-            SemVer(-1, 0, 0)
-        }
-        intercept[IllegalArgumentException] {
-            SemVer(0, -1, 0)
-        }
-        intercept[IllegalArgumentException] {
-            SemVer(0, 0, -1)
-        }
-        intercept[IllegalArgumentException] {
-            SemVer(0, 0, 0)
-        }
+        an[IllegalArgumentException] should be thrownBy SemVer(-1, 0, 0)
+        an[IllegalArgumentException] should be thrownBy SemVer(0, -1, 0)
+        an[IllegalArgumentException] should be thrownBy SemVer(0, 0, -1)
+        an[IllegalArgumentException] should be thrownBy SemVer(0, 0, 0)
     }
 
     behavior of "Exec"
@@ -337,15 +375,9 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
     }
 
     it should "reject null code/image arguments" in {
-        intercept[IllegalArgumentException] {
-            Exec.serdes.read(null)
-        }
-        intercept[DeserializationException] {
-            Exec.serdes.read("{}" parseJson)
-        }
-        intercept[DeserializationException] {
-            Exec.serdes.read(JsString(""))
-        }
+        an[IllegalArgumentException] should be thrownBy Exec.serdes.read(null)
+        a[DeserializationException] should be thrownBy Exec.serdes.read("{}" parseJson)
+        a[DeserializationException] should be thrownBy Exec.serdes.read(JsString(""))
     }
 
     it should "serialize to json" in {
@@ -373,6 +405,11 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
         assert(params(3).toString == json(3).compactPrint) // drops unknown prop "foo"
     }
 
+    it should "filter immutable parameters" in {
+        val params = Parameters("k", "v") ++ Parameters("ns", null: String) ++ Parameters("njs", JsNull)
+        params.definedParameters shouldBe Set("k")
+    }
+
     it should "reject malformed JSON" in {
         val params = Seq[JsValue](
             null,
@@ -385,35 +422,20 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
             JsObject("KEY" -> "k".toJson, "VALUE" -> "v".toJson),
             JsObject("key" -> "k".toJson, "value" -> 0.toJson))
 
-        params.foreach { p =>
-            val thrown = intercept[DeserializationException] {
-                Parameters.serdes.read(p)
-            }
+        params.foreach {
+            p => a[DeserializationException] should be thrownBy Parameters.serdes.read(p)
         }
     }
 
     it should "reject undefined key" in {
-        intercept[DeserializationException] {
-            Parameters.serdes.read(null: JsValue)
-        }
-        intercept[IllegalArgumentException] {
-            Parameters(null, null: String)
-        }
-        intercept[IllegalArgumentException] {
-            Parameters("", null: JsValue)
-        }
-        intercept[IllegalArgumentException] {
-            Parameters(" ", null: String)
-        }
-        intercept[IllegalArgumentException] {
-            Parameters(null, "")
-        }
-        intercept[IllegalArgumentException] {
-            Parameters(null, " ")
-        }
-        intercept[IllegalArgumentException] {
-            Parameters(null)
-        }
+        a[DeserializationException] should be thrownBy Parameters.serdes.read(null: JsValue)
+        an[IllegalArgumentException] should be thrownBy Parameters(null, null: String)
+        an[IllegalArgumentException] should be thrownBy Parameters("", null: JsValue)
+        an[IllegalArgumentException] should be thrownBy Parameters(" ", null: String)
+        an[IllegalArgumentException] should be thrownBy Parameters(null, "")
+        an[IllegalArgumentException] should be thrownBy Parameters(null, " ")
+        an[IllegalArgumentException] should be thrownBy Parameters(null)
+
     }
 
     it should "serialize to json" in {
@@ -453,10 +475,8 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
             JsObject("timeout" -> JsNull, "memory" -> JsNull),
             JsObject("timeout" -> TimeLimit.STD_DURATION.toMillis.toString.toJson, "memory" -> MemoryLimit.STD_MEMORY.toMB.toInt.toString.toJson))
 
-        limits.foreach { p =>
-            val thrown = intercept[DeserializationException] {
-                ActionLimits.serdes.read(p)
-            }
+        limits.foreach {
+            p => a[DeserializationException] should be thrownBy ActionLimits.serdes.read(p)
         }
     }
 
@@ -523,18 +543,46 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
     it should "not parse invalid activation id" in {
         val id = "213174381920559471141441e111111z"
         assert(ActivationId.unapply(id).isEmpty)
-        assert(Try { ActivationId.serdes.read(JsString(id)) }.failed.get.getMessage.contains("malformed"))
+        Try(ActivationId.serdes.read(JsString(id))) shouldBe Failure {
+            DeserializationException(Messages.activationIdIllegal)
+        }
     }
 
     it should "not parse activation id if longer than uuid" in {
         val id = "213174381920559471141441e1111111abc"
         assert(ActivationId.unapply(id).isEmpty)
-        assert(Try { ActivationId.serdes.read(JsString(id)) }.failed.get.getMessage.contains("too long"))
+        Try(ActivationId.serdes.read(JsString(id))) shouldBe Failure {
+            DeserializationException(Messages.activationIdLengthError(SizeError("Activation id", id.length.B, 32.B)))
+        }
     }
 
     it should "not parse activation id if shorter than uuid" in {
         val id = "213174381920559471141441e1"
-        assert(ActivationId.unapply(id).isEmpty)
-        assert(Try { ActivationId.serdes.read(JsString(id)) }.failed.get.getMessage.contains("too short"))
+        ActivationId.unapply(id) shouldBe empty
+        Try(ActivationId.serdes.read(JsString(id))) shouldBe Failure {
+            DeserializationException(Messages.activationIdLengthError(SizeError("Activation id", id.length.B, 32.B)))
+        }
+    }
+
+    behavior of "Js Helpers"
+
+    it should "project paths from json object" in {
+        val js = JsObject("a" -> JsObject("b" -> JsObject("c" -> JsString("v"))), "b" -> JsString("v"))
+        JsHelpers.fieldPathExists(js) shouldBe true
+        JsHelpers.fieldPathExists(js, "a") shouldBe true
+        JsHelpers.fieldPathExists(js, "a", "b") shouldBe true
+        JsHelpers.fieldPathExists(js, "a", "b", "c") shouldBe true
+        JsHelpers.fieldPathExists(js, "a", "b", "c", "d") shouldBe false
+        JsHelpers.fieldPathExists(js, "b") shouldBe true
+        JsHelpers.fieldPathExists(js, "c") shouldBe false
+
+        JsHelpers.getFieldPath(js) shouldBe Some(js)
+        JsHelpers.getFieldPath(js, "x") shouldBe None
+        JsHelpers.getFieldPath(js, "b") shouldBe Some(JsString("v"))
+        JsHelpers.getFieldPath(js, "a") shouldBe Some(JsObject("b" -> JsObject("c" -> JsString("v"))))
+        JsHelpers.getFieldPath(js, "a", "b") shouldBe Some(JsObject("c" -> JsString("v")))
+        JsHelpers.getFieldPath(js, "a", "b", "c") shouldBe Some(JsString("v"))
+        JsHelpers.getFieldPath(js, "a", "b", "c", "d") shouldBe None
+        JsHelpers.getFieldPath(JsObject()) shouldBe Some(JsObject())
     }
 }

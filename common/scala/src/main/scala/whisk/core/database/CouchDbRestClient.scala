@@ -19,28 +19,25 @@ package whisk.core.database
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
-import scala.util.{ Success, Failure }
 import scala.concurrent.Future
 import scala.concurrent.Promise
-
-import spray.json._
-
-import whisk.common.Logging
-
-import akka.util.ByteString
-import akka.stream.ActorMaterializer
-import akka.stream.OverflowStrategy
-import akka.stream.QueueOfferResult
-import akka.stream.scaladsl._
+import scala.util.{ Success, Failure }
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.Http.HostConnectionPool
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.headers._
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling._
+import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.headers._
 import akka.http.scaladsl.unmarshalling._
+import akka.stream.ActorMaterializer
+import akka.stream.OverflowStrategy
+import akka.stream.QueueOfferResult
+import akka.stream.scaladsl._
+import akka.util.ByteString
+import spray.json._
+import whisk.common.Logging
 
 /**
  * This class only handles the basic communication to the proper endpoints
@@ -50,7 +47,7 @@ import akka.http.scaladsl.unmarshalling._
  *  up the pool corresponding to the host. It is also easier to add an extra
  *  queueing mechanism.
  */
-class CouchDbRestClient(protocol: String, host: String, port: Int, username: String, password: String, db: String)(implicit system: ActorSystem) extends Logging {
+class CouchDbRestClient(protocol: String, host: String, port: Int, username: String, password: String, db: String)(implicit system: ActorSystem, logging: Logging) {
     require(protocol == "http" || protocol == "https", "Protocol must be one of { http, https }.")
 
     private implicit val context = system.dispatcher
@@ -68,7 +65,8 @@ class CouchDbRestClient(protocol: String, host: String, port: Int, username: Str
     // Additional queue in case all connections are busy. Should hardly ever be
     // filled in practice but can be useful, e.g., in tests starting many
     // asynchronous requests in a very short period of time.
-    private val requestQueue = Source.queue(128, OverflowStrategy.dropNew)
+    private val QUEUE_SIZE = 16 * 1024;
+    private val requestQueue = Source.queue(QUEUE_SIZE, OverflowStrategy.dropNew)
         .via(pool.mapMaterializedValue { x => poolPromise.success(x); x })
         .toMat(Sink.foreach({
             case ((Success(response), p)) => p.success(response)
@@ -135,13 +133,10 @@ class CouchDbRestClient(protocol: String, host: String, port: Int, username: Str
     }
 
     // Runs a request and returns either a JsObject, or a StatusCode if not 2xx.
-    protected def requestJson(futureRequest: Future[HttpRequest]): Future[Either[StatusCode, JsObject]] = {
+    protected def requestJson[T: RootJsonReader](futureRequest: Future[HttpRequest]): Future[Either[StatusCode, T]] = {
         request0(futureRequest) flatMap { response =>
             if (response.status.isSuccess()) {
-                // Importing this in an outer scope seems to make it eager
-                // to always unmarshal.
-                import spray.json.DefaultJsonProtocol._
-                Unmarshal(response.entity.withoutSizeLimit()).to[JsObject].map { o => Right(o) }
+                Unmarshal(response.entity.withoutSizeLimit()).to[T].map { o => Right(o) }
             } else {
                 // This is important, as it drains the entity stream.
                 // Otherwise the connection stays open and the pool dries up.
@@ -150,25 +145,27 @@ class CouchDbRestClient(protocol: String, host: String, port: Int, username: Str
         }
     }
 
+    import spray.json.DefaultJsonProtocol._
+
     // http://docs.couchdb.org/en/1.6.1/api/document/common.html#put--db-docid
     def putDoc(id: String, doc: JsObject): Future[Either[StatusCode, JsObject]] =
-        requestJson(mkJsonRequest(HttpMethods.PUT, uri(db, id), doc))
+        requestJson[JsObject](mkJsonRequest(HttpMethods.PUT, uri(db, id), doc))
 
     // http://docs.couchdb.org/en/1.6.1/api/document/common.html#put--db-docid
     def putDoc(id: String, rev: String, doc: JsObject): Future[Either[StatusCode, JsObject]] =
-        requestJson(mkJsonRequest(HttpMethods.PUT, uri(db, id), doc, forRev = Some(rev)))
+        requestJson[JsObject](mkJsonRequest(HttpMethods.PUT, uri(db, id), doc, forRev = Some(rev)))
 
     // http://docs.couchdb.org/en/1.6.1/api/document/common.html#get--db-docid
     def getDoc(id: String): Future[Either[StatusCode, JsObject]] =
-        requestJson(mkRequest(HttpMethods.GET, uri(db, id)))
+        requestJson[JsObject](mkRequest(HttpMethods.GET, uri(db, id)))
 
     // http://docs.couchdb.org/en/1.6.1/api/document/common.html#get--db-docid
     def getDoc(id: String, rev: String): Future[Either[StatusCode, JsObject]] =
-        requestJson(mkRequest(HttpMethods.GET, uri(db, id), forRev = Some(rev)))
+        requestJson[JsObject](mkRequest(HttpMethods.GET, uri(db, id), forRev = Some(rev)))
 
     // http://docs.couchdb.org/en/1.6.1/api/document/common.html#delete--db-docid
     def deleteDoc(id: String, rev: String): Future[Either[StatusCode, JsObject]] =
-        requestJson(mkRequest(HttpMethods.DELETE, uri(db, id), forRev = Some(rev)))
+        requestJson[JsObject](mkRequest(HttpMethods.DELETE, uri(db, id), forRev = Some(rev)))
 
     // http://docs.couchdb.org/en/1.6.1/api/ddoc/views.html
     def executeView(designDoc: String, viewName: String)(
@@ -191,7 +188,7 @@ class CouchDbRestClient(protocol: String, host: String, port: Int, username: Str
             case f: Float   => JsNumber(f)
             case s: String  => JsString(s)
             case _ =>
-                warn(this, s"Serializing uncontrolled type '${any.getClass}' to string in JSON conversion ('${any.toString}').")
+                logging.warn(this, s"Serializing uncontrolled type '${any.getClass}' to string in JSON conversion ('${any.toString}').")
                 JsString(any.toString)
         }
 
@@ -219,7 +216,7 @@ class CouchDbRestClient(protocol: String, host: String, port: Int, username: Str
 
         val viewUri = uri(db, "_design", designDoc, "_view", viewName).withQuery(Uri.Query(argMap))
 
-        requestJson(mkRequest(HttpMethods.GET, viewUri))
+        requestJson[JsObject](mkRequest(HttpMethods.GET, viewUri))
     }
 
     // Streams an attachment to the database
@@ -227,7 +224,7 @@ class CouchDbRestClient(protocol: String, host: String, port: Int, username: Str
     def putAttachment(id: String, rev: String, attName: String, contentType: ContentType, source: Source[ByteString, _]): Future[Either[StatusCode, JsObject]] = {
         val entity = HttpEntity.Chunked(contentType, source.map(bs => HttpEntity.ChunkStreamPart(bs)))
         val request = mkRequest0(HttpMethods.PUT, uri(db, id, attName), Future.successful(entity), forRev = Some(rev))
-        requestJson(request)
+        requestJson[JsObject](request)
     }
 
     // Retrieves and streams an attachment into a Sink, producing a result of type T.

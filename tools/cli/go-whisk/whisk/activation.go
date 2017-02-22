@@ -29,19 +29,20 @@ type ActivationService struct {
 }
 
 type Activation struct {
-    Namespace string `json:"namespace"`
-    Name      string `json:"name"`
-    Version   string `json:"version"`
-    Publish   bool   `json:"publish"`
-    Subject         string `json:"subject"`
-    ActivationID    string `json:"activationId"`
-    Cause           string `json:"cause,omitempty"`
-    Start           int64  `json:"start"`        // When action started (in milliseconds since January 1, 1970 UTC)
-    End             int64  `json:"end"`          // Since a 0 is a valid value from server, don't omit
-    Duration        int64  `json:"duration"`     // Only available for actions
-    Response        `json:"response"`
-    Logs            []string `json:"logs"`
+    Namespace       string      `json:"namespace"`
+    Name            string      `json:"name"`
+    Version         string      `json:"version"`
+    Subject         string      `json:"subject"`
+    ActivationID    string      `json:"activationId"`
+    Cause           string      `json:"cause,omitempty"`
+    Start           int64       `json:"start"`        // When action started (in milliseconds since January 1, 1970 UTC)
+    End             int64       `json:"end"`          // Since a 0 is a valid value from server, don't omit
+    Duration        int64       `json:"duration"`     // Only available for actions
+    Response                    `json:"response"`
+    Logs            []string    `json:"logs"`
     Annotations     KeyValueArr `json:"annotations"`
+    Publish         *bool       `json:"publish,omitempty"`
+
 }
 
 type Response struct {
@@ -82,7 +83,7 @@ func (s *ActivationService) List(options *ActivationListOptions) ([]Activation, 
         return nil, nil, werr
     }
 
-    req, err := s.client.NewRequestUrl("GET", routeUrl, nil)
+    req, err := s.client.NewRequestUrl("GET", routeUrl, nil, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s) error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
@@ -113,7 +114,7 @@ func (s *ActivationService) Get(activationID string) (*Activation, *http.Respons
     activationID = (&url.URL{Path: activationID}).String()
     route := fmt.Sprintf("activations/%s", activationID)
 
-    req, err := s.client.NewRequest("GET", route, nil)
+    req, err := s.client.NewRequest("GET", route, nil, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s) error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
@@ -142,7 +143,7 @@ func (s *ActivationService) Logs(activationID string) (*Activation, *http.Respon
     activationID = (&url.URL{Path: activationID}).String()
     route := fmt.Sprintf("activations/%s/logs", activationID)
 
-    req, err := s.client.NewRequest("GET", route, nil)
+    req, err := s.client.NewRequest("GET", route, nil, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s) error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
@@ -171,7 +172,7 @@ func (s *ActivationService) Result(activationID string) (*Response, *http.Respon
     activationID = (&url.URL{Path: activationID}).String()
     route := fmt.Sprintf("activations/%s/result", activationID)
 
-    req, err := s.client.NewRequest("GET", route, nil)
+    req, err := s.client.NewRequest("GET", route, nil, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s) error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",

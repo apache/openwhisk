@@ -76,7 +76,7 @@ case class WhiskTrigger(
 
     def toJson = WhiskTrigger.serdes.write(this).asJsObject
 
-    def withoutRules = WhiskTrigger(namespace, name, parameters, limits, version, publish, annotations, None)
+    def withoutRules = copy(rules = None).revision[WhiskTrigger](rev)
 
     /**
      * Inserts the rulename, its status and the action to be fired into the trigger.
@@ -87,8 +87,8 @@ case class WhiskTrigger(
      */
     def addRule(rulename: FullyQualifiedEntityName, rule: ReducedRule) = {
         val entry = rulename -> rule
-        val links = rules getOrElse Map[FullyQualifiedEntityName, ReducedRule]()
-        WhiskTrigger(namespace, name, parameters, limits, version, publish, annotations, Some(links + entry)).revision[WhiskTrigger](docinfo.rev)
+        val links = rules getOrElse Map.empty[FullyQualifiedEntityName, ReducedRule]
+        copy(rules = Some(links + entry)).revision[WhiskTrigger](docinfo.rev)
     }
 
     /**
@@ -98,7 +98,7 @@ case class WhiskTrigger(
      * trigger. After removing the rule, it won't be fired anymore by this trigger.
      */
     def removeRule(rule: FullyQualifiedEntityName) = {
-        WhiskTrigger(namespace, name, parameters, limits, version, publish, annotations, rules.map(_ - rule)).revision[WhiskTrigger](docinfo.rev)
+        copy(rules = rules.map(_ - rule)).revision[WhiskTrigger](docinfo.rev)
     }
 }
 

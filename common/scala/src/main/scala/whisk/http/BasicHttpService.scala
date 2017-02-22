@@ -45,7 +45,10 @@ import spray.routing.Route
 import spray.routing.directives.DebuggingDirectives
 import spray.routing.directives.LogEntry
 import spray.routing.directives.LoggingMagnet.forMessageFromFullShow
+import whisk.common.LogMarker
+import whisk.common.LogMarkerToken
 import whisk.common.Logging
+import whisk.common.LoggingMarkers
 import whisk.common.TransactionCounter
 import whisk.common.TransactionId
 
@@ -53,12 +56,17 @@ import whisk.common.TransactionId
  * This trait extends the spray HttpService trait with logging and transaction counting
  * facilities common to all OpenWhisk REST services.
  */
-trait BasicHttpService extends HttpService with TransactionCounter with Logging {
+trait BasicHttpService extends HttpService with TransactionCounter {
 
     /**
      * Gets the actor context.
      */
     implicit def actorRefFactory: ActorContext
+
+    /**
+     * Gets the logging
+     */
+    implicit def logging: Logging
 
     /**
      * Gets the routes implemented by the HTTP service.
@@ -82,7 +90,9 @@ trait BasicHttpService extends HttpService with TransactionCounter with Logging 
     def receive = runRoute(
         assignId { implicit transid =>
             DebuggingDirectives.logRequest(logRequestInfo _) {
-                routes
+                DebuggingDirectives.logRequestResponse(logResponseInfo _) {
+                    routes
+                }
             }
         })
 
@@ -92,7 +102,7 @@ trait BasicHttpService extends HttpService with TransactionCounter with Logging 
     /** Rejection handler to terminate connection on a bad request. Delegates to Spray handler. */
     protected def customRejectionHandler(implicit transid: TransactionId) = RejectionHandler {
         case rejections =>
-            info(this, s"[REJECT] $rejections")
+            logging.info(this, s"[REJECT] $rejections")
             BasicHttpService.customRejectionHandler.apply(rejections)
     }
 
@@ -103,6 +113,21 @@ trait BasicHttpService extends HttpService with TransactionCounter with Logging 
         val q = req.uri.query.toString
         val l = loglevelForRoute(p)
         LogEntry(s"[$tid] $m $p $q", l)
+    }
+
+    protected def logResponseInfo(req: HttpRequest)(implicit tid: TransactionId): Any => Option[LogEntry] = {
+        case res: HttpResponse =>
+            val m = req.method.toString
+            val p = req.uri.path.toString
+            val l = loglevelForRoute(p)
+
+            val name = "BasicHttpService"
+
+            val token = LogMarkerToken("http", s"${m.toLowerCase}.${res.status.intValue}", LoggingMarkers.count)
+            val marker = LogMarker(token, tid.deltaToStart, Some(tid.deltaToStart))
+
+            Some(LogEntry(s"[$tid] [$name] $marker", l))
+        case _ => None // other kind of responses
     }
 }
 

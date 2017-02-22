@@ -25,7 +25,7 @@ import spray.json.deserializationError
 import whisk.core.entitlement.Privilege
 
 protected[core] class Subject private (private val subject: String) extends AnyVal {
-    protected[core] def apply() = subject
+    protected[core] def asString = subject // to make explicit that this is a string conversion
     protected[entity] def toJson = JsString(subject)
     protected[core] def toIdentity(authkey: AuthKey) = Identity(this, EntityName(subject), authkey, Privilege.ALL)
     override def toString = subject

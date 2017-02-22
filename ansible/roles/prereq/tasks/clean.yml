@@ -1,6 +1,12 @@
 ---
 # Remove prereq packages
 
+- name: remove requests
+  pip: 
+    name: requests
+    state: absent
+  become: true
+
 - name: remove docker-py
   pip: 
     name: docker-py

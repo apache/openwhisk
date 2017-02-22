@@ -50,9 +50,11 @@ class ActionRunner:
                 binary = message['binary'] if 'binary' in message else False
                 if not binary:
                     with codecs.open(self.source, 'w', 'utf-8') as fp:
-                        fp.write(str(message['code']))
+                        fp.write(message['code'])
                         # write source epilogue if any
-                        self.epilogue(fp)
+                        # the message is passed along as it may contain other
+                        # fields relevant to a specific container.
+                        self.epilogue(fp, message)
                     return True
                 else:
                     try:
@@ -79,7 +81,7 @@ class ActionRunner:
 
     # optionally appends source to the loaded code during <init>
     # @param fp the file stream writer
-    def epilogue(self, fp):
+    def epilogue(self, fp, init_arguments):
         return
 
     # optionally builds the source code loaded during <init> into an executable
@@ -91,13 +93,14 @@ class ActionRunner:
         return (os.path.isfile(self.binary) and os.access(self.binary, os.X_OK))
 
     # constructs an environment for the action to run in
-    # @param message is a JSON object received from invoker (should contain 'value' and 'authKey')
+    # @param message is a JSON object received from invoker (should contain 'value' and 'api_key' and other metadata)
     # @return an environment dictionary for the action process
     def env(self, message):
         # make sure to include all the env vars passed in by the invoker
         env = os.environ
-        if 'authKey' in message:
-            env['AUTH_KEY'] = message['authKey']
+        for p in [ 'api_key', 'namespace', 'action_name', 'activation_id', 'deadline' ]:
+             if p in message:
+                env['__OW_%s' % p.upper()] = message[p]
         return env
 
     # runs the action, called iff self.verify() is True.

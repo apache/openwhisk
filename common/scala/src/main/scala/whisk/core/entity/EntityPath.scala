@@ -22,18 +22,13 @@ import spray.json.JsString
 import spray.json.JsValue
 import spray.json.RootJsonFormat
 import spray.json.deserializationError
-
 import whisk.http.Messages
 
 /**
  * EntityPath is a path string of allowed characters. The path consists of parts each of which
  * must be a valid EntityName, separated by the EntityPath separator character. The private
  * constructor accepts a validated sequence of path parts and can reconstruct the path
- * from it.
- *
- * N. B.   The qualified name of an entity is intended to be a pair of an (EntityPath,EntityName)
- * However, right now lots of code abuses the EntityPath to mean qualified name.
- * TODO This needs to be fixed.
+ * from it. The path cannot be empty.
  *
  * It is a value type (hence == is .equals, immutable and cannot be assigned null).
  * The constructor is private so that argument requirements are checked and normalized
@@ -43,14 +38,37 @@ import whisk.http.Messages
  */
 protected[core] class EntityPath private (private val path: Seq[String]) extends AnyVal {
     def namespace: String = path.foldLeft("")((a, b) => if (a != "") a.trim + EntityPath.PATHSEP + b.trim else b.trim)
-    def addpath(e: EntityName) = EntityPath(path :+ e.name)
-    def relpath: Option[EntityPath] = Try(EntityPath(path.drop(1))).toOption
+
+    /**
+     * Adds segment to path.
+     */
+    def addPath(e: EntityName) = EntityPath(path :+ e.name)
+
+    /**
+     * Concatenates given path to existin path.
+     */
+    def addPath(p: EntityPath) = EntityPath(path ++ p.path)
+
+    /**
+     * Computes the relative path by dropping the leftmost segment. The return is an option
+     * since dropping a singleton results in an invalid path.
+     */
+    def relativePath: Option[EntityPath] = Try(EntityPath(path.drop(1))).toOption
+
+    /**
+     * @return the root of the path (the first segment).
+     */
     def root: EntityName = EntityName(path.head)
+
+    /**
+     * @return the last segment of the path.
+     */
     def last: EntityName = EntityName(path.last)
-    def defaultPackage: Boolean = path.size == 1 // if only one element in the path, then it's the namespace with a default package
-    def toJson = JsString(namespace)
-    def apply() = namespace
-    override def toString = namespace
+
+    /**
+     * @return true iff the path contains exactly one segment (i.e., the namespace)
+     */
+    def defaultPackage: Boolean = path.size == 1
 
     /**
      * Replaces root of this path with given namespace iff the root is
@@ -76,6 +94,11 @@ protected[core] class EntityPath private (private val path: Seq[String]) extends
         val newPath = EntityPath(path.dropRight(1))
         FullyQualifiedEntityName(newPath, name)
     }
+
+    def toDocId = DocId(namespace)
+    def toJson = JsString(namespace)
+    def asString = namespace // to make explicit that this is a string conversion
+    override def toString = namespace
 }
 
 protected[core] object EntityPath {
@@ -143,19 +166,23 @@ protected[core] object EntityPath {
  * before creating a new instance.
  */
 protected[core] class EntityName private (val name: String) extends AnyVal {
-    def apply() = name
+    def asString = name // to make explicit that this is a string conversion
     def toJson = JsString(name)
-    def toPath = EntityPath(name)
+    def toPath: EntityPath = EntityPath(name)
+    def addPath(e: EntityName): EntityPath = toPath.addPath(e)
+    def addPath(e: Option[EntityName]): EntityPath = e map { toPath.addPath(_) } getOrElse toPath
     override def toString = name
 }
 
 protected[core] object EntityName {
+    protected[core] val ENTITY_NAME_MAX_LENGTH = 256
+
     /**
      * Allowed path part or entity name format (excludes path separator): first character
      * is a letter|digit|underscore, followed by one or more allowed characters in [\w@ .-].
      * The name may not have trailing white space.
      */
-    protected[core] val REGEX = """\A([\w]|[\w][\w@ .-]*[\w@.-]+)\z"""
+    protected[core] val REGEX = raw"\A([\w]|[\w][\w@ .-]{0,${ENTITY_NAME_MAX_LENGTH-2}}[\w@.-])\z"
 
     /**
      * Unapply method for convenience of case matching.

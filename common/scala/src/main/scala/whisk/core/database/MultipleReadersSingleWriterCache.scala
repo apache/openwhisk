@@ -79,7 +79,6 @@ private object MultipleReadersSingleWriterCache {
     /** Failure modes, which will only occur if there is a bug in this implementation */
     case class ConcurrentOperationUnderRead(actualState: State) extends Exception(s"Cache read started, but completion raced with a concurrent operation: $actualState.")
     case class ConcurrentOperationUnderUpdate(actualState: State) extends Exception(s"Cache update started, but completion raced with a concurrent operation: $actualState.")
-    case class SquashedInvalidation(actualState: State) extends Exception(s"Cache invalidation squashed due $actualState.")
     case class StaleRead(actualState: State) extends Exception(s"Attempted read of invalid entry due to $actualState.")
 }
 
@@ -141,6 +140,8 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
         }
 
         def grabInvalidationLock() = state.set(InvalidateInProgress)
+
+        override def toString = s"tid ${transid.meta.id}, state ${state.get}"
     }
 
     /**
@@ -150,7 +151,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
     protected def cacheInvalidate[R](key: Any, invalidator: => Future[R])(
         implicit ec: ExecutionContext, transid: TransactionId, logger: Logging): Future[R] = {
         if (cacheEnabled) {
-            logger.info(this, s"invalidating $key")
+            logger.info(this, s"invalidating $key on delete")
 
             // try inserting our desired entry...
             val desiredEntry = Entry(transid, InvalidateInProgress, None)
@@ -265,7 +266,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
 
                     if (allowedToAssumeCompletion && actualEntry.grabWriteLock(transid, currentState, desiredEntry.unpack)) {
                         // this transaction is now responsible for updating the cache entry
-                        logger.info(this, s"write initiated on existing cache entry invalidating $key")
+                        logger.info(this, s"write initiated on existing cache entry, invalidating $key, $actualEntry")
                         listenForWriteDone(key, actualEntry, generator)
                     } else {
                         // there is a conflicting operation in progress on this key
@@ -327,10 +328,10 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
                             // do nothing, the write will handle the entry
                             ()
                         case _ =>
-                            // this should not happen
-                            // if this ever happens, this cache impl is buggy
+                            // this should not happen, but could if the callback on the generator
+                            // is delayed - invalidate the cache entry as a result
                             val error = ConcurrentOperationUnderRead(entry.state.get)
-                            logger.error(this, error.toString)
+                            logger.warn(this, error.toString)
                             readOops(error)
                     }
                 }
@@ -362,9 +363,17 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
                 } else {
                     // state transition from WriteInProgress to Cached fails so invalidate
                     // the entry in the cache
-                    if (entry.state.get != InvalidateWhenDone) {
-                        // if this ever happens, this cache impl is buggy
-                        logger.error(this, ConcurrentOperationUnderUpdate.toString)
+                    val prevState = entry.state.get
+                    if (prevState != InvalidateWhenDone) {
+                        // this should not happen but could for example during a document
+                        // update where the "read" that would fetch a previous instance of
+                        // the document fails because the document does not exist, but the
+                        // future callback to invalidate the cache entry is delayed; so it
+                        // is possible the state here is InvalidateInProgress as a result.
+                        // the end result is to invalidate the entry, which may be unnecessary;
+                        // so this is a performance hit, not a correctness concern.
+                        val error = ConcurrentOperationUnderUpdate(prevState)
+                        logger.warn(this, error.toString)
                     } else {
                         logger.info(this, s"write done, but invalidating cache entry as requested")
                     }

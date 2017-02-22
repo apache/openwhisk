@@ -29,34 +29,51 @@ import whisk.core.entitlement.Privilege.Privilege
 
 protected[core] case class Identity(subject: Subject, namespace: EntityName, authkey: AuthKey, rights: Set[Privilege])
 
-object Identities extends MultipleReadersSingleWriterCache[Identity, DocInfo] {
+object Identity extends MultipleReadersSingleWriterCache[Identity, DocInfo] with DefaultJsonProtocol {
 
     private val viewName = "subjects/identities"
 
     override val cacheEnabled = true
     override def cacheKeyForUpdate(i: Identity) = i.authkey
+    implicit val serdes = jsonFormat4(Identity.apply)
+
+    /**
+     * Retrieves a key for namespace.
+     * There may be more than one key for the namespace, in which case,
+     * one is picked arbitrarily.
+     */
+    def get(datastore: AuthStore, namespace: EntityName)(
+        implicit transid: TransactionId): Future[Identity] = {
+        implicit val logger: Logging = datastore.logging
+        implicit val ec = datastore.executionContext
+        val ns = namespace.asString
+
+        cacheLookup(ns, {
+            list(datastore, List(ns), limit = 1) map { list =>
+                list.length match {
+                    case 1 =>
+                        rowToIdentity(list.head, ns)
+                    case 0 =>
+                        logger.info(this, s"$viewName[$namespace] does not exist")
+                        throw new NoDocumentException("namespace does not exist")
+                    case _ =>
+                        logger.error(this, s"$viewName[$namespace] is not unique")
+                        throw new IllegalStateException("namespace is not unique")
+                }
+            }
+        })
+    }
 
     def get(datastore: AuthStore, authkey: AuthKey)(
         implicit transid: TransactionId): Future[Identity] = {
-        implicit val logger: Logging = datastore
+        implicit val logger: Logging = datastore.logging
         implicit val ec = datastore.executionContext
 
         cacheLookup(authkey, {
-            list(datastore, authkey) map { list =>
+            list(datastore, List(authkey.uuid.asString, authkey.key.asString)) map { list =>
                 list.length match {
                     case 1 =>
-                        val row = list.head
-                        row.getFields("id", "value") match {
-                            case Seq(JsString(id), JsObject(value)) =>
-                                val subject = Subject(id)
-                                val JsString(uuid) = value("uuid")
-                                val JsString(secret) = value("key")
-                                val JsString(namespace) = value("namespace")
-                                Identity(subject, EntityName(namespace), AuthKey(UUID(uuid), Secret(secret)), Privilege.ALL)
-                            case _ =>
-                                logger.error(this, s"$viewName[${authkey.uuid}] has malformed view '${row.compactPrint}'")
-                                throw new IllegalStateException("identities view malformed")
-                        }
+                        rowToIdentity(list.head, authkey.uuid.asString)
                     case 0 =>
                         logger.info(this, s"$viewName[${authkey.uuid}] does not exist")
                         throw new NoDocumentException("uuid does not exist")
@@ -68,16 +85,30 @@ object Identities extends MultipleReadersSingleWriterCache[Identity, DocInfo] {
         })
     }
 
-    def list(datastore: AuthStore, authkey: AuthKey)(
+    def list(datastore: AuthStore, key: List[Any], limit: Int = 2)(
         implicit transid: TransactionId): Future[List[JsObject]] = {
-        val key = List(authkey.uuid.toString, authkey.key.toString)
         datastore.query(viewName,
             startKey = key,
             endKey = key,
             skip = 0,
-            limit = 2,
+            limit = limit,
             includeDocs = false,
             descending = true,
             reduce = false)
+    }
+
+    private def rowToIdentity(row: JsObject, key: String)(
+        implicit transid: TransactionId, logger: Logging) = {
+        row.getFields("id", "value") match {
+            case Seq(JsString(id), JsObject(value)) =>
+                val subject = Subject(id)
+                val JsString(uuid) = value("uuid")
+                val JsString(secret) = value("key")
+                val JsString(namespace) = value("namespace")
+                Identity(subject, EntityName(namespace), AuthKey(UUID(uuid), Secret(secret)), Privilege.ALL)
+            case _ =>
+                logger.error(this, s"$viewName[$key] has malformed view '${row.compactPrint}'")
+                throw new IllegalStateException("identities view malformed")
+        }
     }
 }

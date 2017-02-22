@@ -13,3 +13,4 @@
 
 - include: edge.yml
 
+- include: routemgmt.yml

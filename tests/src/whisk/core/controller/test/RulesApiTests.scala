@@ -23,8 +23,7 @@ import org.scalatest.junit.JUnitRunner
 import spray.http.StatusCodes._
 import spray.httpx.SprayJsonSupport._
 import spray.json.DefaultJsonProtocol._
-import spray.json.JsObject
-import spray.json.pimpString
+import spray.json._
 import whisk.core.controller.WhiskRulesApi
 import whisk.core.entity._
 import whisk.core.entity.test.OldWhiskTrigger
@@ -52,13 +51,12 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
     behavior of "Rules API"
 
     val creds = WhiskAuth(Subject(), AuthKey()).toIdentity
-    val namespace = EntityPath(creds.subject())
+    val namespace = EntityPath(creds.subject.asString)
     def aname() = MakeName.next("rules_tests")
     def afullname(namespace: EntityPath, name: String) = FullyQualifiedEntityName(namespace, EntityName(name))
     val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
     val activeStatus = s"""{"status":"${Status.ACTIVE}"}""".parseJson.asJsObject
     val inactiveStatus = s"""{"status":"${Status.INACTIVE}"}""".parseJson.asJsObject
-    val entityTooBigRejectionMessage = "request entity too large"
     val parametersLimit = Parameters.sizeLimit
 
     //// GET /rules
@@ -190,7 +188,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
     }
 
     // DEL /rules/name
-    it should "reject delete rule in state active" in {
+    it should "not reject delete rule in state active" in {
         implicit val tid = transid()
 
         val rule = WhiskRule(namespace, EntityName("reject_delete_rule_active"), FullyQualifiedEntityName(namespace, aname()), afullname(namespace, "an action"))
@@ -202,10 +200,11 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         put(entityStore, rule)
 
         Delete(s"$collectionPath/${rule.name}") ~> sealRoute(routes(creds)) ~> check {
-            status should be(Conflict)
-            val response = responseAs[ErrorResponse]
-            response.error should be(s"rule status is '${Status.ACTIVE}', must be '${Status.INACTIVE}' to delete")
-            response.code() should be >= 1L
+            deleteTrigger(trigger.docid)
+
+            status should be(OK)
+            val response = responseAs[WhiskRuleResponse]
+            response should be(rule.withStatus(Status.INACTIVE))
         }
     }
 
@@ -286,16 +285,87 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         }
     }
 
+    it should "create rule without fully qualifying name" in {
+        implicit val tid = transid()
+
+        val rule = WhiskRule(namespace, aname(), FullyQualifiedEntityName(namespace, aname()), FullyQualifiedEntityName(namespace, aname()))
+        val trigger = WhiskTrigger(rule.trigger.path, rule.trigger.name)
+        val action = WhiskAction(rule.action.path, rule.action.name, Exec.js("??"))
+        val content = JsObject("trigger" -> JsString(s"/_/${trigger.name.asString}"), "action" -> JsString(s"/_/${action.name.asString}"))
+
+        put(entityStore, trigger, false)
+        put(entityStore, action)
+
+        Put(s"$collectionPath/${rule.name}", content) ~> sealRoute(routes(creds)) ~> check {
+            val t = get(entityStore, trigger.docid, WhiskTrigger)
+            deleteTrigger(t.docid)
+            deleteRule(rule.docid)
+
+            status should be(OK)
+            val response = responseAs[WhiskRuleResponse]
+            response should be(rule.withStatus(Status.ACTIVE))
+            t.rules.get(rule.fullyQualifiedName(false)) shouldBe ReducedRule(action.fullyQualifiedName(false), Status.ACTIVE)
+        }
+    }
+
+    it should "reject create rule without namespace in referenced entities" in {
+        implicit val tid = transid()
+
+        val rule = WhiskRule(namespace, aname(), FullyQualifiedEntityName(namespace, aname()), FullyQualifiedEntityName(namespace, aname()))
+        val trigger = WhiskTrigger(rule.trigger.path, rule.trigger.name)
+        val action = WhiskAction(rule.action.path, rule.action.name, Exec.js("??"))
+        val contentT = JsObject("trigger" -> trigger.name.toJson, "action" -> action.fullyQualifiedName(false).toDocId.toJson)
+        val contentA = JsObject("action" -> action.name.toJson, "trigger" -> trigger.fullyQualifiedName(false).toDocId.toJson)
+
+        Put(s"$collectionPath/${rule.name}", contentT) ~> sealRoute(routes(creds)) ~> check {
+            status should be(BadRequest)
+            responseAs[String] shouldBe s"The request content was malformed:\nrequirement failed: ${Messages.malformedFullyQualifiedEntityName}"
+        }
+
+        Put(s"$collectionPath/${rule.name}", contentA) ~> sealRoute(routes(creds)) ~> check {
+            status should be(BadRequest)
+            responseAs[String] shouldBe s"The request content was malformed:\nrequirement failed: ${Messages.malformedFullyQualifiedEntityName}"
+        }
+    }
+
     it should "create rule with an action in a package" in {
         implicit val tid = transid()
 
         val provider = WhiskPackage(namespace, aname(), publish = true)
-        val action = WhiskAction(provider.path, aname(), Exec.js("??"))
+        val action = WhiskAction(provider.fullPath, aname(), Exec.js("??"))
         val trigger = WhiskTrigger(namespace, aname())
         val rule = WhiskRule(namespace, aname(), trigger.fullyQualifiedName(false), action.fullyQualifiedName(false))
         val content = WhiskRulePut(Some(rule.trigger), Some(rule.action))
 
         put(entityStore, provider)
+        put(entityStore, trigger, false)
+        put(entityStore, action)
+
+        Put(s"$collectionPath/${rule.name}", content) ~> sealRoute(routes(creds)) ~> check {
+            val t = get(entityStore, trigger.docid, WhiskTrigger)
+            deleteTrigger(t.docid)
+            deleteRule(rule.docid)
+
+            status should be(OK)
+            val response = responseAs[WhiskRuleResponse]
+            response should be(rule.withStatus(Status.ACTIVE))
+            t.rules.get(rule.fullyQualifiedName(false)) shouldBe ReducedRule(action.fullyQualifiedName(false), Status.ACTIVE)
+        }
+    }
+
+    it should "create rule with an action in a binding" in {
+        implicit val tid = transid()
+
+        val provider = WhiskPackage(namespace, aname(), publish = true)
+        val reference = WhiskPackage(namespace, aname(), provider.bind)
+        val action = WhiskAction(provider.fullPath, aname(), Exec.js("??"))
+        val trigger = WhiskTrigger(namespace, aname())
+        val actionReference = reference.binding.map(b => b.namespace.addPath(b.name)).get
+        val rule = WhiskRule(namespace, aname(), trigger.fullyQualifiedName(false), FullyQualifiedEntityName(actionReference, action.name))
+        val content = WhiskRulePut(Some(rule.trigger), Some(rule.action))
+
+        put(entityStore, provider)
+        put(entityStore, reference)
         put(entityStore, trigger, false)
         put(entityStore, action)
 
@@ -317,11 +387,11 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         val trigger = WhiskTrigger(namespace, aname())
         val action = WhiskAction(namespace, aname(), Exec.js("??"))
 
-        val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (Parameters.sizeLimit.toBytes / 2 / 20 + Math.pow(10, 9) + 2) toLong)
-        val parameters = keys map { key =>
+        val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (Parameters.sizeLimit.toBytes / 20 + Math.pow(10, 9) + 2) toLong)
+        val annotations = keys map { key =>
             Parameters(key.toString, "a" * 10)
         } reduce (_ ++ _)
-        val content = s"""{"trigger":"${trigger.name}","action":"${action.name}","annotations":$parameters}""".parseJson.asJsObject
+        val content = s"""{"trigger":"${trigger.name}","action":"${action.name}","annotations":$annotations}""".parseJson.asJsObject
 
         put(entityStore, trigger, false)
         put(entityStore, action)
@@ -331,7 +401,9 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
             deleteTrigger(t.docid)
 
             status should be(RequestEntityTooLarge)
-            response.entity.toString should include(entityTooBigRejectionMessage)
+            responseAs[String] should include {
+                Messages.entityTooBig(SizeError(WhiskEntity.annotationsFieldName, annotations.size, Parameters.sizeLimit))
+            }
         }
     }
 
@@ -342,11 +414,11 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         val action = WhiskAction(namespace, aname(), Exec.js("??"))
         val rule = WhiskRule(namespace, aname(), trigger.fullyQualifiedName(false), action.fullyQualifiedName(false))
 
-        val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (Parameters.sizeLimit.toBytes / 2 / 20 + Math.pow(10, 9) + 2) toLong)
-        val parameters = keys map { key =>
+        val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (Parameters.sizeLimit.toBytes / 20 + Math.pow(10, 9) + 2) toLong)
+        val annotations = keys map { key =>
             Parameters(key.toString, "a" * 10)
         } reduce (_ ++ _)
-        val content = s"""{"trigger":"${trigger.name}","action":"${action.name}","annotations":$parameters}""".parseJson.asJsObject
+        val content = s"""{"trigger":"${trigger.name}","action":"${action.name}","annotations":$annotations}""".parseJson.asJsObject
 
         put(entityStore, trigger, false)
         put(entityStore, action)
@@ -357,7 +429,9 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
             deleteTrigger(t.docid)
 
             status should be(RequestEntityTooLarge)
-            response.entity.toString should include(entityTooBigRejectionMessage)
+            responseAs[String] should include {
+                Messages.entityTooBig(SizeError(WhiskEntity.annotationsFieldName, annotations.size, Parameters.sizeLimit))
+            }
         }
     }
 
@@ -400,7 +474,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         }
     }
 
-    it should "update rule updating trigger and action at once" in {
+    it should "update rule with new trigger and action at once" in {
         implicit val tid = transid()
 
         val trigger = WhiskTrigger(namespace, aname())
@@ -566,20 +640,29 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         }
     }
 
-    it should "reject update rule in state active" in {
+    it should "not reject update rule in state active" in {
         implicit val tid = transid()
 
         val rule = WhiskRule(namespace, aname(), afullname(namespace, "a trigger"), afullname(namespace, "an action"))
         val trigger = WhiskTrigger(namespace, rule.trigger.name, rules = Some {
             Map(rule.fullyQualifiedName(false) -> ReducedRule(rule.action, Status.ACTIVE))
         })
-        val content = WhiskRulePut(publish = Some(!rule.publish))
+        val action = WhiskAction(namespace, aname(), Exec.js("??"))
+        val content = WhiskRulePut(Some(trigger.fullyQualifiedName(false)), Some(action.fullyQualifiedName(false)))
 
-        put(entityStore, trigger)
-        put(entityStore, rule)
+        put(entityStore, trigger, false)
+        put(entityStore, action)
+        put(entityStore, rule, false)
 
         Put(s"$collectionPath/${rule.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
-            status should be(Conflict)
+            val t = get(entityStore, trigger.docid, WhiskTrigger)
+            deleteTrigger(t.docid)
+            deleteRule(rule.docid)
+
+            status should be(OK)
+            t.rules.get(rule.fullyQualifiedName(false)).action should be(action.fullyQualifiedName(false))
+            val response = responseAs[WhiskRuleResponse]
+            response should be(WhiskRuleResponse(namespace, rule.name, Status.ACTIVE, trigger.fullyQualifiedName(false), action.fullyQualifiedName(false), version = SemVer().upPatch))
         }
     }
 

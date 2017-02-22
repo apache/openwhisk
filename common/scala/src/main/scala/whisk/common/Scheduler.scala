@@ -30,7 +30,7 @@ import akka.actor.Props
  * Scheduler utility functions to execute tasks in a repetitive way with controllable behavior
  * even for asynchronous tasks.
  */
-object Scheduler extends Logging {
+object Scheduler {
     private case object Work
 
     /**
@@ -40,7 +40,7 @@ object Scheduler extends Logging {
      * @param alwaysWait always wait for the given amount of time or calculate elapsed time to wait
      * @param closure the closure to be executed
      */
-    private class Worker(interval: FiniteDuration, alwaysWait: Boolean, closure: () => Future[Any]) extends Actor {
+    private class Worker(interval: FiniteDuration, alwaysWait: Boolean, closure: () => Future[Any])(implicit logging: Logging) extends Actor {
         implicit val ec = context.dispatcher
 
         override def preStart() = {
@@ -57,7 +57,7 @@ object Scheduler extends Logging {
                             // context might be null here if a PoisonPill is sent while doing computations
                             Option(context) foreach { _.system.scheduler.scheduleOnce(timeToWait, self, Work) }
                         }
-                    case Failure(e) => error(this, s"next iteration could not be scheduled because of ${e.getMessage}. Scheduler is halted")
+                    case Failure(e) => logging.error(this, s"next iteration could not be scheduled because of ${e.getMessage}. Scheduler is halted")
                 }
         }
     }
@@ -71,7 +71,7 @@ object Scheduler extends Logging {
      * @param interval the time to wait at most between two runs of the closure
      * @param f the function to run
      */
-    def scheduleWaitAtMost(interval: FiniteDuration)(f: () => Future[Any])(implicit system: ActorSystem) = {
+    def scheduleWaitAtMost(interval: FiniteDuration)(f: () => Future[Any])(implicit system: ActorSystem, logging: Logging) = {
         require(interval > Duration.Zero)
         system.actorOf(Props(new Worker(interval, false, f)))
     }
@@ -84,7 +84,7 @@ object Scheduler extends Logging {
      * @param interval the time to wait between two runs of the closure
      * @param f the function to run
      */
-    def scheduleWaitAtLeast(interval: FiniteDuration)(f: () => Future[Any])(implicit system: ActorSystem) = {
+    def scheduleWaitAtLeast(interval: FiniteDuration)(f: () => Future[Any])(implicit system: ActorSystem, logging: Logging) = {
         require(interval > Duration.Zero)
         system.actorOf(Props(new Worker(interval, true, f)))
     }

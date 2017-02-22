@@ -62,5 +62,5 @@ func addRouteOptions(route string, options interface{}) (*url.URL, error) {
 
 func printJSON(v interface{}) {
     output, _ := prettyjson.Marshal(v)
-    fmt.Fprintf(color.Output, string(output))
+    fmt.Fprintln(color.Output, string(output))
 }

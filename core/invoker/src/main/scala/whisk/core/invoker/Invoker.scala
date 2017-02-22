@@ -31,19 +31,21 @@ import akka.japi.Creator
 import spray.json._
 import spray.json.DefaultJsonProtocol
 import spray.json.DefaultJsonProtocol._
-import whisk.common.{ ConsulKVReporter, Counter, Logging, LoggingMarkers, PrintStreamEmitter, SimpleExec, TransactionId }
+import whisk.common.{ ConsulKVReporter, Counter, Logging, LoggingMarkers, TransactionId }
+import whisk.common.AkkaLogging
 import whisk.common.ConsulClient
 import whisk.common.ConsulKV.InvokerKeys
 import whisk.connector.kafka.{ KafkaConsumerConnector, KafkaProducerConnector }
 import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig.{ consulServer, dockerImagePrefix, dockerRegistry, edgeHost, kafkaHost, logsDir, servicePort, whiskVersion }
+import whisk.core.WhiskConfig.{ consulServer, dockerImagePrefix, dockerRegistry, kafkaHost, logsDir, servicePort, whiskVersion }
 import whisk.core.connector.{ ActivationMessage, CompletionMessage }
-import whisk.core.container.{ BlackBoxContainerError, ContainerPool, Interval, RunResult, WhiskContainer, WhiskContainerError }
+import whisk.core.container._
 import whisk.core.dispatcher.{ Dispatcher, MessageHandler }
 import whisk.core.dispatcher.ActivationFeed.{ ActivationNotification, ContainerReleased, FailedActivation }
 import whisk.core.entity._
 import whisk.core.entity.size.{ SizeInt, SizeString }
 import whisk.http.BasicHttpService
+import whisk.http.Messages
 import whisk.utils.ExecutionContextFactory
 
 /**
@@ -59,24 +61,13 @@ class Invoker(
     instance: Int,
     activationFeed: ActorRef,
     verbosity: LogLevel = InfoLevel,
-    runningInContainer: Boolean = true)(implicit actorSystem: ActorSystem)
-    extends MessageHandler(s"invoker$instance")
-    with Logging {
+    runningInContainer: Boolean = true)(implicit actorSystem: ActorSystem, logging: Logging)
+    extends MessageHandler(s"invoker$instance") {
 
     private implicit val executionContext: ExecutionContext = actorSystem.dispatcher
-    private implicit val emitter: PrintStreamEmitter = this
 
     /** This generates completion messages back to the controller */
     val producer = new KafkaProducerConnector(config.kafkaHost, executionContext)
-
-    override def setVerbosity(level: LogLevel) = {
-        super.setVerbosity(level)
-        pool.setVerbosity(level)
-        entityStore.setVerbosity(level)
-        authStore.setVerbosity(level)
-        activationStore.setVerbosity(level)
-        producer.setVerbosity(level)
-    }
 
     /**
      * This is the handler for the kafka message
@@ -93,9 +84,9 @@ class Invoker(
         val name = msg.action.name
         val actionid = FullyQualifiedEntityName(namespace, name).toDocId.asDocInfo(msg.revision)
         val tran = Transaction(msg)
-        val subject = msg.subject
+        val subject = msg.user.subject
 
-        info(this, s"${actionid.id} $subject ${msg.activationId}")
+        logging.info(this, s"${actionid.id} $subject ${msg.activationId}")
 
         // the activation must terminate with only one attempt to write an activation record to the datastore
         // hence when the transaction is fully processed, this method will complete a promise with the datastore
@@ -108,8 +99,14 @@ class Invoker(
         // caching is enabled since actions have revision id and an updated
         // action will not hit in the cache due to change in the revision id;
         // if the doc revision is missing, then bypass cache
+        if (actionid.rev == DocRevision()) {
+            logging.error(this, s"revision was not provided for ${actionid.id}")
+        }
         WhiskAction.get(entityStore, actionid.id, actionid.rev, fromCache = actionid.rev != DocRevision()) onComplete {
             case Success(action) =>
+                // only Exec instances that are subtypes of CodeExec reach the invoker
+                assume(action.exec.isInstanceOf[CodeExec[_]])
+
                 invokeAction(tran, action) onComplete {
                     case Success(activation) =>
                         transactionPromise.completeWith {
@@ -118,7 +115,7 @@ class Invoker(
                         }
 
                     case Failure(t) =>
-                        info(this, s"activation failed")
+                        logging.info(this, s"activation failed")
                         val failure = disambiguateActivationException(t, action)
                         transactionPromise.completeWith {
                             // this completes the failed activation case (2)
@@ -127,7 +124,7 @@ class Invoker(
                 }
 
             case Failure(t) =>
-                error(this, s"failed to fetch action from db: ${t.getMessage}")
+                logging.error(this, s"failed to fetch action from db: ${t.getMessage}")
                 val failureResponse = ActivationResponse.whiskError(s"Failed to fetch action.")
                 transactionPromise.completeWith {
                     // this completes the failed to fetch case (3)
@@ -168,10 +165,10 @@ class Invoker(
                     // completed only once, there is only one completion message sent to the feed as a result.
                     activationFeed ! releaseResource
                     // Since there is no active action taken for completion from the invoker, writing activation record is it.
-                    info(this, "recording the activation result to the data store")
+                    logging.info(this, "recording the activation result to the data store")
                     val result = WhiskActivation.put(activationStore, activation) andThen {
-                        case Success(id) => info(this, s"recorded activation")
-                        case Failure(t)  => error(this, s"failed to record activation")
+                        case Success(id) => logging.info(this, s"recorded activation")
+                        case Failure(t)  => logging.error(this, s"failed to record activation")
                     }
                     tran.result = Some(result)
                     result
@@ -187,7 +184,7 @@ class Invoker(
      */
     protected def invokeAction(tran: Transaction, action: WhiskAction)(
         implicit transid: TransactionId): Future[WhiskActivation] = {
-        Future { pool.getAction(action, tran.msg.authkey) } map {
+        Future { pool.getAction(action, tran.msg.user.authkey) } map {
             case (con, initResultOpt) => runAction(tran, action, con, initResultOpt)
         } map {
             case (failedInit, con, result) =>
@@ -195,15 +192,18 @@ class Invoker(
                 val activationResult = sendActiveAck(tran, action, failedInit, result)
 
                 // after sending active ack, drain logs and return container
-                val contents = getContainerLogs(con, action.exec.sentinelledLogs, action.limits.logs)
+                val contents = getContainerLogs(con, action.exec.asInstanceOf[CodeExec[_]].sentinelledLogs, action.limits.logs)
 
-                /* Force delete the container instead of just pausing it iff the initialization failed or the container
-                 * failed otherwise. An example of a ContainerError is the timeout of an action in which case the
-                 * container is to be removed to prevent leaking.  Since putting back the container involves pausing,
-                 * we run this in a Future so as not to block transaction completion but also return resources promptly.
-                 * Note: using infinite thread pool so using a future here for a long/blocking operation is acceptable.
-                 */
-                Future { pool.putBack(con, failedInit) }
+                Future {
+                    // Force delete the container instead of just pausing it iff the initialization failed or the container
+                    // failed otherwise. An example of a ContainerError is the timeout of an action in which case the
+                    // container is to be removed to prevent leaking of an activation across to new activations.
+                    // Since putting back the container involves pausing, run this in a Future so as not to block transaction
+                    // completion but also return resources promptly.
+                    // Note: using infinite thread pool so using a future here for a long/blocking operation is acceptable.
+                    val deleteContainer = failedInit || result.errored
+                    pool.putBack(con, deleteContainer)
+                }
 
                 activationResult withLogs ActivationLogs.serdes.read(contents)
         }
@@ -217,12 +217,12 @@ class Invoker(
         implicit transid: TransactionId): (Boolean, WhiskContainer, RunResult) = {
         def run() = {
             val msg = tran.msg
-            val auth = msg.authkey
+            val auth = msg.user.authkey
             val payload = msg.content getOrElse JsObject()
             val boundParams = action.parameters.toJsObject
             val params = JsObject(boundParams.fields ++ payload.fields)
             val timeout = action.limits.timeout.duration
-            con.run(params, msg.meta, auth.compact, timeout, action.fullyQualifiedName(true).toString, msg.activationId.toString)
+            con.run(msg, params, timeout)
         }
 
         initResultOpt match {
@@ -230,11 +230,12 @@ class Invoker(
             case None => (false, con, run())
 
             // new container
-            case Some(RunResult(interval, response)) =>
+            case Some(init @ RunResult(interval, response)) =>
                 tran.initInterval = Some(interval)
-                response match {
-                    case Some((200, _)) => (false, con, run()) // successful init
-                    case _              => (true, con, initResultOpt.get) // unsuccessful initialization
+                if (init.ok) {
+                    (false, con, run())
+                } else {
+                    (true, con, initResultOpt.get)
                 }
         }
     }
@@ -251,12 +252,12 @@ class Invoker(
 
         val msg = tran.msg
         val activationInterval = computeActivationInterval(tran)
-        val activationResponse = getActivationResponse(activationInterval, action.limits.timeout.duration, result.response, failedInit)
+        val activationResponse = getActivationResponse(activationInterval, action.limits.timeout.duration, result, failedInit)
         val activationResult = makeWhiskActivation(msg, EntityPath(action.fullyQualifiedName(false).toString), action.version, activationResponse, activationInterval, Some(action.limits))
         val completeMsg = CompletionMessage(transid, activationResult)
 
         producer.send("completed", completeMsg) map { status =>
-            info(this, s"posted completion of activation ${msg.activationId}")
+            logging.info(this, s"posted completion of activation ${msg.activationId}")
         }
 
         activationResult
@@ -289,7 +290,7 @@ class Invoker(
             val (complete, isTruncated, logs) = processJsonDriverLogContents(rawLog, sentinelled, loglimit)
 
             if (tries > 0 && !complete && !isTruncated) {
-                info(this, s"log cursor advanced but missing sentinel, trying $tries more times")
+                logging.info(this, s"log cursor advanced but missing sentinel, trying $tries more times")
                 Thread.sleep(LogRetry)
                 getContainerLogs(con, sentinelled, loglimit, tries - 1)
             } else {
@@ -303,7 +304,7 @@ class Invoker(
                 JsArray(finishedLogs.map(_.toJson))
             }
         } else {
-            info(this, s"log cursor has not advanced, trying $tries more times")
+            logging.info(this, s"log cursor has not advanced, trying $tries more times")
             Thread.sleep(LogRetry)
             getContainerLogs(con, sentinelled, loglimit, tries - 1)
         }
@@ -342,13 +343,13 @@ class Invoker(
                         case Failure(t) =>
                             // Drop lines that did not parse to JSON objects.
                             // However, should not happen since we are using the json log driver.
-                            error(this, s"log line skipped/did not parse: $t")
+                            logging.error(this, s"log line skipped/did not parse: $t")
                             None
                     }
             }
 
             val cumulativeSizes = records.scanLeft(0.bytes) { (acc, current) => acc + current.log.sizeInBytes }.tail
-            val truncatedLogs = records.zip(cumulativeSizes).takeWhile(_._2 < limit().megabytes).map(_._1).toVector
+            val truncatedLogs = records.zip(cumulativeSizes).takeWhile(_._2 < limit.asMegaBytes).map(_._1).toVector
             val isTruncated = truncatedLogs.size < records.size
 
             if (isTruncated) {
@@ -362,7 +363,7 @@ class Invoker(
                 (true, false, truncatedLogs)
             }
         } else {
-            warn(this, s"log message is empty")
+            logging.warn(this, s"log message is empty")
             (!requireSentinel, false, Vector())
         }
     }
@@ -376,15 +377,15 @@ class Invoker(
     private def getActivationResponse(
         interval: Interval,
         timeout: Duration,
-        response: Option[(Int, String)],
+        runResult: RunResult,
         failedInit: Boolean)(
             implicit transid: TransactionId): ActivationResponse = {
         if (interval.duration >= timeout) {
-            ActivationResponse.applicationError(ActivationResponse.timedoutActivation(timeout, failedInit))
+            ActivationResponse.applicationError(Messages.timedoutActivation(timeout, failedInit))
         } else if (!failedInit) {
-            ActivationResponse.processRunResponseContent(response, this: Logging)
+            ActivationResponse.processRunResponseContent(runResult.response, logging)
         } else {
-            ActivationResponse.processInitResponseContent(response, this: Logging)
+            ActivationResponse.processInitResponseContent(runResult.response, logging)
         }
     }
 
@@ -404,7 +405,7 @@ class Invoker(
             name = actionName.last,
             version = actionVersion,
             publish = false,
-            subject = msg.subject,
+            subject = msg.user.subject,
             activationId = msg.activationId,
             cause = msg.cause,
             start = interval.start,
@@ -447,7 +448,7 @@ class Invoker(
             case BlackBoxContainerError(msg) => ActivationException(msg, internalError = false)
             case WhiskContainerError(msg)    => ActivationException(msg)
             case _ =>
-                error(this, s"failed during invoke: $t")
+                logging.error(this, s"failed during invoke: $t")
                 ActivationException(s"Failed to run action '${action.docid}': ${t.getMessage}")
         }
     }
@@ -466,8 +467,6 @@ class Invoker(
         InvokerKeys.start(instance),
         InvokerKeys.status(instance),
         { _ => Map() })
-
-    setVerbosity(verbosity)
 }
 
 object Invoker {
@@ -484,39 +483,38 @@ object Invoker {
         WhiskActivationStore.requiredProperties ++
         ContainerPool.requiredProperties ++
         kafkaHost ++
-        edgeHost ++
         consulServer ++
         whiskVersion
 
     def main(args: Array[String]): Unit = {
         require(args.length == 1, "invoker instance required")
         val instance = args(0).toInt
-        val verbosity = InfoLevel
 
         implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
         implicit val system: ActorSystem = ActorSystem(
             name = "invoker-actor-system",
             defaultExecutionContext = Some(ec))
+        implicit val logger: Logging = new AkkaLogging(akka.event.Logging.getLogger(system, this))
 
         // load values for the required properties from the environment
         val config = new WhiskConfig(requiredProperties)
 
         if (config.isValid) {
-            SimpleExec.setVerbosity(verbosity)
-
             val topic = ActivationMessage.invoker(instance)
             val groupid = "invokers"
             val maxdepth = ContainerPool.getDefaultMaxActive(config)
             val consumer = new KafkaConsumerConnector(config.kafkaHost, groupid, topic, maxdepth)
-            val dispatcher = new Dispatcher(verbosity, consumer, 500 milliseconds, 2 * maxdepth, system)
+            val dispatcher = new Dispatcher(consumer, 500 milliseconds, 2 * maxdepth, system)
 
-            val invoker = new Invoker(config, instance, dispatcher.activationFeed, verbosity)
+            val invoker = new Invoker(config, instance, dispatcher.activationFeed)
             dispatcher.addHandler(invoker, true)
             dispatcher.start()
 
             val port = config.servicePort.toInt
             BasicHttpService.startService(system, "invoker", "0.0.0.0", port, new Creator[InvokerServer] {
-                def create = new InvokerServer {}
+                def create = new InvokerServer {
+                    override implicit val logging = logger
+                }
             })
         }
     }

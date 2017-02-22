@@ -35,6 +35,7 @@ import akka.actor.Props
 import akka.http.scaladsl.model._
 import akka.stream.scaladsl._
 import akka.util.ByteString
+import common.StreamLogging
 import common.WskActorSystem
 import spray.json._
 import spray.json.DefaultJsonProtocol._
@@ -48,9 +49,12 @@ class CouchDbRestClientTests extends FlatSpec
     with ScalaFutures
     with BeforeAndAfterAll
     with WskActorSystem
-    with DbUtils {
+    with DbUtils
+    with StreamLogging {
 
     override implicit val patienceConfig = PatienceConfig(timeout = 10.seconds, interval = 0.5.seconds)
+
+    private def someId(prefix: String): String = s"${prefix}${Random.nextInt().abs.toInt}"
 
     val config = new WhiskConfig(Map(
         dbProvider -> null,
@@ -61,7 +65,7 @@ class CouchDbRestClientTests extends FlatSpec
         dbPort -> null))
 
     // We assume this DB does not exist.
-    val dbName = s"whisk_test_db_${Random.nextInt().abs.toInt}"
+    val dbName = someId("whisk_test_db_")
 
     val client = new ExtendedCouchDbRestClient(config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, dbName)
 
@@ -93,6 +97,22 @@ class CouchDbRestClientTests extends FlatSpec
         assume(config.dbProvider == "Cloudant" || config.dbProvider == "CouchDB")
         val f = client.instanceInfo()
         whenReady(f) { e => checkInstanceInfoResponse(e) }
+    }
+
+    it should "successfully read and write documents containing unicode" in {
+        val docId = someId("unicode_doc_")
+        val doc = JsObject("winter" -> JsString("❄ ☃ ❄"))
+        val f1 = client.putDoc(docId, doc)
+
+        whenReady(f1) { e1 =>
+            assert(e1.isRight)
+
+            val f2 = client.getDoc(docId)
+            whenReady(f2) { e2 =>
+                assert(e2.isRight)
+                assert(JsObject(e2.right.get.fields.filter(_._1 == "winter")) === doc)
+            }
+        }
     }
 
     ignore /* it */ should "successfully access the DB despite transient connection failures" in {

@@ -18,17 +18,21 @@ package whisk.core.container
 
 import java.nio.file.Files
 import java.nio.file.Paths
-import java.util.concurrent.locks.ReentrantLock
 import java.util.Timer
 import java.util.TimerTask
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.locks.ReentrantLock
+
+import scala.annotation.tailrec
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.ListBuffer
-import scala.concurrent.duration._
 import scala.concurrent.Future
-import scala.annotation.tailrec
+import scala.concurrent.duration._
 import scala.util.{ Try, Success, Failure }
+
 import akka.actor.ActorSystem
+import akka.event.Logging.InfoLevel
+import akka.event.Logging.LogLevel
 import whisk.common.Counter
 import whisk.common.Logging
 import whisk.common.Scheduler
@@ -37,16 +41,15 @@ import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig._
 import whisk.core.entity.ActionLimits
-import whisk.core.entity.MemoryLimit
+import whisk.core.entity.AuthKey
+import whisk.core.entity.CodeExec
 import whisk.core.entity.LogLimit
+import whisk.core.entity.MemoryLimit
+import whisk.core.entity.NodeJS6Exec
 import whisk.core.entity.TimeLimit
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskAuthStore
 import whisk.core.entity.WhiskEntityStore
-import whisk.core.entity.NodeJS6Exec
-import akka.event.Logging.LogLevel
-import akka.event.Logging.InfoLevel
-import whisk.core.entity.AuthKey
 
 /**
  * A thread-safe container pool that internalizes container creation/teardown and allows users
@@ -62,7 +65,7 @@ class ContainerPool(
     invokerInstance: Integer = 0,
     verbosity: LogLevel = InfoLevel,
     standalone: Boolean = false,
-    saveContainerLog: Boolean = false)(implicit actorSystem: ActorSystem)
+    saveContainerLog: Boolean = false)(implicit actorSystem: ActorSystem, val logging: Logging)
     extends ContainerUtils {
 
     implicit val executionContext = actorSystem.dispatcher
@@ -70,24 +73,38 @@ class ContainerPool(
     // These must be defined before verbosity is set
     private val datastore = WhiskEntityStore.datastore(config)
     private val authStore = WhiskAuthStore.datastore(config)
-    setVerbosity(verbosity)
 
     val mounted = !standalone
     val dockerhost = config.selfDockerEndpoint
     val serializeDockerOp = config.invokerSerializeDockerOp.toBoolean
     val serializeDockerPull = config.invokerSerializeDockerPull.toBoolean
-    info(this, s"dockerhost = $dockerhost    serializeDockerOp = $serializeDockerOp   serializeDockerPull = $serializeDockerPull")
+    val useRunc = checkRuncAccess(config.invokerUseRunc.toBoolean)
+    logging.info(this, s"dockerhost = $dockerhost    serializeDockerOp = $serializeDockerOp   serializeDockerPull = $serializeDockerPull   useRunC = $useRunc")
 
     // Eventually, we will have a more sophisticated warmup strategy that does multiple sizes
     private val defaultMemoryLimit = MemoryLimit(MemoryLimit.STD_MEMORY)
 
     /**
-     * Sets verbosity of this and owned objects.
+     *  Check whether we should use runc.  To do so,
+     *  1. The whisk config flag must be on.
+     *  2. Runc must be successfully accessible.  This is a failsafe in case runc is not set up correctly.
+     *     For this stage, logging shows success or failure if we get this far.
      */
-    override def setVerbosity(level: LogLevel) = {
-        super.setVerbosity(level)
-        datastore.setVerbosity(level)
-        authStore.setVerbosity(level)
+    def checkRuncAccess(useRunc: Boolean): Boolean = {
+        if (useRunc) {
+            implicit val tid = TransactionId.invokerNanny
+            val (code, result) = RuncUtils.list()
+            val success = (code == 0)
+            if (success) {
+                logging.info(this, s"Using runc. list result: ${result}")
+            } else {
+                logging.warn(this, s"Not using runc due to error (code = ${code}): ${result}")
+            }
+            success
+        } else {
+            logging.info(this, s"Not using runc because of configuration flag")
+            false
+        }
     }
 
     /**
@@ -124,7 +141,7 @@ class ContainerPool(
     def resetMaxIdle() = _maxIdle = defaultMaxIdle
     def resetMaxActive() = {
         _maxActive = ContainerPool.getDefaultMaxActive(config)
-        info(this, s"maxActive set to ${_maxActive}")
+        logging.info(this, s"maxActive set to ${_maxActive}")
     }
     def resetGCThreshold() = _gcThreshold = defaultGCThreshold
 
@@ -164,12 +181,12 @@ class ContainerPool(
      */
     def getAction(action: WhiskAction, auth: AuthKey)(implicit transid: TransactionId): (WhiskContainer, Option[RunResult]) = {
         if (shuttingDown) {
-            info(this, s"Shutting down: Not getting container for ${action.fullyQualifiedName(true)} with ${auth.uuid}")
+            logging.info(this, s"Shutting down: Not getting container for ${action.fullyQualifiedName(true)} with ${auth.uuid}")
             throw new Exception("system is shutting down")
         } else {
             val key = ActionContainerId(auth.uuid, action.fullyQualifiedName(true).toString, action.rev)
             val myPos = nextPosition.next()
-            info(this, s"""Getting container for ${action.fullyQualifiedName(true)} of kind ${action.exec.kind} with ${auth.uuid}:
+            logging.info(this, s"""Getting container for ${action.fullyQualifiedName(true)} of kind ${action.exec.kind} with ${auth.uuid}:
                           | myPos = $myPos
                           | completed = ${completedPosition.cur}
                           | slack = ${slack()}
@@ -180,14 +197,14 @@ class ContainerPool(
             completedPosition.next()
             conResult match {
                 case Success(Cold(con)) =>
-                    info(this, s"Obtained cold container ${con.containerId.id} - about to initialize")
+                    logging.info(this, s"Obtained cold container ${con.containerId.id} - about to initialize")
                     val initResult = initWhiskContainer(action, con)
                     (con, Some(initResult))
                 case Success(Warm(con)) =>
-                    info(this, s"Obtained warm container ${con.containerId.id}")
+                    logging.info(this, s"Obtained warm container ${con.containerId.id}")
                     (con, None)
                 case Failure(t) =>
-                    error(this, s"Exception while trying to get a container: $t")
+                    logging.error(this, s"Exception while trying to get a container: $t")
                     throw t
             }
         }
@@ -198,7 +215,7 @@ class ContainerPool(
      * These do not require initialization.
      */
     def getByImageName(imageName: String, args: Array[String])(implicit transid: TransactionId): Option[Container] = {
-        info(this, s"Getting container for image $imageName with args " + args.mkString(" "))
+        logging.info(this, s"Getting container for image $imageName with args " + args.mkString(" "))
         // Not a regular key. Doesn't matter in testing.
         val key = new ActionContainerId(s"instantiated." + imageName + args.mkString("_"))
         getContainer(1, 0, key, () => makeContainer(key, imageName, args)) match {
@@ -221,7 +238,7 @@ class ContainerPool(
         val warnAtCount = 10.seconds.toMillis / waitDur.toMillis
         val warnPeriodic = 60.seconds.toMillis / waitDur.toMillis
         if (tryCount == warnAtCount || tryCount % warnPeriodic == 0) {
-            warn(this, s"""getContainer has been waiting about ${warnAtCount * waitDur.toMillis} ms:
+            logging.warn(this, s"""getContainer has been waiting about ${warnAtCount * waitDur.toMillis} ms:
                           | position = $position
                           | completed = ${completedPosition.cur}
                           | slack = $available
@@ -327,7 +344,7 @@ class ContainerPool(
      * This call can be slow but not while locking data structure so it does not interfere with other activations.
      */
     def putBack(container: Container, delete: Boolean = false)(implicit transid: TransactionId): Unit = {
-        info(this, s"""putBack returning container ${container.id}
+        logging.info(this, s"""putBack returning container ${container.id}
                       | delete = $delete
                       | completed = ${completedPosition.cur}
                       | slack = ${slack()}
@@ -399,7 +416,7 @@ class ContainerPool(
     // TODO: Generalize across language by storing image name when we generalize to other languages
     //       Better heuristic for # of containers to keep warm - make sensitive to idle capacity
     private val stemCellNodejsKey = StemCellNodeJsActionContainerId
-    private val nodejsExec = NodeJS6Exec("")
+    private val nodejsExec = NodeJS6Exec("", main = None)
     private val WARM_NODEJS_CONTAINERS = 2
 
     // This parameter controls how many outstanding un-removed containers there are before
@@ -467,7 +484,7 @@ class ContainerPool(
                         Thread.sleep(100) // serves to not hog docker lock and add slack
                         teardownContainer(removeJob)
                     } else {
-                        error(this, "toBeRemove.poll failed - possibly another concurrent remover?")
+                        logging.error(this, "toBeRemove.poll failed - possibly another concurrent remover?")
                     }
                 }
             }
@@ -508,7 +525,7 @@ class ContainerPool(
         try {
             val (elapsed, result) = TimingUtil.time { dockerOp }
             if (elapsed > slowDockerThreshold) {
-                warn(this, s"Docker operation took $elapsed")
+                logging.warn(this, s"Docker operation took $elapsed")
             }
             result
         } finally {
@@ -526,20 +543,20 @@ class ContainerPool(
         val imageName = WhiskAction.containerImageName(nodejsExec, config.dockerRegistry, config.dockerImagePrefix, config.dockerImageTag)
         val limits = ActionLimits(TimeLimit(), defaultMemoryLimit, LogLimit())
         val containerName = makeContainerName("warmJsContainer")
-        info(this, "Starting warm nodejs container")
+        logging.info(this, "Starting warm nodejs container")
         val con = makeGeneralContainer(stemCellNodejsKey, containerName, imageName, limits, false)
         this.synchronized {
             introduceContainer(stemCellNodejsKey, con)
         }
-        info(this, s"Started warm nodejs container $con.id: $con.containerId")
+        logging.info(this, s"Started warm nodejs container ${con.id}: ${con.containerId}")
     } andThen {
-        case Failure(t) => warn(this, s"addStemCellNodejsContainer encountered an exception: ${t.getMessage}")
+        case Failure(t) => logging.warn(this, s"addStemCellNodejsContainer encountered an exception: ${t.getMessage}")
     }
 
     private def getStemCellNodejsContainer(key: ActionContainerId)(implicit transid: TransactionId): Option[WhiskContainer] =
         retrieve(stemCellNodejsKey) match {
             case CacheHit(con) =>
-                info(this, s"Obtained a pre-warmed container")
+                logging.info(this, s"Obtained a pre-warmed container")
                 con.transid = transid
                 val Some(ci) = containerMap.get(con)
                 changeKey(ci, stemCellNodejsKey, key)
@@ -557,12 +574,13 @@ class ContainerPool(
         val containerName = makeContainerName(action)
         warmedContainer getOrElse {
             try {
-                info(this, s"making new container because none available")
+                logging.info(this, s"making new container because none available")
                 startingCounter.next()
-                makeGeneralContainer(key, containerName, imageName, limits, action.exec.pull)
+                // only Exec instances that are subtypes of CodeExec reach the invoker
+                makeGeneralContainer(key, containerName, imageName, limits, action.exec.asInstanceOf[CodeExec[_]].pull)
             } finally {
                 val newCount = startingCounter.prev()
-                info(this, s"finished trying to make container, $newCount more containers to start")
+                logging.info(this, s"finished trying to make container, $newCount more containers to start")
             }
         }
     }
@@ -602,16 +620,17 @@ class ContainerPool(
                 // because of the docker lock, by the time the container gets around to be started
                 // there could be a container to reuse (from a previous run of the same action, or
                 // from a stem cell container); should revisit this logic
-                new WhiskContainer(transid, this.dockerhost, mounted, key, containerName, imageName,
-                    network, cpuShare, policy, env, limits, logLevel = this.getVerbosity())
+                new WhiskContainer(transid, useRunc, this.dockerhost, mounted, key, containerName, imageName,
+                    network, cpuShare, policy, env, limits)
             }
         }
     }
 
     // We send the payload here but eventually must also handle morphing a pre-allocated container into the right state.
     private def initWhiskContainer(action: WhiskAction, con: WhiskContainer)(implicit transid: TransactionId): RunResult = {
+        // only Exec instances that are subtypes of CodeExec reach the invoker
+        val Some(initArg) = action.containerInitializer
         // Then send it the init payload which is code for now
-        val initArg = action.containerInitializer
         con.init(initArg, action.limits.timeout.duration)
     }
 
@@ -619,14 +638,12 @@ class ContainerPool(
      * Used through testing only. Creates a container running the command in `args`.
      */
     private def makeContainer(key: ActionContainerId, imageName: String, args: Array[String])(implicit transid: TransactionId): WhiskContainer = {
-        val con = runDockerOp {
-            new WhiskContainer(transid, this.dockerhost, mounted, key, makeContainerName("testContainer"), imageName,
+        runDockerOp {
+            new WhiskContainer(transid, useRunc, this.dockerhost, mounted,
+                key, makeContainerName("testContainer"), imageName,
                 config.invokerContainerNetwork, ContainerPool.cpuShare(config),
-                config.invokerContainerPolicy, Map(), ActionLimits(), args,
-                this.getVerbosity())
+                config.invokerContainerPolicy, Map(), ActionLimits(), args)
         }
-        con.setVerbosity(getVerbosity())
-        con
     }
 
     /**
@@ -642,17 +659,18 @@ class ContainerPool(
     }
 
     private def dumpState(prefix: String)(implicit transid: TransactionId) = {
-        debug(this, s"$prefix: keyMap = ${keyMapToString()}")
+        logging.debug(this, s"$prefix: keyMap = ${keyMapToString()}")
     }
 
     private def getDockerImageName(action: WhiskAction)(implicit transid: TransactionId): String = {
-        val imageName = action.containerImageName(config.dockerRegistry, config.dockerImagePrefix, config.dockerImageTag)
-        debug(this, s"Using image ${imageName}")
+        // only Exec instances that are subtypes of CodeExec reach the invoker
+        val Some(imageName) = action.containerImageName(config.dockerRegistry, config.dockerImagePrefix, config.dockerImageTag)
+        logging.debug(this, s"Using image ${imageName}")
         imageName
     }
 
     private def getContainerEnvironment(): Map[String, String] = {
-        Map(WhiskConfig.asEnvVar(WhiskConfig.edgeHostName) -> config.edgeHost)
+        Map("__OW_API_HOST" -> config.wskApiHost)
     }
 
     private val defaultMaxIdle = 10
@@ -694,7 +712,7 @@ class ContainerPool(
             val idleInfo = this.synchronized {
                 val idle = containerMap filter { case (container, ci) => ci.isIdle && pred(ci) }
                 idle.keys foreach { con =>
-                    info(this, s"removeAllIdle removing container ${con.id}")
+                    logging.info(this, s"removeAllIdle removing container ${con.id}")
                 }
                 containerMap --= idle.keys
                 keyMap foreach { case (key, ciList) => ciList --= idle.values }
@@ -721,7 +739,7 @@ class ContainerPool(
                 List()
             else {
                 val oldestConInfo = idle.minBy(_._2.lastUsed)._2
-                info(this, s"removeOldestIdle removing container ${oldestConInfo.container.id}")
+                logging.info(this, s"removeOldestIdle removing container ${oldestConInfo.container.id}")
                 removeContainerInfo(oldestConInfo)
                 List(oldestConInfo)
             }
@@ -745,12 +763,12 @@ class ContainerPool(
             }
             val filename = s"${_logDir}/${container.nameAsString}.log"
             Files.write(Paths.get(filename), rawLogBytes)
-            info(this, s"teardownContainers: wrote docker logs to $filename")
+            logging.info(this, s"teardownContainers: wrote docker logs to $filename")
         }
         container.transid = transid
         runDockerOp { container.remove(removeJob.needUnpause) }
     } catch {
-        case t: Throwable => warn(this, s"teardownContainer encountered an exception: ${t.getMessage}")
+        case t: Throwable => logging.warn(this, s"teardownContainer encountered an exception: ${t.getMessage}")
     }
 
     /**
@@ -760,14 +778,14 @@ class ContainerPool(
      */
     private def killStragglers(allContainers: Seq[ContainerState])(implicit transid: TransactionId) = try {
         val candidates = allContainers.filter { _.name.name.startsWith(actionContainerPrefix) }
-        info(this, s"killStragglers now removing ${candidates.length} leftover containers")
+        logging.info(this, s"killStragglers now removing ${candidates.length} leftover containers")
         candidates foreach { c =>
             unpauseContainer(c.name)
             rmContainer(c.name)
         }
-        info(this, s"killStragglers completed")
+        logging.info(this, s"killStragglers completed")
     } catch {
-        case t: Throwable => warn(this, s"killStragglers encountered an exception: ${t.getMessage}")
+        case t: Throwable => logging.warn(this, s"killStragglers encountered an exception: ${t.getMessage}")
     }
 
     /**
@@ -780,9 +798,9 @@ class ContainerPool(
     nannyThread(listAll()(TransactionId.invokerWarmup)).start
     if (mounted) {
         sys addShutdownHook {
-            warn(this, "Shutdown hook activated.  Starting container shutdown")
+            logging.warn(this, "Shutdown hook activated.  Starting container shutdown")
             shutdown()
-            warn(this, "Shutdown hook completed.")
+            logging.warn(this, "Shutdown hook completed.")
         }
     }
 
@@ -792,10 +810,10 @@ class ContainerPool(
  * These methods are parameterized on the configuration but defined here as an instance of ContainerPool is not
  * always available from other call sites.
  */
-object ContainerPool extends Logging {
+object ContainerPool {
     def requiredProperties = Map(
         selfDockerEndpoint -> "localhost",
-        edgeHostName -> null,
+        wskApiHost -> null,
         dockerRegistry -> "",
         dockerImagePrefix -> "",
         dockerImageTag -> "latest",
@@ -804,6 +822,7 @@ object ContainerPool extends Logging {
         invokerCoreShare -> "2",
         invokerSerializeDockerOp -> "true",
         invokerSerializeDockerPull -> "true",
+        invokerUseRunc -> "false",
         invokerContainerPolicy -> "",
         invokerContainerNetwork -> null)
 

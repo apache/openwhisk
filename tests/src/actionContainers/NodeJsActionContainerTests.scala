@@ -31,22 +31,24 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
 
     lazy val nodejsContainerImageName = "nodejsaction"
 
+    val hasDeprecationWarnings = true
+
     override def withActionContainer(env: Map[String, String] = Map.empty)(code: ActionContainer => Unit) = {
         withContainer(nodejsContainerImageName, env)(code)
     }
 
     def withNodeJsContainer(code: ActionContainer => Unit) = withActionContainer()(code)
 
-    def exec(code: String): NodeJSAbstractExec = NodeJSExec(code)
+    def exec(code: String): NodeJSAbstractExec = NodeJSExec(code, None)
 
-    override def initPayload(code: String) = {
+    override def initPayload(code: String, main: String = "main") = {
         val e = exec(code)
         JsObject(
             "value" -> JsObject(
                 "name" -> JsString("dummyAction"),
                 "code" -> JsString(e.code),
                 "binary" -> JsBoolean(e.binary),
-                "main" -> JsString("main")))
+                "main" -> JsString(main)))
     }
 
     behavior of nodejsContainerImageName
@@ -66,6 +68,21 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
           |    return args
           |}
           """.stripMargin)
+    })
+
+    testEnv(Seq {
+        ("node", """
+         |function main(args) {
+         |    return {
+         |       "api_host": process.env['__OW_API_HOST'],
+         |       "api_key": process.env['__OW_API_KEY'],
+         |       "namespace": process.env['__OW_NAMESPACE'],
+         |       "action_name": process.env['__OW_ACTION_NAME'],
+         |       "activation_id": process.env['__OW_ACTIVATION_ID'],
+         |       "deadline": process.env['__OW_DEADLINE']
+         |    }
+         |}
+         """.stripMargin.trim)
     })
 
     it should "fail to initialize with bad code" in {
@@ -158,7 +175,7 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
         checkStreams(out, err, {
             case (o, e) =>
                 o shouldBe empty
-                e shouldBe empty
+                if (!hasDeprecationWarnings) e shouldBe empty
         })
     }
 
@@ -180,7 +197,58 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
         checkStreams(out, err, {
             case (o, e) =>
                 o shouldBe empty
-                e shouldBe empty
+                if (!hasDeprecationWarnings) e shouldBe empty
+        })
+    }
+
+    it should "warn when using deprecated whisk object methods" in {
+        val (out, err) = withNodeJsContainer { c =>
+            val code = """
+                | function main(args) {
+                |     whisk.getAuthKey(whisk.setAuthKey('xxx'));
+                |     try { whisk.invoke(); } catch (e) {}
+                |     try { whisk.trigger();  } catch (e) {}
+                |     setTimeout(function () { whisk.done(); }, 1000);
+                |     return whisk.async();
+                | }
+            """.stripMargin
+
+            c.init(initPayload(code))._1 should be(200)
+
+            val (runCode, runRes) = c.run(runPayload(JsObject()))
+            runCode should be(200)
+        }
+
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe empty
+                e should not be empty
+                val lines = e.split("\n")
+                lines.filter { l => l.startsWith("[WARN] \"whisk.") && l.contains("deprecated") }.length shouldBe 8
+        })
+    }
+
+    it should "warn when using deprecated whisk.error" in {
+        val (out, err) = withNodeJsContainer { c =>
+            val code = """
+                | function main(args) {
+                |     whisk.error("{warnme: true}");
+                | }
+            """.stripMargin
+
+            c.init(initPayload(code))._1 should be(200)
+
+            val (runCode, runRes) = c.run(runPayload(JsObject()))
+            runCode should be(200)
+        }
+
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe empty
+                e should not be empty
+                val lines = e.split("\n")
+                lines.length shouldBe 1
+                lines.forall { l => l.startsWith("[WARN] \"whisk.") && l.contains("deprecated") }
         })
     }
 
@@ -205,7 +273,7 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
         checkStreams(out, err, {
             case (o, e) =>
                 o should include("more than once")
-                e shouldBe empty
+                if (!hasDeprecationWarnings) e shouldBe empty
         })
     }
 
@@ -243,7 +311,7 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
         checkStreams(out, err, {
             case (o, e) =>
                 o shouldBe empty
-                e shouldBe empty
+                if (!hasDeprecationWarnings) e shouldBe empty
         }, 3)
     }
 
@@ -268,7 +336,7 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
         checkStreams(out, err, {
             case (o, e) =>
                 o shouldBe empty
-                e shouldBe empty
+                if (!hasDeprecationWarnings) e shouldBe empty
         })
     }
 
@@ -302,7 +370,7 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
         checkStreams(out, err, {
             case (o, e) =>
                 o shouldBe empty
-                e shouldBe empty
+                if (!hasDeprecationWarnings) e shouldBe empty
         }, 2)
     }
 
@@ -413,6 +481,21 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
         })
     }
 
+    it should "support rejected promises with no message" in {
+        val (out, err) = withNodeJsContainer { c =>
+            val code = """
+                | function main(args) {
+                |     return new Promise(function (resolve, reject) {
+                |         reject();
+                |     });
+                | }""".stripMargin
+
+            c.init(initPayload(code))._1 should be(200)
+            val (runCode, runRes) = c.run(runPayload(JsObject()))
+            runRes.get.fields.get("error") shouldBe defined
+        }
+    }
+
     it should "support large-ish actions" in {
         val thought = " I took the one less traveled by, and that has made all the difference."
         val assignment = "    x = \"" + thought + "\";\n"
@@ -445,18 +528,20 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
         })
     }
 
+    val examplePackageDotJson: String = """
+        | {
+        |   "name": "wskaction",
+        |   "version": "1.0.0",
+        |   "description": "An OpenWhisk action as an npm package.",
+        |   "main": "index.js",
+        |   "author": "info@openwhisk.org",
+        |   "license": "Apache-2.0"
+        | }
+    """.stripMargin
+
     it should "support zip-encoded npm package actions" in {
         val srcs = Seq(
-            Seq("package.json") -> """
-                | {
-                |   "name": "wskaction",
-                |   "version": "1.0.0",
-                |   "description": "An OpenWhisk action as an npm package.",
-                |   "main": "index.js",
-                |   "author": "info@openwhisk.org",
-                |   "license": "Apache-2.0"
-                | }
-            """.stripMargin,
+            Seq("package.json") -> examplePackageDotJson,
             Seq("index.js") -> """
                 | exports.main = function (args) {
                 |     var name = typeof args["name"] === "string" ? args["name"] : "stranger";
@@ -517,6 +602,60 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
             case (o, e) =>
                 (o + e).toLowerCase should include("error")
                 (o + e).toLowerCase should include("module_not_found")
+        })
+    }
+
+    it should "support actions using non-default entry point" in {
+        val (out, err) = withNodeJsContainer { c =>
+            val code = """
+            | function niam(args) {
+            |     return { result: "it works" };
+            | }
+            """.stripMargin
+
+            c.init(initPayload(code, main = "niam"))._1 should be(200)
+            val (runCode, runRes) = c.run(runPayload(JsObject()))
+            runRes.get.fields.get("result") shouldBe Some(JsString("it works"))
+        }
+    }
+
+    it should "support zipped actions using non-default entry point" in {
+        val srcs = Seq(
+            Seq("package.json") -> examplePackageDotJson,
+            Seq("index.js") -> """
+                | exports.niam = function (args) {
+                |     return { result: "it works" };
+                | }
+            """.stripMargin)
+
+        val code = ZipBuilder.mkBase64Zip(srcs)
+
+        withNodeJsContainer { c =>
+            c.init(initPayload(code, main = "niam"))._1 should be(200)
+
+            val (runCode, runRes) = c.run(runPayload(JsObject()))
+            runRes.get.fields.get("result") shouldBe Some(JsString("it works"))
+        }
+    }
+
+    it should "handle unicode in source, input params, logs, and result" in {
+        val (out, err) = withNodeJsContainer { c =>
+            val code = """
+                | function main(args) {
+                |   var str = args.delimiter + " ☃ " + args.delimiter;
+                |   console.log(str);
+                |   return { "winter": str };
+                | }
+            """.stripMargin
+
+            c.init(initPayload(code))._1 should be(200)
+            val (runCode, runRes) = c.run(runPayload(JsObject("delimiter" -> JsString("❄"))))
+            runRes.get.fields.get("winter") shouldBe Some(JsString("❄ ☃ ❄"))
+        }
+
+        checkStreams(out, err, {
+            case (o, _) =>
+                o.toLowerCase should include("❄ ☃ ❄")
         })
     }
 }

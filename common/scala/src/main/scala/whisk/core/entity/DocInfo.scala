@@ -34,7 +34,7 @@ import spray.json.deserializationError
  * @param id the document id, required not null
  */
 protected[core] class DocId private (val id: String) extends AnyVal {
-    def apply() = id
+    def asString = id // to make explicit that this is a string conversion
     protected[core] def asDocInfo = DocInfo(this)
     protected[core] def asDocInfo(rev: DocRevision) = DocInfo(this, rev)
     protected[entity] def toJson = JsString(id)
@@ -52,7 +52,7 @@ protected[core] class DocId private (val id: String) extends AnyVal {
  * @param rev the document revision, optional
  */
 protected[core] class DocRevision private (val rev: String) extends AnyVal {
-    def apply() = rev
+    def asString = rev // to make explicit that this is a string conversion
     def empty = rev == null
     override def toString = rev
 }
@@ -67,17 +67,19 @@ protected[core] class DocRevision private (val rev: String) extends AnyVal {
  * @param rev the document revision, optional; this is an opaque value determined by the datastore
  */
 protected[core] case class DocInfo protected[entity] (id: DocId, rev: DocRevision = DocRevision()) {
-    def apply() = id()
-
-    override def toString =
-        s"""|id: ${id()}
-            |rev: ${rev()}""".stripMargin.replace("\n", ", ")
+    override def toString = {
+        if (rev.empty) {
+            s"id: $id"
+        } else {
+            s"id: $id, rev: $rev"
+        }
+    }
 
     override def hashCode = {
         if (rev.empty) {
             id.hashCode
         } else {
-            "$id.$rev".hashCode
+            s"$id.$rev".hashCode
         }
     }
 }

@@ -1,0 +1,79 @@
+                                C R E D I T S
+
+This is the file where major donations to the OpenWhisk project are listed and it
+should be used to give appropriate visibility to those individuals, organizations
+or companies that donated resources to the effort. This file wants to be one of
+the ways the OpenWhisk community pays back.
+
+
+Community Credits
+-----------------
+
+The OpenWhisk project code was originally created, designed, developed (under an
+IBM copyright dated 2015-2016) and donated by the IBM Corporation (http://www.ibm.com/)
+to the Apache Software Foundation (ASF). The following repositories were included in
+the initial donation:
+
+* openwhisk:
+    * Primary (core) source code repository including platform code, run books, tests and more.
+* openwhisk-catalog:
+    * Catalog of built-in system, utility, test and sample Actions, Feeds and provider integration tooling.
+* openwhisk-client-js:
+    * JavaScript (JS) client library for the OpenWhisk platform.
+* openwhisk-client-swift:
+    * Swift-based client SDK for OpenWhisk compatible with Swift 2.x and runs on iOS 9, WatchOS 2, and Darwin.
+* openwhisk-sdk-docker: 
+    * SDK that shows how to create “Black box” Docker containers that can run Action (code).
+* openwhisk-client-go:
+    * API Framework written in GoLang (in-progress)
+* openwhisk-python-cli:
+    * API client written in Python.
+* openwhisk-package-pushnotifications:
+    * Push notifications to registered devices. (in-progress)
+* openwhisk-package-alarms
+    * Package that can be used to create periodic, time-based alarms
+* openwhisk-package-cloudant
+    * Package that can be used to store data to Cloudant object storage
+* openwhisk-package-twilio:
+    * Integration with Twilio. (in-progress)
+* openwhisk-package-jira:
+    * Integration with JIRA events. (in-progress)
+* openwhisk-package-rss:
+    * Integration with RSS feeds.
+* openwhisk-package-kafka:
+    * Integration with Kafka. (in-progress)
+* openwhisk-slackbot-poc:
+    * Deploy a Slackbot with the capability to run OpenWhisk actions.
+* openwhisk-wskdeploy:
+    * Utility for deploying and managing Apache OpenWhisk packages and projects.
+* openwhisk.github.io:
+    * Apache OpenWhisk website code built using Jekyll.
+* openwhisk-tutorial:
+    * Interactive tutorial framework (JavaScript) for for OpenWhisk, its CLI and packages.
+* openwhisk-vscode:
+    * Visual Studio Code extension (prototype) for authoring OpenWhisk actions inside the editor.
+* openwhisk-xcode:
+    * Collection of OpenWhisk tools for OS X implemented in Swift 3.
+* openwhisk-debugger
+    * The OpenWhisk debugger project
+* openwhisk-podspecs: 
+    * CocoaPods Podspecs repository for ‘openwhisk-client-swift’ subproject.
+* openwhisk-devtools:
+    * Development tools for building and deploying Apache OpenWhisk
+* openwhisk-workshop:
+    * Workshop to help developers learn how to build serverless applications using the platform.
+* openwhisk-package-template:
+    * This is a template to be use when creating new packages for OpenWhisk.
+* openwhisk-sample-matos:
+    * Sample application with Message Hub and Object Store.
+* openwhisk-sample-slackbot:
+    * A proof-of-concept Slackbot to invoke OpenWhisk actions.
+    
+The API Gateway code was a collaboration project jointly developed by both IBM Corporation
+and Adobe Systems Incorporated (http://www.adobe.com/) and a donation to the Apache OpenWhisk
+project by both companies.
+
+* openwhisk-apigateway: A performant API Gateway based on Openresty and NGINX.
+
+                          The Apache OpenWhisk Community
+                       http://openwhisk.incubator.apache.org/

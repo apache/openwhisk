@@ -10,32 +10,62 @@
     user: "{{ db_username }}"
     password: "{{ db_password }}"
     force_basic_auth: yes
-  register: result
+  register: dbexists
 
 # create only the missing db_auth
 - name: create immortal {{ db_auth }} db with {{ db_provider }}
   uri:
     url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db_auth }}"
     method: PUT
-    status_code: 200,201
+    status_code: 200,201,202
     user: "{{ db_username }}"
     password: "{{ db_password }}"
     force_basic_auth: yes
-  when: result.status == 404
+  when: dbexists is defined and dbexists.status == 404
 
-- name: recreate the "full" index on the "auth" database
+# fetches the revision of previous view (to update it) if it exists
+- name: check for previous view in "auth" database
+  vars:
+    auth_index: "{{ lookup('file', '{{ openwhisk_home }}/ansible/files/auth_index.json') }}"
+  uri:
+    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db_auth }}/{{ auth_index['_id'] }}"
+    return_content: yes
+    method: GET
+    status_code: 200, 404
+    user: "{{ db_username }}"
+    password: "{{ db_password }}"
+    force_basic_auth: yes
+  register: previousView
+  when: dbexists is defined and dbexists.status != 404 #and mode=="updateview"
+
+- name: extract revision from previous view
+  vars:
+    previousContent: "{{ previousView['content']|from_json }}"
+    revision: "{{ previousContent['_rev'] }}"
+    auth_index: "{{ lookup('file', '{{ openwhisk_home }}/ansible/files/auth_index.json') }}"
+  set_fact:
+    previousContent: "{{ previousContent }}"
+    updateWithRevision: "{{ auth_index | combine({'_rev': revision}) }}"
+  when: previousView is defined and previousView.status != 404
+
+- name: check if a view update is required
+  set_fact:
+    updateView: "{{ updateWithRevision }}"
+  when: previousContent is defined and previousContent != updateWithRevision
+
+- name: recreate or update the index on the "auth" database
   vars:
     auth_index: "{{ lookup('file', '{{ openwhisk_home }}/ansible/files/auth_index.json') }}"
   uri:
     url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db_auth }}"
     method: POST
-    status_code: 200,201
+    status_code: 200, 201
     body_format: json
-    body: "{{ auth_index }}"
+    body: "{{ updateView | default(auth_index) }}"
     user: "{{ db_username }}"
     password: "{{ db_password }}"
     force_basic_auth: yes
-  when: result.status == 404
+  when: (dbexists is defined and dbexists.status == 404) or (updateView is defined)
 
 - name: recreate necessary "auth" keys
   vars:
@@ -49,11 +79,16 @@
           {
             "_id": "{{ item }}",
             "subject": "{{ item }}",
-            "uuid": "{{ key.split(":")[0] }}",
-            "key": "{{ key.split(":")[1] }}"
+            "namespaces": [
+              {
+                "name": "{{ item }}",
+                "uuid": "{{ key.split(":")[0] }}",
+                "key": "{{ key.split(":")[1] }}"
+              }
+            ]
           }
     user: "{{ db_username }}"
     password: "{{ db_password }}"
     force_basic_auth: yes
   with_items: "{{ db.authkeys }}"
-  when: result.status == 404
+  when: dbexists is defined and dbexists.status == 404

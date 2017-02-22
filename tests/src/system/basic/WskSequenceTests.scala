@@ -16,23 +16,25 @@
 
 package system.basic
 
+import java.time.Instant
 import java.util.Date
 
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
+import scala.util.matching.Regex
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
-import common.JsHelpers
+import common.StreamLogging
 import common.TestHelpers
 import common.TestUtils
 import common.TestUtils._
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
-import spray.json.DefaultJsonProtocol._
 import spray.json._
+import spray.json.DefaultJsonProtocol._
 import spray.testkit.ScalatestRouteTest
 import whisk.core.WhiskConfig
 import whisk.http.Messages.sequenceIsTooLong
@@ -44,15 +46,14 @@ import whisk.http.Messages.sequenceIsTooLong
 @RunWith(classOf[JUnitRunner])
 class WskSequenceTests
     extends TestHelpers
-    with JsHelpers
     with ScalatestRouteTest
-    with WskTestHelpers {
+    with WskTestHelpers
+    with StreamLogging {
 
     implicit val wskprops = WskProps()
     val wsk = new Wsk
     val allowedActionDuration = 120 seconds
     val shortDuration = 10 seconds
-    val defaultNamespace = wskprops.namespace
 
     val whiskConfig = new WhiskConfig(Map(WhiskConfig.actionSequenceDefaultLimit -> null))
     assert(whiskConfig.isValid)
@@ -250,22 +251,53 @@ class WskSequenceTests
             }
             val run = wsk.action.invoke(sName)
             // action params trump package params
-            checkLogsAtomicAction(0, run, actionStr)
+            checkLogsAtomicAction(0, run, new Regex(actionStr))
             // run with some parameters
             val sequenceStr = "AlmightySequence"
             val sequenceParamRun = wsk.action.invoke(sName, parameters = Map("payload" -> JsString(sequenceStr)))
             // sequence param should be passed to the first atomic action and trump the action params
-            checkLogsAtomicAction(0, sequenceParamRun, sequenceStr)
+            checkLogsAtomicAction(0, sequenceParamRun, new Regex(sequenceStr))
             // update action and remove the params by sending an unused param that overrides previous params
             wsk.action.create(name = helloWithPkg, artifact = Some(file), timeout = Some(allowedActionDuration), parameters = Map("param" -> JsString("irrelevant")), update = true)
             val sequenceParamSecondRun = wsk.action.invoke(sName, parameters = Map("payload" -> JsString(sequenceStr)))
             // sequence param should be passed to the first atomic action and trump the package params
-            checkLogsAtomicAction(0, sequenceParamSecondRun, sequenceStr)
+            checkLogsAtomicAction(0, sequenceParamSecondRun, new Regex(sequenceStr))
             val pkgParamRun = wsk.action.invoke(sName)
             // no sequence params, no atomic action params used, the pkg params should show up
-            checkLogsAtomicAction(0, pkgParamRun, pkgStr)
+            checkLogsAtomicAction(0, pkgParamRun, new Regex(pkgStr))
     }
 
+    it should "run a sequence with an action in a package binding with parameters" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val packageName = "package1"
+            val bindName = "package2"
+            val actionName = "print"
+            val packageActionName = packageName + "/" + actionName
+            val bindActionName = bindName + "/" + actionName
+            val packageParams = Map("key1a" -> "value1a".toJson, "key1b" -> "value1b".toJson)
+            val bindParams = Map("key2a" -> "value2a".toJson, "key1b" -> "value2b".toJson)
+            val actionParams = Map("key0" -> "value0".toJson)
+            val file = TestUtils.getTestActionFilename("printParams.js")
+            assetHelper.withCleaner(wsk.pkg, packageName) { (pkg, _) =>
+                pkg.create(packageName, packageParams)
+            }
+            assetHelper.withCleaner(wsk.action, packageActionName) { (action, _) =>
+                action.create(packageActionName, Some(file), parameters = actionParams)
+            }
+            assetHelper.withCleaner(wsk.pkg, bindName) { (pkg, _) =>
+                pkg.bind(packageName, bindName, bindParams)
+            }
+            // sequence
+            val sName = "sequenceWithBindingParams"
+            assetHelper.withCleaner(wsk.action, sName) {
+                (action, seqName) => action.create(seqName, Some(bindActionName), kind = Some("sequence"))
+            }
+            // Check that inherited parameters are passed to the action.
+            val now = new Date().toString()
+            val run = wsk.action.invoke(sName, Map("payload" -> now.toJson))
+            // action params trump package params
+            checkLogsAtomicAction(0, run, new Regex(String.format(".*key0: value0.*key1a: value1a.*key1b: value2b.*key2a: value2a.*payload: %s", now)))
+    }
     /**
      * s -> apperror, echo
      * only apperror should run
@@ -379,6 +411,65 @@ class WskSequenceTests
     }
 
     /**
+     * sequence s -> echo
+     * t trigger with payload
+     * rule r: t -> s
+     */
+    it should "execute a sequence that is part of a rule and pass the trigger parameters to the sequence" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val seqName = "seqRule"
+            val actionName = "echo"
+            val triggerName = "trigSeq"
+            val ruleName = "ruleSeq"
+
+            val itIsNow = "it is now " + new Date()
+            // set up all entities
+            // trigger
+            val triggerPayload: Map[String, JsValue] = Map("payload" -> JsString(itIsNow))
+            assetHelper.withCleaner(wsk.trigger, triggerName) {
+                (trigger, name) => trigger.create(name, parameters = triggerPayload)
+            }
+            // action
+            val file = TestUtils.getTestActionFilename(s"$actionName.js")
+            assetHelper.withCleaner(wsk.action, actionName) { (action, actionName) =>
+                action.create(name = actionName, artifact = Some(file), timeout = Some(allowedActionDuration))
+            }
+            // sequence
+            assetHelper.withCleaner(wsk.action, seqName) {
+                (action, seqName) => action.create(seqName, artifact = Some(actionName), kind = Some("sequence"))
+            }
+            // rule
+            assetHelper.withCleaner(wsk.rule, ruleName) {
+                (rule, name) => rule.create(name, triggerName, seqName)
+            }
+            // fire trigger
+            val run = wsk.trigger.fire(triggerName)
+            // check that the sequence was invoked and that the echo action produced the expected result
+            checkEchoSeqRuleResult(run, seqName, JsObject(triggerPayload))
+            // fire trigger with new payload
+            val now = "this is now: " + Instant.now
+            val newPayload = Map("payload" -> JsString(now))
+            val newRun = wsk.trigger.fire(triggerName, newPayload)
+            checkEchoSeqRuleResult(newRun, seqName, JsObject(newPayload))
+    }
+
+    /**
+     * checks the result of an echo sequence connected to a trigger through a rule
+     * @param triggerFireRun the run result of firing the trigger
+     * @param seqName the sequence name
+     * @param triggerPayload the payload used for the trigger (that should be reflected in the sequence result)
+     */
+    private def checkEchoSeqRuleResult(triggerFireRun: RunResult, seqName: String, triggerPayload: JsObject) = {
+        withActivation(wsk.activation, triggerFireRun) {
+            triggerActivation =>
+                withActivationsFromEntity(wsk.activation, seqName, since = Some(triggerActivation.start)) { activationList =>
+                    activationList.head.response.result shouldBe Some(triggerPayload)
+                    activationList.head.cause shouldBe None
+                }
+        }
+    }
+
+    /**
      * checks logs for the activation of a sequence (length/size and ids)
      * checks that the cause field for composing atomic actions is set properly
      * checks duration
@@ -414,8 +505,8 @@ class WskSequenceTests
         memory shouldBe (maxMemory)
     }
 
-    /** checks that the first line in the logs of the idx-th atomic action from a sequence contains logsStr */
-    private def checkLogsAtomicAction(atomicActionIdx: Int, run: RunResult, logsStr: String) {
+    /** checks that the logs of the idx-th atomic action from a sequence contains logsStr */
+    private def checkLogsAtomicAction(atomicActionIdx: Int, run: RunResult, regex: Regex) {
         withActivation(wsk.activation, run, totalWait = 2 * allowedActionDuration) { activation =>
             checkSequenceLogsAndAnnotations(activation, 1)
             val componentId = activation.logs.get(atomicActionIdx)
@@ -423,7 +514,8 @@ class WskSequenceTests
             withActivation(wsk.activation, getComponentActivation, totalWait = allowedActionDuration) { componentActivation =>
                 println(componentActivation)
                 componentActivation.logs shouldBe defined
-                componentActivation.logs.get(0).contains(logsStr) shouldBe true
+                val logs = componentActivation.logs.get.mkString(" ")
+                regex.findFirstIn(logs) shouldBe defined
             }
         }
     }

@@ -17,6 +17,7 @@ package openwhisk.java.action;
 
 import java.io.File;
 import java.io.InputStream;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.MalformedURLException;
@@ -26,6 +27,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Base64;
+import java.util.Collections;
+import java.util.Map;
 
 import com.google.gson.JsonObject;
 
@@ -63,7 +66,23 @@ public class JarLoader extends URLClassLoader {
         this.mainMethod = m;
     }
 
-    public JsonObject invokeMain(JsonObject arg) throws Exception {
+    public JsonObject invokeMain(JsonObject arg, Map<String, String> env) throws Exception {
+        augmentEnv(env);
         return (JsonObject) mainMethod.invoke(null, arg);
+    }
+
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    private static void augmentEnv(Map<String, String> newEnv) {
+        try {
+            for (Class cl : Collections.class.getDeclaredClasses()) {
+                if ("java.util.Collections$UnmodifiableMap".equals(cl.getName())) {
+                    Field field = cl.getDeclaredField("m");
+                    field.setAccessible(true);
+                    Object obj = field.get(System.getenv());
+                    Map<String, String> map = (Map<String, String>) obj;
+                    map.putAll(newEnv);
+                }
+            }
+        } catch (Exception e) {}
     }
 }

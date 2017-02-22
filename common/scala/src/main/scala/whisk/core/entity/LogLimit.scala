@@ -34,13 +34,13 @@ import whisk.core.entity.size.SizeInt
  * The constructor is private so that argument requirements are checked and normalized
  * before creating a new instance.
  *
- * FIXME: Int because of JSON deserializer vs. <code>ByteSize</code> and compatibility
- * with <code>MemoryLimit</code>
+ * Argument type is Int because of JSON deserializer vs. <code>ByteSize</code> and
+ * compatibility with <code>MemoryLimit</code>
  *
  * @param megabytes the memory limit in megabytes for the action
  */
 protected[core] class LogLimit private (val megabytes: Int) extends AnyVal {
-    protected[core] def apply() = megabytes
+    protected[core] def asMegaBytes: ByteSize = megabytes.megabytes
     protected[core] def truncatedLogMessage = s"Logs were truncated because they exceeded the limit of $megabytes megabytes."
 
 }

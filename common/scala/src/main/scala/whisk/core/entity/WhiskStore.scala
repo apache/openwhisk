@@ -16,29 +16,32 @@
 
 package whisk.core.entity
 
+import java.time.Instant
+
 import scala.concurrent.Future
+import scala.language.postfixOps
 import scala.util.Try
+
 import akka.actor.ActorSystem
 import spray.json.JsObject
 import spray.json.JsString
 import spray.json.RootJsonFormat
+import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig.dbProvider
-import whisk.core.WhiskConfig.dbProtocol
 import whisk.core.WhiskConfig.dbActivations
 import whisk.core.WhiskConfig.dbAuths
-import whisk.core.WhiskConfig.dbPassword
-import whisk.core.WhiskConfig.dbUsername
 import whisk.core.WhiskConfig.dbHost
+import whisk.core.WhiskConfig.dbPassword
 import whisk.core.WhiskConfig.dbPort
+import whisk.core.WhiskConfig.dbProtocol
+import whisk.core.WhiskConfig.dbProvider
+import whisk.core.WhiskConfig.dbUsername
 import whisk.core.WhiskConfig.dbWhisk
 import whisk.core.database.ArtifactStore
 import whisk.core.database.CouchDbRestStore
 import whisk.core.database.DocumentRevisionProvider
 import whisk.core.database.DocumentSerializer
-import java.time.Instant
-import scala.language.postfixOps
 
 package object types {
     type AuthStore = ArtifactStore[WhiskAuth]
@@ -85,7 +88,8 @@ protected[core] trait WhiskDocument
 protected[core] object Util {
     def makeStore[D <: DocumentSerializer](config: WhiskConfig, name: WhiskConfig => String)(
         implicit jsonFormat: RootJsonFormat[D],
-        actorSystem: ActorSystem): ArtifactStore[D] = {
+        actorSystem: ActorSystem,
+        logging: Logging): ArtifactStore[D] = {
         require(config != null && config.isValid, "config is undefined or not valid")
         require(config.dbProvider == "Cloudant" || config.dbProvider == "CouchDB", "Unsupported db.provider: " + config.dbProvider)
         assume(Set(config.dbProtocol, config.dbHost, config.dbPort, config.dbUsername, config.dbPassword, name(config)).forall(_.nonEmpty), "At least one expected property is missing")
@@ -104,8 +108,22 @@ object WhiskAuthStore {
             dbPort -> null,
             dbAuths -> null)
 
-    def datastore(config: WhiskConfig)(implicit system: ActorSystem) =
+    def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging) =
         Util.makeStore[WhiskAuth](config, _.dbAuths)
+}
+
+object WhiskAuthV2Store {
+    def requiredProperties =
+        Map(dbProvider -> null,
+            dbProtocol -> null,
+            dbUsername -> null,
+            dbPassword -> null,
+            dbHost -> null,
+            dbPort -> null,
+            dbAuths -> null)
+
+    def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging) =
+        Util.makeStore[WhiskAuthV2](config, _.dbAuths)
 }
 
 object WhiskEntityStore {
@@ -118,8 +136,8 @@ object WhiskEntityStore {
             dbPort -> null,
             dbWhisk -> null)
 
-    def datastore(config: WhiskConfig)(implicit system: ActorSystem) =
-        Util.makeStore[WhiskEntity](config, _.dbWhisk)(WhiskEntityJsonFormat, system)
+    def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging) =
+        Util.makeStore[WhiskEntity](config, _.dbWhisk)(WhiskEntityJsonFormat, system, logging)
 }
 
 object WhiskActivationStore {
@@ -132,7 +150,7 @@ object WhiskActivationStore {
             dbPort -> null,
             dbActivations -> null)
 
-    def datastore(config: WhiskConfig)(implicit system: ActorSystem) =
+    def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging) =
         Util.makeStore[WhiskActivation](config, _.dbActivations)
 }
 
@@ -269,8 +287,8 @@ object WhiskEntityQueries {
         upto: Option[Instant] = None,
         convert: Option[JsObject => Try[T]])(
             implicit transid: TransactionId): Future[Either[List[JsObject], List[T]]] = {
-        val startKey = List(namespace.addpath(name).toString, since map { _.toEpochMilli } getOrElse 0)
-        val endKey = List(namespace.addpath(name).toString, upto map { _.toEpochMilli } getOrElse TOP, TOP)
+        val startKey = List(namespace.addPath(name).toString, since map { _.toEpochMilli } getOrElse 0)
+        val endKey = List(namespace.addPath(name).toString, upto map { _.toEpochMilli } getOrElse TOP, TOP)
         query(db, viewname(collection), startKey, endKey, skip, limit, reduce = false, convert)
     }
 

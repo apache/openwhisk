@@ -17,6 +17,8 @@
 package whisk.core.cli.test
 
 import java.io.File
+import java.io.BufferedWriter
+import java.io.FileWriter
 import java.time.Instant
 
 import scala.language.postfixOps
@@ -45,6 +47,8 @@ import whisk.core.entity.size.SizeInt
 import whisk.utils.retry
 import JsonArgsForTests._
 import whisk.http.Messages
+import common.WskAdmin
+import java.time.Clock
 
 /**
  * Tests for basic CLI usage. Some of these tests require a deployed backend.
@@ -98,6 +102,20 @@ class WskBasicUsageTests
             stdout should include(s"ok: whisk auth set to ${wskprops.authKey}")
             stdout should include(s"ok: whisk API host set to ${wskprops.apihost}")
             stdout should include(s"ok: whisk namespace set to ${namespace}")
+        } finally {
+            tmpwskprops.delete()
+        }
+    }
+
+    it should "ensure default namespace is used when a blank namespace is set" in {
+        val tmpwskprops = File.createTempFile("wskprops", ".tmp")
+        try {
+            val writer = new BufferedWriter(new FileWriter(tmpwskprops))
+            writer.write(s"NAMESPACE=")
+            writer.close()
+            val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
+            val stdout = wsk.cli(Seq("property", "get", "-i", "--namespace"), env = env).stdout
+            stdout should include regex ("whisk namespace\\s+_")
         } finally {
             tmpwskprops.delete()
         }
@@ -330,7 +348,7 @@ class WskBasicUsageTests
             }
     }
 
-    it should "invoke an action that exits during init and get appropriate error" in withAssetCleaner(wskprops) {
+    it should "invoke an action that exits during initialization and get appropriate error" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "abort init"
             assetHelper.withCleaner(wsk.action, name) {
@@ -340,7 +358,7 @@ class WskBasicUsageTests
             withActivation(wsk.activation, wsk.action.invoke(name)) {
                 activation =>
                     val response = activation.response
-                    response.result.get.fields("error") shouldBe ActivationResponse.abnormalInitialization
+                    response.result.get.fields("error") shouldBe Messages.abnormalInitialization.toJson
                     response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ContainerError)
             }
     }
@@ -359,7 +377,7 @@ class WskBasicUsageTests
             withActivation(wsk.activation, wsk.action.invoke(name)) {
                 activation =>
                     val response = activation.response
-                    response.result.get.fields("error") shouldBe ActivationResponse.timedoutActivation(3 seconds, true)
+                    response.result.get.fields("error") shouldBe Messages.timedoutActivation(3 seconds, true).toJson
                     response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ApplicationError)
             }
     }
@@ -374,7 +392,7 @@ class WskBasicUsageTests
             withActivation(wsk.activation, wsk.action.invoke(name)) {
                 activation =>
                     val response = activation.response
-                    response.result.get.fields("error") shouldBe ActivationResponse.abnormalRun
+                    response.result.get.fields("error") shouldBe Messages.abnormalRun.toJson
                     response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ContainerError)
             }
     }
@@ -390,8 +408,8 @@ class WskBasicUsageTests
             val run = wsk.action.invoke(name)
             withActivation(wsk.activation, run) {
                 activation =>
-                    activation.start should be > 0L
-                    activation.end should be > 0L
+                    activation.start should be > Instant.EPOCH
+                    activation.end should be > Instant.EPOCH
                     activation.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.Success)
                     activation.response.success shouldBe true
                     activation.response.result shouldBe Some(JsObject())
@@ -452,7 +470,100 @@ class WskBasicUsageTests
             }
     }
 
+    it should "invoke an action using npm openwhisk" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "hello npm openwhisk"
+            assetHelper.withCleaner(wsk.action, name, confirmDelete = false) {
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("helloOpenwhiskPackage.js")))
+            }
+
+            val run = wsk.action.invoke(name, Map("ignore_certs" -> true.toJson, "name" -> name.toJson))
+            withActivation(wsk.activation, run) {
+                activation =>
+                    activation.response.status shouldBe "success"
+                    activation.response.result shouldBe Some(JsObject("delete" -> true.toJson))
+                    activation.logs.get.mkString(" ") should include("action list has this many actions")
+            }
+
+            wsk.action.delete(name, expectedExitCode = TestUtils.NOT_FOUND)
+    }
+
+    it should "invoke an action receiving context properties" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val (user, namespace) = WskAdmin.getUser(wskprops.authKey)
+            val name = "context"
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("helloContext.js")))
+            }
+
+            val start = Instant.now(Clock.systemUTC()).toEpochMilli
+            val run = wsk.action.invoke(name)
+            withActivation(wsk.activation, run) {
+                activation =>
+                    activation.response.status shouldBe "success"
+                    val fields = activation.response.result.get.convertTo[Map[String, String]]
+                    fields("api_host") shouldBe WhiskProperties.getApiHost
+                    fields("api_key") shouldBe wskprops.authKey
+                    fields("namespace") shouldBe namespace
+                    fields("action_name") shouldBe s"/$namespace/$name"
+                    fields("activation_id") shouldBe activation.activationId
+                    fields("deadline").toLong should be >= start
+            }
+    }
+
+    it should "invoke an action that returns a result by the deadline" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "deadline"
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("helloDeadline.js")), timeout = Some(3 seconds))
+            }
+
+            val run = wsk.action.invoke(name)
+            withActivation(wsk.activation, run) {
+                activation =>
+                    activation.response.status shouldBe "success"
+                    activation.response.result shouldBe Some(JsObject("timedout" -> true.toJson))
+            }
+    }
+
+    it should "invoke an action twice, where the first times out but the second does not and should succeed" in withAssetCleaner(wskprops) {
+        // this test issues two activations: the first is forced to time out and not return a result by its deadline (ie it does not resolve
+        // its promise). The invoker should reclaim its container so that a second activation of the same action (which must happen within a
+        // short period of time (seconds, not minutes) is allocated a fresh container and hence runs as expected (vs. hitting in the container
+        // cache and reusing a bad container).
+        (wp, assetHelper) =>
+            val name = "timeout"
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("helloDeadline.js")), timeout = Some(3 seconds))
+            }
+
+            val start = Instant.now(Clock.systemUTC()).toEpochMilli
+            val hungRun = wsk.action.invoke(name, Map("forceHang" -> true.toJson))
+            withActivation(wsk.activation, hungRun) {
+                activation =>
+                    // the first action must fail with a timeout error
+                    activation.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ApplicationError)
+                    activation.response.result shouldBe Some(JsObject("error" -> Messages.timedoutActivation(3 seconds, false).toJson))
+            }
+
+            // run the action again, this time without forcing it to timeout
+            // it should succeed because it ran in a fresh container
+            val goodRun = wsk.action.invoke(name, Map("forceHang" -> false.toJson))
+            withActivation(wsk.activation, goodRun) {
+                activation =>
+                    // the first action must fail with a timeout error
+                    activation.response.status shouldBe "success"
+                    activation.response.result shouldBe Some(JsObject("timedout" -> true.toJson))
+            }
+    }
+
     behavior of "Wsk packages"
+
+    it should "create, and delete a package" in {
+        val name = "createDeletePackage"
+        wsk.pkg.create(name).stdout should include(s"ok: created package $name")
+        wsk.pkg.delete(name).stdout should include(s"ok: deleted package $name")
+    }
 
     it should "create, and get a package to verify parameter and annotation parsing" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
@@ -638,6 +749,84 @@ class WskBasicUsageTests
                         exitCode should equal(NOT_FOUND)
                     trigger.get(name, expectedExitCode = NOT_FOUND)
             }
+    }
+
+    behavior of "Wsk api"
+
+    it should "reject an api commands with an invalid path parameter" in {
+        val badpath = "badpath"
+
+        var rr = wsk.cli(Seq("api-experimental", "create", "/basepath", badpath, "GET", "action", "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+        rr.stderr should include(s"'${badpath}' must begin with '/'")
+
+        rr = wsk.cli(Seq("api-experimental", "delete", "/basepath", badpath, "GET", "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+        rr.stderr should include(s"'${badpath}' must begin with '/'")
+
+        rr = wsk.cli(Seq("api-experimental", "list", "/basepath", badpath, "GET", "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+        rr.stderr should include(s"'${badpath}' must begin with '/'")
+    }
+
+    it should "reject an api commands with an invalid verb parameter" in {
+        val badverb = "badverb"
+
+        var rr = wsk.cli(Seq("api-experimental", "create", "/basepath", "/path", badverb, "action", "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+        rr.stderr should include(s"'${badverb}' is not a valid API verb.  Valid values are:")
+
+        rr = wsk.cli(Seq("api-experimental", "delete", "/basepath", "/path", badverb, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+        rr.stderr should include(s"'${badverb}' is not a valid API verb.  Valid values are:")
+
+        rr = wsk.cli(Seq("api-experimental", "list", "/basepath", "/path", badverb, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+        rr.stderr should include(s"'${badverb}' is not a valid API verb.  Valid values are:")
+    }
+
+    it should "reject an api create command with an API name argument and an API name option" in {
+        val apiName = "An API Name"
+        val rr = wsk.cli(Seq("api-experimental", "create", apiName, "/path", "GET", "action", "-n", apiName, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+        rr.stderr should include(s"An API name can only be specified once.")
+    }
+
+    it should "reject an api create command that specifies a nonexistent configuration file" in {
+        val configfile = "/nonexistent/file"
+        val rr = wsk.cli(Seq("api-experimental", "create", "-c", configfile, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+        rr.stderr should include(s"Error reading swagger file '${configfile}':")
+    }
+
+    it should "reject an api create command specifying a non-JSON configuration file" in {
+        val file = File.createTempFile("api.json", ".txt")
+        file.deleteOnExit()
+        val filename = file.getAbsolutePath()
+
+        val bw = new BufferedWriter(new FileWriter(file))
+        bw.write("a=A")
+        bw.close()
+
+        val rr = wsk.cli(Seq("api-experimental", "create", "-c", filename, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+        rr.stderr should include(s"Error parsing swagger file '${filename}':")
+    }
+
+    it should "reject an api create command specifying a non-swagger JSON configuration file" in {
+        val file = File.createTempFile("api.json", ".txt")
+        file.deleteOnExit()
+        val filename = file.getAbsolutePath()
+
+        val bw = new BufferedWriter(new FileWriter(file))
+        bw.write("""|{
+                    |   "swagger": "2.0",
+                    |   "info": {
+                    |      "title": "My API",
+                    |      "version": "1.0.0"
+                    |   },
+                    |   "BADbasePath": "/bp",
+                    |   "paths": {
+                    |     "/rp": {
+                    |       "get":{}
+                    |     }
+                    |   }
+                    |}""".stripMargin)
+        bw.close()
+
+        val rr = wsk.cli(Seq("api-experimental", "create", "-c", filename, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+        rr.stderr should include(s"Swagger file is invalid (missing basePath, info, paths, or swagger fields")
     }
 
     behavior of "Wsk entity list formatting"
@@ -897,7 +1086,19 @@ class WskBasicUsageTests
         val optPayloadMsg = "A payload is optional."
         val noArgsReqMsg = "No arguments are required."
         val invalidArg = "invalidArg"
+        val apiCreateReqMsg = "Specify a swagger file or specify an API base path with an API path, an API verb, and an action name."
+        val apiGetReqMsg = "An API base path or API name is required."
+        val apiDeleteReqMsg = "An API base path or API name is required.  An optional API relative path and operation may also be provided."
+        val apiListReqMsg = "Optional parameters are: API base path (or API name), API relative path and operation."
+        val invalidShared = s"Cannot use value '$invalidArg' for shared"
         val invalidArgs = Seq(
+            (Seq("api-experimental", "create"), s"${tooFewArgsMsg} ${apiCreateReqMsg}"),
+            (Seq("api-experimental", "create", "/basepath", "/path", "GET", "action", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${apiCreateReqMsg}"),
+            (Seq("api-experimental", "get"), s"${tooFewArgsMsg} ${apiGetReqMsg}"),
+            (Seq("api-experimental", "get", "/basepath", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${apiGetReqMsg}"),
+            (Seq("api-experimental", "delete"), s"${tooFewArgsMsg} ${apiDeleteReqMsg}"),
+            (Seq("api-experimental", "delete", "/basepath", "/path", "GET", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${apiDeleteReqMsg}"),
+            (Seq("api-experimental", "list", "/basepath", "/path", "GET", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${apiListReqMsg}"),
             (Seq("action", "create"), s"${tooFewArgsMsg} ${actionNameActionReqMsg}"),
             (Seq("action", "create", "someAction"), s"${tooFewArgsMsg} ${actionNameActionReqMsg}"),
             (Seq("action", "create", "actionName", "artifactName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
@@ -926,8 +1127,10 @@ class WskBasicUsageTests
                 s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"),
             (Seq("package", "create"), s"${tooFewArgsMsg} ${packageNameReqMsg}"),
             (Seq("package", "create", "packageName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
+            (Seq("package", "create", "packageName", "--shared", invalidArg), invalidShared),
             (Seq("package", "update"), s"${tooFewArgsMsg} ${packageNameReqMsg}"),
             (Seq("package", "update", "packageName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
+            (Seq("package", "update", "packageName", "--shared", invalidArg), invalidShared),
             (Seq("package", "get"), s"${tooFewArgsMsg} ${packageNameReqMsg}"),
             (Seq("package", "get", "packageName", "namespace", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("package", "bind"), s"${tooFewArgsMsg} ${packageNameBindingReqMsg}"),
@@ -1027,7 +1230,7 @@ class WskBasicUsageTests
             testLimit(None, None, Some(32768.MB), BAD_REQUEST)
     }
 
-    ignore should "create a trigger using property file" in withAssetCleaner(wskprops) {
+    it should "create a trigger using property file" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "listTriggers"
             val tmpProps = File.createTempFile("wskprops", ".tmp")

@@ -26,7 +26,7 @@ var fs = require('fs');
 var path = require('path');
 
 function NodeActionRunner(whisk) {
-    // Use this ref inside lambdas etc.
+    // Use this ref inside closures etc.
     var thisRunner = this;
 
     this.userScriptName = undefined;
@@ -57,7 +57,7 @@ function NodeActionRunner(whisk) {
         }
 
         // Loading the user code.
-        if(message.binary) {
+        if (message.binary) {
             // The code is a base64-encoded zip file.
             return unzipInTmpDir(message.code).then(function (moduleDir) {
                 try {
@@ -101,7 +101,7 @@ function NodeActionRunner(whisk) {
                     reject(e);
                 }
 
-                if (result !== thisRunner.whisk.async()) {
+                if (result !== thisRunner.whisk.async(false)) {
                     // This branch handles all direct (non-async) returns, as well
                     // as returned Promises.
 
@@ -115,7 +115,13 @@ function NodeActionRunner(whisk) {
                     }).catch(function (error) {
                         // A rejected Promise from the user code maps into a
                         // successful promise wrapping a whisk-encoded error.
-                        resolve({ error: error });
+
+                        // Special case if the user just called `reject()`.
+                        if (!error) {
+                            resolve({ error: {}})
+                        } else {
+                            resolve({ error: error });
+                        }
                     });
                 } else {
                     // Nothing to do in this 'else' branch. The user code returned the
@@ -125,7 +131,7 @@ function NodeActionRunner(whisk) {
                 }
             }
         );
-    };
+    }
 
     // Helper function to copy a base64-encoded zip file to a temporary location,
     // decompress it into temporary directory, and return the name of that directory.

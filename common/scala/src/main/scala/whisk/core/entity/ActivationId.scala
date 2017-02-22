@@ -24,14 +24,10 @@ import scala.util.Success
 import scala.util.Try
 
 import spray.json.DefaultJsonProtocol.StringJsonFormat
-import spray.json.DeserializationException
-import spray.json.JsNumber
-import spray.json.JsObject
-import spray.json.JsString
-import spray.json.JsValue
-import spray.json.RootJsonFormat
-import spray.json.deserializationError
-import spray.json.pimpAny
+import spray.json._
+
+import whisk.core.entity.size._
+import whisk.http.Messages
 
 /**
  * An activation id, is a unique id assigned to activations (invoke action or fire trigger).
@@ -44,7 +40,7 @@ import spray.json.pimpAny
  * @param id the activation id, required not null
  */
 protected[core] class ActivationId private (private val id: java.util.UUID) extends AnyVal {
-    protected[core] def apply() = toString
+    def asString = toString
     override def toString = id.toString.replaceAll("-", "")
     def toJsObject = JsObject("activationId" -> toString.toJson)
 }
@@ -97,12 +93,12 @@ protected[core] object ActivationId extends ArgNormalizer[ActivationId] {
             value match {
                 case JsString(s) => stringToActivationId(s)
                 case JsNumber(n) => bigIntToActivationId(n.toBigInt)
-                case _           => deserializationError("activation id is malformed")
+                case _           => deserializationError(Messages.activationIdIllegal)
             }
         } match {
             case Success(a)                                 => a
             case Failure(DeserializationException(t, _, _)) => deserializationError(t)
-            case Failure(t)                                 => deserializationError("activation id is malformed")
+            case Failure(t)                                 => deserializationError(Messages.activationIdIllegal)
         }
     }
 
@@ -124,10 +120,9 @@ protected[core] object ActivationId extends ArgNormalizer[ActivationId] {
                 val up = new BigInteger(s.substring(16, 32), 16)
                 val uuid = new java.util.UUID(lb.longValue, up.longValue)
                 ActivationId(uuid)
-            } else if (s.length > 32) {
-                deserializationError("activation id is malformed (too long)")
-            } else {
-                deserializationError("activation id is malformed (too short)")
+            } else deserializationError {
+                Messages.activationIdLengthError(
+                    SizeError("Activation id", s.length.B, 32.B))
             }
         } else {
             ActivationId(java.util.UUID.fromString(s))

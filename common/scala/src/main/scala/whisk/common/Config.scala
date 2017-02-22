@@ -44,8 +44,8 @@ import scala.util.Try
 class Config(
     requiredProperties: Map[String, String],
     optionalProperties: Set[String] = Set())(
-        env: Map[String, String] = sys.env)
-    extends Logging {
+        env: Map[String, String] = sys.env)(
+            implicit logging: Logging) {
 
     private val settings = getProperties().toMap.filter {
         case (k, v) => requiredProperties.contains(k) ||
@@ -76,6 +76,26 @@ class Config(
     }
 
     /**
+     * Returns the value of a given key parsed as a double.
+     * If parsing fails, return the default value.
+     *
+     * @param key the property that has to be returned.
+     */
+    def getAsDouble(key: String, defaultValue: Double): Double = {
+        Try { getProperty(key).toDouble } getOrElse { defaultValue }
+    }
+
+    /**
+     * Returns the value of a given key parsed as an integer.
+     * If parsing fails, return the default value.
+     *
+     * @param key the property that has to be returned.
+     */
+    def getAsInt(key: String, defaultValue: Int): Int = {
+        Try { getProperty(key).toInt } getOrElse { defaultValue }
+    }
+
+    /**
      * Converts the set of property to a string for debugging.
      */
     def mkString: String = settings.mkString("\n")
@@ -101,17 +121,17 @@ class Config(
 /**
  * Singleton object which provides global methods to manage configuration.
  */
-object Config extends Logging {
+object Config {
     /**
      * Reads a Map of key-value pairs from the environment -- store them in the
      * mutable properties object.
      */
-    def readPropertiesFromEnvironment(properties: scala.collection.mutable.Map[String, String], env: Map[String, String]) = {
+    def readPropertiesFromEnvironment(properties: scala.collection.mutable.Map[String, String], env: Map[String, String])(implicit logging: Logging) = {
         for (p <- properties.keys) {
             val envp = p.replace('.', '_').toUpperCase
             val envv = env.get(envp)
             if (envv.isDefined) {
-                info(this, s"environment set value for $p")
+                logging.info(this, s"environment set value for $p")
                 properties += p -> envv.get.trim
             }
         }
@@ -123,10 +143,10 @@ object Config extends Logging {
      * @param required a key-value map where the keys are required properties
      * @param properties a set of properties to check
      */
-    def validateProperties(required: Map[String, String], properties: Map[String, String]): Boolean = {
+    def validateProperties(required: Map[String, String], properties: Map[String, String])(implicit logging: Logging): Boolean = {
         required.keys.forall { key =>
             val value = properties(key)
-            if (value == null) error(this, s"required property $key still not set")
+            if (value == null) logging.error(this, s"required property $key still not set")
             value != null
         }
     }

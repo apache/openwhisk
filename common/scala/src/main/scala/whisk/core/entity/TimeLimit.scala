@@ -42,7 +42,6 @@ import spray.json.deserializationError
  */
 protected[entity] class TimeLimit private (val duration: FiniteDuration) extends AnyVal {
     protected[core] def millis = duration.toMillis.toInt
-    protected[core] def apply() = duration
     override def toString = duration.toString
 }
 

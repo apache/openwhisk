@@ -33,7 +33,7 @@ import spray.json.deserializationError
  * @param uuid the uuid, required not null
  */
 protected[core] class UUID private (private val uuid: java.util.UUID) extends AnyVal {
-    protected[core] def apply() = uuid.toString
+    protected[core] def asString = toString
     protected[core] def snippet = toString.substring(0, 8)
     protected[entity] def toJson = JsString(toString)
     override def toString = uuid.toString

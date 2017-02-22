@@ -20,8 +20,8 @@ import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 
 import akka.actor.ActorSystem
-import spray.json.DefaultJsonProtocol._
 import spray.json._
+import spray.json.DefaultJsonProtocol._
 import whisk.common.ConsulClient
 import whisk.common.ConsulKV.ControllerKeys
 import whisk.common.Logging
@@ -38,9 +38,9 @@ import whisk.core.loadBalancer.LoadBalancer
  * @param config containing the config information needed (consulServer)
  */
 class ActivationThrottler(consulServer: String, loadBalancer: LoadBalancer, concurrencyLimit: Int, systemOverloadLimit: Int)(
-    implicit val system: ActorSystem) extends Logging {
+    implicit val system: ActorSystem, logging: Logging) {
 
-    info(this, s"concurrencyLimit = $concurrencyLimit, systemOverloadLimit = $systemOverloadLimit")
+    logging.info(this, s"concurrencyLimit = $concurrencyLimit, systemOverloadLimit = $systemOverloadLimit")
 
     implicit private val executionContext = system.dispatcher
 
@@ -58,7 +58,7 @@ class ActivationThrottler(consulServer: String, loadBalancer: LoadBalancer, conc
     /**
      * Checks whether the operation should be allowed to proceed.
      */
-    def check(subject: Subject): Boolean = userActivationCounter.getOrElse(subject(), 0L) < concurrencyLimit
+    def check(subject: Subject): Boolean = userActivationCounter.getOrElse(subject.asString, 0L) < concurrencyLimit
 
     /**
      * Checks whether the system is in a generally overloaded state.

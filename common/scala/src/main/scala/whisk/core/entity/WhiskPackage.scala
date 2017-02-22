@@ -43,7 +43,7 @@ case class WhiskPackagePut(
      * Resolves the binding if it contains the default namespace.
      */
     protected[core] def resolve(namespace: EntityName): WhiskPackagePut = {
-        WhiskPackagePut(binding.map(_.resolve(namespace.toPath)), parameters, version, publish, annotations)
+        WhiskPackagePut(binding.map(_.resolve(namespace)), parameters, version, publish, annotations)
     }
 }
 
@@ -76,37 +76,42 @@ case class WhiskPackage(
 
     require(binding != null || (binding map { _ != null } getOrElse true), "binding undefined")
 
-    /** The full path to the package (namespace + name). */
-    def path = namespace.addpath(name)
-
     /**
      * Merges parameters into existing set of parameters for package.
      * Existing parameters supersede those in p.
      */
-    def inherit(p: Parameters) = {
-        WhiskPackage(namespace, name, binding, p ++ parameters, version, publish, annotations)
-    }
+    def inherit(p: Parameters): WhiskPackage = copy(parameters = p ++ parameters).revision[WhiskPackage](rev)
 
     /**
      * Merges parameters into existing set of parameters for package.
      * The parameters from p supersede parameters from this.
      */
-    def mergeParameters(p: Parameters) = {
-        WhiskPackage(namespace, name, binding, parameters ++ p, version, publish, annotations)
-    }
+    def mergeParameters(p: Parameters): WhiskPackage = copy(parameters = parameters ++ p).revision[WhiskPackage](rev)
+
+    /**
+     * Gets the full path for the package.
+     * This is equivalent to calling this this.fullyQualifiedName(withVersion = false).fullPath.
+     */
+    def fullPath: EntityPath = namespace.addPath(name)
 
     /**
      * Gets binding for package iff this is not already a package reference.
      */
-    def bind = binding map { _ => None } getOrElse Some { Binding(namespace, name) }
+    def bind: Option[Binding] = {
+        if (binding.isDefined) {
+            None
+        } else {
+            Some(Binding(namespace.root, name))
+        }
+    }
 
     /**
      * Adds actions to package. The actions list is filtered so that only actions that
      * match the package are included (must match package namespace/name).
      */
-    def withActions(actions: List[WhiskAction] = List()) = {
+    def withActions(actions: List[WhiskAction] = List()): WhiskPackageWithActions = {
         withPackageActions(actions filter { a =>
-            val pkgns = binding map { b => b.namespace.addpath(b.name) } getOrElse { namespace.addpath(name) }
+            val pkgns = binding map { b => b.namespace.addPath(b.name) } getOrElse { namespace.addPath(name) }
             a.namespace == pkgns
         } map { a =>
             WhiskPackageAction(a.name, a.version, a.annotations)
@@ -118,10 +123,10 @@ case class WhiskPackage(
      * is it defined the property "feed" in the annotation. The value of the property is ignored
      * for this check.
      */
-    def withPackageActions(actions: List[WhiskPackageAction] = List()) = {
+    def withPackageActions(actions: List[WhiskPackageAction] = List()): WhiskPackageWithActions = {
         val actionGroups = actions map { a =>
             //  group into "actions" and "feeds"
-            val feed = a.annotations(Parameters.Feed) map { _ => true } getOrElse false
+            val feed = a.annotations.get(Parameters.Feed) map { _ => true } getOrElse false
             (feed, a)
         } groupBy { _._1 } mapValues { _.map(_._2) }
         WhiskPackageWithActions(this, actionGroups.getOrElse(false, List()), actionGroups.getOrElse(true, List()))
@@ -199,8 +204,8 @@ object WhiskPackage
  * A package binding holds a reference to the providing package
  * namespace and package name.
  */
-case class Binding(namespace: EntityPath, name: EntityName) {
-    def fullyQualifiedName = FullyQualifiedEntityName(namespace, name)
+case class Binding(namespace: EntityName, name: EntityName) {
+    def fullyQualifiedName = FullyQualifiedEntityName(namespace.toPath, name)
     def docid = fullyQualifiedName.toDocId
     override def toString = fullyQualifiedName.toString
 
@@ -208,8 +213,8 @@ case class Binding(namespace: EntityPath, name: EntityName) {
      * Returns a Binding namespace if it is the default namespace
      * to the given one, otherwise this is an identity.
      */
-    def resolve(ns: EntityPath): Binding = {
-        namespace match {
+    def resolve(ns: EntityName): Binding = {
+        namespace.toPath match {
             case EntityPath.DEFAULT => Binding(ns, name)
             case _                  => this
         }

@@ -27,10 +27,11 @@ import common.TestUtils.FORBIDDEN
 import common.TestUtils.NOT_FOUND
 import common.TestUtils.TIMEOUT
 import common.Wsk
+import common.WskAdmin
 import common.WskProps
 import common.WskTestHelpers
-import spray.json.DefaultJsonProtocol.StringJsonFormat
-import spray.json.pimpAny
+import spray.json._
+import spray.json.DefaultJsonProtocol._
 import whisk.core.entity.Subject
 import whisk.core.entity.WhiskPackage
 
@@ -321,6 +322,31 @@ class WskEntitlementTests
                     wsk.pkg.create(privateSamplePackage, update = true, shared = Some(false))(guestwp)
                     wsk.action.invoke("sequence", expectedExitCode = FORBIDDEN)(defaultWskProps)
             }
+    }
+
+    it should "invoke a packaged action not owned by the subject to get the subject's namespace" in withAssetCleaner(guestWskProps) {
+        (_, assetHelper) =>
+            val packageName = "namespacePackage"
+            val actionName = "namespaceAction"
+            val packagedActionName = s"$packageName/$actionName"
+
+            assetHelper.withCleaner(wsk.pkg, packageName) {
+                (pkg, _) => pkg.create(packageName, shared = Some(true))(guestWskProps)
+            }
+
+            assetHelper.withCleaner(wsk.action, packagedActionName) {
+                val file = Some(TestUtils.getTestActionFilename("helloContext.js"))
+                (action, _) => action.create(packagedActionName, file)(guestWskProps)
+            }
+
+            val fullyQualifiedActionName = s"/$guestNamespace/$packagedActionName"
+            val run = wsk.action.invoke(fullyQualifiedActionName)(defaultWskProps)
+
+            withActivation(wsk.activation, run)({ activation =>
+                val (_, namespace) = WskAdmin.getUser(defaultWskProps.authKey)
+                activation.response.success shouldBe true
+                activation.response.result.get.toString should include regex (s""""namespace":\\s*"$namespace"""")
+            })(defaultWskProps)
     }
 
     behavior of "Wsk Trigger Feed"

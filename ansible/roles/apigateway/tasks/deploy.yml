@@ -1,10 +1,13 @@
 ---
 # This role will install apigateway
 
+- name: "pull the openwhisk/openwhisk-apigateway image"
+  shell: "docker pull openwhisk/openwhisk-apigateway"
+
 - name: (re)start apigateway
   docker_container:
     name: apigateway
-    image: openwhisk/apigateway
+    image: openwhisk/openwhisk-apigateway
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"

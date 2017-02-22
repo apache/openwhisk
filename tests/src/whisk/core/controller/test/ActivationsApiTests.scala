@@ -28,7 +28,9 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.core.controller.WhiskActivationsApi
 import whisk.core.entity._
+import whisk.core.entity.size._
 import whisk.http.ErrorResponse
+import whisk.http.Messages
 
 /**
  * Tests Activations API.
@@ -49,7 +51,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
     behavior of "Activations API"
 
     val creds = WhiskAuth(Subject(), AuthKey()).toIdentity
-    val namespace = EntityPath(creds.subject())
+    val namespace = EntityPath(creds.subject.asString)
     val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
     def aname = MakeName.next("activations_tests")
 
@@ -59,7 +61,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         // create two sets of activation records, and check that only one set is served back
         val creds1 = WhiskAuth(Subject(), AuthKey())
         (1 to 2).map { i =>
-            WhiskActivation(EntityPath(creds1.subject()), aname, creds1.subject, ActivationId(), start = Instant.now, end = Instant.now)
+            WhiskActivation(EntityPath(creds1.subject.asString), aname, creds1.subject, ActivationId(), start = Instant.now, end = Instant.now)
         } foreach { put(entityStore, _) }
 
         val actionName = aname
@@ -75,7 +77,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
                 val response = responseAs[List[JsObject]]
                 activations.length should be(response.length)
                 activations forall { a => response contains a.summaryAsJson } should be(true)
-                rawResponse forall { a => a.getFields("for") match { case Seq(JsString(n)) => n == actionName() case _ => false } }
+                rawResponse forall { a => a.getFields("for") match { case Seq(JsString(n)) => n == actionName.asString case _ => false } }
             }
         }
 
@@ -87,7 +89,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
                 val response = responseAs[List[JsObject]]
                 activations.length should be(response.length)
                 activations forall { a => response contains a.summaryAsJson } should be(true)
-                rawResponse forall { a => a.getFields("for") match { case Seq(JsString(n)) => n == actionName() case _ => false } }
+                rawResponse forall { a => a.getFields("for") match { case Seq(JsString(n)) => n == actionName.asString case _ => false } }
             }
         }
 
@@ -104,7 +106,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         // create two sets of activation records, and check that only one set is served back
         val creds1 = WhiskAuth(Subject(), AuthKey())
         (1 to 2).map { i =>
-            WhiskActivation(EntityPath(creds1.subject()), aname, creds1.subject, ActivationId(), start = Instant.now, end = Instant.now)
+            WhiskActivation(EntityPath(creds1.subject.asString), aname, creds1.subject, ActivationId(), start = Instant.now, end = Instant.now)
         } foreach { put(entityStore, _) }
 
         val actionName = aname
@@ -130,7 +132,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         // create two sets of activation records, and check that only one set is served back
         val creds1 = WhiskAuth(Subject(), AuthKey())
         (1 to 2).map { i =>
-            WhiskActivation(EntityPath(creds1.subject()), aname, creds1.subject, ActivationId(), start = Instant.now, end = Instant.now)
+            WhiskActivation(EntityPath(creds1.subject.asString), aname, creds1.subject, ActivationId(), start = Instant.now, end = Instant.now)
         } foreach { put(entityStore, _) }
 
         val actionName = aname
@@ -193,7 +195,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         // create two sets of activation records, and check that only one set is served back
         val creds1 = WhiskAuth(Subject(), AuthKey())
         (1 to 2).map { i =>
-            WhiskActivation(EntityPath(creds1.subject()), aname, creds1.subject, ActivationId(), start = Instant.now, end = Instant.now)
+            WhiskActivation(EntityPath(creds1.subject.asString), aname, creds1.subject, ActivationId(), start = Instant.now, end = Instant.now)
         } foreach { put(entityStore, _) }
 
         val activations = (1 to 2).map { i =>
@@ -235,14 +237,14 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         val activation = WhiskActivation(namespace, aname, creds.subject, ActivationId(), start = Instant.now, end = Instant.now)
         put(entityStore, activation)
 
-        Get(s"$collectionPath/${activation.activationId()}") ~> sealRoute(routes(creds)) ~> check {
+        Get(s"$collectionPath/${activation.activationId.asString}") ~> sealRoute(routes(creds)) ~> check {
             status should be(OK)
             val response = responseAs[JsObject]
             response should be(activation.toExtendedJson)
         }
 
         // it should "get activation by name in explicit namespace owned by subject" in
-        Get(s"/$namespace/${collection.path}/${activation.activationId()}") ~> sealRoute(routes(creds)) ~> check {
+        Get(s"/$namespace/${collection.path}/${activation.activationId.asString}") ~> sealRoute(routes(creds)) ~> check {
             status should be(OK)
             val response = responseAs[JsObject]
             response should be(activation.toExtendedJson)
@@ -250,7 +252,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
 
         // it should "reject get activation by name in explicit namespace not owned by subject" in
         val auser = WhiskAuth(Subject(), AuthKey()).toIdentity
-        Get(s"/$namespace/${collection.path}/${activation.activationId()}") ~> sealRoute(routes(auser)) ~> check {
+        Get(s"/$namespace/${collection.path}/${activation.activationId.asString}") ~> sealRoute(routes(auser)) ~> check {
             status should be(Forbidden)
         }
     }
@@ -261,7 +263,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         val activation = WhiskActivation(namespace, aname, creds.subject, ActivationId(), start = Instant.now, end = Instant.now)
         put(entityStore, activation)
 
-        Get(s"$collectionPath/${activation.activationId()}/result") ~> sealRoute(routes(creds)) ~> check {
+        Get(s"$collectionPath/${activation.activationId.asString}/result") ~> sealRoute(routes(creds)) ~> check {
             status should be(OK)
             val response = responseAs[JsObject]
             response should be(activation.response.toExtendedJson)
@@ -274,7 +276,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         val activation = WhiskActivation(namespace, aname, creds.subject, ActivationId(), start = Instant.now, end = Instant.now)
         put(entityStore, activation)
 
-        Get(s"$collectionPath/${activation.activationId()}/logs") ~> sealRoute(routes(creds)) ~> check {
+        Get(s"$collectionPath/${activation.activationId.asString}/logs") ~> sealRoute(routes(creds)) ~> check {
             status should be(OK)
             val response = responseAs[JsObject]
             response should be(activation.logs.toJsonObject)
@@ -287,7 +289,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         val activation = WhiskActivation(namespace, aname, creds.subject, ActivationId(), start = Instant.now, end = Instant.now)
         put(entityStore, activation)
 
-        Get(s"$collectionPath/${activation.activationId()}/bogus") ~> sealRoute(routes(creds)) ~> check {
+        Get(s"$collectionPath/${activation.activationId.asString}/bogus") ~> sealRoute(routes(creds)) ~> check {
             status should be(NotFound)
         }
     }
@@ -301,12 +303,12 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
 
         Get(s"$collectionPath/$tooshort") ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
-            responseAs[String] should include("too short")
+            responseAs[String] shouldBe Messages.activationIdLengthError(SizeError("Activation id", tooshort.length.B, 32.B))
         }
 
         Get(s"$collectionPath/$toolong") ~> sealRoute(routes(creds)) ~> check {
             status should be(BadRequest)
-            responseAs[String] should include("too long")
+            responseAs[String] shouldBe Messages.activationIdLengthError(SizeError("Activation id", toolong.length.B, 32.B))
         }
 
         Get(s"$collectionPath/$malformed") ~> sealRoute(routes(creds)) ~> check {
@@ -342,11 +344,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
 
         Get(s"$collectionPath/${entity.name}") ~> sealRoute(routes(creds)) ~> check {
             status should be(InternalServerError)
-            val error = responseAs[ErrorResponse].error
-            error should include("missing required member")
-            Seq(entity.name(), "annotations", "parameters", "exec", "trigger", "action", "rules", "binding", "response").map {
-                error should not include (_)
-            }
+            responseAs[ErrorResponse].error shouldBe Messages.corruptedEntity
         }
     }
 }

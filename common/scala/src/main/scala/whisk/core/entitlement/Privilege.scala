@@ -16,6 +16,13 @@
 
 package whisk.core.entitlement
 
+import scala.util.Try
+
+import spray.json.DeserializationException
+import spray.json.JsString
+import spray.json.JsValue
+import spray.json.RootJsonFormat
+
 /** An enumeration of privileges available to subjects. */
 protected[core] object Privilege extends Enumeration {
     type Privilege = Value
@@ -24,4 +31,15 @@ protected[core] object Privilege extends Enumeration {
 
     val CRUD = Set(READ, PUT, DELETE)
     val ALL = CRUD + ACTIVATE
+
+    implicit val serdes = new RootJsonFormat[Privilege] {
+        def write(p: Privilege) = JsString(p.toString)
+
+        def read(json: JsValue) = Try {
+            val JsString(str) = json
+            Privilege.withName(str.trim.toUpperCase)
+        } getOrElse {
+            throw new DeserializationException("Privilege must be a valid string")
+        }
+    }
 }

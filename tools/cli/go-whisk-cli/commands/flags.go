@@ -49,6 +49,7 @@ var flags struct {
         full        bool // return full records (docs=true for client request)
         summary     bool
         feed        string  // name of feed
+        detail      bool
     }
 
     property struct {
@@ -77,6 +78,7 @@ var flags struct {
         logsize     int
         result      bool
         kind        string
+        main        string
     }
 
     activation struct {
@@ -101,6 +103,16 @@ var flags struct {
     trigger struct {
         summary bool
     }
+
+    // api
+    api struct {
+        action     string
+        path       string
+        verb       string
+        basepath   string
+        apiname    string
+        configfile string
+    }
 }
 
 func IsVerbose() bool {
@@ -110,4 +122,3 @@ func IsVerbose() bool {
 func IsDebug() bool {
     return len(cliDebug) > 0 || flags.global.debug
 }
-

@@ -52,7 +52,7 @@ case class WhiskAuthV2(
     namespaces: Set[WhiskNamespace])
     extends WhiskDocument {
 
-    override def docid = DocId(subject())
+    override def docid = DocId(subject.asString)
 
     def toJson = JsObject(
         "subject" -> subject.toJson,
@@ -60,6 +60,9 @@ case class WhiskAuthV2(
 }
 
 object WhiskAuthV2 extends DefaultJsonProtocol {
+    def withDefaultNamespace(subject: Subject, authkey: AuthKey) =
+        WhiskAuthV2(subject, Set(WhiskNamespace(EntityName(subject.asString), authkey)))
+
     // Need to explicitly set field names since WhiskAuthV2 extends WhiskDocument
     // which defines more than the 2 "standard" fields
     implicit val serdes = jsonFormat(WhiskAuthV2.apply, "subject", "namespaces")

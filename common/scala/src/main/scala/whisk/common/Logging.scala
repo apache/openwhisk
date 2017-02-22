@@ -21,28 +21,21 @@ import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import akka.event.Logging.LogLevel
+
 import akka.event.Logging.{ DebugLevel, InfoLevel, WarningLevel, ErrorLevel }
+import akka.event.Logging.LogLevel
+import akka.event.LoggingAdapter
 
-/**
- * A logging facility in which output is one line and fields are bracketed.
- */
-trait Logging extends PrintStreamEmitter {
-    /**
-     * Sets the loglevel for this implementor to log on. See
-     * {@link akka.event.Logging.LogLevel} for details.
-     */
-    def setVerbosity(level: LogLevel) = this.level = level
-    def getVerbosity() = level
-
+trait Logging {
     /**
      * Prints a message on DEBUG level
      *
      * @param from Reference, where the method was called from.
      * @param message Message to write to the log
      */
-    def debug(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) =
-        if (level >= DebugLevel) emit(DebugLevel, id, from, message)
+    def debug(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) = {
+        emit(DebugLevel, id, from, message)
+    }
 
     /**
      * Prints a message on INFO level
@@ -50,8 +43,9 @@ trait Logging extends PrintStreamEmitter {
      * @param from Reference, where the method was called from.
      * @param message Message to write to the log
      */
-    def info(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) =
-        if (level >= InfoLevel) emit(InfoLevel, id, from, message)
+    def info(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) = {
+        emit(InfoLevel, id, from, message)
+    }
 
     /**
      * Prints a message on WARN level
@@ -59,8 +53,9 @@ trait Logging extends PrintStreamEmitter {
      * @param from Reference, where the method was called from.
      * @param message Message to write to the log
      */
-    def warn(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) =
-        if (level >= WarningLevel) emit(WarningLevel, id, from, message)
+    def warn(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) = {
+        emit(WarningLevel, id, from, message)
+    }
 
     /**
      * Prints a message on ERROR level
@@ -68,32 +63,43 @@ trait Logging extends PrintStreamEmitter {
      * @param from Reference, where the method was called from.
      * @param message Message to write to the log
      */
-    def error(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) =
-        if (level >= ErrorLevel) emit(ErrorLevel, id, from, message)
-
-    private var level = InfoLevel
-}
-
-/**
- * Facility that is used by Logger to write down the log-output to the standard output stream.
- */
-trait PrintStreamEmitter {
-    /**
-     * The output stream, defaults to Console.out.
-     * This is mutable to allow unit tests to capture the stream.
-     */
-    var outputStream: PrintStream = Console.out
+    def error(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) = {
+        emit(ErrorLevel, id, from, message)
+    }
 
     /**
-     * Prints a message to the output stream
+     * Prints a message to the output.
      *
      * @param loglevel The level to log on
      * @param id <code>TransactionId</code> to include in the log
      * @param from Reference, where the method was called from.
      * @param message Message to write to the log
-     * @param marker A LogMarkerToken. They are defined in <code>LoggingMarkers</code>.
      */
-    def emit(loglevel: LogLevel, id: TransactionId, from: AnyRef, message: String, marker: Option[LogMarker] = None) = {
+    def emit(loglevel: LogLevel, id: TransactionId, from: AnyRef, message: String)
+}
+
+/**
+ * Implementaion of Logging, that uses akka logging.
+ */
+class AkkaLogging(loggingAdapter: LoggingAdapter) extends Logging {
+    def emit(loglevel: LogLevel, id: TransactionId, from: AnyRef, message: String) = {
+        val name = if (from.isInstanceOf[String]) from else Logging.getCleanSimpleClassName(from.getClass)
+
+        val logMessage = Seq(message).collect {
+            case msg if msg.nonEmpty =>
+                msg.split('\n').map(_.trim).mkString(" ")
+        }
+
+        val parts = Seq(s"[$id]") ++ Seq(s"[$name]") ++ logMessage
+        loggingAdapter.log(loglevel, parts.mkString(" "))
+    }
+}
+
+/**
+ * Implementaion of Logging, that uses the output stream.
+ */
+class PrintStreamLogging(outputStream: PrintStream = Console.out) extends Logging {
+    def emit(loglevel: LogLevel, id: TransactionId, from: AnyRef, message: String) = {
         val now = Instant.now(Clock.systemUTC)
         val time = Emitter.timeFormat.format(now)
         val name = if (from.isInstanceOf[String]) from else Logging.getCleanSimpleClassName(from.getClass)
@@ -110,7 +116,7 @@ trait PrintStreamEmitter {
                 msg.split('\n').map(_.trim).mkString(" ")
         }
 
-        val parts = Seq(s"[$time]", s"[$level]", s"[$id]") ++ Seq(s"[$name]") ++ logMessage ++ marker
+        val parts = Seq(s"[$time]", s"[$level]", s"[$id]") ++ Seq(s"[$name]") ++ logMessage
         outputStream.println(parts.mkString(" "))
     }
 }
@@ -124,7 +130,7 @@ trait PrintStreamEmitter {
  * @param deltaToTransactionStart the time difference between now and the start of the Transaction
  * @param deltaToMarkerStart if this is an end marker, this is the time difference to the start marker
  */
-protected case class LogMarker(token: LogMarkerToken, deltaToTransactionStart: Long, deltaToMarkerStart: Option[Long] = None) {
+case class LogMarker(token: LogMarkerToken, deltaToTransactionStart: Long, deltaToMarkerStart: Option[Long] = None) {
     override def toString() = {
         val parts = Seq("marker", token.toString, deltaToTransactionStart) ++ deltaToMarkerStart
         "[" + parts.mkString(":") + "]"
@@ -178,6 +184,9 @@ object LoggingMarkers {
 
     // Time that is needed to execute the action
     val INVOKER_ACTIVATION_RUN = LogMarkerToken(invoker, "activationRun", start)
+
+    // Time that is needed to init the action
+    val INVOKER_ACTIVATION_INIT = LogMarkerToken(invoker, "activationInit", start)
 
     // Time in invoker
     val INVOKER_ACTIVATION = LogMarkerToken(invoker, activation, start)

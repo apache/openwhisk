@@ -31,13 +31,27 @@ import whisk.core.entity.size.SizeString
  */
 protected[core] case class FullyQualifiedEntityName(path: EntityPath, name: EntityName, version: Option[SemVer] = None) extends ByteSizeable {
     private val qualifiedName: String = path + EntityPath.PATHSEP + name
+    /** Resolves default namespace in path to given name if the root path is the default namespace. */
     def resolve(namespace: EntityName) = FullyQualifiedEntityName(path.resolveNamespace(namespace), name, version)
+
+    /** @return full path including name, i.e., "path/name" */
+    def fullPath: EntityPath = path.addPath(name)
+
+    /**
+     * Creates new fully qualified entity name that shifts the name into the path and adds a new name:
+     * (p, n).add(x) -> (p/n, x).
+     *
+     * @return new fully qualified name
+     */
+    def add(n: EntityName) = FullyQualifiedEntityName(path.addPath(name), n)
+
     def toDocId = DocId(qualifiedName)
-    def pathToDocId = DocId(path())
+    def namespace: EntityName = path.root
     def qualifiedNameWithLeadingSlash: String = EntityPath.PATHSEP + qualifiedName
-    def apply() = path.addpath(name) + version.map("@" + _.toString).getOrElse("")
+    def asString = path.addPath(name) + version.map("@" + _.toString).getOrElse("")
+
     override def size = qualifiedName.sizeInBytes
-    override def toString = apply()
+    override def toString = asString
     override def hashCode = qualifiedName.hashCode
 }
 

@@ -31,23 +31,35 @@ import spray.routing.Directives
 import spray.routing.RequestContext
 import spray.routing.Route
 import whisk.common.TransactionId
-import whisk.core.entitlement.Privilege.ACTIVATE
-import whisk.core.entitlement.Privilege.DELETE
-import whisk.core.entitlement.Privilege.PUT
-import whisk.core.entitlement.Privilege.Privilege
-import whisk.core.entitlement.Privilege.READ
+import whisk.core.entitlement.Privilege._
 import whisk.core.entitlement.Resource
-import whisk.core.entity.EntityName
-import whisk.core.entity.EntityPath
-import whisk.core.entity.Identity
-import whisk.core.entity.LimitedWhiskEntityPut
-import whisk.core.entity.Parameters
+import whisk.core.entity._
+import whisk.core.entity.ActivationEntityLimit
+import whisk.core.entity.size._
 import whisk.http.ErrorResponse.terminate
+import whisk.http.Messages
 
-protected[controller] trait ValidateEntitySize extends Directives {
-    protected def validateSize(check: ⇒ Boolean)(implicit tid: TransactionId) = new Directive0 {
-        def happly(f: HNil ⇒ Route) = if (check) f(HNil) else terminate(RequestEntityTooLarge, "request entity too large")
+protected[controller] trait ValidateRequestSize extends Directives {
+    protected def validateSize(check: => Option[SizeError])(
+        implicit tid: TransactionId) = new Directive0 {
+        def happly(f: HNil => Route) = {
+            check map {
+                case e: SizeError => terminate(RequestEntityTooLarge, Messages.entityTooBig(e))
+            } getOrElse f(HNil)
+        }
     }
+
+    /** Checks if request entity is within allowed length range. */
+    protected def isWhithinRange(length: Long) = {
+        if (length <= allowedActivationEntitySize) {
+            None
+        } else Some {
+            SizeError(fieldDescriptionForSizeError, length.B, allowedActivationEntitySize.B)
+        }
+    }
+
+    protected val allowedActivationEntitySize: Long = ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT.toBytes
+    protected val fieldDescriptionForSizeError = "Request"
 }
 
 /** A trait implementing the basic operations on WhiskEntities in support of the various APIs. */
@@ -55,7 +67,7 @@ trait WhiskCollectionAPI
     extends Directives
     with AuthenticatedRouteProvider
     with AuthorizedRouteProvider
-    with ValidateEntitySize
+    with ValidateRequestSize
     with ReadOps
     with WriteOps {
 
@@ -63,19 +75,19 @@ trait WhiskCollectionAPI
     services: WhiskServices =>
 
     /** Creates an entity, or updates an existing one, in namespace. Terminates HTTP request. */
-    protected def create(user: Identity, namespace: EntityPath, name: EntityName)(implicit transid: TransactionId): RequestContext => Unit
+    protected def create(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId): RequestContext => Unit
 
     /** Activates entity. Examples include invoking an action, firing a trigger, enabling/disabling a rule. */
-    protected def activate(user: Identity, namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId): RequestContext => Unit
+    protected def activate(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(implicit transid: TransactionId): RequestContext => Unit
 
     /** Removes entity from namespace. Terminates HTTP request. */
-    protected def remove(namespace: EntityPath, name: EntityName)(implicit transid: TransactionId): RequestContext => Unit
+    protected def remove(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId): RequestContext => Unit
 
     /** Gets entity from namespace. Terminates HTTP request. */
-    protected def fetch(namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId): RequestContext => Unit
+    protected def fetch(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(implicit transid: TransactionId): RequestContext => Unit
 
     /** Gets all entities from namespace. If necessary filter only entities that are shared. Terminates HTTP request. */
-    protected def list(namespace: EntityPath, excludePrivate: Boolean)(implicit transid: TransactionId): RequestContext => Unit
+    protected def list(user: Identity, path: EntityPath, excludePrivate: Boolean)(implicit transid: TransactionId): RequestContext => Unit
 
     /** Indicates if listing entities in collection requires filtering out private entities. */
     protected val listRequiresPrivateEntityFilter = false // currently supported on PACKAGES only
@@ -84,16 +96,22 @@ trait WhiskCollectionAPI
     protected override def dispatchOp(user: Identity, op: Privilege, resource: Resource)(implicit transid: TransactionId) = {
         resource.entity match {
             case Some(EntityName(name)) => op match {
-                case READ => fetch(resource.namespace, name, resource.env)
+                case READ => fetch(user, FullyQualifiedEntityName(resource.namespace, name), resource.env)
                 case PUT =>
                     entity(as[LimitedWhiskEntityPut]) { e =>
                         validateSize(e.isWithinSizeLimits)(transid) {
-                            create(user, resource.namespace, name)
+                            create(user, FullyQualifiedEntityName(resource.namespace, name))
                         }
                     }
-                case ACTIVATE => activate(user, resource.namespace, name, resource.env)
-                case DELETE   => remove(resource.namespace, name)
-                case _        => reject
+                case ACTIVATE =>
+                    extract(_.request.entity.data.length) { length =>
+                        validateSize(isWhithinRange(length))(transid) {
+                            activate(user, FullyQualifiedEntityName(resource.namespace, name), resource.env)
+                        }
+                    }
+
+                case DELETE => remove(user, FullyQualifiedEntityName(resource.namespace, name))
+                case _      => reject
             }
             case None => op match {
                 case READ =>
@@ -103,28 +121,28 @@ trait WhiskCollectionAPI
                     // entitled to them which for now means they own the namespace. If the
                     // subject does not own the namespace, then exclude packages that are private
                     val checkIfSubjectOwnsResource = if (listRequiresPrivateEntityFilter) {
-                        if (resource.namespace.root() == user.subject()) {
+                        if (resource.namespace.root.asString == user.subject.asString) {
                             // bypass iam if namespace is owned by subject
                             // don't need to exclude private packages owned by subject
                             Future.successful(false)
                         } else {
                             iam.namespaces(user.subject) map {
                                 // don't need to exclude private packages in any namespace owned by subject
-                                _.contains(resource.namespace.root()) == false
+                                _.contains(resource.namespace.root.asString) == false
                             }
                         }
                     } else Future.successful(false)
 
                     onComplete(checkIfSubjectOwnsResource) {
                         case Success(excludePrivate) =>
-                            info(this, s"[LIST] exclude private entities: required == $excludePrivate")
-                            list(resource.namespace, excludePrivate)
+                            logging.info(this, s"[LIST] exclude private entities: required == $excludePrivate")
+                            list(user, resource.namespace, excludePrivate)
                         case Failure(r: RejectRequest) =>
-                            info(this, s"[LIST] namespaces lookup failed: ${r.message}")
+                            logging.info(this, s"[LIST] namespaces lookup failed: ${r.message}")
                             terminate(r.code, r.message)
                         case Failure(t) =>
-                            error(this, s"[LIST] namespaces lookup failed: ${t.getMessage}")
-                            terminate(InternalServerError, t.getMessage)
+                            logging.error(this, s"[LIST] namespaces lookup failed: ${t.getMessage}")
+                            terminate(InternalServerError)
 
                     }
                 case _ => reject
@@ -133,8 +151,20 @@ trait WhiskCollectionAPI
     }
 
     /** Validates entity name from the matched path segment. */
+    protected val segmentDescriptionForSizeError = "Name segement"
+
     protected override final def entityname(s: String) = {
-        validate(isEntity(s), s"name '$s' contains illegal characters") & extract(_ => s)
+        validate(isEntity(s), {
+            if (s.length > EntityName.ENTITY_NAME_MAX_LENGTH) {
+                Messages.entityNameTooLong(
+                    SizeError(
+                        segmentDescriptionForSizeError,
+                        s.length.B,
+                        EntityName.ENTITY_NAME_MAX_LENGTH.B))
+            } else {
+                Messages.entityNameIllegal
+            }
+        }) & extract(_ => s)
     }
 
     /** Confirms that a path segment is a valid entity name. Used to reject invalid entity names. */

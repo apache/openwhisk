@@ -4,6 +4,8 @@ openwhisk_home: "{{ lookup('env', 'OPENWHISK_HOME')|default(playbook_dir + '/..'
 exclude_logs_from: []
 
 whisk:
+  system:
+    key: "{{ lookup('file', 'auth.whisk.system') }}"
   version:
     date: "{{ansible_date_time.iso8601}}"
 
@@ -14,7 +16,7 @@ defaultLimits:
       concurrent: 100
       concurrentInSystem: 5000
     sequence:
-      maxLength: 10
+      maxLength: 50
   triggers:
     fires:
       perMinute: 60
@@ -23,8 +25,10 @@ defaultLimits:
 # port means outer port
 controller:
   port: 10001
+  blackboxFraction: 0.10
 
 consul:
+  version: 0.7.0
   port:
     server: 8300
     serf_lan: 8301
@@ -34,11 +38,13 @@ consul:
     dns: 8600
 
 kafka:
+  version: 0.10.0.1
   port: 9092
   ras:
     port: 9093
 
 zookeeper:
+  version: 3.4
   port: 2181
 
 invoker:
@@ -47,8 +53,10 @@ invoker:
   coreshare: 2
   serializeDockerOp: true
   serializeDockerPull: true
+  useRunc: false
 
 nginx:
+  version: 1.11
   port:
     http: 80
     api: 443
@@ -63,18 +71,23 @@ db:
 apigateway:
   port:
     api: 9000
+    api_secure: 443
     mgmt: 9001
 
 redis:
+  version: 3.2
   port: 6379
 
 linux:
   version: 4.4.0-31
 
+couchdb:
+  version: 1.6
+
 docker_image_prefix: whisk
 docker_image_tag: latest
 docker:
-  # The user to install docker for. Defaults to the ansible user if not set. This will be the user who is able to run 
+  # The user to install docker for. Defaults to the ansible user if not set. This will be the user who is able to run
   # docker commands on a machine setup with prereq_build.yml
   #user:
   version: 1.12.0-0~trusty
@@ -111,7 +124,7 @@ catalog_auth_key: "{{ openwhisk_home }}/ansible/files/auth.whisk.system"
 #     location: <local location to save the catalog>, mandatory.
 #     version: <hash of the commit>, optional, default to HEAD.
 #     repo_update: <whether to retrieve new revisions from the origin repository>,
-#                  optional, default to yes. Yes means to retrieve the new revisions, and
+#                  optional, default to no. Yes means to retrieve the new revisions, and
 #                  no means not to retrieve the new revisions.
 #
 catalog_repos:
@@ -120,5 +133,4 @@ catalog_repos:
     # Set the local location as the same level as openwhisk home, but it can be changed.
     location: "{{ openwhisk_home }}/../openwhisk-catalog"
     version: "HEAD"
-    repo_update: "yes"
-
+    repo_update: "no"

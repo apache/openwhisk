@@ -11,6 +11,12 @@
   become: true
   when: pip_result.rc != 0
 
+- name: install requests
+  pip: 
+    name: requests
+    version: 2.10.0
+  become: true
+
 - name: install docker-py
   pip: 
     name: docker-py

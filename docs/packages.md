@@ -219,11 +219,10 @@ Feeds offer a convenient way to configure an external event source to fire these
 5. Create a rule that invokes the `hello` action every time the `everyEightSeconds` trigger fires.
 
   ```
-  $ wsk rule create --enable myRule everyEightSeconds hello
+  $ wsk rule create myRule everyEightSeconds hello
   ```
   ```
   ok: created rule myRule
-  ok: rule myRule is activating
   ```
 
 6. Check that the action is being invoked by polling for activation logs.
@@ -385,7 +384,7 @@ After the actions and feeds that comprise a package are debugged and tested, the
 1. Share the package with all users:
 
   ```
-  $ wsk package update custom --shared
+  $ wsk package update custom --shared yes
   ```
   ```
   ok: updated package custom

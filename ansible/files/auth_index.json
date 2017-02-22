@@ -1,11 +1,8 @@
 {
   "_id":"_design/subjects",
   "views": {
-    "uuids": {
-      "map": "function (doc) {\n  emit([doc.uuid], {secret: doc.key});\n}"
-    },
     "identities": {
-      "map": "function (doc) {\n  if(doc.uuid && doc.key) {\n    emit([doc.uuid, doc.key], {namespace: doc.subject, uuid: doc.uuid, key: doc.key});\n  }\n  if(doc.namespaces) {\n    doc.namespaces.forEach(function(namespace) {\n      emit([namespace.uuid, namespace.key], {namespace: namespace.name, uuid: namespace.uuid, key: namespace.key});\n    });\n  }\n}"
+      "map": "function (doc) {\n  if(doc.uuid && doc.key) {\n    var v = {namespace: doc.subject, uuid: doc.uuid, key: doc.key};\n    emit([doc.subject], v);\n    emit([doc.uuid, doc.key], v);\n  }\n  if(doc.namespaces) {\n    doc.namespaces.forEach(function(namespace) {\n      var v = {namespace: namespace.name, uuid: namespace.uuid, key: namespace.key};\n      emit([namespace.name], v);\n      emit([namespace.uuid, namespace.key], v);\n    });\n  }\n}"
     }
   },
   "language":"javascript",

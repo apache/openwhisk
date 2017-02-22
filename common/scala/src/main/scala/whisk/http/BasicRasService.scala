@@ -20,8 +20,9 @@ import akka.actor.Actor
 import akka.actor.ActorSystem
 import akka.event.Logging
 import akka.japi.Creator
-import whisk.common.TransactionId
 import spray.httpx.SprayJsonSupport._
+import whisk.common.Logging
+import whisk.common.TransactionId
 
 /**
  * This trait extends the BasicHttpService with a standard "ping" endpoint which
@@ -49,7 +50,7 @@ trait BasicRasService extends BasicHttpService {
  */
 object BasicRasService {
 
-    def startService(system: ActorSystem, name: String, interface: String, port: Integer) = {
+    def startService(system: ActorSystem, name: String, interface: String, port: Integer)(implicit logging: Logging) = {
         BasicHttpService.startService(system, name, interface, port, new ServiceBuilder)
     }
 
@@ -57,14 +58,14 @@ object BasicRasService {
      * In spray, we send messages to an Akka Actor. A RasService represents an Actor
      * which extends the BasicRasService trait.
      */
-    private class RasService extends BasicRasService with Actor {
+    private class RasService(implicit val logging: Logging) extends BasicRasService with Actor {
         override def actorRefFactory = context
     }
 
     /**
      * Akka-style factory for RasService.
      */
-    private class ServiceBuilder extends Creator[RasService] {
+    private class ServiceBuilder(implicit logging: Logging) extends Creator[RasService] {
         def create = new RasService
     }
 }

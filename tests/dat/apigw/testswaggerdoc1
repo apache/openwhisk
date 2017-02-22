@@ -1,0 +1,83 @@
+{
+    "swagger": "2.0",
+    "basePath": "/CLI_APIGWTEST7_bp",
+    "info": {
+        "title": "CLI_APIGWTEST7 API Name",
+        "version": "1.0.0"
+    },
+    "paths": {
+        "/path": {
+            "get": {
+                "responses": {
+                    "default": {
+                        "description": "Default response"
+                    }
+                },
+                "x-ibm-op-ext": {
+                    "actionName": "CLI_APIGWTEST7_action",
+                    "actionNamespace": "guest",
+                    "backendMethod": "POST",
+                    "backendUrl": "https://999.999.99.999/api/v1/namespaces/guest/actions/CLI_APIGWTEST7_action",
+                    "policies": [
+                        {
+                            "type": "reqMapping",
+                            "value": [
+                                {
+                                    "action": "transform",
+                                    "from": {
+                                        "location": "query",
+                                        "name": "*"
+                                    },
+                                    "to": {
+                                        "location": "body",
+                                        "name": "*"
+                                    }
+                                },
+                                {
+                                    "action": "insert",
+                                    "from": {
+                                        "value": "Basic I34EJL53W3HGP64AB4E4DJ37FFGA424238GF6J"
+                                    },
+                                    "to": {
+                                        "location": "header",
+                                        "name": "Authorization"
+                                    }
+                                },
+                                {
+                                    "action": "insert",
+                                    "from": {
+                                        "value": "application/json"
+                                    },
+                                    "to": {
+                                        "location": "header",
+                                        "name": "Content-Type"
+                                    }
+                                },
+                                {
+                                    "action": "insert",
+                                    "from": {
+                                        "value": "true"
+                                    },
+                                    "to": {
+                                        "location": "query",
+                                        "name": "blocking"
+                                    }
+                                },
+                                {
+                                    "action": "insert",
+                                    "from": {
+                                        "value": "true"
+                                    },
+                                    "to": {
+                                        "location": "query",
+                                        "name": "result"
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        }
+    }
+}

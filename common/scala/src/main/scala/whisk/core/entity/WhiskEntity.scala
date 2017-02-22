@@ -20,17 +20,10 @@ import java.time.Clock
 import java.time.Instant
 
 import scala.Stream
-import scala.language.postfixOps
 import scala.util.Try
 
-import spray.json.DefaultJsonProtocol
-import spray.json.JsBoolean
-import spray.json.JsNumber
-import spray.json.JsObject
-import spray.json.JsString
-import spray.json.JsValue
-import spray.json.RootJsonFormat
-import whisk.core.entity.size.SizeInt
+import spray.json._
+import whisk.core.database.DocumentUnreadable
 import whisk.http.Messages
 
 /**
@@ -100,6 +93,8 @@ abstract class WhiskEntity protected[entity] (en: EntityName) extends WhiskDocum
 object WhiskEntity {
 
     val sharedFieldName = "publish"
+    val paramsFieldName = "parameters"
+    val annotationsFieldName = "annotations"
 
     /**
      * Gets fully qualified name of an activation based on its namespace and activation id.
@@ -128,7 +123,7 @@ object WhiskEntityJsonFormat extends RootJsonFormat[WhiskEntity] {
     override def read(js: JsValue): WhiskEntity = {
         val successes: Stream[WhiskEntity] = readers.flatMap(r => Try(r(js)).toOption)
         successes.headOption.getOrElse {
-            throw new IllegalStateException(Messages.corruptedEntity)
+            throw DocumentUnreadable(Messages.corruptedEntity)
         }
     }
 
@@ -158,14 +153,29 @@ object LimitedWhiskEntityPut extends DefaultJsonProtocol {
     implicit val serdes = jsonFormat3(LimitedWhiskEntityPut.apply)
 }
 
+case class SizeError(field: String, is: ByteSize, allowed: ByteSize)
+
 case class LimitedWhiskEntityPut(
     exec: Option[Exec] = None,
     parameters: Option[Parameters] = None,
     annotations: Option[Parameters] = None) {
 
-    def isWithinSizeLimits: Boolean = {
-        exec.map(_.size).getOrElse(0 B) <= Exec.sizeLimit &&
-            parameters.map(_.size).getOrElse(0 B) <= Parameters.sizeLimit &&
-            annotations.map(_.size).getOrElse(0 B) <= Parameters.sizeLimit
+    def isWithinSizeLimits: Option[SizeError] = {
+        exec.flatMap { e =>
+            val is = e.size
+            if (is <= Exec.sizeLimit) None else Some {
+                SizeError(WhiskAction.execFieldName, is, Exec.sizeLimit)
+            }
+        } orElse parameters.flatMap { p =>
+            val is = p.size
+            if (is <= Parameters.sizeLimit) None else Some {
+                SizeError(WhiskEntity.paramsFieldName, is, Parameters.sizeLimit)
+            }
+        } orElse annotations.flatMap { a =>
+            val is = a.size
+            if (is <= Parameters.sizeLimit) None else Some {
+                SizeError(WhiskEntity.annotationsFieldName, is, Parameters.sizeLimit)
+            }
+        }
     }
 }

@@ -1,6 +1,8 @@
 ---
 # This role installs invokers.
 
+- include: docker_login.yml
+
 - name: "pull action images with tag {{docker_image_tag}}"
   shell: "docker pull {{docker_registry}}{{item}}:{{docker_image_tag}}"
   with_items:
@@ -25,9 +27,18 @@
     mode: 0777
   become: true
 
+- name: define options when deploying invoker on Ubuntu
+  set_fact:
+    linuxOptions: "-v /sys/fs/cgroup:/sys/fs/cgroup -v /run/runc:/run/runc -v {{ runcLocation | default('/usr/bin/docker-runc') }}:/usr/bin/docker-runc -v /usr/lib/x86_64-linux-gnu/libapparmor.so.1:/usr/lib/x86_64-linux-gnu/libapparmor.so.1"
+  when: whisk_version_name != "mac"
+
 - name: start invoker using docker cli
   shell: >
         docker run -d
+        --userns=host
+        --pid=host
+        --privileged
+        {{ linuxOptions | default('') }}
         --name invoker{{play_hosts.index(inventory_hostname)}}
         --hostname invoker{{play_hosts.index(inventory_hostname)}}
         --restart {{ docker.restart.policy }}
@@ -42,9 +53,9 @@
         -v {{whisk_logs_dir}}/invoker{{play_hosts.index(inventory_hostname)}}:/logs
         -v {{dockerInfo["json"]["DockerRootDir"]}}/containers/:/containers
         -p {{invoker.port + play_hosts.index(inventory_hostname)}}:8080
-        --userns host
         {{docker_registry}}{{ docker_image_prefix }}/invoker:{{docker_image_tag}}
         /bin/sh -c "/invoker/bin/invoker {{play_hosts.index(inventory_hostname)}} >> /logs/invoker{{play_hosts.index(inventory_hostname)}}_logs.log 2>&1"
+
 
 # todo: re-enable docker_container module once https://github.com/ansible/ansible-modules-core/issues/5054 is resolved
 

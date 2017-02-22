@@ -32,42 +32,16 @@ type PackageInterface interface {
     GetName() string
 }
 
-// Use this struct to create/update a package/binding with the Publish setting
-type SentPackagePublish struct {
-    Namespace   string              `json:"-"`
-    Name        string              `json:"-"`
-    Version     string              `json:"version,omitempty"`
-    Publish     bool                `json:"publish"`
-    Annotations KeyValueArr         `json:"annotations,omitempty"`
-    Parameters  KeyValueArr         `json:"parameters,omitempty"`
-}
-func (p *SentPackagePublish) GetName() string {
-    return p.Name
-}
-
-// Use this struct to update a package/binding with no change to the Publish setting
-type SentPackageNoPublish struct {
-    Namespace   string              `json:"-"`
-    Name        string              `json:"-"`
-    Version     string              `json:"version,omitempty"`
-    Publish     bool                `json:"publish,omitempty"`
-    Annotations KeyValueArr         `json:"annotations,omitempty"`
-    Parameters  KeyValueArr         `json:"parameters,omitempty"`
-}
-func (p *SentPackageNoPublish) GetName() string {
-    return p.Name
-}
-
 // Use this struct to represent the package/binding sent from the Whisk server
 // Binding is a bool ???MWD20160602 now seeing Binding as a struct???
 type Package struct {
     Namespace   string              `json:"namespace,omitempty"`
     Name        string              `json:"name,omitempty"`
     Version     string              `json:"version,omitempty"`
-    Publish     bool                `json:"publish"`
+    Publish     *bool               `json:"publish,omitempty"`
     Annotations KeyValueArr         `json:"annotations,omitempty"`
     Parameters  KeyValueArr         `json:"parameters,omitempty"`
-    Binding                         `json:"binding,omitempty"`
+    Binding     *Binding            `json:"binding,omitempty"`
     Actions     []Action            `json:"actions,omitempty"`
     Feeds       []Action            `json:"feeds,omitempty"`
 }
@@ -81,7 +55,7 @@ type BindingPackage struct {
     Namespace   string              `json:"-"`
     Name        string              `json:"-"`
     Version     string              `json:"version,omitempty"`
-    Publish     bool                `json:"publish"`
+    Publish     *bool               `json:"publish,omitempty"`
     Annotations KeyValueArr         `json:"annotations,omitempty"`
     Parameters  KeyValueArr         `json:"parameters,omitempty"`
     Binding                         `json:"binding"`
@@ -91,22 +65,22 @@ func (p *BindingPackage) GetName() string {
 }
 
 type Binding struct {
-    Namespace string `json:"namespace,omitempty"`
-    Name      string `json:"name,omitempty"`
+    Namespace   string              `json:"namespace,omitempty"`
+    Name        string              `json:"name,omitempty"`
 }
 
 type BindingUpdates struct {
-    Added   []string `json:"added,omitempty"`
-    Updated []string `json:"updated,omitempty"`
-    Deleted []string `json:"deleted,omitempty"`
+    Added       []string            `json:"added,omitempty"`
+    Updated     []string            `json:"updated,omitempty"`
+    Deleted     []string            `json:"deleted,omitempty"`
 }
 
 type PackageListOptions struct {
-    Public bool `url:"public,omitempty"`
-    Limit  int  `url:"limit"`
-    Skip   int  `url:"skip"`
-    Since  int  `url:"since,omitempty"`
-    Docs   bool `url:"docs,omitempty"`
+    Public      bool                `url:"public,omitempty"`
+    Limit       int                 `url:"limit"`
+    Skip        int                 `url:"skip"`
+    Since       int                 `url:"since,omitempty"`
+    Docs        bool                `url:"docs,omitempty"`
 }
 
 func (s *PackageService) List(options *PackageListOptions) ([]Package, *http.Response, error) {
@@ -119,7 +93,7 @@ func (s *PackageService) List(options *PackageListOptions) ([]Package, *http.Res
         return nil, nil, werr
     }
 
-    req, err := s.client.NewRequestUrl("GET", routeUrl, nil)
+    req, err := s.client.NewRequestUrl("GET", routeUrl, nil, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s); error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create GET HTTP request for '{{.route}}': {{.err}}",
@@ -145,7 +119,7 @@ func (s *PackageService) Get(packageName string) (*Package, *http.Response, erro
     packageName = (&url.URL{Path: packageName}).String()
     route := fmt.Sprintf("packages/%s", packageName)
 
-    req, err := s.client.NewRequest("GET", route, nil)
+    req, err := s.client.NewRequest("GET", route, nil, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s); error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create GET HTTP request for '{{.route}}': {{.err}}",
@@ -171,7 +145,7 @@ func (s *PackageService) Insert(x_package PackageInterface, overwrite bool) (*Pa
     packageName := (&url.URL{Path: x_package.GetName()}).String()
     route := fmt.Sprintf("packages/%s?overwrite=%t", packageName, overwrite)
 
-    req, err := s.client.NewRequest("PUT", route, x_package)
+    req, err := s.client.NewRequest("PUT", route, x_package, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(PUT, %s); error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create PUT HTTP request for '{{.route}}': {{.err}}",
@@ -196,7 +170,7 @@ func (s *PackageService) Delete(packageName string) (*http.Response, error) {
     packageName = (&url.URL{Path: packageName}).String()
     route := fmt.Sprintf("packages/%s", packageName)
 
-    req, err := s.client.NewRequest("DELETE", route, nil)
+    req, err := s.client.NewRequest("DELETE", route, nil, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(DELETE, %s); error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create DELETE HTTP request for '{{.route}}': {{.err}}",
@@ -217,7 +191,7 @@ func (s *PackageService) Delete(packageName string) (*http.Response, error) {
 func (s *PackageService) Refresh() (*BindingUpdates, *http.Response, error) {
     route := "packages/refresh"
 
-    req, err := s.client.NewRequest("POST", route, nil)
+    req, err := s.client.NewRequest("POST", route, nil, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(POST, %s); error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create POST HTTP request for '{{.route}}': {{.err}}",

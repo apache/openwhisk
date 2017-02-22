@@ -35,10 +35,8 @@ brew cask install java
 brew install scala
 # install pip
 sudo easy_install pip
-# install ansible
-sudo -H pip install ansible==2.1.2.0
-# the following is required for running tests
-sudo -H pip install jsonschema' | bash
+# install script prerequisites
+sudo -H pip install ansible==2.1.2.0 jsonschema couchdb' | bash
 ```
 
 # Create and configure Docker machine
@@ -92,7 +90,7 @@ export DOCKER_HOST=tcp://$(docker-machine ip whisk):4243
 ```
 
 The tweaks to the Docker machine persist across reboots.
-However one of the tweaks is applied on the Mac host and must be applied 
+However one of the tweaks is applied on the Mac host and must be applied
 again if you reboot your Mac. Without it, some tests which require direct
 communication with Docker containers will fail. To run just the Mac host tweaks,
 run the following [script](./tweak-dockerhost.sh). Enter your sudo Mac password when prompted.
@@ -112,7 +110,7 @@ cd /your/path/to/openwhisk
 Follow instructions in [ansible/README.md](../../ansible/README.md)
 
 ### Configure the CLI
-Follow instructions in [Configure CLI](../../README.md#configure-cli)
+Follow instructions in [Configure CLI](../../docs/README.md#setting-up-the-openwhisk-cli)
 
 ### Use the wsk CLI
 ```
@@ -121,4 +119,3 @@ bin/wsk action invoke /whisk.system/utils/echo -p message hello --blocking --res
     "message": "hello"
 }
 ```
-

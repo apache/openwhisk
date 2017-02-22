@@ -19,21 +19,21 @@ package whisk.core.database
 import scala.concurrent.Future
 
 import akka.actor.ActorSystem
-
 import akka.http.scaladsl.model.HttpMethods
 import akka.http.scaladsl.model.StatusCode
 import spray.json._
+import spray.json.DefaultJsonProtocol._
+import whisk.common.Logging
 
 /**
  * This class only handles the basic communication to the proper endpoints
  *  ("JSON in, JSON out"). It is up to its clients to interpret the results.
  */
-class CloudantRestClient(protocol: String, host: String, port: Int, username: String, password: String, db: String)(implicit system: ActorSystem)
-    extends CouchDbRestClient(protocol, host, port, username, password, db) {
-    require(protocol == "https", "For Cloudant, protocol must be https.")
+class CloudantRestClient(host: String, port: Int, username: String, password: String, db: String)(implicit system: ActorSystem, logging: Logging)
+    extends CouchDbRestClient("https", host, port, username, password, db) {
 
     // https://cloudant.com/blog/cloudant-query-grows-up-to-handle-ad-hoc-queries/#.VvllCD-0z2C
     def simpleQuery(doc: JsObject): Future[Either[StatusCode, JsObject]] = {
-        requestJson(mkJsonRequest(HttpMethods.POST, uri(db, "_find"), doc))
+        requestJson[JsObject](mkJsonRequest(HttpMethods.POST, uri(db, "_find"), doc))
     }
 }

@@ -6,6 +6,8 @@
     path: "{{ cli_nginx_dir  }}"
     state: directory
 
+- include: docker_login.yml
+
 - name: "pull the {{ docker_image_tag }} image of cli"
   shell: "docker pull {{ docker_registry }}{{ docker_image_prefix }}/cli:{{ docker_image_tag }}"
   when: docker_registry != ""
@@ -22,3 +24,5 @@
 
 - name: "remove cli container after publishing"
   shell: "docker rm cli"
+
+- include: download_cli.yml

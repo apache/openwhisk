@@ -80,6 +80,11 @@ trait WskTestHelpers extends Matchers {
 
         try {
             test(wskprops, new AssetCleaner(assetsToDeleteAfterTest, wskprops))
+        } catch {
+            case t: Throwable =>
+                // log the exception that occurred in the test and rethrow it
+                println(s"Exception occurred during test execution: $t")
+                throw t
         } finally {
             // delete assets in reverse order so that was created last is deleted first
             val deletedAll = assetsToDeleteAfterTest.reverse map {
@@ -118,8 +123,8 @@ trait WskTestHelpers extends Matchers {
         activationId: String,
         logs: Option[List[String]],
         response: CliActivationResponse,
-        start: Long,
-        end: Long,
+        start: Instant,
+        end: Instant,
         duration: Long,
         cause: Option[String],
         annotations: Option[List[JsObject]]) {
@@ -136,6 +141,17 @@ trait WskTestHelpers extends Matchers {
     }
 
     object CliActivation extends DefaultJsonProtocol {
+        private implicit val instantSerdes = new RootJsonFormat[Instant] {
+            def write(t: Instant) = t.toEpochMilli.toJson
+
+            def read(value: JsValue) = Try {
+                value match {
+                    case JsNumber(i) => Instant.ofEpochMilli(i.bigDecimal.longValue)
+                    case _           => deserializationError("timetsamp malformed")
+                }
+            } getOrElse deserializationError("timetsamp malformed 2")
+        }
+
         implicit val serdes = jsonFormat8(CliActivation.apply)
     }
 
@@ -202,7 +218,7 @@ trait WskTestHelpers extends Matchers {
                 implicit wskprops: WskProps): Unit = {
 
         val activationIds = wsk.pollFor(N, Some(entity), since = since, retries = (totalWait / pollPeriod).toInt, pollPeriod = pollPeriod)
-        withClue(s"did not find $N activations for $entity since $since") {
+        withClue(s"expecting $N activations matching '$entity' name since $since but found ${activationIds.mkString(",")} instead") {
             activationIds.length shouldBe N
         }
 
@@ -232,4 +248,8 @@ trait WskTestHelpers extends Matchers {
                 throw error
         }
     }
+
+    def removeCLIHeader(response: String): String = response.substring(response.indexOf("\n"))
+
+    def getJSONFromCLIResponse(response: String): JsObject = removeCLIHeader(response).parseJson.asJsObject
 }

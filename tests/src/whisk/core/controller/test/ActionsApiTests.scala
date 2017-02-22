@@ -16,47 +16,22 @@
 
 package whisk.core.controller.test
 
-import scala.language.postfixOps
-import scala.concurrent.duration.DurationInt
+import java.time.Instant
 
-import java.io.ByteArrayOutputStream
-import java.io.PrintStream
+import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
+
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-import spray.http.StatusCodes.Accepted
-import spray.http.StatusCodes.BadRequest
-import spray.http.StatusCodes.Conflict
-import spray.http.StatusCodes.Forbidden
-import spray.http.StatusCodes.InternalServerError
-import spray.http.StatusCodes.MethodNotAllowed
-import spray.http.StatusCodes.NotFound
-import spray.http.StatusCodes.OK
-import spray.http.StatusCodes.RequestEntityTooLarge
+
+import spray.http.StatusCodes._
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
 import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
-import spray.json.DefaultJsonProtocol._
 import spray.json._
+import spray.json.DefaultJsonProtocol._
 import whisk.core.controller.WhiskActionsApi
-import whisk.core.entity.ActionLimits
-import whisk.core.entity.ActionLimitsOption
-import whisk.core.entity.ActivationResponse
-import whisk.core.entity.AuthKey
-import whisk.core.entity.Exec
-import whisk.core.entity.MemoryLimit
-import whisk.core.entity.LogLimit
-import whisk.core.entity.EntityPath
-import whisk.core.entity.Parameters
-import whisk.core.entity.Subject
-import whisk.core.entity.TimeLimit
-import whisk.core.entity.WhiskAction
-import whisk.core.entity.WhiskActionPut
-import whisk.core.entity.WhiskActivation
-import whisk.core.entity.WhiskAuth
-import java.time.Instant
-import akka.event.Logging.InfoLevel
-import whisk.core.entity.WhiskTrigger
-import whisk.core.entity.FullyQualifiedEntityName
-import whisk.core.entity.BlackBoxExec
+import whisk.core.entity._
+import whisk.core.entity.size._
 import whisk.http.ErrorResponse
 import whisk.http.Messages
 
@@ -79,11 +54,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     behavior of "Actions API"
 
     val creds = WhiskAuth(Subject(), AuthKey()).toIdentity
-    val namespace = EntityPath(creds.subject())
+    val namespace = EntityPath(creds.subject.asString)
     val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
     def aname = MakeName.next("action_tests")
-    setVerbosity(InfoLevel)
-    val entityTooBigRejectionMessage = "request entity too large"
     val actionLimit = Exec.sizeLimit
     val parametersLimit = Parameters.sizeLimit
 
@@ -192,6 +165,32 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         }
     }
 
+    it should "reject long entity names" in {
+        implicit val tid = transid()
+        val longName = "a" * (EntityName.ENTITY_NAME_MAX_LENGTH + 1)
+        Get(s"/$longName/${collection.path}/$longName") ~> sealRoute(routes(creds)) ~> check {
+            status should be(BadRequest)
+            responseAs[String] shouldBe {
+                Messages.entityNameTooLong(
+                    SizeError(namespaceDescriptionForSizeError, longName.length.B, EntityName.ENTITY_NAME_MAX_LENGTH.B))
+            }
+        }
+
+        Seq(s"/$namespace/${collection.path}/$longName",
+            s"/$namespace/${collection.path}/pkg/$longName",
+            s"/$namespace/${collection.path}/$longName/a",
+            s"/$namespace/${collection.path}/$longName/$longName").
+            foreach { p =>
+                Get(p) ~> sealRoute(routes(creds)) ~> check {
+                    status should be(BadRequest)
+                    responseAs[String] shouldBe {
+                        Messages.entityNameTooLong(
+                            SizeError(segmentDescriptionForSizeError, longName.length.B, EntityName.ENTITY_NAME_MAX_LENGTH.B))
+                    }
+                }
+            }
+    }
+
     //// DEL /actions/name
     it should "delete action by name" in {
         implicit val tid = transid()
@@ -249,50 +248,72 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     it should "reject create with exec which is too big" in {
         implicit val tid = transid()
-        val code = "a" * ((actionLimit.toBytes / 2L).toInt + 1)
-        val content = s"""{"exec":{"kind":"python","code":"$code"}}""".stripMargin.parseJson.asJsObject
+        val code = "a" * (actionLimit.toBytes.toInt + 1)
+        val exec = Exec.js(code)
+        val content = JsObject("exec" -> exec.toJson)
         Put(s"$collectionPath/${aname}", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(RequestEntityTooLarge)
-            response.entity.toString should include(entityTooBigRejectionMessage)
+            responseAs[String] should include {
+                Messages.entityTooBig(SizeError(WhiskAction.execFieldName, exec.size, Exec.sizeLimit))
+            }
         }
     }
 
     it should "reject update with exec which is too big" in {
         implicit val tid = transid()
         val oldCode = "function main()"
-        val code = "a" * ((actionLimit.toBytes / 2L).toInt + 1)
+        val code = "a" * (actionLimit.toBytes.toInt + 1)
         val action = WhiskAction(namespace, aname, Exec.js("??"))
-        val content = s"""{"exec":{"kind":"python","code":"$code"}}""".stripMargin.parseJson.asJsObject
+        val exec = Exec.js(code)
+        val content = JsObject("exec" -> exec.toJson)
         put(entityStore, action)
         Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(RequestEntityTooLarge)
-            response.entity.toString should include(entityTooBigRejectionMessage)
+            responseAs[String] should include {
+                Messages.entityTooBig(SizeError(WhiskAction.execFieldName, exec.size, Exec.sizeLimit))
+            }
         }
     }
 
     it should "reject create with parameters which are too big" in {
         implicit val tid = transid()
-        val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (parametersLimit.toBytes / 2 / 20 + Math.pow(10, 9) + 2) toLong)
+        val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (parametersLimit.toBytes / 20 + Math.pow(10, 9) + 2) toLong)
         val parameters = keys map { key =>
             Parameters(key.toString, "a" * 10)
         } reduce (_ ++ _)
-        val content = s"""{"exec":{"kind":"nodejs","code":"??"},"parameters":$parameters}""".stripMargin.parseJson.asJsObject
-        Put(s"$collectionPath/${aname}", content) ~> sealRoute(routes(creds)) ~> check {
+        val content = s"""{"exec":{"kind":"nodejs","code":"??"},"parameters":$parameters}""".stripMargin
+        Put(s"$collectionPath/${aname}", content.parseJson.asJsObject) ~> sealRoute(routes(creds)) ~> check {
             status should be(RequestEntityTooLarge)
-            response.entity.toString should include(entityTooBigRejectionMessage)
+            responseAs[String] should include {
+                Messages.entityTooBig(SizeError(WhiskEntity.paramsFieldName, parameters.size, Parameters.sizeLimit))
+            }
         }
     }
 
     it should "reject create with annotations which are too big" in {
         implicit val tid = transid()
-        val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (parametersLimit.toBytes / 2 / 20 + Math.pow(10, 9) + 2) toLong)
-        val parameters = keys map { key =>
+        val keys: List[Long] = List.range(Math.pow(10, 9) toLong, (parametersLimit.toBytes / 20 + Math.pow(10, 9) + 2) toLong)
+        val annotations = keys map { key =>
             Parameters(key.toString, "a" * 10)
         } reduce (_ ++ _)
-        val content = s"""{"exec":{"kind":"nodejs","code":"??"},"annotations":$parameters}""".stripMargin.parseJson.asJsObject
-        Put(s"$collectionPath/${aname}", content) ~> sealRoute(routes(creds)) ~> check {
+        val content = s"""{"exec":{"kind":"nodejs","code":"??"},"annotations":$annotations}""".stripMargin
+        Put(s"$collectionPath/${aname}", content.parseJson.asJsObject) ~> sealRoute(routes(creds)) ~> check {
             status should be(RequestEntityTooLarge)
-            response.entity.toString should include(entityTooBigRejectionMessage)
+            responseAs[String] should include {
+                Messages.entityTooBig(SizeError(WhiskEntity.annotationsFieldName, annotations.size, Parameters.sizeLimit))
+            }
+        }
+    }
+
+    it should "reject activation with entity which is too big" in {
+        implicit val tid = transid()
+        val code = "a" * (allowedActivationEntitySize.toInt + 1)
+        val content = s"""{"a":"$code"}""".stripMargin
+        Post(s"$collectionPath/${aname}", content.parseJson.asJsObject) ~> sealRoute(routes(creds)) ~> check {
+            status should be(RequestEntityTooLarge)
+            responseAs[String] should include {
+                Messages.entityTooBig(SizeError(fieldDescriptionForSizeError, (content.length + 5).B, allowedActivationEntitySize.B))
+            }
         }
     }
 
@@ -436,49 +457,39 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         val content = WhiskActionPut(Some(action.exec), Some(action.parameters), Some(ActionLimitsOption(Some(action.limits.timeout), Some(action.limits.memory), Some(action.limits.logs))))
         val name = action.name
 
-        val stream = new ByteArrayOutputStream
-        val printstream = new PrintStream(stream)
-        val savedstream = authStore.outputStream
-        entityStore.outputStream = printstream
-        try {
-            // first request invalidates any previous entries and caches new result
-            Put(s"$collectionPath/$name", content) ~> sealRoute(routes(creds)(transid())) ~> check {
-                status should be(OK)
-                val response = responseAs[WhiskAction]
-                response should be(WhiskAction(action.namespace, action.name, action.exec,
-                    action.parameters, action.limits, action.version,
-                    action.publish, action.annotations ++ Parameters(WhiskAction.execFieldName, Exec.NODEJS)))
-            }
-            stream.toString should include regex (s"caching*.*${action.docid.asDocInfo}")
-            stream.reset()
-
-            // second request should fetch from cache
-            Get(s"$collectionPath/$name") ~> sealRoute(routes(creds)(transid())) ~> check {
-                status should be(OK)
-                val response = responseAs[WhiskAction]
-                response should be(WhiskAction(action.namespace, action.name, action.exec,
-                    action.parameters, action.limits, action.version,
-                    action.publish, action.annotations ++ Parameters(WhiskAction.execFieldName, Exec.NODEJS)))
-            }
-
-            stream.toString should include regex (s"serving from cache:*.*${action.docid.asDocInfo}")
-            stream.reset()
-
-            // delete should invalidate cache
-            Delete(s"$collectionPath/$name") ~> sealRoute(routes(creds)(transid())) ~> check {
-                status should be(OK)
-                val response = responseAs[WhiskAction]
-                response should be(WhiskAction(action.namespace, action.name, action.exec,
-                    action.parameters, action.limits, action.version,
-                    action.publish, action.annotations ++ Parameters(WhiskAction.execFieldName, Exec.NODEJS)))
-            }
-            stream.toString should include regex (s"invalidating*.*${action.docid.asDocInfo}")
-            stream.reset()
-        } finally {
-            entityStore.outputStream = savedstream
-            stream.close()
-            printstream.close()
+        // first request invalidates any previous entries and caches new result
+        Put(s"$collectionPath/$name", content) ~> sealRoute(routes(creds)(transid())) ~> check {
+            status should be(OK)
+            val response = responseAs[WhiskAction]
+            response should be(WhiskAction(action.namespace, action.name, action.exec,
+                action.parameters, action.limits, action.version,
+                action.publish, action.annotations ++ Parameters(WhiskAction.execFieldName, Exec.NODEJS)))
         }
+        stream.toString should include regex (s"caching*.*${action.docid.asDocInfo}")
+        stream.reset()
+
+        // second request should fetch from cache
+        Get(s"$collectionPath/$name") ~> sealRoute(routes(creds)(transid())) ~> check {
+            status should be(OK)
+            val response = responseAs[WhiskAction]
+            response should be(WhiskAction(action.namespace, action.name, action.exec,
+                action.parameters, action.limits, action.version,
+                action.publish, action.annotations ++ Parameters(WhiskAction.execFieldName, Exec.NODEJS)))
+        }
+
+        stream.toString should include regex (s"serving from cache:*.*${action.docid.asDocInfo}")
+        stream.reset()
+
+        // delete should invalidate cache
+        Delete(s"$collectionPath/$name") ~> sealRoute(routes(creds)(transid())) ~> check {
+            status should be(OK)
+            val response = responseAs[WhiskAction]
+            response should be(WhiskAction(action.namespace, action.name, action.exec,
+                action.parameters, action.limits, action.version,
+                action.publish, action.annotations ++ Parameters(WhiskAction.execFieldName, Exec.NODEJS)))
+        }
+        stream.toString should include regex (s"invalidating*.*${action.docid.asDocInfo}")
+        stream.reset()
     }
 
     it should "reject put with conflict for pre-existing action" in {
@@ -561,12 +572,12 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         }
     }
 
-    it should "invoke an action, blocking with timeout" in {
+    it should "invoke an action, blocking with default timeout" in {
         implicit val tid = transid()
         val action = WhiskAction(namespace, aname, Exec.js("??"), limits = ActionLimits(TimeLimit(1 second), MemoryLimit(), LogLimit()))
         put(entityStore, action)
         Post(s"$collectionPath/${action.name}?blocking=true") ~> sealRoute(routes(creds)) ~> check {
-            // status shold be accepted because there is no active ack response and
+            // status should be accepted because there is no active ack response and
             // db polling will fail since there is no record of the activation
             status should be(Accepted)
             val response = responseAs[JsObject]
@@ -583,14 +594,14 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             response = ActivationResponse.success(Some(JsObject("test" -> "yes".toJson))))
         put(entityStore, action)
         // storing the activation in the db will allow the db polling to retrieve it
-        // the test harness makes sure the activaiton id observed by the test matches
+        // the test harness makes sure the activation id observed by the test matches
         // the one generated by the api handler
         put(activationStore, activation)
         try {
             Post(s"$collectionPath/${action.name}?blocking=true") ~> sealRoute(routes(creds)) ~> check {
                 status should be(OK)
                 val response = responseAs[JsObject]
-                response should be(activation.toExtendedJson)
+                response should be(activation.withoutLogs.toExtendedJson)
             }
 
             // repeat invoke, get only result back
@@ -615,12 +626,12 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
         try {
             // do not store the activation in the db, instead register it as the response to generate on active ack
-            loadBalancer.whiskActivationStub = Some(activation)
+            loadBalancer.whiskActivationStub = Some((1.milliseconds, activation))
 
             Post(s"$collectionPath/${action.name}?blocking=true") ~> sealRoute(routes(creds)) ~> check {
                 status should be(OK)
                 val response = responseAs[JsObject]
-                response should be(activation.toExtendedJson)
+                response should be(activation.withoutLogs.toExtendedJson)
             }
 
             // repeat invoke, get only result back
@@ -628,6 +639,45 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
                 status should be(OK)
                 val response = responseAs[JsObject]
                 response should be(activation.resultAsJson)
+            }
+        } finally {
+            loadBalancer.whiskActivationStub = None
+        }
+    }
+
+    it should "invoke an action, blocking up to specified timeout and retrieve result via active ack" in {
+        implicit val tid = transid()
+        val action = WhiskAction(namespace, aname, Exec.js("??"))
+        val activation = WhiskActivation(action.namespace, action.name, creds.subject, activationIdFactory.make(),
+            start = Instant.now,
+            end = Instant.now,
+            response = ActivationResponse.success(Some(JsObject("test" -> "yes".toJson))))
+        put(entityStore, action)
+
+        try {
+            // do not store the activation in the db, instead register it as the response to generate on active ack
+            loadBalancer.whiskActivationStub = Some((300.milliseconds, activation))
+
+            Post(s"$collectionPath/${action.name}?blocking=true&timeout=0") ~> sealRoute(routes(creds)) ~> check {
+                status shouldBe BadRequest
+                responseAs[String] should include(Messages.invalidTimeout(WhiskActionsApi.maxWaitForBlockingActivation))
+            }
+
+            Post(s"$collectionPath/${action.name}?blocking=true&timeout=65000") ~> sealRoute(routes(creds)) ~> check {
+                status shouldBe BadRequest
+                responseAs[String] should include(Messages.invalidTimeout(WhiskActionsApi.maxWaitForBlockingActivation))
+            }
+
+            // will not wait long enough should get accepted status
+            Post(s"$collectionPath/${action.name}?blocking=true&timeout=100") ~> sealRoute(routes(creds)) ~> check {
+                status shouldBe Accepted
+            }
+
+            // repeat this time wait longer than active ack delay
+            Post(s"$collectionPath/${action.name}?blocking=true&timeout=500") ~> sealRoute(routes(creds)) ~> check {
+                status shouldBe OK
+                val response = responseAs[JsObject]
+                response shouldBe activation.withoutLogs.toExtendedJson
             }
         } finally {
             loadBalancer.whiskActivationStub = None
@@ -650,7 +700,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             Post(s"$collectionPath/${action.name}?blocking=true") ~> sealRoute(routes(creds)) ~> check {
                 status should be(InternalServerError)
                 val response = responseAs[JsObject]
-                response should be(activation.toExtendedJson)
+                response should be(activation.withoutLogs.toExtendedJson)
             }
         } finally {
             deleteActivation(activation.docid)
@@ -687,7 +737,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         val sequence = Vector(stringToFullyQualifiedName(s"$namespace/${entity.name}"))
         val content = WhiskActionPut(Some(Exec.sequence(sequence)))
 
-        Put(s"$collectionPath/${aname()}", content) ~> sealRoute(routes(creds)) ~> check {
+        Put(s"$collectionPath/$aname", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(InternalServerError)
             responseAs[ErrorResponse].error shouldBe Messages.corruptedEntity
         }

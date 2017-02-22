@@ -25,15 +25,14 @@ import akka.event.Logging.ErrorLevel
 import akka.http.scaladsl.model._
 import akka.stream.scaladsl._
 import akka.util.ByteString
-
 import spray.json._
-
+import whisk.common.Logging
 import whisk.common.LoggingMarkers
-import whisk.common.PrintStreamEmitter
 import whisk.common.TransactionId
-import whisk.core.entity.DocRevision
 import whisk.core.entity.DocInfo
+import whisk.core.entity.DocRevision
 import whisk.core.entity.WhiskDocument
+import whisk.http.Messages
 
 /**
  * Basic client to put and delete artifacts in a data store.
@@ -52,13 +51,11 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
     dbPort: Int,
     dbUsername: String,
     dbPassword: String,
-    dbName: String)(implicit system: ActorSystem, jsonFormat: RootJsonFormat[DocumentAbstraction])
+    dbName: String)(implicit system: ActorSystem, val logging: Logging, jsonFormat: RootJsonFormat[DocumentAbstraction])
     extends ArtifactStore[DocumentAbstraction]
     with DefaultJsonProtocol {
 
     protected[core] implicit val executionContext = system.dispatcher
-
-    private implicit val emitter: PrintStreamEmitter = this
 
     private val client: CouchDbRestClient = new CouchDbRestClient(dbProtocol, dbHost, dbPort.toInt, dbUsername, dbPassword, dbName)
 
@@ -101,7 +98,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
     }
 
     override protected[database] def del(doc: DocInfo)(implicit transid: TransactionId): Future[Boolean] = {
-        require(doc != null && doc.rev() != null, "doc revision required for delete")
+        require(doc != null && doc.rev.asString != null, "doc revision required for delete")
 
         val start = transid.started(this, LoggingMarkers.DATABASE_DELETE, s"[DEL] '$dbName' deleting document: '$doc'")
 
@@ -169,6 +166,8 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
                     transid.finished(this, start, s"[GET] '$dbName' failed to get document: '${doc}'; http status: '${code}'")
                     throw new Exception("Unexpected http response code: " + code)
             }
+        } recoverWith {
+            case e: DeserializationException => throw DocumentUnreadable(Messages.corruptedEntity)
         }
 
         reportFailure(f, failure => transid.failed(this, start, s"[GET] '$dbName' internal error, doc: '$doc', failure: '${failure.getMessage}'", ErrorLevel))

@@ -27,28 +27,26 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
 
-import akka.event.Logging.InfoLevel
+import common.StreamLogging
+import common.WskActorSystem
 import whisk.core.WhiskConfig
 import whisk.core.database.DocumentConflictException
 import whisk.core.database.NoDocumentException
 import whisk.core.database.test.DbUtils
 import whisk.core.entity._
 
-import common.WskActorSystem
-
 @RunWith(classOf[JUnitRunner])
 class DatastoreTests extends FlatSpec
     with BeforeAndAfter
     with BeforeAndAfterAll
     with WskActorSystem
-    with DbUtils {
+    with DbUtils
+    with StreamLogging {
 
     val namespace = EntityPath("test namespace")
     val config = new WhiskConfig(WhiskAuthStore.requiredProperties ++ WhiskEntityStore.requiredProperties)
     val datastore = WhiskEntityStore.datastore(config)
     val authstore = WhiskAuthStore.datastore(config)
-    datastore.setVerbosity(InfoLevel)
-    authstore.setVerbosity(InfoLevel)
 
     override def afterAll() {
         println("Shutting down store connections")
@@ -75,16 +73,6 @@ class DatastoreTests extends FlatSpec
         implicit val tid = transid()
         val auth = WhiskAuth(Subject(), AuthKey())
         putGetCheck(authstore, auth, WhiskAuth)
-    }
-
-    it should "lookup key by uuid" in {
-        implicit val tid = transid()
-        val auth = WhiskAuth(Subject(), AuthKey())
-        put(authstore, auth)
-        val confirm = waitOnView(authstore, auth.uuid, 1)
-        val result = retry(() => WhiskAuth.get(authstore, auth.uuid), dbOpTimeout).get
-        assert(result != null)
-        assert(result == auth)
     }
 
     it should "CRD action blackbox" in {
@@ -151,7 +139,7 @@ class DatastoreTests extends FlatSpec
         }
     }
 
-    ignore should "CRD activation with utf8 characters" in {
+    it should "CRD activation with utf8 characters" in {
         implicit val tid = transid()
         implicit val basename = EntityName("create action blackbox")
         val activations = Seq(

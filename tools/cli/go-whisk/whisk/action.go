@@ -29,43 +29,21 @@ type ActionService struct {
 }
 
 type Action struct {
-    Namespace   string              `json:"namespace,omitempty"`
-    Name        string              `json:"name,omitempty"`
-    Version     string              `json:"version,omitempty"`
-    Publish     bool                `json:"publish"`
-    Exec        *Exec               `json:"exec,omitempty"`
-    Annotations KeyValueArr         `json:"annotations,omitempty"`
-    Parameters  KeyValueArr         `json:"parameters,omitempty"`
-    Limits      *Limits             `json:"limits,omitempty"`
-}
-
-type SentActionPublish struct {
-    Namespace   string              `json:"-"`
-    Version     string              `json:"-"`
-    Publish     bool                `json:"publish"`
-    Parameters  KeyValueArr         `json:"parameters,omitempty"`
-    Annotations KeyValueArr        `json:"annotations,omitempty"`
-    Exec        *Exec               `json:"exec,omitempty"`
-    Limits      *Limits             `json:"limits,omitempty"`
-    Error       string              `json:"error,omitempty"`
-    Code        int                 `json:"code,omitempty"`
-}
-
-type SentActionNoPublish struct {
-    Namespace   string              `json:"-"`
-    Version     string              `json:"-"`
-    Publish     bool                `json:"publish,omitempty"`
-    Parameters  KeyValueArr         `json:"parameters,omitempty"`
-    Exec        *Exec               `json:"exec,omitempty"`
-    Annotations KeyValueArr         `json:"annotations,omitempty"`
-    Limits      *Limits             `json:"limits,omitempty"`
-    Error       string              `json:"error,omitempty"`
-    Code        int                 `json:"code,omitempty"`
+    Namespace   string      `json:"namespace,omitempty"`
+    Name        string      `json:"name,omitempty"`
+    Version     string      `json:"version,omitempty"`
+    Exec        *Exec       `json:"exec,omitempty"`
+    Annotations KeyValueArr `json:"annotations,omitempty"`
+    Parameters  KeyValueArr `json:"parameters,omitempty"`
+    Limits      *Limits     `json:"limits,omitempty"`
+    Error       string      `json:"error,omitempty"`
+    Code        int         `json:"code,omitempty"`
+    Publish     *bool       `json:"publish,omitempty"`
 }
 
 type Exec struct {
     Kind        string      `json:"kind,omitempty"`
-    Code        string      `json:"code"`
+    Code        *string      `json:"code,omitempty"`
     Image       string      `json:"image,omitempty"`
     Init        string      `json:"init,omitempty"`
     Jar         string      `json:"jar,omitempty"`
@@ -74,9 +52,9 @@ type Exec struct {
 }
 
 type ActionListOptions struct {
-    Limit           int  `url:"limit"`
-    Skip            int  `url:"skip"`
-    Docs            bool `url:"docs,omitempty"`
+    Limit       int         `url:"limit"`
+    Skip        int         `url:"skip"`
+    Docs        bool        `url:"docs,omitempty"`
 }
 
 ////////////////////
@@ -107,7 +85,7 @@ func (s *ActionService) List(packageName string, options *ActionListOptions) ([]
     }
     Debug(DbgError, "Action list route with options: %s\n", route)
 
-    req, err := s.client.NewRequestUrl("GET", routeUrl, nil)
+    req, err := s.client.NewRequestUrl("GET", routeUrl, nil, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s, nil) error: '%s'\n", routeUrl, err)
         errMsg := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
@@ -126,35 +104,16 @@ func (s *ActionService) List(packageName string, options *ActionListOptions) ([]
     return actions, resp, err
 }
 
-func (s *ActionService) Insert(action *Action, sharedSet bool, overwrite bool) (*Action, *http.Response, error) {
-    var sentAction interface{}
-
+func (s *ActionService) Insert(action *Action, overwrite bool) (*Action, *http.Response, error) {
     // Encode resource name as a path (with no query params) before inserting it into the URI
     // This way any '?' chars in the name won't be treated as the beginning of the query params
     actionName := (&url.URL{Path:  action.Name}).String()
     route := fmt.Sprintf("actions/%s?overwrite=%t", actionName, overwrite)
-
-    if sharedSet {
-        sentAction = SentActionPublish{
-            Parameters: action.Parameters,
-            Exec: action.Exec,
-            Publish: action.Publish,
-            Annotations: action.Annotations,
-            Limits: action.Limits,
-        }
-    } else {
-        sentAction = SentActionNoPublish{
-            Parameters: action.Parameters,
-            Exec: action.Exec,
-            Annotations: action.Annotations,
-            Limits: action.Limits,
-        }
-    }
     Debug(DbgInfo, "Action insert route: %s\n", route)
 
-    req, err := s.client.NewRequest("PUT", route, sentAction)
+    req, err := s.client.NewRequest("PUT", route, action, IncludeNamespaceInUrl)
     if err != nil {
-        Debug(DbgError, "http.NewRequest(PUT, %s, %#v) error: '%s'\n", route, err, sentAction)
+        Debug(DbgError, "http.NewRequest(PUT, %s, %#v) error: '%s'\n", route, err, action)
         errMsg := wski18n.T("Unable to create HTTP request for PUT '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
         whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
@@ -178,7 +137,7 @@ func (s *ActionService) Get(actionName string) (*Action, *http.Response, error) 
     actionName = (&url.URL{Path: actionName}).String()
     route := fmt.Sprintf("actions/%s", actionName)
 
-    req, err := s.client.NewRequest("GET", route, nil)
+    req, err := s.client.NewRequest("GET", route, nil, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(GET, %s, nil) error: '%s'\n", route, err)
         errMsg := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
@@ -205,7 +164,7 @@ func (s *ActionService) Delete(actionName string) (*http.Response, error) {
     route := fmt.Sprintf("actions/%s", actionName)
     Debug(DbgInfo, "HTTP route: %s\n", route)
 
-    req, err := s.client.NewRequest("DELETE", route, nil)
+    req, err := s.client.NewRequest("DELETE", route, nil, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(DELETE, %s, nil) error: '%s'\n", route, err)
         errMsg := wski18n.T("Unable to create HTTP request for DELETE '{{.route}}': {{.err}}",
@@ -215,7 +174,7 @@ func (s *ActionService) Delete(actionName string) (*http.Response, error) {
         return nil, whiskErr
     }
 
-    a := new(SentActionNoPublish)
+    a := new(Action)
     resp, err := s.client.Do(req, a)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
@@ -225,14 +184,16 @@ func (s *ActionService) Delete(actionName string) (*http.Response, error) {
     return resp, nil
 }
 
-func (s *ActionService) Invoke(actionName string, payload interface{}, blocking bool) (*Activation, *http.Response, error) {
+func (s *ActionService) Invoke(actionName string, payload interface{}, blocking bool, result bool) (map[string]interface {}, *http.Response, error) {
+    var res map[string]interface {}
+
     // Encode resource name as a path (with no query params) before inserting it into the URI
     // This way any '?' chars in the name won't be treated as the beginning of the query params
     actionName = (&url.URL{Path: actionName}).String()
-    route := fmt.Sprintf("actions/%s?blocking=%t", actionName, blocking)
+    route := fmt.Sprintf("actions/%s?blocking=%t&result=%t", actionName, blocking, result)
     Debug(DbgInfo, "HTTP route: %s\n", route)
 
-    req, err := s.client.NewRequest("POST", route, payload)
+    req, err := s.client.NewRequest("POST", route, payload, IncludeNamespaceInUrl)
     if err != nil {
         Debug(DbgError, "http.NewRequest(POST, %s, %#v) error: '%s'\n", route, payload, err)
         errMsg := wski18n.T("Unable to create HTTP request for POST '{{.route}}': {{.err}}",
@@ -242,12 +203,12 @@ func (s *ActionService) Invoke(actionName string, payload interface{}, blocking 
         return nil, nil, whiskErr
     }
 
-    activation := new(Activation)
-    resp, err := s.client.Do(req, &activation)
+    resp, err := s.client.Do(req, &res)
+
     if err != nil {
-        Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
-        return activation, resp, err
+      Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
+      return res, resp, err
     }
 
-    return activation, resp, nil
+    return res, resp, nil
 }

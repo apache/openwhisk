@@ -15,10 +15,13 @@
     volume_dir: "{{ instance.volume.fsmount | default( '/mnt/' + group_names|first, true ) }}:/usr/local/var/lib/couchdb"
   when: "{{ (block_device is defined) and (block_device in disk_status.stdout) }}"
 
+- name: "pull the couchdb:{{ couchdb.version }} image"
+  shell: "docker pull couchdb:{{ couchdb.version }}"
+
 - name: (re)start CouchDB
   docker_container:
     name: couchdb
-    image: couchdb
+    image: couchdb:{{ couchdb.version }}
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"

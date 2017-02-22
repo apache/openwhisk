@@ -53,9 +53,55 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
         ("python", """
          |import os
          |def main(dict):
-         |    return { "auth": os.environ['AUTH_KEY'], "edge": os.environ['EDGE_HOST'] }
+         |    return {
+         |       "api_host": os.environ['__OW_API_HOST'],
+         |       "api_key": os.environ['__OW_API_KEY'],
+         |       "namespace": os.environ['__OW_NAMESPACE'],
+         |       "action_name": os.environ['__OW_ACTION_NAME'],
+         |       "activation_id": os.environ['__OW_ACTIVATION_ID'],
+         |       "deadline": os.environ['__OW_DEADLINE']
+         |    }
          """.stripMargin.trim)
     })
+
+    it should "support actions using non-default entry points" in {
+        withActionContainer() { c =>
+            val code = """
+                |def niam(dict):
+                |  return { "result": "it works" }
+                |""".stripMargin
+
+            val (initCode, initRes) = c.init(initPayload(code, main = "niam"))
+            initCode should be(200)
+
+            val (_, runRes) = c.run(runPayload(JsObject()))
+            runRes.get.fields.get("result") shouldBe Some(JsString("it works"))
+        }
+    }
+
+    it should "handle unicode in source, input params, logs, and result" in {
+        val (out, err) = withActionContainer() { c =>
+            val code = """
+                |def main(dict):
+                |    sep = dict['delimiter']
+                |    str = sep + " ☃ ".decode('utf-8') + sep
+                |    print(str.encode('utf-8'))
+                |    return {"winter" : str }
+            """.stripMargin
+
+            val (initCode, _) = c.init(initPayload(code))
+            initCode should be(200)
+
+            val (runCode, runRes) = c.run(runPayload(JsObject("delimiter" -> JsString("❄"))))
+            runRes.get.fields.get("winter") shouldBe Some(JsString("❄ ☃ ❄"))
+        }
+
+        checkStreams(out, err, {
+            case (o, e) =>
+                o.toLowerCase should include("❄ ☃ ❄")
+                e shouldBe empty
+        })
+    }
 
     it should "return on action error when action fails" in {
         val (out, err) = withActionContainer() { c =>
@@ -164,6 +210,7 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
                 |import simplejson as json
                 |from twisted.internet import protocol, reactor, endpoints
                 |import socket
+                |from kafka import BrokerConnection
                 |
                 |def main(args):
                 |    socket.setdefaulttimeout(120)
@@ -172,6 +219,7 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
                 |    t = parse('2016-02-22 11:59:00 EST')
                 |    r = requests.get('https://openwhisk.ng.bluemix.net/api/v1')
                 |    j = json.dumps({'foo':'bar'}, separators = (',', ':'))
+                |    kafka = BrokerConnection("it works", 9093, None)
                 |
                 |    return {
                 |       "bs4": str(b.title),
@@ -179,7 +227,8 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
                 |       "dateutil": t.strftime("%A"),
                 |       "lxml": etree.Element("root").tag,
                 |       "json": j,
-                |       "request": r.status_code
+                |       "request": r.status_code,
+                |       "kafka_python": kafka.host
                 |    }
             """.stripMargin
 
@@ -196,7 +245,8 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
                 "dateutil" -> "Monday".toJson,
                 "lxml" -> "root".toJson,
                 "json" -> JsObject("foo" -> "bar".toJson).compactPrint.toJson,
-                "request" -> 200.toJson)))
+                "request" -> 200.toJson,
+                "kafka_python" -> "it works".toJson)))
         }
 
         checkStreams(out, err, {

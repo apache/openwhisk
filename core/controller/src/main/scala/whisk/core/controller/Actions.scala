@@ -17,30 +17,28 @@
 package whisk.core.controller
 
 import scala.concurrent.Future
-import scala.concurrent.Promise
-import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
+import scala.util.Try
 
 import org.apache.kafka.common.errors.RecordTooLargeException
 
-import WhiskActionsApi._
 import akka.actor.ActorSystem
 import spray.http.HttpMethod
 import spray.http.HttpMethods._
 import spray.http.StatusCodes._
 import spray.httpx.SprayJsonSupport._
+import spray.httpx.unmarshalling._
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import spray.routing.RequestContext
 import whisk.common.LoggingMarkers
-import whisk.common.PrintStreamEmitter
-import whisk.common.StartMarker
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
-import whisk.core.connector.ActivationMessage
+import whisk.core.controller.actions.BlockingInvokeTimeout
+import whisk.core.controller.actions.PostActionActivation
 import whisk.core.database.NoDocumentException
 import whisk.core.entitlement._
 import whisk.core.entitlement.Privilege._
@@ -48,9 +46,8 @@ import whisk.core.entity._
 import whisk.core.entity.types.ActivationStore
 import whisk.core.entity.types.EntityStore
 import whisk.http.ErrorResponse.terminate
-import whisk.http.Messages._
 import whisk.http.Messages
-import whisk.utils.ExecutionContextFactory.FutureExtensions
+import whisk.http.Messages._
 
 /**
  * A singleton object which defines the properties that must be present in a configuration
@@ -70,7 +67,10 @@ object WhiskActionsApi {
 }
 
 /** A trait implementing the actions API. */
-trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions with ReferencedEntities {
+trait WhiskActionsApi
+    extends WhiskCollectionAPI
+    with PostActionActivation
+    with ReferencedEntities {
     services: WhiskServices =>
 
     protected override val collection = Collection(Collection.ACTIONS)
@@ -83,8 +83,6 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions with Refer
 
     /** Database service to get activations. */
     protected val activationStore: ActivationStore
-
-    private implicit val emitter: PrintStreamEmitter = this
 
     /**
      * Handles operations on action resources, which encompass these cases:
@@ -128,8 +126,8 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions with Refer
                     // list all actions in package iff subject is entitled to READ package
                     val resource = Resource(ns, Collection(Collection.PACKAGES), Some(outername))
                     onComplete(entitlementProvider.check(user, Privilege.READ, resource)) {
-                        case Success(true) => listPackageActions(user.subject, ns, EntityName(outername))
-                        case failure       => super.handleEntitlementFailure(failure)
+                        case Success(_) => listPackageActions(user, FullyQualifiedEntityName(ns, EntityName(outername)))
+                        case Failure(f) => super.handleEntitlementFailure(f)
                     }
                 } ~ (entityPrefix & pathEnd) { segment =>
                     entityname(segment) { innername =>
@@ -140,7 +138,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions with Refer
 
                         val right = if (m == GET || m == POST) Privilege.READ else collection.determineRight(m, Some(innername))
                         onComplete(entitlementProvider.check(user, right, packageResource)) {
-                            case Success(true) =>
+                            case Success(_) =>
                                 getEntity(WhiskPackage, entityStore, packageDocId, Some {
                                     if (right == Privilege.READ) {
                                         // need to merge package with action, hence authorize subject for package
@@ -163,12 +161,12 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions with Refer
                                             wp.binding map {
                                                 _ => terminate(BadRequest, Messages.notAllowedOnBinding)
                                             } getOrElse {
-                                                val actionResource = Resource(wp.path, collection, Some(innername))
+                                                val actionResource = Resource(wp.fullPath, collection, Some(innername))
                                                 dispatchOp(user, right, actionResource)
                                             }
                                     }
                                 })
-                            case failure => super.handleEntitlementFailure(failure)
+                            case Failure(f) => super.handleEntitlementFailure(f)
                         }
                     }
                 }
@@ -189,18 +187,17 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions with Refer
      * - 409 Conflict
      * - 500 Internal Server Error
      */
-    override def create(user: Identity, namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
+    override def create(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
         parameter('overwrite ? false) { overwrite =>
             entity(as[WhiskActionPut]) { content =>
-                val docid = FullyQualifiedEntityName(namespace, name).toDocId
-                val request = content.resolve(namespace.root)
+                val request = content.resolve(user.namespace)
 
                 onComplete(entitleReferencedEntities(user, Privilege.READ, request.exec)) {
-                    case Success(true) =>
-                        putEntity(WhiskAction, entityStore, docid, overwrite,
-                            update(user, request)_, () => { make(user, namespace, request, name) })
-
-                    case failure => super.handleEntitlementFailure(failure)
+                    case Success(_) =>
+                        putEntity(WhiskAction, entityStore, entityName.toDocId, overwrite,
+                            update(user, request)_, () => { make(user, entityName, request) })
+                    case Failure(f) =>
+                        super.handleEntitlementFailure(f)
                 }
             }
         }
@@ -217,31 +214,19 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions with Refer
      * - 502 Bad Gateway
      * - 500 Internal Server Error
      */
-    override def activate(user: Identity, namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
-        parameter('blocking ? false, 'result ? false) { (blocking, result) =>
+    override def activate(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
+        parameter('blocking ? false, 'result ? false, 'timeout ? WhiskActionsApi.maxWaitForBlockingActivation) { (blocking, result, waitOverride) =>
             entity(as[Option[JsObject]]) { payload =>
-                val docid = FullyQualifiedEntityName(namespace, name).toDocId
-                getEntity(WhiskAction, entityStore, docid, Some {
-                    action: WhiskAction =>
+                getEntity(WhiskAction, entityStore, entityName.toDocId, Some {
+                    act: WhiskAction =>
+                        // resolve the action --- special case for sequences that may contain components with '_' as default package
+                        val action = act.resolve(user.namespace)
                         onComplete(entitleReferencedEntities(user, Privilege.ACTIVATE, Some(action.exec))) {
-                            case Success(true) =>
+                            case Success(_) =>
                                 transid.started(this, if (blocking) LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING else LoggingMarkers.CONTROLLER_ACTIVATION)
 
-                                val postToLoadBalancer = {
-                                    action.exec match {
-                                        // this is a topmost sequence
-                                        case SequenceExec(_, components) =>
-                                            val futureSeqTuple = invokeSequence(user, action, payload, blocking, topmost = true, components, cause = None, 0)
-                                            futureSeqTuple map { case (activationId, wskActivation, _) => (activationId, wskActivation) }
-                                        case _ => {
-                                            val duration = action.limits.timeout()
-                                            val timeout = (maxWaitForBlockingActivation min duration) + blockingInvokeGrace
-                                            invokeSingleAction(user, action, env, payload, timeout, blocking)
-                                        }
-                                    }
-                                }
-
-                                onComplete(postToLoadBalancer) {
+                                val actionWithMergedParams = env.map(action.inherit(_)) getOrElse action
+                                onComplete(invokeAction(user, actionWithMergedParams, payload, blocking, Some(waitOverride))) {
                                     case Success((activationId, None)) =>
                                         // non-blocking invoke or blocking invoke which got queued instead
                                         complete(Accepted, activationId.toJsObject)
@@ -264,17 +249,18 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions with Refer
                                             complete(InternalServerError, response)
                                         }
                                     case Failure(t: BlockingInvokeTimeout) =>
-                                        info(this, s"[POST] action activation waiting period expired")
+                                        logging.info(this, s"[POST] action activation waiting period expired")
                                         complete(Accepted, t.activationId.toJsObject)
                                     case Failure(t: RecordTooLargeException) =>
-                                        info(this, s"[POST] action payload was too large")
+                                        logging.info(this, s"[POST] action payload was too large")
                                         terminate(RequestEntityTooLarge)
                                     case Failure(t: Throwable) =>
-                                        error(this, s"[POST] action activation failed: ${t.getMessage}")
-                                        terminate(InternalServerError, t.getMessage)
+                                        logging.error(this, s"[POST] action activation failed: ${t.getMessage}")
+                                        terminate(InternalServerError)
                                 }
 
-                            case failure => super.handleEntitlementFailure(failure)
+                            case Failure(f) =>
+                                super.handleEntitlementFailure(f)
                         }
                 })
             }
@@ -290,9 +276,8 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions with Refer
      * - 409 Conflict
      * - 500 Internal Server Error
      */
-    override def remove(namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
-        val docid = FullyQualifiedEntityName(namespace, name).toDocId
-        deleteEntity(WhiskAction, entityStore, docid, (a: WhiskAction) => Future successful true)
+    override def remove(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
+        deleteEntity(WhiskAction, entityStore, entityName.toDocId, (a: WhiskAction) => Future.successful({}))
     }
 
     /**
@@ -303,9 +288,8 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions with Refer
      * - 404 Not Found
      * - 500 Internal Server Error
      */
-    override def fetch(namespace: EntityPath, name: EntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
-        val docid = FullyQualifiedEntityName(namespace, name).toDocId
-        getEntity(WhiskAction, entityStore, docid, Some { action: WhiskAction =>
+    override def fetch(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
+        getEntity(WhiskAction, entityStore, entityName.toDocId, Some { action: WhiskAction =>
             val mergedAction = env map { action inherit _ } getOrElse action
             complete(OK, mergedAction)
         })
@@ -318,14 +302,14 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions with Refer
      * - 200 [] or [WhiskAction as JSON]
      * - 500 Internal Server Error
      */
-    override def list(namespace: EntityPath, excludePrivate: Boolean)(implicit transid: TransactionId) = {
+    override def list(user: Identity, namespace: EntityPath, excludePrivate: Boolean)(implicit transid: TransactionId) = {
         // for consistency, all the collections should support the same list API
         // but because supporting docs on actions is difficult, the API does not
         // offer an option to fetch entities with full docs yet.
         //
         // the complication with actions is that providing docs on actions in
-        // package bindings is complicated; it cannot be do readily with a cloudant
-        // (couchdb) view and would require finding all bindings in namespace and
+        // package bindings is cannot be do readily done with a couchdb view
+        // and would require finding all bindings in namespace and
         // joining the actions explicitly here.
         val docs = false
         parameter('skip ? 0, 'limit ? collection.listLimit, 'count ? false) {
@@ -353,13 +337,13 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions with Refer
     private def resolveDefaultNamespace(seq: SequenceExec, user: Identity): SequenceExec = {
         // if components are part of the default namespace, they contain `_`; replace it!
         val resolvedComponents = resolveDefaultNamespace(seq.components, user)
-        new SequenceExec(seq.code, resolvedComponents)
+        new SequenceExec(resolvedComponents)
     }
 
     /**
      * Creates a WhiskAction instance from the PUT request.
      */
-    private def makeWhiskAction(content: WhiskActionPut, namespace: EntityPath, name: EntityName)(implicit transid: TransactionId) = {
+    private def makeWhiskAction(content: WhiskActionPut, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
         val exec = content.exec.get
         val limits = content.limits map { l =>
             ActionLimits(
@@ -378,8 +362,8 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions with Refer
         }
 
         WhiskAction(
-            namespace,
-            name,
+            entityName.path,
+            entityName.name,
             exec,
             parameters,
             limits,
@@ -392,22 +376,22 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions with Refer
     private def entitleReferencedEntities(user: Identity, right: Privilege, exec: Option[Exec])(
         implicit transid: TransactionId) = {
         exec match {
-            case Some(seq @ SequenceExec(_, components)) =>
-                info(this, "checking if sequence components are accessible")
+            case Some(seq: SequenceExec) =>
+                logging.info(this, "checking if sequence components are accessible")
                 entitlementProvider.check(user, right, referencedEntities(seq))
             case _ => Future.successful(true)
         }
     }
 
     /** Creates a WhiskAction from PUT content, generating default values where necessary. */
-    private def make(user: Identity, namespace: EntityPath, content: WhiskActionPut, name: EntityName)(implicit transid: TransactionId) = {
+    private def make(user: Identity, entityName: FullyQualifiedEntityName, content: WhiskActionPut)(implicit transid: TransactionId) = {
         content.exec map {
             case seq: SequenceExec =>
                 // check that the sequence conforms to max length and no recursion rules
-                checkSequenceActionLimits(FullyQualifiedEntityName(namespace, name), seq.components) map {
-                    _ => makeWhiskAction(content.replace(seq), namespace, name)
+                checkSequenceActionLimits(entityName, seq.components) map {
+                    _ => makeWhiskAction(content.replace(seq), entityName)
                 }
-            case _ => Future successful { makeWhiskAction(content, namespace, name) }
+            case _ => Future successful { makeWhiskAction(content, entityName) }
         } getOrElse Future.failed(RejectRequest(BadRequest, "exec undefined"))
     }
 
@@ -475,142 +459,6 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions with Refer
     }
 
     /**
-     * Gets document from datastore to confirm a valid action activation then posts request to loadbalancer.
-     * If the loadbalancer accepts the requests with an activation id, then wait for the result of the activation
-     * if this is a blocking invoke, else return the activation id.
-     *
-     * NOTE: This is a point-in-time type of statement:
-     * For activations of actions, cause is populated only for actions that were invoked as a result of a sequence activation.
-     * For actions that are enclosed in a sequence and are activated as a result of the sequence activation, the cause
-     * contains the activation id of the immediately enclosing sequence.
-     * e.g.,: s -> a, x, c    and   x -> c  (x and s are sequences, a, b, c atomic actions)
-     * cause for a, x, c is the activation id of s
-     * cause for c is the activation id of x
-     * cause for s is not defined
-     *
-     * @param subject the subject invoking the action
-     * @param docid the action document id
-     * @param env the merged parameters from the package/reference if any
-     * @param payload the dynamic arguments for the activation
-     * @param timeout the timeout used for polling for result if the invoke is blocking
-     * @param blocking true iff this is a blocking invoke
-     * @param cause the activation id that is responsible for this invoke/activation
-     * @param transid a transaction id for logging
-     * @return a promise that completes with (ActivationId, Some(WhiskActivation)) if blocking else (ActivationId, None)
-     */
-    protected def invokeSingleAction(
-        user: Identity,
-        action: WhiskAction,
-        env: Option[Parameters],
-        payload: Option[JsObject],
-        timeout: FiniteDuration,
-        blocking: Boolean,
-        cause: Option[ActivationId] = None)(
-            implicit transid: TransactionId): Future[(ActivationId, Option[WhiskActivation])] = {
-        // merge package parameters with action (action parameters supersede), then merge in payload
-        val args = { env map { _ ++ action.parameters } getOrElse action.parameters } merge payload
-        val message = ActivationMessage(
-            transid,
-            FullyQualifiedEntityName(action.namespace, action.name, Some(action.version)),
-            action.rev,
-            user.subject,
-            user.authkey,
-            activationIdFactory.make(), // activation id created here
-            activationNamespace = user.namespace.toPath,
-            args,
-            cause = cause)
-
-        val start = transid.started(this, LoggingMarkers.CONTROLLER_LOADBALANCER, s"[POST] action activation id: ${message.activationId}")
-        val (postedFuture, activationResponse) = loadBalancer.publish(message, activeAckTimeout)
-        postedFuture flatMap { _ =>
-            transid.finished(this, start)
-            if (blocking) {
-                waitForActivationResponse(user, message.activationId, timeout, activationResponse) map {
-                    whiskActivation => (whiskActivation.activationId, Some(whiskActivation))
-                }
-            } else {
-                // Duration of the non-blocking activation in Controller.
-                // We use the start time of the tid instead of a startMarker to avoid passing the start marker around.
-                transid.finished(this, StartMarker(transid.meta.start, LoggingMarkers.CONTROLLER_ACTIVATION))
-                Future.successful { (message.activationId, None) }
-            }
-        }
-    }
-
-    /**
-     * This is a fast path used for blocking calls in which we do not need the full WhiskActivation record from the DB.
-     * Polls for the activation response from an underlying data structure populated from Kafka active acknowledgements.
-     * If this mechanism fails to produce an answer quickly, the future will switch to polling the database for the response
-     * record.
-     */
-    private def waitForActivationResponse(user: Identity, activationId: ActivationId, totalWaitTime: FiniteDuration, activationResponse: Future[WhiskActivation])(implicit transid: TransactionId) = {
-        // this is the promise which active ack or db polling will try to complete in one of four ways:
-        // 1. active ack response
-        // 2. failing active ack (due to active ack timeout), fall over to db polling
-        // 3. timeout on db polling => converts activation to non-blocking (returns activation id only)
-        // 4. internal error
-        val promise = Promise[WhiskActivation]
-        val docid = DocId(WhiskEntity.qualifiedName(user.namespace.toPath, activationId))
-
-        info(this, s"[POST] action activation will block on result up to $totalWaitTime")
-
-        // the active ack will timeout after specified duration, causing the db polling to kick in
-        activationResponse map {
-            activation => promise.trySuccess(activation)
-        } onFailure {
-            case t: TimeoutException =>
-                info(this, s"[POST] switching to poll db, active ack expired")
-                pollDbForResult(docid, activationId, promise)
-            case t: Throwable =>
-                error(this, s"[POST] switching to poll db, active ack exception: ${t.getMessage}")
-                pollDbForResult(docid, activationId, promise)
-        }
-
-        val response = promise.future withTimeout (totalWaitTime, new BlockingInvokeTimeout(activationId))
-
-        response onComplete {
-            case Success(_) =>
-                // Duration of the blocking activation in Controller.
-                // We use the start time of the tid instead of a startMarker to avoid passing the start marker around.
-                transid.finished(this, StartMarker(transid.meta.start, LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING))
-            case Failure(t) =>
-                // short circuits db polling
-                promise.tryFailure(t)
-        }
-
-        response // will either complete with activation or fail with timeout
-    }
-
-    /**
-     * Polls for activation record. It is assumed that an activation record is created atomically and never updated.
-     * Fetch the activation record by its id. If it exists, complete the promise. Otherwise recursively poll until
-     * either there is an error in the get, or the promise has completed because it timed out. The promise MUST
-     * complete in the caller to terminate the polling.
-     */
-    private def pollDbForResult(
-        docid: DocId,
-        activationId: ActivationId,
-        promise: Promise[WhiskActivation])(
-            implicit transid: TransactionId): Unit = {
-        // check if promise already completed due to timeout expiration (abort polling if so)
-        if (!promise.isCompleted) {
-            WhiskActivation.get(activationStore, docid) map {
-                activation => promise.trySuccess(activation.withoutLogs) // Logs always not provided on blocking call
-            } onFailure {
-                case e: NoDocumentException =>
-                    Thread.sleep(500)
-                    debug(this, s"[POST] action activation not yet timed out, will poll for result")
-                    pollDbForResult(docid, activationId, promise)
-                case t: Throwable =>
-                    error(this, s"[POST] action activation failed while waiting on result: ${t.getMessage}")
-                    promise.tryFailure(t)
-            }
-        } else {
-            error(this, s"[POST] action activation timed out, terminated polling for result")
-        }
-    }
-
-    /**
      * Lists actions in package or binding. The router authorized the subject for the package
      * (if binding, then authorized subject for both the binding and the references package)
      * and iff authorized, this method is reached to lists actions.
@@ -618,27 +466,26 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions with Refer
      * Note that when listing actions in a binding, the namespace on the actions will be that
      * of the referenced packaged, not the binding.
      */
-    private def listPackageActions(subject: Subject, ns: EntityPath, pkgname: EntityName)(implicit transid: TransactionId) = {
+    private def listPackageActions(user: Identity, pkgName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
         // get the package to determine if it is a package or reference
         // (this will set the appropriate namespace), and then list actions
         // NOTE: these fetches are redundant with those from the authorization
         // and should hit the cache to ameliorate the cost; this can be improved
         // but requires communicating back from the authorization service the
         // resolved namespace
-        val docid = FullyQualifiedEntityName(ns, pkgname).toDocId
-        getEntity(WhiskPackage, entityStore, docid, Some { (wp: WhiskPackage) =>
+        getEntity(WhiskPackage, entityStore, pkgName.toDocId, Some { (wp: WhiskPackage) =>
             val pkgns = wp.binding map { b =>
-                info(this, s"list actions in package binding '${wp.name}' -> '$b'")
-                b.namespace.addpath(b.name)
+                logging.info(this, s"list actions in package binding '${wp.name}' -> '$b'")
+                b.namespace.addPath(b.name)
             } getOrElse {
-                info(this, s"list actions in package '${wp.name}'")
-                ns.addpath(wp.name)
+                logging.info(this, s"list actions in package '${wp.name}'")
+                pkgName.path.addPath(wp.name)
             }
             // list actions in resolved namespace
             // NOTE: excludePrivate is false since the subject is authorize to access
             // the package; in the future, may wish to exclude private actions in a
             // public package instead
-            list(pkgns, excludePrivate = false)
+            list(user, pkgns, excludePrivate = false)
         })
     }
 
@@ -651,9 +498,9 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions with Refer
     private def mergeActionWithPackageAndDispatch(method: HttpMethod, user: Identity, action: EntityName, ref: Option[WhiskPackage] = None)(wp: WhiskPackage)(
         implicit transid: TransactionId): RequestContext => Unit = {
         wp.binding map {
-            case Binding(ns, n) =>
-                val docid = FullyQualifiedEntityName(ns, n).toDocId
-                info(this, s"fetching package '$docid' for reference")
+            case b: Binding =>
+                val docid = b.fullyQualifiedName.toDocId
+                logging.info(this, s"fetching package '$docid' for reference")
                 // already checked that subject is authorized for package and binding;
                 // this fetch is redundant but should hit the cache to ameliorate cost
                 getEntity(WhiskPackage, entityStore, docid, Some {
@@ -663,10 +510,10 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions with Refer
             // a subject has implied rights to all resources in a package, so dispatch
             // operation without further entitlement checks
             val params = { ref map { _ inherit wp.parameters } getOrElse wp } parameters
-            val ns = wp.namespace.addpath(wp.name) // the package namespace
-            val resource = Resource(ns, collection, Some { action() }, Some { params })
+            val ns = wp.namespace.addPath(wp.name) // the package namespace
+            val resource = Resource(ns, collection, Some { action.asString }, Some { params })
             val right = collection.determineRight(method, resource.entity)
-            info(this, s"merged package parameters and rebased action to '$ns")
+            logging.info(this, s"merged package parameters and rebased action to '$ns")
             dispatchOp(user, right, resource)
         }
     }
@@ -683,13 +530,15 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions with Refer
         // then traverses all actions in the sequence, inlining any that are sequences
         val future = if (components.size > actionSequenceLimit) {
             Future.failed(TooManyActionsInSequence())
+        } else if (components.size == 0) {
+            Future.failed(NoComponentInSequence())
         } else {
             // resolve the action document id (if it's in a package/binding);
             // this assumes that entityStore is the same for actions and packages
             WhiskAction.resolveAction(entityStore, sequenceAction) flatMap { resolvedSeq =>
                 val atomicActionCnt = countAtomicActionsAndCheckCycle(resolvedSeq, components)
                 atomicActionCnt map { count =>
-                    debug(this, s"sequence '$sequenceAction' atomic action count $count")
+                    logging.debug(this, s"sequence '$sequenceAction' atomic action count $count")
                     if (count > actionSequenceLimit) {
                         throw TooManyActionsInSequence()
                     }
@@ -699,6 +548,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions with Refer
 
         future recoverWith {
             case _: TooManyActionsInSequence => Future failed RejectRequest(BadRequest, sequenceIsTooLong)
+            case _: NoComponentInSequence    => Future failed RejectRequest(BadRequest, sequenceNoComponent)
             case _: SequenceWithCycle        => Future failed RejectRequest(BadRequest, sequenceIsCyclic)
             case _: NoDocumentException      => Future failed RejectRequest(BadRequest, sequenceComponentNotFound)
         }
@@ -735,7 +585,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions with Refer
                         // if the component does not exist, the future will fail with appropriate error
                         WhiskAction.get(entityStore, resolvedComponent.toDocId) flatMap { wskComponent =>
                             wskComponent.exec match {
-                                case SequenceExec(_, seqComponents) =>
+                                case SequenceExec(seqComponents) =>
                                     // sequence action, count the number of atomic actions in this sequence
                                     countAtomicActionsAndCheckCycle(origSequence, seqComponents)
                                 case _ => Future successful 1 // atomic action count is one
@@ -763,13 +613,23 @@ trait WhiskActionsApi extends WhiskCollectionAPI with SequenceActions with Refer
         Parameters(WhiskAction.execFieldName, exec.kind)
     }
 
-    /** Max duration for active ack. */
-    private val activeAckTimeout = 30 seconds
-
     /** Max atomic action count allowed for sequences */
     private lazy val actionSequenceLimit = whiskConfig.actionSequenceLimit.toInt
+
+    /** Custom deserializer for timeout query parameter. */
+    private implicit val stringToTimeoutDeserializer = new FromStringDeserializer[FiniteDuration] {
+        val max = WhiskActionsApi.maxWaitForBlockingActivation.toMillis
+        def apply(msecs: String): Either[DeserializationError, FiniteDuration] = {
+            Try { msecs.toInt } match {
+                case Success(i) if i > 0 && i <= max => Right(i.milliseconds)
+                case _ => Left {
+                    MalformedContent(Messages.invalidTimeout(WhiskActionsApi.maxWaitForBlockingActivation))
+                }
+            }
+        }
+    }
 }
 
-private case class BlockingInvokeTimeout(activationId: ActivationId) extends TimeoutException
-private case class TooManyActionsInSequence() extends RuntimeException
-private case class SequenceWithCycle() extends RuntimeException
+private case class TooManyActionsInSequence() extends IllegalArgumentException
+private case class NoComponentInSequence() extends IllegalArgumentException
+private case class SequenceWithCycle() extends IllegalArgumentException

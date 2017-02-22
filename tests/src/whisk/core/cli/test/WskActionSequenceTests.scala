@@ -19,7 +19,6 @@ package whisk.core.cli.test
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
-import common.JsHelpers
 import common.TestHelpers
 import common.TestUtils
 import common.Wsk
@@ -34,13 +33,12 @@ import spray.json._
 @RunWith(classOf[JUnitRunner])
 class WskActionSequenceTests
     extends TestHelpers
-    with JsHelpers
     with WskTestHelpers {
 
     implicit val wskprops = WskProps()
     val wsk = new Wsk
     val defaultNamespace = wskprops.namespace
-    val user = WskAdmin.getUser(wskprops.authKey)
+    val (user, namespace) = WskAdmin.getUser(wskprops.authKey)
 
     behavior of "Wsk Action Sequence"
 
@@ -59,12 +57,12 @@ class WskActionSequenceTests
 
             assetHelper.withCleaner(wsk.action, fullHelloActionName) {
                 val file = Some(TestUtils.getTestActionFilename("hello.js"))
-                (action, _) => action.create(fullHelloActionName, file, shared = Some(true))(wp)
+                (action, _) => action.create(fullHelloActionName, file)(wp)
             }
 
             assetHelper.withCleaner(wsk.action, fullCatActionName) {
                 val file = Some(TestUtils.getTestActionFilename("cat.js"))
-                (action, _) => action.create(fullCatActionName, file, shared = Some(true))(wp)
+                (action, _) => action.create(fullCatActionName, file)(wp)
             }
 
             val artifacts = s"$fullHelloActionName,$fullCatActionName"
@@ -83,5 +81,5 @@ class WskActionSequenceTests
             wsk.parseJsonString(stdout).fields("exec").asJsObject.fields("kind") shouldBe kindValue
     }
 
-    private def resolveDefaultNamespace(actionName: String) = actionName.replace("/_/", s"/$user/")
+    private def resolveDefaultNamespace(actionName: String) = actionName.replace("/_/", s"/$namespace/")
 }

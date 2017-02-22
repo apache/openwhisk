@@ -23,23 +23,21 @@ import scala.util.Success
 import scala.util.Try
 
 import spray.http.HttpMethod
-import spray.http.StatusCodes.Forbidden
 import spray.http.StatusCodes.InternalServerError
 import spray.routing.Directive1
 import spray.routing.Directives
 import spray.routing.RequestContext
-import whisk.common.Logging
 import whisk.common.TransactionId
-import whisk.core.entity.EntityPath
 import whisk.core.entitlement._
 import whisk.core.entitlement.Privilege.Privilege
 import whisk.core.entitlement.Resource
-import whisk.core.entity.EntityPath
-import whisk.core.entity.Identity
+import whisk.core.entity._
+import whisk.core.entity.size._
 import whisk.http.ErrorResponse.terminate
+import whisk.http.Messages
 
 /** A trait for routes that require entitlement checks. */
-trait BasicAuthorizedRouteProvider extends Directives with Logging {
+trait BasicAuthorizedRouteProvider extends Directives {
     /** An execution context for futures */
     protected implicit val executionContext: ExecutionContext
 
@@ -67,18 +65,16 @@ trait BasicAuthorizedRouteProvider extends Directives with Logging {
         val right = collection.determineRight(method, resource.entity)
 
         onComplete(entitlementProvider.check(user, right, resource)) {
-            case Success(true) => dispatchOp(user, right, resource)
-            case t             => handleEntitlementFailure(t)
+            case Success(_) => dispatchOp(user, right, resource)
+            case Failure(t) => handleEntitlementFailure(t)
         }
     }
 
-    protected def handleEntitlementFailure(failure: Try[Boolean])(
+    protected def handleEntitlementFailure(failure: Throwable)(
         implicit transid: TransactionId): RequestContext => Unit = {
         failure match {
-            case Success(false)            => terminate(Forbidden)
-            case Failure(r: RejectRequest) => terminate(r.code, r.message)
-            case Failure(t)                => terminate(InternalServerError, t.getMessage)
-            case _ /*Success(true)*/       => terminate(InternalServerError, "Should not reach here.")
+            case (r: RejectRequest) => terminate(r.code, r.message)
+            case t                  => terminate(InternalServerError)
         }
     }
 
@@ -91,9 +87,21 @@ trait BasicAuthorizedRouteProvider extends Directives with Logging {
 
     /** Extracts namespace for user from the matched path segment. */
     protected def namespace(user: Identity, ns: String) = {
-        validate(isNamespace(ns), "namespace contains invalid characters") &
-            extract(_ => EntityPath(if (EntityPath(ns) == EntityPath.DEFAULT) user.namespace() else ns))
+        validate(isNamespace(ns), {
+            if (ns.length > EntityName.ENTITY_NAME_MAX_LENGTH) {
+                Messages.entityNameTooLong(
+                    SizeError(
+                        namespaceDescriptionForSizeError,
+                        ns.length.B,
+                        EntityName.ENTITY_NAME_MAX_LENGTH.B))
+            } else {
+                Messages.namespaceIllegal
+            }
+        }) & extract(_ => EntityPath(if (EntityPath(ns) == EntityPath.DEFAULT) user.namespace.asString else ns))
     }
+
+    /** Validates entity name from the matched path segment. */
+    protected val namespaceDescriptionForSizeError = "Namespace"
 
     /** Extracts the HTTP method which is used to determine privilege for resource. */
     protected val requestMethod = extract(_.request.method)

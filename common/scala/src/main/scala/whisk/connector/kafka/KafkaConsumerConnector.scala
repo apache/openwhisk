@@ -26,6 +26,7 @@ import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
 import scala.util.Try
 
+import org.apache.kafka.clients.consumer.CommitFailedException
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
@@ -33,7 +34,6 @@ import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import whisk.common.Logging
 import whisk.common.TransactionCounter
 import whisk.core.connector.MessageConsumer
-import org.apache.kafka.clients.consumer.CommitFailedException
 
 class KafkaConsumerConnector(
     kafkahost: String,
@@ -42,9 +42,9 @@ class KafkaConsumerConnector(
     override val maxPeek: Int = Int.MaxValue,
     readeos: Boolean = true,
     sessionTimeout: FiniteDuration = 30 seconds,
-    autoCommitInterval: FiniteDuration = 10 seconds)
+    autoCommitInterval: FiniteDuration = 10 seconds)(
+        implicit logging: Logging)
     extends MessageConsumer
-    with Logging
     with TransactionCounter {
 
     /**
@@ -77,11 +77,11 @@ class KafkaConsumerConnector(
                     } map {
                         _.foreach { process.tupled(_) }
                     } recover {
-                        case e: CommitFailedException => error(self, s"failed to commit to kafka: ${e.getMessage}")
-                        case e: Throwable             => error(self, s"exception while pulling new records: ${e.getMessage}")
+                        case e: CommitFailedException => logging.error(self, s"failed to commit to kafka: ${e.getMessage}")
+                        case e: Throwable             => logging.error(self, s"exception while pulling new records: ${e.getMessage}")
                     }
                 }
-                warn(self, "consumer stream terminated")
+                logging.warn(self, "consumer stream terminated")
                 consumer.close()
             }
         }
@@ -89,7 +89,7 @@ class KafkaConsumerConnector(
     }
 
     override def close() = {
-        info(this, s"closing '$topic' consumer")
+        logging.info(this, s"closing '$topic' consumer")
         disconnect = true
     }
 

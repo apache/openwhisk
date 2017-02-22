@@ -77,3 +77,8 @@ instances:
       size:
       fstype:
       fsmount:
+
+# API GW connection configuration
+apigw_auth_user: ""
+apigw_auth_pwd: ""
+apigw_host: "http://{{ groups['edge']|first }}:{{apigateway.port.api}}/v1"

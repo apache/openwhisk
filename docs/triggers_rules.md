@@ -38,7 +38,7 @@ You can set up rules so that a single trigger event invokes multiple actions, an
 - `imageUpload -> classifyImage` rule.
 - `imageUpload -> thumbnailImage` rule.
 
-The three rules establish the following behavior: images in both tweets and uploaded images are classified, uploaded images are classified, and a thumbnail version is generated. 
+The three rules establish the following behavior: images in both tweets and uploaded images are classified, uploaded images are classified, and a thumbnail version is generated.
 
 ## Creating and firing triggers
 
@@ -47,11 +47,11 @@ Triggers can be fired when certain events occur, or can be fired manually.
 As an example, create a trigger to send user location updates, and manually fire the trigger.
 
 1. Enter the following command to create the trigger:
- 
+
   ```
   $ wsk trigger create locationUpdate
   ```
- 
+
   ```
   ok: created trigger locationUpdate
   ```
@@ -61,7 +61,7 @@ As an example, create a trigger to send user location updates, and manually fire
   ```
   $ wsk trigger list
   ```
- 
+
   ```
   triggers
   /someNamespace/locationUpdate                            private
@@ -99,7 +99,7 @@ As an example, create a rule that calls the hello action whenever a location upd
   ```
   $ wsk trigger update locationUpdate
   ```
-  
+
   ```
   $ wsk action update hello hello.js
   ```
@@ -118,7 +118,7 @@ As an example, create a rule that calls the hello action whenever a location upd
   ```
   $ wsk trigger fire locationUpdate --param name Donald --param place "Washington, D.C."
   ```
-  
+
   ```
   ok: triggered locationUpdate with id d5583d8e2d754b518a9fe6914e6ffb1e
   ```
@@ -127,12 +127,12 @@ As an example, create a rule that calls the hello action whenever a location upd
   ```
   $ wsk activation list --limit 1 hello
   ```
-  
+
   ```
   activations
   9c98a083b924426d8b26b5f41c5ebc0d             hello
   ```
-  
+
   ```
   $ wsk activation result 9c98a083b924426d8b26b5f41c5ebc0d
   ```
@@ -147,13 +147,13 @@ As an example, create a rule that calls the hello action whenever a location upd
 You can create multiple rules that associate the same trigger with different actions.
 Triggers and rules cannot belong to a package. The rule may be associated with an action
 that belongs to a package however, for example:
-```
-$ wsk rule create recordLocation locationUpdate /whisk.system/utils/echo
-```
+  ```
+  $ wsk rule create recordLocation locationUpdate /whisk.system/utils/echo
+  ```
 
 You can also use rules with sequences. For example, one can create an action
 sequence `recordLocationAndHello` that is activated by the rule `anotherRule`.
-```
-$ wsk action create recordLocationAndHello --sequence /whisk.system/utils/echo,hello
-$ wsk rule create anotherRule locationUpdate recordLocationAndHello
-```
+  ```
+  $ wsk action create recordLocationAndHello --sequence /whisk.system/utils/echo,hello
+  $ wsk rule create anotherRule locationUpdate recordLocationAndHello
+  ```

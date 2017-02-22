@@ -25,7 +25,6 @@ import Privilege.ACTIVATE
 import Privilege.Privilege
 import Privilege.REJECT
 import akka.actor.ActorSystem
-import akka.event.Logging.LogLevel
 import spray.http.StatusCodes.Forbidden
 import spray.http.StatusCodes.TooManyRequests
 import whisk.common.ConsulClient
@@ -33,8 +32,8 @@ import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.controller.RejectRequest
-import whisk.core.iam.NamespaceProvider
 import whisk.core.entity._
+import whisk.core.iam.NamespaceProvider
 import whisk.core.loadBalancer.LoadBalancer
 import whisk.http.Messages._
 
@@ -80,7 +79,7 @@ protected[core] object EntitlementProvider {
  * This is where enforcement of activation quotas takes place, in additional to basic authorization.
  */
 protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBalancer: LoadBalancer, iam: NamespaceProvider)(
-    implicit actorSystem: ActorSystem) extends Logging {
+    implicit actorSystem: ActorSystem, logging: Logging) {
 
     private implicit val executionContext = actorSystem.dispatcher
 
@@ -89,12 +88,6 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
     private val concurrentInvokeThrottler = new ActivationThrottler(config.consulServer, loadBalancer, config.actionInvokeConcurrentLimit.toInt, config.actionInvokeSystemOverloadLimit.toInt)
 
     private val consul = new ConsulClient(config.consulServer)
-
-    override def setVerbosity(level: LogLevel) = {
-        super.setVerbosity(level)
-        invokeRateThrottler.setVerbosity(level)
-        triggerRateThrottler.setVerbosity(level)
-    }
 
     /**
      * Grants a subject the right to access a resources.
@@ -127,6 +120,26 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
     protected def entitled(subject: Subject, right: Privilege, resource: Resource)(implicit transid: TransactionId): Future[Boolean]
 
     /**
+     * Checks action activation rate throttles for subject.
+     *
+     * @param user the subject to check rate throttles for
+     * @return a promise that completes with success iff the subject is within their activation quota
+     */
+    protected[core] def checkThrottles(user: Identity)(
+        implicit transid: TransactionId): Future[Unit] = {
+        val subject = user.subject
+        logging.info(this, s"checking user '$subject' has not exceeded activation quota")
+
+        checkSystemOverload(ACTIVATE) orElse {
+            checkThrottleOverload(!invokeRateThrottler.check(subject), tooManyRequests)
+        } orElse {
+            checkThrottleOverload(!concurrentInvokeThrottler.check(subject), tooManyConcurrentRequests)
+        } map {
+            Future.failed(_)
+        } getOrElse Future.successful({})
+    }
+
+    /**
      * Checks if a subject has the right to access a specific resource. The entitlement may be implicit,
      * that is, inferred based on namespaces that a subject belongs to and the namespace of the
      * resource for example, or explicit. The implicit check is computed here. The explicit check
@@ -137,13 +150,13 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
      * implicitly or explicitly granted. Instead, resolve the package binding first and use the alternate
      * method which authorizes a set of resources.
      *
-     * @param subject the subject to check rights for
+     * @param user the subject to check rights for
      * @param right the privilege the subject is requesting (applies to the entire set of resources)
      * @param resource the resource the subject requests access to
-     * @return a promise that completes with true iff the subject is permitted to access the requested resource
+     * @return a promise that completes with success iff the subject is permitted to access the requested resource
      */
     protected[core] def check(user: Identity, right: Privilege, resource: Resource)(
-        implicit transid: TransactionId): Future[Boolean] = check(user, right, Set(resource))
+        implicit transid: TransactionId): Future[Unit] = check(user, right, Set(resource))
 
     /**
      * Checks if a subject has the right to access a set of resources. The entitlement may be implicit,
@@ -151,26 +164,28 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
      * resource for example, or explicit. The implicit check is computed here. The explicit check
      * is delegated to the service implementing this interface.
      *
-     * @param subject the subject to check rights for
+     * @param user the subject to check rights for
      * @param right the privilege the subject is requesting (applies to the entire set of resources)
      * @param resources the set of resources the subject requests access to
-     * @return a promise that completes with true iff the subject is permitted to access all of the requested resources
+     * @return a promise that completes with success iff the subject is permitted to access all of the requested resources
      */
     protected[core] def check(user: Identity, right: Privilege, resources: Set[Resource])(
-        implicit transid: TransactionId): Future[Boolean] = {
+        implicit transid: TransactionId): Future[Unit] = {
         val subject = user.subject
 
-        val entitlementCheck = if (user.rights.contains(right)) {
+        val entitlementCheck: Future[Boolean] = if (user.rights.contains(right)) {
             if (resources.nonEmpty) {
-                info(this, s"checking user '$subject' has privilege '$right' for '${resources.mkString(",")}'")
-                checkSystemOverload(subject, right) orElse {
+                logging.info(this, s"checking user '$subject' has privilege '$right' for '${resources.mkString(",")}'")
+                checkSystemOverload(right) orElse {
                     checkUserThrottle(subject, right, resources)
                 } orElse {
                     checkConcurrentUserThrottle(subject, right, resources)
+                } map {
+                    Future.failed(_)
                 } getOrElse checkPrivilege(user, right, resources)
             } else Future.successful(true)
         } else if (right != REJECT) {
-            info(this, s"supplied authkey for user '$subject' does not have privilege '$right' for '${resources.mkString(",")}'")
+            logging.info(this, s"supplied authkey for user '$subject' does not have privilege '$right' for '${resources.mkString(",")}'")
             Future.failed(RejectRequest(Forbidden))
         } else {
             Future.successful(false)
@@ -178,11 +193,14 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
 
         entitlementCheck andThen {
             case Success(r) if resources.nonEmpty =>
-                info(this, if (r) "authorized" else "not authorized")
+                logging.info(this, if (r) "authorized" else "not authorized")
             case Failure(r: RejectRequest) =>
-                info(this, s"not authorized: $r")
+                logging.info(this, s"not authorized: $r")
             case Failure(t) =>
-                error(this, s"failed while checking entitlement: ${t.getMessage}")
+                logging.error(this, s"failed while checking entitlement: ${t.getMessage}")
+        } flatMap { isAuthorized =>
+            if (isAuthorized) Future.successful({})
+            else Future.failed(RejectRequest(Forbidden))
         }
     }
 
@@ -195,7 +213,7 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
     protected def checkPrivilege(user: Identity, right: Privilege, resources: Set[Resource])(
         implicit transid: TransactionId): Future[Boolean] = {
         // check the default namespace first, bypassing additional checks if permitted
-        val defaultNamespaces = Set(user.namespace())
+        val defaultNamespaces = Set(user.namespace.asString)
         implicit val es = this
 
         Future.sequence {
@@ -210,13 +228,13 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
                             additionalNamespaces =>
                                 val newNamespacesToCheck = additionalNamespaces -- defaultNamespaces
                                 if (newNamespacesToCheck nonEmpty) {
-                                    info(this, "checking additional namespace")
+                                    logging.info(this, "checking additional namespace")
                                     resource.collection.implicitRights(user, newNamespacesToCheck, right, resource) flatMap {
                                         case true  => Future.successful(true)
                                         case false => entitled(user.subject, right, resource)
                                     }
                                 } else {
-                                    info(this, "checking explicit grants")
+                                    logging.info(this, "checking explicit grants")
                                     entitled(user.subject, right, resource)
                                 }
                         }
@@ -225,12 +243,17 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
         }.map { _.forall(identity) }
     }
 
-    /** Limits activations if the load balancer is overloaded. */
-    protected def checkSystemOverload(subject: Subject, right: Privilege)(implicit transid: TransactionId) = {
+    /**
+     * Limits activations if the system is overloaded.
+     *
+     * @param right the privilege, if ACTIVATE then check quota else return None
+     * @return None if system is not overloaded else a rejection
+     */
+    protected def checkSystemOverload(right: Privilege)(implicit transid: TransactionId): Option[RejectRequest] = {
         val systemOverload = right == ACTIVATE && concurrentInvokeThrottler.isOverloaded
         if (systemOverload) {
-            error(this, "system is overloaded")
-            Some(Future.failed(RejectRequest(TooManyRequests, systemOverloaded)))
+            logging.error(this, "system is overloaded")
+            Some(RejectRequest(TooManyRequests, systemOverloaded))
         } else None
     }
 
@@ -239,17 +262,21 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
      * If the requested right is an activation, the set of resources must contain an activation of an action or filter to be throttled.
      * While it is possible for the set of resources to contain more than one action or trigger, the plurality is ignored and treated
      * as one activation since these should originate from a single macro resources (e.g., a sequence).
+     *
+     * @param subject the subject to check quota for
+     * @param right the privilege, if ACTIVATE then check quota else return None
+     * @param resource the set of resources must contain at least one resource that can be activated else return None
+     * @return None if subject is not throttled else a rejection
      */
-    protected def checkUserThrottle(subject: Subject, right: Privilege, resources: Set[Resource])(implicit transid: TransactionId) = {
+    private def checkUserThrottle(subject: Subject, right: Privilege, resources: Set[Resource])(
+        implicit transid: TransactionId): Option[RejectRequest] = {
         def userThrottled = {
             val isInvocation = resources.exists(_.collection.path == Collection.ACTIONS)
             val isTrigger = resources.exists(_.collection.path == Collection.TRIGGERS)
             (isInvocation && !invokeRateThrottler.check(subject)) || (isTrigger && !triggerRateThrottler.check(subject))
         }
 
-        if (right == ACTIVATE && userThrottled) {
-            Some(Future.failed(RejectRequest(TooManyRequests, tooManyRequests)))
-        } else None
+        checkThrottleOverload(right == ACTIVATE && userThrottled, tooManyRequests)
     }
 
     /**
@@ -257,15 +284,27 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
      * If the requested right is an activation, the set of resources must contain an activation of an action to be throttled.
      * While it is possible for the set of resources to contain more than one action, the plurality is ignored and treated
      * as one activation since these should originate from a single macro resources (e.g., a sequence).
+     *
+     * @param subject the subject to check quota for
+     * @param right the privilege, if ACTIVATE then check quota else return None
+     * @param resource the set of resources must contain at least one resource that can be activated else return None
+     * @return None if subject is not throttled else a rejection
      */
-    protected def checkConcurrentUserThrottle(subject: Subject, right: Privilege, resources: Set[Resource])(implicit transid: TransactionId) = {
+    private def checkConcurrentUserThrottle(subject: Subject, right: Privilege, resources: Set[Resource])(
+        implicit transid: TransactionId): Option[RejectRequest] = {
         def userThrottled = {
             val isInvocation = resources.exists(_.collection.path == Collection.ACTIONS)
             (isInvocation && !concurrentInvokeThrottler.check(subject))
         }
 
-        if (right == ACTIVATE && userThrottled) {
-            Some(Future.failed(RejectRequest(TooManyRequests, tooManyConcurrentRequests)))
+        checkThrottleOverload(right == ACTIVATE && userThrottled, tooManyConcurrentRequests)
+    }
+
+    /** Helper. */
+    private def checkThrottleOverload(hasTooMany: Boolean, message: String)(
+        implicit transid: TransactionId): Option[RejectRequest] = {
+        if (hasTooMany) {
+            Some(RejectRequest(TooManyRequests, message))
         } else None
     }
 }
@@ -292,14 +331,14 @@ trait ReferencedEntities {
     def referencedEntities(reference: Any): Set[Resource] = {
         reference match {
             case WhiskPackagePut(Some(binding), _, _, _, _) =>
-                Set(Resource(binding.namespace, Collection(Collection.PACKAGES), Some(binding.name())))
+                Set(Resource(binding.namespace.toPath, Collection(Collection.PACKAGES), Some(binding.name.asString)))
             case r: WhiskRulePut =>
-                val triggerResource = r.trigger.map { t => Resource(t.path, Collection(Collection.TRIGGERS), Some(t.name())) }
-                val actionResource = r.action map { a => Resource(a.path, Collection(Collection.ACTIONS), Some(a.name())) }
+                val triggerResource = r.trigger.map { t => Resource(t.path, Collection(Collection.TRIGGERS), Some(t.name.asString)) }
+                val actionResource = r.action map { a => Resource(a.path, Collection(Collection.ACTIONS), Some(a.name.asString)) }
                 Set(triggerResource, actionResource).flatten
             case e: SequenceExec =>
                 e.components.map {
-                    c => Resource(c.path, Collection(Collection.ACTIONS), Some(c.name()))
+                    c => Resource(c.path, Collection(Collection.ACTIONS), Some(c.name.asString))
                 }.toSet
             case _ => Set()
         }
