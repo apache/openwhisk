@@ -127,6 +127,12 @@ package object container {
     object DockerOutput {
         def apply(content: String) = new DockerOutput(Some(content))
         def unavailable = new DockerOutput(None)
+
+        def isSuccessful(output : DockerOutput) : Boolean =
+            output match {
+                case output if output == DockerOutput.unavailable => false
+                case _ => true
+            }
     }
 
     sealed class ContainerError(val msg: String) extends Throwable(msg)

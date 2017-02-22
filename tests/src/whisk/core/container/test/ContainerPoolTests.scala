@@ -250,4 +250,31 @@ class ContainerPoolTests extends FlatSpec
         pool.putBack(con)
     }
 
+    /*
+     * Create an action that will crash the container after succesfully returning
+     */
+    private def makeCrashingAction(name: String, timeToLiveMs: Integer): WhiskAction = {
+        val code = s"""function main(msg) { console.log('I expect you to die'); setTimeout(function(){ process.exit(1); }, ${timeToLiveMs}); }"""
+        WhiskAction(defaultNamespace, EntityName(name), Exec.js(code))
+    }
+
+    it should "cleanly handle a container that crashes" in {
+        ensureClean()
+        val action = makeCrashingAction("NoMrBond", 50)
+
+        val (con, initRes) = pool.getAction(action, defaultAuth)
+        Thread.sleep(1000)
+
+        con.run("NoMrBond", "1007")
+        Thread.sleep(1000)
+        assert(con.getLogs().contains("I expect you to die"))
+        pool.putBack(con)
+
+        // create a new container for this action. However, since the previous
+        // container crashed, this should not be the same container
+        Thread.sleep(2000)
+        val (con2, _) = pool.getAction(action, defaultAuth)
+        assert(con != con2)
+        pool.putBack(con2)
+    }
 }
