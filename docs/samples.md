@@ -1,8 +1,6 @@
 # OpenWhisk samples
-Here is a list of [OpenWhisk community resources](https://github.com/openwhisk/openwhisk-external-resources), which includes more samples, complete OpenWhisk applications, articles, tutorials, podcasts and much more.
 
-<!-- TODO 
-"Complete listing of OpenWhisk samples can be found here." <- need to insert a link to the OpenWhisk samples repo when there is one -->
+A complete list of [OpenWhisk Tutorials and Samples can be found here](https://github.com/romankhar/openwhisk-external-resources/blob/new-samples/README.md#sample-applications). On this community page you can also find articles, presentations, podcasts, videos and much more.
 
 ## OpenWhisk Hello World example
 To get started with OpenWhisk, try the following JavaScript code example.
@@ -54,7 +52,3 @@ To use this example, follow these steps:
     ```
 
 You can also use the event-driven capabilities in OpenWhisk to invoke this action in response to events. Follow the [alarm service example](./packages.md#creating-and-using-trigger-feeds) to configure an event source to invoke the `hello` action every time a periodic event is generated.
-
-## CLI tutorial
-
-If you prefer learning while doing, consider using this [OpenWhisk Workshop](https://github.com/openwhisk/openwhisk-workshop).
