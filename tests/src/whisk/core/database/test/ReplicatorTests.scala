@@ -56,8 +56,9 @@ class ReplicatorTests extends FlatSpec
         dbUsername -> null,
         dbPassword -> null,
         dbHost -> null,
-        dbPort -> null))
-    val dbPrefix = "test_"
+        dbPort -> null,
+        dbPrefix -> null))
+    val testDbPrefix = s"replicatortest_${config.dbPrefix}"
     val dbUrl = s"${config.dbProtocol}://${config.dbUsername}:${config.dbPassword}@${config.dbHost}:${config.dbPort}"
 
     val replicatorClient = new ExtendedCouchDbRestClient(config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, "_replicator")
@@ -121,7 +122,7 @@ class ReplicatorTests extends FlatSpec
         println(s"Running replay: $sourceDbUrl, $targetDbUrl, $dbPrefix")
         val rr = TestUtils.runCmd(0, new File("."), WhiskProperties.python, WhiskProperties.getFileRelativeToWhiskHome("tools/db/replicateDbs.py").getAbsolutePath, "--sourceDbUrl", sourceDbUrl, "--targetDbUrl", targetDbUrl, "replay", "--dbPrefix", dbPrefix)
 
-        val line = """(\w+) -> (\w+) \((\w+)\)""".r.unanchored
+        val line = """([\w-]+) -> ([\w-]+) \(([\w-]+)\)""".r.unanchored
         val replays = rr.stdout.lines.collect {
             case line(backup, target, id) => (backup, target, id)
         }.toList
@@ -172,7 +173,7 @@ class ReplicatorTests extends FlatSpec
 
     it should "replicate a database" in {
         // Create a database to backup
-        val dbName = dbPrefix + "backup_database"
+        val dbName = testDbPrefix + "database_for_single_replication"
         val client = createDatabase(dbName)
 
         println(s"Creating testdocument")
@@ -180,7 +181,7 @@ class ReplicatorTests extends FlatSpec
         client.putDoc("testId", testDocument).futureValue
 
         // Trigger replication and verify the created databases have the correct format
-        val (createdBackupDbs, _) = runReplicator(dbUrl, dbUrl, dbPrefix, 10.minutes)
+        val (createdBackupDbs, _) = runReplicator(dbUrl, dbUrl, testDbPrefix, 10.minutes)
         createdBackupDbs should have size 1
         val backupDbName = createdBackupDbs.head
         backupDbName should fullyMatch regex s"backup_\\d+_$dbName"
@@ -198,11 +199,11 @@ class ReplicatorTests extends FlatSpec
 
     it should "continuously update a database" in {
         // Create a database to backup
-        val dbName = dbPrefix + "backup_database"
+        val dbName = testDbPrefix + "database_for_continous_replication"
         val client = createDatabase(dbName)
 
         // Trigger replication and verify the created databases have the correct format
-        val (createdBackupDbs, _) = runReplicator(dbUrl, dbUrl, dbPrefix, 10.minutes, true)
+        val (createdBackupDbs, _) = runReplicator(dbUrl, dbUrl, testDbPrefix, 10.minutes, true)
         createdBackupDbs should have size 1
         val backupDbName = createdBackupDbs.head
         backupDbName shouldBe s"continuous_$dbName"
@@ -241,16 +242,16 @@ class ReplicatorTests extends FlatSpec
 
         // Create a database that is already expired
         val expired = now.minus(expires + 5.minutes)
-        val expiredName = s"backup_${toEpochSeconds(expired)}_expired"
+        val expiredName = s"backup_${toEpochSeconds(expired)}_${testDbPrefix}expired_backup"
         val expiredClient = createDatabase(expiredName)
 
         // Create a database that is not yet expired
         val notExpired = now.plus(expires - 5.minutes)
-        val notExpiredName = s"backup_${toEpochSeconds(notExpired)}_notexpired"
+        val notExpiredName = s"backup_${toEpochSeconds(notExpired)}_${testDbPrefix}notexpired_backup"
         val notExpiredClient = createDatabase(notExpiredName)
 
         // Trigger replication and verify the expired database is deleted while the unexpired one is kept
-        val (createdDatabases, deletedDatabases) = runReplicator(dbUrl, dbUrl, dbPrefix, expires)
+        val (createdDatabases, deletedDatabases) = runReplicator(dbUrl, dbUrl, testDbPrefix, expires)
         deletedDatabases should (contain(expiredName) and not contain (notExpiredName))
 
         expiredClient.getAllDocs().futureValue shouldBe Left(StatusCodes.NotFound)
@@ -261,9 +262,38 @@ class ReplicatorTests extends FlatSpec
         removeDatabase(notExpiredName)
     }
 
+    it should "not remove outdated databases with other prefix" in {
+        val now = Instant.now()
+        val expires = 10.minutes
+
+        println(s"Now is: ${toEpochSeconds(now)}")
+
+        val expired = now.minus(expires + 5.minutes)
+
+        // Create a database that is expired with correct prefix
+        val correctPrefixName = s"backup_${toEpochSeconds(expired)}_${testDbPrefix}expired_backup_correct_prefix"
+        val correctPrefixClient = createDatabase(correctPrefixName)
+
+        // Create a database that is expired with wrong prefix
+        val wrongPrefix = s"replicatortest_wrongprefix_${config.dbPrefix}"
+        val wrongPrefixName = s"backup_${toEpochSeconds(expired)}_${wrongPrefix}expired_backup_wrong_prefix"
+        val wrongPrefixClient = createDatabase(wrongPrefixName)
+
+        // Trigger replication and verify the expired database with correct prefix is deleted while the db with the wrong prefix is kept
+        val (createdDatabases, deletedDatabases) = runReplicator(dbUrl, dbUrl, testDbPrefix, expires)
+        deletedDatabases should (contain(correctPrefixName) and not contain (wrongPrefixName))
+
+        correctPrefixClient.getAllDocs().futureValue shouldBe Left(StatusCodes.NotFound)
+        wrongPrefixClient.getAllDocs().futureValue shouldBe 'right
+
+        // Cleanup backup database
+        createdDatabases.foreach(removeDatabase(_))
+        removeDatabase(wrongPrefixName)
+    }
+
     it should "replay a database" in {
         val now = Instant.now()
-        val dbName = "testbackup"
+        val dbName = testDbPrefix + "database_to_be_restored"
         val backupPrefix = s"backup_${toEpochSeconds(now)}_"
         val backupDbName = backupPrefix + dbName
 
@@ -281,7 +311,7 @@ class ReplicatorTests extends FlatSpec
         // Verify the replicated database is equal to the original database
         compareDatabases(Seq(backupDbName, dbName))
 
-        // Cleanup databases<
+        // Cleanup databases
         removeDatabase(backupDbName)
         removeDatabase(dbName)
     }

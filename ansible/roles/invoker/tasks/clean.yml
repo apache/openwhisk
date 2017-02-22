@@ -9,6 +9,11 @@
   ignore_errors: True
 
 # Unless invoker cleans up its own containers we have to do this here.
+#  shell: "(docker ps -aq --no-trunc --filter name=wsk | sudo xargs docker-runc resume); sleep 5"
+- name: pause at runc-level to restore docker consistency
+  shell: "(sudo docker-runc list | grep paused | grep -v STATUS | awk '{ print $1 }' | sudo xargs -n 1 docker-runc resume); sleep 2"
+  ignore_errors: True
+
 - name: unpause remaining actions
   shell: "docker unpause $(docker ps -aq --filter name=wsk)"
   ignore_errors: True

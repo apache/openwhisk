@@ -1,16 +1,8 @@
-
 # System overview
 
+OpenWhisk is an event-driven compute platform also referred to as Serverless computing or as Function as a Service (FaaS) that runs code in response to events or direct invocations. The following figure shows the high-level OpenWhisk architecture.
 
-The following sections provide details about OpenWhisk.
-
-## How OpenWhisk works
-
-OpenWhisk is an event-driven compute platform also referred to as Serverless computing or as Function as a Service (FaaS) that runs code in response to events or direct invocations.
-
-The following figure shows the high-level OpenWhisk architecture.
-
-![OpenWhisk architecture](OpenWhisk.png)
+![OpenWhisk architecture](images/OpenWhisk.png)
 
 Examples of events include changes to database records, IoT sensor readings that exceed a certain temperature, new code commits to a GitHub repository, or simple HTTP requests from web or mobile apps. Events from external and internal event sources are channeled through a trigger, and rules allow actions to react to these events.
 
@@ -24,23 +16,138 @@ Integrations with additional services and event providers can be added with pack
 
 An existing catalog of packages offers a quick way to enhance applications with useful capabilities, and to access external services in the ecosystem. Examples of external services that are OpenWhisk-enabled include Cloudant, The Weather Company, Slack, and GitHub.
 
+# How OpenWhisk works
 
-## Common use cases
+Being an open-source project, OpenWhisk stands on the shoulders of giants, including Nginx, Kafka, Consul, Docker, CouchDB. All of these components come together to form a “serverless event-based programming service”. To explain all the components in more detail, lets trace an invocation of an action through the system as it happens. An invocation in OpenWhisk is the core thing a serverless-engine does: Execute the code the user has fed into the system and return the results of that execution.
 
-The execution model that is offered by OpenWhisk supports a variety of use cases. The following sections include typical examples.
+## Creating the action
 
-### Decomposition of applications into microservices
+To give the explanation a little bit of context, let’s create an action in the system first. We will use that action to explain the concepts later on while tracing through the system. The following commands assume that the [OpenWhisk CLI is setup properly](https://github.com/openwhisk/openwhisk/tree/master/docs#setting-up-the-openwhisk-cli).
 
-The modular and inherently scalable nature of OpenWhisk makes it suitable for implementing granular pieces of logic in actions. For example, OpenWhisk can be useful for removing load-intensive, potentially spiky (background) tasks from front-end code and implementing these tasks as actions.
+First, we’ll create a file *action.js* containing the following code which will print “Hello World” to stdout and return a JSON object containing “world” under the key “hello”.
+```
+function main() {
+    console.log('Hello World');
+    return { hello: 'world' };
+}
+```
+We create that action using.
+```
+wsk action create myAction action.js
+```
+Done. Now we actually want to invoke that action:
+```
+wsk action invoke myAction
+```
 
-### Mobile back end
+## The internal flow of processing
+What actually happens behind the scenes in OpenWhisk?
 
-Many mobile applications require server-side logic. Given that mobile developers usually don’t have experience in managing server-side logic and would rather focus on the app that is running on the device, using OpenWhisk as the server-side back end is a good solution. In addition, the built-in support for Swift allows developers to reuse their existing iOS programming skills.
+![OpenWhisk flow of processing](images/OpenWhisk_flow_of_processing.png)
 
-### Data processing
+### Entering the system: nginx
 
-With the amount of data now available, application development requires the ability to process new data, and potentially react to it. This requirement includes processing both structured database records as well as unstructured documents, images, or videos.
+First: OpenWhisk’s user-facing API is completely HTTP based and follows a RESTful design. As a consequence, the command sent via the wsk-CLI is essentially an HTTP request against the OpenWhisk system. The specific command above translates roughly to:
+```
+POST /api/v1/namespaces/$userNamespace/actions/myAction
+Host: $openwhiskEndpoint
+```
 
-### IoT
+Note the *$userNamespace* variable here. A user has access to at least one namespace. For simplicity, let’s assume that the user owns the namespace where *myAction* is put into.
 
-Internet of Things scenarios are often inherently sensor-driven. For example, an action in OpenWhisk might be triggered if there is a need to react to a sensor that is exceeding a particular temperature.
+The first entry point into the system is through **nginx**, “an HTTP and reverse proxy server”. It is mainly used for SSL termination and forwarding appropriate HTTP calls to the next component.
+
+### Entering the system: Controller
+
+Not having done much to our HTTP request, nginx forwards it to the **Controller**, the next component on our trip through OpenWhisk. It is a Scala-based implementation of the actual REST API (based on **Akka** and **Spray**) and thus serves as the interface for everything a user can do, including [CRUD](https://en.wikipedia.org/wiki/Create,_read,_update_and_delete) requests for your entities in OpenWhisk and invocation of actions (which is what we’re doing right now).
+
+The Controller first disambiguates what the user is trying to do. It does so based on the HTTP method you use in your HTTP request. As per translation above, the user is issuing a POST request to an existing action, which the Controller translates to an **invocation of an action**.
+
+Given the central role of the Controller (hence the name), the following steps will all involve it to a certain extent.
+
+### Authentication and Authorization: CouchDB
+
+Now the Controller verifies who you are (*Authentication*) and if you have the privilege to do what you want to do with that entity (*Authorization*). The credentials included in the request are verified against the so-called **subjects** database in a **CouchDB** instance.
+
+In this case, it is checked that the user exists in OpenWhisk’s database and that it has the privilege to invoke the action myAction, which we assumed is an action in a namespace the user owns. The latter effectively gives the user the privilege to invoke the action, which is what he wishes to do.
+
+As everything is sound, the gate opens for the next stage of processing.
+
+### Getting the action: CouchDB… again
+
+As the Controller is now sure the user is allowed in and has the privileges to invoke his action, it actually loads this action (in this case *myAction*) from the **whisks** database in CouchDB.
+
+The record of the action contains mainly the code to execute (shown above) and default parameters that you want to pass to your action, merged with the parameters you included in the actual invoke request. It also contains the resource restrictions imposed on it in execution, such as the memory it is allowed to consume.
+
+In this particular case, our action doesn’t take any parameters (the function’s parameter definition is an empty list), thus we assume we haven’t set any default parameters and haven’t sent any specific parameters to the action, making for the most trivial case from this point-of-view.
+
+### Who’s there to invoke the action: Consul
+
+The Controller (or more specifically the load balancing part of it) has everything in place now to actually get your code running. It needs to know who’s available to do so though. **Consul**, a service discovery, is used to keep track of the executors available in the system by checking their health status continuously. Those executors are called **Invokers**.
+
+The Controller, now knowing which Invokers are available, chooses one of them to invoke the action requested.
+
+Let’s assume for this case, that the system has 3 Invokers available, Invoker 0 to 2, and that the Controller chose *Invoker 2* to invoke the action at hand.
+
+### Please form a line: Kafka
+
+From now on, mainly two bad things can happen to the invocation request you sent in:
+
+1. The system can crash, losing your invocation.
+2. The system can be under such a heavy load, that the invocation needs to wait for other invocations to finish first.
+
+The answer to both is **Kafka**, “a high-throughput, distributed, publish-subscribe messaging system”. Controller and Invoker solely communicate through messages buffered and persisted by Kafka. That lifts the burden of buffering in memory, risking an *OutOfMemoryException*, off of both the Controller and the Invoker while also making sure that messages are not lost in case the system crashes.
+
+To get the action invoked then, the Controller publishes a message to Kafka, which contains the action to invoke and the parameters to pass to that action (in this case none). This message is addressed to the Invoker which the Controller chose above from the list it got from Consul.
+
+Once Kafka has confirmed that it got the message, the HTTP request to the user is responded to with an **ActivationId**. The user will use that later on, to get access to the results of this specific invocation. Note that this is an asynchronous invocation model, where the HTTP request terminates once the system has accepted the request to invoke an action. A synchronous model (called blocking invocation) is available, but not covered by this article.
+
+### Actually invoking the code already: Invoker
+
+The **Invoker** is the heart of OpenWhisk. The Invoker’s duty is to invoke an action. It is also implemented in Scala. But there’s much more to it. To execute actions in an isolated and safe way it uses **Docker**.
+
+Docker is used to setup a new self-encapsulated environment (called *container*) for each action that we invoke in a fast, isolated and controlled way. In a nutshell, for each action invocation a Docker container is spawned, the action code gets injected, it gets executed using the parameters passed to it, the result is obtained, the container gets destroyed. This is also the place where a lot of performance optimization is done to reduce overhead and make low response times possible. 
+
+In our specific case, as we’re having a *Node.js* based action at hand, the Invoker will start a Node.js container, inject the code from *myAction*, run it with no parameters, extract the result, save the logs and destroy the Node.js container again.
+
+### Storing the results: CouchDB again
+
+As the result is obtained by the Invoker, it is stored into the **whisks** database as an activation under the ActivationId mentioned further above. The **whisks** database lives in **CouchDB**.
+
+In our specific case, the Invoker gets the resulting JSON object back from the action, grabs the log written by Docker, puts them all into the activation record and stores it into the database. It will look roughly like this:
+
+```
+{
+   "activationId": "31809ddca6f64cfc9de2937ebd44fbb9",
+   "response": {
+       "statusCode": 0,
+       "result": {
+           "hello": "world"
+       }
+   },
+   "end": 1474459415621,
+   "logs": [
+       "2016-09-21T12:03:35.619234386Z stdout: Hello World"
+   ],
+   "start": 1474459415595,
+}
+```
+
+Note how the record contains both the returned result and the logs written. It also contains the start and end time of the invocation of the action. There are more fields in an activation record, this is a stripped down version for simplicity.
+
+Now you can use the REST API again (start from step 1 again) to obtain your activation and thus the result of your action. To do so you’d use:
+
+```
+wsk activation get 31809ddca6f64cfc9de2937ebd44fbb9
+```
+
+## Summary
+
+We’ve seen how a simple **wsk action invoke myAction** passes through different stages of the OpenWhisk system. The system itself mainly consists of only two custom components, the **Controller** and the **Invoker**. Everything else is already there, developed by so many people out there in the open-source community.
+
+You can find additional information about OpenWhisk in the following topics:
+
+* [Entity names](./reference.md#openwhisk-entities)
+* [Action semantics](./reference.md#action-semantics)
+* [Limits](./reference.md#system-limits)
+* [REST API](./reference.md#rest-api)

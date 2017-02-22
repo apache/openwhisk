@@ -1230,7 +1230,7 @@ class WskBasicUsageTests
             testLimit(None, None, Some(32768.MB), BAD_REQUEST)
     }
 
-    ignore should "create a trigger using property file" in withAssetCleaner(wskprops) {
+    it should "create a trigger using property file" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "listTriggers"
             val tmpProps = File.createTempFile("wskprops", ".tmp")
