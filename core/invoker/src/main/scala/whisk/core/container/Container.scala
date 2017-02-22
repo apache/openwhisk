@@ -59,18 +59,18 @@ class Container(
         s"container [$name] [$id] [$ip]"
     }
 
-    def pause(): Unit =
+    def pause(): Boolean =
         if (useRunc) {
-            RuncUtils.pause(containerId)
+            RuncUtils.isSuccessful(RuncUtils.pause(containerId))
         } else {
-            pauseContainer(containerId)
+            DockerOutput.isSuccessful(pauseContainer(containerId))
         }
 
-    def unpause(): Unit =
+    def unpause(): Boolean =
         if (useRunc) {
-            RuncUtils.resume(containerId)
+            RuncUtils.isSuccessful(RuncUtils.resume(containerId))
         } else {
-            unpauseContainer(containerId)
+            DockerOutput.isSuccessful(unpauseContainer(containerId))
         }
 
     /**

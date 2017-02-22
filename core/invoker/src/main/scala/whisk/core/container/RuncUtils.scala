@@ -62,6 +62,12 @@ object RuncUtils {
         }
     }
 
+    def isSuccessful(result : (Int, String)) : Boolean =
+        result match {
+            case (0, _) => true
+            case _ => false
+        }
+
     /*
      *  Any global flags are added here.
      */

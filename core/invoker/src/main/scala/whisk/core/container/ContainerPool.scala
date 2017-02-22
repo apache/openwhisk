@@ -291,8 +291,15 @@ class ContainerPool(
             }
             case CacheHit(con) =>
                 con.transid = transid
-                runDockerOp { con.unpause() }
-                Some(Warm(con))
+                runDockerOp {
+                    if (con.unpause()) {
+                        Some(Warm(con))
+                    } else {
+                        // resume failed, gc the container
+                        putBack(con, delete=true)
+                        None
+                    }
+                }
             case CacheBusy => None
         }
     }
