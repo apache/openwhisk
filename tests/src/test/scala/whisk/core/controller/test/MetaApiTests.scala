@@ -852,6 +852,33 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
                     }
                 }
         }
+
+        it should s"invoke action with options verb (auth? ${creds.isDefined})" in {
+            implicit val tid = transid()
+
+            Seq(s"$systemId/default/export_c.json").
+              foreach { path =>
+                  Options(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
+                      status should be(OK)
+                      val response = responseAs[JsObject]
+                      response shouldBe JsObject(
+                          "pkg" -> s"$systemId".toJson,
+                          "action" -> "export_c".toJson,
+                          "content" -> metaPayload("options", Map(), creds))
+                  }
+              }
+        }
+
+        it should s"invoke action with options head verb (auth? ${creds.isDefined})" in {
+            implicit val tid = transid()
+
+            Seq(s"$systemId/default/export_c.json").
+              foreach { path =>
+                  Head(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
+                      status should be(OK)
+                  }
+              }
+        }
     }
 
     class TestingEntitlementProvider(
