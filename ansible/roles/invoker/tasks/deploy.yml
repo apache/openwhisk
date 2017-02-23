@@ -34,6 +34,7 @@
 
 - name: start invoker using docker cli
   shell: >
+        docker rm -f invoker{{play_hosts.index(inventory_hostname)}};
         docker run -d
         --userns=host
         --pid=host
