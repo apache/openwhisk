@@ -149,8 +149,8 @@ protected[core] object ExecManifest {
 protected[core] object ExecImageName {
     /**
      * Gets the container image name for the action.
-     * If the action is a black box action, return the image name. Otherwise
-     * return a standard image name for running Javascript or Swift actions for example.
+     * If the action uses a known exec manifest for which no docker pull operation is required,
+     * rewrite the container name to use the local registry.
      *
      * @return image name for container to run action
      */

@@ -56,9 +56,10 @@ class ActionProxyContainerTests extends BasicActionRunnerTests with WskActorSyst
 
         val python = """
                 |#!/usr/bin/env python
+                |from __future__ import print_function
                 |import sys
-                |print 'hello stdout'
-                |print >> sys.stderr, 'hello stderr'
+                |print('hello stdout')
+                |print('hello stderr', file=sys.stderr)
                 |print(sys.argv[1])
             """.stripMargin.trim
 
@@ -87,10 +88,10 @@ class ActionProxyContainerTests extends BasicActionRunnerTests with WskActorSyst
                 |#!/usr/bin/env python
                 |import os
                 |
-                |print '{ "api_host": "%s", "api_key": "%s", "namespace": "%s", "action_name" : "%s", "activation_id": "%s", "deadline": "%s" }' % (
+                |print('{ "api_host": "%s", "api_key": "%s", "namespace": "%s", "action_name" : "%s", "activation_id": "%s", "deadline": "%s" }' % (
                 |  os.environ['__OW_API_HOST'], os.environ['__OW_API_KEY'],
                 |  os.environ['__OW_NAMESPACE'], os.environ['__OW_ACTION_NAME'],
-                |  os.environ['__OW_ACTIVATION_ID'], os.environ['__OW_DEADLINE'])
+                |  os.environ['__OW_ACTIVATION_ID'], os.environ['__OW_DEADLINE']))
             """.stripMargin.trim
 
         val perl = """

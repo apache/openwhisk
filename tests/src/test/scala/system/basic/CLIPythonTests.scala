@@ -68,12 +68,26 @@ class CLIPythonTests
         (wp, assetHelper) =>
             val name = "pythonZipWithNonDefaultEntryPoint"
             assetHelper.withCleaner(wsk.action, name) {
-                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("python.zip")), main = Some("niam"), kind = Some("python"))
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("python.zip")), main = Some("niam"), kind = Some("python:default"))
             }
 
             withActivation(wsk.activation, wsk.action.invoke(name, Map("name" -> "Prince".toJson))) {
                 _.response.result.get shouldBe JsObject("greeting" -> JsString("Hello Prince!"))
             }
+    }
+
+    Seq("python:2", "python:3").foreach { kind =>
+        it should s"invoke a $kind action" in withAssetCleaner(wskprops) {
+            (wp, assetHelper) =>
+                val name = s"${kind.replace(":", "")}-action"
+                assetHelper.withCleaner(wsk.action, name) {
+                    (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("pythonVersion.py")), kind = Some(kind))
+                }
+
+                withActivation(wsk.activation, wsk.action.invoke(name)) {
+                    _.response.result.get shouldBe JsObject("version" -> JsNumber(kind.takeRight(1).toInt))
+                }
+        }
     }
 
     it should "invoke an action and confirm expected environment is defined" in withAssetCleaner(wskprops) {
