@@ -8,20 +8,20 @@ RUN apk add --no-cache \
         libxslt-dev \
         libxml2-dev \
         libffi-dev \
-        openssl-dev \
-        python-dev
+        openssl-dev
 
 # Install common modules for python
 RUN pip install \
-    beautifulsoup4==4.5.1 \
-    httplib2==0.9.2 \
-    kafka_python==1.3.1 \
-    lxml==3.6.4 \
-    python-dateutil==2.5.3 \
-    requests==2.11.1 \
-    scrapy==1.1.2 \
-    simplejson==3.8.2 \
-    twisted==16.4.0
+    beautifulsoup4==4.5.3 \
+    httplib2==0.10.3 \
+    kafka_python==1.3.2 \
+    lxml==3.7.3 \
+    python-dateutil==2.6.0 \
+    requests==2.13.0 \
+    scrapy==1.3.3 \
+    simplejson==3.10.0 \
+    virtualenv==15.1.0 \
+    twisted==17.1.0
 
 ENV FLASK_PROXY_PORT 8080
 

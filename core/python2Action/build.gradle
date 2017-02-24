@@ -1,0 +1,19 @@
+ext.dockerImageName = 'python2action'
+apply from: '../../gradle/docker.gradle'
+distDocker.dependsOn 'copyFiles'
+distDocker.finalizedBy 'rmFiles'
+
+def runners = files(
+    new File(project(':core:actionProxy').projectDir, 'actionproxy.py'),
+    new File(project(':core:pythonAction').projectDir, 'pythonrunner.py')
+)
+
+task copyFiles(type: Copy) {
+    from runners
+    into '.'
+}
+
+task rmFiles(type: Delete) {
+    delete runners.collect { it.getName() }
+}
+
