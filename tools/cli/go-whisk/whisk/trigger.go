@@ -67,7 +67,7 @@ func (s *TriggerService) List(options *TriggerListOptions) ([]Trigger, *http.Res
     }
 
     var triggers []Trigger
-    resp, err := s.client.Do(req, &triggers, DoNotProcessTimeOut)
+    resp, err := s.client.Do(req, &triggers, ExitWithSuccessOnTimeout)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
         return nil, resp, err
@@ -101,7 +101,7 @@ func (s *TriggerService) Insert(trigger *Trigger, overwrite bool) (*Trigger, *ht
     }
 
     t := new(Trigger)
-    resp, err := s.client.Do(req, &t, DoNotProcessTimeOut)
+    resp, err := s.client.Do(req, &t, ExitWithSuccessOnTimeout)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
         return nil, resp, err
@@ -127,7 +127,7 @@ func (s *TriggerService) Get(triggerName string) (*Trigger, *http.Response, erro
     }
 
     t := new(Trigger)
-    resp, err := s.client.Do(req, &t, DoNotProcessTimeOut)
+    resp, err := s.client.Do(req, &t, ExitWithSuccessOnTimeout)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
         return nil, resp, err
@@ -153,7 +153,7 @@ func (s *TriggerService) Delete(triggerName string) (*Trigger, *http.Response, e
     }
 
     t := new(Trigger)
-    resp, err := s.client.Do(req, &t, DoNotProcessTimeOut)
+    resp, err := s.client.Do(req, &t, ExitWithSuccessOnTimeout)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
         return nil, resp, err
@@ -178,7 +178,7 @@ func (s *TriggerService) Fire(triggerName string, payload interface{}) (*Trigger
     }
 
     t := new(Trigger)
-    resp, err := s.client.Do(req, &t, DoNotProcessTimeOut)
+    resp, err := s.client.Do(req, &t, ExitWithSuccessOnTimeout)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
         return nil, resp, err

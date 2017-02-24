@@ -431,7 +431,7 @@ class WskBasicTests
                 (action, _) =>
                     action.create(name, Some(TestUtils.getTestActionFilename("timeout.js")),
                         timeout = Some(allowedActionDuration))
-                    action.invoke(name, parameters = params, blocking = true, result = true, expectedExitCode = BLOCKING_TIMEOUT)
+                    action.invoke(name, parameters = params, blocking = true, result = true, expectedExitCode = ACCEPTED)
             }
 
             res.stderr should include regex (s"""\\{\\s+"activationId":\\s+"[a-z0-9]{32}"\\s+\\}""")

@@ -1358,5 +1358,9 @@
   {
     "id": "An API host must be provided.",
     "translation": "An API host must be provided."
+  },
+  {
+    "id": "Request accepted, but processing not completed yet.",
+    "translation": "Request accepted, but processing not completed yet."
   }
 ]

@@ -44,6 +44,8 @@ const (
     EncodeBodyAsFormData = "formdata"
     ProcessTimeOut = true
     DoNotProcessTimeOut = false
+    ExitWithErrorOnTimeout = true
+    ExitWithSuccessOnTimeout = false
 )
 
 type Client struct {
@@ -210,7 +212,7 @@ func (c *Client) addAuthHeader(req *http.Request, authRequired bool) error {
 // error if an API error has occurred.  If v implements the io.Writer
 // interface, the raw response body will be written to v, without attempting to
 // first decode it.
-func (c *Client) Do(req *http.Request, v interface{}, processTimeout bool) (*http.Response, error) {
+func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout bool) (*http.Response, error) {
     var err error
 
     if IsVerbose() {
@@ -300,16 +302,19 @@ func (c *Client) Do(req *http.Request, v interface{}, processTimeout bool) (*htt
     // Handle 1. HTTP Success + Valid body matching request expectations
     // Handle 3. HTTP Success + Body does NOT match request expectations
     if IsHttpRespSuccess(resp) && v != nil {
-        if processTimeout && resp.StatusCode == EXITCODE_TIMED_OUT {
-            err = MakeWskError(errors.New("Time limit exceeded."), EXITCODE_TIMED_OUT, NO_DISPLAY_MSG, NO_DISPLAY_USAGE,
-                NO_MSG_DISPLAYED, false, TIMED_OUT)
+
+        // If a timeout occurs, 202 HTTP status code is returned, and the caller wishes to handle such an event, return
+        // an error corresponding with the timeout
+        if ExitWithErrorOnTimeout && resp.StatusCode == EXITCODE_TIMED_OUT {
+            errMsg :=  wski18n.T("Request accepted, but processing not completed yet.")
+            err = MakeWskError(errors.New(errMsg), EXITCODE_TIMED_OUT, DISPLAY_MSG, NO_DISPLAY_USAGE,
+                NO_MSG_DISPLAYED, NO_APPLICATION_ERR, TIMED_OUT)
         }
 
         return parseSuccessResponse(resp, data, v), err
     }
 
-    // We should never get here, but just in case return failure
-    // to keep the compiler happy
+    // We should never get here, but just in case return failure to keep the compiler happy
     werr := MakeWskError(errors.New(wski18n.T("Command failed due to an internal failure")), EXITCODE_ERR_GENERAL,
         DISPLAY_MSG, NO_DISPLAY_USAGE)
     return resp, werr

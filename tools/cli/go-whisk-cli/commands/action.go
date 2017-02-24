@@ -165,6 +165,9 @@ var actionInvokeCmd = &cobra.Command{
     if err != nil {
       whiskErr, isWhiskErr := err.(*whisk.WskError)
 
+      // Return the error if it is a WskError that is not specified as an application error or blocking timeout, or
+      // return the error if it is not a WskError. Otherwise, do not return the error yet as information must be
+      // displayed to the user via standard error.
       if (isWhiskErr && !whiskErr.ApplicationError && !whiskErr.TimedOut) || !isWhiskErr {
         whisk.Debug(whisk.DbgError, "client.Actions.Invoke(%s, %s, %t) error: %s\n", qName.entityName, parameters,
           flags.common.blocking, err)
