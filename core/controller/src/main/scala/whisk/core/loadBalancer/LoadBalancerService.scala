@@ -26,14 +26,15 @@ import scala.concurrent.Promise
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
-import scala.util.Failure
-import scala.util.Success
 
+import org.apache.kafka.clients.producer.RecordMetadata
+
+import akka.actor.ActorRefFactory
 import akka.actor.ActorSystem
 import akka.pattern.ask
+import akka.util.Timeout
 import whisk.common.ConsulClient
 import whisk.common.Logging
-import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
 import whisk.connector.kafka.KafkaConsumerConnector
 import whisk.connector.kafka.KafkaProducerConnector
@@ -41,9 +42,8 @@ import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.{ consulServer, kafkaHost, loadbalancerActivationCountBeforeNextInvoker }
 import whisk.core.connector.{ ActivationMessage, CompletionMessage }
 import whisk.core.entity.{ ActivationId, CodeExec, WhiskAction, WhiskActivation }
-import whisk.core.connector.PingMessage
-import akka.util.Timeout
-import akka.actor.ActorRefFactory
+import whisk.core.entity.WhiskAction
+import whisk.core.entity.types.EntityStore
 
 trait LoadBalancer {
 
@@ -68,7 +68,7 @@ trait LoadBalancer {
 
 }
 
-class LoadBalancerService(config: WhiskConfig)(implicit val actorSystem: ActorSystem, logging: Logging) extends LoadBalancer {
+class LoadBalancerService(config: WhiskConfig, entityStore: EntityStore)(implicit val actorSystem: ActorSystem, logging: Logging) extends LoadBalancer {
 
     /** The execution context for futures */
     implicit val executionContext: ExecutionContext = actorSystem.dispatcher
@@ -83,18 +83,13 @@ class LoadBalancerService(config: WhiskConfig)(implicit val actorSystem: ActorSy
 
     override def getActiveUserActivationCounts: Map[String, Int] = activationBySubject.toMap mapValues { _.size }
 
-    /** Gets a producer which can publish messages to the kafka bus. */
-    private val producer = new KafkaProducerConnector(config.kafkaHost, executionContext)
     override def publish(action: WhiskAction, msg: ActivationMessage, timeout: FiniteDuration)(
         implicit transid: TransactionId): Future[Future[WhiskActivation]] = {
         chooseInvoker(action, msg).flatMap { invokerName =>
-            val start = transid.started(this, LoggingMarkers.CONTROLLER_KAFKA)
-            val topic = invokerName
             val subject = msg.user.subject.asString
             val entry = setupActivation(msg.activationId, subject, invokerName, timeout, transid)
-            logging.info(this, s"posting topic '$topic' with activation id '${msg.activationId}'")
-            producer.send(topic, msg).map { status =>
-                transid.finished(this, start, s"Posted to ${status.topic()}[${status.partition()}][${status.offset()}]")
+            val msgWithTarget = ActivationRequest(msg, invokerName)
+            invokerPool.flatMap(_.ask(msgWithTarget)(Timeout(5.seconds))).mapTo[RecordMetadata].map { _ =>
                 entry.promise.future
             }
         }
@@ -109,15 +104,6 @@ class LoadBalancerService(config: WhiskConfig)(implicit val actorSystem: ActorSy
     private val activationById = new TrieMap[ActivationId, ActivationEntry]
     private val activationByInvoker = new TrieMap[String, TrieSet[ActivationEntry]]
     private val activationBySubject = new TrieMap[String, TrieSet[ActivationEntry]]
-
-    private val ackConsumer = new KafkaConsumerConnector(config.kafkaHost, "completions", "completed")
-    ackConsumer.onMessage((topic, _, _, bytes) => {
-        val raw = new String(bytes, "utf-8")
-        CompletionMessage.parse(raw) match {
-            case Success(m: CompletionMessage) => processCompletion(m)
-            case Failure(t)                    => logging.error(this, s"failed processing message: $raw with $t")(TransactionId.loadbalancer)
-        }
-    })
 
     /**
      * Tries to fill in the result slot (i.e., complete the promise) when a completion message arrives.
@@ -185,23 +171,21 @@ class LoadBalancerService(config: WhiskConfig)(implicit val actorSystem: ActorSy
      * INVOKER MANAGEMENT
      */
 
+    /** Gets a producer which can publish messages to the kafka bus. */
+    private val messageProducer = new KafkaProducerConnector(config.kafkaHost, executionContext)
+    private val ackConsumer = new KafkaConsumerConnector(config.kafkaHost, "completions", "completed")
     private val pingConsumer = new KafkaConsumerConnector(config.kafkaHost, "health", "health")
-    pingConsumer.onMessage((topic, _, _, bytes) => {
-        val raw = new String(bytes, "utf-8")
-        PingMessage.parse(raw) match {
-            case Success(p: PingMessage) => invokerPool ! p
-            case Failure(t)              => logging.error(this, s"failed processing message: $raw with $t")
-        }
-    })
-
     private val consul = new ConsulClient(config.consulServer)
     private val invokerFactory = (f: ActorRefFactory, name: String) => f.actorOf(InvokerActor.props, name)
-    private val invokerPool = actorSystem.actorOf(InvokerPool.props(invokerFactory, consul.kv, invoker => {
-        clearInvokerState(invoker)
-        logging.info(this, s"cleared loadbalancer state of $invoker")(TransactionId.invokerHealth)
-    }))
+    // Do not create the invokerpool, if it is not possible to create the test action to recover the invokers.
+    private val invokerPool = InvokerPool.createTestActionForInvokerHealth(entityStore).map { _ =>
+        actorSystem.actorOf(InvokerPool.props(invokerFactory, consul.kv, invoker => {
+            clearInvokerState(invoker)
+            logging.info(this, s"cleared loadbalancer state of $invoker")(TransactionId.invokerHealth)
+        }, messageProducer, ackConsumer, msg => processCompletion(msg), pingConsumer))
+    }
 
-    def invokerHealth: Future[Map[String, InvokerState]] = invokerPool.ask(GetStatus)(Timeout(5.seconds)).mapTo[Map[String, InvokerState]]
+    def invokerHealth: Future[Map[String, InvokerState]] = invokerPool.flatMap(_.ask(GetStatus)(Timeout(5.seconds))).mapTo[Map[String, InvokerState]]
 
     /** Return a sorted list of available invokers. */
     private def availableInvokers: Future[Seq[String]] = invokerHealth.map {
@@ -227,7 +211,7 @@ class LoadBalancerService(config: WhiskConfig)(implicit val actorSystem: ActorSy
     }
 
     /** Determine which invoker this activation should go to. Due to dynamic conditions, it may return no invoker. */
-    private def chooseInvoker(action: WhiskAction, msg: ActivationMessage): Future[String] = {
+    private def chooseInvoker(action: WhiskAction, msg: ActivationMessage)(implicit transid: TransactionId): Future[String] = {
         val isBlackbox = action.exec match {
             case e: CodeExec[_] => e.pull
             case _              => false

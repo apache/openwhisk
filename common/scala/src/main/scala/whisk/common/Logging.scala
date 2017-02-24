@@ -216,6 +216,10 @@ object LoggingMarkers {
      */
     def INVOKER_STARTUP(i: Int) = LogMarkerToken(invoker, s"startup$i", count)
 
+    // Check invoker healthy state from loadbalancer
+    val LOADBALANCER_INVOKER_OFFLINE = LogMarkerToken(loadbalancer, "invokerOffline", count)
+    val LOADBALANCER_INVOKER_UNHEALTHY = LogMarkerToken(loadbalancer, "invokerUnhealthy", count)
+
     // Time that is needed to execute the action
     val INVOKER_ACTIVATION_RUN = LogMarkerToken(invoker, "activationRun", start)
 
