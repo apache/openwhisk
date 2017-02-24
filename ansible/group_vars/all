@@ -16,6 +16,11 @@ runtimesManifest:
     default: true
   python:
   - kind: "python"
+    image: "python2action"
+  - kind: "python:2"
+    image: "python2action"
+  - kind: "python:3"
+    image: "pythonaction"
     default: true
   swift:
   - kind: "swift"

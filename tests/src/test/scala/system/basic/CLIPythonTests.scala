@@ -68,7 +68,7 @@ class CLIPythonTests
         (wp, assetHelper) =>
             val name = "pythonZipWithNonDefaultEntryPoint"
             assetHelper.withCleaner(wsk.action, name) {
-                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("python.zip")), main = Some("niam"), kind = Some("python"))
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("python.zip")), main = Some("niam"), kind = Some("python:default"))
             }
 
             withActivation(wsk.activation, wsk.action.invoke(name, Map("name" -> "Prince".toJson))) {
