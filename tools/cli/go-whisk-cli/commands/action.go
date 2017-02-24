@@ -128,6 +128,7 @@ var actionInvokeCmd = &cobra.Command{
   RunE: func(cmd *cobra.Command, args []string) error {
     var err error
     var parameters interface{}
+    var terminate bool
 
     if whiskErr := checkArgs(args, 1, 1, "Action invoke", wski18n.T("An action name is required.")); whiskErr != nil {
       return whiskErr
@@ -163,12 +164,11 @@ var actionInvokeCmd = &cobra.Command{
 
     res, _, err := client.Actions.Invoke(qName.entityName, parameters, flags.common.blocking, flags.action.result)
     if err != nil {
-      whiskErr, isWhiskErr := err.(*whisk.WskError)
 
       // Return the error if it is a WskError that is not specified as an application error or blocking timeout, or
       // return the error if it is not a WskError. Otherwise, do not return the error yet as information must be
       // displayed to the user via standard error.
-      if (isWhiskErr && !whiskErr.ApplicationError && !whiskErr.TimedOut) || !isWhiskErr {
+      if terminate = isFatalError(err); terminate {
         whisk.Debug(whisk.DbgError, "client.Actions.Invoke(%s, %s, %t) error: %s\n", qName.entityName, parameters,
           flags.common.blocking, err)
         errMsg := wski18n.T("Unable to invoke action '{{.name}}': {{.err}}",
@@ -188,11 +188,12 @@ var actionInvokeCmd = &cobra.Command{
 
       fmt.Fprintf(color.Output,
         wski18n.T("{{.ok}} invoked /{{.namespace}}/{{.name}} with id {{.id}}\n",
-          map[string]interface{}{
+          map[string]interface{} {
             "ok": color.GreenString("ok:"),
             "namespace": boldString(qName.namespace),
             "name": boldString(qName.entityName),
-            "id": boldString(activationID)}))
+            "id": boldString(activationID),
+          }))
 
       if flags.common.blocking {
         printJSON(res, outputStream)

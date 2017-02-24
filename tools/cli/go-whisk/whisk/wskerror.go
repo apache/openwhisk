@@ -28,6 +28,8 @@ const NO_DISPLAY_MSG            bool = false
 const DISPLAY_USAGE             bool = true
 const NO_DISPLAY_USAGE          bool = false
 const NO_MSG_DISPLAYED          bool = false
+const DISPLAY_PREFIX            bool = true
+const NO_DISPLAY_PREFIX         bool = false
 const APPLICATION_ERR           bool = true
 const NO_APPLICATION_ERR        bool = false
 const TIMED_OUT                 bool = true
@@ -38,6 +40,7 @@ type WskError struct {
     DisplayMsg          bool    // When true, the error message should be displayed to console
     MsgDisplayed        bool    // When true, the error message has already been displayed, don't display it again
     DisplayUsage        bool    // When true, the CLI usage should be displayed before exiting
+    DisplayPrefix       bool    // When true, the CLI will prefix an error message with "error: "
     ApplicationError    bool    // When true, the error is a result of an application failure
     TimedOut            bool    // When True, the error is a result of a timeout
 }
@@ -71,6 +74,7 @@ func MakeWskError (err error, exitCode int, flags ...bool ) (resWhiskError *WskE
         DisplayMsg: false,
         DisplayUsage: false,
         MsgDisplayed: false,
+        DisplayPrefix: true,
         ApplicationError: false,
         TimedOut: false,
     }
@@ -78,8 +82,9 @@ func MakeWskError (err error, exitCode int, flags ...bool ) (resWhiskError *WskE
     if len(flags) > 0 { resWhiskError.DisplayMsg = flags[0] }
     if len(flags) > 1 { resWhiskError.DisplayUsage = flags[1] }
     if len(flags) > 2 { resWhiskError.MsgDisplayed = flags[2] }
-    if len(flags) > 3 { resWhiskError.ApplicationError = flags[3] }
-    if len(flags) > 4 { resWhiskError.TimedOut = flags[4] }
+    if len(flags) > 3 { resWhiskError.DisplayPrefix = flags[3] }
+    if len(flags) > 4 { resWhiskError.ApplicationError = flags[4] }
+    if len(flags) > 5 { resWhiskError.TimedOut = flags[5] }
 
     return resWhiskError
 }
@@ -146,17 +151,22 @@ func getWhiskErrorProperties(whiskError *WskError, flags ...bool) (int, []bool) 
     }
 
     if len(flags) > 3 {
-        flags[3] = whiskError.ApplicationError || flags[3]
+        flags[3] = whiskError.DisplayPrefix || flags[3]
+    } else {
+        flags = append(flags, whiskError.DisplayPrefix)
+    }
+
+    if len(flags) > 4 {
+        flags[4] = whiskError.ApplicationError || flags[4]
     } else {
         flags = append(flags, whiskError.ApplicationError)
     }
 
-    if len(flags) > 4 {
-        flags[4] = whiskError.TimedOut || flags[4]
+    if len(flags) > 5 {
+        flags[5] = whiskError.TimedOut || flags[5]
     } else {
         flags = append(flags, whiskError.TimedOut)
     }
 
     return whiskError.ExitCode, flags
 }
-

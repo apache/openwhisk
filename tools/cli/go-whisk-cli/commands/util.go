@@ -929,6 +929,7 @@ func min (a int, b int) int {
     return b
 }
 
+<<<<<<< 1ed1e00b3c20b0f0fb16afe355e17e583bdb8d12
 func readProps(path string) (map[string]string, error) {
 
     props := map[string]string{}
@@ -1007,4 +1008,21 @@ func getSpaceGuid() (string, error) {
     errStr := wski18n.T("Auth key property value is not set")
     werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
     return "", werr
+}
+
+func isFatalError(err error) (bool) {
+    var terminate bool
+
+    terminate = true
+    whiskErr, isWhiskErr := err.(*whisk.WskError)
+
+    if isWhiskErr {
+        if whiskErr.ApplicationError {
+            terminate = false
+        } else if whiskErr.TimedOut {
+            terminate = false
+        }
+    }
+
+    return terminate
 }

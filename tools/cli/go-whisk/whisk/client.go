@@ -308,7 +308,7 @@ func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout boo
         if ExitWithErrorOnTimeout && resp.StatusCode == EXITCODE_TIMED_OUT {
             errMsg :=  wski18n.T("Request accepted, but processing not completed yet.")
             err = MakeWskError(errors.New(errMsg), EXITCODE_TIMED_OUT, DISPLAY_MSG, NO_DISPLAY_USAGE,
-                NO_MSG_DISPLAYED, NO_APPLICATION_ERR, TIMED_OUT)
+                NO_MSG_DISPLAYED, NO_DISPLAY_PREFIX, NO_APPLICATION_ERR, TIMED_OUT)
         }
 
         return parseSuccessResponse(resp, data, v), err
@@ -342,7 +342,7 @@ func parseErrorResponse(resp *http.Response, data []byte, v interface{}) (*http.
         errMsg := wski18n.T("The following application error was received: {{.err}}",
             map[string]interface{}{"err": string(data)})
         whiskErr := MakeWskError(errors.New(errMsg), resp.StatusCode - 256, NO_DISPLAY_MSG, NO_DISPLAY_USAGE,
-            NO_MSG_DISPLAYED, APPLICATION_ERR)
+            NO_MSG_DISPLAYED, DISPLAY_PREFIX, APPLICATION_ERR)
         return parseSuccessResponse(resp, data, v), whiskErr
     }
 }
@@ -358,7 +358,7 @@ func parseWhiskErrorResponse(resp *http.Response, data []byte, v interface{}) (*
         errMsg := wski18n.T("The following application error was received: {{.err}}",
             map[string]interface{}{"err": *whiskErrorResponse.Response.Result})
         whiskErr := MakeWskError(errors.New(errMsg), resp.StatusCode - 256, NO_DISPLAY_MSG, NO_DISPLAY_USAGE,
-            NO_MSG_DISPLAYED, APPLICATION_ERR)
+            NO_MSG_DISPLAYED, DISPLAY_PREFIX, APPLICATION_ERR)
         return parseSuccessResponse(resp, data, v), whiskErr
     } else {
         Debug(DbgError, "HTTP response with unexpected body failed due to contents parsing error: '%v'\n", err)
