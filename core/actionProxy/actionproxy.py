@@ -17,6 +17,7 @@
 import sys
 import os
 import stat
+import datetime
 import json
 import subprocess
 import codecs
@@ -70,14 +71,22 @@ class ActionRunner:
             else:
                 return False
 
+        print "%s Preparing" % str(datetime.datetime.now().time())
         if prep():
             try:
+                print "%s Building" % str(datetime.datetime.now().time())
                 # build the source
                 self.build()
-            except Exception:
+                print "%s Done Building" % str(datetime.datetime.now().time())
+            except Exception as e:
+                print "EXCEPTION DURING BUILD"
+                print e
                 None  # do nothing, verify will signal failure if binary not executable
         # verify the binary exists and is executable
-        return self.verify()
+        print "%s Verifying" % str(datetime.datetime.now().time())
+        verified = self.verify()
+        print "%s Done Verifying" % str(datetime.datetime.now().time())
+        return verified
 
     # optionally appends source to the loaded code during <init>
     # @param fp the file stream writer
@@ -156,6 +165,7 @@ def setRunner(r):
 
 @proxy.route('/init', methods=['POST'])
 def init():
+    print "%s Starting /init" % str(datetime.datetime.now().time())
     message = flask.request.get_json(force=True, silent=True)
     if message and not isinstance(message, dict):
         flask.abort(404)
@@ -166,10 +176,13 @@ def init():
         flask.abort(404)
 
     try:
+        print "%s Starting init()" % str(datetime.datetime.now().time())
         status = runner.init(value)
+        print "%s Finished init()" % str(datetime.datetime.now().time())
     except Exception as e:
         status = False
 
+    print "%s Finishing /init" % str(datetime.datetime.now().time())
     if status is True:
         return ('OK', 200)
     else:
