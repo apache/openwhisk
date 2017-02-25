@@ -6,16 +6,29 @@
     name: "invoker{{play_hosts.index(inventory_hostname)}}"
     image: "{{ docker_registry }}{{ docker_image_prefix }}/invoker:{{ docker_image_tag }}"
     state: absent
+    stop_timeout: 60
+    timeout: 120
   ignore_errors: True
 
-# Unless invoker cleans up its own containers we have to do this here.
-#  shell: "(docker ps -aq --no-trunc --filter name=wsk | sudo xargs docker-runc resume); sleep 5"
-- name: pause at runc-level to restore docker consistency
-  shell: "(sudo docker-runc list | grep paused | grep -v STATUS | awk '{ print $1 }' | sudo xargs -n 1 docker-runc resume); sleep 2"
+# In case the invoker could not clean up completely in time.
+- name: pause/resume at runc-level to restore docker consistency
+  shell: |
+        DOCKER_PAUSED=$(docker ps --filter status=paused --filter name=wsk -q --no-trunc)
+        for C in $DOCKER_PAUSED; do docker-runc pause $C; done
+        DOCKER_RUNNING=$(docker ps --filter status=running --filter name=wsk -q --no-trunc)
+        for C2 in $DOCKER_RUNNING; do docker-runc resume $C2; done
+        TOTAL=$(($(echo $DOCKER_PAUSED | wc -w)+$(echo $DOCKER_RUNNING | wc -w)))
+        echo "Handled $TOTAL remaining actions."
+  args:
+    executable: /bin/bash
+  register: runc_output
   ignore_errors: True
+  become: True
+
+- debug: msg="{{ runc_output.stdout }}"
 
 - name: unpause remaining actions
-  shell: "docker unpause $(docker ps -aq --filter name=wsk)"
+  shell: "docker unpause $(docker ps -aq --filter status=paused --filter name=wsk)"
   ignore_errors: True
 
 - name: remove remaining actions
