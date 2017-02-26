@@ -76,7 +76,7 @@ class SwiftActionContainerTests extends BasicActionRunnerTests with WskActorSyst
                 | }
             """.stripMargin
 
-    // Helpers specific to swiftaction
+    // Helpers specific to swift actions
     override def withActionContainer(env: Map[String, String] = Map.empty)(code: ActionContainer => Unit) = {
         withContainer(swiftContainerImageName, env)(code)
     }

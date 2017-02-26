@@ -283,11 +283,6 @@ Components = [
                   yaml = False,
                   gradle = 'core:pythonAction'),
 
-    makeComponent('swiftaction',
-                  'build swift action container',
-                  yaml = False,
-                  gradle = 'core:swiftAction'),
-
     makeComponent('swift3action',
                   'build swift v3 action container',
                   yaml = False,
