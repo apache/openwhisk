@@ -32,6 +32,6 @@ line of output to `stdout` is a valid JSON object serialized to string if the ac
 A return value is optional but must be a JSON object (properly serialized) if present.
 
 For an example implementation of an `ActionRunner` that overrides `epilogue()` and `build()` see the
-[Swift](../swiftAction/swiftproxy.py) action proxy. An implementation of the runner for Python actions
-is available [here](../pythonAction/pythonaction.py). Lastly, an example Docker action that uses `C` is
-available in this [example](../../sdk/docker/Dockerfile) (lines 8-9).
+[Swift 3](../swift3Action/swift3runner.py) action proxy. An implementation of the runner for Python actions
+is available [here](../pythonAction/pythonrunner.py). Lastly, an example Docker action that uses `C` is
+available in this [example](../../sdk/docker/Dockerfile).
