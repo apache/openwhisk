@@ -40,15 +40,14 @@ class PythonRunner(ActionRunner):
         if not binary:
             code = message['code']
             filename = 'action'
+        elif os.path.isfile(self.source):
+            with codecs.open(self.source, 'r', 'utf-8') as m:
+                code = m.read()
+            filename = '__main__.py'
+            sys.path.insert(0, os.path.dirname(self.source))
         else:
-            if os.path.isfile(self.source):
-                with codecs.open(self.source, 'r', 'utf-8') as m:
-                    code = m.read()
-                filename = '__main__.py'
-                sys.path.insert(0, '/action')
-            else:
-                sys.stderr.write('Zip file does not include "__main__.py".\n')
-                return False
+            sys.stderr.write('Zip file does not include "__main__.py".\n')
+            return False
 
         try:
             self.fn = compile(code, filename = filename, mode = 'exec')

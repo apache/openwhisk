@@ -113,6 +113,27 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
         })
     }
 
+    it should "report error if zip-encoded action does not include required file" in {
+        val srcs = Seq(
+            Seq("echo.py") -> """
+                |def echo(args):
+                |  return { "echo": args }
+            """.stripMargin)
+
+        val code = ZipBuilder.mkBase64Zip(srcs)
+
+        val (out, err) = withActionContainer() { c =>
+            val (initCode, initRes) = c.init(initPayload(code, main = "echo"))
+            initCode should be(502)
+        }
+
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe empty
+                e should include("Zip file does not include")
+        })
+    }
+
     it should "handle unicode in source, input params, logs, and result" in {
         val (out, err) = withActionContainer() { c =>
             val code = """
@@ -174,9 +195,6 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
             val (initCode, res) = c.init(initPayload(code))
             // init checks whether compilation was successful, so return 502
             initCode should be(502)
-
-            val (runCode, runRes) = c.run(runPayload(JsObject("basic" -> JsString("forever"))))
-            runCode should be(502)
         }
 
         checkStreams(out, err, {

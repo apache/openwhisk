@@ -183,18 +183,10 @@ def init():
     else:
         response = flask.jsonify({'error': 'The action failed to generate or locate a binary. See logs for details.' })
         response.status_code = 502
-        return response
+        return complete(response)
 
 @proxy.route('/run', methods=['POST'])
 def run():
-    def complete(response):
-        # Add sentinel to stdout/stderr
-        sys.stdout.write('%s\n' % ActionRunner.LOG_SENTINEL)
-        sys.stdout.flush()
-        sys.stderr.write('%s\n' % ActionRunner.LOG_SENTINEL)
-        sys.stderr.flush()
-        return response
-
     def error():
         response = flask.jsonify({'error': 'The action did not receive a dictionary as an argument.' })
         response.status_code = 404
@@ -220,6 +212,14 @@ def run():
         response = flask.jsonify({'error': 'The action failed to locate a binary. See logs for details.' })
         response.status_code = 502
     return complete(response)
+
+def complete(response):
+    # Add sentinel to stdout/stderr
+    sys.stdout.write('%s\n' % ActionRunner.LOG_SENTINEL)
+    sys.stdout.flush()
+    sys.stderr.write('%s\n' % ActionRunner.LOG_SENTINEL)
+    sys.stderr.flush()
+    return response
 
 def main():
     port = int(os.getenv('FLASK_PROXY_PORT', 8080))
