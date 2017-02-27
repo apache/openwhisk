@@ -31,9 +31,8 @@ import scala.util.Failure
 import scala.util.Success
 
 import akka.actor.ActorSystem
-import akka.event.Logging.LogLevel
 import spray.json._
-import spray.json.DefaultJsonProtocol.LongJsonFormat
+import spray.json.DefaultJsonProtocol._
 import whisk.common.ConsulClient
 import whisk.common.ConsulKV.LoadBalancerKeys
 import whisk.common.ConsulKVReporter
@@ -72,12 +71,7 @@ trait LoadBalancer {
 
 }
 
-class LoadBalancerService(
-    config: WhiskConfig,
-    verbosity: LogLevel)(
-        implicit val actorSystem: ActorSystem,
-        logging: Logging)
-    extends LoadBalancer {
+class LoadBalancerService(config: WhiskConfig)(implicit val actorSystem: ActorSystem, logging: Logging) extends LoadBalancer {
 
     /** The execution context for futures */
     implicit val executionContext: ExecutionContext = actorSystem.dispatcher

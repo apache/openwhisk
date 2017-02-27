@@ -40,10 +40,6 @@ import whisk.core.entity._
 import whisk.core.entity.types.ActivationStore
 import whisk.http.Messages
 
-object WhiskActivationsApi {
-    def requiredProperties = WhiskActivationStore.requiredProperties
-}
-
 /** A trait implementing the activations API. */
 trait WhiskActivationsApi
     extends Directives

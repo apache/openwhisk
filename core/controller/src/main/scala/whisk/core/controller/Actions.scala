@@ -54,10 +54,7 @@ import whisk.http.Messages._
  * in order to implement the actions API.
  */
 object WhiskActionsApi {
-    def requiredProperties = WhiskServices.requiredProperties ++
-        WhiskEntityStore.requiredProperties ++
-        WhiskActivationStore.requiredProperties ++
-        Map(WhiskConfig.actionSequenceDefaultLimit -> null)
+    def requiredProperties = Map(WhiskConfig.actionSequenceDefaultLimit -> null)
 
     /** Grace period after action timeout limit to poll for result. */
     protected[core] val blockingInvokeGrace = 5 seconds
