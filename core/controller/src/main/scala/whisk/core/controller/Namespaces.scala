@@ -31,7 +31,6 @@ import whisk.core.entitlement.Privilege.READ
 import whisk.core.entitlement.Resource
 import whisk.core.entity.EntityPath
 import whisk.core.entity.Identity
-import whisk.core.entity.Subject
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskActivation
 import whisk.core.entity.WhiskEntityQueries.listEntitiesInNamespace
@@ -40,7 +39,6 @@ import whisk.core.entity.WhiskPackage
 import whisk.core.entity.WhiskRule
 import whisk.core.entity.WhiskTrigger
 import whisk.core.entity.types.EntityStore
-import whisk.core.iam.NamespaceProvider
 import whisk.http.ErrorResponse.terminate
 
 object WhiskNamespacesApi {
@@ -64,9 +62,6 @@ trait WhiskNamespacesApi
     /** Database service to lookup entities in a namespace. */
     protected val entityStore: EntityStore
 
-    /** An identity provider. */
-    protected val iam: NamespaceProvider
-
     /**
      * Rest API for managing namespaces. Defines all the routes handled by this API. They are:
      *
@@ -79,7 +74,7 @@ trait WhiskNamespacesApi
     override def routes(user: Identity)(implicit transid: TransactionId) = {
         pathPrefix(collection.path) {
             (collectionOps & requestMethod) { m =>
-                getNamespaces(user.subject)
+                getNamespaces(user)
             } ~ (entityOps & entityPrefix & pathEndOrSingleSlash & requestMethod) { (segment, m) =>
                 namespace(user, segment) { ns =>
                     val resource = Resource(ns, collection, None)
@@ -129,18 +124,8 @@ trait WhiskNamespacesApi
      * - 401 Unauthorized
      * - 500 Internal Server Error
      */
-    private def getNamespaces(user: Subject)(implicit transid: TransactionId) = {
-        onComplete(iam.namespaces(user)) {
-            case Success(namespaces) =>
-                logging.info(this, s"[GET] namespaces success: $namespaces")
-                complete(OK, namespaces)
-            case Failure(r: RejectRequest) =>
-                logging.info(this, s"[GET] namespaces failed: ${r.message}")
-                terminate(r.code, r.message)
-            case Failure(t) =>
-                logging.error(this, s"[GET] namespaces failed: ${t.getMessage}")
-                terminate(InternalServerError)
-        }
+    private def getNamespaces(user: Identity)(implicit transid: TransactionId) = {
+        complete(OK, List(user.namespace))
     }
 }
 

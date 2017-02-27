@@ -48,7 +48,6 @@ import whisk.core.entitlement.Privilege._
 import whisk.core.entitlement.Resource
 import whisk.core.entity._
 import whisk.core.entity.size._
-import whisk.core.iam.NamespaceProvider
 import whisk.core.loadBalancer.LoadBalancer
 import whisk.http.ErrorResponse
 import whisk.http.Messages
@@ -74,7 +73,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
     val systemId = Subject()
     val systemKey = AuthKey()
     val systemIdentity = Future.successful(Identity(systemId, EntityName(systemId.asString), systemKey, Privilege.ALL))
-    override lazy val entitlementProvider = new TestingEntitlementProvider(whiskConfig, loadBalancer, iam)
+    override lazy val entitlementProvider = new TestingEntitlementProvider(whiskConfig, loadBalancer)
 
     /** Meta API tests */
     behavior of "Meta API"
@@ -805,9 +804,8 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
 
     class TestingEntitlementProvider(
         config: WhiskConfig,
-        loadBalancer: LoadBalancer,
-        iam: NamespaceProvider)
-        extends EntitlementProvider(config, loadBalancer, iam) {
+        loadBalancer: LoadBalancer)
+        extends EntitlementProvider(config, loadBalancer) {
 
         protected[core] override def checkThrottles(user: Identity)(
             implicit transid: TransactionId): Future[Unit] = {

@@ -33,7 +33,6 @@ import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.controller.RejectRequest
 import whisk.core.entity._
-import whisk.core.iam.NamespaceProvider
 import whisk.core.loadBalancer.LoadBalancer
 import whisk.http.Messages._
 
@@ -61,7 +60,7 @@ protected[core] case class Resource(
 }
 
 protected[core] object EntitlementProvider {
-    val requiredProperties = WhiskConfig.consulServer ++ WhiskConfig.entitlementHost ++ Map(
+    val requiredProperties = WhiskConfig.consulServer ++ Map(
         WhiskConfig.actionInvokePerMinuteDefaultLimit -> null,
         WhiskConfig.actionInvokeConcurrentDefaultLimit -> null,
         WhiskConfig.triggerFirePerMinuteDefaultLimit -> null,
@@ -78,7 +77,7 @@ protected[core] object EntitlementProvider {
  * A trait that implements entitlements to resources. It performs checks for CRUD and Acivation requests.
  * This is where enforcement of activation quotas takes place, in additional to basic authorization.
  */
-protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBalancer: LoadBalancer, iam: NamespaceProvider)(
+protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBalancer: LoadBalancer)(
     implicit actorSystem: ActorSystem, logging: Logging) {
 
     private implicit val executionContext = actorSystem.dispatcher
@@ -221,23 +220,8 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
                 resource.collection.implicitRights(user, defaultNamespaces, right, resource) flatMap {
                     case true => Future.successful(true)
                     case false =>
-                        // currently allow subject to work across any of their namespaces
-                        // but this feature will be removed in future iterations, thereby removing
-                        // the iam entanglement with entitlement
-                        iam.namespaces(user.subject) flatMap {
-                            additionalNamespaces =>
-                                val newNamespacesToCheck = additionalNamespaces -- defaultNamespaces
-                                if (newNamespacesToCheck nonEmpty) {
-                                    logging.info(this, "checking additional namespace")
-                                    resource.collection.implicitRights(user, newNamespacesToCheck, right, resource) flatMap {
-                                        case true  => Future.successful(true)
-                                        case false => entitled(user.subject, right, resource)
-                                    }
-                                } else {
-                                    logging.info(this, "checking explicit grants")
-                                    entitled(user.subject, right, resource)
-                                }
-                        }
+                        logging.info(this, "checking explicit grants")
+                        entitled(user.subject, right, resource)
                 }
             }
         }.map { _.forall(identity) }
