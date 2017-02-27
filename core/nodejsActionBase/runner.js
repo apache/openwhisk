@@ -29,7 +29,6 @@ function NodeActionRunner(whisk) {
     // Use this ref inside closures etc.
     var thisRunner = this;
 
-    this.userScriptName = undefined;
     this.userScriptMain = undefined;
 
     // This structure is reset for every action invocation. It contains two fields:
@@ -44,12 +43,6 @@ function NodeActionRunner(whisk) {
     this.whisk = modWhisk(whisk, callback);
 
     this.init = function(message) {
-        // Determining a sensible name for the action.
-        var name = typeof message.name === 'string' ? message.name.trim() : '';
-        name = name !== '' ? name : 'Anonymous User Action';
-
-        this.userScriptName = name;
-
         function assertMainIsFunction() {
             if (typeof thisRunner.userScriptMain !== 'function') {
                 throw "Action entrypoint '" + message.main + "' is not a function.";
