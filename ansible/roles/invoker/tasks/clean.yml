@@ -19,8 +19,6 @@
         for C2 in $DOCKER_RUNNING; do docker-runc resume $C2; done
         TOTAL=$(($(echo $DOCKER_PAUSED | wc -w)+$(echo $DOCKER_RUNNING | wc -w)))
         echo "Handled $TOTAL remaining actions."
-  args:
-    executable: /bin/bash
   register: runc_output
   ignore_errors: True
   become: True
@@ -29,11 +27,11 @@
 
 - name: unpause remaining actions
   shell: "docker unpause $(docker ps -aq --filter status=paused --filter name=wsk)"
-  ignore_errors: True
+  failed_when: False
 
 - name: remove remaining actions
   shell: "docker rm -f $(docker ps -aq --filter name=wsk)"
-  ignore_errors: True
+  failed_when: False
 
 - name: remove invoker log directory
   file:
