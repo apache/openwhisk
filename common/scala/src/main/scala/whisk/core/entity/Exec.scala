@@ -74,42 +74,35 @@ sealed abstract class CodeExec[T <% SizeConversion](kind: String) extends Exec(k
     val pull = false
 
     // Whether the code is stored in a text-readable or binary format.
-    def binary: Boolean = false
+    // the binary bit may be read from the database but currently it is always computed
+    // when the "code" is moved to an attachment this may get changed to avoid recomputing
+    // the binary property
+    lazy val binary = {
+        code match {
+            case s: String => Exec.isBinaryCode(s)
+            case _         => false
+        }
+    }
 
     override def size = code.sizeInBytes
 }
 
-sealed abstract class NodeJSAbstractExec(kind: String) extends CodeExec[String](kind) {
-    val main: Option[String]
+protected[core] abstract class CodeExecAsString(kind: String) extends CodeExec[String](kind)
 
-    override val entryPoint = main
-    // the binary bit may be read from the database but currently it is always computed
-    // when the "code" is moved to an attachment this may get changed to avoid recomputing
-    // the binary property
-    override lazy val binary = Exec.isBinaryCode(code)
-}
+protected[core] case class NodeJSExec(code: String, override val entryPoint: Option[String]) extends CodeExecAsString(Exec.NODEJS)
+protected[core] case class NodeJS6Exec(code: String, override val entryPoint: Option[String]) extends CodeExecAsString(Exec.NODEJS6)
 
-protected[core] case class NodeJSExec(code: String, main: Option[String]) extends NodeJSAbstractExec(Exec.NODEJS)
-protected[core] case class NodeJS6Exec(code: String, main: Option[String]) extends NodeJSAbstractExec(Exec.NODEJS6)
+protected[core] case class SwiftExec(code: String, override val entryPoint: Option[String]) extends CodeExecAsString(Exec.SWIFT)
 
-sealed abstract class SwiftAbstractExec(kind: String) extends CodeExec[String](kind) {
-    val main: Option[String]
+protected[core] case class Swift3Exec(code: String, override val entryPoint: Option[String]) extends CodeExecAsString(Exec.SWIFT3)
 
-    override val entryPoint = main
-}
-
-protected[core] case class SwiftExec(code: String, main: Option[String]) extends SwiftAbstractExec(Exec.SWIFT)
-protected[core] case class Swift3Exec(code: String, main: Option[String]) extends SwiftAbstractExec(Exec.SWIFT3)
+protected[core] case class PythonExec(code: String, override val entryPoint: Option[String]) extends CodeExecAsString(Exec.PYTHON)
 
 protected[core] case class JavaExec(code: Attachment[String], main: String) extends CodeExec[Attachment[String]](Exec.JAVA) {
-    override val entryPoint: Option[String] = Some(main)
-    override val binary = true
+    override val entryPoint = Some(main)
+    override lazy val binary = true
     override val sentinelledLogs = false
     override def size = super.size + main.sizeInBytes
-}
-
-protected[core] case class PythonExec(code: String, main: Option[String]) extends CodeExec[String](Exec.PYTHON) {
-    override val entryPoint: Option[String] = main
 }
 
 /**
@@ -166,20 +159,12 @@ protected[core] object Exec
 
     override protected[core] implicit val serdes = new RootJsonFormat[Exec] {
         override def write(e: Exec) = e match {
-            case n: NodeJSAbstractExec =>
-                val base = Map("kind" -> JsString(n.kind), "code" -> JsString(n.code), "binary" -> JsBoolean(n.binary))
-                n.main.map(m => JsObject(base + ("main" -> JsString(m)))).getOrElse(JsObject(base))
-
-            case s: SwiftAbstractExec =>
-                val base = Map("kind" -> JsString(s.kind), "code" -> JsString(s.code), "binary" -> JsBoolean(s.binary))
-                s.main.map(m => JsObject(base + ("main" -> JsString(m)))).getOrElse(JsObject(base))
+            case c: CodeExecAsString =>
+                val base = Map("kind" -> JsString(c.kind), "code" -> JsString(c.code), "binary" -> JsBoolean(c.binary))
+                c.entryPoint.map(m => JsObject(base + ("main" -> JsString(m)))).getOrElse(JsObject(base))
 
             case j @ JavaExec(jar, main) =>
                 JsObject("kind" -> JsString(Exec.JAVA), "jar" -> attFmt[String].write(jar), "main" -> JsString(main), "binary" -> JsBoolean(j.binary))
-
-            case p @ PythonExec(code, main) =>
-                val base = Map("kind" -> JsString(Exec.PYTHON), "code" -> JsString(code), "binary" -> JsBoolean(p.binary))
-                main.map(m => JsObject(base + ("main" -> JsString(m)))).getOrElse(JsObject(base))
 
             case SequenceExec(comp) =>
                 JsObject("kind" -> JsString(Exec.SEQUENCE), "components" -> comp.map(_.qualifiedNameWithLeadingSlash).toJson)
