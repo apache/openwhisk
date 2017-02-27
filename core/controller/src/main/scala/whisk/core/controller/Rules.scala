@@ -35,15 +35,6 @@ import whisk.core.entity.types.EntityStore
 import whisk.http.ErrorResponse.terminate
 import whisk.http.Messages._
 
-/**
- * A singleton object which defines the properties that must be present in a configuration
- * in order to implement the rules API.
- */
-object WhiskRulesApi {
-    def requiredProperties = WhiskServices.requiredProperties ++
-        WhiskEntityStore.requiredProperties
-}
-
 /** A trait implementing the rules API */
 trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
     services: WhiskServices =>
