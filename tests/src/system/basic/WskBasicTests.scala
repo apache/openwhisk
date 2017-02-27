@@ -347,7 +347,7 @@ class WskBasicTests
             }
 
             wsk.action.invoke(name, blocking = true, expectedExitCode = 246)
-                 .stderr should include regex (""""error": "This error thrown on purpose by the action."""")
+                .stderr should include regex (""""error": "This error thrown on purpose by the action."""")
     }
 
     it should "create and invoke a blocking action resulting in an failed promise" in withAssetCleaner(wskprops) {
@@ -469,16 +469,16 @@ class WskBasicTests
             withActivation(wsk.activation, run) {
                 activation =>
                     activation.response.result shouldBe Some(dynamicParams.toJson)
-                    activation.duration shouldBe 0L         // shouldn't exist but CLI generates it
-                    activation.end shouldBe Instant.EPOCH   // shouldn't exist but CLI generates it
+                    activation.duration shouldBe 0L // shouldn't exist but CLI generates it
+                    activation.end shouldBe Instant.EPOCH // shouldn't exist but CLI generates it
             }
 
             val runWithNoParams = wsk.trigger.fire(name, Map())
             withActivation(wsk.activation, runWithNoParams) {
                 activation =>
                     activation.response.result shouldBe Some(JsObject())
-                    activation.duration shouldBe 0L         // shouldn't exist but CLI generates it
-                    activation.end shouldBe Instant.EPOCH   // shouldn't exist but CLI generates it
+                    activation.duration shouldBe 0L // shouldn't exist but CLI generates it
+                    activation.end shouldBe Instant.EPOCH // shouldn't exist but CLI generates it
             }
 
             wsk.trigger.list().stdout should include(name)
@@ -688,9 +688,9 @@ class WskBasicTests
 
     behavior of "Wsk Namespace CLI"
 
-    it should "list namespaces" in {
+    it should "return a list of exactly one namespace" in {
         wsk.namespace.list().
-            stdout should include regex ("@|guest")
+            stdout.lines should have size 2 // headline + namespace
     }
 
     it should "list entities in default namespace" in {
@@ -728,7 +728,7 @@ class WskBasicTests
                     wsk.activation.get(activation.activationId, fieldFilter = Some("name")).stdout should include(s"""$successMsg name\n"$name"""")
                     wsk.activation.get(activation.activationId, fieldFilter = Some("version")).stdout should include(s"""$successMsg version\n"0.0.1"""")
                     wsk.activation.get(activation.activationId, fieldFilter = Some("publish")).stdout should include(s"""$successMsg publish\nfalse""")
-                    wsk.activation.get(activation.activationId, fieldFilter = Some("subject")).stdout should include regex (s"""(?i)$successMsg subject\n$ns_regex_list""")
+                    wsk.activation.get(activation.activationId, fieldFilter = Some("subject")).stdout should include regex (s"""(?i)$successMsg subject\n""")
                     wsk.activation.get(activation.activationId, fieldFilter = Some("activationid")).stdout should include(s"""$successMsg activationid\n"${activation.activationId}""")
                     wsk.activation.get(activation.activationId, fieldFilter = Some("start")).stdout should include regex (s"""$successMsg start\n\\d""")
                     wsk.activation.get(activation.activationId, fieldFilter = Some("end")).stdout should include regex (s"""$successMsg end\n\\d""")

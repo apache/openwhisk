@@ -103,9 +103,6 @@ class WhiskConfig(
     val dbActivations = this(WhiskConfig.dbActivations)
     val dbPrefix = this(WhiskConfig.dbPrefix)
 
-    val entitlementHost = this(WhiskConfig.entitlementHostName) + ":" + this(WhiskConfig.entitlementHostPort)
-    val iamProviderHost = this(WhiskConfig.iamProviderHostName) + ":" + this(WhiskConfig.iamProviderHostPort)
-
     val edgeDockerEndpoint = this(WhiskConfig.edgeDockerEndpoint)
     val kafkaDockerEndpoint = this(WhiskConfig.kafkaDockerEndpoint)
     val mainDockerEndpoint = this(WhiskConfig.mainDockerEndpoint)
@@ -259,25 +256,12 @@ object WhiskConfig {
     val consulPort = "consul.host.port4"
     val invokerHostsList = "invoker.hosts"
 
-    private val entitlementHostName = "entitlement.host"
-    private val entitlementHostPort = "entitlement.host.port"
-
-    // using same values as entitlement service
-    private val iamProviderHostName = "entitlement.host"
-    private val iamProviderHostPort = "entitlement.host.port"
-
     val edgeHost = Map(edgeHostName -> null, edgeHostApiPort -> null)
     val consulServer = Map(consulServerHost -> null, consulPort -> null)
     val invokerHosts = Map(invokerHostsList -> null)
     val kafkaHost = Map(kafkaHostName -> null, kafkaHostPort -> null)
     val controllerHost = Map(controllerHostName -> null, controllerHostPort -> null)
     val loadbalancerHost = Map(loadbalancerHostName -> null, loadbalancerHostPort -> null)
-
-    // use empty string as default for entitlement/iam host as this is an optional service
-    // and the way to prevent the configuration checker from failing is to provide a value;
-    // an empty string is permitted but null is not
-    val entitlementHost = Map(entitlementHostName -> "", entitlementHostPort -> "")
-    val iamProviderHost = Map(iamProviderHostName -> "", iamProviderHostPort -> "")
 
     val actionInvokePerMinuteDefaultLimit = "defaultLimits.actions.invokes.perMinute"
     val actionInvokeConcurrentDefaultLimit = "defaultLimits.actions.invokes.concurrent"

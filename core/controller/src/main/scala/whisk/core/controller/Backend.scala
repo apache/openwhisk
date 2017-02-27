@@ -26,7 +26,6 @@ import whisk.common.Logging
 import whisk.core.WhiskConfig
 import whisk.core.entitlement._
 import whisk.core.entity.ActivationId.ActivationIdGenerator
-import whisk.core.iam.NamespaceProvider
 import whisk.core.loadBalancer.{ LoadBalancer, LoadBalancerService }
 
 object WhiskServices {
@@ -38,23 +37,8 @@ object WhiskServices {
     /**
      * Creates instance of an entitlement service.
      */
-    def entitlementService(config: WhiskConfig, loadBalancer: LoadBalancer, iam: NamespaceProvider, timeout: FiniteDuration = 5 seconds)(
-        implicit as: ActorSystem, logging: Logging) = {
-        // remote entitlement service requires a host:port definition. If not given,
-        // i.e., the value equals ":" or ":xxxx", use a local entitlement flow.
-        if (config.entitlementHost.startsWith(":")) {
-            new LocalEntitlementProvider(config, loadBalancer, iam)
-        } else {
-            new RemoteEntitlementService(config, loadBalancer, iam, timeout)
-        }
-    }
-
-    /**
-     * Creates instance of an identity provider.
-     */
-    def iamProvider(config: WhiskConfig, timeout: FiniteDuration = 5 seconds)(implicit as: ActorSystem, logging: Logging) = {
-        new NamespaceProvider(config, timeout)
-    }
+    def entitlementService(config: WhiskConfig, loadBalancer: LoadBalancer, timeout: FiniteDuration = 5 seconds)(
+        implicit as: ActorSystem, logging: Logging) = new LocalEntitlementProvider(config, loadBalancer)
 
     /**
      * Creates an instance of a Load Balancer component.
@@ -75,9 +59,6 @@ trait WhiskServices {
 
     /** An entitlement service to check access rights. */
     protected val entitlementProvider: EntitlementProvider
-
-    /** An identity provider. */
-    protected val iam: NamespaceProvider
 
     /** A generator for new activation ids. */
     protected val activationIdFactory: ActivationIdGenerator
