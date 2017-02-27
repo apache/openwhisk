@@ -144,32 +144,18 @@ case class WhiskAction(
      * explicitly inside containers.
      */
     def containerInitializer: Option[JsObject] = {
-        def getNodeInitializer(code: String, binary: Boolean, main: Option[String]) = {
-            JsObject(
-                "name" -> name.toJson,
-                "binary" -> JsBoolean(binary),
-                "main" -> JsString(main.getOrElse("main")),
-                "code" -> JsString(code))
-        }
-
         exec match {
-            case n: NodeJSAbstractExec =>
-                Some(getNodeInitializer(n.code, n.binary, n.main))
-            case s: SwiftAbstractExec =>
+            case c: CodeExecAsString =>
                 Some(JsObject(
                     "name" -> name.toJson,
-                    "code" -> s.code.toJson,
-                    "main" -> s.main.getOrElse("main").toJson))
+                    "binary" -> c.binary.toJson,
+                    "code" -> c.code.toJson,
+                    "main" -> c.entryPoint.getOrElse("main").toJson))
             case JavaExec(jar, main) =>
                 Some(JsObject(
                     "name" -> name.toJson,
                     "jar" -> jar.toJson,
                     "main" -> main.toJson))
-            case PythonExec(code, main) =>
-                Some(JsObject(
-                    "name" -> name.toJson,
-                    "code" -> code.toJson,
-                    "main" -> main.getOrElse("main").toJson))
             case b @ BlackBoxExec(image, code) =>
                 Some(code map {
                     c => JsObject("code" -> c.toJson, "binary" -> JsBoolean(b.binary))

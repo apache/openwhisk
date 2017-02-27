@@ -31,16 +31,14 @@ import scala.sys.process.stringToProcess
 import scala.util.Random
 import scala.util.Try
 
+import org.apache.commons.lang3.StringUtils
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
-import akka.actor.ActorSystem
 
+import akka.actor.ActorSystem
 import common.WhiskProperties
-import spray.json.JsObject
-import spray.json.JsString
-import spray.json.JsValue
-import spray.json.pimpString
-import org.apache.commons.lang3.StringUtils
+import spray.json._
+import whisk.core.entity.Exec
 
 /**
  * For testing convenience, this interface abstracts away the REST calls to a
@@ -54,7 +52,13 @@ trait ActionContainer {
 trait ActionProxyContainerTestUtils extends FlatSpec with Matchers {
     import ActionContainer.{ filterSentinel, sentinel }
 
-    def initPayload(code: String, main: String = "main") = JsObject("value" -> JsObject("code" -> JsString(code), "main" -> JsString(main)))
+    def initPayload(code: String, main: String = "main") = {
+        JsObject("value" -> JsObject(
+            "code" -> JsString(code),
+            "main" -> JsString(main),
+            "binary" -> JsBoolean(Exec.isBinaryCode(code))))
+    }
+
     def runPayload(args: JsValue, other: Option[JsObject] = None) = {
         JsObject(Map("value" -> args) ++ (other map { _.fields } getOrElse Map()))
     }
@@ -155,13 +159,12 @@ object ActionContainer {
 
     private def syncPost(host: String, port: Int, endPoint: String, content: JsValue)(
         implicit actorSystem: ActorSystem): (Int, Option[JsObject]) = {
-        import whisk.core.container.AkkaHttpUtils
-
-        import akka.http.scaladsl.model._
-        import akka.http.scaladsl.marshalling._
-        import akka.http.scaladsl.unmarshalling._
         import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+        import akka.http.scaladsl.marshalling._
+        import akka.http.scaladsl.model._
+        import akka.http.scaladsl.unmarshalling._
         import akka.stream.ActorMaterializer
+        import whisk.core.container.AkkaHttpUtils
 
         implicit val materializer = ActorMaterializer()
 

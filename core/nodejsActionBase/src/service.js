@@ -68,7 +68,7 @@ function NodeActionService(config, logger) {
 
     /** Returns a promise of a response to the /init invocation.
      *
-     *  req.body = { main: String, code: String, name: String }
+     *  req.body = { main: String, code: String, binary: Boolean }
      */
     this.initCode = function initCode(req) {
         if (status === Status.ready) {

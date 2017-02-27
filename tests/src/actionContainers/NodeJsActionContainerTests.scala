@@ -18,8 +18,6 @@ package actionContainers
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
-import whisk.core.entity.{ NodeJSAbstractExec, NodeJSExec }
-
 import ActionContainer.withContainer
 import ResourceHelpers.ZipBuilder
 
@@ -36,18 +34,6 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
     }
 
     def withNodeJsContainer(code: ActionContainer => Unit) = withActionContainer()(code)
-
-    def exec(code: String): NodeJSAbstractExec = NodeJSExec(code, None)
-
-    override def initPayload(code: String, main: String = "main") = {
-        val e = exec(code)
-        JsObject(
-            "value" -> JsObject(
-                "name" -> JsString("dummyAction"),
-                "code" -> JsString(e.code),
-                "binary" -> JsBoolean(e.binary),
-                "main" -> JsString(main)))
-    }
 
     behavior of nodejsContainerImageName
 

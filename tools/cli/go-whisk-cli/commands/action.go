@@ -21,7 +21,6 @@ import (
   "errors"
   "fmt"
   "path/filepath"
-  "strings"
 
   "../../go-whisk/whisk"
   "../wski18n"
@@ -523,10 +522,10 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, error) {
       }
     }
 
-    // For zip-encoded NodeJS action, the code needs to be base64-encoded.
+    // For zip-encoded actions, the code needs to be base64-encoded.
     // We reach this point if the kind has already be determined. Since the extension is not js,
     // this means the kind was specified explicitly.
-    if ext == ".zip" && (strings.HasPrefix(action.Exec.Kind, "nodejs") || action.Exec.Kind == "blackbox") {
+    if ext == ".zip" {
       code = base64.StdEncoding.EncodeToString([]byte(code))
       action.Exec.Code = &code
     }
