@@ -35,10 +35,6 @@ import whisk.core.entity.types.EntityStore
 import whisk.http.ErrorResponse.terminate
 import whisk.http.Messages
 
-object WhiskPackagesApi {
-    def requiredProperties = WhiskEntityStore.requiredProperties
-}
-
 trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
     services: WhiskServices =>
 

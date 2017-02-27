@@ -34,22 +34,11 @@ import whisk.core.entity.Identity
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskActivation
 import whisk.core.entity.WhiskEntityQueries.listEntitiesInNamespace
-import whisk.core.entity.WhiskEntityStore
 import whisk.core.entity.WhiskPackage
 import whisk.core.entity.WhiskRule
 import whisk.core.entity.WhiskTrigger
 import whisk.core.entity.types.EntityStore
 import whisk.http.ErrorResponse.terminate
-
-object WhiskNamespacesApi {
-    def requiredProperties = WhiskEntityStore.requiredProperties
-
-    /**
-     * A top level namespace sentinel, that is never a valid user namespace, to grant
-     * admin rights to managing this entire collection.
-     */
-    protected[controller] val rootNamespace = EntityPath(EntityPath.PATHSEP)
-}
 
 trait WhiskNamespacesApi
     extends Directives

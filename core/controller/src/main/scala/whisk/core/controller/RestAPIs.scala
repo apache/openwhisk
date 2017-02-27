@@ -83,12 +83,12 @@ abstract protected[controller] class RestAPIVersion(
 protected[controller] object RestAPIVersion_v1 {
     def requiredProperties =
         WhiskConfig.whiskVersion ++
-            WhiskServices.requiredProperties ++
+            WhiskAuthStore.requiredProperties ++
+            WhiskEntityStore.requiredProperties ++
+            WhiskActivationStore.requiredProperties ++
+            WhiskConfig.consulServer ++
+            EntitlementProvider.requiredProperties ++
             WhiskActionsApi.requiredProperties ++
-            WhiskTriggersApi.requiredProperties ++
-            WhiskRulesApi.requiredProperties ++
-            WhiskActivationsApi.requiredProperties ++
-            WhiskPackagesApi.requiredProperties ++
             Authenticate.requiredProperties ++
             Collection.requiredProperties
 }
@@ -160,9 +160,9 @@ protected[controller] class RestAPIVersion_v1(
     protected implicit val activationStore = WhiskActivationStore.datastore(config)
 
     // initialize backend services
-    protected implicit val consulServer = WhiskServices.consulServer(config)
-    protected implicit val loadBalancer = WhiskServices.makeLoadBalancerComponent(config)
-    protected implicit val entitlementService = WhiskServices.entitlementService(config, loadBalancer)
+    protected implicit val consulServer = config.consulServer
+    protected implicit val loadBalancer = new LoadBalancerService(config)
+    protected implicit val entitlementService = new LocalEntitlementProvider(config, loadBalancer)
     protected implicit val activationId = new ActivationIdGenerator {}
 
     // register collections and set verbosities on datastores and backend services

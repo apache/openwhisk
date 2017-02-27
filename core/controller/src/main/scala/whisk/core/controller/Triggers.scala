@@ -52,7 +52,6 @@ import whisk.core.entity.SemVer
 import whisk.core.entity.Status
 import whisk.core.entity.TriggerLimits
 import whisk.core.entity.WhiskActivation
-import whisk.core.entity.WhiskEntityStore
 import whisk.core.entity.WhiskTrigger
 import whisk.core.entity.WhiskTriggerPut
 import whisk.core.entity.types.ActivationStore
@@ -62,15 +61,6 @@ import spray.httpx.UnsuccessfulResponseException
 import spray.http.StatusCodes
 import whisk.core.entity.Identity
 import whisk.core.entity.FullyQualifiedEntityName
-
-/**
- * A singleton object which defines the properties that must be present in a configuration
- * in order to implement the triggers API.
- */
-object WhiskTriggersApi {
-    def requiredProperties = WhiskServices.requiredProperties ++
-        WhiskEntityStore.requiredProperties
-}
 
 /** A trait implementing the triggers API. */
 trait WhiskTriggersApi extends WhiskCollectionAPI {
