@@ -339,33 +339,15 @@ class WskBasicTests
             }
     }
 
-    /**
-     * Tests creating an nodejs action that throws a whisk.error() response. The error message thrown by the
-     * whisk.error() should be returned.
-     */
-    it should "create and invoke a blocking action resulting in a whisk.error response" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            // one returns whisk.error the other just calls whisk.error
-            val names = Seq("applicationError1", "applicationError2")
-            names foreach { name =>
-                assetHelper.withCleaner(wsk.action, name) {
-                    (action, _) => action.create(name, Some(TestUtils.getTestActionFilename(s"$name.js")))
-                }
-
-                wsk.action.invoke(name, blocking = true, expectedExitCode = 246)
-                    .stderr should include regex (""""error": "This error thrown on purpose by the action."""")
-            }
-    }
-
     it should "create and invoke a blocking action resulting in an application error response" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val name = "applicationError3"
+            val name = "applicationError"
             assetHelper.withCleaner(wsk.action, name) {
-                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("applicationError3.js")))
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("applicationError.js")))
             }
 
-            wsk.action.invoke(name, blocking = true, result = true, expectedExitCode = 246)
-              .stderr.parseJson.asJsObject shouldBe JsObject("error" -> JsBoolean(true))
+            wsk.action.invoke(name, blocking = true, expectedExitCode = 246)
+                 .stderr should include regex (""""error": "This error thrown on purpose by the action."""")
     }
 
     it should "create and invoke a blocking action resulting in an failed promise" in withAssetCleaner(wskprops) {

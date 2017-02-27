@@ -82,11 +82,6 @@ class SequenceMigrationTests
         }
     }
 
-    it should "invoke an old-style sequence (original pipe.js) and get the result" in {
-        val seqName = "seq_echo_word_count"
-        testOldStyleSequence(seqName, s"$seqName.json")
-    }
-
     it should "invoke an old-style (kind sequence) sequence and get the result" in {
         val seqName = "seq_type_2"
         testOldStyleSequence(seqName, s"$seqName.json")
