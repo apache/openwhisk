@@ -16,14 +16,10 @@
 
 package whisk.core.controller
 
-import scala.concurrent.Future
 import scala.language.postfixOps
-import scala.util.Failure
-import scala.util.Success
 import scala.util.Try
 
 import shapeless.HNil
-import spray.http.StatusCodes.InternalServerError
 import spray.http.StatusCodes.RequestEntityTooLarge
 import spray.httpx.SprayJsonSupport._
 import spray.routing.Directive0
@@ -120,31 +116,10 @@ trait WhiskCollectionAPI
                     // produce all entities in the requested namespace UNLESS the subject is
                     // entitled to them which for now means they own the namespace. If the
                     // subject does not own the namespace, then exclude packages that are private
-                    val checkIfSubjectOwnsResource = if (listRequiresPrivateEntityFilter) {
-                        if (resource.namespace.root.asString == user.subject.asString) {
-                            // bypass iam if namespace is owned by subject
-                            // don't need to exclude private packages owned by subject
-                            Future.successful(false)
-                        } else {
-                            iam.namespaces(user.subject) map {
-                                // don't need to exclude private packages in any namespace owned by subject
-                                _.contains(resource.namespace.root.asString) == false
-                            }
-                        }
-                    } else Future.successful(false)
+                    val excludePrivate = listRequiresPrivateEntityFilter && resource.namespace.root != user.namespace
+                    logging.info(this, s"[LIST] exclude private entities: required == $excludePrivate")
+                    list(user, resource.namespace, excludePrivate)
 
-                    onComplete(checkIfSubjectOwnsResource) {
-                        case Success(excludePrivate) =>
-                            logging.info(this, s"[LIST] exclude private entities: required == $excludePrivate")
-                            list(user, resource.namespace, excludePrivate)
-                        case Failure(r: RejectRequest) =>
-                            logging.info(this, s"[LIST] namespaces lookup failed: ${r.message}")
-                            terminate(r.code, r.message)
-                        case Failure(t) =>
-                            logging.error(this, s"[LIST] namespaces lookup failed: ${t.getMessage}")
-                            terminate(InternalServerError)
-
-                    }
                 case _ => reject
             }
         }
