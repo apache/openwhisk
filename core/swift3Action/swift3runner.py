@@ -21,30 +21,30 @@ import json
 sys.path.append('../actionProxy')
 from actionproxy import ActionRunner, main, setRunner
 
-SRC_EPILOGUE_FILE = "./epilogue.swift"
-DEST_SCRIPT_FILE = "/swift3Action/spm-build/main.swift"
-DEST_SCRIPT_DIR = "/swift3Action/spm-build"
-DEST_BIN_FILE = "/swift3Action/spm-build/.build/release/Action"
+SRC_EPILOGUE_FILE = './epilogue.swift'
+DEST_SCRIPT_FILE = '/swift3Action/spm-build/main.swift'
+DEST_SCRIPT_DIR = '/swift3Action/spm-build'
+DEST_BIN_FILE = '/swift3Action/spm-build/.build/release/Action'
 
-BUILD_PROCESS = [ "./swiftbuildandlink.sh"]
+BUILD_PROCESS = [ './swiftbuildandlink.sh' ]
 
 class Swift3Runner(ActionRunner):
 
     def __init__(self):
         ActionRunner.__init__(self, DEST_SCRIPT_FILE, DEST_BIN_FILE)
 
-    def epilogue(self, fp, init_message):
-        if "main" in init_message:
-            main_function = init_message["main"]
+    def epilogue(self, init_message):
+        if 'main' in init_message:
+            main_function = init_message['main']
         else:
-            main_function = "main"
+            main_function = 'main'
 
-        with codecs.open(SRC_EPILOGUE_FILE, "r", "utf-8") as ep:
-            fp.write(ep.read())
+        with codecs.open(DEST_SCRIPT_FILE, 'a', 'utf-8') as fp:
+            with codecs.open(SRC_EPILOGUE_FILE, 'r', 'utf-8') as ep:
+                fp.write(ep.read())
+            fp.write('_run_main(mainFunction: %s)\n' % main_function)
 
-        fp.write("_run_main(mainFunction:%s)\n" % main_function)
-
-    def build(self):
+    def build(self, init_message):
         p = subprocess.Popen(BUILD_PROCESS, cwd=DEST_SCRIPT_DIR)
         (o, e) = p.communicate()
 
@@ -62,6 +62,6 @@ class Swift3Runner(ActionRunner):
         env['WHISK_INPUT'] = json.dumps(args)
         return env
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     setRunner(Swift3Runner())
     main()

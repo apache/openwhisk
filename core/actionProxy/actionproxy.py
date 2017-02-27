@@ -32,7 +32,7 @@ class ActionRunner:
 
     # initializes the runner
     # @param source the path where the source code will be located (if any)
-    # @param binary the path where the binary wil be located (may be the same as source code path)
+    # @param binary the path where the binary will be located (may be the same as source code path)
     def __init__(self, source = None, binary = None):
         defaultBinary = '/action/exec'
         self.source = source if source else defaultBinary
@@ -49,43 +49,32 @@ class ActionRunner:
             if 'code' in message:
                 binary = message['binary'] if 'binary' in message else False
                 if not binary:
-                    with codecs.open(self.source, 'w', 'utf-8') as fp:
-                        fp.write(message['code'])
-                        # write source epilogue if any
-                        # the message is passed along as it may contain other
-                        # fields relevant to a specific container.
-                        self.epilogue(fp, message)
-                    return True
+                    return self.initCodeFromString(message)
                 else:
-                    try:
-                        bytes = base64.b64decode(message['code'])
-                        bytes = io.BytesIO(bytes)
-                        archive = zipfile.ZipFile(bytes)
-                        archive.extractall(os.path.dirname(self.binary))
-                        archive.close()
-                        return True
-                    except Exception as e:
-                        print('err',str(e))
-                        return False
+                    return self.initCodeFromZip(message)
             else:
                 return False
 
         if prep():
             try:
+                # write source epilogue if any
+                # the message is passed along as it may contain other
+                # fields relevant to a specific container.
+                self.epilogue(message)
+
                 # build the source
-                self.build()
+                self.build(message)
             except Exception:
                 None  # do nothing, verify will signal failure if binary not executable
         # verify the binary exists and is executable
         return self.verify()
 
     # optionally appends source to the loaded code during <init>
-    # @param fp the file stream writer
-    def epilogue(self, fp, init_arguments):
+    def epilogue(self, init_arguments):
         return
 
     # optionally builds the source code loaded during <init> into an executable
-    def build(self):
+    def build(self, init_arguments):
         return
 
     # @return True iff binary exists and is executable, False otherwise
@@ -145,6 +134,25 @@ class ActionRunner:
                 return error(last_line)
         except Exception:
             return error(last_line)
+
+    # initialize code from inlined string
+    def initCodeFromString(self, message):
+        with codecs.open(self.source, 'w', 'utf-8') as fp:
+            fp.write(message['code'])
+        return True
+
+    # initialize code from base64 encoded archive
+    def initCodeFromZip(self, message):
+        try:
+            bytes = base64.b64decode(message['code'])
+            bytes = io.BytesIO(bytes)
+            archive = zipfile.ZipFile(bytes)
+            archive.extractall(os.path.dirname(self.source))
+            archive.close()
+            return True
+        except Exception as e:
+            print('err',str(e))
+            return False
 
 proxy = flask.Flask(__name__)
 proxy.debug = False
