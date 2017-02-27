@@ -64,6 +64,18 @@ class CLIPythonTests
             }
     }
 
+    it should "invoke an action from a zip file with a non-default entry point" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "pythonZipWithNonDefaultEntryPoint"
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("python.zip")), main = Some("niam"), kind = Some("python"))
+            }
+
+            withActivation(wsk.activation, wsk.action.invoke(name, Map("name" -> "Prince".toJson))) {
+                _.response.result.get shouldBe JsObject("greeting" -> JsString("Hello Prince!"))
+            }
+    }
+
     it should "invoke an action and confirm expected environment is defined" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "stdenv"

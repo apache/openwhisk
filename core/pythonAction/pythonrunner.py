@@ -26,20 +26,37 @@ import traceback
 class PythonRunner(ActionRunner):
 
     def __init__(self):
-        ActionRunner.__init__(self)
+        ActionRunner.__init__(self, '/action/__main__.py')
         self.fn = None
-        self.mainFn = "main"
+        self.mainFn = 'main'
 
-    def init(self, message):
-        if 'code' in message:
+    def initCodeFromString(self, message):
+        # do nothing, defer to build step
+        return True
+
+    def build(self, message):
+        binary = message['binary'] if 'binary' in message else False
+
+        if not binary:
+            code = message['code']
+            filename = 'action'
+        elif os.path.isfile(self.source):
+            with codecs.open(self.source, 'r', 'utf-8') as m:
+                code = m.read()
+            filename = '__main__.py'
+            sys.path.insert(0, os.path.dirname(self.source))
+        else:
+            sys.stderr.write('Zip file does not include "__main__.py".\n')
+            return False
+
+        try:
+            self.fn = compile(code, filename = filename, mode = 'exec')
             if 'main' in message:
-                self.mainFn = message["main"]
-
-            try:
-                self.fn = compile(message["code"], filename = 'action', mode = 'exec')
-            except Exception:
-                traceback.print_exc(file = sys.stderr, limit = 0)
-        return self.verify()
+                self.mainFn = message['main']
+            return True
+        except Exception:
+            traceback.print_exc(file = sys.stderr, limit = 0)
+            return False
 
     def verify(self):
         return self.fn is not None
@@ -52,7 +69,7 @@ class PythonRunner(ActionRunner):
             os.environ = env
             namespace['param'] = args
             exec(self.fn, namespace)
-            exec("fun = %s(param)" % self.mainFn, namespace)
+            exec('fun = %s(param)' % self.mainFn, namespace)
             result = namespace['fun']
         except Exception:
             traceback.print_exc(file = sys.stderr)
@@ -62,6 +79,6 @@ class PythonRunner(ActionRunner):
         else:
             return (502, { 'error': 'The action did not return a dictionary.'})
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     setRunner(PythonRunner())
     main()
