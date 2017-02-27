@@ -472,8 +472,8 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, error) {
       action.Exec.Kind = "swift:default"
     } else if flags.action.kind == "nodejs" {
       action.Exec.Kind = "nodejs"
-    } else if flags.action.kind == "swift" {
-      action.Exec.Kind = "swift"
+    } else if flags.action.kind == "python" {
+      action.Exec.Kind = "python"
     } else if flags.action.docker {
       action.Exec.Kind = "blackbox"
       if ext != ".zip" {

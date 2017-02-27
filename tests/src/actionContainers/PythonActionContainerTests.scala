@@ -20,6 +20,8 @@ import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
 import ActionContainer.withContainer
+import ResourceHelpers.ZipBuilder
+
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import common.WskActorSystem
@@ -77,6 +79,59 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
             val (_, runRes) = c.run(runPayload(JsObject()))
             runRes.get.fields.get("result") shouldBe Some(JsString("it works"))
         }
+    }
+
+    it should "support zip-encoded action using non-default entry points" in {
+        val srcs = Seq(
+            Seq("__main__.py") -> """
+                |from echo import echo
+                |def niam(args):
+                |    return echo(args)
+            """.stripMargin,
+            Seq("echo.py") -> """
+                |def echo(args):
+                |  return { "echo": args }
+            """.stripMargin)
+
+        val code = ZipBuilder.mkBase64Zip(srcs)
+
+        val (out, err) = withActionContainer() { c =>
+            val (initCode, initRes) = c.init(initPayload(code, main = "niam"))
+            initCode should be(200)
+
+            val args = JsObject("msg" -> JsString("it works"))
+            val (runCode, runRes) = c.run(runPayload(args))
+
+            runCode should be(200)
+            runRes.get.fields.get("echo") shouldBe Some(args)
+        }
+
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe empty
+                e shouldBe empty
+        })
+    }
+
+    it should "report error if zip-encoded action does not include required file" in {
+        val srcs = Seq(
+            Seq("echo.py") -> """
+                |def echo(args):
+                |  return { "echo": args }
+            """.stripMargin)
+
+        val code = ZipBuilder.mkBase64Zip(srcs)
+
+        val (out, err) = withActionContainer() { c =>
+            val (initCode, initRes) = c.init(initPayload(code, main = "echo"))
+            initCode should be(502)
+        }
+
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe empty
+                e should include("Zip file does not include")
+        })
     }
 
     it should "handle unicode in source, input params, logs, and result" in {
@@ -140,9 +195,6 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
             val (initCode, res) = c.init(initPayload(code))
             // init checks whether compilation was successful, so return 502
             initCode should be(502)
-
-            val (runCode, runRes) = c.run(runPayload(JsObject("basic" -> JsString("forever"))))
-            runCode should be(502)
         }
 
         checkStreams(out, err, {

@@ -162,9 +162,6 @@ class SwiftActionContainerTests extends BasicActionRunnerTests with WskActorSyst
 
             val (initCode, _) = c.init(initPayload(code))
             initCode should not be (200)
-
-            val (runCode, runRes) = c.run(runPayload(JsObject("basic" -> JsString("forever"))))
-            runCode should be(502)
         }
 
         checkStreams(out, err, {
