@@ -382,7 +382,8 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, error) {
   action := new(whisk.Action)
   action.Name = qName.entityName
   action.Namespace = qName.namespace
-  action.Limits = getLimits()
+  action.Limits = getLimits(cmd.LocalFlags().Changed("memory"), cmd.LocalFlags().Changed("logsize"),
+    gcmd.LocalFlags().Changed("timeout"))
 
   if !flags.action.copy {
     whisk.Debug(whisk.DbgInfo, "Parsing parameters: %#v\n", flags.common.param)
@@ -536,26 +537,23 @@ func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, error) {
   return action, nil
 }
 
-func getLimits() (*whisk.Limits) {
+func getLimits(memorySet bool, logSizeSet bool, timeoutSet bool) (*whisk.Limits) {
   var limits *whisk.Limits
 
-  if flags.action.memory != MEMORY_LIMIT || flags.action.timeout != TIMEOUT_LIMIT ||
-    flags.action.logsize != LOGSIZE_LIMIT {
+  if memorySet || logSizeSet || timeoutSet {
     limits = new(whisk.Limits)
 
-    if flags.action.memory != MEMORY_LIMIT {
+    if memorySet {
       limits.Memory = &flags.action.memory
     }
 
-    if flags.action.timeout != TIMEOUT_LIMIT {
-      limits.Timeout = &flags.action.timeout
-    }
-
-    if flags.action.logsize != LOGSIZE_LIMIT {
+    if logSizeSet {
       limits.Logsize = &flags.action.logsize
     }
 
-    whisk.Debug(whisk.DbgInfo, "Action limits: %+v\n", limits)
+    if timeoutSet {
+      limits.Timeout = &flags.action.timeout
+    }
   }
 
   return limits
