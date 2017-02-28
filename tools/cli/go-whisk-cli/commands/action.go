@@ -21,6 +21,7 @@ import (
   "errors"
   "fmt"
   "path/filepath"
+  "io"
 
   "../../go-whisk/whisk"
   "../wski18n"
@@ -128,7 +129,6 @@ var actionInvokeCmd = &cobra.Command{
   RunE: func(cmd *cobra.Command, args []string) error {
     var err error
     var parameters interface{}
-    var terminate bool
 
     if whiskErr := checkArgs(args, 1, 1, "Action invoke", wski18n.T("An action name is required.")); whiskErr != nil {
       return whiskErr
@@ -160,48 +160,70 @@ var actionInvokeCmd = &cobra.Command{
 
     }
 
-    outputStream := color.Output
-
     res, _, err := client.Actions.Invoke(qName.entityName, parameters, flags.common.blocking, flags.action.result)
-    if err != nil {
 
-      // Return the error if it is a WskError that is not specified as an application error or blocking timeout, or
-      // return the error if it is not a WskError. Otherwise, do not return the error yet as information must be
-      // displayed to the user via standard error.
-      if terminate = isFatalError(err); terminate {
-        whisk.Debug(whisk.DbgError, "client.Actions.Invoke(%s, %s, %t) error: %s\n", qName.entityName, parameters,
-          flags.common.blocking, err)
-        errMsg := wski18n.T("Unable to invoke action '{{.name}}': {{.err}}",
-          map[string]interface{}{"name": qName.entityName, "err": err})
-        whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-          whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
-        return whiskErr
-      } else {
-        outputStream = colorable.NewColorableStderr()
-      }
-    }
-
-    if flags.common.blocking && flags.action.result {
-        printJSON(res, outputStream)
+    // Handle response whether it is an error, or not
+    if err == nil {
+      printInvocationMsg(qName.namespace, qName.entityName, getValueFromJSONResponse("activationId", res), res,
+        color.Output)
     } else {
-      activationID := getValueFromJSONResponse("activationId", res)
+      if !flags.common.blocking {
+        return handleInvocationError(err, qName.entityName, parameters)
+      } else {
 
-      fmt.Fprintf(color.Output,
-        wski18n.T("{{.ok}} invoked /{{.namespace}}/{{.name}} with id {{.id}}\n",
-          map[string]interface{} {
-            "ok": color.GreenString("ok:"),
-            "namespace": boldString(qName.namespace),
-            "name": boldString(qName.entityName),
-            "id": boldString(activationID),
-          }))
-
-      if flags.common.blocking {
-        printJSON(res, outputStream)
+        // Handle blocking timeouts, application errors, and successful invocations
+        if isBlockingTimeout(err) {
+          printBlockingTimeoutMsg(qName.entityName, qName.namespace, getValueFromJSONResponse("activationId", res))
+        } else if isApplicationError(err) {
+          printInvocationMsg(qName.namespace, qName.entityName, getValueFromJSONResponse("activationId", res), res,
+            colorable.NewColorableStderr())
+        } else {
+          return handleInvocationError(err, qName.entityName, parameters)
+        }
       }
     }
 
     return err
   },
+}
+
+func handleInvocationError(err error, entityName string, parameters interface{}) (error) {
+  whisk.Debug(whisk.DbgError, "client.Actions.Invoke(%s, %s, %t) error: %s\n", entityName, parameters,
+    flags.common.blocking, err)
+  errMsg := wski18n.T("Unable to invoke action '{{.name}}': {{.err}}",
+    map[string]interface{}{"name": entityName, "err": err})
+  whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+    whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+  return whiskErr
+}
+
+func printBlockingTimeoutMsg(namespace string, entityName string, activationID interface{}) {
+  fmt.Fprintf(colorable.NewColorableStderr(),
+    wski18n.T("{{.ok}} invoked /{{.namespace}}/{{.name}} with id {{.id}}, but the request has yet to finish\n",
+    map[string]interface{} {
+      "ok": color.GreenString("ok:"),
+      "namespace": boldString(namespace),
+      "name": boldString(entityName),
+      "id": boldString(activationID),
+    }))
+}
+
+func printInvocationMsg(namespace string, entityName string, activationID interface{}, response map[string]interface {},
+  outputStream io.Writer) {
+  if !flags.action.result {
+    fmt.Fprintf(outputStream,
+      wski18n.T("{{.ok}} invoked /{{.namespace}}/{{.name}} with id {{.id}}\n",
+        map[string]interface{} {
+          "ok": color.GreenString("ok:"),
+          "namespace": boldString(namespace),
+          "name": boldString(entityName),
+          "id": boldString(activationID),
+        }))
+  }
+
+  if flags.common.blocking {
+    printJSON(response, outputStream)
+  }
 }
 
 var actionGetCmd = &cobra.Command{

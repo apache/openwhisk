@@ -929,7 +929,6 @@ func min (a int, b int) int {
     return b
 }
 
-<<<<<<< 1ed1e00b3c20b0f0fb16afe355e17e583bdb8d12
 func readProps(path string) (map[string]string, error) {
 
     props := map[string]string{}
@@ -1010,19 +1009,26 @@ func getSpaceGuid() (string, error) {
     return "", werr
 }
 
-func isFatalError(err error) (bool) {
-    var terminate bool
+func isBlockingTimeout(err error) (bool) {
+    var blockingTimeout bool
 
-    terminate = true
     whiskErr, isWhiskErr := err.(*whisk.WskError)
 
-    if isWhiskErr {
-        if whiskErr.ApplicationError {
-            terminate = false
-        } else if whiskErr.TimedOut {
-            terminate = false
-        }
+    if isWhiskErr && whiskErr.TimedOut {
+        blockingTimeout = true
     }
 
-    return terminate
+    return blockingTimeout
+}
+
+func isApplicationError(err error) (bool) {
+    var applicationError bool
+
+    whiskErr, isWhiskErr := err.(*whisk.WskError)
+
+    if isWhiskErr && whiskErr.ApplicationError {
+        applicationError = true
+    }
+
+    return applicationError
 }

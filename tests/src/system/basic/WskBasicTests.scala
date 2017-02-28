@@ -422,7 +422,7 @@ class WskBasicTests
             res.stdout shouldBe ("{}\n")
     }
 
-    it should "create, and invoke an action that times out to ensure the result is an activation ID" in withAssetCleaner(wskprops) {
+    it should "create, and invoke an action that times out to ensure the proper response is received" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "sleepAction"
             val params = Map("payload" -> "100000".toJson)
@@ -434,7 +434,7 @@ class WskBasicTests
                     action.invoke(name, parameters = params, blocking = true, result = true, expectedExitCode = ACCEPTED)
             }
 
-            res.stderr should include regex (s"""\\{\\s+"activationId":\\s+"[a-z0-9]{32}"\\s+\\}""")
+            res.stderr should include ("""but the request has yet to finish""")
     }
 
     it should "create, and get docker action get ensure exec code is omitted" in withAssetCleaner(wskprops) {

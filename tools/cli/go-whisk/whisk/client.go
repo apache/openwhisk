@@ -307,7 +307,7 @@ func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout boo
         // an error corresponding with the timeout
         if ExitWithErrorOnTimeout && resp.StatusCode == EXITCODE_TIMED_OUT {
             errMsg :=  wski18n.T("Request accepted, but processing not completed yet.")
-            err = MakeWskError(errors.New(errMsg), EXITCODE_TIMED_OUT, DISPLAY_MSG, NO_DISPLAY_USAGE,
+            err = MakeWskError(errors.New(errMsg), EXITCODE_TIMED_OUT, NO_DISPLAY_MSG, NO_DISPLAY_USAGE,
                 NO_MSG_DISPLAYED, NO_DISPLAY_PREFIX, NO_APPLICATION_ERR, TIMED_OUT)
         }
 

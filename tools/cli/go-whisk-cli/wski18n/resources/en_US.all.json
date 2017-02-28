@@ -1362,5 +1362,9 @@
   {
     "id": "Request accepted, but processing not completed yet.",
     "translation": "Request accepted, but processing not completed yet."
+  },
+  {
+    "id": "{{.ok}} invoked /{{.namespace}}/{{.name}} with id {{.id}}, but the request has yet to finish\n",
+    "translation": "{{.ok}} invoked /{{.namespace}}/{{.name}} with id {{.id}}, but the request has yet to finish\n"
   }
 ]
