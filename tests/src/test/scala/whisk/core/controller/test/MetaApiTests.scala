@@ -856,28 +856,39 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
         it should s"invoke action with options verb (auth? ${creds.isDefined})" in {
             implicit val tid = transid()
 
-            Seq(s"$systemId/default/export_c.json").
-              foreach { path =>
-                  Options(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
-                      status should be(OK)
-                      val response = responseAs[JsObject]
-                      response shouldBe JsObject(
-                          "pkg" -> s"$systemId".toJson,
-                          "action" -> "export_c".toJson,
-                          "content" -> metaPayload("options", Map(), creds))
-                  }
-              }
+            Seq(s"$systemId/proxy/export_c.http").
+                foreach { path =>
+                    actionResult = Some(
+                        JsObject(
+                            "headers" -> JsObject(
+                                "allow" -> "options, head, get, post, put".toJson
+                            )
+                        )
+                    )
+
+                    Options(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
+                        header("allow").get.toString shouldBe "allow: options, head, get, post, put"
+                    }
+                }
         }
 
         it should s"invoke action with options head verb (auth? ${creds.isDefined})" in {
             implicit val tid = transid()
 
-            Seq(s"$systemId/default/export_c.json").
-              foreach { path =>
-                  Head(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
-                      status should be(OK)
-                  }
-              }
+            Seq(s"$systemId/proxy/export_c.http").
+                foreach { path =>
+                    actionResult = Some(
+                        JsObject(
+                            "headers" -> JsObject(
+                                "location" -> "http://openwhisk.org".toJson
+                            )
+                        )
+                    )
+
+                    Head(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
+                        header("location").get.toString shouldBe "location: http://openwhisk.org"
+                    }
+                }
         }
     }
 
