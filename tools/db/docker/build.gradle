@@ -55,7 +55,7 @@ task exportCleanDB(dependsOn: setupTmpFolder) {
         ansible_proc.consumeProcessOutput(System.out, System.err)
         ansible_proc.waitForOrKill(timeout * 1000)
 
-        // dump DBs: gradle_whisks and subjects
+        // dump DBs: local_whisks and subjects
         // execute a curl command inside the CouchDB container and save the output on a shared volume
         def dump_dbs = dockerBinary + ['exec', 'gradle_couchdb'] +
                 ['curl', 'http://127.0.0.1:5984/{' + couchdbPrefix + 'whisks,subjects}/_all_docs?include_docs=true&attachments=true', '-o', '/openwhisk/couchdb_#1.json']

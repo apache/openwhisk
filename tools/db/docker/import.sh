@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 #
-# This script looks inside the /import folder to see if there are exported XML documents to be imported.
+# This script looks inside the /import folder to see if there are exported JSON documents to be imported.
 # NOTE: it only creates the Database if it's not created already.
 #
 
