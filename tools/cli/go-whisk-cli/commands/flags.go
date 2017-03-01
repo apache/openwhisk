@@ -24,6 +24,10 @@ import (
 // Flags //
 ///////////
 
+const MEMORY_FLAG   = "memory"
+const LOG_SIZE_FLAG = "logsize"
+const TIMEOUT_FLAG  = "timeout"
+
 var cliDebug = os.Getenv("WSK_CLI_DEBUG")  // Useful for tracing init() code
 
 var flags struct {
