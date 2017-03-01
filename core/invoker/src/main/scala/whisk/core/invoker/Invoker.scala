@@ -16,20 +16,20 @@
 
 package whisk.core.invoker
 
+import java.nio.charset.StandardCharsets
+
 import java.time.{ Clock, Instant }
 
-import scala.Vector
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.Promise
 import scala.concurrent.duration.{ Duration, DurationInt }
 import scala.language.postfixOps
-import scala.util.{ Failure, Success, Try }
+import scala.util.{ Failure, Success }
 
 import akka.actor.{ ActorRef, ActorSystem, actorRef2Scala }
 import akka.event.Logging.{ InfoLevel, LogLevel }
 import akka.japi.Creator
 import spray.json._
-import spray.json.DefaultJsonProtocol
 import spray.json.DefaultJsonProtocol._
 import whisk.common.{ ConsulKVReporter, Counter, Logging, LoggingMarkers, TransactionId }
 import whisk.common.AkkaLogging
@@ -43,7 +43,6 @@ import whisk.core.container._
 import whisk.core.dispatcher.{ Dispatcher, MessageHandler }
 import whisk.core.dispatcher.ActivationFeed.{ ActivationNotification, ContainerReleased, FailedActivation }
 import whisk.core.entity._
-import whisk.core.entity.size.{ SizeInt, SizeString }
 import whisk.http.BasicHttpService
 import whisk.http.Messages
 import whisk.utils.ExecutionContextFactory
@@ -64,7 +63,8 @@ class Invoker(
     activationFeed: ActorRef,
     verbosity: LogLevel = InfoLevel,
     runningInContainer: Boolean = true)(implicit actorSystem: ActorSystem, logging: Logging)
-    extends MessageHandler(s"invoker$instance") {
+    extends MessageHandler(s"invoker$instance")
+    with ActionLogDriver {
 
     private implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
@@ -269,15 +269,16 @@ class Invoker(
     // of each activation
     private val LogRetryCount = 15
     private val LogRetry = 100 // millis
-    private val LOG_ACTIVATION_SENTINEL = "XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX"
 
     /**
      * Waits for log cursor to advance. This will retry up to tries times
-     * if the cursor has not yet advanced. This will penalize containers that
-     * do not log. It is OK for nodejs containers because the runtime emits
+     * if the cursor has not yet advanced. This will penalize docker actions
+     * that do not log. It is OK for proxied containers because the runtime emits
      * the END_OF_ACTIVATION_MARKER automatically and that advances the cursor.
      *
      * Note: Updates the container's log cursor to indicate consumption of log.
+     * It is possible that log messages form one activation spill over into the
+     * next activation if the marker is not observed but the log limit is reached.
      */
     private def getContainerLogs(con: WhiskContainer, sentinelled: Boolean, loglimit: LogLimit, tries: Int = LogRetryCount)(
         implicit transid: TransactionId): JsArray = {
@@ -287,20 +288,22 @@ class Invoker(
             val rawLogBytes = con.synchronized {
                 pool.getDockerLogContent(con.containerId, con.lastLogSize, size, runningInContainer)
             }
-            val rawLog = new String(rawLogBytes, "UTF-8")
 
-            val (complete, isTruncated, logs) = processJsonDriverLogContents(rawLog, sentinelled, loglimit)
+            val rawLog = new String(rawLogBytes, StandardCharsets.UTF_8)
+
+            val (complete, isTruncated, logs) = processJsonDriverLogContents(rawLog, sentinelled, loglimit.asMegaBytes)
 
             if (tries > 0 && !complete && !isTruncated) {
                 logging.info(this, s"log cursor advanced but missing sentinel, trying $tries more times")
                 Thread.sleep(LogRetry)
+                // note this is not an incremental read - will re-process the entire log file
                 getContainerLogs(con, sentinelled, loglimit, tries - 1)
             } else {
                 con.lastLogSize = size
                 val formattedLogs = logs.map(_.toFormattedString)
 
                 val finishedLogs = if (isTruncated) {
-                    formattedLogs :+ loglimit.truncatedLogMessage
+                    formattedLogs :+ Messages.truncateLogs(loglimit.asMegaBytes)
                 } else formattedLogs
 
                 JsArray(finishedLogs.map(_.toJson))
@@ -309,64 +312,6 @@ class Invoker(
             logging.info(this, s"log cursor has not advanced, trying $tries more times")
             Thread.sleep(LogRetry)
             getContainerLogs(con, sentinelled, loglimit, tries - 1)
-        }
-    }
-
-    /**
-     * Represents a single log line as read from a docker log
-     */
-    private case class LogLine(time: String, stream: String, log: String) {
-        def toFormattedString = f"$time%-30s $stream: ${log.trim}"
-    }
-    private object LogLine extends DefaultJsonProtocol {
-        implicit val serdes = jsonFormat3(LogLine.apply)
-    }
-
-    /**
-     * Given the JSON driver's raw output of a docker container, convert it into our own
-     * JSON format. If asked, check for sentinel markers (which are not included in the output).
-     *
-     * Only parses and returns so much logs to fit into the LogLimit passed.
-     *
-     * @param logMsgs raw String read from a JSON log-driver written file
-     * @param requireSentinel determines if the processor should wait for a sentinel to appear
-     * @param limit the limit to apply to the log size
-     *
-     * @return Tuple containing (isComplete, isTruncated, logs)
-     */
-    private def processJsonDriverLogContents(logMsgs: String, requireSentinel: Boolean, limit: LogLimit)(
-        implicit transid: TransactionId): (Boolean, Boolean, Vector[LogLine]) = {
-
-        if (logMsgs.nonEmpty) {
-            val records = logMsgs.split("\n").toStream flatMap {
-                line =>
-                    Try { line.parseJson.convertTo[LogLine] } match {
-                        case Success(t) => Some(t)
-                        case Failure(t) =>
-                            // Drop lines that did not parse to JSON objects.
-                            // However, should not happen since we are using the json log driver.
-                            logging.error(this, s"log line skipped/did not parse: $t")
-                            None
-                    }
-            }
-
-            val cumulativeSizes = records.scanLeft(0.bytes) { (acc, current) => acc + current.log.sizeInBytes }.tail
-            val truncatedLogs = records.zip(cumulativeSizes).takeWhile(_._2 < limit.asMegaBytes).map(_._1).toVector
-            val isTruncated = truncatedLogs.size < records.size
-
-            if (isTruncated) {
-                (true, true, truncatedLogs)
-            } else if (requireSentinel) {
-                val (sentinels, regulars) = truncatedLogs.partition(_.log.trim == LOG_ACTIVATION_SENTINEL)
-                val hasOut = sentinels.exists(_.stream == "stdout")
-                val hasErr = sentinels.exists(_.stream == "stderr")
-                (hasOut && hasErr, false, regulars)
-            } else {
-                (true, false, truncatedLogs)
-            }
-        } else {
-            logging.warn(this, s"log message is empty")
-            (!requireSentinel, false, Vector())
         }
     }
 

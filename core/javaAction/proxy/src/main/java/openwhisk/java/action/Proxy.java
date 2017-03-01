@@ -52,7 +52,7 @@ public class Proxy {
     }
 
     private static void writeResponse(HttpExchange t, int code, String content) throws IOException {
-        byte[] bytes = content.getBytes("UTF-8");
+        byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
         t.sendResponseHeaders(code, bytes.length);
         OutputStream os = t.getResponseBody();
         os.write(bytes);
@@ -119,7 +119,7 @@ public class Proxy {
             try {
                 InputStream is = t.getRequestBody();
                 JsonParser parser = new JsonParser();
-                JsonElement ie = parser.parse(new BufferedReader(new InputStreamReader(is, "UTF-8")));
+                JsonElement ie = parser.parse(new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8)));
                 JsonObject inputObject = ie.getAsJsonObject().getAsJsonObject("value");
 
                 HashMap<String, String> env = new HashMap<String, String>();
