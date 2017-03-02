@@ -2,7 +2,6 @@
 """Executable Python script for compressing folders to Box.
 
 Compresses the contents of a folder and upload the result to Box.
-
   Run this script as:
   $ upload-logs.py LOG_DIR DEST_NAME
 
@@ -38,13 +37,15 @@ def upload_file(local_file, remote_file):
     if remote_file[0] == '/':
         remote_file = remote_file[1:]
 
-    subprocess.call([ "curl", "-X", "POST", "--data-binary", "@%s" % local_file, "http://wsklogfwd.mybluemix.net/upload?%s" % urllib.urlencode({ "name" : remote_file }) ])
+    subprocess.call(["curl", "-X", "POST", "--data-binary", "@%s" % local_file,
+                     "http://wsklogfwd.mybluemix.net/upload?%s" %
+                     urllib.urlencode({"name": remote_file})])
 
-    
+
 def tar_gz_dir(dir_path):
     """Create TAR (ZIP) of path and its contents."""
-    _, dst = tempfile.mkstemp(suffix = ".tar.gz")
-    subprocess.call([ "tar", "-cvzf", dst, dir_path ])
+    _, dst = tempfile.mkstemp(suffix=".tar.gz")
+    subprocess.call(["tar", "-cvzf", dst, dir_path])
     return dst
 
 if __name__ == "__main__":
