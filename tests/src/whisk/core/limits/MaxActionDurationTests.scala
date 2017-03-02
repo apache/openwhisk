@@ -43,15 +43,18 @@ class MaxActionDurationTests
     implicit val wskprops = WskProps()
     val wsk = new Wsk
 
-    Map("node" -> "helloDeadline.js", "python" -> "timedout.py", "java" -> "timedout.jar").foreach {
-        case (k, name) =>
-            s"$k action" should "run up to the max allowed duration" in withAssetCleaner(wskprops) {
-                (wp, assetHelper) =>
+    // swift is not tested, because it uses the same proxy like python
+    "node-, python, and java-action" should "run up to the max allowed duration" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+
+            // When you add more runtimes, keep in mind, how many actions can be processed in parallel by the Invokers!
+            Map("node" -> "helloDeadline.js", "python" -> "timedout.py", "java" -> "timedout.jar").par.map {
+                case (k, name) =>
                     assetHelper.withCleaner(wsk.action, name) {
-                        if(k == "java"){
-                          (action, _) => action.create(name, Some(TestUtils.getTestActionFilename(name)), timeout = Some(TimeLimit.MAX_DURATION), main = Some("TimedOut"))
+                        if (k == "java") {
+                            (action, _) => action.create(name, Some(TestUtils.getTestActionFilename(name)), timeout = Some(TimeLimit.MAX_DURATION), main = Some("TimedOut"))
                         } else {
-                          (action, _) => action.create(name, Some(TestUtils.getTestActionFilename(name)), timeout = Some(TimeLimit.MAX_DURATION))
+                            (action, _) => action.create(name, Some(TestUtils.getTestActionFilename(name)), timeout = Some(TimeLimit.MAX_DURATION))
                         }
                     }
 
