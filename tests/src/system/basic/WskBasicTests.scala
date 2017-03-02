@@ -358,7 +358,7 @@ class WskBasicTests
             }
 
             val stderr = wsk.action.invoke(name, blocking = true, expectedExitCode = 246).stderr
-            CliActivation.serdes.read(stderr.parseJson).response.result shouldBe Some {
+            CliActivation.serdes.read(removeCLIHeader(stderr).parseJson).response.result shouldBe Some {
                 JsObject("error" -> JsObject("msg" -> "failed activation on purpose".toJson))
             }
     }
