@@ -2,6 +2,7 @@
 """Executable Python script for compressing folders to Box.
 
 Compresses the contents of a folder and upload the result to Box.
+
   Run this script as:
   $ upload-logs.py LOG_DIR DEST_NAME
 
