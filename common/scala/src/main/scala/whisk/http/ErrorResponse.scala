@@ -114,8 +114,8 @@ object Messages {
     /** Error for meta api. */
     val propertyNotFound = "Response does not include requested property."
     def invalidMedia(m: MediaType) = s"Response is not valid '${m.value}'."
-    val contentTypeNotSupported = """Content type must be specified and one of ["json", "html", "http", "text"]."""
-
+    val contentTypeExtentionNotSupported = """Content type must be specified and one of ["json", "html", "http", "text"]."""
+    val contentTypeNotSupported = "Content type must be appication/json or application/x-www-form-urlencoded."
     val responseNotReady = "Response not yet ready."
     val httpUnknownContentType = "Response did not specify a known content-type."
     val httpContentTypeError = "Response type in header did not match generated content type."

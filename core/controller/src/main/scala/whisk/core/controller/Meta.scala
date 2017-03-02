@@ -273,9 +273,9 @@ trait WhiskMetaApi
                                     val pkgName = if (pkg == "default") None else Some(EntityName(pkg))
                                     handleMatch(EntityName(namespace), pkgName, EntityName(action), extension, user)
                                 } else {
-                                    terminate(NotAcceptable, Messages.contentTypeNotSupported)
+                                    terminate(NotAcceptable, Messages.contentTypeExtentionNotSupported)
                                 }
-                            case _ => terminate(NotAcceptable, Messages.contentTypeNotSupported)
+                            case _ => terminate(NotAcceptable, Messages.contentTypeExtentionNotSupported)
                         }
                     }
                 }
@@ -330,7 +330,7 @@ trait WhiskMetaApi
                     body => process(body)
                 } ~ entity(as[FormData]) {
                     form => process(Some(form.fields.toMap.toJson.asJsObject))
-                }
+                } ~ terminate(BadRequest, Messages.contentTypeNotSupported)
             }
         }
     }
