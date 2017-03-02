@@ -82,7 +82,9 @@ protected[core] class Parameters protected[entity] (
     /**
      * Retrieves parameter by name if it exists.
      */
-    protected[core] def get(p: String) = params.get(new ParameterName(p)).map(_.value)
+    protected[core] def get(p: String): Option[JsValue] = {
+        params.get(new ParameterName(p)).map(_.value)
+    }
 
     /**
      * Retrieves parameter by name if it exist. If value of parameter

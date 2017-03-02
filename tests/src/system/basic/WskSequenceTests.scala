@@ -305,7 +305,7 @@ class WskSequenceTests
     it should "stop execution of a sequence (with no payload) on error" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val sName = "sSequence"
-            val apperror = "applicationError2"
+            val apperror = "applicationError"
             val echo = "echo"
 
             // create actions

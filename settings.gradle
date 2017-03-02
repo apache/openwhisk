@@ -7,7 +7,6 @@ include 'core:nodejsAction'
 include 'core:nodejs6Action'
 include 'core:actionProxy'
 include 'core:pythonAction'
-include 'core:swiftAction'
 include 'core:swift3Action'
 include 'core:javaAction'
 

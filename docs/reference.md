@@ -194,9 +194,9 @@ It is possible for an action to be synchronous on some inputs and asynchronous o
 
 Notice that regardless of whether an activation is synchronous or asynchronous, the invocation of the action can be blocking or non-blocking.
 
-### JavaScript global whisk object deprecated
+### JavaScript global whisk object removed
 
-The global object `whisk` is currently deprecated; migrate your nodejs actions to use altenative methods.
+The global object `whisk` has been removed; migrate your nodejs actions to use alternative methods.
 For the functions `whisk.invoke()` and `whisk.trigger()` use the already installed client library [openwhisk](https://www.npmjs.com/package/openwhisk).
 For the `whisk.getAuthKey()` you can get the API key value from the environment variable `__OW_API_KEY`.
 For the `whisk.error()` you can return a rejected Promise (i.e. Promise.reject).

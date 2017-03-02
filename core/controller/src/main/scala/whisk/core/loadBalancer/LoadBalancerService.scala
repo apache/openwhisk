@@ -32,7 +32,7 @@ import scala.util.Success
 
 import akka.actor.ActorSystem
 import akka.event.Logging.LogLevel
-import spray.json.{ JsObject, pimpAny }
+import spray.json._
 import spray.json.DefaultJsonProtocol.LongJsonFormat
 import whisk.common.ConsulClient
 import whisk.common.ConsulKV.LoadBalancerKeys
@@ -47,6 +47,7 @@ import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.{ consulServer, kafkaHost, loadbalancerActivationCountBeforeNextInvoker }
 import whisk.core.connector.{ ActivationMessage, CompletionMessage }
 import whisk.core.entity.{ ActivationId, CodeExec, WhiskAction, WhiskActivation }
+import whisk.core.connector.PingMessage
 
 trait LoadBalancer {
 
@@ -158,12 +159,25 @@ class LoadBalancerService(
                 LoadBalancerKeys.activationCountKey -> producer.sentCount().toJson)
         })
 
-    private val consumer = new KafkaConsumerConnector(config.kafkaHost, "completions", "completed")
-    consumer.onMessage((topic, partition, offset, bytes) => {
+    private val invokerPool = actorSystem.actorOf(InvokerPool.props(invoker => {
+        logging.info(this, s"cleared loadbalancer state of $invoker")(TransactionId.invokerHealth)
+    }))
+
+    private val pingConsumer = new KafkaConsumerConnector(config.kafkaHost, "health", "health")
+    pingConsumer.onMessage((topic, _, _, bytes) => {
         val raw = new String(bytes, "utf-8")
-        CompletionMessage(raw) match {
-            case Success(m) => processCompletion(m)
-            case Failure(t) => logging.error(this, s"failed processing message: $raw with $t")
+        PingMessage.parse(raw) match {
+            case Success(p: PingMessage) => invokerPool ! p
+            case Failure(t)              => logging.error(this, s"failed processing message: $raw with $t")
+        }
+    })
+
+    private val ackConsumer = new KafkaConsumerConnector(config.kafkaHost, "completions", "completed")
+    ackConsumer.onMessage((topic, _, _, bytes) => {
+        val raw = new String(bytes, "utf-8")
+        CompletionMessage.parse(raw) match {
+            case Success(m: CompletionMessage) => processCompletion(m)
+            case Failure(t)                    => logging.error(this, s"failed processing message: $raw with $t")
         }
     })
 
@@ -215,17 +229,17 @@ class LoadBalancerService(
     /**
      * When invoker health detects a new invoker has come up, this callback is called.
      */
-    private def invokerChangeCallback(invokerIndices: Array[Int]) = {
-        invokerIndices.foreach { index =>
-            val actSet = activationByInvoker.getOrElseUpdate(index, new TrieSet[ActivationEntry])
-            actSet.keySet map {
-                case actEntry @ ActivationEntry(activationId, subject, invokerIndex, _, promise) =>
-                    promise.tryFailure(new LoadBalancerException(s"Invoker $invokerIndex restarted"))
-                    activationById.remove(activationId)
-                    activationBySubject.get(subject) map { _.remove(actEntry) }
-            }
-            actSet.clear()
+    private def invokerChangeCallback(invokerIndices: Array[Int]) = invokerIndices.foreach(clearInvokerState)
+
+    private def clearInvokerState(index: Int) = {
+        val actSet = activationByInvoker.getOrElseUpdate(index, new TrieSet[ActivationEntry])
+        actSet.keySet map {
+            case actEntry @ ActivationEntry(activationId, subject, invokerIndex, _, promise) =>
+                promise.tryFailure(new LoadBalancerException(s"Invoker $invokerIndex restarted"))
+                activationById.remove(activationId)
+                activationBySubject.get(subject) map { _.remove(actEntry) }
         }
+        actSet.clear()
     }
 
     private def updateActivationCount(user: String, invokerIndex: Int): Long = {

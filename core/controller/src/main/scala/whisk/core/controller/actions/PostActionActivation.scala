@@ -17,14 +17,17 @@
 package whisk.core.controller.actions
 
 import scala.concurrent.Future
-import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.TimeoutException
+import scala.concurrent.duration.FiniteDuration
 
+import spray.http.StatusCodes.BadRequest
 import spray.json._
 import whisk.common.TransactionId
+import whisk.core.controller.RejectRequest
 import whisk.core.controller.WhiskActionsApi._
 import whisk.core.controller.WhiskServices
 import whisk.core.entity._
+import whisk.http.Messages
 
 protected[core] trait PostActionActivation extends PrimitiveActions with SequenceActions {
     /** The core collections require backend services to be injected in this trait. */
@@ -47,11 +50,12 @@ protected[core] trait PostActionActivation extends PrimitiveActions with Sequenc
             case SequenceExec(components) =>
                 val futureSeqTuple = invokeSequence(user, action, payload, blocking, topmost = true, components, cause = None, 0)
                 futureSeqTuple map { case (activationId, wskActivation, _) => (activationId, wskActivation) }
-            case _ => {
+            case supportedExec if !supportedExec.deprecated =>
                 val duration = action.limits.timeout.duration + blockingInvokeGrace
                 val timeout = waitOverride.getOrElse(duration)
                 invokeSingleAction(user, action, payload, timeout, blocking)
-            }
+            case deprecatedExec =>
+                Future.failed(RejectRequest(BadRequest, Messages.runtimeDeprecated(deprecatedExec)))
         }
     }
 }

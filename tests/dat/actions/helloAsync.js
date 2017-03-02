@@ -7,13 +7,13 @@ function wc(params) {
     var words = str.split(" ");
     var count = words.length;
     console.log("The message '"+str+"' has", count, 'words');
-    whisk.done({count: count});
+    return {count: count};
 }
 
 function main(params) {
-    setTimeout(function() {
-        wc(params);
-    }, 100);
-
-    return whisk.async();
+    return new Promise(function(resolve, reject) {
+        setTimeout(function () {
+            resolve(wc(params));
+        }, 100);
+    });
 }

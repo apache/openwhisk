@@ -4,26 +4,26 @@
    This script checks some (simple) conventions:
    - no symlinks
    - no tabs
-   - no trailing whitespaces
+   - no trailing whitespace
    - files end with EOL
    - valid license headers in source files (where applicable)
 
 /*
-* Licensed to the Apache Software Foundation (ASF) under one or more
-* contributor license agreements.  See the NOTICE file distributed with
-* this work for additional information regarding copyright ownership.
-* The ASF licenses this file to You under the Apache License, Version 2.0
-* (the "License"); you may not use this file except in compliance with
-* the License.  You may obtain a copy of the License at
-*
-*     http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 """
 
@@ -68,7 +68,7 @@ def exceptional_paths():
 
 
 def no_tabs(line):
-    """Assert line does not contains a TAB characeter."""
+    """Assert line does not contains a TAB character."""
     if re.match("\t", line):
         return ERR_TABS
     else:
@@ -93,7 +93,7 @@ def eol_at_eof(line):
     else:
         return None
 
-"""Declare approved softare license headers as strings."""
+"""Declare approved software license headers as strings."""
 
 LICENSE_APACHE_SOFTWARE_FOUNDATION = """\
    /*
@@ -181,7 +181,7 @@ def line_checks(checks):
 def run_file_checks(file_path, checks):
     """Run a series of file-by-file checks."""
     errors = []
-    # if VERBOSE (True) then print filename neing checked
+    # if VERBOSE (True) then print filename being checked
     vprint(col.green(MSG_CHECKING_FILE % file_path))
     for check in checks:
         errs = check(file_path)

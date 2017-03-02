@@ -37,10 +37,6 @@ export WSK_CONFIG_FILE= # override local property file to avoid namespace clashe
 echo Installing routemgmt package.
 $WSK_CLI -i --apihost "$APIHOST" package update --auth "$AUTH"  --shared no "$NAMESPACE/routemgmt" \
 -a description "This package manages the gateway API configuration." \
--a meta true \
--a get getApi \
--a post createApi \
--a delete deleteApi \
 -p gwUser "$GW_USER" \
 -p gwPwd "$GW_PWD" \
 -p gwUrl "$GW_HOST"
@@ -54,14 +50,14 @@ echo Installing routemgmt actions
 $WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" "$NAMESPACE/routemgmt/getApi" "$OPENWHISK_HOME/core/routemgmt/getApi/getApi.zip" \
 -a description 'Retrieve the specified API configuration (in JSON format)' \
 --kind nodejs:default \
--a final true
+-a web-export true -a final true -a require-whisk-auth true
 
 $WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" "$NAMESPACE/routemgmt/createApi" "$OPENWHISK_HOME/core/routemgmt/createApi/createApi.zip" \
 -a description 'Create an API' \
 --kind nodejs:default \
--a final true
+-a web-export true -a final true -a require-whisk-auth true
 
 $WSK_CLI -i --apihost "$APIHOST" action update --auth "$AUTH" "$NAMESPACE/routemgmt/deleteApi" "$OPENWHISK_HOME/core/routemgmt/deleteApi/deleteApi.zip" \
 -a description 'Delete the API' \
 --kind nodejs:default \
--a final true
+-a web-export true -a final true -a require-whisk-auth true

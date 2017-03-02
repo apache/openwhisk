@@ -13,6 +13,13 @@ Learn how to create, invoke, and debug actions in your preferred development env
 * [Java](#creating-java-actions)
 * [Docker](#creating-docker-actions)
 
+In addition, learn about:
+
+* [Watching action output](#watching-action-output)
+* [Listing actions](#listing-actions)
+* [Deleting actions](#deleting-actions)
+* [Accessing action metadata within the action body](#accessing-action-metadata-within-the-action-body)
+
 
 ## Creating and invoking JavaScript actions
 
@@ -751,6 +758,22 @@ You can use the OpenWhisk CLI to watch the output of actions as they are invoked
   ```
 
   Similarly, whenever you run the poll utility, you see in real time the logs for any actions running on your behalf in OpenWhisk.
+
+
+## Listing actions
+
+You can list all the actions that you have created using:
+
+```
+$ wsk action list
+```
+
+As you write more actions, this list gets longer and it can be helpful to group related actions into [packages](./packages.md). To filter your list of actions to just the those within a specific pacakge, you can use: 
+
+```
+$ wsk action list [PACKAGE NAME]
+```
+
 
 ## Deleting actions
 

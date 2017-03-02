@@ -47,6 +47,8 @@ import whisk.core.entity.size.{ SizeInt, SizeString }
 import whisk.http.BasicHttpService
 import whisk.http.Messages
 import whisk.utils.ExecutionContextFactory
+import whisk.common.Scheduler
+import whisk.core.connector.PingMessage
 
 /**
  * A kafka message handler that invokes actions as directed by message on topic "/actions/invoke".
@@ -460,6 +462,12 @@ class Invoker(
     private val activationCounter = new Counter() // global activation counter
 
     private val consul = new ConsulClient(config.consulServer)
+
+    Scheduler.scheduleWaitAtMost(1.seconds)(() => {
+        producer.send("health", PingMessage(s"invoker$instance")).andThen {
+            case Failure(t) => logging.error(this, s"failed to ping the controller: $t")
+        }
+    })
 
     // Repeatedly updates the KV store as to the invoker's last check-in.
     new ConsulKVReporter(consul, 3 seconds, 2 seconds,

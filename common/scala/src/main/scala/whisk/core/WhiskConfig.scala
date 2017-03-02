@@ -115,8 +115,6 @@ class WhiskConfig(
     val triggerFirePerMinuteLimit = this(WhiskConfig.triggerFirePerMinuteDefaultLimit, WhiskConfig.triggerFirePerMinuteLimit)
     val actionInvokeSystemOverloadLimit = this(WhiskConfig.actionInvokeSystemOverloadDefaultLimit, WhiskConfig.actionInvokeSystemOverloadLimit)
     val actionSequenceLimit = this(WhiskConfig.actionSequenceDefaultLimit)
-
-    val systemKey = this(WhiskConfig.systemKey)
 }
 
 object WhiskConfig {
@@ -290,6 +288,4 @@ object WhiskConfig {
     val actionInvokeConcurrentLimit = "limits.actions.invokes.concurrent"
     val actionInvokeSystemOverloadLimit = "limits.actions.invokes.concurrentInSystem"
     val triggerFirePerMinuteLimit = "limits.triggers.fires.perMinute"
-
-    val systemKey = "whisk.system.key"
 }

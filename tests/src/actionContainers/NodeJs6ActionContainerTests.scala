@@ -16,8 +16,6 @@
 
 package actionContainers
 
-import whisk.core.entity.NodeJS6Exec
-
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
@@ -28,8 +26,6 @@ import spray.json.JsObject
 class NodeJs6ActionContainerTests extends NodeJsActionContainerTests {
 
     override lazy val nodejsContainerImageName = "nodejs6action"
-
-    override def exec(code: String) = NodeJS6Exec(code, None)
 
     behavior of nodejsContainerImageName
 

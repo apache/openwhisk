@@ -1,0 +1,227 @@
+{
+    "swagger": "2.0",
+    "basePath": "/test1/v1",
+    "info": {
+        "title": "/test1/v1",
+        "version": "1.0.0"
+    },
+    "paths": {
+        "/whisk.system/utils/echo": {
+            "get": {
+                "responses": {
+                    "default": {
+                        "description": "Default response"
+                    }
+                },
+                "x-ibm-op-ext": {
+                    "actionName": "test1a",
+                    "actionNamespace": "guest",
+                    "backendMethod": "POST",
+                    "backendUrl": "https://192.168.33.13/api/v1/namespaces/guest/actions/test1a",
+                    "policies": [
+                        {
+                            "type": "reqMapping",
+                            "value": [
+                                {
+                                    "action": "transform",
+                                    "from": {
+                                        "location": "query",
+                                        "name": "*"
+                                    },
+                                    "to": {
+                                        "location": "body",
+                                        "name": "*"
+                                    }
+                                },
+                                {
+                                    "action": "insert",
+                                    "from": {
+                                        "value": "Basic MjNiYzQ2YjEtNzFmNi00ZWQ1LThjNTQtODE2YWE0ZjhjNTAyOjEyM3pPM3haQ0xyTU42djJCS0sxZFhZRnBYbFBrY2NPRnFtMTJDZEFzTWdSVTRWck5aOWx5R1ZDR3VNREdJd1A="
+                                    },
+                                    "to": {
+                                        "location": "header",
+                                        "name": "Authorization"
+                                    }
+                                },
+                                {
+                                    "action": "insert",
+                                    "from": {
+                                        "value": "application/json"
+                                    },
+                                    "to": {
+                                        "location": "header",
+                                        "name": "Content-Type"
+                                    }
+                                },
+                                {
+                                    "action": "insert",
+                                    "from": {
+                                        "value": "true"
+                                    },
+                                    "to": {
+                                        "location": "query",
+                                        "name": "blocking"
+                                    }
+                                },
+                                {
+                                    "action": "insert",
+                                    "from": {
+                                        "value": "true"
+                                    },
+                                    "to": {
+                                        "location": "query",
+                                        "name": "result"
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            },
+            "post": {
+                "responses": {
+                    "default": {
+                        "description": "Default response"
+                    }
+                },
+                "x-ibm-op-ext": {
+                    "actionName": "test1a",
+                    "actionNamespace": "guest",
+                    "backendMethod": "POST",
+                    "backendUrl": "https://192.168.33.13/api/v1/namespaces/guest/actions/test1a",
+                    "policies": [
+                        {
+                            "type": "reqMapping",
+                            "value": [
+                                {
+                                    "action": "transform",
+                                    "from": {
+                                        "location": "query",
+                                        "name": "*"
+                                    },
+                                    "to": {
+                                        "location": "body",
+                                        "name": "*"
+                                    }
+                                },
+                                {
+                                    "action": "insert",
+                                    "from": {
+                                        "value": "Basic MjNiYzQ2YjEtNzFmNi00ZWQ1LThjNTQtODE2YWE0ZjhjNTAyOjEyM3pPM3haQ0xyTU42djJCS0sxZFhZRnBYbFBrY2NPRnFtMTJDZEFzTWdSVTRWck5aOWx5R1ZDR3VNREdJd1A="
+                                    },
+                                    "to": {
+                                        "location": "header",
+                                        "name": "Authorization"
+                                    }
+                                },
+                                {
+                                    "action": "insert",
+                                    "from": {
+                                        "value": "application/json"
+                                    },
+                                    "to": {
+                                        "location": "header",
+                                        "name": "Content-Type"
+                                    }
+                                },
+                                {
+                                    "action": "insert",
+                                    "from": {
+                                        "value": "true"
+                                    },
+                                    "to": {
+                                        "location": "query",
+                                        "name": "blocking"
+                                    }
+                                },
+                                {
+                                    "action": "insert",
+                                    "from": {
+                                        "value": "true"
+                                    },
+                                    "to": {
+                                        "location": "query",
+                                        "name": "result"
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+        "/whisk.system/utils/split": {
+            "post": {
+                "responses": {
+                    "default": {
+                        "description": "Default response"
+                    }
+                },
+                "x-ibm-op-ext": {
+                    "actionName": "test1a",
+                    "actionNamespace": "guest",
+                    "backendMethod": "POST",
+                    "backendUrl": "https://192.168.33.13/api/v1/namespaces/guest/actions/test1a",
+                    "policies": [
+                        {
+                            "type": "reqMapping",
+                            "value": [
+                                {
+                                    "action": "transform",
+                                    "from": {
+                                        "location": "query",
+                                        "name": "*"
+                                    },
+                                    "to": {
+                                        "location": "body",
+                                        "name": "*"
+                                    }
+                                },
+                                {
+                                    "action": "insert",
+                                    "from": {
+                                        "value": "Basic MjNiYzQ2YjEtNzFmNi00ZWQ1LThjNTQtODE2YWE0ZjhjNTAyOjEyM3pPM3haQ0xyTU42djJCS0sxZFhZRnBYbFBrY2NPRnFtMTJDZEFzTWdSVTRWck5aOWx5R1ZDR3VNREdJd1A="
+                                    },
+                                    "to": {
+                                        "location": "header",
+                                        "name": "Authorization"
+                                    }
+                                },
+                                {
+                                    "action": "insert",
+                                    "from": {
+                                        "value": "application/json"
+                                    },
+                                    "to": {
+                                        "location": "header",
+                                        "name": "Content-Type"
+                                    }
+                                },
+                                {
+                                    "action": "insert",
+                                    "from": {
+                                        "value": "true"
+                                    },
+                                    "to": {
+                                        "location": "query",
+                                        "name": "blocking"
+                                    }
+                                },
+                                {
+                                    "action": "insert",
+                                    "from": {
+                                        "value": "true"
+                                    },
+                                    "to": {
+                                        "location": "query",
+                                        "name": "result"
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        }
+    }
+}

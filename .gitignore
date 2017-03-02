@@ -48,10 +48,6 @@ ansible/tmp/*
 ansible/roles/nginx/files/*.csr
 ansible/roles/nginx/files/*cert.pem
 
-# Action proxies copied during build
-core/swiftAction/actionproxy.py
-core/swift3Action/actionproxy.py
-
 # .zip files must be explicited whitelisted
 *.zip
 !tests/dat/actions/blackbox.zip

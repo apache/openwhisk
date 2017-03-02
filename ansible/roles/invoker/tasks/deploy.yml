@@ -11,7 +11,6 @@
     - '{{ docker_image_prefix }}/nodejsaction'
     - '{{ docker_image_prefix }}/nodejs6action'
     - '{{ docker_image_prefix }}/pythonaction'
-    - '{{ docker_image_prefix }}/swiftaction'
     - '{{ docker_image_prefix }}/swift3action'
     - '{{ docker_image_prefix }}/javaaction'
   when: docker_registry != ""
@@ -46,12 +45,13 @@
         -e CONSULSERVER_HOST={{ groups['consul_servers'] | first }}
         -e CONSUL_HOST_PORT4={{ consul.port.http }}
         -e PORT=8080
-        -e SELF_DOCKER_ENDPOINT={{inventory_hostname}}:{{docker.port}}
+        -e SELF_DOCKER_ENDPOINT=localhost
         -e SERVICE_CHECK_HTTP=/ping
         -e SERVICE_CHECK_TIMEOUT=2s
         -e SERVICE_CHECK_INTERVAL=15s
         -v {{whisk_logs_dir}}/invoker{{play_hosts.index(inventory_hostname)}}:/logs
         -v {{dockerInfo["json"]["DockerRootDir"]}}/containers/:/containers
+        -v {{ docker_sock | default('/var/run/docker.sock') }}:/var/run/docker.sock
         -p {{invoker.port + play_hosts.index(inventory_hostname)}}:8080
         {{docker_registry}}{{ docker_image_prefix }}/invoker:{{docker_image_tag}}
         /bin/sh -c "/invoker/bin/invoker {{play_hosts.index(inventory_hostname)}} >> /logs/invoker{{play_hosts.index(inventory_hostname)}}_logs.log 2>&1"
