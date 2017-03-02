@@ -173,7 +173,7 @@ var actionInvokeCmd = &cobra.Command{
 
         // Handle blocking timeouts, application errors, and successful invocations
         if isBlockingTimeout(err) {
-          printBlockingTimeoutMsg(qName.entityName, qName.namespace, getValueFromJSONResponse("activationId", res))
+          printBlockingTimeoutMsg(qName.namespace, qName.entityName, getValueFromJSONResponse("activationId", res))
         } else if isApplicationError(err) {
           printInvocationMsg(qName.namespace, qName.entityName, getValueFromJSONResponse("activationId", res), res,
             colorable.NewColorableStderr())
@@ -199,7 +199,7 @@ func handleInvocationError(err error, entityName string, parameters interface{})
 
 func printBlockingTimeoutMsg(namespace string, entityName string, activationID interface{}) {
   fmt.Fprintf(colorable.NewColorableStderr(),
-    wski18n.T("{{.ok}} invoked /{{.namespace}}/{{.name}} with id {{.id}}, but the request has yet to finish\n",
+    wski18n.T("{{.ok}} invoked /{{.namespace}}/{{.name}}, but the request has not yet finished, with id {{.id}}\n",
     map[string]interface{} {
       "ok": color.GreenString("ok:"),
       "namespace": boldString(namespace),

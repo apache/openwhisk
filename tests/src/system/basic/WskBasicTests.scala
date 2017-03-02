@@ -434,7 +434,7 @@ class WskBasicTests
                     action.invoke(name, parameters = params, blocking = true, result = true, expectedExitCode = ACCEPTED)
             }
 
-            res.stderr should include ("""but the request has yet to finish""")
+            res.stderr should include ("""but the request has not yet finished""")
     }
 
     it should "create, and get docker action get ensure exec code is omitted" in withAssetCleaner(wskprops) {
