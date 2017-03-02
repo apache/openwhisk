@@ -38,7 +38,7 @@ class JavaActionContainerTests extends FlatSpec with Matchers with WskActorSyste
         "value" -> JsObject(
             "name" -> JsString("dummyAction"),
             "main" -> JsString(mainClass),
-            "jar" -> JsString(jar64)))
+            "code" -> JsString(jar64)))
 
     behavior of "Java action"
 
