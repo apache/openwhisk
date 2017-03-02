@@ -317,7 +317,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
                                     response shouldBe JsObject(
                                         "pkg" -> s"$systemId/proxy".toJson,
                                         "action" -> "export_auth".toJson,
-                                        "content" -> metaPayload(m.method.value, Map(), creds, pkgName = "proxy"))
+                                        "content" -> metaPayload(m.method.name.toLowerCase, Map(), creds, pkgName = "proxy"))
                                     response.fields("content").asJsObject.fields("__ow_meta_namespace") shouldBe user.namespace.toJson
                             }
                         }
@@ -364,7 +364,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
                                 "pkg" -> s"$systemId/proxy".toJson,
                                 "action" -> "export_c".toJson,
                                 "content" -> metaPayload(
-                                    m.method.value,
+                                    m.method.name.toLowerCase,
                                     Map("a" -> "b", "c" -> "d"),
                                     creds,
                                     pkgName = "proxy"))
@@ -389,7 +389,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
                                 "pkg" -> s"$systemId/proxy".toJson,
                                 "action" -> "export_c".toJson,
                                 "content" -> metaPayload(
-                                    m.method.value,
+                                    m.method.name.toLowerCase,
                                     Map(),
                                     creds,
                                     body = Some(content),
@@ -414,7 +414,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
                                 "pkg" -> s"$systemId/proxy".toJson,
                                 "action" -> "export_c".toJson,
                                 "content" -> metaPayload(
-                                    m.method.value,
+                                    m.method.name.toLowerCase,
                                     Map("a" -> "b", "c" -> "d"),
                                     creds,
                                     body = Some(content),
@@ -436,7 +436,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
                             response shouldBe JsObject(
                                 "pkg" -> s"$systemId".toJson,
                                 "action" -> "export_c".toJson,
-                                "content" -> metaPayload(m.method.value, Map(), creds))
+                                "content" -> metaPayload(m.method.name.toLowerCase, Map(), creds))
                         }
                     }
                 }
@@ -451,7 +451,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
                         m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
                             status should be(OK)
                             val response = responseAs[JsObject]
-                            response shouldBe metaPayload(m.method.value, Map(), creds, path = "/content", pkgName = "proxy")
+                            response shouldBe metaPayload(m.method.name.toLowerCase, Map(), creds, path = "/content", pkgName = "proxy")
                         }
                     }
                 }
@@ -810,7 +810,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
                         "pkg" -> s"$systemId/proxy".toJson,
                         "action" -> "export_c".toJson,
                         "content" -> metaPayload(
-                            m.method.value,
+                            m.method.name.toLowerCase,
                             Map("empty" -> "overriden"),
                             creds,
                             pkgName = "proxy"))
