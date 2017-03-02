@@ -827,8 +827,8 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
             implicit val tid = transid()
 
             Post(s"$testRoutePath/$systemId/proxy/export_c.json?a=b&c=d", "1,2,3") ~> sealRoute(routes(creds)) ~> check {
-                status should be(UnsupportedMediaType)
-                responseAs[String] should include("application/json")
+                status should be(BadRequest)
+                confirmErrorWithTid(responseAs[JsObject], Some(Messages.contentTypeNotSupported))
             }
 
             Post(s"$testRoutePath/$systemId/proxy/export_c.json?a=b&c=d") ~> sealRoute(routes(creds)) ~> check {

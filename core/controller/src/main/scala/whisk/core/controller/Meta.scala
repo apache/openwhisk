@@ -192,7 +192,7 @@ protected[core] object WhiskMetaApi extends Directives {
                 respondWithHeaders(headers) {
                     respondWithMediaType(mediaType) {
                         complete(code, data)
-                    }
+                    } ~ terminate(BadRequest, Messages.invalidAcceptType(mediaType))(transid)
                 }
 
             case Failure(RejectRequest(code, message)) =>
@@ -269,9 +269,9 @@ trait WhiskMetaApi
                                     val pkgName = if (pkg == "default") None else Some(EntityName(pkg))
                                     handleMatch(EntityName(namespace), pkgName, EntityName(action), extension, user)
                                 } else {
-                                    terminate(NotAcceptable, Messages.contentTypeNotSupported)
+                                    terminate(NotAcceptable, Messages.contentTypeExtentionNotSupported)
                                 }
-                            case _ => terminate(NotAcceptable, Messages.contentTypeNotSupported)
+                            case _ => terminate(NotAcceptable, Messages.contentTypeExtentionNotSupported)
                         }
                     }
                 }
@@ -320,15 +320,13 @@ trait WhiskMetaApi
             }
         }
 
-        allowedOperations {
-            extract(_.request.entity.data.length) { length =>
-                validateSize(isWhithinRange(length))(transid) {
-                    entity(as[Option[JsObject]]) {
-                        body => process(body)
-                    } ~ entity(as[FormData]) {
-                        form => process(Some(form.fields.toMap.toJson.asJsObject))
-                    }
-                }
+        extract(_.request.entity.data.length) { length =>
+            validateSize(isWhithinRange(length))(transid) {
+                entity(as[Option[JsObject]]) {
+                    body => process(body)
+                } ~ entity(as[FormData]) {
+                    form => process(Some(form.fields.toMap.toJson.asJsObject))
+                } ~ terminate(BadRequest, Messages.contentTypeNotSupported)
             }
         }
     }
