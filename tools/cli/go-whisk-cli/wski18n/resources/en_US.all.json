@@ -1356,75 +1356,7 @@
     "translation": "display full description of each API"
   },
   {
-    "id": "User name and password were not specified",
-    "translation": "User name and password were not specified"
-  },
-  {
-    "id": "Unable to access Bluemix API host: {{.err}}",
-    "translation": "Unable to access Bluemix API host: {{.err}}"
-  },
-  {
-    "id": "Unable to access Bluemix authorization endpoint: {{.err}}",
-    "translation": "Unable to access Bluemix authorization endpoint: {{.err}}"
-  },
-  {
-    "id": "Unable to authenticate with Bluemix: {{.err}}",
-    "translation": "Unable to authenticate with Bluemix: {{.err}}"
-  },
-  {
-    "id": "Unable to retrieve namespaces: {{.err}}",
-    "translation": "Unable to retrieve namespaces: {{.err}}"
-  },
-  {
-    "id": "Bluemix user `NAME`",
-    "translation": "Bluemix user `NAME`"
-  },
-  {
-    "id": "Bluemix user `PASSWORD`",
-    "translation": "Bluemix user `PASSWORD`"
-  },
-  {
-    "id": "OpenWhisk `NAMESPACE`",
-    "translation": "OpenWhisk `NAMESPACE`"
-  },
-  {
-    "id": "bluemix integration",
-    "translation": "bluemix integration"
-  },
-  {
-    "id": "login to Bluemix",
-    "translation": "login to Bluemix"
-  },
-  {
-    "id": "Unable to save the Bluemix login access token: {{.err}}",
-    "translation": "Unable to save the Bluemix login access token: {{.err}}"
-  },
-  {
-    "id": "Internal error. OpenWhisk API {.api} is invalid: {{.err}}",
-    "translation": "Internal error. OpenWhisk API {.api} is invalid: {{.err}}"
-  },
-  {
-    "id": "Unable to initialize server connection: {{.err}}",
-    "translation": "Unable to initialize server connection: {{.err}}"
-  },
-  {
-    "id": "Internal error. Bluemix API {.api} is invalid: {{.err}}",
-    "translation": "Internal error. Bluemix API {.api} is invalid: {{.err}}"
-  },
-  {
-    "id": "Unable to initialize Bluemix server connection: {{.err}}",
-    "translation": "Unable to initialize Bluemix server connection: {{.err}}"
-  },
-  {
     "id": "An API host must be provided.",
     "translation": "An API host must be provided."
-  },
-  {
-    "id": "Select a namespace:",
-    "translation": "Select a namespace:"
-  },
-  {
-    "id": "There are too many namespaces to display, please type in the namespace name.",
-    "translation": "There are too many namespaces to display, please type in the namespace name."
   }
 ]
