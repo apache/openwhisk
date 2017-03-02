@@ -120,13 +120,6 @@ and invoking the action with a query parameter `name`, using the `.json` extensi
 $ curl https://${APIHOST}/api/v1/experimental/web/guest/demo/hello.json/response?name=Jane
 {
     "name": "Jane"
-    "__ow_meta_verb": "get",
-    "__ow_meta_headers": {
-        "accept": "*/*",
-        "user-agent": "curl/7.51.0",
-        ...
-    },
-    "__ow_meta_path": "/response"
 }
 ``` 
 
