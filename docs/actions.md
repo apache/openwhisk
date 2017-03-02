@@ -13,6 +13,12 @@ Learn how to create, invoke, and debug actions in your preferred development env
 * [Java](#creating-java-actions)
 * [Docker](#creating-docker-actions)
 
+In addition, learn about:
+
+* [Watching action output](#watching-action-output)
+* [Deleting actions](#deleting-actions)
+* [Accessing action metadata within the action body](#accessing-action-metadata-within-the-action-body)
+
 
 ## Creating and invoking JavaScript actions
 
