@@ -21,6 +21,7 @@ import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 
 import spray.http.MediaType
+import spray.http.MediaTypes
 import spray.http.StatusCode
 import spray.http.StatusCodes.Forbidden
 import spray.http.StatusCodes.NotFound
@@ -118,7 +119,9 @@ object Messages {
     /** Error for meta api. */
     val propertyNotFound = "Response does not include requested property."
     def invalidMedia(m: MediaType) = s"Response is not valid '${m.value}'."
-    val contentTypeNotSupported = """Content type must be specified and one of ["json", "html", "http", "text"]."""
+    val contentTypeExtentionNotSupported = """Extension must be specified and one of [".json", ".html", ".http", ".text"]."""
+    val contentTypeNotSupported = s"Content-type must be ${MediaTypes.`application/json`} or ${MediaTypes.`application/x-www-form-urlencoded`}."
+    def invalidAcceptType(m: MediaType) = s"Response type of ${m.value} does not correspond with accept header."
 
     val responseNotReady = "Response not yet ready."
     val httpUnknownContentType = "Response did not specify a known content-type."

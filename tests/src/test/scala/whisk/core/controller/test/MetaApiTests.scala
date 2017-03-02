@@ -307,7 +307,7 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
 
                         m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
                             status should be(NotAcceptable)
-                            confirmErrorWithTid(responseAs[JsObject], Some(Messages.contentTypeNotSupported))
+                            confirmErrorWithTid(responseAs[JsObject], Some(Messages.contentTypeExtentionNotSupported))
                         }
                     }
                 }
@@ -766,7 +766,7 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
                     allowedMethods.foreach { m =>
                         m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
                             status should be(NotAcceptable)
-                            confirmErrorWithTid(responseAs[JsObject], Some(Messages.contentTypeNotSupported))
+                            confirmErrorWithTid(responseAs[JsObject], Some(Messages.contentTypeExtentionNotSupported))
                         }
                     }
                 }
@@ -835,8 +835,8 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
             implicit val tid = transid()
 
             Post(s"$testRoutePath/$systemId/proxy/export_c.json?a=b&c=d", "1,2,3") ~> sealRoute(routes(creds)) ~> check {
-                status should be(UnsupportedMediaType)
-                responseAs[String] should include("application/json")
+                status should be(BadRequest)
+                confirmErrorWithTid(responseAs[JsObject], Some(Messages.contentTypeNotSupported))
             }
 
             Post(s"$testRoutePath/$systemId/proxy/export_c.json?a=b&c=d") ~> sealRoute(routes(creds)) ~> check {
@@ -894,6 +894,46 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
 
                     Head(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
                         header("location").get.toString shouldBe "location: http://openwhisk.org"
+                    }
+                }
+        }
+
+        it should s"handle html web action with text/xml response (auth? ${creds.isDefined})" in {
+            implicit val tid = transid()
+
+            Seq(s"$systemId/proxy/export_c.html").
+                foreach { path =>
+                    val html = """<html><body>test</body></html>"""
+                    val xml = """<?xml version="1.0" encoding="UTF-8"?><note><from>test</from></note>"""
+
+                    actionResult = Some(JsObject("html" -> xml.toJson))
+                    Get(s"$testRoutePath/$path") ~> addHeader("Accept", MediaTypes.`text/xml`.value) ~> sealRoute(routes(creds)) ~> check {
+                        status should be(NotAcceptable)
+                    }
+
+                    Seq((html, MediaTypes.`text/html`), (xml, MediaTypes.`text/html`)).
+                        foreach {
+                            case (res, expectedMediaType) =>
+                                actionResult = Some(JsObject("html" -> res.toJson))
+
+                                Get(s"$testRoutePath/$path") ~> addHeader("Accept", expectedMediaType.value) ~> sealRoute(routes(creds)) ~> check {
+                                    status should be(OK)
+                                    responseAs[String] shouldBe res
+                                    mediaType shouldBe expectedMediaType
+                                }
+                        }
+                }
+        }
+
+        it should s"reject invocation of web action with invalid accept header (auth? ${creds.isDefined})" in {
+            implicit val tid = transid()
+
+            Seq(s"$systemId/proxy/export_c.http").
+                foreach { path =>
+                    actionResult = Some(JsObject("body" -> "Plain text".toJson))
+                    Get(s"$testRoutePath/$path") ~> addHeader("Accept", "application/json") ~> sealRoute(routes(creds)) ~> check {
+                        status should be(BadRequest)
+                        confirmErrorWithTid(responseAs[JsObject], Some(Messages.invalidAcceptType(MediaTypes.`text/html`)))
                     }
                 }
         }
