@@ -60,16 +60,20 @@ def content_from_args(args):
 
 def init(args):
     main = args[1] if len(args) == 2 else "main"
-    args = args[0]
+    args = args[0] if len(args) > 1 else None
 
-    if args.endswith(".zip"):
+    if args and args.endswith(".zip"):
         with open(args, "rb") as fp:
             contents = fp.read().encode("base64")
         binary = True
-    else:
+    elif args:
         with(codecs.open(args, "r", "utf-8")) as fp:
             contents = fp.read()
         binary = False
+    else:
+        contents = None
+        binary = False
+
     r = requests.post("%s/init" % DEST, json = { "value" : { "code": contents, "binary": binary, "main": main } })
     print r.text
 
