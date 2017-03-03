@@ -14,26 +14,28 @@
  * limitations under the License.
  */
 
-package system.basic;
+package system.basic
 
 import org.junit.runner.RunWith
-import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
-import common.TestUtils
-import common.Wsk
-import common.WskProps
+import org.scalatest.Matchers
 import spray.json._
 import spray.json.DefaultJsonProtocol.StringJsonFormat
+import common.JsHelpers
 import common.TestHelpers
-import common.WskTestHelpers
+import common.TestUtils
+import common.TestUtils.ANY_ERROR_EXIT
+import common.Wsk
 import common.WskProps
+import common.WskTestHelpers
 import common.WhiskProperties
 
 @RunWith(classOf[JUnitRunner])
-class CLIPythonTests
+class WskBasicPythonTests
     extends TestHelpers
     with WskTestHelpers
-    with Matchers {
+    with Matchers
+    with JsHelpers {
 
     implicit val wskprops = WskProps()
     val wsk = new Wsk
@@ -118,5 +120,57 @@ class CLIPythonTests
                     activation.response.result.get.fields.get("error") shouldBe Some(JsString("The action failed to generate or locate a binary. See logs for details."))
                     activation.logs.get.mkString("\n") should { not include ("pythonaction.py") and not include ("flask") }
             }
+    }
+
+    behavior of "Python runtime"
+
+    it should "invoke a zipped Python2 action with virtualenv package" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "zippedPython2Action"
+            val zippedPythonAction = Some(TestUtils.getTestActionFilename("action_python2_virtualenv.zip"))
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) =>
+                    action.create(name, zippedPythonAction, kind = Some("python:2"))
+            }
+
+            withActivation(wsk.activation, wsk.action.invoke(name)) {
+                activation =>
+                    val response = activation.response
+                    response.result.get.fields.get("error") shouldBe empty
+                    response.result.get.fields.get("Networkinfo: ") shouldBe defined
+            }
+    }
+
+    it should "invoke a zipped Python3 action with virtualenv package" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "zippedPython3Action"
+            val zippedPythonAction = Some(TestUtils.getTestActionFilename("action_python3_virtualenv.zip"))
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) =>
+                    action.create(name, zippedPythonAction, kind = Some("python:3"))
+            }
+
+            withActivation(wsk.activation, wsk.action.invoke(name)) {
+                activation =>
+                    val response = activation.response
+                    response.result.get.fields.get("error") shouldBe empty
+                    response.result.get.fields.get("Networkinfo: ") shouldBe defined
+            }
+    }
+    it should "Ensure that zipped Python actions cannot be created without a kind specified" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "zippedPythonActionWithNoKindSpecified"
+            val zippedPythonAction = Some(TestUtils.getTestActionFilename("action_python2_virtualenv.zip"))
+
+            val createResult = assetHelper.withCleaner(wsk.action, name, confirmDelete = false) {
+                (action, _) =>
+                    action.create(name, zippedPythonAction, expectedExitCode = ANY_ERROR_EXIT)
+            }
+
+            val output = s"${createResult.stdout}\n${createResult.stderr}"
+
+            output should include("kind")
     }
 }

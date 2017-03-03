@@ -7,6 +7,7 @@ Actions are stateless code snippets that run on the OpenWhisk platform. An actio
 Actions can be explicitly invoked, or run in response to an event. In either case, each run of an action results in an activation record that is identified by a unique activation ID. The input to an action and the result of an action are a dictionary of key-value pairs, where the key is a string and the value a valid JSON value. Actions can also be composed of calls to other actions or a defined sequence of actions.
 
 Learn how to create, invoke, and debug actions in your preferred development environment:
+
 * [JavaScript](#creating-and-invoking-javascript-actions)
 * [Swift](#creating-swift-actions)
 * [Python](#creating-python-actions)
@@ -508,6 +509,60 @@ $ wsk action invoke --blocking --result helloPython --param name World
   {
       "greeting": "Hello World!"
   }
+```
+
+### Packaging Python actions in zip files
+
+You can package a Python action and dependant modules in a zip file.
+
+The filename of the main Python file must be named `__main__.py`
+
+Creating the zip file (example with two additional modules):
+
+`$ zip -r helloPython.zip __main__.py module1.py module2.py`
+
+Creating the action: 
+
+```$ wsk action create helloPython --kind python helloPython.zip```
+
+### Packaging Python actions with a virtual environment in zip files
+
+The virtual environment package `virtualenv` is supported to pass pip installed packages together with the action in a zip file.
+To ensure compatibility with the OpenWhisk container, package installations inside virtualenv must be done in the target environment. 
+So the docker image `openwhisk/python2action` or `openwhisk/python3action` is used to create the virtualenv directory. 
+
+Naming conventions:
+
+1. The name of the main Python file must be `__main__.py`
+2. The directory name for the virtualenv directory must be `virtualenv`
+
+Creating the zip file:
+
+1. A file named `requirements.txt` contains the pip modules and versions to install
+2. Run the following docker command to create the virtualenv directory: 
+    * Python 2
+ ```
+ $ docker run -rm -v "$PWD:/tmp" openwhisk/python2action sh -c "cd tmp; virtualenv virtualenv; source virtualenv/bin/activate; pip install -r requirements.txt;"
+ ```
+    * Python 3
+ ```
+ $ docker run -rm -v "$PWD:/tmp" openwhisk/python3action sh -c "cd tmp; virtualenv virtualenv; source virtualenv/bin/activate; pip install -r requirements.txt;"
+ ```
+
+3. Zip the virtualenv directory and your Python file(s): 
+ ```
+ $ zip -r helloPython.zip virtualenv __main__.py
+ ```
+
+Creating the action: 
+
+* Python 2
+```
+$ wsk action create helloPython --kind python:2 helloPython.zip
+```
+* Python 3
+```
+$ wsk action create helloPython --kind python:3 helloPython.zip
 ```
 
 
