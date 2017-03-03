@@ -230,7 +230,7 @@ The following packages are available to be used in the Node.js 6.9.1 environment
 - node-uuid v1.4.7
 - nodemailer v2.6.4
 - oauth2-server v2.4.1
-- openwhisk v3.0.0
+- openwhisk v3.3.2
 - pkgcloud v1.4.0
 - process v0.11.9
 - pug v2.0.0-beta6
