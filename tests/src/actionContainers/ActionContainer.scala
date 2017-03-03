@@ -54,7 +54,7 @@ trait ActionProxyContainerTestUtils extends FlatSpec with Matchers {
 
     def initPayload(code: String, main: String = "main") = {
         JsObject("value" -> JsObject(
-            "code" -> JsString(code),
+            "code" -> { if (code != null) JsString(code) else JsNull },
             "main" -> JsString(main),
             "binary" -> JsBoolean(Exec.isBinaryCode(code))))
     }

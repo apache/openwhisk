@@ -46,7 +46,7 @@ class ActionRunner:
     # @return True iff binary exists and is executable
     def init(self, message):
         def prep():
-            if 'code' in message:
+            if 'code' in message and message['code'] is not None:
                 binary = message['binary'] if 'binary' in message else False
                 if not binary:
                     return self.initCodeFromString(message)

@@ -266,8 +266,10 @@ protected[core] object Exec
     }
 
     def isBinaryCode(code: String): Boolean = {
-        val t = code.trim
-        (t.length > 0) && (t.length % 4 == 0) && Try(b64decoder.decode(t)).isSuccess
+        if (code != null) {
+            val t = code.trim
+            (t.length > 0) && (t.length % 4 == 0) && Try(b64decoder.decode(t)).isSuccess
+        } else false
     }
 
     private lazy val b64decoder = Base64.getDecoder()
