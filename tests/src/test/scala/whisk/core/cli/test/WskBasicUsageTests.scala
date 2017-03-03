@@ -454,6 +454,18 @@ class WskBasicUsageTests
             rr.stderr should include regex "kind 'foobar' not in Set"
     }
 
+    it should "report error when creating an action with zip but without kind" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "zipWithNoKind"
+            val zippedPythonAction = Some(TestUtils.getTestActionFilename("python.zip"))
+            val createResult = assetHelper.withCleaner(wsk.action, name, confirmDelete = false) {
+                (action, _) =>
+                    action.create(name, zippedPythonAction, expectedExitCode = ANY_ERROR_EXIT)
+            }
+
+            createResult.stderr should include regex "requires specifying the action kind"
+    }
+
     it should "create, and invoke an action that utilizes an invalid docker container with appropriate error" in withAssetCleaner(wskprops) {
         val name = "invalid dockerContainer"
         val containerName = s"bogus${Random.alphanumeric.take(16).mkString.toLowerCase}"

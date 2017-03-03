@@ -32,7 +32,7 @@ import org.scalatest.junit.JUnitRunner
 import spray.json.JsString
 
 @RunWith(classOf[JUnitRunner])
-class CLIJavaTests
+class WskBasicJavaTests
     extends TestHelpers
     with WskTestHelpers
     with Matchers {

@@ -18,13 +18,13 @@ package actionContainers
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-
 import ActionContainer.withContainer
-import ResourceHelpers.ZipBuilder
-
+import ResourceHelpers.{ ZipBuilder, readAsBase64 }
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import common.WskActorSystem
+import common.TestUtils
+import java.nio.file.Paths
 
 @RunWith(classOf[JUnitRunner])
 class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSystem {
@@ -139,6 +139,35 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
         })
     }
 
+    it should "support zip-encoded action which can read from relative paths" in {
+        val srcs = Seq(
+            Seq("__main__.py") -> """
+                |def main(args):
+                |    f = open('workfile', 'r')
+                |    return {'file': f.read()}
+            """.stripMargin,
+            Seq("workfile") -> "this is a test string")
+
+        val code = ZipBuilder.mkBase64Zip(srcs)
+
+        val (out, err) = withActionContainer() { c =>
+            val (initCode, initRes) = c.init(initPayload(code))
+            initCode should be(200)
+
+            val args = JsObject()
+            val (runCode, runRes) = c.run(runPayload(args))
+
+            runCode should be(200)
+            runRes.get.fields.get("file") shouldBe Some("this is a test string".toJson)
+        }
+
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe empty
+                e shouldBe empty
+        })
+    }
+
     it should "report error if zip-encoded action does not include required file" in {
         val srcs = Seq(
             Seq("echo.py") -> """
@@ -157,6 +186,97 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
             case (o, e) =>
                 o shouldBe empty
                 e should include("Zip file does not include")
+        })
+    }
+
+    it should "run zipped Python action containing a virtual environment" in {
+        val zippedPythonAction = if (imageName == "python2action") "python2_virtualenv.zip" else "python3_virtualenv.zip"
+        val zippedPythonActionName = TestUtils.getTestActionFilename(zippedPythonAction)
+        val code = readAsBase64(Paths.get(zippedPythonActionName))
+
+        val (out, err) = withActionContainer() { c =>
+            val (initCode, initRes) = c.init(initPayload(code, main = "main"))
+            initCode should be(200)
+            val args = JsObject("msg" -> JsString("any"))
+            val (runCode, runRes) = c.run(runPayload(args))
+            runCode should be(200)
+            runRes.get.toString() should include("netmask")
+        }
+        checkStreams(out, err, {
+            case (o, e) =>
+                o should include("netmask")
+                e shouldBe empty
+        })
+    }
+
+    it should "run zipped Python action containing a virtual environment with non-standard entry point" in {
+        val zippedPythonAction = if (imageName == "python2action") "python2_virtualenv.zip" else "python3_virtualenv.zip"
+        val zippedPythonActionName = TestUtils.getTestActionFilename(zippedPythonAction)
+        val code = readAsBase64(Paths.get(zippedPythonActionName))
+
+        val (out, err) = withActionContainer() { c =>
+            val (initCode, initRes) = c.init(initPayload(code, main = "naim"))
+            initCode should be(200)
+            val args = JsObject("msg" -> JsString("any"))
+            val (runCode, runRes) = c.run(runPayload(args))
+            runCode should be(200)
+            runRes.get.toString() should include("netmask")
+        }
+        checkStreams(out, err, {
+            case (o, e) =>
+                o should include("netmask")
+                e shouldBe empty
+        })
+    }
+
+    it should "report error if zipped Python action containing a virtual environment for wrong python version" in {
+        val zippedPythonAction = if (imageName == "python3action") "python2_virtualenv.zip" else "python3_virtualenv.zip"
+        val zippedPythonActionName = TestUtils.getTestActionFilename(zippedPythonAction)
+        val code = readAsBase64(Paths.get(zippedPythonActionName))
+
+        val (out, err) = withActionContainer() { c =>
+            val (initCode, initRes) = c.init(initPayload(code, main = "main"))
+            initCode should be(200)
+            val args = JsObject("msg" -> JsString("any"))
+            val (runCode, runRes) = c.run(runPayload(args))
+            runCode should be(502)
+        }
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe empty
+                if (imageName == "python2action") { e should include("ImportError") }
+                if (imageName == "python3action") { e should include("ModuleNotFoundError") }
+        })
+    }
+
+    it should "report error if zipped Python action has wrong main module name" in {
+        val zippedPythonActionWrongName = TestUtils.getTestActionFilename("python_virtualenv_name.zip")
+
+        val code = readAsBase64(Paths.get(zippedPythonActionWrongName))
+
+        val (out, err) = withActionContainer() { c =>
+            val (initCode, initRes) = c.init(initPayload(code, main = "main"))
+            initCode should be(502)
+        }
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe empty
+                e should include("Zip file does not include __main__.py")
+        })
+    }
+
+    it should "report error if zipped Python action has invalid virtualenv directory" in {
+        val zippedPythonActionWrongDir = TestUtils.getTestActionFilename("python_virtualenv_dir.zip")
+
+        val code = readAsBase64(Paths.get(zippedPythonActionWrongDir))
+        val (out, err) = withActionContainer() { c =>
+            val (initCode, initRes) = c.init(initPayload(code, main = "main"))
+            initCode should be(502)
+        }
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe empty
+                e should include("Zip file does not include /virtualenv/bin/")
         })
     }
 
