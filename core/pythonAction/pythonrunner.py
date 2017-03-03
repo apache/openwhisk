@@ -39,23 +39,37 @@ class PythonRunner(ActionRunner):
 
     def build(self, message):
         binary = message['binary'] if 'binary' in message else False
-
         if not binary:
             code = message['code']
             filename = 'action'
         elif os.path.isfile(self.source):
             with codecs.open(self.source, 'r', 'utf-8') as m:
                 code = m.read()
-            filename = '__main__.py'
-            sys.path.insert(0, os.path.dirname(self.source))
+            workdir = os.path.dirname(self.source)
+            sys.path.insert(0, workdir)
+            os.chdir(workdir)
         else:
-            sys.stderr.write('Zip file does not include "__main__.py".\n')
+            sys.stderr.write('Zip file does not include ' + os.path.basename(self.source) + '\n')
             return False
 
         try:
+            filename = os.path.basename(self.source)
             self.fn = compile(code, filename=filename, mode='exec')
             if 'main' in message:
                 self.mainFn = message['main']
+
+            # if the directory 'virtualenv' is extracted out of a zip file
+            path_to_virtualenv = os.path.dirname(self.source) + '/virtualenv'
+            if os.path.isdir(path_to_virtualenv):
+                # activate the virtualenv using activate_this.py contained in the virtualenv
+                activate_this_file = path_to_virtualenv + '/bin/activate_this.py'
+                if os.path.exists(activate_this_file):
+                    with open(activate_this_file) as f:
+                        code = compile(f.read(), activate_this_file, 'exec')
+                        exec(code, dict(__file__=activate_this_file))
+                else:
+                    sys.stderr.write('Invalid virtualenv. Zip file does not include /virtualenv/bin/' + os.path.basename(activate_this_file) + '\n')
+                    return False
             return True
         except Exception:
             traceback.print_exc(file=sys.stderr, limit=0)

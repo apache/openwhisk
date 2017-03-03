@@ -40,7 +40,7 @@ import spray.json.pimpAny
  * Tests of the text console
  */
 @RunWith(classOf[JUnitRunner])
-class ConsoleTests
+class WskConsoleTests
     extends TestHelpers
     with WskTestHelpers {
 

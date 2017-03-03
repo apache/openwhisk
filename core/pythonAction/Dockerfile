@@ -8,6 +8,7 @@ RUN apk add --no-cache \
         libxslt-dev \
         libxml2-dev \
         libffi-dev \
+        linux-headers \
         openssl-dev
 
 # Install common modules for python

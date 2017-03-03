@@ -78,14 +78,13 @@ class ActionRunner:
                 # write source epilogue if any
                 # the message is passed along as it may contain other
                 # fields relevant to a specific container.
-                self.epilogue(message)
-
+                if self.epilogue(message) is False:
+                    return False
                 # build the source
-                self.build(message)
+                if self.build(message) is False:
+                    return False
             except Exception:
-                # do nothing, verify will signal failure
-                # if binary not executable
-                None
+                return False
         # verify the binary exists and is executable
         return self.verify()
 

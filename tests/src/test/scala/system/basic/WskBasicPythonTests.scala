@@ -14,26 +14,27 @@
  * limitations under the License.
  */
 
-package system.basic;
+package system.basic
 
 import org.junit.runner.RunWith
-import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
+import org.scalatest.Matchers
+import spray.json._
+import spray.json.DefaultJsonProtocol.StringJsonFormat
+import common.JsHelpers
+import common.TestHelpers
 import common.TestUtils
 import common.Wsk
 import common.WskProps
-import spray.json._
-import spray.json.DefaultJsonProtocol.StringJsonFormat
-import common.TestHelpers
 import common.WskTestHelpers
-import common.WskProps
 import common.WhiskProperties
 
 @RunWith(classOf[JUnitRunner])
-class CLIPythonTests
+class WskBasicPythonTests
     extends TestHelpers
     with WskTestHelpers
-    with Matchers {
+    with Matchers
+    with JsHelpers {
 
     implicit val wskprops = WskProps()
     val wsk = new Wsk
@@ -119,4 +120,28 @@ class CLIPythonTests
                     activation.logs.get.mkString("\n") should { not include ("pythonaction.py") and not include ("flask") }
             }
     }
+
+    behavior of "Python virtualenv"
+
+    Seq(("python2_virtualenv.zip", "python:2"),
+        ("python3_virtualenv.zip", "python:3")).foreach {
+            case (filename, kind) =>
+                it should s"invoke a zipped $kind action with virtualenv package" in withAssetCleaner(wskprops) {
+                    (wp, assetHelper) =>
+                        val name = filename
+                        val zippedPythonAction = Some(TestUtils.getTestActionFilename(filename))
+
+                        assetHelper.withCleaner(wsk.action, name) {
+                            (action, _) =>
+                                action.create(name, zippedPythonAction, kind = Some(kind))
+                        }
+
+                        withActivation(wsk.activation, wsk.action.invoke(name)) {
+                            activation =>
+                                val response = activation.response
+                                response.result.get.fields.get("error") shouldBe empty
+                                response.result.get.fields.get("Networkinfo: ") shouldBe defined
+                        }
+                }
+        }
 }

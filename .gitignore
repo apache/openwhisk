@@ -52,4 +52,10 @@ ansible/roles/nginx/files/*cert.pem
 # .zip files must be explicited whitelisted
 *.zip
 !tests/dat/actions/blackbox.zip
+!tests/dat/actions/helloSwift.zip
+!tests/dat/actions/python.zip
+!tests/dat/actions/python2_virtualenv.zip
+!tests/dat/actions/python3_virtualenv.zip
+!tests/dat/actions/python_virtualenv_dir.zip
+!tests/dat/actions/python_virtualenv_name.zip
 !tests/dat/actions/zippedaction.zip

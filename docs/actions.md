@@ -7,6 +7,7 @@ Actions are stateless code snippets that run on the OpenWhisk platform. An actio
 Actions can be explicitly invoked, or run in response to an event. In either case, each run of an action results in an activation record that is identified by a unique activation ID. The input to an action and the result of an action are a dictionary of key-value pairs, where the key is a string and the value a valid JSON value. Actions can also be composed of calls to other actions or a defined sequence of actions.
 
 Learn how to create, invoke, and debug actions in your preferred development environment:
+
 * [JavaScript](#creating-and-invoking-javascript-actions)
 * [Swift](#creating-swift-actions)
 * [Python](#creating-python-actions)
@@ -510,6 +511,49 @@ $ wsk action invoke --blocking --result helloPython --param name World
   }
 ```
 
+### Packaging Python actions in zip files
+
+You can package a Python action and dependent modules in a zip file.
+The filename of the source file containing the entry point (e.g., `main`) must be `__main__.py`.
+For example, to create an action with a helper module called `helper.py`, first create an archive containing your source files:
+
+```bash
+$ zip -r helloPython.zip __main__.py helper.py
+```
+
+and then create the action:
+
+```bash
+$ wsk action create helloPython --kind python:3 helloPython.zip
+```
+
+### Packaging Python actions with a virtual environment in zip files
+
+Another way of packaging Python dependencies is using a virtual environment (`virtualenv`). This allows you to link additional packages
+that may be installed via [`pip`](https://packaging.python.org/installing/) for example.
+To ensure compatibility with the OpenWhisk container, package installations inside a virtualenv must be done in the target environment.
+So the docker image `openwhisk/python2action` or `openwhisk/python3action` should be used to create a virtualenv directory for your action.
+
+As with basic zip file support, the name of the source file containing the main entry point must be `__main__.py`. In addition, the virtualenv directory must be named `virtualenv`.
+Below is an example scenario for installing dependencies, packaging them in a virtualenv, and creating a compatible OpenWhisk action.
+
+1. Given a `requirements.txt` file that contains the `pip` modules and versions to install, run the following to install the dependencies and create a virtualenv using a compatible Docker image:
+ ```bash
+ $ docker run --rm -v "$PWD:/tmp" openwhisk/python3action sh \
+   -c "cd tmp; virtualenv virtualenv; source virtualenv/bin/activate; pip install -r requirements.txt;"
+ ```
+
+2. Archive the virtualenv directory and any additional Python files:
+ ```bash
+ $ zip -r helloPython.zip virtualenv __main__.py
+ ```
+
+3. Create the action:
+```bash
+$ wsk action create helloPython --kind python:3 helloPython.zip
+```
+
+While the steps above are shown for Python 3.6, you can do the same for Python 2.7 as well.
 
 ## Creating Swift actions
 
