@@ -146,11 +146,9 @@ case class WhiskAction(
     def containerInitializer: Option[JsObject] = {
         exec match {
             case c: CodeExec[_] =>
-                Some(JsObject(
-                    "name" -> name.toJson,
-                    "binary" -> c.binary.toJson,
-                    "code" -> c.codeAsJson,
-                    "main" -> c.entryPoint.getOrElse("main").toJson))
+                val code = Option(c.codeAsJson).filter(_ != JsNull).map("code" -> _)
+                val base = Map("name" -> name.toJson, "binary" -> c.binary.toJson, "main" -> c.entryPoint.getOrElse("main").toJson)
+                Some(JsObject(base ++ code))
             case _ => None
         }
     }

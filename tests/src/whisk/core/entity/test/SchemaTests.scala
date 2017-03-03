@@ -354,6 +354,18 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
         execs(0) shouldBe Exec.serdes.read(JsObject("kind" -> "blackbox".toJson, "image" -> "container1".toJson, "binary" -> false.toJson, "code" -> "".toJson))
     }
 
+    it should "exclude undefined code in whisk action initializer" in {
+        WhiskAction(EntityPath("a"), EntityName("b"), Exec.bb("container1")).containerInitializer shouldBe {
+            Some(JsObject("name" -> "b".toJson, "binary" -> false.toJson, "main" -> "main".toJson))
+        }
+        WhiskAction(EntityPath("a"), EntityName("b"), Exec.bb("container1", "xyz")).containerInitializer shouldBe {
+            Some(JsObject("name" -> "b".toJson, "binary" -> false.toJson, "main" -> "main".toJson, "code" -> "xyz".toJson))
+        }
+        WhiskAction(EntityPath("a"), EntityName("b"), Exec.bb("container1", "", Some("naim"))).containerInitializer shouldBe {
+            Some(JsObject("name" -> "b".toJson, "binary" -> false.toJson, "main" -> "naim".toJson))
+        }
+    }
+
     it should "reject malformed JSON" in {
         val b64 = Base64.getEncoder()
         val contents = b64.encodeToString("tarball".getBytes)
