@@ -80,7 +80,7 @@ public class Proxy {
 
                 JsonObject message = inputObject.getAsJsonObject("value");
                 String mainClass = message.getAsJsonPrimitive("main").getAsString();
-                String base64Jar = message.getAsJsonPrimitive("jar").getAsString();
+                String base64Jar = message.getAsJsonPrimitive("code").getAsString();
 
                 // FIXME: this is obviously not very useful. The idea is that we
                 // will implement/use

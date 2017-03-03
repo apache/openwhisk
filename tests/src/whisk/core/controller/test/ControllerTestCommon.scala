@@ -36,14 +36,13 @@ import whisk.common.TransactionCounter
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.connector.ActivationMessage
-import whisk.core.controller.WhiskActionsApi
 import whisk.core.controller.WhiskServices
 import whisk.core.database.DocumentFactory
 import whisk.core.database.test.DbUtils
 import whisk.core.entitlement._
 import whisk.core.entity._
-import whisk.core.iam.NamespaceProvider
 import whisk.core.loadBalancer.LoadBalancer
+import whisk.core.controller.RestAPIVersion_v1
 
 protected trait ControllerTestCommon
     extends FlatSpec
@@ -63,13 +62,12 @@ protected trait ControllerTestCommon
     implicit val actorSystem = system // defined in ScalatestRouteTest
     val executionContext = actorSystem.dispatcher
 
-    override val whiskConfig = new WhiskConfig(WhiskAuthStore.requiredProperties ++ WhiskActionsApi.requiredProperties)
+    override val whiskConfig = new WhiskConfig(RestAPIVersion_v1.requiredProperties)
     assert(whiskConfig.isValid)
 
     override val loadBalancer = new DegenerateLoadBalancerService(whiskConfig)
 
-    override val iam = new NamespaceProvider(whiskConfig, forceLocal = true)
-    override lazy val entitlementProvider: EntitlementProvider = new LocalEntitlementProvider(whiskConfig, loadBalancer, iam)
+    override lazy val entitlementProvider: EntitlementProvider = new LocalEntitlementProvider(whiskConfig, loadBalancer)
 
     override val activationIdFactory = new ActivationId.ActivationIdGenerator() {
         // need a static activation id to test activations api

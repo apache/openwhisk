@@ -38,7 +38,6 @@ import whisk.core.entitlement._
 import whisk.core.entity._
 import whisk.core.entity.ActivationId.ActivationIdGenerator
 import whisk.core.entity.types._
-import whisk.core.iam.NamespaceProvider
 import whisk.core.loadBalancer.LoadBalancerService
 
 /**
@@ -84,12 +83,12 @@ abstract protected[controller] class RestAPIVersion(
 protected[controller] object RestAPIVersion_v1 {
     def requiredProperties =
         WhiskConfig.whiskVersion ++
-            WhiskServices.requiredProperties ++
+            WhiskAuthStore.requiredProperties ++
+            WhiskEntityStore.requiredProperties ++
+            WhiskActivationStore.requiredProperties ++
+            WhiskConfig.consulServer ++
+            EntitlementProvider.requiredProperties ++
             WhiskActionsApi.requiredProperties ++
-            WhiskTriggersApi.requiredProperties ++
-            WhiskRulesApi.requiredProperties ++
-            WhiskActivationsApi.requiredProperties ++
-            WhiskPackagesApi.requiredProperties ++
             Authenticate.requiredProperties ++
             Collection.requiredProperties
 }
@@ -161,10 +160,9 @@ protected[controller] class RestAPIVersion_v1(
     protected implicit val activationStore = WhiskActivationStore.datastore(config)
 
     // initialize backend services
-    protected implicit val consulServer = WhiskServices.consulServer(config)
-    protected implicit val loadBalancer = WhiskServices.makeLoadBalancerComponent(config)
-    protected implicit val iamProvider = WhiskServices.iamProvider(config)
-    protected implicit val entitlementService = WhiskServices.entitlementService(config, loadBalancer, iamProvider)
+    protected implicit val consulServer = config.consulServer
+    protected implicit val loadBalancer = new LoadBalancerService(config)
+    protected implicit val entitlementService = new LocalEntitlementProvider(config, loadBalancer)
     protected implicit val activationId = new ActivationIdGenerator {}
 
     // register collections and set verbosities on datastores and backend services
@@ -182,7 +180,6 @@ protected[controller] class RestAPIVersion_v1(
         val apipath: String,
         val apiversion: String)(
             implicit override val entityStore: EntityStore,
-            override val iam: NamespaceProvider,
             override val entitlementProvider: EntitlementProvider,
             override val executionContext: ExecutionContext,
             override val logging: Logging)
@@ -195,7 +192,6 @@ protected[controller] class RestAPIVersion_v1(
             implicit override val actorSystem: ActorSystem,
             override val entityStore: EntityStore,
             override val activationStore: ActivationStore,
-            override val iam: NamespaceProvider,
             override val entitlementProvider: EntitlementProvider,
             override val activationIdFactory: ActivationIdGenerator,
             override val loadBalancer: LoadBalancerService,
@@ -213,7 +209,6 @@ protected[controller] class RestAPIVersion_v1(
         val apiversion: String)(
             implicit override val actorSystem: ActorSystem,
             implicit override val entityStore: EntityStore,
-            override val iam: NamespaceProvider,
             override val entitlementProvider: EntitlementProvider,
             override val activationStore: ActivationStore,
             override val activationIdFactory: ActivationIdGenerator,
@@ -230,7 +225,6 @@ protected[controller] class RestAPIVersion_v1(
         val apiversion: String)(
             implicit override val actorSystem: ActorSystem,
             override val entityStore: EntityStore,
-            override val iam: NamespaceProvider,
             override val entitlementProvider: EntitlementProvider,
             override val activationIdFactory: ActivationIdGenerator,
             override val loadBalancer: LoadBalancerService,
@@ -255,7 +249,6 @@ protected[controller] class RestAPIVersion_v1(
         val apipath: String,
         val apiversion: String)(
             implicit override val entityStore: EntityStore,
-            override val iam: NamespaceProvider,
             override val entitlementProvider: EntitlementProvider,
             override val activationIdFactory: ActivationIdGenerator,
             override val loadBalancer: LoadBalancerService,
@@ -272,7 +265,6 @@ protected[controller] class RestAPIVersion_v1(
             implicit override val authStore: AuthStore,
             implicit val entityStore: EntityStore,
             override val activationStore: ActivationStore,
-            override val iam: NamespaceProvider,
             override val entitlementProvider: EntitlementProvider,
             override val activationIdFactory: ActivationIdGenerator,
             override val loadBalancer: LoadBalancerService,

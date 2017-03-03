@@ -145,21 +145,10 @@ case class WhiskAction(
      */
     def containerInitializer: Option[JsObject] = {
         exec match {
-            case c: CodeExecAsString =>
-                Some(JsObject(
-                    "name" -> name.toJson,
-                    "binary" -> c.binary.toJson,
-                    "code" -> c.code.toJson,
-                    "main" -> c.entryPoint.getOrElse("main").toJson))
-            case JavaExec(jar, main) =>
-                Some(JsObject(
-                    "name" -> name.toJson,
-                    "jar" -> jar.toJson,
-                    "main" -> main.toJson))
-            case b @ BlackBoxExec(image, code) =>
-                Some(code map {
-                    c => JsObject("code" -> c.toJson, "binary" -> JsBoolean(b.binary))
-                } getOrElse JsObject())
+            case c: CodeExec[_] =>
+                val code = Option(c.codeAsJson).filter(_ != JsNull).map("code" -> _)
+                val base = Map("name" -> name.toJson, "binary" -> c.binary.toJson, "main" -> c.entryPoint.getOrElse("main").toJson)
+                Some(JsObject(base ++ code))
             case _ => None
         }
     }
@@ -195,7 +184,7 @@ object WhiskAction
 
     def containerImageName(exec: CodeExec[_], registry: String, prefix: String, tag: String): String = {
         exec match {
-            case b @ BlackBoxExec(image, _) =>
+            case b @ BlackBoxExec(image, _, _) =>
                 if (b.pull) {
                     image
                 } else {

@@ -17,6 +17,7 @@
 package commands
 
 import (
+    "bufio"
     "errors"
     "fmt"
     "strings"
@@ -811,7 +812,7 @@ func checkArgs(args []string, minimumArgNumber int, maximumArgNumber int, comman
     }
 }
 
-func getURLBase(host string) (*url.URL, error)  {
+func getURLBase(host string, path string) (*url.URL, error)  {
     if len(host) == 0 {
         errMsg := wski18n.T("An API host must be provided.")
         whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
@@ -819,11 +820,11 @@ func getURLBase(host string) (*url.URL, error)  {
         return nil, whiskErr
     }
 
-    urlBase := fmt.Sprintf("%s/api/", host)
+    urlBase := fmt.Sprintf("%s%s", host, path)
     url, err := url.Parse(urlBase)
 
     if len(url.Scheme) == 0 || len(url.Host) == 0 {
-        urlBase = fmt.Sprintf("https://%s/api/", host)
+        urlBase = fmt.Sprintf("https://%s%s", host, path)
         url, err = url.Parse(urlBase)
     }
 
@@ -926,4 +927,84 @@ func min (a int, b int) int {
         return a
     }
     return b
+}
+
+func readProps(path string) (map[string]string, error) {
+
+    props := map[string]string{}
+
+    file, err := os.Open(path)
+    if err != nil {
+        // If file does not exist, just return props
+        whisk.Debug(whisk.DbgWarn, "Unable to read whisk properties file '%s' (file open error: %s); falling back to default properties\n" ,path, err)
+        return props, nil
+    }
+    defer file.Close()
+
+    lines := []string{}
+    scanner := bufio.NewScanner(file)
+    for scanner.Scan() {
+        lines = append(lines, scanner.Text())
+    }
+
+    props = map[string]string{}
+    for _, line := range lines {
+        kv := strings.Split(line, "=")
+        if len(kv) != 2 {
+            // Invalid format; skip
+            continue
+        }
+        props[kv[0]] = kv[1]
+    }
+
+    return props, nil
+
+}
+
+func writeProps(path string, props map[string]string) error {
+
+    file, err := os.Create(path)
+    if err != nil {
+        whisk.Debug(whisk.DbgError, "os.Create(%s) failed: %s\n", path, err)
+        errStr := wski18n.T("Whisk properties file write failure: {{.err}}", map[string]interface{}{"err": err})
+        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+        return werr
+    }
+    defer file.Close()
+
+    writer := bufio.NewWriter(file)
+    defer writer.Flush()
+    for key, value := range props {
+        line := fmt.Sprintf("%s=%s", strings.ToUpper(key), value)
+        _, err = fmt.Fprintln(writer, line)
+        if err != nil {
+            whisk.Debug(whisk.DbgError, "fmt.Fprintln() write to '%s' failed: %s\n", path, err)
+            errStr := wski18n.T("Whisk properties file write failure: {{.err}}", map[string]interface{}{"err": err})
+            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            return werr
+        }
+    }
+    return nil
+}
+
+func getSpaceGuid() (string, error) {
+    // get current props
+    props, err := readProps(Properties.PropsFile)
+    if err != nil {
+        whisk.Debug(whisk.DbgError, "readProps(%s) failed: %s\n", Properties.PropsFile, err)
+        errStr := wski18n.T("Unable to obtain the `auth` property value: {{.err}}", map[string]interface{}{"err": err})
+        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+        return "", werr
+    }
+
+    // get the auth key and parse out the space guid
+    if authToken, hasProp := props["AUTH"]; hasProp {
+        spaceGuid := strings.Split(authToken, ":")[0]
+        return spaceGuid, nil
+    }
+
+    whisk.Debug(whisk.DbgError, "auth not found in properties: %#q\n", props)
+    errStr := wski18n.T("Auth key property value is not set")
+    werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+    return "", werr
 }
