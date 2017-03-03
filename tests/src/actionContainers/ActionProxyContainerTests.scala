@@ -122,6 +122,21 @@ class ActionProxyContainerTests extends BasicActionRunnerTests with WskActorSyst
         })
     }
 
+    it should "run sample with 'null' init" in {
+        val (out, err) = withActionContainer() { c =>
+            val (initCode, _) = c.init(initPayload(null))
+            initCode should be(200)
+
+            val (runCode, out) = c.run(JsObject())
+            runCode should be(200)
+            out should be(Some(JsObject("error" -> JsString("This is a stub action. Replace it with custom logic."))))
+        }
+
+        checkStreams(out, err, {
+            case (o, _) => o should include("This is a stub action")
+        })
+    }
+
     it should "run sample with init that does nothing" in {
         val (out, err) = withActionContainer() { c =>
             val (initCode, _) = c.init(JsObject())
