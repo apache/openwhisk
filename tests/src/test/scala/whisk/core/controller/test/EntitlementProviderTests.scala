@@ -258,7 +258,7 @@ class EntitlementProviderTests
             (REJECT, guestUser, Right(false)))
 
         // this forces a doc mismatch error
-        val action = WhiskAction(someUser.namespace.toPath, MakeName.next(), Exec.js(""))
+        val action = WhiskAction(someUser.namespace.toPath, MakeName.next(), js(""))
         put(entityStore, action)
         paths foreach {
             case (priv, who, expected) =>
@@ -465,7 +465,7 @@ class EntitlementProviderTests
             (REJECT, guestUser, Right(false)))
 
         val provider = WhiskPackage(someUser.namespace.toPath, MakeName.next(), None, publish = true)
-        val action = WhiskAction(provider.fullPath, MakeName.next(), Exec.js(""))
+        val action = WhiskAction(provider.fullPath, MakeName.next(), js(""))
         put(entityStore, provider)
         put(entityStore, action)
 
@@ -498,7 +498,7 @@ class EntitlementProviderTests
             (REJECT, guestUser, Right(false)))
 
         val provider = WhiskPackage(someUser.namespace.toPath, MakeName.next(), None, publish = false)
-        val action = WhiskAction(provider.fullPath, MakeName.next(), Exec.js(""))
+        val action = WhiskAction(provider.fullPath, MakeName.next(), js(""))
         put(entityStore, provider)
         put(entityStore, action)
 
@@ -532,7 +532,7 @@ class EntitlementProviderTests
 
         val provider = WhiskPackage(someUser.namespace.toPath, MakeName.next(), None, publish = true)
         val binding = WhiskPackage(guestUser.namespace.toPath, MakeName.next(), provider.bind)
-        val action = WhiskAction(binding.fullPath, MakeName.next(), Exec.js(""))
+        val action = WhiskAction(binding.fullPath, MakeName.next(), js(""))
         put(entityStore, provider)
         put(entityStore, binding)
         put(entityStore, action)
@@ -567,7 +567,7 @@ class EntitlementProviderTests
 
         val provider = WhiskPackage(someUser.namespace.toPath, MakeName.next(), None, publish = false)
         val binding = WhiskPackage(guestUser.namespace.toPath, MakeName.next(), provider.bind)
-        val action = WhiskAction(binding.fullPath, MakeName.next(), Exec.js(""))
+        val action = WhiskAction(binding.fullPath, MakeName.next(), js(""))
         put(entityStore, provider)
         put(entityStore, binding)
         put(entityStore, action)
@@ -600,7 +600,7 @@ class EntitlementProviderTests
             (ACTIVATE, guestUser, Right(false)),
             (REJECT, guestUser, Right(false)))
 
-        val action = WhiskAction(someUser.namespace.toPath, MakeName.next(), Exec.js(""))
+        val action = WhiskAction(someUser.namespace.toPath, MakeName.next(), js(""))
         put(entityStore, action)
 
         paths foreach {

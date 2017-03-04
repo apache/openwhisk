@@ -65,9 +65,9 @@ class SequenceActionApiMigrationTests extends ControllerTestCommon
 
     it should "list old-style sequence action with explicit namespace" in {
         implicit val tid = transid()
-        val sequence = Vector("/_/a", "/_/x/b", "/n/a", "/n/x/c").map(stringToFullyQualifiedName(_))
+        val components = Vector("/_/a", "/_/x/b", "/n/a", "/n/x/c").map(stringToFullyQualifiedName(_))
         val actions = (1 to 2).map { i =>
-            WhiskAction(namespace, aname, Exec.sequence(sequence))
+            WhiskAction(namespace, aname, sequence(components))
         }.toList
         actions foreach { put(entityStore, _) }
         waitOnView(entityStore, WhiskAction, namespace, 2)
@@ -82,8 +82,8 @@ class SequenceActionApiMigrationTests extends ControllerTestCommon
 
     it should "get old-style sequence action by name in default namespace" in {
         implicit val tid = transid()
-        val sequence = Vector("/_/a", "/_/x/b", "/n/a", "/n/x/c").map(stringToFullyQualifiedName(_))
-        val action = WhiskAction(namespace, aname, Exec.sequence(sequence))
+        val components = Vector("/_/a", "/_/x/b", "/n/a", "/n/x/c").map(stringToFullyQualifiedName(_))
+        val action = WhiskAction(namespace, aname, sequence(components))
         put(entityStore, action)
         Get(s"$collectionPath/${action.name}") ~> sealRoute(routes(creds)) ~> check {
             status should be(OK)
@@ -96,9 +96,9 @@ class SequenceActionApiMigrationTests extends ControllerTestCommon
     it should "preserve new parameters when changing old-style sequence action to non sequence" in {
         implicit val tid = transid()
         val components = Vector("/_/a", "/_/x/b", "/n/a", "/n/x/c")
-        val sequence = components.map(stringToFullyQualifiedName(_))
-        val action = WhiskAction(namespace, aname, Exec.sequence(sequence), seqParameters(components))
-        val content = WhiskActionPut(Some(Exec.js("")), parameters = Some(Parameters("a", "A")))
+        val seqComponents = components.map(stringToFullyQualifiedName(_))
+        val action = WhiskAction(namespace, aname, sequence(seqComponents), seqParameters(components))
+        val content = WhiskActionPut(Some(js("")), parameters = Some(Parameters("a", "A")))
         put(entityStore, action, false)
 
         // create an action sequence
@@ -106,7 +106,7 @@ class SequenceActionApiMigrationTests extends ControllerTestCommon
             deleteAction(action.docid)
             status should be(OK)
             val response = responseAs[WhiskAction]
-            response.exec.kind should be(Exec.NODEJS)
+            response.exec.kind should be(NODEJS)
             response.parameters should be(Parameters("a", "A"))
         }
     }
@@ -115,9 +115,9 @@ class SequenceActionApiMigrationTests extends ControllerTestCommon
     it should "reset parameters when changing old-style sequence action to non sequence" in {
         implicit val tid = transid()
         val components = Vector("/_/a", "/_/x/b", "/n/a", "/n/x/c")
-        val sequence = components.map(stringToFullyQualifiedName(_))
-        val action = WhiskAction(namespace, aname, Exec.sequence(sequence), seqParameters(components))
-        val content = WhiskActionPut(Some(Exec.js("")))
+        val seqComponents = components.map(stringToFullyQualifiedName(_))
+        val action = WhiskAction(namespace, aname, sequence(seqComponents), seqParameters(components))
+        val content = WhiskActionPut(Some(js("")))
         put(entityStore, action, false)
 
         // create an action sequence
@@ -125,7 +125,7 @@ class SequenceActionApiMigrationTests extends ControllerTestCommon
             deleteAction(action.docid)
             status should be(OK)
             val response = responseAs[WhiskAction]
-            response.exec.kind should be(Exec.NODEJS)
+            response.exec.kind should be(NODEJS)
             response.parameters shouldBe Parameters()
         }
     }
@@ -133,8 +133,8 @@ class SequenceActionApiMigrationTests extends ControllerTestCommon
     it should "update old-style sequence action with new annotations" in {
         implicit val tid = transid()
         val components = Vector("/_/a", "/_/x/b", "/n/a", "/n/x/c")
-        val sequence = components.map(stringToFullyQualifiedName(_))
-        val action = WhiskAction(namespace, aname, Exec.sequence(sequence))
+        val seqComponents = components.map(stringToFullyQualifiedName(_))
+        val action = WhiskAction(namespace, aname, sequence(seqComponents))
         val content = """{"annotations":[{"key":"old","value":"new"}]}""".parseJson.asJsObject
         put(entityStore, action, false)
 
@@ -156,7 +156,7 @@ class SequenceActionApiMigrationTests extends ControllerTestCommon
         // old sequence
         val seqName = EntityName(s"${aname}_new")
         val oldComponents = Vector("/_/a", "/_/x/b", "/n/a", "/n/x/c").map(stringToFullyQualifiedName(_))
-        val oldSequence = WhiskAction(namespace, seqName, Exec.sequence(oldComponents))
+        val oldSequence = WhiskAction(namespace, seqName, sequence(oldComponents))
         put(entityStore, oldSequence)
 
         // new sequence
@@ -164,10 +164,10 @@ class SequenceActionApiMigrationTests extends ControllerTestCommon
         val bogus = s"${aname}_bogus"
         val bogusActionName = s"/_/${bogus}"   // test that default namespace gets properly replaced
         // put the action in the entity store so it exists
-        val bogusAction = WhiskAction(namespace, EntityName(bogus), Exec.js("??"), Parameters("x", "y"))
+        val bogusAction = WhiskAction(namespace, EntityName(bogus), js("??"), Parameters("x", "y"))
         put(entityStore, bogusAction)
-        val sequence = for (i <- 1 to limit) yield stringToFullyQualifiedName(bogusActionName)
-        val seqAction = WhiskAction(namespace, seqName, Exec.sequence(sequence.toVector))
+        val seqComponents = for (i <- 1 to limit) yield stringToFullyQualifiedName(bogusActionName)
+        val seqAction = WhiskAction(namespace, seqName, sequence(seqComponents.toVector))
         val content = WhiskActionPut(Some(seqAction.exec), Some(Parameters()))
 
         // update an action sequence

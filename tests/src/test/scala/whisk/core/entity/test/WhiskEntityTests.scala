@@ -22,7 +22,6 @@ import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 import whisk.core.entity.EntityPath
 import whisk.core.entity.EntityName
-import whisk.core.entity.Exec
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.DocRevision
 import whisk.core.entity.Parameters
@@ -39,7 +38,7 @@ import whisk.core.entity.ReducedRule
 import whisk.core.entity.Status
 
 @RunWith(classOf[JUnitRunner])
-class WhiskEntityTests extends FlatSpec with Matchers {
+class WhiskEntityTests extends FlatSpec with ExecHelpers with Matchers {
 
     val namespace = EntityPath("testspace")
     val name = EntityName("testname")
@@ -51,7 +50,7 @@ class WhiskEntityTests extends FlatSpec with Matchers {
         def withParameters(p: Parameters) = WhiskAction(
             namespace,
             name,
-            Exec.js("js1"), parameters = p).revision[WhiskAction](revision)
+            js("js1"), parameters = p).revision[WhiskAction](revision)
 
         val toInherit = Parameters("testParam", "testValue")
         Seq(Parameters(),
@@ -71,7 +70,7 @@ class WhiskEntityTests extends FlatSpec with Matchers {
         val action = WhiskAction(
             namespace,
             name,
-            Exec.sequence(Vector(sequenceAction))).revision[WhiskAction](revision)
+            sequence(Vector(sequenceAction))).revision[WhiskAction](revision)
 
         val resolved = action.resolve(EntityName(user))
         resolved.exec.asInstanceOf[SequenceExec].components.head shouldBe sequenceAction.copy(path = EntityPath(user))

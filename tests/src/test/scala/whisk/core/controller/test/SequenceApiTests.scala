@@ -53,12 +53,12 @@ class SequenceApiTests
         implicit val tid = transid()
         val seqName = EntityName(s"${aname()}_toomanyactions")
         // put the component action in the entity store so it's found
-        val component = WhiskAction(namespace, aname(), Exec.js("??"))
+        val component = WhiskAction(namespace, aname(), js("??"))
         put(entityStore, component)
         // create exec sequence that will violate max length
         val limit = whiskConfig.actionSequenceLimit.toInt + 1 // one more than allowed
-        val sequence = for (i <- 1 to limit) yield stringToFullyQualifiedName(component.docid.asString)
-        val content = WhiskActionPut(Some(Exec.sequence(sequence.toVector)))
+        val components = for (i <- 1 to limit) yield stringToFullyQualifiedName(component.docid.asString)
+        val content = WhiskActionPut(Some(sequence(components.toVector)))
 
         // create an action sequence
         Put(s"$collectionPath/${seqName.name}", content) ~> sealRoute(routes(creds)) ~> check {
@@ -71,7 +71,7 @@ class SequenceApiTests
         implicit val tid = transid()
         val seqName = s"${aname()}_no_component"
         // create exec sequence with no component
-        val content = WhiskActionPut(Some(Exec.sequence(Vector())))
+        val content = WhiskActionPut(Some(sequence(Vector())))
 
         // create an action sequence
         Put(s"$collectionPath/$seqName", content) ~> sealRoute(routes(creds)) ~> check {
@@ -87,7 +87,7 @@ class SequenceApiTests
         val components = Vector("a", "b")
         putSimpleSequenceInDB(seqName, namespace, components)
         // update sequence with no component
-        val updateContent = WhiskActionPut(Some(Exec.sequence(Vector())))
+        val updateContent = WhiskActionPut(Some(sequence(Vector())))
 
         // create an action sequence
         Put(s"$collectionPath/$seqName?overwrite=true", updateContent) ~> sealRoute(routes(creds)) ~> check {
@@ -101,8 +101,8 @@ class SequenceApiTests
         val seqName = EntityName(s"${aname()}_componentnotfound")
         val bogus = s"${aname()}_bogus"
         val bogusAction = s"/$namespace/$bogus"
-        val sequence = Vector(bogusAction).map(stringToFullyQualifiedName(_))
-        val content = WhiskActionPut(Some(Exec.sequence(sequence)))
+        val components = Vector(bogusAction).map(stringToFullyQualifiedName(_))
+        val content = WhiskActionPut(Some(sequence(components)))
 
         // create an action sequence
         Put(s"$collectionPath/${seqName.name}", content) ~> sealRoute(routes(creds)) ~> check {
@@ -128,7 +128,7 @@ class SequenceApiTests
         implicit val tid = transid()
 
         // put the action in the entity store so it's found
-        val component = WhiskAction(namespace, aname(), Exec.js("??"))
+        val component = WhiskAction(namespace, aname(), js("??"))
         put(entityStore, component)
 
         val seqName = s"${aname()}_cyclic"
@@ -146,11 +146,11 @@ class SequenceApiTests
         implicit val tid = transid()
         val seqName = EntityName(s"${aname()}_cycle")
         // put the component action in the entity store so it's found
-        val component = WhiskAction(namespace, aname(), Exec.js("??"))
+        val component = WhiskAction(namespace, aname(), js("??"))
         put(entityStore, component)
         // create valid exec sequence initially
-        val sequence = for (i <- 1 to 2) yield stringToFullyQualifiedName(component.docid.asString)
-        val content = WhiskActionPut(Some(Exec.sequence(sequence.toVector)))
+        val components = for (i <- 1 to 2) yield stringToFullyQualifiedName(component.docid.asString)
+        val content = WhiskActionPut(Some(sequence(components.toVector)))
 
         // create a valid action sequence first
         Put(s"$collectionPath/${seqName.name}", content) ~> sealRoute(routes(creds)) ~> check {
@@ -159,8 +159,8 @@ class SequenceApiTests
 
         // now create exec sequence with a self-reference
         val seqNameWithNamespace = stringToFullyQualifiedName(s"/${namespace}/${seqName.name}")
-        val updatedSeq = sequence.updated(1, seqNameWithNamespace)
-        val updatedContent = WhiskActionPut(Some(Exec.sequence(updatedSeq.toVector)))
+        val updatedSeq = components.updated(1, seqNameWithNamespace)
+        val updatedContent = WhiskActionPut(Some(sequence(updatedSeq.toVector)))
 
         // update the sequence
         Put(s"$collectionPath/${seqName.name}?overwrite=true", updatedContent) ~> sealRoute(routes(creds)) ~> check {
@@ -173,12 +173,12 @@ class SequenceApiTests
         implicit val tid = transid()
         val seqName = EntityName(s"${aname()}_normal")
         // put the component action in the entity store so it's found
-        val component = WhiskAction(namespace, aname(), Exec.js("??"))
+        val component = WhiskAction(namespace, aname(), js("??"))
         put(entityStore, component)
         // create valid exec sequence
         val limit = whiskConfig.actionSequenceLimit.toInt
-        val sequence = for (i <- 1 to limit) yield stringToFullyQualifiedName(component.docid.asString)
-        val content = WhiskActionPut(Some(Exec.sequence(sequence.toVector)))
+        val components = for (i <- 1 to limit) yield stringToFullyQualifiedName(component.docid.asString)
+        val content = WhiskActionPut(Some(sequence(components.toVector)))
 
         // create an action sequence
         Put(s"$collectionPath/${seqName.name}", content) ~> sealRoute(routes(creds)) ~> check {
@@ -203,12 +203,12 @@ class SequenceApiTests
         // put the action in the entity store so it exists
         val actionName = s"${aname()}_action"
         val namespaceWithPkg = s"/$namespace/$pkg"
-        val action = WhiskAction(EntityPath(namespaceWithPkg), EntityName(actionName), Exec.js("??"))
+        val action = WhiskAction(EntityPath(namespaceWithPkg), EntityName(actionName), js("??"))
         put(entityStore, action)
 
         // create sequence that refers to action with binding
-        val sequence = Vector(s"/$defaultNamespace/$pkgWithBinding/$actionName").map(stringToFullyQualifiedName(_))
-        val content = WhiskActionPut(Some(Exec.sequence(sequence)))
+        val components = Vector(s"/$defaultNamespace/$pkgWithBinding/$actionName").map(stringToFullyQualifiedName(_))
+        val content = WhiskActionPut(Some(sequence(components)))
 
         // create an action sequence
         Put(s"$collectionPath/${seqName.name}", content) ~> sealRoute(routes(creds)) ~> check {
@@ -222,9 +222,9 @@ class SequenceApiTests
         val seqName = EntityName(s"${aname()}_cycle_binding")
 
         // put the action in the entity store so it's found
-        val component = WhiskAction(namespace, aname(), Exec.js("??"))
+        val component = WhiskAction(namespace, aname(), js("??"))
         put(entityStore, component)
-        val sequence = for (i <- 1 to 2) yield stringToFullyQualifiedName(component.docid.asString)
+        val components = for (i <- 1 to 2) yield stringToFullyQualifiedName(component.docid.asString)
 
         // create package
         val pkg = s"${aname()}_pkg"
@@ -233,7 +233,7 @@ class SequenceApiTests
 
         // create an action sequence
         val namespaceWithPkg = EntityPath(s"/$namespace/$pkg")
-        val content = WhiskActionPut(Some(Exec.sequence(sequence.toVector)))
+        val content = WhiskActionPut(Some(sequence(components.toVector)))
         Put(s"$collectionPath/$pkg/${seqName.name}", content) ~> sealRoute(routes(creds)) ~> check {
             status should be(OK)
         }
@@ -245,8 +245,8 @@ class SequenceApiTests
 
         // now update the sequence to refer to itself through the binding
         val seqNameWithBinding = stringToFullyQualifiedName(s"/$namespace/$pkgWithBinding/${seqName.name}")
-        val updatedSeq = sequence.updated(1, seqNameWithBinding)
-        val updatedContent = WhiskActionPut(Some(Exec.sequence(updatedSeq.toVector)))
+        val updatedSeq = components.updated(1, seqNameWithBinding)
+        val updatedContent = WhiskActionPut(Some(sequence(updatedSeq.toVector)))
 
         // update the sequence
         Put(s"$collectionPath/$pkg/${seqName.name}?overwrite=true", updatedContent) ~> sealRoute(routes(creds)) ~> check {
@@ -408,14 +408,14 @@ class SequenceApiTests
         implicit tid: TransactionId): WhiskAction = {
         if (installDB) {
             // create bogus wsk actions
-            val wskActions = componentNames.toSet[String] map { c => WhiskAction(ns, EntityName(c), Exec.js("??")) }
+            val wskActions = componentNames.toSet[String] map { c => WhiskAction(ns, EntityName(c), js("??")) }
             // add them to the db
             wskActions.foreach { put(entityStore, _) }
         }
         // add namespace to component names
         val components = componentNames map { c => stringToFullyQualifiedName(s"/$ns/$c") }
         // create wsk action for the sequence
-        WhiskAction(namespace, EntityName(sequenceName), Exec.sequence(components))
+        WhiskAction(namespace, EntityName(sequenceName), sequence(components))
     }
 
     private def logContains(w: String)(implicit stream: java.io.ByteArrayOutputStream): Boolean = {

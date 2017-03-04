@@ -134,3 +134,27 @@ protected[core] object ExecManifest {
 
     protected[entity] implicit val runtimeManifestSerdes = jsonFormat7(RuntimeManifest)
 }
+
+protected[core] object ExecImageName {
+    /**
+     * Gets the container image name for the action.
+     * If the action is a black box action, return the image name. Otherwise
+     * return a standard image name for running Javascript or Swift actions for example.
+     *
+     * @return image name for container to run action
+     */
+    def containerImageName(registry: String, prefix: String, exec: CodeExec[_], tag: String): String = {
+        if (!exec.pull) {
+            val image = if (exec.image != Exec.BLACKBOX_SKELETON) exec.image else exec.image.split("/")(1)
+            localImageName(registry, prefix, image, tag)
+        } else exec.image
+    }
+
+    def localImageName(registry: String, prefix: String, image: String, tag: String): String = {
+        val r = Option(registry).filter(_.nonEmpty).map { reg =>
+            if (reg.endsWith("/")) reg else reg + "/"
+        }.getOrElse("")
+        val p = Option(prefix).filter(_.nonEmpty).map(_ + "/").getOrElse("")
+        r + p + image + ":" + tag
+    }
+}

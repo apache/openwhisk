@@ -41,7 +41,7 @@ import whisk.http.Messages
 import whisk.utils.JsHelpers
 
 @RunWith(classOf[JUnitRunner])
-class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
+class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Matchers {
 
     behavior of "AuthKey"
 
@@ -325,11 +325,11 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
 
         val execs = json.map { e => Exec.serdes.read(e) }
 
-        assert(execs(0) == Exec.js("js1") && json(0).compactPrint == Exec.js("js1").toString)
-        assert(execs(1) == Exec.js("js2") && json(1).compactPrint != Exec.js("js2").toString) // ignores unknown properties
-        assert(execs(2) == Exec.swift("swift1") && json(2).compactPrint == Exec.swift("swift1").toString)
-        assert(execs(3) == Exec.swift3(b64Body) && json(3).compactPrint == Exec.swift3(b64Body).toString)
-        assert(execs(4) == Exec.js(b64Body) && json(4).compactPrint == Exec.js(b64Body).toString)
+        assert(execs(0) == js("js1") && json(0).compactPrint == js("js1").toString)
+        assert(execs(1) == js("js2") && json(1).compactPrint != js("js2").toString) // ignores unknown properties
+        assert(execs(2) == swift("swift1") && json(2).compactPrint == swift("swift1").toString)
+        assert(execs(3) == swift3(b64Body) && json(3).compactPrint == swift3(b64Body).toString)
+        assert(execs(4) == js(b64Body) && json(4).compactPrint == js(b64Body).toString)
     }
 
     it should "properly deserialize and reserialize JSON blackbox" in {
@@ -342,26 +342,26 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
 
         val execs = json.map { e => Exec.serdes.read(e) }
 
-        execs(0) shouldBe Exec.bb("container1")
-        execs(1) shouldBe Exec.bb("container1", contents)
-        execs(2) shouldBe Exec.bb("container1", contents, Some("naim"))
+        execs(0) shouldBe bb("container1")
+        execs(1) shouldBe bb("container1", contents)
+        execs(2) shouldBe bb("container1", contents, Some("naim"))
 
-        json(0).compactPrint shouldBe Exec.bb("container1").toString
-        json(1).compactPrint shouldBe Exec.bb("container1", contents).toString
-        json(2).compactPrint shouldBe Exec.bb("container1", contents, Some("naim")).toString
+        json(0).compactPrint shouldBe bb("container1").toString
+        json(1).compactPrint shouldBe bb("container1", contents).toString
+        json(2).compactPrint shouldBe bb("container1", contents, Some("naim")).toString
 
         execs(0) shouldBe Exec.serdes.read(JsObject("kind" -> "blackbox".toJson, "image" -> "container1".toJson, "binary" -> false.toJson, "code" -> " ".toJson))
         execs(0) shouldBe Exec.serdes.read(JsObject("kind" -> "blackbox".toJson, "image" -> "container1".toJson, "binary" -> false.toJson, "code" -> "".toJson))
     }
 
     it should "exclude undefined code in whisk action initializer" in {
-        WhiskAction(EntityPath("a"), EntityName("b"), Exec.bb("container1")).containerInitializer shouldBe {
+        WhiskAction(EntityPath("a"), EntityName("b"), bb("container1")).containerInitializer shouldBe {
             Some(JsObject("name" -> "b".toJson, "binary" -> false.toJson, "main" -> "main".toJson))
         }
-        WhiskAction(EntityPath("a"), EntityName("b"), Exec.bb("container1", "xyz")).containerInitializer shouldBe {
+        WhiskAction(EntityPath("a"), EntityName("b"), bb("container1", "xyz")).containerInitializer shouldBe {
             Some(JsObject("name" -> "b".toJson, "binary" -> false.toJson, "main" -> "main".toJson, "code" -> "xyz".toJson))
         }
-        WhiskAction(EntityPath("a"), EntityName("b"), Exec.bb("container1", "", Some("naim"))).containerInitializer shouldBe {
+        WhiskAction(EntityPath("a"), EntityName("b"), bb("container1", "", Some("naim"))).containerInitializer shouldBe {
             Some(JsObject("name" -> "b".toJson, "binary" -> false.toJson, "main" -> "naim".toJson))
         }
     }
@@ -402,7 +402,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with Matchers {
     }
 
     it should "serialize to json" in {
-        val execs = Seq(Exec.bb("container"), Exec.js("js"), Exec.js("js"), Exec.swift("swift")).map { _.toString }
+        val execs = Seq(bb("container"), js("js"), js("js"), swift("swift")).map { _.toString }
         assert(execs(0) == JsObject("kind" -> "blackbox".toJson, "image" -> "container".toJson, "binary" -> false.toJson).compactPrint)
         assert(execs(1) == JsObject("kind" -> "nodejs".toJson, "code" -> "js".toJson, "binary" -> false.toJson).compactPrint)
         assert(execs(2) == JsObject("kind" -> "nodejs".toJson, "code" -> "js".toJson, "binary" -> false.toJson).compactPrint)
