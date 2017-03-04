@@ -96,20 +96,24 @@ sealed abstract class CodeExec[T <% SizeConversion](kind: String) extends Exec(k
     override def size = code.sizeInBytes
 }
 
-protected[core] abstract class CodeExecAsString(kind: String) extends CodeExec[String](kind) {
+protected[core] class CodeExecAsString(
+    kind: String,
+    override val code: String,
+    override val entryPoint: Option[String])
+    extends CodeExec[String](kind) {
     override def codeAsJson = JsString(code)
 }
 
-protected[core] case class NodeJSExec(code: String, override val entryPoint: Option[String]) extends CodeExecAsString(Exec.NODEJS)
-protected[core] case class NodeJS6Exec(code: String, override val entryPoint: Option[String]) extends CodeExecAsString(Exec.NODEJS6)
+protected[core] case class NodeJSExec(override val code: String, override val entryPoint: Option[String]) extends CodeExecAsString(Exec.NODEJS, code, entryPoint)
+protected[core] case class NodeJS6Exec(override val code: String, override val entryPoint: Option[String]) extends CodeExecAsString(Exec.NODEJS6, code, entryPoint)
 
-protected[core] case class SwiftExec(code: String, override val entryPoint: Option[String]) extends CodeExecAsString(Exec.SWIFT) {
+protected[core] case class SwiftExec(override val code: String, override val entryPoint: Option[String]) extends CodeExecAsString(Exec.SWIFT, code, entryPoint) {
     override val deprecated = true
 }
 
-protected[core] case class Swift3Exec(code: String, override val entryPoint: Option[String]) extends CodeExecAsString(Exec.SWIFT3)
+protected[core] case class Swift3Exec(override val code: String, override val entryPoint: Option[String]) extends CodeExecAsString(Exec.SWIFT3, code, entryPoint)
 
-protected[core] case class PythonExec(code: String, override val entryPoint: Option[String]) extends CodeExecAsString(Exec.PYTHON)
+protected[core] case class PythonExec(override val code: String, override val entryPoint: Option[String]) extends CodeExecAsString(Exec.PYTHON, code, entryPoint)
 
 protected[core] case class JavaExec(code: Attachment[String], main: String) extends CodeExec[Attachment[String]](Exec.JAVA) {
     override val entryPoint = Some(main)
@@ -156,15 +160,6 @@ protected[core] object Exec
 
     // Constructs standard image name for action
     protected[core] def imagename(name: String) = s"${name}action".replace(":", "")
-
-    protected[core] def js(code: String, main: Option[String] = None): Exec = NodeJSExec(trim(code), main.map(_.trim))
-    protected[core] def js6(code: String, main: Option[String] = None): Exec = NodeJS6Exec(trim(code), main.map(_.trim))
-    protected[core] def swift(code: String, main: Option[String] = None): Exec = SwiftExec(trim(code), main.map(_.trim))
-    protected[core] def swift3(code: String, main: Option[String] = None): Exec = Swift3Exec(trim(code), main.map(_.trim))
-    protected[core] def java(jar: String, main: String): Exec = JavaExec(Inline(trim(jar)), trim(main))
-    protected[core] def sequence(components: Vector[FullyQualifiedEntityName]): Exec = SequenceExec(components)
-    protected[core] def bb(image: String): Exec = BlackBoxExec(trim(image), None, None)
-    protected[core] def bb(image: String, code: String, main: Option[String] = None): Exec = BlackBoxExec(trim(image), Some(trim(code)).filter(_.nonEmpty), main)
 
     private def attFmt[T: JsonFormat] = Attachments.serdes[T]
 

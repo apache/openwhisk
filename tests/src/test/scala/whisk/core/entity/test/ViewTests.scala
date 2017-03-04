@@ -35,27 +35,8 @@ import common.WskActorSystem
 import spray.json.JsObject
 import whisk.core.WhiskConfig
 import whisk.core.database.test.DbUtils
-import whisk.core.entity.ActivationId
-import whisk.core.entity.AuthKey
-import whisk.core.entity.Binding
-import whisk.core.entity.EntityName
-import whisk.core.entity.EntityPath
-import whisk.core.entity.Exec
-import whisk.core.entity.FullyQualifiedEntityName
-import whisk.core.entity.Subject
-import whisk.core.entity.WhiskAction
-import whisk.core.entity.WhiskActivation
-import whisk.core.entity.WhiskAuth
-import whisk.core.entity.WhiskEntity
-import whisk.core.entity.WhiskEntityQueries.listAllInNamespace
-import whisk.core.entity.WhiskEntityQueries.listCollectionByName
-import whisk.core.entity.WhiskEntityQueries.listCollectionInAnyNamespace
-import whisk.core.entity.WhiskEntityQueries.listCollectionInNamespace
-import whisk.core.entity.WhiskEntityQueries.listEntitiesInNamespace
-import whisk.core.entity.WhiskEntityStore
-import whisk.core.entity.WhiskPackage
-import whisk.core.entity.WhiskRule
-import whisk.core.entity.WhiskTrigger
+import whisk.core.entity._
+import whisk.core.entity.WhiskEntityQueries._
 
 @RunWith(classOf[JUnitRunner])
 class ViewTests extends FlatSpec
@@ -63,6 +44,7 @@ class ViewTests extends FlatSpec
     with BeforeAndAfterAll
     with Matchers
     with DbUtils
+    with ExecHelpers
     with WskActorSystem
     with StreamLogging {
 
@@ -168,7 +150,7 @@ class ViewTests extends FlatSpec
 
     it should "query whisk view by namespace, collection and entity name" in {
         implicit val tid = transid()
-        val exec = Exec.bb("image")
+        val exec = bb("image")
         val pkgname1 = namespace1.addPath(aname)
         val pkgname2 = namespace2.addPath(aname)
         val actionName = aname
@@ -251,8 +233,8 @@ class ViewTests extends FlatSpec
         val actionName = aname
         val now = Instant.now(Clock.systemUTC())
         val others = Seq(
-            WhiskAction(namespace1, aname, Exec.js("??")),
-            WhiskAction(namespace1, aname, Exec.js("??")))
+            WhiskAction(namespace1, aname, js("??")),
+            WhiskAction(namespace1, aname, js("??")))
         implicit val entities = Seq(
             WhiskActivation(namespace1, actionName, Subject(), ActivationId(), start = now, end = now),
             WhiskActivation(namespace1, actionName, Subject(), ActivationId(), start = now.plusSeconds(20), end = now.plusSeconds(20)),
@@ -282,8 +264,8 @@ class ViewTests extends FlatSpec
         val actionName = aname
         val now = Instant.now(Clock.systemUTC())
         implicit val entities = Seq(
-            WhiskAction(namespace1, aname, Exec.js("??")),
-            WhiskAction(namespace1, aname, Exec.js("??")))
+            WhiskAction(namespace1, aname, js("??")),
+            WhiskAction(namespace1, aname, js("??")))
 
         entities foreach { put(datastore, _) }
         waitOnView(datastore, namespace1, entities.length)
