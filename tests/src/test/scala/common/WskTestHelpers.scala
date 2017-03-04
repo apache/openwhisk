@@ -48,21 +48,7 @@ trait WskTestHelpers extends Matchers {
         def withCleaner[T <: DeleteFromCollection](cli: T, name: String, confirmDelete: Boolean = true)(
             cmd: (T, String) => RunResult): RunResult = {
             // sanitize (delete) if asset exists
-            cli match {
-                case _: WskPackage =>
-                    val rr = cli.sanitize(name)(wskprops)
-                    rr.exitCode match {
-                        case CONFLICT =>
-                            // retry sanitization on a package since there may be a list (view)
-                            // operation that requires a retry for eventual consistency
-                            whisk.utils.retry({
-                                cli.sanitize(name)(wskprops)
-                            }, 5, Some(1 second))
-                        case _ => rr
-                    }
-
-                case _ => cli.sanitize(name)(wskprops)
-            }
+            cli.sanitize(name)(wskprops)
 
             assetsToDeleteAfterTest += ((cli, name, confirmDelete))
             cmd(cli, name)
@@ -89,10 +75,19 @@ trait WskTestHelpers extends Matchers {
             // delete assets in reverse order so that was created last is deleted first
             val deletedAll = assetsToDeleteAfterTest.reverse map {
                 case ((cli, n, delete)) => n -> Try {
-                    if (delete) {
-                        cli.delete(n)(wskprops)
-                    } else {
-                        cli.sanitize(n)(wskprops)
+                    cli match {
+                        case _: WskPackage =>
+                            val rr = if (delete) cli.delete(n)(wskprops) else cli.sanitize(n)(wskprops)
+                            rr.exitCode match {
+                                case CONFLICT =>
+                                    // retry sanitization on a package since there may be a list (view)
+                                    // operation that requires a retry for eventual consistency
+                                    whisk.utils.retry({
+                                        if (delete) cli.delete(n)(wskprops) else cli.sanitize(n)(wskprops)
+                                    }, 5, Some(1 second))
+                               case _ => rr
+                            }
+                        case _ => if (delete) cli.delete(n)(wskprops) else cli.sanitize(n)(wskprops)
                     }
                 }
             } forall {
