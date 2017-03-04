@@ -37,12 +37,13 @@ import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.connector.ActivationMessage
 import whisk.core.controller.WhiskServices
+import whisk.core.controller.RestAPIVersion_v1
 import whisk.core.database.DocumentFactory
 import whisk.core.database.test.DbUtils
 import whisk.core.entitlement._
 import whisk.core.entity._
+import whisk.core.entity.test.ExecHelpers
 import whisk.core.loadBalancer.LoadBalancer
-import whisk.core.controller.RestAPIVersion_v1
 
 protected trait ControllerTestCommon
     extends FlatSpec
@@ -52,6 +53,7 @@ protected trait ControllerTestCommon
     with Matchers
     with TransactionCounter
     with DbUtils
+    with ExecHelpers
     with WhiskServices
     with HttpService
     with StreamLogging {

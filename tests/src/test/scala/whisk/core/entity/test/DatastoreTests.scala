@@ -41,6 +41,7 @@ class DatastoreTests extends FlatSpec
     with BeforeAndAfterAll
     with WskActorSystem
     with DbUtils
+    with ExecHelpers
     with StreamLogging {
 
     val namespace = EntityPath("test namespace")
@@ -78,7 +79,7 @@ class DatastoreTests extends FlatSpec
     it should "CRD action blackbox" in {
         implicit val tid = transid()
         implicit val basename = EntityName("create action blackbox")
-        val exec = Exec.bb("image")
+        val exec = bb("image")
         val actions = Seq(
             WhiskAction(namespace, aname, exec),
             WhiskAction(namespace, aname, exec, Parameters("x", "y")),
@@ -93,7 +94,7 @@ class DatastoreTests extends FlatSpec
     it should "CRD action js" in {
         implicit val tid = transid()
         implicit val basename = EntityName("create action js")
-        val exec = Exec.js("code")
+        val exec = js("code")
         val actions = Seq(
             WhiskAction(namespace, aname, exec, Parameters()),
             WhiskAction(namespace, aname, exec, Parameters("x", "y")),
@@ -152,7 +153,7 @@ class DatastoreTests extends FlatSpec
     it should "reject action with null arguments" in {
         val name = EntityName("bad action")
         intercept[IllegalArgumentException] {
-            WhiskAction(namespace, name, Exec.bb("i"), Parameters(), null)
+            WhiskAction(namespace, name, bb("i"), Parameters(), null)
         }
     }
 
@@ -187,7 +188,7 @@ class DatastoreTests extends FlatSpec
     it should "update action with a revision" in {
         implicit val tid = transid()
         implicit val basename = EntityName("update action")
-        val exec = Exec.js("update")
+        val exec = js("update")
         val action = WhiskAction(namespace, aname, exec, Parameters(), ActionLimits())
         val docinfo = putGetCheck(datastore, action, WhiskAction, false)._2.docinfo
         val revAction = WhiskAction(namespace, action.name, exec, Parameters(), ActionLimits()).revision[WhiskAction](docinfo.rev)
@@ -233,7 +234,7 @@ class DatastoreTests extends FlatSpec
     it should "fail with document conflict when trying to write the same action twice without a revision" in {
         implicit val tid = transid()
         implicit val basename = EntityName("create action twice")
-        val exec = Exec.js("twice")
+        val exec = js("twice")
         val action = WhiskAction(namespace, aname, exec)
         putGetCheck(datastore, action, WhiskAction)
         intercept[DocumentConflictException] {
@@ -285,7 +286,7 @@ class DatastoreTests extends FlatSpec
     it should "fail with document does not exist when trying to delete the same action twice" in {
         implicit val tid = transid()
         implicit val basename = EntityName("delete action twice")
-        val exec = Exec.js("twice")
+        val exec = js("twice")
         val action = WhiskAction(namespace, aname, exec)
         val doc = putGetCheck(datastore, action, WhiskAction, false)._1
         assert(Await.result(WhiskAction.del(datastore, doc), dbOpTimeout))

@@ -41,10 +41,10 @@ import whisk.core.container.ContainerPool
 import whisk.core.entity.AuthKey
 import whisk.core.entity.EntityName
 import whisk.core.entity.EntityPath
-import whisk.core.entity.Exec
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskAuthStore
 import whisk.core.entity.WhiskEntityStore
+import whisk.core.entity.test.ExecHelpers
 
 /**
  * Unit tests for ContainerPool and, by association, Container and WhiskContainer.
@@ -54,6 +54,7 @@ class ContainerPoolTests extends FlatSpec
     with BeforeAndAfter
     with BeforeAndAfterAll
     with WskActorSystem
+    with ExecHelpers
     with StreamLogging {
 
     implicit val transid = TransactionId.testing
@@ -227,7 +228,7 @@ class ContainerPoolTests extends FlatSpec
      */
     private def makeHelloAction(name: String, index: Integer): WhiskAction = {
         val code = """console.log('ABCXYZ'); function main(msg) { console.log('hello_${index}', msg.payload+'!');} """
-        WhiskAction(defaultNamespace, EntityName(name), Exec.js(code))
+        WhiskAction(defaultNamespace, EntityName(name), js(code))
     }
 
     it should "be able to start a nodejs action with init, do a run, return to pool, do another get testing reuse, another run" in {
@@ -255,7 +256,7 @@ class ContainerPoolTests extends FlatSpec
      */
     private def makeCrashingAction(name: String, timeToLiveMs: Integer): WhiskAction = {
         val code = s"""function main(msg) { console.log('I expect you to die'); setTimeout(function(){ process.exit(1); }, ${timeToLiveMs}); }"""
-        WhiskAction(defaultNamespace, EntityName(name), Exec.js(code))
+        WhiskAction(defaultNamespace, EntityName(name), js(code))
     }
 
     it should "cleanly handle a container that crashes" in {
