@@ -134,17 +134,23 @@ class ActionRunner:
             return error(e)
 
         # run the process and wait until it completes.
+        # stdout/stderr will always be set because we passed PIPEs to Popen
         (o, e) = p.communicate()
 
-        if o is not None:
-            process_output_lines = o.strip().split('\n')
-            last_line = process_output_lines[-1]
-            for line in process_output_lines[:-1]:
-                sys.stdout.write('%s\n' % line)
-        else:
-            last_line = '{}'
+        # stdout/stderr may be either text or bytes, depending on Python
+        # version.   In the latter case, decode to text.
+        if isinstance(o, bytes):
+            o = o.decode('utf-8')
+        if isinstance(e, bytes):
+            e = e.decode('utf-8')
 
-        if e is not None:
+        # get the last line of stdout, even if empty
+        process_output_lines = o.strip().split('\n')
+        last_line = process_output_lines[-1]
+        for line in process_output_lines[:-1]:
+            sys.stdout.write('%s\n' % line)
+
+        if e:
             sys.stderr.write(e)
 
         try:
