@@ -123,21 +123,6 @@ case class WhiskAction(
     def inherit(p: Parameters) = copy(parameters = p ++ parameters).revision[WhiskAction](rev)
 
     /**
-     * Gets the container image name for the action (if one is required).
-     * If the action is a black box action, return the image name. Otherwise
-     * return a standard image name for running Javascript or Swift actions for example.
-     *
-     * @returns Some(image name) for container to run action Exec if one is required else None.
-     */
-    def containerImageName(registry: String, prefix: String, tag: String): Option[String] = {
-        exec match {
-            case e: CodeExec[_] => Some(WhiskAction.containerImageName(e, registry, prefix, tag))
-            case _              => None
-        }
-
-    }
-
-    /**
      * Gets initializer for action if it is supported. This typically includes
      * the code to execute, or a zip file containing the executable artifacts.
      * Some actions (i.e., sequences) have no initializers since they are not executed
@@ -181,28 +166,6 @@ object WhiskAction
     override val collectionName = "actions"
 
     override implicit val serdes = jsonFormat8(WhiskAction.apply)
-
-    def containerImageName(exec: CodeExec[_], registry: String, prefix: String, tag: String): String = {
-        exec match {
-            case b @ BlackBoxExec(image, _, _) =>
-                if (b.pull) {
-                    image
-                } else {
-                    localImageName(registry, prefix, image.split("/")(1), tag)
-                }
-
-            case e =>
-                localImageName(registry, prefix, e.image, tag)
-        }
-    }
-
-    private def localImageName(registry: String, prefix: String, image: String, tag: String): String = {
-        val r = Option(registry).filter(_.nonEmpty).map { reg =>
-            if (reg.endsWith("/")) reg else reg + "/"
-        }.getOrElse("")
-        val p = Option(prefix).filter(_.nonEmpty).map(_ + "/").getOrElse("")
-        r + p + image + ":" + tag
-    }
 
     override val cacheEnabled = true
     override def cacheKeyForUpdate(w: WhiskAction) = w.docid.asDocInfo
