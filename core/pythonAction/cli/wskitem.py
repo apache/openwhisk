@@ -14,12 +14,16 @@
 # limitations under the License.
 #
 
-from wskutil import addAuthenticatedCommand, apiBase, bold, request, responseError, parseQName, getQName, getPrettyJson, getParameterNamesFromAnnotations, getDescriptionFromAnnotations
+from wskutil import (addAuthenticatedCommand, apiBase, bold, request,
+                     responseError, parseQName, getQName, getPrettyJson,
+                     getParameterNamesFromAnnotations,
+                     getDescriptionFromAnnotations)
 import urllib
 import abc
 import json
 import httplib
 import sys
+
 
 #
 # Common superclass for action, trigger, and rule CLI commands.
@@ -38,27 +42,35 @@ class Item:
         self.collection = collection
 
     def getCommands(self, parser, props):
-        commands = parser.add_parser(self.name, help='work with %s' % self.collection)
-        subcmds  = commands.add_subparsers(title='available commands', dest='subcmd')
+        commands = parser.add_parser(self.name,
+                                     help='work with %s' % self.collection)
+        subcmds = commands.add_subparsers(title='available commands',
+                                          dest='subcmd')
         self.getItemSpecificCommands(subcmds, props)
 
     # default commands are get, delete and list
-    def addDefaultCommands(self, subcmds, props, which = ['get', 'delete', 'list']):
-        if ('get' in which):
+    def addDefaultCommands(self, subcmds, props, which=['get', 'delete',
+                                                        'list']):
+        if 'get' in which:
             subcmd = subcmds.add_parser('get', help='get %s' % self.name)
             subcmd.add_argument('name', help='the name of the %s' % self.name)
-            subcmd.add_argument('project', nargs='?', help='project only this property')
+            subcmd.add_argument('project', nargs='?',
+                                help='project only this property')
             addAuthenticatedCommand(subcmd, props)
-            subcmd.add_argument('-s', '--summary', help='summarize entity details', action='store_true')
+            subcmd.add_argument('-s', '--summary',
+                                help='summarize entity details',
+                                action='store_true')
 
-        if ('delete' in which):
+        if 'delete' in which:
             subcmd = subcmds.add_parser('delete', help='delete %s' % self.name)
             subcmd.add_argument('name', help='the name of the %s' % self.name)
             addAuthenticatedCommand(subcmd, props)
 
-        if ('list' in which):
-            subcmd = subcmds.add_parser('list', help='list all %s' % self.collection)
-            subcmd.add_argument('name', nargs='?', help='the namespace to list')
+        if 'list' in which:
+            subcmd = subcmds.add_parser('list',
+                                        help='list all %s' % self.collection)
+            subcmd.add_argument('name', nargs='?',
+                                help='the namespace to list')
             addAuthenticatedCommand(subcmd, props)
             subcmd.add_argument('-s', '--skip', help='skip this many entities from the head of the collection', type=int, default=0)
             subcmd.add_argument('-l', '--limit', help='only return this many entities from the collection', type=int, default=30)
@@ -75,7 +87,7 @@ class Item:
         elif args.subcmd == 'delete':
             return self.delete(args, props)
         else:
-            print 'error: unexpected sub command'
+            print('error: unexpected sub command')
             return 2
 
     @abc.abstractmethod
@@ -89,7 +101,8 @@ class Item:
         return 2
 
     # Return summary string of an entity.
-    def getEntitySummary(self, entity, includeParams = True, kind = None, namespace = None):
+    def getEntitySummary(self, entity, includeParams=True, kind=None,
+                         namespace=None):
         kind = self.name if kind is None else kind
         namespace = entity['namespace'] if 'namespace' in entity else namespace
         fullName = getQName(entity['name'], namespace)
@@ -101,14 +114,17 @@ class Item:
         if includeParams:
             parameterNames = getParameterNamesFromAnnotations(annotations)
             if parameterNames:
-                summary += '\n   (%s: %s)' % (bold('params'), ' '.join(parameterNames))
+                summary += '\n   (%s: %s)' % (bold('params'),
+                                              ' '.join(parameterNames))
         if 'actions' in entity:
             for a in entity['actions']:
-                actionSummary = self.getEntitySummary(a, False, 'action', fullName)
+                actionSummary = self.getEntitySummary(a, False, 'action',
+                                                      fullName)
                 summary += '\n %s' % (actionSummary)
         if 'feeds' in entity:
             for a in entity['feeds']:
-                actionSummary = self.getEntitySummary(a, False, 'feed  ', fullName)
+                actionSummary = self.getEntitySummary(a, False, 'feed  ',
+                                                      fullName)
                 summary += '\n %s' % (actionSummary)
         return summary
 
@@ -130,18 +146,24 @@ class Item:
             result = self.postProcessGet(json.loads(res.read()))
             if args.summary:
                 summary = self.getEntitySummary(result)
-                print summary
+                print(summary)
             elif args.project:
                 if args.project in result:
-                    print 'ok: got %(item)s %(name)s, projecting %(p)s' % {'item': self.name, 'name': args.name, 'p': args.project }
-                    print getPrettyJson(result[args.project])
+                    print('ok: got %(item)s %(name)s, projecting %(p)s' %
+                          {'item': self.name, 'name': args.name,
+                           'p': args.project})
+                    print(getPrettyJson(result[args.project]))
                     return 0
                 else:
-                    print 'ok: got %(item)s %(name)s, but it does not contain property %(p)s' % {'item': self.name, 'name': args.name, 'p': args.project }
+                    print('ok: got %(item)s %(name)s, but it does not contain '
+                          'property %(p)s' % {'item': self.name,
+                                              'name': args.name,
+                                              'p': args.project})
                     return 148
             else:
-                print 'ok: got %(item)s %(name)s' % {'item': self.name, 'name': args.name }
-                print getPrettyJson(result)
+                print('ok: got %(item)s %(name)s' % {'item': self.name,
+                                                     'name': args.name})
+                print(getPrettyJson(result))
                 return 0
         else:
             return responseError(res)
@@ -168,9 +190,9 @@ class Item:
 
         if res.status == httplib.OK:
             result = json.loads(res.read())
-            print bold(self.collection)
+            print(bold(self.collection))
             for e in result:
-                print self.formatListEntity(e)
+                print(self.formatListEntity(e))
             return 0
         else:
             return responseError(res)
@@ -186,21 +208,21 @@ class Item:
             'update': '?overwrite=true' if update else ''
         }
 
-        headers= {
-            'Content-Type': 'application/json'
-        }
+        headers = {'Content-Type': 'application/json'}
 
-        res = request('PUT', url, payload, headers, auth=args.auth, verbose=args.verbose)
+        res = request('PUT', url, payload, headers, auth=args.auth,
+                      verbose=args.verbose)
         return res
 
     # returns the HTTP response of getting an item.
-    def httpGet(self, args, props, name = None):
+    def httpGet(self, args, props, name=None):
         if name is None:
             name = args.name
         namespace, pname = parseQName(name, props)
 
         if pname is None or pname.strip() == '':
-            print 'error: entity name missing, did you mean to list collection'
+            print('error: entity name missing, did you mean to list '
+                  'collection')
             sys.exit(2)
         url = '%(apibase)s/namespaces/%(namespace)s/%(collection)s/%(name)s' % {
             'apibase': apiBase(props),
@@ -231,7 +253,7 @@ class Item:
     # processes delete response and emit console message
     def deleteResponse(self, args, res):
         if res.status == httplib.OK:
-            print 'ok: deleted %(name)s' % {'name': args.name }
+            print('ok: deleted %(name)s' % {'name': args.name})
             return 0
         else:
             return responseError(res)
@@ -240,11 +262,12 @@ class Item:
     def putResponse(self, res, update):
         if res.status == httplib.OK:
             result = json.loads(res.read())
-            print 'ok: %(mode)s %(item)s %(name)s' % {
-                  'mode': 'updated' if update else 'created',
-                  'item': self.name,
-                  'name': result['name']
-            }
+            print('ok: %(mode)s %(item)s %(name)s' %
+                  {
+                      'mode': 'updated' if update else 'created',
+                      'item': self.name,
+                      'name': result['name']
+                  })
             return 0
         else:
             return responseError(res)
@@ -256,8 +279,8 @@ class Item:
 
     # adds publish parameter to payloads
     def addPublish(self, payload, args):
-        if args.shared != None and not ('update' in args and args.update):
-            payload['publish'] = True if args.shared == 'yes' else False
+        if args.shared is not None and not ('update' in args and args.update):
+            payload['publish'] = bool(args.shared == 'yes')
 
     # formats an entity for printing in a list
     def formatListEntity(self, e):

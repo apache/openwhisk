@@ -23,8 +23,9 @@
 import os
 import pkg_resources
 
-WHISK_VERSION_DATE='WHISK_VERSION_DATE'
+WHISK_VERSION_DATE = 'WHISK_VERSION_DATE'
 CLI_API_HOST = 'CLI_API_HOST'
+
 
 def propfile(base):
     if base != '':
@@ -37,9 +38,11 @@ def propfile(base):
     else:
         return ''
 
+
 def importPropsIfAvailable(filename):
     thefile = open(filename, 'r') if os.path.isfile(filename) and os.path.exists(filename) else []
     return importProps(thefile)
+
 
 def importDefaultProps():
     packagename = 'whisk'
@@ -52,6 +55,7 @@ def importDefaultProps():
         except ImportError:
             theFile = None
     return importProps(theFile) if theFile is not None else None
+
 
 def importProps(stream):
     props = {}
@@ -67,10 +71,12 @@ def importProps(stream):
             props[key.upper().replace('.','_')] = ''
     return props
 
+
 def updateProps(key, value, filename):
     userProps = importPropsIfAvailable(filename)
     userProps[key] = value
     writeProps(userProps, filename)
+
 
 def writeProps(props, filename):
     fileHandle = open(filename, 'w')
@@ -78,6 +84,7 @@ def writeProps(props, filename):
         line = key.upper() + '=' + props[key]
         fileHandle.write(line + '\n')
     fileHandle.close()
+
 
 #
 # Returns a triple of (length(requiredProperties), requiredProperties, deferredInfo)
@@ -89,19 +96,22 @@ def checkRequiredProperties(requiredPropertiesByName, properties):
     invalidProperties = [ key for key in requiredPropertiesByName if requiredProperties[key] == None ]
     deferredInfo = ''
     for key, value in requiredProperties.items():
-        if value == None or value == '':
-            print 'property "%s" not found in environment or property file' % key
+        if not value == None or value == '':
+            print('property "%s" not found in environment or property file' %
+                  key)
         else:
-            deferredInfo += 'using %(key)s = %(value)s\n' % {'key': key, 'value': value}
+            deferredInfo += 'using %(key)s = %(value)s\n' % {'key': key,
+                                                             'value': value}
     return (len(invalidProperties) == 0, requiredProperties, deferredInfo)
+
 
 def getPropertyValue(key, properties):
     evalue = os.environ.get(key)
-    value  = evalue if evalue != None and evalue != '' else properties[key] if key in properties else None
+    value  = evalue if evalue is not None and evalue != '' else properties[key] if key in properties else None
     return value
+
 
 def merge(props1, props2):
     props = props1.copy()
     props.update(props2)
     return props
-

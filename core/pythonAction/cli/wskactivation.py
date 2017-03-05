@@ -21,7 +21,13 @@ import time
 from datetime import datetime, timedelta
 import copy
 from wskitem import Item
-from wskutil import addAuthenticatedCommand, apiBase, bold, parseQName, getQName, request, responseError, getPrettyJson
+from wskutil import (addAuthenticatedCommand, apiBase, bold, parseQName,
+                     getQName, request, responseError, getPrettyJson)
+
+try:
+    long        # Python 2
+except NameError:
+    long = int  # Python 3 drops 'long'
 
 # how many seconds to sleep between polls
 SLEEP_SECONDS = 2
@@ -32,6 +38,7 @@ SLACK_SECONDS = 5
 
 # the timestamp of the latest activation we have already reported
 lastTime = 0
+
 
 #
 # 'wsk activations' CLI
@@ -48,7 +55,7 @@ class Activation(Item):
         subcmd.add_argument('-s', '--skip', help='skip this many entities from the head of the collection', type=int, default=0)
         subcmd.add_argument('-l', '--limit', help='only return this many entities from the collection', type=int, default=30)
         subcmd.add_argument('-f', '--full', help='return full documents for each activation', action='store_true')
-        subcmd.add_argument('--upto', help='return activations with timestamps earlier than UPTO; measured in milliseconds since Thu, 01 Jan 1970 00:00:00',  type=long, default=0)
+        subcmd.add_argument('--upto', help='return activations with timestamps earlier than UPTO; measured in milliseconds since Thu, 01 Jan 1970 00:00:00', type=long, default=0)
         subcmd.add_argument('--since', help='return activations with timestamps later than SINCE; measured in milliseconds since Thu, 01 Jan 1970 00:00:00', type=long, default=0)
 
         subcmd = parser.add_parser('get', help='get %s' % self.name)
@@ -62,19 +69,19 @@ class Activation(Item):
         addAuthenticatedCommand(subcmd, props)
         subcmd.add_argument('-s', '--strip', help='strip timestamp and stream information', action='store_true')
 
-        subcmd= parser.add_parser('result', help='get the result of an activation')
+        subcmd = parser.add_parser('result', help='get the result of an activation')
         subcmd.add_argument('id', help='the invocation id')
         addAuthenticatedCommand(subcmd, props)
 
         # poll
-        subcmd= parser.add_parser('poll', help='poll continuously for log messages from currently running actions')
+        subcmd = parser.add_parser('poll', help='poll continuously for log messages from currently running actions')
         subcmd.add_argument('name', nargs='?', help='the namespace to poll')
         addAuthenticatedCommand(subcmd, props)
         subcmd.add_argument('-e', '--exit', help='exit after this many seconds', type=int, default=-1)
         subcmd.add_argument('-ss', '--since-seconds', help='start polling for activations this many seconds ago', type=long, default=0, dest='since_secs')
         subcmd.add_argument('-sm', '--since-minutes', help='start polling for activations this many minutes ago', type=long, default=0, dest='since_mins')
-        subcmd.add_argument('-sh' ,'--since-hours', help='start polling for activations this many hours ago', type=long, default=0, dest='since_hrs')
-        subcmd.add_argument('-sd' ,'--since-days', help='start polling for activations this many days ago', type=long, default=0, dest='since_days')
+        subcmd.add_argument('-sh', '--since-hours', help='start polling for activations this many hours ago', type=long, default=0, dest='since_hrs')
+        subcmd.add_argument('-sd', '--since-days', help='start polling for activations this many days ago', type=long, default=0, dest='since_days')
 
     def cmd(self, args, props):
         if args.subcmd == 'list':
@@ -88,7 +95,7 @@ class Activation(Item):
         elif args.subcmd == 'poll':
             return self.poll(args, props)
         else:
-            print 'error: unexpected sub command'
+            print('error: unexpected sub command')
             return 2
 
     def create(self, args, props, update):
@@ -96,25 +103,25 @@ class Activation(Item):
         return 2
 
     def postProcess(self, entity):
-        #entity['logs'] = json.loads(entity['logs'])
+        # entity['logs'] = json.loads(entity['logs'])
         return entity
 
     def get(self, args, props):
-        args.name = getQName(args.name, '_') # kludge: use default namespace unless explicitly specified
+        args.name = getQName(args.name, '_')  # kludge: use default namespace unless explicitly specified
         return Item.get(self, args, props)
 
     def list(self, args, props):
         name = args.name if args.name else '/_'
-        args.name = getQName(name, '_') # kludge: use default namespace unless explicitly specified
+        args.name = getQName(name, '_')  # kludge: use default namespace unless explicitly specified
         res = self.listCmd(args, props)
         if res.status == httplib.OK:
             result = json.loads(res.read())
-            print bold('activations')
+            print(bold('activations'))
             for a in result:
                 if args.full:
-                    print getPrettyJson(a)
+                    print(getPrettyJson(a))
                 else:
-                    print '{:<45}{:<40}'.format(a['activationId'], a['name'])
+                    print('{:<45}{:<40}'.format(a['activationId'], a['name']))
             return 0
         else:
             return responseError(res)
@@ -125,11 +132,12 @@ class Activation(Item):
         end = datetime.fromtimestamp(entity['end'] / 1000)
         status = entity['response']['status']
         result = getPrettyJson(entity['response']['result'])
-        summary = '%s result for %s (%s at %s):\n%s' % (kind, fullName, status, end, result)
+        summary = '%s result for %s (%s at %s):\n%s' % (kind, fullName, status,
+                                                        end, result)
         return summary
 
     def result(self, args, props):
-        fqid = getQName(args.id, '_') # kludge: use default namespace unless explicitly specified
+        fqid = getQName(args.id, '_')  # kludge: use default namespace unless explicitly specified
         namespace, aid = parseQName(fqid, props)
         url = '%(apibase)s/namespaces/%(namespace)s/activations/%(id)s/result' % {
            'apibase': apiBase(props),
@@ -143,13 +151,13 @@ class Activation(Item):
             response = json.loads(res.read())
             if 'result' in response:
                 result = response['result']
-                print getPrettyJson(result)
+                print(getPrettyJson(result))
             return 0
         else:
             return responseError(res)
 
     def logs(self, args, props):
-        fqid = getQName(args.id, '_') # kludge: use default namespace unless explicitly specified
+        fqid = getQName(args.id, '_')  # kludge: use default namespace unless explicitly specified
         namespace, aid = parseQName(fqid, props)
         url = '%(apibase)s/namespaces/%(namespace)s/activations/%(id)s/logs' % {
            'apibase': apiBase(props),
@@ -164,7 +172,7 @@ class Activation(Item):
             logs = result['logs']
             if args.strip:
                 logs = map(stripTimeStampAndString, logs)
-            print '\n'.join(logs)
+            print('\n'.join(logs))
             return 0
         else:
             return responseError(res)
@@ -172,12 +180,12 @@ class Activation(Item):
     # implementation of wsk activations poll
     def poll(self, args, props):
         name = args.name if args.name else '/_'
-        args.name = getQName(name, '_') # kludge: use default namespace unless explicitly specified
-        print 'Hit Ctrl-C to exit.'
+        args.name = getQName(name, '_')  # kludge: use default namespace unless explicitly specified
+        print('Hit Ctrl-C to exit.')
         try:
             self.console(args, props)
         except KeyboardInterrupt:
-            print ''
+            print('')
 
     # return the result of a 'wsk activation list' call, an HTTPResponse
     def listCmd(self, args, props):
@@ -189,7 +197,7 @@ class Activation(Item):
             'full': 'true' if args.full else 'false',
             'skip': args.skip,
             'limit': args.limit,
-            'filter': 'name=%s' % urllib.quote(pname) if pname and len(pname) > 0 else ''
+            'filter': 'name=%s' % urllib.quote(pname) if pname else ''
         }
         if args.upto > 0:
             url = url + '&upto=' + str(args.upto)
@@ -208,18 +216,19 @@ class Activation(Item):
         if args.since_secs == args.since_mins == args.since_hrs == args.since_days == 0:
             # initialize lastTime to just past the most recent activation
             lastActivation = self.fetchMostRecent(args, props)
-            if lastActivation != None:
+            if lastActivation is not None:
                 lastTime = extractTimestamp(lastActivation) + 1 + SLACK_SECONDS * 1000
         else:
             # initialize lastTime to utcnow - args.since_[secs,mins,hrs,days]
             n = datetime.utcnow()
-            d = timedelta(seconds=args.since_secs, minutes=args.since_mins, hours=args.since_hrs, days=args.since_days)
+            d = timedelta(seconds=args.since_secs, minutes=args.since_mins,
+                          hours=args.since_hrs, days=args.since_days)
             e = datetime(1970, 1, 1)
-            lastTime = int((n-d-e).total_seconds()*1000)
+            lastTime = int((n - d - e).total_seconds() * 1000)
 
         reported = set()
         localStartTime = int(time.time())
-        print 'Polling for logs'
+        print('Polling for logs')
         while True:
             if (args.exit > 0):
                 localDuration = int(time.time()) - localStartTime
@@ -259,7 +268,7 @@ class Activation(Item):
     def fetchActivations(self, beginMillis, args, props):
         # fetch all activations starting from SLACK_SECONDS seconds in the past
         if beginMillis > SLACK_SECONDS * 1000:
-            beginMillis = beginMillis - (SLACK_SECONDS * 1000);
+            beginMillis = beginMillis - (SLACK_SECONDS * 1000)
 
         a = copy.deepcopy(args)
         a.name = args.name
@@ -277,11 +286,13 @@ class Activation(Item):
             responseError(res)
             return None
 
+
 #
 # Extract the timestamp from an activation, or return 0
 #
 def extractTimestamp(activation):
     return activation['start']
+
 
 #
 # Print all the logs for an activation record
@@ -290,15 +301,18 @@ def extractTimestamp(activation):
 #
 def printLogsForActivation(activation):
     global lastTime
-    print 'Activation: %s (%s)' % (activation['name'], activation['activationId'])
+    print('Activation: %s (%s)' % (activation['name'],
+                                   activation['activationId']))
 
     if 'logs' in activation:
         for element in activation['logs']:
-            print element
-        # update the lastTime global timestamp if necessary to record the latest
-        # start time yet fetched
+            print(element)
+        # update the lastTime global timestamp if necessary to record the
+        # latest start time yet fetched
         if activation['start'] > lastTime:
             lastTime = activation['start']
+
+
 #
 # Print all the logs for a list of activation records
 #
@@ -310,6 +324,7 @@ def printLogs(L, reported):
         if not a['activationId'] in reported:
             reported.add(a['activationId'])
             printLogsForActivation(a)
+
 
 #
 # Strips timestamp and stream information from log line

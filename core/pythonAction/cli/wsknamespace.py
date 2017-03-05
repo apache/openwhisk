@@ -21,7 +21,9 @@ from wskaction import Action
 from wsktrigger import Trigger
 from wskrule import Rule
 from wskpackage import Package
-from wskutil import addAuthenticatedCommand, apiBase, bold, parseQName, request, responseError
+from wskutil import (addAuthenticatedCommand, apiBase, bold, parseQName,
+                     request, responseError)
+
 
 #
 # 'wsk namespaces' CLI
@@ -31,7 +33,8 @@ class Namespace:
     def getCommands(self, parser, props):
         commands = parser.add_parser('namespace', help='work with namespaces')
 
-        subcmds = commands.add_subparsers(title='available commands', dest='subcmd')
+        subcmds = commands.add_subparsers(title='available commands',
+                                          dest='subcmd')
 
         subcmd = subcmds.add_parser('list', help='list available namespaces')
         addAuthenticatedCommand(subcmd, props)
@@ -47,26 +50,29 @@ class Namespace:
             return self.listEntitiesInNamespace(args, props)
 
     def listNamespaces(self, args, props):
-        url = '%(apibase)s/namespaces' % { 'apibase': apiBase(props) }
+        url = '%(apibase)s/namespaces' % {'apibase': apiBase(props)}
         res = request('GET', url, auth=args.auth, verbose=args.verbose)
 
         if res.status == httplib.OK:
             result = json.loads(res.read())
-            print bold('namespaces')
+            print(bold('namespaces'))
             for n in result:
-                print '{:<25}'.format(n)
+                print('{:<25}'.format(n))
             return 0
         else:
             return responseError(res)
 
     def listEntitiesInNamespace(self, args, props):
         namespace, _ = parseQName(args.name, props)
-        url = '%(apibase)s/namespaces/%(namespace)s' % { 'apibase': apiBase(props), 'namespace': urllib.quote(namespace) }
+        url = ('%(apibase)s/namespaces/%(namespace)s' %
+               {'apibase': apiBase(props),
+                'namespace': urllib.quote(namespace)})
         res = request('GET', url, auth=args.auth, verbose=args.verbose)
 
         if res.status == httplib.OK:
             result = json.loads(res.read())
-            print 'entities in namespace: %s' % bold(namespace if namespace != '_' else 'default')
+            print('entities in namespace: %s' %
+                  bold(namespace if namespace != '_' else 'default'))
             self.printCollection(result, 'packages')
             self.printCollection(result, 'actions')
             self.printCollection(result, 'triggers')
@@ -77,13 +83,13 @@ class Namespace:
 
     def printCollection(self, result, collection):
         if collection in result:
-            print bold(collection)
+            print(bold(collection))
             for e in result[collection]:
                 if collection == 'actions':
-                    print Action().formatListEntity(e)
+                    print(Action().formatListEntity(e))
                 elif collection == 'triggers':
-                    print Trigger().formatListEntity(e)
+                    print(Trigger().formatListEntity(e))
                 elif collection == 'rules':
-                    print Rule().formatListEntity(e)
+                    print(Rule().formatListEntity(e))
                 elif collection == 'packages':
-                    print Package().formatListEntity(e)
+                    print(Package().formatListEntity(e))

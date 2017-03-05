@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 
+from __future__ import print_function
 import sys
 import os
 import json
@@ -23,61 +24,75 @@ import base64
 import collections
 from urlparse import urlparse
 
-# global configurations, can control whether to allow untrusted certificates on HTTPS connections
-httpRequestProps = { 'secure': True }
+try:
+    raw_input          # Python 2
+except NameError:
+    raw_input = input  # Python 3
+
+# global configurations, can control whether to allow untrusted certificates on
+# HTTPS connections
+httpRequestProps = {'secure': True}
+
 
 def supportsColor():
-    if (sys.platform != 'win32' or 'ANSICON' in os.environ) and sys.stdout.isatty():
-        return True
-    else:
-        return False
+    return bool((sys.platform != 'win32' or 'ANSICON' in os.environ) and
+                sys.stdout.isatty())
 
-def hilite(status, bold = False):
+
+def hilite(status, bold=False):
     if supportsColor():
         attr = []
         if status == 'up':
-            attr.append('32') # green
+            attr.append('32')  # green
         elif status == 'down':
-            attr.append('31') # red
+            attr.append('31')  # red
         if bold:
             attr.append('1')
         return '\x1b[%sm%s\x1b[0m' % (';'.join(attr), status)
     else:
         return status
 
+
 def bold(string):
     return hilite(string, True)
+
 
 def addAuthenticatedCommand(subcmd, props):
     auth = props.get('AUTH')
     required = True if auth is None else False
-    subcmd.add_argument('-u', '--auth', help='authorization key', default=auth, required=required)
+    subcmd.add_argument('-u', '--auth', help='authorization key', default=auth,
+                        required=required)
 
-def request(method, urlString, body = '', headers = {}, auth = None, verbose = False, https_proxy = os.getenv('https_proxy', None)):
+
+def request(method, urlString, body='', headers=None, auth=None, verbose=False,
+            https_proxy=os.getenv('https_proxy', None)):
+    headers = headers or {}
     url = urlparse(urlString)
     if url.scheme == 'http':
         conn = httplib.HTTPConnection(url.netloc)
     else:
-        if httpRequestProps['secure'] or not hasattr(ssl, '_create_unverified_context'):
-            conn = httplib.HTTPSConnection(url.netloc if https_proxy is None else https_proxy)
+        if (httpRequestProps['secure'] or
+                not hasattr(ssl, '_create_unverified_context')):
+            conn = httplib.HTTPSConnection(https_proxy or url.netloc)
         else:
-            conn = httplib.HTTPSConnection(url.netloc if https_proxy is None else https_proxy, context=ssl._create_unverified_context())
+            conn = httplib.HTTPSConnection(https_proxy or url.netloc,
+                                    context=ssl._create_unverified_context())
         if https_proxy:
             conn.set_tunnel(url.netloc)
 
-    if auth != None:
+    if auth is not None:
         auth = base64.encodestring(auth).replace('\n', '')
         headers['Authorization'] = 'Basic %s' % auth
 
     if verbose:
-        print '========'
-        print 'REQUEST:'
-        print '%s %s' % (method, urlString)
-        print 'Headers sent:'
-        print getPrettyJson(headers)
-        if body != '':
-            print 'Body sent:'
-            print body
+        print('========')
+        print('REQUEST:')
+        print('%s %s' % (method, urlString))
+        print('Headers sent:')
+        print(getPrettyJson(headers))
+        if body:
+            print('Body sent:')
+            print(body)
 
     try:
         conn.request(method, urlString, body, headers)
@@ -93,45 +108,48 @@ def request(method, urlString, body = '', headers = {}, auth = None, verbose = F
         res.read = lambda: body
 
         if verbose:
-            print '--------'
-            print 'RESPONSE:'
-            print 'Got response with code %s' % res.status
-            print 'Body received:'
-            print res.read()
-            print '========'
+            print('--------')
+            print('RESPONSE:')
+            print('Got response with code %s' % res.status)
+            print('Body received:')
+            print(res.read())
+            print('========')
         return res
-    except Exception, e:
-        res = dict2obj({ 'status' : 500, 'error': str(e) })
+    except Exception as e:
+        res = dict2obj({'status': 500, 'error': str(e)})
         return res
 
-def responseError(res, prefix = 'error:', flatten = True):
+
+def responseError(res, prefix='error:', flatten=True):
     if prefix:
-        print >> sys.stderr, prefix,
+        print(prefix, end=' ', file=sys.stderr)
     response = None
     try:
         response = res.read()
         result = json.loads(response)
         if 'error' in result and 'code' in result:
-            print >> sys.stderr, '%s (code %s)' % (result['error'], result['code'])
+            print('%s (code %s)' % (result['error'], result['code']),
+                  file=sys.stderr)
         elif 'error' in result and flatten:
-            print >> sys.stderr, result['error']
+            print(result['error'], file=sys.stderr)
         else:
-            print >> sys.stderr, getPrettyJson(result)
+            print(getPrettyJson(result), file=sys.stderr)
     except:
         if res.status == 502:
-            print >> sys.stderr, 'connection failed or timed out'
+            print('connection failed or timed out', file=sys.stderr)
         elif isinstance(res, collections.Iterable):
             if 'read' in res:
-                print >> sys.stderr,  res.read()
+                print(res.read(), file=sys.stderr)
             elif 'error' in res:
-                print >> sys.stderr,  res['error']
+                print(res['error'], file=sys.stderr)
             else:
-                print >> sys.stderr, 'unrecognized failure'
+                print('unrecognized failure', file=sys.stderr)
         elif response is not None:
-            print >> sys.stderr, response
+            print(response, file=sys.stderr)
         else:
-            print >> sys.stderr,  'unrecognized failure'
+            print('unrecognized failure', file=sys.stderr)
     return res.status
+
 
 # creates [ { key: "key name", value: "the value" }* ] from annotations.
 def getAnnotations(args):
@@ -140,6 +158,7 @@ def getAnnotations(args):
         for annotation in args.annotation:
             annotations.append(getParam(annotation[0], annotation[1]))
     return annotations
+
 
 # creates [ { key: "key name", value: "the value" }* ] from arguments
 # to conform to Action schema for parameters and annotations
@@ -157,6 +176,7 @@ def getParams(args):
             params.append(getParam('payload', args.payload))
     return params
 
+
 # creates a parameter { key: "key name", value: "the value" }
 def getParam(key, value):
     p = {}
@@ -166,6 +186,7 @@ def getParam(key, value):
     except ValueError:
         p['value'] = value
     return p
+
 
 # creates JSON object from parameters; if payload exists, and it is
 # not a valid JSON object, merge its fields else create payload
@@ -177,7 +198,7 @@ def getActivationArgument(args):
             try:
                 params[p[0]] = json.loads(p[1])
             except:
-                params[p[0]]= p[1]
+                params[p[0]] = p[1]
     if 'payload' in args and args.payload:
         try:
             obj = json.loads(args.payload)
@@ -187,12 +208,13 @@ def getActivationArgument(args):
             params['payload'] = args.payload
     return params
 
+
 def chooseFromArray(array):
     count = 1
     for value in array:
-        print '{0:3d}. {1}'.format(count, value)
+        print('{0:3d}. {1}'.format(count, value))
         count += 1
-    print '{0:>3}. {1}'.format('x', 'abort and exit')
+    print('{0:>3}. {1}'.format('x', 'abort and exit'))
 
     chosen = None
     while True:
@@ -206,8 +228,9 @@ def chooseFromArray(array):
         if chosen > 0 and chosen < count:
             break
         else:
-            print 'Please choose one of the given options'
-    return array[chosen-1]
+            print('Please choose one of the given options')
+    return array[chosen - 1]
+
 
 # class to convert dictionary to objects
 class dict2obj(dict):
@@ -226,8 +249,10 @@ class dict2obj(dict):
         else:
             raise AttributeError('object has no attribute "%s"' % name)
 
+
 def getPrettyJson(obj):
     return json.dumps(obj, sort_keys=True, indent=4, separators=(',', ': '))
+
 
 # Return description string from annotations.
 def getDescriptionFromAnnotations(annotations):
@@ -236,6 +261,7 @@ def getDescriptionFromAnnotations(annotations):
         if a['key'] == 'description':
             description = a['value']
     return description
+
 
 # Return list of parameters names from annotations.
 def getParameterNamesFromAnnotations(annotations):
@@ -246,16 +272,19 @@ def getParameterNamesFromAnnotations(annotations):
                 names.append(p['name'])
     return names
 
+
 #
 # Resolve namespace, either to default namespace or
 # from properties extracted from file if defined
 #
-def resolveNamespace(props, key = 'namespace'):
+def resolveNamespace(props, key='namespace'):
     ns = props.get(key, '_').strip()
     return ns if ns != '' else '_'
 
+
 def getPathDelimiter():
     return '/'
+
 
 #
 # Parse a (possibly fully qualified) resource name into
@@ -286,8 +315,9 @@ def parseQName(qname, props):
     r = parsed(namespace, name)
     return r
 
-# Return a fully qualified name given a (possibly fully qualified) resource name
-# and optional namespace.
+
+# Return a fully qualified name given a (possibly fully qualified) resource
+# name and optional namespace.
 #
 # Examples:
 #      (foo, None) => /_/foo
@@ -296,7 +326,7 @@ def parseQName(qname, props):
 #      (ns, pkg/foo) => /ns/pkg/foo
 #      (/ns/pkg/foo, None) => /ns/pkg/foo
 #      (/ns/pkg/foo, otherns) => /ns/pkg/foo
-def getQName(qname, namespace = None):
+def getQName(qname, namespace=None):
     delimiter = getPathDelimiter()
     if qname[0] == delimiter:
         return qname
@@ -306,6 +336,7 @@ def getQName(qname, namespace = None):
         namespace = namespace if namespace else resolveNamespace({})
         return '%s%s%s%s' % (delimiter, namespace, delimiter, qname)
 
+
 def hostBase(props):
     host = props['apihost']
     url = urlparse(host)
@@ -313,6 +344,7 @@ def hostBase(props):
         return 'https://%s' % host
     else:
         return host
+
 
 def apiBase(props):
     host = hostBase(props)

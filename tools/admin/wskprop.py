@@ -21,7 +21,7 @@
 ##
 
 import os
-import pkg_resources
+
 
 def propfile(base):
     if base != '':
@@ -34,9 +34,11 @@ def propfile(base):
     else:
         return ''
 
+
 def importPropsIfAvailable(filename):
     thefile = open(filename, 'r') if os.path.isfile(filename) and os.path.exists(filename) else []
     return importProps(thefile)
+
 
 def importProps(stream):
     props = {}
@@ -47,28 +49,35 @@ def importProps(stream):
         if len(parts) >= 2:
             val = parts[1].strip()
         if key != '' and val != '':
-            props[key.upper().replace('.','_')] = val
+            props[key.upper().replace('.', '_')] = val
         elif key != '':
-            props[key.upper().replace('.','_')] = ''
+            props[key.upper().replace('.', '_')] = ''
     return props
+
 
 #
 # Returns a triple of (length(requiredProperties), requiredProperties, deferredInfo)
 # prints a message if a required property is not found
 #
 def checkRequiredProperties(requiredPropertiesByName, properties):
-    requiredPropertiesByValue = [ getPropertyValue(key, properties) for key in requiredPropertiesByName ]
-    requiredProperties = dict(zip(requiredPropertiesByName, requiredPropertiesByValue))
-    invalidProperties = [ key for key in requiredPropertiesByName if requiredProperties[key] == None ]
+    requiredPropertiesByValue = [getPropertyValue(key, properties) for key
+                                 in requiredPropertiesByName]
+    requiredProperties = dict(zip(requiredPropertiesByName,
+                                  requiredPropertiesByValue))
+    invalidProperties = [key for key in requiredPropertiesByName
+                         if requiredProperties[key] is None]
     deferredInfo = ''
     for key, value in requiredProperties.items():
-        if value == None or value == '':
-            print 'property "%s" not found in environment or property file' % key
+        if value in (None, ''):
+            print('property "%s" not found in environment or property file' %
+                  key)
         else:
-            deferredInfo += 'using %(key)s = %(value)s\n' % {'key': key, 'value': value}
+            deferredInfo += 'using %(key)s = %(value)s\n' % {'key': key,
+                                                             'value': value}
     return (len(invalidProperties) == 0, requiredProperties, deferredInfo)
+
 
 def getPropertyValue(key, properties):
     evalue = os.environ.get(key)
-    value  = evalue if evalue != None and evalue != '' else properties[key] if key in properties else None
+    value = evalue if evalue is not None and evalue != '' else properties[key] if key in properties else None
     return value

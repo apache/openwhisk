@@ -17,8 +17,10 @@
 import json
 import httplib
 from wskitem import Item
-from wskutil import addAuthenticatedCommand, apiBase, parseQName, request, responseError
+from wskutil import (addAuthenticatedCommand, apiBase, parseQName, request,
+                     responseError)
 import urllib
+
 
 class Rule(Item):
 
@@ -71,7 +73,7 @@ class Rule(Item):
             return super(Rule, self).cmd(args, props)
 
     def create(self, args, props, update):
-        payload = { 'trigger': args.trigger, 'action': args.action }
+        payload = {'trigger': args.trigger, 'action': args.action}
         if args.shared:
             self.addPublish(payload, args)
         code = self.put(args, props, update, json.dumps(payload))
@@ -89,7 +91,7 @@ class Rule(Item):
     def setState(self, args, props, enable):
         namespace, pname = parseQName(args.name, props)
         desc = 'active' if enable else 'inactive'
-        status = json.dumps({ 'status': desc })
+        status = json.dumps({'status': desc})
         url = '%(apibase)s/namespaces/%(namespace)s/rules/%(name)s' % {
             'apibase': apiBase(props),
             'namespace': urllib.quote(namespace),
@@ -99,13 +101,16 @@ class Rule(Item):
             'Content-Type': 'application/json'
         }
 
-        res = request('POST', url, status, headers, auth=args.auth, verbose=args.verbose)
+        res = request('POST', url, status, headers, auth=args.auth,
+                      verbose=args.verbose)
         if res.status == httplib.OK:
-            print 'ok: rule %(name)s is %(desc)s' % {'desc': desc, 'name': args.name}
+            print('ok: rule %(name)s is %(desc)s' % {'desc': desc,
+                                                     'name': args.name})
             return 0
         elif res.status == httplib.ACCEPTED:
             desc = 'activating' if enable else 'deactivating'
-            print 'ok: rule %(name)s is %(desc)s' % {'desc': desc, 'name': args.name}
+            print('ok: rule %(name)s is %(desc)s' % {'desc': desc,
+                                                     'name': args.name})
             return 0
         else:
             return responseError(res)
@@ -122,7 +127,8 @@ class Rule(Item):
 
         if res.status == httplib.OK:
             result = json.loads(res.read())
-            print 'ok: rule %(name)s is %(status)s' % { 'name': args.name, 'status': result['status'] }
+            print('ok: rule %(name)s is %(status)s' %
+                  {'name': args.name, 'status': result['status']})
             return 0
         else:
             return responseError(res)

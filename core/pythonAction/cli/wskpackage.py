@@ -19,7 +19,10 @@ import httplib
 import sys
 import urllib
 from wskitem import Item
-from wskutil import addAuthenticatedCommand, request, getParams, getAnnotations, responseError, parseQName, getQName, hilite, apiBase
+from wskutil import (addAuthenticatedCommand, request, getParams,
+                     getAnnotations, responseError, parseQName, getQName,
+                     hilite, apiBase)
+
 
 #
 # 'wsk packages' CLI
@@ -83,10 +86,10 @@ class Package(Item):
             'name': self.getSafeName(pname)
         }
         pkgNamespace, pkgName = parseQName(args.package, props)
-        if pkgName is None or len(pkgName) <= 0:
-            print 'package name malformed. name or /namespace/name allowed'
+        if not pkgName:
+            print('package name malformed. name or /namespace/name allowed')
             sys.exit(1)
-        binding = { 'namespace': pkgNamespace, 'name': pkgName }
+        binding = {'namespace': pkgNamespace, 'name': pkgName}
         payload = {
             'binding': binding,
             'annotations': getAnnotations(args),
@@ -94,12 +97,11 @@ class Package(Item):
         }
         args.shared = False
         self.addPublish(payload, args)
-        headers= {
-            'Content-Type': 'application/json'
-        }
-        res = request('PUT', url, json.dumps(payload), headers, auth=args.auth, verbose=args.verbose)
+        headers = {'Content-Type': 'application/json'}
+        res = request('PUT', url, json.dumps(payload), headers, auth=args.auth,
+                      verbose=args.verbose)
         if res.status == httplib.OK:
-            print 'ok: created binding %(name)s ' % {'name': args.name }
+            print('ok: created binding %(name)s ' % {'name': args.name})
             return 0
         else:
             return responseError(res)
@@ -114,22 +116,23 @@ class Package(Item):
         res = request('POST', url, auth=args.auth, verbose=args.verbose)
         if res.status == httplib.OK:
             result = json.loads(res.read())
-            print '%(namespace)s refreshed successfully!' % {'namespace': args.name}
-            print hilite('created bindings:', True)
-            print '\n'.join(result['added'])
-            print hilite('updated bindings:', True)
-            print '\n'.join(result['updated'])
-            print hilite('deleted bindings:', True)
-            print '\n'.join(result['deleted'])
+            print('%(namespace)s refreshed successfully!' % {'namespace':
+                                                             args.name})
+            print(hilite('created bindings:', True))
+            print('\n'.join(result['added']))
+            print(hilite('updated bindings:', True))
+            print('\n'.join(result['updated']))
+            print(hilite('deleted bindings:', True))
+            print('\n'.join(result['deleted']))
             return 0
         elif res.status == httplib.NOT_IMPLEMENTED:
-            print 'error: This feature is not implemented in the targeted deployment'
+            print('error: This feature is not implemented in the targeted '
+                  'deployment')
             return responseError(res)
         else:
             result = json.loads(res.read())
-            print 'error: %(error)s' % {'error': result['error']}
+            print('error: %(error)s' % {'error': result['error']})
             return responseError(res)
-
 
     def formatListEntity(self, e):
         ns = e['namespace']

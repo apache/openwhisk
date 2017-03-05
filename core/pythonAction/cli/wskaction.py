@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 
+from __future__ import print_function
 import sys
 import os
 import json
@@ -23,7 +24,10 @@ import argparse
 import urllib
 import subprocess
 from wskitem import Item
-from wskutil import addAuthenticatedCommand, request, getParams, getActivationArgument, getAnnotations, responseError, parseQName, getQName, apiBase, getPrettyJson
+from wskutil import (addAuthenticatedCommand, request, getParams,
+                     getActivationArgument, getAnnotations, responseError,
+                     parseQName, getQName, apiBase, getPrettyJson)
+
 
 #
 # 'wsk actions' CLI
@@ -84,20 +88,20 @@ class Action(Item):
     def csvToQualifiedActions(self, props, csv):
         ns = props['namespace']
         actions = self.csvToList(csv)
-        return [ getQName(a, ns) for a in actions ]
+        return [getQName(a, ns) for a in actions]
 
     def create(self, args, props, update):
         exe = self.getExec(args, props)
         validExe = exe is not None and 'kind' in exe
         fileok = args.artifact is None or os.path.isfile(args.artifact)
-        if (update and fileok) or validExe: # if create action, then exe must be valid
+        if (update and fileok) or validExe:  # if create action, then exe must be valid
             payload = {}
             if args.annotation:
                 payload['annotations'] = getAnnotations(args)
             if args.param:
                 payload['parameters'] = getParams(args)
             # API will accept limits == {} as limits not specified on an update
-            if not args.timeout is None or not args.memory is None or not args.logsize is None:
+            if args.timeout is not None or args.memory is not None or args.logsize is not None:
                 payload['limits'] = self.getLimits(args)
             if validExe:
                 payload['exec'] = exe
@@ -106,26 +110,30 @@ class Action(Item):
             return self.put(args, props, update, json.dumps(payload))
         else:
             if not args.copy:
-                print >> sys.stderr, 'the artifact "%s" is not a valid file. If this is a docker image, use --docker.' % args.artifact
+                print('the artifact "%s" is not a valid file. If this is a '
+                      'docker image, use --docker.' % args.artifact,
+                      file=sys.stderr)
             else:
-                print >> sys.stderr, 'the action "%s" does not exit, is malformed, or your are not entitled to it.' % args.artifact
+                print('the action "%s" does not exit, is malformed, or your '
+                      'are not entitled to it.' % args.artifact,
+                      file=sys.stderr)
             return 2
 
     def invoke(self, args, props):
         res = self.doInvoke(args, props)
         try:
             result = json.loads(res.read())
-            if 'activationId' in result: # if args.result is true, there is no activation id
-                print 'ok: invoked %(name)s with id %(id)s' % {'name': args.name, 'id': result['activationId'] }
-            if res.status == httplib.OK: # true iff args.blocking is true
-                print getPrettyJson(result) # prints the activation or just the result if args.result
+            if 'activationId' in result:  # if args.result is true, there is no activation id
+                print('ok: invoked %(name)s with id %(id)s' % {'name': args.name, 'id': result['activationId']})
+            if res.status == httplib.OK:  # true iff args.blocking is true
+                print(getPrettyJson(result))  # prints the activation or just the result if args.result
                 return 0
             elif res.status == httplib.ACCEPTED:
                 return 0 if not args.blocking else res.status
             elif res.status == httplib.BAD_GATEWAY:
-                return responseError(res, prefix = '', flatten = False)
+                return responseError(res, prefix='', flatten=False)
             elif res.status == httplib.INTERNAL_SERVER_ERROR and 'code' not in result:
-                return responseError(res, prefix = '', flatten = False)
+                return responseError(res, prefix='', flatten=False)
             else:
                 return responseError(res)
         except:
@@ -151,11 +159,11 @@ class Action(Item):
     # creates { timeout: msecs, memory: megabytes } action timeout/memory limits
     def getLimits(self, args):
         limits = {}
-        if not args.timeout is None:
+        if args.timeout is not None:
             limits['timeout'] = args.timeout
-        if not args.memory is None:
+        if args.memory is not None:
             limits['memory'] = args.memory
-        if not args.logsize is None:
+        if args.logsize is not None:
             limits['logs'] = args.logsize
         return limits
 
@@ -183,7 +191,7 @@ class Action(Item):
             exe['components'] = self.csvToQualifiedActions(props, args.artifact)
         elif args.artifact is not None and os.path.isfile(args.artifact):
             contents = open(args.artifact, 'rb').read()
-            if args.kind in ['swift:3','swift:3.0','swift:3.0.0']:
+            if args.kind in ['swift:3', 'swift:3.0', 'swift:3.0.0']:
                 exe['kind'] = 'swift:3'
                 exe['code'] = contents
             elif args.artifact.endswith('.swift'):
@@ -199,7 +207,7 @@ class Action(Item):
             elif args.kind in ['nodejs']:
                 exe['kind'] = 'nodejs'
                 exe['code'] = contents
-            elif args.kind in ['nodejs:6','nodejs:6.0','nodejs:6.0.0']:
+            elif args.kind in ['nodejs:6', 'nodejs:6.0', 'nodejs:6.0.0']:
                 exe['kind'] = 'nodejs:6'
                 exe['code'] = contents
             else:
@@ -211,7 +219,7 @@ class Action(Item):
         signature = """public static com.google.gson.JsonObject main(com.google.gson.JsonObject);"""
         def run(cmd):
             proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            (o,e) = proc.communicate()
+            (o, e) = proc.communicate()
             if proc.returncode != 0:
                 msg = "An error occurred while executing %s." % " ".join(cmd)
                 if e.strip() != "":
@@ -229,7 +237,6 @@ class Action(Item):
                 return c
 
         raise Exception("Couldn't find 'main' method in %s." % jarPath)
-
 
     def getActionExec(self, args, props, name):
         res = self.httpGet(args, props, name)

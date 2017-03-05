@@ -18,8 +18,11 @@ import json
 import httplib
 from wskitem import Item
 from wskaction import Action
-from wskutil import addAuthenticatedCommand, apiBase, dict2obj, getParam, getParams, getActivationArgument, getAnnotations, parseQName, responseError, request, getQName
+from wskutil import (addAuthenticatedCommand, apiBase, dict2obj, getParam,
+                     getParams, getActivationArgument, getAnnotations,
+                     parseQName, responseError, request, getQName)
 import urllib
+
 
 class Trigger(Item):
 
@@ -44,9 +47,10 @@ class Trigger(Item):
 
         subcmd = parser.add_parser('fire', help='fire trigger event')
         subcmd.add_argument('name', help='the name of the trigger')
-        subcmd.add_argument('payload', help='the payload to attach to the trigger', nargs ='?')
+        subcmd.add_argument('payload', help='the payload to attach to the trigger', nargs='?')
         addAuthenticatedCommand(subcmd, props)
-        subcmd.add_argument('-p', '--param', help='parameters', nargs=2, action='append')
+        subcmd.add_argument('-p', '--param', help='parameters', nargs=2,
+                            action='append')
 
         self.addDefaultCommands(parser, props)
 
@@ -58,8 +62,8 @@ class Trigger(Item):
 
     def create(self, args, props, update):
         annotations = getAnnotations(args)
-        parameters  = getParams(args)
-        createFeed  = 'feed' in args and args.feed
+        parameters = getParams(args)
+        createFeed = 'feed' in args and args.feed
 
         if createFeed:
             annotations.append(getParam('feed', args.feed))
@@ -88,14 +92,14 @@ class Trigger(Item):
             'name': self.getSafeName(pname)
         }
         payload = json.dumps(getActivationArgument(args))
-        headers= {
-            'Content-Type': 'application/json'
-        }
-        res = request('POST', url, payload, headers, auth=args.auth, verbose=args.verbose)
+        headers = {'Content-Type': 'application/json'}
+        res = request('POST', url, payload, headers, auth=args.auth,
+                      verbose=args.verbose)
 
         if res.status == httplib.OK:
             result = json.loads(res.read())
-            print 'ok: triggered %(name)s with id %(id)s' % {'name': args.name, 'id': result['activationId'] }
+            print('ok: triggered %(name)s with id %(id)s' %
+                  {'name': args.name, 'id': result['activationId']})
             return 0
         else:
             return responseError(res)
@@ -115,13 +119,13 @@ class Trigger(Item):
         parameters = args.param
         if parameters is None:
             parameters = []
-        parameters.append([ 'lifecycleEvent', 'CREATE' ])
-        parameters.append([ 'triggerName', triggerName ])
-        parameters.append([ 'authKey', args.auth ])
+        parameters.append(['lifecycleEvent', 'CREATE'])
+        parameters.append(['triggerName', triggerName])
+        parameters.append(['authKey', args.auth])
 
         feedArgs = {
             'verbose': args.verbose,
-            'name' : args.feed,
+            'name': args.feed,
             'param': parameters,
             'blocking': True,
             'auth': args.auth
@@ -130,20 +134,22 @@ class Trigger(Item):
         try:
             feedResponse = Action().doInvoke(dict2obj(feedArgs), props)
         except Exception as e:
-            print 'exception: %s' % e
+            print('exception: %s' % e)
             feedResponse = None
 
         if feedResponse and feedResponse.status == httplib.OK:
-            print 'ok: created %s feed %s' % (self.name, args.name)
+            print('ok: created %s feed %s' % (self.name, args.name))
         else:
-            print 'error: failed to create %s feed %s' % (self.name, args.name)
+            print('error: failed to create %s feed %s' % (self.name,
+                                                          args.name))
             # clean up by deleting trigger
             self.httpDelete(args, props)
             return responseError(feedResponse, None) if feedResponse else 1
 
     def deleteFeed(self, args, props, res):
         trigger = json.loads(res.read())
-        hasFeed = [a['value'] for a in  trigger['annotations'] if a['key'] == 'feed']
+        hasFeed = [a['value'] for a in trigger['annotations']
+                   if a['key'] == 'feed']
         feedName = hasFeed[0] if hasFeed else None
 
         if feedName:
@@ -151,13 +157,13 @@ class Trigger(Item):
             triggerName = getQName(args.name, ns)
 
             parameters = []
-            parameters.append([ 'lifecycleEvent', 'DELETE' ])
-            parameters.append([ 'triggerName', triggerName ])
-            parameters.append([ 'authKey', args.auth ])
+            parameters.append(['lifecycleEvent', 'DELETE'])
+            parameters.append(['triggerName', triggerName])
+            parameters.append(['authKey', args.auth])
 
             feedArgs = {
                 'verbose': args.verbose,
-                'name' : feedName,
+                'name': feedName,
                 'param': parameters,
                 'blocking': True,
                 'auth': args.auth
@@ -166,11 +172,12 @@ class Trigger(Item):
             try:
                 feedResponse = Action().doInvoke(dict2obj(feedArgs), props)
             except Exception as e:
-                print 'exception: %s' % e
+                print('exception: %s' % e)
                 feedResponse = None
 
             if feedResponse and feedResponse.status == httplib.OK:
                 return self.deleteResponse(args, res)
             else:
-                print 'error: failed to delete %s feed %s but did delete the trigger' % (self.name, args.name)
+                print('error: failed to delete %s feed %s but did delete the '
+                      'trigger' % (self.name, args.name))
                 return responseError(feedResponse, None) if feedResponse else 1

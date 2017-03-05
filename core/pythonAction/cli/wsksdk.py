@@ -19,17 +19,19 @@ import subprocess
 import httplib
 from wskutil import hostBase, request
 
+
 #
 # 'wsk sdk' CLI
 #
 class Sdk:
 
     def __init__(self):
-        0 # empty body not allowed
+        pass  # empty body not allowed
 
     def getCommands(self, parser, props):
         sdkParser = parser.add_parser('sdk', help='work with the SDK')
-        subcmds = sdkParser.add_subparsers(title='available commands', dest='subcmd')
+        subcmds = sdkParser.add_subparsers(title='available commands',
+                                           dest='subcmd')
         installParser = subcmds.add_parser('install', help='install artifacts')
         installParser.add_argument('component', help='component to be installed: {docker,swift,iOS}')
 
@@ -37,7 +39,7 @@ class Sdk:
         if args.subcmd == 'install':
             return self.installCmd(args, props)
         else:
-            print 'Unknown SDK command:', args.subcmd
+            print('Unknown SDK command:', args.subcmd)
 
     def installCmd(self, args, props):
         if args.component == 'docker':
@@ -47,19 +49,21 @@ class Sdk:
         elif args.component == 'swift':
             return self.swiftDownload(args, props)
         else:
-            print 'Unknown SDK component:', args.component
+            print('Unknown SDK component:', args.component)
 
     def swiftDownload(self, args, props):
-        print 'Swift SDK coming soon.'
+        print('Swift SDK coming soon.')
 
     def dockerDownload(self, args, props):
         tarFile = 'blackbox-0.1.0.tar.gz'
         blackboxDir = 'dockerSkeleton'
         if os.path.exists(tarFile):
-            print('The path ' + tarFile + ' already exists.  Please delete it and retry.')
+            print('The path ' + tarFile + ' already exists.  Please delete it '
+                  'and retry.')
             return -1
         if os.path.exists(blackboxDir):
-            print('The path ' + blackboxDir + ' already exists.  Please delete it and retry.')
+            print('The path ' + blackboxDir + ' already exists.  Please delete'
+                  ' it and retry.')
             return -1
         url = '%s/%s' % (hostBase(props), tarFile)
         try:
@@ -75,13 +79,15 @@ class Sdk:
             print('Could not install docker skeleton.')
             return -1
         rc = subprocess.call(['rm', tarFile])
-        print('\nThe docker skeleton is now installed at the current directory.')
+        print('\nThe docker skeleton is now installed at the current '
+              'directory.')
         return 0
 
     def iosStarterAppDownload(self, args, props):
         zipFile = 'OpenWhiskIOSStarterApp.zip'
         if os.path.exists(zipFile):
-            print('The path ' + zipFile + ' already exists.  Please delete it and retry.')
+            print('The path ' + zipFile + ' already exists.  Please delete it '
+                  'and retry.')
             return -1
         url = '%s/%s' % (hostBase(props), zipFile)
         try:
@@ -93,6 +99,6 @@ class Sdk:
         except IOError:
             print('Download of OpenWhisk iOS starter app failed.')
             return -1
-        print('\nDownloaded OpenWhisk iOS starter app. Unzip ' + zipFile + ' and open the project in Xcode.')
+        print('\nDownloaded OpenWhisk iOS starter app. Unzip ' + zipFile +
+              ' and open the project in Xcode.')
         return 0
-
