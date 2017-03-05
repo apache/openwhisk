@@ -1,9 +1,10 @@
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
-from ansible.plugins.callback import CallbackBase
+import os
 import sys
-import json
+from ansible.plugins.callback import CallbackBase
+
 
 class CallbackModule(CallbackBase):
 
@@ -44,17 +45,15 @@ class CallbackModule(CallbackBase):
 
 def hilite(msg, status):
     def supportsColor():
-        if (sys.platform != 'win32' or 'ANSICON' in os.environ) and sys.stdout.isatty():
-            return True
-        else:
-            return False
+        return bool((sys.platform != 'win32' or 'ANSICON' in os.environ) and
+                    sys.stdout.isatty())
 
     if supportsColor():
         attr = []
         if status == 'FAILED':
-            attr.append('31') # red
+            attr.append('31')  # red
         else:
-            attr.append('1') # bold
+            attr.append('1')  # bold
         return '\x1b[%sm%s\x1b[0m' % (';'.join(attr), msg)
     else:
         return msg
