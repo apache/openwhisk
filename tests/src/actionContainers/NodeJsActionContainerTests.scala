@@ -444,7 +444,7 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
         checkStreams(out, err, {
             case (o, e) =>
                 (o + e).toLowerCase should include("error")
-                (o + e).toLowerCase should include("module_not_found")
+                (o + e).toLowerCase should include("package.json must be located at the root of a zipped action")
         })
     }
 
