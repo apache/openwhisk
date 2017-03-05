@@ -107,6 +107,8 @@ class WhiskConfig(
     val kafkaDockerEndpoint = this(WhiskConfig.kafkaDockerEndpoint)
     val mainDockerEndpoint = this(WhiskConfig.mainDockerEndpoint)
 
+    val runtimesManifest = this(WhiskConfig.runtimesManifest)
+
     val actionInvokePerMinuteLimit = this(WhiskConfig.actionInvokePerMinuteDefaultLimit, WhiskConfig.actionInvokePerMinuteLimit)
     val actionInvokeConcurrentLimit = this(WhiskConfig.actionInvokeConcurrentDefaultLimit, WhiskConfig.actionInvokeConcurrentLimit)
     val triggerFirePerMinuteLimit = this(WhiskConfig.triggerFirePerMinuteDefaultLimit, WhiskConfig.triggerFirePerMinuteLimit)
@@ -262,6 +264,8 @@ object WhiskConfig {
     val kafkaHost = Map(kafkaHostName -> null, kafkaHostPort -> null)
     val controllerHost = Map(controllerHostName -> null, controllerHostPort -> null)
     val loadbalancerHost = Map(loadbalancerHostName -> null, loadbalancerHostPort -> null)
+
+    val runtimesManifest = "runtimes.manifest"
 
     val actionInvokePerMinuteDefaultLimit = "defaultLimits.actions.invokes.perMinute"
     val actionInvokeConcurrentDefaultLimit = "defaultLimits.actions.invokes.concurrent"
