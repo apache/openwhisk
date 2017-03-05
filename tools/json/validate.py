@@ -11,20 +11,20 @@ import sys
 import json
 from jsonschema import validate
 
-#print len(sys.argv)
-#print sys.argv
+# print len(sys.argv)
+# print sys.argv
 
 if len(sys.argv) != 3:
-    print 'usage: validate.py obj schema'
+    print('usage: validate.py obj schema')
     sys.exit(-1)
 
-a1=sys.argv[1].replace('\n','');
-a2=sys.argv[2].replace('\n','');
-obj=json.loads(a1)
-schema=json.loads(a2)
+a1 = sys.argv[1].replace('\n', '')
+a2 = sys.argv[2].replace('\n', '')
+obj = json.loads(a1)
+schema = json.loads(a2)
 
 try:
-    validate(obj,schema)
-    print 'true'
+    validate(obj, schema)
+    print('true')
 except:
-    print 'false'
+    print('false')

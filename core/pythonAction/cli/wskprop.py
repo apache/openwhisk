@@ -21,6 +21,10 @@
 ##
 
 import os
+import pkg_resources
+
+WHISK_VERSION_DATE = 'WHISK_VERSION_DATE'
+CLI_API_HOST = 'CLI_API_HOST'
 
 
 def propfile(base):
@@ -40,6 +44,19 @@ def importPropsIfAvailable(filename):
     return importProps(thefile)
 
 
+def importDefaultProps():
+    packagename = 'whisk'
+    filename = 'default.props'
+    filepath = os.path.join(os.path.dirname(os.path.realpath(__file__)), filename)
+    theFile = open(filepath, 'r') if os.path.isfile(filepath) and os.path.exists(filepath) else None
+    if theFile is None:
+        try:
+            theFile = pkg_resources.resource_stream(packagename, filename)
+        except ImportError:
+            theFile = None
+    return importProps(theFile) if theFile is not None else None
+
+
 def importProps(stream):
     props = {}
     for line in stream:
@@ -49,10 +66,24 @@ def importProps(stream):
         if len(parts) >= 2:
             val = parts[1].strip()
         if key != '' and val != '':
-            props[key.upper().replace('.', '_')] = val
+            props[key.upper().replace('.','_')] = val
         elif key != '':
-            props[key.upper().replace('.', '_')] = ''
+            props[key.upper().replace('.','_')] = ''
     return props
+
+
+def updateProps(key, value, filename):
+    userProps = importPropsIfAvailable(filename)
+    userProps[key] = value
+    writeProps(userProps, filename)
+
+
+def writeProps(props, filename):
+    fileHandle = open(filename, 'w')
+    for key in props:
+        line = key.upper() + '=' + props[key]
+        fileHandle.write(line + '\n')
+    fileHandle.close()
 
 
 #
@@ -60,15 +91,12 @@ def importProps(stream):
 # prints a message if a required property is not found
 #
 def checkRequiredProperties(requiredPropertiesByName, properties):
-    requiredPropertiesByValue = [getPropertyValue(key, properties) for key
-                                 in requiredPropertiesByName]
-    requiredProperties = dict(zip(requiredPropertiesByName,
-                                  requiredPropertiesByValue))
-    invalidProperties = [key for key in requiredPropertiesByName
-                         if requiredProperties[key] is None]
+    requiredPropertiesByValue = [ getPropertyValue(key, properties) for key in requiredPropertiesByName ]
+    requiredProperties = dict(zip(requiredPropertiesByName, requiredPropertiesByValue))
+    invalidProperties = [ key for key in requiredPropertiesByName if requiredProperties[key] == None ]
     deferredInfo = ''
     for key, value in requiredProperties.items():
-        if value in (None, ''):
+        if not value == None or value == '':
             print('property "%s" not found in environment or property file' %
                   key)
         else:
@@ -79,5 +107,11 @@ def checkRequiredProperties(requiredPropertiesByName, properties):
 
 def getPropertyValue(key, properties):
     evalue = os.environ.get(key)
-    value = evalue if evalue is not None and evalue != '' else properties[key] if key in properties else None
+    value  = evalue if evalue is not None and evalue != '' else properties[key] if key in properties else None
     return value
+
+
+def merge(props1, props2):
+    props = props1.copy()
+    props.update(props2)
+    return props

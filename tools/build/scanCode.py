@@ -27,6 +27,7 @@
 
 """
 
+from __future__ import print_function
 import collections
 import fnmatch
 import itertools
@@ -55,7 +56,7 @@ MSG_ERROR_SUMMARY = "Summary: Scan detected %d error(s) in %d file(s)."
 def vprint(s):
     """Conditional print (stdout)."""
     if VERBOSE:
-        print s
+        print(s)
 
 
 def exceptional_paths():
@@ -69,10 +70,7 @@ def exceptional_paths():
 
 def no_tabs(line):
     """Assert line does not contains a TAB character."""
-    if re.match("\t", line):
-        return ERR_TABS
-    else:
-        return None
+    return ERR_TABS if re.match("\t", line) else None
 
 
 def no_trailing_spaces(line):
@@ -80,20 +78,14 @@ def no_trailing_spaces(line):
     if len(line) > 0 and line[-1] == '\n':
         line = line[:-1]
 
-    if re.match("""^.*\s$""", line):
-        return ERR_TRAILING_WHITESPACE
-    else:
-        return None
+    return ERR_TRAILING_WHITESPACE if re.match("""^.*\s$""", line) else None
 
 
 def eol_at_eof(line):
     """Assert line at End of File is an End of Line character."""
-    if len(line) == 0 or line[-1] != '\n':
-        return ERR_NO_EOL_AT_EOF
-    else:
-        return None
+    return ERR_NO_EOL_AT_EOF if len(line) == 0 or line[-1] != '\n' else None
 
-"""Declare approved software license headers as strings."""
+"""Declare approved software license headers as strings."""  # noqa
 
 LICENSE_APACHE_SOFTWARE_FOUNDATION = """\
    /*
@@ -156,10 +148,7 @@ def has_block_license(path):
 
 def is_not_symlink(path):
     """Assert a file is not a symbolic link."""
-    if os.path.islink(path):
-        return [(0, ERR_SYMBOLIC_LINK)]
-    else:
-        return None
+    return [(0, ERR_SYMBOLIC_LINK)] if os.path.islink(path) else None
 
 
 def line_checks(checks):
@@ -222,6 +211,7 @@ def colors():
 
     return collections.namedtuple("Colorizer",
                                   "blue green red")(blue, green, red)
+
 
 # Script entrypoint.
 if __name__ == "__main__":
@@ -305,5 +295,5 @@ if __name__ == "__main__":
         sys.stderr.write(col.red(message) + "\n")
         sys.exit(1)
     else:
-        print col.green(MSG_CHECKS_PASSED)
+        print(col.green(MSG_CHECKS_PASSED))
         sys.exit(0)

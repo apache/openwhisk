@@ -21,6 +21,7 @@ import time
 import re
 import couchdb.client
 
+
 #
 # Replicates databases
 #
@@ -36,10 +37,10 @@ def replicateDatabases(args):
     backupPrefix = "backup_%d_" % now
 
     # Create backup of all databases with given prefix
-    print "----- Create backups -----"
+    print("----- Create backups -----")
     for db in filter(lambda dbName: dbName.startswith(args.dbPrefix), sourceDb):
         backupDb = backupPrefix + db if not args.continuous else 'continuous_' + db
-        print "create backup: %s" % backupDb
+        print("create backup: %s" % backupDb)
         sourceDb["_replicator"].save({
             "_id": backupDb,
             "source": args.sourceDbUrl + "/" + db,
@@ -48,15 +49,21 @@ def replicateDatabases(args):
             "continuous": args.continuous
         })
 
-    def isBackupDb(dbName): return re.match("^backup_\d+_" + args.dbPrefix, dbName)
-    def extractTimestamp(dbName): return int(dbName.split("_")[1])
-    def isExpired(timestamp): return now - args.expires > timestamp
+    def isBackupDb(dbName):
+        return re.match("^backup_\d+_" + args.dbPrefix, dbName)
+
+    def extractTimestamp(dbName):
+        return int(dbName.split("_")[1])
+
+    def isExpired(timestamp):
+        return now - args.expires > timestamp
 
     # Delete all backup-databases, that are older than specified
-    print "----- Delete backups older than %d seconds -----" % args.expires
+    print("----- Delete backups older than %d seconds -----" % args.expires)
     for db in filter(lambda db: isBackupDb(db) and isExpired(extractTimestamp(db)), targetDb):
-        print "deleting backup: %s" % db
+        print("deleting backup: %s" % db)
         targetDb.delete(db)
+
 
 #
 # Replays databases
@@ -75,7 +82,9 @@ def replayDatabases(args):
             "target": args.targetDbUrl + "/" + plainDbName,
             "create_target": True
         })
-        print "replaying backup: %s -> %s (%s)" % (db, plainDbName, identifier)
+        print("replaying backup: %s -> %s (%s)" %
+              (db, plainDbName, identifier))
+
 
 parser = argparse.ArgumentParser(description="Utility to create a backup of all databases with the defined prefix.")
 parser.add_argument("--sourceDbUrl", required=True, help="Server URL of the source database, that has to be backed up. E.g. 'https://xxx:yyy@domain.couch.com:443'")
