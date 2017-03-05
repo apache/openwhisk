@@ -390,6 +390,8 @@ To create an OpenWhisk action from this package:
   $ zip -r action.zip *
   ```
 
+  > Please note: Using the Windows Explorer action for creating the zip file will result in an incorrect structure. OpenWhisk zip actions must have `package.json` at the root of the zip, while Windows Explorer will put it inside a nested folder. The safest option is to use the command line `zip` command as shown above.
+
 3. Create the action:
 
   ```
