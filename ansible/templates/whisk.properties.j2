@@ -15,6 +15,7 @@ whisk.ssl.key={{ openwhisk_home }}/ansible/roles/nginx/files/openwhisk-key.pem
 whisk.ssl.challenge=openwhisk
 whisk.api.host={{ whisk_api_host | default('https://' + (groups['edge'] | first)) }}
 
+runtimes.manifest={{ runtimesManifest | to_json }}
 defaultLimits.actions.invokes.perMinute={{ defaultLimits.actions.invokes.perMinute }}
 defaultLimits.actions.invokes.concurrent={{ defaultLimits.actions.invokes.concurrent }}
 defaultLimits.triggers.fires.perMinute={{ defaultLimits.triggers.fires.perMinute }}

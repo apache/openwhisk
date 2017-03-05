@@ -39,12 +39,10 @@ object Attachments {
 
     case class Inline[T](value: T) extends Attachment[T]
 
-    case class Attached(name: String, contentType: ContentType) extends Attachment[Nothing]
+    case class Attached(attachmentName: String, attachmentType: ContentType) extends Attachment[Nothing]
 
-    // FIXME attachments are free, really?
-    // This may not be an issue because the entity is create with the inlined
-    // attachments when it's (tentatively) uploaded by the user, so the proper
-    // checks should kick-in.
+    // Attachments are considered free because the name/content type are system determined
+    // and a size check for the content is done during create/update
     implicit class SizeAttachment[T <% SizeConversion](a: Attachment[T]) extends SizeConversion {
         def sizeIn(unit: SizeUnits.Unit): ByteSize = a match {
             case Inline(v) => (v: SizeConversion).sizeIn(unit)
@@ -52,29 +50,36 @@ object Attachments {
         }
     }
 
+    object Attached {
+        implicit val serdes = {
+            implicit val contentTypeSerdes = new RootJsonFormat[ContentType] {
+                override def write(c: ContentType) = JsString(c.value)
+                override def read(js: JsValue) = Try {
+                    val JsString(c) = js
+                    ContentType.parse(c).right.get
+                } getOrElse {
+                    throw new DeserializationException("Could not deserialize content-type")
+                }
+            }
+
+            jsonFormat2(Attached.apply)
+        }
+    }
+
     implicit def serdes[T: JsonFormat] = new JsonFormat[Attachment[T]] {
         val sub = implicitly[JsonFormat[T]]
 
         def write(a: Attachment[T]): JsValue = a match {
-            case Inline(v) => sub.write(v)
-            case Attached(n, c) => JsObject(
-                "attachmentName" -> JsString(n),
-                "attachmentType" -> JsString(c.value))
+            case Inline(v)   => sub.write(v)
+            case a: Attached => Attached.serdes.write(a)
         }
 
-        def read(js: JsValue): Attachment[T] = try {
+        def read(js: JsValue): Attachment[T] = Try {
             Inline(sub.read(js))
-        } catch {
-            case _: DeserializationException =>
-                Try {
-                    val o = js.asJsObject
-                    val n = o.fields("attachmentName").convertTo[String]
-                    val c = o.fields("attachmentType").convertTo[String]
-                    val p = ContentType.parse(c).right.get
-                    Attached(n, p)
-                } getOrElse {
-                    throw new DeserializationException("Could not deserialize as attachment record: " + js)
-                }
+        } recover {
+            case _: DeserializationException => Attached.serdes.read(js)
+        } getOrElse {
+            throw new DeserializationException("Could not deserialize as attachment record: " + js)
         }
     }
 }
