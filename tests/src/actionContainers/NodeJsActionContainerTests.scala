@@ -413,6 +413,36 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
         })
     }
 
+    it should "support zip-encoded npm package actions without a package.json file" in {
+        val srcs = Seq(
+            Seq("index.js") -> """
+                | exports.main = function (args) {
+                |     var name = typeof args["name"] === "string" ? args["name"] : "stranger";
+                |
+                |     return {
+                |         greeting: "Hello " + name + ", from an npm package action without a package.json."
+                |     };
+                | }
+            """.stripMargin)
+
+        val code = ZipBuilder.mkBase64Zip(srcs)
+
+        val (out, err) = withNodeJsContainer { c =>
+            c.init(initPayload(code))._1 should be(200)
+
+            val (runCode, runRes) = c.run(runPayload(JsObject()))
+
+            runCode should be(200)
+            runRes.get.fields.get("greeting") shouldBe Some(JsString("Hello stranger, from an npm package action without a package.json."))
+        }
+
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe empty
+                e shouldBe empty
+        })
+    }
+
     it should "fail gracefully on invalid zip files" in {
         // Some text-file encoded to base64.
         val code = "Q2VjaSBuJ2VzdCBwYXMgdW4gemlwLgo="
@@ -444,7 +474,7 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
         checkStreams(out, err, {
             case (o, e) =>
                 (o + e).toLowerCase should include("error")
-                (o + e).toLowerCase should include("package.json must be located at the root of a zipped action")
+                (o + e).toLowerCase should include("zipped actions must contain either package.json or index.js at the root.")
         })
     }
 
