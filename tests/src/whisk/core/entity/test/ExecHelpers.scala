@@ -24,10 +24,10 @@ trait ExecHelpers {
     protected val SWIFT = "swift"
     protected val SWIFT3 = "swift:3"
 
-    protected def js(code: String, main: Option[String] = None): Exec = new NodeJSExec(trim(code), main.map(_.trim))
-    protected def js6(code: String, main: Option[String] = None): Exec = new NodeJS6Exec(trim(code), main.map(_.trim))
-    protected def swift(code: String, main: Option[String] = None): Exec = new SwiftExec(trim(code), main.map(_.trim))
-    protected def swift3(code: String, main: Option[String] = None): Exec = new Swift3Exec(trim(code), main.map(_.trim))
+    protected def js(code: String, main: Option[String] = None): Exec = CodeExecAsString(NODEJS, trim(code), main.map(_.trim), false)
+    protected def js6(code: String, main: Option[String] = None): Exec = CodeExecAsString(NODEJS6, trim(code), main.map(_.trim), false)
+    protected def swift(code: String, main: Option[String] = None): Exec = CodeExecAsString(SWIFT, trim(code), main.map(_.trim), true)
+    protected def swift3(code: String, main: Option[String] = None): Exec = CodeExecAsString(SWIFT3, trim(code), main.map(_.trim), false)
     protected def sequence(components: Vector[FullyQualifiedEntityName]): Exec = SequenceExec(components)
     protected def bb(image: String): Exec = BlackBoxExec(trim(image), None, None)
     protected def bb(image: String, code: String, main: Option[String] = None): Exec = BlackBoxExec(trim(image), Some(trim(code)).filter(_.nonEmpty), main)

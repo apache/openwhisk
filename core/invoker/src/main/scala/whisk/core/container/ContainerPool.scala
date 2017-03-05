@@ -40,16 +40,7 @@ import whisk.common.TimingUtil
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig._
-import whisk.core.entity.ActionLimits
-import whisk.core.entity.AuthKey
-import whisk.core.entity.CodeExec
-import whisk.core.entity.LogLimit
-import whisk.core.entity.MemoryLimit
-import whisk.core.entity.NodeJS6Exec
-import whisk.core.entity.TimeLimit
-import whisk.core.entity.WhiskAction
-import whisk.core.entity.WhiskAuthStore
-import whisk.core.entity.WhiskEntityStore
+import whisk.core.entity._
 
 /**
  * A thread-safe container pool that internalizes container creation/teardown and allows users
@@ -296,7 +287,7 @@ class ContainerPool(
                         Some(Warm(con))
                     } else {
                         // resume failed, gc the container
-                        putBack(con, delete=true)
+                        putBack(con, delete = true)
                         None
                     }
                 }
@@ -423,7 +414,7 @@ class ContainerPool(
     // TODO: Generalize across language by storing image name when we generalize to other languages
     //       Better heuristic for # of containers to keep warm - make sensitive to idle capacity
     private val stemCellNodejsKey = StemCellNodeJsActionContainerId
-    private val nodejsExec = NodeJS6Exec("", entryPoint = None)
+    private val nodejsExec = new CodeExecAsString(Exec.NODEJS6, "", None, false)
     private val WARM_NODEJS_CONTAINERS = 2
 
     // This parameter controls how many outstanding un-removed containers there are before

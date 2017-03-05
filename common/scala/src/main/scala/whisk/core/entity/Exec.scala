@@ -18,19 +18,15 @@ package whisk.core.entity
 
 import java.util.Base64
 
-import scala.util.Try
-
 import scala.language.postfixOps
 import scala.util.Try
 
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-
-import whisk.core.entity.ArgNormalizer.trim
 import whisk.core.entity.Attachments._
 import whisk.core.entity.size.SizeInt
-import whisk.core.entity.size.SizeString
 import whisk.core.entity.size.SizeOptionString
+import whisk.core.entity.size.SizeString
 
 /**
  * Exec encodes the executable details of an action. For black
@@ -96,24 +92,14 @@ sealed abstract class CodeExec[T <% SizeConversion](kind: String) extends Exec(k
     override def size = code.sizeInBytes
 }
 
-protected[core] class CodeExecAsString(
-    kind: String,
+protected[core] case class CodeExecAsString(
+    override val kind: String,
     override val code: String,
-    override val entryPoint: Option[String])
+    override val entryPoint: Option[String],
+    override val deprecated: Boolean)
     extends CodeExec[String](kind) {
     override def codeAsJson = JsString(code)
 }
-
-protected[core] case class NodeJSExec(override val code: String, override val entryPoint: Option[String]) extends CodeExecAsString(Exec.NODEJS, code, entryPoint)
-protected[core] case class NodeJS6Exec(override val code: String, override val entryPoint: Option[String]) extends CodeExecAsString(Exec.NODEJS6, code, entryPoint)
-
-protected[core] case class SwiftExec(override val code: String, override val entryPoint: Option[String]) extends CodeExecAsString(Exec.SWIFT, code, entryPoint) {
-    override val deprecated = true
-}
-
-protected[core] case class Swift3Exec(override val code: String, override val entryPoint: Option[String]) extends CodeExecAsString(Exec.SWIFT3, code, entryPoint)
-
-protected[core] case class PythonExec(override val code: String, override val entryPoint: Option[String]) extends CodeExecAsString(Exec.PYTHON, code, entryPoint)
 
 protected[core] case class JavaExec(code: Attachment[String], main: String) extends CodeExec[Attachment[String]](Exec.JAVA) {
     override val entryPoint = Some(main)
@@ -203,27 +189,12 @@ protected[core] object Exec
             }
 
             kind match {
-                case Exec.NODEJS | Exec.NODEJS6 =>
+                case Exec.NODEJS | Exec.NODEJS6 | Exec.SWIFT | Exec.SWIFT3 | Exec.PYTHON =>
                     val code: String = obj.fields.get("code") match {
                         case Some(JsString(c)) => c
                         case _                 => throw new DeserializationException(s"'code' must be a string defined in 'exec' for '$kind' actions")
                     }
-                    if (kind == Exec.NODEJS) NodeJSExec(code, optMainField) else NodeJS6Exec(code, optMainField)
-
-                case Exec.SEQUENCE =>
-                    val comp: Vector[FullyQualifiedEntityName] = obj.getFields("components") match {
-                        case Seq(JsArray(components)) => components map { FullyQualifiedEntityName.serdes.read(_) }
-                        case Seq(_)                   => throw new DeserializationException(s"'components' must be an array")
-                        case _                        => throw new DeserializationException(s"'components' must be defined for sequence kind")
-                    }
-                    SequenceExec(comp)
-
-                case Exec.SWIFT | Exec.SWIFT3 =>
-                    val code: String = obj.getFields("code") match {
-                        case Seq(JsString(c)) => c
-                        case _                => throw new DeserializationException(s"'code' must be a string defined in 'exec' for '$kind' actions")
-                    }
-                    if (kind == Exec.SWIFT) SwiftExec(code, optMainField) else Swift3Exec(code, optMainField)
+                    new CodeExecAsString(kind, code, optMainField, kind == Exec.SWIFT)
 
                 case Exec.JAVA =>
                     val jar: Attachment[String] = obj.fields.get("jar").map { f =>
@@ -236,12 +207,13 @@ protected[core] object Exec
                     }
                     JavaExec(jar, main)
 
-                case Exec.PYTHON =>
-                    val code: String = obj.getFields("code") match {
-                        case Seq(JsString(c)) => c
-                        case _                => throw new DeserializationException(s"'code' must be a string defined in 'exec' for '${Exec.PYTHON}' actions")
+                case Exec.SEQUENCE =>
+                    val comp: Vector[FullyQualifiedEntityName] = obj.getFields("components") match {
+                        case Seq(JsArray(components)) => components map { FullyQualifiedEntityName.serdes.read(_) }
+                        case Seq(_)                   => throw new DeserializationException(s"'components' must be an array")
+                        case _                        => throw new DeserializationException(s"'components' must be defined for sequence kind")
                     }
-                    PythonExec(code, optMainField)
+                    SequenceExec(comp)
 
                 case Exec.BLACKBOX =>
                     val image: String = obj.getFields("image") match {
