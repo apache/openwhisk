@@ -51,8 +51,9 @@ function NodeActionRunner() {
         if (message.binary) {
             // The code is a base64-encoded zip file.
             return unzipInTmpDir(message.code).then(function (moduleDir) {
-                if (!fs.existsSync(path.join(moduleDir, 'package.json'))) {
-                    return Promise.reject('package.json must be located at the root of a zipped action.')
+                if(!fs.existsSync(path.join(moduleDir, 'package.json')) &&
+                    !fs.existsSync(path.join(moduleDir, 'index.js'))) {
+                    return Promise.reject('Zipped actions must contain either package.json or index.js at the root.')
                 }
 
                 try {
