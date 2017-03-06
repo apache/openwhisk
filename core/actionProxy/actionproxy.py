@@ -36,8 +36,8 @@ class ActionRunner:
     # as source code path)
     def __init__(self, source=None, binary=None):
         defaultBinary = '/action/exec'
-        self.source = source if source else defaultBinary
-        self.binary = binary if binary else defaultBinary
+        self.source = source or defaultBinary
+        self.binary = binary or defaultBinary
 
     # extracts from the JSON object message a 'code' property and
     # writes it to the <source> path. The source code may have an
