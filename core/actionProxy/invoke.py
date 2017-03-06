@@ -89,7 +89,7 @@ def run(args):
     if not value:
         print("Sending value: %s..." % json.dumps(value)[0:40])
     r = requests.post("%s/run" % DEST, json={"value": value})
-    print(r.text)
+    print(r.status_code, r.text)
 
 
 func = {'init': init, 'run': run}.get(sys.argv[1].lower())
