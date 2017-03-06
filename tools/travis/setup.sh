@@ -16,6 +16,7 @@ docker info
 sudo apt-get -y install python-pip
 pip install --user jsonschema
 pip install --user couchdb
+pip install --user flake8
 
 # Ansible
 pip install --user ansible==2.1.2.0
