@@ -304,35 +304,40 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
     private def listenForReadDone(key: Any, entry: Entry, generator: => Future[W], promise: Promise[W])(
         implicit ec: ExecutionContext, transid: TransactionId, logger: Logging): Unit = {
 
-        // helper that writes completion resulted in a failure
-        def readOops(t: Throwable): Unit = {
-            invalidateEntry(key, entry)
-            promise.failure(t)
-        }
-
         generator onComplete {
             case Success(value) =>
                 // if the datastore read was successful, then try to transition to the Cached state
                 logger.debug(this, "read backend part done, now marking cache entry as done")
 
+                // always complete the promise for the generator since the read listener is
+                // only created when reading directly from the database (hence, must complete
+                // promise with the generated value)
+                promise success value
+
+                // now update the cache line
                 if (entry.readDone()) {
                     // cache entry is still in ReadInProgress and successful transitioned to Cached
-                    // hence the new value is cached
-                    promise success value
+                    // hence the new value is cached; nothing left to do
                 } else {
-                    entry.state.get match {
-                        case InvalidateWhenDone =>
-                            // some transaction requested an invalidation, so remove the key from the cache
-                            invalidateEntry(key, entry)
-                        case WriteInProgress =>
-                            // do nothing, the write will handle the entry
+                    val cachedLineState = entry.state.get
+
+                    cachedLineState match {
+                        case WriteInProgress | Cached =>
+                            // do nothing: if there was a write in progress, the write has not yet
+                            // finished, but that operation has assumed ownership of the cache line
+                            // and will update it; otherwise the write has completed and the value
+                            // is now cached
                             ()
                         case _ =>
-                            // this should not happen, but could if the callback on the generator
-                            // is delayed - invalidate the cache entry as a result
-                            val error = ConcurrentOperationUnderRead(entry.state.get)
-                            logger.warn(this, error.toString)
-                            readOops(error)
+                            // some transaction requested an invalidation so remove the key from the cache,
+                            // or there is an error in which case invalidate anyway, defensively, but log a message
+                            invalidateEntry(key, entry)
+                            if (cachedLineState != InvalidateWhenDone) {
+                                // this should not happen, but could if the callback on the generator
+                                // is delayed - invalidate the cache entry as a result
+                                val error = ConcurrentOperationUnderRead(cachedLineState)
+                                logger.warn(this, error.toString)
+                            }
                     }
                 }
 
@@ -340,7 +345,8 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
                 // oops, the datastore read failed. invalidate the cache entry
                 // note: that this might be a perfectly legitimate failure,
                 // e.g. a lookup for a non-existant key; we need to pass the particular t through
-                readOops(t)
+                invalidateEntry(key, entry)
+                promise.failure(t)
         }
     }
 
