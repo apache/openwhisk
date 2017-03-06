@@ -63,7 +63,7 @@ def content_from_args(args):
 
 def init(args):
     main = args[1] if len(args) == 2 else "main"
-    args = args[0] if len(args) > 1 else None
+    args = args[0] if len(args) >= 1 else None
 
     if args and args.endswith(".zip"):
         with open(args, "rb") as fp:
