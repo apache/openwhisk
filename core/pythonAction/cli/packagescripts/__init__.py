@@ -1,1 +1,0 @@
-from .wsk import main
