@@ -16,14 +16,16 @@
 
 package actionContainers
 
+import java.io.File
+
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
 import ActionContainer.withContainer
+import common.WskActorSystem
 import spray.json.JsObject
 import spray.json.JsString
-
-import common.WskActorSystem
+import common.TestUtils
 
 @RunWith(classOf[JUnitRunner])
 class SwiftActionContainerTests extends BasicActionRunnerTests with WskActorSystem {
@@ -36,7 +38,7 @@ class SwiftActionContainerTests extends BasicActionRunnerTests with WskActorSyst
 
     def makeEnvCode(processInfo: String) = ("""
          |func main(args: [String: Any]) -> [String: Any] {
-         |     let env = """+processInfo+""".environment
+         |     let env = """ + processInfo + """.environment
          |     var a = "???"
          |     var b = "???"
          |     var c = "???"
@@ -196,7 +198,29 @@ class SwiftActionContainerTests extends BasicActionRunnerTests with WskActorSyst
         })
     }
 
-        it should "properly use KituraNet and Dispatch" in {
+    it should "support pre-compiled binary in a zip file" in {
+        val zip = new File(TestUtils.getTestActionFilename("helloSwift.zip")).toPath
+        val code = ResourceHelpers.readAsBase64(zip)
+
+        val (out, err) = withActionContainer() { c =>
+            val (initCode, initRes) = c.init(initPayload(code))
+            initCode should be(200)
+
+            val args = JsObject()
+            val (runCode, runRes) = c.run(runPayload(args))
+
+            runCode should be(200)
+            runRes.get shouldBe JsObject("greeting" -> (JsString("Hello stranger!")))
+        }
+
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe empty
+                e shouldBe empty
+        })
+    }
+
+    it should "properly use KituraNet and Dispatch" in {
         val (out, err) = withActionContainer() { c =>
             val code = """
                 | import KituraNet

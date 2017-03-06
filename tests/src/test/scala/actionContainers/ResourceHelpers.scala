@@ -180,7 +180,7 @@ object ResourceHelpers {
     }
 
     /** Reads the contents of a (possibly binary) file into a base64-encoded String */
-    private def readAsBase64(path: Path): String = {
+    def readAsBase64(path: Path): String = {
         val encoder = Base64.getEncoder()
         new String(encoder.encode(Files.readAllBytes(path)), StandardCharsets.UTF_8)
     }
