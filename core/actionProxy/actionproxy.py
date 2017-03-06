@@ -47,14 +47,12 @@ class ActionRunner:
     # @return True iff binary exists and is executable
     def init(self, message):
         def prep():
-            if 'code' in message and message['code'] is not None:
-                binary = message['binary'] if 'binary' in message else False
-                if not binary:
-                    return self.initCodeFromString(message)
-                else:
-                    return self.initCodeFromZip(message)
-            else:
+            if not message.get('code'):
                 return False
+            if message.get('binary'):
+                return self.initCodeFromZip(message)
+            else:
+                return self.initCodeFromString(message)
 
         if prep():
             try:
@@ -66,7 +64,7 @@ class ActionRunner:
                 # build the source
                 self.build(message)
             except Exception:
-                None  # do nothing, verify will signal failure if binary not executable
+                pass  # do nothing, verify will signal failure if binary not executable
         # verify the binary exists and is executable
         return self.verify()
 
