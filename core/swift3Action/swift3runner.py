@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 
+import os
 import sys
 import subprocess
 import codecs
@@ -34,6 +35,10 @@ class Swift3Runner(ActionRunner):
         ActionRunner.__init__(self, DEST_SCRIPT_FILE, DEST_BIN_FILE)
 
     def epilogue(self, init_message):
+        # skip if executable already exists (was unzipped)
+        if os.path.isfile(self.binary):
+            return
+
         if 'main' in init_message:
             main_function = init_message['main']
         else:
@@ -45,6 +50,13 @@ class Swift3Runner(ActionRunner):
             fp.write('_run_main(mainFunction: %s)\n' % main_function)
 
     def build(self, init_message):
+        # short circuit the build, if there already exists a binary
+        # from the zip file
+        if os.path.isfile(self.binary):
+            # file may not have executable permission, set it
+            os.chmod(self.binary, 0555)
+            return
+
         p = subprocess.Popen(BUILD_PROCESS, cwd=DEST_SCRIPT_DIR)
         (o, e) = p.communicate()
 
