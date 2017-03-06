@@ -155,14 +155,12 @@ def line_checks(checks):
     """Turn file-based check into line-by-line checks on each file."""
     def run_line_checks(file_path):
         errors = []
-        ln = 0
         with open(file_path) as fp:
-            for line in fp:
-                ln += 1
+            for i, line in enumerate(fp):
                 for check in checks:
                     err = check(line)
-                    if err is not None:
-                        errors.append((ln, err))
+                    if err:
+                        errors.append((i + 1, err))
         return errors
     return run_line_checks
 
