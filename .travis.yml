@@ -30,6 +30,9 @@ install: true
 
 before_install:
   - ./tools/travis/setup.sh
+  
+before_script:
+  - flake8 . --count --max-line-length=127 --statistics --exit-zero  # 127 == GitHub editor width
 
 script:
   - ./tools/travis/build.sh
