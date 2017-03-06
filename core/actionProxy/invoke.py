@@ -81,7 +81,7 @@ def init(args):
     r = requests.post("%s/init" % DEST, json={"value": {"code": contents,
                                                         "binary": binary,
                                                         "main": main}})
-    print(r.text)
+    print(r.status_code, r.text)
 
 
 def run(args):
