@@ -109,19 +109,55 @@ Web actions bring some additional features that include:
 5. `Activation via multiple HTTP verbs`: a web action may be invoked via one of four HTTP methods: `GET`, `POST`, `PUT` or `DELETE`.
 
 
-The example below briefly sketches how you might use these features in a web action. Given an action `/guest/demo/hello` with the following body:
+The example below briefly sketches how you might use these features in a web action. Consider an action `/guest/demo/hello` with the following body:
 ```javascript
 function main(params) { 
-    return { 'response': params};
+    return { response: params };
 }
 ```
-and invoking the action with a query parameter `name`, using the `.json` extension to indicate a JSON response, and projecting the field `/response` will yield the following HTTP response:
+
+When this action is invoked as a web action, you can alter the response of the web action by projecting different paths from the result.
+For example, to return the entire object, and see what arguments the action receives:
+
 ```bash
-$ curl https://${APIHOST}/api/v1/experimental/web/guest/demo/hello.json/response?name=Jane
+$ curl https://${APIHOST}/api/v1/experimental/web/guest/demo/hello.json
 {
-    "name": "Jane"
+  "response": {
+    "__ow_meta_verb": "get",
+    "__ow_meta_headers": {
+      "host": "172.17.0.1",
+      "connection": "close",
+      "user-agent": "curl/7.43.0",
+      "accept": "*/*"
+    },
+    "__ow_meta_path": ""
+  }
 }
-``` 
+```
+
+and with a query parameter:
+```bash
+$ curl https://${APIHOST}/api/v1/experimental/web/guest/demo/hello.json?name=Jane
+{
+  "response": {
+    "name": "Jane",
+    "__ow_meta_verb": "get",
+    "__ow_meta_headers": {
+      "host": "172.17.0.1",
+      "connection": "close",
+      "user-agent": "curl/7.43.0",
+      "accept": "*/*"
+    },
+    "__ow_meta_path": ""
+  }
+}
+```
+
+and to project just the name (as text):
+```bash
+$ curl https://${APIHOST}/api/v1/experimental/web/guest/demo/hello.text/response/name?name=Jane
+Jane
+```
 
 ## Content extensions
 
