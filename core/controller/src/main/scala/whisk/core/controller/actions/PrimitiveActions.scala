@@ -107,8 +107,8 @@ protected[actions] trait PrimitiveActions {
             cause = cause)
 
         val start = transid.started(this, LoggingMarkers.CONTROLLER_LOADBALANCER, s"[POST] action activation id: ${message.activationId}")
-        val (postedFuture, activationResponse) = loadBalancer.publish(action, message, activeAckTimeout)
-        postedFuture flatMap { _ =>
+        val postedFuture = loadBalancer.publish(action, message, activeAckTimeout)
+        postedFuture flatMap { activationResponse =>
             transid.finished(this, start)
             if (blocking) {
                 waitForActivationResponse(user, message.activationId, timeout, activationResponse) map {

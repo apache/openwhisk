@@ -75,9 +75,6 @@ case class ActivationMessage(
 }
 
 object ActivationMessage extends DefaultJsonProtocol {
-    private val INVOKE = "invoke"
-
-    def invoker(instance: Int) = INVOKE + instance
 
     def parse(msg: String) = Try(serdes.read(msg.parseJson))
 
