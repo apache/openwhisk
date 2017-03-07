@@ -67,7 +67,7 @@ func (s *RuleService) List(options *RuleListOptions) ([]Rule, *http.Response, er
     }
 
     var rules []Rule
-    resp, err := s.client.Do(req, &rules)
+    resp, err := s.client.Do(req, &rules, ExitWithSuccessOnTimeout)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
         return nil, resp, err
@@ -92,7 +92,7 @@ func (s *RuleService) Insert(rule *Rule, overwrite bool) (*Rule, *http.Response,
     }
 
     r := new(Rule)
-    resp, err := s.client.Do(req, &r)
+    resp, err := s.client.Do(req, &r, ExitWithSuccessOnTimeout)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
         return nil, resp, err
@@ -117,7 +117,7 @@ func (s *RuleService) Get(ruleName string) (*Rule, *http.Response, error) {
     }
 
     r := new(Rule)
-    resp, err := s.client.Do(req, &r)
+    resp, err := s.client.Do(req, &r, ExitWithSuccessOnTimeout)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
         return nil, resp, err
@@ -141,7 +141,7 @@ func (s *RuleService) Delete(ruleName string) (*http.Response, error) {
         return nil, werr
     }
 
-    resp, err := s.client.Do(req, nil)
+    resp, err := s.client.Do(req, nil, ExitWithSuccessOnTimeout)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
         return resp, err
@@ -176,7 +176,7 @@ func (s *RuleService) SetState(ruleName string, state string) (*Rule, *http.Resp
     }
 
     r := new(Rule)
-    resp, err := s.client.Do(req, &r)
+    resp, err := s.client.Do(req, &r, ExitWithSuccessOnTimeout)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error: '%s'\n", req.URL.String(), err)
         return nil, resp, err

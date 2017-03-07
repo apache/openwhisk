@@ -1358,5 +1358,13 @@
   {
     "id": "An API host must be provided.",
     "translation": "An API host must be provided."
+  },
+  {
+    "id": "Request accepted, but processing not completed yet.",
+    "translation": "Request accepted, but processing not completed yet."
+  },
+  {
+    "id": "{{.ok}} invoked /{{.namespace}}/{{.name}}, but the request has not yet finished, with id {{.id}}\n",
+    "translation": "{{.ok}} invoked /{{.namespace}}/{{.name}}, but the request has not yet finished, with id {{.id}}\n"
   }
 ]

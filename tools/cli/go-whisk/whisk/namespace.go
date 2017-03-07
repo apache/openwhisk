@@ -55,7 +55,7 @@ func (s *NamespaceService) List() ([]Namespace, *http.Response, error) {
     }
 
     var namespaceNames []string
-    resp, err := s.client.Do(req, &namespaceNames)
+    resp, err := s.client.Do(req, &namespaceNames, ExitWithSuccessOnTimeout)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
         return nil, resp, err
@@ -92,7 +92,7 @@ func (s *NamespaceService) Get(namespace string) (*Namespace, *http.Response, er
         return resNamespace, nil, werr
     }
 
-    resp, err := s.client.Do(req, &resNamespace.Contents)
+    resp, err := s.client.Do(req, &resNamespace.Contents, ExitWithSuccessOnTimeout)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
         return resNamespace, resp, err

@@ -1008,3 +1008,27 @@ func getSpaceGuid() (string, error) {
     werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
     return "", werr
 }
+
+func isBlockingTimeout(err error) (bool) {
+    var blockingTimeout bool
+
+    whiskErr, isWhiskErr := err.(*whisk.WskError)
+
+    if isWhiskErr && whiskErr.TimedOut {
+        blockingTimeout = true
+    }
+
+    return blockingTimeout
+}
+
+func isApplicationError(err error) (bool) {
+    var applicationError bool
+
+    whiskErr, isWhiskErr := err.(*whisk.WskError)
+
+    if isWhiskErr && whiskErr.ApplicationError {
+        applicationError = true
+    }
+
+    return applicationError
+}

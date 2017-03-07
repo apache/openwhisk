@@ -95,7 +95,7 @@ func (s *ActionService) List(packageName string, options *ActionListOptions) ([]
         return nil, nil, whiskErr
     }
 
-    resp, err := s.client.Do(req, &actions)
+    resp, err := s.client.Do(req, &actions, ExitWithSuccessOnTimeout)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
         return nil, resp, err
@@ -122,7 +122,7 @@ func (s *ActionService) Insert(action *Action, overwrite bool) (*Action, *http.R
     }
 
     a := new(Action)
-    resp, err := s.client.Do(req, &a)
+    resp, err := s.client.Do(req, &a, ExitWithSuccessOnTimeout)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
         return nil, resp, err
@@ -148,7 +148,7 @@ func (s *ActionService) Get(actionName string) (*Action, *http.Response, error) 
     }
 
     a := new(Action)
-    resp, err := s.client.Do(req, &a)
+    resp, err := s.client.Do(req, &a, ExitWithSuccessOnTimeout)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
         return nil, resp, err
@@ -175,7 +175,7 @@ func (s *ActionService) Delete(actionName string) (*http.Response, error) {
     }
 
     a := new(Action)
-    resp, err := s.client.Do(req, a)
+    resp, err := s.client.Do(req, a, ExitWithSuccessOnTimeout)
     if err != nil {
         Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
         return resp, err
@@ -203,7 +203,7 @@ func (s *ActionService) Invoke(actionName string, payload interface{}, blocking 
         return nil, nil, whiskErr
     }
 
-    resp, err := s.client.Do(req, &res)
+    resp, err := s.client.Do(req, &res, blocking)
 
     if err != nil {
       Debug(DbgError, "s.client.Do() error - HTTP req %s; error '%s'\n", req.URL.String(), err)
