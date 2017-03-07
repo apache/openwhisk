@@ -19,6 +19,10 @@
     existingDoc: "{{ response['content']|from_json }}"
   when: response.status == 200
 
+- set_fact:
+    create: False
+    newDocWithRevision: {}
+
 - name: extract revision from previous document
   vars:
     revision: "{{ existingDoc['_rev'] }}"
@@ -26,13 +30,17 @@
     newDocWithRevision: "{{ doc | combine({'_rev': revision}) }}"
   when: response.status == 200
 
-- set_fact:
-    create: False
-
 - name: check if a doc update is required
   set_fact:
     create: True
   when: (response.status == 200 and existingDoc != newDocWithRevision) or response.status == 404 # Create doc, if it did not exist before or if update is required.
+
+- set_fact:
+    document: "{{ doc }}"
+
+- set_fact:
+    document: "{{ newDocWithRevision }}"
+  when: newDocWithRevision['_id'] is defined
 
 - name: recreate or update the document on the {{ dbName }} database
   uri:
@@ -40,7 +48,7 @@
     method: POST
     status_code: 200, 201
     body_format: json
-    body: "{{ newDocWithRevision | default(doc) }}"
+    body: "{{ document }}"
     user: "{{ db_username }}"
     password: "{{ db_password }}"
     force_basic_auth: yes
