@@ -29,10 +29,3 @@
   until: result.status == 200
   retries: 12
   delay: 5
-
-- name: register apigateway with consul
-  consul:
-    service_name: apigateway
-    service_port: "{{ apigateway.port.mgmt }}"
-    service_address: "{{ inventory_hostname }}"
-    host: "{{ groups['consul_servers'] | first }}"

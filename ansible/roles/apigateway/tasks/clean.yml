@@ -6,9 +6,3 @@
     name: apigateway
     state: absent
   ignore_errors: True
-
-- name: unregister apigateway with consul
-  consul:
-    service_name: apigateway
-    state: absent
-  ignore_errors: True
