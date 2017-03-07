@@ -38,6 +38,7 @@ import whisk.core.WhiskConfig.dbProtocol
 import whisk.core.WhiskConfig.dbProvider
 import whisk.core.WhiskConfig.dbUsername
 import whisk.core.WhiskConfig.dbWhisk
+import whisk.core.WhiskConfig.dbSplitActionsAndActivations
 import whisk.core.database.ArtifactStore
 import whisk.core.database.CouchDbRestStore
 import whisk.core.database.DocumentRevisionProvider
@@ -134,7 +135,8 @@ object WhiskEntityStore {
             dbPassword -> null,
             dbHost -> null,
             dbPort -> null,
-            dbWhisk -> null)
+            dbWhisk -> null,
+            dbSplitActionsAndActivations -> null)
 
     def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging) =
         Util.makeStore[WhiskEntity](config, _.dbWhisk)(WhiskEntityJsonFormat, system, logging)
@@ -148,7 +150,8 @@ object WhiskActivationStore {
             dbPassword -> null,
             dbHost -> null,
             dbPort -> null,
-            dbActivations -> null)
+            dbActivations -> null,
+            dbSplitActionsAndActivations -> null)
 
     def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging) =
         Util.makeStore[WhiskActivation](config, _.dbActivations)

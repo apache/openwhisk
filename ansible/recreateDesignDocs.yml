@@ -3,7 +3,5 @@
 
 - hosts: ansible
   tasks:
-    - include: tasks/wipeDatabase.yml
-      vars:
-        withViews: True
+    - include: tasks/recreateViews.yml
       when: mode == "deploy"

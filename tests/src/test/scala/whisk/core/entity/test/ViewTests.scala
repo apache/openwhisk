@@ -37,6 +37,7 @@ import whisk.core.WhiskConfig
 import whisk.core.database.test.DbUtils
 import whisk.core.entity._
 import whisk.core.entity.WhiskEntityQueries._
+import whisk.core.database.ArtifactStore
 
 @RunWith(classOf[JUnitRunner])
 class ViewTests extends FlatSpec
@@ -65,8 +66,9 @@ class ViewTests extends FlatSpec
     val creds2 = WhiskAuth(Subject("t12345"), AuthKey())
     val namespace2 = EntityPath(creds2.subject.asString)
 
-    val config = new WhiskConfig(WhiskEntityStore.requiredProperties)
-    val datastore = WhiskEntityStore.datastore(config)
+    val config = new WhiskConfig(WhiskEntityStore.requiredProperties ++ WhiskActivationStore.requiredProperties)
+    val entityStore = WhiskEntityStore.datastore(config)
+    val activationStore = WhiskActivationStore.datastore(config)
 
     after {
         cleanup()
@@ -74,23 +76,24 @@ class ViewTests extends FlatSpec
 
     override def afterAll() {
         println("Shutting down store connections")
-        datastore.shutdown()
+        entityStore.shutdown()
+        activationStore.shutdown()
         super.afterAll()
     }
 
     behavior of "Datastore View"
 
-    def getAllInNamespace(ns: EntityPath)(implicit entities: Seq[WhiskEntity]) = {
+    def getAllInNamespace[Au <: WhiskEntity](store: ArtifactStore[Au], ns: EntityPath)(implicit entities: Seq[WhiskEntity]) = {
         implicit val tid = transid()
-        val result = Await.result(listAllInNamespace(datastore, ns, false), dbOpTimeout).values.toList flatMap { t => t }
+        val result = Await.result(listAllInNamespace(store, ns, false), dbOpTimeout).values.toList.flatten
         val expected = entities filter { _.namespace.root.toPath == ns }
         result.length should be(expected.length)
-        expected forall { e => result contains e.summaryAsJson } should be(true)
+        result should contain theSameElementsAs expected.map(_.summaryAsJson)
     }
 
     def getEntitiesInNamespace(ns: EntityPath)(implicit entities: Seq[WhiskEntity]) = {
         implicit val tid = transid()
-        val map = Await.result(listEntitiesInNamespace(datastore, ns, false), dbOpTimeout)
+        val map = Await.result(listEntitiesInNamespace(entityStore, ns, false), dbOpTimeout)
         val result = map.values.toList flatMap { t => t }
         val expected = entities filter { !_.isInstanceOf[WhiskActivation] } filter { _.namespace.root.toPath == ns }
         map.get(WhiskActivation.collectionName) should be(None)
@@ -98,9 +101,9 @@ class ViewTests extends FlatSpec
         expected forall { e => result contains e.summaryAsJson } should be(true)
     }
 
-    def getKindInNamespace(ns: EntityPath, kind: String, f: (WhiskEntity) => Boolean)(implicit entities: Seq[WhiskEntity]) = {
+    def getKindInNamespace[Au <: WhiskEntity](store: ArtifactStore[Au], ns: EntityPath, kind: String, f: (WhiskEntity) => Boolean)(implicit entities: Seq[WhiskEntity]) = {
         implicit val tid = transid()
-        val result = Await.result(listCollectionInNamespace(datastore, kind, ns, 0, 0, convert = None) map { _.left.get map { e => e } }, dbOpTimeout)
+        val result = Await.result(listCollectionInNamespace(store, kind, ns, 0, 0, convert = None) map { _.left.get map { e => e } }, dbOpTimeout)
         val expected = entities filter { e => f(e) && e.namespace.root.toPath == ns }
         result.length should be(expected.length)
         expected forall { e => result contains e.summaryAsJson } should be(true)
@@ -108,7 +111,7 @@ class ViewTests extends FlatSpec
 
     def getPublicPackages(implicit entities: Seq[WhiskEntity]) = {
         implicit val tid = transid()
-        val result = Await.result(listCollectionInAnyNamespace(datastore, "packages", 0, 0, true, convert = None) map { _.left.get map { e => e } }, dbOpTimeout)
+        val result = Await.result(listCollectionInAnyNamespace(entityStore, "packages", 0, 0, true, convert = None) map { _.left.get map { e => e } }, dbOpTimeout)
         val expected = entities filter { case (e: WhiskPackage) => e.publish && e.binding.isEmpty case _ => false }
         result.length should be >= (expected.length)
         expected forall { e => result contains e.summaryAsJson } should be(true)
@@ -116,15 +119,15 @@ class ViewTests extends FlatSpec
 
     def getKindInNamespaceWithDoc[T](ns: EntityPath, kind: String, f: (WhiskEntity) => Boolean, convert: Option[JsObject => Try[T]])(implicit entities: Seq[WhiskEntity]) = {
         implicit val tid = transid()
-        val result = Await.result(listCollectionInNamespace(datastore, kind, ns, 0, 0, convert = convert) map { _.right.get }, dbOpTimeout)
+        val result = Await.result(listCollectionInNamespace(entityStore, kind, ns, 0, 0, convert = convert) map { _.right.get }, dbOpTimeout)
         val expected = entities filter { e => f(e) && e.namespace.root.toPath == ns }
         result.length should be(expected.length)
         expected forall { e => result contains e } should be(true)
     }
 
-    def getKindInNamespaceByName(ns: EntityPath, kind: String, name: EntityName, f: (WhiskEntity) => Boolean)(implicit entities: Seq[WhiskEntity]) = {
+    def getKindInNamespaceByName[Au <: WhiskEntity](store: ArtifactStore[Au], ns: EntityPath, kind: String, name: EntityName, f: (WhiskEntity) => Boolean)(implicit entities: Seq[WhiskEntity]) = {
         implicit val tid = transid()
-        val result = Await.result(listCollectionByName(datastore, kind, ns, name, 0, 0, convert = None) map { _.left.get map { e => e } }, dbOpTimeout)
+        val result = Await.result(listCollectionByName(store, kind, ns, name, 0, 0, convert = None) map { _.left.get map { e => e } }, dbOpTimeout)
         val expected = entities filter { e => f(e) && e.namespace.root.toPath == ns }
         result.length should be(expected.length)
         expected forall { e => result contains e.summaryAsJson } should be(true)
@@ -132,23 +135,23 @@ class ViewTests extends FlatSpec
 
     def getKindInPackage(ns: EntityPath, kind: String, f: (WhiskEntity) => Boolean)(implicit entities: Seq[WhiskEntity]) = {
         implicit val tid = transid()
-        val result = Await.result(listCollectionInNamespace(datastore, kind, ns, 0, 0, convert = None) map { _.left.get map { e => e } }, dbOpTimeout)
+        val result = Await.result(listCollectionInNamespace(entityStore, kind, ns, 0, 0, convert = None) map { _.left.get map { e => e } }, dbOpTimeout)
         val expected = entities filter { e => f(e) && e.namespace == ns }
         result.length should be(expected.length)
         expected forall { e => result contains e.summaryAsJson } should be(true)
     }
 
-    def getKindInNamespaceByNameSortedByDate(
-        ns: EntityPath, kind: String, name: EntityName, skip: Int, count: Int, start: Option[Instant], end: Option[Instant], f: (WhiskEntity) => Boolean)(
+    def getKindInNamespaceByNameSortedByDate[Au <: WhiskEntity](
+        store: ArtifactStore[Au], ns: EntityPath, kind: String, name: EntityName, skip: Int, count: Int, start: Option[Instant], end: Option[Instant], f: (WhiskEntity) => Boolean)(
             implicit entities: Seq[WhiskEntity]) = {
         implicit val tid = transid()
-        val result = Await.result(listCollectionByName(datastore, kind, ns, name, skip, count, start, end, convert = None) map { _.left.get map { e => e } }, dbOpTimeout)
+        val result = Await.result(listCollectionByName(store, kind, ns, name, skip, count, start, end, convert = None) map { _.left.get map { e => e } }, dbOpTimeout)
         val expected = entities filter { e => f(e) && e.namespace.root.toPath == ns } sortBy { case (e: WhiskActivation) => e.start.toEpochMilli; case _ => 0 } map { _.summaryAsJson }
         result.length should be(expected.length)
         result should be(expected reverse)
     }
 
-    it should "query whisk view by namespace, collection and entity name" in {
+    it should "query whisk view by namespace, collection and entity name in whisk actions db" in {
         implicit val tid = transid()
         val exec = bb("image")
         val pkgname1 = namespace1.addPath(aname)
@@ -165,7 +168,6 @@ class ViewTests extends FlatSpec
         // - 2 rules in each namespace
         // - 2 packages in each namespace
         // - 2 package bindings in each namespace
-        // - 2 activations in each namespace (some may have prescribed action name to query by name)
         implicit val entities = Seq(
             WhiskAction(namespace1, aname, exec),
             WhiskAction(namespace1, aname, exec),
@@ -182,8 +184,6 @@ class ViewTests extends FlatSpec
             WhiskPackage(namespace1, aname),
             WhiskPackage(namespace1, aname, Some(Binding(namespace2.root, aname))),
             WhiskPackage(namespace1, aname, Some(Binding(namespace2.root, aname))),
-            WhiskActivation(namespace1, aname, Subject(), ActivationId(), start = now, end = now),
-            WhiskActivation(namespace1, aname, Subject(), ActivationId(), start = now, end = now),
 
             WhiskAction(namespace2, aname, exec),
             WhiskAction(namespace2, aname, exec),
@@ -198,34 +198,55 @@ class ViewTests extends FlatSpec
             WhiskPackage(namespace2, aname),
             WhiskPackage(namespace2, aname),
             WhiskPackage(namespace2, aname, Some(Binding(namespace1.root, aname))),
-            WhiskPackage(namespace2, aname, Some(Binding(namespace1.root, aname))),
+            WhiskPackage(namespace2, aname, Some(Binding(namespace1.root, aname))))
+
+        entities foreach { put(entityStore, _) }
+        waitOnView(entityStore, namespace1, 15)
+        waitOnView(entityStore, namespace2, 14)
+
+        getAllInNamespace(entityStore, namespace1)
+        getKindInNamespace(entityStore, namespace1, "actions", { case (e: WhiskAction) => true case (_) => false })
+        getKindInNamespace(entityStore, namespace1, "triggers", { case (e: WhiskTrigger) => true case (_) => false })
+        getKindInNamespace(entityStore, namespace1, "rules", { case (e: WhiskRule) => true case (_) => false })
+        getKindInNamespace(entityStore, namespace1, "packages", { case (e: WhiskPackage) => true case (_) => false })
+        getKindInPackage(pkgname1, "actions", { case (e: WhiskAction) => true case (_) => false })
+        getKindInNamespaceByName(entityStore, pkgname1, "actions", actionName, { case (e: WhiskAction) => (e.name == actionName) case (_) => false })
+        getEntitiesInNamespace(namespace1)
+
+        getAllInNamespace(entityStore, namespace2)
+        getKindInNamespace(entityStore, namespace2, "actions", { case (e: WhiskAction) => true case (_) => false })
+        getKindInNamespace(entityStore, namespace2, "triggers", { case (e: WhiskTrigger) => true case (_) => false })
+        getKindInNamespace(entityStore, namespace2, "rules", { case (e: WhiskRule) => true case (_) => false })
+        getKindInNamespace(entityStore, namespace2, "packages", { case (e: WhiskPackage) => true case (_) => false })
+        getKindInPackage(pkgname2, "actions", { case (e: WhiskAction) => true case (_) => false })
+        getEntitiesInNamespace(namespace2)
+    }
+
+    it should "query whisk view by namespace, collection and entity name in whisk activations db" in {
+        implicit val tid = transid()
+        val actionName = aname
+        def now = Instant.now(Clock.systemUTC())
+
+        // creates 5 entities in each namespace as follows:
+        // - some activations in each namespace (some may have prescribed action name to query by name)
+        implicit val entities = Seq(
+            WhiskActivation(namespace1, aname, Subject(), ActivationId(), start = now, end = now),
+            WhiskActivation(namespace1, aname, Subject(), ActivationId(), start = now, end = now),
+
             WhiskActivation(namespace2, aname, Subject(), ActivationId(), start = now, end = now),
             WhiskActivation(namespace2, actionName, Subject(), ActivationId(), start = now, end = now),
             WhiskActivation(namespace2, actionName, Subject(), ActivationId(), start = now, end = now))
 
-        entities foreach { put(datastore, _) }
-        waitOnView(datastore, namespace1, entities.length / 2)
-        waitOnView(datastore, namespace2, entities.length / 2)
+        entities foreach { put(activationStore, _) }
+        waitOnView(activationStore, namespace1, 2)
+        waitOnView(activationStore, namespace2, 3)
 
-        getAllInNamespace(namespace1)
-        getKindInNamespace(namespace1, "actions", { case (e: WhiskAction) => true case (_) => false })
-        getKindInNamespace(namespace1, "triggers", { case (e: WhiskTrigger) => true case (_) => false })
-        getKindInNamespace(namespace1, "rules", { case (e: WhiskRule) => true case (_) => false })
-        getKindInNamespace(namespace1, "packages", { case (e: WhiskPackage) => true case (_) => false })
-        getKindInNamespace(namespace1, "activations", { case (e: WhiskActivation) => true case (_) => false })
-        getKindInPackage(pkgname1, "actions", { case (e: WhiskAction) => true case (_) => false })
-        getKindInNamespaceByName(pkgname1, "actions", actionName, { case (e: WhiskAction) => (e.name == actionName) case (_) => false })
-        getEntitiesInNamespace(namespace1)
+        getAllInNamespace(activationStore, namespace1)
+        getKindInNamespace(activationStore, namespace1, "activations", { case (e: WhiskActivation) => true case (_) => false })
 
-        getAllInNamespace(namespace2)
-        getKindInNamespace(namespace2, "actions", { case (e: WhiskAction) => true case (_) => false })
-        getKindInNamespace(namespace2, "triggers", { case (e: WhiskTrigger) => true case (_) => false })
-        getKindInNamespace(namespace2, "rules", { case (e: WhiskRule) => true case (_) => false })
-        getKindInNamespace(namespace2, "packages", { case (e: WhiskPackage) => true case (_) => false })
-        getKindInNamespace(namespace2, "activations", { case (e: WhiskActivation) => true case (_) => false })
-        getKindInPackage(pkgname2, "actions", { case (e: WhiskAction) => true case (_) => false })
-        getKindInNamespaceByName(namespace2, "activations", actionName, { case (e: WhiskActivation) => (e.name == actionName) case (_) => false })
-        getEntitiesInNamespace(namespace2)
+        getAllInNamespace(activationStore, namespace2)
+        getKindInNamespace(activationStore, namespace2, "activations", { case (e: WhiskActivation) => true case (_) => false })
+        getKindInNamespaceByName(activationStore, namespace2, "activations", actionName, { case (e: WhiskActivation) => (e.name == actionName) case (_) => false })
     }
 
     it should "query whisk view for activations sorted by date" in {
@@ -242,18 +263,19 @@ class ViewTests extends FlatSpec
             WhiskActivation(namespace1, actionName, Subject(), ActivationId(), start = now.plusSeconds(40), end = now.plusSeconds(20)),
             WhiskActivation(namespace1, actionName, Subject(), ActivationId(), start = now.plusSeconds(30), end = now.plusSeconds(20)))
 
-        others foreach { put(datastore, _) }
-        entities foreach { put(datastore, _) }
-        waitOnView(datastore, namespace1, others.length + entities.length)
+        others foreach { put(entityStore, _) }
+        entities foreach { put(activationStore, _) }
+        waitOnView(entityStore, namespace1, others.length)
+        waitOnView(activationStore, namespace1, entities.length)
 
-        getKindInNamespaceByNameSortedByDate(namespace1, "activations", actionName, 0, 5, None, None, {
+        getKindInNamespaceByNameSortedByDate(activationStore, namespace1, "activations", actionName, 0, 5, None, None, {
             case (e: WhiskActivation) => e.name == actionName
             case (_)                  => false
         })
 
         val since = entities(1).start
         val upto = entities(4).start
-        getKindInNamespaceByNameSortedByDate(namespace1, "activations", actionName, 0, 5, Some(since), Some(upto), {
+        getKindInNamespaceByNameSortedByDate(activationStore, namespace1, "activations", actionName, 0, 5, Some(since), Some(upto), {
             case (e: WhiskActivation) => e.name == actionName && (e.start.equals(since) || e.start.equals(upto) || (e.start.isAfter(since) && e.start.isBefore(upto)))
             case (_)                  => false
         })
@@ -267,8 +289,8 @@ class ViewTests extends FlatSpec
             WhiskAction(namespace1, aname, jsDefault("??")),
             WhiskAction(namespace1, aname, jsDefault("??")))
 
-        entities foreach { put(datastore, _) }
-        waitOnView(datastore, namespace1, entities.length)
+        entities foreach { put(entityStore, _) }
+        waitOnView(entityStore, namespace1, entities.length)
         getKindInNamespaceWithDoc[WhiskAction](namespace1, "actions", {
             case (e: WhiskAction) => true case (_) => false
         }, Some {
@@ -289,9 +311,9 @@ class ViewTests extends FlatSpec
             WhiskPackage(namespace2, aname, Some(Binding(namespace1.root, aname)), publish = true),
             WhiskPackage(namespace2, aname, Some(Binding(namespace1.root, aname))))
 
-        entities foreach { put(datastore, _) }
-        waitOnView(datastore, namespace1, entities.length / 2)
-        waitOnView(datastore, namespace2, entities.length / 2)
+        entities foreach { put(entityStore, _) }
+        waitOnView(entityStore, namespace1, entities.length / 2)
+        waitOnView(entityStore, namespace2, entities.length / 2)
         getPublicPackages(entities)
     }
 }

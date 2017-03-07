@@ -111,6 +111,7 @@ db:
   - whisk.system
   whisk:
     actions: "{{ db_prefix }}whisks"
+    activations: "{{ db_prefix }}activations"
     auth: "{{ db_prefix }}subjects"
 
 apigateway:
