@@ -36,9 +36,12 @@ import akka.actor.FSM
 import akka.actor.ActorRef
 import common.WskActorSystem
 import whisk.core.connector.PingMessage
+import org.scalamock.scalatest.MockFactory
+import whisk.common.KeyValueStore
+import whisk.common.ConsulKV.LoadBalancerKeys
 
 @RunWith(classOf[JUnitRunner])
-class InvokerSupervisionTests extends FlatSpec with Matchers with WskActorSystem {
+class InvokerSupervisionTests extends FlatSpec with Matchers with WskActorSystem with MockFactory {
     implicit val timeout = Timeout(5.seconds)
 
     /** Imitates a StateTimeout in the FSM */
@@ -50,7 +53,8 @@ class InvokerSupervisionTests extends FlatSpec with Matchers with WskActorSystem
     behavior of "InvokerPool"
 
     it should "successfully create invokers in its pool on ping" in {
-        val supervisor = TestActorRef(new InvokerPool(_ => ()))
+        val kv = stub[KeyValueStore]
+        val supervisor = TestActorRef(new InvokerPool(kv, _ => ()))
 
         // Create one invoker
         supervisor ! PingMessage("invoker0")
@@ -69,8 +73,11 @@ class InvokerSupervisionTests extends FlatSpec with Matchers with WskActorSystem
     }
 
     it should "forward a ping to the appropriate invoker, calling the provided callback accordingly" in {
-        var callbackCalled = 0
-        val supervisor = TestActorRef(new InvokerPool(_ => callbackCalled = callbackCalled + 1))
+        // Setup stubs
+        val callback = stubFunction[String, Unit]
+        val kv = stub[KeyValueStore]
+
+        val supervisor = TestActorRef(new InvokerPool(kv, callback))
 
         // Create two invokers
         supervisor ! PingMessage("invoker0")
@@ -87,7 +94,9 @@ class InvokerSupervisionTests extends FlatSpec with Matchers with WskActorSystem
         // Ping that invoker to bring it back up
         supervisor ! PingMessage("invoker0")
         allStates(supervisor) shouldBe Map("invoker0" -> Healthy, "invoker1" -> Healthy)
-        callbackCalled shouldBe 1
+
+        callback.verify("invoker0")
+        (kv.put _).verify(LoadBalancerKeys.invokerHealth, *).repeated(4)
     }
 
     behavior of "InvokerActor"

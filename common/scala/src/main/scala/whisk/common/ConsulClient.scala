@@ -71,18 +71,12 @@ object ConsulEntry extends DefaultJsonProtocol {
 /**
  * Client to access Consul's Key/Value-Store API
  */
-class ConsulKeyValueApi(base: Uri)(implicit val actorSystem: ActorSystem, val materializer: ActorMaterializer) {
+class ConsulKeyValueApi(base: Uri)(implicit val actorSystem: ActorSystem, val materializer: ActorMaterializer) extends KeyValueStore {
     private implicit val executionContext = actorSystem.dispatcher
 
     private def uriWithKey(key: String) = base.withPath(Uri.Path(s"/v1/kv/$key"))
-    /**
-     * Gets the entry from Consul with the given key
-     *
-     * @param key the key to get
-     * @return a future that completes with the Base64
-     *         decoded value of the Consul entry
-     */
-    def get(key: String): Future[String] = {
+
+    override def get(key: String): Future[String] = {
         val r = Http().singleRequest(
             HttpRequest(
                 method = HttpMethods.GET,
@@ -97,15 +91,7 @@ class ConsulKeyValueApi(base: Uri)(implicit val actorSystem: ActorSystem, val ma
         } map { _.head.decodedValue.getOrElse(throw new NoSuchElementException()) }
     }
 
-    /**
-     * Writes the key/value entry with the given key.
-     * If the key already exists, the value is overridden
-     *
-     * @param key the key to store
-     * @param value the value to store
-     * @return a future that completes on success of the operation
-     */
-    def put(key: String, value: String): Future[Any] = {
+    override def put(key: String, value: String): Future[Any] = {
         val r = Http().singleRequest(
             HttpRequest(
                 method = HttpMethods.PUT,
@@ -116,14 +102,7 @@ class ConsulKeyValueApi(base: Uri)(implicit val actorSystem: ActorSystem, val ma
         }
     }
 
-    /**
-     * Deletes the entry with the given key from the
-     * key/value store
-     *
-     * @param key the key to delete
-     * @return a future that completes on success of the operation
-     */
-    def del(key: String): Future[Any] = {
+    override def del(key: String): Future[Any] = {
         val r = Http().singleRequest(
             HttpRequest(
                 method = HttpMethods.DELETE,
@@ -154,6 +133,35 @@ class ConsulKeyValueApi(base: Uri)(implicit val actorSystem: ActorSystem, val ma
             entries.map(e => e.key -> e.decodedValue.getOrElse("")).toMap
         }
     }
+}
+
+trait KeyValueStore {
+    /**
+     * Gets the entry from the key/value store with the given key
+     *
+     * @param key the key to get
+     * @return a future that completes the value from the store
+     */
+    def get(key: String): Future[String]
+
+    /**
+     * Writes the key/value entry with the given key.
+     * If the key already exists, the value is overridden
+     *
+     * @param key the key to store
+     * @param value the value to store
+     * @return a future that completes on success of the operation
+     */
+    def put(key: String, value: String): Future[Any]
+
+    /**
+     * Deletes the entry with the given key from the
+     * key/value store
+     *
+     * @param key the key to delete
+     * @return a future that completes on success of the operation
+     */
+    def del(key: String): Future[Any]
 }
 
 /*

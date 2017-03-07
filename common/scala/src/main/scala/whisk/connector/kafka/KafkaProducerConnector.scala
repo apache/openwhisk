@@ -54,7 +54,7 @@ class KafkaProducerConnector(
             producer.send(record).get
         } andThen {
             case Success(status) =>
-                logging.info(this, s"sent message: ${status.topic()}[${status.partition()}][${status.offset()}]")
+                logging.debug(this, s"sent message: ${status.topic()}[${status.partition()}][${status.offset()}]")
                 sentCounter.next()
             case Failure(t) =>
                 logging.error(this, s"sending message on topic '$topic' failed: ${t.getMessage}")
