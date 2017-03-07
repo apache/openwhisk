@@ -23,14 +23,23 @@ import akka.actor.Actor
 import akka.actor.ActorContext
 import akka.actor.ActorSystem
 import akka.japi.Creator
+
+import spray.httpx.SprayJsonSupport._
+import spray.json._
+import spray.json.DefaultJsonProtocol._
+import spray.routing.Directive.pimpApply
 import spray.routing.Route
+
 import whisk.common.AkkaLogging
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
+import whisk.core.entitlement._
 import whisk.core.entitlement.EntitlementProvider
-import whisk.core.entity.ExecManifest
+
+import whisk.core.entity._
 import whisk.core.entity.ExecManifest.Runtimes
+import whisk.core.entity.ActivationId.ActivationIdGenerator
 import whisk.core.loadBalancer.LoadBalancerService
 import whisk.http.BasicHttpService
 import whisk.http.BasicRasService
@@ -51,10 +60,10 @@ import whisk.http.BasicRasService
  * @param executionContext Scala runtime support for concurrent operations
  */
 class Controller(
-    config: WhiskConfig,
-    runtimes: Runtimes,
     instance: Int,
-    val logging: Logging)
+    runtimes: Runtimes,
+    implicit val whiskConfig: WhiskConfig,
+    implicit val logging: Logging)
     extends BasicRasService
     with Actor {
 
@@ -71,14 +80,44 @@ class Controller(
     override def routes(implicit transid: TransactionId): Route = {
         // handleRejections wraps the inner Route with a logical error-handler for unmatched paths
         handleRejections(customRejectionHandler) {
-            super.routes ~ apiv1.routes
+            super.routes ~ apiv1.routes ~ apiv2.routes ~ internalInvokerHealth
         }
     }
 
     logging.info(this, s"starting controller instance ${instance}")
 
+    // initialize datastores
+    private implicit val actorSystem = context.system
+    private implicit val executionContext = actorSystem.dispatcher
+    private implicit val authStore = WhiskAuthStore.datastore(whiskConfig)
+    private implicit val entityStore = WhiskEntityStore.datastore(whiskConfig)
+    private implicit val activationStore = WhiskActivationStore.datastore(whiskConfig)
+
+    // initialize backend services
+    private implicit val loadBalancer = new LoadBalancerService(whiskConfig)
+    private implicit val consulServer = whiskConfig.consulServer
+    private implicit val entitlementProvider = new LocalEntitlementProvider(whiskConfig, loadBalancer)
+    private implicit val activationIdFactory = new ActivationIdGenerator {}
+
+    // register collections and set verbosities on datastores and backend services
+    Collection.initialize(entityStore)
+
     /** The REST APIs. */
-    private val apiv1 = new RestAPIVersion_v1(config, context.system, logging)
+    private val apiv1 = new RestAPIVersion_v1
+    private val apiv2 = new RestAPIVersion_v2
+
+    /**
+     * Handles GET /invokers URI.
+     *
+     * @return JSON of invoker health
+     */
+    private val internalInvokerHealth = {
+        (path("invokers") & get) {
+            complete {
+                loadBalancer.invokerHealth.map(_.mapValues(_.asString).toJson.asJsObject)
+            }
+        }
+    }
 }
 
 /**
@@ -91,7 +130,7 @@ object Controller {
     // no default value specified, so it must appear in the properties file
     def requiredProperties = Map(WhiskConfig.servicePort -> 8080.toString) ++
         ExecManifest.requiredProperties ++
-        RestAPIVersion_v1.requiredProperties ++
+        RestApiCommons.requiredProperties ++
         LoadBalancerService.requiredProperties ++
         EntitlementProvider.requiredProperties
 
@@ -100,7 +139,7 @@ object Controller {
     // akka-style factory to create a Controller object
     private class ServiceBuilder(config: WhiskConfig, instance: Int, logging: Logging) extends Creator[Controller] {
         // this method is not reached unless ExecManifest was initialized successfully
-        def create = new Controller(config, ExecManifest.runtimesManifest, instance, logging)
+        def create = new Controller(instance, ExecManifest.runtimesManifest, config, logging)
     }
 
     def main(args: Array[String]): Unit = {
