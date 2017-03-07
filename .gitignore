@@ -16,6 +16,7 @@ bin/
 .settings/
 .classpath
 .cache-main
+.cache-tests
 
 # Linux
 *~
