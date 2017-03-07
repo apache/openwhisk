@@ -43,9 +43,9 @@ class CacheConcurrencyTests extends FlatSpec
     implicit private val wp = WskProps()
     private val wsk = new Wsk
 
-    val nExternalIters = 3
-    val nInternalIters = 10
-    val nThreads = nInternalIters * 100
+    val nExternalIters = 1
+    val nInternalIters = 5
+    val nThreads = nInternalIters * 30
 
     val parallel = (1 to nInternalIters).par
     parallel.tasksupport = new ForkJoinTaskSupport(new ForkJoinPool(nThreads))
