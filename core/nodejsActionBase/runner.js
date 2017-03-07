@@ -72,8 +72,7 @@ function NodeActionRunner() {
         } else {
             // The code is a plain old JS file.
             try {
-                eval(message.code);
-                thisRunner.userScriptMain = eval(message.main);
+                thisRunner.userScriptMain = eval('(function(){' + message.code + '\nreturn ' + message.main + '})()');
                 assertMainIsFunction();
                 // See comment above about 'true'; it has no specific meaning.
                 return Promise.resolve(true);
