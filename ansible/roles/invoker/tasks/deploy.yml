@@ -70,6 +70,7 @@
 - name: register invoker with consul
   consul:
     service_name: invoker
+    service_id: invoker{{play_hosts.index(inventory_hostname)}}
     service_port: "{{invoker.port + play_hosts.index(inventory_hostname)}}"
     service_address: "{{ inventory_hostname }}"
     host: "{{ groups['consul_servers'] | first }}"
