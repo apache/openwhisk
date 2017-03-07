@@ -43,18 +43,19 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
 
     testEcho(Seq {
         ("python", """
+          |from __future__ import print_function
           |import sys
-          |def main(dict):
-          |    print 'hello stdout'
-          |    print >> sys.stderr, 'hello stderr'
-          |    return dict
+          |def main(args):
+          |    print('hello stdout')
+          |    print('hello stderr', file=sys.stderr)
+          |    return args
           """.stripMargin)
     })
 
     testEnv(Seq {
         ("python", """
          |import os
-         |def main(dict):
+         |def main(args):
          |    return {
          |       "api_host": os.environ['__OW_API_HOST'],
          |       "api_key": os.environ['__OW_API_KEY'],
@@ -69,7 +70,7 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
     it should "support actions using non-default entry points" in {
         withActionContainer() { c =>
             val code = """
-                |def niam(dict):
+                |def niam(args):
                 |  return { "result": "it works" }
                 |""".stripMargin
 
@@ -137,8 +138,8 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
     it should "handle unicode in source, input params, logs, and result" in {
         val (out, err) = withActionContainer() { c =>
             val code = """
-                |def main(dict):
-                |    sep = dict['delimiter']
+                |def main(args):
+                |    sep = args['delimiter']
                 |    str = sep + " ☃ ".decode('utf-8') + sep
                 |    print(str.encode('utf-8'))
                 |    return {"winter" : str }
@@ -164,7 +165,7 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
                 |def div(x, y):
                 |    return x/y
                 |
-                |def main(dict):
+                |def main(args):
                 |    return {"divBy0": div(5,0)}
             """.stripMargin
 
