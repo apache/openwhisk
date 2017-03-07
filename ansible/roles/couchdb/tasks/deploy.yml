@@ -36,15 +36,6 @@
     port: "{{ db_port }}"
     timeout: 60
 
-- name: register CouchDB with consul
-  consul:
-    service_name: couchdb
-    service_port: "{{ db_port }}"
-    service_address: "{{ inventory_hostname }}"
-    host: "{{ groups['consul_servers'] | first }}"
-    interval: 15s
-    http: "http://{{ inventory_hostname }}:{{ db_port }}"
-
 - name: create admin user
   uri:
     url: "{{ db_protocol }}://{{ inventory_hostname }}:{{ db_port }}/_config/admins/{{ db_username }}"
