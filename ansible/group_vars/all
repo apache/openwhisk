@@ -85,6 +85,8 @@ db:
   authkeys:
   - guest
   - whisk.system
+  whisk:
+    actions: "{{ db_prefix }}whisks"
 
 apigateway:
   port:

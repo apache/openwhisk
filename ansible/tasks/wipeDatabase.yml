@@ -4,5 +4,4 @@
 # make sure we have whisk.properties because wipeTransientDBs.sh needs it
 - include: writeWhiskProperties.yml
 
-- name: deploy database
-  local_action: shell "./wipeTransientDBs.sh" chdir="{{ openwhisk_home }}/tools/db"
+- include: db/actionsDb.yml

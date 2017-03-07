@@ -1,0 +1,33 @@
+---
+# Delete and recreate the actions-Db for whisk with all DesignDocs.
+
+- name: Delete the {{ db.whisk.actions }} with {{ db_provider }}
+  uri:
+    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db.whisk.actions }}"
+    method: DELETE
+    status_code: 200,404
+    user: "{{ db_username }}"
+    password: "{{ db_password }}"
+    force_basic_auth: yes
+
+- name: create {{ db.whisk.actions }} with {{ db_provider }}
+  uri:
+    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db.whisk.actions }}"
+    method: PUT
+    status_code: 200,201
+    user: "{{ db_username }}"
+    password: "{{ db_password }}"
+    force_basic_auth: yes
+
+- name: create whisks-Design document in {{ db.whisk.actions }} with {{ db_provider }}
+  vars:
+    auth_index: "{{ lookup('file', '{{ openwhisk_home }}/ansible/files/whisks_design_document_for_actions_db.json') }}"
+  uri:
+    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db.whisk.actions }}/_design/whisks"
+    method: PUT
+    status_code: 200,201
+    body_format: json
+    body: "{{ auth_index }}"
+    user: "{{ db_username }}"
+    password: "{{ db_password }}"
+    force_basic_auth: yes
