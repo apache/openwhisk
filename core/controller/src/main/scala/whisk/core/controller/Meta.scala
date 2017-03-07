@@ -210,20 +210,16 @@ trait WhiskMetaApi
     with PostActionActivation {
     services: WhiskServices =>
 
-    /** API path and version for posting activations directly through the host. */
-    val apipath: String
-    val apiversion: String
+    /** API path invocation path for posting activations directly through the host. */
+    protected val webInvokePathSegments: Seq[String]
 
     /** Store for identities. */
     protected val authStore: AuthStore
 
-    /** The route prefix e.g., /experimental. */
-    protected val routePath = "experimental"
-
-    /** The prefix for web invokes e.g., /experimental/web. */
-    protected val webInvokePath = "web"
-
-    private val webRoutePrefix = pathPrefix(routePath / webInvokePath)
+    /** The prefix for web invokes e.g., /web. */
+    private lazy val webRoutePrefix = {
+        pathPrefix(webInvokePathSegments.map(segmentStringToPathMatcher(_)).reduceLeft(_ / _))
+    }
 
     /** Allowed verbs. */
     private lazy val allowedOperations = get | delete | post | put
@@ -263,7 +259,7 @@ trait WhiskMetaApi
      * Actions may be exposed to this web proxy by adding an annotation ("export" -> true).
      */
     def routes(user: Option[Identity])(implicit transid: TransactionId): Route = {
-        (allowedOperations & webRoutePrefix) {
+        webRoutePrefix {
             validNameSegment { namespace =>
                 packagePrefix { pkg =>
                     pathPrefix(Segment) {
@@ -324,12 +320,14 @@ trait WhiskMetaApi
             }
         }
 
-        extract(_.request.entity.data.length) { length =>
-            validateSize(isWhithinRange(length))(transid) {
-                entity(as[Option[JsObject]]) {
-                    body => process(body)
-                } ~ entity(as[FormData]) {
-                    form => process(Some(form.fields.toMap.toJson.asJsObject))
+        allowedOperations {
+            extract(_.request.entity.data.length) { length =>
+                validateSize(isWhithinRange(length))(transid) {
+                    entity(as[Option[JsObject]]) {
+                        body => process(body)
+                    } ~ entity(as[FormData]) {
+                        form => process(Some(form.fields.toMap.toJson.asJsObject))
+                    }
                 }
             }
         }

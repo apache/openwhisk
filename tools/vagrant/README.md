@@ -85,8 +85,7 @@ wsk -i property set --apihost http://192.168.33.13:10001 --auth `vagrant ssh -- 
 You do not need to use the `-i` switch to `wsk` now.
 
 
-**Note:** To connect to a different host API (i.e. bluemix.net) with the CLI, you will need to 
-configure the CLI with new values for __apihost__, and __auth__ key.
+**Note:** To connect to a different host API (i.e. bluemix.net) with the CLI, you will need to configure the CLI with new values for __apihost__, and __auth__ key.
  
 ### Use the wsk CLI inside the VM
 For your convenience, a `wsk` wrapper is provided inside the VM which delegates CLI commands to `$OPENWHISK_HOME/bin/linux/amd64/wsk` and adds the `-i` parameter that is required for insecure access to the local OpenWhisk deployment.

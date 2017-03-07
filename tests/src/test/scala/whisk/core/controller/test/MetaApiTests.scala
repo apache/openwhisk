@@ -64,16 +64,23 @@ import whisk.http.Messages
  * "using Specification DSL to write unit tests, as in should, must, not, be"
  * "using Specs2RouteTest DSL to chain HTTP requests for unit testing, as in ~>"
  */
+
 @RunWith(classOf[JUnitRunner])
-class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAndAfterEach {
+class MetaApiTestsV1 extends MetaApiTests {
+    override lazy val webInvokePathSegments = Seq("experimental", "web")
+}
 
-    override val apipath = "api"
-    override val apiversion = "v1"
+@RunWith(classOf[JUnitRunner])
+class MetaApiTestsV2 extends MetaApiTests {
+    override lazy val webInvokePathSegments = Seq("web")
+}
 
+trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with WhiskMetaApi {
     val systemId = Subject()
     val systemKey = AuthKey()
     val systemIdentity = Future.successful(Identity(systemId, EntityName(systemId.asString), systemKey, Privilege.ALL))
     override lazy val entitlementProvider = new TestingEntitlementProvider(whiskConfig, loadBalancer)
+    protected val testRoutePath = webInvokePathSegments.mkString("/", "/", "")
 
     /** Meta API tests */
     behavior of "Meta API"
@@ -227,8 +234,6 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
         error.fields.get("code").get shouldBe an[JsNumber]
     }
 
-    val testRoutePath = s"/$routePath/$webInvokePath"
-
     Seq(None, Some(WhiskAuth(Subject(), AuthKey()).toIdentity)).foreach { creds =>
 
         it should s"split action name and extension (auth? ${creds.isDefined})" in {
@@ -266,7 +271,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
             Seq((Head, MethodNotAllowed), (Patch, MethodNotAllowed)).
                 foreach {
                     case (m, code) =>
-                        m(s"$systemId/proxy/export_c.json") ~> sealRoute(routes(creds)) ~> check {
+                        m(s"$testRoutePath/$systemId/proxy/export_c.json") ~> sealRoute(routes(creds)) ~> check {
                             status should be(code)
                         }
                 }
@@ -830,4 +835,5 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
         protected override def entitled(subject: Subject, right: Privilege, resource: Resource)(
             implicit transid: TransactionId) = ???
     }
+
 }
