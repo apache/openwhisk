@@ -7,6 +7,27 @@ whisk:
   version:
     date: "{{ansible_date_time.iso8601}}"
 
+# list of supported runtimes (see whisk.core.entity.ExecManifest for schema)
+runtimesManifest:
+  nodejs:
+  - kind: "nodejs"
+  - kind: "nodejs:6"
+    default: true
+  python:
+  - kind: "python"
+  swift:
+  - kind: "swift"
+    deprecated: true
+  - kind: "swift:3"
+    default: true
+  java:
+  - kind: "java"
+    attached:
+      attachmentName: "jarfile"
+      attachmentType: "application/java-archive"
+    sentinelledLogs: false
+    requireMain: true
+
 defaultLimits:
   actions:
     invokes:
@@ -18,7 +39,6 @@ defaultLimits:
   triggers:
     fires:
       perMinute: 60
-
 
 # port means outer port
 controller:

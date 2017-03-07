@@ -51,6 +51,11 @@ function NodeActionRunner() {
         if (message.binary) {
             // The code is a base64-encoded zip file.
             return unzipInTmpDir(message.code).then(function (moduleDir) {
+                if(!fs.existsSync(path.join(moduleDir, 'package.json')) &&
+                    !fs.existsSync(path.join(moduleDir, 'index.js'))) {
+                    return Promise.reject('Zipped actions must contain either package.json or index.js at the root.')
+                }
+
                 try {
                     thisRunner.userScriptMain = eval('require("' + moduleDir + '").' + message.main);
                     assertMainIsFunction();
@@ -126,7 +131,7 @@ function NodeActionRunner() {
                 function (resolve, reject) {
                     var zipFile = path.join(tmpDir1, "action.zip");
                     fs.writeFile(zipFile, base64, "base64", function (err) {
-                        if(err) {
+                        if (err) {
                             reject("There was an error reading the action archive.");
                         }
                         resolve(zipFile);
@@ -149,7 +154,7 @@ function NodeActionRunner() {
         return new Promise(
             function (resolve, reject) {
                 child_process.exec(cmd, function (error, stdout, stderr) {
-                    if(error) {
+                    if (error) {
                         reject(stderr.trim());
                     } else {
                         resolve(stdout.trim());
