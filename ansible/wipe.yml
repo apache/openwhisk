@@ -1,7 +1,9 @@
 ---
-# This playbook wipes the database. Pls be sure you know what you are doing now!
+# WARNING: This playbook wipes the database. This action is not reversible. Be very careful and know what you are doing.
 
 - hosts: ansible
   tasks:
     - include: tasks/wipeDatabase.yml
+      vars:
+        withViews: True
       when: mode == "deploy"

@@ -104,9 +104,9 @@ protected trait ControllerTestCommon
     }
 
     def deleteActivation(doc: DocId)(implicit transid: TransactionId) = {
-        Await.result(WhiskActivation.get(entityStore, doc) flatMap { doc =>
+        Await.result(WhiskActivation.get(activationStore, doc) flatMap { doc =>
             logging.info(this, s"deleting ${doc.docinfo}")
-            WhiskActivation.del(entityStore, doc.docinfo)
+            WhiskActivation.del(activationStore, doc.docinfo)
         }, dbOpTimeout)
     }
 

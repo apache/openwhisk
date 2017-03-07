@@ -211,7 +211,7 @@ object WhiskConfig {
     val dbWhisk = "db.whisk.actions"
     val dbAuths = "db.whisk.auths"
     val dbPrefix = "db.prefix"
-    val dbActivations = dbWhisk // map to the same db for now
+    val dbActivations = "db.whisk.activations"
 
     // these are not private because they are needed
     // in the invoker (they are part of the environment

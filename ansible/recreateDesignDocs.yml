@@ -1,0 +1,7 @@
+---
+# This playbook recreates all design documents in the whisks and the activations DB.
+
+- hosts: ansible
+  tasks:
+    - include: tasks/recreateViews.yml
+      when: mode == "deploy"

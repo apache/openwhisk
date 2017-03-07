@@ -1,96 +1,33 @@
 ---
 # This task will initialize the immortal DBs in the database account.
-# This step is usually done only once per account.
+# This step is usually done only once per deployment.
 
-- name: check if the immortal {{ db.whisk.auth }} db with {{ db_provider }} exists?
-  uri:
-    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db.whisk.auth }}"
-    method: GET
-    status_code: 200,404
-    user: "{{ db_username }}"
-    password: "{{ db_password }}"
-    force_basic_auth: yes
-  register: dbexists
-
-# create only the missing db.whisk.auth
-- name: create immortal {{ db.whisk.auth }} db with {{ db_provider }}
-  uri:
-    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db.whisk.auth }}"
-    method: PUT
-    status_code: 200,201,202
-    user: "{{ db_username }}"
-    password: "{{ db_password }}"
-    force_basic_auth: yes
-  when: dbexists is defined and dbexists.status == 404
-
-# fetches the revision of previous view (to update it) if it exists
-- name: check for previous view in "auth" database
+- include: db/recreateDb.yml
   vars:
-    auth_index: "{{ lookup('file', '{{ openwhisk_home }}/ansible/files/auth_index.json') }}"
-  uri:
-    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db.whisk.auth }}/{{ auth_index['_id'] }}"
-    return_content: yes
-    method: GET
-    status_code: 200, 404
-    user: "{{ db_username }}"
-    password: "{{ db_password }}"
-    force_basic_auth: yes
-  register: previousView
-  when: dbexists is defined and dbexists.status != 404 #and mode=="updateview"
+    dbName: "{{ db.whisk.auth }}"
+    forceRecreation: False
 
-- name: extract revision from previous view
+- include: db/recreateDoc.yml
   vars:
-    previousContent: "{{ previousView['content']|from_json }}"
-    revision: "{{ previousContent['_rev'] }}"
-    auth_index: "{{ lookup('file', '{{ openwhisk_home }}/ansible/files/auth_index.json') }}"
-  set_fact:
-    previousContent: "{{ previousContent }}"
-    updateWithRevision: "{{ auth_index | combine({'_rev': revision}) }}"
-  when: previousView is defined and previousView.status != 404
+    dbName: "{{ db.whisk.auth }}"
+    doc: "{{ lookup('file', '{{ openwhisk_home }}/ansible/files/auth_index.json') }}"
 
-- name: check if a view update is required
-  set_fact:
-    updateView: "{{ updateWithRevision }}"
-  when: previousContent is defined and previousContent != updateWithRevision
-
-- name: recreate or update the index on the "auth" database
+- include: db/recreateDoc.yml
   vars:
-    auth_index: "{{ lookup('file', '{{ openwhisk_home }}/ansible/files/auth_index.json') }}"
-  uri:
-    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db.whisk.auth }}"
-    method: POST
-    status_code: 200, 201
-    body_format: json
-    body: "{{ updateView | default(auth_index) }}"
-    user: "{{ db_username }}"
-    password: "{{ db_password }}"
-    force_basic_auth: yes
-  when: (dbexists is defined and dbexists.status == 404) or (updateView is defined)
+    dbName: "{{ db.whisk.auth }}"
+    doc: "{{ lookup('file', '{{ openwhisk_home }}/ansible/files/filter_design_document.json') }}"
 
-- include: db/filterViews.yml dbName="{{ db.whisk.auth }}" recreate=False
-
-- name: recreate necessary "auth" keys
+- name: create necessary "auth" keys
+  include: db/recreateDoc.yml
   vars:
     key: "{{ lookup('file', 'files/auth.{{ item }}') }}"
-  uri:
-    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db.whisk.auth }}"
-    method: POST
-    status_code: 200,201
-    body_format: json
-    body: >
-          {
-            "_id": "{{ item }}",
-            "subject": "{{ item }}",
-            "namespaces": [
-              {
-                "name": "{{ item }}",
-                "uuid": "{{ key.split(":")[0] }}",
-                "key": "{{ key.split(":")[1] }}"
-              }
-            ]
-          }
-    user: "{{ db_username }}"
-    password: "{{ db_password }}"
-    force_basic_auth: yes
+    dbName: "{{ db.whisk.auth }}"
+    doc: >
+      {
+        "_id": "{{ item }}",
+        "subject": "{{ item }}",
+        "uuid": "{{ key.split(":")[0] }}",
+        "key": "{{ key.split(":")[1] }}",
+        "namespaces": []
+      }
   with_items: "{{ db.authkeys }}"
-  when: dbexists is defined and dbexists.status == 404

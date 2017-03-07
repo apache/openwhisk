@@ -45,6 +45,7 @@ DB_PASSWORD = 'DB_PASSWORD'
 
 DB_WHISK_AUTHS   = 'DB_WHISK_AUTHS'
 DB_WHISK_ACTIONS = 'DB_WHISK_ACTIONS'
+DB_WHISK_ACTIVATIONS = 'DB_WHISK_ACTIVATIONS'
 
 LOGS_DIR = 'WHISK_LOGS_DIR'
 
@@ -56,7 +57,7 @@ ROOT_DIR = os.path.join(os.path.join(CLI_DIR, os.pardir), os.pardir)
 def main():
     requiredprops = [
         DB_PROTOCOL, DB_HOST, DB_PORT, DB_USERNAME, DB_PASSWORD,
-        DB_WHISK_AUTHS, DB_WHISK_ACTIONS,
+        DB_WHISK_AUTHS, DB_WHISK_ACTIONS, DB_WHISK_ACTIVATIONS,
         LOGS_DIR ]
     whiskprops = wskprop.importPropsIfAvailable(wskprop.propfile(ROOT_DIR))
     (valid, props, deferredInfo) = wskprop.checkRequiredProperties(requiredprops, whiskprops)
@@ -424,6 +425,8 @@ def getDbCmd(args, props):
         database = props[DB_WHISK_AUTHS]
     elif args.database == 'whisks':
         database = props[DB_WHISK_ACTIONS]
+    elif args.database == 'activations':
+        database = props[DB_WHISK_ACTIVATIONS]
     else:
         database = args.database
 
