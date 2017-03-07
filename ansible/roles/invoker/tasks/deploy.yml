@@ -54,7 +54,7 @@
         -v {{ docker_sock | default('/var/run/docker.sock') }}:/var/run/docker.sock
         -p {{invoker.port + play_hosts.index(inventory_hostname)}}:8080
         {{docker_registry}}{{ docker_image_prefix }}/invoker:{{docker_image_tag}}
-        /bin/sh -c "/invoker/bin/invoker {{play_hosts.index(inventory_hostname)}} >> /logs/invoker{{play_hosts.index(inventory_hostname)}}_logs.log 2>&1"
+        /bin/sh -c "exec /invoker/bin/invoker {{play_hosts.index(inventory_hostname)}} >> /logs/invoker{{play_hosts.index(inventory_hostname)}}_logs.log 2>&1"
 
 
 # todo: re-enable docker_container module once https://github.com/ansible/ansible-modules-core/issues/5054 is resolved
