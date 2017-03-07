@@ -565,6 +565,55 @@ $ wsk action invoke --blocking --result helloSwift --param name World
 **Attention:** Swift actions run in a Linux environment. Swift on Linux is still in
 development, and OpenWhisk usually uses the latest available release, which is not necessarily stable. In addition, the version of Swift that is used with OpenWhisk might be inconsistent with versions of Swift from stable releases of XCode on MacOS.
 
+### Packaging an action as a Swift executable
+
+When you create an OpenWhisk Swift action with a Swift source file, it has to be compiled into a binary before the action is run. Once done, subsequent calls to the action are much faster until the container holding your action is purged. This delay is known as the cold-start delay.
+
+To avoid the cold-start delay, you can compile your Swift file into a binary and then upload to OpenWhisk in a zip file. As you need the OpenWhisk scaffolding, the easiest way to create the binary is to build it within the same environment as it will be run in. These are the steps:
+
+1. Run an interactive Swift action container.
+
+        $ docker run -it -v "$(pwd):/owexec" openwhisk/swift3action bash
+
+    This puts you in a bash shell within the Docker container. Execute the following commands within it:
+
+    a. Install zip for convenience, to package the binary
+
+            $ apt-get install -y zip
+
+    b. Copy the source code and prepare to build it
+
+            $ cp /owexec/hello.swift /swift3Action/spm-build/main.swift 
+            $ cat /swift3Action/epilogue.swift >> /swift3Action/spm-build/main.swift
+            $ echo '_run_main(mainFunction:main)' >> /swift3Action/spm-build/main.swift
+
+    c. Build and link
+
+            $ /swift3Action/spm-build/swiftbuildandlink.sh
+
+    d. Create the zip archive
+
+            $ cd /swift3Action/spm-build
+            $ zip /owexec/hello.zip .build/release/Action
+
+    e. Exit the Docker container
+
+            $ exit
+
+
+2. This has created hello.zip in the same directory as hello.swift. Upload it to OpenWhisk with the action name helloSwifty:
+
+        $ wsk action update helloSwiftly hello.zip --kind swift:3
+
+
+To check how much faster it is, run 
+
+```
+$ wsk action invoke helloSwiftly --blocking
+``` 
+
+The time it took for the action to run is in the "duration" property and compare to the time it takes to cold start the hello action.
+
 ## Creating Java actions
 
 The process of creating Java actions is similar to that of JavaScript and Swift actions. The following sections guide you through creating and invoking a single Java action, and adding parameters to that action.
