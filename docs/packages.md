@@ -1,4 +1,3 @@
-
 # Using and creating OpenWhisk packages
 
 In OpenWhisk, you can use packages to bundle together a set of related actions, and share them with others.
@@ -18,7 +17,7 @@ Several packages are registered with OpenWhisk. You can get a list of packages i
 1. Get a list of packages in the `/whisk.system` namespace.
 
   ```
-  $ wsk package list /whisk.system
+  wsk package list /whisk.system
   ```
   ```
   packages
@@ -38,7 +37,7 @@ Several packages are registered with OpenWhisk. You can get a list of packages i
 2. Get a list of entities in the `/whisk.system/cloudant` package.
 
   ```
-  $ wsk package get --summary /whisk.system/cloudant
+  wsk package get --summary /whisk.system/cloudant
   ```
   ```
   package /whisk.system/cloudant: Cloudant database service
@@ -55,7 +54,7 @@ Several packages are registered with OpenWhisk. You can get a list of packages i
 3. Get a description of the `/whisk.system/cloudant/read` action.
 
   ```
-  $ wsk action get --summary /whisk.system/cloudant/read
+  wsk action get --summary /whisk.system/cloudant/read
   ```
   ```
   action /whisk.system/cloudant/read: Read document from database
@@ -72,7 +71,7 @@ You can invoke actions in a package, just as with other actions. The next few st
 1. Get a description of the `/whisk.system/samples/greeting` action.
 
   ```
-  $ wsk action get --summary /whisk.system/samples/greeting
+  wsk action get --summary /whisk.system/samples/greeting
   ```
   ```
   action /whisk.system/samples/greeting: Print a friendly greeting
@@ -84,9 +83,9 @@ You can invoke actions in a package, just as with other actions. The next few st
 2. Invoke the action without any parameters.
 
   ```
-  $ wsk action invoke --blocking --result /whisk.system/samples/greeting
+  wsk action invoke --blocking --result /whisk.system/samples/greeting
   ```
-  ```
+  ```json
   {
       "payload": "Hello, stranger from somewhere!"
   }
@@ -97,9 +96,9 @@ You can invoke actions in a package, just as with other actions. The next few st
 3. Invoke the action with parameters.
 
   ```
-  $ wsk action invoke --blocking --result /whisk.system/samples/greeting --param name Mork --param place Ork
+  wsk action invoke --blocking --result /whisk.system/samples/greeting --param name Mork --param place Ork
   ```
-  ```
+  ```json
   {
       "payload": "Hello, Mork from Ork!"
   }
@@ -119,7 +118,7 @@ In the following simple example, you bind to the `/whisk.system/samples` package
 1. Bind to the `/whisk.system/samples` package and set a default `place` parameter value.
 
   ```
-  $ wsk package bind /whisk.system/samples valhallaSamples --param place Valhalla
+  wsk package bind /whisk.system/samples valhallaSamples --param place Valhalla
   ```
   ```
   ok: created binding valhallaSamples
@@ -128,7 +127,7 @@ In the following simple example, you bind to the `/whisk.system/samples` package
 2. Get a description of the package binding.
 
   ```
-  $ wsk package get --summary valhallaSamples
+  wsk package get --summary valhallaSamples
   ```
   ```
   package /myNamespace/valhallaSamples
@@ -143,7 +142,7 @@ In the following simple example, you bind to the `/whisk.system/samples` package
 3. Invoke an action in the package binding.
 
   ```
-  $ wsk action invoke --blocking --result valhallaSamples/greeting --param name Odin
+  wsk action invoke --blocking --result valhallaSamples/greeting --param name Odin
   ```
   ```
   {
@@ -156,7 +155,7 @@ In the following simple example, you bind to the `/whisk.system/samples` package
 4. Invoke an action and overwrite the default parameter value.
 
   ```
-  $ wsk action invoke --blocking --result valhallaSamples/greeting --param name Odin --param place Asgard
+  wsk action invoke --blocking --result valhallaSamples/greeting --param name Odin --param place Asgard
   ```
   ```
   {
@@ -174,7 +173,7 @@ Feeds offer a convenient way to configure an external event source to fire these
 1. Get a description of the feed in the `/whisk.system/alarms` package.
 
   ```
-  $ wsk package get --summary /whisk.system/alarms
+  wsk package get --summary /whisk.system/alarms
   ```
   ```
   package /whisk.system/alarms
@@ -182,7 +181,7 @@ Feeds offer a convenient way to configure an external event source to fire these
   ```
 
   ```
-  $ wsk action get --summary /whisk.system/alarms/alarm
+  wsk action get --summary /whisk.system/alarms/alarm
   ```
   ```
   action /whisk.system/alarms/alarm: Fire trigger when alarm occurs
@@ -196,7 +195,7 @@ Feeds offer a convenient way to configure an external event source to fire these
 2. Create a trigger that fires every eight seconds.
 
   ```
-  $ wsk trigger create everyEightSeconds --feed /whisk.system/alarms/alarm -p cron "*/8 * * * * *" -p trigger_payload "{\"name\":\"Mork\", \"place\":\"Ork\"}"
+  wsk trigger create everyEightSeconds --feed /whisk.system/alarms/alarm -p cron "*/8 * * * * *" -p trigger_payload "{\"name\":\"Mork\", \"place\":\"Ork\"}"
   ```
   ```
   ok: created trigger feed everyEightSeconds
@@ -204,7 +203,7 @@ Feeds offer a convenient way to configure an external event source to fire these
 
 3. Create a 'hello.js' file with the following action code.
 
-  ```
+  ```javascript
   function main(params) {
       return {payload:  'Hello, ' + params.name + ' from ' + params.place};
   }
@@ -213,13 +212,13 @@ Feeds offer a convenient way to configure an external event source to fire these
 4. Make sure that the action exists.
 
   ```
-  $ wsk action update hello hello.js
+  wsk action update hello hello.js
   ```
 
 5. Create a rule that invokes the `hello` action every time the `everyEightSeconds` trigger fires.
 
   ```
-  $ wsk rule create myRule everyEightSeconds hello
+  wsk rule create myRule everyEightSeconds hello
   ```
   ```
   ok: created rule myRule
@@ -228,7 +227,7 @@ Feeds offer a convenient way to configure an external event source to fire these
 6. Check that the action is being invoked by polling for activation logs.
 
   ```
-  $ wsk activation poll
+  wsk activation poll
   ```
 
   You should see activations every eight seconds for the trigger, the rule, and the action. The action receives the parameters `{"name":"Mork", "place":"Ork"}` on every invocation.
@@ -244,7 +243,7 @@ To create a custom package with a simple action in it, try the following example
 1. Create a package called "custom".
 
   ```
-  $ wsk package create custom
+  wsk package create custom
   ```
   ```
   ok: created package custom
@@ -253,7 +252,7 @@ To create a custom package with a simple action in it, try the following example
 2. Get a summary of the package.
 
   ```
-  $ wsk package get --summary custom
+  wsk package get --summary custom
   ```
   ```
   package /myNamespace/custom
@@ -263,14 +262,14 @@ To create a custom package with a simple action in it, try the following example
 
 3. Create a file called `identity.js` that contains the following action code. This action returns all input parameters.
 
-  ```
+  ```javascript
   function main(args) { return args; }
   ```
 
 4. Create an `identity` action in the `custom` package.
 
   ```
-  $ wsk action create custom/identity identity.js
+  wsk action create custom/identity identity.js
   ```
   ```
   ok: created action custom/identity
@@ -281,7 +280,7 @@ To create a custom package with a simple action in it, try the following example
 5. Get a summary of the package again.
 
   ```
-  $ wsk package get --summary custom
+  wsk package get --summary custom
   ```
   ```
   package /myNamespace/custom
@@ -293,9 +292,9 @@ To create a custom package with a simple action in it, try the following example
 6. Invoke the action in the package.
 
   ```
-  $ wsk action invoke --blocking --result custom/identity
+  wsk action invoke --blocking --result custom/identity
   ```
-  ```
+  ```json
   {}
   ```
 
@@ -305,7 +304,7 @@ You can set default parameters for all the entities in a package. You do this by
 1. Update the `custom` package with two parameters: `city` and `country`.
 
   ```
-  $ wsk package update custom --param city Austin --param country USA
+  wsk package update custom --param city Austin --param country USA
   ```
   ```
   ok: updated package custom
@@ -314,12 +313,13 @@ You can set default parameters for all the entities in a package. You do this by
 2. Display the parameters in the package and action, and see how the `identity` action in the package inherits parameters from the package.
 
   ```
-  $ wsk package get custom
+  wsk package get custom parameters
   ```
   ```
-  ok: got package custom
-  ...
-  "parameters": [
+  ok: got package custom, displaying field parameters
+  ```
+  ```json
+  [
       {
           "key": "city",
           "value": "Austin"
@@ -329,16 +329,16 @@ You can set default parameters for all the entities in a package. You do this by
           "value": "USA"
       }
   ]
-  ...
   ```
 
   ```
-  $ wsk action get custom/identity
+  wsk action get custom/identity parameters
   ```
   ```
-  ok: got action custom/identity
-  ...
-  "parameters": [
+  ok: got action custom/identity, , displaying field parameters
+  ```
+  ```json
+  [
       {
           "key": "city",
           "value": "Austin"
@@ -348,15 +348,14 @@ You can set default parameters for all the entities in a package. You do this by
           "value": "USA"
       }
   ]
-  ...
   ```
 
 3. Invoke the identity action without any parameters to verify that the action indeed inherits the parameters.
 
   ```
-  $ wsk action invoke --blocking --result custom/identity
+  wsk action invoke --blocking --result custom/identity
   ```
-  ```
+  ```json
   {
       "city": "Austin",
       "country": "USA"
@@ -366,9 +365,9 @@ You can set default parameters for all the entities in a package. You do this by
 4. Invoke the identity action with some parameters. Invocation parameters are merged with the package parameters; the invocation parameters override the package parameters.
 
   ```
-  $ wsk action invoke --blocking --result custom/identity --param city Dallas --param state Texas
+  wsk action invoke --blocking --result custom/identity --param city Dallas --param state Texas
   ```
-  ```
+  ```json
   {
       "city": "Dallas",
       "country": "USA",
@@ -384,7 +383,7 @@ After the actions and feeds that comprise a package are debugged and tested, the
 1. Share the package with all users:
 
   ```
-  $ wsk package update custom --shared yes
+  wsk package update custom --shared yes
   ```
   ```
   ok: updated package custom
@@ -393,13 +392,13 @@ After the actions and feeds that comprise a package are debugged and tested, the
 2. Display the `publish` property of the package to verify that it is now true.
 
   ```
-  $ wsk package get custom
+  wsk package get custom publish
   ```
   ```
-  ok: got package custom
-  ...
-  "publish": true,
-  ...
+  ok: got package custom, displaying field publish
+  ```
+  ```json
+  true
   ```
 
 
@@ -408,7 +407,7 @@ Others can now use your `custom` package, including binding to the package or di
 1. Get a description of the package to show the fully qualified names of the package and action.
 
   ```
-  $ wsk package get --summary custom
+  wsk package get --summary custom
   ```
   ```
   package /myNamespace/custom

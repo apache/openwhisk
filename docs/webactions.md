@@ -2,7 +2,9 @@
 
 Web actions are OpenWhisk actions annotated to quickly enable you to build web based applications. This allows you to program backend logic which your web application can access anonymously without requiring an OpenWhisk authentication key. It is up to the action developer to implement their own desired authentication and authorization (i.e. OAuth flow).
 
-Web action activations will be associated with the user that created the action. This actions defers the cost of an action activation from the caller to the owner of the action. **Note**: This feature is currently an experimental offering that enables users an early opportunity to try it out and provide feedback.
+Web action activations will be associated with the user that created the action. This actions defers the cost of an action activation from the caller to the owner of the action. 
+
+**Note**: This feature is currently an experimental offering that enables users an early opportunity to try it out and provide feedback.
 
 Let's take the following JavaScript action `hello.js`,
 ```javascript
@@ -17,9 +19,11 @@ function main({name}) {
 ```
 
 You may create a _web action_ `hello` in the package `demo` for the namespace `guest` using the annotation `web-export`:
-```bash
-$ wsk package create demo
-$ wsk action create /guest/demo/hello hello.js -a web-export true
+```
+wsk package create demo
+```
+```
+wsk action create /guest/demo/hello hello.js -a web-export true
 ```
 
 The `web-export` annotation allows the action to be accessible as a web action via a new REST interface. The URL that is structured as follows: `https://{APIHOST}/api/v1/experimental/web/{QUALIFIED ACTION NAME}.{EXT}`. The fully qualified name of an action consists of three parts: the namespace, the package name, and the action name. An example is `guest/demo/hello`. The last part of the URI called the `extension` which is typically `.http` although other values are permitted as described later. The web action API path may be used with `curl` or `wget` without an API key. It may even be entered directly in your browser.
@@ -116,15 +120,16 @@ function main(params) {
 }
 ```
 and invoking the action with a query parameter `name`, using the `.json` extension to indicate a JSON response, and projecting the field `/response` will yield the following HTTP response:
-```bash
-$ curl https://${APIHOST}/api/v1/experimental/web/guest/demo/hello.json/response?name=Jane
+```
+curl https://${APIHOST}/api/v1/experimental/web/guest/demo/hello.json/response?name=Jane
+```
+```json
 {
-    "name": "Jane"
+    "name": "Jane",
     "__ow_meta_verb": "get",
     "__ow_meta_headers": {
         "accept": "*/*",
-        "user-agent": "curl/7.51.0",
-        ...
+        "user-agent": "curl/7.51.0"
     },
     "__ow_meta_path": "/response"
 }
@@ -139,8 +144,8 @@ A content extension is required when invoking a web action. The `.json` and `.
 
 Action parameters may also be protected and treated as immutable. To finalize parameters, and to make an action web accessible, two [annotations](annotations.md) must be attached to the action: `final` and `web-export` either of which must be set to `true` to have affect. Revisiting the action deployment earlier, we add the annotations as follows:
 
-```bash
-$ wsk action create /guest/demo/hello hello.js \
+```
+wsk action create /guest/demo/hello hello.js \
       --parameter name Jane \
       --annotation final true \
       --annotation web-export true
@@ -152,8 +157,8 @@ The result of these changes is that the `name` is bound to `Jane` and may not be
 
 To disable a web action from being invoked via the new API (`https://APIHOST/api/v1/experimental/web/`), it’s enough to remove the annotation or set it to `false`.
 
-```bash
-$ wsk action update /guest/demo/hello hello.js \
+```
+wsk action update /guest/demo/hello hello.js \
       --annotation web-export false
 ```      
 
