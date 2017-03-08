@@ -5,3 +5,5 @@
 - include: writeWhiskProperties.yml
 
 - include: db/actionsDb.yml
+
+- include: recreateViews.yml

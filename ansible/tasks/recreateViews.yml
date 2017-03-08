@@ -1,0 +1,4 @@
+---
+# Recreates all views in all databases.
+
+- include: db/actionsDbViews.yml
