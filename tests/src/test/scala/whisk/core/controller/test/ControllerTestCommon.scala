@@ -61,11 +61,14 @@ protected trait ControllerTestCommon
     override val actorRefFactory = null
     implicit val routeTestTimeout = RouteTestTimeout(90 seconds)
 
-    implicit val actorSystem = system // defined in ScalatestRouteTest
-    val executionContext = actorSystem.dispatcher
+    override implicit val actorSystem = system // defined in ScalatestRouteTest
+    override val executionContext = actorSystem.dispatcher
 
     override val whiskConfig = new WhiskConfig(RestAPIVersion_v1.requiredProperties)
     assert(whiskConfig.isValid)
+
+    // initialize runtimes manifest
+    ExecManifest.initialize(whiskConfig)
 
     override val loadBalancer = new DegenerateLoadBalancerService(whiskConfig)
 

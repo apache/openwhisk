@@ -71,6 +71,7 @@ class ContainerPool(
 
     // Eventually, we will have a more sophisticated warmup strategy that does multiple sizes
     private val defaultMemoryLimit = MemoryLimit(MemoryLimit.STD_MEMORY)
+    private val NODEJS6_IMAGE = Exec.imagename("nodejs:6")
 
     /**
      *  Check whether we should use runc.  To do so,
@@ -411,7 +412,6 @@ class ContainerPool(
     // TODO: Generalize across language by storing image name when we generalize to other languages
     //       Better heuristic for # of containers to keep warm - make sensitive to idle capacity
     private val stemCellNodejsKey = StemCellNodeJsActionContainerId
-    private val nodejsExec = new CodeExecAsString(Exec.NODEJS6, "", None, false)
     private val WARM_NODEJS_CONTAINERS = 2
 
     // This parameter controls how many outstanding un-removed containers there are before
@@ -535,7 +535,7 @@ class ContainerPool(
      * If container creation fails, the container will not be entered into the pool.
      */
     private def addStemCellNodejsContainer()(implicit transid: TransactionId) = Future {
-        val imageName = ExecImageName.localImageName(config.dockerRegistry, config.dockerImagePrefix, Exec.imagename(Exec.NODEJS6), config.dockerImageTag)
+        val imageName = ExecImageName.localImageName(config.dockerRegistry, config.dockerImagePrefix, NODEJS6_IMAGE, config.dockerImageTag)
         val limits = ActionLimits(TimeLimit(), defaultMemoryLimit, LogLimit())
         val containerName = makeContainerName("warmJsContainer")
         logging.info(this, "Starting warm nodejs container")
@@ -563,7 +563,7 @@ class ContainerPool(
     private def makeWhiskContainer(action: WhiskAction, auth: AuthKey)(implicit transid: TransactionId): WhiskContainer = {
         val imageName = getDockerImageName(action)
         val limits = action.limits
-        val nodeImageName = ExecImageName.localImageName(config.dockerRegistry, config.dockerImagePrefix, Exec.imagename(Exec.NODEJS6), config.dockerImageTag)
+        val nodeImageName = ExecImageName.localImageName(config.dockerRegistry, config.dockerImagePrefix, NODEJS6_IMAGE, config.dockerImageTag)
         val key = ActionContainerId(auth.uuid, action.fullyQualifiedName(true).toString, action.rev)
         val warmedContainer = if (limits.memory == defaultMemoryLimit && imageName == nodeImageName) getStemCellNodejsContainer(key) else None
         val containerName = makeContainerName(action)

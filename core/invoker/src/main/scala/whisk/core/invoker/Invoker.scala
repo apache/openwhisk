@@ -20,7 +20,7 @@ import java.nio.charset.StandardCharsets
 
 import java.time.{ Clock, Instant }
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.{ Await, ExecutionContext, Future }
 import scala.concurrent.Promise
 import scala.concurrent.duration.{ Duration, DurationInt }
 import scala.language.postfixOps
@@ -418,6 +418,7 @@ object Invoker {
         logsDir -> null,
         dockerRegistry -> null,
         dockerImagePrefix -> null) ++
+        ExecManifest.requiredProperties ++
         WhiskAuthStore.requiredProperties ++
         WhiskEntityStore.requiredProperties ++
         WhiskActivationStore.requiredProperties ++
@@ -431,31 +432,36 @@ object Invoker {
         val instance = args(0).toInt
 
         implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
-        implicit val system: ActorSystem = ActorSystem(
+        implicit val actorSystem: ActorSystem = ActorSystem(
             name = "invoker-actor-system",
             defaultExecutionContext = Some(ec))
-        implicit val logger: Logging = new AkkaLogging(akka.event.Logging.getLogger(system, this))
+        implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
 
         // load values for the required properties from the environment
         val config = new WhiskConfig(requiredProperties)
 
-        if (config.isValid) {
+        // if configuration is valid, initialize the runtimes manifest
+        if (config.isValid && ExecManifest.initialize(config)) {
             val topic = s"invoker$instance"
             val groupid = "invokers"
             val maxdepth = ContainerPool.getDefaultMaxActive(config)
             val consumer = new KafkaConsumerConnector(config.kafkaHost, groupid, topic, maxdepth)
-            val dispatcher = new Dispatcher(consumer, 500 milliseconds, 2 * maxdepth, system)
+            val dispatcher = new Dispatcher(consumer, 500 milliseconds, 2 * maxdepth, actorSystem)
 
             val invoker = new Invoker(config, instance, dispatcher.activationFeed)
             dispatcher.addHandler(invoker, true)
             dispatcher.start()
 
             val port = config.servicePort.toInt
-            BasicHttpService.startService(system, "invoker", "0.0.0.0", port, new Creator[InvokerServer] {
+            BasicHttpService.startService(actorSystem, "invoker", "0.0.0.0", port, new Creator[InvokerServer] {
                 def create = new InvokerServer {
                     override implicit val logging = logger
                 }
             })
+        } else {
+            logger.error(this, "Bad configuration, cannot start.")
+            actorSystem.terminate()
+            Await.result(actorSystem.whenTerminated, 30.seconds)
         }
     }
 }
