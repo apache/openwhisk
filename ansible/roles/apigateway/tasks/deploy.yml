@@ -3,6 +3,7 @@
 
 - name: "pull the openwhisk/apigateway image"
   shell: "docker pull openwhisk/apigateway"
+  when: apigateway_local_build is undefined
 
 - name: (re)start apigateway
   docker_container:
