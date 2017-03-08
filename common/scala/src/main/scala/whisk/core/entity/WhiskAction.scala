@@ -18,15 +18,12 @@ package whisk.core.entity
 
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
-import java.nio.charset.StandardCharsets
 import java.util.Base64
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.util.{ Try, Success, Failure }
 
-import akka.http.scaladsl.model.ContentType
-import akka.http.scaladsl.model.MediaTypes
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.common.TransactionId
@@ -170,10 +167,7 @@ object WhiskAction
     override val cacheEnabled = true
     override def cacheKeyForUpdate(w: WhiskAction) = w.docid.asDocInfo
 
-    private val jarAttachmentName = "jarfile"
-    private val jarContentType = ContentType.Binary(MediaTypes.`application/java-archive`)
-
-    // Overriden to store Java `exec` fields as attachments.
+    // overriden to store attached code
     override def put[A >: WhiskAction](db: ArtifactStore[A], doc: WhiskAction)(
         implicit transid: TransactionId): Future[DocInfo] = {
 
@@ -182,18 +176,19 @@ object WhiskAction
             require(doc != null, "doc undefined")
         } map { _ =>
             doc.exec match {
-                case JavaExec(Inline(jar), main) =>
+                case exec @ CodeExecAsAttachment(_, Inline(code), _) =>
                     implicit val logger = db.logging
                     implicit val ec = db.executionContext
 
-                    val newDoc = doc.copy(exec = JavaExec(Attached(jarAttachmentName, jarContentType), main))
+                    val newDoc = doc.copy(exec = exec.attach)
                     newDoc.revision(doc.rev)
 
-                    val stream = new ByteArrayInputStream(Base64.getDecoder().decode(jar))
+                    val stream = new ByteArrayInputStream(Base64.getDecoder().decode(code))
+                    val manifest = exec.manifest.attached.get
 
                     for (
                         i1 <- super.put(db, newDoc);
-                        i2 <- attach[A](db, i1, "jarfile", jarContentType, stream)
+                        i2 <- attach[A](db, i1, manifest.attachmentName, manifest.attachmentType, stream)
                     ) yield i2
 
                 case _ =>
@@ -205,7 +200,7 @@ object WhiskAction
         }
     }
 
-    // Overriden to retrieve attached Java exec fields.
+    // overriden to retrieve attached code
     override def get[A >: WhiskAction](db: ArtifactStore[A], doc: DocId, rev: DocRevision = DocRevision(), fromCache: Boolean)(
         implicit transid: TransactionId, mw: Manifest[WhiskAction]): Future[WhiskAction] = {
 
@@ -215,14 +210,14 @@ object WhiskAction
 
         fa.flatMap { action =>
             action.exec match {
-                case JavaExec(Attached(n, t), m) =>
+                case exec @ CodeExecAsAttachment(_, Attached(_, _), _) =>
                     val boas = new ByteArrayOutputStream()
                     val b64s = Base64.getEncoder().wrap(boas)
+                    val manifest = exec.manifest.attached.get
 
-                    getAttachment[A](db, action.docinfo, jarAttachmentName, b64s).map { _ =>
+                    getAttachment[A](db, action.docinfo, manifest.attachmentName, b64s).map { _ =>
                         b64s.close()
-                        val encoded = new String(boas.toByteArray(), StandardCharsets.UTF_8)
-                        val newAction = action.copy(exec = JavaExec(Inline(encoded), m))
+                        val newAction = action.copy(exec = exec.inline(boas.toByteArray))
                         newAction.revision(action.rev)
                         newAction
                     }

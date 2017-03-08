@@ -16,6 +16,7 @@
 
 package whisk.core.entity
 
+import java.nio.charset.StandardCharsets
 import java.util.Base64
 
 import scala.language.postfixOps
@@ -24,6 +25,7 @@ import scala.util.Try
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.core.entity.Attachments._
+import whisk.core.entity.ExecManifest.RuntimeManifest
 import whisk.core.entity.size.SizeInt
 import whisk.core.entity.size.SizeOptionString
 import whisk.core.entity.size.SizeString
@@ -42,18 +44,20 @@ import whisk.core.entity.size.SizeString
  *   binary: for some runtimes that allow binary attachments,
  *   main  : name of the entry point function, when using a non-default value (for Java, the name of the main class)" }
  */
-sealed abstract class Exec(val kind: String) extends ByteSizeable {
+sealed abstract class Exec extends ByteSizeable {
     override def toString = Exec.serdes.write(this).compactPrint
+    /** A type descriptor. */
+    val kind: String
 
-    // Whether the exec kind is deprecated (once deprecated, code may not be executed or updated).
-    val deprecated: Boolean = false
+    /** When true exec may not be executed or updated. */
+    val deprecated: Boolean
 }
 
 /**
  * A common super class for all action exec types that contain their executable
  * code explicitly (i.e., any action other than a sequence).
  */
-sealed abstract class CodeExec[T <% SizeConversion](kind: String) extends Exec(kind) {
+sealed abstract class CodeExec[T <% SizeConversion] extends Exec {
     /** An entrypoint (typically name of 'main' function). 'None' means a default value will be used. */
     val entryPoint: Option[String]
 
@@ -63,18 +67,14 @@ sealed abstract class CodeExec[T <% SizeConversion](kind: String) extends Exec(k
     /** Serialize code to a JSON value. */
     def codeAsJson: JsValue
 
-    /**
-     * Container image name.
-     * All codeexec containers have this in common that the image name is
-     * fully determined by the kind.
-     */
-    val image = Exec.imagename(kind)
+    /** The runtime image (either built-in or a blackbox image. */
+    val image: String
 
     /** Indicates if the action execution generates log markers to stdout/stderr once action activation completes. */
-    val sentinelledLogs = true
+    val sentinelledLogs: Boolean
 
     /** Indicates if a container image is required from the registry to execute the action. */
-    val pull = false
+    val pull: Boolean
 
     /**
      * Indicates whether the code is stored in a text-readable or binary format.
@@ -82,88 +82,112 @@ sealed abstract class CodeExec[T <% SizeConversion](kind: String) extends Exec(k
      * when the "code" is moved to an attachment this may get changed to avoid recomputing
      * the binary property.
      */
-    lazy val binary = {
-        code match {
-            case s: String => Exec.isBinaryCode(s)
-            case _         => false
-        }
-    }
+    val binary: Boolean
 
-    override def size = code.sizeInBytes
+    override def size = code.sizeInBytes + entryPoint.map(_.sizeInBytes).getOrElse(0.B)
 }
 
 protected[core] case class CodeExecAsString(
-    override val kind: String,
+    manifest: RuntimeManifest,
     override val code: String,
-    override val entryPoint: Option[String],
-    override val deprecated: Boolean)
-    extends CodeExec[String](kind) {
+    override val entryPoint: Option[String])
+    extends CodeExec[String] {
+    override val kind = manifest.kind
+    override val image: String = manifest.image.getOrElse(Exec.imagename(kind))
+    override val sentinelledLogs = manifest.sentinelledLogs.getOrElse(true)
+    override val deprecated = manifest.deprecated.getOrElse(false)
+    override val pull = false
+    override lazy val binary = Exec.isBinaryCode(code)
     override def codeAsJson = JsString(code)
 }
 
-protected[core] case class JavaExec(code: Attachment[String], main: String) extends CodeExec[Attachment[String]](Exec.JAVA) {
-    override val entryPoint = Some(main)
-    override def codeAsJson = code.toJson
+protected[core] case class CodeExecAsAttachment(
+    manifest: RuntimeManifest,
+    override val code: Attachment[String],
+    override val entryPoint: Option[String])
+    extends CodeExec[Attachment[String]] {
+    override val kind = manifest.kind
+    override val image: String = manifest.image.getOrElse(Exec.imagename(kind))
+    override val sentinelledLogs = manifest.sentinelledLogs.getOrElse(true)
+    override val deprecated = manifest.deprecated.getOrElse(false)
+    override val pull = false
     override lazy val binary = true
-    override val sentinelledLogs = false
-    override def size = super.size + main.sizeInBytes
+    override def codeAsJson = code.toJson
+
+    def inline(bytes: Array[Byte]): CodeExecAsAttachment = {
+        val encoded = new String(bytes, StandardCharsets.UTF_8)
+        copy(code = Inline(encoded))
+    }
+
+    def attach: CodeExecAsAttachment = {
+        manifest.attached.map { a =>
+            copy(code = Attached(a.attachmentName, a.attachmentType))
+        } getOrElse this
+    }
 }
 
 /**
  * @param image the image name
  * @param code an optional script or zip archive (as base64 encoded) string
  */
-protected[core] case class BlackBoxExec(override val image: String, code: Option[String], override val entryPoint: Option[String]) extends CodeExec[Option[String]](Exec.BLACKBOX) {
+protected[core] case class BlackBoxExec(
+    override val image: String,
+    override val code: Option[String],
+    override val entryPoint: Option[String])
+    extends CodeExec[Option[String]] {
+    override val kind = Exec.BLACKBOX
+    override val deprecated = false
     override def codeAsJson = code.toJson
     override lazy val binary = code map { Exec.isBinaryCode(_) } getOrElse false
     override val sentinelledLogs = image == Exec.BLACKBOX_SKELETON
     override val pull = image != Exec.BLACKBOX_SKELETON
-    override def size = (image sizeInBytes) + code.map(_.sizeInBytes).getOrElse(0 B)
+    override def size = super.size + image.sizeInBytes
 }
 
-protected[core] case class SequenceExec(components: Vector[FullyQualifiedEntityName]) extends Exec(Exec.SEQUENCE) {
-    override def size = components.map(c => c.size).reduceOption(_ + _) getOrElse (0 B)
+protected[core] case class SequenceExec(components: Vector[FullyQualifiedEntityName]) extends Exec {
+    override val kind = Exec.SEQUENCE
+    override val deprecated = false
+    override def size = components.map(_.size).reduceOption(_ + _).getOrElse(0.B)
 }
 
 protected[core] object Exec
     extends ArgNormalizer[Exec]
-    with DefaultJsonProtocol
-    with DefaultRuntimeVersions {
+    with DefaultJsonProtocol {
 
     val sizeLimit = 48 MB
 
-    // The possible values of the JSON 'kind' field.
-    protected[core] val NODEJS = "nodejs"
-    protected[core] val NODEJS6 = "nodejs:6"
-    protected[core] val SWIFT = "swift"
-    protected[core] val SWIFT3 = "swift:3"
-    protected[core] val JAVA = "java"
-    protected[core] val PYTHON = "python"
+    // The possible values of the JSON 'kind' field for certain runtimes:
+    // - Sequence because it is an intrinsic
+    // - Black Box because it is a type marker
     protected[core] val SEQUENCE = "sequence"
     protected[core] val BLACKBOX = "blackbox"
-    protected[core] val runtimes = Set(NODEJS, NODEJS6, SWIFT, SWIFT3, JAVA, PYTHON, SEQUENCE, BLACKBOX)
     protected[core] val BLACKBOX_SKELETON = "openwhisk/dockerskeleton"
 
-    // Constructs standard image name for action
+    // Constructs standard image name for action with a supported runtime
     protected[core] def imagename(name: String) = s"${name}action".replace(":", "")
 
-    private def attFmt[T: JsonFormat] = Attachments.serdes[T]
+    private def execManifests = ExecManifest.runtimesManifest
 
-    override protected[core] implicit val serdes = new RootJsonFormat[Exec] {
+    override protected[core] implicit lazy val serdes = new RootJsonFormat[Exec] {
+        private def attFmt[T: JsonFormat] = Attachments.serdes[T]
+        private lazy val runtimes: Set[String] = execManifests.knownContainerRuntimes ++ Set(SEQUENCE, BLACKBOX)
+
         override def write(e: Exec) = e match {
             case c: CodeExecAsString =>
                 val base = Map("kind" -> JsString(c.kind), "code" -> JsString(c.code), "binary" -> JsBoolean(c.binary))
                 val main = c.entryPoint.map("main" -> JsString(_))
                 JsObject(base ++ main)
 
-            case j @ JavaExec(jar, main) =>
-                JsObject("kind" -> JsString(Exec.JAVA), "jar" -> attFmt[String].write(jar), "main" -> JsString(main), "binary" -> JsBoolean(j.binary))
+            case a: CodeExecAsAttachment =>
+                val base = Map("kind" -> JsString(a.kind), "code" -> attFmt[String].write(a.code), "binary" -> JsBoolean(a.binary))
+                val main = a.entryPoint.map("main" -> JsString(_))
+                JsObject(base ++ main)
 
-            case SequenceExec(comp) =>
-                JsObject("kind" -> JsString(Exec.SEQUENCE), "components" -> comp.map(_.qualifiedNameWithLeadingSlash).toJson)
+            case s @ SequenceExec(comp) =>
+                JsObject("kind" -> JsString(s.kind), "components" -> comp.map(_.qualifiedNameWithLeadingSlash).toJson)
 
             case b: BlackBoxExec =>
-                val base = Map("kind" -> JsString(Exec.BLACKBOX), "image" -> JsString(b.image), "binary" -> JsBoolean(b.binary))
+                val base = Map("kind" -> JsString(b.kind), "image" -> JsString(b.image), "binary" -> JsBoolean(b.binary))
                 val code = b.code.filter(_.trim.nonEmpty).map("code" -> JsString(_))
                 val main = b.entryPoint.map("main" -> JsString(_))
                 JsObject(base ++ code ++ main)
@@ -174,13 +198,10 @@ protected[core] object Exec
 
             val obj = v.asJsObject
 
-            val kindField = obj.getFields("kind") match {
-                case Seq(JsString(k)) => k.trim.toLowerCase
-                case _                => throw new DeserializationException("'kind' must be a string defined in 'exec'")
+            val kind = obj.fields.get("kind") match {
+                case Some(JsString(k)) => k.trim.toLowerCase
+                case _                 => throw new DeserializationException("'kind' must be a string defined in 'exec'")
             }
-
-            // map "default" virtual runtime versions to the currently blessed actual runtime version
-            val kind = resolveDefaultRuntime(kindField)
 
             lazy val optMainField: Option[String] = obj.fields.get("main") match {
                 case Some(JsString(m)) => Some(m)
@@ -189,24 +210,6 @@ protected[core] object Exec
             }
 
             kind match {
-                case Exec.NODEJS | Exec.NODEJS6 | Exec.SWIFT | Exec.SWIFT3 | Exec.PYTHON =>
-                    val code: String = obj.fields.get("code") match {
-                        case Some(JsString(c)) => c
-                        case _                 => throw new DeserializationException(s"'code' must be a string defined in 'exec' for '$kind' actions")
-                    }
-                    new CodeExecAsString(kind, code, optMainField, kind == Exec.SWIFT)
-
-                case Exec.JAVA =>
-                    val jar: Attachment[String] = obj.fields.get("jar").map { f =>
-                        attFmt[String].read(f)
-                    } getOrElse {
-                        throw new DeserializationException(s"'jar' must be a valid base64 string in 'exec' for '${Exec.JAVA}' actions")
-                    }
-                    val main: String = optMainField.getOrElse {
-                        throw new DeserializationException(s"'main' must be a string defined in 'exec' for '${Exec.JAVA}' actions")
-                    }
-                    JavaExec(jar, main)
-
                 case Exec.SEQUENCE =>
                     val comp: Vector[FullyQualifiedEntityName] = obj.getFields("components") match {
                         case Seq(JsArray(components)) => components map { FullyQualifiedEntityName.serdes.read(_) }
@@ -227,7 +230,35 @@ protected[core] object Exec
                     }
                     BlackBoxExec(image, code, optMainField)
 
-                case _ => throw new DeserializationException(s"kind '$kind' not in $runtimes")
+                case _ =>
+                    // map "default" virtual runtime versions to the currently blessed actual runtime version
+                    val manifest = execManifests.resolveDefaultRuntime(kind) match {
+                        case Some(k) => k
+                        case None    => throw new DeserializationException(s"kind '$kind' not in $runtimes")
+                    }
+
+                    manifest.attached.map { a =>
+                        val jar: Attachment[String] = {
+                            obj.fields.get("code").map(attFmt[String].read(_))
+                        } orElse {
+                            // java actions once stored the attachment in "jar" instead of "code"
+                            obj.fields.get("jar").map(attFmt[String].read(_))
+                        } getOrElse {
+                            throw new DeserializationException(s"'code' must be a valid base64 string in 'exec' for '$kind' actions")
+                        }
+                        val main = optMainField.orElse {
+                            if (manifest.requireMain.exists(identity)) {
+                                throw new DeserializationException(s"'main' must be a string defined in 'exec' for '$kind' actions")
+                            } else None
+                        }
+                        CodeExecAsAttachment(manifest, jar, main)
+                    }.getOrElse {
+                        val code: String = obj.fields.get("code") match {
+                            case Some(JsString(c)) => c
+                            case _                 => throw new DeserializationException(s"'code' must be a string defined in 'exec' for '$kind' actions")
+                        }
+                        CodeExecAsString(manifest, code, optMainField)
+                    }
             }
         }
     }

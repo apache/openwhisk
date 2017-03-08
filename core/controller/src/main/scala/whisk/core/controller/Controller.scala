@@ -16,17 +16,21 @@
 
 package whisk.core.controller
 
+import scala.concurrent.Await
+import scala.concurrent.duration.DurationInt
+
 import akka.actor.Actor
 import akka.actor.ActorContext
 import akka.actor.ActorSystem
 import akka.japi.Creator
-import spray.routing.Directive.pimpApply
 import spray.routing.Route
 import whisk.common.AkkaLogging
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.entitlement.EntitlementProvider
+import whisk.core.entity.ExecManifest
+import whisk.core.entity.ExecManifest.Runtimes
 import whisk.core.loadBalancer.LoadBalancerService
 import whisk.http.BasicHttpService
 import whisk.http.BasicRasService
@@ -48,6 +52,7 @@ import whisk.http.BasicRasService
  */
 class Controller(
     config: WhiskConfig,
+    runtimes: Runtimes,
     instance: Int,
     val logging: Logging)
     extends BasicRasService
@@ -64,8 +69,7 @@ class Controller(
      * @see http://spray.io/documentation/1.2.3/spray-routing/key-concepts/routes/#composing-routes
      */
     override def routes(implicit transid: TransactionId): Route = {
-        // handleRejections wraps the inner Route with a logical error-handler for
-        // unmatched paths
+        // handleRejections wraps the inner Route with a logical error-handler for unmatched paths
         handleRejections(customRejectionHandler) {
             super.routes ~ apiv1.routes
         }
@@ -75,7 +79,6 @@ class Controller(
 
     /** The REST APIs. */
     private val apiv1 = new RestAPIVersion_v1(config, context.system, logging)
-
 }
 
 /**
@@ -87,6 +90,7 @@ object Controller {
     // a value, and whose values are default values.   A null value in the Map means there is
     // no default value specified, so it must appear in the properties file
     def requiredProperties = Map(WhiskConfig.servicePort -> 8080.toString) ++
+        ExecManifest.requiredProperties ++
         RestAPIVersion_v1.requiredProperties ++
         LoadBalancerService.requiredProperties ++
         EntitlementProvider.requiredProperties
@@ -95,12 +99,13 @@ object Controller {
 
     // akka-style factory to create a Controller object
     private class ServiceBuilder(config: WhiskConfig, instance: Int, logging: Logging) extends Creator[Controller] {
-        def create = new Controller(config, instance, logging)
+        // this method is not reached unless ExecManifest was initialized successfully
+        def create = new Controller(config, ExecManifest.runtimesManifest, instance, logging)
     }
 
     def main(args: Array[String]): Unit = {
-        implicit val system = ActorSystem("controller-actor-system")
-        implicit val logging: Logging = new AkkaLogging(akka.event.Logging.getLogger(system, this))
+        implicit val actorSystem = ActorSystem("controller-actor-system")
+        implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
 
         // extract configuration data from the environment
         val config = new WhiskConfig(requiredProperties, optionalProperties)
@@ -109,9 +114,14 @@ object Controller {
         // second argument.  (TODO .. seems fragile)
         val instance = if (args.length > 0) args(1).toInt else 0
 
-        if (config.isValid) {
+        // initialize the runtimes manifest
+        if (config.isValid && ExecManifest.initialize(config)) {
             val port = config.servicePort.toInt
-            BasicHttpService.startService(system, "controller", "0.0.0.0", port, new ServiceBuilder(config, instance, logging))
+            BasicHttpService.startService(actorSystem, "controller", "0.0.0.0", port, new ServiceBuilder(config, instance, logger))
+        } else {
+            logger.error(this, "Bad configuration, cannot start.")
+            actorSystem.terminate()
+            Await.result(actorSystem.whenTerminated, 30.seconds)
         }
     }
 }

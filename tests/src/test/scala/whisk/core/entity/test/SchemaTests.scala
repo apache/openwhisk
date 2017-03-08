@@ -41,7 +41,11 @@ import whisk.http.Messages
 import whisk.utils.JsHelpers
 
 @RunWith(classOf[JUnitRunner])
-class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Matchers {
+class SchemaTests
+    extends FlatSpec
+    with BeforeAndAfter
+    with ExecHelpers
+    with Matchers {
 
     behavior of "AuthKey"
 
@@ -312,6 +316,12 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
     }
 
     behavior of "Exec"
+
+    it should "initialize exec manifest" in {
+        val runtimes = ExecManifest.runtimesManifest
+        runtimes.resolveDefaultRuntime("nodejs:default").get.kind shouldBe "nodejs:6"
+        runtimes.resolveDefaultRuntime("swift").get.deprecated shouldBe Some(true)
+    }
 
     it should "properly deserialize and reserialize JSON" in {
         val b64Body = """ZnVuY3Rpb24gbWFpbihhcmdzKSB7IHJldHVybiBhcmdzOyB9Cg=="""
