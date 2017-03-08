@@ -20,8 +20,7 @@ import scala.concurrent.ExecutionContext
 
 import akka.actor.ActorSystem
 import spray.http.AllOrigins
-import spray.http.HttpHeaders.`Access-Control-Allow-Headers`
-import spray.http.HttpHeaders.`Access-Control-Allow-Origin`
+import spray.http.HttpHeaders._
 import spray.http.StatusCodes._
 import spray.httpx.SprayJsonSupport._
 import spray.json._

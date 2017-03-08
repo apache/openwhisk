@@ -37,7 +37,7 @@ class ExecManifestTests
         val k1 = RuntimeManifest("k1")
         val k2 = RuntimeManifest("k2", default = Some(true))
         val p1 = RuntimeManifest("p1")
-        val mf = JsObject("k" -> Set(k1, k2).toJson, "p1" -> Set(p1).toJson)
+        val mf = JsObject("ks" -> Set(k1, k2).toJson, "p1" -> Set(p1).toJson)
         val runtimes = ExecManifest.runtimes(mf).get
 
         Seq("k1", "k2", "p1").foreach {
@@ -50,8 +50,7 @@ class ExecManifestTests
         runtimes.resolveDefaultRuntime("k2") shouldBe Some(k2)
         runtimes.resolveDefaultRuntime("p1") shouldBe Some(p1)
 
-        runtimes.resolveDefaultRuntime("k:default") shouldBe Some(k2)
+        runtimes.resolveDefaultRuntime("ks:default") shouldBe Some(k2)
         runtimes.resolveDefaultRuntime("p1:default") shouldBe None
     }
-
 }
