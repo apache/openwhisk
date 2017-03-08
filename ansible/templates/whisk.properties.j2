@@ -55,7 +55,7 @@ invoker.numcore={{ invoker.numcore }}
 invoker.coreshare={{ invoker.coreshare }}
 invoker.serializeDockerOp={{ invoker.serializeDockerOp }}
 invoker.serializeDockerPull={{ invoker.serializeDockerPull }}
-invoker.useRunc={{ invoker.useRunc }}
+invoker.useRunc={{ invoker_use_runc | default(invoker.useRunc) }}
 
 consulserver.docker.endpoint={{ groups["consul_servers"]|first }}:{{ docker.port }}
 edge.docker.endpoint={{ groups["edge"]|first }}:{{ docker.port }}

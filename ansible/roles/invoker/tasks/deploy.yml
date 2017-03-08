@@ -28,7 +28,7 @@
 
 - name: define options when deploying invoker on Ubuntu
   set_fact:
-    linuxOptions: "-v /sys/fs/cgroup:/sys/fs/cgroup -v /run/runc:/run/runc -v {{ runcLocation | default('/usr/bin/docker-runc') }}:/usr/bin/docker-runc -v /usr/lib/x86_64-linux-gnu/libapparmor.so.1:/usr/lib/x86_64-linux-gnu/libapparmor.so.1"
+    linuxOptions: "-v /usr/lib/x86_64-linux-gnu/libapparmor.so.1:/usr/lib/x86_64-linux-gnu/libapparmor.so.1"
   when: whisk_version_name != "mac"
 
 - name: start invoker using docker cli
@@ -49,6 +49,8 @@
         -e SERVICE_CHECK_HTTP=/ping
         -e SERVICE_CHECK_TIMEOUT=2s
         -e SERVICE_CHECK_INTERVAL=15s
+        -v /sys/fs/cgroup:/sys/fs/cgroup
+        -v /run/runc:/run/runc
         -v {{whisk_logs_dir}}/invoker{{play_hosts.index(inventory_hostname)}}:/logs
         -v {{dockerInfo["json"]["DockerRootDir"]}}/containers/:/containers
         -v {{ docker_sock | default('/var/run/docker.sock') }}:/var/run/docker.sock
