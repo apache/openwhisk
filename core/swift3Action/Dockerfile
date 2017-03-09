@@ -12,6 +12,9 @@ RUN apt-get -y purge \
 # Upgrade and install Swift dependencies
  && apt-get -y install --fix-missing build-essential curl wget libicu-dev \
 \
+# Install zip for compiling Swift actions
+ && apt-get -y install zip \
+\
 # Clean up
  && apt-get clean
 
