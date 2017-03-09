@@ -19,9 +19,10 @@ import Dispatch
 import KituraNet
 
 class Whisk {
-    class func invoke(actionNamed action : String, withParameters params : [String:Any]) -> [String:Any] {
+    class func invoke(actionNamed action : String, withParameters params : [String:Any], blocking: Bool = true) -> [String:Any] {
         let parsedAction = parseQualifiedName(name: action)
-        let path = "/api/v1/namespaces/\(parsedAction.namespace)/actions/\(parsedAction.name)?blocking=true"
+        let strBlocking = blocking ? "true" : "false"
+        let path = "/api/v1/namespaces/\(parsedAction.namespace)/actions/\(parsedAction.name)?blocking=\(strBlocking)"
         
         return postSyncronish(uriPath: path, params: params)
     }
