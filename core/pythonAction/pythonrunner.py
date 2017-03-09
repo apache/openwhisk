@@ -20,12 +20,11 @@
 
 import os
 import sys
-import subprocess
 import codecs
+import traceback
 sys.path.append('../actionProxy')
 from actionproxy import ActionRunner, main, setRunner
-import json
-import traceback
+
 
 class PythonRunner(ActionRunner):
 
@@ -54,12 +53,12 @@ class PythonRunner(ActionRunner):
             return False
 
         try:
-            self.fn = compile(code, filename = filename, mode = 'exec')
+            self.fn = compile(code, filename=filename, mode='exec')
             if 'main' in message:
                 self.mainFn = message['main']
             return True
         except Exception:
-            traceback.print_exc(file = sys.stderr, limit = 0)
+            traceback.print_exc(file=sys.stderr, limit=0)
             return False
 
     def verify(self):
@@ -76,12 +75,12 @@ class PythonRunner(ActionRunner):
             exec('fun = %s(param)' % self.mainFn, namespace)
             result = namespace['fun']
         except Exception:
-            traceback.print_exc(file = sys.stderr)
+            traceback.print_exc(file=sys.stderr)
 
         if result and isinstance(result, dict):
             return (200, result)
         else:
-            return (502, { 'error': 'The action did not return a dictionary.'})
+            return (502, {'error': 'The action did not return a dictionary.'})
 
 if __name__ == '__main__':
     setRunner(PythonRunner())

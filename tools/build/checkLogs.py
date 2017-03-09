@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Executable Python script for checking log (entries) sizes.
 
-CI/CD tool to assert that logs and databases are in certain bounds
+CI/CD tool to assert that logs and databases are in certain bounds.
 
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
