@@ -22,7 +22,7 @@ def upload_file(local_file, remote_file):
 
 def tar_gz_dir(dir_path):
     _, dst = tempfile.mkstemp(suffix = ".tar.gz")
-    subprocess.call(["tar", "-cvzf", dst, dir_path ])
+    subprocess.call([ "tar", "-cvzf", dst, dir_path ])
     return dst
 
 if __name__ == "__main__":
