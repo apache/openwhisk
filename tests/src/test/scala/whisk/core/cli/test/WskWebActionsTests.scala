@@ -125,31 +125,29 @@ abstract class WskWebActionsTests
                 .auth().preemptive().basic(wskprops.authKey.split(":")(0), wskprops.authKey.split(":")(1))
                 .get(url)
 
-            if (testRoutePath == "/api/v1/experimental/web") {
-                authorizedResponse.statusCode shouldBe 200
-                authorizedResponse.body().asString() shouldBe namespace
-            } else {
-                authorizedResponse.statusCode shouldBe 401
-            }
+            authorizedResponse.statusCode shouldBe 200
+            authorizedResponse.body().asString() shouldBe namespace
     }
 
-    it should "ensure that CORS header is preserved" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val name = "webaction"
-            val file = Some(TestUtils.getTestActionFilename("corsHeaderMod.js"))
+    if (testRoutePath == "/api/v2/web") {
+        it should "ensure that CORS header is preserved" in withAssetCleaner(wskprops) {
+            (wp, assetHelper) =>
+                val name = "webaction"
+                val file = Some(TestUtils.getTestActionFilename("corsHeaderMod.js"))
 
-            assetHelper.withCleaner(wsk.action, name) {
-                (action, _) =>
-                    action.create(name, file, annotations = Map("web-export" -> true.toJson))
-            }
+                assetHelper.withCleaner(wsk.action, name) {
+                    (action, _) =>
+                        action.create(name, file, annotations = Map("web-export" -> true.toJson))
+                }
 
-            val host = getServiceURL()
-            val url = host + s"/api/v1/experimental/web/$namespace/default/webaction.http"
+                val host = getServiceURL()
+                val url = host + s"$testRoutePath/$namespace/default/webaction.http"
 
-            val response = RestAssured.given().config(sslconfig).options(url)
-            response.statusCode shouldBe 200
-            response.header("Access-Control-Allow-Origin") shouldBe "Origin set from Web Action"
-            response.header("Access-Control-Allow-Headers")  shouldBe "Headers set from Web Action"
+                val response = RestAssured.given().config(sslconfig).options(url)
+                response.statusCode shouldBe 200
+                response.header("Access-Control-Allow-Origin") shouldBe "Origin set from Web Action"
+                response.header("Access-Control-Allow-Headers") shouldBe "Headers set from Web Action"
+        }
     }
 
     it should "reject invocation of web action with unsupported content-type" in withAssetCleaner(wskprops) {
@@ -163,7 +161,7 @@ abstract class WskWebActionsTests
             }
 
             val host = getServiceURL()
-            val url = host + s"/api/v1/experimental/web/$namespace/default/webaction.text"
+            val url = host + s"$testRoutePath/$namespace/default/webaction.text"
             val response = RestAssured.given().contentType("text/html").param("key1", "value1").config(sslconfig).post(url)
             response.statusCode shouldBe 400
             response.body().asString() should include(Messages.contentTypeNotSupported)
@@ -180,9 +178,27 @@ abstract class WskWebActionsTests
             }
 
             val host = getServiceURL()
-            val url = host + s"/api/v1/experimental/web/$namespace/default/webaction.http"
+            val url = host + s"$testRoutePath/$namespace/default/webaction.http"
             val response = RestAssured.given().header("accept", "application/json").config(sslconfig).get(url)
             response.statusCode shouldBe 400
             response.body().asString() should include(Messages.invalidAcceptType(MediaTypes.`text/html`))
+    }
+
+    it should "invoke a web action using the x-ow-raw-http header to return the sent HTTP body" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "webaction"
+            val file = Some(TestUtils.getTestActionFilename("echo.js"))
+            val bodyContent = "This is the body"
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) =>
+                    action.create(name, file, annotations = Map("web-export" -> true.toJson))
+            }
+
+            val host = getServiceURL()
+            val url = host + s"$testRoutePath/$namespace/default/webaction.json"
+            val response = RestAssured.given().header("x-ow-raw-http", "TruE").contentType("text/html").body(bodyContent).config(sslconfig).post(url)
+            response.statusCode shouldBe 200
+            response.body.asString.parseJson.asJsObject.fields("__ow_meta_body") shouldBe JsString(bodyContent)
     }
 }

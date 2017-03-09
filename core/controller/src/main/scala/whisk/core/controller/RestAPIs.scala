@@ -281,7 +281,9 @@ protected[controller] class RestAPIVersion_v2()(
     implicit val executionContext: ExecutionContext,
     implicit val logging: Logging,
     implicit val whiskConfig: WhiskConfig)
-    extends RestAPIVersion("v2", whiskConfig(whiskVersionDate), whiskConfig(whiskVersionBuildno)) {
+    extends RestAPIVersion("v2", whiskConfig(whiskVersionDate), whiskConfig(whiskVersionBuildno))
+    with Authenticate
+    with AuthenticatedRoute {
 
     /**
      * Here is the key method: it defines the Route (route tree) which implement v2 of the REST API.
@@ -293,6 +295,8 @@ protected[controller] class RestAPIVersion_v2()(
         pathPrefix(apipath / apiversion) {
             (pathEndOrSingleSlash & get) {
                 complete(OK, info)
+            } ~ authenticate(basicauth) {
+                user => meta.routes(user)
             } ~ meta.routes()
         }
     }

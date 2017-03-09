@@ -322,11 +322,18 @@ trait WhiskMetaApi
 
         extract(_.request.entity.data.length) { length =>
             validateSize(isWhithinRange(length))(transid) {
-                entity(as[Option[JsObject]]) {
-                    body => process(body)
-                } ~ entity(as[FormData]) {
-                    form => process(Some(form.fields.toMap.toJson.asJsObject))
-                } ~ terminate(BadRequest, Messages.contentTypeNotSupported)
+                optionalHeaderValueByName("x-ow-raw-http") {
+                    case Some(headerValue) if Try(headerValue.toBoolean).getOrElse(false) =>
+                        entity(as[String]) {
+                            body => process(Some(JsObject("__ow_meta_body" -> body.toJson)))
+                        }
+                    case _ =>
+                        entity(as[Option[JsObject]]) {
+                            body => process(body)
+                        } ~ entity(as[FormData]) {
+                            form => process(Some(form.fields.toMap.toJson.asJsObject))
+                        } ~ terminate(BadRequest, Messages.contentTypeNotSupported)
+                }
             }
         }
     }
