@@ -26,7 +26,6 @@ import scala.language.postfixOps
 import scala.util.{ Failure, Success, Try }
 
 import akka.actor.{ ActorRef, ActorSystem, actorRef2Scala }
-import akka.event.Logging.{ InfoLevel, LogLevel }
 import akka.japi.Creator
 import spray.json._
 import spray.json.DefaultJsonProtocol
@@ -60,7 +59,6 @@ class Invoker(
     config: WhiskConfig,
     instance: Int,
     activationFeed: ActorRef,
-    verbosity: LogLevel = InfoLevel,
     runningInContainer: Boolean = true)(implicit actorSystem: ActorSystem, logging: Logging)
     extends MessageHandler(s"invoker$instance") {
 
@@ -456,7 +454,7 @@ class Invoker(
     private val entityStore = WhiskEntityStore.datastore(config)
     private val authStore = WhiskAuthStore.datastore(config)
     private val activationStore = WhiskActivationStore.datastore(config)
-    private val pool = new ContainerPool(config, instance, verbosity)
+    private val pool = new ContainerPool(config, instance)
     private val activationCounter = new Counter() // global activation counter
 
     Scheduler.scheduleWaitAtMost(1.seconds)(() => {
