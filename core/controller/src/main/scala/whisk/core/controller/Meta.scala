@@ -324,11 +324,10 @@ trait WhiskMetaApi
             }
         }
 
-        val isRawHTTPEnabled = """(?i)(true)""".r
         extract(_.request.entity.data.length) { length =>
             validateSize(isWhithinRange(length))(transid) {
                 optionalHeaderValueByName("x-ow-raw-http") {
-                    case Some(isRawHTTPEnabled(value)) =>
+                    case Some(headerValue) if Try(headerValue.toBoolean).getOrElse(false) =>
                         entity(as[String]) {
                             body => process(Some(JsObject("__ow_meta_body" -> body.toJson)))
                         }
