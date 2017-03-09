@@ -11,25 +11,24 @@ ext {
 apply from: '../../../gradle/docker.gradle'
 
 /**
- * Creates a temporary folder used by this build
+ * Creates a temporary folder used by this build with the sources.
+ * This is needed to make sure the project is in the user's home folder
+ * which is mounted by docker by default
  */
-task setupTmpFolder() {
-    doFirst {
-        // define a temp file to dump the fresh DB
-        def tmp_src_path = gradle.gradleUserHomeDir.getPath() + '/openwhisk'
-        new File(tmp_src_path).mkdirs()
-        tmp_src = new File(tmp_src_path).getPath()
-
-        // sync the sources to a folder that can be loaded by docker
-        def rsync_cmd = ['rsync', '-a', '../../', tmp_src, '--exclude', '.git', '--exclude', 'build', '--exclude', 'tests']
-        rsync_cmd.execute().consumeProcessOutput(System.out, System.err)
-    }
+task setupTmpFolder(type: Copy) {
+    def tmp_src_path = gradle.gradleUserHomeDir.getPath() + '/openwhisk'
+    new File(tmp_src_path).mkdirs()
+    println 'Copying from:' + project.rootDir.getPath() + ' into the temporary folder:' + tmp_src
+    from project.rootDir
+    include 'tools/db/**/*', 'ansible/**/*'
+    into tmp_src
 }
+
 /**
  * Creates one container with CouchDB and executes Ansible playbooks to init DB.
  * Ansible is executed using another container so that the build is not dependent on Ansible.
  */
-task exportCleanDB(dependsOn: setupTmpFolder) {
+task exportCleanDB() {
     doFirst {
         // start a docker container with CouchDB
         def db_cmd = dockerBinary + ['run', '-d', '--rm', '--name=gradle_couchdb', '--expose', '5984'] +
@@ -69,17 +68,34 @@ task exportCleanDB(dependsOn: setupTmpFolder) {
         (dockerBinary + ['stop', 'gradle_couchdb']).execute().consumeProcessOutput(System.out, System.err)
         (dockerBinary + ['stop', 'gradle_ansible']).execute().consumeProcessOutput(System.out, System.err)
     }
+
 }
 
-/**
- * Copies the generated dump files from DB
- */
-task dumpDB(type: Copy) {
-    println 'Getting db dump from ' + tmp_src
-    from tmp_src
-    include 'couchdb_*.json'
-    into 'import'
+task avoidRebuild(type: Copy) {
+    from project.rootDir
+    include 'tools/db/**/*', 'ansible/**/*'
+    into tmp_src
 }
 
-dumpDB.dependsOn exportCleanDB
-distDocker.dependsOn dumpDB
+task backupDB(type: Copy) {
+    doLast {
+        println 'Getting db dump from ' + tmp_src
+        from tmp_src
+        include 'couchdb_*.json'
+        into 'import'
+    }
+}
+
+task deleteTmpSrc(type: Delete) {
+    delete tmp_src
+    followSymlinks = true
+}
+
+exportCleanDB.dependsOn setupTmpFolder
+exportCleanDB.onlyIf { setupTmpFolder.didWork }
+exportCleanDB.finalizedBy deleteTmpSrc
+
+backupDB.dependsOn exportCleanDB
+backupDB.finalizedBy avoidRebuild
+
+distDocker.dependsOn backupDB

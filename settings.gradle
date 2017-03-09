@@ -12,6 +12,7 @@ include 'core:swift3Action'
 include 'core:javaAction'
 
 include 'tools:cli'
+include 'tools:db:docker'
 
 include 'sdk:docker'
 
