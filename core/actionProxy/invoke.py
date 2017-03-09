@@ -36,7 +36,8 @@ import codecs
 DOCKER_HOST = "localhost"
 if "DOCKER_HOST" in os.environ:
     try:
-        DOCKER_HOST = re.compile("tcp://(.*):[\d]+").findall(os.environ["DOCKER_HOST"])[0]
+        DOCKER_HOST = re.compile("tcp://(.*):[\d]+").findall(
+            os.environ["DOCKER_HOST"])[0]
     except Exception:
         print("cannot determine docker host from %s" %
               os.environ["DOCKER_HOST"])

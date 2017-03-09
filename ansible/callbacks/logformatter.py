@@ -1,16 +1,38 @@
+"""Python callback for highlighting Ansible logs.
+
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+"""
 from __future__ import (absolute_import, division, print_function)
+import os
+import sys
+from ansible.plugins.callback import CallbackBase
 __metaclass__ = type
 
-from ansible.plugins.callback import CallbackBase
-import sys
-import json
 
 class CallbackModule(CallbackBase):
+    """."""
 
     def __init__(self):
+        """Initialize superclass."""
         super(CallbackModule, self).__init__()
 
     def emit(self, host, category, data):
+        """Emit colorized output based upon data contents."""
         if type(data) == dict:
             cmd = data['cmd'] if 'cmd' in data else None
             stdout = data['stdout'] if 'stdout' in data else None
@@ -43,18 +65,22 @@ class CallbackModule(CallbackBase):
 
 
 def hilite(msg, status):
-    def supportsColor():
-        if (sys.platform != 'win32' or 'ANSICON' in os.environ) and sys.stdout.isatty():
+    """Highlight message."""
+    def supports_color():
+        if ((sys.platform != 'win32' or 'ANSICON' in os.environ) and
+           sys.stdout.isatty()):
             return True
         else:
             return False
 
-    if supportsColor():
+    if supports_color():
         attr = []
         if status == 'FAILED':
-            attr.append('31') # red
+            # red
+            attr.append('31')
         else:
-            attr.append('1') # bold
+            # bold
+            attr.append('1')
         return '\x1b[%sm%s\x1b[0m' % (';'.join(attr), msg)
     else:
         return msg
