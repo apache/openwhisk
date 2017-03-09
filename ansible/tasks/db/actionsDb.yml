@@ -1,7 +1,7 @@
 ---
-# Delete and recreate the actions-Db for whisk with all DesignDocs.
+# Delete and recreate the actionsDB for whisk.
 
-- name: Delete the {{ db.whisk.actions }} with {{ db_provider }}
+- name: delete the {{ db.whisk.actions }} with {{ db_provider }}
   uri:
     url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db.whisk.actions }}"
     method: DELETE

@@ -1,5 +1,5 @@
 ---
-# Recreates the views in whisks-DB.
+# Recreates the views in actionsDB.
 
 - name: get rev of existing whisks-Design document in {{ db.whisk.actions }} with {{ db_provider }}, if it exists
   vars:

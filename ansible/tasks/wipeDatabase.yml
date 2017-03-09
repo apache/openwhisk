@@ -1,9 +1,6 @@
 ---
 # Wipe transient databases. You should know what you are doing here.
 
-# make sure we have whisk.properties because wipeTransientDBs.sh needs it
-- include: writeWhiskProperties.yml
-
 - include: db/actionsDb.yml
 
 - include: recreateViews.yml
