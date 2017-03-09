@@ -76,7 +76,7 @@ wsk -i action invoke /whisk.system/utils/echo -p message hello --blocking --resu
 }
 ```
 
-**Tip:** You need to use the `-i` switch as the default SSL certificate used by the Vagrant installation is self-signed. Alternatively, you can configure you __apihost__ to use the non-SSL interface:
+**Tip:** You need to use the `-i` switch as the default SSL certificate used by the Vagrant installation is self-signed. Alternatively, you can configure your __apihost__ to use the non-SSL interface:
 
 ```
 wsk -i property set --apihost http://192.168.33.13:10001 --auth `vagrant ssh -- cat openwhisk/ansible/files/auth.guest
