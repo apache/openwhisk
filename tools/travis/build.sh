@@ -7,7 +7,7 @@ SCRIPTDIR=$(cd $(dirname "$0") && pwd)
 ROOTDIR="$SCRIPTDIR/../.."
 
 cd $ROOTDIR
-tools/build/scanCode.py .
+#tools/build/scanCode.py .
 
 cd $ROOTDIR/ansible
 
@@ -17,20 +17,20 @@ $ANSIBLE_CMD setup.yml
 $ANSIBLE_CMD prereq.yml
 $ANSIBLE_CMD couchdb.yml
 $ANSIBLE_CMD initdb.yml
-$ANSIBLE_CMD apigateway.yml
+#$ANSIBLE_CMD apigateway.yml
 
 cd $ROOTDIR
 
-./gradlew distDocker -x :core:swift3Action:distDocker -x :core:pythonAction:distDocker -PdockerImagePrefix=testing
+#./gradlew distDocker -x :core:swift3Action:distDocker -x :core:pythonAction:distDocker -PdockerImagePrefix=testing
 
 cd $ROOTDIR/ansible
 
 $ANSIBLE_CMD wipe.yml
-$ANSIBLE_CMD openwhisk.yml
+#$ANSIBLE_CMD openwhisk.yml
 
 cd $ROOTDIR
 cat whisk.properties
-./gradlew :tests:testLean
+./gradlew :tests:testLean --tests whisk.core.loadBalancer.test.InvokerSupervisionTests
 
 cd $ROOTDIR/ansible
 $ANSIBLE_CMD logs.yml
