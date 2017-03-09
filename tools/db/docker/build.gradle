@@ -6,6 +6,7 @@ ext {
     couchdbPrefix = "local_"
     ansibleImage = 'williamyeh/ansible:debian8'
     tmp_src = file(gradle.gradleUserHomeDir.getPath() + '/openwhisk').getPath()
+    import_src = file(project.rootDir.getPath() + '/tools/db/docker/import').getPath()
 }
 
 apply from: '../../../gradle/docker.gradle'
@@ -16,8 +17,8 @@ apply from: '../../../gradle/docker.gradle'
  * which is mounted by docker by default
  */
 task setupTmpFolder(type: Copy) {
-    def tmp_src_path = gradle.gradleUserHomeDir.getPath() + '/openwhisk'
-    new File(tmp_src_path).mkdirs()
+    new File(tmp_src.toString()).mkdirs()
+    new File(import_src.toString()).mkdirs()
     println 'Copying from:' + project.rootDir.getPath() + ' into the temporary folder:' + tmp_src
     from project.rootDir
     include 'tools/db/**/*', 'ansible/**/*'
@@ -31,7 +32,7 @@ task setupTmpFolder(type: Copy) {
 task exportCleanDB() {
     doFirst {
         // start a docker container with CouchDB
-        def db_cmd = dockerBinary + ['run', '-d', '--rm', '--name=gradle_couchdb', '--expose', '5984'] +
+        def db_cmd = dockerBinary + ['run', '-d', '--name=gradle_couchdb', '--expose', '5984'] +
                 ['-e', 'COUCHDB_USER=' + couchdbUser, '-e', 'COUCHDB_PASSWORD=' + couchdbPass] +
                 ['-v', tmp_src + ':/openwhisk'] +
                 [couchdbImage]
@@ -65,8 +66,15 @@ task exportCleanDB() {
         dump_dbs_proc.waitForOrKill(timeout * 1000)
 
         // stop the containers
-        (dockerBinary + ['stop', 'gradle_couchdb']).execute().consumeProcessOutput(System.out, System.err)
-        (dockerBinary + ['stop', 'gradle_ansible']).execute().consumeProcessOutput(System.out, System.err)
+        def docker_stop_proc = (dockerBinary + ['stop', 'gradle_couchdb']).execute()
+        docker_stop_proc.consumeProcessOutput(System.out, System.err)
+        docker_stop_proc.waitForOrKill(timeout * 1000)
+        docker_stop_proc = (dockerBinary + ['rm', 'gradle_couchdb']).execute()
+        docker_stop_proc.consumeProcessOutput(System.out, System.err)
+        docker_stop_proc.waitForOrKill(timeout * 1000)
+        docker_stop_proc = (dockerBinary + ['stop', 'gradle_ansible']).execute()
+        docker_stop_proc.consumeProcessOutput(System.out, System.err)
+        docker_stop_proc.waitForOrKill(timeout * 1000)
     }
 
 }
@@ -91,6 +99,10 @@ task deleteTmpSrc(type: Delete) {
     followSymlinks = true
 }
 
+task deleteDBBackup(type: Delete) {
+    delete import_src
+}
+
 exportCleanDB.dependsOn setupTmpFolder
 exportCleanDB.onlyIf { setupTmpFolder.didWork }
 exportCleanDB.finalizedBy deleteTmpSrc
@@ -99,3 +111,4 @@ backupDB.dependsOn exportCleanDB
 backupDB.finalizedBy avoidRebuild
 
 distDocker.dependsOn backupDB
+distDocker.finalizedBy deleteDBBackup
