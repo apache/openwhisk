@@ -44,6 +44,9 @@ import whisk.http.ErrorResponse.terminate
 import whisk.http.Messages
 import whisk.utils.JsHelpers._
 
+import spray.routing.MalformedHeaderRejection
+import spray.routing.Directive1
+
 private case class Context(
     method: HttpMethod,
     headers: List[HttpHeader],
@@ -310,6 +313,11 @@ trait WhiskMetaApi
         Identity.get(authStore, namespace)
     }
 
+    val validateWhiskRaw: Directive1[String] = {
+        val value = headerValueByName("x-ow-raw")
+        value.filter(_.toLowerCase == "true", MalformedHeaderRejection("x-ow-raw", "value must be true"))
+    }
+
     private def handleMatch(namespace: EntityName, pkg: Option[EntityName], action: EntityName, extension: String, onBehalfOf: Option[Identity])(
         implicit transid: TransactionId) = {
         def process(body: Option[JsObject]) = {
@@ -330,6 +338,10 @@ trait WhiskMetaApi
                     body => process(body)
                 } ~ entity(as[FormData]) {
                     form => process(Some(form.fields.toMap.toJson.asJsObject))
+                } ~ validateWhiskRaw { headerValue =>
+                    entity(as[String]) {
+                        body => process(Some(JsObject("__ow_meta_body" -> body.toJson)))
+                    }
                 }
             }
         }
