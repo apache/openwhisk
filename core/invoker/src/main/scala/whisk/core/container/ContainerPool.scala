@@ -31,8 +31,6 @@ import scala.concurrent.duration._
 import scala.util.{ Try, Success, Failure }
 
 import akka.actor.ActorSystem
-import akka.event.Logging.InfoLevel
-import akka.event.Logging.LogLevel
 import whisk.common.Counter
 import whisk.common.Logging
 import whisk.common.Scheduler
@@ -54,7 +52,6 @@ import whisk.core.entity._
 class ContainerPool(
     config: WhiskConfig,
     invokerInstance: Integer = 0,
-    verbosity: LogLevel = InfoLevel,
     standalone: Boolean = false,
     saveContainerLog: Boolean = false)(implicit actorSystem: ActorSystem, val logging: Logging)
     extends ContainerUtils {

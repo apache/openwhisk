@@ -26,7 +26,6 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
 
-import akka.event.Logging.ErrorLevel
 import common.StreamLogging
 import common.WskActorSystem
 import whisk.common.TransactionId
@@ -71,7 +70,7 @@ class ContainerPoolTests extends FlatSpec
 
     assert(config.isValid)
 
-    val pool = new ContainerPool(config, 0, ErrorLevel, true, true)
+    val pool = new ContainerPool(config, 0, true, true)
     pool.logDir = "/tmp"
 
     val datastore = WhiskEntityStore.datastore(config)
