@@ -58,7 +58,7 @@ http {
             root /etc/nginx;
         }
         location /OpenWhiskIOSStarterApp.zip {
-            root /etc/nginx;
+            return 301 https://github.com/openwhisk/openwhisk-client-swift/releases/download/0.2.3/starterapp-0.2.3.zip;
         }
         location /cli/go/download {
             autoindex on;
