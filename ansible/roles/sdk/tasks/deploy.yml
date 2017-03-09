@@ -36,21 +36,3 @@
 
 - name: remove temp dir
   local_action: file path="{{ tmpdir.stdout }}" state=absent
-
-
-# iOS
-
-- name: make temp dir
-  local_action: shell "mktemp" "-d" "{{ lookup('env', 'TMPDIR') | default('/tmp', true) }}/whisk.XXXXXXXX"
-  register: tmpdir
-
-- name: build iOS starter app artifact
-  local_action: shell "zip" "-r" "{{tmpdir.stdout}}/OpenWhiskIOSStarterApp.zip" "." chdir="{{ openwhisk_home }}/mobile/iOS/starterapp"
-
-- name: copy iOS starter app artifact to nginx
-  copy:
-    src: "{{tmpdir.stdout}}/OpenWhiskIOSStarterApp.zip"
-    dest: "{{ nginx_conf_dir }}"
-
-- name: remove temp dir
-  local_action: file path="{{tmpdir.stdout}}" state=absent
