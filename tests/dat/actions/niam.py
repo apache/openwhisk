@@ -1,2 +1,6 @@
+"""Python Non-standard entry point test."""
+
+
 def niam(args):
-    return { "greetings": "Hello from a non-standard entrypoint." }
+    """Non-standard entry point."""
+    return {"greetings": "Hello from a non-standard entrypoint."}
