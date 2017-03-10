@@ -64,6 +64,27 @@ class Swift3WhiskObjectTests
             }
     }
 
+    it should "allow Swift actions to invoke other actions and not block" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            // use CLI to create action from dat/actions/invokeNonBlocking.swift
+            val file = TestUtils.getTestActionFilename("invokeNonBlocking.swift")
+            val actionName = "invokeNonBlockingAction"
+            assetHelper.withCleaner(wsk.action, actionName) {
+                (action, _) => action.create(name = actionName, artifact = Some(file), kind = Some("swift:3"))
+            }
+
+            // invoke the action
+            val run = wsk.action.invoke(actionName)
+            withActivation(wsk.activation, run, initialWait = 5 seconds, totalWait = 60 seconds) {
+                activation =>
+                    // should not have a "response"
+                    whisk.utils.JsHelpers.fieldPathExists(activation.response.result.get, "response") shouldBe false
+
+                    // should have a field named "activationId" which is the date action's activationId
+                    activation.response.result.get.fields("activationId").toString.length should be >= 32
+            }
+    }
+
     it should "allow Swift actions to trigger events" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             // create a trigger
