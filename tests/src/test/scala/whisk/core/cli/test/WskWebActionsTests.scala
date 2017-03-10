@@ -115,57 +115,6 @@ class WskWebActionsTests
             authorizedResponse.body().asString() shouldBe namespace
     }
 
-    it should "fail to invoke web action with an unsupported content type when x-ow-raw-http header is not supplied" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val name = "webaction"
-            val file = Some(TestUtils.getTestActionFilename("echo.js"))
-            val bodyContent = "This is the body"
-
-            assetHelper.withCleaner(wsk.action, name) {
-                (action, _) =>
-                    action.create(name, file, annotations = Map("web-export" -> true.toJson))
-            }
-
-            val host = getServiceURL()
-            val url = host + s"/api/v1/experimental/web/$namespace/default/webaction.text"
-            val response = RestAssured.given().header("x-ow-raw-http", "false").contentType("text/html").body(bodyContent).config(sslconfig).post(url)
-            response.statusCode shouldBe 401
-    }
-
-    it should "fail to invoke web action with an unsupported content type when x-ow-raw-http header is not enabled" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val name = "webaction"
-            val file = Some(TestUtils.getTestActionFilename("echo.js"))
-            val bodyContent = "This is the body"
-
-            assetHelper.withCleaner(wsk.action, name) {
-                (action, _) =>
-                    action.create(name, file, annotations = Map("web-export" -> true.toJson))
-            }
-
-            val host = getServiceURL()
-            val url = host + s"/api/v1/experimental/web/$namespace/default/webaction.text"
-            val response = RestAssured.given().header("x-ow-raw-http", "false").contentType("text/html").body(bodyContent).config(sslconfig).post(url)
-            response.statusCode shouldBe 401
-    }
-
-    it should "fail to invoke web action with an unsupported content type when an non-boolean value is passed to the x-ow-raw-http header" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val name = "webaction"
-            val file = Some(TestUtils.getTestActionFilename("echo.js"))
-            val bodyContent = "This is the body"
-
-            assetHelper.withCleaner(wsk.action, name) {
-                (action, _) =>
-                    action.create(name, file, annotations = Map("web-export" -> true.toJson))
-            }
-
-            val host = getServiceURL()
-            val url = host + s"/api/v1/experimental/web/$namespace/default/webaction.text"
-            val response = RestAssured.given().header("x-ow-raw-http", "not a boolean").contentType("text/html").body(bodyContent).config(sslconfig).post(url)
-            response.statusCode shouldBe 401
-    }
-
     it should "invoke a web action using the x-ow-raw-http header to return the sent HTTP body" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "webaction"
