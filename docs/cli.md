@@ -32,6 +32,8 @@ you can run the following command from your `openwhisk` directory:
 ./bin/wsk property set --auth `cat ansible/files/auth.guest`
 ```
 
+**Tip:** The OpenWhisk CLI stores the properties set in `~/.wskprops` by default. The location of this file can be altered by setting the `WSK_CONFIG_FILE` environment variable.
+
 To verify your CLI setup, try [creating and running an action](#openwhisk-hello-world-example).
 
 ## Using the OpenWhisk CLI
