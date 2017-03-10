@@ -79,17 +79,13 @@ trait WskTestHelpers extends Matchers {
                         case _: WskPackage =>
                             val rr = if (delete) cli.delete(n)(wskprops) else cli.sanitize(n)(wskprops)
                             rr.exitCode match {
-                                case CONFLICT =>
+                                case CONFLICT if delete =>
                                     // retry deletion on a package since there may be a list (view)
                                     // operation that requires a retry for eventual consistency
                                     // don't retry sanitize because it does not throw an exception and silently ignores any failures
-                                    if (delete) {
-                                        whisk.utils.retry({
-                                            cli.delete(n)(wskprops)
-                                        }, 5, Some(1 second))
-                                    } else {
-                                        cli.sanitize(n)(wskprops)
-                                    }
+                                    whisk.utils.retry({
+                                        cli.delete(n)(wskprops)
+                                    }, 5, Some(1 second))
                                case _ => rr
                             }
                         case _ => if (delete) cli.delete(n)(wskprops) else cli.sanitize(n)(wskprops)
