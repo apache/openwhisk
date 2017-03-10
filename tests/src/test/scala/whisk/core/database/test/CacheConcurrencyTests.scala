@@ -37,6 +37,8 @@ class CacheConcurrencyTests extends FlatSpec
     with WskTestHelpers
     with BeforeAndAfter {
 
+    println(s"Running tests on # proc: ${Runtime.getRuntime.availableProcessors()}")
+
     implicit private val transId = TransactionId.testing
     implicit private val wp = WskProps()
     private val wsk = new Wsk
