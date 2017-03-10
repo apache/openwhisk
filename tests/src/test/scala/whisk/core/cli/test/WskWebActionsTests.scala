@@ -29,6 +29,7 @@ import common.WskProps
 import common.WskTestHelpers
 import spray.json._
 import spray.json.DefaultJsonProtocol._
+import spray.http.MediaTypes
 import system.rest.RestUtil
 import whisk.http.Messages
 
@@ -148,6 +149,6 @@ class WskWebActionsTests
             val url = host + s"/api/v1/experimental/web/$namespace/default/webaction.http"
             val response = RestAssured.given().header("accept", "application/json").config(sslconfig).get(url)
             response.statusCode shouldBe 400
-            response.body().asString() should include(Messages.contentTypeNotSupported)
+            response.body().asString() should include(Messages.invalidAcceptType(MediaTypes.`text/html`))
     }
 }
