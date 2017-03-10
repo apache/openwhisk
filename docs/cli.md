@@ -23,6 +23,8 @@ deployment of OpenWhisk. Run the following command from your `openwhisk` directo
 ./bin/wsk property set --apihost <openwhisk_baseurl>
 ```
 
+**Tip:** If you are using a local OpenWhisk deployment with a self-signed SSL certificate, you can use `--insecure` to bypass certificate validation.
+
 If you know your authorization key, you can configure the CLI to use it. Otherwise, you will need to obtain an
 authorization key for most CLI operations. A _guest_ account is available in local installations with an authorization
 key located in [ansible/files/auth.guest](../ansible/files/auth.guest). To configure the CLI to use the guest account,
@@ -31,6 +33,8 @@ you can run the following command from your `openwhisk` directory:
 ```
 ./bin/wsk property set --auth `cat ansible/files/auth.guest`
 ```
+
+**Tip:** The OpenWhisk CLI stores the properties set in `~/.wskprops` by default. The location of this file can be altered by setting the `WSK_CONFIG_FILE` environment variable.
 
 To verify your CLI setup, try [creating and running an action](#openwhisk-hello-world-example).
 
