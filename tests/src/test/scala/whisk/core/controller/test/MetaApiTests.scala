@@ -93,7 +93,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
     }
 
     val nonModifierMethods = Seq(Get, Options, Head)
-    val modifierMethods = Seq(Post, Put, Delete)
+    val modifierMethods = Seq(Post, Put, Delete, Patch)
     val allowedMethods = modifierMethods ++ nonModifierMethods
 
     // there is only one package that is predefined 'proxy'
@@ -264,7 +264,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
                 }
         }
 
-        it should s"reject unsupported http verbs (auth? ${creds.isDefined})" in {
+        ignore should s"reject unsupported http verbs (auth? ${creds.isDefined})" in {
             implicit val tid = transid()
 
             Seq((Patch, MethodNotAllowed)).
