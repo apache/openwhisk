@@ -16,54 +16,53 @@
 # limitations under the License.
 #
 
-import os
+from __future__ import print_function
 import sys
 import subprocess
-import argparse
 import datetime
 import time
 
+
 # Repeatedly run the check for delay seconds until it responds with a 0.
 # If it never does, exit with the last failing code rather than 0.
-def checkLoop(name, checker, delay) :
+def checkLoop(name, checker, delay):
     now = datetime.datetime.now()
-    end = now + datetime.timedelta(0,delay)
+    end = now + datetime.timedelta(0, delay)
     while (now <= end):
         now = datetime.datetime.now()
         alive = checker()
         if (alive == 0):
-            break;
+            break
         if (delay != 0):
             time.sleep(3)
-    print "%s %s" % (name, "is alive" if alive == 0 else "is not responding")
+    print("%s %s" % (name, "is alive" if alive == 0 else "is not responding"))
     sys.exit(alive)
 
 
 # Runs the given command with optional input.
-# The command is run in a blocking fashion and the return code and output (both stdout/stderr combined) returned as a pair.
-def run(cmd, inData="") :
+# The command is run in a blocking fashion and the return code and output (both
+# stdout/stderr combined) returned as a pair.
+def run(cmd, inData=""):
     try:
-        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                             stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
         if (inData != ""):
             p.stdin.write(inData)
         p.wait()
         output = p.stdout.read()
         rc = p.returncode
-    except Exception as e: # catch *all* exceptions
-        print "exec: died with exception ",
-        print e
-        print "    : ", cmd
+    except Exception as e:  # catch *all* exceptions
+        print("exec: died with exception ", end=" ")
+        print(e)
+        print("    : ", cmd)
         return (-1, str(e))
     return (rc, output)
 
 
 # Run a given command and check its output - return 0 if it matches.
-def outputChecker(cmd,expected,substring=0) :
-    (rc,output) = run(cmd);
+def outputChecker(cmd, expected, substring=0):
+    (rc, output) = run(cmd)
     if (rc != 0):
         return rc
     match = (output == expected) if (substring == 0) else (output.find(expected) != -1)
-    if (match):
-        return rc
-    else:
-        return -1
+    return rc if match else -1

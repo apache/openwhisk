@@ -14,7 +14,6 @@
 # limitations under the License.
 #
 
-import sys
 import os
 import json
 import httplib
@@ -22,34 +21,40 @@ import ssl
 import base64
 from urlparse import urlparse
 
-# global configurations, can control whether to allow untrusted certificates on HTTPS connections
-httpRequestProps = { 'secure': True }
+# global configurations, can control whether to allow untrusted certificates on
+# HTTPS connections
+httpRequestProps = {'secure': True}
 
-def request(method, urlString, body = '', headers = {}, auth = None, verbose = False, https_proxy = os.getenv('https_proxy', None)):
+
+def request(method, urlString, body='', headers=None, auth=None, verbose=False,
+            https_proxy=os.getenv('https_proxy', None)):
+    headers = headers or {}
     url = urlparse(urlString)
     if url.scheme == 'http':
         conn = httplib.HTTPConnection(url.netloc)
     else:
-        if httpRequestProps['secure'] or not hasattr(ssl, '_create_unverified_context'):
-            conn = httplib.HTTPSConnection(url.netloc if https_proxy is None else https_proxy)
+        if (httpRequestProps['secure'] or
+                not hasattr(ssl, '_create_unverified_context')):
+            conn = httplib.HTTPSConnection(https_proxy or url.netloc)
         else:
-            conn = httplib.HTTPSConnection(url.netloc if https_proxy is None else https_proxy, context=ssl._create_unverified_context())
+            conn = httplib.HTTPSConnection(https_proxy or url.netloc,
+                                    context=ssl._create_unverified_context())
         if https_proxy:
             conn.set_tunnel(url.netloc)
 
-    if auth != None:
+    if auth is not None:
         auth = base64.encodestring(auth).replace('\n', '')
         headers['Authorization'] = 'Basic %s' % auth
 
     if verbose:
-        print '========'
-        print 'REQUEST:'
-        print '%s %s' % (method, urlString)
-        print 'Headers sent:'
-        print getPrettyJson(headers)
-        if body != '':
-            print 'Body sent:'
-            print body
+        print('========')
+        print('REQUEST:')
+        print('%s %s' % (method, urlString))
+        print('Headers sent:')
+        print(getPrettyJson(headers))
+        if body:
+            print('Body sent:')
+            print(body)
 
     try:
         conn.request(method, urlString, body, headers)
@@ -65,19 +70,21 @@ def request(method, urlString, body = '', headers = {}, auth = None, verbose = F
         res.read = lambda: body
 
         if verbose:
-            print '--------'
-            print 'RESPONSE:'
-            print 'Got response with code %s' % res.status
-            print 'Body received:'
-            print res.read()
-            print '========'
+            print('--------')
+            print('RESPONSE:')
+            print('Got response with code %s' % res.status)
+            print('Body received:')
+            print(res.read())
+            print('========')
         return res
-    except Exception, e:
-        res = dict2obj({ 'status' : 500, 'error': str(e) })
+    except Exception as e:
+        res = dict2obj({'status': 500, 'error': str(e)})
         return res
+
 
 def getPrettyJson(obj):
     return json.dumps(obj, sort_keys=True, indent=4, separators=(',', ': '))
+
 
 # class to convert dictionary to objects
 class dict2obj(dict):
