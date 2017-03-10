@@ -37,7 +37,6 @@ import spray.json.DefaultJsonProtocol._
 import whisk.core.entity.ActivationEntityLimit
 import whisk.core.entity.ActivationResponse
 import whisk.core.entity.Exec
-import whisk.core.entity.LogLimit
 import whisk.core.entity.size._
 import whisk.core.entity.size.SizeString
 import whisk.http.Messages
@@ -99,22 +98,24 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
 
     it should "succeed but truncate logs, if log size exceeds its limit" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val allowedSize = 0 megabytes
+            val allowedSize = 2 megabytes
             val name = "TestActionCausingExceededLogs"
             assetHelper.withCleaner(wsk.action, name, confirmDelete = true) {
                 val actionName = TestUtils.getTestActionFilename("dosLogs.js")
                 (action, _) => action.create(name, Some(actionName), logsize = Some(allowedSize))
             }
 
-            val writing = allowedSize + 1.megabytes
-            val characters = writing.toBytes / 2 // a character takes 2 bytes
+            val attemptedSize = allowedSize + 1.megabytes
 
-            val run = wsk.action.invoke(name, Map("payload" -> characters.toJson))
+            val run = wsk.action.invoke(name, Map("payload" -> attemptedSize.toBytes.toJson))
             withActivation(wsk.activation, run) { response =>
                 val lines = response.logs.get
-                lines.last shouldBe LogLimit(allowedSize).truncatedLogMessage
-                // dropping 39 characters (timestamp + streamname)
-                lines.dropRight(1).map(_.drop(39)).mkString.sizeInBytes should be <= allowedSize
+                lines.last shouldBe Messages.truncateLogs(allowedSize)
+                (lines.length - 1) shouldBe (allowedSize.toBytes / 16)
+                // dropping 39 characters (timestamp + stream name)
+                // then reform total string adding back newlines
+                val actual = lines.dropRight(1).map(_.drop(39)).mkString("", "\n", "\n").sizeInBytes.toBytes
+                actual shouldBe allowedSize.toBytes
             }
     }
 
@@ -143,7 +144,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
 
     it should "succeed with one log line" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val name = "TestActionCausingExceededLogs"
+            val name = "TestActionWithLogs"
             assetHelper.withCleaner(wsk.action, name, confirmDelete = true) {
                 val actionName = TestUtils.getTestActionFilename("dosLogs.js")
                 (action, _) => action.create(name, Some(actionName))
@@ -153,7 +154,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
             withActivation(wsk.activation, run) { response =>
                 val logs = response.logs.get
                 withClue(logs) { logs.size shouldBe 1 }
-                logs.head should include("0123456789abcdef")
+                logs.head should include("123456789abcdef")
 
                 response.response.status shouldBe "success"
                 response.response.result shouldBe Some(JsObject(

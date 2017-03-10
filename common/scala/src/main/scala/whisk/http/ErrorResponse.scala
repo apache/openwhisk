@@ -111,6 +111,10 @@ object Messages {
         s"${error.field} larger than allowed: ${error.is.toBytes} > ${error.allowed.toBytes} bytes."
     }
 
+    def truncateLogs(limit: ByteSize) = {
+        s"Logs were truncated because the total bytes size exceeds the limit of ${limit.toBytes} bytes."
+    }
+
     /** Error for meta api. */
     val propertyNotFound = "Response does not include requested property."
     def invalidMedia(m: MediaType) = s"Response is not valid '${m.value}'."

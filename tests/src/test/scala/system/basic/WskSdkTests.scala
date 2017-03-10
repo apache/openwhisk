@@ -84,7 +84,7 @@ class WskSdkTests
         val sdk = new File(dir, "OpenWhiskIOSStarterApp.zip")
         sdk.exists() should be(true)
         sdk.isFile() should be(true)
-        FileUtils.sizeOf(sdk) should be > 30000L
+        FileUtils.sizeOf(sdk) should be > 20000L
         FileUtils.deleteDirectory(dir)
     }
 
