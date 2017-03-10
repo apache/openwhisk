@@ -31,8 +31,6 @@ import scala.concurrent.duration._
 import scala.util.{ Try, Success, Failure }
 
 import akka.actor.ActorSystem
-import akka.event.Logging.InfoLevel
-import akka.event.Logging.LogLevel
 import whisk.common.Counter
 import whisk.common.Logging
 import whisk.common.Scheduler
@@ -54,7 +52,6 @@ import whisk.core.entity._
 class ContainerPool(
     config: WhiskConfig,
     invokerInstance: Integer = 0,
-    verbosity: LogLevel = InfoLevel,
     standalone: Boolean = false,
     saveContainerLog: Boolean = false)(implicit actorSystem: ActorSystem, val logging: Logging)
     extends ContainerUtils {
@@ -538,7 +535,7 @@ class ContainerPool(
      * If container creation fails, the container will not be entered into the pool.
      */
     private def addStemCellNodejsContainer()(implicit transid: TransactionId) = Future {
-        val imageName = ExecImageName.localImageName(config.dockerRegistry, config.dockerImagePrefix, "nodejs:6", config.dockerImageTag)
+        val imageName = ExecImageName.localImageName(config.dockerRegistry, config.dockerImagePrefix, Exec.imagename(Exec.NODEJS6), config.dockerImageTag)
         val limits = ActionLimits(TimeLimit(), defaultMemoryLimit, LogLimit())
         val containerName = makeContainerName("warmJsContainer")
         logging.info(this, "Starting warm nodejs container")
@@ -566,7 +563,7 @@ class ContainerPool(
     private def makeWhiskContainer(action: WhiskAction, auth: AuthKey)(implicit transid: TransactionId): WhiskContainer = {
         val imageName = getDockerImageName(action)
         val limits = action.limits
-        val nodeImageName = ExecImageName.localImageName(config.dockerRegistry, config.dockerImagePrefix, "nodejs:6", config.dockerImageTag)
+        val nodeImageName = ExecImageName.localImageName(config.dockerRegistry, config.dockerImagePrefix, Exec.imagename(Exec.NODEJS6), config.dockerImageTag)
         val key = ActionContainerId(auth.uuid, action.fullyQualifiedName(true).toString, action.rev)
         val warmedContainer = if (limits.memory == defaultMemoryLimit && imageName == nodeImageName) getStemCellNodejsContainer(key) else None
         val containerName = makeContainerName(action)
