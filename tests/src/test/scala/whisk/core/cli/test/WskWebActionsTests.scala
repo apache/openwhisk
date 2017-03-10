@@ -133,4 +133,21 @@ class WskWebActionsTests
             response.statusCode shouldBe 400
             response.body().asString() should include(Messages.contentTypeNotSupported)
     }
+
+    it should "reject invocation of web action with invalid accept header" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "webaction"
+            val file = Some(TestUtils.getTestActionFilename("textBody.js"))
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) =>
+                    action.create(name, file, annotations = Map("web-export" -> true.toJson))
+            }
+
+            val host = getServiceURL()
+            val url = host + s"/api/v1/experimental/web/$namespace/default/webaction.http"
+            val response = RestAssured.given().header("accept", "application/json").config(sslconfig).get(url)
+            response.statusCode shouldBe 400
+            response.body().asString() should include(Messages.contentTypeNotSupported)
+    }
 }
