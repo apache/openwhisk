@@ -29,7 +29,10 @@ import common.WskProps
 import common.WskTestHelpers
 import spray.json._
 import spray.json.DefaultJsonProtocol._
+import spray.http.MediaTypes
 import system.rest.RestUtil
+import whisk.http.Messages
+
 
 /**
  * Tests web actions.
@@ -113,5 +116,39 @@ class WskWebActionsTests
                 .get(url)
             authorizedResponse.statusCode shouldBe 200
             authorizedResponse.body().asString() shouldBe namespace
+    }
+
+    it should "reject invocation of web action with unsupported content-type" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "webaction"
+            val file = Some(TestUtils.getTestActionFilename("echo.js"))
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) =>
+                    action.create(name, file, annotations = Map("web-export" -> true.toJson))
+            }
+
+            val host = getServiceURL()
+            val url = host + s"/api/v1/experimental/web/$namespace/default/webaction.text"
+            val response = RestAssured.given().contentType("text/html").param("key1", "value1").config(sslconfig).post(url)
+            response.statusCode shouldBe 400
+            response.body().asString() should include(Messages.contentTypeNotSupported)
+    }
+
+    it should "reject invocation of web action with invalid accept header" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "webaction"
+            val file = Some(TestUtils.getTestActionFilename("textBody.js"))
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) =>
+                    action.create(name, file, annotations = Map("web-export" -> true.toJson))
+            }
+
+            val host = getServiceURL()
+            val url = host + s"/api/v1/experimental/web/$namespace/default/webaction.http"
+            val response = RestAssured.given().header("accept", "application/json").config(sslconfig).get(url)
+            response.statusCode shouldBe 400
+            response.body().asString() should include(Messages.invalidAcceptType(MediaTypes.`text/html`))
     }
 }
