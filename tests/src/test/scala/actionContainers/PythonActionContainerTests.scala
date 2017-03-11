@@ -43,11 +43,12 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
 
     testEcho(Seq {
         ("python", """
+          |from __future__ import print_function
           |import sys
-          |def main(dict):
-          |    print 'hello stdout'
-          |    print >> sys.stderr, 'hello stderr'
-          |    return dict
+          |def main(args):
+          |    print('hello stdout')
+          |    print('hello stderr', file=sys.stderr)
+          |    return args
           """.stripMargin)
     })
 
