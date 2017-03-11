@@ -76,6 +76,7 @@ class WhiskConfig(
     val invokerSerializeDockerOp = this(WhiskConfig.invokerSerializeDockerOp)
     val invokerSerializeDockerPull = this(WhiskConfig.invokerSerializeDockerPull)
     val invokerUseRunc = this(WhiskConfig.invokerUseRunc)
+    val invokerUseReactivePool = this(WhiskConfig.invokerUseReactivePool)
 
     val wskApiHost = this(WhiskConfig.wskApiProtocol) + "://" + this(WhiskConfig.wskApiHostname) + ":" + this(WhiskConfig.wskApiPort)
     val controllerHost = this(WhiskConfig.controllerHostName) + ":" + this(WhiskConfig.controllerHostPort)
@@ -232,6 +233,7 @@ object WhiskConfig {
     val invokerSerializeDockerOp = "invoker.serializeDockerOp"
     val invokerSerializeDockerPull = "invoker.serializeDockerPull"
     val invokerUseRunc = "invoker.useRunc"
+    val invokerUseReactivePool = "invoker.useReactivePool"
 
     val wskApiProtocol = "whisk.api.host.proto"
     val wskApiPort = "whisk.api.host.port"

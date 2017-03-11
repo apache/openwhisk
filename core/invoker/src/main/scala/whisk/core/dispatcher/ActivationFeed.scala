@@ -28,10 +28,12 @@ import whisk.common.TransactionId
 import whisk.core.connector.MessageConsumer
 
 object ActivationFeed {
-    sealed class ActivationNotification
+    sealed trait ActivationNotification
 
     /** Pulls new messages from the message bus. */
     case class FillQueueWithMessages()
+
+    case object FreeWilly extends ActivationNotification
 
     /** Indicates resources are available because transaction completed, may cause pipeline fill. */
     case class ContainerReleased(tid: TransactionId) extends ActivationNotification

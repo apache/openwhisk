@@ -97,6 +97,7 @@ invoker:
   serializeDockerOp: true
   serializeDockerPull: true
   useRunc: false
+  useReactivePool: false
 
 nginx:
   version: 1.11
