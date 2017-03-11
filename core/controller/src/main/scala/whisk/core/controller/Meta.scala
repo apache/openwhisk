@@ -43,8 +43,13 @@ import whisk.core.entity.types._
 import whisk.http.ErrorResponse.terminate
 import whisk.http.Messages
 import whisk.utils.JsHelpers._
+import WhiskMetaApi.MediaExtension
 
-protected[controller] class RequestPropertyNames private (fields: Map[String, String], reserved: Set[String] = Set()) {
+protected[controller] class WebApiDirectives private (
+    fields: Map[String, String],
+    reserved: Set[String] = Set(),
+    val enforceExtension: Boolean = false) {
+
     val method: String = fields("method")
     val headers: String = fields("headers")
     val path: String = fields("path")
@@ -59,7 +64,7 @@ protected[controller] class RequestPropertyNames private (fields: Map[String, St
     val reservedProperties: Set[String] = reserved.map(fields(_))
 }
 
-protected[controller] object RequestPropertyNames {
+protected[controller] object WebApiDirectives {
     private val rawFieldMapping = Map(
         "method" -> "method",
         "headers" -> "headers",
@@ -71,7 +76,7 @@ protected[controller] object RequestPropertyNames {
         "statusCode" -> "statusCode")
 
     // field names for /web with raw-http action
-    val raw = new RequestPropertyNames(rawFieldMapping)
+    val raw = new WebApiDirectives(rawFieldMapping)
 
     // field names for /web
     val web = {
@@ -81,7 +86,7 @@ protected[controller] object RequestPropertyNames {
             case (k, v)                        => k -> s"__ow_$v"
         }
         val reserved = fields.keySet - "statusCode"
-        new RequestPropertyNames(fields, reserved)
+        new WebApiDirectives(fields, reserved)
     }
 
     // field names used for /experimental/web
@@ -93,12 +98,12 @@ protected[controller] object RequestPropertyNames {
             case (k, v)                        => k -> s"__ow_meta_$v"
         }
         val reserved = fields.keySet - "statusCode"
-        new RequestPropertyNames(fields, reserved)
+        new WebApiDirectives(fields, reserved, enforceExtension = true)
     }
 }
 
 private case class Context(
-    propertyMap: RequestPropertyNames,
+    propertyMap: WebApiDirectives,
     method: HttpMethod,
     headers: List[HttpHeader],
     path: String,
@@ -117,21 +122,29 @@ private case class Context(
 
 protected[core] object WhiskMetaApi extends Directives {
 
-    val mediaTranscoders = {
+    private val mediaTranscoders = {
         // extensions are expected to contain only [a-z]
-        Seq(MediaExtension("html", Some(List("html")), true, resultAsHtml _),
-            MediaExtension("text", Some(List("text")), true, resultAsText _),
-            MediaExtension("json", None, true, resultAsJson _),
-            MediaExtension("http", None, false, resultAsHttp _))
-            .map(e => e.extension -> e).toMap
+        Seq(MediaExtension(".http", None, false, resultAsHttp _),
+            MediaExtension(".json", None, true, resultAsJson _),
+            MediaExtension(".html", Some(List("html")), true, resultAsHtml _),
+            MediaExtension(".svg", Some(List("svg")), true, resultAsSvg _),
+            MediaExtension(".text", Some(List("text")), true, resultAsText _))
     }
 
-    val supportedMediaTypes = mediaTranscoders.keySet
+    private val defaultMediaTranscoder = mediaTranscoders.find(_.extension == ".http").get
 
-    val extensionSplitter = {
-        val longestExtension = supportedMediaTypes.map(_.length).max
-        // the extension match is not case sensitive so allow a-z and A-Z
-        EntityName.REGEX.dropRight(2).concat(raw"\.([a-zA-Z]{$longestExtension})\z").r
+    /**
+     * Splits string into a base name plus optional extension.
+     * If name ends with ".xxxx" which matches a known extension, accept it as the extension.
+     * Otherwise, the extension is ".http" by definition unless enforcing the presence of an extension.
+     */
+    def mediaTranscoderForName(name: String, enforceExtension: Boolean): (String, Option[MediaExtension]) = {
+        mediaTranscoders.find(mt => name.endsWith(mt.extension)).map { mt =>
+            val base = name.dropRight(mt.extensionLength)
+            (base, Some(mt))
+        }.getOrElse {
+            (name, if (enforceExtension) None else Some(defaultMediaTranscoder))
+        }
     }
 
     /**
@@ -145,14 +158,21 @@ protected[core] object WhiskMetaApi extends Directives {
         extension: String,
         defaultProjection: Option[List[String]],
         projectionAllowed: Boolean,
-        transcoder: (JsValue, TransactionId, RequestPropertyNames) => RequestContext => Unit)
+        transcoder: (JsValue, TransactionId, WebApiDirectives) => RequestContext => Unit) {
+        val extensionLength = extension.length
+    }
 
-    private def resultAsHtml(result: JsValue, transid: TransactionId, rp: RequestPropertyNames): RequestContext => Unit = result match {
+    private def resultAsHtml(result: JsValue, transid: TransactionId, rp: WebApiDirectives): RequestContext => Unit = result match {
         case JsString(html) => respondWithMediaType(`text/html`) { complete(OK, html) }
         case _              => terminate(BadRequest, Messages.invalidMedia(`text/html`))(transid)
     }
 
-    private def resultAsText(result: JsValue, transid: TransactionId, rp: RequestPropertyNames): RequestContext => Unit = {
+    private def resultAsSvg(result: JsValue, transid: TransactionId, rp: WebApiDirectives): RequestContext => Unit = result match {
+        case JsString(svg) => respondWithMediaType(`image/svg+xml`) { complete(OK, svg) }
+        case _             => terminate(BadRequest, Messages.invalidMedia(`image/svg+xml`))(transid)
+    }
+
+    private def resultAsText(result: JsValue, transid: TransactionId, rp: WebApiDirectives): RequestContext => Unit = {
         result match {
             case r: JsObject  => complete(OK, r.prettyPrint)
             case r: JsArray   => complete(OK, r.prettyPrint)
@@ -163,7 +183,7 @@ protected[core] object WhiskMetaApi extends Directives {
         }
     }
 
-    private def resultAsJson(result: JsValue, transid: TransactionId, rp: RequestPropertyNames): RequestContext => Unit = {
+    private def resultAsJson(result: JsValue, transid: TransactionId, rp: WebApiDirectives): RequestContext => Unit = {
         result match {
             case r: JsObject => complete(OK, r)
             case r: JsArray  => complete(OK, r)
@@ -171,7 +191,7 @@ protected[core] object WhiskMetaApi extends Directives {
         }
     }
 
-    private def resultAsHttp(result: JsValue, transid: TransactionId, rp: RequestPropertyNames): RequestContext => Unit = {
+    private def resultAsHttp(result: JsValue, transid: TransactionId, rp: WebApiDirectives): RequestContext => Unit = {
         result match {
             case JsObject(fields) => Try {
                 val headers = fields.get("headers").map {
@@ -262,7 +282,7 @@ trait WhiskMetaApi
     protected val webInvokePathSegments: Seq[String]
 
     /** Mapping of HTTP request fields to action parameter names. */
-    protected val requestPropertyNames: RequestPropertyNames
+    protected val webApiDirectives: WebApiDirectives
 
     /** Store for identities. */
     protected val authStore: AuthStore
@@ -285,7 +305,7 @@ trait WhiskMetaApi
             val params = ctx.request.message.uri.query.toMap
             val path = ctx.unmatchedPath.toString
             val headers = ctx.request.headers
-            Context(requestPropertyNames, method, headers, path, params)
+            Context(webApiDirectives, method, headers, path, params)
         }
     }
 
@@ -313,16 +333,14 @@ trait WhiskMetaApi
         (allowedOperations & webRoutePrefix) {
             validNameSegment { namespace =>
                 packagePrefix { pkg =>
-                    pathPrefix(Segment) {
-                        _ match {
-                            case WhiskMetaApi.extensionSplitter(action, extension) =>
-                                if (WhiskMetaApi.supportedMediaTypes.contains(extension)) {
-                                    val pkgName = if (pkg == "default") None else Some(EntityName(pkg))
-                                    handleMatch(EntityName(namespace), pkgName, EntityName(action), extension, user)
-                                } else {
-                                    terminate(NotAcceptable, Messages.contentTypeExtentionNotSupported)
-                                }
-                            case _ => terminate(NotAcceptable, Messages.contentTypeExtentionNotSupported)
+                    validNameSegment { seg =>
+                        WhiskMetaApi.mediaTranscoderForName(seg, webApiDirectives.enforceExtension) match {
+                            case (action, Some(extension)) =>
+                                val pkgName = if (pkg == "default") None else Some(EntityName(pkg))
+                                handleMatch(EntityName(namespace), pkgName, EntityName(action), extension, user)
+
+                            case (_, None) =>
+                                terminate(NotAcceptable, Messages.contentTypeExtentionNotSupported)
                         }
                     }
                 }
@@ -357,7 +375,7 @@ trait WhiskMetaApi
         Identity.get(authStore, namespace)
     }
 
-    private def handleMatch(namespace: EntityName, pkg: Option[EntityName], action: EntityName, extension: String, onBehalfOf: Option[Identity])(
+    private def handleMatch(namespace: EntityName, pkg: Option[EntityName], action: EntityName, extension: MediaExtension, onBehalfOf: Option[Identity])(
         implicit transid: TransactionId) = {
         def process(body: Option[JsObject]) = {
             requestMethodParamsAndPath { r =>
@@ -382,7 +400,7 @@ trait WhiskMetaApi
         }
     }
 
-    private def processRequest(actionName: FullyQualifiedEntityName, context: Context, responseType: String, onBehalfOf: Option[Identity])(
+    private def processRequest(actionName: FullyQualifiedEntityName, context: Context, responseType: MediaExtension, onBehalfOf: Option[Identity])(
         implicit transid: TransactionId) = {
         // checks that subject has right to post an activation and fetch the action
         // followed by the package and merge parameters. The action is fetched first since
@@ -407,13 +425,12 @@ trait WhiskMetaApi
             }
         } yield (identity, action)
 
-        val mediaDirectives = WhiskMetaApi.mediaTranscoders(responseType)
-        val projectResultField = if (mediaDirectives.projectionAllowed) {
+        val projectResultField = if (responseType.projectionAllowed) {
             Option(context.path)
                 .filter(_.nonEmpty)
                 .map(_.split("/").filter(_.nonEmpty).toList)
-                .orElse(mediaDirectives.defaultProjection)
-        } else mediaDirectives.defaultProjection
+                .orElse(responseType.defaultProjection)
+        } else responseType.defaultProjection
 
         completeRequest(
             queuedActivation = precheck flatMap {
@@ -439,7 +456,7 @@ trait WhiskMetaApi
     private def completeRequest(
         queuedActivation: Future[(ActivationId, Option[WhiskActivation])],
         projectResultField: Option[List[String]] = None,
-        responseType: String = "json")(
+        responseType: MediaExtension)(
             implicit transid: TransactionId) = {
         onComplete(queuedActivation) {
             case Success((activationId, Some(activation))) =>
@@ -458,7 +475,7 @@ trait WhiskMetaApi
                     val result = getFieldPath(activation.resultAsJson, resultPath)
                     result match {
                         case Some(projection) =>
-                            val marshaler = Future(WhiskMetaApi.mediaTranscoders(responseType).transcoder(projection, transid, requestPropertyNames))
+                            val marshaler = Future(responseType.transcoder(projection, transid, webApiDirectives))
                             onComplete(marshaler) {
                                 case Success(done) => done // all transcoders terminate the connection
                                 case Failure(t)    => terminate(InternalServerError)

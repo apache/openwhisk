@@ -25,6 +25,8 @@ import scala.concurrent.duration.FiniteDuration
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.junit.JUnitRunner
+import org.scalatest.Matchers
+import org.scalatest.FlatSpec
 
 import spray.http.FormData
 import spray.http.HttpMethods
@@ -40,9 +42,9 @@ import whisk.core.WhiskConfig
 import whisk.core.controller.Context
 import whisk.core.controller.RejectRequest
 import whisk.core.controller.WhiskMetaApi
+import whisk.core.controller.WebApiDirectives
 import whisk.core.database.NoDocumentException
 import whisk.core.entitlement.EntitlementProvider
-import whisk.core.entitlement.Privilege
 import whisk.core.entitlement.Privilege
 import whisk.core.entitlement.Privilege._
 import whisk.core.entitlement.Resource
@@ -51,7 +53,9 @@ import whisk.core.entity.size._
 import whisk.core.loadBalancer.LoadBalancer
 import whisk.http.ErrorResponse
 import whisk.http.Messages
-import whisk.core.controller.RequestPropertyNames
+import akka.http.scaladsl.model.headers.HttpChallenge
+import spray.http.HttpCharset
+import spray.http.HttpCharsets
 
 /**
  * Tests Meta API.
@@ -69,33 +73,65 @@ import whisk.core.controller.RequestPropertyNames
 @RunWith(classOf[JUnitRunner])
 class MetaApiTestsV1 extends MetaApiTests {
     override lazy val webInvokePathSegments = Seq("experimental", "web")
-    override lazy val requestPropertyNames = RequestPropertyNames.exp
+    override lazy val webApiDirectives = WebApiDirectives.exp
 
-    requestPropertyNames.method shouldBe "__ow_meta_verb"
-    requestPropertyNames.headers shouldBe "__ow_meta_headers"
-    requestPropertyNames.path shouldBe "__ow_meta_path"
-    requestPropertyNames.namespace shouldBe "__ow_meta_namespace"
+    webApiDirectives.method shouldBe "__ow_meta_verb"
+    webApiDirectives.headers shouldBe "__ow_meta_headers"
+    webApiDirectives.path shouldBe "__ow_meta_path"
+    webApiDirectives.namespace shouldBe "__ow_meta_namespace"
 
-    requestPropertyNames.query shouldBe None
-    requestPropertyNames.body shouldBe None
-    requestPropertyNames.env shouldBe None
-    requestPropertyNames.statusCode shouldBe "code"
+    webApiDirectives.query shouldBe None
+    webApiDirectives.body shouldBe None
+    webApiDirectives.env shouldBe None
+    webApiDirectives.statusCode shouldBe "code"
+
+    webApiDirectives.enforceExtension shouldBe true
 }
 
 @RunWith(classOf[JUnitRunner])
 class MetaApiTestsV2 extends MetaApiTests {
     override lazy val webInvokePathSegments = Seq("web")
-    override lazy val requestPropertyNames = RequestPropertyNames.web
+    override lazy val webApiDirectives = WebApiDirectives.web
 
-    requestPropertyNames.method shouldBe "__ow_method"
-    requestPropertyNames.headers shouldBe "__ow_headers"
-    requestPropertyNames.path shouldBe "__ow_path"
-    requestPropertyNames.namespace shouldBe "__ow_namespace"
+    webApiDirectives.method shouldBe "__ow_method"
+    webApiDirectives.headers shouldBe "__ow_headers"
+    webApiDirectives.path shouldBe "__ow_path"
+    webApiDirectives.namespace shouldBe "__ow_namespace"
 
-    requestPropertyNames.query shouldBe None
-    requestPropertyNames.body shouldBe None
-    requestPropertyNames.env shouldBe None
-    requestPropertyNames.statusCode shouldBe "statusCode"
+    webApiDirectives.query shouldBe None
+    webApiDirectives.body shouldBe None
+    webApiDirectives.env shouldBe None
+    webApiDirectives.statusCode shouldBe "statusCode"
+
+    webApiDirectives.enforceExtension shouldBe false
+}
+
+@RunWith(classOf[JUnitRunner])
+class MetaApiCommonTests extends FlatSpec with Matchers {
+    "extension splitter" should "split action name and extension" in {
+        Seq(".http", ".json", ".text", ".html", ".svg").foreach { ext =>
+            Seq(s"t$ext", s"tt$ext", s"t.wxyz$ext", s"tt.wxyz$ext").foreach { s =>
+                Seq(true, false).foreach { enforce =>
+                    val (n, e) = WhiskMetaApi.mediaTranscoderForName(s, enforce)
+                    val i = s.lastIndexOf(".")
+                    n shouldBe s.substring(0, i)
+                    e.get.extension shouldBe ext
+                }
+            }
+        }
+
+        Seq(s"t", "tt", "abcde", "abcdef", "t.wxyz").foreach { s =>
+            val (n, e) = WhiskMetaApi.mediaTranscoderForName(s, false)
+            n shouldBe s
+            e.get.extension shouldBe ".http"
+        }
+
+        Seq(s"t", "tt", "abcde", "abcdef", "t.wxyz").foreach { s =>
+            val (n, e) = WhiskMetaApi.mediaTranscoderForName(s, true)
+            n shouldBe s
+            e shouldBe empty
+        }
+    }
 }
 
 trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with WhiskMetaApi {
@@ -248,7 +284,7 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
                 JsObject(
                     params.toJson.asJsObject.fields ++
                         body.map(_.fields).getOrElse(Map()) ++
-                        Context(requestPropertyNames, HttpMethods.getForKey(method.toUpperCase).get, List(), path, Map()).metadata(identity))
+                        Context(webApiDirectives, HttpMethods.getForKey(method.toUpperCase).get, List(), path, Map()).metadata(identity))
             }
         }.get
     }
@@ -262,23 +298,6 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
     }
 
     Seq(None, Some(WhiskAuth(Subject(), AuthKey()).toIdentity)).foreach { creds =>
-
-        it should s"split action name and extension (auth? ${creds.isDefined})" in {
-            val r = WhiskMetaApi.extensionSplitter
-            Seq("t.j.http", "t.js.http", "tt.j.http", "tt.js.http").foreach { s =>
-                val r(n, e) = s
-                val i = s.lastIndexOf(".")
-                n shouldBe s.substring(0, i)
-                e shouldBe s.substring(i + 1)
-            }
-
-            Seq("t.js", "t.js.htt", "t.js.httpz").foreach { s =>
-                a[MatchError] should be thrownBy {
-                    val r(n, e) = s
-                }
-            }
-
-        }
 
         it should s"not match invalid routes (auth? ${creds.isDefined})" in {
             implicit val tid = transid()
@@ -329,8 +348,12 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
                         }
 
                         m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
-                            status should be(NotAcceptable)
-                            confirmErrorWithTid(responseAs[JsObject], Some(Messages.contentTypeExtentionNotSupported))
+                            if (webApiDirectives.enforceExtension) {
+                                status should be(NotAcceptable)
+                                confirmErrorWithTid(responseAs[JsObject], Some(Messages.contentTypeExtentionNotSupported))
+                            } else {
+                                status should be(NotFound)
+                            }
                         }
                     }
                 }
@@ -354,7 +377,7 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
                                         "pkg" -> s"$systemId/proxy".toJson,
                                         "action" -> "export_auth".toJson,
                                         "content" -> metaPayload(m.method.name.toLowerCase, Map(), creds, pkgName = "proxy"))
-                                    response.fields("content").asJsObject.fields(requestPropertyNames.namespace) shouldBe user.namespace.toJson
+                                    response.fields("content").asJsObject.fields(webApiDirectives.namespace) shouldBe user.namespace.toJson
                             }
                         }
                     }
@@ -541,7 +564,7 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
             Seq(s"$systemId/proxy/export_c.http/content/response").
                 foreach { path =>
                     allowedMethods.foreach { m =>
-                        actionResult = Some(JsObject("headers" -> JsObject("location" -> "http://openwhisk.org".toJson), requestPropertyNames.statusCode -> Found.intValue.toJson))
+                        actionResult = Some(JsObject("headers" -> JsObject("location" -> "http://openwhisk.org".toJson), webApiDirectives.statusCode -> Found.intValue.toJson))
                         m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
                             status should be(Found)
                             header("location").get.toString shouldBe "location: http://openwhisk.org"
@@ -556,7 +579,7 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
             Seq(s"$systemId/proxy/export_c.http").
                 foreach { path =>
                     allowedMethods.foreach { m =>
-                        actionResult = Some(JsObject("headers" -> JsObject("location" -> "http://openwhisk.org".toJson), requestPropertyNames.statusCode -> Found.intValue.toJson))
+                        actionResult = Some(JsObject("headers" -> JsObject("location" -> "http://openwhisk.org".toJson), webApiDirectives.statusCode -> Found.intValue.toJson))
                         m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
                             status should be(Found)
                             header("location").get.toString shouldBe "location: http://openwhisk.org"
@@ -567,11 +590,13 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
             Seq(s"$systemId/proxy/export_c.text").
                 foreach { path =>
                     allowedMethods.foreach { m =>
-                        actionResult = Some(JsObject("text" -> JsString("default text")))
+                        val text = "default text"
+                        actionResult = Some(JsObject("text" -> JsString(text)))
                         m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
                             status should be(OK)
+                            contentType shouldBe MediaTypes.`text/plain`.withCharset(HttpCharsets.`UTF-8`)
                             val response = responseAs[String]
-                            response shouldBe "default text"
+                            response shouldBe text
                         }
                     }
                 }
@@ -591,11 +616,27 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
             Seq(s"$systemId/proxy/export_c.html").
                 foreach { path =>
                     allowedMethods.foreach { m =>
-                        actionResult = Some(JsObject("html" -> JsString("<html>hi</htlml>")))
+                        val html = "<html>hi</htlml>"
+                        actionResult = Some(JsObject("html" -> JsString(html)))
                         m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
                             status should be(OK)
+                            contentType shouldBe MediaTypes.`text/html`.withCharset(HttpCharsets.`UTF-8`)
                             val response = responseAs[String]
-                            response shouldBe "<html>hi</htlml>"
+                            response shouldBe html
+                        }
+                    }
+                }
+
+            Seq(s"$systemId/proxy/export_c.svg").
+                foreach { path =>
+                    allowedMethods.foreach { m =>
+                        val svg = """<svg><circle cx="3" cy="3" r="3" fill="blue"/></svg>"""
+                        actionResult = Some(JsObject("svg" -> JsString(svg)))
+                        m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
+                            status should be(OK)
+                            contentType shouldBe MediaTypes.`image/svg+xml`.withCharset(HttpCharsets.`UTF-8`)
+                            val response = responseAs[String]
+                            response shouldBe svg
                         }
                     }
                 }
@@ -610,7 +651,7 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
                         actionResult = Some(JsObject(
                             "headers" -> JsObject(
                                 "content-type" -> "application/json".toJson),
-                            requestPropertyNames.statusCode -> OK.intValue.toJson,
+                            webApiDirectives.statusCode -> OK.intValue.toJson,
                             "body" -> Base64.getEncoder.encodeToString {
                                 JsObject("field" -> "value".toJson).compactPrint.getBytes
                             }.toJson))
@@ -631,7 +672,7 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
                 foreach { path =>
                     allowedMethods.foreach { m =>
                         actionResult = Some(JsObject(
-                            requestPropertyNames.statusCode -> OK.intValue.toJson,
+                            webApiDirectives.statusCode -> OK.intValue.toJson,
                             "body" -> "hello world".toJson))
 
                         m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
@@ -651,7 +692,7 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
                         actionResult = Some(JsObject(
                             "headers" -> JsObject(
                                 "content-type" -> "application/json".toJson),
-                            requestPropertyNames.statusCode -> OK.intValue.toJson,
+                            webApiDirectives.statusCode -> OK.intValue.toJson,
                             "body" -> "hello world".toJson))
 
                         m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
@@ -671,7 +712,7 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
                         actionResult = Some(JsObject(
                             "headers" -> JsObject(
                                 "content-type" -> "xyz/bar".toJson),
-                            requestPropertyNames.statusCode -> OK.intValue.toJson,
+                            webApiDirectives.statusCode -> OK.intValue.toJson,
                             "body" -> "hello world".toJson))
 
                         m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
@@ -690,7 +731,7 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
                     allowedMethods.foreach { m =>
                         actionResult = Some(JsObject(
                             "application_error" -> JsObject(
-                                requestPropertyNames.statusCode -> OK.intValue.toJson,
+                                webApiDirectives.statusCode -> OK.intValue.toJson,
                                 "body" -> "no hello for you".toJson)))
 
                         m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
@@ -787,9 +828,14 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
                 s"$systemId/proxy/export_c.xyzz", s"$systemId/proxy/export_c.xyzz/", s"$systemId/proxy/export_c.xyzz/content").
                 foreach { path =>
                     allowedMethods.foreach { m =>
+                        actionResult = Some(JsObject("statusCode" -> 201.toJson))
                         m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
-                            status should be(NotAcceptable)
-                            confirmErrorWithTid(responseAs[JsObject], Some(Messages.contentTypeExtentionNotSupported))
+                            if (webApiDirectives.enforceExtension) {
+                                status should be(NotAcceptable)
+                                confirmErrorWithTid(responseAs[JsObject], Some(Messages.contentTypeExtentionNotSupported))
+                            } else {
+                                status should be(Created)
+                            }
                         }
                     }
                 }
@@ -799,7 +845,7 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
             implicit val tid = transid()
 
             allowedMethods.foreach { m =>
-                requestPropertyNames.reservedProperties.foreach { p =>
+                webApiDirectives.reservedProperties.foreach { p =>
                     m(s"$testRoutePath/$systemId/proxy/export_c.json?$p=YYY") ~> sealRoute(routes(creds)) ~> check {
                         status should be(BadRequest)
                         responseAs[ErrorResponse].error shouldBe Messages.parametersNotAllowed

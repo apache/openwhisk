@@ -98,7 +98,7 @@ protected[controller] object RestApiCommons {
      */
     protected[controller] class MetasApi(
         override val webInvokePathSegments: Seq[String],
-        override val requestPropertyNames: RequestPropertyNames)(
+        override val webApiDirectives: WebApiDirectives)(
             implicit override val authStore: AuthStore,
             implicit val entityStore: EntityStore,
             override val activationStore: ActivationStore,
@@ -192,8 +192,8 @@ protected[controller] class RestAPIVersion_v1()(
     private val rules = new RulesApi(apipath, apiversion)
     private val activations = new ActivationsApi(apipath, apiversion)
     private val packages = new PackagesApi(apipath, apiversion)
-    private val webexp = new MetasApi(Seq("experimental", "web"), RequestPropertyNames.exp)
-    private val web = new MetasApi(Seq("web"), RequestPropertyNames.web)
+    private val webexp = new MetasApi(Seq("experimental", "web"), WebApiDirectives.exp)
+    private val web = new MetasApi(Seq("web"), WebApiDirectives.web)
 
     class NamespacesApi(
         val apipath: String,
