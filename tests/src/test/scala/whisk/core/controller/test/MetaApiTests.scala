@@ -51,6 +51,7 @@ import whisk.core.entity.size._
 import whisk.core.loadBalancer.LoadBalancer
 import whisk.http.ErrorResponse
 import whisk.http.Messages
+import whisk.core.controller.RequestPropertyNames
 
 /**
  * Tests Meta API.
@@ -68,11 +69,33 @@ import whisk.http.Messages
 @RunWith(classOf[JUnitRunner])
 class MetaApiTestsV1 extends MetaApiTests {
     override lazy val webInvokePathSegments = Seq("experimental", "web")
+    override lazy val requestPropertyNames = RequestPropertyNames.exp
+
+    requestPropertyNames.method shouldBe "__ow_meta_verb"
+    requestPropertyNames.headers shouldBe "__ow_meta_headers"
+    requestPropertyNames.path shouldBe "__ow_meta_path"
+    requestPropertyNames.namespace shouldBe "__ow_meta_namespace"
+
+    requestPropertyNames.query shouldBe None
+    requestPropertyNames.body shouldBe None
+    requestPropertyNames.env shouldBe None
+    requestPropertyNames.statusCode shouldBe "code"
 }
 
 @RunWith(classOf[JUnitRunner])
 class MetaApiTestsV2 extends MetaApiTests {
     override lazy val webInvokePathSegments = Seq("web")
+    override lazy val requestPropertyNames = RequestPropertyNames.web
+
+    requestPropertyNames.method shouldBe "__ow_method"
+    requestPropertyNames.headers shouldBe "__ow_headers"
+    requestPropertyNames.path shouldBe "__ow_path"
+    requestPropertyNames.namespace shouldBe "__ow_namespace"
+
+    requestPropertyNames.query shouldBe None
+    requestPropertyNames.body shouldBe None
+    requestPropertyNames.env shouldBe None
+    requestPropertyNames.statusCode shouldBe "statusCode"
 }
 
 trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with WhiskMetaApi {
@@ -225,7 +248,7 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
                 JsObject(
                     params.toJson.asJsObject.fields ++
                         body.map(_.fields).getOrElse(Map()) ++
-                        Context(HttpMethods.getForKey(method.toUpperCase).get, List(), path, Map()).metadata(identity))
+                        Context(requestPropertyNames, HttpMethods.getForKey(method.toUpperCase).get, List(), path, Map()).metadata(identity))
             }
         }.get
     }
@@ -331,7 +354,7 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
                                         "pkg" -> s"$systemId/proxy".toJson,
                                         "action" -> "export_auth".toJson,
                                         "content" -> metaPayload(m.method.name.toLowerCase, Map(), creds, pkgName = "proxy"))
-                                    response.fields("content").asJsObject.fields("__ow_meta_namespace") shouldBe user.namespace.toJson
+                                    response.fields("content").asJsObject.fields(requestPropertyNames.namespace) shouldBe user.namespace.toJson
                             }
                         }
                     }
@@ -518,7 +541,7 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
             Seq(s"$systemId/proxy/export_c.http/content/response").
                 foreach { path =>
                     allowedMethods.foreach { m =>
-                        actionResult = Some(JsObject("headers" -> JsObject("location" -> "http://openwhisk.org".toJson), "code" -> Found.intValue.toJson))
+                        actionResult = Some(JsObject("headers" -> JsObject("location" -> "http://openwhisk.org".toJson), requestPropertyNames.statusCode -> Found.intValue.toJson))
                         m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
                             status should be(Found)
                             header("location").get.toString shouldBe "location: http://openwhisk.org"
@@ -533,7 +556,7 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
             Seq(s"$systemId/proxy/export_c.http").
                 foreach { path =>
                     allowedMethods.foreach { m =>
-                        actionResult = Some(JsObject("headers" -> JsObject("location" -> "http://openwhisk.org".toJson), "code" -> Found.intValue.toJson))
+                        actionResult = Some(JsObject("headers" -> JsObject("location" -> "http://openwhisk.org".toJson), requestPropertyNames.statusCode -> Found.intValue.toJson))
                         m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
                             status should be(Found)
                             header("location").get.toString shouldBe "location: http://openwhisk.org"
@@ -587,7 +610,7 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
                         actionResult = Some(JsObject(
                             "headers" -> JsObject(
                                 "content-type" -> "application/json".toJson),
-                            "code" -> OK.intValue.toJson,
+                            requestPropertyNames.statusCode -> OK.intValue.toJson,
                             "body" -> Base64.getEncoder.encodeToString {
                                 JsObject("field" -> "value".toJson).compactPrint.getBytes
                             }.toJson))
@@ -608,7 +631,7 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
                 foreach { path =>
                     allowedMethods.foreach { m =>
                         actionResult = Some(JsObject(
-                            "code" -> OK.intValue.toJson,
+                            requestPropertyNames.statusCode -> OK.intValue.toJson,
                             "body" -> "hello world".toJson))
 
                         m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
@@ -628,7 +651,7 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
                         actionResult = Some(JsObject(
                             "headers" -> JsObject(
                                 "content-type" -> "application/json".toJson),
-                            "code" -> OK.intValue.toJson,
+                            requestPropertyNames.statusCode -> OK.intValue.toJson,
                             "body" -> "hello world".toJson))
 
                         m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
@@ -648,7 +671,7 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
                         actionResult = Some(JsObject(
                             "headers" -> JsObject(
                                 "content-type" -> "xyz/bar".toJson),
-                            "code" -> OK.intValue.toJson,
+                            requestPropertyNames.statusCode -> OK.intValue.toJson,
                             "body" -> "hello world".toJson))
 
                         m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
@@ -667,7 +690,7 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
                     allowedMethods.foreach { m =>
                         actionResult = Some(JsObject(
                             "application_error" -> JsObject(
-                                "code" -> OK.intValue.toJson,
+                                requestPropertyNames.statusCode -> OK.intValue.toJson,
                                 "body" -> "no hello for you".toJson)))
 
                         m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
@@ -776,7 +799,7 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
             implicit val tid = transid()
 
             allowedMethods.foreach { m =>
-                WhiskMetaApi.reservedProperties.foreach { p =>
+                requestPropertyNames.reservedProperties.foreach { p =>
                     m(s"$testRoutePath/$systemId/proxy/export_c.json?$p=YYY") ~> sealRoute(routes(creds)) ~> check {
                         status should be(BadRequest)
                         responseAs[ErrorResponse].error shouldBe Messages.parametersNotAllowed

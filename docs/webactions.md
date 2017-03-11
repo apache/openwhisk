@@ -22,23 +22,23 @@ $ wsk package create demo
 $ wsk action create /guest/demo/hello hello.js -a web-export true
 ```
 
-The `web-export` annotation allows the action to be accessible as a web action via a new REST interface. The URL that is structured as follows: `https://{APIHOST}/api/v1/experimental/web/{QUALIFIED ACTION NAME}.{EXT}`. The fully qualified name of an action consists of three parts: the namespace, the package name, and the action name. 
+The `web-export` annotation allows the action to be accessible as a web action via a new REST interface. The URL that is structured as follows: `https://{APIHOST}/api/v1/web/{QUALIFIED ACTION NAME}.{EXT}`. The fully qualified name of an action consists of three parts: the namespace, the package name, and the action name.
 
 *The fully qualified name of the action must include its package name, which is `default` if the action is not in a named package.*
 
 An example is `guest/demo/hello`. The last part of the URI called the `extension` which is typically `.http` although other values are permitted as described later. The web action API path may be used with `curl` or `wget` without an API key. It may even be entered directly in your browser.
 
-Try opening [https://${APIHOST}/api/v1/experimental/web/guest/demo/hello.http?name=Jane](https://${APIHOST}/api/v1/experimental/web/guest/demo/hello.http?name=Jane) in your web browser. Or try invoking the action via `curl`:
+Try opening [https://${APIHOST}/api/v1/web/guest/demo/hello.http?name=Jane](https://${APIHOST}/api/v1/web/guest/demo/hello.http?name=Jane) in your web browser. Or try invoking the action via `curl`:
 ```
-$ curl https://${APIHOST}/api/v1/experimental/web/guest/demo/hello.http?name=Jane
+$ curl https://${APIHOST}/api/v1/web/guest/demo/hello.http?name=Jane
 ```
 
 Here is an example of a web action that performs an HTTP redirect:
 ```javascript
 function main() {
   return { 
-    headers: { "location": "http://openwhisk.org" }, 
-    code: 302 
+    headers: { location: 'http://openwhisk.org' },
+    statusCode: 302
   }
 }
 ```  
@@ -48,11 +48,11 @@ Or sets a cookie:
 function main() {
   return { 
     headers: { 
-      "Set-Cookie": "UserID=Jane; Max-Age=3600; Version=",
-      "Content-Type": "text/html"  
+      'Set-Cookie': 'UserID=Jane; Max-Age=3600; Version=',
+      'Content-Type': 'text/html'
     }, 
-    code: 200, 
-    body: "<html><body><h3>hello</h3></body></html" }
+    statusCode: 200,
+    body: '<html><body><h3>hello</h3></body></html>' }
 }
 ```
 
@@ -61,7 +61,7 @@ Or returns an `image/png`:
 function main() {
     let png = <base 64 encoded string>
     return { headers: { 'Content-Type': 'image/png' },
-             code: 200,
+             statusCode: 200,
              body: png };
 }
 ```
@@ -70,9 +70,9 @@ Or returns `application/json`:
 ```javascript
 function main(params) { 
     return {
-        'code': 200,
-        'headers':{'Content-Type':'application/json'},
-        'body' : new Buffer(JSON.stringify(params)).toString('base64'),
+        statusCode: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: new Buffer(JSON.stringify(params)).toString('base64'),
     };
 }
 ```
@@ -81,10 +81,10 @@ It is important to be aware of the [response size limit](reference.md) for actio
 
 ## Handling HTTP requests with actions
 
-An OpenWhisk action that is not a web action requires both authentication and must respond with a JSON object. In contrast, web actions may be invoked without authentication, and may be used to implement HTTP handlers that respond with _headers_, _status code_, and _body_ content of different types. The web action must still return a JSON object, but the OpenWhisk system (namely the `controller`) will treat a web action differently if its result includes one or more of the following as top level JSON properties:
+An OpenWhisk action that is not a web action requires both authentication and must respond with a JSON object. In contrast, web actions may be invoked without authentication, and may be used to implement HTTP handlers that respond with _headers_, _statusCode_, and _body_ content of different types. The web action must still return a JSON object, but the OpenWhisk system (namely the `controller`) will treat a web action differently if its result includes one or more of the following as top level JSON properties:
 
 1. `headers`: a JSON object where the keys are header-names and the values are string values for those headers (default is no headers).
-2. `code`: a valid HTTP status code (default is 200 OK).
+2. `statusCode`: a valid HTTP status code (default is 200 OK).
 3. `body`: a string which is either plain text or a base64 encoded string (for binary data).
 
 The controller will pass along the action-specified headers, if any, to the HTTP client when terminating the request/response. Similarly the controller will respond with the given status code when present. Lastly, the body is passed along as the body of the response. Unless a `content-type header` is declared in the action result’s `headers`, the body is passed along as is if it’s a string (or results in an error otherwise). When the `content-type` is defined, the controller will determine if the response is binary data or plain text and decode the string using a base64 decoder as needed. Should the body fail to decoded correctly, an error is returned to the caller.
@@ -95,9 +95,9 @@ _Note_: A JSON object or array is treated as binary data and must be base64 enco
 
 A web action, when invoked, receives all the HTTP request information available as additional parameters to the action input argument. They are:
 
-1. `__ow_meta_verb`: the HTTP method of the request.
-2. `__ow_meta_headers`: the request headers.
-3. `__ow_meta_path`: the unmatched path of the request (matching stops after consuming the action extension).
+1. `__ow_method`: the HTTP method of the request.
+2. `__ow_headers`: the request headers.
+3. `__ow_path`: the unmatched path of the request (matching stops after consuming the action extension).
 
 The request may not override any of the named `__ow_` parameters above; doing so will result in a failed request with status equal to 400 Bad Request.
 
@@ -124,42 +124,42 @@ When this action is invoked as a web action, you can alter the response of the w
 For example, to return the entire object, and see what arguments the action receives:
 
 ```bash
-$ curl https://${APIHOST}/api/v1/experimental/web/guest/demo/hello.json
+$ curl https://${APIHOST}/api/v1/web/guest/demo/hello.json
 {
   "response": {
-    "__ow_meta_verb": "get",
-    "__ow_meta_headers": {
+    "__ow_method": "get",
+    "__ow_headers": {
       "host": "172.17.0.1",
       "connection": "close",
       "user-agent": "curl/7.43.0",
       "accept": "*/*"
     },
-    "__ow_meta_path": ""
+    "__ow_path": ""
   }
 }
 ```
 
 and with a query parameter:
 ```bash
-$ curl https://${APIHOST}/api/v1/experimental/web/guest/demo/hello.json?name=Jane
+$ curl https://${APIHOST}/api/v1/web/guest/demo/hello.json?name=Jane
 {
   "response": {
     "name": "Jane",
-    "__ow_meta_verb": "get",
-    "__ow_meta_headers": {
+    "__ow_verb": "get",
+    "__ow_headers": {
       "host": "172.17.0.1",
       "connection": "close",
       "user-agent": "curl/7.43.0",
       "accept": "*/*"
     },
-    "__ow_meta_path": ""
+    "__ow_path": ""
   }
 }
 ```
 
 and to project just the name (as text):
 ```bash
-$ curl https://${APIHOST}/api/v1/experimental/web/guest/demo/hello.text/response/name?name=Jane
+$ curl https://${APIHOST}/api/v1/web/guest/demo/hello.text/response/name?name=Jane
 Jane
 ```
 
@@ -183,7 +183,7 @@ The result of these changes is that the `name` is bound to `Jane` and may not be
 
 ## Disabling web actions
 
-To disable a web action from being invoked via the new API (`https://APIHOST/api/v1/experimental/web/`), it’s enough to remove the annotation or set it to `false`.
+To disable a web action from being invoked via the new API (`https://APIHOST/api/v1/web/`), it’s enough to remove the annotation or set it to `false`.
 
 ```bash
 $ wsk action update /guest/demo/hello hello.js \
@@ -198,13 +198,13 @@ When an OpenWhisk action fails, there are two different failure modes. The first
 2. The controller applies the content handling implied by the action extension to the value of the `error` property.
 
 Developers should be aware of how web actions might be used and generate error responses accordingly. For example, a web action that is used with the `.http` extension
-should return an HTTP response, for example: `{error: { code: 400 }`. Failing to do so will in a mismatch between the implied content-type from the extension and the action content-type in the error response. Special consideration must be given to web actions that are sequences, so that components that make up a sequence can generate adequate errors when necessary.
+should return an HTTP response, for example: `{error: { statusCode: 400 }`. Failing to do so will in a mismatch between the implied content-type from the extension and the action content-type in the error response. Special consideration must be given to web actions that are sequences, so that components that make up a sequence can generate adequate errors when necessary.
 
 ## Vanity URL
 
-Web actions may be accessed via an alternate URL which treats the OpenWhisk namespace as a subdomain to the API host. This is suitable for developing web actions that use cookies or local storage so that data is not inadvertently made visible to other web actions in other namespaces. The namespaces must match the regular expression `[\w@-]+` for the edge router to rewrite the subdomain to the corresponding URI. For a conforming namespace, the URL `https://guest.openwhisk.host/public/index.html` becomes a alias for `https://openwhisk.host/api/v1/experimental/web/guest/public/index.html`.
+Web actions may be accessed via an alternate URL which treats the OpenWhisk namespace as a subdomain to the API host. This is suitable for developing web actions that use cookies or local storage so that data is not inadvertently made visible to other web actions in other namespaces. The namespaces must match the regular expression `[\w@-]+` for the edge router to rewrite the subdomain to the corresponding URI. For a conforming namespace, the URL `https://guest.openwhisk.host/public/index.html` becomes a alias for `https://openwhisk.host/api/v1/web/guest/public/index.html`.
 
-For added convenience, and to provide the equivalent of an `index.html`, the edge router will also proxy `https://guest.openwhisk.host` to `https://openwhisk.host/api/v1/experimental/web/guest/public/index.html` where `/guest/public/index.html` (i.e., action is called `index` in a package called `public`) is a web action that responds with HTML content. If the action does not exist, the API host will respond with 404 Not Found.
+For added convenience, and to provide the equivalent of an `index.html`, the edge router will also proxy `https://guest.openwhisk.host` to `https://openwhisk.host/api/v1/web/guest/public/index.html` where `/guest/public/index.html` (i.e., action is called `index` in a package called `public`) is a web action that responds with HTML content. If the action does not exist, the API host will respond with 404 Not Found.
 
 For a local deployment, you will need to provide name resolution for the vanity URL to work. The easiest solution is to add an entry in `/etc/host` for `<namespace>.openwhisk.host`. Here is an example:
 ```bash

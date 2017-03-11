@@ -43,7 +43,7 @@ class WskWebActionsTestsV1 extends WskWebActionsTests {
 
 @RunWith(classOf[JUnitRunner])
 class WskWebActionsTestsV2 extends WskWebActionsTests {
-    override val testRoutePath = "/api/v2/web"
+    override val testRoutePath = "/api/v1/web"
 }
 
 abstract class WskWebActionsTests
@@ -113,7 +113,11 @@ abstract class WskWebActionsTests
             }
 
             val host = getServiceURL()
-            val url = host + s"$testRoutePath/$namespace/default/webaction.text/__ow_meta_namespace"
+            val url = if (testRoutePath == "/api/v1/experimental/web") {
+                s"$host$testRoutePath/$namespace/default/webaction.text/__ow_meta_namespace"
+            } else {
+                s"$host$testRoutePath/$namespace/default/webaction.text/__ow_namespace"
+            }
 
             val unauthorizedResponse = RestAssured.given().config(sslconfig).get(url)
             unauthorizedResponse.statusCode shouldBe 401
@@ -128,7 +132,7 @@ abstract class WskWebActionsTests
             authorizedResponse.body().asString() shouldBe namespace
     }
 
-    if (testRoutePath == "/api/v2/web") {
+    if (testRoutePath == "/api/v1/web") {
         it should "ensure that CORS header is preserved" in withAssetCleaner(wskprops) {
             (wp, assetHelper) =>
                 val name = "webaction"

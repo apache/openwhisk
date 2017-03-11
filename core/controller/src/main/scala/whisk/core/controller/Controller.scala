@@ -80,7 +80,7 @@ class Controller(
     override def routes(implicit transid: TransactionId): Route = {
         // handleRejections wraps the inner Route with a logical error-handler for unmatched paths
         handleRejections(customRejectionHandler) {
-            super.routes ~ apiv1.routes ~ apiv2.routes ~ internalInvokerHealth
+            super.routes ~ apiv1.routes ~ internalInvokerHealth
         }
     }
 
@@ -103,8 +103,7 @@ class Controller(
     Collection.initialize(entityStore)
 
     /** The REST APIs. */
-    private val apiv1 = new RestAPIVersion_v1
-    private val apiv2 = new RestAPIVersion_v2
+    private val apiv1 = new RestAPIVersion_v1()
 
     /**
      * Handles GET /invokers URI.

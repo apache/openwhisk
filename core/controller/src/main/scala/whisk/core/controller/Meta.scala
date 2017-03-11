@@ -44,31 +44,78 @@ import whisk.http.ErrorResponse.terminate
 import whisk.http.Messages
 import whisk.utils.JsHelpers._
 
+protected[controller] class RequestPropertyNames private (fields: Map[String, String], reserved: Set[String] = Set()) {
+    val method: String = fields("method")
+    val headers: String = fields("headers")
+    val path: String = fields("path")
+    val namespace: String = fields("namespace")
+
+    val query: Option[String] = fields.get("query")
+    val body: Option[String] = fields.get("body")
+    val env: Option[String] = fields.get("env")
+
+    val statusCode = fields("statusCode")
+
+    val reservedProperties: Set[String] = reserved.map(fields(_))
+}
+
+protected[controller] object RequestPropertyNames {
+    private val rawFieldMapping = Map(
+        "method" -> "method",
+        "headers" -> "headers",
+        "path" -> "path",
+        "namespace" -> "namespace",
+        "query" -> "query",
+        "body" -> "body",
+        "env" -> "env",
+        "statusCode" -> "statusCode")
+
+    // field names for /web with raw-http action
+    val raw = new RequestPropertyNames(rawFieldMapping)
+
+    // field names for /web
+    val web = {
+        val exclude = List("query", "body", "env") // these are merged and promoted
+        val fields = (rawFieldMapping -- exclude).map {
+            case (k, v) if (k == "statusCode") => k -> v
+            case (k, v)                        => k -> s"__ow_$v"
+        }
+        val reserved = fields.keySet - "statusCode"
+        new RequestPropertyNames(fields, reserved)
+    }
+
+    // field names used for /experimental/web
+    val exp = {
+        val exclude = List("query", "body", "env") // these are merged and promoted
+        val fields = (rawFieldMapping -- exclude).map {
+            case (k, v) if (k == "method")     => k -> "__ow_meta_verb"
+            case (k, v) if (k == "statusCode") => k -> "code"
+            case (k, v)                        => k -> s"__ow_meta_$v"
+        }
+        val reserved = fields.keySet - "statusCode"
+        new RequestPropertyNames(fields, reserved)
+    }
+}
+
 private case class Context(
+    propertyMap: RequestPropertyNames,
     method: HttpMethod,
     headers: List[HttpHeader],
     path: String,
     query: Map[String, String],
     body: Option[JsObject] = None) {
     val requestParams = query.toJson.asJsObject.fields ++ { body.map(_.fields) getOrElse Map() }
-    val overrides = WhiskMetaApi.reservedProperties.intersect(requestParams.keySet)
-    def withBody(b: Option[JsObject]) = Context(method, headers, path, query, b)
+    val overrides = propertyMap.reservedProperties.intersect(requestParams.keySet)
+    def withBody(b: Option[JsObject]) = Context(propertyMap, method, headers, path, query, b)
     def metadata(user: Option[Identity]): Map[String, JsValue] = {
-        Map("__ow_meta_verb" -> method.value.toLowerCase.toJson,
-            "__ow_meta_headers" -> headers.map(h => h.lowercaseName -> h.value).toMap.toJson,
-            "__ow_meta_path" -> path.toJson) ++
-            user.map(u => "__ow_meta_namespace" -> u.namespace.asString.toJson)
+        Map(propertyMap.method -> method.value.toLowerCase.toJson,
+            propertyMap.headers -> headers.map(h => h.lowercaseName -> h.value).toMap.toJson,
+            propertyMap.path -> path.toJson) ++
+            user.map(u => propertyMap.namespace -> u.namespace.asString.toJson)
     }
 }
 
 protected[core] object WhiskMetaApi extends Directives {
-
-    /** Reserved parameters that requests may no defined. */
-    val reservedProperties = Set(
-        "__ow_meta_verb",
-        "__ow_meta_headers",
-        "__ow_meta_path",
-        "__ow_meta_namespace")
 
     val mediaTranscoders = {
         // extensions are expected to contain only [a-z]
@@ -98,14 +145,14 @@ protected[core] object WhiskMetaApi extends Directives {
         extension: String,
         defaultProjection: Option[List[String]],
         projectionAllowed: Boolean,
-        transcoder: (JsValue, TransactionId) => RequestContext => Unit)
+        transcoder: (JsValue, TransactionId, RequestPropertyNames) => RequestContext => Unit)
 
-    private def resultAsHtml(result: JsValue, transid: TransactionId): RequestContext => Unit = result match {
+    private def resultAsHtml(result: JsValue, transid: TransactionId, rp: RequestPropertyNames): RequestContext => Unit = result match {
         case JsString(html) => respondWithMediaType(`text/html`) { complete(OK, html) }
         case _              => terminate(BadRequest, Messages.invalidMedia(`text/html`))(transid)
     }
 
-    private def resultAsText(result: JsValue, transid: TransactionId): RequestContext => Unit = {
+    private def resultAsText(result: JsValue, transid: TransactionId, rp: RequestPropertyNames): RequestContext => Unit = {
         result match {
             case r: JsObject  => complete(OK, r.prettyPrint)
             case r: JsArray   => complete(OK, r.prettyPrint)
@@ -116,7 +163,7 @@ protected[core] object WhiskMetaApi extends Directives {
         }
     }
 
-    private def resultAsJson(result: JsValue, transid: TransactionId): RequestContext => Unit = {
+    private def resultAsJson(result: JsValue, transid: TransactionId, rp: RequestPropertyNames): RequestContext => Unit = {
         result match {
             case r: JsObject => complete(OK, r)
             case r: JsArray  => complete(OK, r)
@@ -124,7 +171,7 @@ protected[core] object WhiskMetaApi extends Directives {
         }
     }
 
-    private def resultAsHttp(result: JsValue, transid: TransactionId): RequestContext => Unit = {
+    private def resultAsHttp(result: JsValue, transid: TransactionId, rp: RequestPropertyNames): RequestContext => Unit = {
         result match {
             case JsObject(fields) => Try {
                 val headers = fields.get("headers").map {
@@ -138,11 +185,12 @@ protected[core] object WhiskMetaApi extends Directives {
                     case _ => throw new Throwable("Invalid header")
                 } getOrElse List()
 
-                val code = fields.get("code").map {
+                val code = fields.get(rp.statusCode).map {
                     case JsNumber(c) =>
                         // the following throws an exception if the code is
                         // not a whole number or a valid code
                         StatusCode.int2StatusCode(c.toIntExact)
+
                     case _ => throw new Throwable("Illegal code")
                 } getOrElse (OK)
 
@@ -213,6 +261,9 @@ trait WhiskMetaApi
     /** API path invocation path for posting activations directly through the host. */
     protected val webInvokePathSegments: Seq[String]
 
+    /** Mapping of HTTP request fields to action parameter names. */
+    protected val requestPropertyNames: RequestPropertyNames
+
     /** Store for identities. */
     protected val authStore: AuthStore
 
@@ -234,7 +285,7 @@ trait WhiskMetaApi
             val params = ctx.request.message.uri.query.toMap
             val path = ctx.unmatchedPath.toString
             val headers = ctx.request.headers
-            Context(method, headers, path, params)
+            Context(requestPropertyNames, method, headers, path, params)
         }
     }
 
@@ -407,7 +458,7 @@ trait WhiskMetaApi
                     val result = getFieldPath(activation.resultAsJson, resultPath)
                     result match {
                         case Some(projection) =>
-                            val marshaler = Future(WhiskMetaApi.mediaTranscoders(responseType).transcoder(projection, transid))
+                            val marshaler = Future(WhiskMetaApi.mediaTranscoders(responseType).transcoder(projection, transid, requestPropertyNames))
                             onComplete(marshaler) {
                                 case Success(done) => done // all transcoders terminate the connection
                                 case Failure(t)    => terminate(InternalServerError)

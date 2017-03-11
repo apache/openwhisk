@@ -34,13 +34,13 @@ http {
 
         # proxy to the web action path
         location / {
-            rewrite    /(.*) /api/v1/experimental/web/${namespace}/$1 break;
+            rewrite    /(.*) /api/v1/web/${namespace}/$1 break;
             proxy_pass http://{{ groups['controllers']|first }}:{{ controller.port }};
         }
 
         # proxy to 'public/html' web action by convention
         location = / {
-            rewrite    ^ /api/v1/experimental/web/${namespace}/public/index.html break;
+            rewrite    ^ /api/v1/web/${namespace}/public/index.html break;
             proxy_pass http://{{ groups['controllers']|first }}:{{ controller.port }};
         }
 
@@ -51,10 +51,6 @@ http {
             proxy_pass http://{{ groups['controllers']|first }}:{{ controller.port }};
         }
         location /api/v1 {
-            proxy_pass http://{{ groups['controllers']|first }}:{{ controller.port }};
-            proxy_read_timeout 70s; # 60+10 additional seconds to allow controller to terminate request
-        }
-        location /api/v2 {
             proxy_pass http://{{ groups['controllers']|first }}:{{ controller.port }};
             proxy_read_timeout 70s; # 60+10 additional seconds to allow controller to terminate request
         }

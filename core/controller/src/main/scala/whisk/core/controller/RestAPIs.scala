@@ -97,7 +97,8 @@ protected[controller] object RestApiCommons {
      * It handles web actions.
      */
     protected[controller] class MetasApi(
-        override val webInvokePathSegments: Seq[String])(
+        override val webInvokePathSegments: Seq[String],
+        override val requestPropertyNames: RequestPropertyNames)(
             implicit override val authStore: AuthStore,
             implicit val entityStore: EntityStore,
             override val activationStore: ActivationStore,
@@ -163,9 +164,9 @@ protected[controller] class RestAPIVersion_v1()(
                                     rules.routes(user) ~
                                     activations.routes(user) ~
                                     packages.routes(user)
-                            } ~ meta.routes(user)
+                            } ~ webexp.routes(user)
                 } ~ {
-                    meta.routes()
+                    webexp.routes()
                 } ~ pathPrefix(swaggeruipath) {
                     getFromDirectory("/swagger-ui/")
                 } ~ path(swaggeruipath) {
@@ -175,6 +176,12 @@ protected[controller] class RestAPIVersion_v1()(
                 } ~ options {
                     complete(OK)
                 }
+            } ~ {
+                // web actions are distinct to separate the cors header
+                // and allow the actions themselves to respond to options
+                authenticate(basicauth) {
+                    user => web.routes(user)
+                } ~ web.routes()
             }
         }
     }
@@ -185,7 +192,8 @@ protected[controller] class RestAPIVersion_v1()(
     private val rules = new RulesApi(apipath, apiversion)
     private val activations = new ActivationsApi(apipath, apiversion)
     private val packages = new PackagesApi(apipath, apiversion)
-    private val meta = new MetasApi(Seq("experimental", "web"))
+    private val webexp = new MetasApi(Seq("experimental", "web"), RequestPropertyNames.exp)
+    private val web = new MetasApi(Seq("web"), RequestPropertyNames.web)
 
     class NamespacesApi(
         val apipath: String,
@@ -264,42 +272,4 @@ protected[controller] class RestAPIVersion_v1()(
             override val logging: Logging,
             override val whiskConfig: WhiskConfig)
         extends WhiskPackagesApi with WhiskServices
-}
-
-/**
- * An object which creates the Routes that define v2 of the whisk REST API.
- */
-protected[controller] class RestAPIVersion_v2()(
-    implicit val authStore: AuthStore,
-    implicit val entityStore: EntityStore,
-    implicit val activationStore: ActivationStore,
-    implicit val entitlementProvider: EntitlementProvider,
-    implicit val activationIdFactory: ActivationIdGenerator,
-    implicit val loadBalancer: LoadBalancerService,
-    implicit val consulServer: String,
-    implicit val actorSystem: ActorSystem,
-    implicit val executionContext: ExecutionContext,
-    implicit val logging: Logging,
-    implicit val whiskConfig: WhiskConfig)
-    extends RestAPIVersion("v2", whiskConfig(whiskVersionDate), whiskConfig(whiskVersionBuildno))
-    with Authenticate
-    with AuthenticatedRoute {
-
-    /**
-     * Here is the key method: it defines the Route (route tree) which implement v2 of the REST API.
-     *
-     * @Idioglossia This relies on the spray routing DSL.
-     * @see http://spray.io/documentation/1.2.2/spray-routing/
-     */
-    override def routes(implicit transid: TransactionId): Route = {
-        pathPrefix(apipath / apiversion) {
-            (pathEndOrSingleSlash & get) {
-                complete(OK, info)
-            } ~ authenticate(basicauth) {
-                user => meta.routes(user)
-            } ~ meta.routes()
-        }
-    }
-
-    private val meta = new MetasApi(Seq("web"))
 }
