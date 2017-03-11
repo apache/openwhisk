@@ -48,14 +48,14 @@ def request(method, urlString, body = '', headers = {}, auth = None, verbose = F
         headers['Authorization'] = 'Basic %s' % auth
 
     if verbose:
-        print '========'
-        print 'REQUEST:'
-        print '%s %s' % (method, urlString)
-        print 'Headers sent:'
-        print getPrettyJson(headers)
+        print('========')
+        print('REQUEST:')
+        print('%s %s' % (method, urlString))
+        print('Headers sent:')
+        print(getPrettyJson(headers))
         if body != '':
-            print 'Body sent:'
-            print body
+            print('Body sent:')
+            print(body)
 
     try:
         conn.request(method, urlString, body, headers)
@@ -71,14 +71,14 @@ def request(method, urlString, body = '', headers = {}, auth = None, verbose = F
         res.read = lambda: body
 
         if verbose:
-            print '--------'
-            print 'RESPONSE:'
-            print 'Got response with code %s' % res.status
-            print 'Body received:'
-            print res.read()
-            print '========'
+            print('--------')
+            print('RESPONSE:')
+            print('Got response with code %s' % res.status)
+            print('Body received:')
+            print(res.read())
+            print('========')
         return res
-    except Exception, e:
+    except Exception as e:
         res = dict2obj({ 'status' : 500, 'error': str(e) })
         return res
 
