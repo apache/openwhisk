@@ -33,6 +33,8 @@ import spray.http.MediaTypes
 import system.rest.RestUtil
 import whisk.http.Messages
 
+import java.util.Base64
+
 /**
  * Tests web actions.
  */
@@ -153,10 +155,11 @@ abstract class WskWebActionsTests
         }
     }
 
-    it should "reject invocation of web action with unsupported content-type" in withAssetCleaner(wskprops) {
+    it should "invoke web action to ensure the returned body argument is correct" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "webaction"
             val file = Some(TestUtils.getTestActionFilename("echo.js"))
+            val bodyContent = "This is the body"
 
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) =>
@@ -164,10 +167,19 @@ abstract class WskWebActionsTests
             }
 
             val host = getServiceURL()
-            val url = host + s"$testRoutePath/$namespace/default/webaction.text"
-            val response = RestAssured.given().contentType("text/html").param("key1", "value1").config(sslconfig).post(url)
-            response.statusCode shouldBe 400
-            response.body().asString() should include(Messages.contentTypeNotSupported)
+            val url = if (testRoutePath == "/api/v1/experimental/web") {
+                s"$host$testRoutePath/$namespace/default/webaction.text/__ow_meta_body"
+            } else {
+                s"$host$testRoutePath/$namespace/default/webaction.text/__ow_body"
+            }
+
+            val paramRes = RestAssured.given().contentType("text/html").param("key", "value").config(sslconfig).post(url)
+            paramRes.statusCode shouldBe 200
+            new String(Base64.getDecoder().decode(paramRes.body.asString), "ASCII") shouldBe "key=value"
+
+            val bodyRes = RestAssured.given().contentType("text/html").body(bodyContent).config(sslconfig).post(url)
+            bodyRes.statusCode shouldBe 200
+            new String(Base64.getDecoder().decode(bodyRes.body.asString), "ASCII") shouldBe bodyContent
     }
 
     it should "reject invocation of web action with invalid accept header" in withAssetCleaner(wskprops) {
