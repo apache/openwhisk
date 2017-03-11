@@ -66,9 +66,9 @@ def checkRequiredProperties(requiredPropertiesByName, properties):
                          requiredProperties[key] is None]
     deferredInfo = ''
     for key, value in requiredProperties.items():
-        if value is None or value is '':
-            print 'property "%s" not found in environment or ' \
-                  'property file' % key
+        if value in (None, ''):
+            print('property "%s" not found in environment or '
+                  'property file' % key)
         else:
             deferredInfo += 'using %(key)s = %(value)s\n' % {'key': key,
                                                              'value': value}

@@ -55,7 +55,7 @@ MSG_ERROR_SUMMARY = "Summary: Scan detected %d error(s) in %d file(s)."
 def vprint(s):
     """Conditional print (stdout)."""
     if VERBOSE:
-        print s
+        print(s)
 
 
 def exceptional_paths():
@@ -305,5 +305,5 @@ if __name__ == "__main__":
         sys.stderr.write(col.red(message) + "\n")
         sys.exit(1)
     else:
-        print col.green(MSG_CHECKS_PASSED)
+        print(col.green(MSG_CHECKS_PASSED))
         sys.exit(0)

@@ -28,7 +28,7 @@ from jsonschema import validate
 
 
 if len(sys.argv) != 3:
-    print 'usage: validate.py obj schema'
+    print('usage: validate.py obj schema')
     sys.exit(-1)
 
 a1 = sys.argv[1].replace('\n', '')
@@ -38,6 +38,6 @@ schema = json.loads(a2)
 
 try:
     validate(obj, schema)
-    print 'true'
+    print('true')
 except:
-    print 'false'
+    print('false')

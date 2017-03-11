@@ -128,5 +128,5 @@ if __name__ == "__main__":
         sys.stderr.write(col.red(message) + "\n")
         sys.exit(1)
     else:
-        print col.green("All checks passed.")
+        print(col.green("All checks passed."))
         sys.exit(0)
