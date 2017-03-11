@@ -17,6 +17,7 @@
  * limitations under the License.
  */
 """
+from __future__ import print_function
 import os
 import sys
 from subprocess import check_output
@@ -31,9 +32,9 @@ SPM_DIRECTORY = "/swift3Action/spm-build"
 BUILD_COMMAND = ["swift", "build", "-v", "-c", "release"]
 
 # Build Swift package and capture step trace
-print "Building action"
+print("Building action")
 out = check_output(BUILD_COMMAND, cwd=SPM_DIRECTORY)
-print "action built. Decoding compile and link commands"
+print("action built. Decoding compile and link commands")
 
 # Look for compile and link commands in step trace
 compileCommand = None
@@ -53,9 +54,9 @@ for instruction in buildInstructions:
 
 # if found, create build script, otherwise exit with error
 if compileCommand is not None and linkCommand is not None:
-    print "Generated OpenWhisk Compile command: %s" % compileCommand
-    print "========="
-    print "Generated OpenWhisk Link command: %s" % linkCommand
+    print("Generated OpenWhisk Compile command: %s" % compileCommand)
+    print("=========")
+    print("Generated OpenWhisk Link command: %s" % linkCommand)
 
     with open(GENERATED_BUILD_SCRIPT, "a") as buildScript:
         buildScript.write("#!/bin/bash\n")
@@ -71,7 +72,7 @@ if compileCommand is not None and linkCommand is not None:
         buildScript.write("exit 1\n")
         buildScript.write("fi")
 
-    os.chmod(GENERATED_BUILD_SCRIPT, 0777)
+    os.chmod(GENERATED_BUILD_SCRIPT, 0o777)
     sys.exit(0)
 else:
     print("Cannot generate build script: compile or link command not found")

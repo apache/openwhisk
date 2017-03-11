@@ -23,7 +23,7 @@ import subprocess
 import codecs
 import json
 sys.path.append('../actionProxy')
-from actionproxy import ActionRunner, main, setRunner
+from actionproxy import ActionRunner, main, setRunner  # noqa
 
 SRC_EPILOGUE_FILE = './epilogue.swift'
 DEST_SCRIPT_FILE = '/swift3Action/spm-build/main.swift'
@@ -58,7 +58,7 @@ class Swift3Runner(ActionRunner):
         # from the zip file
         if os.path.isfile(self.binary):
             # file may not have executable permission, set it
-            os.chmod(self.binary, 0555)
+            os.chmod(self.binary, 0o555)
             return
 
         p = subprocess.Popen(BUILD_PROCESS, cwd=DEST_SCRIPT_DIR)
@@ -77,6 +77,7 @@ class Swift3Runner(ActionRunner):
         args = message.get('value', {}) if message else {}
         env['WHISK_INPUT'] = json.dumps(args)
         return env
+
 
 if __name__ == '__main__':
     setRunner(Swift3Runner())
