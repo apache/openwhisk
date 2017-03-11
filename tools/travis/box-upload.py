@@ -54,10 +54,10 @@ if __name__ == "__main__":
     dst_path = sys.argv[2]
 
     if not os.path.isdir(dir_path):
-        print "Directory doesn't exist: %s." % dir_path
+        print("Directory doesn't exist: %s." % dir_path)
         sys.exit(0)
 
-    print "Compressing logs dir..."
+    print("Compressing logs dir...")
     tar = tar_gz_dir(dir_path)
-    print "Uploading to Box..."
+    print("Uploading to Box...")
     upload_file(tar, dst_path)
