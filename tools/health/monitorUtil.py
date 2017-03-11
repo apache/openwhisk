@@ -18,6 +18,7 @@
  * limitations under the License.
  */
 """
+from __future__ import print_function
 import sys
 import subprocess
 import datetime
@@ -36,7 +37,7 @@ def checkLoop(name, checker, delay):
             break
         if (delay != 0):
             time.sleep(3)
-    print "%s %s" % (name, "is alive" if alive == 0 else "is not responding")
+    print("%s %s" % (name, "is alive" if alive == 0 else "is not responding"))
     sys.exit(alive)
 
 
@@ -54,9 +55,9 @@ def run(cmd, inData=""):
         output = p.stdout.read()
         rc = p.returncode
     except Exception as e:
-        print "exec: died with exception ",
-        print e
-        print "    : ", cmd
+        print("exec: died with exception ", end="")
+        print(e)
+        print("    : ", cmd)
         return (-1, str(e))
     return (rc, output)
 
