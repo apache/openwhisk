@@ -1,5 +1,5 @@
 # Dockerfile for docker skeleton (useful for running blackbox binaries, scripts, or python actions).
-FROM python:3.5.3-alpine
+FROM python:3.6.0-alpine
 
 # Upgrade and install basic Python dependencies
 RUN apk add --no-cache bash \
