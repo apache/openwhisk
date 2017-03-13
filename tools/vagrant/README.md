@@ -67,7 +67,7 @@ From your _host_, configure `wsk` to use your Vagrant-hosted OpenWhisk deploymen
 The following commands assume that you have `wsk` setup correctly in your PATH.
 ```
 # Set your OpenWhisk Authorization Key.
-wsk -i property set --apihost 192.168.33.13 --auth `vagrant ssh -- cat openwhisk/ansible/files/auth.guest`
+wsk property set --apihost 192.168.33.13 --auth `vagrant ssh -- cat openwhisk/ansible/files/auth.guest`
 
 # Run the hello sample action
 wsk -i action invoke /whisk.system/utils/echo -p message hello --blocking --result
@@ -79,10 +79,10 @@ wsk -i action invoke /whisk.system/utils/echo -p message hello --blocking --resu
 **Tip:** You need to use the `-i` switch as the default SSL certificate used by the Vagrant installation is self-signed. Alternatively, you can configure your __apihost__ to use the non-SSL interface:
 
 ```
-wsk -i property set --apihost http://192.168.33.13:10001 --auth `vagrant ssh -- cat openwhisk/ansible/files/auth.guest`
-````
+wsk property set --apihost http://192.168.33.13:10001 --auth `vagrant ssh -- cat openwhisk/ansible/files/auth.guest`
+```
 
-You do not need to use the `-i` switch to `wsk` now.
+You do not need to use the `-i` switch to `wsk` now. Note, however, that `wsk sdk` will not work, so you need to pass use `wsk -i --apihost 192.168.33.13  sdk {command}` in this case.
 
 
 **Note:** To connect to a different host API (i.e. bluemix.net) with the CLI, you will need to 
