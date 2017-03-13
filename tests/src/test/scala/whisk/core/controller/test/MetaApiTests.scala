@@ -35,6 +35,7 @@ import spray.http.StatusCodes._
 import spray.http.HttpCharsets
 import spray.http.HttpHeader
 import spray.http.HttpHeaders
+import spray.http.HttpResponse
 import spray.httpx.SprayJsonSupport._
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
 import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
@@ -1177,8 +1178,8 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
                     invocationsAllowed += 1
 
                     Get(s"$testRoutePath/$path") ~> addHeader("Accept", "application/json") ~> sealRoute(routes(creds)) ~> check {
-                        status should be(BadRequest)
-                        confirmErrorWithTid(responseAs[JsObject], Some(Messages.invalidAcceptType(MediaTypes.`text/html`)))
+                        status should be(NotAcceptable)
+                        response shouldBe HttpResponse(NotAcceptable, "Resource representation is only available with these Content-Types:\ntext/html")
                     }
                 }
         }

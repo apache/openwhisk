@@ -122,7 +122,6 @@ object Messages {
     val unsupportedContentType = """Content type is not supported."""
     def unsupportedContentType(m: MediaType) = s"""Content type '${m.value}' is not supported."""
     val errorExtractingRequestBody = "Failed extracting request body."
-    def invalidAcceptType(m: MediaType) = s"Response type of ${m.value} does not correspond with accept header."
 
     val responseNotReady = "Response not yet ready."
     val httpUnknownContentType = "Response did not specify a known content-type."
@@ -170,8 +169,13 @@ object ErrorResponse extends Directives {
         } getOrElse None)
     }
 
-    def terminate(status: StatusCode, error: Option[ErrorResponse] = None)(implicit transid: TransactionId): StandardRoute = {
-        complete(status, error getOrElse response(status))
+     def terminate(status: StatusCode, error: Option[ErrorResponse] = None, asJson: Boolean = true)(implicit transid: TransactionId): StandardRoute = {
+        val errorResponse = error getOrElse response(status)
+            if (asJson) {
+                complete(status, errorResponse)
+            } else {
+                complete(status, s"${errorResponse.error} (code: ${errorResponse.code})")
+            }
     }
 
     def response(status: StatusCode)(implicit transid: TransactionId): ErrorResponse = status match {

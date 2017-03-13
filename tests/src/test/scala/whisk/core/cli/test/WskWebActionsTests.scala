@@ -29,11 +29,9 @@ import common.Wsk
 import common.WskAdmin
 import common.WskProps
 import common.WskTestHelpers
-import spray.http.MediaTypes
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import system.rest.RestUtil
-import whisk.http.Messages
 
 /**
  * Tests web actions.
@@ -195,7 +193,7 @@ abstract class WskWebActionsTests
             val host = getServiceURL()
             val url = host + s"$testRoutePath/$namespace/default/webaction.http"
             val response = RestAssured.given().header("accept", "application/json").config(sslconfig).get(url)
-            response.statusCode shouldBe 400
-            response.body().asString() should include(Messages.invalidAcceptType(MediaTypes.`text/html`))
+            response.statusCode shouldBe 406
+            response.body().asString() should include("Resource representation is only available with these Content-Types:\\ntext/html")
     }
 }
