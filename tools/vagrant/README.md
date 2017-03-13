@@ -80,9 +80,9 @@ wsk -i action invoke /whisk.system/utils/echo -p message hello --blocking --resu
 
 ```
 wsk -i property set --apihost http://192.168.33.13:10001 --auth `vagrant ssh -- cat openwhisk/ansible/files/auth.guest`
-````
+```
 
-You do not need to use the `-i` switch to `wsk` now.
+You do not need to use the `-i` switch to `wsk` now. Note, however, that `wsk sdk` will not work, so you need to pass use `wsk -i --apihost 192.168.33.13  sdk {command}` in this case.
 
 
 **Note:** To connect to a different host API (i.e. bluemix.net) with the CLI, you will need to 
