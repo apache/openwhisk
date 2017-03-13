@@ -93,25 +93,30 @@ _Note_: A JSON object or array is treated as binary data and must be base64 enco
 
 ## HTTP Context
 
-A web action, when invoked, receives all the HTTP request information available as additional parameters to the action input argument. They are:
+All web actions, when invoked, receives additional HTTP request details as parameters to the action input argument. They are:
 
 1. `__ow_method`: the HTTP method of the request.
 2. `__ow_headers`: the request headers.
 3. `__ow_path`: the unmatched path of the request (matching stops after consuming the action extension).
+4. `__ow_namespace`: the namespace identifying the OpenWhisk authenticated subject (not present if authentication was not presented)
+5. `__ow_body`: the request body entity, as a base64 encoded string when content is binary, or plain string otherwise
+6. `__ow_query`: the query parameters from the request as a map
 
-The request may not override any of the named `__ow_` parameters above; doing so will result in a failed request with status equal to 400 Bad Request.
+A request may not override any of the named `__ow_` parameters above; doing so will result in a failed request with status equal to 400 Bad Request.
+
+The `__ow_namespace` is not present if the HTTP request did not present an authentication header. As such, a web action may elect to require authentication, and use the namespace to implement its own authorization policy. The `__ow_body` and `__ow_query` are available only when a web action elects to handle the ["raw" HTTP request](#raw-http-handling). Otherwise these values are assumed to be dictionaries, and they are merged together and appear as first class properties in the action arguments. The `__ow_body` is only provided for standard web actions when the content is not JSON or form data.
 
 ## Additional features
 
 Web actions bring some additional features that include:
 
-1. `Content extensions`: the request must specify its desired content type as one of `.json`, `.html`, `.text` or `.http`. This is done by adding an extension to the action name in the URI, so that an action `/guest/demo/hello` is referenced as `/guest/demo/hello.http` for example to receive an HTTP response back.
+1. `Content extensions`: the request must specify its desired content type as one of `.json`, `.html`, `.http`, `.svg` or `.text`. This is done by adding an extension to the action name in the URI, so that an action `/guest/demo/hello` is referenced as `/guest/demo/hello.http` for example to receive an HTTP response back. For convenience, the `.http` extension is assumed when no extension is detected.
 2. `Projecting fields from the result`: the path that follows the action name is used to project out one or more levels of the response. For example, 
 `/guest/demo/hello.html/body`. This allows an action which returns a dictionary `{body: "..." }` to project the `body` property and directly return its string value instead. The projected path follows an absolute path model (as in XPath).
 3. `Query and body parameters as input`: the action receives query parameters as well as parameters in the request body. The precedence order for merging parameters is: package parameters, action parameters, query parameter, body parameters with each of these overriding any previous values in case of overlap . As an example `/guest/demo/hello.http?name=Jane` will pass the argument `{name: "Jane"}` to the action.
 4. `Form data`: in addition to the standard `application/json`, web actions may receive URL encoded from data `application/x-www-form-urlencoded data` as input.
-5. `Activation via multiple HTTP verbs`: a web action may be invoked via one of four HTTP methods: `GET`, `POST`, `PUT` or `DELETE`.
-
+5. `Activation via multiple HTTP verbs`: a web action may be invoked via any of these HTTP methods: `GET`, `POST`, `PUT`, `DELETE`, as well as `HEAD`, `PATCH` and `OPTIONS`.
+6. `Non JSON body and raw HTTP entity handling`: A web action may accept an HTTP request body other than a JSON object, and may elect to always receive such values as opaque values (plain text when not binary, or base64 encoded string otherwise).
 
 The example below briefly sketches how you might use these features in a web action. Consider an action `/guest/demo/hello` with the following body:
 ```javascript
@@ -165,7 +170,7 @@ Jane
 
 ## Content extensions
 
-A content extension is required when invoking a web action. The `.json` and `.http` extensions do not require a projection path. The `.text` and `.html` extensions do, however for convenience, the default path is assumed to match the extension name. So to invoke a web action and receive an `.html` response, the action must respond with a JSON object that contains a top level property called `html` (or the response must be in the explicitly given path). In other words, `/guest/demo/hello.html` is equivalent to projecting the `html` property explicitly, as in `/guest/demo/hello.html/html`. The fully qualified name of the action must include its package name, which is `default` if the action is not in a named package.
+A content extension is generally required when invoking a web action; the absence of an extension assumes `.http` as the default. The `.json` and `.http` extensions do not require a projection path. The `.html`, `.svg` and `.text` extensions do, however for convenience, the default path is assumed to match the extension name. So to invoke a web action and receive an `.html` response, the action must respond with a JSON object that contains a top level property called `html` (or the response must be in the explicitly given path). In other words, `/guest/demo/hello.html` is equivalent to projecting the `html` property explicitly, as in `/guest/demo/hello.html/html`. The fully qualified name of the action must include its package name, which is `default` if the action is not in a named package.
 
 
 ## Protected parameters
@@ -188,7 +193,34 @@ To disable a web action from being invoked via the new API (`https://APIHOST/api
 ```bash
 $ wsk action update /guest/demo/hello hello.js \
       --annotation web-export false
-```      
+```
+
+## Raw HTTP handling
+
+A web action may elect to interpret and process an incoming HTTP body directly, and forgo the default promotion of a JSON object to first class properties available to the action input. This is done via a `raw-http` [annotation](annotations.md). When this option is enabled, the query parameters are available in action input via the `__ow_query` property, and the `__ow_body` property will hold the request body as either a plain string when the content-type is not binary, or as a base64 encoded string otherwise. Note that content-type of `application/json` is considered binary, hence `__ow_body` will be a base64 encoded string that must be JSON parsed to recover the object or array.
+
+### Enabling raw HTTP handling
+
+Raw HTTP web actions are enabled via the annotation `raw-http` [annotation](annotations.md) with a value of `true`.
+
+```bash
+$ wsk action create /guest/demo/hello hello.js \
+      --annotation web-export true
+      --annotation raw-http true
+```
+
+Note that because of a CLI and API limitation, all annotations must be set at the same time (otherwise previous values are removed).
+Further, while `raw-http` implies `web-export`, it is reasonable to expect that in the future these are sugared in the CLI for convenience.
+
+### Disabling raw HTTP handling
+
+Disabling raw HTTP is accomplished by setting the `raw-http` [annotation](annotations.md) value to `false`.
+
+```bash
+$ wsk update create /guest/demo/hello hello.js \
+      --annotation web-export true
+      --annotation raw-http false
+```
 
 ## Error Handling
 

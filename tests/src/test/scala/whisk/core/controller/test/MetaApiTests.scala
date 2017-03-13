@@ -1090,13 +1090,6 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
                     invocationsAllowed += 2
                     actionResult = Some(JsObject("html" -> xml.toJson))
 
-                    /*
-                    Invokes action three times
-                    Get(s"$testRoutePath/$path") ~> addHeader("Accept", MediaTypes.`text/xml`.value) ~> sealRoute(routes(creds)) ~> check {
-                        status should be(NotAcceptable)
-                    }
-                    */
-
                     Seq((html, MediaTypes.`text/html`), (xml, MediaTypes.`text/html`)).
                         foreach {
                             case (res, expectedMediaType) =>
