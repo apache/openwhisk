@@ -47,56 +47,35 @@ import whisk.http.ErrorResponse.terminate
 import whisk.http.Messages
 import whisk.utils.JsHelpers._
 
-protected[controller] class WebApiDirectives private (
-    fields: Map[String, String],
-    reserved: Set[String] = Set(),
-    val enforceExtension: Boolean = false) {
+protected[controller] sealed class WebApiDirectives private (prefix: String) {
+    // enforce the presence of an extension (e.g., .http) in the URI path
+    val enforceExtension = false
 
+    // the field name that represents the status code for an http action response
+    val statusCode = "statusCode"
+
+    // parameters that are added to an action input to pass HTTP request context values
     val method: String = fields("method")
     val headers: String = fields("headers")
     val path: String = fields("path")
     val namespace: String = fields("namespace")
-
     val query: String = fields("query")
     val body: String = fields("body")
 
-    val statusCode = fields("statusCode")
-
-    val reservedProperties: Set[String] = reserved.map(fields(_))
+    lazy val reservedProperties: Set[String] = Set(method, headers, path, namespace, query, body)
+    protected final def fields(f: String) = s"$prefix$f"
 }
 
+// field names for /web with raw-http action
 protected[controller] object WebApiDirectives {
-    private val rawFieldMapping = Map(
-        "method" -> "method",
-        "headers" -> "headers",
-        "path" -> "path",
-        "namespace" -> "namespace",
-        "query" -> "query",
-        "body" -> "body",
-        "statusCode" -> "statusCode")
-
-    // field names for /web with raw-http action
-    val raw = new WebApiDirectives(rawFieldMapping)
-
     // field names for /web
-    val web = {
-        val fields = rawFieldMapping.map {
-            case (k, v) if (k == "statusCode") => k -> v
-            case (k, v)                        => k -> s"__ow_$v"
-        }
-
-        new WebApiDirectives(fields, reserved = fields.keySet - "statusCode")
-    }
+    val web = new WebApiDirectives("__ow_")
 
     // field names used for /experimental/web
-    val exp = {
-        val fields = rawFieldMapping.map {
-            case (k, v) if (k == "method")     => k -> "__ow_meta_verb"
-            case (k, v) if (k == "statusCode") => k -> "code"
-            case (k, v)                        => k -> s"__ow_meta_$v"
-        }
-
-        new WebApiDirectives(fields, reserved = fields.keySet - "statusCode", enforceExtension = true)
+    val exp = new WebApiDirectives("__ow_meta_") {
+        override val enforceExtension = true
+        override val method = fields("verb")
+        override val statusCode = "code"
     }
 }
 
@@ -366,14 +345,7 @@ trait WhiskMetaApi
             validNameSegment { namespace =>
                 packagePrefix { pkg =>
                     validNameSegment { seg =>
-                        onComplete(handleMatch(namespace, pkg, seg, user)) {
-                            case Success(finish) =>
-                                finish // terminates request
-
-                            case Failure(t) =>
-                                logging.error(this, s"exception in meta api handler: $t")
-                                terminate(InternalServerError)
-                        }
+                        handleMatch(namespace, pkg, seg, user)
                     }
                 }
             }
@@ -408,58 +380,40 @@ trait WhiskMetaApi
     }
 
     private def handleMatch(namespaceSegment: String, pkgSegment: String, actionNameWithExtension: String, onBehalfOf: Option[Identity])(
-        implicit transid: TransactionId) = Future {
-        val namespace = EntityName(namespaceSegment)
-        val pkgName = if (pkgSegment == "default") None else Some(EntityName(pkgSegment))
+        implicit transid: TransactionId) = {
 
-        // extract request context, checks for overrides of reserved properties, and constructs action arguments
-        // as the context body which may be the incoming request when the content type is JSON or formdata, or
-        // the raw body as __ow_body (and query parameters as __ow_query) otherwise
-        def process(body: Option[JsValue], actionName: String, extension: MediaExtension) = {
-            requestMethodParamsAndPath { context =>
-                val fullname = namespace.addPath(pkgName).addPath(EntityName(actionName))
-                processRequest(fullname.toFullyQualifiedEntityName, context.withBody(body), extension, onBehalfOf)
-            }
+        def fullyQualifiedActionName(actionName: String) = {
+            val namespace = EntityName(namespaceSegment)
+            val pkgName = if (pkgSegment == "default") None else Some(EntityName(pkgSegment))
+            namespace.addPath(pkgName).addPath(EntityName(actionName)).toFullyQualifiedEntityName
         }
 
-        WhiskMetaApi.mediaTranscoderForName(actionNameWithExtension, webApiDirectives.enforceExtension) match {
+        provide(WhiskMetaApi.mediaTranscoderForName(actionNameWithExtension, webApiDirectives.enforceExtension)) {
             case (actionName, Some(extension)) =>
+                // extract request context, checks for overrides of reserved properties, and constructs action arguments
+                // as the context body which may be the incoming request when the content type is JSON or formdata, or
+                // the raw body as __ow_body (and query parameters as __ow_query) otherwise
                 extract(_.request.entity) { e =>
                     validateSize(isWhithinRange(e.data.length))(transid) {
-                        e match {
-                            case Empty =>
-                                process(None, actionName, extension)
+                        requestMethodParamsAndPath { context =>
+                            provide(fullyQualifiedActionName(actionName)) { fullActionName =>
+                                onComplete(verifyWebAction(fullActionName, onBehalfOf.isDefined)) {
+                                    case Success((actionOwnerIdentity, action)) =>
+                                        extractEntityAndProcessRequest(actionOwnerIdentity, action, extension, onBehalfOf, context, e)
 
-                            case NonEmpty(ContentType(`application/json`, _), json) /* if !isRawHttpAction */ =>
-                                // TODO: this is still parsing the content even for a raw-http action
-                                entity(as[JsObject]) {
-                                    body => process(Some(body), actionName, extension)
+                                    case Failure(t: RejectRequest) =>
+                                        terminate(t.code, t.message)
+
+                                    case Failure(t) =>
+                                        logging.error(this, s"exception in handleMatch: $t")
+                                        terminate(InternalServerError)
                                 }
-
-                            case NonEmpty(ContentType(`application/x-www-form-urlencoded`, _), form) /* if !isRawHttpAction */ =>
-                                // TODO: this is still parsing the content even for a raw-http action
-                                entity(as[FormData]) {
-                                    form => process(Some(form.fields.toMap.toJson.asJsObject), actionName, extension)
-                                }
-
-                            case NonEmpty(contentType, data) =>
-                                if (contentType.mediaType.binary) {
-                                    Try(JsString(Base64.getEncoder.encodeToString(data.toByteArray))) match {
-                                        case Success(bytes) => process(Some(bytes), actionName, extension)
-                                        case Failure(t)     => terminate(BadRequest, Messages.unsupportedContentType(contentType.mediaType))
-                                    }
-                                } else {
-                                    val str = JsString(data.asString(HttpCharsets.`UTF-8`))
-                                    process(Some(str), actionName, extension)
-                                }
-
-                            case _ => terminate(BadRequest, Messages.unsupportedContentType)
+                            }
                         }
                     }
                 }
 
-            case (_, None) =>
-                terminate(NotAcceptable, Messages.contentTypeExtensionNotSupported)
+            case (_, None) => terminate(NotAcceptable, Messages.contentTypeExtensionNotSupported)
         }
     }
 
@@ -474,7 +428,7 @@ trait WhiskMetaApi
      *         not entitled (throttled), package/action not found, action not web enabled,
      *         or request overrides final parameters
      */
-    private def verifyWebAction(actionName: FullyQualifiedEntityName, context: Context, onBehalfOf: Option[Identity])(
+    private def verifyWebAction(actionName: FullyQualifiedEntityName, authenticated: Boolean)(
         implicit transid: TransactionId) = {
         for {
             // lookup the identity for the action namespace
@@ -487,7 +441,7 @@ trait WhiskMetaApi
             // also merge package and action parameters at the same time
             // precedence order for parameters:
             // package.params -> action.params -> query.params -> request.entity (body) -> augment arguments (namespace, path)
-            action <- confirmExportedAction(actionLookup(actionName, failureCode = NotFound), onBehalfOf.isDefined) flatMap { a =>
+            action <- confirmExportedAction(actionLookup(actionName, failureCode = NotFound), authenticated) flatMap { a =>
                 if (a.namespace.defaultPackage) {
                     Future.successful(a)
                 } else {
@@ -495,46 +449,87 @@ trait WhiskMetaApi
                         pkg => (a.inherit(pkg.parameters))
                     }
                 }
-            } flatMap { a =>
-                // check if any of the query or body parameters override final action parameters
-                // computes overrides if any relative to the reserved __ow_* properties
-                // NOTE: it is assume the action parameters do not intersect with the reserved properties
-                // since these are system properties, the action should not define them, and if it does,
-                // they will be overwritten
-                val isRawHttpAction = a.annotations.asBool("raw-http").exists(identity)
-                if (isRawHttpAction || context.overrides(webApiDirectives.reservedProperties ++ a.immutableParameters).isEmpty) {
-                    Future.successful(a, isRawHttpAction)
-                } else {
-                    Future.failed(RejectRequest(BadRequest, Messages.parametersNotAllowed))
-                }
             }
         } yield (actionOwnerIdentity, action)
     }
 
-    private def processRequest(actionName: FullyQualifiedEntityName, context: Context, responseType: MediaExtension, onBehalfOf: Option[Identity])(
-        implicit transid: TransactionId) = {
+    private def extractEntityAndProcessRequest(
+        actionOwnerIdentity: Identity,
+        action: WhiskAction,
+        extension: MediaExtension,
+        onBehalfOf: Option[Identity],
+        context: Context,
+        httpEntity: HttpEntity)(
+            implicit transid: TransactionId) = {
 
-        def projectResultField = if (responseType.projectionAllowed) {
-            Option(context.path)
-                .filter(_.nonEmpty)
-                .map(_.split("/").filter(_.nonEmpty).toList)
-                .orElse(responseType.defaultProjection)
-        } else responseType.defaultProjection
+        def process(body: Option[JsValue], isRawHttpAction: Boolean) = {
+            processRequest(actionOwnerIdentity, action, extension, onBehalfOf, context.withBody(body), isRawHttpAction)
+        }
 
-        completeRequest(
-            queuedActivation = verifyWebAction(actionName, context, onBehalfOf) flatMap {
-                case (actionOwnerIdentity, (action, isRawHttpAction)) =>
-                    val content = context.toActionArgument(onBehalfOf, isRawHttpAction)
-                    val waitOverride = Some(WhiskActionsApi.maxWaitForBlockingActivation)
-                    invokeAction(actionOwnerIdentity, action, Some(JsObject(content)), blocking = true, waitOverride)
-            },
-            projectResultField,
-            responseType = responseType)
+        provide(action.annotations.asBool("raw-http").exists(identity)) { isRawHttpAction =>
+            httpEntity match {
+                case Empty =>
+                    process(None, isRawHttpAction)
+
+                case NonEmpty(ContentType(`application/json`, _), json) if !isRawHttpAction =>
+                    entity(as[JsObject]) { body =>
+                        process(Some(body), isRawHttpAction)
+                    }
+
+                case NonEmpty(ContentType(`application/x-www-form-urlencoded`, _), form) if !isRawHttpAction =>
+                    entity(as[FormData]) { form =>
+                        val body = form.fields.toMap.toJson.asJsObject
+                        process(Some(body), isRawHttpAction)
+                    }
+
+                case NonEmpty(contentType, data) =>
+                    if (contentType.mediaType.binary) {
+                        Try(JsString(Base64.getEncoder.encodeToString(data.toByteArray))) match {
+                            case Success(bytes) => process(Some(bytes), isRawHttpAction)
+                            case Failure(t)     => terminate(BadRequest, Messages.unsupportedContentType(contentType.mediaType))
+                        }
+                    } else {
+                        val str = JsString(data.asString(HttpCharsets.`UTF-8`))
+                        process(Some(str), isRawHttpAction)
+                    }
+
+                case _ => terminate(BadRequest, Messages.unsupportedContentType)
+            }
+        }
+    }
+
+    private def processRequest(
+        actionOwnerIdentity: Identity,
+        action: WhiskAction,
+        responseType: MediaExtension,
+        onBehalfOf: Option[Identity],
+        context: Context,
+        isRawHttpAction: Boolean)(
+            implicit transid: TransactionId) = {
+
+        def queuedActivation = {
+            // checks (1) if any of the query or body parameters override final action parameters
+            // computes overrides if any relative to the reserved __ow_* properties, and (2) if
+            // action is a raw http handler
+            //
+            // NOTE: it is assume the action parameters do not intersect with the reserved properties
+            // since these are system properties, the action should not define them, and if it does,
+            // they will be overwritten
+            if (isRawHttpAction || context.overrides(webApiDirectives.reservedProperties ++ action.immutableParameters).isEmpty) {
+                val content = context.toActionArgument(onBehalfOf, isRawHttpAction)
+                val waitOverride = Some(WhiskActionsApi.maxWaitForBlockingActivation)
+                invokeAction(actionOwnerIdentity, action, Some(JsObject(content)), blocking = true, waitOverride)
+            } else {
+                Future.failed(RejectRequest(BadRequest, Messages.parametersNotAllowed))
+            }
+        }
+
+        completeRequest(queuedActivation, projectResultField(context, responseType), responseType)
     }
 
     private def completeRequest(
         queuedActivation: Future[(ActivationId, Option[WhiskActivation])],
-        projectResultField: => Option[List[String]],
+        projectResultField: => List[String],
         responseType: MediaExtension)(
             implicit transid: TransactionId) = {
         onComplete(queuedActivation) {
@@ -543,7 +538,7 @@ trait WhiskMetaApi
 
                 if (activation.response.isSuccess || activation.response.isApplicationError) {
                     val resultPath = if (activation.response.isSuccess) {
-                        projectResultField getOrElse List()
+                        projectResultField
                     } else {
                         // the activation produced an error response: therefore ignore
                         // the requested projection and unwrap the error instead
@@ -580,7 +575,7 @@ trait WhiskMetaApi
                 terminate(t.code, t.message)
 
             case Failure(t) =>
-                logging.error(this, s"exception in meta api handler: $t")
+                logging.error(this, s"exception in completeRequest: $t")
                 terminate(InternalServerError)
         }
     }
@@ -654,5 +649,21 @@ trait WhiskMetaApi
                 Future.failed(RejectRequest(Unauthorized))
             }
         }
+    }
+
+    /**
+     * Determines the result projection path, if any.
+     *
+     * @return optional list of projections
+     */
+    private def projectResultField(context: Context, responseType: MediaExtension): List[String] = {
+        val projection = if (responseType.projectionAllowed) {
+            Option(context.path)
+                .filter(_.nonEmpty)
+                .map(_.split("/").filter(_.nonEmpty).toList)
+                .orElse(responseType.defaultProjection)
+        } else responseType.defaultProjection
+
+        projection.getOrElse(List())
     }
 }

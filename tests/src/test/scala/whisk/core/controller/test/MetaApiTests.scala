@@ -72,7 +72,7 @@ import whisk.http.Messages
  */
 
 @RunWith(classOf[JUnitRunner])
-class MetaApiTestsV21extends extends FlatSpec with Matchers with MetaApiTests {
+class MetaApiTestsV1 extends FlatSpec with Matchers with MetaApiTests {
     override lazy val webInvokePathSegments = Seq("experimental", "web")
     override lazy val webApiDirectives = WebApiDirectives.exp
 
@@ -81,13 +81,14 @@ class MetaApiTestsV21extends extends FlatSpec with Matchers with MetaApiTests {
         webApiDirectives.headers shouldBe "__ow_meta_headers"
         webApiDirectives.path shouldBe "__ow_meta_path"
         webApiDirectives.namespace shouldBe "__ow_meta_namespace"
-
         webApiDirectives.query shouldBe "__ow_meta_query"
         webApiDirectives.body shouldBe "__ow_meta_body"
-
         webApiDirectives.statusCode shouldBe "code"
-
         webApiDirectives.enforceExtension shouldBe true
+        webApiDirectives.reservedProperties shouldBe {
+            Set("__ow_meta_verb", "__ow_meta_headers", "__ow_meta_path", "__ow_meta_namespace",
+                "__ow_meta_query", "__ow_meta_body")
+        }
     }
 }
 
@@ -101,13 +102,14 @@ class MetaApiTestsV2 extends FlatSpec with Matchers with MetaApiTests {
         webApiDirectives.headers shouldBe "__ow_headers"
         webApiDirectives.path shouldBe "__ow_path"
         webApiDirectives.namespace shouldBe "__ow_namespace"
-
         webApiDirectives.query shouldBe "__ow_query"
         webApiDirectives.body shouldBe "__ow_body"
-
         webApiDirectives.statusCode shouldBe "statusCode"
-
         webApiDirectives.enforceExtension shouldBe false
+        webApiDirectives.reservedProperties shouldBe {
+            Set("__ow_method", "__ow_headers", "__ow_path", "__ow_namespace",
+                "__ow_query", "__ow_body")
+        }
     }
 }
 
@@ -1135,7 +1137,9 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
                     "content" -> metaPayload(
                         Post.method.name.toLowerCase,
                         Map(webApiDirectives.query -> JsObject(),
-                            webApiDirectives.body -> JsObject("x" -> JsString("overriden"), "key2" -> JsString("value2"))).toJson.asJsObject,
+                            webApiDirectives.body -> Base64.getEncoder.encodeToString {
+                                JsObject("x" -> JsString("overriden"), "key2" -> JsString("value2")).prettyPrint.getBytes
+                            }.toJson).toJson.asJsObject,
                         creds,
                         pkgName = "proxy"))
             }
