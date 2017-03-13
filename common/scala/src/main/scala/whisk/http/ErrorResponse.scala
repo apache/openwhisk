@@ -119,6 +119,8 @@ object Messages {
     val propertyNotFound = "Response does not include requested property."
     def invalidMedia(m: MediaType) = s"Response is not valid '${m.value}'."
     val contentTypeExtensionNotSupported = """Extension must be specified and one of [".json", ".html", ".http", ".text"]."""
+    val unsupportedContentType = """Content type is not supported."""
+    def unsupportedContentType(m: MediaType) = s"""Content type '${m.value}' is not supported."""
     val errorExtractingRequestBody = "Failed extracting request body."
     def invalidAcceptType(m: MediaType) = s"Response type of ${m.value} does not correspond with accept header."
 
