@@ -275,6 +275,10 @@ class WskAction()
         logsize: Option[ByteSize] = None,
         shared: Option[Boolean] = None,
         update: Boolean = false,
+        web: Option[Boolean] = None,
+        raw: Option[Boolean] = None,
+        noWeb: Option[Boolean] = None,
+        noRaw: Option[Boolean] = None,
         expectedExitCode: Int = SUCCESS_EXIT)(
             implicit wp: WskProps): RunResult = {
         val params = Seq(noun, if (!update) "create" else "update", "--auth", wp.authKey, fqn(name)) ++
@@ -293,7 +297,9 @@ class WskAction()
             { timeout map { t => Seq("-t", t.toMillis.toString) } getOrElse Seq() } ++
             { memory map { m => Seq("-m", m.toMB.toString) } getOrElse Seq() } ++
             { logsize map { l => Seq("-l", l.toMB.toString) } getOrElse Seq() } ++
-            { shared map { s => Seq("--shared", if (s) "yes" else "no") } getOrElse Seq() }
+            { shared map { s => Seq("--shared", if (s) "yes" else "no") } getOrElse Seq() } ++
+            { web map { s => Seq(if (s) "--web" else "--no-web") } getOrElse Seq() } ++
+            { raw map { s => Seq(if (s) "--raw" else "--no-raw") } getOrElse Seq() }
         cli(wp.overrides ++ params, expectedExitCode)
     }
 
@@ -920,6 +926,10 @@ sealed trait RunWskCmd extends Matchers {
      */
     def parseJsonString(jsonStr: String): JsObject = {
         jsonStr.substring(jsonStr.indexOf("\n") + 1).parseJson.asJsObject // Skip optional status line before parsing
+    }
+
+    def parseJsonValueString(jsonStr: String): JsValue = {
+        jsonStr.substring(jsonStr.indexOf("\n") + 1).parseJson // Skip optional status line before parsing
     }
 
     private def reportFailure(args: Buffer[String], ec: Integer, rr: RunResult) = {

@@ -83,6 +83,10 @@ var flags struct {
         result      bool
         kind        string
         main        string
+        web         bool
+        noWeb       bool
+        raw         bool
+        noRaw       bool
     }
 
     activation struct {
