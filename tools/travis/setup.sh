@@ -18,7 +18,7 @@ pip install --upgrade pip setuptools
 pip install --user jsonschema
 pip install --user couchdb
 pip install --user backports.ssl_match_hostname
-pip install --user flake8
+pip3 install --user flake8
 
 # Ansible
 pip install --user ansible==2.1.2.0
