@@ -135,8 +135,14 @@ class ActionRunner:
 
         # run the process and wait until it completes.
         (o, e) = p.communicate()
+        # stdout/stderr may be either text or bytes, depending on Python
+        # version.   In the latter case, decode to text.
+        if isinstance(o, bytes):
+            o = o.decode('utf-8')
+        if isinstance(e, bytes):
+            e = e.decode('utf-8')
 
-        if o is not None:
+        if o:
             process_output_lines = o.strip().split('\n')
             last_line = process_output_lines[-1]
             for line in process_output_lines[:-1]:
@@ -144,7 +150,7 @@ class ActionRunner:
         else:
             last_line = '{}'
 
-        if e is not None:
+        if e:
             sys.stderr.write(e)
 
         try:
