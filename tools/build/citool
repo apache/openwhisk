@@ -108,6 +108,8 @@ def shell(cmd, data = None, verbose = False):
 
     p = Popen(cmd, shell = True, stdout = PIPE, stderr = STDOUT, stdin = PIPE)
     out, err = p.communicate(input = data)
+
+    p.wait()
     # stdout/stderr may be either text or bytes, depending on Python
     # version.   In the latter case, decode to text.
     if isinstance(o, bytes):
@@ -115,7 +117,6 @@ def shell(cmd, data = None, verbose = False):
     if isinstance(e, bytes):
         e = e.decode('utf-8')
 
-    p.wait()
     end = time.time()
     delta = end - start
     return (delta, out, err)
