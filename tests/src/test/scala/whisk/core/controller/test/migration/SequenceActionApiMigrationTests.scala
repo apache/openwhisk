@@ -98,7 +98,7 @@ class SequenceActionApiMigrationTests extends ControllerTestCommon
         val components = Vector("/_/a", "/_/x/b", "/n/a", "/n/x/c")
         val seqComponents = components.map(stringToFullyQualifiedName(_))
         val action = WhiskAction(namespace, aname, sequence(seqComponents), seqParameters(components))
-        val content = WhiskActionPut(Some(js("")), parameters = Some(Parameters("a", "A")))
+        val content = WhiskActionPut(Some(jsDefault("")), parameters = Some(Parameters("a", "A")))
         put(entityStore, action, false)
 
         // create an action sequence
@@ -106,7 +106,7 @@ class SequenceActionApiMigrationTests extends ControllerTestCommon
             deleteAction(action.docid)
             status should be(OK)
             val response = responseAs[WhiskAction]
-            response.exec.kind should be(NODEJS)
+            response.exec.kind should be(NODEJS6)
             response.parameters should be(Parameters("a", "A"))
         }
     }
@@ -117,7 +117,7 @@ class SequenceActionApiMigrationTests extends ControllerTestCommon
         val components = Vector("/_/a", "/_/x/b", "/n/a", "/n/x/c")
         val seqComponents = components.map(stringToFullyQualifiedName(_))
         val action = WhiskAction(namespace, aname, sequence(seqComponents), seqParameters(components))
-        val content = WhiskActionPut(Some(js("")))
+        val content = WhiskActionPut(Some(jsDefault("")))
         put(entityStore, action, false)
 
         // create an action sequence
@@ -125,7 +125,7 @@ class SequenceActionApiMigrationTests extends ControllerTestCommon
             deleteAction(action.docid)
             status should be(OK)
             val response = responseAs[WhiskAction]
-            response.exec.kind should be(NODEJS)
+            response.exec.kind should be(NODEJS6)
             response.parameters shouldBe Parameters()
         }
     }
@@ -164,7 +164,7 @@ class SequenceActionApiMigrationTests extends ControllerTestCommon
         val bogus = s"${aname}_bogus"
         val bogusActionName = s"/_/${bogus}"   // test that default namespace gets properly replaced
         // put the action in the entity store so it exists
-        val bogusAction = WhiskAction(namespace, EntityName(bogus), js("??"), Parameters("x", "y"))
+        val bogusAction = WhiskAction(namespace, EntityName(bogus), jsDefault("??"), Parameters("x", "y"))
         put(entityStore, bogusAction)
         val seqComponents = for (i <- 1 to limit) yield stringToFullyQualifiedName(bogusActionName)
         val seqAction = WhiskAction(namespace, seqName, sequence(seqComponents.toVector))

@@ -263,11 +263,6 @@ Components = [
 
     # the following (re)build images via gradle
 
-    makeComponent('nodejsaction',
-                  'build node.js action container',
-                  yaml = False,
-                  gradle = 'core:nodejsAction'),
-
     makeComponent('nodejs6action',
                   'build node.js v6 action container',
                   yaml = False,

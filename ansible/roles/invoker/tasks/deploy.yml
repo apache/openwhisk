@@ -8,7 +8,6 @@
   with_items:
     - '{{ docker_image_prefix }}/invoker'
     - '{{ docker_image_prefix }}/dockerskeleton'
-    - '{{ docker_image_prefix }}/nodejsaction'
     - '{{ docker_image_prefix }}/nodejs6action'
     - '{{ docker_image_prefix }}/pythonaction'
     - '{{ docker_image_prefix }}/swift3action'

@@ -259,8 +259,8 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     it should "get package with its actions and feeds" in {
         implicit val tid = transid()
         val provider = WhiskPackage(namespace, aname())
-        val action = WhiskAction(provider.namespace.addPath(provider.name), aname(), js("??"))
-        val feed = WhiskAction(provider.namespace.addPath(provider.name), aname(), js("??"), annotations = Parameters(Parameters.Feed, "true"))
+        val action = WhiskAction(provider.namespace.addPath(provider.name), aname(), jsDefault("??"))
+        val feed = WhiskAction(provider.namespace.addPath(provider.name), aname(), jsDefault("??"), annotations = Parameters(Parameters.Feed, "true"))
         put(entityStore, provider)
         put(entityStore, action)
         put(entityStore, feed)
@@ -282,8 +282,8 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
         implicit val tid = transid()
         val provider = WhiskPackage(namespace, aname())
         val reference = WhiskPackage(namespace, aname(), provider.bind)
-        val action = WhiskAction(provider.namespace.addPath(provider.name), aname(), js("??"))
-        val feed = WhiskAction(provider.namespace.addPath(provider.name), aname(), js("??"), annotations = Parameters(Parameters.Feed, "true"))
+        val action = WhiskAction(provider.namespace.addPath(provider.name), aname(), jsDefault("??"))
+        val feed = WhiskAction(provider.namespace.addPath(provider.name), aname(), jsDefault("??"), annotations = Parameters(Parameters.Feed, "true"))
         put(entityStore, provider)
         put(entityStore, reference)
         put(entityStore, action)
@@ -308,8 +308,8 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
         val privateNamespace = EntityPath(privateCreds.subject.asString)
         val provider = WhiskPackage(privateNamespace, aname())
         val reference = WhiskPackage(namespace, aname(), provider.bind)
-        val action = WhiskAction(provider.namespace.addPath(provider.name), aname(), js("??"))
-        val feed = WhiskAction(provider.namespace.addPath(provider.name), aname(), js("??"), annotations = Parameters(Parameters.Feed, "true"))
+        val action = WhiskAction(provider.namespace.addPath(provider.name), aname(), jsDefault("??"))
+        val feed = WhiskAction(provider.namespace.addPath(provider.name), aname(), jsDefault("??"), annotations = Parameters(Parameters.Feed, "true"))
         put(entityStore, provider)
         put(entityStore, reference)
         put(entityStore, action)
@@ -621,7 +621,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     it should "reject delete non-empty package" in {
         implicit val tid = transid()
         val provider = WhiskPackage(namespace, aname())
-        val action = WhiskAction(provider.namespace.addPath(provider.name), aname(), js("??"))
+        val action = WhiskAction(provider.namespace.addPath(provider.name), aname(), jsDefault("??"))
         put(entityStore, provider)
         put(entityStore, action)
         whisk.utils.retry {
@@ -652,7 +652,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
 
     it should "reject bind to non-package" in {
         implicit val tid = transid()
-        val action = WhiskAction(namespace, aname(), js("??"))
+        val action = WhiskAction(namespace, aname(), jsDefault("??"))
         val reference = WhiskPackage(namespace, aname(), Some(Binding(action.namespace.root, action.name)))
         val content = WhiskPackagePut(reference.binding)
 
