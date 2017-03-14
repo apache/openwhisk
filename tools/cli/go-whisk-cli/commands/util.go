@@ -163,6 +163,8 @@ func getJSONFromStrings(content []string, keyValueFormat bool) (interface{}, err
     var data map[string]interface{}
     var res interface{}
 
+    whisk.Debug(whisk.DbgInfo, "Convert content to JSON: %#v\n", content)
+
     for i := 0; i < len(content); i++ {
         if err := json.Unmarshal([]byte(content[i]), &data); err != nil {
             whisk.Debug(whisk.DbgError, "Invalid JSON detected for '%s'\n", content[i])
@@ -184,15 +186,12 @@ func getJSONFromStrings(content []string, keyValueFormat bool) (interface{}, err
 func getKeyValueFormattedJSON(data map[string]interface{}) (whisk.KeyValueArr) {
     var keyValueArr whisk.KeyValueArr
 
-    i := 0
-
     for key, value := range data {
         keyValue := whisk.KeyValue{
             Key:  key,
             Value: value,
         }
         keyValueArr = append(keyValueArr, keyValue)
-        i++
     }
 
     whisk.Debug(whisk.DbgInfo, "Created key/value format '%v' from '%v'\n", keyValueArr, data)
@@ -437,6 +436,26 @@ func getFullName(namespace string, packageName string, entityName string) (strin
     }
 
     return fullName
+}
+
+func deleteKey(key string, keyValueArr whisk.KeyValueArr) (whisk.KeyValueArr) {
+    for i := 0; i < len(keyValueArr); i++ {
+        if keyValueArr[i].Key == key {
+            keyValueArr = append(keyValueArr[:i], keyValueArr[i + 1:]...)
+            break
+        }
+    }
+
+    return keyValueArr
+}
+
+func addKeyValue(key string, value interface{}, keyValueArr whisk.KeyValueArr) (whisk.KeyValueArr) {
+    keyValue := whisk.KeyValue{
+        Key:  key,
+        Value: value,
+    }
+
+    return append(keyValueArr, keyValue)
 }
 
 func getKeys(keyValueArr whisk.KeyValueArr) ([]string) {
