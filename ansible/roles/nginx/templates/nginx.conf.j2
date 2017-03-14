@@ -54,6 +54,10 @@ http {
             proxy_pass http://{{ groups['controllers']|first }}:{{ controller.port }};
             proxy_read_timeout 70s; # 60+10 additional seconds to allow controller to terminate request
         }
+        location /api/v2 {
+            proxy_pass http://{{ groups['controllers']|first }}:{{ controller.port }};
+            proxy_read_timeout 70s; # 60+10 additional seconds to allow controller to terminate request
+        }
         location /blackbox-0.1.0.tar.gz {
             root /etc/nginx;
         }
