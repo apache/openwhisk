@@ -352,6 +352,12 @@ def runAndGetStdout(cmd):
     args = shlex.split(cmd)
     p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     out, err = p.communicate()
+    # stdout/stderr may be either text or bytes, depending on Python
+    # version.   In the latter case, decode to text.
+    if isinstance(o, bytes):
+        o = o.decode('utf-8')
+    if isinstance(e, bytes):
+        e = e.decode('utf-8')
     if p.returncode:
         print(hilite(out))
         print(hilite(err, True))
