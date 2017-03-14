@@ -1,6 +1,5 @@
 # A Travis CI configuration file.
 
-dist: trusty
 sudo: required
 
 language: scala
@@ -33,7 +32,6 @@ before_install:
   - ./tools/travis/setup.sh
 
 before_script:
-  - pip3 install --upgrade pip setuptools flake8
   - flake8 . --count --max-line-length=127 --statistics --exit-zero  # 127 == GitHub editor width
 
 script:
