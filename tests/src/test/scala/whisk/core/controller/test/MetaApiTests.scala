@@ -800,6 +800,69 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
                     failThrottleForSubject = None
                 }
         }
+
+        it should s"handle html web action with text/xml response (auth? ${creds.isDefined})" in {
+            implicit val tid = transid()
+
+            Seq(s"$systemId/proxy/export_c.html").
+                foreach { path =>
+                    val html = """<html><body>test</body></html>"""
+                    val xml = """<?xml version="1.0" encoding="UTF-8"?><note><from>test</from></note>"""
+
+                    actionResult = Some(JsObject("html" -> xml.toJson))
+                    Get(s"$testRoutePath/$path") ~> addHeader("Accept", MediaTypes.`text/xml`.value) ~> sealRoute(routes(creds)) ~> check {
+                        status should be(NotAcceptable)
+                    }
+
+                    Seq((html, MediaTypes.`text/html`), (xml, MediaTypes.`text/html`)).
+                        foreach {
+                            case (res, expectedMediaType) =>
+                                actionResult = Some(JsObject("html" -> res.toJson))
+
+                                Get(s"$testRoutePath/$path") ~> addHeader("Accept", expectedMediaType.value) ~> sealRoute(routes(creds)) ~> check {
+                                    status should be(OK)
+                                    responseAs[String] shouldBe res
+                                    mediaType shouldBe expectedMediaType
+                                }
+                        }
+                }
+        }
+
+        it should s"fail to invoke web action with an unsupported content type when x-ow-raw-http header is not supplied (auth? ${creds.isDefined})" in {
+            implicit val tid = transid()
+
+            Seq(s"$systemId/proxy/export_c.text").
+                foreach { path =>
+                    actionResult = Some(JsObject("text" -> "Something".toJson))
+                    Post(s"$testRoutePath/$path", "This is the body") ~> addHeader("Content-type", MediaTypes.`text/html`.value) ~> sealRoute(routes(creds)) ~> check {
+                        status should be(UnsupportedMediaType)
+                    }
+                }
+        }
+
+        it should s"fail to invoke web action with an unsupported content type when x-ow-raw-http header is not enabled (auth? ${creds.isDefined})" in {
+            implicit val tid = transid()
+
+            Seq(s"$systemId/proxy/export_c.text").
+                foreach { path =>
+                    actionResult = Some(JsObject("text" -> "Something".toJson))
+                    Post(s"$testRoutePath/$path", "This is the body") ~> addHeader("x-ow-raw-http", "false") ~> addHeader("Content-type", MediaTypes.`text/html`.value) ~> sealRoute(routes(creds)) ~> check {
+                        status should be(UnsupportedMediaType)
+                    }
+                }
+        }
+
+        it should s"fail to invoke web action with an unsupported content type when an non-boolean value is passed to the x-ow-raw-http header (auth? ${creds.isDefined})" in {
+            implicit val tid = transid()
+
+            Seq(s"$systemId/proxy/export_c.text").
+                foreach { path =>
+                    actionResult = Some(JsObject("text" -> "Something".toJson))
+                    Post(s"$testRoutePath/$path", "This is the body") ~> addHeader("x-ow-raw-http", "Not a boolean") ~> addHeader("Content-type", MediaTypes.`text/html`.value) ~> sealRoute(routes(creds)) ~> check {
+                        status should be(UnsupportedMediaType)
+                    }
+                }
+        }
     }
 
     class TestingEntitlementProvider(

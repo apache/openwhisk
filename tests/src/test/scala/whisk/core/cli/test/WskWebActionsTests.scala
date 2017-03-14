@@ -114,4 +114,22 @@ class WskWebActionsTests
             authorizedResponse.statusCode shouldBe 200
             authorizedResponse.body().asString() shouldBe namespace
     }
+
+    it should "invoke a web action using the x-ow-raw-http header to return the sent HTTP body" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "webaction"
+            val file = Some(TestUtils.getTestActionFilename("echo.js"))
+            val bodyContent = "This is the body"
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) =>
+                    action.create(name, file, annotations = Map("web-export" -> true.toJson))
+            }
+
+            val host = getServiceURL()
+            val url = host + s"/api/v1/experimental/web/$namespace/default/webaction.json"
+            val response = RestAssured.given().header("x-ow-raw-http", "TruE").contentType("text/html").body(bodyContent).config(sslconfig).post(url)
+            response.statusCode shouldBe 200
+            response.body.asString.parseJson.asJsObject.fields("__ow_meta_body") shouldBe JsString(bodyContent)
+    }
 }
