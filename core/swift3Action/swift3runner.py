@@ -63,12 +63,18 @@ class Swift3Runner(ActionRunner):
 
         p = subprocess.Popen(BUILD_PROCESS, cwd=DEST_SCRIPT_DIR)
         (o, e) = p.communicate()
+        # stdout/stderr may be either text or bytes, depending on Python
+        # version.   In the latter case, decode to text.
+        if isinstance(o, bytes):
+            o = o.decode('utf-8')
+        if isinstance(e, bytes):
+            e = e.decode('utf-8')
 
-        if o is not None:
+        if o:
             sys.stdout.write(o)
             sys.stdout.flush()
 
-        if e is not None:
+        if e:
             sys.stderr.write(e)
             sys.stderr.flush()
 
