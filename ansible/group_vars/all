@@ -81,10 +81,12 @@ nginx:
     adminportal: 8443
 
 db:
-  immortal: subjects
   authkeys:
   - guest
   - whisk.system
+  whisk:
+    actions: "{{ db_prefix }}whisks"
+    auth: "{{ db_prefix }}subjects"
 
 apigateway:
   port:
