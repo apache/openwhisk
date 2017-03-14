@@ -530,6 +530,12 @@ def shell(cmd, data=None, verbose=False):
     else:
         out, err = Popen(cmd, shell=True, stdout=PIPE, stderr=STDOUT)
     p.wait()
+    # stdout/stderr may be either text or bytes, depending on Python
+    # version.   In the latter case, decode to text.
+    if isinstance(o, bytes):
+        o = o.decode('utf-8')
+    if isinstance(e, bytes):
+        e = e.decode('utf-8')
     return (out, err)
 
 def unzip(iterable):
