@@ -24,15 +24,15 @@ task testLean(type: Test) {
 
 // Add all images needed for local testing here
 test.dependsOn([
-    ':core:nodejsAction:distDocker',
-    ':core:nodejs6Action:distDocker',
-    ':core:actionProxy:distDocker',
-    ':core:pythonAction:distDocker',
-    ':core:javaAction:distDocker',
-    ':core:swift3Action:distDocker',
-    ':sdk:docker:distDocker',
-    ':tests:dat:blackbox:badaction:distDocker',
-    ':tests:dat:blackbox:badproxy:distDocker'
+    ':core:nodejsAction:distDocker'
+//    ':core:nodejs6Action:distDocker',
+//    ':core:actionProxy:distDocker',
+//    ':core:pythonAction:distDocker',
+//    ':core:javaAction:distDocker',
+//    ':core:swift3Action:distDocker',
+//    ':sdk:docker:distDocker',
+//    ':tests:dat:blackbox:badaction:distDocker',
+//    ':tests:dat:blackbox:badproxy:distDocker'
 ])
 
 dependencies {

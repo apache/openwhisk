@@ -52,8 +52,11 @@ class InvokerSupervisionTests extends FlatSpec with Matchers with WskActorSystem
 
     behavior of "InvokerPool"
 
+    // Setup stubs
+    val kv = stub[KeyValueStore]
+    val callback = stubFunction[String, Unit]
+
     it should "successfully create invokers in its pool on ping" in {
-        val kv = stub[KeyValueStore]
         val supervisor = TestActorRef(new InvokerPool(kv, _ => ()))
 
         // Create one invoker
@@ -70,13 +73,11 @@ class InvokerSupervisionTests extends FlatSpec with Matchers with WskActorSystem
         // Shouldn't create another invoker if ping with the same name is sent
         supervisor ! PingMessage("invoker0")
         supervisor.children should have size 2
+
+        (kv.put _).verify(LoadBalancerKeys.invokerHealth, *).twice
     }
 
     it should "forward a ping to the appropriate invoker, calling the provided callback accordingly" in {
-        // Setup stubs
-        val callback = stubFunction[String, Unit]
-        val kv = stub[KeyValueStore]
-
         val supervisor = TestActorRef(new InvokerPool(kv, callback))
 
         // Create two invokers
