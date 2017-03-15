@@ -47,7 +47,7 @@ import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.controller.Context
 import whisk.core.controller.RejectRequest
-import whisk.core.controller.WhiskMetaApi
+import whisk.core.controller.WhiskWebActionsApi
 import whisk.core.controller.WebApiDirectives
 import whisk.core.database.NoDocumentException
 import whisk.core.entitlement.EntitlementProvider
@@ -61,7 +61,7 @@ import whisk.http.ErrorResponse
 import whisk.http.Messages
 
 /**
- * Tests Meta API.
+ * Tests web actions API.
  *
  * Unit tests of the controller service as a standalone component.
  * These tests exercise a fresh instance of the service object in memory -- these
@@ -74,7 +74,7 @@ import whisk.http.Messages
  */
 
 @RunWith(classOf[JUnitRunner])
-class MetaApiTestsV1 extends FlatSpec with Matchers with MetaApiTests {
+class WebActionsApiTestsV1 extends FlatSpec with Matchers with WebActionsApiTests {
     override lazy val webInvokePathSegments = Seq("experimental", "web")
     override lazy val webApiDirectives = WebApiDirectives.exp
 
@@ -95,7 +95,7 @@ class MetaApiTestsV1 extends FlatSpec with Matchers with MetaApiTests {
 }
 
 @RunWith(classOf[JUnitRunner])
-class MetaApiTestsV2 extends FlatSpec with Matchers with MetaApiTests {
+class WebActionsApiTestsV2 extends FlatSpec with Matchers with WebActionsApiTests {
     override lazy val webInvokePathSegments = Seq("web")
     override lazy val webApiDirectives = WebApiDirectives.web
 
@@ -116,12 +116,12 @@ class MetaApiTestsV2 extends FlatSpec with Matchers with MetaApiTests {
 }
 
 @RunWith(classOf[JUnitRunner])
-class MetaApiCommonTests extends FlatSpec with Matchers {
+class WebActionsApiCommonTests extends FlatSpec with Matchers {
     "extension splitter" should "split action name and extension" in {
         Seq(".http", ".json", ".text", ".html", ".svg").foreach { ext =>
             Seq(s"t$ext", s"tt$ext", s"t.wxyz$ext", s"tt.wxyz$ext").foreach { s =>
                 Seq(true, false).foreach { enforce =>
-                    val (n, e) = WhiskMetaApi.mediaTranscoderForName(s, enforce)
+                    val (n, e) = WhiskWebActionsApi.mediaTranscoderForName(s, enforce)
                     val i = s.lastIndexOf(".")
                     n shouldBe s.substring(0, i)
                     e.get.extension shouldBe ext
@@ -130,20 +130,20 @@ class MetaApiCommonTests extends FlatSpec with Matchers {
         }
 
         Seq(s"t", "tt", "abcde", "abcdef", "t.wxyz").foreach { s =>
-            val (n, e) = WhiskMetaApi.mediaTranscoderForName(s, false)
+            val (n, e) = WhiskWebActionsApi.mediaTranscoderForName(s, false)
             n shouldBe s
             e.get.extension shouldBe ".http"
         }
 
         Seq(s"t", "tt", "abcde", "abcdef", "t.wxyz").foreach { s =>
-            val (n, e) = WhiskMetaApi.mediaTranscoderForName(s, true)
+            val (n, e) = WhiskWebActionsApi.mediaTranscoderForName(s, true)
             n shouldBe s
             e shouldBe empty
         }
     }
 }
 
-trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with WhiskMetaApi {
+trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach with WhiskWebActionsApi {
     val systemId = Subject()
     val systemKey = AuthKey()
     val systemIdentity = Future.successful(Identity(systemId, EntityName(systemId.asString), systemKey, Privilege.ALL))
@@ -377,7 +377,7 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
                         m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
                             if (webApiDirectives.enforceExtension) {
                                 status should be(NotAcceptable)
-                                confirmErrorWithTid(responseAs[JsObject], Some(Messages.contentTypeExtensionNotSupported(WhiskMetaApi.allowedExtensions)))
+                                confirmErrorWithTid(responseAs[JsObject], Some(Messages.contentTypeExtensionNotSupported(WhiskWebActionsApi.allowedExtensions)))
                             } else {
                                 status should be(NotFound)
                             }
@@ -903,7 +903,7 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
                         m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
                             if (webApiDirectives.enforceExtension) {
                                 status should be(NotAcceptable)
-                                confirmErrorWithTid(responseAs[JsObject], Some(Messages.contentTypeExtensionNotSupported(WhiskMetaApi.allowedExtensions)))
+                                confirmErrorWithTid(responseAs[JsObject], Some(Messages.contentTypeExtensionNotSupported(WhiskWebActionsApi.allowedExtensions)))
                             } else {
                                 invocationsAllowed += 1
                                 status should be(Created)

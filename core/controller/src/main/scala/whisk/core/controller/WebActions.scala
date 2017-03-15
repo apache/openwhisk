@@ -25,7 +25,7 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
-import WhiskMetaApi.MediaExtension
+import WhiskWebActionsApi.MediaExtension
 import spray.http._
 import spray.http.HttpEntity.Empty
 import spray.http.HttpEntity.NonEmpty
@@ -137,7 +137,7 @@ private case class Context(
     }
 }
 
-protected[core] object WhiskMetaApi extends Directives {
+protected[core] object WhiskWebActionsApi extends Directives {
 
     private val mediaTranscoders = {
         // extensions are expected to contain only [a-z]
@@ -291,7 +291,7 @@ protected[core] object WhiskMetaApi extends Directives {
     }
 }
 
-trait WhiskMetaApi
+trait WhiskWebActionsApi
     extends Directives
     with ValidateRequestSize
     with PostActionActivation {
@@ -396,7 +396,7 @@ trait WhiskMetaApi
             namespace.addPath(pkgName).addPath(EntityName(actionName)).toFullyQualifiedEntityName
         }
 
-        provide(WhiskMetaApi.mediaTranscoderForName(actionNameWithExtension, webApiDirectives.enforceExtension)) {
+        provide(WhiskWebActionsApi.mediaTranscoderForName(actionNameWithExtension, webApiDirectives.enforceExtension)) {
             case (actionName, Some(extension)) =>
                 // extract request context, checks for overrides of reserved properties, and constructs action arguments
                 // as the context body which may be the incoming request when the content type is JSON or formdata, or
@@ -421,7 +421,7 @@ trait WhiskMetaApi
                     }
                 }
 
-            case (_, None) => terminate(NotAcceptable, Messages.contentTypeExtensionNotSupported(WhiskMetaApi.allowedExtensions))
+            case (_, None) => terminate(NotAcceptable, Messages.contentTypeExtensionNotSupported(WhiskWebActionsApi.allowedExtensions))
         }
     }
 
@@ -449,7 +449,7 @@ trait WhiskMetaApi
             // also merge package and action parameters at the same time
             // precedence order for parameters:
             // package.params -> action.params -> query.params -> request.entity (body) -> augment arguments (namespace, path)
-            action <- confirmExportedAction(actionLookup(actionName, failureCode = NotFound), authenticated) flatMap { a =>
+            action <- confirmExportedAction(actionLookup(actionName), authenticated) flatMap { a =>
                 if (a.namespace.defaultPackage) {
                     Future.successful(a)
                 } else {
@@ -600,7 +600,7 @@ trait WhiskMetaApi
                 // if the package lookup fails or the package doesn't conform to expected invariants,
                 // fail the request with BadRequest so as not to leak information about the existence
                 // of packages that are otherwise private
-                logging.info(this, s"meta api request for package which does not exist")
+                logging.info(this, s"package which does not exist")
                 Future.failed(RejectRequest(NotFound))
             case _: NoSuchElementException =>
                 logging.warn(this, s"'$pkg' is a binding")
@@ -610,15 +610,14 @@ trait WhiskMetaApi
 
     /**
      * Gets the action if it exists and fail future with RejectRequest if it does not.
-     * Caller should specify desired failure code for failed future.
-     * For a meta action, should be InternalServerError since the meta package might be
-     * badly configured. And for export errors NotFound is appropriate.
+     *
+     * @return future action document or NotFound rejection
      */
-    private def actionLookup(actionName: FullyQualifiedEntityName, failureCode: StatusCode)(
+    private def actionLookup(actionName: FullyQualifiedEntityName)(
         implicit transid: TransactionId): Future[WhiskAction] = {
         getAction(actionName) recoverWith {
             case _: ArtifactStoreException | DeserializationException(_, _, _) =>
-                Future.failed(RejectRequest(failureCode))
+                Future.failed(RejectRequest(NotFound))
         }
     }
 
