@@ -20,15 +20,15 @@
 # Whisk Admin command line interface
 ##
 
-import os
-import sys
 import argparse
 import json
-import wskprop
-import string
+import os
 import random
-import uuid
 from subprocess import Popen, PIPE, STDOUT
+import string
+import sys
+import uuid
+import wskprop
 try:
     import argcomplete
 except ImportError:
@@ -118,7 +118,7 @@ def parseArgs():
 
     subcmd = subparser.add_parser('get', help='get logs for a transaction id')
     subcmd.add_argument('tid', help='the transaction id')
-    subcmd.add_argument('component', help='component, one of [controller, invokerN] where N is invoker index')
+    subcmd.add_argument('component', help='component, one or more of [controller, invokerN] where N is invoker index', nargs='*', default=['controller', 'invoker0'])
 
     if argcomplete:
         argcomplete.autocomplete(parser)
@@ -485,7 +485,11 @@ def insertIntoDatabase(props, doc, verbose = False):
     return res
 
 def getLogsCmd(args, props):
-    path = '%s/%s/%s_logs.log' % (props[LOGS_DIR], args.component, args.component)
+    for c in args.component:
+        getLogsCmdForComponent(c, args, props)
+
+def getLogsCmdForComponent(component, args, props):
+    path = '%s/%s/%s_logs.log' % (props[LOGS_DIR], component, component)
     cmd = 'grep "\[#tid_%s\]" %s' % (args.tid, path)
     (output, error) = shell(cmd, verbose = args.verbose)
     if output:
