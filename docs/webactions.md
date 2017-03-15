@@ -1,8 +1,8 @@
-# Web Actions (Experimental)
+# Web Actions
 
 Web actions are OpenWhisk actions annotated to quickly enable you to build web based applications. This allows you to program backend logic which your web application can access anonymously without requiring an OpenWhisk authentication key. It is up to the action developer to implement their own desired authentication and authorization (i.e. OAuth flow).
 
-Web action activations will be associated with the user that created the action. This actions defers the cost of an action activation from the caller to the owner of the action. **Note**: This feature is currently an experimental offering that enables users an early opportunity to try it out and provide feedback.
+Web action activations will be associated with the user that created the action. This actions defers the cost of an action activation from the caller to the owner of the action.
 
 Let's take the following JavaScript action `hello.js`,
 ```javascript
@@ -95,16 +95,16 @@ _Note_: A JSON object or array is treated as binary data and must be base64 enco
 
 All web actions, when invoked, receives additional HTTP request details as parameters to the action input argument. They are:
 
-1. `__ow_method`: the HTTP method of the request.
-2. `__ow_headers`: the request headers.
-3. `__ow_path`: the unmatched path of the request (matching stops after consuming the action extension).
-4. `__ow_namespace`: the namespace identifying the OpenWhisk authenticated subject (not present if authentication was not presented)
-5. `__ow_body`: the request body entity, as a base64 encoded string when content is binary, or plain string otherwise
-6. `__ow_query`: the query parameters from the request as a map
+1. `__ow_method` (type: string). the HTTP method of the request.
+2. `__ow_headers` (type: map string to string): A the request headers.
+3. `__ow_path` (type: string): the unmatched path of the request (matching stops after consuming the action extension).
+4. `__ow_user` (type: string): the namespace identifying the OpenWhisk authenticated subject
+5. `__ow_body` (type: string): the request body entity, as a base64 encoded string when content is binary, or plain string otherwise
+6. `__ow_query` (type: map string to string): the query parameters from the request as a map
 
 A request may not override any of the named `__ow_` parameters above; doing so will result in a failed request with status equal to 400 Bad Request.
 
-The `__ow_namespace` is not present if the HTTP request did not present an authentication header. As such, a web action may elect to require authentication, and use the namespace to implement its own authorization policy. The `__ow_body` and `__ow_query` are available only when a web action elects to handle the ["raw" HTTP request](#raw-http-handling). Otherwise these values are assumed to be dictionaries, and they are merged together and appear as first class properties in the action arguments. The `__ow_body` is only provided for standard web actions when the content is not JSON or form data.
+The `__ow_user` is only present when the web action is [annotated to require authentication](annotations.md#annotations-specific-to-web-actions) and allows a web action to implement its own authorization policy. The `__ow_query` is available only when a web action elects to handle the ["raw" HTTP request](#raw-http-handling). It is a dictionary from query parameter names (strings) to values (strings). The `__ow_body` property is present either when handling "raw" HTTP requests, or when the HTTP request entity is not a JSON object or form data. Web actions otherwise receive query and body parameters as first class properties in the action arguments with body parameters taking precedence over query parameters, which in turn take precedence over action and package parameters.
 
 ## Additional features
 
@@ -115,7 +115,7 @@ Web actions bring some additional features that include:
 `/guest/demo/hello.html/body`. This allows an action which returns a dictionary `{body: "..." }` to project the `body` property and directly return its string value instead. The projected path follows an absolute path model (as in XPath).
 3. `Query and body parameters as input`: the action receives query parameters as well as parameters in the request body. The precedence order for merging parameters is: package parameters, action parameters, query parameter, body parameters with each of these overriding any previous values in case of overlap . As an example `/guest/demo/hello.http?name=Jane` will pass the argument `{name: "Jane"}` to the action.
 4. `Form data`: in addition to the standard `application/json`, web actions may receive URL encoded from data `application/x-www-form-urlencoded data` as input.
-5. `Activation via multiple HTTP verbs`: a web action may be invoked via any of these HTTP methods: `GET`, `POST`, `PUT`, `DELETE`, as well as `HEAD`, `PATCH` and `OPTIONS`.
+5. `Activation via multiple HTTP verbs`: a web action may be invoked via any of these HTTP methods: `GET`, `POST`, `PUT`, `PATCH`, and `DELETE`, as well as `HEAD` and `OPTIONS`.
 6. `Non JSON body and raw HTTP entity handling`: A web action may accept an HTTP request body other than a JSON object, and may elect to always receive such values as opaque values (plain text when not binary, or base64 encoded string otherwise).
 
 The example below briefly sketches how you might use these features in a web action. Consider an action `/guest/demo/hello` with the following body:
@@ -134,10 +134,10 @@ $ curl https://${APIHOST}/api/v1/web/guest/demo/hello.json
   "response": {
     "__ow_method": "get",
     "__ow_headers": {
-      "host": "172.17.0.1",
+      "accept": "*/*",
       "connection": "close",
-      "user-agent": "curl/7.43.0",
-      "accept": "*/*"
+      "host": "172.17.0.1",
+      "user-agent": "curl/7.43.0"
     },
     "__ow_path": ""
   }
@@ -150,12 +150,52 @@ $ curl https://${APIHOST}/api/v1/web/guest/demo/hello.json?name=Jane
 {
   "response": {
     "name": "Jane",
-    "__ow_verb": "get",
+    "__ow_method": "get",
     "__ow_headers": {
-      "host": "172.17.0.1",
+      "accept": "*/*",
       "connection": "close",
-      "user-agent": "curl/7.43.0",
-      "accept": "*/*"
+      "host": "172.17.0.1",
+      "user-agent": "curl/7.43.0"
+    },
+    "__ow_path": ""
+  }
+}
+```
+
+or form data:
+```bash
+$ curl https://${APIHOST}/api/v1/web/guest/demo/hello.json -d "name":"Jane"
+{
+  "response": {
+    "name": "Jane",
+    "__ow_method": "post",
+    "__ow_headers": {
+      "accept": "*/*",
+      "connection": "close",
+      "content-length": "10",      
+      "content-type": "application/x-www-form-urlencoded",      
+      "host": "172.17.0.1",
+      "user-agent": "curl/7.43.0"
+    },
+    "__ow_path": ""
+  }
+}
+```
+
+or JSON object:
+```bash
+$ curl https://${APIHOST}/api/v1/web/guest/demo/hello.json -H 'Content-Type: application/json' -d '{"name":"Jane"}'
+{
+  "response": {
+    "name": "Jane",
+    "__ow_method": "post",
+    "__ow_headers": {
+      "accept": "*/*",
+      "connection": "close",
+      "content-length": "15",      
+      "content-type": "application/json",
+      "host": "172.17.0.1",
+      "user-agent": "curl/7.43.0"
     },
     "__ow_path": ""
   }
@@ -167,6 +207,29 @@ and to project just the name (as text):
 $ curl https://${APIHOST}/api/v1/web/guest/demo/hello.text/response/name?name=Jane
 Jane
 ```
+
+You see above that for convenience, query parameters, form data, and JSON object body entities are all treated as dictionaries are their values are directly accessible as action input properties. This is not the case for web actions which opt to instead handle HTTP request entities more directly, or when the web action receives an entity that is not a JSON object.
+
+Here is an example of using a "text" content-type with the same example shown above:
+```bash
+$ curl https://${APIHOST}/api/v1/web/guest/demo/hello.json -H 'Content-Type: text/plain' -d "Jane"
+{
+  "response": {
+    "__ow_method": "post",
+    "__ow_headers": {
+      "accept": "*/*",
+      "connection": "close",
+      "content-length": "4",      
+      "content-type": "text/plain",
+      "host": "172.17.0.1",
+      "user-agent": "curl/7.43.0"
+    },
+    "__ow_path": "",
+    "__ow_body": "Jane"
+  }
+}
+```
+
 
 ## Content extensions
 
@@ -197,7 +260,31 @@ $ wsk action update /guest/demo/hello hello.js \
 
 ## Raw HTTP handling
 
-A web action may elect to interpret and process an incoming HTTP body directly, and forgo the default promotion of a JSON object to first class properties available to the action input. This is done via a `raw-http` [annotation](annotations.md). When this option is enabled, the query parameters are available in action input via the `__ow_query` property, and the `__ow_body` property will hold the request body as either a plain string when the content-type is not binary, or as a base64 encoded string otherwise. Note that content-type of `application/json` is considered binary, hence `__ow_body` will be a base64 encoded string that must be JSON parsed to recover the object or array.
+A web action may elect to interpret and process an incoming HTTP body directly, without the promotion of a JSON object to first class properties available to the action input (e.g., `args.name` vs `args.__ow_query.name`). This is done via a `raw-http` [annotation](annotations.md). Using the same example show earlier, but now as a "raw" HTTP web action receiving `name` both as a query parameters and as JSON value in the HTTP request body:
+```bash
+$ curl https://${APIHOST}/api/v1/web/guest/demo/hello.json?name=Jane -X POST -H "Content-Type: application/json" -d '{"name":"Jane"}' 
+{
+  "response": {
+    "__ow_method": "post",
+    "__ow_query": {
+      "name": "Jane"
+    },
+    "__ow_body": "eyJuYW1lIjoiSmFuZSJ9",
+    "__ow_headers": {
+      "accept": "*/*",
+      "connection": "close",
+      "content-length": "15",
+      "content-type": "application/json",
+      "host": "172.17.0.1",
+      "user-agent": "curl/7.43.0"      
+    },
+    "__ow_path": ""
+  }
+}
+```
+
+Notice in this case the JSON content is base64 encoded because it is treated as a binary value. The action must base64 decode and JSON parse this value to recover the JSON object. OpenWhisk uses the [Spray](https://github.com/spray/spray) framework to [determine](https://github.com/spray/spray/blob/master/spray-http/src/main/scala/spray/http/MediaType.scala#L282) which content types are binary and which are plain text.
+
 
 ### Enabling raw HTTP handling
 
@@ -209,8 +296,8 @@ $ wsk action create /guest/demo/hello hello.js \
       --annotation raw-http true
 ```
 
-Note that because of a CLI and API limitation, all annotations must be set at the same time (otherwise previous values are removed).
-Further, while `raw-http` implies `web-export`, it is reasonable to expect that in the future these are sugared in the CLI for convenience.
+**Note:** Since `raw-http` implies `web-export`, we plan to improve the CLI to provide a more convenient way to add (and remove) these annotations in the future.
+
 
 ### Disabling raw HTTP handling
 
@@ -221,6 +308,9 @@ $ wsk update create /guest/demo/hello hello.js \
       --annotation web-export true
       --annotation raw-http false
 ```
+
+**Note:**  All annotations for a single action must be set at the same time, either when creating or updating the action. This is due to a current limitation on the API and CLI. Failure to do so will result is removal of any previously attached annotations.
+
 
 ## Error Handling
 

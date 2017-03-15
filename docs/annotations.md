@@ -39,9 +39,9 @@ The annotations we have used for describing parameters include:
 
 The annotations are _not_ checked. So while it is conceivable to use the annotations to infer if a composition of two actions into a sequence is legal, for example, the system does not yet do that.
 
-# Annotations specific to web actions (experimental)
+# Annotations specific to web actions
 
-We recently extended the core API with some experimental features. To enable packages and actions to participate in these features, we introduced three new annotations that are semantically meaningful. These annotations must be explicitly set to `true` to have affect. Changing the value from `true` to `false` will exclude the attached asset from the experimental API. The annotations have no meaning otherwise in the system. The annotations are:
+We recently extended the core API with new features. To enable packages and actions to participate in these features, we introduced the following new annotations that are semantically meaningful. These annotations must be explicitly set to `true` to have affect. Changing the value from `true` to `false` will exclude the attached asset from the new API. The annotations have no meaning otherwise in the system. The annotations are:
 
 1. `final`: Applies only to an action. It makes all of the action parameters that are already defined immutable. A parameter of an action carrying the annotation may not be overridden by invoke-time parameters once the parameter has a value defined through its enclosing package or the action definition.
 2. `web-export`: Applies only to an action. If present, it makes its corresponding action accessible to REST calls _without_ authentication. We call these [_web actions_](webactions.md) because they allow one to use OpenWhisk actions from a browser for example. It is important to note that the _owner_ of the web action incurs the cost of running them in the system (i.e., the _owner_ of the action also owns the activations record).
