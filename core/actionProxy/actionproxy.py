@@ -142,11 +142,13 @@ class ActionRunner:
         if isinstance(e, bytes):
             e = e.decode('utf-8')
 
-        # TODO:
-        process_output_lines = o.strip().split('\n')
-        last_line = process_output_lines[-1]
-        for line in process_output_lines[:-1]:
-            sys.stdout.write('%s\n' % line)
+        if o:
+            process_output_lines = o.strip().split('\n')
+            last_line = process_output_lines[-1]
+            for line in process_output_lines[:-1]:
+                sys.stdout.write('%s\n' % line)
+        else:
+            last_line = '{}'
 
         if e:
             sys.stderr.write(e)
