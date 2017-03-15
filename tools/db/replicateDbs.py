@@ -25,6 +25,11 @@ import time
 import re
 import couchdb.client
 
+databasesToBeReplicated = ["namespaces", "subjects", "whisks"]
+
+def toBeReplicated(nameWithPrefix):
+    reduce(lambda x, y: x or y, map(lambda name: name.endsWith(nameWithPrefix), databasesToBeReplicated))
+
 
 def replicateDatabases(args):
     """Replicate databases."""
@@ -40,7 +45,7 @@ def replicateDatabases(args):
 
     # Create backup of all databases with given prefix
     print("----- Create backups -----")
-    for db in filter(lambda dbName: dbName.startswith(args.dbPrefix), sourceDb):
+    for db in filter(lambda dbName: dbName.startswith(args.dbPrefix) and toBeReplicated(dbName), sourceDb):
         backupDb = backupPrefix + db if not args.continuous else 'continuous_' + db
         print("create backup: %s" % backupDb)
         sourceDb["_replicator"].save({
@@ -62,7 +67,7 @@ def replicateDatabases(args):
 
     # Delete all backup-databases, that are older than specified
     print("----- Delete backups older than %d seconds -----" % args.expires)
-    for db in filter(lambda db: isBackupDb(db) and isExpired(extractTimestamp(db)), targetDb):
+    for db in filter(lambda db: isBackupDb(db) and isExpired(extractTimestamp(db)) and toBeReplicated(db), targetDb):
         print("deleting backup: %s" % db)
         targetDb.delete(db)
 
@@ -75,7 +80,7 @@ def replayDatabases(args):
     if "_replicator" not in sourceDb:
         sourceDb.create("_replicator")
 
-    for db in filter(lambda dbName: dbName.startswith(args.dbPrefix), sourceDb):
+    for db in filter(lambda dbName: dbName.startswith(args.dbPrefix) and toBeReplicated(dbName), sourceDb):
         plainDbName = db.replace(args.dbPrefix, "")
         (identifier, _) = sourceDb["_replicator"].save({
             "source": args.sourceDbUrl + "/" + db,

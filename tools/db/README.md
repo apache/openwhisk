@@ -23,9 +23,9 @@ Detailed instructions are found in the [ansible readme](../../ansible/README.md)
 
 ## Using Cloudant
 
-As an alternative to a self-managed CouchDB, you may want to try [Cloudant](https://cloudant.com) which is a cloud-based database service. 
-There are two ways to get a Cloudant account and configure OpenWhisk to use it. 
-You only need to establish an account once, either through IBM Bluemix or with Cloudant directly. 
+As an alternative to a self-managed CouchDB, you may want to try [Cloudant](https://cloudant.com) which is a cloud-based database service.
+There are two ways to get a Cloudant account and configure OpenWhisk to use it.
+You only need to establish an account once, either through IBM Bluemix or with Cloudant directly.
 
 ### Create a Cloudant account via IBM Bluemix
 Sign up for an account via [IBM Bluemix](https://bluemix.net). Bluemix offers trial accounts and its signup process is straightforward so it is not described here in detail. Using Bluemix, the most convenient way to create a Cloudant instance is via the `cf` command-line tool. See [here](https://www.ng.bluemix.net/docs/starters/install_cli.html) for instructions on how to download and configure `cf` to work with your Bluemix account.
@@ -73,7 +73,7 @@ If you are [using an ephemeral CouchDB container](#using-an-ephemeral-couchdb-co
   ```
   # Work out of your openwhisk directory
   cd /your/path/to/openwhisk/ansible
-  
+
   # Initialize data store containing authorization keys
   ansible-playbook initdb.yml
   ```
@@ -123,6 +123,8 @@ All commands for `replicateDbs.py` take two standard parameters:
 
 * `--sourceDbUrl`: Server URL of the source database, that has to be backed up. E.g. 'https://xxx:yyy@domain.couch.com:443'.
 * `--targetDbUrl`: Server URL of the target database, where the backup is stored. Like sourceDbUrl.
+
+Keep in mind, that only the core databases of OpenWhisk are considered by this backup script.
 
 ### Creating a snapshot
 
