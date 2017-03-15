@@ -203,25 +203,29 @@ abstract class WskWebActionsTests
             val file = Some(TestUtils.getTestActionFilename("echo.js"))
             var updateAction = false
 
-            try {
-                Seq(true, false, true).foreach { value =>
-                    wsk.action.create(name, file, web = Some(value), update = updateAction)
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) =>
+                    action.create(name, file, web = Some(true))
+            }
+
+            Seq(true, false, true).foreach { webAction =>
+                if (updateAction)
+                    wsk.action.create(name, file, web = Some(webAction), update = true)
+                else
                     updateAction = true
-                    val stdout = wsk.action.get(name, fieldFilter = Some("annotations")).stdout
-                    assert(stdout.startsWith(s"ok: got action $name, displaying field annotations\n"))
-                    removeCLIHeader(stdout).parseJson shouldBe JsArray(
-                        JsObject(
-                            "key" -> JsString("web-export"),
-                            "value" -> JsBoolean(value)),
-                        JsObject(
-                            "key" -> JsString("final"),
-                            "value" -> JsBoolean(value)),
-                        JsObject(
-                            "key" -> JsString("exec"),
-                            "value" -> JsString("nodejs:6")))
-                }
-            } finally {
-                wsk.action.delete(name)
+
+                val stdout = wsk.action.get(name, fieldFilter = Some("annotations")).stdout
+                assert(stdout.startsWith(s"ok: got action $name, displaying field annotations\n"))
+                removeCLIHeader(stdout).parseJson shouldBe JsArray(
+                    JsObject(
+                        "key" -> JsString("web-export"),
+                        "value" -> JsBoolean(webAction)),
+                    JsObject(
+                        "key" -> JsString("final"),
+                        "value" -> JsBoolean(webAction)),
+                    JsObject(
+                        "key" -> JsString("exec"),
+                        "value" -> JsString("nodejs:6")))
             }
     }
 
@@ -231,28 +235,32 @@ abstract class WskWebActionsTests
             val file = Some(TestUtils.getTestActionFilename("echo.js"))
             var updateAction = false
 
-            try {
-                Seq(true, false, true).foreach { value =>
-                    wsk.action.create(name, file, raw = Some(value), update = updateAction)
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) =>
+                    action.create(name, file, raw = Some(true))
+            }
+
+            Seq(true, false, true).foreach { rawAction =>
+                if (updateAction)
+                    wsk.action.create(name, file, raw = Some(rawAction), update = true)
+                else
                     updateAction = true
-                    val stdout = wsk.action.get(name, fieldFilter = Some("annotations")).stdout
-                    assert(stdout.startsWith(s"ok: got action $name, displaying field annotations\n"))
-                    removeCLIHeader(stdout).parseJson shouldBe JsArray(
-                        JsObject(
-                            "key" -> JsString("raw-http"),
-                            "value" -> JsBoolean(value)),
-                        JsObject(
-                            "key" -> JsString("web-export"),
-                            "value" -> JsBoolean(value)),
-                        JsObject(
-                            "key" -> JsString("final"),
-                            "value" -> JsBoolean(value)),
-                        JsObject(
-                            "key" -> JsString("exec"),
-                            "value" -> JsString("nodejs:6")))
-                }
-            } finally {
-                wsk.action.delete(name)
+
+                val stdout = wsk.action.get(name, fieldFilter = Some("annotations")).stdout
+                assert(stdout.startsWith(s"ok: got action $name, displaying field annotations\n"))
+                removeCLIHeader(stdout).parseJson shouldBe JsArray(
+                    JsObject(
+                        "key" -> JsString("raw-http"),
+                        "value" -> JsBoolean(rawAction)),
+                    JsObject(
+                        "key" -> JsString("web-export"),
+                        "value" -> JsBoolean(rawAction)),
+                    JsObject(
+                        "key" -> JsString("final"),
+                        "value" -> JsBoolean(rawAction)),
+                    JsObject(
+                        "key" -> JsString("exec"),
+                        "value" -> JsString("nodejs:6")))
             }
     }
 }
