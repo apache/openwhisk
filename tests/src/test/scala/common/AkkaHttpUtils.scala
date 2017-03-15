@@ -15,34 +15,45 @@
  * limitations under the License.
  */
 
-package whisk.core.container
+package common
 
-import scala.concurrent.Await
-import scala.concurrent.Future
-import scala.concurrent.Promise
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.DurationInt
-import scala.concurrent.duration.FiniteDuration
-import scala.util.Try
-import akka.actor.ActorSystem
-import akka.http.scaladsl._
-import akka.http.scaladsl.model._
-import akka.stream.ActorMaterializer
-import akka.stream.scaladsl._
 import java.util.concurrent.TimeoutException
 
+import akka.actor.ActorSystem
+import akka.http.scaladsl.model._
+import akka.stream.ActorMaterializer
+import play.api.http.{ContentTypeOf, Writeable}
+import play.api.libs.ws.WSResponse
+import play.api.libs.ws.ahc.AhcWSClient
+import play.api.mvc.Codec
+import spray.json.JsValue
+
+import scala.concurrent.{Await, Future, Promise}
+import scala.concurrent.duration.{Duration, DurationInt, FiniteDuration}
+import scala.util.Try
+
 object AkkaHttpUtils {
+
+    // Writable for spray-json is required
+    implicit def sprayJsonContentType(implicit codec: Codec): ContentTypeOf[JsValue] = {
+        ContentTypeOf[JsValue](Some(ContentTypes.`application/json`.toString()))
+    }
+    implicit def sprayJsonWriteable(implicit codec: Codec): Writeable[JsValue] = {
+        Writeable(message => codec.encode(message.toString()))
+    }
+
     def singleRequestBlocking(
-        request: HttpRequest,
+        uri: String,
+        content: JsValue,
         timeout: FiniteDuration,
         retryOnTCPErrors: Boolean = false,
         retryOn4xxErrors: Boolean = false,
         retryOn5xxErrors: Boolean = false,
         retryInterval: FiniteDuration = 100.milliseconds)
-        (implicit system: ActorSystem) : Try[HttpResponse] = {
+        (implicit system: ActorSystem) : Try[WSResponse] = {
 
         val f = singleRequest(
-            request, timeout, retryOnTCPErrors, retryOn4xxErrors, retryOn5xxErrors, retryInterval
+            uri, content, timeout, retryOnTCPErrors, retryOn4xxErrors, retryOn5xxErrors, retryInterval
         )
 
         // Duration.Inf is not an issue, since singleRequest has a built-in timeout mechanism.
@@ -54,24 +65,21 @@ object AkkaHttpUtils {
     // Makes a request, expects a successful within timeout, retries on selected
     // errors until timeout has passed.
     def singleRequest(
-        request: HttpRequest,
-        timeout: FiniteDuration,
-        retryOnTCPErrors: Boolean = false,
-        retryOn4xxErrors: Boolean = false,
-        retryOn5xxErrors: Boolean = false,
-        retryInterval: FiniteDuration = 100.milliseconds)
-        (implicit system: ActorSystem) : Future[HttpResponse] = {
-
+         uri: String,
+         content: JsValue,
+         timeout: FiniteDuration,
+         retryOnTCPErrors: Boolean = false,
+         retryOn4xxErrors: Boolean = false,
+         retryOn5xxErrors: Boolean = false,
+         retryInterval: FiniteDuration = 100.milliseconds)
+        (implicit system: ActorSystem) : Future[WSResponse] = {
         implicit val executionContext = system.dispatcher
         implicit val materializer = ActorMaterializer()
+        val wsClient = AhcWSClient()
 
-        val timeoutException = new TimeoutException(s"Request to ${request.uri.authority} could not be completed in time.")
+        val timeoutException = new TimeoutException(s"Request to ${uri} could not be completed in time.")
 
-        val authority = request.uri.authority
-        val relativeRequest = request.copy(uri = request.uri.toRelative)
-        val flow = Http().outgoingConnection(authority.host.address, authority.port)
-
-        val promise = Promise[HttpResponse]
+        val promise = Promise[WSResponse]
 
         // Timeout includes all retries.
         system.scheduler.scheduleOnce(timeout) {
@@ -79,25 +87,19 @@ object AkkaHttpUtils {
         }
 
         def tryOnce() : Unit = if(!promise.isCompleted) {
-            val f = Source.single(relativeRequest).via(flow).runWith(Sink.head)
-
+            val f = wsClient.url(uri).withRequestTimeout(timeout).post(content)
             f.onSuccess {
-                case r if r.status.intValue >= 400 && r.status.intValue < 500 && retryOn4xxErrors =>
-                    // need to drain the response to close the connection
-                    r.entity.dataBytes.runWith(Sink.ignore)
+                case r if r.status >= 400 && r.status < 500 && retryOn4xxErrors =>
                     system.scheduler.scheduleOnce(retryInterval) { tryOnce() }
-
-                case r if r.status.intValue >= 500 && r.status.intValue < 600 && retryOn5xxErrors =>
-                    // need to drain the response to close the connection
-                    r.entity.dataBytes.runWith(Sink.ignore)
+                case r if r.status >= 500 && r.status < 600 && retryOn5xxErrors =>
                     system.scheduler.scheduleOnce(retryInterval) { tryOnce() }
-
                 case r =>
+                    wsClient.close()
                     promise.trySuccess(r)
             }
 
             f.onFailure {
-                case s : akka.stream.StreamTcpException if retryOnTCPErrors =>
+                case s : java.net.ConnectException if retryOnTCPErrors =>
                     // TCP error (e.g. connection couldn't be opened)
                     system.scheduler.scheduleOnce(retryInterval) { tryOnce() }
 

@@ -7,6 +7,8 @@ repositories {
 }
 
 tasks.withType(Test) {
+    systemProperties(System.getProperties())
+
     testLogging {
         events "passed", "skipped", "failed"
         showStandardStreams = true
@@ -50,6 +52,7 @@ dependencies {
     compile 'com.typesafe.akka:akka-testkit_2.11:2.4.16'
     compile 'com.google.code.gson:gson:2.3.1'
     compile 'org.scalamock:scalamock-scalatest-support_2.11:3.4.2'
+    compile 'com.typesafe.play:play-ws_2.11:2.5.11'
 
     compile project(':common:scala')
     compile project(':core:controller')
