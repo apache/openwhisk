@@ -34,13 +34,13 @@ http {
 
         # proxy to the web action path
         location / {
-            rewrite    /(.*) /api/v1/experimental/web/${namespace}/$1 break;
+            rewrite    /(.*) /api/v1/web/${namespace}/$1 break;
             proxy_pass http://{{ groups['controllers']|first }}:{{ controller.port }};
         }
 
         # proxy to 'public/html' web action by convention
         location = / {
-            rewrite    ^ /api/v1/experimental/web/${namespace}/public/index.html break;
+            rewrite    ^ /api/v1/web/${namespace}/public/index.html break;
             proxy_pass http://{{ groups['controllers']|first }}:{{ controller.port }};
         }
 

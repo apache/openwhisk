@@ -25,24 +25,32 @@ import scala.concurrent.duration.FiniteDuration
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.junit.JUnitRunner
+import org.scalatest.Matchers
+import org.scalatest.FlatSpec
 
 import spray.http.FormData
 import spray.http.HttpMethods
 import spray.http.MediaTypes
 import spray.http.StatusCodes._
+import spray.http.HttpCharsets
+import spray.http.HttpHeader
+import spray.http.HttpHeaders
+import spray.http.HttpResponse
+import spray.http.Uri.Query
 import spray.httpx.SprayJsonSupport._
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
 import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
 import spray.json._
 import spray.json.DefaultJsonProtocol._
+
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.controller.Context
 import whisk.core.controller.RejectRequest
 import whisk.core.controller.WhiskMetaApi
+import whisk.core.controller.WebApiDirectives
 import whisk.core.database.NoDocumentException
 import whisk.core.entitlement.EntitlementProvider
-import whisk.core.entitlement.Privilege
 import whisk.core.entitlement.Privilege
 import whisk.core.entitlement.Privilege._
 import whisk.core.entitlement.Resource
@@ -64,16 +72,83 @@ import whisk.http.Messages
  * "using Specification DSL to write unit tests, as in should, must, not, be"
  * "using Specs2RouteTest DSL to chain HTTP requests for unit testing, as in ~>"
  */
+
 @RunWith(classOf[JUnitRunner])
-class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAndAfterEach {
+class MetaApiTestsV1 extends FlatSpec with Matchers with MetaApiTests {
+    override lazy val webInvokePathSegments = Seq("experimental", "web")
+    override lazy val webApiDirectives = WebApiDirectives.exp
 
-    override val apipath = "api"
-    override val apiversion = "v1"
+    "properties" should "match verion" in {
+        webApiDirectives.method shouldBe "__ow_meta_verb"
+        webApiDirectives.headers shouldBe "__ow_meta_headers"
+        webApiDirectives.path shouldBe "__ow_meta_path"
+        webApiDirectives.namespace shouldBe "__ow_meta_namespace"
+        webApiDirectives.query shouldBe "__ow_meta_query"
+        webApiDirectives.body shouldBe "__ow_meta_body"
+        webApiDirectives.statusCode shouldBe "code"
+        webApiDirectives.enforceExtension shouldBe true
+        webApiDirectives.reservedProperties shouldBe {
+            Set("__ow_meta_verb", "__ow_meta_headers", "__ow_meta_path", "__ow_meta_namespace",
+                "__ow_meta_query", "__ow_meta_body")
+        }
+    }
+}
 
+@RunWith(classOf[JUnitRunner])
+class MetaApiTestsV2 extends FlatSpec with Matchers with MetaApiTests {
+    override lazy val webInvokePathSegments = Seq("web")
+    override lazy val webApiDirectives = WebApiDirectives.web
+
+    "properties" should "match verion" in {
+        webApiDirectives.method shouldBe "__ow_method"
+        webApiDirectives.headers shouldBe "__ow_headers"
+        webApiDirectives.path shouldBe "__ow_path"
+        webApiDirectives.namespace shouldBe "__ow_user"
+        webApiDirectives.query shouldBe "__ow_query"
+        webApiDirectives.body shouldBe "__ow_body"
+        webApiDirectives.statusCode shouldBe "statusCode"
+        webApiDirectives.enforceExtension shouldBe false
+        webApiDirectives.reservedProperties shouldBe {
+            Set("__ow_method", "__ow_headers", "__ow_path", "__ow_user",
+                "__ow_query", "__ow_body")
+        }
+    }
+}
+
+@RunWith(classOf[JUnitRunner])
+class MetaApiCommonTests extends FlatSpec with Matchers {
+    "extension splitter" should "split action name and extension" in {
+        Seq(".http", ".json", ".text", ".html", ".svg").foreach { ext =>
+            Seq(s"t$ext", s"tt$ext", s"t.wxyz$ext", s"tt.wxyz$ext").foreach { s =>
+                Seq(true, false).foreach { enforce =>
+                    val (n, e) = WhiskMetaApi.mediaTranscoderForName(s, enforce)
+                    val i = s.lastIndexOf(".")
+                    n shouldBe s.substring(0, i)
+                    e.get.extension shouldBe ext
+                }
+            }
+        }
+
+        Seq(s"t", "tt", "abcde", "abcdef", "t.wxyz").foreach { s =>
+            val (n, e) = WhiskMetaApi.mediaTranscoderForName(s, false)
+            n shouldBe s
+            e.get.extension shouldBe ".http"
+        }
+
+        Seq(s"t", "tt", "abcde", "abcdef", "t.wxyz").foreach { s =>
+            val (n, e) = WhiskMetaApi.mediaTranscoderForName(s, true)
+            n shouldBe s
+            e shouldBe empty
+        }
+    }
+}
+
+trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with WhiskMetaApi {
     val systemId = Subject()
     val systemKey = AuthKey()
     val systemIdentity = Future.successful(Identity(systemId, EntityName(systemId.asString), systemKey, Privilege.ALL))
     override lazy val entitlementProvider = new TestingEntitlementProvider(whiskConfig, loadBalancer)
+    protected val testRoutePath = webInvokePathSegments.mkString("/", "/", "")
 
     /** Meta API tests */
     behavior of "Meta API"
@@ -83,6 +158,13 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
     var failThrottleForSubject: Option[Subject] = None // toggle to cause throttle to fail for subject
     var actionResult: Option[JsObject] = None
     var requireAuthentication = false // toggle require-whisk-auth annotation on action
+    var invocationCount = 0
+    var invocationsAllowed = 0
+
+    override def beforeEach() = {
+        invocationCount = 0
+        invocationsAllowed = 0
+    }
 
     override def afterEach() = {
         failActionLookup = false
@@ -90,9 +172,14 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
         failThrottleForSubject = None
         actionResult = None
         requireAuthentication = false
+        assert(invocationsAllowed == invocationCount, "allowed invoke count did not match actual")
     }
 
-    val allowedMethods = Seq(Get, Post, Put, Delete)
+    val allowedMethods = {
+        val nonModifierMethods = Seq(Get, Options, Head)
+        val modifierMethods = Seq(Post, Put, Delete, Patch)
+        modifierMethods ++ nonModifierMethods
+    }
 
     // there is only one package that is predefined 'proxy'
     val packages = Seq(
@@ -129,6 +216,14 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
                                     Parameters("require-whisk-auth", JsBoolean(true))
                                 } else Parameters()
                             }
+                    } else if (actionName.name.asString.startsWith("raw_export_")) {
+                        annotations ++
+                            Parameters("web-export", JsBoolean(true)) ++
+                            Parameters("raw-http", JsBoolean(true)) ++ {
+                                if (requireAuthentication) {
+                                    Parameters("require-whisk-auth", JsBoolean(true))
+                                } else Parameters()
+                            }
                     } else annotations
                 })
             }
@@ -156,6 +251,8 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
 
     override protected[controller] def invokeAction(user: Identity, action: WhiskAction, payload: Option[JsObject], blocking: Boolean, waitOverride: Option[FiniteDuration] = None)(
         implicit transid: TransactionId): Future[(ActivationId, Option[WhiskActivation])] = {
+        invocationCount = invocationCount + 1
+
         if (failActivation == 0) {
             // construct a result stub that includes:
             // 1. the package name for the action (to confirm that this resolved to systemId)
@@ -204,7 +301,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
         }
     }
 
-    def metaPayload(method: String, params: Map[String, String], identity: Option[Identity], path: String = "", body: Option[JsObject] = None, pkgName: String = null) = {
+    def metaPayload(method: String, params: JsObject, identity: Option[Identity], path: String = "", body: Option[JsObject] = None, pkgName: String = null, headers: List[HttpHeader] = List()) = {
         val packageActionParams = Option(pkgName).filter(_ != null).flatMap(n => packages.find(_.name == EntityName(n)))
             .map(_.parameters)
             .getOrElse(Parameters())
@@ -212,9 +309,9 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
         (packageActionParams ++ defaultActionParameters).merge {
             Some {
                 JsObject(
-                    params.toJson.asJsObject.fields ++
+                    params.fields ++
                         body.map(_.fields).getOrElse(Map()) ++
-                        Context(HttpMethods.getForKey(method.toUpperCase).get, List(), path, Map()).metadata(identity))
+                        Context(webApiDirectives, HttpMethods.getForKey(method.toUpperCase).get, headers, path, Query.Empty).metadata(identity))
             }
         }.get
     }
@@ -227,26 +324,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
         error.fields.get("code").get shouldBe an[JsNumber]
     }
 
-    val testRoutePath = s"/$routePath/$webInvokePath"
-
     Seq(None, Some(WhiskAuth(Subject(), AuthKey()).toIdentity)).foreach { creds =>
-
-        it should s"split action name and extension (auth? ${creds.isDefined})" in {
-            val r = WhiskMetaApi.extensionSplitter
-            Seq("t.j.http", "t.js.http", "tt.j.http", "tt.js.http").foreach { s =>
-                val r(n, e) = s
-                val i = s.lastIndexOf(".")
-                n shouldBe s.substring(0, i)
-                e shouldBe s.substring(i + 1)
-            }
-
-            Seq("t.js", "t.js.htt", "t.js.httpz").foreach { s =>
-                a[MatchError] should be thrownBy {
-                    val r(n, e) = s
-                }
-            }
-
-        }
 
         it should s"not match invalid routes (auth? ${creds.isDefined})" in {
             implicit val tid = transid()
@@ -254,23 +332,31 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
             // none of these should match a route
             Seq("a", "a/b", "/a", s"$systemId/c", s"$systemId/export_c").
                 foreach { path =>
-                    Get(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
-                        status should be(NotFound)
+                    allowedMethods.foreach { m =>
+                        m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
+                            status should be(NotFound)
+                        }
                     }
                 }
         }
 
-        it should s"reject unsupported http verbs (auth? ${creds.isDefined})" in {
+        /*
+         * All of the verbs supported by Spray have been added to Web Actions, so comment this test out
+         * as it is no longer valid.
+         *
+         it should s"reject unsupported http verbs (auth? ${creds.isDefined})" in {
             implicit val tid = transid()
 
-            Seq((Head, MethodNotAllowed), (Patch, MethodNotAllowed)).
+            Seq((???, MethodNotAllowed)).
                 foreach {
                     case (m, code) =>
-                        m(s"$systemId/proxy/export_c.json") ~> sealRoute(routes(creds)) ~> check {
+                        m(s"$testRoutePath/$systemId/proxy/export_c.json") ~> sealRoute(routes(creds)) ~> check {
                             status should be(code)
                         }
                 }
-        }
+         }
+         *
+         */
 
         it should s"reject requests when identity, package or action lookup fail or missing annotation (auth? ${creds.isDefined})" in {
             implicit val tid = transid()
@@ -281,15 +367,21 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
             // the fourth fails the action lookup
             Seq("guest/proxy/c", s"$systemId/doesnotexist/c", s"$systemId/default/c", s"$systemId/proxy/export_fail").
                 foreach { path =>
-                    failActionLookup = path.endsWith("fail")
+                    allowedMethods.foreach { m =>
+                        failActionLookup = path.endsWith("fail")
 
-                    Get(s"$testRoutePath/${path}.json") ~> sealRoute(routes(creds)) ~> check {
-                        status should be(NotFound)
-                    }
+                        m(s"$testRoutePath/${path}.json") ~> sealRoute(routes(creds)) ~> check {
+                            status should be(NotFound)
+                        }
 
-                    Get(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
-                        status should be(NotAcceptable)
-                        confirmErrorWithTid(responseAs[JsObject], Some(Messages.contentTypeNotSupported))
+                        m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
+                            if (webApiDirectives.enforceExtension) {
+                                status should be(NotAcceptable)
+                                confirmErrorWithTid(responseAs[JsObject], Some(Messages.contentTypeExtensionNotSupported(WhiskMetaApi.allowedExtensions)))
+                            } else {
+                                status should be(NotFound)
+                            }
+                        }
                     }
                 }
         }
@@ -299,19 +391,23 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
 
             Seq(s"$systemId/proxy/export_auth").
                 foreach { path =>
-                    requireAuthentication = true
+                    allowedMethods.foreach { m =>
+                        if (creds.isDefined)
+                            invocationsAllowed += 1
+                        requireAuthentication = true
 
-                    Get(s"$testRoutePath/${path}.json") ~> sealRoute(routes(creds)) ~> check {
-                        creds match {
-                            case None => status should be(Unauthorized)
-                            case Some(user) =>
-                                status should be(OK)
-                                val response = responseAs[JsObject]
-                                response shouldBe JsObject(
-                                    "pkg" -> s"$systemId/proxy".toJson,
-                                    "action" -> "export_auth".toJson,
-                                    "content" -> metaPayload("get", Map(), creds, pkgName = "proxy"))
-                                response.fields("content").asJsObject.fields("__ow_meta_namespace") shouldBe user.namespace.toJson
+                        m(s"$testRoutePath/${path}.json") ~> sealRoute(routes(creds)) ~> check {
+                            creds match {
+                                case None => status should be(Unauthorized)
+                                case Some(user) =>
+                                    status should be(OK)
+                                    val response = responseAs[JsObject]
+                                    response shouldBe JsObject(
+                                        "pkg" -> s"$systemId/proxy".toJson,
+                                        "action" -> "export_auth".toJson,
+                                        "content" -> metaPayload(m.method.name.toLowerCase, JsObject(), creds, pkgName = "proxy"))
+                                    response.fields("content").asJsObject.fields(webApiDirectives.namespace) shouldBe user.namespace.toJson
+                            }
                         }
                     }
                 }
@@ -319,32 +415,42 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
 
         it should s"invoke action that times out and provide a code (auth? ${creds.isDefined})" in {
             implicit val tid = transid()
-
             failActivation = 1
-            Get(s"$testRoutePath/$systemId/proxy/export_c.json") ~> sealRoute(routes(creds)) ~> check {
-                status should be(Accepted)
-                val response = responseAs[JsObject]
-                confirmErrorWithTid(response, Some("Response not yet ready."))
+
+            allowedMethods.foreach { m =>
+                invocationsAllowed += 1
+
+                m(s"$testRoutePath/$systemId/proxy/export_c.json") ~> sealRoute(routes(creds)) ~> check {
+                    status should be(Accepted)
+                    val response = responseAs[JsObject]
+                    confirmErrorWithTid(response, Some("Response not yet ready."))
+                }
             }
         }
 
         it should s"invoke action that errors and response with error and code (auth? ${creds.isDefined})" in {
             implicit val tid = transid()
-
             failActivation = 2
-            Get(s"$testRoutePath/$systemId/proxy/export_c.json") ~> sealRoute(routes(creds)) ~> check {
-                status should be(InternalServerError)
-                val response = responseAs[JsObject]
-                confirmErrorWithTid(response)
+
+            allowedMethods.foreach { m =>
+                invocationsAllowed += 1
+
+                m(s"$testRoutePath/$systemId/proxy/export_c.json") ~> sealRoute(routes(creds)) ~> check {
+                    status should be(InternalServerError)
+                    val response = responseAs[JsObject]
+                    confirmErrorWithTid(response)
+                }
             }
         }
 
         it should s"invoke action and merge query parameters (auth? ${creds.isDefined})" in {
             implicit val tid = transid()
 
-            Seq(s"$systemId/proxy/export_c.json?a=b&c=d")
-                .foreach { path =>
+            Seq(s"$systemId/proxy/export_c.json?a=b&c=d").
+                foreach { path =>
                     allowedMethods.foreach { m =>
+                        invocationsAllowed += 1
+
                         m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
                             status should be(OK)
                             val response = responseAs[JsObject]
@@ -353,7 +459,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
                                 "action" -> "export_c".toJson,
                                 "content" -> metaPayload(
                                     m.method.name.toLowerCase,
-                                    Map("a" -> "b", "c" -> "d"),
+                                    Map("a" -> "b", "c" -> "d").toJson.asJsObject,
                                     creds,
                                     pkgName = "proxy"))
                         }
@@ -365,11 +471,12 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
             implicit val tid = transid()
 
             // both of these should produce full result objects (trailing slash is ok)
-            Seq(s"$systemId/proxy/export_c.json", s"$systemId/proxy/export_c.json/")
-                .foreach { path =>
+            Seq(s"$systemId/proxy/export_c.json", s"$systemId/proxy/export_c.json/").
+                foreach { path =>
                     allowedMethods.foreach { m =>
                         val content = JsObject("extra" -> "read all about it".toJson, "yummy" -> true.toJson)
                         val p = if (path.endsWith("/")) "/" else ""
+                        invocationsAllowed += 1
                         m(s"$testRoutePath/$path", content) ~> sealRoute(routes(creds)) ~> check {
                             status should be(OK)
                             val response = responseAs[JsObject]
@@ -378,7 +485,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
                                 "action" -> "export_c".toJson,
                                 "content" -> metaPayload(
                                     m.method.name.toLowerCase,
-                                    Map(),
+                                    JsObject(),
                                     creds,
                                     body = Some(content),
                                     path = p,
@@ -391,10 +498,12 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
         it should s"invoke action and merge query and body parameters (auth? ${creds.isDefined})" in {
             implicit val tid = transid()
 
-            Seq(s"$systemId/proxy/export_c.json?a=b&c=d")
-                .foreach { path =>
+            Seq(s"$systemId/proxy/export_c.json?a=b&c=d").
+                foreach { path =>
                     allowedMethods.foreach { m =>
                         val content = JsObject("extra" -> "read all about it".toJson, "yummy" -> true.toJson)
+                        invocationsAllowed += 1
+
                         m(s"$testRoutePath/$path", content) ~> sealRoute(routes(creds)) ~> check {
                             status should be(OK)
                             val response = responseAs[JsObject]
@@ -403,7 +512,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
                                 "action" -> "export_c".toJson,
                                 "content" -> metaPayload(
                                     m.method.name.toLowerCase,
-                                    Map("a" -> "b", "c" -> "d"),
+                                    Map("a" -> "b", "c" -> "d").toJson.asJsObject,
                                     creds,
                                     body = Some(content),
                                     pkgName = "proxy"))
@@ -417,13 +526,17 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
 
             Seq(s"$systemId/default/export_c.json").
                 foreach { path =>
-                    Get(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
-                        status should be(OK)
-                        val response = responseAs[JsObject]
-                        response shouldBe JsObject(
-                            "pkg" -> s"$systemId".toJson,
-                            "action" -> "export_c".toJson,
-                            "content" -> metaPayload("get", Map(), creds))
+                    allowedMethods.foreach { m =>
+                        invocationsAllowed += 1
+
+                        m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
+                            status should be(OK)
+                            val response = responseAs[JsObject]
+                            response shouldBe JsObject(
+                                "pkg" -> s"$systemId".toJson,
+                                "action" -> "export_c".toJson,
+                                "content" -> metaPayload(m.method.name.toLowerCase, JsObject(), creds))
+                        }
                     }
                 }
         }
@@ -433,19 +546,27 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
 
             Seq(s"$systemId/proxy/export_c.json/content").
                 foreach { path =>
-                    Get(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
-                        status should be(OK)
-                        val response = responseAs[JsObject]
-                        response shouldBe metaPayload("get", Map(), creds, path = "/content", pkgName = "proxy")
+                    allowedMethods.foreach { m =>
+                        invocationsAllowed += 1
+
+                        m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
+                            status should be(OK)
+                            val response = responseAs[JsObject]
+                            response shouldBe metaPayload(m.method.name.toLowerCase, JsObject(), creds, path = "/content", pkgName = "proxy")
+                        }
                     }
                 }
 
             Seq(s"$systemId/proxy/export_c.text/content/z", s"$systemId/proxy/export_c.text/content/z/", s"$systemId/proxy/export_c.text/content/z//").
                 foreach { path =>
-                    Get(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
-                        status should be(OK)
-                        val response = responseAs[String]
-                        response shouldBe "Z"
+                    allowedMethods.foreach { m =>
+                        invocationsAllowed += 1
+
+                        m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
+                            status should be(OK)
+                            val response = responseAs[String]
+                            response shouldBe "Z"
+                        }
                     }
                 }
         }
@@ -456,10 +577,14 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
             // these project a result which does not match expected type
             Seq(s"$systemId/proxy/export_c.json/a").
                 foreach { path =>
-                    actionResult = Some(JsObject("a" -> JsString("b")))
-                    Get(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
-                        status should be(BadRequest)
-                        confirmErrorWithTid(responseAs[JsObject], Some(Messages.invalidMedia(MediaTypes.`application/json`)))
+                    allowedMethods.foreach { m =>
+                        invocationsAllowed += 1
+                        actionResult = Some(JsObject("a" -> JsString("b")))
+
+                        m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
+                            status should be(BadRequest)
+                            confirmErrorWithTid(responseAs[JsObject], Some(Messages.invalidMedia(MediaTypes.`application/json`)))
+                        }
                     }
                 }
         }
@@ -469,9 +594,13 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
 
             Seq(s"$systemId/proxy/export_c.text/foobar", s"$systemId/proxy/export_c.text/content/z/x").
                 foreach { path =>
-                    Get(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
-                        status should be(NotFound)
-                        confirmErrorWithTid(responseAs[JsObject], Some(Messages.propertyNotFound))
+                    allowedMethods.foreach { m =>
+                        invocationsAllowed += 1
+
+                        m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
+                            status should be(NotFound)
+                            confirmErrorWithTid(responseAs[JsObject], Some(Messages.propertyNotFound))
+                        }
                     }
                 }
         }
@@ -482,10 +611,14 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
             // http extension does not project
             Seq(s"$systemId/proxy/export_c.http/content/response").
                 foreach { path =>
-                    actionResult = Some(JsObject("headers" -> JsObject("location" -> "http://openwhisk.org".toJson), "code" -> Found.intValue.toJson))
-                    Get(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
-                        status should be(Found)
-                        header("location").get.toString shouldBe "location: http://openwhisk.org"
+                    allowedMethods.foreach { m =>
+                        actionResult = Some(JsObject("headers" -> JsObject("location" -> "http://openwhisk.org".toJson), webApiDirectives.statusCode -> Found.intValue.toJson))
+                        invocationsAllowed += 1
+
+                        m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
+                            status should be(Found)
+                            header("location").get.toString shouldBe "location: http://openwhisk.org"
+                        }
                     }
                 }
         }
@@ -495,40 +628,76 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
 
             Seq(s"$systemId/proxy/export_c.http").
                 foreach { path =>
-                    actionResult = Some(JsObject("headers" -> JsObject("location" -> "http://openwhisk.org".toJson), "code" -> Found.intValue.toJson))
-                    Get(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
-                        status should be(Found)
-                        header("location").get.toString shouldBe "location: http://openwhisk.org"
+                    allowedMethods.foreach { m =>
+                        invocationsAllowed += 1
+                        actionResult = Some(JsObject("headers" -> JsObject("location" -> "http://openwhisk.org".toJson), webApiDirectives.statusCode -> Found.intValue.toJson))
+
+                        m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
+                            status should be(Found)
+                            header("location").get.toString shouldBe "location: http://openwhisk.org"
+                        }
                     }
                 }
 
             Seq(s"$systemId/proxy/export_c.text").
                 foreach { path =>
-                    actionResult = Some(JsObject("text" -> JsString("default text")))
-                    Get(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
-                        status should be(OK)
-                        val response = responseAs[String]
-                        response shouldBe "default text"
+                    allowedMethods.foreach { m =>
+                        val text = "default text"
+                        invocationsAllowed += 1
+                        actionResult = Some(JsObject("text" -> JsString(text)))
+
+                        m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
+                            status should be(OK)
+                            contentType shouldBe MediaTypes.`text/plain`.withCharset(HttpCharsets.`UTF-8`)
+                            val response = responseAs[String]
+                            response shouldBe text
+                        }
                     }
                 }
 
             Seq(s"$systemId/proxy/export_c.json").
                 foreach { path =>
-                    actionResult = Some(JsObject("foobar" -> JsString("foobar")))
-                    Get(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
-                        status should be(OK)
-                        val response = responseAs[JsObject]
-                        response shouldBe actionResult.get
+                    allowedMethods.foreach { m =>
+                        invocationsAllowed += 1
+                        actionResult = Some(JsObject("foobar" -> JsString("foobar")))
+
+                        m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
+                            status should be(OK)
+                            val response = responseAs[JsObject]
+                            response shouldBe actionResult.get
+                        }
                     }
                 }
 
             Seq(s"$systemId/proxy/export_c.html").
                 foreach { path =>
-                    actionResult = Some(JsObject("html" -> JsString("<html>hi</htlml>")))
-                    Get(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
-                        status should be(OK)
-                        val response = responseAs[String]
-                        response shouldBe "<html>hi</htlml>"
+                    allowedMethods.foreach { m =>
+                        val html = "<html>hi</htlml>"
+                        invocationsAllowed += 1
+                        actionResult = Some(JsObject("html" -> JsString(html)))
+
+                        m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
+                            status should be(OK)
+                            contentType shouldBe MediaTypes.`text/html`.withCharset(HttpCharsets.`UTF-8`)
+                            val response = responseAs[String]
+                            response shouldBe html
+                        }
+                    }
+                }
+
+            Seq(s"$systemId/proxy/export_c.svg").
+                foreach { path =>
+                    allowedMethods.foreach { m =>
+                        val svg = """<svg><circle cx="3" cy="3" r="3" fill="blue"/></svg>"""
+                        invocationsAllowed += 1
+                        actionResult = Some(JsObject("svg" -> JsString(svg)))
+
+                        m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
+                            status should be(OK)
+                            contentType shouldBe MediaTypes.`image/svg+xml`.withCharset(HttpCharsets.`UTF-8`)
+                            val response = responseAs[String]
+                            response shouldBe svg
+                        }
                     }
                 }
         }
@@ -538,18 +707,21 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
 
             Seq(s"$systemId/proxy/export_c.http").
                 foreach { path =>
-                    actionResult = Some(JsObject(
-                        "headers" -> JsObject(
-                            "content-type" -> "application/json".toJson),
-                        "code" -> OK.intValue.toJson,
-                        "body" -> Base64.getEncoder.encodeToString {
-                            JsObject("field" -> "value".toJson).compactPrint.getBytes
-                        }.toJson))
+                    allowedMethods.foreach { m =>
+                        invocationsAllowed += 1
+                        actionResult = Some(JsObject(
+                            "headers" -> JsObject(
+                                "content-type" -> "application/json".toJson),
+                            webApiDirectives.statusCode -> OK.intValue.toJson,
+                            "body" -> Base64.getEncoder.encodeToString {
+                                JsObject("field" -> "value".toJson).compactPrint.getBytes
+                            }.toJson))
 
-                    Get(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
-                        status should be(OK)
-                        header("content-type").get.toString shouldBe "content-type: application/json"
-                        responseAs[JsObject] shouldBe JsObject("field" -> "value".toJson)
+                        m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
+                            status should be(OK)
+                            header("content-type").get.toString shouldBe "content-type: application/json"
+                            responseAs[JsObject] shouldBe JsObject("field" -> "value".toJson)
+                        }
                     }
                 }
         }
@@ -559,31 +731,37 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
 
             Seq(s"$systemId/proxy/export_c.http").
                 foreach { path =>
-                    actionResult = Some(JsObject(
-                        "code" -> OK.intValue.toJson,
-                        "body" -> "hello world".toJson))
+                    allowedMethods.foreach { m =>
+                        invocationsAllowed += 1
+                        actionResult = Some(JsObject(
+                            webApiDirectives.statusCode -> OK.intValue.toJson,
+                            "body" -> "hello world".toJson))
 
-                    Get(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
-                        status should be(OK)
-                        responseAs[String] shouldBe "hello world"
+                        m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
+                            status should be(OK)
+                            responseAs[String] shouldBe "hello world"
+                        }
                     }
                 }
         }
 
-        it should s"reject http web action with mimatch between header and response (auth? ${creds.isDefined})" in {
+        it should s"reject http web action with mismatch between header and response (auth? ${creds.isDefined})" in {
             implicit val tid = transid()
 
             Seq(s"$systemId/proxy/export_c.http").
                 foreach { path =>
-                    actionResult = Some(JsObject(
-                        "headers" -> JsObject(
-                            "content-type" -> "application/json".toJson),
-                        "code" -> OK.intValue.toJson,
-                        "body" -> "hello world".toJson))
+                    allowedMethods.foreach { m =>
+                        invocationsAllowed += 1
+                        actionResult = Some(JsObject(
+                            "headers" -> JsObject(
+                                "content-type" -> "application/json".toJson),
+                            webApiDirectives.statusCode -> OK.intValue.toJson,
+                            "body" -> "hello world".toJson))
 
-                    Get(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
-                        status should be(BadRequest)
-                        confirmErrorWithTid(responseAs[JsObject], Some(Messages.httpContentTypeError))
+                        m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
+                            status should be(BadRequest)
+                            confirmErrorWithTid(responseAs[JsObject], Some(Messages.httpContentTypeError))
+                        }
                     }
                 }
         }
@@ -593,15 +771,18 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
 
             Seq(s"$systemId/proxy/export_c.http").
                 foreach { path =>
-                    actionResult = Some(JsObject(
-                        "headers" -> JsObject(
-                            "content-type" -> "xyz/bar".toJson),
-                        "code" -> OK.intValue.toJson,
-                        "body" -> "hello world".toJson))
+                    allowedMethods.foreach { m =>
+                        invocationsAllowed += 1
+                        actionResult = Some(JsObject(
+                            "headers" -> JsObject(
+                                "content-type" -> "xyz/bar".toJson),
+                            webApiDirectives.statusCode -> OK.intValue.toJson,
+                            "body" -> "hello world".toJson))
 
-                    Get(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
-                        status should be(BadRequest)
-                        confirmErrorWithTid(responseAs[JsObject], Some(Messages.httpUnknownContentType))
+                        m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
+                            status should be(BadRequest)
+                            confirmErrorWithTid(responseAs[JsObject], Some(Messages.httpUnknownContentType))
+                        }
                     }
                 }
         }
@@ -611,14 +792,17 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
 
             Seq(s"$systemId/proxy/export_c.http", s"$systemId/proxy/export_c.http/ignoreme").
                 foreach { path =>
-                    actionResult = Some(JsObject(
-                        "application_error" -> JsObject(
-                            "code" -> OK.intValue.toJson,
-                            "body" -> "no hello for you".toJson)))
+                    allowedMethods.foreach { m =>
+                        invocationsAllowed += 1
+                        actionResult = Some(JsObject(
+                            "application_error" -> JsObject(
+                                webApiDirectives.statusCode -> OK.intValue.toJson,
+                                "body" -> "no hello for you".toJson)))
 
-                    Get(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
-                        status should be(OK)
-                        responseAs[String] shouldBe "no hello for you"
+                        m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
+                            status should be(OK)
+                            responseAs[String] shouldBe "no hello for you"
+                        }
                     }
                 }
         }
@@ -628,11 +812,14 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
 
             Seq(s"$systemId/proxy/export_c.json", s"$systemId/proxy/export_c.json/ignoreme").
                 foreach { path =>
-                    actionResult = Some(JsObject("application_error" -> "bad response type".toJson))
+                    allowedMethods.foreach { m =>
+                        invocationsAllowed += 1
+                        actionResult = Some(JsObject("application_error" -> "bad response type".toJson))
 
-                    Get(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
-                        status should be(BadRequest)
-                        confirmErrorWithTid(responseAs[JsObject], Some(Messages.invalidMedia(MediaTypes.`application/json`)))
+                        m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
+                            status should be(BadRequest)
+                            confirmErrorWithTid(responseAs[JsObject], Some(Messages.invalidMedia(MediaTypes.`application/json`)))
+                        }
                     }
                 }
         }
@@ -643,13 +830,17 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
             Seq(s"$systemId/proxy/export_c.json", s"$systemId/proxy/export_c.json/ignoreme", s"$systemId/proxy/export_c.text").
                 foreach { path =>
                     Seq("developer_error", "whisk_error").foreach { e =>
-                        actionResult = Some(JsObject(e -> "bad response type".toJson))
-                        Get(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
-                            status should be(BadRequest)
-                            if (e == "application_error") {
-                                confirmErrorWithTid(responseAs[JsObject], Some(Messages.invalidMedia(MediaTypes.`application/json`)))
-                            } else {
-                                confirmErrorWithTid(responseAs[JsObject], Some(Messages.errorProcessingRequest))
+                        allowedMethods.foreach { m =>
+                            invocationsAllowed += 1
+                            actionResult = Some(JsObject(e -> "bad response type".toJson))
+
+                            m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
+                                status should be(BadRequest)
+                                if (e == "application_error") {
+                                    confirmErrorWithTid(responseAs[JsObject], Some(Messages.invalidMedia(MediaTypes.`application/json`)))
+                                } else {
+                                    confirmErrorWithTid(responseAs[JsObject], Some(Messages.errorProcessingRequest))
+                                }
                             }
                         }
                     }
@@ -662,6 +853,8 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
             Seq(s"$systemId/proxy/export_c.text/content/field1", s"$systemId/proxy/export_c.text/content/field2").
                 foreach { path =>
                     val form = FormData(Seq("field1" -> "value1", "field2" -> "value2"))
+                    invocationsAllowed += 1
+
                     Post(s"$testRoutePath/$path", form) ~> sealRoute(routes(creds)) ~> check {
                         status should be(OK)
                         responseAs[String] should (be("value1") or be("value2"))
@@ -704,9 +897,18 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
             Seq(s"$systemId/proxy/export_c.xyz", s"$systemId/proxy/export_c.xyz/", s"$systemId/proxy/export_c.xyz/content",
                 s"$systemId/proxy/export_c.xyzz", s"$systemId/proxy/export_c.xyzz/", s"$systemId/proxy/export_c.xyzz/content").
                 foreach { path =>
-                    Get(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
-                        status should be(NotAcceptable)
-                        confirmErrorWithTid(responseAs[JsObject], Some(Messages.contentTypeNotSupported))
+                    allowedMethods.foreach { m =>
+                        actionResult = Some(JsObject("statusCode" -> 201.toJson))
+
+                        m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
+                            if (webApiDirectives.enforceExtension) {
+                                status should be(NotAcceptable)
+                                confirmErrorWithTid(responseAs[JsObject], Some(Messages.contentTypeExtensionNotSupported(WhiskMetaApi.allowedExtensions)))
+                            } else {
+                                invocationsAllowed += 1
+                                status should be(Created)
+                            }
+                        }
                     }
                 }
         }
@@ -715,7 +917,7 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
             implicit val tid = transid()
 
             allowedMethods.foreach { m =>
-                WhiskMetaApi.reservedProperties.foreach { p =>
+                webApiDirectives.reservedProperties.foreach { p =>
                     m(s"$testRoutePath/$systemId/proxy/export_c.json?$p=YYY") ~> sealRoute(routes(creds)) ~> check {
                         status should be(BadRequest)
                         responseAs[ErrorResponse].error shouldBe Messages.parametersNotAllowed
@@ -734,56 +936,98 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
             val contentX = JsObject("x" -> "overriden".toJson)
             val contentZ = JsObject("z" -> "overriden".toJson)
 
-            Get(s"$testRoutePath/$systemId/proxy/export_c.json?x=overriden") ~> sealRoute(routes(creds)) ~> check {
-                status should be(BadRequest)
-                responseAs[ErrorResponse].error shouldBe Messages.parametersNotAllowed
+            allowedMethods.foreach { m =>
+                invocationsAllowed += 1
+
+                m(s"$testRoutePath/$systemId/proxy/export_c.json?x=overriden") ~> sealRoute(routes(creds)) ~> check {
+                    status should be(BadRequest)
+                    responseAs[ErrorResponse].error shouldBe Messages.parametersNotAllowed
+                }
+
+                m(s"$testRoutePath/$systemId/proxy/export_c.json?y=overriden") ~> sealRoute(routes(creds)) ~> check {
+                    status should be(BadRequest)
+                    responseAs[ErrorResponse].error shouldBe Messages.parametersNotAllowed
+                }
+
+                m(s"$testRoutePath/$systemId/proxy/export_c.json", contentX) ~> sealRoute(routes(creds)) ~> check {
+                    status should be(BadRequest)
+                    responseAs[ErrorResponse].error shouldBe Messages.parametersNotAllowed
+                }
+
+                m(s"$testRoutePath/$systemId/proxy/export_c.json?y=overriden", contentZ) ~> sealRoute(routes(creds)) ~> check {
+                    status should be(BadRequest)
+                    responseAs[ErrorResponse].error shouldBe Messages.parametersNotAllowed
+                }
+
+                m(s"$testRoutePath/$systemId/proxy/export_c.json?empty=overriden") ~> sealRoute(routes(creds)) ~> check {
+                    status should be(OK)
+                    val response = responseAs[JsObject]
+                    response shouldBe JsObject(
+                        "pkg" -> s"$systemId/proxy".toJson,
+                        "action" -> "export_c".toJson,
+                        "content" -> metaPayload(
+                            m.method.name.toLowerCase,
+                            Map("empty" -> "overriden").toJson.asJsObject,
+                            creds,
+                            pkgName = "proxy"))
+                }
+            }
+        }
+
+        it should s"inline body when receiving entity that is not a JsObject (auth? ${creds.isDefined})" in {
+            implicit val tid = transid()
+            val str = "1,2,3"
+            invocationsAllowed = 3
+
+            /*
+             * Now supporting all content types with inlined "body".
+             *
+             Post(s"$testRoutePath/$systemId/proxy/export_c.json?a=b&c=d", "1,2,3") ~> sealRoute(routes(creds)) ~> check {
+                 status should be(BadRequest)
+                 confirmErrorWithTid(responseAs[JsObject], Some(Messages.contentTypeNotSupported))
+             }
+             *
+             */
+
+            Post(s"$testRoutePath/$systemId/proxy/export_c.json", str) ~> addHeader("Content-type", MediaTypes.`text/html`.value) ~> sealRoute(routes(creds)) ~> check {
+                //status should be(OK)
+                val response = responseAs[JsObject]
+                response shouldBe JsObject(
+                    "pkg" -> s"$systemId/proxy".toJson,
+                    "action" -> "export_c".toJson,
+                    "content" -> metaPayload(
+                        Post.method.name.toLowerCase,
+                        JsObject(webApiDirectives.body -> str.toJson),
+                        creds,
+                        pkgName = "proxy",
+                        headers = List(HttpHeaders.`Content-Type`(MediaTypes.`text/html`))))
             }
 
-            Get(s"$testRoutePath/$systemId/proxy/export_c.json?y=overriden") ~> sealRoute(routes(creds)) ~> check {
-                status should be(BadRequest)
-                responseAs[ErrorResponse].error shouldBe Messages.parametersNotAllowed
-            }
-
-            Get(s"$testRoutePath/$systemId/proxy/export_c.json", contentX) ~> sealRoute(routes(creds)) ~> check {
-                status should be(BadRequest)
-                responseAs[ErrorResponse].error shouldBe Messages.parametersNotAllowed
-            }
-
-            Get(s"$testRoutePath/$systemId/proxy/export_c.json?y=overriden", contentZ) ~> sealRoute(routes(creds)) ~> check {
-                status should be(BadRequest)
-                responseAs[ErrorResponse].error shouldBe Messages.parametersNotAllowed
-            }
-
-            Get(s"$testRoutePath/$systemId/proxy/export_c.json?empty=overriden") ~> sealRoute(routes(creds)) ~> check {
+            Post(s"$testRoutePath/$systemId/proxy/export_c.json?a=b&c=d") ~> sealRoute(routes(creds)) ~> check {
                 status should be(OK)
                 val response = responseAs[JsObject]
                 response shouldBe JsObject(
                     "pkg" -> s"$systemId/proxy".toJson,
                     "action" -> "export_c".toJson,
                     "content" -> metaPayload(
-                        "get",
-                        Map("empty" -> "overriden"),
+                        Post.method.name.toLowerCase,
+                        Map("a" -> "b", "c" -> "d").toJson.asJsObject,
                         creds,
                         pkgName = "proxy"))
-            }
-        }
-
-        it should s"rejection invoke action when receiving entity that is not a JsObject (auth? ${creds.isDefined})" in {
-            implicit val tid = transid()
-
-            Post(s"$testRoutePath/$systemId/proxy/export_c.json?a=b&c=d", "1,2,3") ~> sealRoute(routes(creds)) ~> check {
-                status should be(UnsupportedMediaType)
-                responseAs[String] should include("application/json")
-            }
-
-            Post(s"$testRoutePath/$systemId/proxy/export_c.json?a=b&c=d") ~> sealRoute(routes(creds)) ~> check {
-                status should be(OK)
             }
 
             Post(s"$testRoutePath/$systemId/proxy/export_c.json?a=b&c=d", JsObject()) ~> sealRoute(routes(creds)) ~> check {
                 status should be(OK)
+                val response = responseAs[JsObject]
+                response shouldBe JsObject(
+                    "pkg" -> s"$systemId/proxy".toJson,
+                    "action" -> "export_c".toJson,
+                    "content" -> metaPayload(
+                        Post.method.name.toLowerCase,
+                        Map("a" -> "b", "c" -> "d").toJson.asJsObject,
+                        creds,
+                        pkgName = "proxy"))
             }
-
         }
 
         it should s"throttle subject owning namespace for web action (auth? ${creds.isDefined})" in {
@@ -792,13 +1036,167 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
             // this should fail for exceeding quota
             Seq(s"$systemId/proxy/export_c.text/content/z").
                 foreach { path =>
-                    failThrottleForSubject = Some(systemId)
-                    Get(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
-                        status should be(TooManyRequests)
-                        confirmErrorWithTid(responseAs[JsObject], Some(Messages.tooManyRequests))
+                    allowedMethods.foreach { m =>
+                        failThrottleForSubject = Some(systemId)
+                        m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
+                            status should be(TooManyRequests)
+                            confirmErrorWithTid(responseAs[JsObject], Some(Messages.tooManyRequests))
+                        }
+                        failThrottleForSubject = None
                     }
-                    failThrottleForSubject = None
                 }
+        }
+
+        it should s"invoke action with options verb (auth? ${creds.isDefined})" in {
+            implicit val tid = transid()
+
+            Seq(s"$systemId/proxy/export_c.http").
+                foreach { path =>
+                    invocationsAllowed += 1
+                    actionResult = Some(
+                        JsObject(
+                            "headers" -> JsObject(
+                                "allow" -> "options, head, get, post, put".toJson)))
+
+                    Options(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
+                        header("allow").get.toString shouldBe "allow: options, head, get, post, put"
+                    }
+                }
+        }
+
+        it should s"invoke action with head verb (auth? ${creds.isDefined})" in {
+            implicit val tid = transid()
+
+            Seq(s"$systemId/proxy/export_c.http").
+                foreach { path =>
+                    invocationsAllowed += 1
+                    actionResult = Some(
+                        JsObject(
+                            "headers" -> JsObject(
+                                "location" -> "http://openwhisk.org".toJson)))
+
+                    Head(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
+                        header("location").get.toString shouldBe "location: http://openwhisk.org"
+                    }
+                }
+        }
+
+        it should s"handle html web action with text/xml response (auth? ${creds.isDefined})" in {
+            implicit val tid = transid()
+
+            Seq(s"$systemId/proxy/export_c.html").
+                foreach { path =>
+                    val html = """<html><body>test</body></html>"""
+                    val xml = """<?xml version="1.0" encoding="UTF-8"?><note><from>test</from></note>"""
+                    invocationsAllowed += 2
+                    actionResult = Some(JsObject("html" -> xml.toJson))
+
+                    Seq((html, MediaTypes.`text/html`), (xml, MediaTypes.`text/html`)).
+                        foreach {
+                            case (res, expectedMediaType) =>
+                                actionResult = Some(JsObject("html" -> res.toJson))
+
+                                Get(s"$testRoutePath/$path") ~> addHeader("Accept", expectedMediaType.value) ~> sealRoute(routes(creds)) ~> check {
+                                    status should be(OK)
+                                    responseAs[String] shouldBe res
+                                    mediaType shouldBe expectedMediaType
+                                }
+                        }
+                }
+        }
+
+        it should s"not fail a raw http action when query or body parameters overlap with final action parameters (auth? ${creds.isDefined})" in {
+            implicit val tid = transid()
+            invocationsAllowed = 2
+
+            val queryString = "x=overriden&key2=value2"
+            Post(s"$testRoutePath/$systemId/proxy/raw_export_c.json?$queryString") ~> sealRoute(routes(creds)) ~> check {
+                status should be(OK)
+                val response = responseAs[JsObject]
+                response shouldBe JsObject(
+                    "pkg" -> s"$systemId/proxy".toJson,
+                    "action" -> "raw_export_c".toJson,
+                    "content" -> metaPayload(
+                        Post.method.name.toLowerCase,
+                        Map(webApiDirectives.body -> JsObject(),
+                            webApiDirectives.query -> queryString.toJson).toJson.asJsObject,
+                        creds,
+                        pkgName = "proxy"))
+            }
+
+            Post(s"$testRoutePath/$systemId/proxy/raw_export_c.json", JsObject("x" -> "overriden".toJson, "key2" -> "value2".toJson)) ~> sealRoute(routes(creds)) ~> check {
+                status should be(OK)
+                val response = responseAs[JsObject]
+                response shouldBe JsObject(
+                    "pkg" -> s"$systemId/proxy".toJson,
+                    "action" -> "raw_export_c".toJson,
+                    "content" -> metaPayload(
+                        Post.method.name.toLowerCase,
+                        Map(webApiDirectives.query -> "".toJson,
+                            webApiDirectives.body -> Base64.getEncoder.encodeToString {
+                                JsObject("x" -> JsString("overriden"), "key2" -> JsString("value2")).prettyPrint.getBytes
+                            }.toJson).toJson.asJsObject,
+                        creds,
+                        pkgName = "proxy"))
+            }
+
+        }
+
+        it should s"invoke raw action ensuring body and query arguments are set properly (auth? ${creds.isDefined})" in {
+            implicit val tid = transid()
+            val str = "1,2,3"
+            invocationsAllowed = 1
+
+            val queryString = "key1=value1&key2=value2"
+            Post(s"$testRoutePath/$systemId/proxy/raw_export_c.json?$queryString", str) ~> addHeader("Content-type", MediaTypes.`application/json`.value) ~> sealRoute(routes(creds)) ~> check {
+                status should be(OK)
+                val response = responseAs[JsObject]
+                response shouldBe JsObject(
+                    "pkg" -> s"$systemId/proxy".toJson,
+                    "action" -> "raw_export_c".toJson,
+                    "content" -> metaPayload(
+                        Post.method.name.toLowerCase,
+                        Map(webApiDirectives.body -> str.toJson,
+                            webApiDirectives.query -> queryString.toJson).toJson.asJsObject,
+                        creds,
+                        pkgName = "proxy",
+                        headers = List(HttpHeaders.`Content-Type`(MediaTypes.`application/json`))))
+            }
+        }
+
+        it should s"reject invocation of web action with invalid accept header (auth? ${creds.isDefined})" in {
+            implicit val tid = transid()
+
+            Seq(s"$systemId/proxy/export_c.http").
+                foreach { path =>
+                    actionResult = Some(JsObject("body" -> "Plain text".toJson))
+                    invocationsAllowed += 1
+
+                    Get(s"$testRoutePath/$path") ~> addHeader("Accept", "application/json") ~> sealRoute(routes(creds)) ~> check {
+                        status should be(NotAcceptable)
+                        response shouldBe HttpResponse(NotAcceptable, "Resource representation is only available with these Content-Types:\ntext/html")
+                    }
+                }
+        }
+
+        it should s"not invoke an action more than once when determining entity type (auth? ${creds.isDefined})" in {
+            implicit val tid = transid()
+
+            Seq(s"$systemId/proxy/export_c.html").
+                foreach { path =>
+                    val html = """<html><body>test</body></html>"""
+                    val xml = """<?xml version="1.0" encoding="UTF-8"?><note><from>test</from></note>"""
+                    invocationsAllowed += 1
+                    actionResult = Some(JsObject("html" -> xml.toJson))
+
+                    Get(s"$testRoutePath/$path") ~> addHeader("Accept", MediaTypes.`text/xml`.value) ~> sealRoute(routes(creds)) ~> check {
+                        status should be(NotAcceptable)
+                    }
+                }
+
+            withClue(s"allowed invoke count did not match actual") {
+                invocationsAllowed shouldBe invocationCount
+            }
         }
     }
 
@@ -830,4 +1228,5 @@ class MetaApiTests extends ControllerTestCommon with WhiskMetaApi with BeforeAnd
         protected override def entitled(subject: Subject, right: Privilege, resource: Resource)(
             implicit transid: TransactionId) = ???
     }
+
 }
