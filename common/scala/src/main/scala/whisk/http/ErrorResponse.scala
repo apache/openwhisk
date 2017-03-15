@@ -118,7 +118,9 @@ object Messages {
     /** Error for meta api. */
     val propertyNotFound = "Response does not include requested property."
     def invalidMedia(m: MediaType) = s"Response is not valid '${m.value}'."
-    val contentTypeExtensionNotSupported = """Extension must be specified and one of [".json", ".html", ".http", ".text"]."""
+    def contentTypeExtensionNotSupported(extensions: Set[String]) = {
+        s"""Extension must be specified and one of ${extensions.mkString("[", ", ", "]")}."""
+    }
     val unsupportedContentType = """Content type is not supported."""
     def unsupportedContentType(m: MediaType) = s"""Content type '${m.value}' is not supported."""
     val errorExtractingRequestBody = "Failed extracting request body."

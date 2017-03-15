@@ -148,7 +148,9 @@ protected[core] object WhiskMetaApi extends Directives {
             MediaExtension(".text", Some(List("text")), true, resultAsText _))
     }
 
-    private val defaultMediaTranscoder = mediaTranscoders.find(_.extension == ".http").get
+    private val defaultMediaTranscoder: MediaExtension = mediaTranscoders.find(_.extension == ".http").get
+
+    val allowedExtensions: Set[String] = mediaTranscoders.map(_.extension).toSet
 
     /**
      * Splits string into a base name plus optional extension.
@@ -419,7 +421,7 @@ trait WhiskMetaApi
                     }
                 }
 
-            case (_, None) => terminate(NotAcceptable, Messages.contentTypeExtensionNotSupported)
+            case (_, None) => terminate(NotAcceptable, Messages.contentTypeExtensionNotSupported(WhiskMetaApi.allowedExtensions))
         }
     }
 
@@ -518,7 +520,7 @@ trait WhiskMetaApi
             // computes overrides if any relative to the reserved __ow_* properties, and (2) if
             // action is a raw http handler
             //
-            // NOTE: it is assume the action parameters do not intersect with the reserved properties
+            // NOTE: it is assumed the action parameters do not intersect with the reserved properties
             // since these are system properties, the action should not define them, and if it does,
             // they will be overwritten
             if (isRawHttpAction || context.overrides(webApiDirectives.reservedProperties ++ action.immutableParameters).isEmpty) {

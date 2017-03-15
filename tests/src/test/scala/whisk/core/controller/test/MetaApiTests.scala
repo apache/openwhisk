@@ -377,7 +377,7 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
                         m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
                             if (webApiDirectives.enforceExtension) {
                                 status should be(NotAcceptable)
-                                confirmErrorWithTid(responseAs[JsObject], Some(Messages.contentTypeExtensionNotSupported))
+                                confirmErrorWithTid(responseAs[JsObject], Some(Messages.contentTypeExtensionNotSupported(WhiskMetaApi.allowedExtensions)))
                             } else {
                                 status should be(NotFound)
                             }
@@ -903,7 +903,7 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
                         m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
                             if (webApiDirectives.enforceExtension) {
                                 status should be(NotAcceptable)
-                                confirmErrorWithTid(responseAs[JsObject], Some(Messages.contentTypeExtensionNotSupported))
+                                confirmErrorWithTid(responseAs[JsObject], Some(Messages.contentTypeExtensionNotSupported(WhiskMetaApi.allowedExtensions)))
                             } else {
                                 invocationsAllowed += 1
                                 status should be(Created)
