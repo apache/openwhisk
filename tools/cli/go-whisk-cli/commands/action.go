@@ -22,6 +22,7 @@ import (
     "fmt"
     "path/filepath"
     "io"
+    "strings"
 
     "../../go-whisk/whisk"
     "../wski18n"
@@ -443,7 +444,7 @@ func parseAction(cmd *cobra.Command, args []string, update bool) (*whisk.Action,
         } else {
             if ext == ".zip" {
                 // This point is reached if the extension was .zip and the kind was not specifically set to nodejs:*.
-                return nil, zipKindError(ext)
+                return nil, zipKindError()
             } else {
                 return nil, extensionError(ext)
             }
@@ -469,32 +470,30 @@ func parseAction(cmd *cobra.Command, args []string, update bool) (*whisk.Action,
         }
     }
 
-    if flags.action.raw {
-        action.Annotations, err = webActionAnnotations(
-            update,
-            action.Annotations,
-            qualifiedName.entityName,
-            addRawAnnotations)
-    } else if flags.action.web {
-        action.Annotations, err = webActionAnnotations(update,
-            action.Annotations,
-            qualifiedName.entityName,
-            addWebAnnotations)
-    } else if flags.action.noRaw {
-        action.Annotations, err = webActionAnnotations(update,
-            action.Annotations,
-            qualifiedName.entityName,
-            deleteRawAnnotations)
-    } else if flags.action.noWeb {
-        action.Annotations, err = webActionAnnotations(update,
-            action.Annotations,
-            qualifiedName.entityName,
-            deleteWebAnnotations)
+    if cmd.LocalFlags().Changed(WEB_FLAG) {
+        action.Annotations, err = webAction(flags.action.web, action.Annotations, qualifiedName.entityName, update)
     }
 
     whisk.Debug(whisk.DbgInfo, "Parsed action struct: %#v\n", action)
 
     return action, err
+}
+
+func webAction(webMode string, annotations whisk.KeyValueArr, entityName string, fetch bool) (whisk.KeyValueArr, error){
+    switch strings.ToLower(webMode) {
+    case "yes":
+        fallthrough
+    case "true":
+        return webActionAnnotations(fetch, annotations, entityName, addWebAnnotations)
+    case "no":
+        fallthrough
+    case "false":
+        return webActionAnnotations(fetch, annotations, entityName, deleteWebAnnotations)
+    case "raw":
+        return webActionAnnotations(fetch, annotations, entityName, addRawAnnotations)
+    default:
+        return nil, webInputError(webMode)
+    }
 }
 
 type WebActionAnnotationMethod func(annotations whisk.KeyValueArr) (whisk.KeyValueArr)
@@ -521,35 +520,36 @@ func webActionAnnotations(
 }
 
 func addWebAnnotations(annotations whisk.KeyValueArr) (whisk.KeyValueArr) {
-    annotations = deleteKey(WEB_EXPORT_ANNOT, annotations)
-    annotations = deleteKey(FINAL_ANNOT, annotations)
+    annotations = deleteWebAnnotationKeys(annotations)
     annotations = addKeyValue(WEB_EXPORT_ANNOT, true, annotations)
+    annotations = addKeyValue(RAW_HTTP_ANNOT, false, annotations)
     annotations = addKeyValue(FINAL_ANNOT, true, annotations)
 
     return annotations
 }
 
 func deleteWebAnnotations(annotations whisk.KeyValueArr) (whisk.KeyValueArr) {
-    annotations = deleteKey(WEB_EXPORT_ANNOT, annotations)
-    annotations = deleteKey(FINAL_ANNOT, annotations)
+    annotations = deleteWebAnnotationKeys(annotations)
     annotations = addKeyValue(WEB_EXPORT_ANNOT, false, annotations)
+    annotations = addKeyValue(RAW_HTTP_ANNOT, false, annotations)
     annotations = addKeyValue(FINAL_ANNOT, false, annotations)
 
     return annotations
 }
 
 func addRawAnnotations(annotations whisk.KeyValueArr) (whisk.KeyValueArr) {
-    annotations = deleteKey(RAW_HTTP_ANNOT, annotations)
+    annotations = deleteWebAnnotationKeys(annotations)
+    annotations = addKeyValue(WEB_EXPORT_ANNOT, true, annotations)
     annotations = addKeyValue(RAW_HTTP_ANNOT, true, annotations)
-    annotations = addWebAnnotations(annotations)
+    annotations = addKeyValue(FINAL_ANNOT, true, annotations)
 
     return annotations
 }
 
-func deleteRawAnnotations(annotations whisk.KeyValueArr) (whisk.KeyValueArr) {
+func deleteWebAnnotationKeys(annotations whisk.KeyValueArr) (whisk.KeyValueArr) {
+    annotations = deleteKey(WEB_EXPORT_ANNOT, annotations)
     annotations = deleteKey(RAW_HTTP_ANNOT, annotations)
-    annotations = addKeyValue(RAW_HTTP_ANNOT, false, annotations)
-    annotations = deleteWebAnnotations(annotations)
+    annotations = deleteKey(FINAL_ANNOT, annotations)
 
     return annotations
 }
@@ -722,7 +722,17 @@ func actionListError(entityName string, options *whisk.ActionListOptions, err er
     return nestedError(errMsg, err)
 }
 
-func zipKindError(extension string) (error) {
+func webInputError(arg string) (error) {
+    errMsg := wski18n.T(
+        "Invalid argument '{{.arg}}' for --web flag. Valid input consist of 'yes', 'true', 'raw', 'false', or 'no'.",
+        map[string]interface{}{
+            "arg": arg,
+        })
+
+    return nonNestedError(errMsg)
+}
+
+func zipKindError() (error) {
     errMsg := wski18n.T("creating an action from a .zip artifact requires specifying the action kind explicitly")
 
     return nonNestedError(errMsg)
@@ -846,7 +856,6 @@ func init() {
     actionCreateCmd.Flags().BoolVar(&flags.action.sequence, "sequence", false, wski18n.T("treat ACTION as comma separated sequence of actions to invoke"))
     actionCreateCmd.Flags().StringVar(&flags.action.kind, "kind", "", wski18n.T("the `KIND` of the action runtime (example: swift:3, nodejs:6)"))
     actionCreateCmd.Flags().StringVar(&flags.action.main, "main", "", wski18n.T("the name of the action entry point (function or fully-qualified method name when applicable)"))
-    actionCreateCmd.Flags().StringVar(&flags.action.shared, "shared", "no", wski18n.T("action visibility `SCOPE`; yes = shared, no = private"))
     actionCreateCmd.Flags().IntVarP(&flags.action.timeout, "timeout", "t", TIMEOUT_LIMIT, wski18n.T("the timeout `LIMIT` in milliseconds after which the action is terminated"))
     actionCreateCmd.Flags().IntVarP(&flags.action.memory, "memory", "m", MEMORY_LIMIT, wski18n.T("the maximum memory `LIMIT` in MB for the action"))
     actionCreateCmd.Flags().IntVarP(&flags.action.logsize, "logsize", "l", LOGSIZE_LIMIT, wski18n.T("the maximum log size `LIMIT` in MB for the action"))
@@ -854,17 +863,13 @@ func init() {
     actionCreateCmd.Flags().StringVarP(&flags.common.annotFile, "annotation-file", "A", "", wski18n.T("`FILE` containing annotation values in JSON format"))
     actionCreateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", nil, wski18n.T("parameter values in `KEY VALUE` format"))
     actionCreateCmd.Flags().StringVarP(&flags.common.paramFile, "param-file", "P", "", wski18n.T("`FILE` containing parameter values in JSON format"))
-    actionCreateCmd.Flags().BoolVar(&flags.action.web, "web", false, wski18n.T("treat ACTION as a web action"))
-    actionCreateCmd.Flags().BoolVar(&flags.action.noWeb, "no-web", false, wski18n.T("treat ACTION as a non-web action"))
-    actionCreateCmd.Flags().BoolVar(&flags.action.raw, "raw", false, wski18n.T("treat ACTION as a raw HTTP web action"))
-    actionCreateCmd.Flags().BoolVar(&flags.action.noRaw, "no-raw", false, wski18n.T("treat ACTION as a non-web action"))
+    actionCreateCmd.Flags().StringVar(&flags.action.web, "web", "", wski18n.T("treat ACTION as a web action, a raw HTTP web action, or as a standard action; yes | true = web action, raw = raw HTTP web action, no | false = standard action"))
 
     actionUpdateCmd.Flags().BoolVar(&flags.action.docker, "docker", false, wski18n.T("treat ACTION as docker image path on dockerhub"))
     actionUpdateCmd.Flags().BoolVar(&flags.action.copy, "copy", false, wski18n.T("treat ACTION as the name of an existing action"))
     actionUpdateCmd.Flags().BoolVar(&flags.action.sequence, "sequence", false, wski18n.T("treat ACTION as comma separated sequence of actions to invoke"))
     actionUpdateCmd.Flags().StringVar(&flags.action.kind, "kind", "", wski18n.T("the `KIND` of the action runtime (example: swift:3, nodejs:6)"))
     actionUpdateCmd.Flags().StringVar(&flags.action.main, "main", "", wski18n.T("the name of the action entry point (function or fully-qualified method name when applicable)"))
-    actionUpdateCmd.Flags().StringVar(&flags.action.shared, "shared", "", wski18n.T("action visibility `SCOPE`; yes = shared, no = private"))
     actionUpdateCmd.Flags().IntVarP(&flags.action.timeout, "timeout", "t", TIMEOUT_LIMIT, wski18n.T("the timeout `LIMIT` in milliseconds after which the action is terminated"))
     actionUpdateCmd.Flags().IntVarP(&flags.action.memory, "memory", "m", MEMORY_LIMIT, wski18n.T("the maximum memory `LIMIT` in MB for the action"))
     actionUpdateCmd.Flags().IntVarP(&flags.action.logsize, "logsize", "l", LOGSIZE_LIMIT, wski18n.T("the maximum log size `LIMIT` in MB for the action"))
@@ -872,10 +877,7 @@ func init() {
     actionUpdateCmd.Flags().StringVarP(&flags.common.annotFile, "annotation-file", "A", "", wski18n.T("`FILE` containing annotation values in JSON format"))
     actionUpdateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, wski18n.T("parameter values in `KEY VALUE` format"))
     actionUpdateCmd.Flags().StringVarP(&flags.common.paramFile, "param-file", "P", "", wski18n.T("`FILE` containing parameter values in JSON format"))
-    actionUpdateCmd.Flags().BoolVar(&flags.action.web, "web", false, wski18n.T("treat ACTION as a web action"))
-    actionUpdateCmd.Flags().BoolVar(&flags.action.noWeb, "no-web", false, wski18n.T("treat ACTION as a non-web action"))
-    actionUpdateCmd.Flags().BoolVar(&flags.action.raw, "raw", false, wski18n.T("treat ACTION as a raw HTTP web action"))
-    actionUpdateCmd.Flags().BoolVar(&flags.action.noRaw, "no-raw", false, wski18n.T("treat ACTION as a non-web action"))
+    actionUpdateCmd.Flags().StringVar(&flags.action.web, "web", "", wski18n.T("treat ACTION as a web action, a raw HTTP web action, or as a standard action; yes | true = web action, raw = raw HTTP web action, no | false = standard action"))
 
     actionInvokeCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, wski18n.T("parameter values in `KEY VALUE` format"))
     actionInvokeCmd.Flags().StringVarP(&flags.common.paramFile, "param-file", "P", "", wski18n.T("`FILE` containing parameter values in JSON format"))

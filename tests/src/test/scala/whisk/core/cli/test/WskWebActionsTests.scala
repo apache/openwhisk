@@ -25,6 +25,7 @@ import com.jayway.restassured.RestAssured
 
 import common.TestHelpers
 import common.TestUtils
+import common.TestUtils.ERROR_EXIT
 import common.Wsk
 import common.WskAdmin
 import common.WskProps
@@ -205,10 +206,12 @@ abstract class WskWebActionsTests
 
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) =>
-                    action.create(name, file, web = Some(true))
+                    action.create(name, file, web = Some("true"))
             }
 
-            Seq(true, false, true).foreach { webAction =>
+            Seq("true", "faLse", "tRue", "nO", "yEs").foreach { webAction =>
+                val optionEnabled = webAction.toLowerCase != "false" && webAction.toLowerCase != "no"
+
                 if (updateAction)
                     wsk.action.create(name, file, web = Some(webAction), update = true)
                 else
@@ -219,10 +222,13 @@ abstract class WskWebActionsTests
                 removeCLIHeader(stdout).parseJson shouldBe JsArray(
                     JsObject(
                         "key" -> JsString("web-export"),
-                        "value" -> JsBoolean(webAction)),
+                        "value" -> JsBoolean(optionEnabled)),
+                    JsObject(
+                        "key" -> JsString("raw-http"),
+                        "value" -> JsBoolean(false)),
                     JsObject(
                         "key" -> JsString("final"),
-                        "value" -> JsBoolean(webAction)),
+                        "value" -> JsBoolean(optionEnabled)),
                     JsObject(
                         "key" -> JsString("exec"),
                         "value" -> JsString("nodejs:6")))
@@ -237,12 +243,14 @@ abstract class WskWebActionsTests
 
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) =>
-                    action.create(name, file, raw = Some(true))
+                    action.create(name, file, web = Some("raw"))
             }
 
-            Seq(true, false, true).foreach { rawAction =>
+            Seq("raw", "falSe", "Raw", "No").foreach { rawAction =>
+                val optionEnabled = rawAction.toLowerCase != "false" && rawAction.toLowerCase != "no"
+
                 if (updateAction)
-                    wsk.action.create(name, file, raw = Some(rawAction), update = true)
+                    wsk.action.create(name, file, web = Some(rawAction), update = true)
                 else
                     updateAction = true
 
@@ -250,17 +258,27 @@ abstract class WskWebActionsTests
                 assert(stdout.startsWith(s"ok: got action $name, displaying field annotations\n"))
                 removeCLIHeader(stdout).parseJson shouldBe JsArray(
                     JsObject(
-                        "key" -> JsString("raw-http"),
-                        "value" -> JsBoolean(rawAction)),
-                    JsObject(
                         "key" -> JsString("web-export"),
-                        "value" -> JsBoolean(rawAction)),
+                        "value" -> JsBoolean(optionEnabled)),
+                    JsObject(
+                        "key" -> JsString("raw-http"),
+                        "value" -> JsBoolean(optionEnabled)),
                     JsObject(
                         "key" -> JsString("final"),
-                        "value" -> JsBoolean(rawAction)),
+                        "value" -> JsBoolean(optionEnabled)),
                     JsObject(
                         "key" -> JsString("exec"),
                         "value" -> JsString("nodejs:6")))
             }
+    }
+
+    it should "reject action create and update with invalid web flag input" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "webaction"
+            val file = Some(TestUtils.getTestActionFilename("echo.js"))
+            val invalidInput = "bogus"
+            val errorMsg = s"Invalid argument '$invalidInput' for --web flag. Valid input consist of 'yes', 'true', 'raw', 'false', or 'no'."
+            wsk.action.create(name, file, web = Some(invalidInput), expectedExitCode = ERROR_EXIT).stderr should include(errorMsg)
+            wsk.action.create(name, file, web = Some(invalidInput), update = true, expectedExitCode = ERROR_EXIT).stderr should include(errorMsg)
     }
 }

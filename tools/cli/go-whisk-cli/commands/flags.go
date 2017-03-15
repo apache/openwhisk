@@ -27,6 +27,7 @@ import (
 const MEMORY_FLAG   = "memory"
 const LOG_SIZE_FLAG = "logsize"
 const TIMEOUT_FLAG  = "timeout"
+const WEB_FLAG      = "web"
 
 var cliDebug = os.Getenv("WSK_CLI_DEBUG")  // Useful for tracing init() code
 
@@ -75,7 +76,7 @@ var flags struct {
         docker      bool
         copy        bool
         pipe        bool
-        shared      string
+        web         string
         sequence    bool
         timeout     int
         memory      int
@@ -83,10 +84,6 @@ var flags struct {
         result      bool
         kind        string
         main        string
-        web         bool
-        noWeb       bool
-        raw         bool
-        noRaw       bool
     }
 
     activation struct {
